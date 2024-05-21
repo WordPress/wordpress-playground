@@ -1,0 +1,32 @@
+body,
+#root,
+.view {
+	height: 100vh;
+	overflow: hidden;
+}
+
+.components-button,
+.components-button.has-icon,
+.components-button.has-icon.has-text,
+.components-button.is-primary,
+.components-button.is-secondary {
+	padding: 10px 31px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 13px;
+	font-weight: 600;
+	border: none;
+	height: 56px;
+	cursor: pointer;
+
+	&.is-secondary {
+		background-color: #fff;
+		color: #1e1e1e;
+		box-shadow: none;
+	}
+
+	& > svg {
+		margin-right: 8px;
+	}
+}

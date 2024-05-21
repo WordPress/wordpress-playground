@@ -1,0 +1,13 @@
+.components-button.has-icon.scan__button {
+	border-radius: 50%;
+	width: 112px;
+	height: 112px;
+	margin: 0 auto 48px;
+	> svg {
+		$icon-size: 30px;
+		width: $icon-size;
+		height: $icon-size;
+		margin: 0;
+		fill: #ffffff;
+	}
+}

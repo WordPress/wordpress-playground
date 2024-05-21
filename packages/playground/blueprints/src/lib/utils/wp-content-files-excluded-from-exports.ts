@@ -10,7 +10,6 @@ export const wpContentFilesExcludedFromExport = [
 	'plugins/wordpress-importer',
 	'mu-plugins/sqlite-database-integration',
 	'mu-plugins/playground-includes',
-	'mu-plugins/export-wxz.php',
 	'mu-plugins/0-playground.php',
 
 	/*

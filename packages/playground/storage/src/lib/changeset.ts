@@ -9,6 +9,11 @@ export type IterateFilesOptions = {
 	relativePaths?: boolean;
 
 	/**
+	 * The root directory that Playground paths start from.
+	 */
+	playgroundRoot?: string;
+
+	/**
 	 * A prefix to add to all paths.
 	 * Only used if `relativePaths` is true.
 	 */
@@ -31,13 +36,21 @@ export type IterateFilesOptions = {
 export async function* iterateFiles(
 	playground: UniversalPHP,
 	root: string,
-	{
-		relativePaths = true,
-		pathPrefix,
-		exceptPaths = [],
-	}: IterateFilesOptions = {}
+	{ exceptPaths = [] }: IterateFilesOptions = {}
 ): AsyncGenerator<FileEntry> {
 	root = normalizePath(root);
+	// If the root is be a file, not a directory, then
+	// just yield it and return immediately.
+	if (!(await playground.isDir(root))) {
+		if (await playground.fileExists(root)) {
+			yield {
+				path: root,
+				read: async () => await playground.readFileAsBuffer(root),
+			};
+		}
+		return;
+	}
+
 	const stack: string[] = [root];
 	while (stack.length) {
 		const currentParent = stack.pop();
@@ -46,21 +59,15 @@ export async function* iterateFiles(
 		}
 		const files = await playground.listFiles(currentParent);
 		for (const file of files) {
-			const absPath = `${currentParent}/${file}`;
+			const absPath = joinPaths(currentParent, file);
 			if (exceptPaths.includes(absPath.substring(root.length + 1))) {
 				continue;
 			}
-			const isDir = await playground.isDir(absPath);
-			if (isDir) {
+			if (await playground.isDir(absPath)) {
 				stack.push(absPath);
 			} else {
 				yield {
-					path: relativePaths
-						? joinPaths(
-								pathPrefix || '',
-								absPath.substring(root.length + 1)
-						  )
-						: absPath,
+					path: absPath,
 					read: async () =>
 						await playground.readFileAsBuffer(absPath),
 				};
@@ -106,7 +113,7 @@ export type Changeset = {
  */
 export async function changeset(
 	filesBefore: Map<string, Uint8Array>,
-	filesAfter: AsyncGenerator<FileEntry>
+	filesAfter: AsyncGenerator<FileEntry> | Iterable<FileEntry>
 ) {
 	const changes: Changeset = {
 		create: new Map(),

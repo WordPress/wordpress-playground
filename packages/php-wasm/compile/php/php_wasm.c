@@ -133,7 +133,11 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			NULL,
 			0,
 			descv,
-			3
+			3,
+			"",
+			0,
+			0,
+			0
 		);
 		// }}}
 
@@ -396,7 +400,7 @@ PHP_FUNCTION(post_message_to_js)
 
 	char *response;
 	size_t response_len = js_module_onMessage(data, &response);
-	if (response != NULL)
+	if (response_len != -1)
 	{
 		zend_string *return_string = zend_string_init(response, response_len, 0);
 		free(response);
@@ -408,19 +412,10 @@ PHP_FUNCTION(post_message_to_js)
 	}
 }
 
-#if WITH_CLI_SAPI == 1
-#include "sapi/cli/php_cli_process_title.h"
-#if PHP_MAJOR_VERSION >= 8
-#include "sapi/cli/php_cli_process_title_arginfo.h"
-#endif
-
-extern int wasm_shutdown(int sockfd, int how);
-extern int wasm_close(int sockfd);
-
 /**
- * select(2) shim for PHP dev server.
+ * select(2).
  */
-EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
+EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
 {
 	emscripten_sleep(0); // always yield to JS event loop
 	int timeoutms = php_tvtoto(timeouttv);
@@ -431,13 +426,28 @@ EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write
 		{
 			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
 		}
-		else if (FD_ISSET(i, write_fds))
+		if (FD_ISSET(i, write_fds))
 		{
 			n += wasm_poll_socket(i, POLLOUT, timeoutms);
+		}
+		if (FD_ISSET(i, except_fds))
+		{
+			n += wasm_poll_socket(i, POLLERR, timeoutms);
+			FD_CLR(i, except_fds);
 		}
 	}
 	return n;
 }
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
+extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
+
 
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
@@ -518,25 +528,6 @@ static const zend_function_entry additional_functions[] = {
 #define TSRMLS_FETCH()
 #endif
 
-// Lowest precedence ini rules. May be overwritten by a /usr/local/etc/php.ini file:
-const char WASM_HARDCODED_INI[] =
-	"error_reporting = E_ALL\n"
-	"display_errors = 1\n"
-	"html_errors = 1\n"
-	"display_startup_errors = On\n"
-	"log_errors = 1\n"
-	"always_populate_raw_post_data = -1\n"
-	"upload_max_filesize = 2000M\n"
-	"post_max_size = 2000M\n"
-	"disable_functions = curl_exec,curl_multi_exec\n"
-	"allow_url_fopen = Off\n"
-	"allow_url_include = Off\n"
-	"session.save_path = /home/web_user\n"
-	"implicit_flush = 1\n"
-	"output_buffering = 0\n"
-	"max_execution_time = 0\n"
-	"max_input_time = -1\n\0";
-
 typedef struct wasm_array_entry
 {
 	char *key;
@@ -554,9 +545,6 @@ typedef struct wasm_uploaded_file
 	struct wasm_uploaded_file *next;
 } wasm_uploaded_file_t;
 
-const int MODE_EVAL_CODE = 1;
-const int MODE_EXECUTE_SCRIPT = 2;
-
 typedef struct
 {
 	char *document_root,
@@ -567,14 +555,13 @@ typedef struct
 		*request_host,
 		*content_type,
 		*request_body,
-		*cookies,
-		*php_code;
+		*cookies;
 
 	struct wasm_array_entry *server_array_entries;
+	struct wasm_array_entry *env_array_entries;
 
 	int content_length,
 		request_port,
-		execution_mode,
 		skip_shebang;
 } wasm_server_context_t;
 
@@ -602,7 +589,30 @@ static char *wasm_sapi_read_cookies(TSRMLS_D);
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
 void wasm_init_server_context();
 static char *int_to_string(int i);
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
+
+
+#if (PHP_MAJOR_VERSION >= 8)
+static char *wasm_sapi_getenv(const char *name, size_t name_len)
+#else
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4)
+static char *wasm_sapi_getenv(char *name, size_t name_len)
+#else
+static char *wasm_sapi_getenv(char *name, unsigned long name_len)
+#endif
+#endif
+{
+	wasm_array_entry_t *current_entry = wasm_server_context->env_array_entries;
+	while (current_entry != NULL)
+	{
+		if (strncmp(current_entry->key, name, name_len) == 0)
+		{
+			return current_entry->value;
+		}
+		current_entry = current_entry->next;
+	}
+	return NULL;
+}
+
 
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	"wasm",			 /* name */
@@ -617,7 +627,7 @@ SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	wasm_sapi_ub_write, /* unbuffered write */
 	wasm_sapi_flush,	/* flush */
 	NULL,				/* get uid */
-	NULL,				/* getenv */
+	wasm_sapi_getenv,	/* getenv */
 
 	php_error, /* error handler */
 
@@ -653,12 +663,6 @@ void wasm_set_phpini_path(char *path)
 	phpini_path_override = strdup(path);
 }
 
-char *additional_phpini_entries = NULL;
-void wasm_set_phpini_entries(char *ini_entries)
-{
-	free(additional_phpini_entries);
-	additional_phpini_entries = strdup(ini_entries);
-}
 
 void wasm_init_server_context()
 {
@@ -673,10 +677,9 @@ void wasm_init_server_context()
 	wasm_server_context->request_port = -1;
 	wasm_server_context->request_body = NULL;
 	wasm_server_context->cookies = NULL;
-	wasm_server_context->php_code = NULL;
-	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
 	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
+	wasm_server_context->env_array_entries = NULL;
 }
 
 void wasm_destroy_server_context()
@@ -713,10 +716,6 @@ void wasm_destroy_server_context()
 	{
 		free(wasm_server_context->cookies);
 	}
-	if (wasm_server_context->php_code != NULL)
-	{
-		free(wasm_server_context->php_code);
-	}
 
 	// Free wasm_server_context->server_array_entries
 	wasm_array_entry_t *current_entry = wasm_server_context->server_array_entries;
@@ -727,6 +726,17 @@ void wasm_destroy_server_context()
 		free(current_entry->value);
 		free(current_entry);
 		current_entry = next_entry;
+	}
+
+	// Free wasm_server_context->env_array_entries
+	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
+	while (current_env_entry != NULL)
+	{
+		wasm_array_entry_t *next_entry = current_env_entry->next;
+		free(current_env_entry->key);
+		free(current_env_entry->value);
+		free(current_env_entry);
+		current_env_entry = next_entry;
 	}
 }
 
@@ -754,6 +764,23 @@ void wasm_add_SERVER_entry(char *key, char *value)
 	{
 		wasm_server_context->document_root = strdup(value);
 	}
+}
+
+/**
+ * Function: wasm_add_ENV_entry
+ * ----------------------------
+ *   Exposes a new entry to the getenv() function.
+ *
+ *   key: the key of the entry
+ *   value: the value of the entry
+ */
+void wasm_add_ENV_entry(char *key, char *value)
+{
+	wasm_array_entry_t *entry = (wasm_array_entry_t *)malloc(sizeof(wasm_array_entry_t));
+	entry->key = strdup(key);
+	entry->value = strdup(value);
+	entry->next = wasm_server_context->env_array_entries;
+	wasm_server_context->env_array_entries = entry;
 }
 
 /**
@@ -874,21 +901,6 @@ void wasm_set_cookies(char *cookies)
 }
 
 /**
- * Function: wasm_set_php_code
- * ----------------------------
- *  Sets the PHP code to run during the next request. If set,
- *  the script at the path specified by wasm_set_path_translated()
- *  will be represented in $_SERVER but will not be executed.
- *
- *  code: the PHP code, e.g. "echo 'Hello World!';"
- */
-void wasm_set_php_code(char *code)
-{
-	wasm_server_context->php_code = strdup(code);
-	wasm_server_context->execution_mode = MODE_EVAL_CODE;
-}
-
-/**
  * Function: wasm_set_request_port
  * ----------------------------
  *  Sets the request port for the next request.
@@ -912,7 +924,7 @@ void wasm_set_request_port(int port)
  *
  *   stream: The stream to redirect, e.g. stdout or stderr.
  *
- *   path: The path to the file to redirect to, e.g. "/tmp/stdout".
+ *   path: The path to the file to redirect to, e.g. "/internal/stdout".
  *
  *   returns: The exit code: 0 on success, -1 on failure.
  */
@@ -1029,8 +1041,6 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	value = SG(request_info).request_uri;
 	if (value != NULL)
 	{
-		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
 		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
 	}
 
@@ -1039,7 +1049,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	{
 		// Confirm path translated starts with the document root
 		/**
-		 * PHP_SELF is the script path relative to the document rooth.
+		 * PHP_SELF is the script path relative to the document root.
 		 *
 		 * For example:
 		 *
@@ -1055,7 +1065,11 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		if (strncmp(wasm_server_context->document_root, wasm_server_context->path_translated, strlen(wasm_server_context->document_root)) == 0)
 		{
 			// Substring of path translated starting after document root
+			char *script_name = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			char *script_filename = wasm_server_context->path_translated;
 			char *php_self = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			php_register_variable("SCRIPT_NAME", estrdup(script_name), track_vars_array TSRMLS_CC);
+			php_register_variable("SCRIPT_FILENAME", estrdup(script_filename), track_vars_array TSRMLS_CC);
 			php_register_variable("PHP_SELF", estrdup(php_self), track_vars_array TSRMLS_CC);
 			php_self_set = 1;
 		}
@@ -1064,6 +1078,8 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	if (php_self_set == 0 && value != NULL)
 	{
 		// Default to REQUEST_URI
+		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
+		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
 		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
 	}
 
@@ -1133,8 +1149,13 @@ int wasm_sapi_request_init()
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout");
-	stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr");
+	// We'll use the /internal directory instead of /tmp, because a child process sharing
+	// the same filesystem and /tmp mount would write to the same stdout and stderr files
+	// and produce unreadable output intertwined with the parent process output. The /internal
+	// directory should always stay in per-process MEMFS space and never be shared with
+	// any other process.
+	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
 	{
 		return -1;
@@ -1230,8 +1251,7 @@ void wasm_sapi_request_shutdown()
 /**
  * Function: wasm_sapi_handle_request
  * ----------------------------
- *   Runs the PHP code snippet set up with wasm_set_php_code or,
- *   if missing, executes the PHP file set up with wasm_set_path_translated.
+ *   Executes the PHP file set up with wasm_set_path_translated.
  */
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 {
@@ -1242,60 +1262,55 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 		goto wasm_request_done;
 	}
 
-	TSRMLS_FETCH();
-	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)
-	{
-		zend_file_handle file_handle;
+	EG(exit_status) = 0;
 
-		file_handle.type = ZEND_HANDLE_FILENAME;
+	TSRMLS_FETCH();
+	zend_file_handle file_handle;
+
+	file_handle.type = ZEND_HANDLE_FILENAME;
 #if PHP_MAJOR_VERSION >= 8
-		zend_string *filename = zend_string_init(
-			SG(request_info).path_translated,
-			strlen(SG(request_info).path_translated),
-			1);
-		file_handle.filename = filename;
+	zend_string *filename = zend_string_init(
+		SG(request_info).path_translated,
+		strlen(SG(request_info).path_translated),
+		1);
+	file_handle.filename = filename;
 #else
-		file_handle.filename = SG(request_info).path_translated;
+	file_handle.filename = SG(request_info).path_translated;
 #endif
 #if PHP_MAJOR_VERSION < 8
-		file_handle.free_filename = 0;
-		file_handle.opened_path = NULL;
+	file_handle.free_filename = 0;
+	file_handle.opened_path = NULL;
 #endif
 
-		// https://bugs.php.net/bug.php?id=77561
-		// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
-		// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
-		// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
-		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE)
-		{
-			zend_try
-			{
-				if (errno == EACCES)
-				{
-					SG(sapi_headers).http_response_code = 403;
-					PUTS("Access denied.\n");
-				}
-				else
-				{
-					SG(sapi_headers).http_response_code = 404;
-					PUTS("No input file specified.\n");
-				}
-			}
-			zend_catch
-			{
-			}
-			zend_end_try();
-			goto wasm_request_done;
-		}
-
-		php_execute_script(&file_handle TSRMLS_CC);
-	}
-	else
+	// https://bugs.php.net/bug.php?id=77561
+	// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
+	// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
+	// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
+	if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE)
 	{
-		run_php(wasm_server_context->php_code);
+		zend_try
+		{
+			if (errno == EACCES)
+			{
+				SG(sapi_headers).http_response_code = 403;
+				PUTS("Access denied.\n");
+			}
+			else
+			{
+				SG(sapi_headers).http_response_code = 404;
+				PUTS("No input file specified.\n");
+			}
+		}
+		zend_catch
+		{
+		}
+		zend_end_try();
+		goto wasm_request_done;
 	}
-	result = EG(exit_status);
 
+	php_execute_script(&file_handle TSRMLS_CC);
+
+	result = EG(exit_status);
 wasm_request_done:
 	wasm_sapi_request_shutdown();
 	return result;
@@ -1412,7 +1427,7 @@ FILE *headers_file;
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
-	headers_file = fopen("/tmp/headers.json", "w");
+	headers_file = fopen("/internal/headers.json", "w");
 	if (headers_file == NULL)
 	{
 		return FAILURE;
@@ -1458,7 +1473,6 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 	_fwrite(headers_file, "\"");
 	for (int i = 0, max = sapi_header->header_len; i < max; i++)
 	{
-		// Escape quotes and backslashes
 		if (sapi_header->header[i] == '"' || sapi_header->header[i] == '\\')
 		{
 			fwrite(&"\\", sizeof(char), 1, headers_file);
@@ -1506,21 +1520,6 @@ int php_wasm_init()
 		php_wasm_sapi_module.php_ini_path_override = phpini_path_override;
 	}
 
-	if (additional_phpini_entries != NULL)
-	{
-		int ini_entries_len = strlen(additional_phpini_entries);
-		additional_phpini_entries = realloc(additional_phpini_entries, ini_entries_len + sizeof(WASM_HARDCODED_INI));
-		memmove(additional_phpini_entries + sizeof(WASM_HARDCODED_INI) - 2, additional_phpini_entries, ini_entries_len + 1);
-		memcpy(additional_phpini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI) - 2);
-		php_wasm_sapi_module.ini_entries = strdup(additional_phpini_entries);
-		free(additional_phpini_entries);
-	}
-	else
-	{
-		php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
-		memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
-	}
-
 	php_sapi_started = 1;
 	php_wasm_sapi_module.additional_functions = additional_functions;
 	if (php_wasm_sapi_module.startup(&php_wasm_sapi_module) == FAILURE)
@@ -1529,63 +1528,3 @@ int php_wasm_init()
 	}
 	return SUCCESS;
 }
-
-/*
- * Function: phpwasm_run
- * ----------------------------
- *   Runs a PHP script. Writes the output to stdout and stderr,
- *
- *   code: The PHP code to run.
- *
- *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
- */
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
-{
-	zend_try
-	{
-		zend_eval_string(code, NULL, "php-wasm run script");
-
-		if (EG(exception))
-		{
-			zend_exception_error(EG(exception), E_ERROR);
-		}
-	}
-	zend_catch
-	{
-	}
-	zend_end_try();
-
-	return EG(exit_status);
-}
-
-#ifdef WITH_VRZNO
-#include "../php-src/ext/vrzno/php_vrzno.h"
-
-/*
- * Function: exec_callback
- * ----------------------------
- *   Required by the VRZNO module.
- *
- *   @see https://github.com/seanmorris/vrzno
- */
-int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
-{
-	int retVal = vrzno_exec_callback(fptr);
-
-	fflush(stdout);
-
-	return retVal;
-}
-
-/*
- * Function: del_callback
- * ----------------------------
- *   Required by the VRZNO module.
- *
- *   @see https://github.com/seanmorris/vrzno
- */
-int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
-{
-	return vrzno_del_callback(fptr);
-}
-#endif

@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 /*
  * An approximate total file size to use when the actual
  * total number of bytes is missing.
@@ -32,12 +33,6 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	#assetsSizes: Record<string, number> = {};
 	#progress: Record<string, number> = {};
 
-	constructor() {
-		super();
-
-		this.#monitorWebAssemblyStreaming();
-	}
-
 	expectAssets(assets: Record<string, number>) {
 		for (const [urlLike, size] of Object.entries(assets)) {
 			const dummyBaseUrl = 'http://example.com/';
@@ -61,31 +56,6 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	}
 
 	/**
-	 * Replaces the default WebAssembly.instantiateStreaming with a version
-	 * that monitors the download #progress.
-	 */
-	#monitorWebAssemblyStreaming() {
-		const instantiateStreaming = WebAssembly.instantiateStreaming;
-		WebAssembly.instantiateStreaming = async (
-			responseOrPromise,
-			...args
-		) => {
-			const response = await responseOrPromise;
-			const file = response.url.substring(
-				new URL(response.url).origin.length + 1
-			);
-
-			const reportingResponse = cloneResponseMonitorProgress(
-				response,
-				({ detail: { loaded, total } }) =>
-					this.#notify(file, loaded, total)
-			);
-
-			return instantiateStreaming(reportingResponse, ...args);
-		};
-	}
-
-	/**
 	 * Notifies about the download #progress of a file.
 	 *
 	 * @param  file   The file name.
@@ -98,9 +68,12 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			.pop()!;
 		if (!fileSize) {
 			fileSize = this.#assetsSizes[fileName];
+		} else if (!(fileName in this.#assetsSizes)) {
+			this.#assetsSizes[fileName] = fileSize;
+			this.#progress[fileName] = loaded;
 		}
 		if (!(fileName in this.#progress)) {
-			console.warn(
+			logger.warn(
 				`Registered a download #progress of an unregistered file "${fileName}". ` +
 					`This may cause a sudden **decrease** in the #progress percentage as the ` +
 					`total number of bytes increases during the download.`
@@ -187,7 +160,7 @@ export function cloneResponseMonitorProgress(
 							controller.enqueue(value);
 						}
 					} catch (e) {
-						console.error({ e });
+						logger.error({ e });
 						controller.error(e);
 						break;
 					}

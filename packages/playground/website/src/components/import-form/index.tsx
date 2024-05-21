@@ -5,6 +5,7 @@ import { PlaygroundClient, importWordPressFiles } from '@wp-playground/client';
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../button';
+import { logger } from '@php-wasm/logger';
 
 interface ImportFormProps {
 	playground: PlaygroundClient;
@@ -34,7 +35,7 @@ export default function ImportForm({
 		try {
 			await importWordPressFiles(playground, { wordPressFilesZip: file });
 		} catch (error) {
-			console.error(error);
+			logger.error(error);
 			setError(
 				'Unable to import file. Is it a valid WordPress Playground export?'
 			);

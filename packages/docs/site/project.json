@@ -13,33 +13,11 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"node patch-typedoc.js",
+					"cd ../../../; npx typedoc --json packages/docs/site/src/model.json",
 					"docusaurus build --out-dir ../../../dist/docs/build"
 				],
-				"cwd": "packages/docs/site"
-			},
-			"dependsOn": ["build:json"]
-		},
-		"build:json": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx typedoc --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json"
-				],
-				"parallel": false
-			}
-		},
-		"swizzle": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": ["docusaurus swizzle"],
-				"cwd": "packages/docs/site"
-			},
-			"dependsOn": ["build:json"]
-		},
-		"deploy": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": ["docusaurus deploy"],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
@@ -86,7 +64,8 @@
 		"start": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus start"],
+				"commands": ["node patch-typedoc.js", "docusaurus start"],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
@@ -94,7 +73,8 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus start"],
+				"commands": ["node patch-typedoc.js", "docusaurus start"],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]

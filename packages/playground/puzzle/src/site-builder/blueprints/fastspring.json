@@ -1,0 +1,15 @@
+{
+	"landingPage": "/wp-admin/admin.php?page=fastspring_settings_menu",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "fastspring"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}

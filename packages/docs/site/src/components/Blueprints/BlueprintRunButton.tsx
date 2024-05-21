@@ -17,8 +17,8 @@ export function BlueprintRunButton({ blueprint }) {
 			</button>
 		);
 	}
-	const url = `https://playground.wordpress.net/?mode=seamless#${JSON.stringify(
-		blueprint
+	const url = `https://playground.wordpress.net/?mode=seamless#${btoa(
+		typeof blueprint === 'string' ? blueprint : JSON.stringify(blueprint)
 	)}`;
 	return (
 		<iframe

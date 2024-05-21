@@ -3,7 +3,7 @@
 // directly.
 // @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import * as SupportedWordPressVersions from '../../../wordpress/src/wordpress/wp-versions.json';
+import * as SupportedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
 const LatestSupportedWordPressVersion = Object.keys(
 	SupportedWordPressVersions
@@ -43,8 +43,22 @@ describe('Query API', () => {
 	});
 
 	describe('option `php-extension-bundle`', () => {
-		it('should load the specified PHP extensions', () => {
+		it('should load XMLWriter with the kitchen sink extension bundle', () => {
 			cy.visit('/?php-extension-bundle=kitchen-sink&url=/phpinfo.php');
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', '--enable-xmlwriter');
+		});
+
+		it('should not load XMLWriter with the light extension bundle', () => {
+			cy.visit('/?php-extension-bundle=light&url=/phpinfo.php');
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', '--disable-xmlwriter');
+		});
+
+		it('should default to the kitchen sink extension bundle', () => {
+			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
 				.its('body')
 				.should('contain', '--enable-xmlwriter');
@@ -73,9 +87,7 @@ describe('Query API', () => {
 		 * @see https://github.com/WordPress/wordpress-playground/pull/1045
 		 */
 		it('should enable networking when requested AND the kitchen sink extension bundle is enabled', () => {
-			cy.visit(
-				'/?php-extension-bundle=kitchen-sink&networking=yes&url=/wp-admin/plugin-install.php'
-			);
+			cy.visit('/?networking=yes&url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.plugin-card')
 				.should('have.length.above', 4);

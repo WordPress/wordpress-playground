@@ -51,6 +51,22 @@
 				}
 			}
 		</style>
+		<!-- Enable the JSPI origin trial -->
+		<!-- https://playground.wordpress.net -->
+		<meta
+			http-equiv="origin-trial"
+			content="AjZ2g1FXvYd513EvxAs1KA/kPscU+FRXvtYvuvP4oNGBcL52pZG17nwlQUverVA2cp4t+HhF5RIDqmvEcAzVPAkAAABxeyJvcmlnaW4iOiJodHRwczovL3BsYXlncm91bmQud29yZHByZXNzLm5ldDo0NDMiLCJmZWF0dXJlIjoiV2ViQXNzZW1ibHlKU1Byb21pc2VJbnRlZ3JhdGlvbiIsImV4cGlyeSI6MTczMDI0NjM5OX0="
+		/>
+		<!-- https://wasm.wordpress.net -->
+		<meta
+			http-equiv="origin-trial"
+			content="At8dRmIsdzok7mB3xOCPtkm0HiJMZXwA2la1NXriF4+YT5RNkiOS4Tr31Q3Gj0L5jiI2tmMgFlSUyn41+zVbBAsAAABreyJvcmlnaW4iOiJodHRwczovL3dhc20ud29yZHByZXNzLm5ldDo0NDMiLCJmZWF0dXJlIjoiV2ViQXNzZW1ibHlKU1Byb21pc2VJbnRlZ3JhdGlvbiIsImV4cGlyeSI6MTczMDI0NjM5OX0="
+		/>
+		<!-- http://localhost:5400 -->
+		<meta
+			http-equiv="origin-trial"
+			content="Au01PU8vga2vhf0HqDJ50lWwIEg6FEQ1H4aJofnGlGlHyoSMvPmauo+IiVd10IzmL3Am3J/gHPUnQwT/3DEp7QAAAABieyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjU0MDAiLCJmZWF0dXJlIjoiV2ViQXNzZW1ibHlKU1Byb21pc2VJbnRlZ3JhdGlvbiIsImV4cGlyeSI6MTczMDI0NjM5OX0="
+		/>
 	</head>
 	<body class="is-loading">
 		<iframe
@@ -64,7 +80,7 @@
 			}
 			import { bootPlaygroundRemote } from './src/index';
 			try {
-				await bootPlaygroundRemote();
+				window.playground = await bootPlaygroundRemote();
 			} catch (e) {
 				console.error(e);
 				document.body.className = 'has-error';
@@ -72,7 +88,12 @@
 
 				const div = document.createElement('div');
 				div.className = 'error-message';
-				div.innerText = 'Ooops! WordPress Playground had a hiccup!';
+				const userFriendlyMessage =
+					e?.userFriendlyMessage ||
+					'See the developer tools for error details.';
+				div.innerHTML =
+					'Ooops! WordPress Playground had a hiccup! <br/><br/> ' +
+					userFriendlyMessage;
 				document.body.append(div);
 
 				const button = document.createElement('button');

@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/fs-journal",
-	"version": "0.6.3",
+	"version": "0.7.19",
 	"description": "Bindings to journal the PHP filesystem",
 	"repository": {
 		"type": "git",
@@ -38,7 +38,7 @@
 	"license": "GPL-2.0-or-later",
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
 	"engines": {
-		"node": ">=18.18.2",
+		"node": ">=18.18.0",
 		"npm": ">=8.11.0"
 	}
 }

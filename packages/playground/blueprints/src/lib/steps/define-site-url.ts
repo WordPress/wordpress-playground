@@ -2,16 +2,9 @@ import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 
 /**
- * @inheritDoc defineSiteUrl
- * @hasRunnableExample
- * @example
+ * Changes the site URL of the WordPress installation.
  *
- * <code>
- * {
- * 		"step": "defineSiteUrl",
- * 		"siteUrl": "https://playground.wordpress.net"
- * }
- * </code>
+ * @inheritDoc defineSiteUrl
  */
 export interface DefineSiteUrlStep {
 	step: 'defineSiteUrl';
@@ -20,7 +13,11 @@ export interface DefineSiteUrlStep {
 }
 
 /**
- * Sets WP_HOME and WP_SITEURL constants for the WordPress installation.
+ * Sets [`WP_HOME`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#blog-address-url) and [`WP_SITEURL`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#wp-siteurl) constants for the WordPress installation.
+ *
+ * Using this step on playground.wordpress.net is moot.
+ * It is useful when building a custom Playground-based tool, like [`wp-now`](https://www.npmjs.com/package/@wp-now/wp-now),
+ * or deploying Playground on a custom domain.
  *
  * @param playground The playground client.
  * @param siteUrl

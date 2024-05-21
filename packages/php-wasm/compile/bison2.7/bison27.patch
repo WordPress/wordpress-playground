@@ -1,6 +1,6 @@
 Subject: Use Bison 2.7 to compile PHP 5.6
 
-This workaround enables building Bison 2.7 on arm64 architecture
+This workaround enables building Bison 2.7
 so that it can be used to compile PHP 5.6.
 
 Derived from the OpenWRT project:

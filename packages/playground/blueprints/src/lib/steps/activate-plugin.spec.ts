@@ -1,20 +1,20 @@
 import { NodePHP } from '@php-wasm/node';
-import {
-	RecommendedPHPVersion,
-	getWordPressModule,
-} from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
 import { activatePlugin } from './activate-plugin';
 import { phpVar } from '@php-wasm/util';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step activatePlugin()', () => {
 	let php: NodePHP;
+	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await handler.getPrimaryPhp();
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: '/wordpress',
@@ -28,7 +28,7 @@ describe('Blueprint step activatePlugin()', () => {
 			`<?php /**\n * Plugin Name: Test Plugin */`
 		);
 		await activatePlugin(php, {
-			pluginPath: docroot + '/wp-content/plugins/test-plugin.php',
+			pluginPath: 'test-plugin.php',
 		});
 
 		const response = await php.run({
@@ -39,6 +39,24 @@ describe('Blueprint step activatePlugin()', () => {
 			`,
 		});
 		expect(response.text).toBe('true');
+	});
+
+	it('should detect a silent failure in activating the plugin', async () => {
+		const docroot = php.documentRoot;
+		php.writeFile(
+			`/${docroot}/wp-content/plugins/test-plugin.php`,
+			`<?php /**\n * Plugin Name: Test Plugin */`
+		);
+		php.writeFile(
+			`/${docroot}/wp-content/mu-plugins/0-exit.php`,
+			`<?php exit(0); `
+		);
+		expect(
+			async () =>
+				await activatePlugin(php, {
+					pluginPath: 'test-plugin.php',
+				})
+		).rejects.toThrow(/Plugin test-plugin.php could not be activated/);
 	});
 
 	it('should run the activation hooks as a priviliged user', async () => {
@@ -56,7 +74,7 @@ describe('Blueprint step activatePlugin()', () => {
 			`
 		);
 		await activatePlugin(php, {
-			pluginPath: docroot + '/wp-content/plugins/test-plugin.php',
+			pluginPath: 'test-plugin.php',
 		});
 
 		expect(php.fileExists(createdFilePath)).toBe(true);

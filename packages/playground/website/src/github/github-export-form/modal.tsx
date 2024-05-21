@@ -9,6 +9,7 @@ export const isGitHubExportModalOpen = signal(
 );
 
 interface GithubExportModalProps {
+	allowZipExport: GitHubExportFormProps['allowZipExport'];
 	onExported?: GitHubExportFormProps['onExported'];
 	initialFilesBeforeChanges?: GitHubExportFormProps['initialFilesBeforeChanges'];
 	initialValues?: GitHubExportFormProps['initialValues'];
@@ -30,6 +31,7 @@ export function openModal() {
 }
 export function GithubExportModal({
 	onExported,
+	allowZipExport,
 	initialValues,
 	initialFilesBeforeChanges,
 }: GithubExportModalProps) {
@@ -49,6 +51,7 @@ export function GithubExportModal({
 				playground={playground!}
 				initialValues={initialValues}
 				initialFilesBeforeChanges={initialFilesBeforeChanges}
+				allowZipExport={allowZipExport}
 			/>
 		</Modal>
 	);

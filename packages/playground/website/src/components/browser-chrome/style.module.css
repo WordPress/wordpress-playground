@@ -17,6 +17,18 @@
 	line-height: 18px;
 	align-items: center;
 	color: #1e1e1e;
+	cursor: pointer;
+}
+
+.experimental-notice svg {
+	margin-right: 10px;
+	width: 20px;
+	min-width: 20px;
+	fill: #e14640;
+}
+
+.experimental-notice.is-hidden {
+	display: none;
 }
 
 body.is-embedded .fake-window-wrapper {
@@ -30,22 +42,23 @@ body.is-embedded .fake-window-wrapper {
 
 .wrapper.has-small-window {
 	padding: 15px 60px 55px 60px;
+}
 
-	.window {
-		max-width: 1200px;
-		height: 100%;
-		border-radius: 6px;
-	}
+.wrapper.has-small-window .window {
+	max-width: 1200px;
+	height: 100%;
+	border-radius: 6px;
 }
 
 .wrapper.has-full-size-window {
 	padding: 0;
-	.window {
-		max-width: 100vw;
-		width: 100%;
-		height: 100%;
-		border-radius: 0;
-	}
+}
+
+.wrapper.has-full-size-window .window {
+	max-width: 100vw;
+	width: 100%;
+	height: 100%;
+	border-radius: 0;
 }
 
 .window {

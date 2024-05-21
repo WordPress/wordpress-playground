@@ -14,16 +14,22 @@ RUN git clone https://github.com/php/php-src.git php-src \
 	--single-branch          \
 	--depth 1;
 
+# Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
+COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
-RUN mkdir -p /root/lib/include /root/lib/lib /libs
+RUN mkdir -p /root/lib/include /root/lib/lib /libs 
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
+COPY ./libcurl/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
 COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libpng16/dist/root/lib /root/lib
+COPY ./libjpeg/dist/root/lib /root/lib
+COPY ./libwebp/dist/root/lib /root/lib
 COPY ./libsqlite3/dist/root/lib /root/lib
 COPY ./libxml2/dist/root/lib /root/lib
 COPY ./libz/dist/root/lib /root/lib
@@ -34,10 +40,11 @@ COPY ./oniguruma/dist/root/lib /root/lib
 # Build PHP
 
 # The PHP extensions to build:
-ARG WITH_VRZNO
+ARG WITH_CURL
+ARG WITH_FILEINFO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
-ARG WITH_LIBPNG
+ARG WITH_GD
 ARG WITH_MBSTRING
 ARG WITH_MBREGEX
 ARG WITH_CLI_SAPI
@@ -57,13 +64,30 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.EXPORTED_FUNCTIONS
 
+# Grab Bison 2.7 patch in case we need it
+COPY ./bison2.7/bison27.patch /root/bison27.patch
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
-        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-		ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+		if /libs/bison2.7/usr/local/bison/bin/bison -h >/dev/null; then \
+			mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
+			ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+			ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+		else \
+			wget https://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+			tar -xvf bison-2.7.tar.gz && \
+			rm bison-2.7.tar.gz && \
+			cd bison-2.7 && \
+			git apply --no-index /root/bison27.patch && \
+			./configure --prefix=/usr/local && \
+			make && \
+			make install; \
+			if [[ $? -ne 0 ]]; then \
+				echo 'Failed to build Bison 2.7 dependency.'; \
+				exit -1; \
+			fi; \
+		fi; \
 	else \
 		apt install -y bison; \
 	fi;
@@ -124,7 +148,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 			/root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
 		fi; \
 	else \
-		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
+		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlreader --disable-xmlwriter' >> /root/.php-configure-flags; \
 	fi
 
 # Add sqlite3 if needed
@@ -137,11 +161,16 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 		fi; \
 	fi;
 
-# Add libpng if needed
-RUN if [ "$WITH_LIBPNG" = "yes" ]; \
+# Add GD if needed
+RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
-		echo -n ' --with-png-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags && \
-		echo -n ' -I /root/lib -I /root/lib -lz -lpng16 ' >> /root/.emcc-php-wasm-flags; \
+		if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
+			# @TODO support webp for PHP 7.0 – 7.3
+			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		else \
+			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		fi; \
+		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # Add openssl if needed
@@ -151,11 +180,49 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
+# Remove fileinfo if needed
+RUN if [ "$WITH_FILEINFO" = "yes" ]; \
+    then \
+		echo -n ' --enable-fileinfo' >> /root/.php-configure-flags; \
+	else \
+        # light bundle should compile without fileinfo and libmagic
+        echo -n ' --disable-fileinfo' >> /root/.php-configure-flags; \
+    fi;
+
 # Add iconv if needed
 RUN if [ "$WITH_ICONV" = "yes" ]; \
 	then \
 		echo -n ' --with-iconv=/root/lib ' >> /root/.php-configure-flags; \
-		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
+		echo -n ' /root/lib/lib/libiconv.a ' >> /root/.emcc-php-wasm-sources; \
+		# PHP >= 8.0 posix is no longer supported.
+		# PHP ≤= 7.4 posix is supported.
+	else \
+		echo -n ' --without-iconv ' >> /root/.php-configure-flags; \
+	fi;
+
+# Add curl if needed
+RUN if [ "$WITH_CURL" = "yes" ]; \
+	then \
+		# libcurl version check fails in PHP <= 7.3 even though
+		# the version is correct. Let's make the check always pass.
+		/root/replace.sh 's/\$PKG_CONFIG --atleast-version 7.\d+.\d+ \$PKNAME/test "1" = "1"/g' /root/php-src/configure; \
+		/root/replace.sh 's/test "\$curl_version" -ge 7010005/test "1" = "1"/g' /root/php-src/configure; \
+		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libcurl.a ' >> /root/.emcc-php-wasm-sources; \
+		# The way we build libcurl doesn't produce a `.pc` file that seems
+		# to be required by PHP <= 7.3. Let's create  manually.
+		echo 'prefix=/root/lib \
+exec_prefix=${prefix} \
+libdir=${exec_prefix}/lib \
+includedir=${prefix}/include \
+modules=1 \
+\
+Name: libcurl\
+Version: 7.69.1\
+Description: libcurl.\
+Requires:\
+Libs: -L${libdir} -lcurl\
+Cflags: -I${includedir}' > /root/lib/lib/pkgconfig/libcurl.pc; \
 	fi;
 
 # Add mbstring if needed
@@ -166,12 +233,12 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 
 # Add mbregex if needed
 # PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
-RUN if [ "$WITH_MBREGEX" = "yes" && "${PHP_VERSION}" -ne "7.0" ]; \
+RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	then \
 		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
-		# PHP >= 8.0 use the system oniguruma library.
-		# PHP ≤= 7.4 ship their own oniguruma library.
-		if [[ "${PHP_VERSION:0:1}" -ge "8" ]]; then \
+		# PHP >= 8.0 and 7.4 use the system oniguruma library.
+		# PHP < 7.4 ship their own oniguruma library.
+		if [[ "${PHP_VERSION:0:1}" -ge "8" ]] || [ "${PHP_VERSION:0:3}" = "7.4" ]; then \
 			echo -n ' --with-onig=/root/lib ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
 		fi; \
@@ -183,19 +250,11 @@ RUN if [ "$WITH_MBREGEX" = "yes" && "${PHP_VERSION}" -ne "7.0" ]; \
 COPY ./php/php*.patch /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
+		git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+	) && \
 	touch php-src/patched
-
-# Add VRZNO if needed
-RUN if [ "$WITH_VRZNO" = "yes" ]; \
-	then \
-		git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
-			--branch DomAccess \
-			--single-branch    \
-			--depth 1; \
-		echo -n ' --enable-vrzno' >> /root/.php-configure-flags; \
-		echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-php-wasm-flags; \
-		echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXPORTED_FUNCTIONS; \
-	fi
 
 # Install Mysql support if needed
 RUN if [ "$WITH_MYSQL" = "yes" ]; then \
@@ -205,6 +264,10 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
+CURL_CFLAGS="-I/root/lib/include" \
+WEBP_LIBS="-L/root/lib/lib" \
+WEBP_CFLAGS="-I/root/lib/include" \
+CURL_LIBS="-L/root/lib/lib" \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
@@ -223,7 +286,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--enable-embed=static \
 	--with-layout=GNU  \
 	--disable-cgi      \
-	--disable-all      \
+	--disable-opcache  \
+	--disable-posix    \
 	--enable-hash      \
 	--enable-static=yes \
 	--enable-shared=no \
@@ -238,6 +302,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--enable-bcmath    \
 	--enable-ctype     \
 	--enable-tokenizer \
+	--enable-wasm_memory_storage \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
@@ -258,13 +323,9 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
-RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_select(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict, struct timeval * __restrict); static int php_cli_server_poller_poll/g' /root/php-src/sapi/cli/php_cli_server.c
 
 RUN echo 'extern ssize_t wasm_read(int fd, void *buf, size_t count);' >> /root/php-src/main/php.h;
 RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams/plain_wrapper.c
-
-# Provide a custom implementation of the php_select() function.
-RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
 
 # Provide a custom implementation of the php_exec() function that handles spawning
 # the process inside exec(), passthru(), system(), etc.
@@ -292,7 +353,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
+	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
 	emmake make -j8
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -433,7 +494,46 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"__fwritex",\
+	export ASYNCIFY_ONLY=$'"rc_dtor_func",\
+"zif_curl_exec",\
+"curl_easy_perform",\
+"Curl_wait_ms",\
+"Curl_http_connect",\
+"RAND_status",\
+"rand_status",\
+"__wrap_select",\
+"Curl_socket_check",\
+"Curl_is_connected",\
+"multi_runsingle",\
+"curl_multi_perform",\
+"easy_transfer",\
+"Curl_poll",\
+"Curl_multi_wait",\
+"curl_multi_poll",\
+"easy_perform",\
+"RAND_poll",\
+"rand_bytes",\
+"RAND_bytes",\
+"SSL_CTX_new",\
+"rand_nopseudo_bytes",\
+"rand_enough",\
+"Curl_ossl_seed",\
+"zif_curl_multi_exec",\
+"zif_curl_multi_select",\
+"ossl_connect_common",\
+"Curl_ossl_connect_nonblocking",\
+"Curl_ssl_connect_nonblocking",\
+"https_connecting",\
+"Curl_readwrite",\
+"zend_generator_iterator_move_forward",\
+"ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
+"zend_generator_resume",\
+"zend_generator_iterator_rewind",\
+"zend_fe_reset_iterator",\
+"ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
+"zend_user_it_get_new_iterator",\
+"ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"__fwritex",\
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
@@ -469,6 +569,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_assign_to_object",\
 "zif_file_put_contents",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CV_HANDLER",\
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
 "zend_objects_store_del_ref",\
@@ -522,6 +623,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "get_http_body",\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
+"wasm_sapi_request_shutdown",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
@@ -664,17 +766,16 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "php_stream_url_wrap_http",\
 "php_stream_url_wrap_http_ex",\
 "php_stream_xport_crypto_enable",\
+"php_stream_xport_crypto_setup",\
 "php_tcp_sockop_set_option",\
 "preg_replace_func_impl",\
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
-"run_php",\
 "user_shutdown_function_call",\
 "shutdown_executor",\
 "shutdown_destructors",\
 "stream_resource_regular_dtor",\
-"wasm_select",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_close_rsrc_list",\
@@ -782,15 +883,15 @@ RUN set -euxo pipefail; \
 "_emscripten_sleep", \n\
 "_wasm_sleep", \n\
 "_wasm_set_phpini_path", \n\
-"_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
+"_wasm_add_ENV_entry", \n\
 "_wasm_read", \n\
 "_wasm_sapi_handle_request", \n\
+"_wasm_sapi_request_shutdown", \n\
 "_wasm_set_content_length", \n\
 "_wasm_set_content_type", \n\
 "_wasm_set_cookies", \n\
 "_wasm_set_path_translated", \n\
-"_wasm_set_php_code", \n\
 "_wasm_set_query_string", \n\
 "_wasm_set_request_body", \n\
 "_wasm_set_request_host", \n\
@@ -812,6 +913,7 @@ RUN set -euxo pipefail; \
 	-I TSRM/ \
 	-I /root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
+	-lproxyfs.js \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-o /build/output/php.js \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
@@ -824,6 +926,7 @@ RUN set -euxo pipefail; \
 	-s NODEJS_CATCH_REJECTION=0      \
 	-s INVOKE_RUN=0                  \
 	-s EXIT_RUNTIME=1                \
+	-Wl,--wrap=select \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \

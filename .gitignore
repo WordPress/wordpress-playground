@@ -12,6 +12,7 @@ packages/php-wasm/node/src/test/__test*
 packages/docs/site/src/model.json
 .docusaurus
 dist.zip
+rollup.d.ts
 
 # dependencies
 node_modules

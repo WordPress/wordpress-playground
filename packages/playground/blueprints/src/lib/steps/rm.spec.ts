@@ -1,5 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { rm } from './rm';
 
 const docroot = '/php';

@@ -1,8 +1,4 @@
-import { PHPBrowser } from './php-browser';
-import {
-	PHPRequestHandler,
-	PHPRequestHandlerConfiguration,
-} from './php-request-handler';
+/// <reference types="emscripten" />
 import { PHPResponse } from './php-response';
 import {
 	getEmscriptenFsError,
@@ -27,12 +23,45 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	createSpawnHandler,
+	dirname,
+	joinPaths,
+} from '@php-wasm/util';
+import { PHPRequestHandler } from './php-request-handler';
+import { logger } from '@php-wasm/logger';
 
 const STRING = 'string';
 const NUMBER = 'number';
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Emscripten {
+	type NamespaceToInstance<T> = {
+		[K in keyof T]: T[K] extends (...args: any[]) => any ? T[K] : never;
+	};
+
+	export type FileSystemInstance = NamespaceToInstance<typeof FS> & {
+		mkdirTree(path: string): void;
+		lookupPath(path: string, opts?: any): FS.Lookup;
+	};
+}
+
 export const __private__dont__use = Symbol('__private__dont__use');
+
+export class PHPExecutionFailureError extends Error {
+	constructor(
+		message: string,
+		public response: PHPResponse,
+		public source: 'request' | 'php-wasm'
+	) {
+		super(message);
+	}
+}
+
+export const PHP_INI_PATH = '/internal/shared/php.ini';
+const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
+
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that universals the super low-level API and provides a more convenient
@@ -41,17 +70,14 @@ export const __private__dont__use = Symbol('__private__dont__use');
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP implements IsomorphicLocalPHP {
+export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
-	#phpIniOverrides: [string, string][] = [];
-	#phpIniPath?: string;
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#serverEntries: Record<string, string> = {};
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPBrowser;
+	requestHandler?: PHPRequestHandler<any>;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -64,20 +90,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 *
 	 * @internal
 	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
-	 * @param  serverOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
+	 * @param  requestHandlerOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
 	 */
-	constructor(
-		PHPRuntimeId?: PHPRuntimeId,
-		serverOptions?: PHPRequestHandlerConfiguration
-	) {
+	constructor(PHPRuntimeId?: PHPRuntimeId) {
 		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
-		}
-		if (serverOptions) {
-			this.requestHandler = new PHPBrowser(
-				new PHPRequestHandler(this, serverOptions)
-			);
 		}
 	}
 
@@ -130,24 +148,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	get absoluteUrl() {
-		return this.requestHandler!.requestHandler.absoluteUrl;
+		return this.requestHandler!.absoluteUrl;
 	}
 
 	/** @inheritDoc */
 	get documentRoot() {
-		return this.requestHandler!.requestHandler.documentRoot;
+		return this.requestHandler!.documentRoot;
 	}
 
 	/** @inheritDoc */
 	pathToInternalUrl(path: string): string {
-		return this.requestHandler!.requestHandler.pathToInternalUrl(path);
+		return this.requestHandler!.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc */
 	internalUrlToPath(internalUrl: string): string {
-		return this.requestHandler!.requestHandler.internalUrlToPath(
-			internalUrl
-		);
+		return this.requestHandler!.internalUrlToPath(internalUrl);
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
@@ -159,6 +175,60 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+		this[__private__dont__use].ccall(
+			'wasm_set_phpini_path',
+			null,
+			['string'],
+			[PHP_INI_PATH]
+		);
+
+		if (!this.fileExists(PHP_INI_PATH)) {
+			this.writeFile(
+				PHP_INI_PATH,
+				[
+					'auto_prepend_file=' + AUTO_PREPEND_SCRIPT,
+					'memory_limit=256M',
+					'ignore_repeated_errors = 1',
+					'error_reporting = E_ALL',
+					'display_errors = 1',
+					'html_errors = 1',
+					'display_startup_errors = On',
+					'log_errors = 1',
+					'always_populate_raw_post_data = -1',
+					'upload_max_filesize = 2000M',
+					'post_max_size = 2000M',
+					'disable_functions = curl_exec,curl_multi_exec',
+					'allow_url_fopen = Off',
+					'allow_url_include = Off',
+					'session.save_path = /home/web_user',
+					'implicit_flush = 1',
+					'output_buffering = 0',
+					'max_execution_time = 0',
+					'max_input_time = -1',
+				].join('\n')
+			);
+		}
+		if (!this.fileExists(AUTO_PREPEND_SCRIPT)) {
+			this.writeFile(
+				AUTO_PREPEND_SCRIPT,
+				`<?php
+				// Define constants set via defineConstant() calls
+				if(file_exists('/internal/shared/consts.json')) {
+					$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
+					foreach ($consts as $const => $value) {
+						if (!defined($const) && is_scalar($value)) {
+							define($const, $value);
+						}
+					}
+				}
+				// Preload all the files from /internal/shared/preload
+				foreach (glob('/internal/shared/preload/*.php') as $file) {
+					require_once $file;
+				}
+				`
+			);
+		}
+
 		runtime['onMessage'] = async (
 			data: string
 		): Promise<string | Uint8Array> => {
@@ -197,41 +267,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc */
-	setPhpIniPath(path: string) {
-		if (this.#webSapiInitialized) {
-			throw new Error('Cannot set PHP ini path after calling run().');
-		}
-		this.#phpIniPath = path;
-		this[__private__dont__use].ccall(
-			'wasm_set_phpini_path',
-			null,
-			['string'],
-			[path]
-		);
-	}
-
-	/** @inheritDoc */
-	setPhpIniEntry(key: string, value: string) {
-		if (this.#webSapiInitialized) {
-			throw new Error('Cannot set PHP ini entries after calling run().');
-		}
-		this.#phpIniOverrides.push([key, value]);
-	}
-
-	/** @inheritDoc */
 	chdir(path: string) {
 		this[__private__dont__use].FS.chdir(path);
 	}
 
-	/** @inheritDoc */
-	async request(
-		request: PHPRequest,
-		maxRedirects?: number
-	): Promise<PHPResponse> {
+	/**
+	 * Do not use. Use new PHPRequestHandler() instead.
+	 * @deprecated
+	 */
+	async request(request: PHPRequest): Promise<PHPResponse> {
+		logger.warn(
+			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
+		);
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
-		return this.requestHandler.request(request, maxRedirects);
+		return this.requestHandler.request(request);
 	}
 
 	/** @inheritDoc */
@@ -249,36 +300,68 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#initWebRuntime();
 				this.#webSapiInitialized = true;
 			}
-			this.#setScriptPath(request.scriptPath || '');
+			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
+				throw new Error(
+					`The script path "${request.scriptPath}" does not exist.`
+				);
+			}
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
 			const headers = normalizeHeaders(request.headers || {});
 			const host = headers['host'] || 'example.com:443';
 
-			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
+			const port = this.#inferPortFromHostAndProtocol(
+				host,
+				request.protocol || 'http'
+			);
+			this.#setRequestHost(host);
+			this.#setRequestPort(port);
 			this.#setRequestHeaders(headers);
 			if (request.body) {
 				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (typeof request.code === 'string') {
-				this.#setPHPCode(' ?>' + request.code);
+				this.writeFile('/internal/eval.php', request.code);
+				this.#setScriptPath('/internal/eval.php');
+			} else {
+				this.#setScriptPath(request.scriptPath || '');
 			}
-			this.#addServerGlobalEntriesInWasm();
+
+			const $_SERVER = this.#prepareServerEntries(
+				request.$_SERVER,
+				headers,
+				port
+			);
+			for (const key in $_SERVER) {
+				this.#setServerGlobalEntry(key, $_SERVER[key]);
+			}
+
+			const env = request.env || {};
+			for (const key in env) {
+				this.#setEnv(key, env[key]);
+			}
+
 			const response = await this.#handleRequest();
-			if (request.throwOnError && response.exitCode !== 0) {
-				const output = {
-					stdout: response.text,
-					stderr: response.errors,
-				};
-				console.warn(`PHP.run() output was:`, output);
-				const error = new Error(
-					`PHP.run() failed with exit code ${response.exitCode} and the following output`
-				);
-				// @ts-ignore
-				error.output = output;
+			if (response.exitCode !== 0) {
+				logger.warn(`PHP.run() output was:`, response.text);
+				const error = new PHPExecutionFailureError(
+					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
+						response.errors,
+					response,
+					'request'
+				) as PHPExecutionFailureError;
+				logger.error(error);
 				throw error;
 			}
 			return response;
+		} catch (e) {
+			this.dispatchEvent({
+				type: 'request.error',
+				error: e as Error,
+				// Distinguish between PHP request and PHP-wasm errors
+				source: (e as any).source ?? 'php-wasm',
+			});
+			throw e;
 		} finally {
 			try {
 				if (heapBodyPointer) {
@@ -293,45 +376,41 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	#initWebRuntime() {
-		/**
-		 * This creates a consts.php file in an in-memory
-		 * /tmp directory and sets the auto_prepend_file PHP option
-		 * to always load that file.
-		 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
-		 *
-		 * Technically, this is a workaround. In the future, let's implement a
-		 * WASM SAPI method to pass consts directly.
-		 * @see https://github.com/WordPress/wordpress-playground/issues/750
-		 */
-		this.setPhpIniEntry('auto_prepend_file', '/tmp/consts.php');
-		if (!this.fileExists('/tmp/consts.php')) {
-			this.writeFile(
-				'/tmp/consts.php',
-				`<?php
-				if(file_exists('/tmp/consts.json')) {
-					$consts = json_decode(file_get_contents('/tmp/consts.json'), true);
-					foreach ($consts as $const => $value) {
-						if (!defined($const) && is_scalar($value)) {
-							define($const, $value);
-						}
-					}
-				}`
-			);
+	/**
+	 * Prepares the $_SERVER entries for the PHP runtime.
+	 *
+	 * @param defaults Default entries to include in $_SERVER.
+	 * @param headers HTTP headers to include in $_SERVER (as HTTP_ prefixed entries).
+	 * @param port HTTP port, used to determine infer $_SERVER['HTTPS'] value if none
+	 *             was provided.
+	 * @returns Computed $_SERVER entries.
+	 */
+	#prepareServerEntries(
+		defaults: Record<string, string> | undefined,
+		headers: PHPRequestHeaders,
+		port: number
+	): Record<string, string> {
+		const $_SERVER = {
+			...(defaults || {}),
+		};
+		$_SERVER['HTTPS'] = $_SERVER['HTTPS'] || port === 443 ? 'on' : 'off';
+		for (const name in headers) {
+			let HTTP_prefix = 'HTTP_';
+			/**
+			 * Some headers are special and don't have the HTTP_ prefix.
+			 */
+			if (
+				['content-type', 'content-length'].includes(name.toLowerCase())
+			) {
+				HTTP_prefix = '';
+			}
+			$_SERVER[`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`] =
+				headers[name];
 		}
+		return $_SERVER;
+	}
 
-		if (this.#phpIniOverrides.length > 0) {
-			const overridesAsIni =
-				this.#phpIniOverrides
-					.map(([key, value]) => `${key}=${value}`)
-					.join('\n') + '\n\n';
-			this[__private__dont__use].ccall(
-				'wasm_set_phpini_entries',
-				null,
-				[STRING],
-				[overridesAsIni]
-			);
-		}
+	#initWebRuntime() {
 		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
 	}
 
@@ -339,7 +418,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		headers: PHPResponse['headers'];
 		httpStatusCode: number;
 	} {
-		const headersFilePath = '/tmp/headers.json';
+		const headersFilePath = '/internal/headers.json';
 		if (!this.fileExists(headersFilePath)) {
 			throw new Error(
 				'SAPI Error: Could not find response headers file.'
@@ -384,14 +463,25 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	#setRequestHostAndProtocol(host: string, protocol: string) {
+	#setRequestHost(host: string) {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_host',
 			null,
 			[STRING],
 			[host]
 		);
+	}
 
+	#setRequestPort(port: number) {
+		this[__private__dont__use].ccall(
+			'wasm_set_request_port',
+			null,
+			[NUMBER],
+			[port]
+		);
+	}
+
+	#inferPortFromHostAndProtocol(host: string, protocol: string) {
 		let port;
 		try {
 			port = parseInt(new URL(host).port, 10);
@@ -402,16 +492,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (!port || isNaN(port) || port === 80) {
 			port = protocol === 'https' ? 443 : 80;
 		}
-		this[__private__dont__use].ccall(
-			'wasm_set_request_port',
-			null,
-			[NUMBER],
-			[port]
-		);
-
-		if (protocol === 'https' || (!protocol && port === 443)) {
-			this.addServerGlobalEntry('HTTPS', 'on');
-		}
+		return port;
 	}
 
 	#setRequestMethod(method: string) {
@@ -448,27 +529,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				[parseInt(headers['content-length'], 10)]
 			);
 		}
-		for (const name in headers) {
-			let HTTP_prefix = 'HTTP_';
-			/**
-			 * Some headers are special and don't have the HTTP_ prefix.
-			 */
-			if (
-				['content-type', 'content-length'].includes(name.toLowerCase())
-			) {
-				HTTP_prefix = '';
-			}
-			this.addServerGlobalEntry(
-				`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`,
-				headers[name]
-			);
-		}
 	}
 
 	#setRequestBody(body: string | Uint8Array) {
 		let size, contentLength;
 		if (typeof body === 'string') {
-			console.warn(
+			logger.warn(
 				'Passing a string as the request body is deprecated. Please use a Uint8Array instead. See ' +
 					'https://github.com/WordPress/wordpress-playground/issues/997 for more details'
 			);
@@ -519,47 +585,42 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		);
 	}
 
-	addServerGlobalEntry(key: string, value: string) {
-		this.#serverEntries[key] = value;
+	#setServerGlobalEntry(key: string, value: string) {
+		this[__private__dont__use].ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STRING, STRING],
+			[key, value]
+		);
 	}
 
-	#addServerGlobalEntriesInWasm() {
-		for (const key in this.#serverEntries) {
-			this[__private__dont__use].ccall(
-				'wasm_add_SERVER_entry',
-				null,
-				[STRING, STRING],
-				[key, this.#serverEntries[key]]
-			);
-		}
+	#setEnv(name: string, value: string) {
+		this[__private__dont__use].ccall(
+			'wasm_add_ENV_entry',
+			null,
+			[STRING, STRING],
+			[name, value]
+		);
 	}
 
 	defineConstant(key: string, value: string | boolean | number | null) {
 		let consts = {};
 		try {
 			consts = JSON.parse(
-				this.fileExists('/tmp/consts.json')
-					? this.readFileAsText('/tmp/consts.json') || '{}'
+				this.fileExists('/internal/shared/consts.json')
+					? this.readFileAsText('/internal/shared/consts.json') ||
+							'{}'
 					: '{}'
 			);
 		} catch (e) {
 			// ignore
 		}
 		this.writeFile(
-			'/tmp/consts.json',
+			'/internal/shared/consts.json',
 			JSON.stringify({
 				...consts,
 				[key]: value,
 			})
-		);
-	}
-
-	#setPHPCode(code: string) {
-		this[__private__dont__use].ccall(
-			'wasm_set_php_code',
-			null,
-			[STRING],
-			[code]
 		);
 	}
 
@@ -577,6 +638,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			// eslint-disable-next-line no-async-promise-executor
 			exitCode = await new Promise<number>((resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
+					logger.error(e);
+					logger.error(e.error);
 					const rethrown = new Error('Rethrown');
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
@@ -622,18 +685,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			) as string;
 			const rethrown = new Error(message);
 			rethrown.cause = err;
+			logger.error(rethrown);
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
-			this.#serverEntries = {};
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
 		return new PHPResponse(
-			httpStatusCode,
+			exitCode === 0 ? httpStatusCode : 500,
 			headers,
-			this.readFileAsBuffer('/tmp/stdout'),
-			this.readFileAsText('/tmp/stderr'),
+			this.readFileAsBuffer('/internal/stdout'),
+			this.readFileAsText('/internal/stderr'),
 			exitCode
 		);
 	}
@@ -676,8 +739,28 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	mv(fromPath: string, toPath: string) {
+		const FS = this[__private__dont__use]
+			.FS as Emscripten.FileSystemInstance;
+
 		try {
-			this[__private__dont__use].FS.rename(fromPath, toPath);
+			// FS.rename moves the inode within the same filesystem.
+			// If fromPath and toPath are on different filesystems,
+			// the operation will fail. In that case, we need to do
+			// a recursive copy of all the files and remove the original.
+			// Note this is also what happens in the linux `mv` command.
+			const fromMount = FS.lookupPath(fromPath).node.mount;
+			const toMount = this.fileExists(toPath)
+				? FS.lookupPath(toPath).node.mount
+				: FS.lookupPath(dirname(toPath)).node.mount;
+			const movingBetweenFilesystems =
+				fromMount.mountpoint !== toMount.mountpoint;
+
+			if (movingBetweenFilesystems) {
+				copyRecursive(FS, fromPath, toPath);
+				this.rmdir(fromPath, { recursive: true });
+			} else {
+				FS.rename(fromPath, toPath);
+			}
 		} catch (e) {
 			const errmsg = getEmscriptenFsError(e);
 			if (!errmsg) {
@@ -727,7 +810,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			}
 			return files;
 		} catch (e) {
-			console.error(e, { path });
+			logger.error(e, { path });
 			return [];
 		}
 	}
@@ -759,8 +842,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
+	 * @param cwd. Internal, the VFS path to recreate in the new runtime.
+	 *             This arg is temporary and will be removed once BasePHP
+	 *             is fully decoupled from the request handler and
+	 *             accepts a constructor-level cwd argument.
 	 */
-	hotSwapPHPRuntime(runtime: number) {
+	hotSwapPHPRuntime(runtime: number, cwd?: string) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -780,21 +867,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
 
-		// Re-apply any set() methods that are not
-		// request related and result in a one-off
-		// C function call.
-		if (this.#phpIniPath) {
-			this.setPhpIniPath(this.#phpIniPath);
-		}
-
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
 		}
 
 		// Copy the MEMFS directory structure from the old FS to the new one
-		if (this.requestHandler) {
-			const docroot = this.documentRoot;
-			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+		if (cwd) {
+			copyFS(oldFS, this[__private__dont__use].FS, cwd);
 		}
 	}
 
@@ -816,6 +895,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		delete this[__private__dont__use]['onMessage'];
 		delete this[__private__dont__use];
 	}
+
+	[Symbol.dispose]() {
+		if (this.#webSapiInitialized) {
+			this.exit(0);
+		}
+	}
 }
 
 export function normalizeHeaders(
@@ -828,16 +913,30 @@ export function normalizeHeaders(
 	return normalized;
 }
 
-type EmscriptenFS = any;
+export function syncFSTo(
+	source: BasePHP,
+	target: BasePHP,
+	path: string | null = null
+) {
+	copyFS(
+		source[__private__dont__use].FS,
+		target[__private__dont__use].FS,
+		path ?? source.documentRoot
+	);
+}
 
 /**
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
+export function copyFS(
+	source: Emscripten.FileSystemInstance,
+	target: Emscripten.FileSystemInstance,
+	path: string
+) {
 	let oldNode;
 	try {
-		oldNode = oldFS.lookupPath(path);
+		oldNode = source.lookupPath(path);
 	} catch (e) {
 		return;
 	}
@@ -850,23 +949,51 @@ function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
 	// Let's be extra careful and only proceed if newFs doesn't
 	// already have a node at the given path.
 	try {
-		newFS = newFS.lookupPath(path);
-		return;
+		// @TODO: Figure out the right thing to do. In Parent -> child PHP case,
+		//        we indeed want to synchronize the entire filesystem. However,
+		//        this approach seems slow and inefficient. Instead of exhaustively
+		//        iterating, could we just mark directories as dirty on write? And
+		//        how do we sync in both directions?
+		// target = target.lookupPath(path);
+		// return;
 	} catch (e) {
 		// There's no such node in the new FS. Good,
 		// we may proceed.
 	}
 
-	if (!oldFS.isDir(oldNode.node.mode)) {
-		newFS.writeFile(path, oldFS.readFile(path));
+	if (!source.isDir(oldNode.node.mode)) {
+		target.writeFile(path, source.readFile(path));
 		return;
 	}
 
-	newFS.mkdirTree(path);
-	const filenames = oldFS
+	target.mkdirTree(path);
+	const filenames = source
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		recreateMemFS(newFS, oldFS, joinPaths(path, filename));
+		copyFS(source, target, joinPaths(path, filename));
+	}
+}
+
+function copyRecursive(
+	FS: Emscripten.FileSystemInstance,
+	fromPath: string,
+	toPath: string
+) {
+	const fromNode = FS.lookupPath(fromPath).node;
+	if (FS.isDir(fromNode.mode)) {
+		FS.mkdirTree(toPath);
+		const filenames = FS.readdir(fromPath).filter(
+			(name: string) => name !== '.' && name !== '..'
+		);
+		for (const filename of filenames) {
+			copyRecursive(
+				FS,
+				joinPaths(fromPath, filename),
+				joinPaths(toPath, filename)
+			);
+		}
+	} else {
+		FS.writeFile(toPath, FS.readFile(fromPath));
 	}
 }

@@ -30,6 +30,17 @@
 			}
 		},
 		{
+			"files": [
+				"demos/**/*",
+				"cypress/**/*",
+				"builder/**/*",
+				"vite.oauth.ts"
+			],
+			"rules": {
+				"no-console": 0
+			}
+		},
+		{
 			"files": ["*.ts", "*.tsx"],
 			"rules": {}
 		},

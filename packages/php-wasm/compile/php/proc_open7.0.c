@@ -276,11 +276,13 @@ PHP_FUNCTION(proc_get_status)
 	add_assoc_long(return_value, "pid", (zend_long) proc->child);
 
 	errno = 0;
-	int proc_status = js_process_status(proc->child);
+	int proc_status = js_process_status(proc->child, &exitcode);
 	if (proc_status == 1) {
 		running = 0;
+		stopped = 1;
 	} else if (proc_status == 0) {
 		running = 1;
+		stopped = 0;
 	} else if (proc_status == -1) {
 		php_error_docref(NULL, E_WARNING, "Failed to get process status");
 	}
@@ -348,7 +350,9 @@ PHP_FUNCTION(proc_open)
 
 	command_len = strlen(command);
 
+	int num_env = 0;
 	if (environment) {
+		num_env = zend_hash_num_elements(Z_ARRVAL_P(environment));
 		env = _php_array_to_envp(environment, is_persistent);
 	} else {
 		memset(&env, 0, sizeof(env));
@@ -499,12 +503,16 @@ PHP_FUNCTION(proc_open)
 	} ZEND_HASH_FOREACH_END();
 
 	// the wasm way {{{
-    child = js_open_process(
+	child = js_open_process(
 		command,
 		NULL,
 		0,
 		descv,
-		num_descv
+		num_descv,
+		cwd,
+		cwd_len,
+		env.envarray,
+		num_env
 	);
 	// }}}
 

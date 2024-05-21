@@ -12,6 +12,7 @@ import Button from '../../components/button';
 import { staticAnalyzeGitHubURL } from '../analyze-github-url';
 import {
 	Changeset,
+	FileEntry,
 	GithubClient,
 	changeset,
 	createClient,
@@ -29,11 +30,13 @@ import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { ContentType } from '../import-from-github';
 import { joinPaths } from '@php-wasm/util';
+import MultiplePathsInput from './multiple-paths-input';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
 	initialValues?: Partial<ExportFormValues>;
 	initialFilesBeforeChanges?: any[];
+	allowZipExport?: boolean;
 	onExported?: (prURL: string, formValues: ExportFormValues) => void;
 	onClose: () => void;
 }
@@ -48,12 +51,21 @@ function getClient() {
 
 export type PullRequestAction = 'update' | 'create';
 
+export function asPullRequestAction(value: any): PullRequestAction | undefined {
+	if (value === 'update' || value === 'create') {
+		return value;
+	}
+	return 'create';
+}
+
 export interface ExportFormValues {
 	repoUrl: string;
 	prAction?: PullRequestAction;
 	prNumber: string;
 	contentType?: ContentType;
-	pathInRepo: string;
+	toPathInRepo: string;
+	fromPlaygroundRoot: string;
+	relativeExportPaths: string[];
 	commitMessage: string;
 	plugin?: string;
 	theme?: string;
@@ -66,6 +78,7 @@ export default function GitHubExportForm({
 	onClose,
 	initialValues = {},
 	initialFilesBeforeChanges,
+	allowZipExport = true,
 }: GitHubExportFormProps) {
 	const [pushResult, setPushResult] = useState<PushResult>();
 	const [formValues, _setFormValues] = useState<ExportFormValues>({
@@ -73,7 +86,9 @@ export default function GitHubExportForm({
 		prNumber: '',
 		prAction: 'create',
 		commitMessage: 'Changes from WordPress Playground',
-		pathInRepo: '/',
+		relativeExportPaths: ['/'],
+		toPathInRepo: '/',
+		fromPlaygroundRoot: '/wordpress',
 		includeZip: false,
 		...initialValues,
 	});
@@ -105,7 +120,7 @@ export default function GitHubExportForm({
 		// and path that the user initially entered. If those change,
 		// we need to invalidate the initialFilesBeforeChanges.
 		if (
-			values.pathInRepo !== formValues.pathInRepo ||
+			values.toPathInRepo !== formValues.toPathInRepo ||
 			values.repoUrl !== formValues.repoUrl
 		) {
 			setFilesBeforeChanges(undefined);
@@ -210,13 +225,13 @@ export default function GitHubExportForm({
 				updatedValues['prAction'] = 'update';
 			}
 			if (path) {
-				updatedValues['pathInRepo'] = path;
+				updatedValues['toPathInRepo'] = path;
 			} else if (formValues.contentType === 'theme') {
-				updatedValues['pathInRepo'] = `/${formValues.theme}`;
+				updatedValues['toPathInRepo'] = `/${formValues.theme}`;
 			} else if (formValues.contentType === 'plugin') {
-				updatedValues['pathInRepo'] = `/${formValues.plugin}`;
+				updatedValues['toPathInRepo'] = `/${formValues.plugin}`;
 			} else {
-				updatedValues['pathInRepo'] = '/playground';
+				updatedValues['toPathInRepo'] = '/playground';
 			}
 			setFormValues({
 				...formValues,
@@ -233,13 +248,14 @@ export default function GitHubExportForm({
 			setError('prNumber', 'Please enter a PR number');
 			return;
 		}
-		if (!formValues.pathInRepo) {
-			setError('pathInRepo', 'Specify the path in the repo');
-			return;
-		}
 		if (!formValues.commitMessage) {
 			setError('commitMessage', 'Specify a commit message');
 			return;
+		}
+
+		let toPathInRepo = formValues.toPathInRepo.replace(/^\//g, '');
+		if (!toPathInRepo) {
+			toPathInRepo = '.';
 		}
 
 		setIsExporting(true);
@@ -252,9 +268,7 @@ export default function GitHubExportForm({
 			});
 			const defaultBranch = ghRepo.default_branch;
 
-			const relativeRepoPath = formValues.pathInRepo.replace(/^\//g, '');
-
-			let ghRawFiles: any[];
+			let ghRawFiles: any[] = [];
 			try {
 				ghRawFiles =
 					filesBeforeChanges ||
@@ -263,25 +277,35 @@ export default function GitHubExportForm({
 						repoDetails.owner,
 						repoDetails.repo,
 						defaultBranch,
-						relativeRepoPath
+						toPathInRepo
 					));
 			} catch (e) {
-				ghRawFiles = [];
+				// ignore
 			}
-			const comparableFiles = filesListToObject(ghRawFiles);
+			const ghComparableFiles = filesListToObject(ghRawFiles);
 
-			let playgroundPath: string;
+			let fromPlaygroundRoot = '';
+			let relativeExportPaths = [];
 			let prTitle: string;
 			const docroot = await playground.documentRoot;
 			if (formValues.contentType === 'wp-content') {
-				playgroundPath = `${docroot}/wp-content`;
+				fromPlaygroundRoot = docroot;
+				relativeExportPaths = ['/wp-content'];
 				prTitle = 'Update wp-content';
 			} else if (formValues.contentType === 'theme') {
-				playgroundPath = `${docroot}/wp-content/themes/${formValues.theme}`;
+				fromPlaygroundRoot = `${docroot}/wp-content/themes/${formValues.theme}`;
+				relativeExportPaths = [`./`];
 				prTitle = `Update theme ${formValues.theme}`;
 			} else if (formValues.contentType === 'plugin') {
-				playgroundPath = `${docroot}/wp-content/plugins/${formValues.plugin}`;
+				fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
+				relativeExportPaths = [`./`];
 				prTitle = `Update plugin ${formValues.plugin}`;
+			} else if (formValues.contentType === 'custom-paths') {
+				fromPlaygroundRoot = formValues.fromPlaygroundRoot;
+				relativeExportPaths = formValues.relativeExportPaths
+					.map((path) => path.replace(/^\//g, ''))
+					.filter(Boolean);
+				prTitle = `Update wp-content`;
 			} else {
 				throw new Error(
 					`Unknown content type ${formValues.contentType}`
@@ -292,9 +316,10 @@ export default function GitHubExportForm({
 			const newBranchName = `playground-changes-${isoDateSlug}`;
 			let commitMessage = formValues.commitMessage;
 
-			if (formValues.includeZip) {
+			if (allowZipExport && formValues.includeZip) {
 				const zipFilename = `playground.zip`;
-				const zipPath = joinPaths(playgroundPath, zipFilename);
+				const zipPath = joinPaths(fromPlaygroundRoot, zipFilename);
+				relativeExportPaths.push(zipFilename);
 				if (await playground.fileExists(zipPath)) {
 					await playground.unlink(zipPath);
 				}
@@ -302,7 +327,10 @@ export default function GitHubExportForm({
 				await playground.writeFile(zipPath, zipContents);
 
 				const branchPreviewUrl = (branchName: string) => {
-					const zipballURL = `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${relativeRepoPath}/${zipFilename}`;
+					const zipPath = [toPathInRepo, zipFilename]
+						.filter(Boolean)
+						.join('/');
+					const zipballURL = `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${zipPath}`;
 					const url = new URL(document.location.origin);
 					url.pathname = document.location.pathname;
 					url.searchParams.set('import-site', zipballURL);
@@ -335,13 +363,29 @@ export default function GitHubExportForm({
 					].join('\n');
 			}
 
+			const allPlaygroundFiles: FileEntry[] = [];
+			for (const path of relativeExportPaths) {
+				const iterator = iterateFiles(
+					playground,
+					joinPaths(fromPlaygroundRoot, path),
+					{
+						exceptPaths: wpContentFilesExcludedFromExport,
+					}
+				);
+				for await (const file of iterator) {
+					allPlaygroundFiles.push({
+						path: joinPaths(
+							toPathInRepo,
+							file.path.substring(fromPlaygroundRoot.length)
+						),
+						read: file.read,
+					});
+				}
+			}
+
 			const changes = await changeset(
-				new Map(Object.entries(comparableFiles)),
-				iterateFiles(playground, playgroundPath!, {
-					relativePaths: true,
-					pathPrefix: relativeRepoPath,
-					exceptPaths: wpContentFilesExcludedFromExport,
-				})
+				new Map(Object.entries(ghComparableFiles)),
+				allPlaygroundFiles
 			);
 
 			const pushResult = await pushToGithub(getClient(), {
@@ -436,7 +480,7 @@ export default function GitHubExportForm({
 
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
-						I am exporting a:
+						I am exporting:
 						<select
 							className={css.repoInput}
 							value={formValues.contentType}
@@ -448,17 +492,91 @@ export default function GitHubExportForm({
 							}
 						>
 							<option value="">-- Select an option --</option>
-							<option value="theme">Theme</option>
-							<option value="plugin">Plugin</option>
+							<option value="theme">A theme</option>
+							<option value="plugin">A plugin</option>
 							<option value="wp-content">
 								wp-content directory
 							</option>
+							<option value="custom-paths">Specific paths</option>
 						</select>
 					</label>
 					{errors.contentType && (
 						<div className={forms.error}>{errors.contentType}</div>
 					)}
 				</div>
+				{formValues.contentType === 'custom-paths' ? (
+					<>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<div className={`${css.pathMappingGroup}`}>
+								<label>
+									From Playground path
+									<input
+										type="text"
+										value={formValues.fromPlaygroundRoot}
+										className={css.repoInput}
+										onChange={(
+											e: React.ChangeEvent<HTMLInputElement>
+										) => {
+											setValue(
+												'fromPlaygroundRoot',
+												e.target.value
+											);
+										}}
+										placeholder="e.g. wp-content"
+										autoFocus
+									/>
+								</label>
+								<span className={css.pathMappingArrow}>➔</span>
+								<label>
+									To repository path
+									<input
+										type="text"
+										className={css.repoInput}
+										value={formValues.toPathInRepo}
+										onChange={(e) =>
+											setValue(
+												'toPathInRepo',
+												e.target.value
+											)
+										}
+									/>
+								</label>
+							</div>
+							{'fromPlaygroundRoot' in errors && (
+								<div className={forms.error}>
+									{errors.fromPlaygroundRoot}
+								</div>
+							)}
+							{'toPathInRepo' in errors && (
+								<div className={forms.error}>
+									{errors.toPathInRepo}
+								</div>
+							)}
+						</div>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<label>
+								Paths to export – relative to the path root
+								<MultiplePathsInput
+									initialValue={
+										formValues.relativeExportPaths
+									}
+									onChange={(paths) =>
+										setValue('relativeExportPaths', paths)
+									}
+								/>
+							</label>
+							{errors.relativeExportPaths && (
+								<div className={forms.error}>
+									{errors.relativeExportPaths}
+								</div>
+							)}
+						</div>
+					</>
+				) : null}
 				{formValues.contentType === 'theme' ? (
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLast}`}
@@ -582,32 +700,35 @@ export default function GitHubExportForm({
 								)}
 							</div>
 						)}
-						{formValues.repoUrl && !errors.repoUrl ? (
+						{formValues.repoUrl &&
+						formValues.contentType !== 'custom-paths' ? (
+							<div
+								className={`${forms.formGroup} ${forms.formGroupLast}`}
+							>
+								<label>
+									Enter the path in the repository where the
+									changes should be committed:
+									<input
+										type="text"
+										className={css.repoInput}
+										value={formValues.toPathInRepo}
+										onChange={(e) =>
+											setValue(
+												'toPathInRepo',
+												e.target.value
+											)
+										}
+									/>
+								</label>
+								{errors.pathInRepo && (
+									<div className={forms.error}>
+										{errors.pathInRepo}
+									</div>
+								)}
+							</div>
+						) : null}
+						{formValues.repoUrl ? (
 							<>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										Enter the path in the repository where
-										the changes should be committed:
-										<input
-											type="text"
-											className={css.repoInput}
-											value={formValues.pathInRepo}
-											onChange={(e) =>
-												setValue(
-													'pathInRepo',
-													e.target.value
-												)
-											}
-										/>
-									</label>
-									{errors.pathInRepo && (
-										<div className={forms.error}>
-											{errors.pathInRepo}
-										</div>
-									)}
-								</div>
 								<div
 									className={`${forms.formGroup} ${forms.formGroupLast}`}
 								>
@@ -631,25 +752,27 @@ export default function GitHubExportForm({
 										</div>
 									)}
 								</div>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										<input
-											type="checkbox"
-											checked={formValues.includeZip}
-											onChange={(e) =>
-												setValue(
-													'includeZip',
-													e.target.checked
-												)
-											}
-										/>
-										Also export the changes as a zip file,
-										so they can be imported into another
-										Playground instance.
-									</label>
-								</div>
+								{allowZipExport ? (
+									<div
+										className={`${forms.formGroup} ${forms.formGroupLast}`}
+									>
+										<label>
+											<input
+												type="checkbox"
+												checked={formValues.includeZip}
+												onChange={(e) =>
+													setValue(
+														'includeZip',
+														e.target.checked
+													)
+												}
+											/>
+											Also export the changes as a zip
+											file, so they can be imported into
+											another Playground instance.
+										</label>
+									</div>
+								) : null}
 							</>
 						) : null}
 					</>
@@ -738,7 +861,7 @@ async function pushToGithub(
 		>['data'];
 		if (shouldCreateNewPR) {
 			const { data: branch } = await octokit.rest.repos.getBranch({
-				owner,
+				owner: pushToOwner,
 				repo,
 				branch: againstBranch,
 			});

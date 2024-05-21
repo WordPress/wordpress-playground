@@ -5,5 +5,5 @@ Whenever the types are modified, the schema needs to be rebuilt using
 `nx build playground-blueprints` and then committed to the repository.
 
 Unfortunately, it is not auto-rebuilt in `npm run dev` mode as the
-`dts-bundle-generator` utility we use for type rollyps does not support
+`dts-bundle-generator` utility we use for type rollups does not support
 watching for changes.

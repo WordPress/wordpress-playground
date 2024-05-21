@@ -1,5 +1,6 @@
-import Semaphore from './semaphore';
-export { Semaphore };
+import Semaphore, { AcquireTimeoutError } from './semaphore';
+export { Semaphore, AcquireTimeoutError };
+export { PhpWasmError } from './php-wasm-error';
 export type { SemaphoreOptions } from './semaphore';
 export { dirname, joinPaths, basename, normalizePath } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';

@@ -1,62 +1,49 @@
 ---
 sidebar_position: 1
-title: Coding standards
 ---
 
-# Coding standards
+# Coding principles
 
-## Formatting
+## Error messages
 
-Formatting is handled automatically by the relevant tools and verified by CI. Relax, sit back, and let the machines do the work.
+A good error message tells the user what to do next. Any ambiguity in errors thrown by Playground public APIs will prompt the developers to open issues.
+
+Consider a network error, for example—can we infer the type of error and display a relevant message summarizing the next steps?
+
+-   **Network error**: "Your internet connection twitched. Try to reload the page.
+-   **404**: "Could not find the file".
+-   **403**: "The server blocked access to the file".
+-   **CORS**: clarify it's a browser security feature and add a link to a detailed explanation (on MDN or another reliable source). Suggest the user move their file somewhere else, like raw.githubusercontent.com, and link to a resource explaining how to set up CORS headers on their servers.
+
+We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
 ## Public API
 
-Playground aims to keep the lowest possible API area.
+Playground aims to keep the narrowest possible API scope.
 
-Public APIs are easy to add and hard to remove. It only takes one PR to add a new API, but it may take a thousand to remove it – especially if was already consumed in other projects.
+Public APIs are easy to add and hard to remove. It only takes one PR to introduce a new API, but it may take a thousand to remove it, especially if other projects have already consumed it.
 
-Don't expose anything that is not needed. If you don't need to expose a function, don't. If you don't need to expose a class, don't. If you don't need to expose a constant, don't.
+-   Don't expose unnecessary function, class, constant, or other components.
 
 ## Blueprints
 
-Blueprints are the main way to interact with the WordPress Playground. They are JSON files that describe a set of steps to perform. The Playground will execute these steps in order.
+Blueprints are the primary way to interact with Playground. These JSON files describe a set of steps that Playground executes in order.
 
-### Batteries
+### Guidelines
 
-Blueprint steps are meant to be small and focused – like Unix tools. They should do one thing and do it well.
+Blueprint steps should be **concise and focused**. They should do one thing and do it well.
 
-When it comes to building new steps:
+-   If you need to create a new step, try refactoring an existing one first.
+-   If that's not enough, ensure the new step delivers a new capability. Don't replicate the functionality of existing steps.
+-   Assume the step would be called more than once.
+-   Assume it would run in a specific order.
+-   Add unit tests to verify that.
 
--   It is best not to build it at all
--   If you must build it, try refactoring an existing step first
--   If you cannot do that, make sure the new step opens up an entirely new feature that doesn't do anything that can be achieved with existing steps
+Blueprints should be **intuitive and straightforward**.
 
-### Composability
-
-Blueprint Steps are meant to be composable. This means that you can run them many times over and still get sensible results.
-
-**Don't:**
-
--   Assume your step won't be run more than once.
--   Assume your step will be run in a specific order.
--   Modify PHP files to define constants.
-
-**Do:**
-
--   Add unit tests that run your step multiple times.
--   Store constants in virtual JSON files.
-
-### Ease of use
-
-Blueprints are meant to be easy to use and require the minimal amount of effort on the consumer side.
-
-**Don't:**
-
--   Require arguments that can be made optional.
--   Require complex arguments when simple ones will do. For example, don't require a plugin path when plugin slug will do.
-
-**Do:**
-
--   Provide a TypeScript type for the Blueprint. JSON Schema is generated from it.
--   Provide a function to handle a blueprint step. Accept argument of the type you defined in the previous step.
--   Provide usage example in the doc string. It is automatically reflected in the docs.
+-   Don't require arguments that can be optional.
+-   Use plain argument. For example, `slug` instead of `path`.
+-   Define constants in virtual JSON files—don't modify PHP files.
+-   Define a TypeScript type for the Blueprint. That's how Playground generates its JSON schema.
+-   Write a function to handle a Blueprint step. Accept the argument of the type you defined.
+-   Provide a usage example in the doc string. It's automatically reflected in the docs.

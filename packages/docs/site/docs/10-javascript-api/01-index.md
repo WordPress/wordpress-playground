@@ -26,7 +26,7 @@ import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx
 :::info /remote.html is a special URL
 
 `/remote.html` is a special URL that loads the Playground
-API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` [on this page](./02-index-html-vs-remote-html.md).
+API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](./02-index-html-vs-remote-html.md).
 
 :::
 
@@ -37,3 +37,15 @@ Now that you have a `client` object, you can use it to control the website insid
 -   [Playground API Client](./03-playground-api-client.md)
 -   [Blueprint JSON](./04-blueprint-json-in-api-client.md)
 -   [Blueprint functions](./05-blueprint-functions-in-api-client.md)
+
+## Debugging and testing
+
+For quick testing and debugging, the JavaScript API client is exposed as `window.playground` by both `index.html` and `remote.html`.
+
+```javascript
+> await playground.listFiles("/")
+(6) ['tmp', 'home', 'dev', 'proc', 'internal', 'wordpress']
+```
+
+Note that in `index.html`, `playground` is a Proxy object and you won't get any autocompletion from the browser. In `remote.html`,
+however, `playground` is a class instance and you will benefit from browser's autocompletion.

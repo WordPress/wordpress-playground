@@ -16,6 +16,18 @@ const LibraryExample = {
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
 		init: function () {
+			// The /internal directory is required by the C module. It's where the
+			// stdout, stderr, and headers information are written for the JavaScript
+			// code to read later on.
+			FS.mkdir('/internal');
+			// The files from the shared directory are shared between all the
+			// PHP processes managed by PHPProcessManager.
+			FS.mkdir('/internal/shared');
+			// The files from the preload directory are preloaded using the
+			// auto_prepend_file php.ini directive.
+			FS.mkdir('/internal/shared/preload');
+
+
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
@@ -182,9 +194,13 @@ const LibraryExample = {
 		},
 		noop: function () {},
 
-		spawnProcess: function (command, args) {
+		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](command, args);
+				const spawnedPromise = Module['spawnProcess'](
+					command,
+					args,
+					options
+				);
 				return Promise.resolve(spawnedPromise).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
@@ -197,6 +213,7 @@ const LibraryExample = {
 
 			if (ENVIRONMENT_IS_NODE) {
 				return require('child_process').spawn(command, args, {
+					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
 					timeout: 100,
@@ -300,7 +317,11 @@ const LibraryExample = {
 		argsPtr,
 		argsLength,
 		descriptorsPtr,
-		descriptorsLength
+		descriptorsLength,
+		cwdPtr,
+		cwdLength,
+		envPtr,
+		envLength
 	) {
 		if (!command) {
 			return 1;
@@ -316,6 +337,24 @@ const LibraryExample = {
 			for (var i = 0; i < argsLength; i++) {
 				const charPointer = argsPtr + i * 4;
 				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
+			}
+		}
+
+		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+		let envObject = null;
+
+		if (envLength) {
+			envObject = {};
+			for (var i = 0; i < envLength; i++) {
+				const envPointer = envPtr + i * 4;
+				const envEntry = UTF8ToString(HEAPU32[envPointer >> 2]);
+				const splitAt = envEntry.indexOf('=');
+				if (splitAt === -1) {
+					continue;
+				}
+				const key = envEntry.substring(0, splitAt);
+				const value = envEntry.substring(splitAt + 1);
+				envObject[key] = value;
 			}
 		}
 
@@ -335,7 +374,14 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = PHPWASM.spawnProcess(cmdstr, argsArray);
+				const options = {};
+				if (cwdstr !== null) {
+					options.cwd = cwdstr;
+				}
+				if (envObject !== null) {
+					options.env = envObject;
+				}
+				cp = PHPWASM.spawnProcess(cmdstr, argsArray, options);
 				if (cp instanceof Promise) {
 					cp = await cp;
 				}
@@ -493,11 +539,12 @@ const LibraryExample = {
 		});
 	},
 
-	js_process_status: function (pid) {
+	js_process_status: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
 			return -1;
 		}
 		if (PHPWASM.child_proc_by_pid[pid].exited) {
+			HEAPU32[exitCodePtr >> 2] = PHPWASM.child_proc_by_pid[pid].exitCode;
 			return 1;
 		}
 		return 0;
@@ -510,9 +557,9 @@ const LibraryExample = {
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
 				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
-					HEAPU8[exitCodePtr] =
+					HEAPU32[exitCodePtr >> 2] =
 						PHPWASM.child_proc_by_pid[pid].exitCode;
-					wakeUp(0);
+					wakeUp(pid);
 				} else {
 					setTimeout(poll, 50);
 				}
@@ -556,7 +603,7 @@ const LibraryExample = {
 					return;
 				}
 				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-			} else {
+			} else if (FS.isSocket(FS.getStream(socketd).node.mode)) {
 				// This is, most likely, a websocket. Let's make sure.
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
@@ -602,6 +649,11 @@ const LibraryExample = {
 						lookingFor.add('POLLERR');
 					}
 				}
+			} else {
+				setTimeout(function () {
+					wakeUp(1);
+				}, timeout);
+				return;
 			}
 			if (polls.length === 0) {
 				console.warn(
@@ -724,30 +776,33 @@ const LibraryExample = {
 	js_fd_read: function (fd, iov, iovcnt, pnum) {
 		// Only run the read operation on a regular call,
 		// never when rewinding the stack.
-        if (Asyncify.state === Asyncify.State.Normal) {
-            var returnCode;
-            var stream;
+		if (Asyncify.state === Asyncify.State.Normal) {
+			var returnCode;
+			var stream;
 			let num = 0;
-            try {
-                stream = SYSCALLS.getStreamFromFD(fd);
-                const num = doReadv(stream, iov, iovcnt);
-                HEAPU32[pnum >> 2] = num;
+			try {
+				stream = SYSCALLS.getStreamFromFD(fd);
+				const num = doReadv(stream, iov, iovcnt);
+				HEAPU32[pnum >> 2] = num;
 				return 0;
 			} catch (e) {
 				// Rethrow any unexpected non-filesystem errors.
-				if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
 					throw e;
 				}
-                // Only return synchronously if this isn't an asynchronous pipe.
+				// Only return synchronously if this isn't an asynchronous pipe.
 				// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
 				// We also need to distinguish between a process pipe and a file pipe, otherwise
 				// reading from an empty file would block until the timeout.
-				if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+				if (
+					e.errno !== 6 ||
+					!(stream?.fd in PHPWASM.child_proc_by_fd)
+				) {
 					// On failure, yield 0 bytes read to indicate EOF.
 					HEAPU32[pnum >> 2] = 0;
-					return returnCode
+					return returnCode;
 				}
-            }
+			}
 		}
 
 		// At this point we know we have to poll.
@@ -785,12 +840,11 @@ const LibraryExample = {
 				}
 
 				const success = returnCode === 0;
-				const failure = (
+				const failure =
 					++retries > maxRetries ||
 					!(fd in PHPWASM.child_proc_by_fd) ||
 					PHPWASM.child_proc_by_fd[fd]?.exited ||
-					FS.isClosed(stream)
-				);
+					FS.isClosed(stream);
 
 				if (success) {
 					HEAPU32[pnum >> 2] = num;
@@ -912,7 +966,7 @@ const LibraryExample = {
 						// separates JS context from the PHP context so we
 						// don't let PHP crash here.
 						console.error(e);
-						wakeUp(0);
+						wakeUp(-1);
 					});
 			});
 		}

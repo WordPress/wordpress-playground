@@ -1,0 +1,61 @@
+name: Update CHANGELOG.md
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version to document in the changelog (unreleased, current, 0.7.0)'
+                required: true
+                default: 'current'
+    workflow_run:
+        workflows: [Release NPM packages]
+        types:
+            - completed
+
+jobs:
+    release:
+        # Only run this workflow from the trunk branch and when it's triggered by dmsnell OR adamziel
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.event.workflow_run.conclusion == 'success' ||
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
+            )
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: wordpress-assets
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  ref: trunk
+                  clean: true
+                  persist-credentials: false
+            - name: Fetch trunk
+              shell: bash
+              run: git fetch origin trunk --depth=1
+            - name: 'Install bun (for the changelog)'
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
+            - name: '✏️ Generate release changelog'
+              run: |
+                  ls ./
+                  PATH="${PATH}:${HOME}/.bun/bin" npm run changelog -- --version=${{ inputs.version }}
+                  PATH="${PATH}:${HOME}/.bun/bin" bun packages/docs/site/bin/refresh-changelog.ts
+            - name: '📦 Commit and push changelog'
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+                  if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
+                      git commit CHANGELOG.md -m "chore: update changelog"
+                      git pull origin trunk --rebase
+                      git push origin trunk
+                  else
+                      echo "No changes in CHANGELOG.md. Skipping commit and push."
+                  fi

@@ -30,5 +30,8 @@
 		}
 	],
 	"git.ignoreLimitWarning": true,
-	"C_Cpp.errorSquiggles": "disabled"
+	"C_Cpp.errorSquiggles": "disabled",
+	"git.branchProtection": [
+		"trunk"
+	]
 }

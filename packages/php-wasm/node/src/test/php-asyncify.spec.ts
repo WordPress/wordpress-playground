@@ -2,7 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { NodePHP } from '..';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import { SupportedPHPVersions, setPhpIniEntries } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import InitialDockerfile from '../../../compile/php/Dockerfile?raw';
@@ -56,7 +56,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
-		php.setPhpIniEntry('allow_url_fopen', '1');
+		await setPhpIniEntries(php, { allow_url_fopen: 1 });
 	});
 
 	describe.each(topOfTheStack)('%s', (networkCall) => {
@@ -176,19 +176,44 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				$x = new Top();
 				isset($x->test);
 			`));
-			test('offsetSet', () =>
+			test('offsetSet', () => {
 				assertNoCrash(`
-				class Top implements ArrayAccess {
-					function offsetExists($offset) { ${networkCall} }
-					function offsetGet($offset) { ${networkCall} }
-					function offsetSet($offset, $value) { ${networkCall} }
-					function offsetUnset($offset) { ${networkCall} }
+					class Top implements ArrayAccess {
+						function offsetExists($offset) { ${networkCall} }
+						function offsetGet($offset) { ${networkCall} }
+						function offsetSet($offset, $value) { ${networkCall} }
+						function offsetUnset($offset) { ${networkCall} }
+					}
+					$x = new Top();
+					isset($x['test']);
+					$a = $x['test'];
+					$x['test'] = 123;
+					unset($x['test']);
+				`);
+			});
+			test('Iterator', () =>
+				assertNoCrash(`
+				$data = new class() implements IteratorAggregate {
+					public function getIterator(): Traversable {
+						${networkCall};
+						return new ArrayIterator( [] );
+					}
+				};
+				echo json_encode( [
+					...$data
+				] );
+			`));
+			test('yield', () =>
+				assertNoCrash(`
+				function countTo2() {
+					${networkCall};
+					yield '1';
+					${networkCall};
+					yield '2';
 				}
-				$x = new Top();
-				isset($x['test']); 
-				$a = $x['test'];              
-				$x['test'] = 123;             
-				unset($x['test']);            
+				foreach(countTo2() as $number) {
+					echo $number;
+				}
 			`));
 		});
 	});

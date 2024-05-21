@@ -11,7 +11,35 @@
 				},
 				"description": {
 					"type": "string",
-					"description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what."
+					"description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what.",
+					"deprecated": "Use meta.description instead."
+				},
+				"meta": {
+					"type": "object",
+					"properties": {
+						"title": {
+							"type": "string",
+							"description": "A clear and concise name for your Blueprint."
+						},
+						"description": {
+							"type": "string",
+							"description": "A brief explanation of what your Blueprint offers."
+						},
+						"author": {
+							"type": "string",
+							"description": "A GitHub username of the author of this Blueprint."
+						},
+						"categories": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org."
+						}
+					},
+					"required": ["title", "author"],
+					"additionalProperties": false,
+					"description": "Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints"
 				},
 				"preferredVersions": {
 					"type": "object",
@@ -306,7 +334,7 @@
 		},
 		"SupportedPHPExtensionBundle": {
 			"type": "string",
-			"const": "kitchen-sink"
+			"enum": ["kitchen-sink", "light"]
 		},
 		"StepDefinition": {
 			"type": "object",
@@ -432,7 +460,7 @@
 						"method": {
 							"type": "string",
 							"enum": ["rewrite-wp-config", "define-before-run"],
-							"description": "The method of defining the constants. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+							"description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
 						},
 						"virtualize": {
 							"type": "boolean",
@@ -509,7 +537,7 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "importFile"
+							"const": "importWxr"
 						},
 						"file": {
 							"$ref": "#/definitions/FileReference",
@@ -565,6 +593,11 @@
 							},
 							"additionalProperties": false
 						},
+						"ifAlreadyInstalled": {
+							"type": "string",
+							"enum": ["overwrite", "skip", "error"],
+							"description": "What to do if the asset already exists."
+						},
 						"step": {
 							"type": "string",
 							"const": "installPlugin",
@@ -596,6 +629,11 @@
 								}
 							},
 							"additionalProperties": false
+						},
+						"ifAlreadyInstalled": {
+							"type": "string",
+							"enum": ["overwrite", "skip", "error"],
+							"description": "What to do if the asset already exists."
 						},
 						"step": {
 							"type": "string",
@@ -840,7 +878,7 @@
 						},
 						"options": {
 							"$ref": "#/definitions/PHPRunOptions",
-							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions)"
+							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))"
 						}
 					},
 					"required": ["options", "step"]
@@ -898,37 +936,6 @@
 						}
 					},
 					"required": ["sql", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "setPhpIniEntry"
-						},
-						"key": {
-							"type": "string",
-							"description": "Entry name e.g. \"display_errors\""
-						},
-						"value": {
-							"type": "string",
-							"description": "Entry value as a string e.g. \"1\""
-						}
-					},
-					"required": ["key", "step", "value"]
 				},
 				{
 					"type": "object",
@@ -1171,46 +1178,125 @@
 					"$ref": "#/definitions/PHPRequestHeaders",
 					"description": "Request headers."
 				},
-				"files": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "object",
-						"properties": {
-							"size": {
+				"body": {
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "object",
+							"properties": {
+								"BYTES_PER_ELEMENT": {
+									"type": "number"
+								},
+								"buffer": {
+									"type": "object",
+									"properties": {
+										"byteLength": {
+											"type": "number"
+										}
+									},
+									"required": ["byteLength"],
+									"additionalProperties": false
+								},
+								"byteLength": {
+									"type": "number"
+								},
+								"byteOffset": {
+									"type": "number"
+								},
+								"length": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"BYTES_PER_ELEMENT",
+								"buffer",
+								"byteLength",
+								"byteOffset",
+								"length"
+							],
+							"additionalProperties": {
 								"type": "number"
-							},
-							"type": {
-								"type": "string"
-							},
-							"lastModified": {
-								"type": "number"
-							},
-							"name": {
-								"type": "string"
-							},
-							"webkitRelativePath": {
-								"type": "string"
 							}
 						},
-						"required": [
-							"lastModified",
-							"name",
-							"size",
-							"type",
-							"webkitRelativePath"
-						],
-						"additionalProperties": false
-					},
-					"description": "Uploaded files"
-				},
-				"body": {
-					"type": "string",
-					"description": "Request body without the files."
-				},
-				"formData": {
-					"type": "object",
-					"additionalProperties": {},
-					"description": "Form data. If set, the request body will be ignored and the content-type header will be set to `application/x-www-form-urlencoded`."
+						{
+							"type": "object",
+							"additionalProperties": {
+								"anyOf": [
+									{
+										"type": "string"
+									},
+									{
+										"type": "object",
+										"properties": {
+											"BYTES_PER_ELEMENT": {
+												"type": "number"
+											},
+											"buffer": {
+												"type": "object",
+												"properties": {
+													"byteLength": {
+														"type": "number"
+													}
+												},
+												"required": ["byteLength"],
+												"additionalProperties": false
+											},
+											"byteLength": {
+												"type": "number"
+											},
+											"byteOffset": {
+												"type": "number"
+											},
+											"length": {
+												"type": "number"
+											}
+										},
+										"required": [
+											"BYTES_PER_ELEMENT",
+											"buffer",
+											"byteLength",
+											"byteOffset",
+											"length"
+										],
+										"additionalProperties": {
+											"type": "number"
+										}
+									},
+									{
+										"type": "object",
+										"properties": {
+											"size": {
+												"type": "number"
+											},
+											"type": {
+												"type": "string"
+											},
+											"lastModified": {
+												"type": "number"
+											},
+											"name": {
+												"type": "string"
+											},
+											"webkitRelativePath": {
+												"type": "string"
+											}
+										},
+										"required": [
+											"lastModified",
+											"name",
+											"size",
+											"type",
+											"webkitRelativePath"
+										],
+										"additionalProperties": false
+									}
+								]
+							}
+						}
+					],
+					"description": "Request body. If an object is given, the request will be encoded as multipart and sent with a `multipart/form-data` header."
 				}
 			},
 			"required": ["url"],
@@ -1250,78 +1336,69 @@
 					"description": "Request headers."
 				},
 				"body": {
-					"type": "string",
-					"description": "Request body without the files."
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "object",
+							"properties": {
+								"BYTES_PER_ELEMENT": {
+									"type": "number"
+								},
+								"buffer": {
+									"type": "object",
+									"properties": {
+										"byteLength": {
+											"type": "number"
+										}
+									},
+									"required": ["byteLength"],
+									"additionalProperties": false
+								},
+								"byteLength": {
+									"type": "number"
+								},
+								"byteOffset": {
+									"type": "number"
+								},
+								"length": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"BYTES_PER_ELEMENT",
+								"buffer",
+								"byteLength",
+								"byteOffset",
+								"length"
+							],
+							"additionalProperties": {
+								"type": "number"
+							}
+						}
+					],
+					"description": "Request body."
 				},
-				"fileInfos": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/FileInfo"
+				"env": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
 					},
-					"description": "Uploaded files."
+					"description": "Environment variables to set for this run."
+				},
+				"$_SERVER": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"description": "$_SERVER entries to set for this run."
 				},
 				"code": {
 					"type": "string",
 					"description": "The code snippet to eval instead of a php file."
-				},
-				"throwOnError": {
-					"type": "boolean",
-					"description": "Whether to throw an error if the PHP process exits with a non-zero code or outputs to stderr."
 				}
 			},
-			"additionalProperties": false
-		},
-		"FileInfo": {
-			"type": "object",
-			"properties": {
-				"key": {
-					"type": "string"
-				},
-				"name": {
-					"type": "string"
-				},
-				"type": {
-					"type": "string"
-				},
-				"data": {
-					"type": "object",
-					"properties": {
-						"BYTES_PER_ELEMENT": {
-							"type": "number"
-						},
-						"buffer": {
-							"type": "object",
-							"properties": {
-								"byteLength": {
-									"type": "number"
-								}
-							},
-							"required": ["byteLength"],
-							"additionalProperties": false
-						},
-						"byteLength": {
-							"type": "number"
-						},
-						"byteOffset": {
-							"type": "number"
-						},
-						"length": {
-							"type": "number"
-						}
-					},
-					"required": [
-						"BYTES_PER_ELEMENT",
-						"buffer",
-						"byteLength",
-						"byteOffset",
-						"length"
-					],
-					"additionalProperties": {
-						"type": "number"
-					}
-				}
-			},
-			"required": ["key", "name", "type", "data"],
 			"additionalProperties": false
 		},
 		"WordPressInstallationOptions": {

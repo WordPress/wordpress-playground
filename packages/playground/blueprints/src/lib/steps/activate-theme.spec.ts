@@ -1,20 +1,20 @@
 import { NodePHP } from '@php-wasm/node';
-import {
-	RecommendedPHPVersion,
-	getWordPressModule,
-} from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
 import { activateTheme } from './activate-theme';
 import { phpVar } from '@php-wasm/util';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step activateTheme()', () => {
 	let php: NodePHP;
+	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await handler.getPrimaryPhp();
 		php.mkdir('/wordpress');
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
@@ -79,5 +79,29 @@ describe('Blueprint step activateTheme()', () => {
 		});
 
 		expect(php.fileExists(createdFilePath)).toBe(true);
+	});
+
+	it('should detect a silent failure in activating the theme', async () => {
+		const docroot = php.documentRoot;
+		php.mkdir(`${docroot}/wp-content/themes/test-theme`);
+		php.writeFile(
+			`${docroot}/wp-content/themes/test-theme/style.css`,
+			`/**
+* Theme Name: Test Theme
+* Theme URI: https://example.com/test-theme
+* Author: Test Author
+*/
+			`
+		);
+		php.writeFile(
+			`/${docroot}/wp-content/mu-plugins/0-exit.php`,
+			`<?php exit(0); `
+		);
+		expect(
+			async () =>
+				await activateTheme(php, {
+					themeFolderName: 'test-theme',
+				})
+		).rejects.toThrow(/Theme test-theme could not be activated/);
 	});
 });

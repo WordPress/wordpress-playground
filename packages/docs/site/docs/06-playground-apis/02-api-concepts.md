@@ -6,7 +6,7 @@ title: Concepts
 
 WordPress Playground in the browser is all about links and iframes. Regardless of which API you choose, you will use it in one of the following ways:
 
-### Link to the Playground site
+## Link to the Playground site
 
 You can customize WordPress Playground by modifying the https://playground.wordpress.net/ link. You can, for example, create a post, request a specific plugin, or run any PHP code.
 

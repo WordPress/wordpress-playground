@@ -1,4 +1,4 @@
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { login } from './login';
@@ -6,6 +6,7 @@ import { request } from './request';
 import { setSiteOptions } from './site-data';
 import { activatePlugin } from './activate-plugin';
 import { getURLScope, isURLScoped } from '@php-wasm/scopes';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc enableMultisite
@@ -23,7 +24,7 @@ export interface EnableMultisiteStep {
 }
 
 /**
- * Defines constants in a wp-config.php file.
+ * Defines the [Multisite](https://developer.wordpress.org/advanced-administration/multisite/create-network/) constants in a `wp-config.php` file.
  *
  * This step can be called multiple times, and the constants will be merged.
  *
@@ -63,13 +64,12 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 
 	// Deactivate all the plugins as required by the multisite installation.
 	const result = await playground.run({
-		throwOnError: true,
 		code: `<?php
 define( 'WP_ADMIN', true );
 require_once(${phpVar(docroot)} . "/wp-load.php");
 
 // Set current user to admin
-set_current_user( get_users(array('role' => 'Administrator') )[0] );
+( get_users(array('role' => 'Administrator') )[0] );
 
 require_once(${phpVar(docroot)} . "/wp-admin/includes/plugin.php");
 $plugins_root = ${phpVar(docroot)} . "/wp-content/plugins";
@@ -77,7 +77,11 @@ $plugins = glob($plugins_root . "/*");
 
 $deactivated_plugins = [];
 foreach($plugins as $plugin_path) {
+	if (str_ends_with($plugin_path, '/index.php')) {
+		continue;
+	}
 	if (!is_dir($plugin_path)) {
+		$deactivated_plugins[] = substr($plugin_path, strlen($plugins_root) + 1);
 		deactivate_plugins($plugin_path);
 		continue;
 	}
@@ -137,7 +141,7 @@ echo json_encode($deactivated_plugins);
 		},
 	});
 	if (response.httpStatusCode !== 200) {
-		console.warn('WordPress response was', {
+		logger.warn('WordPress response was', {
 			response,
 			text: response.text,
 			headers: response.headers,
@@ -149,7 +153,6 @@ echo json_encode($deactivated_plugins);
 
 	await defineWpConfigConsts(playground, {
 		consts: {
-			SUNRISE: 'on',
 			MULTISITE: true,
 			SUBDOMAIN_INSTALL: false,
 			SITE_ID_CURRENT_SITE: 1,
@@ -159,24 +162,37 @@ echo json_encode($deactivated_plugins);
 		},
 	});
 
-	// Create a sunrise.php file to tell WordPress which site to load
-	// by default. Without this, requiring `wp-load.php` will result in
-	// a redirect to the main site.
+	// Preload a sunrise.php file. Without it, requiring `wp-load.php`
+	// would result in a redirect to the main site.
+	//
+	// Normally that's a drop-in plugin living in wp-content, but:
+	// * We only need this logic in Playground runtime.
+	// * We don't want to modify the user site in any way not explicitly
+	//   requested.
 	const playgroundUrl = new URL(await playground.absoluteUrl);
 	const wpInstallationFolder = isURLScoped(playgroundUrl)
 		? 'scope:' + getURLScope(playgroundUrl)
 		: null;
+	// $_SERVER variables must be set before WordPress is loaded,
+	// therefore they're placed in the `preload` directory.
 	await playground.writeFile(
-		joinPaths(docroot, '/wp-content/sunrise.php'),
+		'/internal/shared/preload/sunrise.php',
 		`<?php
-	if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
-		define( 'BLOG_ID_CURRENT_SITE', 1 );
-	}
+	$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
 	$folder = ${phpVar(wpInstallationFolder)};
 	if ($folder && strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
-		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
 		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
 	}
+`
+	);
+	// The default BLOG_ID_CURRENT_SITE must be set after WordPress
+	// is loaded, therefore it is placed in the `mu-plugins` directory.
+	await playground.writeFile(
+		'/internal/shared/mu-plugins/sunrise.php',
+		`<?php
+		if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
+			define( 'BLOG_ID_CURRENT_SITE', 1 );
+		}
 `
 	);
 	await login(playground, {});

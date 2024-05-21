@@ -20,7 +20,8 @@
 					"cp -r ./remote/* ./wasm-wordpress-net/",
 					"cp -r ./website/* ./wasm-wordpress-net/",
 					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess",
-					"curl https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar | gzip -c -9 > wasm-wordpress-net/wp-cli.phar.gz"
+					"curl https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar > wasm-wordpress-net/wp-cli.phar",
+					"cat wasm-wordpress-net/wp-cli.phar | gzip -c -9 > wasm-wordpress-net/wp-cli.phar.gz"
 				],
 				"cwd": "dist/packages/playground",
 				"parallel": false

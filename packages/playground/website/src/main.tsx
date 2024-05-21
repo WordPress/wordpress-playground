@@ -16,16 +16,33 @@ import { StorageType, StorageTypes } from './types';
 import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
+import { ReportError } from './components/toolbar-buttons/report-error';
+import { ViewLogs } from './components/toolbar-buttons/view-logs';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { useState } from 'react';
-import { ExportFormValues } from './github/github-export-form/form';
+import { useState, useEffect, useRef } from 'react';
+import {
+	ExportFormValues,
+	asPullRequestAction,
+} from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
-import { PlaygroundContext } from './playground-context';
+import { ActiveModal, PlaygroundContext } from './playground-context';
+import {
+	addCrashListener,
+	collectWindowErrors,
+	logger,
+} from '@php-wasm/logger';
+import { ErrorReportModal } from './components/error-report-modal';
+import { asContentType } from './github/import-from-github';
+import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
+import { LogModal } from './components/log-modal';
+import { StartErrorModal } from './components/start-error-modal';
+
+collectWindowErrors(logger);
 
 const query = new URL(document.location.href).searchParams;
 const blueprint = await resolveBlueprint();
@@ -50,7 +67,7 @@ const currentConfiguration: PlaygroundConfiguration = {
 	wp: blueprint.preferredVersions?.wp || 'latest',
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
 	storage: storage || 'none',
-	withExtensions: blueprint.phpExtensionBundles?.[0] === 'kitchen-sink',
+	withExtensions: blueprint.phpExtensionBundles?.[0] !== 'light',
 	withNetworking: blueprint.features?.networking || false,
 	resetSite: false,
 };
@@ -76,14 +93,85 @@ if (currentConfiguration.wp === '6.3') {
 
 acquireOAuthTokenIfNeeded();
 
+function Modals({ activeModal }: { activeModal: ActiveModal }) {
+	// Use a ref to store the current modal to avoid re-rendering from resetting the modal state.
+	const currentModal = useRef<ActiveModal>(false);
+
+	if (currentModal.current === false || activeModal === false) {
+		currentModal.current = activeModal;
+	}
+
+	if (currentModal.current === 'log') {
+		return <LogModal />;
+	} else if (currentModal.current === 'error-report') {
+		return <ErrorReportModal blueprint={blueprint} />;
+	} else if (currentModal.current === 'start-error') {
+		return <StartErrorModal />;
+	}
+
+	return null;
+}
+
 function Main() {
+	const [activeModal, setActiveModal] = useState<ActiveModal>(false);
+
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
-	>({});
+	>(() => {
+		const values: Partial<ExportFormValues> = {};
+		if (query.get('ghexport-repo-url')) {
+			values.repoUrl = query.get('ghexport-repo-url')!;
+		}
+		if (query.get('ghexport-content-type')) {
+			values.contentType = asContentType(
+				query.get('ghexport-content-type')
+			);
+		}
+		if (query.get('ghexport-pr-action')) {
+			values.prAction = asPullRequestAction(
+				query.get('ghexport-pr-action')
+			);
+		}
+		if (query.get('ghexport-playground-root')) {
+			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
+		}
+		if (query.get('ghexport-repo-root')) {
+			values.toPathInRepo = query.get('ghexport-repo-root')!;
+		}
+		if (query.get('ghexport-path')) {
+			values.relativeExportPaths = query.getAll('ghexport-path');
+		}
+		if (query.get('ghexport-commit-message')) {
+			values.commitMessage = query.get('ghexport-commit-message')!;
+		}
+		if (query.get('ghexport-plugin')) {
+			values.plugin = query.get('ghexport-plugin')!;
+		}
+		if (query.get('ghexport-theme')) {
+			values.theme = query.get('ghexport-theme')!;
+		}
+		return values;
+	});
+
+	useEffect(() => {
+		addCrashListener(logger, (e) => {
+			const error = e as CustomEvent;
+			if (error.detail?.source === 'php-wasm') {
+				setActiveModal('error-report');
+			}
+		});
+	}, []);
 
 	return (
-		<PlaygroundContext.Provider value={{ storage }}>
+		<PlaygroundContext.Provider
+			value={{
+				storage,
+				activeModal,
+				setActiveModal,
+			}}
+		>
+			<Modals activeModal={activeModal} />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
@@ -112,10 +200,34 @@ function Main() {
 										storage={currentConfiguration.storage}
 										onClose={onClose}
 									/>
+									<ReportError onClose={onClose} />
 									<DownloadAsZipMenuItem onClose={onClose} />
 									<RestoreFromZipMenuItem onClose={onClose} />
 									<GithubImportMenuItem onClose={onClose} />
 									<GithubExportMenuItem onClose={onClose} />
+									<ViewLogs onClose={onClose} />
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to Blueprints Builder"
+										href={
+											[
+												joinPaths(
+													document.location.pathname,
+													'builder/builder.html'
+												),
+												'#',
+												btoa(
+													JSON.stringify(
+														blueprint
+													) as string
+												) as string,
+											].join('') as any
+										}
+										target="_blank"
+									>
+										Edit the Blueprint
+									</MenuItem>
 								</MenuGroup>
 								<MenuGroup label="More resources">
 									<MenuItem
@@ -163,6 +275,11 @@ function Main() {
 					</DropdownMenu>,
 				]}
 			>
+				{query.get('gh-ensure-auth') === 'yes' ? (
+					<GitHubOAuthGuardModal />
+				) : (
+					''
+				)}
 				<GithubImportModal
 					onImported={({
 						url,
@@ -175,7 +292,7 @@ function Main() {
 						setGithubExportValues({
 							repoUrl: url,
 							prNumber: pr?.toString(),
-							pathInRepo: path,
+							toPathInRepo: path,
 							prAction: pr ? 'update' : 'create',
 							contentType,
 							plugin: pluginOrThemeName,
@@ -185,6 +302,10 @@ function Main() {
 					}}
 				/>
 				<GithubExportModal
+					allowZipExport={
+						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
+						'yes'
+					}
 					initialValues={githubExportValues}
 					initialFilesBeforeChanges={githubExportFiles}
 					onExported={(prUrl, formValues) => {

@@ -21,26 +21,13 @@
 			},
 			"dependsOn": ["^build"]
 		},
-		"bundle-wordpress": {
+		"publish": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/playground/wordpress/build/build.js --wp-version={args.wp-version} --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+				"command": "node tools/scripts/publish.mjs playground-wordpress {args.ver} {args.tag}",
 				"parallel": false
-			}
-		},
-		"bundle-wordpress:all": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-3 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=latest --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=beta --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public"
-				],
-				"parallel": false
-			}
+			},
+			"dependsOn": ["build"]
 		},
 		"test": {
 			"executor": "nx:noop",
@@ -60,10 +47,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": [
-					"packages/playground/wordpress/**/*.ts",
-					"packages/playground/wordpress/package.json"
-				]
+				"lintFilePatterns": ["packages/playground/wordpress/**/*.ts"]
 			}
 		}
 	},
