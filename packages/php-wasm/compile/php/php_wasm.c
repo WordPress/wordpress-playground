@@ -529,9 +529,6 @@ typedef struct wasm_uploaded_file
 	struct wasm_uploaded_file *next;
 } wasm_uploaded_file_t;
 
-const int MODE_EVAL_CODE = 1;
-const int MODE_EXECUTE_SCRIPT = 2;
-
 typedef struct
 {
 	char *document_root,
@@ -542,15 +539,13 @@ typedef struct
 		*request_host,
 		*content_type,
 		*request_body,
-		*cookies,
-		*php_code;
+		*cookies;
 
 	struct wasm_array_entry *server_array_entries;
 	struct wasm_array_entry *env_array_entries;
 
 	int content_length,
 		request_port,
-		execution_mode,
 		skip_shebang;
 } wasm_server_context_t;
 
@@ -578,7 +573,6 @@ static char *wasm_sapi_read_cookies(TSRMLS_D);
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
 void wasm_init_server_context();
 static char *int_to_string(int i);
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
 
 
 #if (PHP_MAJOR_VERSION >= 8)
@@ -667,8 +661,6 @@ void wasm_init_server_context()
 	wasm_server_context->request_port = -1;
 	wasm_server_context->request_body = NULL;
 	wasm_server_context->cookies = NULL;
-	wasm_server_context->php_code = NULL;
-	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
 	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
 	wasm_server_context->env_array_entries = NULL;
@@ -707,10 +699,6 @@ void wasm_destroy_server_context()
 	if (wasm_server_context->cookies != NULL)
 	{
 		free(wasm_server_context->cookies);
-	}
-	if (wasm_server_context->php_code != NULL)
-	{
-		free(wasm_server_context->php_code);
 	}
 
 	// Free wasm_server_context->server_array_entries
@@ -894,21 +882,6 @@ void wasm_set_content_length(int content_length)
 void wasm_set_cookies(char *cookies)
 {
 	wasm_server_context->cookies = strdup(cookies);
-}
-
-/**
- * Function: wasm_set_php_code
- * ----------------------------
- *  Sets the PHP code to run during the next request. If set,
- *  the script at the path specified by wasm_set_path_translated()
- *  will be represented in $_SERVER but will not be executed.
- *
- *  code: the PHP code, e.g. "echo 'Hello World!';"
- */
-void wasm_set_php_code(char *code)
-{
-	wasm_server_context->php_code = strdup(code);
-	wasm_server_context->execution_mode = MODE_EVAL_CODE;
 }
 
 /**
@@ -1242,8 +1215,7 @@ void wasm_sapi_request_shutdown()
 /**
  * Function: wasm_sapi_handle_request
  * ----------------------------
- *   Runs the PHP code snippet set up with wasm_set_php_code or,
- *   if missing, executes the PHP file set up with wasm_set_path_translated.
+ *   Executes the PHP file set up with wasm_set_path_translated.
  */
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 {
@@ -1257,57 +1229,51 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 	EG(exit_status) = 0;
 
 	TSRMLS_FETCH();
-	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)
-	{
-		zend_file_handle file_handle;
+	zend_file_handle file_handle;
 
-		file_handle.type = ZEND_HANDLE_FILENAME;
+	file_handle.type = ZEND_HANDLE_FILENAME;
 #if PHP_MAJOR_VERSION >= 8
-		zend_string *filename = zend_string_init(
-			SG(request_info).path_translated,
-			strlen(SG(request_info).path_translated),
-			1);
-		file_handle.filename = filename;
+	zend_string *filename = zend_string_init(
+		SG(request_info).path_translated,
+		strlen(SG(request_info).path_translated),
+		1);
+	file_handle.filename = filename;
 #else
-		file_handle.filename = SG(request_info).path_translated;
+	file_handle.filename = SG(request_info).path_translated;
 #endif
 #if PHP_MAJOR_VERSION < 8
-		file_handle.free_filename = 0;
-		file_handle.opened_path = NULL;
+	file_handle.free_filename = 0;
+	file_handle.opened_path = NULL;
 #endif
 
-		// https://bugs.php.net/bug.php?id=77561
-		// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
-		// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
-		// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
-		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE)
-		{
-			zend_try
-			{
-				if (errno == EACCES)
-				{
-					SG(sapi_headers).http_response_code = 403;
-					PUTS("Access denied.\n");
-				}
-				else
-				{
-					SG(sapi_headers).http_response_code = 404;
-					PUTS("No input file specified.\n");
-				}
-			}
-			zend_catch
-			{
-			}
-			zend_end_try();
-			goto wasm_request_done;
-		}
-
-		php_execute_script(&file_handle TSRMLS_CC);
-	}
-	else
+	// https://bugs.php.net/bug.php?id=77561
+	// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
+	// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
+	// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
+	if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE)
 	{
-		run_php(wasm_server_context->php_code);
+		zend_try
+		{
+			if (errno == EACCES)
+			{
+				SG(sapi_headers).http_response_code = 403;
+				PUTS("Access denied.\n");
+			}
+			else
+			{
+				SG(sapi_headers).http_response_code = 404;
+				PUTS("No input file specified.\n");
+			}
+		}
+		zend_catch
+		{
+		}
+		zend_end_try();
+		goto wasm_request_done;
 	}
+
+	php_execute_script(&file_handle TSRMLS_CC);
+
 	result = EG(exit_status);
 wasm_request_done:
 	wasm_sapi_request_shutdown();
@@ -1525,32 +1491,4 @@ int php_wasm_init()
 		return FAILURE;
 	}
 	return SUCCESS;
-}
-
-/*
- * Function: phpwasm_run
- * ----------------------------
- *   Runs a PHP script. Writes the output to stdout and stderr,
- *
- *   code: The PHP code to run.
- *
- *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
- */
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
-{
-	zend_try
-	{
-		zend_eval_string(code, NULL, "php-wasm run script");
-
-		if (EG(exception))
-		{
-			zend_exception_error(EG(exception), E_ERROR);
-		}
-	}
-	zend_catch
-	{
-	}
-	zend_end_try();
-
-	return EG(exit_status);
 }
