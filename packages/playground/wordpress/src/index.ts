@@ -1,4 +1,4 @@
-import { BasePHP } from '@php-wasm/universal';
+import { BasePHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 
@@ -11,9 +11,9 @@ export * from './rewrite-rules';
  *
  * @param php
  */
-export function enablePlatformMuPlugins(php: BasePHP) {
-	php.mkdir('/internal/shared/mu-plugins');
-	php.writeFile(
+export async function enablePlatformMuPlugins(php: UniversalPHP) {
+	await php.mkdir('/internal/shared/mu-plugins');
+	await php.writeFile(
 		'/internal/shared/preload/env.php',
 		`<?php
     
@@ -46,7 +46,7 @@ export function enablePlatformMuPlugins(php: BasePHP) {
 	);
 }
 
-export async function preloadRequiredMuPlugin(php: BasePHP) {
+export async function preloadRequiredMuPlugin(php: UniversalPHP) {
 	// Entries must not render whitespaces. They'll be loaded
 	// as mu-plugins and we don't want to trigger the "headers
 	// already sent" PHP error.
@@ -90,7 +90,7 @@ export async function preloadRequiredMuPlugin(php: BasePHP) {
 	const playgroundMuPlugin = Object.values(specificMuPlugins)
 		.map((p) => p.trim())
 		.join('\n');
-	php.writeFile(
+	await php.writeFile(
 		'/internal/shared/mu-plugins/0-playground.php',
 		playgroundMuPlugin
 	);
@@ -98,7 +98,7 @@ export async function preloadRequiredMuPlugin(php: BasePHP) {
 	// Load the error handler before any other PHP file to ensure it
 	// treats all the errors, even those trigerred before mu-plugins
 	// are loaded.
-	php.writeFile(
+	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
 		`<?php
 		(function() { 
@@ -155,10 +155,10 @@ export async function preloadRequiredMuPlugin(php: BasePHP) {
  * Runs phpinfo() when the requested path is /phpinfo.php.
  */
 export async function preloadPhpInfoRoute(
-	php: BasePHP,
+	php: UniversalPHP,
 	requestPath = '/phpinfo.php'
 ) {
-	php.writeFile(
+	await php.writeFile(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
@@ -170,20 +170,23 @@ export async function preloadPhpInfoRoute(
 	);
 }
 
-export async function preloadSqliteIntegration(php: BasePHP, sqliteZip: File) {
-	if (php.isDir('/tmp/sqlite-database-integration')) {
-		php.rmdir('/tmp/sqlite-database-integration', {
+export async function preloadSqliteIntegration(
+	php: UniversalPHP,
+	sqliteZip: File
+) {
+	if (await php.isDir('/tmp/sqlite-database-integration')) {
+		await php.rmdir('/tmp/sqlite-database-integration', {
 			recursive: true,
 		});
 	}
-	php.mkdir('/tmp/sqlite-database-integration');
+	await php.mkdir('/tmp/sqlite-database-integration');
 	await unzipFile(php, sqliteZip, '/tmp/sqlite-database-integration');
 	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
-	php.mv(
+	await php.mv(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
 		SQLITE_PLUGIN_FOLDER
 	);
-	const dbCopy = php.readFileAsText(
+	const dbCopy = await php.readFileAsText(
 		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
 	);
 	const dbPhp = dbCopy
@@ -195,7 +198,7 @@ export async function preloadSqliteIntegration(php: BasePHP, sqliteZip: File) {
 			"'{SQLITE_PLUGIN}'",
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
-	const dbPhpPath = joinPaths(php.documentRoot, 'wp-content/db.php');
+	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
 	const stopIfDbPhpExists = `<?php
 	// Do not preload this if WordPress comes with a custom db.php file.
 	if(file_exists(${phpVar(dbPhpPath)})) {
@@ -204,11 +207,12 @@ export async function preloadSqliteIntegration(php: BasePHP, sqliteZip: File) {
 	?>`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
-	php.writeFile(
+	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
+	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
 		stopIfDbPhpExists +
 			`<?php
+
 /**
  * Loads the SQLite integration plugin before WordPress is loaded
  * and without creating a drop-in "db.php" file. 
@@ -275,13 +279,12 @@ if(!function_exists('mysqli_connect')) {
 
 		`
 	);
-
 	/**
 	 * Ensure the SQLite integration is loaded and clearly communicate
 	 * if it isn't. This is useful because WordPress database errors
 	 * may be cryptic and won't mention the SQLite integration.
 	 */
-	php.writeFile(
+	await php.writeFile(
 		`/internal/shared/mu-plugins/sqlite-test.php`,
 		`<?php
 		global $wpdb;
@@ -334,7 +337,6 @@ export async function unzipWordPress(php: BasePHP, wpZip: File) {
 		: '/tmp/unzipped-wordpress';
 
 	php.mv(wpPath, php.documentRoot);
-
 	if (
 		!php.fileExists(joinPaths(php.documentRoot, 'wp-config.php')) &&
 		php.fileExists(joinPaths(php.documentRoot, 'wp-config-sample.php'))
