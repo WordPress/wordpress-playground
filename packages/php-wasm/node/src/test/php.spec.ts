@@ -2,6 +2,7 @@ import { getPHPLoaderModule, NodePHP } from '..';
 import { vi } from 'vitest';
 import {
 	__private__dont__use,
+	getPhpIniEntries,
 	loadPHPRuntime,
 	setPhpIniEntries,
 	SupportedPHPVersions,
@@ -140,7 +141,27 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	/**
 	 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
 	 */
+	describe('dns_* function warnings', () => {
+		it('dns_check_record should throw a warning', async () => {
+			const result = await php.run({
+				code: `<?php
+				dns_check_record('w.org', 2);
+			`,
+			});
+			expect(result.text).toContain(
+				'dns_check_record() always returns false in PHP.wasm.'
+			);
+		});
+	});
+
 	describe('dns_* functions()', () => {
+		beforeEach(async () => {
+			await setPhpIniEntries(php, {
+				...getPhpIniEntries(php),
+				// Disable warnings to test the function output
+				error_reporting: 'E_ALL & ~E_WARNING',
+			});
+		});
 		it('dns_check_record should exist and be possible to run', async () => {
 			const result = await php.run({
 				code: `<?php
