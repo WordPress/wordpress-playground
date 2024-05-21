@@ -337,8 +337,15 @@ export async function unzipWordPress(php: BasePHP, wpZip: File) {
 		: '/tmp/unzipped-wordpress';
 
 	php.mv(wpPath, php.documentRoot);
-	php.writeFile(
-		'/wp-config.php',
-		php.readFileAsText(php.documentRoot + '/wp-config-sample.php')
-	);
+	if (
+		!php.fileExists(joinPaths(php.documentRoot, 'wp-config.php')) &&
+		php.fileExists(joinPaths(php.documentRoot, 'wp-config-sample.php'))
+	) {
+		php.writeFile(
+			joinPaths(php.documentRoot, 'wp-config.php'),
+			php.readFileAsText(
+				joinPaths(php.documentRoot, '/wp-config-sample.php')
+			)
+		);
+	}
 }
