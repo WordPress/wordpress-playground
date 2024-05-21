@@ -1,7 +1,6 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
 import { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
 
 interface ZipWpContentOptions {
 	/**
@@ -73,3 +72,70 @@ export const zipWpContent = async (
 
 	return fileBuffer;
 };
+
+const zipFunctions = `<?php
+
+function zipDir($root, $output, $options = array())
+{
+    $root = rtrim($root, '/');
+    $additionalPaths = array_key_exists('additional_paths', $options) ? $options['additional_paths'] : array();
+    $excludePaths = array_key_exists('exclude_paths', $options) ? $options['exclude_paths'] : array();
+    $zip_root = array_key_exists('zip_root', $options) ? $options['zip_root'] : $root;
+
+    $zip = new ZipArchive;
+    $res = $zip->open($output, ZipArchive::CREATE);
+    if ($res === TRUE) {
+        $directories = array(
+            $root . '/'
+        );
+        while (sizeof($directories)) {
+            $current_dir = array_pop($directories);
+
+            if ($handle = opendir($current_dir)) {
+                while (false !== ($entry = readdir($handle))) {
+                    if ($entry == '.' || $entry == '..') {
+                        continue;
+                    }
+
+                    $entry = join_paths($current_dir, $entry);
+                    if (in_array($entry, $excludePaths)) {
+                        continue;
+                    }
+
+                    if (is_dir($entry)) {
+                        $directory_path = $entry . '/';
+                        array_push($directories, $directory_path);
+                    } else if (is_file($entry)) {
+                        $zip->addFile($entry, substr($entry, strlen($zip_root)));
+                    }
+                }
+                closedir($handle);
+            }
+        }
+        foreach ($additionalPaths as $disk_path => $zip_path) {
+            $zip->addFile($disk_path, $zip_path);
+        }
+        $zip->close();
+        chmod($output, 0777);
+    }
+}
+
+function join_paths()
+{
+    $paths = array();
+
+    foreach (func_get_args() as $arg) {
+        if ($arg !== '') {
+            $paths[] = $arg;
+        }
+    }
+
+    return preg_replace('#/+#', '/', join('/', $paths));
+}
+`;
+
+async function runPhpWithZipFunctions(playground: UniversalPHP, code: string) {
+	return await playground.run({
+		code: zipFunctions + code,
+	});
+}

@@ -28,7 +28,7 @@ describe('Blueprint step activatePlugin()', () => {
 			`<?php /**\n * Plugin Name: Test Plugin */`
 		);
 		await activatePlugin(php, {
-			pluginPath: docroot + '/wp-content/plugins/test-plugin.php',
+			pluginPath: 'test-plugin.php',
 		});
 
 		const response = await php.run({
@@ -39,6 +39,24 @@ describe('Blueprint step activatePlugin()', () => {
 			`,
 		});
 		expect(response.text).toBe('true');
+	});
+
+	it('should detect a silent failure in activating the plugin', async () => {
+		const docroot = php.documentRoot;
+		php.writeFile(
+			`/${docroot}/wp-content/plugins/test-plugin.php`,
+			`<?php /**\n * Plugin Name: Test Plugin */`
+		);
+		php.writeFile(
+			`/${docroot}/wp-content/mu-plugins/0-exit.php`,
+			`<?php exit(0); `
+		);
+		expect(
+			async () =>
+				await activatePlugin(php, {
+					pluginPath: 'test-plugin.php',
+				})
+		).rejects.toThrow(/Plugin test-plugin.php could not be activated/);
 	});
 
 	it('should run the activation hooks as a priviliged user', async () => {
@@ -56,7 +74,7 @@ describe('Blueprint step activatePlugin()', () => {
 			`
 		);
 		await activatePlugin(php, {
-			pluginPath: docroot + '/wp-content/plugins/test-plugin.php',
+			pluginPath: 'test-plugin.php',
 		});
 
 		expect(php.fileExists(createdFilePath)).toBe(true);
