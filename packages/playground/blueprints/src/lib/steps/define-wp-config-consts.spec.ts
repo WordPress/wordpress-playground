@@ -235,9 +235,9 @@ describe('defineBeforeRun', () => {
 		};
 		await defineBeforeRun(php, constants);
 		const response = await php.run({
-			code: `<?php echo json_encode(SITE_URL);`,
+			code: `<?php echo json_encode("abc");`,
 		});
-		expect(response.text).toBe('http://test.url');
+		expect(response.text).toBe('"abc"');
 	});
 
 	it('should not raise a warning when conflicting with a user-defined constant', async () => {
