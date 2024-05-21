@@ -201,7 +201,7 @@ export async function preloadSqliteIntegration(
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
 	const stopIfDbPhpExists = `<?php
 	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpVar(dbPhpPath)})) {
+	if(file_exists(${phpVar(dbPhpPath)}) && !defined("PLAYGROUND_FORCE_SQLITE")) {
 		return;
 	}
 	?>`;

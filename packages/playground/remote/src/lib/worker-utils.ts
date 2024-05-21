@@ -157,6 +157,7 @@ const createPhpRuntime = async () => {
 
 export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
 	return createSpawnHandler(async function (args, processApi, options) {
+		console.log('args', { args });
 		if (args[0] === 'exec') {
 			args.shift();
 		}
