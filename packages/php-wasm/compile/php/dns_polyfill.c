@@ -107,25 +107,54 @@ extern void __res_ndestroy(res_state statp);
 #define MAXRESOURCERECORDS	64
 #endif /* MAXRESOURCERECORDS */
 
+#ifndef PHP_DNS_A
 #define PHP_DNS_A      0x00000001
-#define PHP_DNS_NS     0x00000002
-#define PHP_DNS_CNAME  0x00000010
-#define PHP_DNS_SOA    0x00000020
-#define PHP_DNS_PTR    0x00000800
-#define PHP_DNS_HINFO  0x00001000
-#if !defined(PHP_WIN32)
-# define PHP_DNS_CAA    0x00002000
 #endif
+#ifndef PHP_DNS_NS
+#define PHP_DNS_NS     0x00000002
+#endif
+#ifndef PHP_DNS_CNAME
+#define PHP_DNS_CNAME  0x00000010
+#endif
+#ifndef PHP_DNS_SOA
+#define PHP_DNS_SOA    0x00000020
+#endif
+#ifndef PHP_DNS_PTR
+#define PHP_DNS_PTR 0x00000800
+#endif
+#ifndef PHP_DNS_HINFO
+#define PHP_DNS_HINFO 0x00001000
+#endif
+#if !defined(PHP_WIN32) && !defined(PHP_DNS_CAA)
+#define PHP_DNS_CAA 0x00002000
+#endif
+#ifndef PHP_DNS_MX
 #define PHP_DNS_MX     0x00004000
+#endif
+#ifndef PHP_DNS_TXT
 #define PHP_DNS_TXT    0x00008000
+#endif
+#ifndef PHP_DNS_A6
 #define PHP_DNS_A6     0x01000000
+#endif
+#ifndef PHP_DNS_SRV
 #define PHP_DNS_SRV    0x02000000
+#endif
+#ifndef PHP_DNS_NAPTR
 #define PHP_DNS_NAPTR  0x04000000
+#endif
+#ifndef PHP_DNS_AAAA
 #define PHP_DNS_AAAA   0x08000000
+#endif
+#ifndef PHP_DNS_ANY
 #define PHP_DNS_ANY    0x10000000
+#endif
+#ifndef PHP_DNS_NUM_TYPES
 #define PHP_DNS_NUM_TYPES	13	/* Number of DNS Types Supported by PHP currently */
+#endif
+#ifndef PHP_DNS_ALL
 #define PHP_DNS_ALL   (PHP_DNS_A|PHP_DNS_NS|PHP_DNS_CNAME|PHP_DNS_SOA|PHP_DNS_PTR|PHP_DNS_HINFO|PHP_DNS_CAA|PHP_DNS_MX|PHP_DNS_TXT|PHP_DNS_A6|PHP_DNS_SRV|PHP_DNS_NAPTR|PHP_DNS_AAAA)
-
+#endif
 typedef union {
 	HEADER qb1;
 	uint8_t qb2[65536];
@@ -156,7 +185,7 @@ PHP_FUNCTION(dns_check_record)
 		php_error_docref(NULL, E_WARNING, "Host cannot be empty");
 		RETURN_FALSE;
 	}
-	
+
 	php_error_docref(NULL, E_WARNING, "dns_check_record() always returns false in PHP.wasm.");
 
     RETURN_FALSE;
