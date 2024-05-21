@@ -178,9 +178,9 @@ echo json_encode($deactivated_plugins);
 	await playground.writeFile(
 		'/internal/shared/preload/sunrise.php',
 		`<?php
+	$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
 	$folder = ${phpVar(wpInstallationFolder)};
 	if ($folder && strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
-		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
 		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
 	}
 `
