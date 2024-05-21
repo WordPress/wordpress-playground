@@ -234,11 +234,10 @@ describe('defineBeforeRun', () => {
 			SITE_URL: 'http://test.url',
 		};
 		await defineBeforeRun(php, constants);
-		await expect(
-			php.run({
-				code: `<?php echo json_encode(['SITE_URL' => SITE_URL]);`,
-			})
-		).rejects.toThrow('PHP.run() failed with exit code');
+		const response = await php.run({
+			code: `<?php echo json_encode(SITE_URL);`,
+		});
+		expect(response.text).toBe('http://test.url');
 	});
 
 	it('should not raise a warning when conflicting with a user-defined constant', async () => {
