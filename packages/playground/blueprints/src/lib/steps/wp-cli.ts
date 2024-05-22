@@ -76,15 +76,6 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		`
 	);
 
-	// Issue: WP-CLI seems to require db.php drop-in?
-	playground.writeFile(
-		'/wordpress/wp-content/db.php',
-		`<?php
-		define("PLAYGROUND_FORCE_SQLITE", true);
-		// require_once '/internal/shared/preload/0-sqlite.php';
-		$wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
-	`
-	);
 	const result = await playground.run({
 		scriptPath: '/wordpress/run-cli.php',
 	});

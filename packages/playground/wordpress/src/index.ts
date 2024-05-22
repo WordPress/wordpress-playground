@@ -186,6 +186,8 @@ export async function preloadSqliteIntegration(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
 		SQLITE_PLUGIN_FOLDER
 	);
+	// Prevents the SQLite integration from trying to call activate_plugin()
+	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
 		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
 	);
@@ -201,7 +203,7 @@ export async function preloadSqliteIntegration(
 	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
 	const stopIfDbPhpExists = `<?php
 	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpVar(dbPhpPath)}) && !defined("PLAYGROUND_FORCE_SQLITE")) {
+	if(file_exists(${phpVar(dbPhpPath)})) {
 		return;
 	}
 	?>`;
