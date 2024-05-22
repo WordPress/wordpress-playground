@@ -4,7 +4,7 @@ on:
     workflow_dispatch:
     # Every 20 minutes
     schedule:
-        - cron: '*/20 * * * *'
+        - cron: '0 9 * * *'
 
 jobs:
     build_and_deploy:
