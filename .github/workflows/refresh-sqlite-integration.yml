@@ -1,12 +1,7 @@
-name: 'Refresh WordPress Major&Beta'
+name: 'Refresh SQLite plugin'
 
 on:
     workflow_dispatch:
-        inputs:
-            force_rebuild:
-                description: 'Force rebuild of WordPress (true/false)'
-                required: false
-                default: 'false'
     # Every 20 minutes
     schedule:
         - cron: '*/20 * * * *'
@@ -34,10 +29,8 @@ jobs:
                   clean: true
                   persist-credentials: false
             - uses: ./.github/actions/prepare-playground
-            - name: 'Recompile WordPress'
+            - name: 'Refresh the SQLite bundle'
               shell: bash
-              env:
-                  FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
               run: npx nx bundle-sqlite-database playground-wordpress-builds
             - name: Check for uncommitted changes
               id: changes
@@ -49,14 +42,14 @@ jobs:
                       echo "Changes detected"
                       echo 'CHANGES=1' >> $GITHUB_OUTPUT
                   fi
-            - name: Push rebuilt WordPress to GitHub
+            - name: Push changes to GitHub
               if: steps.changes.outputs.CHANGES == '1'
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
-                  git commit -a -m "Recompile WordPress major and beta versions"
+                  git commit -a -m "Refresh SQLite integration plugin"
                   git pull --rebase
                   # Push if the pull did not result in a conflict
                   if [ $? -eq 0 ]; then
