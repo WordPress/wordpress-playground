@@ -9,102 +9,124 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## Unreleased
+## [v0.7.20] (2024-05-21) 
+
+### **Breaking Changes**
+
+- [Breaking] Refactor PHP.ini management, remove php.setPhpIniPath() and php.setPhpIniEntry(). ([#1423](https://github.com/WordPress/wordpress-playground/pull/1423))
 
 ### Enhancements
 
--   CLI: Distinguish between mount and mountBeforeInstall options. ([#1410](https://github.com/WordPress/wordpress-playground/pull/1410))
--   Introduce a new @wp-playground/common package to avoid circular depencies. ([#1387](https://github.com/WordPress/wordpress-playground/pull/1387))
+- CLI: Distinguish between mount and mountBeforeInstall options. ([#1410](https://github.com/WordPress/wordpress-playground/pull/1410))
+- CLI: Support fetching WordPress zips from custom URLs. ([#1415](https://github.com/WordPress/wordpress-playground/pull/1415))
+- Introduce a new @wp-playground/common package to avoid circular depencies. ([#1387](https://github.com/WordPress/wordpress-playground/pull/1387))
+- Website: Ship the SQLite database integration plugin. ([#1418](https://github.com/WordPress/wordpress-playground/pull/1418))
 
 #### Boot Flow
 
--   Playground CLI: Don't create /wordpress/wp-config.php on boot. ([#1407](https://github.com/WordPress/wordpress-playground/pull/1407))
+- Playground CLI: Don't create /wordpress/wp-config.php on boot. ([#1407](https://github.com/WordPress/wordpress-playground/pull/1407))
 
 ### Blueprints
 
--   Define constants in auto_prepend_file, silence warnings related to redefining those constants. ([#1400](https://github.com/WordPress/wordpress-playground/pull/1400))
--   Support resources defined as URLs, not just objects. ([#1020](https://github.com/WordPress/wordpress-playground/pull/1020))
--   Throw an error when activating a theme or plugin that doesn't exist. ([#1391](https://github.com/WordPress/wordpress-playground/pull/1391))
--   Write sunrise.php to /internal in enableMultisite step. ([#1401](https://github.com/WordPress/wordpress-playground/pull/1401))
+- Define constants in auto_prepend_file, silence warnings related to redefining those constants. ([#1400](https://github.com/WordPress/wordpress-playground/pull/1400))
+- Detect silent failures when activating plugins and theme. ([#1436](https://github.com/WordPress/wordpress-playground/pull/1436))
+- Re-activate single-file plugins when enabling a multisite. ([#1435](https://github.com/WordPress/wordpress-playground/pull/1435))
+- Throw an error when activating a theme or plugin that doesn't exist. ([#1391](https://github.com/WordPress/wordpress-playground/pull/1391))
+- Write sunrise.php to /internal in enableMultisite step. ([#1401](https://github.com/WordPress/wordpress-playground/pull/1401))
 
 ### Tools
 
--   Add VSCode branch protection. ([#1408](https://github.com/WordPress/wordpress-playground/pull/1408))
--   First stab at GH workflow to build PHP in CI. ([#178](https://github.com/WordPress/wordpress-playground/pull/178))
--   Show error log if Playground fails to start. ([#1336](https://github.com/WordPress/wordpress-playground/pull/1336))
-
-#### Import/Export
-
--   Support wp_crop_image in import wxr. ([#1357](https://github.com/WordPress/wordpress-playground/pull/1357))
--   WXR Import: Allow media files from wpthemetestdata.files.wordpress.com. ([#1250](https://github.com/WordPress/wordpress-playground/pull/1250))
+- Add VSCode branch protection. ([#1408](https://github.com/WordPress/wordpress-playground/pull/1408))
+- Show error log if Playground fails to start. ([#1336](https://github.com/WordPress/wordpress-playground/pull/1336))
 
 #### Blueprints
 
--   Unzip: Only delete a temporary zip file after unzipping, do not delete the original zip. ([#1412](https://github.com/WordPress/wordpress-playground/pull/1412))
+- Unzip: Only delete a temporary zip file after unzipping, do not delete the original zip. ([#1412](https://github.com/WordPress/wordpress-playground/pull/1412))
 
 #### GitHub integration
 
--   GitHub export: Create new commits in your fork when writing to the upstream repo isn't allowed. ([#1392](https://github.com/WordPress/wordpress-playground/pull/1392))
+- GitHub export: Create new commits in your fork when writing to the upstream repo isn't allowed. ([#1392](https://github.com/WordPress/wordpress-playground/pull/1392))
+
+#### Import/Export
+
+- Support wp_crop_image in import wxr. ([#1357](https://github.com/WordPress/wordpress-playground/pull/1357))
+
+### Devrel
+
+- Add puzzle API. ([#1372](https://github.com/WordPress/wordpress-playground/pull/1372))
 
 ### Documentation
 
--   Docs: Use step function names instead of TypeScript type names. ([#1373](https://github.com/WordPress/wordpress-playground/pull/1373))
--   Updated the GitHub issue link to open in a new tab. ([#1353](https://github.com/WordPress/wordpress-playground/pull/1353))
--   Use step id name. ([#1377](https://github.com/WordPress/wordpress-playground/pull/1377))
+- Docs: Use step function names instead of TypeScript type names. ([#1373](https://github.com/WordPress/wordpress-playground/pull/1373))
+- Updated the GitHub issue link to open in a new tab. ([#1353](https://github.com/WordPress/wordpress-playground/pull/1353))
+- Use step id name. ([#1377](https://github.com/WordPress/wordpress-playground/pull/1377))
 
 ### Experiments
 
--   Explore: Setup SQLite database integration without creating wp-content/db.php. ([#1382](https://github.com/WordPress/wordpress-playground/pull/1382))
-
-#### PHP WebAssembly
-
--   Use browserfs/zenfs to overlay one filesystem on top of another. ([#1380](https://github.com/WordPress/wordpress-playground/pull/1380))
+- Explore: Setup SQLite database integration without creating wp-content/db.php. ([#1382](https://github.com/WordPress/wordpress-playground/pull/1382))
 
 ### PHP WebAssembly
 
--   Add shareable extension-to-MIME-type mapping. ([#1355](https://github.com/WordPress/wordpress-playground/pull/1355))
--   Fix another asyncify issue. ([#1100](https://github.com/WordPress/wordpress-playground/pull/1100))
--   JSPI: Enable the origin trial on Chrome. ([#1346](https://github.com/WordPress/wordpress-playground/pull/1346))
--   PHP: Always set the auto_prepend_file php.ini entry, even when the auto_prepend_file.php file exists. ([#1388](https://github.com/WordPress/wordpress-playground/pull/1388))
--   PHP: Move internal shared directories to /internal/shared. ([#1386](https://github.com/WordPress/wordpress-playground/pull/1386))
--   PHP: Support php.mv() between devices via recursive copy. ([#1411](https://github.com/WordPress/wordpress-playground/pull/1411))
--   PHP: Use auto_prepend_file to preload mu-plugins (instead of creating them in wp-content/mu-plugins). ([#1366](https://github.com/WordPress/wordpress-playground/pull/1366))
+- Add shareable extension-to-MIME-type mapping. ([#1355](https://github.com/WordPress/wordpress-playground/pull/1355))
+- Document php ini functions. ([#1430](https://github.com/WordPress/wordpress-playground/pull/1430))
+- JSPI: Enable the origin trial on Chrome. ([#1346](https://github.com/WordPress/wordpress-playground/pull/1346))
+- PHP: Add libjpeg and libwebp support. ([#1393](https://github.com/WordPress/wordpress-playground/pull/1393))
+- PHP: Always set the auto_prepend_file php.ini entry, even when the auto_prepend_file.php file exists. ([#1388](https://github.com/WordPress/wordpress-playground/pull/1388))
+- PHP: Move internal shared directories to /internal/shared. ([#1386](https://github.com/WordPress/wordpress-playground/pull/1386))
+- PHP: Remove mentions of a custom PHP extension. ([#1422](https://github.com/WordPress/wordpress-playground/pull/1422))
+- PHP: Remove the MODE_EVAL_CODE execution mode. ([#1433](https://github.com/WordPress/wordpress-playground/pull/1433))
+- PHP: Support php.mv() between devices via recursive copy. ([#1411](https://github.com/WordPress/wordpress-playground/pull/1411))
+- PHP: Use /internal/shared/php.ini by default. ([#1419](https://github.com/WordPress/wordpress-playground/pull/1419))
+- PHP: Use auto_prepend_file to preload mu-plugins (instead of creating them in wp-content/mu-plugins). ([#1366](https://github.com/WordPress/wordpress-playground/pull/1366))
 
 ### Website
 
--   Improve log modal styles, a11y, error message wording. ([#1369](https://github.com/WordPress/wordpress-playground/pull/1369))
--   Add secrets on-demand for more endpoints. ([#1362](https://github.com/WordPress/wordpress-playground/pull/1362))
--   Derive MIME types for PHP served files from shared JSON. ([#1360](https://github.com/WordPress/wordpress-playground/pull/1360))
--   Fix constant names for GH export oauth. ([#1378](https://github.com/WordPress/wordpress-playground/pull/1378))
--   Playground Boot: Align the boot process between remote.html and CLI. ([#1389](https://github.com/WordPress/wordpress-playground/pull/1389))
--   Simplify website deployment workflows. ([#1404](https://github.com/WordPress/wordpress-playground/pull/1404))
--   Update rsync command to clean up more completely. ([#1361](https://github.com/WordPress/wordpress-playground/pull/1361))
+- Improve log modal styles, a11y, error message wording. ([#1369](https://github.com/WordPress/wordpress-playground/pull/1369))
+- Move puzzle app to a Playground package. ([#1385](https://github.com/WordPress/wordpress-playground/pull/1385))
+- Add secrets on-demand for more endpoints. ([#1362](https://github.com/WordPress/wordpress-playground/pull/1362))
+- Boot: Move WordPress zip extraction logic to a common unzipWordPress() utility. ([#1427](https://github.com/WordPress/wordpress-playground/pull/1427))
+- Derive MIME types for PHP served files from shared JSON. ([#1360](https://github.com/WordPress/wordpress-playground/pull/1360))
+- Fix constant names for GH export oauth. ([#1378](https://github.com/WordPress/wordpress-playground/pull/1378))
+- Playground Boot: Align the boot process between remote.html and CLI. ([#1389](https://github.com/WordPress/wordpress-playground/pull/1389))
+- Remote.html: Install WordPress if it isn't installed yet. ([#1425](https://github.com/WordPress/wordpress-playground/pull/1425))
+- Remote.html: Preload the SQLite database plugin, but only execute it if there's no custom db.php inside wp-content. ([#1424](https://github.com/WordPress/wordpress-playground/pull/1424))
+- Simplify website deployment workflows. ([#1404](https://github.com/WordPress/wordpress-playground/pull/1404))
+- Update rsync command to clean up more completely. ([#1361](https://github.com/WordPress/wordpress-playground/pull/1361))
 
 #### Blueprints
 
--   Provide non-gzipped wp-cli.phar file with website build. ([#1406](https://github.com/WordPress/wordpress-playground/pull/1406))
+- Provide non-gzipped wp-cli.phar file with website build. ([#1406](https://github.com/WordPress/wordpress-playground/pull/1406))
+- Simplify runPhpWithZipFunctions() setup. ([#1434](https://github.com/WordPress/wordpress-playground/pull/1434))
+
+### Internal
+
+- Fix changelog automation. ([#1413](https://github.com/WordPress/wordpress-playground/pull/1413))
 
 ### Bug Fixes
 
--   Fixed images not loading on the page. ([#1352](https://github.com/WordPress/wordpress-playground/pull/1352))
+- Add name to Puzzle package. ([#1443](https://github.com/WordPress/wordpress-playground/pull/1443))
+- Fixed images not loading on the page. ([#1352](https://github.com/WordPress/wordpress-playground/pull/1352))
+- Restore nightly wordpress build. ([#1437](https://github.com/WordPress/wordpress-playground/pull/1437))
 
 ### Reliability
 
--   Disable console logging when running tests. ([#1368](https://github.com/WordPress/wordpress-playground/pull/1368))
+- Disable console logging when running tests. ([#1368](https://github.com/WordPress/wordpress-playground/pull/1368))
+
+### 
+
+- Lint: Disable console warnings for paths where they're not useful. ([#1421](https://github.com/WordPress/wordpress-playground/pull/1421))
 
 ### Various
 
--   Add links to kitchen sink (PHP extensions), networking. ([#1363](https://github.com/WordPress/wordpress-playground/pull/1363))
--   DO NOT MERGE: Run end-to-end tests against WP Cloud site. ([#1394](https://github.com/WordPress/wordpress-playground/pull/1394))
--   DO NOT MERGE: Run end-to-end tests against WP Cloud site. ([#1402](https://github.com/WordPress/wordpress-playground/pull/1402))
--   Reorganize and update documentation. ([#1354](https://github.com/WordPress/wordpress-playground/pull/1354))
--   Try: Update Blueprint formatting - create a new post with runPHP step. ([#1364](https://github.com/WordPress/wordpress-playground/pull/1364))
+- Add links to kitchen sink (PHP extensions), networking. ([#1363](https://github.com/WordPress/wordpress-playground/pull/1363))
+- Reorganize and update documentation. ([#1354](https://github.com/WordPress/wordpress-playground/pull/1354))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @brandonpayton @flexseth @ironnysh @josevarghese
+
 
 ## [v0.7.15] (2024-04-30)
 
