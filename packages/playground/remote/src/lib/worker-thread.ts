@@ -70,7 +70,7 @@ downloadMonitor.expectAssets({
 		sqliteDatabaseIntegrationModuleDetails.size,
 });
 const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-	sqliteDatabaseIntegrationModuleDetails.url
+	fetch(sqliteDatabaseIntegrationModuleDetails.url)
 );
 
 // Start downloading WordPress if needed
