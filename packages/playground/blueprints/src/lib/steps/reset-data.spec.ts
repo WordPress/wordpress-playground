@@ -28,7 +28,7 @@ describe('Blueprint step resetData()', () => {
 		await resetData(php, {});
 		const result = await php.run({
 			code: `<?php 
-			require "/wordpress/wp-load.php";
+			require "/php/wp-load.php";
 			// Create a new WordPress post
 			$postId = wp_insert_post([
 				'post_title' => 'My New Post',
