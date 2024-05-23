@@ -214,10 +214,12 @@ try {
 				}
 			},
 		},
-		muPlugins: {
-			'1-playground-web.php': playgroundWebMuPlugin,
-			'playground-includes/wp_http_dummy.php': transportDummy,
-			'playground-includes/wp_http_fetch.php': transportFetch,
+		createFiles: {
+			'/internal/mu-plugins': {
+				'1-playground-web.php': playgroundWebMuPlugin,
+				'playground-includes/wp_http_dummy.php': transportDummy,
+				'playground-includes/wp_http_fetch.php': transportFetch,
+			},
 		},
 	});
 	apiEndpoint.__internal_setRequestHandler(requestHandler);

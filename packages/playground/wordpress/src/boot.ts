@@ -1,5 +1,6 @@
 import {
 	BasePHP,
+	FileTree,
 	PHPProcessManager,
 	PHPRequestHandler,
 	SpawnHandler,
@@ -17,6 +18,7 @@ import {
 	unzipWordPress,
 	wordPressRewriteRules,
 } from '.';
+import { joinPaths } from '@php-wasm/util';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: BasePHP) => void | Promise<void>;
@@ -50,14 +52,13 @@ export interface BootOptions<PHP extends BasePHP> {
 	/** SQL file to load instead of installing WordPress. */
 	dataSqlPath?: string;
 	/** Zip with the WordPress installation to extract in /wordpress. */
-	wordPressZip?: File | Promise<File>;
+	wordPressZip?: File | Promise<File> | undefined;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	spawnHandler?: (processManager: PHPProcessManager<BasePHP>) => SpawnHandler;
 	phpIniEntries?: PhpIniOptions;
 	constants?: Record<string, string | number | boolean | null>;
-	muPlugins?: Record<string, string>;
-	sharedFiles?: Record<string, string>;
+	createFiles?: FileTree;
 }
 
 export async function bootWordPress<PHP extends BasePHP>(
@@ -81,17 +82,11 @@ export async function bootWordPress<PHP extends BasePHP>(
 		if (isPrimary) {
 			await enablePlatformMuPlugins(php);
 			await preloadRequiredMuPlugin(php);
-			await writeFiles(
+			await writeFiles(php, '/', options.createFiles || {});
+			await preloadPhpInfoRoute(
 				php,
-				'/internal/shared',
-				options.sharedFiles || {}
+				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
-			await writeFiles(
-				php,
-				'/internal/shared/mu-plugins',
-				options.muPlugins || {}
-			);
-			await preloadPhpInfoRoute(php, new URL(options.siteUrl).pathname);
 		} else {
 			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
 				'/tmp',
@@ -186,10 +181,8 @@ async function isWordPressInstalled(php: BasePHP) {
 }
 
 async function installWordPress(php: BasePHP) {
-	// Disable networking for the installation wizard
+	// Disables networking for the installation wizard
 	// to avoid loopback requests and also speed it up.
-	// @TODO: Expose withPHPIniValues as a function from the
-	//    php-wasm library.
 	await withPHPIniValues(
 		php,
 		{
