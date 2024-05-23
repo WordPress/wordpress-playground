@@ -1,6 +1,4 @@
-# Understanding the Playground Repositories
-There are a couple of different repos that serve different purposes in the WordPress Playground project. Here's a quick overview of each:
-
+Search for issues and discussions in the relevant repository:
 ## [WordPress Playground](https://github.com/WordPress/wordpress-playground/)
 This is the main repository for the WordPress Playground. It contains the core codebase, issues and discussions about the project. 
 
