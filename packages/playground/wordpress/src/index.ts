@@ -51,15 +51,6 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
 	// as mu-plugins and we don't want to trigger the "headers
 	// already sent" PHP error.
 	const specificMuPlugins = {
-		addTrailingSlashToWpAdmin: `<?php
-        // Redirect /wp-admin to /wp-admin/
-        add_filter( 'redirect_canonical', function( $redirect_url ) {
-            if ( '/wp-admin' === $redirect_url ) {
-                return $redirect_url . '/';
-            }
-            return $redirect_url;
-        } );
-        ?>`,
 		allowRedirectHosts: `<?php
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.
