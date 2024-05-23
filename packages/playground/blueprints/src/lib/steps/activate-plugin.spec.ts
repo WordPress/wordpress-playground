@@ -5,6 +5,7 @@ import { unzip } from './unzip';
 import { activatePlugin } from './activate-plugin';
 import { phpVar } from '@php-wasm/util';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step activatePlugin()', () => {
 	let php: PHP;

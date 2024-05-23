@@ -8,6 +8,7 @@ import {
 	enablePlatformMuPlugins,
 	preloadRequiredMuPlugin,
 } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {

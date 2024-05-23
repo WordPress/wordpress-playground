@@ -61,9 +61,6 @@ export type {
 } from './load-php-runtime';
 export { rethrowFileSystemError } from './rethrow-file-system-error';
 
-export { isLocalPHP } from './is-local-php';
-export { isRemotePHP } from './is-remote-php';
-
 export type {
 	PHPRequestHandlerConfiguration,
 	RewriteRule,

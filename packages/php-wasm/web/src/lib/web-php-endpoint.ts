@@ -1,6 +1,5 @@
 import {
 	type MessageListener,
-	type IsomorphicLocalPHP,
 	type ListFilesOptions,
 	type PHPRequest,
 	PHPResponse,
@@ -10,6 +9,7 @@ import {
 	type PHPEvent,
 	PHPRequestHandler,
 	PHP,
+	IsomorphicLocalPHP,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 

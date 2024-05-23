@@ -49,6 +49,7 @@ export type PHPEventListener = (event: PHPEvent) => void;
 
 export type IsomorphicLocalPHP = Pick<
 	PHP,
+	| 'request'
 	| 'addEventListener'
 	| 'removeEventListener'
 	| 'mkdir'
@@ -65,7 +66,10 @@ export type IsomorphicLocalPHP = Pick<
 	| 'chdir'
 	| 'run'
 	| 'onMessage'
->;
+> & {
+	documentRoot: PHP['documentRoot'];
+	absoluteUrl: PHP['absoluteUrl'];
+};
 export type UniversalPHP = IsomorphicLocalPHP | Remote<IsomorphicLocalPHP>;
 
 export type MessageListener = (

@@ -1,5 +1,4 @@
 import { PHP, UniversalPHP, __private__dont__use } from '@php-wasm/universal';
-import type { IsomorphicLocalPHP } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
@@ -306,7 +305,7 @@ export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 }
 
 export function* recordExistingPath(
-	php: IsomorphicLocalPHP,
+	php: PHP,
 	fromPath: string,
 	toPath: string
 ): Generator<FilesystemOperation> {

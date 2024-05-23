@@ -165,7 +165,7 @@ export class PHP implements Disposable {
 	 *
 	 * @param listener Callback function to handle the message.
 	 */
-	async onMessage(listener: MessageListener) {
+	onMessage(listener: MessageListener) {
 		this.#messageListeners.push(listener);
 	}
 
