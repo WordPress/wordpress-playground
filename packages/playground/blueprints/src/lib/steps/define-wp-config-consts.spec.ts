@@ -9,11 +9,7 @@ import {
 describe('rewriteDefineCalls', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
-		});
+		php = await NodePHP.load(RecommendedPHPVersion);
 	});
 
 	it('should print warnings when a constant name conflicts, just to make sure other tests would fail', async () => {
@@ -206,11 +202,7 @@ echo json_encode([
 describe('defineBeforeRun', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
-		});
+		php = await NodePHP.load(RecommendedPHPVersion);
 	});
 
 	it('should define the constants before running the requested script', async () => {

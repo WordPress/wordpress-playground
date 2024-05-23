@@ -10,11 +10,7 @@ describe('Blueprint step wpCLI', () => {
 	let php: NodePHP;
 
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
-		});
+		php = await NodePHP.load(phpVersion);
 		php.setSapiName('cli');
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
