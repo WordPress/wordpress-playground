@@ -66,9 +66,40 @@ export interface BootOptions<PHP extends BasePHP> {
 	 * PHP constants to define for every request.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
-	/** Files to create in the filesystem before any mounts are applied. */
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
 	createFiles?: FileTree;
 }
+
+/**
+ * Boots a WordPress instance with the given options.
+ *
+ * High-level overview:
+ *
+ * * Boot PHP instances and PHPRequestHandler
+ * * Setup VFS, run beforeWordPressFiles hook
+ * * Setup WordPress files (if wordPressZip is provided)
+ * * Run beforeDatabaseSetup hook
+ * * Setup the database – SQLite, MySQL (@TODO), or rely on a mounted database
+ * * Run WordPress installer, if the site isn't installed yet
+ *
+ * @param options Boot configuration options
+ * @return PHPRequestHandler instance with WordPress installed.
+ */
 
 export async function bootWordPress<PHP extends BasePHP>(
 	options: BootOptions<PHP>
