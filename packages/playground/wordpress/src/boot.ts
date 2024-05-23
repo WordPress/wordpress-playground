@@ -32,8 +32,6 @@ export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 export interface BootOptions<PHP extends BasePHP> {
 	createPhpRuntime: () => Promise<number>;
 	createPhpInstance: () => PHP;
-	/** Default: 'sqlite' */
-	databaseType?: DatabaseType;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -48,6 +46,10 @@ export interface BootOptions<PHP extends BasePHP> {
 	 * e.g. WP-CLI
 	 */
 	sapiName?: string;
+	/**
+	 * URL to use as the site URL. This is used to set the WP_HOME
+	 * and WP_SITEURL constants in WordPress.
+	 */
 	siteUrl: string;
 	/** SQL file to load instead of installing WordPress. */
 	dataSqlPath?: string;
@@ -56,8 +58,16 @@ export interface BootOptions<PHP extends BasePHP> {
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	spawnHandler?: (processManager: PHPProcessManager<BasePHP>) => SpawnHandler;
+	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
 	phpIniEntries?: PhpIniOptions;
+	/**
+	 * PHP constants to define for every request.
+	 */
 	constants?: Record<string, string | number | boolean | null>;
+	/** Files to create in the filesystem before any mounts are applied. */
 	createFiles?: FileTree;
 }
 
@@ -142,11 +152,11 @@ export async function bootWordPress<PHP extends BasePHP>(
 
 	// @TODO Assert WordPress core files are in place
 
+	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
 	}
 
-	// Run "before database" hooks to mount/copy more files in
 	if (options.sqliteIntegrationPluginZip) {
 		await preloadSqliteIntegration(
 			php,
