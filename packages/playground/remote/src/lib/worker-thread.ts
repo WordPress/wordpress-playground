@@ -34,7 +34,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { PHP, PHPWorker } from '@php-wasm/universal';
+import { PHPWorker } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
