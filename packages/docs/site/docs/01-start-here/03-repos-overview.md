@@ -3,7 +3,7 @@ Search for issues and discussions in the relevant repository:
 This is the main repository for the WordPress Playground. It contains the core codebase, issues and discussions about the project. 
 
 
-Opening issues in the WordPress Playground repository for the "online" version of the Playground, IE: playground.wordpress.net, is a great way to get visibility on a problem or feature request. But there may be a better suited repo below to open the issue, and we'll discuss that shortly.
+Issues in the WordPress Playground repository relate to the "online" versions of the Playground. The Blueprint Builder and other public facing Playground apps should be discussed and reported here.
 
 Over time many issues will be discussed in the primary repository. If you are new to using Playground and trying it online, try searching for any issue you may be having in the main repo. 
 
