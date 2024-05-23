@@ -51,13 +51,13 @@ export type LimitedPHPApi = Pick<
  */
 export class PHPWorker implements LimitedPHPApi {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
-	absoluteUrl: string;
+	absoluteUrl = '';
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
-	documentRoot: string;
+	documentRoot = '';
 
 	/** @inheritDoc */
 	constructor(
-		requestHandler: PHPRequestHandler,
+		requestHandler?: PHPRequestHandler,
 		monitor?: EmscriptenDownloadMonitor
 	) {
 		/**
@@ -85,10 +85,19 @@ export class PHPWorker implements LimitedPHPApi {
 		 */
 		_private.set(this, {
 			monitor,
-			requestHandler,
 		});
+		if (requestHandler) {
+			this.__internal_setRequestHandler(requestHandler);
+		}
+	}
+
+	public __internal_setRequestHandler(requestHandler: PHPRequestHandler) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
+		_private.set(this, {
+			..._private.get(this),
+			requestHandler,
+		});
 	}
 
 	/**

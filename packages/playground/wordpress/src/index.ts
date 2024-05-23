@@ -1,6 +1,7 @@
 import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
+export { bootWordPress } from './boot';
 
 export * from './rewrite-rules';
 
@@ -11,7 +12,7 @@ export * from './rewrite-rules';
  *
  * @param php
  */
-export async function enablePlatformMuPlugins(php: UniversalPHP) {
+export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.mkdir('/internal/shared/mu-plugins');
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
@@ -44,14 +45,10 @@ export async function enablePlatformMuPlugins(php: UniversalPHP) {
         }
     `
 	);
-}
 
-export async function preloadRequiredMuPlugin(php: UniversalPHP) {
-	// Entries must not render whitespaces. They'll be loaded
-	// as mu-plugins and we don't want to trigger the "headers
-	// already sent" PHP error.
-	const specificMuPlugins = {
-		addTrailingSlashToWpAdmin: `<?php
+	await php.writeFile(
+		'/internal/shared/mu-plugins/0-playground.php',
+		`<?php
         // Redirect /wp-admin to /wp-admin/
         add_filter( 'redirect_canonical', function( $redirect_url ) {
             if ( '/wp-admin' === $redirect_url ) {
@@ -59,8 +56,7 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
             }
             return $redirect_url;
         } );
-        ?>`,
-		allowRedirectHosts: `<?php
+		
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.
         add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
@@ -70,29 +66,19 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
                 'downloads.wordpress.org',
             );
         } );
-        ?>`,
-		supportPermalinksWithoutIndexPhp: `<?php
+
+		// Support pretty permalinks
         add_filter( 'got_url_rewrite', '__return_true' );
-        ?>`,
-		createFontsDirectory: `<?php
+
         // Create the fonts directory if missing
         if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
             mkdir(WP_CONTENT_DIR . '/fonts');
         }
-        ?>`,
-		configureErrorLogging: `<?php
+		
         $log_file = WP_CONTENT_DIR . '/debug.log';
         define('ERROR_LOG_FILE', $log_file);
         ini_set('error_log', $log_file);
-        ?>`,
-	};
-
-	const playgroundMuPlugin = Object.values(specificMuPlugins)
-		.map((p) => p.trim())
-		.join('\n');
-	await php.writeFile(
-		'/internal/shared/mu-plugins/0-playground.php',
-		playgroundMuPlugin
+        ?>`
 	);
 
 	// Load the error handler before any other PHP file to ensure it

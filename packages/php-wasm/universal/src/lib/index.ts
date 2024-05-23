@@ -67,6 +67,7 @@ export type {
 export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
+export type { FileTree } from './write-files';
 
 export {
 	DEFAULT_BASE_URL,

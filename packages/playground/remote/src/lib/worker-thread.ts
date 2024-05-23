@@ -1,47 +1,41 @@
 import { exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { DOCROOT, wordPressSiteUrl } from './config';
+import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 	sqliteDatabaseIntegrationModuleDetails,
 } from '@wp-playground/wordpress-builds';
-import {
-	unzipWordPress,
-	preloadSqliteIntegration,
-	wordPressRewriteRules,
-} from '@wp-playground/wordpress';
-import {
-	PHPRequestHandler,
-	PHPWorker,
-	withPHPIniValues,
-} from '@php-wasm/universal';
+
 import {
 	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import {
-	defineSiteUrl,
-	defineWpConfigConsts,
-	runWpInstallationWizard,
-} from '@wp-playground/blueprints';
-
 import { randomString } from '@php-wasm/util';
 import {
 	requestedWPVersion,
-	createPhp,
 	startupOptions,
 	monitoredFetch,
 	downloadMonitor,
+	spawnHandlerFactory,
+	createPhpRuntime,
 } from './worker-utils';
 import {
 	FilesystemOperation,
 	journalFSEvents,
 	replayFSJournal,
 } from '@php-wasm/fs-journal';
+/** @ts-ignore */
+import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
+/** @ts-ignore */
+import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
+/** @ts-ignore */
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import { PHP, PHPWorker } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
 
@@ -106,12 +100,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	wordPressVersion: string;
 
 	constructor(
-		requestHandler: PHPRequestHandler,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string
 	) {
-		super(requestHandler, monitor);
+		super(undefined, monitor);
 		this.scope = scope;
 		this.wordPressVersion = wordPressVersion;
 	}
@@ -173,16 +166,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
-const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-const requestHandler = new PHPRequestHandler({
-	phpFactory: async ({ isPrimary }) =>
-		await createPhp(requestHandler, scopedSiteUrl, isPrimary),
-	documentRoot: DOCROOT,
-	absoluteUrl: scopedSiteUrl,
-	rewriteRules: wordPressRewriteRules,
-}) as PHPRequestHandler;
 const apiEndpoint = new PlaygroundWorkerEndpoint(
-	requestHandler,
 	downloadMonitor,
 	scope,
 	startupOptions.wpVersion
@@ -190,20 +174,9 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
-	const primaryPhp = await requestHandler.getPrimaryPhp();
-	await apiEndpoint.setPrimaryPHP(primaryPhp);
-
-	// If WordPress isn't already installed, download and extract it from
-	// the zip file.
-	if (!wordPressAvailableInOPFS) {
-		await unzipWordPress(
-			primaryPhp,
-			new File([await (await wordPressRequest!).blob()], 'wp.zip')
-		);
-
-		// Randomize the WordPress secrets
-		await defineWpConfigConsts(primaryPhp, {
-			consts: {
+	const constants: Record<string, any> = wordPressAvailableInOPFS
+		? {}
+		: {
 				WP_DEBUG: true,
 				WP_DEBUG_LOG: true,
 				WP_DEBUG_DISPLAY: false,
@@ -215,56 +188,52 @@ try {
 				SECURE_AUTH_SALT: randomString(40),
 				LOGGED_IN_SALT: randomString(40),
 				NONCE_SALT: randomString(40),
-			},
-		});
-	}
+		  };
+	const wordPressZip = wordPressAvailableInOPFS
+		? undefined
+		: new File([await (await wordPressRequest!).blob()], 'wp.zip');
 
-	if (virtualOpfsDir) {
-		await bindOpfs({
-			php: primaryPhp,
-			opfs: virtualOpfsDir!,
-			wordPressAvailableInOPFS,
-		});
-	}
-
-	const sqliteIntegrationZip = await (await sqliteIntegrationRequest).blob();
-	await preloadSqliteIntegration(
-		primaryPhp,
-		new File([sqliteIntegrationZip], 'sqlite.zip')
+	const sqliteIntegrationPluginZip = new File(
+		[await (await sqliteIntegrationRequest).blob()],
+		'sqlite.zip'
 	);
 
-	// Install WordPress if it isn't installed yet
-	const isInstalled =
-		(
-			await primaryPhp.run({
-				code: `<?php 
-		require '${primaryPhp.documentRoot}/wp-load.php';
-		echo is_blog_installed() ? '1' : '0';
-		`,
-			})
-		).text === '1';
-	if (!isInstalled) {
-		// Disable networking for the installation wizard
-		// to avoid loopback requests and also speed it up.
-		// @TODO: Expose withPHPIniValues as a function from the
-		//    php-wasm library.
-		await withPHPIniValues(
-			primaryPhp,
-			{
-				disable_functions: 'fsockopen',
-				allow_url_fopen: '0',
+	const requestHandler = await bootWordPress({
+		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
+		createPhpInstance() {
+			return new PHP();
+		},
+		createPhpRuntime,
+		wordPressZip,
+		sqliteIntegrationPluginZip,
+		spawnHandler: spawnHandlerFactory,
+		sapiName: startupOptions.sapiName,
+		constants,
+		hooks: {
+			async beforeDatabaseSetup(php) {
+				if (virtualOpfsDir) {
+					await bindOpfs({
+						php,
+						opfs: virtualOpfsDir!,
+						wordPressAvailableInOPFS,
+					});
+				}
 			},
-			async () =>
-				await runWpInstallationWizard(primaryPhp, {
-					options: {},
-				})
-		);
-	}
-
-	// Always setup the current site URL.
-	await defineSiteUrl(primaryPhp, {
-		siteUrl: scopedSiteUrl,
+		},
+		createFiles: {
+			'/internal/shared/mu-plugins': {
+				'1-playground-web.php': playgroundWebMuPlugin,
+				'playground-includes': {
+					'wp_http_dummy.php': transportDummy,
+					'wp_http_fetch.php': transportFetch,
+				},
+			},
+		},
 	});
+	apiEndpoint.__internal_setRequestHandler(requestHandler);
+
+	const primaryPhp = await requestHandler.getPrimaryPhp();
+	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
 	setApiReady();
 } catch (e) {

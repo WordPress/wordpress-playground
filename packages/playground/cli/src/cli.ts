@@ -3,6 +3,7 @@ import path from 'path';
 import yargs from 'yargs';
 import { startServer } from './server';
 import {
+	PHP,
 	PHPRequest,
 	PHPRequestHandler,
 	PHPResponse,
@@ -10,19 +11,24 @@ import {
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
-import { createPhp } from './setup-php';
-import { setupWordPress } from './setup-wp';
 import {
 	Blueprint,
 	compileBlueprint,
-	defineSiteUrl,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
-import { PHP } from '@php-wasm/universal';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { RecommendedPHPVersion } from '@wp-playground/common';
-import { NodeFSMount } from '@php-wasm/node';
+import { NodeFSMount, loadNodeRuntime } from '@php-wasm/node';
+import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import { bootWordPress } from '@wp-playground/wordpress';
+import { rootCertificates } from 'tls';
+import {
+	CACHE_FOLDER,
+	fetchSqliteIntegration,
+	fetchWordPress,
+	readAsFile,
+	resolveWPRelease,
+} from './download';
 
 export interface Mount {
 	hostPath: string;
@@ -183,38 +189,6 @@ async function run() {
 		}
 	}
 
-	async function prepareSite(php: PHP, wpVersion: string, siteUrl: string) {
-		mountResources(php, args.mountBeforeInstall || []);
-
-		// No need to unzip WordPress if it's already mounted at /wordpress
-		if (!args.skipWordPressSetup) {
-			logger.log(`Setting up WordPress ${wpVersion}`);
-			// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
-			const monitor = new EmscriptenDownloadMonitor();
-			monitor.addEventListener('progress', ((
-				e: CustomEvent<ProgressEvent & { finished: boolean }>
-			) => {
-				// @TODO Every progres bar will want percentages. The
-				//       download monitor should just provide that.
-				const percentProgress = Math.round(
-					Math.min(100, (100 * e.detail.loaded) / e.detail.total)
-				);
-				if (!args.quiet) {
-					process.stdout.write(
-						`\rDownloading WordPress ${percentProgress}%...    `
-					);
-				}
-			}) as any);
-			await setupWordPress(php, wpVersion, monitor);
-		}
-
-		mountResources(php, args.mount || []);
-
-		await defineSiteUrl(php, {
-			siteUrl,
-		});
-	}
-
 	function compileInputBlueprint() {
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
@@ -276,19 +250,79 @@ async function run() {
 		port: args['port'] as number,
 		onBind: async (port: number) => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			requestHandler = new PHPRequestHandler({
-				phpFactory: async ({ isPrimary }) =>
-					createPhp(
-						requestHandler,
-						compiledBlueprint.versions.php,
-						isPrimary
-					),
-				documentRoot: '/wordpress',
-				absoluteUrl,
+
+			logger.log(`Setting up WordPress ${args.wp}`);
+			let wpDetails: any = undefined;
+			const monitor = new EmscriptenDownloadMonitor();
+			if (!args.skipWordPressSetup) {
+				// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
+				monitor.addEventListener('progress', ((
+					e: CustomEvent<ProgressEvent & { finished: boolean }>
+				) => {
+					// @TODO Every progres bar will want percentages. The
+					//       download monitor should just provide that.
+					const percentProgress = Math.round(
+						Math.min(100, (100 * e.detail.loaded) / e.detail.total)
+					);
+					if (!args.quiet) {
+						process.stdout.write(
+							`\rDownloading WordPress ${percentProgress}%...    `
+						);
+					}
+				}) as any);
+
+				wpDetails = await resolveWPRelease(args.wp);
+			}
+
+			const preinstalledWpContentPath = path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+			const wordPressZip = !wpDetails
+				? undefined
+				: fs.existsSync(preinstalledWpContentPath)
+				? readAsFile(preinstalledWpContentPath)
+				: fetchWordPress(wpDetails.url, monitor);
+
+			requestHandler = await bootWordPress({
+				siteUrl: absoluteUrl,
+				createPhpInstance() {
+					return new PHP();
+				},
+				createPhpRuntime: async () =>
+					await loadNodeRuntime(compiledBlueprint.versions.php),
+				wordPressZip,
+				sqliteIntegrationPluginZip: fetchSqliteIntegration(monitor),
+				sapiName: 'cli',
+				createFiles: {
+					'/internal/shared/ca-bundle.crt':
+						rootCertificates.join('\n'),
+				},
+				phpIniEntries: {
+					'openssl.cafile': '/internal/shared/ca-bundle.crt',
+					allow_url_fopen: '1',
+					disable_functions: '',
+				},
+				hooks: {
+					async beforeWordPressFiles(php) {
+						if (args.mountBeforeInstall) {
+							mountResources(php, args.mountBeforeInstall);
+						}
+					},
+				},
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
-			await prepareSite(php, compiledBlueprint.versions.wp, absoluteUrl);
+			if (wpDetails && !args.mountBeforeInstall) {
+				fs.writeFileSync(
+					preinstalledWpContentPath,
+					await zipDirectory(php, '/wordpress')
+				);
+			}
+
+			if (args.mount) {
+				mountResources(php, args.mount);
+			}
 
 			wordPressReady = true;
 
