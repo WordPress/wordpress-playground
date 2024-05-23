@@ -43,9 +43,9 @@ namespace Emscripten {
 	};
 
 	export interface FileSystemType {
-		mount(mount: FS.Mount): FS.FSNode;
+		mount(mount: any): any;
 		syncfs(
-			mount: FS.Mount,
+			mount: any,
 			populate: () => unknown,
 			done: (err?: number | null) => unknown
 		): void;
@@ -991,11 +991,7 @@ export function normalizeHeaders(
 	return normalized;
 }
 
-export function syncFSTo(
-	source: PHP,
-	target: PHP,
-	path: string | null = null
-) {
+export function syncFSTo(source: PHP, target: PHP, path: string | null = null) {
 	copyFS(
 		source[__private__dont__use].FS,
 		target[__private__dont__use].FS,
