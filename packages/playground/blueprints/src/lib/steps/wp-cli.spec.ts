@@ -2,22 +2,32 @@ import { NodePHP } from '@php-wasm/node';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { unzip } from './unzip';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 const phpVersion = '8.0';
 describe('Blueprint step wpCLI', () => {
 	let php: NodePHP;
 
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion);
-		php.setSapiName('cli');
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
+		const handler = await bootWordPress({
+			createPhpInstance: () => new NodePHP(),
+			createPhpRuntime: () => NodePHP.loadRuntime(phpVersion),
+			siteUrl: 'http://playground-domain/',
+			sapiName: 'cli',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			createFiles: {
+				'/wordpress/wp-cli.phar': readFileSync(
+					join(__dirname, '../../test/wp-cli.phar')
+				),
+			},
 		});
-		const wpCliPath = join(__dirname, '../../test/wp-cli.phar');
-		php.writeFile('/tmp/wp-cli.phar', readFileSync(wpCliPath));
+		php = await handler.getPrimaryPhp();
 	});
 
 	it('should run wp-cli commands', async () => {

@@ -1,29 +1,31 @@
 import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
 import { login } from './login';
-import { unzip } from './unzip';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 describe('Blueprint step installPlugin', () => {
 	let php: NodePHP;
-	let requestHandler: PHPRequestHandler<NodePHP>;
+	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		requestHandler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
-			documentRoot: '/wordpress',
-		});
-		php = await requestHandler.getPrimaryPhp();
+		handler = await bootWordPress({
+			createPhpInstance: () => new NodePHP(),
+			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
 
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 		});
+		php = await handler.getPrimaryPhp();
 	});
 
 	it('should log the user in', async () => {
 		await login(php, {});
-		const response = await requestHandler.request({
+		const response = await handler.request({
 			url: '/wp-admin',
 		});
 		expect(response.text).toContain('Dashboard');

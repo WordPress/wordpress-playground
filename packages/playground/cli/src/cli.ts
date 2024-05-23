@@ -304,7 +304,7 @@ async function run() {
 					disable_functions: '',
 				},
 				hooks: {
-					async beforeWordPress(php) {
+					async beforeWordPressFiles(php) {
 						if (args.mountBeforeInstall) {
 							mountResources(php, args.mountBeforeInstall);
 						}

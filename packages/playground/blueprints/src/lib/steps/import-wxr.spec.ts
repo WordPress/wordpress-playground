@@ -1,26 +1,28 @@
 import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
 import { importWxr } from './import-wxr';
 import { readFile } from 'fs/promises';
-import { unzip } from './unzip';
 import { installPlugin } from './install-plugin';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 describe('Blueprint step importWxr', () => {
 	let php: NodePHP;
 	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		handler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
-			documentRoot: '/wordpress',
+		handler = await bootWordPress({
+			createPhpInstance: () => new NodePHP(),
+			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 		});
 		php = await handler.getPrimaryPhp();
-
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
-		});
 
 		// Delete all posts
 		await php.run({

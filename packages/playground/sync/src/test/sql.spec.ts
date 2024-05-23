@@ -4,18 +4,25 @@ import {
 	installSqlSyncMuPlugin,
 	journalSQLQueries,
 } from '../sql';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { unzip } from '@wp-playground/blueprints';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion);
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
+		const handler = await bootWordPress({
+			createPhpInstance: () => new NodePHP(),
+			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 		});
+		php = await handler.getPrimaryPhp();
 	});
 	it('Loads WordPress', async () => {
 		expect(php.listFiles('/')).toContain('wordpress');

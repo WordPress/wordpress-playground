@@ -1,24 +1,27 @@
 import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
-import { unzip } from './unzip';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
 import { activatePlugin } from './activate-plugin';
 import { phpVar } from '@php-wasm/util';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 describe('Blueprint step activatePlugin()', () => {
 	let php: NodePHP;
 	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		handler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
-			documentRoot: '/wordpress',
+		handler = await bootWordPress({
+			createPhpInstance: () => new NodePHP(),
+			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 		});
 		php = await handler.getPrimaryPhp();
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
-		});
 	});
 
 	it('should activate the plugin', async () => {
@@ -44,11 +47,12 @@ describe('Blueprint step activatePlugin()', () => {
 	it('should detect a silent failure in activating the plugin', async () => {
 		const docroot = php.documentRoot;
 		php.writeFile(
-			`/${docroot}/wp-content/plugins/test-plugin.php`,
+			`${docroot}/wp-content/plugins/test-plugin.php`,
 			`<?php /**\n * Plugin Name: Test Plugin */`
 		);
+		php.mkdir(`${docroot}/wp-content/mu-plugins`);
 		php.writeFile(
-			`/${docroot}/wp-content/mu-plugins/0-exit.php`,
+			`${docroot}/wp-content/mu-plugins/0-exit.php`,
 			`<?php exit(0); `
 		);
 		expect(
