@@ -1,8 +1,4 @@
-import {
-	BasePHP,
-	UniversalPHP,
-	__private__dont__use,
-} from '@php-wasm/universal';
+import { PHP, UniversalPHP, __private__dont__use } from '@php-wasm/universal';
 import type { IsomorphicLocalPHP } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
@@ -113,7 +109,7 @@ export type FilesystemOperation =
 	| RenameOperation;
 
 export function journalFSEvents(
-	php: BasePHP,
+	php: PHP,
 	fsRoot: string,
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
@@ -276,7 +272,7 @@ const createFSHooks = (
  * @param php
  * @param entries
  */
-export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
+export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 	// We need to restore the original functions to the FS object
 	// before proceeding, or each replayed FS operation will be journaled.
 	//

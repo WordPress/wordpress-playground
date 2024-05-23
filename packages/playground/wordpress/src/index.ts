@@ -1,4 +1,4 @@
-import { BasePHP, UniversalPHP } from '@php-wasm/universal';
+import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 
@@ -310,7 +310,7 @@ if(!function_exists('mysqli_connect')) {
  * accept the limitation, and switch to the PHP implementation as soon
  * as that's viable.
  */
-export async function unzipWordPress(php: BasePHP, wpZip: File) {
+export async function unzipWordPress(php: PHP, wpZip: File) {
 	php.mkdir('/tmp/unzipped-wordpress');
 	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
 

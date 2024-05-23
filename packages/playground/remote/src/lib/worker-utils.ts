@@ -1,4 +1,4 @@
-import { WebPHP } from '@php-wasm/web';
+import { loadWebRuntime } from '@php-wasm/web';
 import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersionsList,
@@ -12,6 +12,7 @@ import {
 	PHPRequestHandler,
 	proxyFileSystem,
 	writeFiles,
+	PHP,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
@@ -73,11 +74,11 @@ export const startupOptions = {
 } as ParsedStartupOptions;
 
 export async function createPhp(
-	requestHandler: PHPRequestHandler<WebPHP>,
+	requestHandler: PHPRequestHandler,
 	siteUrl: string,
 	isPrimary: boolean
 ) {
-	const php = new WebPHP();
+	const php = new PHP();
 	php.requestHandler = requestHandler as any;
 
 	php.initializeRuntime(await createPhpRuntime());
@@ -126,7 +127,7 @@ const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 const createPhpRuntime = async () => {
 	let wasmUrl = '';
-	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
+	return await loadWebRuntime(startupOptions.phpVersion, {
 		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 			wasmUrl = phpLoaderModule.dependencyFilename;
 			downloadMonitor.expectAssets({
@@ -155,7 +156,7 @@ const createPhpRuntime = async () => {
 	});
 };
 
-export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
+export function spawnHandlerFactory(processManager: PHPProcessManager) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		if (args[0] === 'exec') {
 			args.shift();

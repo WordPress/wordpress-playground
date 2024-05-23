@@ -1,5 +1,4 @@
 import {
-	BasePHP,
 	EmscriptenOptions,
 	loadPHPRuntime,
 	PHPLoaderModule,
@@ -40,38 +39,17 @@ const fakeWebsocket = () => {
 	};
 };
 
-export class WebPHP extends BasePHP {
-	/**
-	 * Creates a new PHP instance.
-	 *
-	 * Dynamically imports the PHP module, initializes the runtime,
-	 * and sets up networking. It's a shorthand for the lower-level
-	 * functions like `getPHPLoaderModule`, `loadPHPRuntime`, and
-	 * `PHP.initializeRuntime`
-	 *
-	 * @param phpVersion The PHP Version to load
-	 * @param options The options to use when loading PHP
-	 * @returns A new PHP instance
-	 */
-	static async load(
-		phpVersion: SupportedPHPVersion,
-		options: PHPWebLoaderOptions = {}
-	) {
-		return new WebPHP(await WebPHP.loadRuntime(phpVersion, options));
-	}
+export async function loadWebRuntime(
+	phpVersion: SupportedPHPVersion,
+	options: PHPWebLoaderOptions = {}
+) {
+	// Determine which variant to load based on the requested extensions
+	const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
 
-	static async loadRuntime(
-		phpVersion: SupportedPHPVersion,
-		options: PHPWebLoaderOptions = {}
-	) {
-		// Determine which variant to load based on the requested extensions
-		const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
-
-		const phpLoaderModule = await getPHPLoaderModule(phpVersion, variant);
-		options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
-		return await loadPHPRuntime(phpLoaderModule, {
-			...(options.emscriptenOptions || {}),
-			...fakeWebsocket(),
-		});
-	}
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion, variant);
+	options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
+	return await loadPHPRuntime(phpLoaderModule, {
+		...(options.emscriptenOptions || {}),
+		...fakeWebsocket(),
+	});
 }

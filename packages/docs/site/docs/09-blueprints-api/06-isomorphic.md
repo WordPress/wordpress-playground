@@ -17,7 +17,7 @@ With this PR applied, all of the following `login()` calls are valid:
 
 ```ts
 // In the browser
-const phpInSameThread = await WebPHP.load('7.4');
+const phpInSameThread = new PHP(await loadWebRuntime('7.4'));
 // unzip WordPress in /wordpress
 await login(phpInSameThread);
 
@@ -27,7 +27,7 @@ await login(phpInWorker);
 
 ```ts
 // In node.js
-const phpInSameThread = await NodePHP.load('7.4');
+const phpInSameThread = new PHP(await loadNodeRuntime('7.4'));
 phpInSameThread.mount('/wordpress', '/wordpress');
 await login(phpInSameThread);
 // ^ @TODO: Still fails unless you provide a DOMParser polyfill
@@ -50,9 +50,7 @@ type IsomorphicRemotePHP = Remote<IsomorphicLocalPHP>;
 type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
 ```
 
-`UniversalPHP` is a type, not a class. It's a common core of all PHP implementations in other packages and provides methods like `run()`, `request()`, and `writeFile()`. `@php-wasm/universal` also provides a reference implementation of `UniversalPHP` called `BasePHP`.
-
-`BasePHP` cannot be used directly. Instead, platform-specific packages `@php-wasm/web` and `@php-wasm/node` provide platform-specific implementations. The former exports `WebPHP`, which loads files using `fetch()`, and the latter exports `NodePHP`, which reads data directly from the host filesystem. Both implement the `UniversalPHP` interface and can be used with any Blueprint step.
+`UniversalPHP` is a type, not a class. It's a common core of all PHP implementations in other packages and provides methods like `run()`, `request()`, and `writeFile()`. `@php-wasm/universal` also provides a reference implementation of `UniversalPHP` called `PHP`.
 
 ## Other notes
 

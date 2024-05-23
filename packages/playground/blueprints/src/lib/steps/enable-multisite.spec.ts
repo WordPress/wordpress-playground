@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
@@ -13,7 +13,8 @@ const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
 	async function bootWordPress(options: { absoluteUrl: string }) {
 		const requestHandler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			absoluteUrl: options.absoluteUrl,
 			documentRoot: DOCROOT,
 		});

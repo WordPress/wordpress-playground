@@ -9,15 +9,15 @@ import {
 	type PHPEventListener,
 	type PHPEvent,
 	PHPRequestHandler,
+	PHP,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { WebPHP } from './web-php';
 
 const _private = new WeakMap<
 	WebPHPEndpoint,
 	{
-		requestHandler?: PHPRequestHandler<WebPHP>;
-		php?: WebPHP;
+		requestHandler?: PHPRequestHandler;
+		php?: PHP;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -33,7 +33,7 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 
 	/** @inheritDoc */
 	constructor(
-		requestHandler: PHPRequestHandler<WebPHP>,
+		requestHandler: PHPRequestHandler,
 		monitor?: EmscriptenDownloadMonitor
 	) {
 		/**
@@ -78,7 +78,7 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 		return _private.get(this)!.php;
 	}
 
-	async setPrimaryPHP(php: WebPHP) {
+	async setPrimaryPHP(php: PHP) {
 		_private.set(this, {
 			..._private.get(this)!,
 			php,

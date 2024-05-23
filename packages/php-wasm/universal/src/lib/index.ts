@@ -1,6 +1,5 @@
 export type {
 	IsomorphicLocalPHP,
-	IsomorphicRemotePHP,
 	MessageListener,
 	PHPOutput,
 	PHPRunOptions,
@@ -48,7 +47,7 @@ export type {
 	SupportedPHPExtension,
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
-export { BasePHP, __private__dont__use } from './base-php';
+export { PHP, Mountable, RootFS, __private__dont__use } from './php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type {
 	DataModule,

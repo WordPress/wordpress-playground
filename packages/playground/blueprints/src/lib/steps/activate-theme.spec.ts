@@ -1,4 +1,5 @@
-import { NodePHP } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
@@ -7,11 +8,12 @@ import { phpVar } from '@php-wasm/util';
 import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step activateTheme()', () => {
-	let php: NodePHP;
-	let handler: PHPRequestHandler<NodePHP>;
+	let php: PHP;
+	let handler: PHPRequestHandler;
 	beforeEach(async () => {
 		handler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			documentRoot: '/wordpress',
 		});
 		php = await handler.getPrimaryPhp();

@@ -1,6 +1,6 @@
-import { BasePHP } from './base-php';
+import { PHP } from './php';
 
-export interface RotateOptions<T extends BasePHP> {
+export interface RotateOptions<T extends PHP> {
 	php: T;
 	cwd: string;
 	recreateRuntime: () => Promise<number> | number;
@@ -23,7 +23,7 @@ export interface RotateOptions<T extends BasePHP> {
  *
  * @return cleanup function to restore
  */
-export function rotatePHPRuntime<T extends BasePHP>({
+export function rotatePHPRuntime<T extends PHP>({
 	php,
 	cwd,
 	recreateRuntime,

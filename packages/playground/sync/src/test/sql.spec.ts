@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import {
 	SQLJournalEntry,
 	installSqlSyncMuPlugin,
@@ -7,11 +7,12 @@ import {
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { unzip } from '@wp-playground/blueprints';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Sync tests', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion);
+		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: '/wordpress',

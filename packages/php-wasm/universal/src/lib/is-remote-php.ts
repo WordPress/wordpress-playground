@@ -1,8 +1,9 @@
+import { Remote } from 'comlink';
 import { isLocalPHP } from './is-local-php';
-import { IsomorphicRemotePHP, UniversalPHP } from './universal-php';
+import { IsomorphicLocalPHP, UniversalPHP } from './universal-php';
 
 export function isRemotePHP(
 	playground: UniversalPHP
-): playground is IsomorphicRemotePHP {
+): playground is Remote<IsomorphicLocalPHP> {
 	return !isLocalPHP(playground);
 }

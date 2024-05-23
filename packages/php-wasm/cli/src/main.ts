@@ -10,8 +10,9 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { spawn } from 'child_process';
+import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -33,7 +34,7 @@ async function run() {
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
 	}
-	
+
 	// npm scripts set the TMPDIR env variable
 	// PHP accepts a TMPDIR env variable and expects it to
 	// be a writable directory within the PHP filesystem.
@@ -43,16 +44,18 @@ async function run() {
 	// @see https://github.com/npm/npm/issues/4531
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { TMPDIR, ...envVariables } = process.env;
-	const php = await NodePHP.load(phpVersion, {
-		emscriptenOptions: {
-			ENV: {
-				...envVariables,
-				TERM: 'xterm',
+	const php = new PHP(
+		await loadNodeRuntime(phpVersion, {
+			emscriptenOptions: {
+				ENV: {
+					...envVariables,
+					TERM: 'xterm',
+				},
 			},
-		},
-	});
+		})
+	);
 
-	php.useHostFilesystem();
+	useHostFilesystem(php);
 	php.setSpawnHandler((command: string) => {
 		const phpWasmCommand = `${process.argv[0]} ${process.execArgv.join(
 			' '

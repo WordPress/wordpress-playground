@@ -1,4 +1,4 @@
-import { PHP_INI_PATH } from './base-php';
+import { PHP_INI_PATH } from './php';
 import { UniversalPHP } from './universal-php';
 import { stringify, parse } from 'ini';
 

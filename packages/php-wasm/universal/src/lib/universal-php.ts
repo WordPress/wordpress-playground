@@ -60,12 +60,6 @@ export interface IsomorphicLocalPHP {
 	documentRoot: string;
 
 	/**
-	 * Sets the SAPI name exposed by the PHP module.
-	 * @param newName - The new SAPI name.
-	 */
-	setSapiName(newName: string): void;
-
-	/**
 	 * Defines a constant in the PHP runtime.
 	 * @param key - The name of the constant.
 	 * @param value - The value of the constant.
@@ -318,17 +312,7 @@ type ChildProcess = EventEmitter & {
 	stderr: EventEmitter;
 };
 export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
-
-/**
- * The omited methods must either be called synchronously before
- * the PHP internal state is initialized, or with a complex argument
- * that can't be serialized over a remote connection. Therefeore,
- * they don't make sense in a remote PHP instance.
- */
-export type IsomorphicRemotePHP = Remote<
-	Omit<IsomorphicLocalPHP, 'setSapiName'>
->;
-export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
+export type UniversalPHP = IsomorphicLocalPHP | Remote<IsomorphicLocalPHP>;
 
 export type HTTPMethod =
 	| 'GET'

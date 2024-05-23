@@ -31,6 +31,7 @@ import {
 } from '@php-wasm/util';
 import { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
+import { isExitCodeZero } from './is-exit-code-zero';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -40,6 +41,15 @@ namespace Emscripten {
 	type NamespaceToInstance<T> = {
 		[K in keyof T]: T[K] extends (...args: any[]) => any ? T[K] : never;
 	};
+
+	export interface FileSystemType {
+		mount(mount: FS.Mount): FS.FSNode;
+		syncfs(
+			mount: FS.Mount,
+			populate: () => unknown,
+			done: (err?: number | null) => unknown
+		): void;
+	}
 
 	export type FileSystemInstance = NamespaceToInstance<typeof FS> & {
 		mkdirTree(path: string): void;
@@ -59,6 +69,14 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
+export interface RootFS extends Emscripten.FileSystemInstance {
+	filesystems: Record<string, Emscripten.FileSystemType>;
+}
+
+export interface Mountable {
+	mount(FS: RootFS, vfsMountPoint: string): void | Promise<void>;
+}
+
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
 
@@ -70,14 +88,14 @@ const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
+export class PHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPRequestHandler<any>;
+	requestHandler?: PHPRequestHandler;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -877,6 +895,66 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		}
 	}
 
+	/**
+	 * Mounts a filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  mountable - The filesystem to mount.
+	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
+	 */
+	@rethrowFileSystemError('Could not mount {path}')
+	async mount(virtualFSPath: string, mountable: Mountable) {
+		await mountable.mount(this[__private__dont__use].FS, virtualFSPath);
+	}
+
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * This method can only be used when PHP was compiled with the CLI SAPI
+	 * and it cannot be used in conjunction with `run()`.
+	 *
+	 * Once this method finishes running, the PHP instance is no
+	 * longer usable and should be discarded. This is because PHP
+	 * internally cleans up all the resources and calls exit().
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	async cli(argv: string[]): Promise<number> {
+		for (const arg of argv) {
+			this[__private__dont__use].ccall(
+				'wasm_add_cli_arg',
+				null,
+				[STRING],
+				[arg]
+			);
+		}
+		try {
+			return await this[__private__dont__use].ccall(
+				'run_cli',
+				null,
+				[],
+				[],
+				{
+					async: true,
+				}
+			);
+		} catch (error) {
+			if (isExitCodeZero(error)) {
+				return 0;
+			}
+			throw error;
+		}
+	}
+
+	setSkipShebang(shouldSkip: boolean) {
+		this[__private__dont__use].ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUMBER],
+			[shouldSkip ? 1 : 0]
+		);
+	}
+
 	exit(code = 0) {
 		this.dispatchEvent({
 			type: 'runtime.beforedestroy',
@@ -914,8 +992,8 @@ export function normalizeHeaders(
 }
 
 export function syncFSTo(
-	source: BasePHP,
-	target: BasePHP,
+	source: PHP,
+	target: PHP,
 	path: string | null = null
 ) {
 	copyFS(

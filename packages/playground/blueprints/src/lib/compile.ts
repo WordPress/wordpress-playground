@@ -307,7 +307,7 @@ export function compileBlueprint(
 					);
 				} catch (e) {
 					/*
-					 * NodePHP exposes no goTo method.
+					 * PHP exposes no goTo method.
 					 * We can't use `goto` in playground here,
 					 * because it may be a Comlink proxy object
 					 * with no such method.

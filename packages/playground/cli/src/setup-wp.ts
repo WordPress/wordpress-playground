@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import {
 	defineSiteUrl,
@@ -35,7 +35,7 @@ import {
  * as that's viable.
  */
 export async function setupWordPress(
-	php: NodePHP,
+	php: PHP,
 	wpVersion = 'latest',
 	monitor: EmscriptenDownloadMonitor
 ) {

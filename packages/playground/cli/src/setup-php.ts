@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import {
 	PHPRequestHandler,
 	SupportedPHPVersion,
@@ -12,27 +12,16 @@ import {
 	enablePlatformMuPlugins,
 	preloadRequiredMuPlugin,
 } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 export async function createPhp(
-	requestHandler: PHPRequestHandler<NodePHP>,
+	requestHandler: PHPRequestHandler,
 	phpVersion: SupportedPHPVersion,
 	isPrimary: boolean
 ) {
-	const createPhpRuntime = async () => await NodePHP.loadRuntime(phpVersion);
-	const php = new NodePHP();
+	const createPhpRuntime = async () => await loadNodeRuntime(phpVersion);
+	const php = new PHP();
 	php.requestHandler = requestHandler;
-	/**
-	 * @TODO: Consider an API like
-	 *
-	 * await php.useRuntimeFactory(runtimeFactory, { rotateAfterRequests: 400 });
-	 *
-	 * or
-	 *
-	 * const php = await NodePHP.create({
-	 *     runtimeFactory,
-	 *     rotateAfterRequests: 400,
-	 * })
-	 */
 	php.initializeRuntime(await createPhpRuntime());
 	php.setSapiName('cli');
 	await setPhpIniEntries(php, {

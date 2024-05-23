@@ -18,7 +18,7 @@ import {
 	defineSiteUrl,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -169,7 +169,7 @@ async function run() {
 		}
 	}
 
-	function mountResources(php: NodePHP, rawMounts: string[]) {
+	function mountResources(php: PHP, rawMounts: string[]) {
 		const parsedMounts = rawMounts.map((mount) => {
 			const [source, vfsPath] = mount.split(':');
 			return {
@@ -178,15 +178,11 @@ async function run() {
 			};
 		});
 		for (const mount of parsedMounts) {
-			php.mount(mount.hostPath, mount.vfsPath);
+			php.mount(mount.vfsPath, new NodeFSMount(mount.hostPath));
 		}
 	}
 
-	async function prepareSite(
-		php: NodePHP,
-		wpVersion: string,
-		siteUrl: string
-	) {
+	async function prepareSite(php: PHP, wpVersion: string, siteUrl: string) {
 		mountResources(php, args.mountBeforeInstall || []);
 
 		// No need to unzip WordPress if it's already mounted at /wordpress
@@ -270,7 +266,7 @@ async function run() {
 
 	const compiledBlueprint = compileInputBlueprint();
 
-	let requestHandler: PHPRequestHandler<NodePHP>;
+	let requestHandler: PHPRequestHandler;
 	let wordPressReady = false;
 
 	logger.log('Starting a PHP server...');
@@ -279,7 +275,7 @@ async function run() {
 		port: args['port'] as number,
 		onBind: async (port: number) => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			requestHandler = new PHPRequestHandler<NodePHP>({
+			requestHandler = new PHPRequestHandler({
 				phpFactory: async ({ isPrimary }) =>
 					createPhp(
 						requestHandler,

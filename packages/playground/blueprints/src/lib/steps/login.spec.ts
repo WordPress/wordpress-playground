@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { login } from './login';
@@ -6,11 +6,12 @@ import { unzip } from './unzip';
 import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step installPlugin', () => {
-	let php: NodePHP;
-	let requestHandler: PHPRequestHandler<NodePHP>;
+	let php: PHP;
+	let requestHandler: PHPRequestHandler;
 	beforeEach(async () => {
 		requestHandler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			documentRoot: '/wordpress',
 		});
 		php = await requestHandler.getPrimaryPhp();

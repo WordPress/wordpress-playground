@@ -1,16 +1,13 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { runPHP } from './run-php';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const phpVersion = '8.0';
 describe('Blueprint step runPHP', () => {
-	let php: NodePHP;
+	let php: PHP;
 
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
-		});
+		php = new PHP(await loadNodeRuntime(phpVersion));
 	});
 
 	it('should run PHP code', async () => {
