@@ -324,6 +324,15 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 		// We can only satisfy requests for directories with a default file
 		// so let's first resolve to a default path when available.
 		if (primaryPhp.isDir(fsPath)) {
+			if (!fsPath.endsWith('/')) {
+				// TODO: Test redirect dir to trailing slash
+				return new PHPResponse(
+					301,
+					{ Location: [`${requestedUrl.pathname}/`] },
+					// TODO: Can we skip the body completely?
+					new TextEncoder().encode('Moved Permanently')
+				);
+			}
 			const localDefaultPath = joinPaths(fsPath, 'index.php');
 			if (primaryPhp.isFile(localDefaultPath)) {
 				fsPath = localDefaultPath;
@@ -332,6 +341,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 
 		if (fsPath.endsWith('.php')) {
 			if (primaryPhp.isFile(fsPath)) {
+				// TODO: Test PHP file
 				const effectiveRequest: PHPRequest = {
 					...request,
 					url: joinPaths(this.#ABSOLUTE_URL, fsPath),
@@ -343,13 +353,14 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			}
 		} else {
 			if (primaryPhp.isFile(fsPath)) {
-				// TODO: Serve static file
+				// TODO: Test serving static file
 				return this.#serveStaticFile(primaryPhp, fsPath);
 			} else if (
 				// Make sure fsPath doesn't describe any other entity on the filesystem
 				!primaryPhp.fileExists(fsPath) &&
 				this.#remoteAssetPaths.has(fsPath)
 			) {
+				// TODO: Test known remote asset
 				// This path is listed as a remote asset. Mark it as a static file
 				// so the service worker knows it can issue a real fetch() to the server.
 				return new PHPResponse(
@@ -360,6 +371,8 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			}
 		}
 
+		// TODO: Test delegate non-existent PHP file to WordPress
+		// TODO: Test delegate non-existent other file to WordPress
 		// Delegate unresolved requests to WordPress. This makes WP magic possible,
 		// like pretty permalinks and dynamically generated sitemaps.
 		const wpDefaultPath = joinPaths(this.#DOCROOT, 'index.php');
