@@ -200,9 +200,6 @@ try {
 
 	const requestHandler = await bootWordPress({
 		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
-		createPhpInstance() {
-			return new PHP();
-		},
 		createPhpRuntime,
 		wordPressZip,
 		sqliteIntegrationPluginZip,

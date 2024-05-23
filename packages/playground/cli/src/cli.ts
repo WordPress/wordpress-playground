@@ -286,9 +286,6 @@ async function run() {
 
 			requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
-				createPhpInstance() {
-					return new PHP();
-				},
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(compiledBlueprint.versions.php),
 				wordPressZip,
