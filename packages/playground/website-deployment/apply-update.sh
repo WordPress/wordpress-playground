@@ -69,9 +69,9 @@ function match_files_to_serve_via_php() (
         $path = trim( $path );
         $basename = basename( $path );
         if (
-		playground_file_needs_special_treatment($path) ||
-		playground_file_needs_special_treatment($basename)
-	) {
+            playground_file_needs_special_treatment($path) ||
+            playground_file_needs_special_treatment($basename)
+        ) {
             echo "$path\n";
         }
     }
