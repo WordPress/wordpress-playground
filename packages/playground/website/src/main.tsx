@@ -269,6 +269,17 @@ function Main() {
 									>
 										Documentation
 									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to the Playground git repository"
+										href={
+											'https://github.com/WordPress/wordpress-playground' as any
+										}
+										target="_blank"
+									>
+										GitHub
+									</MenuItem>
 								</MenuGroup>
 							</>
 						)}
@@ -335,4 +346,3 @@ function resolveVersion<T>(
 	}
 	return version as T;
 }
-
