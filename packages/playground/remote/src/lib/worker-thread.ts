@@ -1,4 +1,4 @@
-import { WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -13,7 +13,11 @@ import {
 	preloadSqliteIntegration,
 	wordPressRewriteRules,
 } from '@wp-playground/wordpress';
-import { PHPRequestHandler, withPHPIniValues } from '@php-wasm/universal';
+import {
+	PHPRequestHandler,
+	PHPWorker,
+	withPHPIniValues,
+} from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -90,7 +94,7 @@ if (!wordPressAvailableInOPFS) {
 }
 
 /** @inheritDoc PHPClient */
-export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
+export class PlaygroundWorkerEndpoint extends PHPWorker {
 	/**
 	 * A string representing the scope of the Playground instance.
 	 */

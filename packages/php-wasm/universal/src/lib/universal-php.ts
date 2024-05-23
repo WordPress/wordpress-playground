@@ -1,5 +1,5 @@
 import { Remote } from 'comlink';
-import { PHP } from './php';
+import { LimitedPHPApi } from './php-worker';
 
 /**
  * Represents an event related to the PHP request.
@@ -47,30 +47,7 @@ export type PHPEvent =
  */
 export type PHPEventListener = (event: PHPEvent) => void;
 
-export type IsomorphicLocalPHP = Pick<
-	PHP,
-	| 'request'
-	| 'addEventListener'
-	| 'removeEventListener'
-	| 'mkdir'
-	| 'mkdirTree'
-	| 'readFileAsText'
-	| 'readFileAsBuffer'
-	| 'writeFile'
-	| 'unlink'
-	| 'mv'
-	| 'rmdir'
-	| 'listFiles'
-	| 'isDir'
-	| 'fileExists'
-	| 'chdir'
-	| 'run'
-	| 'onMessage'
-> & {
-	documentRoot: PHP['documentRoot'];
-	absoluteUrl: PHP['absoluteUrl'];
-};
-export type UniversalPHP = IsomorphicLocalPHP | Remote<IsomorphicLocalPHP>;
+export type UniversalPHP = LimitedPHPApi | Remote<LimitedPHPApi>;
 
 export type MessageListener = (
 	data: string

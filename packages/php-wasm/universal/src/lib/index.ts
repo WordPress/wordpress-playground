@@ -1,5 +1,4 @@
 export type {
-	IsomorphicLocalPHP,
 	MessageListener,
 	PHPOutput,
 	PHPRunOptions,
@@ -13,7 +12,7 @@ export type {
 	PHPRequestHeaders,
 	SpawnHandler,
 } from './universal-php';
-
+export { PHPWorker } from './php-worker';
 export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';

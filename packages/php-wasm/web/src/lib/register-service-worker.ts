@@ -1,5 +1,5 @@
 import { PhpWasmError } from '@php-wasm/util';
-import type { WebPHPEndpoint } from './web-php-endpoint';
+import type { PHPWorker } from '../../../universal/src/lib/php-worker';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
 
@@ -13,9 +13,11 @@ import { Remote } from 'comlink';
  *                                 mismatched with the actual version, the service worker
  *                                 will be re-registered.
  */
-export async function registerServiceWorker<
-	Client extends Remote<WebPHPEndpoint>
->(phpApi: Client, scope: string, scriptUrl: string) {
+export async function registerServiceWorker<Client extends Remote<PHPWorker>>(
+	phpApi: Client,
+	scope: string,
+	scriptUrl: string
+) {
 	const sw = navigator.serviceWorker;
 	if (!sw) {
 		/**
