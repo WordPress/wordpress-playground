@@ -21,7 +21,6 @@
 #include "zend_globals_macros.h"
 #include "zend_exceptions.h"
 #include "zend_closures.h"
-#include "zend_constants.h"
 #include "zend_hash.h"
 #include "rfc1867.h"
 #include "SAPI.h"
