@@ -55,7 +55,7 @@ describe('Blueprint step activateTheme()', () => {
 			docroot + '/activation-ran-as-a-priviliged-user.txt';
 
 		const themeDir = `${docroot}/wp-content/themes/test-theme`;
-		php.mkdir(`${themeDir}/test-theme`);
+		php.mkdir(themeDir);
 		php.writeFile(
 			`${themeDir}/style.css`,
 			`/**
@@ -64,7 +64,7 @@ describe('Blueprint step activateTheme()', () => {
 */`
 		);
 
-		php.writeFile(`${docroot}/wp-content/mu-plugins`);
+		php.mkdir(`${docroot}/wp-content/mu-plugins`);
 		php.writeFile(
 			`${docroot}/wp-content/mu-plugins/0-on-theme-switch.php`,
 			`<?php
@@ -97,6 +97,7 @@ describe('Blueprint step activateTheme()', () => {
 */
 			`
 		);
+		php.mkdir(`${docroot}/wp-content/mu-plugins`);
 		php.writeFile(
 			`${docroot}/wp-content/mu-plugins/0-exit.php`,
 			`<?php exit(0); `

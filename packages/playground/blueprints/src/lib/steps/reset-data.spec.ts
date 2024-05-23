@@ -15,6 +15,7 @@ describe('Blueprint step resetData()', () => {
 			createPhpInstance: () => new NodePHP(),
 			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
+			documentRoot: docroot,
 
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
