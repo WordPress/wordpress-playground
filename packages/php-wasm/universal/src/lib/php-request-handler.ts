@@ -41,7 +41,7 @@ interface BaseConfiguration {
 }
 
 export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
-	requestHandler: PHPRequestHandler<PHP>;
+	requestHandler: PHPRequestHandler;
 };
 
 export type PHPRequestHandlerConfiguration = BaseConfiguration &
@@ -58,11 +58,11 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration &
 				 * Dynamic PHP requests, however, require grabbing an available PHP
 				 * interpreter, and that's where the PHPProcessManager comes in.
 				 */
-				processManager: PHPProcessManager<PHP>;
+				processManager: PHPProcessManager;
 		  }
 		| {
 				phpFactory: (
-					requestHandler: PHPRequestHandlerFactoryArgs<PHP>
+					requestHandler: PHPRequestHandlerFactoryArgs
 				) => Promise<PHP>;
 				/**
 				 * The maximum number of PHP instances that can exist at
@@ -136,7 +136,7 @@ export class PHPRequestHandler {
 	#ABSOLUTE_URL: string;
 	#cookieStore: HttpCookieStore;
 	rewriteRules: RewriteRule[];
-	processManager: PHPProcessManager<PHP>;
+	processManager: PHPProcessManager;
 
 	/**
 	 * The request handler needs to decide whether to serve a static asset or
@@ -149,7 +149,7 @@ export class PHPRequestHandler {
 	 * @param  php    - The PHP instance.
 	 * @param  config - Request Handler configuration.
 	 */
-	constructor(config: PHPRequestHandlerConfiguration<PHP>) {
+	constructor(config: PHPRequestHandlerConfiguration) {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
@@ -357,7 +357,7 @@ export class PHPRequestHandler {
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		let spawnedPHP: SpawnedPHP<PHP> | undefined = undefined;
+		let spawnedPHP: SpawnedPHP | undefined = undefined;
 		try {
 			spawnedPHP = await this.processManager!.acquirePHPInstance();
 		} catch (e) {

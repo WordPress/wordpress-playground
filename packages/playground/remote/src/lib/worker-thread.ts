@@ -1,4 +1,4 @@
-import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -102,7 +102,7 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	wordPressVersion: string;
 
 	constructor(
-		requestHandler: PHPRequestHandler<WebPHP>,
+		requestHandler: PHPRequestHandler,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string
@@ -176,7 +176,7 @@ const requestHandler = new PHPRequestHandler({
 	documentRoot: DOCROOT,
 	absoluteUrl: scopedSiteUrl,
 	rewriteRules: wordPressRewriteRules,
-}) as PHPRequestHandler<WebPHP>;
+}) as PHPRequestHandler;
 const apiEndpoint = new PlaygroundWorkerEndpoint(
 	requestHandler,
 	downloadMonitor,

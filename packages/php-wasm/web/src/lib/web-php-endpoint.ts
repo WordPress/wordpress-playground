@@ -124,7 +124,7 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 		return await requestHandler.request(request);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.run */
+	/** @inheritDoc @php-wasm/universal!/PHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const { php, reap } = await _private
 			.get(this)!
@@ -136,72 +136,72 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 		}
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
+	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php!.chdir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.setSapiName */
+	/** @inheritDoc @php-wasm/universal!/PHP.setSapiName */
 	setSapiName(newName: string): void {
 		_private.get(this)!.php!.setSapiName(newName);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
+	/** @inheritDoc @php-wasm/universal!/PHP.mkdir */
 	mkdir(path: string): void {
 		return _private.get(this)!.php!.mkdir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
+	/** @inheritDoc @php-wasm/universal!/PHP.mkdirTree */
 	mkdirTree(path: string): void {
 		return _private.get(this)!.php!.mkdirTree(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
+	/** @inheritDoc @php-wasm/universal!/PHP.readFileAsText */
 	readFileAsText(path: string): string {
 		return _private.get(this)!.php!.readFileAsText(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
+	/** @inheritDoc @php-wasm/universal!/PHP.readFileAsBuffer */
 	readFileAsBuffer(path: string): Uint8Array {
 		return _private.get(this)!.php!.readFileAsBuffer(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
+	/** @inheritDoc @php-wasm/universal!/PHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
 		return _private.get(this)!.php!.writeFile(path, data);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
+	/** @inheritDoc @php-wasm/universal!/PHP.unlink */
 	unlink(path: string): void {
 		return _private.get(this)!.php!.unlink(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
+	/** @inheritDoc @php-wasm/universal!/PHP.listFiles */
 	listFiles(path: string, options?: ListFilesOptions): string[] {
 		return _private.get(this)!.php!.listFiles(path, options);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
+	/** @inheritDoc @php-wasm/universal!/PHP.isDir */
 	isDir(path: string): boolean {
 		return _private.get(this)!.php!.isDir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
+	/** @inheritDoc @php-wasm/universal!/PHP.fileExists */
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php!.fileExists(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.onMessage */
+	/** @inheritDoc @php-wasm/universal!/PHP.onMessage */
 	onMessage(listener: MessageListener): void {
 		_private.get(this)!.php!.onMessage(listener);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
+	/** @inheritDoc @php-wasm/universal!/PHP.defineConstant */
 	defineConstant(key: string, value: string | boolean | number | null): void {
 		_private.get(this)!.php!.defineConstant(key, value);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
+	/** @inheritDoc @php-wasm/universal!/PHP.addEventListener */
 	addEventListener(
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
@@ -209,7 +209,7 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 		_private.get(this)!.php!.addEventListener(eventType, listener);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
+	/** @inheritDoc @php-wasm/universal!/PHP.removeEventListener */
 	removeEventListener(
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
