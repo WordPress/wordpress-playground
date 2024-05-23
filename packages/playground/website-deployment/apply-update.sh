@@ -67,8 +67,11 @@ function match_files_to_serve_via_php() (
     require "custom-redirects-lib.php";
     while ( $path = fgets( STDIN ) ) {
         $path = trim( $path );
-        $filename = basename( $path );
-        if ( playground_file_needs_special_treatment($filename) ) {
+        $basename = basename( $path );
+        if (
+		playground_file_needs_special_treatment($path) ||
+		playground_file_needs_special_treatment($basename)
+	) {
             echo "$path\n";
         }
     }
@@ -88,7 +91,9 @@ echo Configure which files should be served by Nginx and which by PHP
 cd ~/website-update
 find -type f \
     | grep -v files-to-serve-via-php \
+    | sed 's#^\.##' \
     | match_files_to_serve_via_php \
+    | sed 's#^/##' \
     | set_aside_files_to_serve_via_php
 
 echo Syncing staged files to production
