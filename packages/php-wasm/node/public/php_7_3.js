@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_3_33/php_7_3.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 15007000; 
+export const dependenciesTotalSize = 15005376; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -7262,40 +7262,36 @@ var _wasm_set_cookies = Module["_wasm_set_cookies"] = function() {
  return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["Db"]).apply(null, arguments);
 };
 
-var _wasm_set_php_code = Module["_wasm_set_php_code"] = function() {
- return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["Eb"]).apply(null, arguments);
-};
-
 var _wasm_set_request_port = Module["_wasm_set_request_port"] = function() {
- return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["Fb"]).apply(null, arguments);
+ return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["Eb"]).apply(null, arguments);
 };
 
 var _wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = function() {
- return (_wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = Module["asm"]["Gb"]).apply(null, arguments);
+ return (_wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = Module["asm"]["Fb"]).apply(null, arguments);
 };
 
 var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = function() {
- return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["Hb"]).apply(null, arguments);
+ return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["Gb"]).apply(null, arguments);
 };
 
 var _php_wasm_init = Module["_php_wasm_init"] = function() {
- return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["Ib"]).apply(null, arguments);
+ return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["Hb"]).apply(null, arguments);
 };
 
 var ___funcs_on_exit = function() {
- return (___funcs_on_exit = Module["asm"]["Jb"]).apply(null, arguments);
+ return (___funcs_on_exit = Module["asm"]["Ib"]).apply(null, arguments);
 };
 
 var _emscripten_builtin_memalign = function() {
- return (_emscripten_builtin_memalign = Module["asm"]["Kb"]).apply(null, arguments);
+ return (_emscripten_builtin_memalign = Module["asm"]["Jb"]).apply(null, arguments);
 };
 
 var __emscripten_timeout = function() {
- return (__emscripten_timeout = Module["asm"]["Lb"]).apply(null, arguments);
+ return (__emscripten_timeout = Module["asm"]["Kb"]).apply(null, arguments);
 };
 
 var _setThrew = function() {
- return (_setThrew = Module["asm"]["Mb"]).apply(null, arguments);
+ return (_setThrew = Module["asm"]["Lb"]).apply(null, arguments);
 };
 
 var _emscripten_stack_set_limits = function() {
@@ -7311,107 +7307,107 @@ var _emscripten_stack_get_end = function() {
 };
 
 var stackSave = function() {
- return (stackSave = Module["asm"]["Nb"]).apply(null, arguments);
+ return (stackSave = Module["asm"]["Mb"]).apply(null, arguments);
 };
 
 var stackRestore = function() {
- return (stackRestore = Module["asm"]["Ob"]).apply(null, arguments);
+ return (stackRestore = Module["asm"]["Nb"]).apply(null, arguments);
 };
 
 var stackAlloc = function() {
- return (stackAlloc = Module["asm"]["Pb"]).apply(null, arguments);
+ return (stackAlloc = Module["asm"]["Ob"]).apply(null, arguments);
 };
 
 var dynCall_vi = Module["dynCall_vi"] = function() {
- return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["Qb"]).apply(null, arguments);
+ return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["Pb"]).apply(null, arguments);
 };
 
 var dynCall_iiii = Module["dynCall_iiii"] = function() {
- return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Rb"]).apply(null, arguments);
+ return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Qb"]).apply(null, arguments);
 };
 
 var dynCall_ii = Module["dynCall_ii"] = function() {
- return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Sb"]).apply(null, arguments);
+ return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Rb"]).apply(null, arguments);
 };
 
 var dynCall_vii = Module["dynCall_vii"] = function() {
- return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Tb"]).apply(null, arguments);
+ return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Sb"]).apply(null, arguments);
 };
 
 var dynCall_iii = Module["dynCall_iii"] = function() {
- return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Ub"]).apply(null, arguments);
+ return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Tb"]).apply(null, arguments);
 };
 
 var dynCall_iiiii = Module["dynCall_iiiii"] = function() {
- return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Vb"]).apply(null, arguments);
+ return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Ub"]).apply(null, arguments);
 };
 
 var dynCall_iiiiii = Module["dynCall_iiiiii"] = function() {
- return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Wb"]).apply(null, arguments);
+ return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Vb"]).apply(null, arguments);
 };
 
 var dynCall_viiii = Module["dynCall_viiii"] = function() {
- return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["Xb"]).apply(null, arguments);
+ return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["Wb"]).apply(null, arguments);
 };
 
 var dynCall_viii = Module["dynCall_viii"] = function() {
- return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Yb"]).apply(null, arguments);
+ return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Xb"]).apply(null, arguments);
 };
 
 var dynCall_viiiii = Module["dynCall_viiiii"] = function() {
- return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Zb"]).apply(null, arguments);
+ return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Yb"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = function() {
- return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["_b"]).apply(null, arguments);
+ return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["Zb"]).apply(null, arguments);
 };
 
 var dynCall_i = Module["dynCall_i"] = function() {
- return (dynCall_i = Module["dynCall_i"] = Module["asm"]["$b"]).apply(null, arguments);
+ return (dynCall_i = Module["dynCall_i"] = Module["asm"]["_b"]).apply(null, arguments);
 };
 
 var dynCall_v = Module["dynCall_v"] = function() {
- return (dynCall_v = Module["dynCall_v"] = Module["asm"]["ac"]).apply(null, arguments);
+ return (dynCall_v = Module["dynCall_v"] = Module["asm"]["$b"]).apply(null, arguments);
 };
 
 var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = function() {
- return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["bc"]).apply(null, arguments);
+ return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["ac"]).apply(null, arguments);
 };
 
 var dynCall_viiiiii = Module["dynCall_viiiiii"] = function() {
- return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["cc"]).apply(null, arguments);
+ return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["bc"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = function() {
- return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["dc"]).apply(null, arguments);
+ return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["cc"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = function() {
- return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["ec"]).apply(null, arguments);
+ return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["dc"]).apply(null, arguments);
 };
 
 var dynCall_jii = Module["dynCall_jii"] = function() {
- return (dynCall_jii = Module["dynCall_jii"] = Module["asm"]["fc"]).apply(null, arguments);
+ return (dynCall_jii = Module["dynCall_jii"] = Module["asm"]["ec"]).apply(null, arguments);
 };
 
 var dynCall_viidii = Module["dynCall_viidii"] = function() {
- return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["gc"]).apply(null, arguments);
+ return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["fc"]).apply(null, arguments);
 };
 
 var _asyncify_start_unwind = function() {
- return (_asyncify_start_unwind = Module["asm"]["hc"]).apply(null, arguments);
+ return (_asyncify_start_unwind = Module["asm"]["gc"]).apply(null, arguments);
 };
 
 var _asyncify_stop_unwind = function() {
- return (_asyncify_stop_unwind = Module["asm"]["ic"]).apply(null, arguments);
+ return (_asyncify_stop_unwind = Module["asm"]["hc"]).apply(null, arguments);
 };
 
 var _asyncify_start_rewind = function() {
- return (_asyncify_start_rewind = Module["asm"]["jc"]).apply(null, arguments);
+ return (_asyncify_start_rewind = Module["asm"]["ic"]).apply(null, arguments);
 };
 
 var _asyncify_stop_rewind = function() {
- return (_asyncify_stop_rewind = Module["asm"]["kc"]).apply(null, arguments);
+ return (_asyncify_stop_rewind = Module["asm"]["jc"]).apply(null, arguments);
 };
 
 function invoke_vii(index, a1, a2) {

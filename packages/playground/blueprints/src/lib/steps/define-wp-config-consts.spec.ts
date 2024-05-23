@@ -229,16 +229,15 @@ describe('defineBeforeRun', () => {
 		expect(response.json).toEqual(constants);
 	});
 
-	it('should not work when PHP code is run via the php.run({ code: `` }) call instead of the scriptPath mode (KNOWN LIMITATION)', async () => {
+	it('should work when the first PHP code run is trigerred via the php.run({ code: `` }) call instead of the scriptPath mode', async () => {
 		const constants = {
 			SITE_URL: 'http://test.url',
 		};
 		await defineBeforeRun(php, constants);
-		await expect(
-			php.run({
-				code: `<?php echo json_encode(['SITE_URL' => SITE_URL]);`,
-			})
-		).rejects.toThrow('PHP.run() failed with exit code');
+		const response = await php.run({
+			code: `<?php echo json_encode("abc");`,
+		});
+		expect(response.text).toBe('"abc"');
 	});
 
 	it('should not raise a warning when conflicting with a user-defined constant', async () => {

@@ -305,7 +305,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 					`The script path "${request.scriptPath}" does not exist.`
 				);
 			}
-			this.#setScriptPath(request.scriptPath || '');
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
 			const headers = normalizeHeaders(request.headers || {});
@@ -322,7 +321,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (typeof request.code === 'string') {
-				this.#setPHPCode(' ?>' + request.code);
+				this.writeFile('/internal/eval.php', request.code);
+				this.#setScriptPath('/internal/eval.php');
+			} else {
+				this.#setScriptPath(request.scriptPath || '');
 			}
 
 			const $_SERVER = this.#prepareServerEntries(
@@ -619,15 +621,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 				...consts,
 				[key]: value,
 			})
-		);
-	}
-
-	#setPHPCode(code: string) {
-		this[__private__dont__use].ccall(
-			'wasm_set_php_code',
-			null,
-			[STRING],
-			[code]
 		);
 	}
 

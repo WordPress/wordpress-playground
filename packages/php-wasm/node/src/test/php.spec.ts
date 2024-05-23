@@ -511,7 +511,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					`string(13) "Hello World!\n"`,
 					`string(0) ""`,
 					`string(0) ""`,
-					`resource(1) of type (stream)`,
+					`resource(3) of type (stream)`,
 					`bool(true)`,
 					'',
 				].join('\n')
@@ -558,7 +558,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					`string(13) "Hello World!\n"`,
 					`string(13) "Hello Again!\n"`,
 					`string(0) ""`,
-					`resource(1) of type (stream)`,
+					`resource(3) of type (stream)`,
 					`bool(true)`,
 					'',
 				].join('\n')

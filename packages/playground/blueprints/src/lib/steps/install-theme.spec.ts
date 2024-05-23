@@ -92,7 +92,7 @@ describe('Blueprint step installTheme', () => {
 		it('ifAlreadyInstalled=skip should skip the theme if the theme already exists', async () => {
 			await installTheme(php, {
 				themeZipFile: new File(
-					['invalid zip bytes, unpacking should not attempted'],
+					[php.readFileAsBuffer(zipFilePath)],
 					zipFileName
 				),
 				ifAlreadyInstalled: 'skip',

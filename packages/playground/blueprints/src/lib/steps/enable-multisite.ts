@@ -173,17 +173,26 @@ echo json_encode($deactivated_plugins);
 	const wpInstallationFolder = isURLScoped(playgroundUrl)
 		? 'scope:' + getURLScope(playgroundUrl)
 		: null;
+	// $_SERVER variables must be set before WordPress is loaded,
+	// therefore they're placed in the `preload` directory.
+	await playground.writeFile(
+		'/internal/shared/preload/sunrise.php',
+		`<?php
+	$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
+	$folder = ${phpVar(wpInstallationFolder)};
+	if ($folder && strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
+		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
+	}
+`
+	);
+	// The default BLOG_ID_CURRENT_SITE must be set after WordPress
+	// is loaded, therefore it is placed in the `mu-plugins` directory.
 	await playground.writeFile(
 		'/internal/shared/mu-plugins/sunrise.php',
 		`<?php
-	if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
-		define( 'BLOG_ID_CURRENT_SITE', 1 );
-	}
-	$folder = ${phpVar(wpInstallationFolder)};
-	if ($folder && strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
-		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
-		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
-	}
+		if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
+			define( 'BLOG_ID_CURRENT_SITE', 1 );
+		}
 `
 	);
 	await login(playground, {});
