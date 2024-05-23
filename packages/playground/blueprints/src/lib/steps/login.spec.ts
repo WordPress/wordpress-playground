@@ -24,7 +24,7 @@ describe('Blueprint step installPlugin', () => {
 	it('should log the user in', async () => {
 		await login(php, {});
 		const response = await requestHandler.request({
-			url: '/wp-admin',
+			url: '/wp-admin/',
 		});
 		expect(response.text).toContain('Dashboard');
 	});
