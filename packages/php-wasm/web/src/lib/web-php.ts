@@ -6,7 +6,7 @@ import {
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 
-export interface PHPWebLoaderOptions {
+export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	/** @deprecated To be replaced with `extensions` in the future */
@@ -41,7 +41,7 @@ const fakeWebsocket = () => {
 
 export async function loadWebRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: PHPWebLoaderOptions = {}
+	options: LoaderOptions = {}
 ) {
 	// Determine which variant to load based on the requested extensions
 	const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';

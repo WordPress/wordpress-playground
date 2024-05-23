@@ -1,4 +1,3 @@
-/// <reference types="emscripten" />
 import { Mountable, RootFS } from '@php-wasm/universal';
 
 export class NodeFSMount implements Mountable {

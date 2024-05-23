@@ -1,4 +1,3 @@
-/// <reference types="emscripten" />
 import { PHPResponse } from './php-response';
 import {
 	getEmscriptenFsError,
@@ -32,30 +31,10 @@ import {
 import { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
 import { isExitCodeZero } from './is-exit-code-zero';
+import { Emscripten } from './emscripten-types';
 
 const STRING = 'string';
 const NUMBER = 'number';
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-namespace Emscripten {
-	type NamespaceToInstance<T> = {
-		[K in keyof T]: T[K] extends (...args: any[]) => any ? T[K] : never;
-	};
-
-	export interface FileSystemType {
-		mount(mount: any): any;
-		syncfs(
-			mount: any,
-			populate: () => unknown,
-			done: (err?: number | null) => unknown
-		): void;
-	}
-
-	export type FileSystemInstance = NamespaceToInstance<typeof FS> & {
-		mkdirTree(path: string): void;
-		lookupPath(path: string, opts?: any): FS.Lookup;
-	};
-}
 
 export const __private__dont__use = Symbol('__private__dont__use');
 
@@ -69,12 +48,8 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
-export interface RootFS extends Emscripten.FileSystemInstance {
-	filesystems: Record<string, Emscripten.FileSystemType>;
-}
-
 export interface Mountable {
-	mount(FS: RootFS, vfsMountPoint: string): void | Promise<void>;
+	mount(FS: Emscripten.RootFS, vfsMountPoint: string): void | Promise<void>;
 }
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';

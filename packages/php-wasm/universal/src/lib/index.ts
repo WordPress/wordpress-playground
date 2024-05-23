@@ -47,8 +47,8 @@ export type {
 	SupportedPHPExtension,
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
-export { PHP, RootFS, __private__dont__use } from './php';
-export type { Mountable } from './php';
+export { PHP, __private__dont__use } from './php';
+export type { RootFS, Mountable } from './php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type {
 	DataModule,

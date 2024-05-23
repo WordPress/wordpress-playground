@@ -25,7 +25,7 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
+export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
 	absoluteUrl: string;
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
