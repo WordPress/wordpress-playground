@@ -21,7 +21,6 @@ describe('Blueprint step enableMultisite', () => {
 		});
 		// Ensure we're preloading platform-level mu-plugins
 		await setupPlatformLevelMuPlugins(php);
-		await setupPlatformLevelMuPlugins(php);
 		return { php, requestHandler };
 	}
 

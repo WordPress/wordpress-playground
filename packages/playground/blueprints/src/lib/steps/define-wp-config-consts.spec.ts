@@ -232,7 +232,6 @@ describe('defineBeforeRun', () => {
 	it('should not raise a warning when conflicting with a user-defined constant', async () => {
 		// Preload the warning-silencing error handler
 		await setupPlatformLevelMuPlugins(php);
-		await setupPlatformLevelMuPlugins(php);
 
 		const constants = {
 			SITE_URL: 'http://test.url',

@@ -90,7 +90,6 @@ export async function bootWordPress<PHP extends BasePHP>(
 		}
 		if (isPrimary) {
 			await setupPlatformLevelMuPlugins(php);
-			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
