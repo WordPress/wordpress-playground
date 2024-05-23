@@ -1,5 +1,5 @@
+import { PHPWorker } from '@php-wasm/universal';
 import { PhpWasmError } from '@php-wasm/util';
-import type { PHPWorker } from '../../../universal/src/lib/php-worker';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
 
