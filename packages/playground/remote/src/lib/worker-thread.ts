@@ -187,6 +187,7 @@ try {
 	const wordPressZip = wordPressAvailableInOPFS
 		? undefined
 		: new File([await (await wordPressRequest!).blob()], 'wp.zip');
+
 	const sqliteIntegrationPluginZip = new File(
 		[await (await sqliteIntegrationRequest).blob()],
 		'sqlite.zip'
