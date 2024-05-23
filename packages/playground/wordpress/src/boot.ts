@@ -23,8 +23,8 @@ import { joinPaths } from '@php-wasm/util';
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: BasePHP) => void | Promise<void>;
 export interface Hooks {
-	beforeWordPress?: Hook;
-	beforeDatabase?: Hook;
+	beforeWordPressFiles?: Hook;
+	beforeDatabaseSetup?: Hook;
 }
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
@@ -101,7 +101,6 @@ export async function bootWordPress<PHP extends BasePHP>(
 			);
 		}
 
-		// php.setSpawnHandler(spawnHandlerFactory(processManager));
 		// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 		// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 		rotatePHPRuntime({
@@ -124,8 +123,8 @@ export async function bootWordPress<PHP extends BasePHP>(
 
 	const php = await requestHandler.getPrimaryPhp();
 
-	if (options.hooks?.beforeWordPress) {
-		await options.hooks.beforeWordPress(php);
+	if (options.hooks?.beforeWordPressFiles) {
+		await options.hooks.beforeWordPressFiles(php);
 	}
 
 	if (options.wordPressZip) {
@@ -141,10 +140,10 @@ export async function bootWordPress<PHP extends BasePHP>(
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
-	// @TODO Assert WordPress core is set up
+	// @TODO Assert WordPress core files are in place
 
-	if (options.hooks?.beforeDatabase) {
-		await options.hooks.beforeDatabase(php);
+	if (options.hooks?.beforeDatabaseSetup) {
+		await options.hooks.beforeDatabaseSetup(php);
 	}
 
 	// Run "before database" hooks to mount/copy more files in
@@ -160,7 +159,6 @@ export async function bootWordPress<PHP extends BasePHP>(
 	}
 
 	if (!(await isWordPressInstalled(php))) {
-		// @TODO: More error information
 		throw new Error('WordPress installation has failed.');
 	}
 

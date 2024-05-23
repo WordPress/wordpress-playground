@@ -208,7 +208,7 @@ try {
 		sapiName: startupOptions.sapiName,
 		constants,
 		hooks: {
-			async beforeDatabase(php) {
+			async beforeDatabaseSetup(php) {
 				if (virtualOpfsDir) {
 					await bindOpfs({
 						php,
