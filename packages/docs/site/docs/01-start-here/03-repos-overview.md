@@ -2,7 +2,6 @@ Search for issues and discussions in the relevant repository:
 ## [WordPress Playground](https://github.com/WordPress/wordpress-playground/)
 This is the main repository for the WordPress Playground. It contains the core codebase, issues and discussions about the project. 
 
-The repo is there to guide the core contributors to the Playground identify issues, feature requests, and other improvements that need to be made to the project.
 
 Opening issues in the WordPress Playground repository for the "online" version of the Playground, IE: playground.wordpress.net, is a great way to get visibility on a problem or feature request. But there may be a better suited repo below to open the issue, and we'll discuss that shortly.
 
