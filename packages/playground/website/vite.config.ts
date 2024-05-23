@@ -18,7 +18,7 @@ import {
 import virtualModule from '../vite-virtual-module';
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync } from 'node:fs';
+import { copyFileSync, existsSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 
 const proxy = {
@@ -126,6 +126,23 @@ export default defineConfig(({ command, mode }) => {
 							blueprintsPath,
 							join(outputDir, 'demos/blueprints.phar')
 						);
+					}
+				},
+			} as Plugin,
+			/**
+			 * Copy the Puzzle app form the `dist/packages/playground/puzzle` directory.
+			 */
+			{
+				name: 'puzzle-plugin',
+				apply: 'build',
+				writeBundle({ dir: outputDir }) {
+					const puzzleDir = path(
+						'../../../dist/packages/playground/puzzle/'
+					);
+					if (existsSync(puzzleDir) && outputDir) {
+						cpSync(puzzleDir, join(outputDir, 'puzzle'), {
+							recursive: true,
+						});
 					}
 				},
 			} as Plugin,

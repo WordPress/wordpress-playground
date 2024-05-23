@@ -190,6 +190,7 @@ try {
 	const wordPressZip = wordPressAvailableInOPFS
 		? undefined
 		: new File([await (await wordPressRequest!).blob()], 'wp.zip');
+
 	const sqliteIntegrationPluginZip = new File(
 		[await (await sqliteIntegrationRequest).blob()],
 		'sqlite.zip'
@@ -218,10 +219,12 @@ try {
 			},
 		},
 		createFiles: {
-			'/internal/mu-plugins': {
+			'/internal/shared/mu-plugins': {
 				'1-playground-web.php': playgroundWebMuPlugin,
-				'playground-includes/wp_http_dummy.php': transportDummy,
-				'playground-includes/wp_http_fetch.php': transportFetch,
+				'playground-includes': {
+					'wp_http_dummy.php': transportDummy,
+					'wp_http_fetch.php': transportFetch,
+				},
 			},
 		},
 	});

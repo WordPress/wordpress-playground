@@ -11,9 +11,8 @@ import {
 	writeFiles,
 } from '@php-wasm/universal';
 import {
-	enablePlatformMuPlugins,
 	preloadPhpInfoRoute,
-	preloadRequiredMuPlugin,
+	setupPlatformLevelMuPlugins,
 	preloadSqliteIntegration,
 	unzipWordPress,
 	wordPressRewriteRules,
@@ -23,8 +22,8 @@ import { joinPaths } from '@php-wasm/util';
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: BasePHP) => void | Promise<void>;
 export interface Hooks {
-	beforeWordPress?: Hook;
-	beforeDatabase?: Hook;
+	beforeWordPressFiles?: Hook;
+	beforeDatabaseSetup?: Hook;
 }
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
@@ -32,8 +31,6 @@ export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 export interface BootOptions<PHP extends BasePHP> {
 	createPhpRuntime: () => Promise<number>;
 	createPhpInstance: () => PHP;
-	/** Default: 'sqlite' */
-	databaseType?: DatabaseType;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -48,6 +45,10 @@ export interface BootOptions<PHP extends BasePHP> {
 	 * e.g. WP-CLI
 	 */
 	sapiName?: string;
+	/**
+	 * URL to use as the site URL. This is used to set the WP_HOME
+	 * and WP_SITEURL constants in WordPress.
+	 */
 	siteUrl: string;
 	/** SQL file to load instead of installing WordPress. */
 	dataSqlPath?: string;
@@ -56,10 +57,49 @@ export interface BootOptions<PHP extends BasePHP> {
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	spawnHandler?: (processManager: PHPProcessManager<BasePHP>) => SpawnHandler;
+	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
 	phpIniEntries?: PhpIniOptions;
+	/**
+	 * PHP constants to define for every request.
+	 */
 	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
 	createFiles?: FileTree;
 }
+
+/**
+ * Boots a WordPress instance with the given options.
+ *
+ * High-level overview:
+ *
+ * * Boot PHP instances and PHPRequestHandler
+ * * Setup VFS, run beforeWordPressFiles hook
+ * * Setup WordPress files (if wordPressZip is provided)
+ * * Run beforeDatabaseSetup hook
+ * * Setup the database – SQLite, MySQL (@TODO), or rely on a mounted database
+ * * Run WordPress installer, if the site isn't installed yet
+ *
+ * @param options Boot configuration options
+ * @return PHPRequestHandler instance with WordPress installed.
+ */
 
 export async function bootWordPress<PHP extends BasePHP>(
 	options: BootOptions<PHP>
@@ -79,15 +119,26 @@ export async function bootWordPress<PHP extends BasePHP>(
 		if (options.phpIniEntries) {
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
+		/**
+		 * Set up mu-plugins in /internal/shared/mu-plugins
+		 * using auto_prepend_file to provide platform-level
+		 * customization without altering the installed WordPress
+		 * site.
+		 *
+		 * We only do that in the primary PHP instance –
+		 * the filesystem there is the source of truth
+		 * for all other PHP instances.
+		 */
 		if (isPrimary) {
-			await enablePlatformMuPlugins(php);
-			await preloadRequiredMuPlugin(php);
+			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
 				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
 		} else {
+			// Proxy the filesystem for all secondary PHP instances to
+			// the primary one.
 			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
 				'/tmp',
 				requestHandler.documentRoot,
@@ -95,13 +146,14 @@ export async function bootWordPress<PHP extends BasePHP>(
 			]);
 		}
 
+		// Spawn handler is responsible for spawning processes for all the
+		// `popen()`, `proc_open()` etc. calls.
 		if (options.spawnHandler) {
 			await php.setSpawnHandler(
 				options.spawnHandler(requestHandler.processManager)
 			);
 		}
 
-		// php.setSpawnHandler(spawnHandlerFactory(processManager));
 		// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 		// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 		rotatePHPRuntime({
@@ -124,8 +176,8 @@ export async function bootWordPress<PHP extends BasePHP>(
 
 	const php = await requestHandler.getPrimaryPhp();
 
-	if (options.hooks?.beforeWordPress) {
-		await options.hooks.beforeWordPress(php);
+	if (options.hooks?.beforeWordPressFiles) {
+		await options.hooks.beforeWordPressFiles(php);
 	}
 
 	if (options.wordPressZip) {
@@ -141,13 +193,13 @@ export async function bootWordPress<PHP extends BasePHP>(
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
-	// @TODO Assert WordPress core is set up
-
-	if (options.hooks?.beforeDatabase) {
-		await options.hooks.beforeDatabase(php);
-	}
+	// @TODO Assert WordPress core files are in place
 
 	// Run "before database" hooks to mount/copy more files in
+	if (options.hooks?.beforeDatabaseSetup) {
+		await options.hooks.beforeDatabaseSetup(php);
+	}
+
 	if (options.sqliteIntegrationPluginZip) {
 		await preloadSqliteIntegration(
 			php,
@@ -160,7 +212,6 @@ export async function bootWordPress<PHP extends BasePHP>(
 	}
 
 	if (!(await isWordPressInstalled(php))) {
-		// @TODO: More error information
 		throw new Error('WordPress installation has failed.');
 	}
 
