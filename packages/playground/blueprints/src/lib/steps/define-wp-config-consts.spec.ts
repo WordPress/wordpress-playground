@@ -1,10 +1,7 @@
 import { NodePHP } from '@php-wasm/node';
 import { rewriteDefineCalls, defineBeforeRun } from './define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import {
-	enablePlatformMuPlugins,
-	preloadRequiredMuPlugin,
-} from '@wp-playground/wordpress';
+import { setupPlatformLevelMuPlugins } from '@wp-playground/wordpress';
 
 describe('rewriteDefineCalls', () => {
 	let php: NodePHP;
@@ -234,8 +231,8 @@ describe('defineBeforeRun', () => {
 
 	it('should not raise a warning when conflicting with a user-defined constant', async () => {
 		// Preload the warning-silencing error handler
-		await enablePlatformMuPlugins(php);
-		await preloadRequiredMuPlugin(php);
+		await setupPlatformLevelMuPlugins(php);
+		await setupPlatformLevelMuPlugins(php);
 
 		const constants = {
 			SITE_URL: 'http://test.url',

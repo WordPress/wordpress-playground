@@ -11,9 +11,8 @@ import {
 	writeFiles,
 } from '@php-wasm/universal';
 import {
-	enablePlatformMuPlugins,
 	preloadPhpInfoRoute,
-	preloadRequiredMuPlugin,
+	setupPlatformLevelMuPlugins,
 	preloadSqliteIntegration,
 	unzipWordPress,
 	wordPressRewriteRules,
@@ -90,8 +89,8 @@ export async function bootWordPress<PHP extends BasePHP>(
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
 		if (isPrimary) {
-			await enablePlatformMuPlugins(php);
-			await preloadRequiredMuPlugin(php);
+			await setupPlatformLevelMuPlugins(php);
+			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
