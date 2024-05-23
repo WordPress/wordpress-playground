@@ -88,6 +88,16 @@ export async function bootWordPress<PHP extends BasePHP>(
 		if (options.phpIniEntries) {
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
+		/**
+		 * Set up mu-plugins in /internal/shared/mu-plugins
+		 * using auto_prepend_file to provide platform-level
+		 * customization without altering the installed WordPress
+		 * site.
+		 *
+		 * We only do that in the primary PHP instance –
+		 * the filesystem there is the source of truth
+		 * for all other PHP instances.
+		 */
 		if (isPrimary) {
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
@@ -96,6 +106,8 @@ export async function bootWordPress<PHP extends BasePHP>(
 				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
 		} else {
+			// Proxy the filesystem for all secondary PHP instances to
+			// the primary one.
 			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
 				'/tmp',
 				requestHandler.documentRoot,
@@ -103,6 +115,8 @@ export async function bootWordPress<PHP extends BasePHP>(
 			]);
 		}
 
+		// Spawn handler is responsible for spawning processes for all the
+		// `popen()`, `proc_open()` etc. calls.
 		if (options.spawnHandler) {
 			await php.setSpawnHandler(
 				options.spawnHandler(requestHandler.processManager)
