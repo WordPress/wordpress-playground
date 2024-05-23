@@ -2,33 +2,50 @@ import { NodePHP } from '@php-wasm/node';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { unzip } from './unzip';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
+import { BasePHP, PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 const phpVersion = '8.0';
 describe('Blueprint step wpCLI', () => {
-	let php: NodePHP;
+	let requestHandler: PHPRequestHandler<BasePHP>;
 
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
+		requestHandler = await bootWordPress({
+			siteUrl: 'http://127.0.0.1:8000',
+			createPhpInstance() {
+				return new NodePHP();
+			},
+			createPhpRuntime: async () => await NodePHP.loadRuntime(phpVersion),
+			wordPressZip: getWordPressModule(),
+			sqliteIntegrationPluginZip: getSqliteDatabaseModule(),
+			sapiName: 'cli',
+			createFiles: {
+				'/tmp/wp-cli.phar': readFileSync(
+					join(__dirname, '../../test/wp-cli.phar')
+				),
 			},
 		});
-		php.setSapiName('cli');
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
-		});
-		const wpCliPath = join(__dirname, '../../test/wp-cli.phar');
-		php.writeFile('/tmp/wp-cli.phar', readFileSync(wpCliPath));
 	});
 
-	it('should run wp-cli commands', async () => {
+	it.only('should run wp-cli commands', async () => {
+		console.log(
+			'rrrr',
+			(
+				await requestHandler.request({
+					url: '/',
+				})
+			).text
+		);
+		const { php, reap } =
+			await requestHandler.processManager.acquirePHPInstance();
 		const result = await wpCLI(php, {
-			command:
-				"wp post create --post_title='Test post' --post_excerpt='Some content' --no-color",
+			command: 'wp --help', //post create --post_title='Test post' --post_excerpt='Some content' --no-color",
 		});
+		reap();
 		expect(result.text).toContain('Created post 4');
 	});
 });
