@@ -4,6 +4,7 @@ import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { login } from './login';
 import { unzip } from './unzip';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step installPlugin', () => {
 	let php: PHP;
