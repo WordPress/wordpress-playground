@@ -8,16 +8,12 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { BasePHP, PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
-import { spawnSync } from 'child_process';
 
 const phpVersion = '8.0';
 describe('Blueprint step wpCLI', () => {
 	let requestHandler: PHPRequestHandler<BasePHP>;
 
 	beforeEach(async () => {
-		spawnSync('php', ['-d', 'phar.readonly=0', 'repackage-wp-cli.php'], {
-			cwd: join(__dirname, '../../test'),
-		});
 		requestHandler = await bootWordPress({
 			siteUrl: 'http://127.0.0.1:8000',
 			createPhpInstance() {
@@ -35,14 +31,17 @@ describe('Blueprint step wpCLI', () => {
 		});
 	});
 
-	it.only('should run wp-cli commands', async () => {
+	it('should run wp-cli commands', async () => {
 		const { php, reap } =
 			await requestHandler.processManager.acquirePHPInstance();
-		const result = await wpCLI(php, {
-			command: 'wp --help', //post create --post_title='Test post' --post_excerpt='Some content' --no-color",
-		});
-		reap();
-		expect(result.text).toContain('Created post 4');
+		try {
+			const result = await wpCLI(php, {
+				command: `wp post create --post_title='Test post' --post_excerpt='Some content' --no-color`,
+			});
+			expect(result.text).toContain('Created post 4');
+		} finally {
+			reap();
+		}
 	});
 });
 

@@ -100,6 +100,7 @@ RUN cd wordpress && \
     -not -path '*wp-content*' \
     # wp-cli expects an unminified wp-config.php
     -not -path '*wp-config.php' \
+    -not -path '*wp-config-sample.php' \
     ); do \
     # Remove whitespace from PHP files
     php -w $phpfile > $phpfile.small && \
