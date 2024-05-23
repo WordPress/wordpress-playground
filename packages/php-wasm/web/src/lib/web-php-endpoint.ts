@@ -108,12 +108,12 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 			.monitor?.addEventListener('progress', callback as any);
 	}
 
-	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.mv  */
+	/** @inheritDoc @php-wasm/universal!PHP.mv  */
 	async mv(fromPath: string, toPath: string) {
 		return _private.get(this)!.php!.mv(fromPath, toPath);
 	}
 
-	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
+	/** @inheritDoc @php-wasm/universal!PHP.rmdir  */
 	async rmdir(path: string, options?: RmDirOptions) {
 		return _private.get(this)!.php!.rmdir(path, options);
 	}
