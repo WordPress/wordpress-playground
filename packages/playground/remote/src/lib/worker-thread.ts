@@ -6,7 +6,7 @@ import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
-	sqliteDatabaseIntegration,
+	sqliteDatabaseIntegrationModuleDetails,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPress } from '@wp-playground/wordpress';
 import {
@@ -62,9 +62,12 @@ if (
 // because it can't be assumed to exist in WordPress document root. Instead, it's installed
 // in the /internal directory to avoid polluting the mounted directory structure.
 downloadMonitor.expectAssets({
-	[sqliteDatabaseIntegration.url]: sqliteDatabaseIntegration.size,
+	[sqliteDatabaseIntegrationModuleDetails.url]:
+		sqliteDatabaseIntegrationModuleDetails.size,
 });
-const sqliteIntegrationRequest = monitoredFetch(sqliteDatabaseIntegration.url);
+const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
+	sqliteDatabaseIntegrationModuleDetails.url
+);
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
