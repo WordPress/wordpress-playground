@@ -27,7 +27,7 @@ describe('Blueprint step activatePlugin()', () => {
 	it('should activate the plugin', async () => {
 		const docroot = php.documentRoot;
 		php.writeFile(
-			`/${docroot}/wp-content/plugins/test-plugin.php`,
+			`${docroot}/wp-content/plugins/test-plugin.php`,
 			`<?php /**\n * Plugin Name: Test Plugin */`
 		);
 		await activatePlugin(php, {

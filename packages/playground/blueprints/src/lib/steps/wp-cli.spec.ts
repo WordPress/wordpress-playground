@@ -22,7 +22,7 @@ describe('Blueprint step wpCLI', () => {
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 			createFiles: {
-				'/wordpress/wp-cli.phar': readFileSync(
+				'/tmp/wp-cli.phar': readFileSync(
 					join(__dirname, '../../test/wp-cli.phar')
 				),
 			},

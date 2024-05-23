@@ -23,7 +23,7 @@ describe('Blueprint step resetData()', () => {
 	});
 
 	it('should assign ID=1 to the first post created after applying the resetData step', async () => {
-		php.writeFile(`/${docroot}/index.php`, `<?php echo 'Hello World';`);
+		php.writeFile(`${docroot}/index.php`, `<?php echo 'Hello World';`);
 		await resetData(php, {});
 		const result = await php.run({
 			code: `<?php 

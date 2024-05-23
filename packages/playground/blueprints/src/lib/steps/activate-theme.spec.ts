@@ -63,6 +63,8 @@ describe('Blueprint step activateTheme()', () => {
 * Theme URI: https://example.com/test-theme
 */`
 		);
+
+		php.writeFile(`${docroot}/wp-content/mu-plugins`);
 		php.writeFile(
 			`${docroot}/wp-content/mu-plugins/0-on-theme-switch.php`,
 			`<?php
@@ -96,7 +98,7 @@ describe('Blueprint step activateTheme()', () => {
 			`
 		);
 		php.writeFile(
-			`/${docroot}/wp-content/mu-plugins/0-exit.php`,
+			`${docroot}/wp-content/mu-plugins/0-exit.php`,
 			`<?php exit(0); `
 		);
 		expect(
