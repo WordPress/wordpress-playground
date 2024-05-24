@@ -71,7 +71,7 @@ export async function setPhpIniEntries(
 export async function withPHPIniValues(
 	php: UniversalPHP,
 	phpIniValues: Record<string, string>,
-	callback: () => Promise<void>
+	callback: () => Promise<any>
 ) {
 	const iniBefore = await php.readFileAsText(PHP_INI_PATH);
 	try {
