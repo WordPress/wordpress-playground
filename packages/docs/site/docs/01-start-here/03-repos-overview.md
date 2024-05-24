@@ -18,7 +18,7 @@ Explore the WordPress Playground [repository](https://github.com/WordPress/wordp
 ---
 
 ## [Playground Tools](https://github.com/WordPress/playground-tools/)
-This repository contains a collection of tools and utilities that are used to manage and maintain the WordPress Playground project. The tools include scripts for building and deploying the project, as well as utilities for managing the documentation and other project assets.
+Tools and utilities for the Playground.
 
 There are also advanced administration features, integrations such as the Playground Plugin, Blueprint Builder, and Interactive Code Block that live in the Playground Tools repository.
 
