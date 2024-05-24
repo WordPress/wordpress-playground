@@ -106,10 +106,10 @@ initializeServiceWorker({
 				) ||
 				// Gutenberg version of block-editor.js
 				unscopedUrl.pathname.endsWith(
-					'/gutenberg/build/block-editor/index.js'
+					'/build/block-editor/index.js'
 				) ||
 				unscopedUrl.pathname.endsWith(
-					'/gutenberg/build/block-editor/index.min.js'
+					'/build/block-editor/index.min.js'
 				)
 			) {
 				const script = await workerResponse.text();
