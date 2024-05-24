@@ -234,7 +234,7 @@ PHP_FUNCTION(dns_get_record)
 		}
 	}
 
-	php_error_docref(NULL, E_WARNING, "dns_check_record() always returns an empty array in PHP.wasm.");
+	php_error_docref(NULL, E_WARNING, "dns_get_record() always returns an empty array in PHP.wasm.");
 
 	/* Initialize the return array */
 	array_init(return_value);
