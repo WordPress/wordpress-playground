@@ -67,8 +67,7 @@ function match_files_to_serve_via_php() (
     require "custom-redirects-lib.php";
     while ( $path = fgets( STDIN ) ) {
         $path = trim( $path );
-        $filename = basename( $path );
-        if ( playground_file_needs_special_treatment($filename) ) {
+	if ( playground_file_needs_special_treatment($path) ) {
             echo "$path\n";
         }
     }
@@ -86,10 +85,12 @@ function set_aside_files_to_serve_via_php() {
 
 echo Configure which files should be served by Nginx and which by PHP
 cd ~/website-update
-find -type f \
-    | grep -v files-to-serve-via-php \
-    | match_files_to_serve_via_php \
-    | set_aside_files_to_serve_via_php
+find -type f |
+    grep -v files-to-serve-via-php |   # avoid files that are moved as part of this pipeline
+    sed 's#^\.##' |                    # filter '.' from './' so paths are like request URIs
+    match_files_to_serve_via_php |
+    sed 's#^/##' |                     # remove the leading '/' to get paths relative to current dir
+    set_aside_files_to_serve_via_php
 
 echo Syncing staged files to production
 rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/
@@ -100,4 +101,3 @@ curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATO
         && echo "Edge cache purged" \
         || (>&2 echo "Failed to purge edge cache" && false)
 echo Done!
-

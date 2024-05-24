@@ -59,3 +59,42 @@ export const unzipFile = async (
 		await php.unlink(tmpPath);
 	}
 };
+
+export const zipDirectory = async (
+	php: UniversalPHP,
+	directoryPath: string
+) => {
+	const outputPath = `/tmp/file${Math.random()}.zip`;
+	const js = phpVars({
+		directoryPath,
+		outputPath,
+	});
+	await php.run({
+		code: `<?php
+		function zipDirectory($directoryPath, $outputPath) {
+			$zip = new ZipArchive;
+			$res = $zip->open($outputPath, ZipArchive::CREATE);
+			if ($res !== TRUE) {
+				throw new Exception('Failed to create ZIP');
+			}
+			$files = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator($directoryPath)
+			);
+			foreach ($files as $file) {
+				$file = strval($file);
+				if (is_dir($file)) {
+					continue;
+				}
+				$zip->addFile($file, substr($file, strlen($directoryPath)));
+			}
+			$zip->close();
+			chmod($outputPath, 0777);
+		}
+		zipDirectory(${js.directoryPath}, ${js.outputPath});
+		`,
+	});
+
+	const fileBuffer = await php.readFileAsBuffer(outputPath);
+	php.unlink(outputPath);
+	return fileBuffer;
+};

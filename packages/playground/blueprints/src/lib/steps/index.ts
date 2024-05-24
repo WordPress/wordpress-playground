@@ -28,6 +28,7 @@ import { ImportWordPressFilesStep } from './import-wordpress-files';
 import { ImportWxrStep } from './import-wxr';
 import { EnableMultisiteStep } from './enable-multisite';
 import { WPCLIStep } from './wp-cli';
+import { ResetDataStep } from './reset-data';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -57,6 +58,7 @@ export type GenericStep<Resource> =
 	| LoginStep
 	| MkdirStep
 	| MvStep
+	| ResetDataStep
 	| RequestStep
 	| RmStep
 	| RmdirStep
@@ -86,6 +88,7 @@ export type {
 	LoginStep,
 	MkdirStep,
 	MvStep,
+	ResetDataStep,
 	RequestStep,
 	RmStep,
 	RmdirStep,

@@ -27,13 +27,13 @@ const _private = new WeakMap<
  */
 export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
-	absoluteUrl: string;
+	absoluteUrl = '';
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
-	documentRoot: string;
+	documentRoot = '';
 
 	/** @inheritDoc */
 	constructor(
-		requestHandler: PHPRequestHandler<WebPHP>,
+		requestHandler?: PHPRequestHandler<WebPHP>,
 		monitor?: EmscriptenDownloadMonitor
 	) {
 		/**
@@ -61,10 +61,21 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 		 */
 		_private.set(this, {
 			monitor,
-			requestHandler,
 		});
+		if (requestHandler) {
+			this.__internal_setRequestHandler(requestHandler);
+		}
+	}
+
+	public __internal_setRequestHandler(
+		requestHandler: PHPRequestHandler<WebPHP>
+	) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
+		_private.set(this, {
+			..._private.get(this),
+			requestHandler,
+		});
 	}
 
 	/**
