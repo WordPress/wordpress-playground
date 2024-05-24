@@ -8,26 +8,11 @@ import {
 	PHPProcessManager,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
-	rotatePHPRuntime,
-	PHPRequestHandler,
-	proxyFileSystem,
-	writeFiles,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
+import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { createMemoizedFetch } from './create-memoized-fetch';
 import { logger } from '@php-wasm/logger';
-/** @ts-ignore */
-import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
-/** @ts-ignore */
-import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
-/** @ts-ignore */
-import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import {
-	enablePlatformMuPlugins,
-	preloadPhpInfoRoute,
-	preloadRequiredMuPlugin,
-} from '@wp-playground/wordpress';
 
 export type ReceivedStartupOptions = {
 	wpVersion?: string;
@@ -72,59 +57,13 @@ export const startupOptions = {
 	phpExtensions: receivedParams.phpExtensions || [],
 } as ParsedStartupOptions;
 
-export async function createPhp(
-	requestHandler: PHPRequestHandler<WebPHP>,
-	siteUrl: string,
-	isPrimary: boolean
-) {
-	const php = new WebPHP();
-	php.requestHandler = requestHandler as any;
-
-	php.initializeRuntime(await createPhpRuntime());
-	if (startupOptions.sapiName) {
-		await php.setSapiName(startupOptions.sapiName);
-	}
-	php.setSpawnHandler(spawnHandlerFactory(requestHandler.processManager));
-
-	if (isPrimary) {
-		const scopedSitePath = new URL(siteUrl).pathname;
-		await preloadPhpInfoRoute(
-			php,
-			joinPaths(scopedSitePath, 'phpinfo.php')
-		);
-		await enablePlatformMuPlugins(php);
-		await preloadRequiredMuPlugin(php);
-		await writeFiles(php, joinPaths('/internal/shared/mu-plugins'), {
-			'1-playground-web.php': playgroundWebMuPlugin,
-			'playground-includes/wp_http_dummy.php': transportDummy,
-			'playground-includes/wp_http_fetch.php': transportFetch,
-		});
-	} else {
-		proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
-			'/tmp',
-			requestHandler.documentRoot,
-			'/internal/shared',
-		]);
-	}
-
-	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
-	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
-	rotatePHPRuntime({
-		php,
-		cwd: requestHandler.documentRoot,
-		recreateRuntime: createPhpRuntime,
-		maxRequests: 400,
-	});
-	return php;
-}
-
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 
 export const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 	downloadMonitor.monitorFetch(fetch(input, init));
 const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
-const createPhpRuntime = async () => {
+export const createPhpRuntime = async () => {
 	let wasmUrl = '';
 	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
 		onPhpLoaderModuleLoaded: (phpLoaderModule) => {

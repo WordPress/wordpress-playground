@@ -6,6 +6,35 @@ import path, { basename } from 'path';
 
 export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 
+/**
+ * @TODO: Look for a common abstraction with the downloads done by the website setup.
+ * 		  These downloads look similar to what the website does to setup WordPress.
+ *        The website could also use service worker caching to speed up the process.
+ */
+export async function fetchWordPress(
+	wpVersion = 'latest',
+	monitor: EmscriptenDownloadMonitor
+) {
+	const wpDetails = await resolveWPRelease(wpVersion);
+	const wpZip = await cachedDownload(
+		wpDetails.url,
+		`${wpDetails.version}.zip`,
+		monitor
+	);
+	return wpZip;
+}
+
+export async function fetchSqliteIntegration(
+	monitor: EmscriptenDownloadMonitor
+) {
+	const sqliteZip = await cachedDownload(
+		'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip',
+		'sqlite.zip',
+		monitor
+	);
+	return sqliteZip;
+}
+
 // @TODO: Support HTTP cache, invalidate the local file if the remote file has changed
 export async function cachedDownload(
 	remoteUrl: string,
