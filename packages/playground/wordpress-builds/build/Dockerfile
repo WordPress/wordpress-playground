@@ -59,8 +59,7 @@ RUN rm -rf wordpress-static/wp-content/mu-plugins
 
 # List assets that will be available to remotely so Playground can judge whether
 # to request a remote asset or delegate the request for a missing file to PHP.
-# TODO: What is a better name for this file?
-RUN find wordpress-static -type f | sed 's#^wordpress-static/##'> playground-remote-asset-paths
+RUN find wordpress-static -type f | sed 's#^wordpress-static/##'> wordpress-remote-asset-paths
 
 # Move the static files to the final output directory
 RUN mkdir /root/output/$OUT_FILENAME
@@ -175,6 +174,6 @@ RUN cd wordpress && \
 
 # Build the final wp.zip file
 RUN mv wordpress /wordpress && \
-    cp playground-remote-asset-paths /wordpress/ && \
+    cp wordpress-remote-asset-paths /wordpress/ && \
     cd /wordpress && \
     zip /root/output/$OUT_FILENAME.zip -r .

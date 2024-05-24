@@ -183,8 +183,7 @@ export async function bootWordPress<PHP extends BasePHP>(
 	if (options.wordPressZip) {
 		await unzipWordPress(php, await options.wordPressZip);
 
-		// TODO: Rename to wordpress-remote-asset-paths
-		const remoteAssetListPath = `${requestHandler.documentRoot}/playground-remote-asset-paths`;
+		const remoteAssetListPath = `${requestHandler.documentRoot}/wordpress-remote-asset-paths`;
 		if (php.fileExists(remoteAssetListPath)) {
 			const remoteAssetPaths = php
 				.readFileAsText(remoteAssetListPath)
