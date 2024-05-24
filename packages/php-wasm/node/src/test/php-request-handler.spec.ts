@@ -186,6 +186,27 @@ describe.each(SupportedPHPVersions)(
 			expect(response.text).toEqual('value');
 		});
 
+		it('should default a folder request to index.html if it exists and index.php does not', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile('/folder/index.html', `INDEX DOT HTML`);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('INDEX DOT HTML');
+		});
+
+		it('should default a folder request to index.php when when both index.php and index.html exist', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile('/folder/index.php', `INDEX DOT PHP`);
+			php.writeFile('/folder/index.html', `INDEX DOT HTML`);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('INDEX DOT PHP');
+		});
+
 		it('should delegate request for non-existent PHP file to /index.php with query args', async () => {
 			php.writeFile(
 				'/index.php',

@@ -330,9 +330,15 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 					new Uint8Array(0)
 				);
 			}
-			const localDefaultPath = joinPaths(fsPath, 'index.php');
-			if (primaryPhp.isFile(localDefaultPath)) {
-				fsPath = localDefaultPath;
+
+			const defaultFilePath = ['index.php', 'index.html']
+				.map((defaultFilename) => joinPaths(fsPath, defaultFilename))
+				.find((possibleDefaultPath) =>
+					primaryPhp.isFile(possibleDefaultPath)
+				);
+
+			if (defaultFilePath) {
+				fsPath = defaultFilePath;
 			}
 		}
 
