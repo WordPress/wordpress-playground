@@ -1,6 +1,4 @@
 export type {
-	IsomorphicLocalPHP,
-	IsomorphicRemotePHP,
 	MessageListener,
 	PHPOutput,
 	PHPRunOptions,
@@ -14,7 +12,7 @@ export type {
 	PHPRequestHeaders,
 	SpawnHandler,
 } from './universal-php';
-
+export { PHPWorker } from './php-worker';
 export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
@@ -48,8 +46,10 @@ export type {
 	SupportedPHPExtension,
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
-export { BasePHP, __private__dont__use } from './base-php';
+export { PHP, __private__dont__use } from './php';
+export type { Mountable } from './php';
 export { loadPHPRuntime } from './load-php-runtime';
+export type * from './emscripten-types';
 export type {
 	DataModule,
 	EmscriptenOptions,
@@ -59,9 +59,6 @@ export type {
 	RuntimeType,
 } from './load-php-runtime';
 export { rethrowFileSystemError } from './rethrow-file-system-error';
-
-export { isLocalPHP } from './is-local-php';
-export { isRemotePHP } from './is-remote-php';
 
 export type {
 	PHPRequestHandlerConfiguration,

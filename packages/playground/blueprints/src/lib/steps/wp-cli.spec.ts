@@ -1,16 +1,17 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { unzip } from './unzip';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const phpVersion = '8.0';
 describe('Blueprint step wpCLI', () => {
-	let php: NodePHP;
+	let php: PHP;
 
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion);
+		php = new PHP(await loadNodeRuntime(phpVersion));
 		php.setSapiName('cli');
 		await unzip(php, {
 			zipFile: await getWordPressModule(),

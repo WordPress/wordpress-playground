@@ -3,7 +3,7 @@ import path from 'path';
 import yargs from 'yargs';
 import { startServer } from './server';
 import {
-	BasePHP,
+	PHP,
 	PHPRequest,
 	PHPRequestHandler,
 	PHPResponse,
@@ -16,9 +16,9 @@ import {
 	compileBlueprint,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
-import { NodePHP } from '@php-wasm/node';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
+import { NodeFSMount, loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
@@ -176,7 +176,7 @@ async function run() {
 		}
 	}
 
-	function mountResources(php: BasePHP, rawMounts: string[]) {
+	function mountResources(php: PHP, rawMounts: string[]) {
 		const parsedMounts = rawMounts.map((mount) => {
 			const [source, vfsPath] = mount.split(':');
 			return {
@@ -185,7 +185,7 @@ async function run() {
 			};
 		});
 		for (const mount of parsedMounts) {
-			(php as NodePHP).mount(mount.hostPath, mount.vfsPath);
+			php.mount(mount.vfsPath, new NodeFSMount(mount.hostPath));
 		}
 	}
 
@@ -241,7 +241,7 @@ async function run() {
 
 	const compiledBlueprint = compileInputBlueprint();
 
-	let requestHandler: PHPRequestHandler<NodePHP>;
+	let requestHandler: PHPRequestHandler;
 	let wordPressReady = false;
 
 	logger.log('Starting a PHP server...');
@@ -286,11 +286,8 @@ async function run() {
 
 			requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
-				createPhpInstance() {
-					return new NodePHP();
-				},
 				createPhpRuntime: async () =>
-					await NodePHP.loadRuntime(compiledBlueprint.versions.php),
+					await loadNodeRuntime(compiledBlueprint.versions.php),
 				wordPressZip,
 				sqliteIntegrationPluginZip: fetchSqliteIntegration(monitor),
 				sapiName: 'cli',

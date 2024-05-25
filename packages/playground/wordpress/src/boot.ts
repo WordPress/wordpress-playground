@@ -1,6 +1,6 @@
 import {
-	BasePHP,
 	FileTree,
+	PHP,
 	PHPProcessManager,
 	PHPRequestHandler,
 	SpawnHandler,
@@ -20,7 +20,7 @@ import {
 import { joinPaths } from '@php-wasm/util';
 
 export type PhpIniOptions = Record<string, string>;
-export type Hook = (php: BasePHP) => void | Promise<void>;
+export type Hook = (php: PHP) => void | Promise<void>;
 export interface Hooks {
 	beforeWordPressFiles?: Hook;
 	beforeDatabaseSetup?: Hook;
@@ -28,9 +28,8 @@ export interface Hooks {
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
-export interface BootOptions<PHP extends BasePHP> {
+export interface BootOptions {
 	createPhpRuntime: () => Promise<number>;
-	createPhpInstance: () => PHP;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -56,7 +55,7 @@ export interface BootOptions<PHP extends BasePHP> {
 	wordPressZip?: File | Promise<File> | undefined;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
-	spawnHandler?: (processManager: PHPProcessManager<BasePHP>) => SpawnHandler;
+	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -101,15 +100,12 @@ export interface BootOptions<PHP extends BasePHP> {
  * @return PHPRequestHandler instance with WordPress installed.
  */
 
-export async function bootWordPress<PHP extends BasePHP>(
-	options: BootOptions<PHP>
-) {
+export async function bootWordPress(options: BootOptions) {
 	async function createPhp(
-		requestHandler: PHPRequestHandler<BasePHP>,
+		requestHandler: PHPRequestHandler,
 		isPrimary: boolean
 	) {
-		const php = options.createPhpInstance();
-		php.initializeRuntime(await options.createPhpRuntime());
+		const php = new PHP(await options.createPhpRuntime());
 		if (options.sapiName) {
 			php.setSapiName(options.sapiName);
 		}
@@ -166,7 +162,7 @@ export async function bootWordPress<PHP extends BasePHP>(
 		return php;
 	}
 
-	const requestHandler: PHPRequestHandler<PHP> = new PHPRequestHandler<PHP>({
+	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
 		phpFactory: async ({ isPrimary }) =>
 			createPhp(requestHandler, isPrimary),
 		documentRoot: '/wordpress',
@@ -218,7 +214,7 @@ export async function bootWordPress<PHP extends BasePHP>(
 	return requestHandler;
 }
 
-async function isWordPressInstalled(php: BasePHP) {
+async function isWordPressInstalled(php: PHP) {
 	return (
 		(
 			await php.run({
@@ -231,7 +227,7 @@ async function isWordPressInstalled(php: BasePHP) {
 	);
 }
 
-async function installWordPress(php: BasePHP) {
+async function installWordPress(php: PHP) {
 	// Disables networking for the installation wizard
 	// to avoid loopback requests and also speed it up.
 	await withPHPIniValues(

@@ -1,15 +1,13 @@
 import { AcquireTimeoutError, Semaphore } from '@php-wasm/util';
-import { BasePHP } from './base-php';
+import { PHP } from './php';
 
 export type PHPFactoryOptions = {
 	isPrimary: boolean;
 };
 
-export type PHPFactory<PHP extends BasePHP> = (
-	options: PHPFactoryOptions
-) => Promise<PHP>;
+export type PHPFactory = (options: PHPFactoryOptions) => Promise<PHP>;
 
-export interface ProcessManagerOptions<PHP extends BasePHP> {
+export interface ProcessManagerOptions {
 	/**
 	 * The maximum number of PHP instances that can exist at
 	 * the same time.
@@ -32,10 +30,10 @@ export interface ProcessManagerOptions<PHP extends BasePHP> {
 	/**
 	 * A factory function used for spawning new PHP instances.
 	 */
-	phpFactory?: PHPFactory<PHP>;
+	phpFactory?: PHPFactory;
 }
 
-export interface SpawnedPHP<PHP extends BasePHP> {
+export interface SpawnedPHP {
 	php: PHP;
 	reap: () => void;
 }
@@ -71,20 +69,20 @@ export class MaxPhpInstancesError extends Error {
  * extra time to spin up a few PHP instances. This is a more resource-friendly tradeoff
  * than keeping 5 idle instances at all times.
  */
-export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
+export class PHPProcessManager implements AsyncDisposable {
 	private primaryPhp?: PHP;
 	private primaryIdle = true;
-	private nextInstance: Promise<SpawnedPHP<PHP>> | null = null;
+	private nextInstance: Promise<SpawnedPHP> | null = null;
 	/**
 	 * All spawned PHP instances, including the primary PHP instance.
 	 * Used for bookkeeping and reaping all instances on dispose.
 	 */
-	private allInstances: Promise<SpawnedPHP<PHP>>[] = [];
-	private phpFactory?: PHPFactory<PHP>;
+	private allInstances: Promise<SpawnedPHP>[] = [];
+	private phpFactory?: PHPFactory;
 	private maxPhpInstances: number;
 	private semaphore: Semaphore;
 
-	constructor(options?: ProcessManagerOptions<PHP>) {
+	constructor(options?: ProcessManagerOptions) {
 		this.maxPhpInstances = options?.maxPhpInstances ?? 5;
 		this.phpFactory = options?.phpFactory;
 		this.primaryPhp = options?.primaryPhp;
@@ -127,7 +125,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 	 * @throws {MaxPhpInstancesError} when the maximum number of PHP instances is reached
 	 *                                and the waiting timeout is exceeded.
 	 */
-	async acquirePHPInstance(): Promise<SpawnedPHP<PHP>> {
+	async acquirePHPInstance(): Promise<SpawnedPHP> {
 		if (this.primaryIdle) {
 			this.primaryIdle = false;
 			return {
@@ -166,7 +164,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 	 * add the spawn promise to the allInstances array without waiting
 	 * for PHP to spawn.
 	 */
-	private spawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP<PHP>> {
+	private spawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
 		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
 			throw new Error(
 				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
@@ -196,9 +194,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 	/**
 	 * Actually acquires the lock and spawns a new PHP instance.
 	 */
-	private async doSpawn(
-		factoryArgs: PHPFactoryOptions
-	): Promise<SpawnedPHP<PHP>> {
+	private async doSpawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
 		let release: () => void;
 		try {
 			release = await this.semaphore.acquire();

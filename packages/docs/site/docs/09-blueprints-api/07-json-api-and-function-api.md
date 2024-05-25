@@ -21,7 +21,7 @@ import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model';
 </>
 ))}</span>
 
-You can use Blueprints [both with the web and the node.js](./06-isomorphic.md) version of WordPress Playground.
+You can use Blueprints both with the web and the node.js versions of WordPress Playground.
 
 ## Differences between JSON and Function APIs
 

@@ -1,17 +1,22 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { NodePHP } from '..';
-import { PHPRequestHandler, SupportedPHPVersions } from '@php-wasm/universal';
+import { loadNodeRuntime } from '..';
+import {
+	PHP,
+	PHPRequestHandler,
+	SupportedPHPVersions,
+} from '@php-wasm/universal';
 import { createSpawnHandler } from '@php-wasm/util';
 
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
-		let php: NodePHP;
-		let handler: PHPRequestHandler<NodePHP>;
+		let php: PHP;
+		let handler: PHPRequestHandler;
 		beforeEach(async () => {
 			handler = new PHPRequestHandler({
 				documentRoot: '/',
-				phpFactory: async () => NodePHP.load(phpVersion),
+				phpFactory: async () =>
+					new PHP(await loadNodeRuntime(phpVersion)),
 				maxPhpInstances: 1,
 			});
 			php = await handler.getPrimaryPhp();
@@ -312,10 +317,11 @@ describe.each(SupportedPHPVersions)(
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – PHP_SELF',
 	(phpVersion) => {
-		let handler: PHPRequestHandler<NodePHP>;
+		let handler: PHPRequestHandler;
 		beforeEach(async () => {
 			handler = new PHPRequestHandler({
-				phpFactory: () => NodePHP.load(phpVersion),
+				phpFactory: async () =>
+					new PHP(await loadNodeRuntime(phpVersion)),
 				documentRoot: '/var/www',
 				maxPhpInstances: 1,
 			});
@@ -359,11 +365,11 @@ describe.each(SupportedPHPVersions)(
 );
 
 describe('PHPRequestHandler – Loopback call', () => {
-	let handler: PHPRequestHandler<NodePHP>;
+	let handler: PHPRequestHandler;
 
 	it('Spawn: exec() can spawn another PHP before the previous run() concludes', async () => {
 		async function createPHP() {
-			const php = await NodePHP.load(RecommendedPHPVersion);
+			const php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 			php.setSpawnHandler(
 				createSpawnHandler(async function (args, processApi, options) {
 					if (args[0] !== 'php') {
@@ -403,7 +409,7 @@ describe('PHPRequestHandler – Loopback call', () => {
 
 	it('Loopback: handler.request() can be called before the previous call concludes', async () => {
 		async function createPHP() {
-			const php = await NodePHP.load(RecommendedPHPVersion);
+			const php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 			php.setSpawnHandler(
 				createSpawnHandler(async function (args, processApi) {
 					const result = await handler.request({

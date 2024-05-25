@@ -1,4 +1,4 @@
-import { BasePHP } from './base-php';
+import { PHP } from './php';
 
 /**
  * Proxy specific paths to the parent's MEMFS instance.
@@ -6,8 +6,8 @@ import { BasePHP } from './base-php';
  * between the parent and child processes.
  */
 export function proxyFileSystem(
-	sourceOfTruth: BasePHP,
-	replica: BasePHP,
+	sourceOfTruth: PHP,
+	replica: PHP,
 	paths: string[]
 ) {
 	// We can't just import the symbol from the library because

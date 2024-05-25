@@ -1,18 +1,20 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { installTheme } from './install-theme';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step installTheme', () => {
 	let zipFileName = '';
 	let zipFilePath = '';
 	let rootPath = '';
 	let themesPath = '';
-	let php: NodePHP;
-	let handler: PHPRequestHandler<NodePHP>;
+	let php: PHP;
+	let handler: PHPRequestHandler;
 	beforeEach(async () => {
 		handler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			documentRoot: '/wordpress',
 		});
 		php = await handler.getPrimaryPhp();
