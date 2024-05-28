@@ -2,6 +2,7 @@ import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import { vi } from 'vitest';
 import {
 	__private__dont__use,
+	getPhpIniEntries,
 	loadPHPRuntime,
 	PHP,
 	setPhpIniEntries,
@@ -136,6 +137,64 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(result.text).toEqual('stdout: WordPress\n');
+		});
+	});
+
+	/**
+	 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
+	 */
+	describe('dns_* function warnings', () => {
+		it('dns_check_record should throw a warning', async () => {
+			const result = await php.run({
+				code: `<?php
+				dns_check_record('w.org', 2);
+			`,
+			});
+			expect(result.text).toContain(
+				'dns_check_record() always returns false in PHP.wasm.'
+			);
+		});
+	});
+
+	describe('dns_* functions()', () => {
+		beforeEach(async () => {
+			await setPhpIniEntries(php, {
+				...getPhpIniEntries(php),
+				// Disable warnings to test the function output
+				error_reporting: 'E_ALL & ~E_WARNING',
+			});
+		});
+		it('dns_check_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_check_record('w.org', 2));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('dns_get_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_record('w.org'));
+			`,
+			});
+			expect(result.text).toEqual('array(0) {\n}\n');
+		});
+		it('dns_get_mx should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_mx('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('getmxrr should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(getmxrr('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
 		});
 	});
 
