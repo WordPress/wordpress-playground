@@ -2,6 +2,7 @@
 #include "php.h"
 #include "php_network.h"
 #include "zend_API.h"
+#include "dns_polyfill.h"
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -160,11 +161,6 @@ typedef union {
 	uint8_t qb2[65536];
 } querybuf;
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_check_record, 0, 0, 1)
-	ZEND_ARG_INFO(0, host)
-	ZEND_ARG_INFO(0, type)
-ZEND_END_ARG_INFO()
-
 #define arginfo_checkdnsrr arginfo_dns_check_record
 
 PHP_FUNCTION(dns_check_record)
@@ -192,14 +188,6 @@ PHP_FUNCTION(dns_check_record)
 }
 
 /* {{{ Get any Resource Record corresponding to a given Internet host name */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_get_record, 0, 0, 1)
-	ZEND_ARG_INFO(0, hostname)
-	ZEND_ARG_INFO(0, type)
-	ZEND_ARG_ARRAY_INFO(1, authns, 1)
-	ZEND_ARG_ARRAY_INFO(1, addtl, 1)
-	ZEND_ARG_INFO(0, raw)
-ZEND_END_ARG_INFO()
-
 
 PHP_FUNCTION(dns_get_record)
 {
@@ -243,11 +231,6 @@ PHP_FUNCTION(dns_get_record)
 /* }}} */
 
 /* {{{ Get MX records corresponding to a given Internet host name */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_get_mx, 0, 0, 2)
-	ZEND_ARG_INFO(0, hostname)
-	ZEND_ARG_INFO(1, mxhosts) /* ARRAY_INFO(1, mxhosts, 1) */
-	ZEND_ARG_INFO(1, weight) /* ARRAY_INFO(1, weight, 1) */
-ZEND_END_ARG_INFO()
 
 #define arginfo_getmxrr arginfo_dns_get_mx
 

@@ -25,7 +25,7 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 #include "proc_open.h"
-#include "dns_polyfill.c"
+#include "dns_polyfill.h"
 
 unsigned int wasm_sleep(unsigned int time)
 {
