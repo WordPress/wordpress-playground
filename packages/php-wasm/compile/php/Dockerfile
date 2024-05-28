@@ -20,7 +20,7 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
-RUN mkdir -p /root/lib/include /root/lib/lib /libs 
+RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
@@ -360,6 +360,8 @@ RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
+COPY ./php/dns_polyfill.c /root/
+COPY ./php/dns_polyfill.h /root/
 COPY ./php/proc_open* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
@@ -929,6 +931,7 @@ RUN set -euxo pipefail; \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
+		/root/dns_polyfill.c \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \

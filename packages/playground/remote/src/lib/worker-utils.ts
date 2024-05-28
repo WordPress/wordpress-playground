@@ -1,4 +1,4 @@
-import { WebPHP } from '@php-wasm/web';
+import { loadWebRuntime } from '@php-wasm/web';
 import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersionsList,
@@ -65,7 +65,7 @@ const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 export const createPhpRuntime = async () => {
 	let wasmUrl = '';
-	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
+	return await loadWebRuntime(startupOptions.phpVersion, {
 		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 			wasmUrl = phpLoaderModule.dependencyFilename;
 			downloadMonitor.expectAssets({
@@ -94,7 +94,7 @@ export const createPhpRuntime = async () => {
 	});
 };
 
-export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
+export function spawnHandlerFactory(processManager: PHPProcessManager) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		if (args[0] === 'exec') {
 			args.shift();

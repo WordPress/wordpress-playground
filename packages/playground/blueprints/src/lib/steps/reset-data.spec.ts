@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { resetData } from './reset-data';
 import {
@@ -6,14 +6,15 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPress } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const docroot = '/php';
 describe('Blueprint step resetData()', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
 		const handler = await bootWordPress({
-			createPhpInstance: () => new NodePHP(),
-			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
 			documentRoot: docroot,
 

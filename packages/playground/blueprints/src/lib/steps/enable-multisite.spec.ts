@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	getSqliteDatabaseModule,
@@ -6,13 +6,14 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { enableMultisite } from './enable-multisite';
 import { bootWordPress } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
 	async function doBootWordPress(options: { absoluteUrl: string }) {
 		const requestHandler = await bootWordPress({
-			createPhpInstance: () => new NodePHP(),
-			createPhpRuntime: () => NodePHP.loadRuntime(RecommendedPHPVersion),
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: options.absoluteUrl,
 			documentRoot: DOCROOT,
 

@@ -307,7 +307,7 @@ export function compileBlueprint(
 					);
 				} catch (e) {
 					/*
-					 * NodePHP exposes no goTo method.
+					 * PHP exposes no goTo method.
 					 * We can't use `goto` in playground here,
 					 * because it may be a Comlink proxy object
 					 * with no such method.
@@ -427,9 +427,9 @@ function isStepDefinition(
 function isStepStillSupported(
 	step: Record<string, any>
 ): step is StepDefinition {
-	if (step['step'] === 'setPhpIniEntry') {
+	if (['setPhpIniEntry', 'request'].includes(step['step'])) {
 		logger.warn(
-			`The "setPhpIniEntry" Blueprint is no longer supported and you can remove it from your Blueprint.`
+			`The "${step['step']}" Blueprint is no longer supported and you can remove it from your Blueprint.`
 		);
 		return false;
 	}

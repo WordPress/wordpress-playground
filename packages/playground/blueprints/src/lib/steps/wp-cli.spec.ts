@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -7,15 +7,15 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPress } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const phpVersion = '8.0';
 describe('Blueprint step wpCLI', () => {
-	let php: NodePHP;
+	let php: PHP;
 
 	beforeEach(async () => {
 		const handler = await bootWordPress({
-			createPhpInstance: () => new NodePHP(),
-			createPhpRuntime: () => NodePHP.loadRuntime(phpVersion),
+			createPhpRuntime: async () => await loadNodeRuntime(phpVersion),
 			siteUrl: 'http://playground-domain/',
 			sapiName: 'cli',
 

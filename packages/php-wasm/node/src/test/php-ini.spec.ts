@@ -1,14 +1,15 @@
 import {
 	LatestSupportedPHPVersion,
+	PHP,
 	getPhpIniEntries,
 	setPhpIniEntries,
 } from '@php-wasm/universal';
-import { NodePHP } from '../lib';
+import { loadNodeRuntime } from '../lib';
 
 describe('php.ini manipulation', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(LatestSupportedPHPVersion);
+		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
 		php.writeFile(
 			'/internal/shared/php.ini',
 			`memory_limit = 128M

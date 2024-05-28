@@ -37,5 +37,3 @@ const obj = {
 
 Comlink.expose(obj);
 ```
-
-In our case, the exposed object is the [WebPHPEndpoint](/api/web/class/WebPHPEndpoint) instance.

@@ -6,7 +6,6 @@ export type {
 	PHPRequest,
 	PHPResponse,
 	UniversalPHP,
-	IsomorphicRemotePHP,
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
