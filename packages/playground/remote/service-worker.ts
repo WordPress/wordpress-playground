@@ -98,11 +98,19 @@ initializeServiceWorker({
 			// @see controlledIframe below for more details.
 			if (
 				// WordPress Core version of block-editor.js
-				unscopedUrl.pathname.endsWith('/js/dist/block-editor.js') ||
-				unscopedUrl.pathname.endsWith('/js/dist/block-editor.min.js') ||
+				unscopedUrl.pathname.endsWith(
+					'/wp-includes/js/dist/block-editor.js'
+				) ||
+				unscopedUrl.pathname.endsWith(
+					'/wp-includes/js/dist/block-editor.min.js'
+				) ||
 				// Gutenberg version of block-editor.js
-				unscopedUrl.pathname.endsWith('build/block-editor/index.js') ||
-				unscopedUrl.pathname.endsWith('build/block-editor/index.min.js')
+				unscopedUrl.pathname.endsWith(
+					'/build/block-editor/index.js'
+				) ||
+				unscopedUrl.pathname.endsWith(
+					'/build/block-editor/index.min.js'
+				)
 			) {
 				const script = await workerResponse.text();
 				const newScript = `${controlledIframe} ${script.replace(
@@ -164,28 +172,27 @@ initializeServiceWorker({
  * related to the Gutenberg plugin.
  */
 const controlledIframe = `
-/**
- * A synchronous function to read a blob URL as text.
- *
- * @param {string} url
- * @returns {string}
- */
-const __playground_readBlobAsText = function (url) {
-	try {
-	  let xhr = new XMLHttpRequest();
-	  xhr.open('GET', url, false);
-	  xhr.overrideMimeType('text/plain;charset=utf-8');
-	  xhr.send();
-	  return xhr.responseText;
-	} catch(e) {
-	  return '';
-	} finally {
-	  URL.revokeObjectURL(url);
-	}
-}
-
 window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
 	const source = window.wp.element.useMemo(function () {
+		/**
+		 * A synchronous function to read a blob URL as text.
+		 *
+		 * @param {string} url
+		 * @returns {string}
+		 */
+		const __playground_readBlobAsText = function (url) {
+			try {
+			let xhr = new XMLHttpRequest();
+			xhr.open('GET', url, false);
+			xhr.overrideMimeType('text/plain;charset=utf-8');
+			xhr.send();
+			return xhr.responseText;
+			} catch(e) {
+			return '';
+			} finally {
+			URL.revokeObjectURL(url);
+			}
+		};
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
 			return '/wp-includes/empty.html';
