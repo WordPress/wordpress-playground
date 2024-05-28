@@ -58,7 +58,6 @@ export type {
 	PHPRuntimeId,
 	RuntimeType,
 } from './load-php-runtime';
-export { rethrowFileSystemError } from './rethrow-file-system-error';
 
 export type {
 	PHPRequestHandlerConfiguration,

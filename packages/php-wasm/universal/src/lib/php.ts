@@ -1,5 +1,4 @@
 import { PHPResponse } from './php-response';
-import { rethrowFileSystemError } from './rethrow-file-system-error';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import {
@@ -818,7 +817,6 @@ export class PHP implements Disposable {
 	 *
 	 * @param  path - The directory path to create.
 	 */
-	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdir(path: string) {
 		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
 	}
@@ -826,7 +824,6 @@ export class PHP implements Disposable {
 	/**
 	 * @deprecated Use mkdir instead.
 	 */
-	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdirTree(path: string) {
 		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
 	}
@@ -838,7 +835,6 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to read.
 	 * @returns The file contents.
 	 */
-	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsText(path: string) {
 		return FSHelpers.readFileAsText(this[__private__dont__use].FS, path);
 	}
@@ -850,7 +846,6 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to read.
 	 * @returns The file contents.
 	 */
-	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsBuffer(path: string): Uint8Array {
 		return FSHelpers.readFileAsBuffer(this[__private__dont__use].FS, path);
 	}
@@ -862,7 +857,6 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to write to.
 	 * @param  data - The data to write to the file.
 	 */
-	@rethrowFileSystemError('Could not write to "{path}"')
 	writeFile(path: string, data: string | Uint8Array) {
 		return FSHelpers.writeFile(this[__private__dont__use].FS, path, data);
 	}
@@ -982,7 +976,6 @@ export class PHP implements Disposable {
 	 * @param  mountable - The filesystem to mount.
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
 	 */
-	@rethrowFileSystemError('Could not mount {path}')
 	async mount(virtualFSPath: string, mountable: Mountable) {
 		await mountable.mount(this[__private__dont__use].FS, virtualFSPath);
 	}
