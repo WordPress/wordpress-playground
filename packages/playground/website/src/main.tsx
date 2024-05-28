@@ -133,6 +133,9 @@ function Main() {
 				query.get('ghexport-pr-action')
 			);
 		}
+		if (query.get('ghexport-pr-number')) {
+			values.prNumber = query.get('ghexport-pr-number')?.toString();
+		}
 		if (query.get('ghexport-playground-root')) {
 			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
 		}
