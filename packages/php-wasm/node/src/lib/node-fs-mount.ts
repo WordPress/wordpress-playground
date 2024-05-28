@@ -1,17 +1,19 @@
-import { Emscripten, Mountable, PHP } from '@php-wasm/universal';
+import { AbstractMountable } from '@php-wasm/universal';
 
-export class NodeFSMount implements Mountable {
-	constructor(private readonly localPath: string) {}
+export class NodeFSMount extends AbstractMountable {
+	constructor(private readonly localPath: string) {
+		super();
+	}
 
-	mount(
-		php: PHP,
-		FS: Emscripten.RootFS,
-		vfsMountPoint: string
-	): void | Promise<void> {
-		FS.mount(
-			FS.filesystems['NODEFS'],
+	handleMount(): void | Promise<void> {
+		this.state!.FS.mount(
+			this.state!.FS.filesystems['NODEFS'],
 			{ root: this.localPath },
-			vfsMountPoint
+			this.state!.vfsMountPoint
 		);
+	}
+
+	handleUnmount() {
+		this.state!.FS!.unmount(this.localPath);
 	}
 }

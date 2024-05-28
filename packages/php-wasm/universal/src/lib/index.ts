@@ -46,7 +46,7 @@ export type {
 	SupportedPHPExtension,
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
-export { PHP, __private__dont__use } from './php';
+export { PHP, AbstractMountable, __private__dont__use } from './php';
 export type { Mountable } from './php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type * from './emscripten-types';

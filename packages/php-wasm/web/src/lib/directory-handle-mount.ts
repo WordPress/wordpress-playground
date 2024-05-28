@@ -1,11 +1,11 @@
 import {
+	AbstractMountable,
 	Emscripten,
 	FSHelpers,
-	Mountable,
 	PHP,
 	__private__dont__use,
 } from '@php-wasm/universal';
-import { Semaphore, isParentOf, joinPaths } from '@php-wasm/util';
+import { Semaphore, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
 
@@ -25,15 +25,15 @@ export type SyncProgressCallback = (progress: SyncProgress) => void;
 
 const OPFSMounts = new WeakMap<PHP, Record<string, DirectoryHandleMount>>();
 
-export class DirectoryHandleMount implements Mountable {
+export class DirectoryHandleMount extends AbstractMountable {
 	private options: MountOptions;
 	private php: PHP | undefined;
-	private mountPoint: string | undefined;
 	private unbindJournal: () => any = () => {};
 	constructor(
 		private readonly handle: FileSystemDirectoryHandle,
 		options: MountOptions = { initialSync: {} }
 	) {
+		super();
 		this.options = {
 			...options,
 			initialSync: {
@@ -43,35 +43,13 @@ export class DirectoryHandleMount implements Mountable {
 		};
 	}
 
-	async mount(
-		php: PHP,
-		FS: Emscripten.RootFS,
-		vfsMountPoint: string
-	): Promise<void> {
-		if (this.php) {
-			throw new Error('Already mounted');
-		}
-		this.php = php;
+	protected async handleMount() {
+		const { php, FS, vfsMountPoint } = this.state!;
 		if (!OPFSMounts.has(php)) {
 			OPFSMounts.set(php, {});
 		}
 		const existingMounts = OPFSMounts.get(php)!;
-
-		// Ensure there are no other conflicting mounts.
-		if (vfsMountPoint in existingMounts) {
-			for (const path in Object.values(existingMounts)) {
-				if (
-					isParentOf(path, vfsMountPoint) ||
-					isParentOf(vfsMountPoint, path)
-				) {
-					throw new Error(
-						`Cannot mount ${vfsMountPoint} because it conflicts with a previously mounted ${path}`
-					);
-				}
-			}
-		}
-
-		this.mountPoint = vfsMountPoint;
+		existingMounts[vfsMountPoint] = this;
 
 		if (this.options.initialSync.direction === 'opfs-to-memfs') {
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
@@ -92,17 +70,12 @@ export class DirectoryHandleMount implements Mountable {
 			this.handle,
 			vfsMountPoint
 		);
-		existingMounts[vfsMountPoint] = this;
 	}
 
-	unmount() {
-		if (this.mountPoint) {
-			throw new Error('Not mounted yet');
-		}
+	protected handleUnmount() {
 		this.unbindJournal();
 		const existingMounts = OPFSMounts.get(this.php!)!;
-		delete existingMounts[this.mountPoint!];
-		delete this.mountPoint;
+		delete existingMounts[this.state!.vfsMountPoint!];
 	}
 }
 
