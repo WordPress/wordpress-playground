@@ -39,7 +39,11 @@ export class PHPExecutionFailureError extends Error {
 }
 
 export interface Mountable {
-	mount(FS: Emscripten.RootFS, vfsMountPoint: string): void | Promise<void>;
+	mount(
+		php: PHP,
+		FS: Emscripten.RootFS,
+		vfsMountPoint: string
+	): void | Promise<void>;
 }
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';
@@ -984,7 +988,11 @@ export class PHP implements Disposable {
 	 */
 	@rethrowFileSystemError('Could not mount {path}')
 	async mount(virtualFSPath: string, mountable: Mountable) {
-		await mountable.mount(this[__private__dont__use].FS, virtualFSPath);
+		await mountable.mount(
+			this,
+			this[__private__dont__use].FS,
+			virtualFSPath
+		);
 	}
 
 	/**

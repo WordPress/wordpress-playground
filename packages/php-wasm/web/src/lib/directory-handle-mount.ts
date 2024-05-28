@@ -27,10 +27,10 @@ const OPFSMounts = new WeakMap<PHP, Record<string, DirectoryHandleMount>>();
 
 export class DirectoryHandleMount implements Mountable {
 	private options: MountOptions;
+	private php: PHP | undefined;
 	private mountPoint: string | undefined;
 	private unbindJournal: () => any = () => {};
 	constructor(
-		private readonly php: PHP,
 		private readonly handle: FileSystemDirectoryHandle,
 		options: MountOptions = { initialSync: {} }
 	) {
@@ -43,11 +43,19 @@ export class DirectoryHandleMount implements Mountable {
 		};
 	}
 
-	async mount(FS: Emscripten.RootFS, vfsMountPoint: string): Promise<void> {
-		if (!OPFSMounts.has(this.php)) {
-			OPFSMounts.set(this.php, {});
+	async mount(
+		php: PHP,
+		FS: Emscripten.RootFS,
+		vfsMountPoint: string
+	): Promise<void> {
+		if (this.php) {
+			throw new Error('Already mounted');
 		}
-		const existingMounts = OPFSMounts.get(this.php)!;
+		this.php = php;
+		if (!OPFSMounts.has(php)) {
+			OPFSMounts.set(php, {});
+		}
+		const existingMounts = OPFSMounts.get(php)!;
 
 		// Ensure there are no other conflicting mounts.
 		if (vfsMountPoint in existingMounts) {
@@ -61,10 +69,6 @@ export class DirectoryHandleMount implements Mountable {
 					);
 				}
 			}
-		}
-
-		if (this.mountPoint) {
-			throw new Error('Already mounted');
 		}
 
 		this.mountPoint = vfsMountPoint;
@@ -84,7 +88,7 @@ export class DirectoryHandleMount implements Mountable {
 			);
 		}
 		this.unbindJournal = journalFSEventsToOpfs(
-			this.php,
+			php,
 			this.handle,
 			vfsMountPoint
 		);
@@ -96,7 +100,7 @@ export class DirectoryHandleMount implements Mountable {
 			throw new Error('Not mounted yet');
 		}
 		this.unbindJournal();
-		const existingMounts = OPFSMounts.get(this.php)!;
+		const existingMounts = OPFSMounts.get(this.php!)!;
 		delete existingMounts[this.mountPoint!];
 		delete this.mountPoint;
 	}

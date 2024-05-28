@@ -40,7 +40,7 @@ export async function bindOpfs({
 		wordPressAvailableInOPFS = await playgroundAvailableInOpfs(opfs);
 	}
 
-	mount = new DirectoryHandleMount(php, opfs, {
+	mount = new DirectoryHandleMount(opfs, {
 		initialSync: {
 			direction: wordPressAvailableInOPFS
 				? 'opfs-to-memfs'
@@ -48,7 +48,7 @@ export async function bindOpfs({
 			onProgress,
 		},
 	});
-	php.mount(php.documentRoot, mount);
+	await php.mount(php.documentRoot, mount);
 }
 
 export async function playgroundAvailableInOpfs(

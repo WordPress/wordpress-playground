@@ -155,7 +155,7 @@ export default function PlaygroundConfigurationGroup({
 			const isPlaygroundDir = await playgroundAvailableInOpfs(dirHandle);
 			if (!isPlaygroundDir) {
 				// Check if it's an empty directory.
-				for await (const _ of dirHandle.values()) {
+				for await (const _ of (dirHandle as any).values()) {
 					if (_.name.startsWith('.')) continue;
 					alert(
 						'You need to select either an empty directory or a pre-existing Playground directory.'
