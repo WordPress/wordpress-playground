@@ -1,8 +1,5 @@
 import { PHPResponse } from './php-response';
-import {
-	getEmscriptenFsError,
-	rethrowFileSystemError,
-} from './rethrow-file-system-error';
+import { rethrowFileSystemError } from './rethrow-file-system-error';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import {
@@ -10,23 +7,17 @@ import {
 	PHPRequest,
 	PHPRequestHeaders,
 	PHPRunOptions,
-	RmDirOptions,
-	ListFilesOptions,
 	SpawnHandler,
 	PHPEventListener,
 	PHPEvent,
 } from './universal-php';
+import { RmDirOptions, ListFilesOptions, FSHelpers } from './fs-helpers';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import {
-	Semaphore,
-	createSpawnHandler,
-	dirname,
-	joinPaths,
-} from '@php-wasm/util';
+import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 import { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
 import { isExitCodeZero } from './is-exit-code-zero';
@@ -829,7 +820,7 @@ export class PHP implements Disposable {
 	 */
 	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdir(path: string) {
-		this[__private__dont__use].FS.mkdirTree(path);
+		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -837,7 +828,7 @@ export class PHP implements Disposable {
 	 */
 	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdirTree(path: string) {
-		this.mkdir(path);
+		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -849,7 +840,7 @@ export class PHP implements Disposable {
 	 */
 	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsText(path: string) {
-		return new TextDecoder().decode(this.readFileAsBuffer(path));
+		return FSHelpers.readFileAsText(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -861,7 +852,7 @@ export class PHP implements Disposable {
 	 */
 	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsBuffer(path: string): Uint8Array {
-		return this[__private__dont__use].FS.readFile(path);
+		return FSHelpers.readFileAsBuffer(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -873,7 +864,7 @@ export class PHP implements Disposable {
 	 */
 	@rethrowFileSystemError('Could not write to "{path}"')
 	writeFile(path: string, data: string | Uint8Array) {
-		this[__private__dont__use].FS.writeFile(path, data);
+		return FSHelpers.writeFile(this[__private__dont__use].FS, path, data);
 	}
 
 	/**
@@ -882,9 +873,8 @@ export class PHP implements Disposable {
 	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
 	 * @param  path - The file path to remove.
 	 */
-	@rethrowFileSystemError('Could not unlink "{path}"')
 	unlink(path: string) {
-		this[__private__dont__use].FS.unlink(path);
+		return FSHelpers.unlink(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -895,40 +885,7 @@ export class PHP implements Disposable {
 	 * @param newPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
-		const FS = this[__private__dont__use]
-			.FS as Emscripten.FileSystemInstance;
-
-		try {
-			// FS.rename moves the inode within the same filesystem.
-			// If fromPath and toPath are on different filesystems,
-			// the operation will fail. In that case, we need to do
-			// a recursive copy of all the files and remove the original.
-			// Note this is also what happens in the linux `mv` command.
-			const fromMount = FS.lookupPath(fromPath).node.mount;
-			const toMount = this.fileExists(toPath)
-				? FS.lookupPath(toPath).node.mount
-				: FS.lookupPath(dirname(toPath)).node.mount;
-			const movingBetweenFilesystems =
-				fromMount.mountpoint !== toMount.mountpoint;
-
-			if (movingBetweenFilesystems) {
-				copyRecursive(FS, fromPath, toPath);
-				this.rmdir(fromPath, { recursive: true });
-			} else {
-				FS.rename(fromPath, toPath);
-			}
-		} catch (e) {
-			const errmsg = getEmscriptenFsError(e);
-			if (!errmsg) {
-				throw e;
-			}
-			throw new Error(
-				`Could not move ${fromPath} to ${toPath}: ${errmsg}`,
-				{
-					cause: e,
-				}
-			);
-		}
+		return FSHelpers.mv(this[__private__dont__use].FS, fromPath, toPath);
 	}
 
 	/**
@@ -937,19 +894,8 @@ export class PHP implements Disposable {
 	 * @param path The directory path to remove.
 	 * @param options Options for the removal.
 	 */
-	@rethrowFileSystemError('Could not remove directory "{path}"')
 	rmdir(path: string, options: RmDirOptions = { recursive: true }) {
-		if (options?.recursive) {
-			this.listFiles(path).forEach((file) => {
-				const filePath = `${path}/${file}`;
-				if (this.isDir(filePath)) {
-					this.rmdir(filePath, options);
-				} else {
-					this.unlink(filePath);
-				}
-			});
-		}
-		this[__private__dont__use].FS.rmdir(path);
+		return FSHelpers.rmdir(this[__private__dont__use].FS, path, options);
 	}
 
 	/**
@@ -959,27 +905,15 @@ export class PHP implements Disposable {
 	 * @param  options - Options for the listing.
 	 * @returns The list of files and directories in the given directory.
 	 */
-	@rethrowFileSystemError('Could not list files in "{path}"')
 	listFiles(
 		path: string,
 		options: ListFilesOptions = { prependPath: false }
-	): string[] {
-		if (!this.fileExists(path)) {
-			return [];
-		}
-		try {
-			const files = this[__private__dont__use].FS.readdir(path).filter(
-				(name: string) => name !== '.' && name !== '..'
-			);
-			if (options.prependPath) {
-				const prepend = path.replace(/\/$/, '');
-				return files.map((name: string) => `${prepend}/${name}`);
-			}
-			return files;
-		} catch (e) {
-			logger.error(e, { path });
-			return [];
-		}
+	) {
+		return FSHelpers.listFiles(
+			this[__private__dont__use].FS,
+			path,
+			options
+		);
 	}
 
 	/**
@@ -988,14 +922,8 @@ export class PHP implements Disposable {
 	 * @param  path – The path to check.
 	 * @returns True if the path is a directory, false otherwise.
 	 */
-	@rethrowFileSystemError('Could not stat "{path}"')
-	isDir(path: string): boolean {
-		if (!this.fileExists(path)) {
-			return false;
-		}
-		return this[__private__dont__use].FS.isDir(
-			this[__private__dont__use].FS.lookupPath(path).node.mode
-		);
+	isDir(path: string) {
+		return FSHelpers.isDir(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -1004,14 +932,8 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to check.
 	 * @returns True if the file exists, false otherwise.
 	 */
-	@rethrowFileSystemError('Could not stat "{path}"')
-	fileExists(path: string): boolean {
-		try {
-			this[__private__dont__use].FS.lookupPath(path);
-			return true;
-		} catch (e) {
-			return false;
-		}
+	fileExists(path: string) {
+		return FSHelpers.fileExists(this[__private__dont__use].FS, path);
 	}
 
 	/**
@@ -1150,19 +1072,11 @@ export function normalizeHeaders(
 	return normalized;
 }
 
-export function syncFSTo(source: PHP, target: PHP, path: string | null = null) {
-	copyFS(
-		source[__private__dont__use].FS,
-		target[__private__dont__use].FS,
-		path ?? source.documentRoot
-	);
-}
-
 /**
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-export function copyFS(
+function copyFS(
 	source: Emscripten.FileSystemInstance,
 	target: Emscripten.FileSystemInstance,
 	path: string
@@ -1205,28 +1119,5 @@ export function copyFS(
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
 		copyFS(source, target, joinPaths(path, filename));
-	}
-}
-
-function copyRecursive(
-	FS: Emscripten.FileSystemInstance,
-	fromPath: string,
-	toPath: string
-) {
-	const fromNode = FS.lookupPath(fromPath).node;
-	if (FS.isDir(fromNode.mode)) {
-		FS.mkdirTree(toPath);
-		const filenames = FS.readdir(fromPath).filter(
-			(name: string) => name !== '.' && name !== '..'
-		);
-		for (const filename of filenames) {
-			copyRecursive(
-				FS,
-				joinPaths(fromPath, filename),
-				joinPaths(toPath, filename)
-			);
-		}
-	} else {
-		FS.writeFile(toPath, FS.readFile(fromPath));
 	}
 }
