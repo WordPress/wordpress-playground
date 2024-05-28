@@ -1,16 +1,18 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { resetData } from './reset-data';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const docroot = '/php';
 describe('Blueprint step resetData()', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
 		const handler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			documentRoot: '/wordpress',
 		});
 		php = await handler.getPrimaryPhp();

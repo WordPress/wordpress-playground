@@ -1,15 +1,16 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import { phpVars, randomFilename } from '@php-wasm/util';
 import { runSql } from './run-sql';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 const phpVersion = '8.0';
 describe('Blueprint step runSql', () => {
-	let php: NodePHP;
-	let handler: PHPRequestHandler<NodePHP>;
+	let php: PHP;
+	let handler: PHPRequestHandler;
 	beforeEach(async () => {
 		handler = new PHPRequestHandler({
-			phpFactory: () => NodePHP.load(phpVersion),
+			phpFactory: async () => new PHP(await loadNodeRuntime(phpVersion)),
 			documentRoot: '/wordpress',
 		});
 		php = await handler.getPrimaryPhp();

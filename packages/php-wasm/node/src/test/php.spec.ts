@@ -1,14 +1,16 @@
-import { getPHPLoaderModule, NodePHP } from '..';
+import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import { vi } from 'vitest';
 import {
 	__private__dont__use,
 	getPhpIniEntries,
 	loadPHPRuntime,
+	PHP,
 	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { NodeFSMount } from '../lib/node-fs-mount';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -70,9 +72,9 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any);
+		php = new PHP(await loadNodeRuntime(phpVersion as any));
 		php.mkdir('/php');
 		await setPhpIniEntries(php, { disable_functions: '' });
 	});
@@ -887,7 +889,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				'contents'
 			);
 			php.mkdir('/nodefs');
-			php.mount(__dirname + '/test-data/mount-contents', '/nodefs');
+			php.mount(
+				'/nodefs',
+				new NodeFSMount(__dirname + '/test-data/mount-contents')
+			);
 			php.mv('/nodefs/a', '/tmp/a');
 			expect(
 				existsSync(__dirname + '/test-data/mount-contents/a')

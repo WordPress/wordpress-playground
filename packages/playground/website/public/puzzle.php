@@ -2,17 +2,14 @@
 error_reporting(0);
 header('Content-Type: application/json');
 
-$open_ai_api_key = getenv('OPEN_AI_API_KEY');
-$api_key = getenv('PUZZLE_API_KEY');
-
 if (!isset($_POST["api_key"])) {
     response("error", "Please provide an API key.");
 }
-if ($_POST["api_key"] !== $api_key) {
+if ($_POST["api_key"] !== getApiKey()) {
     response("error", "Invalid API key.");
 }
 
-if (empty($open_ai_api_key)) {
+if (empty(getOpenAiApiKey())) {
     response("error", "The API isn't configured properly. Please contact the administrator.");
 }
 
@@ -33,9 +30,19 @@ if ($_POST["action"] == "read-image") {
     response("error", "Invalid action.");
 }
 
+function getApiKey()
+{
+    return getenv('PUZZLE_API_KEY');
+}
+
+function getOpenAiApiKey()
+{
+    return getenv('OPEN_AI_API_KEY');
+}
+
+
 function siteName()
 {
-    global $open_ai_api_key;
     $curl = curl_init();
     curl_setopt_array($curl, [
         CURLOPT_URL => "https://api.openai.com/v1/completions",
@@ -55,7 +62,7 @@ function siteName()
         ]),
         CURLOPT_HTTPHEADER => [
             "Content-Type: application/json",
-            "Authorization: Bearer " . $open_ai_api_key,
+            "Authorization: Bearer " . getOpenAiApiKey(),
         ],
     ]);
     $response = curl_exec($curl);
@@ -78,7 +85,6 @@ function siteName()
 
 function generatePost()
 {
-    global $open_ai_api_key;
     $curl = curl_init();
     curl_setopt_array($curl, [
         CURLOPT_URL => "https://api.openai.com/v1/completions",
@@ -101,7 +107,7 @@ function generatePost()
         ]),
         CURLOPT_HTTPHEADER => [
             "Content-Type: application/json",
-            "Authorization: Bearer " . $open_ai_api_key,
+            "Authorization: Bearer " . getOpenAiApiKey(),
         ],
     ]);
     $response = curl_exec($curl);
@@ -163,7 +169,6 @@ function post()
 
 function readImage($image)
 {
-    global $open_ai_api_key;
     $curl = curl_init();
     curl_setopt_array($curl, [
         CURLOPT_URL => "https://api.openai.com/v1/chat/completions",
@@ -212,7 +217,7 @@ function readImage($image)
         ]),
         CURLOPT_HTTPHEADER => [
             "Content-Type: application/json",
-            "Authorization: Bearer " . $open_ai_api_key,
+            "Authorization: Bearer " . getOpenAiApiKey(),
         ],
     ]);
     $response = curl_exec($curl);
