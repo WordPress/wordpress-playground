@@ -105,9 +105,7 @@ initializeServiceWorker({
 					'/wp-includes/js/dist/block-editor.min.js'
 				) ||
 				// Gutenberg version of block-editor.js
-				unscopedUrl.pathname.endsWith(
-					'/build/block-editor/index.js'
-				) ||
+				unscopedUrl.pathname.endsWith('/build/block-editor/index.js') ||
 				unscopedUrl.pathname.endsWith(
 					'/build/block-editor/index.min.js'
 				)
