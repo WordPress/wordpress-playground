@@ -1,4 +1,3 @@
-import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	getSqliteDatabaseModule,
