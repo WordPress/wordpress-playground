@@ -9,13 +9,10 @@
  */
 
 /* eslint-disable prefer-rest-params */
-import { logger } from '@php-wasm/logger';
-import { PHP, __private__dont__use } from '@php-wasm/universal';
-import { Semaphore, joinPaths } from '@php-wasm/util';
-import { EmscriptenFS } from './types';
-import { journalFSEventsToOpfs } from './journal-memfs-to-opfs';
+import { PHP, UnmountFunction } from '@php-wasm/universal';
+import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 
-let unbindOpfs: (() => void) | undefined;
+let unmount: UnmountFunction | undefined;
 export type SyncProgress = {
 	/** The number of files that have been synced. */
 	files: number;
@@ -35,203 +32,23 @@ export async function bindOpfs({
 	wordPressAvailableInOPFS,
 	onProgress,
 }: BindOpfsOptions) {
-	if (unbindOpfs) {
-		await unbindOpfs();
+	if (unmount) {
+		unmount();
 	}
-
-	const docroot = php.documentRoot;
 
 	if (wordPressAvailableInOPFS === undefined) {
 		wordPressAvailableInOPFS = await playgroundAvailableInOpfs(opfs);
 	}
 
-	// Setup sync between MEMFS and the local directory
-	if (wordPressAvailableInOPFS) {
-		/**
-		 * Remove DOCROOT in MEMFS to make space for the new one.
-		 * This is an in-memory operation and doesn't affect any
-		 * persisted files.
-		 */
-		try {
-			if (php.isDir(docroot)) {
-				php.rmdir(docroot, { recursive: true });
-				php.mkdirTree(docroot);
-			}
-		} catch (e) {
-			// Ignore any errors
-		}
-
-		await copyOpfsToMemfs(php, opfs, docroot);
-	} else {
-		await copyMemfsToOpfs(php, opfs, docroot, onProgress);
-	}
-
-	unbindOpfs = journalFSEventsToOpfs(php, opfs, docroot);
-}
-
-export async function copyOpfsToMemfs(
-	php: PHP,
-	opfsRoot: FileSystemDirectoryHandle,
-	memfsRoot: string
-) {
-	const PHPRuntime = php[__private__dont__use];
-	const FS = PHPRuntime.FS;
-	FS.mkdirTree(memfsRoot);
-
-	/**
-	 * Semaphores are used to limit the number of concurrent operations.
-	 * Flooding the browser with 2000 FS operations at the same time
-	 * can get quite slow.
-	 */
-	const semaphore = new Semaphore({
-		concurrency: 40,
+	const mountHandler = createDirectoryHandleMountHandler(opfs, {
+		initialSync: {
+			direction: wordPressAvailableInOPFS
+				? 'opfs-to-memfs'
+				: 'memfs-to-opfs',
+			onProgress,
+		},
 	});
-
-	const ops: Array<Promise<void>> = [];
-	const stack: Array<[FileSystemDirectoryHandle, string]> = [
-		[opfsRoot, memfsRoot],
-	];
-	while (stack.length > 0) {
-		const [opfsParent, memfsParentPath] = stack.pop()!;
-
-		for await (const opfsHandle of opfsParent.values()) {
-			const op = semaphore.run(async () => {
-				const memfsEntryPath = joinPaths(
-					memfsParentPath,
-					opfsHandle.name
-				);
-				if (opfsHandle.kind === 'directory') {
-					try {
-						FS.mkdir(memfsEntryPath);
-					} catch (e) {
-						if ((e as any)?.errno !== 20) {
-							logger.error(e);
-							// We ignore the error if the directory already exists,
-							// and throw otherwise.
-							throw e;
-						}
-					}
-					stack.push([opfsHandle, memfsEntryPath]);
-				} else if (opfsHandle.kind === 'file') {
-					const file = await opfsHandle.getFile();
-					const byteArray = new Uint8Array(await file.arrayBuffer());
-					FS.createDataFile(
-						memfsEntryPath,
-						null,
-						byteArray,
-						true,
-						true,
-						true
-					);
-				}
-				ops.splice(ops.indexOf(op), 1);
-			});
-			ops.push(op);
-		}
-		// Let the ongoing operations catch-up to the stack.
-		while (stack.length === 0 && ops.length > 0) {
-			await Promise.any(ops);
-		}
-	}
-}
-
-export async function copyMemfsToOpfs(
-	php: PHP,
-	opfsRoot: FileSystemDirectoryHandle,
-	memfsRoot: string,
-	onProgress?: SyncProgressCallback
-) {
-	const PHPRuntime = php[__private__dont__use];
-	const FS = PHPRuntime.FS;
-	// Ensure the memfs directory exists.
-	FS.mkdirTree(memfsRoot);
-
-	// Create all MEMFS directories in OPFS but don't create
-	// files yet. This is quite fast.
-	const filesToCreate: Array<[FileSystemDirectoryHandle, string, string]> =
-		[];
-	async function mirrorMemfsDirectoryinOpfs(
-		memfsParent: string,
-		opfsDir: FileSystemDirectoryHandle
-	) {
-		await Promise.all(
-			FS.readdir(memfsParent)
-				.filter(
-					(entryName: string) =>
-						entryName !== '.' && entryName !== '..'
-				)
-				.map(async (entryName: string) => {
-					const memfsPath = joinPaths(memfsParent, entryName);
-					if (!isMemfsDir(FS, memfsPath)) {
-						filesToCreate.push([opfsDir, memfsPath, entryName]);
-						return;
-					}
-
-					const handle = await opfsDir.getDirectoryHandle(entryName, {
-						create: true,
-					});
-					return await mirrorMemfsDirectoryinOpfs(memfsPath, handle);
-				})
-		);
-	}
-	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot);
-
-	// Now let's create all the required files in OPFS. This is quite slow
-	// so we report progress.
-	let i = 0;
-	const filesCreated = filesToCreate.map(([opfsDir, memfsPath, entryName]) =>
-		overwriteOpfsFile(opfsDir, entryName, FS, memfsPath).then(() => {
-			onProgress?.({ files: ++i, total: filesToCreate.length });
-		})
-	);
-	await Promise.all(filesCreated);
-}
-
-function isMemfsDir(FS: EmscriptenFS, path: string) {
-	return FS.isDir(FS.lookupPath(path, { follow: true }).node.mode);
-}
-
-export async function overwriteOpfsFile(
-	opfsParent: FileSystemDirectoryHandle,
-	name: string,
-	FS: EmscriptenFS,
-	memfsPath: string
-) {
-	let buffer;
-	try {
-		buffer = FS.readFile(memfsPath, {
-			encoding: 'binary',
-		});
-	} catch (e) {
-		// File was removed, ignore
-		return;
-	}
-
-	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
-	const writer =
-		opfsFile.createWritable !== undefined
-			? // Google Chrome, Firefox, probably more browsers
-			  await opfsFile.createWritable()
-			: // Safari
-			  await opfsFile.createSyncAccessHandle();
-	try {
-		await writer.truncate(0);
-		await writer.write(buffer);
-	} finally {
-		await writer.close();
-	}
-}
-
-export async function opfsFileExists(
-	opfs: FileSystemDirectoryHandle,
-	path: string
-) {
-	try {
-		await opfs.getFileHandle(path);
-		return true;
-	} catch (e) {
-		return false;
-	}
+	unmount = await php.mount(php.documentRoot, mountHandler);
 }
 
 export async function playgroundAvailableInOpfs(

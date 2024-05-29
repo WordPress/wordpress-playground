@@ -10,7 +10,7 @@ import {
 } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
-import { NodeFSMount } from '../lib/node-fs-mount';
+import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -891,7 +891,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			php.mkdir('/nodefs');
 			php.mount(
 				'/nodefs',
-				new NodeFSMount(__dirname + '/test-data/mount-contents')
+				createNodeFsMountHandler(
+					__dirname + '/test-data/mount-contents'
+				)
 			);
 			php.mv('/nodefs/a', '/tmp/a');
 			expect(

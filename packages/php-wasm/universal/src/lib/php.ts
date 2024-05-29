@@ -37,9 +37,12 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
-export interface Mountable {
-	mount(FS: Emscripten.RootFS, vfsMountPoint: string): void | Promise<void>;
-}
+export type UnmountFunction = (() => Promise<any>) | (() => any);
+export type MountHandler = (
+	php: PHP,
+	FS: Emscripten.RootFS,
+	vfsMountPoint: string
+) => UnmountFunction | Promise<UnmountFunction>;
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
@@ -973,11 +976,19 @@ export class PHP implements Disposable {
 	/**
 	 * Mounts a filesystem to a given path in the PHP filesystem.
 	 *
-	 * @param  mountable - The filesystem to mount.
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
+	 * @param  mountHandler - The mount handler to use.
+	 * @return Unmount function to unmount the filesystem.
 	 */
-	async mount(virtualFSPath: string, mountable: Mountable) {
-		await mountable.mount(this[__private__dont__use].FS, virtualFSPath);
+	async mount(
+		virtualFSPath: string,
+		mountHandler: MountHandler
+	): Promise<UnmountFunction> {
+		return await mountHandler(
+			this,
+			this[__private__dont__use].FS,
+			virtualFSPath
+		);
 	}
 
 	/**
