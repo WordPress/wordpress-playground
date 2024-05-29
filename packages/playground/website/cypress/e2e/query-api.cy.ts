@@ -108,7 +108,7 @@ describe('Query API', () => {
 					{
 						step: 'writeFile',
 						path: '/wordpress/test.php',
-						data: `<?php 
+						data: `<?php
 						require("/wordpress/wp-load.php");
 						echo wp_http_supports(array( "ssl" )) ? "true" : "false";
 						`,
@@ -278,6 +278,42 @@ describe('Query API', () => {
 				})
 				.should('not.have.css', 'background-color', undefined);
 		}
+	});
+
+	describe('Site switching', () => {
+		it('should switch between sites', () => {
+			cy.visit(
+				'/#' +
+					JSON.stringify({
+						landingPage: '/',
+						steps: [
+							{
+								step: 'runPhp',
+								code: `<?php  require_once 'wordpress/wp-load.php'; set_option('blogname', 'test' );`,
+							},
+						],
+					})
+			);
+			cy.wordPressDocument()
+				.its('.wp-block-site-title > a')
+				.should('match', 'test');
+
+			cy.visit(
+				'/?site-slug=new#' +
+					JSON.stringify({
+						landingPage: '/',
+						steps: [
+							{
+								step: 'runPhp',
+								code: `<?php  require_once 'wordpress/wp-load.php'; set_option('blogname', 'new' );`,
+							},
+						],
+					})
+			);
+			cy.wordPressDocument()
+				.its('.wp-block-site-title > a')
+				.should('match', 'new');
+		});
 	});
 });
 
