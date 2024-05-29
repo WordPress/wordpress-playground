@@ -8,7 +8,6 @@ import {
 import { Semaphore, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
-import '../types';
 
 declare global {
 	interface FileSystemDirectoryHandle {
