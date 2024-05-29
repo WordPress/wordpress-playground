@@ -20,6 +20,7 @@ export type ReceivedStartupOptions = {
 	sapiName?: string;
 	storage?: string;
 	phpExtensions?: string[];
+	siteSlug?: string;
 };
 
 export type ParsedStartupOptions = {
@@ -28,6 +29,7 @@ export type ParsedStartupOptions = {
 	sapiName: string;
 	storage: string;
 	phpExtensions: string[];
+	siteSlug: string;
 };
 
 export const receivedParams: ReceivedStartupOptions = {};
@@ -40,6 +42,7 @@ if (typeof url !== 'undefined') {
 	// Default to CLI to support the WP-CLI Blueprint step
 	receivedParams.sapiName = params.get('sapiName') || 'cli';
 	receivedParams.phpExtensions = params.getAll('php-extension');
+	receivedParams.siteSlug = params.get('siteSlug') || undefined;
 }
 
 export const requestedWPVersion = receivedParams.wpVersion || '';
@@ -55,6 +58,7 @@ export const startupOptions = {
 	sapiName: receivedParams.sapiName || 'cli',
 	storage: receivedParams.storage || 'local',
 	phpExtensions: receivedParams.phpExtensions || [],
+	siteSlug: receivedParams.siteSlug || 'wordpress',
 } as ParsedStartupOptions;
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();
