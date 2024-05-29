@@ -5,6 +5,9 @@ import logSqlQueries from './sync-mu-plugin.php?raw';
 import { phpVar, phpVars } from '@php-wasm/util';
 
 export async function installSqlSyncMuPlugin(playground: UniversalPHP) {
+	if (!(await playground.fileExists('/wordpress/wp-content/mu-plugins'))) {
+		await playground.mkdir('/wordpress/wp-content/mu-plugins');
+	}
 	await playground.writeFile(
 		`/wordpress/wp-content/mu-plugins/sync-mu-plugin.php`,
 		logSqlQueries

@@ -1,33 +1,31 @@
-import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
-import { unzip } from './unzip';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
 import { enableMultisite } from './enable-multisite';
-import { PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { setupPlatformLevelMuPlugins } from '@wp-playground/wordpress';
 
 const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
-	async function bootWordPress(options: { absoluteUrl: string }) {
-		const requestHandler = new PHPRequestHandler({
-			phpFactory: async () =>
-				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
-			absoluteUrl: options.absoluteUrl,
+	async function doBootWordPress(options: { absoluteUrl: string }) {
+		const requestHandler = await bootWordPress({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: options.absoluteUrl,
 			documentRoot: DOCROOT,
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 		});
 		const php = await requestHandler.getPrimaryPhp();
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: DOCROOT,
-		});
-		// Ensure we're preloading platform-level mu-plugins
-		await setupPlatformLevelMuPlugins(php);
+
 		return { php, requestHandler };
 	}
 
 	it('should enable a multisite on a scoped URL', async () => {
-		const { php, requestHandler } = await bootWordPress({
+		const { php, requestHandler } = await doBootWordPress({
 			absoluteUrl: 'http://playground-domain/scope:987987/',
 		});
 		await enableMultisite(php, {});
@@ -39,7 +37,7 @@ describe('Blueprint step enableMultisite', () => {
 	}, 30_000);
 
 	it('should enable a multisite on a scopeless URL', async () => {
-		const { php, requestHandler } = await bootWordPress({
+		const { php, requestHandler } = await doBootWordPress({
 			absoluteUrl: 'http://playground-domain/',
 		});
 		await enableMultisite(php, {});

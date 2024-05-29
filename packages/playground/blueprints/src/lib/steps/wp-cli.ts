@@ -70,7 +70,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		// the CLI SAPI.
 		define('STDIN', fopen('php://stdin', 'rb'));
 		define('STDOUT', fopen('php://stdout', 'wb'));
-		define('STDERR', fopen('/tmp/stderr', 'wb'));
+		define('STDERR', fopen('php://stderr', 'wb'));
 
 		require( ${phpVar(wpCliPath)} );
 		`

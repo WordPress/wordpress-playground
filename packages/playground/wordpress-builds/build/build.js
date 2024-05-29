@@ -1,5 +1,5 @@
 
-import path from 'path';
+import path, { join } from 'path';
 import { spawn } from 'child_process';
 import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
@@ -106,20 +106,42 @@ if (!args.force && versionInfo.slug !== 'nightly' && versions[versionInfo.slug] 
 }
 
 // Build WordPress
-await asyncSpawn(
-	'docker',
-	[
-		'build',
-		'.',
-		'--progress=plain',
-		'--tag=wordpress-playground',
-		'--build-arg',
-		`WP_ZIP_URL=${versionInfo.url}`,
-		'--build-arg',
-		`OUT_FILENAME=wp-${versionInfo.slug}`,
-	],
-	{ cwd: sourceDir, stdio: 'inherit' }
-);
+const wordpressDir = join(sourceDir, 'wordpress');
+try {
+	try {
+		await fs.rm(wordpressDir, { recursive: true });
+	} catch (e) {
+		// Ignore
+	}
+	await fs.mkdir(wordpressDir);
+	// Install WordPress in a local directory
+	await asyncSpawn(
+		'bun',
+		[
+			'../../cli/src/cli.ts',
+			'run-blueprint',
+			`--wp=${versionInfo.url}`,
+			`--mount-before-install=${wordpressDir}:/wordpress`
+		],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+
+	// Minify that WordPress
+	await asyncSpawn(
+		'docker',
+		[
+			'build',
+			'.',
+			'--progress=plain',
+			'--tag=wordpress-playground',
+			'--build-arg',
+			`OUT_FILENAME=wp-${versionInfo.slug}`,
+		],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+} finally {
+	await fs.rm(wordpressDir, { recursive: true });
+}
 
 // Extract the WordPress static root with wp-includes/ etc
 await asyncSpawn(

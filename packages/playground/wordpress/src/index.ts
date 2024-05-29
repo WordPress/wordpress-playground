@@ -172,6 +172,8 @@ export async function preloadSqliteIntegration(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
 		SQLITE_PLUGIN_FOLDER
 	);
+	// Prevents the SQLite integration from trying to call activate_plugin()
+	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
 		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
 	);
