@@ -6,7 +6,6 @@ export type {
 	PHPRequest,
 	PHPResponse,
 	UniversalPHP,
-	IsomorphicRemotePHP,
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
@@ -18,6 +17,7 @@ export type {
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
+	setPhpIniEntries,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,

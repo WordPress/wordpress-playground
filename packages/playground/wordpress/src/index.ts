@@ -1,6 +1,7 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
+export { bootWordPress } from './boot';
 
 export * from './rewrite-rules';
 
@@ -11,7 +12,7 @@ export * from './rewrite-rules';
  *
  * @param php
  */
-export async function enablePlatformMuPlugins(php: UniversalPHP) {
+export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.mkdir('/internal/shared/mu-plugins');
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
@@ -44,14 +45,10 @@ export async function enablePlatformMuPlugins(php: UniversalPHP) {
         }
     `
 	);
-}
 
-export async function preloadRequiredMuPlugin(php: UniversalPHP) {
-	// Entries must not render whitespaces. They'll be loaded
-	// as mu-plugins and we don't want to trigger the "headers
-	// already sent" PHP error.
-	const specificMuPlugins = {
-		addTrailingSlashToWpAdmin: `<?php
+	await php.writeFile(
+		'/internal/shared/mu-plugins/0-playground.php',
+		`<?php
         // Redirect /wp-admin to /wp-admin/
         add_filter( 'redirect_canonical', function( $redirect_url ) {
             if ( '/wp-admin' === $redirect_url ) {
@@ -59,8 +56,7 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
             }
             return $redirect_url;
         } );
-        ?>`,
-		allowRedirectHosts: `<?php
+		
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.
         add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
@@ -70,33 +66,19 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
                 'downloads.wordpress.org',
             );
         } );
-        ?>`,
-		supportPermalinksWithoutIndexPhp: `<?php
+
+		// Support pretty permalinks
         add_filter( 'got_url_rewrite', '__return_true' );
-        ?>`,
-		createFontsDirectory: `<?php
+
         // Create the fonts directory if missing
         if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
             mkdir(WP_CONTENT_DIR . '/fonts');
         }
-        ?>`,
-		configureErrorLogging: `<?php
+		
         $log_file = WP_CONTENT_DIR . '/debug.log';
-        error_reporting(E_ALL);
         define('ERROR_LOG_FILE', $log_file);
         ini_set('error_log', $log_file);
-        ini_set('ignore_repeated_errors', true);
-        ini_set('display_errors', false);
-        ini_set('log_errors', true);
-        ?>`,
-	};
-
-	const playgroundMuPlugin = Object.values(specificMuPlugins)
-		.map((p) => p.trim())
-		.join('\n');
-	await php.writeFile(
-		'/internal/shared/mu-plugins/0-playground.php',
-		playgroundMuPlugin
+        ?>`
 	);
 
 	// Load the error handler before any other PHP file to ensure it
@@ -190,6 +172,8 @@ export async function preloadSqliteIntegration(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
 		SQLITE_PLUGIN_FOLDER
 	);
+	// Prevents the SQLite integration from trying to call activate_plugin()
+	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
 		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
 	);
@@ -202,12 +186,21 @@ export async function preloadSqliteIntegration(
 			"'{SQLITE_PLUGIN}'",
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
+	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
+	const stopIfDbPhpExists = `<?php
+	// Do not preload this if WordPress comes with a custom db.php file.
+	if(file_exists(${phpVar(dbPhpPath)})) {
+		return;
+	}
+	?>`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, dbPhp);
+	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
-		`<?php
+		stopIfDbPhpExists +
+			`<?php
+
 /**
  * Loads the SQLite integration plugin before WordPress is loaded
  * and without creating a drop-in "db.php" file. 
@@ -260,6 +253,18 @@ class Playground_SQLite_Integration_Loader {
     }
 }
 $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
+
+/**
+ * WordPress is capable of using a preloaded global $wpdb. However, if
+ * it cannot find the drop-in db.php plugin it still checks whether
+ * the mysqli_connect() function exists even though it's not used.
+ *
+ * What WordPress demands, Playground shall provide.
+ */
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+
 		`
 	);
 	/**
@@ -277,4 +282,58 @@ $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
 		}
 		`
 	);
+}
+
+/**
+ * Prepare the WordPress document root given a WordPress zip file and
+ * the sqlite-database-integration zip file.
+ *
+ * This is a TypeScript function for now, just to get something off the
+ * ground, but it may be superseded by the PHP Blueprints library developed
+ * at https://github.com/WordPress/blueprints-library/
+ *
+ * That PHP library will come with a set of functions and a CLI tool to
+ * turn a Blueprint into a WordPress directory structure or a zip Snapshot.
+ * Let's **not** invest in the TypeScript implementation of this function,
+ * accept the limitation, and switch to the PHP implementation as soon
+ * as that's viable.
+ */
+export async function unzipWordPress(php: PHP, wpZip: File) {
+	php.mkdir('/tmp/unzipped-wordpress');
+	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
+
+	// The zip file may contain another zip file if it's coming from GitHub artifacts
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	if (php.fileExists('/tmp/unzipped-wordpress/wordpress.zip')) {
+		await unzipFile(
+			php,
+			'/tmp/unzipped-wordpress/wordpress.zip',
+			'/tmp/unzipped-wordpress'
+		);
+	}
+
+	// The zip file may contain a subdirectory, or not.
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
+		? '/tmp/unzipped-wordpress/wordpress'
+		: php.fileExists('/tmp/unzipped-wordpress/build')
+		? '/tmp/unzipped-wordpress/build'
+		: '/tmp/unzipped-wordpress';
+
+	php.mv(wpPath, php.documentRoot);
+	if (
+		!php.fileExists(joinPaths(php.documentRoot, 'wp-config.php')) &&
+		php.fileExists(joinPaths(php.documentRoot, 'wp-config-sample.php'))
+	) {
+		php.writeFile(
+			joinPaths(php.documentRoot, 'wp-config.php'),
+			php.readFileAsText(
+				joinPaths(php.documentRoot, '/wp-config-sample.php')
+			)
+		);
+	}
 }

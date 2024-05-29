@@ -1,6 +1,6 @@
 import { getWordPressModuleDetails } from './get-wordpress-module-details';
 
-export async function getWordPressModule(wpVersion = '6.4'): Promise<File> {
+export async function getWordPressModule(wpVersion?: string): Promise<File> {
 	const url = getWordPressModuleDetails(wpVersion).url;
 	let data = null;
 	if (url.startsWith('/')) {
@@ -15,7 +15,7 @@ export async function getWordPressModule(wpVersion = '6.4'): Promise<File> {
 		const response = await fetch(url);
 		data = await response.blob();
 	}
-	return new File([data], `${wpVersion}.zip`, {
+	return new File([data], `${wpVersion || 'wp'}.zip`, {
 		type: 'application/zip',
 	});
 }

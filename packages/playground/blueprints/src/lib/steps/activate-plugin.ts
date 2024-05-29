@@ -1,5 +1,6 @@
 import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc activatePlugin
@@ -34,7 +35,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 
 	const docroot = await playground.documentRoot;
-	await playground.run({
+	const result = await playground.run({
 		code: `<?php
 			define( 'WP_ADMIN', true );
 			require_once( ${phpVar(docroot)}. "/wp-load.php" );
@@ -69,4 +70,13 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			throw new Exception( 'Unable to activate plugin' );
 		`,
 	});
+	if (result.text !== 'Plugin activated successfully') {
+		logger.debug(result);
+		throw new Error(
+			`Plugin ${pluginPath} could not be activated – WordPress exited with no error. ` +
+				`Sometimes, when $_SERVER or site options are not configured correctly, ` +
+				`WordPress exits early with a 301 redirect. ` +
+				`Inspect the "debug" logs in the console for more details`
+		);
+	}
 };

@@ -20,7 +20,7 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
-RUN mkdir -p /root/lib/include /root/lib/lib /libs 
+RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
@@ -360,6 +360,8 @@ RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
+COPY ./php/dns_polyfill.c /root/
+COPY ./php/dns_polyfill.h /root/
 COPY ./php/proc_open* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
@@ -771,7 +773,6 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
-"run_php",\
 "user_shutdown_function_call",\
 "shutdown_executor",\
 "shutdown_destructors",\
@@ -883,7 +884,6 @@ RUN set -euxo pipefail; \
 "_emscripten_sleep", \n\
 "_wasm_sleep", \n\
 "_wasm_set_phpini_path", \n\
-"_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
 "_wasm_add_ENV_entry", \n\
 "_wasm_read", \n\
@@ -893,7 +893,6 @@ RUN set -euxo pipefail; \
 "_wasm_set_content_type", \n\
 "_wasm_set_cookies", \n\
 "_wasm_set_path_translated", \n\
-"_wasm_set_php_code", \n\
 "_wasm_set_query_string", \n\
 "_wasm_set_request_body", \n\
 "_wasm_set_request_host", \n\
@@ -932,6 +931,7 @@ RUN set -euxo pipefail; \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
+		/root/dns_polyfill.c \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \

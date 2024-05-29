@@ -1,12 +1,8 @@
 export type {
-	IsomorphicLocalPHP,
-	IsomorphicRemotePHP,
 	MessageListener,
 	PHPOutput,
 	PHPRunOptions,
 	UniversalPHP,
-	ListFilesOptions,
-	RmDirOptions,
 	PHPEvent,
 	PHPEventListener,
 	HTTPMethod,
@@ -14,6 +10,10 @@ export type {
 	PHPRequestHeaders,
 	SpawnHandler,
 } from './universal-php';
+export { FSHelpers } from './fs-helpers';
+export type { ListFilesOptions, RmDirOptions } from './fs-helpers';
+export { PHPWorker } from './php-worker';
+export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';
@@ -46,8 +46,10 @@ export type {
 	SupportedPHPExtension,
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
-export { BasePHP, __private__dont__use } from './base-php';
+export { PHP, __private__dont__use } from './php';
+export type { Mountable } from './php';
 export { loadPHPRuntime } from './load-php-runtime';
+export type * from './emscripten-types';
 export type {
 	DataModule,
 	EmscriptenOptions,
@@ -56,10 +58,6 @@ export type {
 	PHPRuntimeId,
 	RuntimeType,
 } from './load-php-runtime';
-export { rethrowFileSystemError } from './rethrow-file-system-error';
-
-export { isLocalPHP } from './is-local-php';
-export { isRemotePHP } from './is-remote-php';
 
 export type {
 	PHPRequestHandlerConfiguration,
@@ -68,6 +66,7 @@ export type {
 export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
+export type { FileTree } from './write-files';
 
 export {
 	DEFAULT_BASE_URL,

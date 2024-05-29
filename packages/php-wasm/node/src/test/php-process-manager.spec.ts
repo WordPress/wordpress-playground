@@ -1,24 +1,25 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { NodePHP } from '..';
-import { PHPProcessManager } from '@php-wasm/universal';
+import { loadNodeRuntime } from '..';
+import { PHP, PHPProcessManager } from '@php-wasm/universal';
 
 describe('PHPProcessManager', () => {
 	it('should spawn new PHP instances', async () => {
 		const mgr = new PHPProcessManager({
-			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 4,
 		});
 
 		const php1 = await mgr.acquirePHPInstance();
-		expect(php1.php).toBeInstanceOf(NodePHP);
+		expect(php1.php).toBeInstanceOf(PHP);
 
 		const php2 = await mgr.acquirePHPInstance();
 		expect(php1.php).not.toBe(php2.php);
 	});
 
 	it('should not spawn primary PHP until the first acquire call', async () => {
-		const phpFactory = vitest.fn(async () =>
-			NodePHP.load(RecommendedPHPVersion)
+		const phpFactory = vitest.fn(
+			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
 		);
 		const mgr = new PHPProcessManager({
 			phpFactory,
@@ -32,7 +33,8 @@ describe('PHPProcessManager', () => {
 
 	it('should refuse to spawn more PHP instances than the maximum (limit=2)', async () => {
 		const mgr = new PHPProcessManager({
-			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 2,
 			timeout: 100,
 		});
@@ -46,7 +48,8 @@ describe('PHPProcessManager', () => {
 
 	it('should refuse to spawn more PHP instances than the maximum (limit=3)', async () => {
 		const mgr = new PHPProcessManager({
-			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 3,
 			timeout: 100,
 		});
@@ -61,7 +64,7 @@ describe('PHPProcessManager', () => {
 
 	it('should not start a second PHP instance until the first getInstance() call when the primary instance is busy', async () => {
 		const phpFactory = vitest.fn(
-			async () => await NodePHP.load(RecommendedPHPVersion)
+			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
 		);
 		const mgr = new PHPProcessManager({
 			phpFactory,
@@ -84,7 +87,8 @@ describe('PHPProcessManager', () => {
 
 	it('should refuse to spawn two primary PHP instances', async () => {
 		const mgr = new PHPProcessManager({
-			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 5,
 		});
 

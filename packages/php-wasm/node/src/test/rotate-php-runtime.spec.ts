@@ -1,19 +1,21 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { NodePHP } from '..';
 import {
 	LatestSupportedPHPVersion,
+	PHP,
 	__private__dont__use,
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
+import { loadNodeRuntime } from '../lib';
+import { NodeFSMount } from '../lib/node-fs-mount';
 
 const recreateRuntime = async (version: any = LatestSupportedPHPVersion) =>
-	await NodePHP.loadRuntime(version);
+	await loadNodeRuntime(version);
 
 describe('rotatePHPRuntime()', () => {
 	it('Free up the available PHP memory', async () => {
-		const freeMemory = (php: NodePHP) =>
+		const freeMemory = (php: PHP) =>
 			php[__private__dont__use].HEAPU32.reduce(
 				(count: number, byte: number) =>
 					byte === 0 ? count + 1 : count,
@@ -22,7 +24,7 @@ describe('rotatePHPRuntime()', () => {
 
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		// Rotate the PHP runtime
-		const php = new NodePHP(await recreateRuntime());
+		const php = new PHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -52,7 +54,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new NodePHP(await recreateRuntimeSpy());
+		const php = new PHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -66,7 +68,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should stop rotating after the cleanup handler is called', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new NodePHP(await recreateRuntimeSpy());
+		const php = new PHP(await recreateRuntimeSpy());
 		const cleanup = rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -95,7 +97,7 @@ describe('rotatePHPRuntime()', () => {
 			}
 			return recreateRuntime('8.3');
 		});
-		const php = new NodePHP(await recreateRuntimeSpy());
+		const php = new PHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -117,7 +119,7 @@ describe('rotatePHPRuntime()', () => {
 	}, 30_000);
 
 	it('Should preserve the custom SAPI name', async () => {
-		const php = new NodePHP(await recreateRuntime());
+		const php = new PHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -135,7 +137,7 @@ describe('rotatePHPRuntime()', () => {
 	});
 
 	it('Should preserve the MEMFS files', async () => {
-		const php = new NodePHP(await recreateRuntime());
+		const php = new PHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -159,7 +161,7 @@ describe('rotatePHPRuntime()', () => {
 	}, 30_000);
 
 	it('Should not overwrite the NODEFS files', async () => {
-		const php = new NodePHP(await recreateRuntime());
+		const php = new PHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
 			cwd: '/test-root',
@@ -181,7 +183,7 @@ describe('rotatePHPRuntime()', () => {
 		date.setFullYear(date.getFullYear() - 1);
 		fs.utimesSync(tempFile, date, date);
 		try {
-			php.mount(tempDir, '/test-root/nodefs');
+			php.mount('/test-root/nodefs', new NodeFSMount(tempDir));
 
 			// Rotate the PHP runtime
 			await php.run({ code: `` });

@@ -116,7 +116,7 @@ export function rethrowFileSystemError(messagePrefix = '') {
 					typeof e === 'object' ? ((e as any)?.errno as any) : null;
 				if (errno in FileErrorCodes) {
 					const errmsg = FileErrorCodes[errno];
-					const path = typeof args[0] === 'string' ? args[0] : null;
+					const path = typeof args[1] === 'string' ? args[1] : null;
 					const formattedPrefix =
 						path !== null
 							? messagePrefix.replaceAll('{path}', path)

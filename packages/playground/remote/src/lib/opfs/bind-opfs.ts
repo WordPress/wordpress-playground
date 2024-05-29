@@ -10,9 +10,8 @@
 
 /* eslint-disable prefer-rest-params */
 import { logger } from '@php-wasm/logger';
-import { __private__dont__use } from '@php-wasm/universal';
+import { PHP, __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, joinPaths } from '@php-wasm/util';
-import type { WebPHP } from '@php-wasm/web';
 import { EmscriptenFS } from './types';
 import { journalFSEventsToOpfs } from './journal-memfs-to-opfs';
 
@@ -25,7 +24,7 @@ export type SyncProgress = {
 };
 export type SyncProgressCallback = (progress: SyncProgress) => void;
 export type BindOpfsOptions = {
-	php: WebPHP;
+	php: PHP;
 	opfs: FileSystemDirectoryHandle;
 	wordPressAvailableInOPFS?: boolean;
 	onProgress?: SyncProgressCallback;
@@ -71,7 +70,7 @@ export async function bindOpfs({
 }
 
 export async function copyOpfsToMemfs(
-	php: WebPHP,
+	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string
 ) {
@@ -137,7 +136,7 @@ export async function copyOpfsToMemfs(
 }
 
 export async function copyMemfsToOpfs(
-	php: WebPHP,
+	php: PHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
 	onProgress?: SyncProgressCallback

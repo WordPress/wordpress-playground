@@ -1,18 +1,18 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { LatestSupportedPHPVersion, PHP } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import { NodePHP } from '../lib';
+import { loadNodeRuntime } from '../lib';
 
 /**
  * This is an awkward place to test phpVar() which lives in a
  * different package, but it's convenient because we can use a
- * NodePHP instance here. Unfortunately, using NodePHP in
+ * PHP instance here. Unfortunately, using PHP in
  * @php-wasm/util creates a circular dependency between the
  * two packages.
  */
 describe('phpVar', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(LatestSupportedPHPVersion);
+		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
 	});
 
 	const data = [

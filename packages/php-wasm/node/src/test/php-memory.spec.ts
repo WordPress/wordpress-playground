@@ -1,15 +1,18 @@
-import { NodePHP } from '..';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import {
+	PHP,
+	SupportedPHPVersions,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
+import { loadNodeRuntime } from '../lib';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
 describe.each(phpVersions)('PHP %s – memory allocation', (phpVersion) => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any);
-		php.setPhpIniEntry('allow_url_fopen', '1');
-		php.setPhpIniEntry('memory_limit', '1G');
+		php = new PHP(await loadNodeRuntime(phpVersion as any));
+		await setPhpIniEntries(php, { allow_url_fopen: 1, memory_limit: '1G' });
 	});
 
 	it('can concat large string out of many small strings without reaching Out-of-memory condition', async () => {

@@ -19,14 +19,14 @@ export const dependencyFilename = 'php.wasm';
 export default function (jsEnv, emscriptenModuleArgs) {}
 ```
 
-The generated JavaScript module is not meant for direct use. Instead, it can be consumed through a `NodePHP` class in Node.js and a `WebPHP` class in the browser:
+The generated JavaScript module is not meant for direct use. Instead, it can be consumed through the `PHP` class:
 
 ```js
 // In Node.js:
-const php = NodePHP.load('7.4');
+const php = new PHP(await loadNodeRuntime('8.0'));
 
 // On the web:
-const php = await WebPHP.load('8.0');
+const php = new PHP(await loadWebRuntime('8.0'));
 ```
 
 Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/universal` package and implement the `UniversalPHP` interface that standardizes the API across all PHP environments.

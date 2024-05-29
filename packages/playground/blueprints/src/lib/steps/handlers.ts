@@ -19,6 +19,7 @@ export { unzip } from './unzip';
 export { installPlugin } from './install-plugin';
 export { installTheme } from './install-theme';
 export { login } from './login';
+export { resetData } from './reset-data';
 export { runWpInstallationWizard } from './run-wp-installation-wizard';
 export { setSiteOptions, updateUserMeta } from './site-data';
 export { defineWpConfigConsts } from './define-wp-config-consts';

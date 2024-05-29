@@ -1,38 +1,41 @@
-import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { DOCROOT, wordPressSiteUrl } from './config';
+import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
+	sqliteDatabaseIntegrationModuleDetails,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
-import { PHPRequestHandler } from '@php-wasm/universal';
+
 import {
 	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import {
-	defineSiteUrl,
-	defineWpConfigConsts,
-	unzip,
-} from '@wp-playground/blueprints';
-
 import { randomString } from '@php-wasm/util';
 import {
 	requestedWPVersion,
-	createPhp,
 	startupOptions,
 	monitoredFetch,
 	downloadMonitor,
+	spawnHandlerFactory,
+	createPhpRuntime,
 } from './worker-utils';
 import {
 	FilesystemOperation,
 	journalFSEvents,
 	replayFSJournal,
 } from '@php-wasm/fs-journal';
+/** @ts-ignore */
+import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
+/** @ts-ignore */
+import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
+/** @ts-ignore */
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import { PHPWorker } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
 
@@ -57,6 +60,17 @@ if (
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
 
+// The SQLite integration must always be downloaded, even when using OPFS or Native FS,
+// because it can't be assumed to exist in WordPress document root. Instead, it's installed
+// in the /internal directory to avoid polluting the mounted directory structure.
+downloadMonitor.expectAssets({
+	[sqliteDatabaseIntegrationModuleDetails.url]:
+		sqliteDatabaseIntegrationModuleDetails.size,
+});
+const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
+	fetch(sqliteDatabaseIntegrationModuleDetails.url)
+);
+
 // Start downloading WordPress if needed
 let wordPressRequest = null;
 if (!wordPressAvailableInOPFS) {
@@ -74,7 +88,7 @@ if (!wordPressAvailableInOPFS) {
 }
 
 /** @inheritDoc PHPClient */
-export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
+export class PlaygroundWorkerEndpoint extends PHPWorker {
 	/**
 	 * A string representing the scope of the Playground instance.
 	 */
@@ -86,12 +100,11 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	wordPressVersion: string;
 
 	constructor(
-		requestHandler: PHPRequestHandler<WebPHP>,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string
 	) {
-		super(requestHandler, monitor);
+		super(undefined, monitor);
 		this.scope = scope;
 		this.wordPressVersion = wordPressVersion;
 	}
@@ -153,16 +166,7 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	}
 }
 
-const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-const requestHandler = new PHPRequestHandler({
-	phpFactory: async ({ isPrimary }) =>
-		await createPhp(requestHandler, scopedSiteUrl, isPrimary),
-	documentRoot: DOCROOT,
-	absoluteUrl: scopedSiteUrl,
-	rewriteRules: wordPressRewriteRules,
-}) as PHPRequestHandler<WebPHP>;
 const apiEndpoint = new PlaygroundWorkerEndpoint(
-	requestHandler,
 	downloadMonitor,
 	scope,
 	startupOptions.wpVersion
@@ -170,23 +174,9 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
-	const primaryPhp = await requestHandler.getPrimaryPhp();
-	await apiEndpoint.setPrimaryPHP(primaryPhp);
-
-	// If WordPress isn't already installed, download and extract it from
-	// the zip file.
-	if (!wordPressAvailableInOPFS) {
-		await unzip(primaryPhp, {
-			zipFile: new File(
-				[await (await wordPressRequest!).blob()],
-				'wp.zip'
-			),
-			extractToPath: requestHandler.documentRoot,
-		});
-
-		// Randomize the WordPress secrets
-		await defineWpConfigConsts(primaryPhp, {
-			consts: {
+	const constants: Record<string, any> = wordPressAvailableInOPFS
+		? {}
+		: {
 				WP_DEBUG: true,
 				WP_DEBUG_LOG: true,
 				WP_DEBUG_DISPLAY: false,
@@ -198,22 +188,49 @@ try {
 				SECURE_AUTH_SALT: randomString(40),
 				LOGGED_IN_SALT: randomString(40),
 				NONCE_SALT: randomString(40),
+		  };
+	const wordPressZip = wordPressAvailableInOPFS
+		? undefined
+		: new File([await (await wordPressRequest!).blob()], 'wp.zip');
+
+	const sqliteIntegrationPluginZip = new File(
+		[await (await sqliteIntegrationRequest).blob()],
+		'sqlite.zip'
+	);
+
+	const requestHandler = await bootWordPress({
+		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
+		createPhpRuntime,
+		wordPressZip,
+		sqliteIntegrationPluginZip,
+		spawnHandler: spawnHandlerFactory,
+		sapiName: startupOptions.sapiName,
+		constants,
+		hooks: {
+			async beforeDatabaseSetup(php) {
+				if (virtualOpfsDir) {
+					await bindOpfs({
+						php,
+						opfs: virtualOpfsDir!,
+						wordPressAvailableInOPFS,
+					});
+				}
 			},
-		});
-	}
-
-	if (virtualOpfsDir) {
-		await bindOpfs({
-			php: primaryPhp,
-			opfs: virtualOpfsDir!,
-			wordPressAvailableInOPFS,
-		});
-	}
-
-	// Always setup the current site URL.
-	await defineSiteUrl(primaryPhp, {
-		siteUrl: scopedSiteUrl,
+		},
+		createFiles: {
+			'/internal/shared/mu-plugins': {
+				'1-playground-web.php': playgroundWebMuPlugin,
+				'playground-includes': {
+					'wp_http_dummy.php': transportDummy,
+					'wp_http_fetch.php': transportFetch,
+				},
+			},
+		},
 	});
+	apiEndpoint.__internal_setRequestHandler(requestHandler);
+
+	const primaryPhp = await requestHandler.getPrimaryPhp();
+	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
 	setApiReady();
 } catch (e) {

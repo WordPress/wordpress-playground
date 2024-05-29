@@ -9,7 +9,7 @@ function playground_file_needs_special_treatment( $path ) {
 	return (
 		!! playground_maybe_rewrite( $path ) ||
 		!! playground_maybe_redirect( $path ) ||
-		!! playground_get_custom_response_headers( basename( $path ) ) ||
+		!! playground_get_custom_response_headers( $path ) ||
 		!! playground_maybe_set_environment( $path )
 	);
 }
@@ -128,7 +128,7 @@ function playground_handle_request() {
 	$log( "Setting Content-Type to '$content_type'" );
 	header( "Content-Type: $content_type" );
 
-	$custom_response_headers = playground_get_custom_response_headers( $filename );
+	$custom_response_headers = playground_get_custom_response_headers( $requested_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
 			header( $custom_header );
@@ -299,7 +299,9 @@ function playground_maybe_set_environment( $requested_path ) {
 	return false;
 }
 
-function playground_get_custom_response_headers( $filename ) {
+function playground_get_custom_response_headers( $requested_path ) {
+	$filename = basename( $requested_path );
+
 	if ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
@@ -309,7 +311,10 @@ function playground_get_custom_response_headers( $filename ) {
 			'Content-Encoding: identity',
 			'Access-Control-Allow-Origin: *',
 		);
-	} elseif ( 'index.html' === $filename ) {
+	} elseif (
+		'/' === $requested_path ||
+		'/index.html' === $requested_path
+	) {
 		return array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
 	} elseif (
 		in_array(
@@ -319,7 +324,6 @@ function playground_get_custom_response_headers( $filename ) {
 				'blueprint-schema.json',
 				'logger.php',
 				'oauth.php',
-				'puzzle.php',
 				'wp-cli.phar',
 				'wordpress-importer.zip',
 			),
@@ -344,4 +348,3 @@ function playground_resolve_to_index_file( $real_path ) {
 		return false;
 	}
 }
-
