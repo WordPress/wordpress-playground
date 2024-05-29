@@ -74,6 +74,12 @@ const currentConfiguration: PlaygroundConfiguration = {
 
 const siteSlug = query.get('siteSlug') ?? undefined;
 
+if (siteSlug && storage !== 'browser') {
+	alert(
+		'Site slugs only work with browser storage. The site slug will be ignored.'
+	);
+}
+
 /*
  * The 6.3 release includes a caching bug where
  * registered styles aren't enqueued when they
