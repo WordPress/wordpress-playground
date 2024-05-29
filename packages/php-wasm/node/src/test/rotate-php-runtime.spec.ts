@@ -8,7 +8,7 @@ import {
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
-import { NodeFSMount } from '../lib/node-fs-mount';
+import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
 const recreateRuntime = async (version: any = LatestSupportedPHPVersion) =>
 	await loadNodeRuntime(version);
@@ -183,7 +183,7 @@ describe('rotatePHPRuntime()', () => {
 		date.setFullYear(date.getFullYear() - 1);
 		fs.utimesSync(tempFile, date, date);
 		try {
-			php.mount('/test-root/nodefs', new NodeFSMount(tempDir));
+			php.mount('/test-root/nodefs', createNodeFsMountHandler(tempDir));
 
 			// Rotate the PHP runtime
 			await php.run({ code: `` });

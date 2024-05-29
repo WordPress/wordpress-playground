@@ -7,7 +7,7 @@ export { getPHPLoaderModule } from './get-php-loader-module';
 export { registerServiceWorker } from './register-service-worker';
 
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
-export { DirectoryHandleMount } from './directory-handle-mount';
+export { createDirectoryHandleMountHandler } from './directory-handle-mount';
 export type {
 	MountOptions,
 	SyncProgress,
