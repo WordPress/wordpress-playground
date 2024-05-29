@@ -283,7 +283,7 @@ describe('Query API', () => {
 	describe('Site switching', () => {
 		it('should switch between sites', () => {
 			cy.visit(
-				'/#' +
+				'/?storage=browser#' +
 					JSON.stringify({
 						landingPage: '/',
 						steps: [
@@ -299,7 +299,7 @@ describe('Query API', () => {
 				.should('match', 'test');
 
 			cy.visit(
-				'/?site-slug=new#' +
+				'/?site-slug=new&&storage=browser#' +
 					JSON.stringify({
 						landingPage: '/',
 						steps: [
