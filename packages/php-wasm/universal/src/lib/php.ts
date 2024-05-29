@@ -37,56 +37,12 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
-export interface Mountable {
-	mount(
-		php: PHP,
-		FS: Emscripten.RootFS,
-		vfsMountPoint: string
-	): void | Promise<void>;
-}
-
-interface MountableState {
-	php: PHP;
-	FS: Emscripten.RootFS;
-	vfsMountPoint: string;
-}
-
-export abstract class AbstractMountable implements Mountable {
-	protected isMounted = false;
-	protected state: MountableState | undefined;
-
-	async mount(
-		php: PHP,
-		FS: Emscripten.RootFS,
-		vfsMountPoint: string
-	): Promise<void> {
-		this.state = { php, FS, vfsMountPoint };
-		this.isMounted = true;
-		try {
-			await this.handleMount();
-		} catch (e) {
-			// Set the state optimistically and reset it only if the
-			// mounting fails. This is to ensure a second mount() won't
-			// interfere asynchronously.
-			this.isMounted = false;
-			delete this.state;
-			throw e;
-		}
-	}
-
-	protected abstract handleMount(): void | Promise<void>;
-
-	async unmount() {
-		if (this.isMounted) {
-			throw new Error('Not mounted yet');
-		}
-		await this.handleUnmount();
-		delete this.state;
-		this.isMounted = false;
-	}
-
-	protected abstract handleUnmount(): void | Promise<void>;
-}
+export type UnmountFunction = (() => Promise<any>) | (() => any);
+export type MountHandler = (
+	php: PHP,
+	FS: Emscripten.RootFS,
+	vfsMountPoint: string
+) => UnmountFunction | Promise<UnmountFunction>;
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
@@ -1020,11 +976,15 @@ export class PHP implements Disposable {
 	/**
 	 * Mounts a filesystem to a given path in the PHP filesystem.
 	 *
-	 * @param  mountable - The filesystem to mount.
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
+	 * @param  mountHandler - The mount handler to use.
+	 * @return Unmount function to unmount the filesystem.
 	 */
-	async mount(virtualFSPath: string, mountable: Mountable) {
-		await mountable.mount(
+	async mount(
+		virtualFSPath: string,
+		mountHandler: MountHandler
+	): Promise<UnmountFunction> {
+		return await mountHandler(
 			this,
 			this[__private__dont__use].FS,
 			virtualFSPath

@@ -1,7 +1,7 @@
 import {
-	AbstractMountable,
 	Emscripten,
 	FSHelpers,
+	MountHandler,
 	PHP,
 	__private__dont__use,
 } from '@php-wasm/universal';
@@ -46,60 +46,36 @@ export type SyncProgress = {
 };
 export type SyncProgressCallback = (progress: SyncProgress) => void;
 
-const OPFSMounts = new WeakMap<PHP, Record<string, DirectoryHandleMount>>();
+export function createDirectoryHandleMountHandler(
+	handle: FileSystemDirectoryHandle,
+	options: MountOptions = { initialSync: {} }
+): MountHandler {
+	options = {
+		...options,
+		initialSync: {
+			...options.initialSync,
+			direction: options.initialSync.direction ?? 'opfs-to-memfs',
+		},
+	};
 
-export class DirectoryHandleMount extends AbstractMountable {
-	private options: MountOptions;
-	private php: PHP | undefined;
-	private unbindJournal: () => any = () => {};
-	constructor(
-		private readonly handle: FileSystemDirectoryHandle,
-		options: MountOptions = { initialSync: {} }
-	) {
-		super();
-		this.options = {
-			...options,
-			initialSync: {
-				...options.initialSync,
-				direction: options.initialSync.direction ?? 'opfs-to-memfs',
-			},
-		};
-	}
-
-	protected async handleMount() {
-		const { php, FS, vfsMountPoint } = this.state!;
-		if (!OPFSMounts.has(php)) {
-			OPFSMounts.set(php, {});
-		}
-		const existingMounts = OPFSMounts.get(php)!;
-		existingMounts[vfsMountPoint] = this;
-
-		if (this.options.initialSync.direction === 'opfs-to-memfs') {
+	return async function (php, FS, vfsMountPoint) {
+		if (options.initialSync.direction === 'opfs-to-memfs') {
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
-			await copyOpfsToMemfs(FS, this.handle, vfsMountPoint);
+			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
 		} else {
 			await copyMemfsToOpfs(
 				FS,
-				this.handle,
+				handle,
 				vfsMountPoint,
-				this.options.initialSync.onProgress
+				options.initialSync.onProgress
 			);
 		}
-		this.unbindJournal = journalFSEventsToOpfs(
-			php,
-			this.handle,
-			vfsMountPoint
-		);
-	}
-
-	protected handleUnmount() {
-		this.unbindJournal();
-		const existingMounts = OPFSMounts.get(this.php!)!;
-		delete existingMounts[this.state!.vfsMountPoint!];
-	}
+		const unbindJournal = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+		return unbindJournal;
+	};
 }
 
 async function copyOpfsToMemfs(

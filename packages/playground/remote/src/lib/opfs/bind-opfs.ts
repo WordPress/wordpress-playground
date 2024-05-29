@@ -9,10 +9,10 @@
  */
 
 /* eslint-disable prefer-rest-params */
-import { PHP } from '@php-wasm/universal';
-import { DirectoryHandleMount } from '@php-wasm/web';
+import { PHP, UnmountFunction } from '@php-wasm/universal';
+import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 
-let mount: DirectoryHandleMount | undefined;
+let unmount: UnmountFunction | undefined;
 export type SyncProgress = {
 	/** The number of files that have been synced. */
 	files: number;
@@ -32,15 +32,15 @@ export async function bindOpfs({
 	wordPressAvailableInOPFS,
 	onProgress,
 }: BindOpfsOptions) {
-	if (mount) {
-		mount.unmount();
+	if (unmount) {
+		unmount();
 	}
 
 	if (wordPressAvailableInOPFS === undefined) {
 		wordPressAvailableInOPFS = await playgroundAvailableInOpfs(opfs);
 	}
 
-	mount = new DirectoryHandleMount(opfs, {
+	const mountHandler = createDirectoryHandleMountHandler(opfs, {
 		initialSync: {
 			direction: wordPressAvailableInOPFS
 				? 'opfs-to-memfs'
@@ -48,7 +48,7 @@ export async function bindOpfs({
 			onProgress,
 		},
 	});
-	await php.mount(php.documentRoot, mount);
+	unmount = await php.mount(php.documentRoot, mountHandler);
 }
 
 export async function playgroundAvailableInOpfs(
