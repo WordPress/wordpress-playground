@@ -155,19 +155,3 @@ export interface PHPOutput {
 	/** Stderr lines */
 	stderr: string[];
 }
-
-export interface RmDirOptions {
-	/**
-	 * If true, recursively removes the directory and all its contents.
-	 * Default: true.
-	 */
-	recursive?: boolean;
-}
-
-export interface ListFilesOptions {
-	/**
-	 * If true, prepend given folder path to all file names.
-	 * Default: false.
-	 */
-	prependPath: boolean;
-}
