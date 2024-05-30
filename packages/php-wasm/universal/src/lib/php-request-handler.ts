@@ -320,9 +320,25 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 
 		let fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
 
-		// We can only satisfy requests for directories with a default file
-		// so let's first resolve to a default path when available.
 		if (primaryPhp.isDir(fsPath)) {
+			// Ensure directory URIs have a trailing slash. Otherwise,
+			// relative URIs in index.php or index.html files are relative
+			// to the next directory up.
+			//
+			// Example:
+			// For a request to "/wp-admin", the relative link "edit.php"
+			// resolves to "/edit.php" rather than "/wp-admin/edit.php".
+			//
+			// This is correct behavior for the browser:
+			// https://www.rfc-editor.org/rfc/rfc3986#section-5.2.3
+			//
+			// But the intent for `/wp-admin/index.php` is that its relative
+			// URIs are relative to `/wp-admin/`.
+			//
+			// In fact, WordPress also redirects like this when given a chance.
+			// - https://github.com/WordPress/wordpress-develop/blob/b6a3b9c7d1ce33cbeca6f95871a26c48141e524b/src/wp-includes/canonical.php#L696
+			// - https://github.com/WordPress/wordpress-develop/blob/b6a3b9c7d1ce33cbeca6f95871a26c48141e524b/src/wp-includes/canonical.php#L1036-L1045
+			// - https://github.com/WordPress/wordpress-develop/blob/b6a3b9c7d1ce33cbeca6f95871a26c48141e524b/src/wp-includes/link-template.php#L3558
 			if (!fsPath.endsWith('/')) {
 				return new PHPResponse(
 					301,
@@ -331,6 +347,8 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 				);
 			}
 
+			// We can only satisfy requests for directories with a default file
+			// so let's first resolve to a default path when available.
 			const defaultFilePath = ['index.php', 'index.html']
 				.map((defaultFilename) => joinPaths(fsPath, defaultFilename))
 				.find((possibleDefaultPath) =>
