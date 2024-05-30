@@ -923,24 +923,14 @@ export class PHP implements Disposable {
 		return FSHelpers.isDir(this[__private__dont__use].FS, path);
 	}
 
-	/** @inheritDoc */
-	isFile(path: string): boolean {
-		if (!this.fileExists(path)) {
-			return false;
-		}
-		return this[__private__dont__use].FS.isFile(
-			this[__private__dont__use].FS.lookupPath(path).node.mode
-		);
-	}
-
-	/** @inheritDoc */
-	fileExists(path: string): boolean {
-		try {
-			this[__private__dont__use].FS.lookupPath(path);
-			return true;
-		} catch (e) {
-			return false;
-		}
+	/**
+	 * Checks if a file (or a directory) exists in the PHP filesystem.
+	 *
+	 * @param  path - The file path to check.
+	 * @returns True if the file exists, false otherwise.
+	 */
+	fileExists(path: string) {
+		return FSHelpers.fileExists(this[__private__dont__use].FS, path);
 	}
 
 	/**

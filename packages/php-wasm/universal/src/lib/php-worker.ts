@@ -218,11 +218,6 @@ export class PHPWorker implements LimitedPHPApi {
 		return _private.get(this)!.php!.isDir(path);
 	}
 
-	/** @inheritDoc @php-wasm/universal!/PHP.isFile */
-	isFile(path: string): boolean {
-		return _private.get(this)!.php!.isFile(path);
-	}
-
 	/** @inheritDoc @php-wasm/universal!/PHP.fileExists */
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php!.fileExists(path);

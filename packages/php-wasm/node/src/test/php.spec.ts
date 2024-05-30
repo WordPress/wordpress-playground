@@ -934,16 +934,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(php.isDir(testFilePath)).toEqual(false);
 		});
 
-		it('isFile() should correctly distinguish between a file and a directory', () => {
-			php.writeFile(testFilePath, 'Hello World!');
-			expect(php.fileExists(testFilePath)).toEqual(true);
-			expect(php.isFile(testFilePath)).toEqual(true);
-
-			php.mkdir(testDirPath);
-			expect(php.fileExists(testDirPath)).toEqual(true);
-			expect(php.isFile(testDirPath)).toEqual(false);
-		});
-
 		it('listFiles() should return a list of files in a directory', () => {
 			php.mkdir(testDirPath);
 			php.writeFile(testDirPath + '/test.txt', 'Hello World!');
