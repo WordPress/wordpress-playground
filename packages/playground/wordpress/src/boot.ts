@@ -179,6 +179,15 @@ export async function bootWordPress(options: BootOptions) {
 
 	if (options.wordPressZip) {
 		await unzipWordPress(php, await options.wordPressZip);
+
+		const remoteAssetListPath = `${requestHandler.documentRoot}/wordpress-remote-asset-paths`;
+		if (php.fileExists(remoteAssetListPath)) {
+			const remoteAssetPaths = php
+				.readFileAsText(remoteAssetListPath)
+				.split('\n');
+			requestHandler.addRemoteAssetPaths(remoteAssetPaths);
+			php.unlink(remoteAssetListPath);
+		}
 	}
 
 	if (options.constants) {

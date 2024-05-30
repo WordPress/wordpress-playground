@@ -39,6 +39,27 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
+		it('should execute a non-default PHP file in a directory', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile(
+				'/folder/some.php',
+				`<?php echo 'Some PHP file in a folder.';`
+			);
+			const response = await handler.request({
+				url: '/folder/some.php',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Some PHP file in a folder.'),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
 		it('should serve a static file', async () => {
 			php.writeFile('/index.html', `Hello World`);
 			const response = await handler.request({
@@ -102,7 +123,8 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
-		it('should yield x-file-type=static when a static file is not found', async () => {
+		it('should yield x-file-type=static when a static file is not found and is listed as a remote asset', async () => {
+			handler.addRemoteAssetPaths(['index.html']);
 			const response = await handler.request({
 				url: '/index.html',
 			});
@@ -111,6 +133,19 @@ describe.each(SupportedPHPVersions)(
 				headers: {
 					'x-file-type': ['static'],
 				},
+				bytes: expect.any(Uint8Array),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
+		it('should not yield x-file-type=static when a static file is not found and is not listed as a remote asset', async () => {
+			const response = await handler.request({
+				url: '/index.html',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 404,
+				headers: {},
 				bytes: expect.any(Uint8Array),
 				errors: '',
 				exitCode: 0,
@@ -128,6 +163,77 @@ describe.each(SupportedPHPVersions)(
 				errors: '',
 				exitCode: 0,
 			});
+		});
+
+		it('should redirect to add trailing slash to existing dir', async () => {
+			php.mkdirTree('/folder');
+			const response = await handler.request({
+				url: '/folder',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 301,
+				headers: {
+					Location: ['/folder/'],
+				},
+				bytes: expect.any(Uint8Array),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
+		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile('/folder/index.php', `<?php echo $_GET['key'];`);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('value');
+		});
+
+		it('should default a folder request to index.html if it exists and index.php does not', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile('/folder/index.html', `INDEX DOT HTML`);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('INDEX DOT HTML');
+		});
+
+		it('should default a folder request to index.php when when both index.php and index.html exist', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile('/folder/index.php', `INDEX DOT PHP`);
+			php.writeFile('/folder/index.html', `INDEX DOT HTML`);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('INDEX DOT PHP');
+		});
+
+		it('should delegate request for non-existent PHP file to /index.php with query args', async () => {
+			php.writeFile(
+				'/index.php',
+				`<?php echo "DEFAULT with key={$_GET['key']}";`
+			);
+			const response = await handler.request({
+				url: '/non/existent/file.php?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('DEFAULT with key=value');
+		});
+
+		it('should delegate request for non-existent non-PHP file to /index.php with query args', async () => {
+			php.writeFile(
+				'/index.php',
+				`<?php echo "DEFAULT with key={$_GET['key']}";`
+			);
+			const response = await handler.request({
+				url: '/non/existent/file?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('DEFAULT with key=value');
 		});
 
 		it('should return httpStatus 500 if exit code is not 0', async () => {
@@ -297,16 +403,6 @@ describe.each(SupportedPHPVersions)(
 			php.writeFile('/index.php', `<?php echo $_GET['key'];`);
 			const response = await handler.request({
 				url: '/category/uncategorized/?key=value',
-			});
-			expect(response.httpStatusCode).toEqual(200);
-			expect(response.text).toEqual('value');
-		});
-
-		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
-			php.mkdirTree('/folder');
-			php.writeFile('/folder/index.php', `<?php echo $_GET['key'];`);
-			const response = await handler.request({
-				url: '/folder/?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toEqual('value');
