@@ -1,51 +1,29 @@
-/// <reference types="emscripten" />
 import { PHPResponse } from './php-response';
-import {
-	getEmscriptenFsError,
-	rethrowFileSystemError,
-} from './rethrow-file-system-error';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import {
-	IsomorphicLocalPHP,
 	MessageListener,
 	PHPRequest,
 	PHPRequestHeaders,
 	PHPRunOptions,
-	RmDirOptions,
-	ListFilesOptions,
 	SpawnHandler,
 	PHPEventListener,
 	PHPEvent,
 } from './universal-php';
+import { RmDirOptions, ListFilesOptions, FSHelpers } from './fs-helpers';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import {
-	Semaphore,
-	createSpawnHandler,
-	dirname,
-	joinPaths,
-} from '@php-wasm/util';
+import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 import { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
+import { isExitCodeZero } from './is-exit-code-zero';
+import { Emscripten } from './emscripten-types';
 
 const STRING = 'string';
 const NUMBER = 'number';
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-namespace Emscripten {
-	type NamespaceToInstance<T> = {
-		[K in keyof T]: T[K] extends (...args: any[]) => any ? T[K] : never;
-	};
-
-	export type FileSystemInstance = NamespaceToInstance<typeof FS> & {
-		mkdirTree(path: string): void;
-		lookupPath(path: string, opts?: any): FS.Lookup;
-	};
-}
 
 export const __private__dont__use = Symbol('__private__dont__use');
 
@@ -59,6 +37,13 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
+export type UnmountFunction = (() => Promise<any>) | (() => any);
+export type MountHandler = (
+	php: PHP,
+	FS: Emscripten.RootFS,
+	vfsMountPoint: string
+) => UnmountFunction | Promise<UnmountFunction>;
+
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
 
@@ -70,14 +55,14 @@ const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
+export class PHP implements Disposable {
 	protected [__private__dont__use]: any;
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPRequestHandler<any>;
+	requestHandler?: PHPRequestHandler;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -99,6 +84,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		}
 	}
 
+	/**
+	 * Adds an event listener for a PHP event.
+	 * @param eventType - The type of event to listen for.
+	 * @param listener - The listener function to be called when the event is triggered.
+	 */
 	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
 		if (!this.#eventListeners.has(eventType)) {
 			this.#eventListeners.set(eventType, new Set());
@@ -106,6 +96,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		this.#eventListeners.get(eventType)!.add(listener);
 	}
 
+	/**
+	 * Removes an event listener for a PHP event.
+	 * @param eventType - The type of event to remove the listener from.
+	 * @param listener - The listener function to be removed.
+	 */
 	removeEventListener(
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
@@ -124,12 +119,49 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		}
 	}
 
-	/** @inheritDoc */
-	async onMessage(listener: MessageListener) {
+	/**
+	 * Listens to message sent by the PHP code.
+	 *
+	 * To dispatch messages, call:
+	 *
+	 *     post_message_to_js(string $data)
+	 *
+	 *     Arguments:
+	 *         $data (string) – Data to pass to JavaScript.
+	 *
+	 * @example
+	 *
+	 * ```ts
+	 * const php = await PHP.load('8.0');
+	 *
+	 * php.onMessage(
+	 *     // The data is always passed as a string
+	 *     function (data: string) {
+	 *         // Let's decode and log the data:
+	 *         console.log(JSON.parse(data));
+	 *     }
+	 * );
+	 *
+	 * // Now that we have a listener in place, let's
+	 * // dispatch a message:
+	 * await php.run({
+	 *     code: `<?php
+	 *         post_message_to_js(
+	 *             json_encode([
+	 *                 'post_id' => '15',
+	 *                 'post_title' => 'This is a blog post!'
+	 *             ])
+	 *         ));
+	 *     `,
+	 * });
+	 * ```
+	 *
+	 * @param listener Callback function to handle the message.
+	 */
+	onMessage(listener: MessageListener) {
 		this.#messageListeners.push(listener);
 	}
 
-	/** @inheritDoc */
 	async setSpawnHandler(handler: SpawnHandler | string) {
 		if (typeof handler === 'string') {
 			// This workaround is needed because the
@@ -146,22 +178,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		this[__private__dont__use].spawnProcess = handler;
 	}
 
-	/** @inheritDoc */
+	/** @deprecated Use PHPRequestHandler instead. */
 	get absoluteUrl() {
 		return this.requestHandler!.absoluteUrl;
 	}
 
-	/** @inheritDoc */
+	/** @deprecated Use PHPRequestHandler instead. */
 	get documentRoot() {
 		return this.requestHandler!.documentRoot;
 	}
 
-	/** @inheritDoc */
+	/** @deprecated Use PHPRequestHandler instead. */
 	pathToInternalUrl(path: string): string {
 		return this.requestHandler!.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc */
+	/** @deprecated Use PHPRequestHandler instead. */
 	internalUrlToPath(internalUrl: string): string {
 		return this.requestHandler!.internalUrlToPath(internalUrl);
 	}
@@ -266,7 +298,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		this.#sapiName = newName;
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Changes the current working directory in the PHP filesystem.
+	 * This is the directory that will be used as the base for relative paths.
+	 * For example, if the current working directory is `/root/php`, and the
+	 * path is `data`, the absolute path will be `/root/php/data`.
+	 *
+	 * @param  path - The new working directory.
+	 */
 	chdir(path: string) {
 		this[__private__dont__use].FS.chdir(path);
 	}
@@ -285,7 +324,75 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		return this.requestHandler.request(request);
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Runs PHP code.
+	 *
+	 * This low-level method directly interacts with the WebAssembly
+	 * PHP interpreter.
+	 *
+	 * Every time you call run(), it prepares the PHP
+	 * environment and:
+	 *
+	 * * Resets the internal PHP state
+	 * * Populates superglobals ($_SERVER, $_GET, etc.)
+	 * * Handles file uploads
+	 * * Populates input streams (stdin, argv, etc.)
+	 * * Sets the current working directory
+	 *
+	 * You can use run() in two primary modes:
+	 *
+	 * ### Code snippet mode
+	 *
+	 * In this mode, you pass a string containing PHP code to run.
+	 *
+	 * ```ts
+	 * const result = await php.run({
+	 * 	code: `<?php echo "Hello world!";`
+	 * });
+	 * // result.text === "Hello world!"
+	 * ```
+	 *
+	 * In this mode, information like __DIR__ or __FILE__ isn't very
+	 * useful because the code is not associated with any file.
+	 *
+	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
+	 * C function.
+	 *
+	 * ### File mode
+	 *
+	 * In the file mode, you pass a scriptPath and PHP executes a file
+	 * found at a that path:
+	 *
+	 * ```ts
+	 * php.writeFile(
+	 * 	"/www/index.php",
+	 * 	`<?php echo "Hello world!";"`
+	 * );
+	 * const result = await php.run({
+	 * 	scriptPath: "/www/index.php"
+	 * });
+	 * // result.text === "Hello world!"
+	 * ```
+	 *
+	 * In this mode, you can rely on path-related information like __DIR__
+	 * or __FILE__.
+	 *
+	 * Under the hood, the PHP file is executed with the `php_execute_script`
+	 * C function.
+	 *
+	 * The `run()` method cannot be used in conjunction with `cli()`.
+	 *
+	 * @example
+	 * ```js
+	 * const result = await php.run(`<?php
+	 *  $fp = fopen('php://stderr', 'w');
+	 *  fwrite($fp, "Hello, world!");
+	 * `);
+	 * // result.errors === "Hello, world!"
+	 * ```
+	 *
+	 * @param  options - PHP runtime options.
+	 */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		/*
 		 * Prevent multiple requests from running at the same time.
@@ -603,6 +710,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		);
 	}
 
+	/**
+	 * Defines a constant in the PHP runtime.
+	 * @param key - The name of the constant.
+	 * @param value - The value of the constant.
+	 */
 	defineConstant(key: string, value: string | boolean | number | null) {
 		let consts = {};
 		try {
@@ -701,133 +813,117 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not create directory "{path}"')
+	/**
+	 * Recursively creates a directory with the given path in the PHP filesystem.
+	 * For example, if the path is `/root/php/data`, and `/root` already exists,
+	 * it will create the directories `/root/php` and `/root/php/data`.
+	 *
+	 * @param  path - The directory path to create.
+	 */
 	mkdir(path: string) {
-		this[__private__dont__use].FS.mkdirTree(path);
+		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not create directory "{path}"')
+	/**
+	 * @deprecated Use mkdir instead.
+	 */
 	mkdirTree(path: string) {
-		this.mkdir(path);
+		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not read "{path}"')
+	/**
+	 * Reads a file from the PHP filesystem and returns it as a string.
+	 *
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to read.
+	 * @returns The file contents.
+	 */
 	readFileAsText(path: string) {
-		return new TextDecoder().decode(this.readFileAsBuffer(path));
+		return FSHelpers.readFileAsText(this[__private__dont__use].FS, path);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not read "{path}"')
+	/**
+	 * Reads a file from the PHP filesystem and returns it as an array buffer.
+	 *
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to read.
+	 * @returns The file contents.
+	 */
 	readFileAsBuffer(path: string): Uint8Array {
-		return this[__private__dont__use].FS.readFile(path);
+		return FSHelpers.readFileAsBuffer(this[__private__dont__use].FS, path);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not write to "{path}"')
+	/**
+	 * Overwrites data in a file in the PHP filesystem.
+	 * Creates a new file if one doesn't exist yet.
+	 *
+	 * @param  path - The file path to write to.
+	 * @param  data - The data to write to the file.
+	 */
 	writeFile(path: string, data: string | Uint8Array) {
-		this[__private__dont__use].FS.writeFile(path, data);
+		return FSHelpers.writeFile(this[__private__dont__use].FS, path, data);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not unlink "{path}"')
+	/**
+	 * Removes a file from the PHP filesystem.
+	 *
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to remove.
+	 */
 	unlink(path: string) {
-		this[__private__dont__use].FS.unlink(path);
+		return FSHelpers.unlink(this[__private__dont__use].FS, path);
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Moves a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param oldPath The path to rename.
+	 * @param newPath The new path.
+	 */
 	mv(fromPath: string, toPath: string) {
-		const FS = this[__private__dont__use]
-			.FS as Emscripten.FileSystemInstance;
-
-		try {
-			// FS.rename moves the inode within the same filesystem.
-			// If fromPath and toPath are on different filesystems,
-			// the operation will fail. In that case, we need to do
-			// a recursive copy of all the files and remove the original.
-			// Note this is also what happens in the linux `mv` command.
-			const fromMount = FS.lookupPath(fromPath).node.mount;
-			const toMount = this.fileExists(toPath)
-				? FS.lookupPath(toPath).node.mount
-				: FS.lookupPath(dirname(toPath)).node.mount;
-			const movingBetweenFilesystems =
-				fromMount.mountpoint !== toMount.mountpoint;
-
-			if (movingBetweenFilesystems) {
-				copyRecursive(FS, fromPath, toPath);
-				this.rmdir(fromPath, { recursive: true });
-			} else {
-				FS.rename(fromPath, toPath);
-			}
-		} catch (e) {
-			const errmsg = getEmscriptenFsError(e);
-			if (!errmsg) {
-				throw e;
-			}
-			throw new Error(
-				`Could not move ${fromPath} to ${toPath}: ${errmsg}`,
-				{
-					cause: e,
-				}
-			);
-		}
+		return FSHelpers.mv(this[__private__dont__use].FS, fromPath, toPath);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not remove directory "{path}"')
+	/**
+	 * Removes a directory from the PHP filesystem.
+	 *
+	 * @param path The directory path to remove.
+	 * @param options Options for the removal.
+	 */
 	rmdir(path: string, options: RmDirOptions = { recursive: true }) {
-		if (options?.recursive) {
-			this.listFiles(path).forEach((file) => {
-				const filePath = `${path}/${file}`;
-				if (this.isDir(filePath)) {
-					this.rmdir(filePath, options);
-				} else {
-					this.unlink(filePath);
-				}
-			});
-		}
-		this[__private__dont__use].FS.rmdir(path);
+		return FSHelpers.rmdir(this[__private__dont__use].FS, path, options);
 	}
 
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not list files in "{path}"')
+	/**
+	 * Lists the files and directories in the given directory.
+	 *
+	 * @param  path - The directory path to list.
+	 * @param  options - Options for the listing.
+	 * @returns The list of files and directories in the given directory.
+	 */
 	listFiles(
 		path: string,
 		options: ListFilesOptions = { prependPath: false }
-	): string[] {
-		if (!this.fileExists(path)) {
-			return [];
-		}
-		try {
-			const files = this[__private__dont__use].FS.readdir(path).filter(
-				(name: string) => name !== '.' && name !== '..'
-			);
-			if (options.prependPath) {
-				const prepend = path.replace(/\/$/, '');
-				return files.map((name: string) => `${prepend}/${name}`);
-			}
-			return files;
-		} catch (e) {
-			logger.error(e, { path });
-			return [];
-		}
-	}
-
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not stat "{path}"')
-	isDir(path: string): boolean {
-		if (!this.fileExists(path)) {
-			return false;
-		}
-		return this[__private__dont__use].FS.isDir(
-			this[__private__dont__use].FS.lookupPath(path).node.mode
+	) {
+		return FSHelpers.listFiles(
+			this[__private__dont__use].FS,
+			path,
+			options
 		);
 	}
 
+	/**
+	 * Checks if a directory exists in the PHP filesystem.
+	 *
+	 * @param  path – The path to check.
+	 * @returns True if the path is a directory, false otherwise.
+	 */
+	isDir(path: string) {
+		return FSHelpers.isDir(this[__private__dont__use].FS, path);
+	}
+
 	/** @inheritDoc */
-	@rethrowFileSystemError('Could not stat "{path}"')
 	isFile(path: string): boolean {
 		if (!this.fileExists(path)) {
 			return false;
@@ -838,7 +934,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	}
 
 	/** @inheritDoc */
-	@rethrowFileSystemError('Could not stat "{path}"')
 	fileExists(path: string): boolean {
 		try {
 			this[__private__dont__use].FS.lookupPath(path);
@@ -888,6 +983,73 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		}
 	}
 
+	/**
+	 * Mounts a filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
+	 * @param  mountHandler - The mount handler to use.
+	 * @return Unmount function to unmount the filesystem.
+	 */
+	async mount(
+		virtualFSPath: string,
+		mountHandler: MountHandler
+	): Promise<UnmountFunction> {
+		return await mountHandler(
+			this,
+			this[__private__dont__use].FS,
+			virtualFSPath
+		);
+	}
+
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * This method can only be used when PHP was compiled with the CLI SAPI
+	 * and it cannot be used in conjunction with `run()`.
+	 *
+	 * Once this method finishes running, the PHP instance is no
+	 * longer usable and should be discarded. This is because PHP
+	 * internally cleans up all the resources and calls exit().
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	async cli(argv: string[]): Promise<number> {
+		for (const arg of argv) {
+			this[__private__dont__use].ccall(
+				'wasm_add_cli_arg',
+				null,
+				[STRING],
+				[arg]
+			);
+		}
+		try {
+			return await this[__private__dont__use].ccall(
+				'run_cli',
+				null,
+				[],
+				[],
+				{
+					async: true,
+				}
+			);
+		} catch (error) {
+			if (isExitCodeZero(error)) {
+				return 0;
+			}
+			throw error;
+		}
+	}
+
+	setSkipShebang(shouldSkip: boolean) {
+		this[__private__dont__use].ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUMBER],
+			[shouldSkip ? 1 : 0]
+		);
+	}
+
 	exit(code = 0) {
 		this.dispatchEvent({
 			type: 'runtime.beforedestroy',
@@ -924,23 +1086,11 @@ export function normalizeHeaders(
 	return normalized;
 }
 
-export function syncFSTo(
-	source: BasePHP,
-	target: BasePHP,
-	path: string | null = null
-) {
-	copyFS(
-		source[__private__dont__use].FS,
-		target[__private__dont__use].FS,
-		path ?? source.documentRoot
-	);
-}
-
 /**
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-export function copyFS(
+function copyFS(
 	source: Emscripten.FileSystemInstance,
 	target: Emscripten.FileSystemInstance,
 	path: string
@@ -983,28 +1133,5 @@ export function copyFS(
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
 		copyFS(source, target, joinPaths(path, filename));
-	}
-}
-
-function copyRecursive(
-	FS: Emscripten.FileSystemInstance,
-	fromPath: string,
-	toPath: string
-) {
-	const fromNode = FS.lookupPath(fromPath).node;
-	if (FS.isDir(fromNode.mode)) {
-		FS.mkdirTree(toPath);
-		const filenames = FS.readdir(fromPath).filter(
-			(name: string) => name !== '.' && name !== '..'
-		);
-		for (const filename of filenames) {
-			copyRecursive(
-				FS,
-				joinPaths(fromPath, filename),
-				joinPaths(toPath, filename)
-			);
-		}
-	} else {
-		FS.writeFile(toPath, FS.readFile(fromPath));
 	}
 }

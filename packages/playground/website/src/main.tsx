@@ -133,6 +133,9 @@ function Main() {
 				query.get('ghexport-pr-action')
 			);
 		}
+		if (query.get('ghexport-pr-number')) {
+			values.prNumber = query.get('ghexport-pr-number')?.toString();
+		}
 		if (query.get('ghexport-playground-root')) {
 			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
 		}
@@ -269,6 +272,17 @@ function Main() {
 									>
 										Documentation
 									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to the Playground git repository"
+										href={
+											'https://github.com/WordPress/wordpress-playground' as any
+										}
+										target="_blank"
+									>
+										GitHub
+									</MenuItem>
 								</MenuGroup>
 							</>
 						)}
@@ -335,4 +349,3 @@ function resolveVersion<T>(
 	}
 	return version as T;
 }
-

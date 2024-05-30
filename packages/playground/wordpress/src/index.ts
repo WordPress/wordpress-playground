@@ -1,4 +1,4 @@
-import { BasePHP, UniversalPHP } from '@php-wasm/universal';
+import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 export { bootWordPress } from './boot';
@@ -164,6 +164,8 @@ export async function preloadSqliteIntegration(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
 		SQLITE_PLUGIN_FOLDER
 	);
+	// Prevents the SQLite integration from trying to call activate_plugin()
+	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
 		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
 	);
@@ -288,7 +290,7 @@ if(!function_exists('mysqli_connect')) {
  * accept the limitation, and switch to the PHP implementation as soon
  * as that's viable.
  */
-export async function unzipWordPress(php: BasePHP, wpZip: File) {
+export async function unzipWordPress(php: PHP, wpZip: File) {
 	php.mkdir('/tmp/unzipped-wordpress');
 	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
 

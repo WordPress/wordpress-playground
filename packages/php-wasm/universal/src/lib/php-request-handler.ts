@@ -5,11 +5,7 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import {
-	BasePHP,
-	PHPExecutionFailureError,
-	normalizeHeaders,
-} from './base-php';
+import { PHP, PHPExecutionFailureError, normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
@@ -44,39 +40,37 @@ interface BaseConfiguration {
 	rewriteRules?: RewriteRule[];
 }
 
-export type PHPRequestHandlerFactoryArgs<PHP extends BasePHP> =
-	PHPFactoryOptions & {
-		requestHandler: PHPRequestHandler<PHP>;
-	};
+export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
+	requestHandler: PHPRequestHandler;
+};
 
-export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
-	BaseConfiguration &
-		(
-			| {
-					/**
-					 * PHPProcessManager is required because the request handler needs
-					 * to make a decision for each request.
-					 *
-					 * Static assets are served using the primary PHP's filesystem, even
-					 * when serving 100 static files concurrently. No new PHP interpreter
-					 * is ever created as there's no need for it.
-					 *
-					 * Dynamic PHP requests, however, require grabbing an available PHP
-					 * interpreter, and that's where the PHPProcessManager comes in.
-					 */
-					processManager: PHPProcessManager<PHP>;
-			  }
-			| {
-					phpFactory: (
-						requestHandler: PHPRequestHandlerFactoryArgs<PHP>
-					) => Promise<PHP>;
-					/**
-					 * The maximum number of PHP instances that can exist at
-					 * the same time.
-					 */
-					maxPhpInstances?: number;
-			  }
-		);
+export type PHPRequestHandlerConfiguration = BaseConfiguration &
+	(
+		| {
+				/**
+				 * PHPProcessManager is required because the request handler needs
+				 * to make a decision for each request.
+				 *
+				 * Static assets are served using the primary PHP's filesystem, even
+				 * when serving 100 static files concurrently. No new PHP interpreter
+				 * is ever created as there's no need for it.
+				 *
+				 * Dynamic PHP requests, however, require grabbing an available PHP
+				 * interpreter, and that's where the PHPProcessManager comes in.
+				 */
+				processManager: PHPProcessManager;
+		  }
+		| {
+				phpFactory: (
+					requestHandler: PHPRequestHandlerFactoryArgs
+				) => Promise<PHP>;
+				/**
+				 * The maximum number of PHP instances that can exist at
+				 * the same time.
+				 */
+				maxPhpInstances?: number;
+		  }
+	);
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -132,7 +126,7 @@ export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
  * // "Hi from PHP!"
  * ```
  */
-export class PHPRequestHandler<PHP extends BasePHP> {
+export class PHPRequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -143,7 +137,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	#cookieStore: HttpCookieStore;
 	#remoteAssetPaths: Set<string>;
 	rewriteRules: RewriteRule[];
-	processManager: PHPProcessManager<PHP>;
+	processManager: PHPProcessManager;
 
 	/**
 	 * The request handler needs to decide whether to serve a static asset or
@@ -156,7 +150,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	 * @param  php    - The PHP instance.
 	 * @param  config - Request Handler configuration.
 	 */
-	constructor(config: PHPRequestHandlerConfiguration<PHP>) {
+	constructor(config: PHPRequestHandlerConfiguration) {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
@@ -405,7 +399,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	 * @param  fsPath - Absolute path of the static file to serve.
 	 * @returns The response.
 	 */
-	#serveStaticFile(php: BasePHP, fsPath: string): PHPResponse {
+	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
 		const arrayBuffer = php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
@@ -429,7 +423,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		let spawnedPHP: SpawnedPHP<PHP> | undefined = undefined;
+		let spawnedPHP: SpawnedPHP | undefined = undefined;
 		try {
 			spawnedPHP = await this.processManager!.acquirePHPInstance();
 		} catch (e) {
@@ -458,7 +452,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(
-		php: BasePHP,
+		php: PHP,
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
@@ -529,7 +523,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	 * @throws {Error} If the requested path doesn't exist.
 	 * @returns The resolved filesystem path.
 	 */
-	#resolvePHPFilePath(php: BasePHP, requestedPath: string): string {
+	#resolvePHPFilePath(php: PHP, requestedPath: string): string {
 		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
 		filePath = applyRewriteRules(filePath, this.rewriteRules);
 

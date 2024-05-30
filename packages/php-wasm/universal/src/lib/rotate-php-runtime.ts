@@ -1,7 +1,7 @@
-import { BasePHP } from './base-php';
+import { PHP } from './php';
 
-export interface RotateOptions<T extends BasePHP> {
-	php: T;
+export interface RotateOptions {
+	php: PHP;
 	cwd: string;
 	recreateRuntime: () => Promise<number> | number;
 	maxRequests: number;
@@ -23,7 +23,7 @@ export interface RotateOptions<T extends BasePHP> {
  *
  * @return cleanup function to restore
  */
-export function rotatePHPRuntime<T extends BasePHP>({
+export function rotatePHPRuntime({
 	php,
 	cwd,
 	recreateRuntime,
@@ -36,7 +36,7 @@ export function rotatePHPRuntime<T extends BasePHP>({
 	 * * Resetting HEAP to its initial value.
 	 */
 	maxRequests = 400,
-}: RotateOptions<T>) {
+}: RotateOptions) {
 	let handledCalls = 0;
 	async function rotateRuntime() {
 		if (++handledCalls < maxRequests) {

@@ -1,13 +1,17 @@
-import { NodePHP } from '..';
-import { SupportedPHPVersions, setPhpIniEntries } from '@php-wasm/universal';
+import {
+	PHP,
+	SupportedPHPVersions,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
+import { loadNodeRuntime } from '../lib';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
 describe.each(phpVersions)('PHP %s – memory allocation', (phpVersion) => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any);
+		php = new PHP(await loadNodeRuntime(phpVersion as any));
 		await setPhpIniEntries(php, { allow_url_fopen: 1, memory_limit: '1G' });
 	});
 

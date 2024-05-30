@@ -1,13 +1,16 @@
-import { getPHPLoaderModule, NodePHP } from '..';
+import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import { vi } from 'vitest';
 import {
 	__private__dont__use,
+	getPhpIniEntries,
 	loadPHPRuntime,
+	PHP,
 	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -69,9 +72,9 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any);
+		php = new PHP(await loadNodeRuntime(phpVersion as any));
 		php.mkdir('/php');
 		await setPhpIniEntries(php, { disable_functions: '' });
 	});
@@ -134,6 +137,64 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(result.text).toEqual('stdout: WordPress\n');
+		});
+	});
+
+	/**
+	 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
+	 */
+	describe('dns_* function warnings', () => {
+		it('dns_check_record should throw a warning', async () => {
+			const result = await php.run({
+				code: `<?php
+				dns_check_record('w.org', 2);
+			`,
+			});
+			expect(result.text).toContain(
+				'dns_check_record() always returns false in PHP.wasm.'
+			);
+		});
+	});
+
+	describe('dns_* functions()', () => {
+		beforeEach(async () => {
+			await setPhpIniEntries(php, {
+				...getPhpIniEntries(php),
+				// Disable warnings to test the function output
+				error_reporting: 'E_ALL & ~E_WARNING',
+			});
+		});
+		it('dns_check_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_check_record('w.org', 2));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('dns_get_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_record('w.org'));
+			`,
+			});
+			expect(result.text).toEqual('array(0) {\n}\n');
+		});
+		it('dns_get_mx should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_mx('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('getmxrr should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(getmxrr('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
 		});
 	});
 
@@ -828,7 +889,12 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				'contents'
 			);
 			php.mkdir('/nodefs');
-			php.mount(__dirname + '/test-data/mount-contents', '/nodefs');
+			php.mount(
+				'/nodefs',
+				createNodeFsMountHandler(
+					__dirname + '/test-data/mount-contents'
+				)
+			);
 			php.mv('/nodefs/a', '/tmp/a');
 			expect(
 				existsSync(__dirname + '/test-data/mount-contents/a')

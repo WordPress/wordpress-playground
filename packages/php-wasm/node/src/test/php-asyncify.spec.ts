@@ -1,11 +1,15 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { NodePHP } from '..';
-import { SupportedPHPVersions, setPhpIniEntries } from '@php-wasm/universal';
+import {
+	PHP,
+	SupportedPHPVersions,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import InitialDockerfile from '../../../compile/php/Dockerfile?raw';
+import { loadNodeRuntime } from '../lib';
 
 // Start a server to test network functions
 const server = http.createServer((req, res) => {
@@ -53,9 +57,9 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 		// Sockets functions from https://www.php.net/manual/en/book.sockets.php
 	];
 
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any);
+		php = new PHP(await loadNodeRuntime(phpVersion as any));
 		await setPhpIniEntries(php, { allow_url_fopen: 1 });
 	});
 
