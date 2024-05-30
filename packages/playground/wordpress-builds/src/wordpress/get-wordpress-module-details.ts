@@ -33,7 +33,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: nu
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 4983118,
+				size: 4878655,
 				url: url_beta,
 			};
 			
