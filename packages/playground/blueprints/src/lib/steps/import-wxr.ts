@@ -42,7 +42,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	await playground.run({
 		code: `<?php
 		require ${phpVar(docroot)} . '/wp-load.php';
-		require ${phpVar(docroot)} . '/wp-admin/admin.php';
+		require ${phpVar(docroot)} . '/wp-admin/includes/admin.php';
   
 		kses_remove_filters();
 		$admin_id = get_users(array('role' => 'Administrator') )[0];
