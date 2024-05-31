@@ -53,7 +53,9 @@ if (
 ) {
 	virtualOpfsRoot = await navigator.storage.getDirectory();
 	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle(
-		startupOptions.siteSlug,
+		startupOptions.siteSlug === 'wordpress'
+			? startupOptions.siteSlug
+			: 'site-' + startupOptions.siteSlug,
 		{
 			create: true,
 		}

@@ -42,7 +42,7 @@ if (typeof url !== 'undefined') {
 	// Default to CLI to support the WP-CLI Blueprint step
 	receivedParams.sapiName = params.get('sapiName') || 'cli';
 	receivedParams.phpExtensions = params.getAll('php-extension');
-	receivedParams.siteSlug = params.get('siteSlug') || undefined;
+	receivedParams.siteSlug = params.get('site-slug') || undefined;
 }
 
 export const requestedWPVersion = receivedParams.wpVersion || '';

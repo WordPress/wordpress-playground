@@ -72,7 +72,7 @@ const currentConfiguration: PlaygroundConfiguration = {
 	resetSite: false,
 };
 
-const siteSlug = query.get('siteSlug') ?? undefined;
+const siteSlug = query.get('site-slug') ?? undefined;
 
 if (siteSlug && storage !== 'browser') {
 	alert(

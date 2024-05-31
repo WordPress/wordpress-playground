@@ -288,31 +288,42 @@ describe('Query API', () => {
 						landingPage: '/',
 						steps: [
 							{
-								step: 'runPhp',
-								code: `<?php  require_once 'wordpress/wp-load.php'; set_option('blogname', 'test' );`,
+								step: 'runPHP',
+								code: `<?php require_once 'wordpress/wp-load.php'; update_option('blogname', 'site-slug-test-1' );`,
 							},
 						],
 					})
 			);
 			cy.wordPressDocument()
-				.find('.wp-block-site-title > a')
-				.should('match', 'test');
+				.its('body')
+				.should('contain', 'site-slug-test-1');
 
 			cy.visit(
-				'/?site-slug=new&&storage=browser#' +
+				'/?site-slug=new&storage=browser#' +
 					JSON.stringify({
 						landingPage: '/',
 						steps: [
 							{
-								step: 'runPhp',
-								code: `<?php  require_once 'wordpress/wp-load.php'; set_option('blogname', 'new' );`,
+								step: 'runPHP',
+								code: `<?php  require_once 'wordpress/wp-load.php'; update_option('blogname', 'site-slug-test-2' );`,
 							},
 						],
 					})
 			);
+
 			cy.wordPressDocument()
-				.find('.wp-block-site-title > a')
-				.should('match', 'new');
+				.its('body')
+				.should('contain', 'site-slug-test-2');
+
+			cy.visit(
+				'/?storage=browser#' +
+					JSON.stringify({
+						landingPage: '/',
+					})
+			);
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', 'site-slug-test-1');
 		});
 	});
 });
