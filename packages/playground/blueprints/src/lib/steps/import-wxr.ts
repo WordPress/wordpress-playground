@@ -46,7 +46,8 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 			require ${phpVar(docroot)} . '/wp-admin/includes/image.php';
 		}
 		kses_remove_filters();
-		$admin_id = get_users(array('role' => 'Administrator') )[0];
+		$admin_id = get_users(array('role' => 'Administrator') )[0]->ID;
+        wp_set_current_user( $admin_id );
 		$importer = new WXR_Importer( array(
 			'fetch_attachments' => true,
 			'default_author' => $admin_id
