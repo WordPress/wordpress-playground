@@ -27,7 +27,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
-import type { SyncProgressCallback } from './opfs/bind-opfs';
+import type { BindOpfsOptions } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -189,11 +189,8 @@ export async function bootPlaygroundRemote() {
 		 * @param callback
 		 * @returns
 		 */
-		async bindOpfs(
-			opfs: FileSystemDirectoryHandle,
-			onProgress?: SyncProgressCallback
-		) {
-			return await workerApi.bindOpfs(opfs, onProgress);
+		async bindOpfs(options: BindOpfsOptions) {
+			return await workerApi.bindOpfs(options);
 		},
 	};
 

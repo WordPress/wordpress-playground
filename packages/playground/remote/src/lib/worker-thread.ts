@@ -10,7 +10,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 
 import {
-	SyncProgressCallback,
+	BindOpfsOptions,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
@@ -144,18 +144,14 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async reloadFilesFromOpfs() {
-		await this.bindOpfs(lastOpfsDir!);
+		await this.bindOpfs({ opfs: lastOpfsDir! });
 	}
 
-	async bindOpfs(
-		opfs: FileSystemDirectoryHandle,
-		onProgress?: SyncProgressCallback
-	) {
-		lastOpfsDir = opfs;
+	async bindOpfs(options: Omit<BindOpfsOptions, 'php'>) {
+		lastOpfsDir = options.opfs;
 		await bindOpfs({
 			php: this.__internal_getPHP()!,
-			opfs,
-			onProgress,
+			...options,
 		});
 	}
 
@@ -217,7 +213,9 @@ try {
 					await bindOpfs({
 						php,
 						opfs: virtualOpfsDir!,
-						wordPressAvailableInOPFS,
+						initialSyncDirection: wordPressAvailableInOPFS
+							? 'opfs-to-memfs'
+							: 'memfs-to-opfs',
 					});
 				}
 			},

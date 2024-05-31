@@ -162,8 +162,11 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
-			await playground.bindOpfs(dirHandle, (progress) => {
-				setMountProgress(progress);
+			await playground.bindOpfs({
+				opfs: dirHandle,
+				onProgress: (progress) => {
+					setMountProgress(progress);
+				},
 			});
 
 			setCurrentConfiguration({

@@ -10,7 +10,7 @@
 
 /* eslint-disable prefer-rest-params */
 import { PHP, UnmountFunction } from '@php-wasm/universal';
-import { createDirectoryHandleMountHandler } from '@php-wasm/web';
+import { MountOptions, createDirectoryHandleMountHandler } from '@php-wasm/web';
 
 let unmount: UnmountFunction | undefined;
 export type SyncProgress = {
@@ -23,32 +23,31 @@ export type SyncProgressCallback = (progress: SyncProgress) => void;
 export type BindOpfsOptions = {
 	php: PHP;
 	opfs: FileSystemDirectoryHandle;
-	wordPressAvailableInOPFS?: boolean;
+	initialSyncDirection?: MountOptions['initialSync']['direction'];
 	onProgress?: SyncProgressCallback;
+	mountpoint?: string;
 };
 export async function bindOpfs({
 	php,
 	opfs,
-	wordPressAvailableInOPFS,
+	initialSyncDirection,
+	mountpoint,
 	onProgress,
 }: BindOpfsOptions) {
+	mountpoint = mountpoint || php.documentRoot;
+	initialSyncDirection = initialSyncDirection || 'opfs-to-memfs';
+
 	if (unmount) {
 		unmount();
 	}
 
-	if (wordPressAvailableInOPFS === undefined) {
-		wordPressAvailableInOPFS = await playgroundAvailableInOpfs(opfs);
-	}
-
 	const mountHandler = createDirectoryHandleMountHandler(opfs, {
 		initialSync: {
-			direction: wordPressAvailableInOPFS
-				? 'opfs-to-memfs'
-				: 'memfs-to-opfs',
+			direction: initialSyncDirection ? 'opfs-to-memfs' : 'memfs-to-opfs',
 			onProgress,
 		},
 	});
-	unmount = await php.mount(php.documentRoot, mountHandler);
+	unmount = await php.mount(mountpoint, mountHandler);
 }
 
 export async function playgroundAvailableInOpfs(

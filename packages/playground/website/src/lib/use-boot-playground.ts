@@ -6,6 +6,7 @@ import { logger } from '@php-wasm/logger';
 import { PlaygroundDispatch, setActiveModal } from './redux-store';
 import { useDispatch } from 'react-redux';
 import { directoryHandle } from './markdown-directory-handle';
+import { joinPaths } from '@php-wasm/util';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -64,7 +65,15 @@ export function useBootPlayground({
 				} catch {
 					return;
 				}
-				await playgroundTmp!.bindOpfs(newDirectoryHandle);
+				await playgroundTmp!.bindOpfs({
+					opfs: newDirectoryHandle,
+					mountpoint: joinPaths(
+						await playgroundTmp!.documentRoot,
+						'wp-content',
+						'markdown'
+					),
+					initialSyncDirection: 'opfs-to-memfs',
+				});
 			},
 		})
 			.catch((error) => {
