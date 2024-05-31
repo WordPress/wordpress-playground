@@ -58,7 +58,7 @@ export const startupOptions = {
 	sapiName: receivedParams.sapiName || 'cli',
 	storage: receivedParams.storage || 'local',
 	phpExtensions: receivedParams.phpExtensions || [],
-	siteSlug: receivedParams.siteSlug || 'wordpress',
+	siteSlug: receivedParams.siteSlug,
 } as ParsedStartupOptions;
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();
