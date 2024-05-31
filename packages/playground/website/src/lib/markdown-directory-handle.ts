@@ -1,15 +1,12 @@
 export let directoryHandleDone = false;
 
-export let directoryHandleReject: () => void = () => {};
-
 export let directoryHandleResolve: (
-	value: FileSystemDirectoryHandle | PromiseLike<FileSystemDirectoryHandle>
+	value: FileSystemDirectoryHandle | null
 ) => void = () => {};
 
-export const directoryHandle = new Promise<FileSystemDirectoryHandle>(
+export const directoryHandle = new Promise<FileSystemDirectoryHandle | null>(
 	(_directoryHandleResolve, _directoryHandleReject) => {
 		directoryHandleResolve = _directoryHandleResolve;
-		directoryHandleReject = _directoryHandleReject;
 	}
 ).finally(() => {
 	directoryHandleDone = true;

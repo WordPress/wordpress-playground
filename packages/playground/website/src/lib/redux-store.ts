@@ -1,6 +1,6 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
-	directoryHandleReject,
+	directoryHandleResolve,
 	directoryHandleDone,
 } from './markdown-directory-handle';
 
@@ -26,6 +26,10 @@ const initialState: AppState = {
 			: null,
 };
 
+if (initialState.activeModal !== 'mount-markdown-directory') {
+	directoryHandleResolve(null);
+}
+
 // Create the slice
 const slice = createSlice({
 	name: 'app',
@@ -37,8 +41,7 @@ const slice = createSlice({
 				// state.activeModal === 'mount-markdown-directory' &&
 				action.payload !== 'mount-markdown-directory'
 			) {
-				console.log('Rejecting directory handle');
-				directoryHandleReject();
+				directoryHandleResolve(null);
 			}
 			state.activeModal = action.payload;
 		},

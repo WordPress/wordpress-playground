@@ -59,10 +59,8 @@ export function useBootPlayground({
 			},
 			async onBeforeBlueprint() {
 				// @TODO this never resolves if there are no modals
-				let newDirectoryHandle: FileSystemDirectoryHandle;
-				try {
-					newDirectoryHandle = await directoryHandle;
-				} catch {
+				const newDirectoryHandle = await directoryHandle;
+				if (!newDirectoryHandle) {
 					return;
 				}
 				await playgroundTmp!.bindOpfs({
