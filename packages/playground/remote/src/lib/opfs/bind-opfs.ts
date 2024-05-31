@@ -43,7 +43,7 @@ export async function bindOpfs({
 
 	const mountHandler = createDirectoryHandleMountHandler(opfs, {
 		initialSync: {
-			direction: initialSyncDirection ? 'opfs-to-memfs' : 'memfs-to-opfs',
+			direction: initialSyncDirection,
 			onProgress,
 		},
 	});

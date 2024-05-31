@@ -11,6 +11,7 @@ import {
 
 import {
 	BindOpfsOptions,
+	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
@@ -147,10 +148,14 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		await this.bindOpfs({ opfs: lastOpfsDir! });
 	}
 
-	async bindOpfs(options: Omit<BindOpfsOptions, 'php'>) {
+	async bindOpfs(
+		options: Omit<BindOpfsOptions, 'php' | 'onProgress'>,
+		onProgress?: SyncProgressCallback
+	) {
 		lastOpfsDir = options.opfs;
 		await bindOpfs({
 			php: this.__internal_getPHP()!,
+			onProgress,
 			...options,
 		});
 	}

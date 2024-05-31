@@ -162,12 +162,17 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
-			await playground.bindOpfs({
-				opfs: dirHandle,
-				// onProgress: (progress) => {
-				// setMountProgress(progress);
-				// },
-			});
+			await playground.bindOpfs(
+				{
+					opfs: dirHandle,
+					initialSyncDirection: isPlaygroundDir
+						? 'opfs-to-memfs'
+						: 'memfs-to-opfs',
+				},
+				(progress) => {
+					setMountProgress(progress);
+				}
+			);
 
 			setCurrentConfiguration({
 				...currentConfiguration,
