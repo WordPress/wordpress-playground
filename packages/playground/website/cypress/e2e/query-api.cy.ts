@@ -295,7 +295,7 @@ describe('Query API', () => {
 					})
 			);
 			cy.wordPressDocument()
-				.its('.wp-block-site-title > a')
+				.find('.wp-block-site-title > a')
 				.should('match', 'test');
 
 			cy.visit(
@@ -311,7 +311,7 @@ describe('Query API', () => {
 					})
 			);
 			cy.wordPressDocument()
-				.its('.wp-block-site-title > a')
+				.find('.wp-block-site-title > a')
 				.should('match', 'new');
 		});
 	});
