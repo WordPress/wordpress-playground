@@ -10,11 +10,6 @@ export type EmscriptenFSNode = {
 };
 
 declare global {
-	interface FileSystemDirectoryHandle {
-		values: () => AsyncIterable<
-			FileSystemDirectoryHandle | FileSystemFileHandle
-		>;
-	}
 	interface FileSystemFileHandle {
 		move(target: FileSystemDirectoryHandle): Promise<void>;
 		move(name: string): Promise<void>;

@@ -13,15 +13,13 @@ import {
 	saveDirectoryHandle,
 } from './idb-opfs';
 import { OPFSButton } from './opfs-button';
-import { usePlaygroundContext } from '../playground-viewport/context';
 import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
+import { usePlaygroundContext } from '../../playground-context';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
 }
-
-const canUseLocalDirectory = !!(window as any).showDirectoryPicker;
 
 let idb: IDBDatabase | null,
 	lastDirectoryHandle: FileSystemDirectoryHandle | null;
@@ -300,7 +298,7 @@ export default function PlaygroundConfigurationGroup({
 					isMountingLocalDirectory={mounting}
 					mountProgress={mountProgress}
 					onSelectLocalDirectory={
-						canUseLocalDirectory
+						(window as any).showDirectoryPicker
 							? isSameOriginAsPlayground
 								? handleSelectLocalDirectory
 								: 'origin-mismatch'

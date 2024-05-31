@@ -1,7 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
 import { menu, external } from '@wordpress/icons';
-import PlaygroundViewport, {
+import {
+	PlaygroundViewport,
 	DisplayMode,
 	supportedDisplayModes,
 } from './components/playground-viewport';
@@ -41,6 +42,8 @@ import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 import { LogModal } from './components/log-modal';
 import { StartErrorModal } from './components/start-error-modal';
+import { MountMarkdownDirectoryModal } from './components/mount-markdown-directory-modal';
+import { useBootPlayground } from './lib/use-boot-playground';
 
 collectWindowErrors(logger);
 
@@ -107,13 +110,25 @@ function Modals({ activeModal }: { activeModal: ActiveModal }) {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal.current === 'start-error') {
 		return <StartErrorModal />;
+	} else if (currentModal.current === 'mount-markdown-directory') {
+		return <MountMarkdownDirectoryModal />;
 	}
 
 	return null;
 }
 
 function Main() {
-	const [activeModal, setActiveModal] = useState<ActiveModal>(false);
+	const [activeModal, setActiveModal] = useState<ActiveModal>(
+		// @TODO discuss names & triggers
+		query.get('modal') === 'mount-markdown-directory'
+			? 'mount-markdown-directory'
+			: false
+	);
+
+	const { playground, url, iframeRef } = useBootPlayground({
+		blueprint,
+		storage,
+	});
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
@@ -172,13 +187,53 @@ function Main() {
 				storage,
 				activeModal,
 				setActiveModal,
+				playground,
+				currentUrl: url,
 			}}
 		>
 			<Modals activeModal={activeModal} />
+
+			{query.get('gh-ensure-auth') === 'yes' ? (
+				<GitHubOAuthGuardModal />
+			) : (
+				''
+			)}
+			<GithubImportModal
+				onImported={({
+					url,
+					path,
+					files,
+					pluginOrThemeName,
+					contentType,
+					urlInformation: { owner, repo, type, pr },
+				}) => {
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pr?.toString(),
+						toPathInRepo: path,
+						prAction: pr ? 'update' : 'create',
+						contentType,
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
+					});
+					setGithubExportFiles(files);
+				}}
+			/>
+			<GithubExportModal
+				allowZipExport={
+					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+				}
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
+			/>
 			<PlaygroundViewport
+				ref={iframeRef}
 				storage={storage}
 				displayMode={displayMode}
-				blueprint={blueprint}
 				toolbarButtons={[
 					<PlaygroundConfigurationGroup
 						key="configuration"
@@ -288,46 +343,7 @@ function Main() {
 						)}
 					</DropdownMenu>,
 				]}
-			>
-				{query.get('gh-ensure-auth') === 'yes' ? (
-					<GitHubOAuthGuardModal />
-				) : (
-					''
-				)}
-				<GithubImportModal
-					onImported={({
-						url,
-						path,
-						files,
-						pluginOrThemeName,
-						contentType,
-						urlInformation: { owner, repo, type, pr },
-					}) => {
-						setGithubExportValues({
-							repoUrl: url,
-							prNumber: pr?.toString(),
-							toPathInRepo: path,
-							prAction: pr ? 'update' : 'create',
-							contentType,
-							plugin: pluginOrThemeName,
-							theme: pluginOrThemeName,
-						});
-						setGithubExportFiles(files);
-					}}
-				/>
-				<GithubExportModal
-					allowZipExport={
-						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
-						'yes'
-					}
-					initialValues={githubExportValues}
-					initialFilesBeforeChanges={githubExportFiles}
-					onExported={(prUrl, formValues) => {
-						setGithubExportValues(formValues);
-						setGithubExportFiles(undefined);
-					}}
-				/>
-			</PlaygroundViewport>
+			/>
 		</PlaygroundContext.Provider>
 	);
 }

@@ -9,7 +9,7 @@ interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
 	storage?: 'browser' | 'device' | 'none';
 }
-export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
+export function useBootPlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef(false);
