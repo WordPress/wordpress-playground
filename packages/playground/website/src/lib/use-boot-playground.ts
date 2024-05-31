@@ -2,21 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getRemoteUrl } from './config';
-import { usePlaygroundContext } from '../playground-context';
 import { logger } from '@php-wasm/logger';
+import { PlaygroundDispatch, setActiveModal } from './redux-store';
+import { useDispatch } from 'react-redux';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
 	storage?: 'browser' | 'device' | 'none';
 }
-export function useBootPlayground({ blueprint, storage }: UsePlaygroundOptions) {
+export function useBootPlayground({
+	blueprint,
+	storage,
+}: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef(false);
 	const [url, setUrl] = useState<string>();
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
-	const { setActiveModal } = usePlaygroundContext();
+	const dispatch: PlaygroundDispatch = useDispatch();
 
 	useEffect(() => {
 		if (started.current) {
@@ -48,10 +52,11 @@ export function useBootPlayground({ blueprint, storage }: UsePlaygroundOptions) 
 				playgroundTmp = playground;
 				(window as any)['playground'] = playground;
 			},
+			async onBeforeBlueprint() {},
 		})
 			.catch((error) => {
 				logger.error(error);
-				setActiveModal('start-error');
+				dispatch(setActiveModal('start-error'));
 			})
 			.finally(async () => {
 				if (playgroundTmp) {

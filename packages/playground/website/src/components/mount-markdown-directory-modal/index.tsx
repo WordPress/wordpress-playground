@@ -1,15 +1,28 @@
 // <reference types="@types/wicg-file-system-access" />
 import css from './style.module.css';
 import Modal from '../modal';
-import { usePlaygroundContext } from '../../playground-context';
 import { Button } from '@wordpress/components';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
+import { useDispatch } from 'react-redux';
+import {
+	PlaygroundDispatch,
+	setDirectoryHandle,
+	clearActiveModal,
+} from '../../lib/redux-store';
 
 export const localStorageKey = 'playground-start-error-dont-show-again';
 
 export function MountMarkdownDirectoryModal() {
-	const { setActiveModal, playground } = usePlaygroundContext();
+	const dispatch: PlaygroundDispatch = useDispatch();
+
+	const handleDirectorySelection = (
+		newDirectoryHandle: FileSystemDirectoryHandle
+	) => {
+		dispatch(setDirectoryHandle(newDirectoryHandle));
+	};
+
+	// const { playground } = usePlaygroundContext();
 
 	function handleCloseWhenIDontWantALocalDirectory() {
 		// Push state without ?modal=mount-markdown-directory
@@ -20,21 +33,22 @@ export function MountMarkdownDirectoryModal() {
 		handleClose();
 	}
 
-	function handleClose() {
-		setActiveModal(false);
-	}
-
 	async function loadMarkdownDirectory(e: React.MouseEvent) {
 		e.preventDefault();
 
 		const dirHandle = await showDirectoryPicker();
+		handleDirectorySelection(dirHandle);
 
 		// await playground.bindOpfs(dirHandle, (progress) => {
 		// 	setMountProgress(progress);
 		// });
 		console.log(dirHandle);
 
-		// handleClose();
+		handleClose();
+	}
+
+	function handleClose() {
+		dispatch(clearActiveModal());
 	}
 
 	return (

@@ -25,13 +25,13 @@ import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-neede
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	ExportFormValues,
 	asPullRequestAction,
 } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
-import { ActiveModal, PlaygroundContext } from './playground-context';
+import { PlaygroundContext } from './playground-context';
 import {
 	addCrashListener,
 	collectWindowErrors,
@@ -44,6 +44,12 @@ import { LogModal } from './components/log-modal';
 import { StartErrorModal } from './components/start-error-modal';
 import { MountMarkdownDirectoryModal } from './components/mount-markdown-directory-modal';
 import { useBootPlayground } from './lib/use-boot-playground';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import store, {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from './lib/redux-store';
 
 collectWindowErrors(logger);
 
@@ -96,21 +102,18 @@ if (currentConfiguration.wp === '6.3') {
 
 acquireOAuthTokenIfNeeded();
 
-function Modals({ activeModal }: { activeModal: ActiveModal }) {
-	// Use a ref to store the current modal to avoid re-rendering from resetting the modal state.
-	const currentModal = useRef<ActiveModal>(false);
+function Modals() {
+	const currentModal = useSelector(
+		(state: PlaygroundReduxState) => state.activeModal
+	);
 
-	if (currentModal.current === false || activeModal === false) {
-		currentModal.current = activeModal;
-	}
-
-	if (currentModal.current === 'log') {
+	if (currentModal === 'log') {
 		return <LogModal />;
-	} else if (currentModal.current === 'error-report') {
+	} else if (currentModal === 'error-report') {
 		return <ErrorReportModal blueprint={blueprint} />;
-	} else if (currentModal.current === 'start-error') {
+	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
-	} else if (currentModal.current === 'mount-markdown-directory') {
+	} else if (currentModal === 'mount-markdown-directory') {
 		return <MountMarkdownDirectoryModal />;
 	}
 
@@ -118,12 +121,7 @@ function Modals({ activeModal }: { activeModal: ActiveModal }) {
 }
 
 function Main() {
-	const [activeModal, setActiveModal] = useState<ActiveModal>(
-		// @TODO discuss names & triggers
-		query.get('modal') === 'mount-markdown-directory'
-			? 'mount-markdown-directory'
-			: false
-	);
+	const dispatch: PlaygroundDispatch = useDispatch();
 
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
@@ -176,7 +174,7 @@ function Main() {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
-				setActiveModal('error-report');
+				dispatch(setActiveModal('error-report'));
 			}
 		});
 	}, []);
@@ -185,13 +183,11 @@ function Main() {
 		<PlaygroundContext.Provider
 			value={{
 				storage,
-				activeModal,
-				setActiveModal,
 				playground,
 				currentUrl: url,
 			}}
 		>
-			<Modals activeModal={activeModal} />
+			<Modals />
 
 			{query.get('gh-ensure-auth') === 'yes' ? (
 				<GitHubOAuthGuardModal />
@@ -349,7 +345,11 @@ function Main() {
 }
 
 const root = createRoot(document.getElementById('root')!);
-root.render(<Main />);
+root.render(
+	<Provider store={store}>
+		<Main />
+	</Provider>
+);
 
 function resolveVersion<T>(
 	version: string | undefined,
