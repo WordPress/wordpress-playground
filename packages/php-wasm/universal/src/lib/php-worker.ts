@@ -3,14 +3,13 @@ import { PHP } from './php';
 import { PHPRequestHandler } from './php-request-handler';
 import { PHPResponse } from './php-response';
 import {
-	RmDirOptions,
 	PHPRequest,
 	PHPRunOptions,
-	ListFilesOptions,
 	MessageListener,
 	PHPEvent,
 	PHPEventListener,
 } from './universal-php';
+import { RmDirOptions, ListFilesOptions } from './fs-helpers';
 
 const _private = new WeakMap<
 	PHPWorker,

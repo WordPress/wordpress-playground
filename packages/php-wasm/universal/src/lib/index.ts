@@ -3,8 +3,6 @@ export type {
 	PHPOutput,
 	PHPRunOptions,
 	UniversalPHP,
-	ListFilesOptions,
-	RmDirOptions,
 	PHPEvent,
 	PHPEventListener,
 	HTTPMethod,
@@ -12,6 +10,8 @@ export type {
 	PHPRequestHeaders,
 	SpawnHandler,
 } from './universal-php';
+export { FSHelpers } from './fs-helpers';
+export type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 export { PHPWorker } from './php-worker';
 export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
 
@@ -47,7 +47,7 @@ export type {
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
 export { PHP, __private__dont__use } from './php';
-export type { Mountable } from './php';
+export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type * from './emscripten-types';
 export type {
@@ -58,7 +58,6 @@ export type {
 	PHPRuntimeId,
 	RuntimeType,
 } from './load-php-runtime';
-export { rethrowFileSystemError } from './rethrow-file-system-error';
 
 export type {
 	PHPRequestHandlerConfiguration,

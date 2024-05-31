@@ -49,6 +49,7 @@ export interface BootOptions {
 	 * and WP_SITEURL constants in WordPress.
 	 */
 	siteUrl: string;
+	documentRoot?: string;
 	/** SQL file to load instead of installing WordPress. */
 	dataSqlPath?: string;
 	/** Zip with the WordPress installation to extract in /wordpress. */
@@ -165,7 +166,7 @@ export async function bootWordPress(options: BootOptions) {
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
 		phpFactory: async ({ isPrimary }) =>
 			createPhp(requestHandler, isPrimary),
-		documentRoot: '/wordpress',
+		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
 	});

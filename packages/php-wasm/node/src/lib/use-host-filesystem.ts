@@ -1,6 +1,6 @@
 import { PHP } from '@php-wasm/universal';
 import { lstatSync, readdirSync } from 'node:fs';
-import { NodeFSMount } from './node-fs-mount';
+import { createNodeFsMountHandler } from './node-fs-mount';
 
 /**
  * Enables host filesystem usage by mounting root
@@ -21,7 +21,7 @@ export function useHostFilesystem(php: PHP) {
 		if (!php.fileExists(dir)) {
 			php.mkdirTree(dir);
 		}
-		php.mount(dir, new NodeFSMount(dir));
+		php.mount(dir, createNodeFsMountHandler(dir));
 	}
 	php.chdir(process.cwd());
 }

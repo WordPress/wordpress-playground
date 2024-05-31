@@ -50,6 +50,8 @@ import store, {
 	PlaygroundReduxState,
 	setActiveModal,
 } from './lib/redux-store';
+import { logTrackingEvent } from './lib/tracking';
+import { StepDefinition } from '@wp-playground/client';
 
 collectWindowErrors(logger);
 
@@ -80,6 +82,14 @@ const currentConfiguration: PlaygroundConfiguration = {
 	withNetworking: blueprint.features?.networking || false,
 	resetSite: false,
 };
+
+const siteSlug = query.get('site-slug') ?? undefined;
+
+if (siteSlug && storage !== 'browser') {
+	alert(
+		'Site slugs only work with browser storage. The site slug will be ignored.'
+	);
+}
 
 /*
  * The 6.3 release includes a caching bug where
@@ -126,6 +136,7 @@ function Main() {
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
 		storage,
+		siteSlug,
 	});
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
@@ -178,6 +189,20 @@ function Main() {
 			}
 		});
 	}, []);
+
+	// Add GA events for blueprint steps. For more information, see the README.md file.
+	useEffect(() => {
+		logTrackingEvent('load');
+		// Log the names of provided Blueprint's steps.
+		// Only the names (e.g. "runPhp" or "login") are logged. Step options like code, password,
+		// URLs are never sent anywhere.
+		const steps = (blueprint?.steps || [])
+			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
+			.map((step) => (step as StepDefinition).step);
+		for (const step of steps) {
+			logTrackingEvent('step', { step });
+		}
+	}, [blueprint?.steps]);
 
 	return (
 		<PlaygroundContext.Provider

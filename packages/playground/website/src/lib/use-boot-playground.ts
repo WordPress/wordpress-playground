@@ -10,10 +10,12 @@ import { directoryHandle } from './markdown-directory-handle';
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
 	storage?: 'browser' | 'device' | 'none';
+	siteSlug?: string;
 }
 export function useBootPlayground({
 	blueprint,
 	storage,
+	siteSlug,
 }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
@@ -47,6 +49,7 @@ export function useBootPlayground({
 			iframe,
 			remoteUrl: remoteUrl.toString(),
 			blueprint,
+			siteSlug,
 			// Intercept the Playground client even if the
 			// Blueprint fails.
 			onClientConnected: (playground) => {

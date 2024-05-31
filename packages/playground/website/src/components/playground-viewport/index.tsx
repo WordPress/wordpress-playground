@@ -16,6 +16,7 @@ interface PlaygroundViewportProps {
 	displayMode?: DisplayMode;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;
+	siteSlug?: string;
 }
 
 export const PlaygroundViewport = React.forwardRef<

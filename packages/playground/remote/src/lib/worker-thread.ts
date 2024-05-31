@@ -52,9 +52,14 @@ if (
 	typeof navigator?.storage?.getDirectory !== 'undefined'
 ) {
 	virtualOpfsRoot = await navigator.storage.getDirectory();
-	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle('wordpress', {
-		create: true,
-	});
+	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle(
+		startupOptions.siteSlug === 'wordpress'
+			? startupOptions.siteSlug
+			: 'site-' + startupOptions.siteSlug,
+		{
+			create: true,
+		}
+	);
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	lastOpfsDir = virtualOpfsDir;
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
