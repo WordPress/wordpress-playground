@@ -21,6 +21,7 @@ interface PlaygroundViewportProps {
 	blueprint?: Blueprint;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;
+	siteSlug?: string;
 }
 
 export default function PlaygroundViewport({
@@ -29,10 +30,12 @@ export default function PlaygroundViewport({
 	storage,
 	toolbarButtons,
 	children,
+	siteSlug,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
 		storage,
+		siteSlug,
 	});
 
 	// Add GA events for blueprint steps. For more information, see the README.md file.

@@ -77,6 +77,7 @@ export async function bootPlaygroundRemote() {
 			networking: withNetworking ? 'yes' : 'no',
 			storage: query.get('storage') || '',
 			...(sapiName ? { sapiName } : {}),
+			'site-slug': query.get('site-slug') || 'wordpress',
 		})
 	);
 

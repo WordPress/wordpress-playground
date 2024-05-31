@@ -8,8 +8,13 @@ import { logger } from '@php-wasm/logger';
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
 	storage?: 'browser' | 'device' | 'none';
+	siteSlug?: string;
 }
-export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
+export function usePlayground({
+	blueprint,
+	storage,
+	siteSlug,
+}: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef(false);
@@ -42,6 +47,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			iframe,
 			remoteUrl: remoteUrl.toString(),
 			blueprint,
+			siteSlug,
 			// Intercept the Playground client even if the
 			// Blueprint fails.
 			onClientConnected: (playground) => {
