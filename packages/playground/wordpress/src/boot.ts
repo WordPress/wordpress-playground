@@ -179,15 +179,6 @@ export async function bootWordPress(options: BootOptions) {
 
 	if (options.wordPressZip) {
 		await unzipWordPress(php, await options.wordPressZip);
-
-		const remoteAssetListPath = `${requestHandler.documentRoot}/wordpress-remote-asset-paths`;
-		if (php.fileExists(remoteAssetListPath)) {
-			const remoteAssetPaths = php
-				.readFileAsText(remoteAssetListPath)
-				.split('\n');
-			requestHandler.addRemoteAssetPaths(remoteAssetPaths);
-			php.unlink(remoteAssetListPath);
-		}
 	}
 
 	if (options.constants) {
@@ -199,11 +190,22 @@ export async function bootWordPress(options: BootOptions) {
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
-	// @TODO Assert WordPress core files are in place
-
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
+	}
+
+	// @TODO Assert WordPress core files are in place
+
+	const remoteAssetListPath = joinPaths(
+		requestHandler.documentRoot,
+		'wordpress-remote-asset-paths'
+	);
+	if (php.isFile(remoteAssetListPath)) {
+		const remoteAssetPaths = php
+			.readFileAsText(remoteAssetListPath)
+			.split('\n');
+		requestHandler.addRemoteAssetPaths(remoteAssetPaths);
 	}
 
 	if (options.sqliteIntegrationPluginZip) {
