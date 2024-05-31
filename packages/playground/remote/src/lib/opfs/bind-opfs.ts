@@ -218,7 +218,12 @@ export async function overwriteOpfsFile(
 		await writer.truncate(0);
 		await writer.write(buffer);
 	} finally {
-		await writer.close();
+		try {
+			await writer.close();
+		} catch (e) {
+			// Ignore errors
+			console.error(e);
+		}
 	}
 }
 

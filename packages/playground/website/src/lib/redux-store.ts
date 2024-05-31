@@ -1,4 +1,8 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import {
+	directoryHandleReject,
+	directoryHandleDone,
+} from './markdown-directory-handle';
 
 export type ActiveModal =
 	| 'error-report'
@@ -9,7 +13,6 @@ export type ActiveModal =
 
 // Define the state types
 interface AppState {
-	directoryHandle: FileSystemDirectoryHandle | null;
 	activeModal: string | null;
 }
 
@@ -17,7 +20,6 @@ const query = new URL(document.location.href).searchParams;
 
 // Define the initial state
 const initialState: AppState = {
-	directoryHandle: null,
 	activeModal:
 		query.get('modal') === 'mount-markdown-directory'
 			? 'mount-markdown-directory'
@@ -29,24 +31,22 @@ const slice = createSlice({
 	name: 'app',
 	initialState,
 	reducers: {
-		setDirectoryHandle: (
-			state,
-			action: PayloadAction<FileSystemDirectoryHandle | null>
-		) => {
-			state.directoryHandle = action.payload;
-		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
+			if (
+				!directoryHandleDone &&
+				// state.activeModal === 'mount-markdown-directory' &&
+				action.payload !== 'mount-markdown-directory'
+			) {
+				console.log('Rejecting directory handle');
+				directoryHandleReject();
+			}
 			state.activeModal = action.payload;
-		},
-		clearActiveModal: (state) => {
-			state.activeModal = null;
 		},
 	},
 });
 
 // Export actions
-export const { setDirectoryHandle, setActiveModal, clearActiveModal } =
-	slice.actions;
+export const { setActiveModal } = slice.actions;
 
 // Configure store
 const store = configureStore({

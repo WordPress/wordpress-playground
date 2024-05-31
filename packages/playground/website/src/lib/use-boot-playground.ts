@@ -5,6 +5,7 @@ import { getRemoteUrl } from './config';
 import { logger } from '@php-wasm/logger';
 import { PlaygroundDispatch, setActiveModal } from './redux-store';
 import { useDispatch } from 'react-redux';
+import { directoryHandle } from './markdown-directory-handle';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -52,7 +53,15 @@ export function useBootPlayground({
 				playgroundTmp = playground;
 				(window as any)['playground'] = playground;
 			},
-			async onBeforeBlueprint() {},
+			async onBeforeBlueprint() {
+				let newDirectoryHandle: FileSystemDirectoryHandle;
+				try {
+					newDirectoryHandle = await directoryHandle;
+				} catch {
+					return;
+				}
+				await playgroundTmp!.bindOpfs(newDirectoryHandle);
+			},
 		})
 			.catch((error) => {
 				logger.error(error);
@@ -65,7 +74,7 @@ export function useBootPlayground({
 				}
 			});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [iframe, awaitedIframe]);
+	}, [iframe, awaitedIframe, directoryHandle]);
 
 	return { playground, url, iframeRef };
 }

@@ -5,11 +5,9 @@ import { Button } from '@wordpress/components';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
 import { useDispatch } from 'react-redux';
-import {
-	PlaygroundDispatch,
-	setDirectoryHandle,
-	clearActiveModal,
-} from '../../lib/redux-store';
+import { PlaygroundDispatch, setActiveModal } from '../../lib/redux-store';
+import { directoryHandleResolve } from '../../lib/markdown-directory-handle';
+import { logger } from '@php-wasm/logger';
 
 export const localStorageKey = 'playground-start-error-dont-show-again';
 
@@ -19,10 +17,8 @@ export function MountMarkdownDirectoryModal() {
 	const handleDirectorySelection = (
 		newDirectoryHandle: FileSystemDirectoryHandle
 	) => {
-		dispatch(setDirectoryHandle(newDirectoryHandle));
+		directoryHandleResolve(newDirectoryHandle);
 	};
-
-	// const { playground } = usePlaygroundContext();
 
 	function handleCloseWhenIDontWantALocalDirectory() {
 		// Push state without ?modal=mount-markdown-directory
@@ -35,20 +31,28 @@ export function MountMarkdownDirectoryModal() {
 
 	async function loadMarkdownDirectory(e: React.MouseEvent) {
 		e.preventDefault();
-
-		const dirHandle = await showDirectoryPicker();
+		let dirHandle;
+		try {
+			// Request permission to access the directory.
+			// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
+			dirHandle = await (window as any).showDirectoryPicker({
+				// By specifying an ID, the browser can remember different directories for
+				// different IDs.If the same ID is used for another picker, the picker opens
+				// in the same directory.
+				id: 'playground-directory',
+				mode: 'readwrite',
+			});
+		} catch (e) {
+			// No directory selected but log the error just in case.
+			logger.error(e);
+			return;
+		}
 		handleDirectorySelection(dirHandle);
-
-		// await playground.bindOpfs(dirHandle, (progress) => {
-		// 	setMountProgress(progress);
-		// });
-		console.log(dirHandle);
-
 		handleClose();
 	}
 
 	function handleClose() {
-		dispatch(clearActiveModal());
+		dispatch(setActiveModal(null));
 	}
 
 	return (
