@@ -54,6 +54,7 @@ export function useBootPlayground({
 				(window as any)['playground'] = playground;
 			},
 			async onBeforeBlueprint() {
+				// @TODO this never resolves if there are no modals
 				let newDirectoryHandle: FileSystemDirectoryHandle;
 				try {
 					newDirectoryHandle = await directoryHandle;
