@@ -10,16 +10,13 @@
 
 /* eslint-disable prefer-rest-params */
 import { PHP, UnmountFunction } from '@php-wasm/universal';
-import { MountOptions, createDirectoryHandleMountHandler } from '@php-wasm/web';
+import {
+	MountOptions,
+	SyncProgressCallback,
+	createDirectoryHandleMountHandler,
+} from '@php-wasm/web';
 
 let unmount: UnmountFunction | undefined;
-export type SyncProgress = {
-	/** The number of files that have been synced. */
-	files: number;
-	/** The number of all files that need to be synced. */
-	total: number;
-};
-export type SyncProgressCallback = (progress: SyncProgress) => void;
 export type BindOpfsOptions = {
 	php: PHP;
 	opfs: FileSystemDirectoryHandle;

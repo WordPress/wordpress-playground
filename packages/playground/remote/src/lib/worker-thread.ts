@@ -1,4 +1,4 @@
-import { exposeAPI } from '@php-wasm/web';
+import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { wordPressSiteUrl } from './config';
@@ -11,7 +11,6 @@ import {
 
 import {
 	BindOpfsOptions,
-	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
