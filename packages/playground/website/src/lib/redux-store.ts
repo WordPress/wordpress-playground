@@ -38,7 +38,7 @@ const slice = createSlice({
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			if (
 				!directoryHandleDone &&
-				// state.activeModal === 'mount-markdown-directory' &&
+				state.activeModal === 'mount-markdown-directory' &&
 				action.payload !== 'mount-markdown-directory'
 			) {
 				directoryHandleResolve(null);
