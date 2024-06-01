@@ -16,15 +16,6 @@ export function MountMarkdownDirectoryModal() {
 		directoryHandleResolve(newDirectoryHandle);
 	};
 
-	function handleCloseWhenIDontWantALocalDirectory() {
-		// Push state without ?modal=mount-markdown-directory
-		const urlWithoutModal = new URL(window.location.href);
-		urlWithoutModal.searchParams.delete('modal');
-
-		window.history.pushState({}, '', urlWithoutModal.toString());
-		handleClose();
-	}
-
 	async function loadMarkdownDirectory(e: React.MouseEvent) {
 		e.preventDefault();
 		let dirHandle;
@@ -52,10 +43,7 @@ export function MountMarkdownDirectoryModal() {
 	}
 
 	return (
-		<Modal
-			isOpen={true}
-			onRequestClose={handleCloseWhenIDontWantALocalDirectory}
-		>
+		<Modal isOpen={true} onRequestClose={handleClose}>
 			<header>
 				<h2>Markdown editor</h2>
 			</header>
@@ -85,9 +73,7 @@ export function MountMarkdownDirectoryModal() {
 					<Button variant="primary" onClick={loadMarkdownDirectory}>
 						Load a Markdown directory
 					</Button>
-					<Button onClick={handleCloseWhenIDontWantALocalDirectory}>
-						Cancel
-					</Button>
+					<Button onClick={handleClose}>Cancel</Button>
 				</footer>
 			</main>
 		</Modal>
