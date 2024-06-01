@@ -1,9 +1,5 @@
-// <reference types="@types/wicg-file-system-access" />
-import css from './style.module.css';
 import Modal from '../modal';
 import { Button } from '@wordpress/components';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type * as pleaseLoadTypes from 'wicg-file-system-access';
 import { useDispatch } from 'react-redux';
 import { PlaygroundDispatch, setActiveModal } from '../../lib/redux-store';
 import { directoryHandleResolve } from '../../lib/markdown-directory-handle';
@@ -64,7 +60,7 @@ export function MountMarkdownDirectoryModal() {
 				<h2>Markdown editor</h2>
 			</header>
 
-			<main className={css.logModalMain}>
+			<main>
 				{/* @TODO Don't do a wall of text. Do good UX instead. */}
 				<p>
 					This is an online markdown editor. Load your Markdown files
@@ -85,7 +81,7 @@ export function MountMarkdownDirectoryModal() {
 					... or close this modal and paste the content of the file
 					into the post editor.
 				</p>
-				<footer className={css.errorReportModalFooter}>
+				<footer>
 					<Button variant="primary" onClick={loadMarkdownDirectory}>
 						Load a Markdown directory
 					</Button>
