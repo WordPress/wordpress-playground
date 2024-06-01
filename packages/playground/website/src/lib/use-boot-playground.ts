@@ -67,6 +67,7 @@ export function useBootPlayground({
 					mountpoint: joinPaths(
 						await playgroundTmp!.documentRoot,
 						'wp-content',
+						'uploads',
 						'markdown'
 					),
 					initialSyncDirection: 'opfs-to-memfs',
