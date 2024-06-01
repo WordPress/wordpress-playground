@@ -8,13 +8,10 @@ import {
 import { Semaphore, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
 declare global {
-	interface FileSystemDirectoryHandle {
-		values: () => AsyncIterable<
-			FileSystemDirectoryHandle | FileSystemFileHandle
-		>;
-	}
 	interface FileSystemFileHandle {
 		move(target: FileSystemDirectoryHandle): Promise<void>;
 		move(name: string): Promise<void>;

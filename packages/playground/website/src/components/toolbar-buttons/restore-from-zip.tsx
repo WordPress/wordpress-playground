@@ -4,7 +4,7 @@ import { upload } from '@wordpress/icons';
 
 import ImportForm from '../import-form';
 import Modal from '../modal';
-import { usePlaygroundContext } from '../playground-viewport/context';
+import { usePlaygroundContext } from '../../playground-context';
 
 type Props = { onClose: () => void };
 export function RestoreFromZipMenuItem({ onClose }: Props) {

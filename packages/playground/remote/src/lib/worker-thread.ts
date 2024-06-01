@@ -1,4 +1,4 @@
-import { exposeAPI } from '@php-wasm/web';
+import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { wordPressSiteUrl } from './config';
@@ -10,7 +10,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 
 import {
-	SyncProgressCallback,
+	BindOpfsOptions,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
@@ -44,7 +44,8 @@ self.postMessage('worker-script-started');
 
 let virtualOpfsRoot: FileSystemDirectoryHandle | undefined;
 let virtualOpfsDir: FileSystemDirectoryHandle | undefined;
-let lastOpfsDir: FileSystemDirectoryHandle | undefined;
+let lastOpfsHandle: FileSystemDirectoryHandle | undefined;
+let lastOpfsMountpoint: string | undefined;
 let wordPressAvailableInOPFS = false;
 if (
 	startupOptions.storage === 'browser' &&
@@ -61,7 +62,8 @@ if (
 		}
 	);
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	lastOpfsDir = virtualOpfsDir;
+	lastOpfsHandle = virtualOpfsDir;
+	lastOpfsMountpoint = '/wordpress';
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
 
@@ -144,18 +146,22 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async reloadFilesFromOpfs() {
-		await this.bindOpfs(lastOpfsDir!);
+		await this.bindOpfs({
+			opfs: lastOpfsHandle!,
+			mountpoint: lastOpfsMountpoint!,
+		});
 	}
 
 	async bindOpfs(
-		opfs: FileSystemDirectoryHandle,
+		options: Omit<BindOpfsOptions, 'php' | 'onProgress'>,
 		onProgress?: SyncProgressCallback
 	) {
-		lastOpfsDir = opfs;
+		lastOpfsHandle = options.opfs;
+		lastOpfsMountpoint = options.mountpoint;
 		await bindOpfs({
 			php: this.__internal_getPHP()!,
-			opfs,
 			onProgress,
+			...options,
 		});
 	}
 
@@ -216,8 +222,11 @@ try {
 				if (virtualOpfsDir) {
 					await bindOpfs({
 						php,
+						mountpoint: '/wordpress',
 						opfs: virtualOpfsDir!,
-						wordPressAvailableInOPFS,
+						initialSyncDirection: wordPressAvailableInOPFS
+							? 'opfs-to-memfs'
+							: 'memfs-to-opfs',
 					});
 				}
 			},
