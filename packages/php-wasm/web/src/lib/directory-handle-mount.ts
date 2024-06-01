@@ -10,11 +10,6 @@ import { logger } from '@php-wasm/logger';
 import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
 
 declare global {
-	interface FileSystemDirectoryHandle {
-		values: () => AsyncIterable<
-			FileSystemDirectoryHandle | FileSystemFileHandle
-		>;
-	}
 	interface FileSystemFileHandle {
 		move(target: FileSystemDirectoryHandle): Promise<void>;
 		move(name: string): Promise<void>;
