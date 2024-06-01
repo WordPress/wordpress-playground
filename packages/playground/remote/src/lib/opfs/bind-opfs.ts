@@ -25,7 +25,7 @@ export type BindOpfsOptions = {
 	opfs: FileSystemDirectoryHandle;
 	initialSyncDirection?: MountOptions['initialSync']['direction'];
 	onProgress?: SyncProgressCallback;
-	mountpoint?: string;
+	mountpoint: string;
 };
 export async function bindOpfs({
 	php,

@@ -165,6 +165,7 @@ export default function PlaygroundConfigurationGroup({
 			await playground.bindOpfs(
 				{
 					opfs: dirHandle,
+					mountpoint: '/wordpress',
 					initialSyncDirection: isPlaygroundDir
 						? 'opfs-to-memfs'
 						: 'memfs-to-opfs',
