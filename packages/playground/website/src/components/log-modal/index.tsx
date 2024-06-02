@@ -4,11 +4,19 @@ import { logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
 
-import { usePlaygroundContext } from '../../playground-context';
 import { TextControl } from '@wordpress/components';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from '../../lib/redux-store';
+import { useDispatch, useSelector } from 'react-redux';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
-	const { activeModal, setActiveModal } = usePlaygroundContext();
+	const activeModal = useSelector(
+		(state: PlaygroundReduxState) => state.activeModal
+	);
+	const dispatch: PlaygroundDispatch = useDispatch();
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
@@ -19,7 +27,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	}
 
 	function onClose() {
-		setActiveModal(false);
+		dispatch(setActiveModal(null));
 	}
 
 	function logList() {

@@ -5,11 +5,19 @@ import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
 
-import { usePlaygroundContext } from '../../playground-context';
 import { Blueprint } from '@wp-playground/blueprints';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from '../../lib/redux-store';
 
 export function ErrorReportModal(props: { blueprint: Blueprint }) {
-	const { activeModal, setActiveModal } = usePlaygroundContext();
+	const activeModal = useSelector(
+		(state: PlaygroundReduxState) => state.activeModal
+	);
+	const dispatch: PlaygroundDispatch = useDispatch();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
@@ -21,7 +29,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 		resetForm();
 		setLogs(logger.getLogs().join('\n'));
 		setUrl(window.location.href);
-	}, [activeModal, setActiveModal, logs, setLogs]);
+	}, [activeModal, logs, setLogs]);
 
 	function resetForm() {
 		setText('');
@@ -35,7 +43,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	function onClose() {
-		setActiveModal(false);
+		dispatch(setActiveModal(null));
 		resetForm();
 		resetSubmission();
 	}

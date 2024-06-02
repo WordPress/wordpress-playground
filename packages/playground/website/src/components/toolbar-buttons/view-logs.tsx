@@ -1,11 +1,12 @@
 import { MenuItem } from '@wordpress/components';
 import { details } from '@wordpress/icons';
 
-import { usePlaygroundContext } from '../../playground-context';
+import { useDispatch } from 'react-redux';
+import { PlaygroundDispatch, setActiveModal } from '../../lib/redux-store';
 
 type Props = { onClose: () => void };
 export function ViewLogs({ onClose }: Props) {
-	const { setActiveModal } = usePlaygroundContext();
+	const dispatch: PlaygroundDispatch = useDispatch();
 	return (
 		<MenuItem
 			icon={details}
@@ -13,7 +14,7 @@ export function ViewLogs({ onClose }: Props) {
 			data-cy="view-logs"
 			aria-label="View logs"
 			onClick={() => {
-				setActiveModal('log');
+				dispatch(setActiveModal('log'));
 				onClose();
 			}}
 		>

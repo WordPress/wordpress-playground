@@ -1,9 +1,9 @@
 import { MenuItem } from '@wordpress/components';
 import { download } from '@wordpress/icons';
 
-import { usePlaygroundContext } from '../playground-viewport/context';
 import { PlaygroundClient, zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
+import { usePlaygroundContext } from '../../playground-context';
 
 type Props = { onClose: () => void };
 export function DownloadAsZipMenuItem({ onClose }: Props) {

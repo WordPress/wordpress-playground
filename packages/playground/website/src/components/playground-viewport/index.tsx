@@ -1,14 +1,12 @@
-import type { Blueprint, StepDefinition } from '@wp-playground/client';
-
-import React, { Ref, useEffect } from 'react';
+import React, { Ref } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
 import { logTrackingEvent } from '../../lib/tracking';
 import { setupPostMessageRelay } from '@php-wasm/web';
+import { usePlaygroundContext } from '../../playground-context';
 
 export const supportedDisplayModes = [
 	'browser',
@@ -19,64 +17,33 @@ export type DisplayMode = (typeof supportedDisplayModes)[number];
 interface PlaygroundViewportProps {
 	storage?: StorageType;
 	displayMode?: DisplayMode;
-	blueprint?: Blueprint;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;
 	siteSlug?: string;
 }
 
-export default function PlaygroundViewport({
-	blueprint,
-	displayMode = 'browser',
-	storage,
-	toolbarButtons,
-	children,
-	siteSlug,
-}: PlaygroundViewportProps) {
-	const { playground, url, iframeRef } = usePlayground({
-		blueprint,
-		storage,
-		siteSlug,
-	});
+export const PlaygroundViewport = React.forwardRef<
+	HTMLIFrameElement,
+	PlaygroundViewportProps
+>(({ displayMode = 'browser', toolbarButtons }, ref) => {
+	const { playground, currentUrl: url } = usePlaygroundContext();
 
-	// Add GA events for blueprint steps. For more information, see the README.md file.
-	useEffect(() => {
-		logTrackingEvent('load');
-		// Log the names of provided Blueprint's steps.
-		// Only the names (e.g. "runPhp" or "login") are logged. Step options like code, password,
-		// URLs are never sent anywhere.
-		const steps = (blueprint?.steps || [])
-			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
-			.map((step) => (step as StepDefinition).step);
-		for (const step of steps) {
-			logTrackingEvent('step', { step });
-		}
-	}, [blueprint?.steps]);
-
+	if (displayMode === 'seamless') {
+		// No need to boot the playground if seamless.
+		return <JustViewport iframeRef={ref} />;
+	}
 	return (
-		<PlaygroundContext.Provider
-			value={{
-				playground,
-				currentUrl: url,
-			}}
+		<BrowserChrome
+			initialIsFullSize={displayMode === 'browser-full-screen'}
+			showAddressBar={!!playground}
+			url={url}
+			toolbarButtons={toolbarButtons}
+			onUrlChange={(url) => playground?.goTo(url)}
 		>
-			{displayMode === 'seamless' ? (
-				<JustViewport iframeRef={iframeRef} />
-			) : (
-				<BrowserChrome
-					initialIsFullSize={displayMode === 'browser-full-screen'}
-					showAddressBar={!!playground}
-					url={url}
-					toolbarButtons={toolbarButtons}
-					onUrlChange={(url) => playground?.goTo(url)}
-				>
-					<JustViewport iframeRef={iframeRef} />
-				</BrowserChrome>
-			)}
-			{children}
-		</PlaygroundContext.Provider>
+			<JustViewport iframeRef={ref} />
+		</BrowserChrome>
 	);
-}
+});
 
 interface JustViewportProps {
 	iframeRef: Ref<HTMLIFrameElement>;
