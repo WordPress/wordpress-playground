@@ -9,7 +9,7 @@ import {
 	exposeAPI,
 	consumeAPI,
 	setupPostMessageRelay,
-	SyncProgressCallback
+	SyncProgressCallback,
 } from '@php-wasm/web';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
@@ -221,6 +221,7 @@ export async function bootPlaygroundRemote() {
 			wpFrame,
 			getOrigin((await playground.absoluteUrl)!)
 		);
+		setupMountListener(playground);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
 		}
@@ -240,6 +241,27 @@ export async function bootPlaygroundRemote() {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
+}
+
+function setupMountListener(playground: WebClientMixin) {
+	window.addEventListener('message', async (event) => {
+		if (typeof event.data !== 'object') {
+			return;
+		}
+		if (event.data.type !== 'mount-directory-handle') {
+			return;
+		}
+		if (typeof event.data.directoryHandle !== 'object') {
+			return;
+		}
+		if (!event.data.mountpoint) {
+			return;
+		}
+		await playground.bindOpfs({
+			opfs: event.data.directoryHandle,
+			mountpoint: event.data.mountpoint,
+		});
+	});
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {
