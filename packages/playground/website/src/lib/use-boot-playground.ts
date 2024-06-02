@@ -104,10 +104,6 @@ export function useBootPlayground({
 							await client.documentRoot,
 							'.blueprint-loaded'
 						);
-						console.log(
-							'Blueprint flag exists',
-							await client.fileExists(isLoadedFlagPath)
-						);
 						if (await client.fileExists(isLoadedFlagPath)) {
 							event.preventDefault();
 						} else {
@@ -124,7 +120,6 @@ export function useBootPlayground({
 						event.preventDefault();
 					}
 					if (event.defaultPrevented) {
-						console.log('Skipping the blueprint execution');
 						await skipBlueprint(client, event.detail.blueprint);
 					}
 				}
