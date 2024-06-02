@@ -279,36 +279,6 @@ try {
 	const primaryPhp = await requestHandler.getPrimaryPhp();
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
-	primaryPhp.writeFile(
-		'/wordpress/mount.php',
-		`<!DOCTYPE html>
-		<html>
-		<head>
-			<title>Directory picker</title>
-		</head>
-		<body>
-			<button id="pick">Pick directory</button>
-			<script>
-				document.getElementById('pick').addEventListener('click', function() {
-					if (!('showDirectoryPicker' in window)) {
-						alert('Your browser does not support the Directory Picker API');
-						return;
-					}
-					window.showDirectoryPicker().then(function(directoryHandle) {
-						window.parent.postMessage(
-							{
-								type: 'mount-directory-handle',
-								directoryHandle,
-								mountpoint: '/wordpress/wp-content/uploads/markdown/',
-							}
-						);
-					});
-				});
-			</script>
-		</body>
-		</html>`
-	);
-
 	setApiReady();
 } catch (e) {
 	setAPIError(e as Error);
