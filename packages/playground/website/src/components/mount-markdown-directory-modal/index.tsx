@@ -13,7 +13,10 @@ export function MountMarkdownDirectoryModal() {
 	const handleDirectorySelection = (
 		newDirectoryHandle: FileSystemDirectoryHandle
 	) => {
-		directoryHandleResolve(newDirectoryHandle);
+		directoryHandleResolve({
+			handle: newDirectoryHandle,
+			mountpoint: '/wordpress/wp-content/uploads/markdown',
+		});
 	};
 
 	async function loadMarkdownDirectory(e: React.MouseEvent) {

@@ -135,8 +135,6 @@ function Main() {
 
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
-		storage,
-		siteSlug,
 	});
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
@@ -253,7 +251,6 @@ function Main() {
 			/>
 			<PlaygroundViewport
 				ref={iframeRef}
-				storage={storage}
 				displayMode={displayMode}
 				toolbarButtons={[
 					<PlaygroundConfigurationGroup

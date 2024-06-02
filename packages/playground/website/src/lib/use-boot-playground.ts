@@ -6,18 +6,11 @@ import { logger } from '@php-wasm/logger';
 import { PlaygroundDispatch, setActiveModal } from './redux-store';
 import { useDispatch } from 'react-redux';
 import { directoryHandle } from './markdown-directory-handle';
-import { joinPaths } from '@php-wasm/util';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	storage?: 'browser' | 'device' | 'none';
-	siteSlug?: string;
 }
-export function useBootPlayground({
-	blueprint,
-	storage,
-	siteSlug,
-}: UsePlaygroundOptions) {
+export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef(false);
@@ -40,50 +33,43 @@ export function useBootPlayground({
 		}
 		started.current = true;
 
-		const remoteUrl = getRemoteUrl();
-		if (storage) {
-			remoteUrl.searchParams.set('storage', storage);
-		}
+		async function doRun() {
+			const resolvedDirectoryHandle = await directoryHandle;
 
-		let playgroundTmp: PlaygroundClient | undefined = undefined;
-		startPlaygroundWeb({
-			iframe,
-			remoteUrl: remoteUrl.toString(),
-			blueprint,
-			siteSlug,
-			// Intercept the Playground client even if the
-			// Blueprint fails.
-			onClientConnected: (playground) => {
-				playgroundTmp = playground;
-				(window as any)['playground'] = playground;
-			},
-			async onBeforeBlueprint() {
-				const newDirectoryHandle = await directoryHandle;
-				if (!newDirectoryHandle) {
-					return;
-				}
-				await playgroundTmp!.bindOpfs({
-					opfs: newDirectoryHandle,
-					mountpoint: joinPaths(
-						await playgroundTmp!.documentRoot,
-						'wp-content',
-						'uploads',
-						'markdown'
-					),
-					initialSyncDirection: 'opfs-to-memfs',
+			let playgroundTmp: PlaygroundClient | undefined = undefined;
+			try {
+				await startPlaygroundWeb({
+					iframe: iframe!,
+					remoteUrl: getRemoteUrl().toString(),
+					blueprint,
+					// Intercept the Playground client even if the
+					// Blueprint fails.
+					onClientConnected: (playground) => {
+						playgroundTmp = playground;
+						(window as any)['playground'] = playground;
+					},
+					mounts: resolvedDirectoryHandle
+						? [
+								{
+									...resolvedDirectoryHandle,
+									initialSyncDirection: 'opfs-to-memfs',
+								},
+						  ]
+						: [],
 				});
-			},
-		})
-			.catch((error) => {
+			} catch (error) {
 				logger.error(error);
 				dispatch(setActiveModal('start-error'));
-			})
-			.finally(async () => {
+			} finally {
 				if (playgroundTmp) {
-					playgroundTmp.onNavigation((url) => setUrl(url));
+					(playgroundTmp as PlaygroundClient).onNavigation(
+						(url: string) => setUrl(url)
+					);
 					setPlayground(() => playgroundTmp);
 				}
-			});
+			}
+		}
+		doRun();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [iframe, awaitedIframe, directoryHandle]);
 

@@ -26,7 +26,20 @@ const initialState: AppState = {
 			: null,
 };
 
-if (initialState.activeModal !== 'mount-markdown-directory') {
+if (query.get('storage') === 'browser') {
+	const siteSlug = query.get('site-slug') || 'wordpress';
+	const opfsRoot = await navigator.storage.getDirectory();
+	const opfsDir = await opfsRoot.getDirectoryHandle(
+		siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,
+		{
+			create: true,
+		}
+	);
+	directoryHandleResolve({
+		handle: opfsDir,
+		mountpoint: '/wordpress',
+	});
+} else if (initialState.activeModal !== 'mount-markdown-directory') {
 	directoryHandleResolve(null);
 }
 

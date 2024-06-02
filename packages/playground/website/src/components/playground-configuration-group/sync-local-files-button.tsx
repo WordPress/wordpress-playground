@@ -11,7 +11,7 @@ export function SyncLocalFilesButton() {
 			onClick={async () => {
 				setIsSyncing(true);
 				try {
-					await playground!.reloadFilesFromOpfs();
+					// await playground!.reloadFilesFromOpfs();
 				} finally {
 					setIsSyncing(false);
 				}
