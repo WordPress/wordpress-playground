@@ -8,6 +8,7 @@ import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
 import { logTrackingEvent } from '../../lib/tracking';
+import { setupPostMessageRelay } from '@php-wasm/web';
 
 export const supportedDisplayModes = [
 	'browser',
@@ -84,6 +85,12 @@ interface JustViewportProps {
 const JustViewport = function LoadedViewportComponent({
 	iframeRef,
 }: JustViewportProps) {
+	useEffect(() => {
+		const iframe = (iframeRef! as any).current!;
+		setupPostMessageRelay(iframe, document.location.origin);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	return (
 		<div className={css.fullSize}>
 			<iframe
