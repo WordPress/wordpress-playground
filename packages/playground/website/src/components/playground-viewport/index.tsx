@@ -1,10 +1,8 @@
-import React, { Ref } from 'react';
+import React, { Ref, useEffect } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import { StorageType } from '../../types';
-import PlaygroundContext from './context';
-import { logTrackingEvent } from '../../lib/tracking';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { usePlaygroundContext } from '../../playground-context';
 
