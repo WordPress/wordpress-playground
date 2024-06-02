@@ -8,6 +8,7 @@ import {
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
+	setupPostMessageRelay,
 	SyncProgressCallback,
 } from '@php-wasm/web';
 
@@ -218,9 +219,9 @@ export async function bootPlaygroundRemote() {
 		);
 		setupPostMessageRelay(
 			wpFrame,
-			getOrigin((await playground.absoluteUrl)!),
-			playground
+			getOrigin((await playground.absoluteUrl)!)
 		);
+		setupMountListener(playground);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
 		}
@@ -242,62 +243,24 @@ function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
 }
 
-async function mountDirectoryHandle(
-	playground: WebClientMixin,
-	directoryHandle: FileSystemDirectoryHandle,
-	mountpoint: string
-) {
-	await playground.bindOpfs({
-		opfs: directoryHandle,
-		mountpoint,
-	});
-}
-
-function setupPostMessageRelay(
-	wpFrame: HTMLIFrameElement,
-	expectedOrigin: string,
-	playground: WebClientMixin
-) {
-	// Relay Messages from WP to Parent
+function setupMountListener(playground: WebClientMixin) {
 	window.addEventListener('message', async (event) => {
-		if (event.source !== wpFrame.contentWindow) {
+		if (typeof event.data !== 'object') {
 			return;
 		}
-
-		if (event.origin !== expectedOrigin) {
+		if (event.data.type !== 'mount-directory-handle') {
 			return;
 		}
-
-		if (
-			event.data.type === 'mount-directory-handle' &&
-			typeof event.data.directoryHandle === 'object' &&
-			!!event.data.mountpoint
-		) {
-			await mountDirectoryHandle(
-				playground,
-				event.data.directoryHandle,
-				event.data.mountpoint
-			);
-		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
+		if (typeof event.data.directoryHandle !== 'object') {
 			return;
 		}
-
-		window.parent.postMessage(event.data, '*');
-	});
-
-	// Relay Messages from Parent to WP
-	window.addEventListener('message', (event) => {
-		if (event.source !== window.parent) {
+		if (!event.data.mountpoint) {
 			return;
 		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
-			return;
-		}
-
-		wpFrame?.contentWindow?.postMessage(event.data);
+		await playground.bindOpfs({
+			opfs: event.data.directoryHandle,
+			mountpoint: event.data.mountpoint,
+		});
 	});
 }
 
