@@ -218,7 +218,8 @@ export async function bootPlaygroundRemote() {
 		);
 		setupPostMessageRelay(
 			wpFrame,
-			getOrigin((await playground.absoluteUrl)!)
+			getOrigin((await playground.absoluteUrl)!),
+			playground
 		);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
@@ -241,18 +242,42 @@ function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
 }
 
+async function mountDirectoryHandle(
+	playground: WebClientMixin,
+	directoryHandle: FileSystemDirectoryHandle,
+	mountpoint: string
+) {
+	await playground.bindOpfs({
+		opfs: directoryHandle,
+		mountpoint,
+	});
+}
+
 function setupPostMessageRelay(
 	wpFrame: HTMLIFrameElement,
-	expectedOrigin: string
+	expectedOrigin: string,
+	playground: WebClientMixin
 ) {
 	// Relay Messages from WP to Parent
-	window.addEventListener('message', (event) => {
+	window.addEventListener('message', async (event) => {
 		if (event.source !== wpFrame.contentWindow) {
 			return;
 		}
 
 		if (event.origin !== expectedOrigin) {
 			return;
+		}
+
+		if (
+			event.data.type === 'mount-directory-handle' &&
+			typeof event.data.directoryHandle === 'object' &&
+			!!event.data.mountpoint
+		) {
+			await mountDirectoryHandle(
+				playground,
+				event.data.directoryHandle,
+				event.data.mountpoint
+			);
 		}
 
 		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
