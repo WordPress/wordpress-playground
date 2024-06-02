@@ -65,7 +65,12 @@ export interface StartPlaygroundOptions {
 	 *
 	 * @returns
 	 */
-	onBeforeBlueprint?: () => Promise<void>;
+	onBeforeBlueprint?: (
+		blueprint: CustomEvent<{
+			blueprint: Blueprint;
+			playground: PlaygroundClient;
+		}>
+	) => Promise<void>;
 	siteSlug?: string;
 }
 
@@ -126,11 +131,19 @@ export async function startPlaygroundWeb({
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
+	const event = new CustomEvent('beforeBlueprint', {
+		cancelable: true,
+		detail: {
+			playground,
+			blueprint,
+		},
+	});
 	if (onBeforeBlueprint) {
-		await onBeforeBlueprint();
+		await onBeforeBlueprint(event);
 	}
-
-	await runBlueprintSteps(compiled, playground);
+	if (!event.defaultPrevented) {
+		await runBlueprintSteps(compiled, playground);
+	}
 	progressTracker.finish();
 
 	return playground;
