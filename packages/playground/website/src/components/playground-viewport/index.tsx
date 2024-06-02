@@ -1,8 +1,9 @@
-import React, { Ref } from 'react';
+import React, { Ref, useEffect } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import { StorageType } from '../../types';
+import { setupPostMessageRelay } from '@php-wasm/web';
 import { usePlaygroundContext } from '../../playground-context';
 
 export const supportedDisplayModes = [
@@ -49,6 +50,12 @@ interface JustViewportProps {
 const JustViewport = function LoadedViewportComponent({
 	iframeRef,
 }: JustViewportProps) {
+	useEffect(() => {
+		const iframe = (iframeRef! as any).current!;
+		setupPostMessageRelay(iframe, document.location.origin);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	return (
 		<div className={css.fullSize}>
 			<iframe

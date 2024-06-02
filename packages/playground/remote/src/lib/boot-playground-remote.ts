@@ -8,7 +8,8 @@ import {
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
-	SyncProgressCallback,
+	setupPostMessageRelay,
+	SyncProgressCallback
 } from '@php-wasm/web';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
@@ -239,41 +240,6 @@ export async function bootPlaygroundRemote() {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
-}
-
-function setupPostMessageRelay(
-	wpFrame: HTMLIFrameElement,
-	expectedOrigin: string
-) {
-	// Relay Messages from WP to Parent
-	window.addEventListener('message', (event) => {
-		if (event.source !== wpFrame.contentWindow) {
-			return;
-		}
-
-		if (event.origin !== expectedOrigin) {
-			return;
-		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
-			return;
-		}
-
-		window.parent.postMessage(event.data, '*');
-	});
-
-	// Relay Messages from Parent to WP
-	window.addEventListener('message', (event) => {
-		if (event.source !== window.parent) {
-			return;
-		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
-			return;
-		}
-
-		wpFrame?.contentWindow?.postMessage(event.data);
-	});
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {
