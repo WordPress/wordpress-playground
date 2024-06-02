@@ -104,6 +104,10 @@ export function useBootPlayground({
 							await client.documentRoot,
 							'.blueprint-loaded'
 						);
+						console.log(
+							'Blueprint flag exists',
+							await client.fileExists(isLoadedFlagPath)
+						);
 						if (await client.fileExists(isLoadedFlagPath)) {
 							event.preventDefault();
 						} else {
@@ -120,6 +124,7 @@ export function useBootPlayground({
 						event.preventDefault();
 					}
 					if (event.defaultPrevented) {
+						console.log('Skipping the blueprint execution');
 						await skipBlueprint(client, event.detail.blueprint);
 					}
 				}
@@ -141,6 +146,14 @@ export function useBootPlayground({
 	return { playground, url, iframeRef };
 }
 
+/**
+ * Uses the login step and the landingPage of the Blueprint
+ * when the rest of the execution is skipped.
+ * @TODO: Provide a canonical method of doing this without
+ *        reasoning about an uncompiled Blueprint structure
+ *        or having to maintain this function when new Blueprint
+ *        schema or ideas are shipped.
+ */
 async function skipBlueprint(
 	playground: PlaygroundClient,
 	blueprint: Blueprint
@@ -150,8 +163,8 @@ async function skipBlueprint(
 		(blueprint.steps?.find(
 			(step) => typeof step === 'object' && step?.step === 'login'
 		) as LoginStep | undefined);
-	if (loginStep && typeof loginStep === 'object') {
-		await login(playground, loginStep);
+	if (loginStep) {
+		await login(playground, typeof loginStep === 'object' ? loginStep : {});
 	}
 	if (blueprint?.landingPage) {
 		await playground.goTo(blueprint.landingPage);
