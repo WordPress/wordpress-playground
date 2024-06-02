@@ -18,6 +18,8 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	 * Worker Thread using the Loopback request
 	 */
 	self.addEventListener('fetch', (event) => {
+		// Move to service-worker.ts and add caching
+		// Cache WP (wp-version.zip) and PHP (wasm, js)
 		const url = new URL(event.request.url);
 
 		// Don't handle requests to the service worker script itself.
