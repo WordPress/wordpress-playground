@@ -78,19 +78,52 @@ const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
 	fetch(sqliteDatabaseIntegrationModuleDetails.url)
 );
 
+const wpCacheKey = 'wp-version-cache';
+
+const addWPVersionCache = async (version: string, response: Response) => {
+	// Clone the response so that it can be read again
+	const clonedResponse = response.clone();
+
+	// Store in Cache storage
+	const cache = await caches.open(wpCacheKey);
+	await cache.put(version, clonedResponse);
+};
+
+const getWPVersionCache = async (version: string) => {
+	const cache = caches.open(wpCacheKey);
+	return await cache.then((c) => c.match(version));
+};
+
 // Start downloading WordPress if needed
 let wordPressRequest = null;
 if (!wordPressAvailableInOPFS) {
-	if (requestedWPVersion.startsWith('http')) {
-		// We don't know the size upfront, but we can still monitor the download.
-		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = monitoredFetch(requestedWPVersion);
+	const cachedResponse = await getWPVersionCache(requestedWPVersion);
+	if (cachedResponse) {
+		wordPressRequest = Promise.resolve(cachedResponse);
 	} else {
-		const wpDetails = getWordPressModuleDetails(startupOptions.wpVersion);
-		downloadMonitor.expectAssets({
-			[wpDetails.url]: wpDetails.size,
-		});
-		wordPressRequest = monitoredFetch(wpDetails.url);
+		if (requestedWPVersion.startsWith('http')) {
+			// We don't know the size upfront, but we can still monitor the download.
+			// monitorFetch will read the content-length response header when available.
+			wordPressRequest = monitoredFetch(requestedWPVersion).then(
+				(response) => {
+					addWPVersionCache(requestedWPVersion, response);
+					return response;
+				}
+			);
+		} else {
+			const wpDetails = getWordPressModuleDetails(
+				startupOptions.wpVersion
+			);
+			downloadMonitor.expectAssets({
+				[wpDetails.url]: wpDetails.size,
+			});
+			wordPressRequest = monitoredFetch(wpDetails.url).then(
+				(response) => {
+					addWPVersionCache(requestedWPVersion, response);
+					return response;
+				}
+			);
+		}
 	}
 }
 
@@ -245,6 +278,36 @@ try {
 
 	const primaryPhp = await requestHandler.getPrimaryPhp();
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
+
+	primaryPhp.writeFile(
+		'/wordpress/mount.php',
+		`<!DOCTYPE html>
+		<html>
+		<head>
+			<title>Directory picker</title>
+		</head>
+		<body>
+			<button id="pick">Pick directory</button>
+			<script>
+				document.getElementById('pick').addEventListener('click', function() {
+					if (!('showDirectoryPicker' in window)) {
+						alert('Your browser does not support the Directory Picker API');
+						return;
+					}
+					window.showDirectoryPicker().then(function(directoryHandle) {
+						window.parent.postMessage(
+							{
+								type: 'mount-directory-handle',
+								directoryHandle,
+								mountpoint: '/wordpress/wp-content/uploads/markdown/',
+							}
+						);
+					});
+				});
+			</script>
+		</body>
+		</html>`
+	);
 
 	setApiReady();
 } catch (e) {
