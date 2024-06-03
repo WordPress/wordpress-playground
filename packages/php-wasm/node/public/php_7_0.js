@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_0_33/php_7_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 13342254; 
+export const dependenciesTotalSize = 13341954; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -333,10 +333,10 @@ function createWasm() {
   /** @param {WebAssembly.Module=} module*/ function receiveInstance(instance, module) {
     wasmExports = instance.exports;
     wasmExports = Asyncify.instrumentWasmExports(wasmExports);
-    wasmMemory = wasmExports["_a"];
+    wasmMemory = wasmExports["Ya"];
     updateMemoryViews();
-    wasmTable = wasmExports["cb"];
-    addOnInit(wasmExports["$a"]);
+    wasmTable = wasmExports["ab"];
+    addOnInit(wasmExports["Za"]);
     removeRunDependency("wasm-instantiate");
     return wasmExports;
   }
@@ -6080,12 +6080,6 @@ function _js_waitpid(pid, exitCodePtr) {
   });
 }
 
-/** @type {function(...*):?} */ function _saveSetjmp() {
-  abort("missing function: saveSetjmp");
-}
-
-_saveSetjmp.stub = true;
-
 var arraySum = (array, index) => {
   var sum = 0;
   for (var i = 0; i <= index; sum += array[i++]) {}
@@ -6537,12 +6531,6 @@ var _strptime = (buf, format, tm) => {
   return 0;
 };
 
-/** @type {function(...*):?} */ function _testSetjmp() {
-  abort("missing function: testSetjmp");
-}
-
-_testSetjmp.stub = true;
-
 function _wasm_close(socketd) {
   return PHPWASM.shutdownSocket(socketd, 2);
 }
@@ -6934,243 +6922,241 @@ if (ENVIRONMENT_IS_NODE) {
 PHPWASM.init();
 
 var wasmImports = {
-  /** @export */ l: ___assert_fail,
-  /** @export */ Za: ___call_sighandler,
-  /** @export */ Ya: ___syscall_accept4,
-  /** @export */ Xa: ___syscall_bind,
-  /** @export */ Wa: ___syscall_chdir,
-  /** @export */ Q: ___syscall_chmod,
-  /** @export */ Va: ___syscall_connect,
-  /** @export */ Ua: ___syscall_dup,
-  /** @export */ Ta: ___syscall_dup3,
-  /** @export */ Sa: ___syscall_faccessat,
-  /** @export */ Ra: ___syscall_fchmod,
-  /** @export */ Qa: ___syscall_fchown32,
-  /** @export */ P: ___syscall_fchownat,
-  /** @export */ m: ___syscall_fcntl64,
-  /** @export */ Pa: ___syscall_fstat64,
+  /** @export */ k: ___assert_fail,
+  /** @export */ Xa: ___call_sighandler,
+  /** @export */ Wa: ___syscall_accept4,
+  /** @export */ Va: ___syscall_bind,
+  /** @export */ Ua: ___syscall_chdir,
+  /** @export */ O: ___syscall_chmod,
+  /** @export */ Ta: ___syscall_connect,
+  /** @export */ Sa: ___syscall_dup,
+  /** @export */ Ra: ___syscall_dup3,
+  /** @export */ Qa: ___syscall_faccessat,
+  /** @export */ Pa: ___syscall_fchmod,
+  /** @export */ Oa: ___syscall_fchown32,
+  /** @export */ N: ___syscall_fchownat,
+  /** @export */ l: ___syscall_fcntl64,
+  /** @export */ Na: ___syscall_fstat64,
   /** @export */ ba: ___syscall_ftruncate64,
-  /** @export */ Oa: ___syscall_getcwd,
-  /** @export */ Na: ___syscall_getdents64,
-  /** @export */ Ma: ___syscall_getpeername,
-  /** @export */ La: ___syscall_getsockname,
-  /** @export */ Ka: ___syscall_getsockopt,
-  /** @export */ E: ___syscall_ioctl,
-  /** @export */ Ja: ___syscall_listen,
-  /** @export */ Ia: ___syscall_lstat64,
-  /** @export */ Ha: ___syscall_mkdirat,
-  /** @export */ Ga: ___syscall_newfstatat,
-  /** @export */ D: ___syscall_openat,
-  /** @export */ Fa: ___syscall_pipe,
-  /** @export */ Ea: ___syscall_poll,
-  /** @export */ Da: ___syscall_readlinkat,
-  /** @export */ Ca: ___syscall_recvfrom,
-  /** @export */ Ba: ___syscall_renameat,
-  /** @export */ O: ___syscall_rmdir,
-  /** @export */ Aa: ___syscall_sendto,
-  /** @export */ N: ___syscall_socket,
-  /** @export */ za: ___syscall_stat64,
-  /** @export */ ya: ___syscall_statfs64,
-  /** @export */ xa: ___syscall_symlink,
-  /** @export */ M: ___syscall_unlinkat,
-  /** @export */ wa: ___syscall_utimensat,
-  /** @export */ ra: __abort_js,
-  /** @export */ qa: __emscripten_get_now_is_monotonic,
-  /** @export */ pa: __emscripten_lookup_name,
-  /** @export */ oa: __emscripten_memcpy_js,
-  /** @export */ na: __emscripten_runtime_keepalive_clear,
-  /** @export */ ma: __emscripten_throw_longjmp,
+  /** @export */ Ma: ___syscall_getcwd,
+  /** @export */ La: ___syscall_getdents64,
+  /** @export */ Ka: ___syscall_getpeername,
+  /** @export */ Ja: ___syscall_getsockname,
+  /** @export */ Ia: ___syscall_getsockopt,
+  /** @export */ C: ___syscall_ioctl,
+  /** @export */ Ha: ___syscall_listen,
+  /** @export */ Ga: ___syscall_lstat64,
+  /** @export */ Fa: ___syscall_mkdirat,
+  /** @export */ Ea: ___syscall_newfstatat,
+  /** @export */ B: ___syscall_openat,
+  /** @export */ Da: ___syscall_pipe,
+  /** @export */ Ca: ___syscall_poll,
+  /** @export */ Ba: ___syscall_readlinkat,
+  /** @export */ Aa: ___syscall_recvfrom,
+  /** @export */ za: ___syscall_renameat,
+  /** @export */ M: ___syscall_rmdir,
+  /** @export */ ya: ___syscall_sendto,
+  /** @export */ L: ___syscall_socket,
+  /** @export */ xa: ___syscall_stat64,
+  /** @export */ wa: ___syscall_statfs64,
+  /** @export */ va: ___syscall_symlink,
+  /** @export */ K: ___syscall_unlinkat,
+  /** @export */ ua: ___syscall_utimensat,
+  /** @export */ pa: __abort_js,
+  /** @export */ oa: __emscripten_get_now_is_monotonic,
+  /** @export */ na: __emscripten_lookup_name,
+  /** @export */ ma: __emscripten_memcpy_js,
+  /** @export */ la: __emscripten_runtime_keepalive_clear,
+  /** @export */ ka: __emscripten_throw_longjmp,
   /** @export */ fa: __gmtime_js,
   /** @export */ ga: __localtime_js,
-  /** @export */ ha: __mktime_js,
+  /** @export */ $: __mktime_js,
   /** @export */ da: __mmap_js,
   /** @export */ ea: __munmap_js,
-  /** @export */ J: __setitimer_js,
-  /** @export */ la: __tzset_js,
-  /** @export */ B: _emscripten_date_now,
-  /** @export */ ka: _emscripten_get_heap_max,
-  /** @export */ v: _emscripten_get_now,
-  /** @export */ ja: _emscripten_resize_heap,
-  /** @export */ I: _emscripten_sleep,
-  /** @export */ va: _environ_get,
-  /** @export */ ua: _environ_sizes_get,
-  /** @export */ n: _exit,
-  /** @export */ t: _fd_close,
-  /** @export */ L: _fd_fdstat_get,
-  /** @export */ K: _fd_read,
-  /** @export */ ia: _fd_seek,
-  /** @export */ ta: _fd_sync,
-  /** @export */ C: _fd_write,
-  /** @export */ aa: _getaddrinfo,
-  /** @export */ H: _getnameinfo,
-  /** @export */ $: _getprotobyname,
-  /** @export */ _: _getprotobynumber,
-  /** @export */ j: invoke_i,
+  /** @export */ H: __setitimer_js,
+  /** @export */ ja: __tzset_js,
+  /** @export */ z: _emscripten_date_now,
+  /** @export */ ia: _emscripten_get_heap_max,
+  /** @export */ u: _emscripten_get_now,
+  /** @export */ ha: _emscripten_resize_heap,
+  /** @export */ G: _emscripten_sleep,
+  /** @export */ ta: _environ_get,
+  /** @export */ sa: _environ_sizes_get,
+  /** @export */ m: _exit,
+  /** @export */ s: _fd_close,
+  /** @export */ J: _fd_fdstat_get,
+  /** @export */ I: _fd_read,
+  /** @export */ aa: _fd_seek,
+  /** @export */ ra: _fd_sync,
+  /** @export */ A: _fd_write,
+  /** @export */ _: _getaddrinfo,
+  /** @export */ F: _getnameinfo,
+  /** @export */ Z: _getprotobyname,
+  /** @export */ Y: _getprotobynumber,
+  /** @export */ i: invoke_i,
   /** @export */ c: invoke_ii,
   /** @export */ b: invoke_iii,
   /** @export */ e: invoke_iiii,
   /** @export */ g: invoke_iiiii,
-  /** @export */ s: invoke_iiiiii,
-  /** @export */ y: invoke_iiiiiii,
-  /** @export */ x: invoke_iiiiiiii,
-  /** @export */ Z: invoke_iiiiiiiii,
-  /** @export */ A: invoke_iiiiiiiiii,
+  /** @export */ r: invoke_iiiiii,
+  /** @export */ w: invoke_iiiiiii,
+  /** @export */ v: invoke_iiiiiiii,
+  /** @export */ X: invoke_iiiiiiiii,
+  /** @export */ y: invoke_iiiiiiiiii,
   /** @export */ ca: invoke_jii,
   /** @export */ f: invoke_v,
   /** @export */ a: invoke_vi,
   /** @export */ d: invoke_vii,
   /** @export */ h: invoke_viii,
-  /** @export */ p: invoke_viiii,
-  /** @export */ o: invoke_viiiii,
-  /** @export */ k: invoke_viiiiii,
-  /** @export */ z: invoke_viiiiiiiii,
-  /** @export */ G: _js_create_input_device,
-  /** @export */ Y: _js_fd_read,
-  /** @export */ X: _js_module_onMessage,
-  /** @export */ F: _js_open_process,
-  /** @export */ W: _js_popen_to_file,
-  /** @export */ V: _js_process_status,
-  /** @export */ U: _js_waitpid,
-  /** @export */ sa: _proc_exit,
-  /** @export */ w: _saveSetjmp,
-  /** @export */ T: _strftime,
-  /** @export */ S: _strftime_l,
-  /** @export */ R: _strptime,
-  /** @export */ i: _testSetjmp,
-  /** @export */ q: _wasm_close,
-  /** @export */ u: _wasm_poll_socket,
-  /** @export */ r: _wasm_setsockopt
+  /** @export */ o: invoke_viiii,
+  /** @export */ n: invoke_viiiii,
+  /** @export */ j: invoke_viiiiii,
+  /** @export */ x: invoke_viiiiiiiii,
+  /** @export */ E: _js_create_input_device,
+  /** @export */ W: _js_fd_read,
+  /** @export */ V: _js_module_onMessage,
+  /** @export */ D: _js_open_process,
+  /** @export */ U: _js_popen_to_file,
+  /** @export */ T: _js_process_status,
+  /** @export */ S: _js_waitpid,
+  /** @export */ qa: _proc_exit,
+  /** @export */ R: _strftime,
+  /** @export */ Q: _strftime_l,
+  /** @export */ P: _strptime,
+  /** @export */ p: _wasm_close,
+  /** @export */ t: _wasm_poll_socket,
+  /** @export */ q: _wasm_setsockopt
 };
 
 var wasmExports = createWasm();
 
-var ___wasm_call_ctors = () => (___wasm_call_ctors = wasmExports["$a"])();
+var ___wasm_call_ctors = () => (___wasm_call_ctors = wasmExports["Za"])();
 
-var _malloc = a0 => (_malloc = wasmExports["ab"])(a0);
+var _malloc = a0 => (_malloc = wasmExports["_a"])(a0);
 
-var _free = a0 => (_free = wasmExports["bb"])(a0);
+var _free = a0 => (_free = wasmExports["$a"])(a0);
 
-var _wasm_sleep = Module["_wasm_sleep"] = a0 => (_wasm_sleep = Module["_wasm_sleep"] = wasmExports["db"])(a0);
+var _wasm_sleep = Module["_wasm_sleep"] = a0 => (_wasm_sleep = Module["_wasm_sleep"] = wasmExports["bb"])(a0);
 
-var _ntohs = a0 => (_ntohs = wasmExports["eb"])(a0);
+var _ntohs = a0 => (_ntohs = wasmExports["cb"])(a0);
 
-var _htons = a0 => (_htons = wasmExports["fb"])(a0);
+var _htons = a0 => (_htons = wasmExports["db"])(a0);
 
-var _htonl = a0 => (_htonl = wasmExports["gb"])(a0);
+var _htonl = a0 => (_htonl = wasmExports["eb"])(a0);
 
-var _wasm_read = Module["_wasm_read"] = (a0, a1, a2) => (_wasm_read = Module["_wasm_read"] = wasmExports["hb"])(a0, a1, a2);
+var _wasm_read = Module["_wasm_read"] = (a0, a1, a2) => (_wasm_read = Module["_wasm_read"] = wasmExports["fb"])(a0, a1, a2);
 
-var _fflush = a0 => (_fflush = wasmExports["ib"])(a0);
+var _fflush = a0 => (_fflush = wasmExports["gb"])(a0);
 
-var _wasm_popen = Module["_wasm_popen"] = (a0, a1) => (_wasm_popen = Module["_wasm_popen"] = wasmExports["jb"])(a0, a1);
+var _wasm_popen = Module["_wasm_popen"] = (a0, a1) => (_wasm_popen = Module["_wasm_popen"] = wasmExports["hb"])(a0, a1);
 
-var _wasm_php_exec = Module["_wasm_php_exec"] = (a0, a1, a2, a3) => (_wasm_php_exec = Module["_wasm_php_exec"] = wasmExports["kb"])(a0, a1, a2, a3);
+var _wasm_php_exec = Module["_wasm_php_exec"] = (a0, a1, a2, a3) => (_wasm_php_exec = Module["_wasm_php_exec"] = wasmExports["ib"])(a0, a1, a2, a3);
 
-var _php_pollfd_for = Module["_php_pollfd_for"] = (a0, a1, a2) => (_php_pollfd_for = Module["_php_pollfd_for"] = wasmExports["lb"])(a0, a1, a2);
+var _php_pollfd_for = Module["_php_pollfd_for"] = (a0, a1, a2) => (_php_pollfd_for = Module["_php_pollfd_for"] = wasmExports["jb"])(a0, a1, a2);
 
-var ___wrap_select = Module["___wrap_select"] = (a0, a1, a2, a3, a4) => (___wrap_select = Module["___wrap_select"] = wasmExports["mb"])(a0, a1, a2, a3, a4);
+var ___wrap_select = Module["___wrap_select"] = (a0, a1, a2, a3, a4) => (___wrap_select = Module["___wrap_select"] = wasmExports["kb"])(a0, a1, a2, a3, a4);
 
-var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = a0 => (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = wasmExports["nb"])(a0);
+var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = a0 => (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = wasmExports["lb"])(a0);
 
-var _run_cli = Module["_run_cli"] = () => (_run_cli = Module["_run_cli"] = wasmExports["ob"])();
+var _run_cli = Module["_run_cli"] = () => (_run_cli = Module["_run_cli"] = wasmExports["mb"])();
 
-var _wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = a0 => (_wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = wasmExports["pb"])(a0);
+var _wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = a0 => (_wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = wasmExports["nb"])(a0);
 
-var _wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = a0 => (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = wasmExports["qb"])(a0);
+var _wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = a0 => (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = wasmExports["ob"])(a0);
 
-var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = (a0, a1) => (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = wasmExports["rb"])(a0, a1);
+var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = (a0, a1) => (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = wasmExports["pb"])(a0, a1);
 
-var _wasm_add_ENV_entry = Module["_wasm_add_ENV_entry"] = (a0, a1) => (_wasm_add_ENV_entry = Module["_wasm_add_ENV_entry"] = wasmExports["sb"])(a0, a1);
+var _wasm_add_ENV_entry = Module["_wasm_add_ENV_entry"] = (a0, a1) => (_wasm_add_ENV_entry = Module["_wasm_add_ENV_entry"] = wasmExports["qb"])(a0, a1);
 
-var _wasm_set_query_string = Module["_wasm_set_query_string"] = a0 => (_wasm_set_query_string = Module["_wasm_set_query_string"] = wasmExports["tb"])(a0);
+var _wasm_set_query_string = Module["_wasm_set_query_string"] = a0 => (_wasm_set_query_string = Module["_wasm_set_query_string"] = wasmExports["rb"])(a0);
 
-var _wasm_set_path_translated = Module["_wasm_set_path_translated"] = a0 => (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = wasmExports["ub"])(a0);
+var _wasm_set_path_translated = Module["_wasm_set_path_translated"] = a0 => (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = wasmExports["sb"])(a0);
 
-var _wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = a0 => (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = wasmExports["vb"])(a0);
+var _wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = a0 => (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = wasmExports["tb"])(a0);
 
-var _wasm_set_request_uri = Module["_wasm_set_request_uri"] = a0 => (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = wasmExports["wb"])(a0);
+var _wasm_set_request_uri = Module["_wasm_set_request_uri"] = a0 => (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = wasmExports["ub"])(a0);
 
-var _wasm_set_request_method = Module["_wasm_set_request_method"] = a0 => (_wasm_set_request_method = Module["_wasm_set_request_method"] = wasmExports["xb"])(a0);
+var _wasm_set_request_method = Module["_wasm_set_request_method"] = a0 => (_wasm_set_request_method = Module["_wasm_set_request_method"] = wasmExports["vb"])(a0);
 
-var _wasm_set_request_host = Module["_wasm_set_request_host"] = a0 => (_wasm_set_request_host = Module["_wasm_set_request_host"] = wasmExports["yb"])(a0);
+var _wasm_set_request_host = Module["_wasm_set_request_host"] = a0 => (_wasm_set_request_host = Module["_wasm_set_request_host"] = wasmExports["wb"])(a0);
 
-var _wasm_set_content_type = Module["_wasm_set_content_type"] = a0 => (_wasm_set_content_type = Module["_wasm_set_content_type"] = wasmExports["zb"])(a0);
+var _wasm_set_content_type = Module["_wasm_set_content_type"] = a0 => (_wasm_set_content_type = Module["_wasm_set_content_type"] = wasmExports["xb"])(a0);
 
-var _wasm_set_request_body = Module["_wasm_set_request_body"] = a0 => (_wasm_set_request_body = Module["_wasm_set_request_body"] = wasmExports["Ab"])(a0);
+var _wasm_set_request_body = Module["_wasm_set_request_body"] = a0 => (_wasm_set_request_body = Module["_wasm_set_request_body"] = wasmExports["yb"])(a0);
 
-var _wasm_set_content_length = Module["_wasm_set_content_length"] = a0 => (_wasm_set_content_length = Module["_wasm_set_content_length"] = wasmExports["Bb"])(a0);
+var _wasm_set_content_length = Module["_wasm_set_content_length"] = a0 => (_wasm_set_content_length = Module["_wasm_set_content_length"] = wasmExports["zb"])(a0);
 
-var _wasm_set_cookies = Module["_wasm_set_cookies"] = a0 => (_wasm_set_cookies = Module["_wasm_set_cookies"] = wasmExports["Cb"])(a0);
+var _wasm_set_cookies = Module["_wasm_set_cookies"] = a0 => (_wasm_set_cookies = Module["_wasm_set_cookies"] = wasmExports["Ab"])(a0);
 
-var _wasm_set_request_port = Module["_wasm_set_request_port"] = a0 => (_wasm_set_request_port = Module["_wasm_set_request_port"] = wasmExports["Db"])(a0);
+var _wasm_set_request_port = Module["_wasm_set_request_port"] = a0 => (_wasm_set_request_port = Module["_wasm_set_request_port"] = wasmExports["Bb"])(a0);
 
-var _wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = () => (_wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = wasmExports["Eb"])();
+var _wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = () => (_wasm_sapi_request_shutdown = Module["_wasm_sapi_request_shutdown"] = wasmExports["Cb"])();
 
-var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = () => (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = wasmExports["Fb"])();
+var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = () => (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = wasmExports["Db"])();
 
-var _php_wasm_init = Module["_php_wasm_init"] = () => (_php_wasm_init = Module["_php_wasm_init"] = wasmExports["Gb"])();
+var _php_wasm_init = Module["_php_wasm_init"] = () => (_php_wasm_init = Module["_php_wasm_init"] = wasmExports["Eb"])();
 
-var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports["Hb"])();
+var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports["Fb"])();
 
-var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports["Ib"])(a0, a1);
+var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports["Gb"])(a0, a1);
 
-var __emscripten_timeout = (a0, a1) => (__emscripten_timeout = wasmExports["Jb"])(a0, a1);
+var __emscripten_timeout = (a0, a1) => (__emscripten_timeout = wasmExports["Hb"])(a0, a1);
 
-var _setThrew = (a0, a1) => (_setThrew = wasmExports["Kb"])(a0, a1);
+var _setThrew = (a0, a1) => (_setThrew = wasmExports["Ib"])(a0, a1);
 
-var __emscripten_tempret_set = a0 => (__emscripten_tempret_set = wasmExports["Lb"])(a0);
+var __emscripten_tempret_set = a0 => (__emscripten_tempret_set = wasmExports["Jb"])(a0);
 
-var __emscripten_stack_restore = a0 => (__emscripten_stack_restore = wasmExports["Mb"])(a0);
+var __emscripten_stack_restore = a0 => (__emscripten_stack_restore = wasmExports["Kb"])(a0);
 
-var __emscripten_stack_alloc = a0 => (__emscripten_stack_alloc = wasmExports["Nb"])(a0);
+var __emscripten_stack_alloc = a0 => (__emscripten_stack_alloc = wasmExports["Lb"])(a0);
 
-var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports["Ob"])();
+var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports["Mb"])();
 
-var dynCall_viii = Module["dynCall_viii"] = (a0, a1, a2, a3) => (dynCall_viii = Module["dynCall_viii"] = wasmExports["Pb"])(a0, a1, a2, a3);
+var dynCall_viii = Module["dynCall_viii"] = (a0, a1, a2, a3) => (dynCall_viii = Module["dynCall_viii"] = wasmExports["Nb"])(a0, a1, a2, a3);
 
-var dynCall_vii = Module["dynCall_vii"] = (a0, a1, a2) => (dynCall_vii = Module["dynCall_vii"] = wasmExports["Qb"])(a0, a1, a2);
+var dynCall_vii = Module["dynCall_vii"] = (a0, a1, a2) => (dynCall_vii = Module["dynCall_vii"] = wasmExports["Ob"])(a0, a1, a2);
 
-var dynCall_vi = Module["dynCall_vi"] = (a0, a1) => (dynCall_vi = Module["dynCall_vi"] = wasmExports["Rb"])(a0, a1);
+var dynCall_vi = Module["dynCall_vi"] = (a0, a1) => (dynCall_vi = Module["dynCall_vi"] = wasmExports["Pb"])(a0, a1);
 
-var dynCall_iii = Module["dynCall_iii"] = (a0, a1, a2) => (dynCall_iii = Module["dynCall_iii"] = wasmExports["Sb"])(a0, a1, a2);
+var dynCall_iii = Module["dynCall_iii"] = (a0, a1, a2) => (dynCall_iii = Module["dynCall_iii"] = wasmExports["Qb"])(a0, a1, a2);
 
-var dynCall_ii = Module["dynCall_ii"] = (a0, a1) => (dynCall_ii = Module["dynCall_ii"] = wasmExports["Tb"])(a0, a1);
+var dynCall_ii = Module["dynCall_ii"] = (a0, a1) => (dynCall_ii = Module["dynCall_ii"] = wasmExports["Rb"])(a0, a1);
 
-var dynCall_v = Module["dynCall_v"] = a0 => (dynCall_v = Module["dynCall_v"] = wasmExports["Ub"])(a0);
+var dynCall_v = Module["dynCall_v"] = a0 => (dynCall_v = Module["dynCall_v"] = wasmExports["Sb"])(a0);
 
-var dynCall_iiii = Module["dynCall_iiii"] = (a0, a1, a2, a3) => (dynCall_iiii = Module["dynCall_iiii"] = wasmExports["Vb"])(a0, a1, a2, a3);
+var dynCall_iiii = Module["dynCall_iiii"] = (a0, a1, a2, a3) => (dynCall_iiii = Module["dynCall_iiii"] = wasmExports["Tb"])(a0, a1, a2, a3);
 
-var dynCall_viiiii = Module["dynCall_viiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_viiiii = Module["dynCall_viiiii"] = wasmExports["Wb"])(a0, a1, a2, a3, a4, a5);
+var dynCall_viiiii = Module["dynCall_viiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_viiiii = Module["dynCall_viiiii"] = wasmExports["Ub"])(a0, a1, a2, a3, a4, a5);
 
-var dynCall_iiiii = Module["dynCall_iiiii"] = (a0, a1, a2, a3, a4) => (dynCall_iiiii = Module["dynCall_iiiii"] = wasmExports["Xb"])(a0, a1, a2, a3, a4);
+var dynCall_iiiii = Module["dynCall_iiiii"] = (a0, a1, a2, a3, a4) => (dynCall_iiiii = Module["dynCall_iiiii"] = wasmExports["Vb"])(a0, a1, a2, a3, a4);
 
-var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = wasmExports["Yb"])(a0, a1, a2, a3, a4, a5, a6);
+var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = wasmExports["Wb"])(a0, a1, a2, a3, a4, a5, a6);
 
-var dynCall_iiiiii = Module["dynCall_iiiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiiii = Module["dynCall_iiiiii"] = wasmExports["Zb"])(a0, a1, a2, a3, a4, a5);
+var dynCall_iiiiii = Module["dynCall_iiiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiiii = Module["dynCall_iiiiii"] = wasmExports["Xb"])(a0, a1, a2, a3, a4, a5);
 
-var dynCall_i = Module["dynCall_i"] = a0 => (dynCall_i = Module["dynCall_i"] = wasmExports["_b"])(a0);
+var dynCall_i = Module["dynCall_i"] = a0 => (dynCall_i = Module["dynCall_i"] = wasmExports["Yb"])(a0);
 
-var dynCall_viiii = Module["dynCall_viiii"] = (a0, a1, a2, a3, a4) => (dynCall_viiii = Module["dynCall_viiii"] = wasmExports["$b"])(a0, a1, a2, a3, a4);
+var dynCall_viiii = Module["dynCall_viiii"] = (a0, a1, a2, a3, a4) => (dynCall_viiii = Module["dynCall_viiii"] = wasmExports["Zb"])(a0, a1, a2, a3, a4);
 
-var dynCall_iiiiiiiii = Module["dynCall_iiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (dynCall_iiiiiiiii = Module["dynCall_iiiiiiiii"] = wasmExports["ac"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+var dynCall_iiiiiiiii = Module["dynCall_iiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (dynCall_iiiiiiiii = Module["dynCall_iiiiiiiii"] = wasmExports["_b"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
 
-var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = wasmExports["bc"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = wasmExports["$b"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 
-var dynCall_viiiiii = Module["dynCall_viiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_viiiiii = Module["dynCall_viiiiii"] = wasmExports["cc"])(a0, a1, a2, a3, a4, a5, a6);
+var dynCall_viiiiii = Module["dynCall_viiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_viiiiii = Module["dynCall_viiiiii"] = wasmExports["ac"])(a0, a1, a2, a3, a4, a5, a6);
 
-var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7) => (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = wasmExports["dc"])(a0, a1, a2, a3, a4, a5, a6, a7);
+var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7) => (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = wasmExports["bc"])(a0, a1, a2, a3, a4, a5, a6, a7);
 
-var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = wasmExports["ec"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = wasmExports["cc"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 
-var dynCall_jii = Module["dynCall_jii"] = (a0, a1, a2) => (dynCall_jii = Module["dynCall_jii"] = wasmExports["fc"])(a0, a1, a2);
+var dynCall_jii = Module["dynCall_jii"] = (a0, a1, a2) => (dynCall_jii = Module["dynCall_jii"] = wasmExports["dc"])(a0, a1, a2);
 
-var _asyncify_start_unwind = a0 => (_asyncify_start_unwind = wasmExports["gc"])(a0);
+var _asyncify_start_unwind = a0 => (_asyncify_start_unwind = wasmExports["ec"])(a0);
 
-var _asyncify_stop_unwind = () => (_asyncify_stop_unwind = wasmExports["hc"])();
+var _asyncify_stop_unwind = () => (_asyncify_stop_unwind = wasmExports["fc"])();
 
-var _asyncify_start_rewind = a0 => (_asyncify_start_rewind = wasmExports["ic"])(a0);
+var _asyncify_start_rewind = a0 => (_asyncify_start_rewind = wasmExports["gc"])(a0);
 
-var _asyncify_stop_rewind = () => (_asyncify_stop_rewind = wasmExports["jc"])();
+var _asyncify_stop_rewind = () => (_asyncify_stop_rewind = wasmExports["hc"])();
 
 function invoke_viii(index, a1, a2, a3) {
   var sp = stackSave();
