@@ -8,6 +8,8 @@ import {
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
+	setupPostMessageRelay,
+	SyncProgressCallback,
 } from '@php-wasm/web';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
@@ -27,7 +29,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
-import type { SyncProgressCallback } from './opfs/bind-opfs';
+import type { BindOpfsOptions } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -77,6 +79,7 @@ export async function bootPlaygroundRemote() {
 			networking: withNetworking ? 'yes' : 'no',
 			storage: query.get('storage') || '',
 			...(sapiName ? { sapiName } : {}),
+			'site-slug': query.get('site-slug') || 'wordpress',
 		})
 	);
 
@@ -189,10 +192,10 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async bindOpfs(
-			opfs: FileSystemDirectoryHandle,
+			options: BindOpfsOptions,
 			onProgress?: SyncProgressCallback
 		) {
-			return await workerApi.bindOpfs(opfs, onProgress);
+			return await workerApi.bindOpfs(options, onProgress);
 		},
 	};
 
@@ -218,6 +221,7 @@ export async function bootPlaygroundRemote() {
 			wpFrame,
 			getOrigin((await playground.absoluteUrl)!)
 		);
+		setupMountListener(playground);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
 		}
@@ -239,38 +243,24 @@ function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
 }
 
-function setupPostMessageRelay(
-	wpFrame: HTMLIFrameElement,
-	expectedOrigin: string
-) {
-	// Relay Messages from WP to Parent
-	window.addEventListener('message', (event) => {
-		if (event.source !== wpFrame.contentWindow) {
+function setupMountListener(playground: WebClientMixin) {
+	window.addEventListener('message', async (event) => {
+		if (typeof event.data !== 'object') {
 			return;
 		}
-
-		if (event.origin !== expectedOrigin) {
+		if (event.data.type !== 'mount-directory-handle') {
 			return;
 		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
+		if (typeof event.data.directoryHandle !== 'object') {
 			return;
 		}
-
-		window.parent.postMessage(event.data, '*');
-	});
-
-	// Relay Messages from Parent to WP
-	window.addEventListener('message', (event) => {
-		if (event.source !== window.parent) {
+		if (!event.data.mountpoint) {
 			return;
 		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
-			return;
-		}
-
-		wpFrame?.contentWindow?.postMessage(event.data);
+		await playground.bindOpfs({
+			opfs: event.data.directoryHandle,
+			mountpoint: event.data.mountpoint,
+		});
 	});
 }
 

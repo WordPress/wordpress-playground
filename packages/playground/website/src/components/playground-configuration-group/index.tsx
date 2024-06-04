@@ -13,15 +13,13 @@ import {
 	saveDirectoryHandle,
 } from './idb-opfs';
 import { OPFSButton } from './opfs-button';
-import { usePlaygroundContext } from '../playground-viewport/context';
 import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
+import { usePlaygroundContext } from '../../playground-context';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
 }
-
-const canUseLocalDirectory = !!(window as any).showDirectoryPicker;
 
 let idb: IDBDatabase | null,
 	lastDirectoryHandle: FileSystemDirectoryHandle | null;
@@ -155,7 +153,7 @@ export default function PlaygroundConfigurationGroup({
 			const isPlaygroundDir = await playgroundAvailableInOpfs(dirHandle);
 			if (!isPlaygroundDir) {
 				// Check if it's an empty directory.
-				for await (const _ of dirHandle.values()) {
+				for await (const _ of (dirHandle as any).values()) {
 					if (_.name.startsWith('.')) continue;
 					alert(
 						'You need to select either an empty directory or a pre-existing Playground directory.'
@@ -164,9 +162,18 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
-			await playground.bindOpfs(dirHandle, (progress) => {
-				setMountProgress(progress);
-			});
+			await playground.bindOpfs(
+				{
+					opfs: dirHandle,
+					mountpoint: '/wordpress',
+					initialSyncDirection: isPlaygroundDir
+						? 'opfs-to-memfs'
+						: 'memfs-to-opfs',
+				},
+				(progress) => {
+					setMountProgress(progress);
+				}
+			);
 
 			setCurrentConfiguration({
 				...currentConfiguration,
@@ -300,7 +307,7 @@ export default function PlaygroundConfigurationGroup({
 					isMountingLocalDirectory={mounting}
 					mountProgress={mountProgress}
 					onSelectLocalDirectory={
-						canUseLocalDirectory
+						(window as any).showDirectoryPicker
 							? isSameOriginAsPlayground
 								? handleSelectLocalDirectory
 								: 'origin-mismatch'

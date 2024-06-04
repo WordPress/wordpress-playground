@@ -1,5 +1,5 @@
+import { usePlaygroundContext } from '../../playground-context';
 import Button from '../button';
-import { usePlaygroundContext } from '../playground-viewport/context';
 
 export function StartOverButton() {
 	const { playground } = usePlaygroundContext();

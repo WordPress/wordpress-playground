@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Button from '../button';
-import { usePlaygroundContext } from '../playground-viewport/context';
+import { usePlaygroundContext } from '../../playground-context';
 
 export function SyncLocalFilesButton() {
 	const { playground, currentUrl } = usePlaygroundContext();

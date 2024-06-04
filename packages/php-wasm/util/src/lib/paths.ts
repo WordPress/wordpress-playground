@@ -136,3 +136,19 @@ export function normalizePathsArray(parts: string[], allowAboveRoot: boolean) {
 	}
 	return parts;
 }
+
+/**
+ * Checks if the given parent path is an ancestor of the given child path.
+ *
+ * @param parent The parent path to check.
+ * @param child The child path to verify against the parent.
+ * @returns Whether the `parent` path is an ancestor of the `child` path.
+ */
+export function isParentOf(parent: string, child: string) {
+	if (parent === '/') {
+		return true;
+	}
+	parent = normalizePath(parent);
+	child = normalizePath(child);
+	return child.startsWith(parent + '/') || child === parent;
+}

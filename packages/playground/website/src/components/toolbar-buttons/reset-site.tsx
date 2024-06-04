@@ -1,7 +1,7 @@
 import { trash } from '@wordpress/icons';
-import { usePlaygroundContext } from '../playground-viewport/context';
 import { MenuItem } from '@wordpress/components';
 import { StorageType } from '../../types';
+import { usePlaygroundContext } from '../../playground-context';
 
 type Props = { onClose: () => void; storage: StorageType };
 const opfsStorages: StorageType[] = ['browser', 'device'];

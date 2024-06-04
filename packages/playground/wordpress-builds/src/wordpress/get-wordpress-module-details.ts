@@ -26,21 +26,21 @@ export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: nu
 		case 'nightly':
 			/** @ts-ignore */
 			return {
-				size: 5023636,
+				size: 4941463,
 				url: url_nightly,
 			};
 			
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 4983118,
+				size: 4878655,
 				url: url_beta,
 			};
 			
 		case '6.5':
 			/** @ts-ignore */
 			return {
-				size: 4873940,
+				size: 4873769,
 				url: url_6_5,
 			};
 			
