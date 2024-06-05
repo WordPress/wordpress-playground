@@ -1,4 +1,3 @@
-import e from 'express';
 import { areCacheKeysForSameFile, isValidFile } from '../lib/fetch-caching';
 
 describe('Valid files', () => {
