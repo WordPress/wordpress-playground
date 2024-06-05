@@ -36,6 +36,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { PHPWorker } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
+import { cachedFetch } from './fetch-caching';
 
 const scope = Math.random().toFixed(16);
 
@@ -75,56 +76,22 @@ downloadMonitor.expectAssets({
 		sqliteDatabaseIntegrationModuleDetails.size,
 });
 const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-	fetch(sqliteDatabaseIntegrationModuleDetails.url)
+	cachedFetch(sqliteDatabaseIntegrationModuleDetails.url)
 );
-
-const wpCacheKey = 'wp-version-cache';
-
-const addWPVersionCache = async (version: string, response: Response) => {
-	// Clone the response so that it can be read again
-	const clonedResponse = response.clone();
-
-	// Store in Cache storage
-	const cache = await caches.open(wpCacheKey);
-	await cache.put(version, clonedResponse);
-};
-
-const getWPVersionCache = async (version: string) => {
-	return undefined;
-	const cache = caches.open(wpCacheKey);
-	return await cache.then((c) => c.match(version));
-};
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
 if (!wordPressAvailableInOPFS) {
-	const cachedResponse = await getWPVersionCache(requestedWPVersion);
-	if (cachedResponse) {
-		wordPressRequest = Promise.resolve(cachedResponse);
+	if (requestedWPVersion.startsWith('http')) {
+		// We don't know the size upfront, but we can still monitor the download.
+		// monitorFetch will read the content-length response header when available.
+		wordPressRequest = monitoredFetch(requestedWPVersion);
 	} else {
-		if (requestedWPVersion.startsWith('http')) {
-			// We don't know the size upfront, but we can still monitor the download.
-			// monitorFetch will read the content-length response header when available.
-			wordPressRequest = monitoredFetch(requestedWPVersion).then(
-				(response) => {
-					addWPVersionCache(requestedWPVersion, response);
-					return response;
-				}
-			);
-		} else {
-			const wpDetails = getWordPressModuleDetails(
-				startupOptions.wpVersion
-			);
-			downloadMonitor.expectAssets({
-				[wpDetails.url]: wpDetails.size,
-			});
-			wordPressRequest = monitoredFetch(wpDetails.url).then(
-				(response) => {
-					addWPVersionCache(requestedWPVersion, response);
-					return response;
-				}
-			);
-		}
+		const wpDetails = getWordPressModuleDetails(startupOptions.wpVersion);
+		downloadMonitor.expectAssets({
+			[wpDetails.url]: wpDetails.size,
+		});
+		wordPressRequest = monitoredFetch(wpDetails.url);
 	}
 }
 
