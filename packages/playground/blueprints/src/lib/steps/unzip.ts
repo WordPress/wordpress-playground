@@ -1,6 +1,6 @@
-import { phpVars } from '@php-wasm/util';
 import { StepHandler } from '.';
-import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
+import { unzipFile } from '@wp-playground/common';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc unzip
@@ -30,8 +30,6 @@ export interface UnzipStep<ResourceType> {
 	extractToPath: string;
 }
 
-const tmpPath = '/tmp/file.zip';
-
 /**
  * Unzip a zip file.
  *
@@ -44,33 +42,13 @@ export const unzip: StepHandler<UnzipStep<File>> = async (
 	{ zipFile, zipPath, extractToPath }
 ) => {
 	if (zipPath) {
-		// Compatibility with the old Blueprints API
 		// @TODO: Remove the zipPath option in the next major version
-		await playground.writeFile(
-			tmpPath,
-			await playground.readFileAsBuffer(zipPath)
-		);
-		console.warn(
+		logger.warn(
 			`The "zipPath" option of the unzip() Blueprint step is deprecated and will be removed. ` +
 				`Use "zipFile" instead.`
 		);
-	} else if (zipFile) {
-		await playground.writeFile(
-			tmpPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
-	} else {
+	} else if (!zipFile) {
 		throw new Error('Either zipPath or zipFile must be provided');
 	}
-	const js = phpVars({
-		zipPath: tmpPath,
-		extractToPath,
-	});
-	await runPhpWithZipFunctions(
-		playground,
-		`unzip(${js.zipPath}, ${js.extractToPath});`
-	);
-	if (playground.fileExists(tmpPath)) {
-		await playground.unlink(tmpPath);
-	}
+	await unzipFile(playground, (zipFile || zipPath)!, extractToPath);
 };

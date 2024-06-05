@@ -1,0 +1,73 @@
+{
+	"name": "playground-puzzle",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/puzzle/src",
+	"projectType": "application",
+	"implicitDependencies": ["playground-client"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/playground/puzzle"
+			}
+		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "playground-puzzle:build"
+			},
+			"configurations": {
+				"development": {
+					"buildTarget": "playground-puzzle:build:development",
+					"hmr": true
+				},
+				"development-for-website": {
+					"buildTarget": "playground-puzzle:build:development",
+					"hmr": true
+				},
+				"production": {
+					"buildTarget": "playground-puzzle:build:production",
+					"hmr": false
+				}
+			}
+		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:esmcjs": {
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
+			"options": {
+				"outputPath": "dist/packages/playground/puzzle"
+			},
+			"dependsOn": ["build"]
+		},
+		"test:vite": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/puzzle"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/puzzle"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/playground/puzzle/**/*.ts"]
+			}
+		}
+	},
+	"typecheck": {
+		"executor": "nx:run-commands",
+		"options": {
+			"commands": [
+				"tsc -p packages/playground/puzzle/tsconfig.lib.json --noEmit",
+				"tsc -p packages/playground/puzzle/tsconfig.spec.json --noEmit"
+			]
+		}
+	},
+	"tags": ["scope:web-client"]
+}

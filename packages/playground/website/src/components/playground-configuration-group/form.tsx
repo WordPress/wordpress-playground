@@ -312,29 +312,49 @@ export function PlaygroundConfigurationForm({
 						>
 							WordPress Version
 						</label>
-						<select
-							id="wp-version"
-							value={wp}
-							className={forms.largeSelect}
-							onChange={(
-								event: React.ChangeEvent<HTMLSelectElement>
-							) => {
-								setWp(event.target.value as string);
+						<div
+							style={{
+								display: 'flex',
+								gap: '0.5rem',
+								flexDirection: 'column',
 							}}
 						>
-							{/*
-							 * Without an empty option, React sometimes says
-							 * the current selected version is "nightly" when
-							 * `wp` is actually "6.4".
-							 */}
-							<option value="">-- Select a version --</option>
-							{Object.keys(supportedWPVersions).map((version) => (
-								<option key={version} value={version}>
-									WordPress {supportedWPVersions[version]}
-									&nbsp;&nbsp;
-								</option>
-							))}
-						</select>
+							<select
+								id="wp-version"
+								value={wp}
+								className={forms.largeSelect}
+								onChange={(
+									event: React.ChangeEvent<HTMLSelectElement>
+								) => {
+									setWp(event.target.value as string);
+								}}
+							>
+								{/*
+								 * Without an empty option, React sometimes says
+								 * the current selected version is "nightly" when
+								 * `wp` is actually "6.4".
+								 */}
+								<option value="">-- Select a version --</option>
+								{Object.keys(supportedWPVersions).map(
+									(version) => (
+										<option key={version} value={version}>
+											WordPress{' '}
+											{supportedWPVersions[version]}
+											&nbsp;&nbsp;
+										</option>
+									)
+								)}
+							</select>
+							<br />
+							<a
+								href="https://wordpress.github.io/wordpress-playground/blueprints-api/examples#load-an-older-wordpress-version"
+								target="_blank"
+								rel="noreferrer"
+								style={{ fontSize: '0.9em' }}
+							>
+								Need an older version?
+							</a>
+						</div>
 					</div>
 					<div className={forms.submitRow}>
 						<Button type="submit" variant="primary" size="large">

@@ -16,7 +16,9 @@
 		"array": "c",
 		"string": "c",
 		"string_view": "c",
-		"vector": "c"
+		"vector": "c",
+		"unistd.h": "c",
+		"zend_api.h": "c"
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"
@@ -28,5 +30,8 @@
 		}
 	],
 	"git.ignoreLimitWarning": true,
-	"C_Cpp.errorSquiggles": "disabled"
+	"C_Cpp.errorSquiggles": "disabled",
+	"git.branchProtection": [
+		"trunk"
+	]
 }

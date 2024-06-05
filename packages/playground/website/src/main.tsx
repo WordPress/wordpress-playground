@@ -1,7 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
 import { menu, external } from '@wordpress/icons';
-import PlaygroundViewport, {
+import {
+	PlaygroundViewport,
 	DisplayMode,
 	supportedDisplayModes,
 } from './components/playground-viewport';
@@ -17,23 +18,40 @@ import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
 import { ReportError } from './components/toolbar-buttons/report-error';
+import { ViewLogs } from './components/toolbar-buttons/view-logs';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	ExportFormValues,
 	asPullRequestAction,
 } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
 import { PlaygroundContext } from './playground-context';
-import { collectWindowErrors, logger } from '@php-wasm/logger';
+import {
+	addCrashListener,
+	collectWindowErrors,
+	logger,
+} from '@php-wasm/logger';
 import { ErrorReportModal } from './components/error-report-modal';
 import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
+import { LogModal } from './components/log-modal';
+import { StartErrorModal } from './components/start-error-modal';
+import { MountMarkdownDirectoryModal } from './components/mount-markdown-directory-modal';
+import { useBootPlayground } from './lib/use-boot-playground';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import store, {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from './lib/redux-store';
+import { logTrackingEvent } from './lib/tracking';
+import { StepDefinition } from '@wp-playground/client';
 
 collectWindowErrors(logger);
 
@@ -65,6 +83,14 @@ const currentConfiguration: PlaygroundConfiguration = {
 	resetSite: false,
 };
 
+const siteSlug = query.get('site-slug') ?? undefined;
+
+if (siteSlug && storage !== 'browser') {
+	alert(
+		'Site slugs only work with browser storage. The site slug will be ignored.'
+	);
+}
+
 /*
  * The 6.3 release includes a caching bug where
  * registered styles aren't enqueued when they
@@ -86,8 +112,33 @@ if (currentConfiguration.wp === '6.3') {
 
 acquireOAuthTokenIfNeeded();
 
+function Modals() {
+	const currentModal = useSelector(
+		(state: PlaygroundReduxState) => state.activeModal
+	);
+
+	if (currentModal === 'log') {
+		return <LogModal />;
+	} else if (currentModal === 'error-report') {
+		return <ErrorReportModal blueprint={blueprint} />;
+	} else if (currentModal === 'start-error') {
+		return <StartErrorModal />;
+	} else if (currentModal === 'mount-markdown-directory') {
+		return <MountMarkdownDirectoryModal />;
+	}
+
+	return null;
+}
+
 function Main() {
-	const [showErrorModal, setShowErrorModal] = useState(false);
+	const dispatch: PlaygroundDispatch = useDispatch();
+
+	const { playground, url, iframeRef } = useBootPlayground({
+		blueprint,
+		storage,
+		siteSlug,
+	});
+
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
@@ -105,6 +156,9 @@ function Main() {
 			values.prAction = asPullRequestAction(
 				query.get('ghexport-pr-action')
 			);
+		}
+		if (query.get('ghexport-pr-number')) {
+			values.prNumber = query.get('ghexport-pr-number')?.toString();
 		}
 		if (query.get('ghexport-playground-root')) {
 			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
@@ -127,15 +181,80 @@ function Main() {
 		return values;
 	});
 
+	useEffect(() => {
+		addCrashListener(logger, (e) => {
+			const error = e as CustomEvent;
+			if (error.detail?.source === 'php-wasm') {
+				dispatch(setActiveModal('error-report'));
+			}
+		});
+	}, []);
+
+	// Add GA events for blueprint steps. For more information, see the README.md file.
+	useEffect(() => {
+		logTrackingEvent('load');
+		// Log the names of provided Blueprint's steps.
+		// Only the names (e.g. "runPhp" or "login") are logged. Step options like code, password,
+		// URLs are never sent anywhere.
+		const steps = (blueprint?.steps || [])
+			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
+			.map((step) => (step as StepDefinition).step);
+		for (const step of steps) {
+			logTrackingEvent('step', { step });
+		}
+	}, [blueprint?.steps]);
+
 	return (
 		<PlaygroundContext.Provider
-			value={{ storage, showErrorModal, setShowErrorModal }}
+			value={{
+				storage,
+				playground,
+				currentUrl: url,
+			}}
 		>
-			<ErrorReportModal />
+			<Modals />
+
+			{query.get('gh-ensure-auth') === 'yes' ? (
+				<GitHubOAuthGuardModal />
+			) : (
+				''
+			)}
+			<GithubImportModal
+				onImported={({
+					url,
+					path,
+					files,
+					pluginOrThemeName,
+					contentType,
+					urlInformation: { owner, repo, type, pr },
+				}) => {
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pr?.toString(),
+						toPathInRepo: path,
+						prAction: pr ? 'update' : 'create',
+						contentType,
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
+					});
+					setGithubExportFiles(files);
+				}}
+			/>
+			<GithubExportModal
+				allowZipExport={
+					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+				}
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
+			/>
 			<PlaygroundViewport
+				ref={iframeRef}
 				storage={storage}
 				displayMode={displayMode}
-				blueprint={blueprint}
 				toolbarButtons={[
 					<PlaygroundConfigurationGroup
 						key="configuration"
@@ -165,6 +284,29 @@ function Main() {
 									<RestoreFromZipMenuItem onClose={onClose} />
 									<GithubImportMenuItem onClose={onClose} />
 									<GithubExportMenuItem onClose={onClose} />
+									<ViewLogs onClose={onClose} />
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to Blueprints Builder"
+										href={
+											[
+												joinPaths(
+													document.location.pathname,
+													'builder/builder.html'
+												),
+												'#',
+												btoa(
+													JSON.stringify(
+														blueprint
+													) as string
+												) as string,
+											].join('') as any
+										}
+										target="_blank"
+									>
+										Edit the Blueprint
+									</MenuItem>
 								</MenuGroup>
 								<MenuGroup label="More resources">
 									<MenuItem
@@ -206,57 +348,33 @@ function Main() {
 									>
 										Documentation
 									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to the Playground git repository"
+										href={
+											'https://github.com/WordPress/wordpress-playground' as any
+										}
+										target="_blank"
+									>
+										GitHub
+									</MenuItem>
 								</MenuGroup>
 							</>
 						)}
 					</DropdownMenu>,
 				]}
-			>
-				{query.get('gh-ensure-auth') === 'yes' ? (
-					<GitHubOAuthGuardModal />
-				) : (
-					''
-				)}
-				<GithubImportModal
-					onImported={({
-						url,
-						path,
-						files,
-						pluginOrThemeName,
-						contentType,
-						urlInformation: { owner, repo, type, pr },
-					}) => {
-						setGithubExportValues({
-							repoUrl: url,
-							prNumber: pr?.toString(),
-							toPathInRepo: path,
-							prAction: pr ? 'update' : 'create',
-							contentType,
-							plugin: pluginOrThemeName,
-							theme: pluginOrThemeName,
-						});
-						setGithubExportFiles(files);
-					}}
-				/>
-				<GithubExportModal
-					allowZipExport={
-						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
-						'yes'
-					}
-					initialValues={githubExportValues}
-					initialFilesBeforeChanges={githubExportFiles}
-					onExported={(prUrl, formValues) => {
-						setGithubExportValues(formValues);
-						setGithubExportFiles(undefined);
-					}}
-				/>
-			</PlaygroundViewport>
+			/>
 		</PlaygroundContext.Provider>
 	);
 }
 
 const root = createRoot(document.getElementById('root')!);
-root.render(<Main />);
+root.render(
+	<Provider store={store}>
+		<Main />
+	</Provider>
+);
 
 function resolveVersion<T>(
 	version: string | undefined,

@@ -6,21 +6,18 @@ export type {
 	PHPRequest,
 	PHPResponse,
 	UniversalPHP,
-	IsomorphicRemotePHP,
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
-	PHPBrowser,
 	PHPRequestHandler,
 	PHPRequestHandlerConfiguration,
 	PHPRequestHeaders,
-	PHPBrowserConfiguration,
 	SupportedPHPVersion,
 	RmDirOptions,
-	RequestHandler,
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
+	setPhpIniEntries,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
@@ -60,6 +57,16 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
+
+	/**
+	 * Called before the blueprint steps are run,
+	 * allows the caller to delay the Blueprint execution
+	 * once the Playground is booted.
+	 *
+	 * @returns
+	 */
+	onBeforeBlueprint?: () => Promise<void>;
+	siteSlug?: string;
 }
 
 /**
@@ -78,6 +85,8 @@ export async function startPlaygroundWeb({
 	onBlueprintStepCompleted,
 	onClientConnected = () => {},
 	sapiName,
+	onBeforeBlueprint,
+	siteSlug,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -91,6 +100,7 @@ export async function startPlaygroundWeb({
 			iframe,
 			setQueryParams(remoteUrl, {
 				['php-extension']: 'kitchen-sink',
+				'site-slug': siteSlug,
 			}),
 			progressTracker
 		);
@@ -109,11 +119,17 @@ export async function startPlaygroundWeb({
 			['sapi-name']: sapiName,
 			['php-extension']: compiled.phpExtensions,
 			['networking']: compiled.features.networking ? 'yes' : 'no',
+			'site-slug': siteSlug,
 		}),
 		progressTracker
 	);
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
+
+	if (onBeforeBlueprint) {
+		await onBeforeBlueprint();
+	}
+
 	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 
@@ -217,7 +233,7 @@ export async function connectPlayground(
 	iframe: HTMLIFrameElement,
 	options?: { loadRemote?: string }
 ): Promise<PlaygroundClient> {
-	console.warn(
+	logger.warn(
 		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
 	);
 	if (options?.loadRemote) {

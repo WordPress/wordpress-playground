@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { addFatalErrorListener, logger } from '@php-wasm/logger';
+import { logger } from '@php-wasm/logger';
 import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
 
-import { usePlaygroundContext } from '../../playground-context';
+import { Blueprint } from '@wp-playground/blueprints';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from '../../lib/redux-store';
 
-export function ErrorReportModal() {
-	const { showErrorModal, setShowErrorModal } = usePlaygroundContext();
+export function ErrorReportModal(props: { blueprint: Blueprint }) {
+	const activeModal = useSelector(
+		(state: PlaygroundReduxState) => state.activeModal
+	);
+	const dispatch: PlaygroundDispatch = useDispatch();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
@@ -17,21 +26,10 @@ export function ErrorReportModal() {
 	const [submitError, setSubmitError] = useState('');
 
 	useEffect(() => {
-		addFatalErrorListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				setShowErrorModal(true);
-			}
-		});
-	}, [setShowErrorModal]);
-
-	useEffect(() => {
 		resetForm();
-		if (showErrorModal) {
-			setLogs(logger.getLogs().join(''));
-			setUrl(window.location.href);
-		}
-	}, [showErrorModal, setShowErrorModal, logs, setLogs]);
+		setLogs(logger.getLogs().join('\n'));
+		setUrl(window.location.href);
+	}, [activeModal, logs, setLogs]);
 
 	function resetForm() {
 		setText('');
@@ -45,9 +43,21 @@ export function ErrorReportModal() {
 	}
 
 	function onClose() {
-		setShowErrorModal(false);
+		dispatch(setActiveModal(null));
 		resetForm();
 		resetSubmission();
+	}
+
+	function getContext() {
+		return {
+			...props.blueprint.preferredVersions,
+			userAgent: navigator.userAgent,
+			...((window.performance as any)?.memory ?? {}),
+			window: {
+				width: window.innerWidth,
+				height: window.innerHeight,
+			},
+		};
 	}
 
 	async function onSubmit() {
@@ -60,6 +70,8 @@ export function ErrorReportModal() {
 		if (url) {
 			formdata.append('url', url);
 		}
+		formdata.append('context', JSON.stringify(getContext()));
+		formdata.append('blueprint', JSON.stringify(props.blueprint));
 		try {
 			const response = await fetch(
 				'https://playground.wordpress.net/logger.php',
@@ -135,7 +147,7 @@ export function ErrorReportModal() {
 	}
 
 	return (
-		<Modal isOpen={showErrorModal} onRequestClose={onClose}>
+		<Modal isOpen={true} onRequestClose={onClose}>
 			<header className={css.errorReportModalHeader}>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>
@@ -144,8 +156,8 @@ export function ErrorReportModal() {
 				<>
 					<main>
 						<TextareaControl
-							label="What happened?"
-							help="Describe what caused the error and how can we reproduce it."
+							label="How can we recreate this error?"
+							help="Describe what caused the error and how can we recreate it."
 							value={text}
 							onChange={setText}
 							className={css.errorReportModalTextarea}

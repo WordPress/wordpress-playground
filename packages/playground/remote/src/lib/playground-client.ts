@@ -3,10 +3,10 @@
  */
 import { ProgressReceiver } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
-import { RemoteAPI } from '@php-wasm/web';
+import { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
 import { ProgressBarOptions } from './progress-bar';
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
-import type { SyncProgressCallback } from './opfs/bind-opfs';
+import type { BindOpfsOptions } from './opfs/bind-opfs';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -48,8 +48,6 @@ export interface WebClientMixin extends ProgressReceiver {
 	 */
 	onDownloadProgress: PlaygroundWorkerEndpoint['onDownloadProgress'];
 
-	setSpawnHandler: PlaygroundWorkerEndpoint['setSpawnHandler'];
-
 	journalFSEvents: PlaygroundWorkerEndpoint['journalFSEvents'];
 	replayFSJournal: PlaygroundWorkerEndpoint['replayFSJournal'];
 	addEventListener: PlaygroundWorkerEndpoint['addEventListener'];
@@ -59,7 +57,7 @@ export interface WebClientMixin extends ProgressReceiver {
 	onMessage: PlaygroundWorkerEndpoint['onMessage'];
 
 	bindOpfs(
-		opfs: FileSystemDirectoryHandle,
+		options: Omit<BindOpfsOptions, 'php' | 'onProgress'>,
 		onProgress?: SyncProgressCallback
 	): Promise<void>;
 }

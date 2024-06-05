@@ -19,48 +19,55 @@ const LibraryExample = {
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
-			FS.mkdir("/internal");
+			FS.mkdir('/internal');
+			// The files from the shared directory are shared between all the
+			// PHP processes managed by PHPProcessManager.
+			FS.mkdir('/internal/shared');
+			// The files from the preload directory are preloaded using the
+			// auto_prepend_file php.ini directive.
+			FS.mkdir('/internal/shared/preload');
+
 
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
-					constructor() {
-						this.listeners = {};
-					}
-					emit(eventName, data) {
-						if (this.listeners[eventName]) {
-							this.listeners[eventName].forEach(
-								(callback) => {
-									callback(data);
-								}
-							);
-						}
-					}
-					once(eventName, callback) {
-						const self = this;
-						function removedCallback() {
-							callback(...arguments);
-							self.removeListener(eventName, removedCallback);
-						}
-						this.on(eventName, removedCallback);
-					}
-					removeAllListeners(eventName) {
-						if (eventName) {
-							delete this.listeners[eventName];
-						} else {
+						constructor() {
 							this.listeners = {};
 						}
-					}
-					removeListener(eventName, callback) {
-						if (this.listeners[eventName]) {
-							const idx =
-								this.listeners[eventName].indexOf(callback);
-							if (idx !== -1) {
-								this.listeners[eventName].splice(idx, 1);
+						emit(eventName, data) {
+							if (this.listeners[eventName]) {
+								this.listeners[eventName].forEach(
+									(callback) => {
+										callback(data);
+									}
+								);
 							}
 						}
-					}
-				};
+						once(eventName, callback) {
+							const self = this;
+							function removedCallback() {
+								callback(...arguments);
+								self.removeListener(eventName, removedCallback);
+							}
+							this.on(eventName, removedCallback);
+						}
+						removeAllListeners(eventName) {
+							if (eventName) {
+								delete this.listeners[eventName];
+							} else {
+								this.listeners = {};
+							}
+						}
+						removeListener(eventName, callback) {
+							if (this.listeners[eventName]) {
+								const idx =
+									this.listeners[eventName].indexOf(callback);
+								if (idx !== -1) {
+									this.listeners[eventName].splice(idx, 1);
+								}
+							}
+						}
+				  };
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
@@ -185,11 +192,15 @@ const LibraryExample = {
 			};
 			return [promise, cancel];
 		},
-		noop: function () { },
+		noop: function () {},
 
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](command, args, options);
+				const spawnedPromise = Module['spawnProcess'](
+					command,
+					args,
+					options
+				);
 				return Promise.resolve(spawnedPromise).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
@@ -210,8 +221,8 @@ const LibraryExample = {
 			}
 			const e = new Error(
 				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
-				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-				'and similar functions via php.ini.'
+					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+					'and similar functions via php.ini.'
 			);
 			e.code = 'SPAWN_UNSUPPORTED';
 			throw e;
@@ -261,7 +272,7 @@ const LibraryExample = {
 		const device = FS.createDevice(
 			'/dev',
 			filename,
-			function () { },
+			function () {},
 			function (byte) {
 				try {
 					dataBuffer.push(byte);
@@ -533,13 +544,11 @@ const LibraryExample = {
 			return -1;
 		}
 		if (PHPWASM.child_proc_by_pid[pid].exited) {
-			HEAPU32[exitCodePtr >> 2] =
-				PHPWASM.child_proc_by_pid[pid].exitCode;
+			HEAPU32[exitCodePtr >> 2] = PHPWASM.child_proc_by_pid[pid].exitCode;
 			return 1;
 		}
 		return 0;
 	},
-
 
 	js_waitpid: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
@@ -594,7 +603,7 @@ const LibraryExample = {
 					return;
 				}
 				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-			} else {
+			} else if (FS.isSocket(FS.getStream(socketd).node.mode)) {
 				// This is, most likely, a websocket. Let's make sure.
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
@@ -640,6 +649,11 @@ const LibraryExample = {
 						lookingFor.add('POLLERR');
 					}
 				}
+			} else {
+				setTimeout(function () {
+					wakeUp(1);
+				}, timeout);
+				return;
 			}
 			if (polls.length === 0) {
 				console.warn(
@@ -762,30 +776,33 @@ const LibraryExample = {
 	js_fd_read: function (fd, iov, iovcnt, pnum) {
 		// Only run the read operation on a regular call,
 		// never when rewinding the stack.
-        if (Asyncify.state === Asyncify.State.Normal) {
-            var returnCode;
-            var stream;
+		if (Asyncify.state === Asyncify.State.Normal) {
+			var returnCode;
+			var stream;
 			let num = 0;
-            try {
-                stream = SYSCALLS.getStreamFromFD(fd);
-                const num = doReadv(stream, iov, iovcnt);
-                HEAPU32[pnum >> 2] = num;
+			try {
+				stream = SYSCALLS.getStreamFromFD(fd);
+				const num = doReadv(stream, iov, iovcnt);
+				HEAPU32[pnum >> 2] = num;
 				return 0;
 			} catch (e) {
 				// Rethrow any unexpected non-filesystem errors.
-				if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
 					throw e;
 				}
-                // Only return synchronously if this isn't an asynchronous pipe.
+				// Only return synchronously if this isn't an asynchronous pipe.
 				// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
 				// We also need to distinguish between a process pipe and a file pipe, otherwise
 				// reading from an empty file would block until the timeout.
-				if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+				if (
+					e.errno !== 6 ||
+					!(stream?.fd in PHPWASM.child_proc_by_fd)
+				) {
 					// On failure, yield 0 bytes read to indicate EOF.
 					HEAPU32[pnum >> 2] = 0;
-					return returnCode
+					return returnCode;
 				}
-            }
+			}
 		}
 
 		// At this point we know we have to poll.
@@ -823,12 +840,11 @@ const LibraryExample = {
 				}
 
 				const success = returnCode === 0;
-				const failure = (
+				const failure =
 					++retries > maxRetries ||
 					!(fd in PHPWASM.child_proc_by_fd) ||
 					PHPWASM.child_proc_by_fd[fd]?.exited ||
-					FS.isClosed(stream)
-				);
+					FS.isClosed(stream);
 
 				if (success) {
 					HEAPU32[pnum >> 2] = num;

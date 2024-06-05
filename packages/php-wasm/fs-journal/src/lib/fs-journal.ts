@@ -1,10 +1,6 @@
-import {
-	BasePHP,
-	UniversalPHP,
-	__private__dont__use,
-} from '@php-wasm/universal';
-import type { IsomorphicLocalPHP } from '@php-wasm/universal';
+import { PHP, UniversalPHP, __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 export type EmscriptenFS = any;
 
@@ -112,7 +108,7 @@ export type FilesystemOperation =
 	| RenameOperation;
 
 export function journalFSEvents(
-	php: BasePHP,
+	php: PHP,
 	fsRoot: string,
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
@@ -275,7 +271,7 @@ const createFSHooks = (
  * @param php
  * @param entries
  */
-export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
+export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 	// We need to restore the original functions to the FS object
 	// before proceeding, or each replayed FS operation will be journaled.
 	//
@@ -309,7 +305,7 @@ export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
 }
 
 export function* recordExistingPath(
-	php: IsomorphicLocalPHP,
+	php: PHP,
 	fromPath: string,
 	toPath: string
 ): Generator<FilesystemOperation> {
@@ -401,7 +397,7 @@ export function normalizeFilesystemOperations(
 				//
 				// But that's not a straightforward transformation so let's just not handle
 				// it for now.
-				console.warn(
+				logger.warn(
 					'[FS Journal] Normalizing a double rename is not yet supported:',
 					{
 						current: latter,
@@ -547,11 +543,11 @@ async function hydrateOp(php: UniversalPHP, op: UpdateFileOperation) {
 		op.data = await php.readFileAsBuffer(op.path);
 	} catch (e) {
 		// Log the error but don't throw.
-		console.warn(
+		logger.warn(
 			`Journal failed to hydrate a file on flush: the ` +
 				`path ${op.path} no longer exists`
 		);
-		console.error(e);
+		logger.error(e);
 	}
 
 	release();

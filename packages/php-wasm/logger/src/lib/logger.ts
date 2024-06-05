@@ -1,7 +1,12 @@
-import {
-	PHPRequestErrorEvent,
-	UniversalPHP,
-} from '@php-wasm/universal/src/lib/universal-php';
+import { logToMemory, logToConsole, logs } from './log-handlers';
+
+export type Log = {
+	message: any;
+	severity?: LogSeverity;
+	prefix?: LogPrefix;
+	raw?: boolean;
+};
+
 /**
  * Log severity levels.
  */
@@ -10,7 +15,7 @@ export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
 /**
  * Log prefix.
  */
-export type LogPrefix = 'Playground' | 'PHP-WASM';
+export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
 
 /**
  * A logger for Playground.
@@ -18,199 +23,12 @@ export type LogPrefix = 'Playground' | 'PHP-WASM';
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
 
-	/**
-	 * Log messages
-	 */
-	private logs: string[] = [];
-
-	/**
-	 * Whether the window events are connected.
-	 */
-	private windowConnected = false;
-
-	/**
-	 * The length of the last PHP log.
-	 */
-	private lastPHPLogLength = 0;
-
-	/**
-	 * The path to the error log file.
-	 */
-	private errorLogPath = '/wordpress/wp-content/debug.log';
-
-	constructor(errorLogPath?: string) {
+	// constructor
+	constructor(
+		// Log handlers
+		private readonly handlers: Function[] = []
+	) {
 		super();
-		if (errorLogPath) {
-			this.errorLogPath = errorLogPath;
-		}
-	}
-
-	/**
-	 * Read the WordPress debug.log file and return its content.
-	 *
-	 * @param UniversalPHP playground instance
-	 * @returns string The content of the debug.log file
-	 */
-	private async getRequestPhpErrorLog(playground: UniversalPHP) {
-		if (!(await playground.fileExists(this.errorLogPath))) {
-			return '';
-		}
-		return await playground.readFileAsText(this.errorLogPath);
-	}
-
-	/**
-	 * Log Windows errors.
-	 *
-	 * @param ErrorEvent event
-	 */
-	private logWindowError(event: ErrorEvent) {
-		this.log(
-			`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-			'Error'
-		);
-	}
-
-	/**
-	 * Log unhandled promise rejections.
-	 *
-	 * @param PromiseRejectionEvent event
-	 */
-	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		// No reason was provided, so we can't log anything.
-		if (!event?.reason) {
-			return;
-		}
-		const message = event?.reason.stack ?? event.reason;
-		this.log(message, 'Error');
-	}
-
-	/**
-	 * Register a listener for the window error events and log the data.
-	 */
-	public addWindowErrorListener() {
-		// Ensure that the window events are connected only once.
-		if (this.windowConnected) {
-			return;
-		}
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		window.addEventListener('error', this.logWindowError.bind(this));
-		window.addEventListener(
-			'unhandledrejection',
-			this.logUnhandledRejection.bind(this)
-		);
-		window.addEventListener(
-			'rejectionhandled',
-			this.logUnhandledRejection.bind(this)
-		);
-		this.windowConnected = true;
-	}
-
-	/**
-	 * Register a listener for the request.end event and log the data.
-	 * @param UniversalPHP playground instance
-	 */
-	public addPlaygroundRequestEndListener(playground: UniversalPHP) {
-		playground.addEventListener('request.end', async () => {
-			const log = await this.getRequestPhpErrorLog(playground);
-			if (log.length > this.lastPHPLogLength) {
-				this.logRaw(log.substring(this.lastPHPLogLength));
-				this.lastPHPLogLength = log.length;
-			}
-		});
-		playground.addEventListener('request.error', (event) => {
-			event = event as PHPRequestErrorEvent;
-			if (event.error) {
-				this.log(
-					`${event.error.message} ${event.error.stack}`,
-					'Fatal',
-					'PHP-WASM'
-				);
-				this.dispatchEvent(
-					new CustomEvent(this.fatalErrorEvent, {
-						detail: {
-							logs: this.getLogs(),
-							source: event.source,
-						},
-					})
-				);
-			}
-		});
-	}
-
-	/**
-	 * Get UTC date in the PHP log format https://github.com/php/php-src/blob/master/main/main.c#L849
-	 *
-	 * @param date
-	 * @returns string
-	 */
-	private formatLogDate(date: Date): string {
-		const formattedDate = new Intl.DateTimeFormat('en-GB', {
-			year: 'numeric',
-			month: 'short',
-			day: '2-digit',
-			timeZone: 'UTC',
-		})
-			.format(date)
-			.replace(/ /g, '-');
-
-		const formattedTime = new Intl.DateTimeFormat('en-GB', {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit',
-			hour12: false,
-			timeZone: 'UTC',
-			timeZoneName: 'short',
-		}).format(date);
-		return formattedDate + ' ' + formattedTime;
-	}
-
-	/**
-	 * Format log message and severity and log it.
-	 * @param string message
-	 * @param LogSeverity severity
-	 * @param string prefix
-	 */
-	public formatMessage(
-		message: string,
-		severity: LogSeverity,
-		prefix: string
-	): string {
-		const now = this.formatLogDate(new Date());
-		return `[${now}] ${prefix} ${severity}: ${message}`;
-	}
-
-	/**
-	 * Log message with severity and timestamp.
-	 * @param string message
-	 * @param LogSeverity severity
-	 * @param string prefix
-	 */
-	public log(
-		message: string,
-		severity?: LogSeverity,
-		prefix?: LogPrefix
-	): void {
-		if (severity === undefined) {
-			severity = 'Info';
-		}
-		const log = this.formatMessage(
-			message,
-			severity,
-			prefix ?? 'Playground'
-		);
-		this.logRaw(log);
-	}
-
-	/**
-	 * Log message without severity and timestamp.
-	 * @param string log
-	 */
-	public logRaw(log: string): void {
-		this.logs.push(log);
-		console.debug(log);
 	}
 
 	/**
@@ -218,46 +36,180 @@ export class Logger extends EventTarget {
 	 * @returns string[]
 	 */
 	public getLogs(): string[] {
-		return this.logs;
+		if (!this.handlers.includes(logToMemory)) {
+			this
+				.error(`Logs aren't stored because the logToMemory handler isn't registered.
+				If you're using a custom logger instance, make sure to register logToMemory handler.
+			`);
+			return [];
+		}
+		return [...logs];
+	}
+
+	/**
+	 * Log message with severity.
+	 *
+	 * @param message any
+	 * @param severity LogSeverity
+	 * @param raw boolean
+	 * @param args any
+	 */
+	public logMessage(log: Log, ...args: any[]): void {
+		for (const handler of this.handlers) {
+			handler(log, ...args);
+		}
+	}
+
+	/**
+	 * Log message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public log(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: undefined,
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log debug message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public debug(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Debug',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log info message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public info(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Info',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log warning message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public warn(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Warn',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log error message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public error(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Error',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
 	}
 }
+
+const getDefaultHandlers = () => {
+	try {
+		if (process.env['NODE_ENV'] === 'test') {
+			return [logToMemory];
+		}
+	} catch (e) {
+		// Process.env is not available in the browser
+	}
+	return [logToMemory, logToConsole];
+};
 
 /**
  * The logger instance.
  */
-export const logger: Logger = new Logger();
+export const logger: Logger = new Logger(getDefaultHandlers());
+
+export const prepareLogMessage = (message: string) => {
+	return message.replace(/\t/g, '');
+};
+
+export const formatLogEntry = (
+	message: string,
+	severity: LogSeverity,
+	prefix: string
+): string => {
+	const date = new Date();
+	const formattedDate = new Intl.DateTimeFormat('en-GB', {
+		year: 'numeric',
+		month: 'short',
+		day: '2-digit',
+		timeZone: 'UTC',
+	})
+		.format(date)
+		.replace(/ /g, '-');
+
+	const formattedTime = new Intl.DateTimeFormat('en-GB', {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false,
+		timeZone: 'UTC',
+		timeZoneName: 'short',
+	}).format(date);
+	const now = formattedDate + ' ' + formattedTime;
+	message = prepareLogMessage(message);
+	return `[${now}] ${prefix} ${severity}: ${message}`;
+};
 
 /**
- * Collect errors from JavaScript window events like error and log them.
- * @param loggerInstance The logger instance
- */
-export function collectWindowErrors(loggerInstance: Logger) {
-	loggerInstance.addWindowErrorListener();
-}
-
-/**
- * Collect PHP logs from the error_log file and log them.
- * @param UniversalPHP playground instance
- * @param loggerInstance The logger instance
- */
-export function collectPhpLogs(
-	loggerInstance: Logger,
-	playground: UniversalPHP
-) {
-	loggerInstance.addPlaygroundRequestEndListener(playground);
-}
-
-/**
- * Add a listener for the fatal Playground errors.
- * These errors include Playground errors like Asyncify errors. PHP errors won't trigger this event.
+ * Add a listener for the Playground crashes.
+ * These crashes include Playground errors like Asyncify errors.
  * The callback function will receive an Event object with logs in the detail property.
  *
  * @param loggerInstance The logger instance
  * @param callback The callback function
  */
-export function addFatalErrorListener(
+export const addCrashListener = (
 	loggerInstance: Logger,
 	callback: EventListenerOrEventListenerObject
-) {
+) => {
 	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
-}
+};

@@ -1,5 +1,6 @@
 import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc activatePlugin
@@ -34,32 +35,48 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 
 	const docroot = await playground.documentRoot;
-	await playground.run({
+	const result = await playground.run({
 		code: `<?php
-define( 'WP_ADMIN', true );
-require_once( ${phpVar(docroot)}. "/wp-load.php" );
-require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
+			define( 'WP_ADMIN', true );
+			require_once( ${phpVar(docroot)}. "/wp-load.php" );
+			require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
 
-// Set current user to admin
-set_current_user( get_users(array('role' => 'Administrator') )[0] );
+			// Set current user to admin
+			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
-$plugin_path = ${phpVar(pluginPath)};
+			$plugin_path = ${phpVar(pluginPath)};
+			$response = false;
+			if (!is_dir($plugin_path)) {
+				$response = activate_plugin($plugin_path);
+			}
 
-if (!is_dir($plugin_path)) {
-	activate_plugin($plugin_path);
-	die();
-}
+			// Activate plugin by name if activation by path wasn't successful
+			if ( null !== $response ) {
+				foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+					$info = get_plugin_data( $file, false, false );
+					if ( ! empty( $info['Name'] ) ) {
+						$response = activate_plugin( $file );
+						break;
+					}
+				}
+			}
 
-foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
-	$info = get_plugin_data( $file, false, false );
-	if ( ! empty( $info['Name'] ) ) {
-		activate_plugin( $file );
-		die();
-	}
-}
+			if ( null === $response ) {
+				die('Plugin activated successfully');
+			} else if ( is_wp_error( $response ) ) {
+				throw new Exception( $response->get_error_message() );
+			}
 
-// If we got here, the plugin was not found.
-exit(1);
-`,
+			throw new Exception( 'Unable to activate plugin' );
+		`,
 	});
+	if (result.text !== 'Plugin activated successfully') {
+		logger.debug(result);
+		throw new Error(
+			`Plugin ${pluginPath} could not be activated – WordPress exited with no error. ` +
+				`Sometimes, when $_SERVER or site options are not configured correctly, ` +
+				`WordPress exits early with a 301 redirect. ` +
+				`Inspect the "debug" logs in the console for more details`
+		);
+	}
 };

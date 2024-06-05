@@ -47,7 +47,7 @@ if (empty($token)) {
 if (!isset($_POST['description']) || empty($_POST['description'])) {
     response(false, 'No description provided');
 }
-$text = "What happened?\n\n" . $_POST['description'];
+$text = "How can we recreate this error?\n\n" . $_POST['description'];
 
 if (isset($_POST['logs']) && !empty($_POST['logs'])) {
     $text .= "\n\nLogs\n\n" . $_POST['logs'];
@@ -59,6 +59,16 @@ if (isset($_POST['url'])) {
     }
     $text .= "\n\nUrl\n\n" . $_POST['url'];
 }
+
+if (isset($_POST['context']) && !empty($_POST['context'])) {
+    $text .= "\n\nContext\n\n" . $_POST['context'];
+}
+
+// Add blueprint
+if (isset($_POST['blueprint']) && !empty($_POST['blueprint'])) {
+    $text .= "\n\nBlueprint\n\n" . $_POST['blueprint'];
+}
+
 $text = urlencode($text);
 
 $ch = curl_init();

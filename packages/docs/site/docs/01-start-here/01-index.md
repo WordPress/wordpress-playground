@@ -7,7 +7,7 @@ slug: /
 
 :::info **Looking for the official Playground website?**
 
-WordPress Playground website was moved to [wp.org/playground](https://wp.org/playground). The site you're at now hosts the documentation.
+WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
 :::
 
@@ -18,15 +18,15 @@ The documentation consists of two major sections:
 -   [Documentation](./01-index.md) (you're here) – Introduction, concepts, and guides
 -   [API reference](/api) – All the APIs exposed by WordPress Playground
 
-This site (Documentation) is where you will find all the information you need to start doing something awesome things with Playground.
+This site (Documentation) is where you will find all the information you need to start using Playground. To learn more about what this fantastic tool, read [Introduction to Playground: running WordPress in the browser](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 
 ## Quick start
 
 -   [Start using WordPress Playground](../02-start-using/01-index.md) in 5 minutes (and check out the [demo site](https://playground.wordpress.net/))
 -   [Build your first app](../03-build-an-app/01-index.md) with WordPress Playground
--   Use Playground as a zero-setup [local development environment](../04-nodejs/01-index.md#start-a-zero-setup-dev-environment-via-vscode-extension)
+-   Use Playground as a zero-setup [local development environment](../05-local-development/02-vscode-extension.md)
 -   Read about the [limitations](../12-limitations/01-index.md)
--   [WordCamp Contributor Day](../14-contributor-day/01-index.md)
+-   [WordCamp Contributor Day](../13-contributing/09-contributor-day.md)
 
 ## Take a deep dive
 

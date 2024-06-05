@@ -1,11 +1,12 @@
-import { NodePHP } from '@php-wasm/node';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { PHP } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { mkdir } from './mkdir';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step mkdir', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion);
+		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 	});
 
 	it('should create a directory', async () => {

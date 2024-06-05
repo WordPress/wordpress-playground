@@ -22,7 +22,11 @@ export function getStepAPI(name) {
 			stepDetails.examples?.[0]?.raw;
 		const fnExample = fnDetails?.examples?.[0];
 
+		const stepId = stepDetails.props?.find((prop) => prop.name === 'step')
+			?.type?.value;
+
 		parsedSteps[name] = {
+			stepId,
 			stepDetails,
 			fnDetails,
 			stepExample,

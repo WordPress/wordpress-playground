@@ -8,7 +8,8 @@ import {
 // directly.
 // @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import * as SupportedWordPressVersions from '../../../wordpress/src/wordpress/wp-versions.json';
+import * as SupportedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+import { Blueprint } from '@wp-playground/blueprints';
 
 describe('Playground website UI', () => {
 	beforeEach(() => cy.visit('/?networking=no'));
@@ -129,6 +130,24 @@ describe('Website UI – Networking support', () => {
 
 		cy.get('button#configurator').click();
 		cy.get('input[name=with-networking]').should('be.checked');
+	});
+
+	it('should display PHP output even when a fatal error is hit', () => {
+		const blueprint: Blueprint = {
+			landingPage: '/err.php',
+			login: true,
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/err.php',
+					data: "<?php throw new Exception('This is a fatal error'); \n",
+				},
+			],
+		};
+		cy.visit('/#' + JSON.stringify(blueprint));
+		cy.wordPressDocument()
+			.its('body')
+			.should('contain.text', 'This is a fatal error');
 	});
 
 	it('should enable networking when requested', () => {

@@ -1,9 +1,13 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
 import { phpVar, phpVars } from '@php-wasm/util';
 
 export async function installSqlSyncMuPlugin(playground: UniversalPHP) {
+	if (!(await playground.fileExists('/wordpress/wp-content/mu-plugins'))) {
+		await playground.mkdir('/wordpress/wp-content/mu-plugins');
+	}
 	await playground.writeFile(
 		`/wordpress/wp-content/mu-plugins/sync-mu-plugin.php`,
 		logSqlQueries
@@ -119,7 +123,7 @@ export async function replaySQLJournal(
 
 function assertEmptyOutput(result: PHPResponse, errorMessage: string) {
 	if (result.text.trim() || result.errors.trim()) {
-		console.error({
+		logger.error({
 			text: result.text,
 			errors: result.errors,
 		});

@@ -17,7 +17,6 @@ import { RmdirStep } from './rmdir';
 import { RunSqlStep } from './run-sql';
 import { MkdirStep } from './mkdir';
 import { MvStep } from './mv';
-import { SetPhpIniEntryStep } from './set-php-ini-entry';
 import { RunPHPStep } from './run-php';
 import { RunPHPWithOptionsStep } from './run-php-with-options';
 import { RequestStep } from './request';
@@ -29,6 +28,7 @@ import { ImportWordPressFilesStep } from './import-wordpress-files';
 import { ImportWxrStep } from './import-wxr';
 import { EnableMultisiteStep } from './enable-multisite';
 import { WPCLIStep } from './wp-cli';
+import { ResetDataStep } from './reset-data';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -58,6 +58,7 @@ export type GenericStep<Resource> =
 	| LoginStep
 	| MkdirStep
 	| MvStep
+	| ResetDataStep
 	| RequestStep
 	| RmStep
 	| RmdirStep
@@ -65,7 +66,6 @@ export type GenericStep<Resource> =
 	| RunPHPWithOptionsStep
 	| RunWpInstallationWizardStep
 	| RunSqlStep<Resource>
-	| SetPhpIniEntryStep
 	| SetSiteOptionsStep
 	| UnzipStep<Resource>
 	| UpdateUserMetaStep
@@ -88,6 +88,7 @@ export type {
 	LoginStep,
 	MkdirStep,
 	MvStep,
+	ResetDataStep,
 	RequestStep,
 	RmStep,
 	RmdirStep,
@@ -96,7 +97,6 @@ export type {
 	RunWpInstallationWizardStep,
 	RunSqlStep,
 	WordPressInstallationOptions,
-	SetPhpIniEntryStep,
 	SetSiteOptionsStep,
 	UnzipStep,
 	UpdateUserMetaStep,

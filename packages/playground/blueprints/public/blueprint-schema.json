@@ -460,7 +460,7 @@
 						"method": {
 							"type": "string",
 							"enum": ["rewrite-wp-config", "define-before-run"],
-							"description": "The method of defining the constants. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+							"description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
 						},
 						"virtualize": {
 							"type": "boolean",
@@ -564,33 +564,6 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "importFile"
-						},
-						"file": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The file to import"
-						}
-					},
-					"required": ["file", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
 							"const": "importWordPressFiles"
 						},
 						"wordPressFilesZip": {
@@ -619,6 +592,11 @@
 								}
 							},
 							"additionalProperties": false
+						},
+						"ifAlreadyInstalled": {
+							"type": "string",
+							"enum": ["overwrite", "skip", "error"],
+							"description": "What to do if the asset already exists."
 						},
 						"step": {
 							"type": "string",
@@ -651,6 +629,11 @@
 								}
 							},
 							"additionalProperties": false
+						},
+						"ifAlreadyInstalled": {
+							"type": "string",
+							"enum": ["overwrite", "skip", "error"],
+							"description": "What to do if the asset already exists."
 						},
 						"step": {
 							"type": "string",
@@ -763,6 +746,29 @@
 						}
 					},
 					"required": ["fromPath", "step", "toPath"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "resetData"
+						}
+					},
+					"required": ["step"]
 				},
 				{
 					"type": "object",
@@ -895,7 +901,7 @@
 						},
 						"options": {
 							"$ref": "#/definitions/PHPRunOptions",
-							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions)"
+							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))"
 						}
 					},
 					"required": ["options", "step"]
@@ -953,37 +959,6 @@
 						}
 					},
 					"required": ["sql", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "setPhpIniEntry"
-						},
-						"key": {
-							"type": "string",
-							"description": "Entry name e.g. \"display_errors\""
-						},
-						"value": {
-							"type": "string",
-							"description": "Entry value as a string e.g. \"1\""
-						}
-					},
-					"required": ["key", "step", "value"]
 				},
 				{
 					"type": "object",
@@ -1434,6 +1409,13 @@
 						"type": "string"
 					},
 					"description": "Environment variables to set for this run."
+				},
+				"$_SERVER": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"description": "$_SERVER entries to set for this run."
 				},
 				"code": {
 					"type": "string",

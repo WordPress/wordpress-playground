@@ -33,6 +33,15 @@ describe('Blueprints', () => {
 		cy.wordPressDocument().its('body').should('contain', 'Sample Page');
 	});
 
+	it('Landing page without the initial slash should work', () => {
+		const blueprint: Blueprint = {
+			landingPage: 'wp-admin/plugins.php',
+			login: true,
+		};
+		cy.visit('/#' + JSON.stringify(blueprint));
+		cy.wordPressDocument().its('body').should('contain.text', 'Plugins');
+	});
+
 	it('enableMultisite step should enable a multisite', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
@@ -54,8 +63,18 @@ describe('Blueprints', () => {
 	it('enableMultisite step should re-activate the plugins', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/plugins.php',
-			plugins: ['hello-dolly'],
-			steps: [{ step: 'enableMultisite' }],
+			steps: [
+				{ step: 'login' },
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'wordpress.org/plugins',
+						slug: 'hello-dolly',
+					},
+					options: { activate: true },
+				},
+				{ step: 'enableMultisite' },
+			],
 		};
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument()

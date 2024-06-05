@@ -1,9 +1,12 @@
 import { createContext, useContext } from 'react';
 import { StorageType } from './types';
+import { PlaygroundClient } from '@wp-playground/remote';
 
 export const PlaygroundContext = createContext<{
 	storage: StorageType;
-	showErrorModal: boolean;
-	setShowErrorModal: (show: boolean) => void;
-}>({ storage: 'none', showErrorModal: false, setShowErrorModal: () => {} });
+	playground?: PlaygroundClient;
+	currentUrl?: string;
+}>({
+	storage: 'none',
+});
 export const usePlaygroundContext = () => useContext(PlaygroundContext);

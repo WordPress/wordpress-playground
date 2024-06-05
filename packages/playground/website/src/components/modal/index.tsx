@@ -4,7 +4,7 @@ import css from './style.module.css';
 ReactModal.setAppElement('#root');
 
 interface ModalProps extends ReactModal.Props {
-	mergeStyles?: boolean;
+	styles?: ReactModal.Styles;
 }
 export const defaultStyles: ReactModal.Styles = {
 	content: {
@@ -29,8 +29,12 @@ export const defaultStyles: ReactModal.Styles = {
 	},
 };
 export default function Modal(props: ModalProps) {
+	const styles = {
+		overlay: { ...defaultStyles.overlay, ...props.styles?.overlay },
+		content: { ...defaultStyles.content, ...props.styles?.content },
+	};
 	return (
-		<ReactModal style={defaultStyles} {...props}>
+		<ReactModal style={styles} {...props}>
 			<div className={css.modalInner} id="modal-content">
 				<button
 					id="import-close-modal--btn"

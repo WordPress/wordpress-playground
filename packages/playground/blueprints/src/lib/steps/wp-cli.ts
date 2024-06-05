@@ -24,7 +24,7 @@ export interface WPCLIStep {
 }
 
 /**
- * Runs PHP code.
+ * Runs PHP code using [WP-CLI](https://developer.wordpress.org/cli/commands/).
  */
 export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,
@@ -70,7 +70,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		// the CLI SAPI.
 		define('STDIN', fopen('php://stdin', 'rb'));
 		define('STDOUT', fopen('php://stdout', 'wb'));
-		define('STDERR', fopen('/tmp/stderr', 'wb'));
+		define('STDERR', fopen('php://stderr', 'wb'));
 
 		require( ${phpVar(wpCliPath)} );
 		`

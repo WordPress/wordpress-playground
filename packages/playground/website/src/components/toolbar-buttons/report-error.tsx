@@ -1,11 +1,12 @@
 import { MenuItem } from '@wordpress/components';
 import { bug } from '@wordpress/icons';
 
-import { usePlaygroundContext } from '../../playground-context';
+import { useDispatch } from 'react-redux';
+import { PlaygroundDispatch, setActiveModal } from '../../lib/redux-store';
 
 type Props = { onClose: () => void };
 export function ReportError({ onClose }: Props) {
-	const { setShowErrorModal } = usePlaygroundContext();
+	const dispatch: PlaygroundDispatch = useDispatch();
 	return (
 		<MenuItem
 			icon={bug}
@@ -13,7 +14,7 @@ export function ReportError({ onClose }: Props) {
 			data-cy="report-error"
 			aria-label="Report an error in Playground"
 			onClick={() => {
-				setShowErrorModal(true);
+				dispatch(setActiveModal('error-report'));
 				onClose();
 			}}
 		>

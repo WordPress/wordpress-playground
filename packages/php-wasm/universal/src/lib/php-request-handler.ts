@@ -1,21 +1,29 @@
-import { Semaphore } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import { BasePHP, normalizeHeaders } from './base-php';
+import { PHP, PHPExecutionFailureError, normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
-import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
+import { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
+import {
+	MaxPhpInstancesError,
+	PHPFactoryOptions,
+	PHPProcessManager,
+	SpawnedPHP,
+} from './php-process-manager';
+import { HttpCookieStore } from './http-cookie-store';
+import mimeTypes from './mime-types.json';
 
 export type RewriteRule = {
 	match: RegExp;
 	replacement: string;
 };
 
-export interface PHPRequestHandlerConfiguration {
+interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
@@ -32,8 +40,93 @@ export interface PHPRequestHandlerConfiguration {
 	rewriteRules?: RewriteRule[];
 }
 
-/** @inheritDoc */
-export class PHPRequestHandler implements RequestHandler {
+export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
+	requestHandler: PHPRequestHandler;
+};
+
+export type PHPRequestHandlerConfiguration = BaseConfiguration &
+	(
+		| {
+				/**
+				 * PHPProcessManager is required because the request handler needs
+				 * to make a decision for each request.
+				 *
+				 * Static assets are served using the primary PHP's filesystem, even
+				 * when serving 100 static files concurrently. No new PHP interpreter
+				 * is ever created as there's no need for it.
+				 *
+				 * Dynamic PHP requests, however, require grabbing an available PHP
+				 * interpreter, and that's where the PHPProcessManager comes in.
+				 */
+				processManager: PHPProcessManager;
+		  }
+		| {
+				phpFactory: (
+					requestHandler: PHPRequestHandlerFactoryArgs
+				) => Promise<PHP>;
+				/**
+				 * The maximum number of PHP instances that can exist at
+				 * the same time.
+				 */
+				maxPhpInstances?: number;
+		  }
+	);
+
+/**
+ * Handles HTTP requests using PHP runtime as a backend.
+ *
+ * @public
+ * @example Use PHPRequestHandler implicitly with a new PHP instance:
+ * ```js
+ * import { PHP } from '@php-wasm/web';
+ *
+ * const php = await PHP.load( '7.4', {
+ *     requestHandler: {
+ *         // PHP FS path to serve the files from:
+ *         documentRoot: '/www',
+ *
+ *         // Used to populate $_SERVER['SERVER_NAME'] etc.:
+ *         absoluteUrl: 'http://127.0.0.1'
+ *     }
+ * } );
+ *
+ * php.mkdirTree('/www');
+ * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
+ *
+ * const response = await php.request({ path: '/index.php' });
+ * console.log(response.text);
+ * // "Hi from PHP!"
+ * ```
+ *
+ * @example Explicitly create a PHPRequestHandler instance and run a PHP script:
+ * ```js
+ * import {
+ *   loadPHPRuntime,
+ *   PHP,
+ *   PHPRequestHandler,
+ *   getPHPLoaderModule,
+ * } from '@php-wasm/web';
+ *
+ * const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
+ * const php = new PHP( runtime );
+ *
+ * php.mkdirTree('/www');
+ * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
+ *
+ * const server = new PHPRequestHandler(php, {
+ *     // PHP FS path to serve the files from:
+ *     documentRoot: '/www',
+ *
+ *     // Used to populate $_SERVER['SERVER_NAME'] etc.:
+ *     absoluteUrl: 'http://127.0.0.1'
+ * });
+ *
+ * const response = server.request({ path: '/index.php' });
+ * console.log(response.text);
+ * // "Hi from PHP!"
+ * ```
+ */
+export class PHPRequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -41,26 +134,44 @@ export class PHPRequestHandler implements RequestHandler {
 	#HOST: string;
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
-	#semaphore: Semaphore;
+	#cookieStore: HttpCookieStore;
 	rewriteRules: RewriteRule[];
+	processManager: PHPProcessManager;
 
 	/**
-	 * The PHP instance
-	 */
-	php: BasePHP;
-
-	/**
+	 * The request handler needs to decide whether to serve a static asset or
+	 * run the PHP interpreter. For static assets it should just reuse the primary
+	 * PHP even if there's 50 concurrent requests to serve. However, for
+	 * dynamic PHP requests, it needs to grab an available interpreter.
+	 * Therefore, it cannot just accept PHP as an argument as serving requests
+	 * requires access to ProcessManager.
+	 *
 	 * @param  php    - The PHP instance.
 	 * @param  config - Request Handler configuration.
 	 */
-	constructor(php: BasePHP, config: PHPRequestHandlerConfiguration = {}) {
-		this.#semaphore = new Semaphore({ concurrency: 1 });
+	constructor(config: PHPRequestHandlerConfiguration) {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			rewriteRules = [],
 		} = config;
-		this.php = php;
+		if ('processManager' in config) {
+			this.processManager = config.processManager;
+		} else {
+			this.processManager = new PHPProcessManager({
+				phpFactory: async (info) => {
+					const php = await config.phpFactory!({
+						...info,
+						requestHandler: this,
+					});
+					// @TODO: Decouple PHP and request handler
+					(php as any).requestHandler = this;
+					return php;
+				},
+				maxPhpInstances: config.maxPhpInstances,
+			});
+		}
+		this.#cookieStore = new HttpCookieStore();
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -85,12 +196,28 @@ export class PHPRequestHandler implements RequestHandler {
 		this.rewriteRules = rewriteRules;
 	}
 
-	/** @inheritDoc */
+	async getPrimaryPhp() {
+		return await this.processManager.getPrimaryPhp();
+	}
+
+	/**
+	 * Converts a path to an absolute URL based at the PHPRequestHandler
+	 * root.
+	 *
+	 * @param  path The server path to convert to an absolute URL.
+	 * @returns The absolute URL.
+	 */
 	pathToInternalUrl(path: string): string {
 		return `${this.absoluteUrl}${path}`;
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Converts an absolute URL based at the PHPRequestHandler to a relative path
+	 * without the server pathname and scope.
+	 *
+	 * @param  internalUrl An absolute URL based at the PHPRequestHandler root.
+	 * @returns The relative path.
+	 */
 	internalUrlToPath(internalUrl: string): string {
 		const url = new URL(internalUrl);
 		if (url.pathname.startsWith(this.#PATHNAME)) {
@@ -99,21 +226,69 @@ export class PHPRequestHandler implements RequestHandler {
 		return toRelativeUrl(url);
 	}
 
-	get isRequestRunning() {
-		return this.#semaphore.running > 0;
-	}
-
-	/** @inheritDoc */
+	/**
+	 * The absolute URL of this PHPRequestHandler instance.
+	 */
 	get absoluteUrl() {
 		return this.#ABSOLUTE_URL;
 	}
 
-	/** @inheritDoc */
+	/**
+	 * The directory in the PHP filesystem where the server will look
+	 * for the files to serve. Default: `/var/www`.
+	 */
 	get documentRoot() {
 		return this.#DOCROOT;
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Serves the request – either by serving a static file, or by
+	 * dispatching it to the PHP runtime.
+	 *
+	 * The request() method mode behaves like a web server and only works if
+	 * the PHP was initialized with a `requestHandler` option (which the online version
+	 * of WordPress Playground does by default).
+	 *
+	 * In the request mode, you pass an object containing the request information
+	 * (method, headers, body, etc.) and the path to the PHP file to run:
+	 *
+	 * ```ts
+	 * const php = PHP.load('7.4', {
+	 * 	requestHandler: {
+	 * 		documentRoot: "/www"
+	 * 	}
+	 * })
+	 * php.writeFile("/www/index.php", `<?php echo file_get_contents("php://input");`);
+	 * const result = await php.request({
+	 * 	method: "GET",
+	 * 	headers: {
+	 * 		"Content-Type": "text/plain"
+	 * 	},
+	 * 	body: "Hello world!",
+	 * 	path: "/www/index.php"
+	 * });
+	 * // result.text === "Hello world!"
+	 * ```
+	 *
+	 * The `request()` method cannot be used in conjunction with `cli()`.
+	 *
+	 * @example
+	 * ```js
+	 * const output = await php.request({
+	 * 	method: 'GET',
+	 * 	url: '/index.php',
+	 * 	headers: {
+	 * 		'X-foo': 'bar',
+	 * 	},
+	 * 	body: {
+	 * 		foo: 'bar',
+	 * 	},
+	 * });
+	 * console.log(output.stdout); // "Hello world!"
+	 * ```
+	 *
+	 * @param  request - PHP Request data.
+	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute =
 			request.url.startsWith('http://') ||
@@ -125,14 +300,20 @@ export class PHPRequestHandler implements RequestHandler {
 		);
 
 		const normalizedRequestedPath = applyRewriteRules(
-			removePathPrefix(requestedUrl.pathname, this.#PATHNAME),
+			removePathPrefix(
+				decodeURIComponent(requestedUrl.pathname),
+				this.#PATHNAME
+			),
 			this.rewriteRules
 		);
-		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
-		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
-			return await this.#dispatchToPHP(request, requestedUrl);
+		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
+		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
+			return this.#serveStaticFile(
+				await this.processManager.getPrimaryPhp(),
+				fsPath
+			);
 		}
-		return this.#serveStaticFile(fsPath);
+		return this.#spawnPHPAndDispatchRequest(request, requestedUrl);
 	}
 
 	/**
@@ -141,8 +322,8 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @param  fsPath - Absolute path of the static file to serve.
 	 * @returns The response.
 	 */
-	#serveStaticFile(fsPath: string): PHPResponse {
-		if (!this.php.fileExists(fsPath)) {
+	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
+		if (!php.fileExists(fsPath)) {
 			return new PHPResponse(
 				404,
 				// Let the service worker know that no static file was found
@@ -153,7 +334,7 @@ export class PHPRequestHandler implements RequestHandler {
 				new TextEncoder().encode('404 File not found')
 			);
 		}
-		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
+		const arrayBuffer = php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
 			{
@@ -170,6 +351,34 @@ export class PHPRequestHandler implements RequestHandler {
 	}
 
 	/**
+	 * Spawns a new PHP instance and dispatches a request to it.
+	 */
+	async #spawnPHPAndDispatchRequest(
+		request: PHPRequest,
+		requestedUrl: URL
+	): Promise<PHPResponse> {
+		let spawnedPHP: SpawnedPHP | undefined = undefined;
+		try {
+			spawnedPHP = await this.processManager!.acquirePHPInstance();
+		} catch (e) {
+			if (e instanceof MaxPhpInstancesError) {
+				return PHPResponse.forHttpCode(502);
+			} else {
+				return PHPResponse.forHttpCode(500);
+			}
+		}
+		try {
+			return await this.#dispatchToPHP(
+				spawnedPHP.php,
+				request,
+				requestedUrl
+			);
+		} finally {
+			spawnedPHP.reap();
+		}
+	}
+
+	/**
 	 * Runs the requested PHP file with all the request and $_SERVER
 	 * superglobals populated.
 	 *
@@ -177,79 +386,65 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(
+		php: PHP,
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		if (
-			this.#semaphore.running > 0 &&
-			request.headers?.['x-request-issuer'] === 'php'
-		) {
-			console.warn(
-				`Possible deadlock: Called request() before the previous request() have finished. ` +
-					`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +
-					`waiting as Request 1 holds the lock that the Request 2 is waiting to acquire. ` +
-					`That's not useful, so PHPRequestHandler will return error 502 instead.`
-			);
-			return new PHPResponse(
-				502,
-				{},
-				new TextEncoder().encode('502 Bad Gateway')
-			);
+		let preferredMethod: PHPRunOptions['method'] = 'GET';
+
+		const headers: Record<string, string> = {
+			host: this.#HOST,
+			...normalizeHeaders(request.headers || {}),
+			cookie: this.#cookieStore.getCookieRequestHeader(),
+		};
+
+		let body = request.body;
+		if (typeof body === 'object' && !(body instanceof Uint8Array)) {
+			preferredMethod = 'POST';
+			const { bytes, contentType } = await encodeAsMultipart(body);
+			body = bytes;
+			headers['content-type'] = contentType;
 		}
-		/*
-		 * Prevent multiple requests from running at the same time.
-		 * For example, if a request is made to a PHP file that
-		 * requests another PHP file, the second request may
-		 * be dispatched before the first one is finished.
-		 */
-		const release = await this.#semaphore.acquire();
+
+		let scriptPath;
 		try {
-			this.php.addServerGlobalEntry('REMOTE_ADDR', '127.0.0.1');
-			this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
-			this.php.addServerGlobalEntry(
-				'HTTPS',
-				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
+			scriptPath = this.#resolvePHPFilePath(
+				php,
+				decodeURIComponent(requestedUrl.pathname)
 			);
+		} catch (error) {
+			return PHPResponse.forHttpCode(404);
+		}
 
-			let preferredMethod: PHPRunOptions['method'] = 'GET';
-
-			const headers: Record<string, string> = {
-				host: this.#HOST,
-				...normalizeHeaders(request.headers || {}),
-			};
-
-			let body = request.body;
-			if (typeof body === 'object' && !(body instanceof Uint8Array)) {
-				preferredMethod = 'POST';
-				const { bytes, contentType } = await encodeAsMultipart(body);
-				body = bytes;
-				headers['content-type'] = contentType;
-			}
-
-			let scriptPath;
-			try {
-				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
-			} catch (error) {
-				return new PHPResponse(
-					404,
-					{},
-					new TextEncoder().encode('404 File not found')
-				);
-			}
-
-			return await this.php.run({
+		try {
+			const response = await php.run({
 				relativeUri: ensurePathPrefix(
 					toRelativeUrl(requestedUrl),
 					this.#PATHNAME
 				),
 				protocol: this.#PROTOCOL,
 				method: request.method || preferredMethod,
+				$_SERVER: {
+					REMOTE_ADDR: '127.0.0.1',
+					DOCUMENT_ROOT: this.#DOCROOT,
+					HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
+						? 'on'
+						: '',
+				},
 				body,
 				scriptPath,
 				headers,
 			});
-		} finally {
-			release();
+			this.#cookieStore.rememberCookiesFromResponseHeaders(
+				response.headers
+			);
+			return response;
+		} catch (error) {
+			const executionError = error as PHPExecutionFailureError;
+			if (executionError?.response) {
+				return executionError.response;
+			}
+			throw error;
 		}
 	}
 
@@ -262,14 +457,14 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @throws {Error} If the requested path doesn't exist.
 	 * @returns The resolved filesystem path.
 	 */
-	#resolvePHPFilePath(requestedPath: string): string {
+	#resolvePHPFilePath(php: PHP, requestedPath: string): string {
 		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
 		filePath = applyRewriteRules(filePath, this.rewriteRules);
 
 		if (filePath.includes('.php')) {
 			// If the path mentions a .php extension, that's our file's path.
 			filePath = filePath.split('.php')[0] + '.php';
-		} else if (this.php.isDir(`${this.#DOCROOT}${filePath}`)) {
+		} else if (php.isDir(`${this.#DOCROOT}${filePath}`)) {
 			if (!filePath.endsWith('/')) {
 				filePath = `${filePath}/`;
 			}
@@ -280,8 +475,13 @@ export class PHPRequestHandler implements RequestHandler {
 			filePath = '/index.php';
 		}
 
-		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
-		if (this.php.fileExists(resolvedFsPath)) {
+		let resolvedFsPath = `${this.#DOCROOT}${filePath}`;
+		// If the requested PHP file doesn't exist, let's fall back to /index.php
+		// as the request may need to be rewritten.
+		if (!php.fileExists(resolvedFsPath)) {
+			resolvedFsPath = `${this.#DOCROOT}/index.php`;
+		}
+		if (php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}
 		throw new Error(`File not found: ${resolvedFsPath}`);
@@ -299,45 +499,8 @@ export class PHPRequestHandler implements RequestHandler {
  * @returns The inferred mime type.
  */
 function inferMimeType(path: string): string {
-	const extension = path.split('.').pop();
-	switch (extension) {
-		case 'css':
-			return 'text/css';
-		case 'js':
-			return 'application/javascript';
-		case 'png':
-			return 'image/png';
-		case 'jpg':
-		case 'jpeg':
-			return 'image/jpeg';
-		case 'gif':
-			return 'image/gif';
-		case 'svg':
-			return 'image/svg+xml';
-		case 'woff':
-			return 'font/woff';
-		case 'woff2':
-			return 'font/woff2';
-		case 'ttf':
-			return 'font/ttf';
-		case 'otf':
-			return 'font/otf';
-		case 'eot':
-			return 'font/eot';
-		case 'ico':
-			return 'image/x-icon';
-		case 'html':
-			return 'text/html';
-		case 'json':
-			return 'application/json';
-		case 'xml':
-			return 'application/xml';
-		case 'txt':
-		case 'md':
-			return 'text/plain';
-		default:
-			return 'application-octet-stream';
-	}
+	const extension = path.split('.').pop() as keyof typeof mimeTypes;
+	return mimeTypes[extension] || mimeTypes['_default'];
 }
 
 /**

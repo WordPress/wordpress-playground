@@ -1,12 +1,16 @@
-import { getPHPLoaderModule, NodePHP } from '..';
+import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import { vi } from 'vitest';
 import {
 	__private__dont__use,
+	getPhpIniEntries,
 	loadPHPRuntime,
+	PHP,
+	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { existsSync, rmSync, readFileSync } from 'fs';
+import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -68,15 +72,11 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any, {
-			requestHandler: {
-				documentRoot: '/php',
-			},
-		});
+		php = new PHP(await loadNodeRuntime(phpVersion as any));
 		php.mkdir('/php');
-		php.setPhpIniEntry('disable_functions', '');
+		await setPhpIniEntries(php, { disable_functions: '' });
 	});
 	afterEach(async () => {
 		// Clean up
@@ -140,6 +140,64 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
+	/**
+	 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
+	 */
+	describe('dns_* function warnings', () => {
+		it('dns_check_record should throw a warning', async () => {
+			const result = await php.run({
+				code: `<?php
+				dns_check_record('w.org', 2);
+			`,
+			});
+			expect(result.text).toContain(
+				'dns_check_record() always returns false in PHP.wasm.'
+			);
+		});
+	});
+
+	describe('dns_* functions()', () => {
+		beforeEach(async () => {
+			await setPhpIniEntries(php, {
+				...getPhpIniEntries(php),
+				// Disable warnings to test the function output
+				error_reporting: 'E_ALL & ~E_WARNING',
+			});
+		});
+		it('dns_check_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_check_record('w.org', 2));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('dns_get_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_record('w.org'));
+			`,
+			});
+			expect(result.text).toEqual('array(0) {\n}\n');
+		});
+		it('dns_get_mx should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_mx('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('getmxrr should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(getmxrr('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+	});
+
 	describe('popen()', () => {
 		it('popen("echo", "r")', async () => {
 			const result = await php.run({
@@ -153,21 +211,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('popen("cat", "w")', async () => {
-			const result = await php.run({
-				code: `<?php
-				$fp = popen("cat > out", "w");
-                fwrite($fp, "WordPress\n");
-				fclose($fp);
+			try {
+				const result = await php.run({
+					code: `<?php
+					$fp = popen("cat > out", "w");
+					fwrite($fp, "WordPress\n");
+					fclose($fp);
 
-				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+					sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
-				$fp = popen("cat out", "r");
-				echo 'stdout: ' . fread($fp, 1024);
-				pclose($fp);
-			`,
-			});
+					$fp = popen("cat out", "r");
+					echo 'stdout: ' . fread($fp, 1024);
+					pclose($fp);
+				`,
+				});
 
-			expect(result.text).toEqual('stdout: WordPress\n');
+				expect(result.text).toEqual('stdout: WordPress\n');
+			} finally {
+				rmSync('out', { force: true });
+			}
 		});
 	});
 
@@ -510,7 +572,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					`string(13) "Hello World!\n"`,
 					`string(0) ""`,
 					`string(0) ""`,
-					`resource(1) of type (stream)`,
+					`resource(3) of type (stream)`,
 					`bool(true)`,
 					'',
 				].join('\n')
@@ -557,7 +619,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					`string(13) "Hello World!\n"`,
 					`string(13) "Hello Again!\n"`,
 					`string(0) ""`,
-					`resource(1) of type (stream)`,
+					`resource(3) of type (stream)`,
 					`bool(true)`,
 					'',
 				].join('\n')
@@ -818,6 +880,30 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			);
 		});
 
+		it('mv() from NODEFS to MEMFS should work', () => {
+			mkdirSync(__dirname + '/test-data/mount-contents/a/b', {
+				recursive: true,
+			});
+			writeFileSync(
+				__dirname + '/test-data/mount-contents/a/b/test.txt',
+				'contents'
+			);
+			php.mkdir('/nodefs');
+			php.mount(
+				'/nodefs',
+				createNodeFsMountHandler(
+					__dirname + '/test-data/mount-contents'
+				)
+			);
+			php.mv('/nodefs/a', '/tmp/a');
+			expect(
+				existsSync(__dirname + '/test-data/mount-contents/a')
+			).toEqual(false);
+			expect(php.fileExists('/nodefs/a')).toEqual(false);
+			expect(php.fileExists('/tmp/a')).toEqual(true);
+			expect(php.readFileAsText('/tmp/a/b/test.txt')).toEqual('contents');
+		});
+
 		it('mkdir() should create a directory', () => {
 			php.mkdir(testDirPath);
 			expect(php.fileExists(testDirPath)).toEqual(true);
@@ -949,6 +1035,27 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			const result2 = await php.run({
 				code: '<?php exit(0);',
+			});
+			expect(result2.exitCode).toBe(0);
+
+			const promise3 = php.run({
+				code: '<?php exit(1);',
+			});
+			await expect(promise3).rejects.toThrow(
+				'PHP.run() failed with exit code 1'
+			);
+		});
+		it('After failure, returns the correct exit code on subsequent runs', async () => {
+			const promise1 = php.run({
+				code: '<?php throw new Exception();',
+			});
+			// expect(result1.exitCode).toBe(255);
+			await expect(promise1).rejects.toThrow(
+				'PHP.run() failed with exit code 255'
+			);
+
+			const result2 = await php.run({
+				code: '<?php ',
 			});
 			expect(result2.exitCode).toBe(0);
 
@@ -1136,8 +1243,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Can accept a request body with a size of 1MB without crashing', async () => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				scriptPath: '/php/index.php',
 				body: new TextEncoder().encode('#'.repeat(1024 * 1024)),
 			});
 			expect(response.httpStatusCode).toEqual(200);
@@ -1148,8 +1255,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Can accept a request body with a size of ~512MB without crashing', async () => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				scriptPath: '/php/index.php',
 				body: new TextEncoder().encode(
 					'#'.repeat(1024 * 1024 * 512 + -24)
 				),
@@ -1170,7 +1277,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			// The initial request will allocate a lot of memory so let's get that
 			// out of the way before we start measuring.
-			await php.request({ url: '/' });
+			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
+			await php.run({ scriptPath: '/php/index.php' });
 
 			// Overwrite the memory-related functions to:
 			// * Capture the body HEAP pointer
@@ -1225,8 +1333,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const getFreeMemoryBefore = estimateFreeMemory();
 
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			await php.request({
-				url: '/',
+			await php.run({
+				scriptPath: '/php/index.php',
 				body,
 			});
 
@@ -1274,9 +1382,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				`<?php echo json_encode($_SERVER);`
 			);
 
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				relativeUri: '/',
+				scriptPath: '/php/index.php',
 				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
 			});
 
 			const json = response.json;
@@ -1309,9 +1421,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				`<?php echo json_encode($_SERVER);`
 			);
 
-			const response = await php.request({
-				url: '/subdirectory/test.php',
+			const response = await php.run({
+				scriptPath: '/php/subdirectory/test.php',
+				relativeUri: '/subdirectory/test.php',
 				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
 			});
 
 			const json = response.json;

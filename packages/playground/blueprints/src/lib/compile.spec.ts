@@ -1,20 +1,24 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import {
 	compileBlueprint,
 	runBlueprintSteps,
 	validateBlueprint,
 } from './compile';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { PHPRequestHandler } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprints', () => {
-	let php: NodePHP;
+	let php: PHP;
+	let requestHandler: PHPRequestHandler;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/',
-			},
+		requestHandler = new PHPRequestHandler({
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
+			documentRoot: '/',
 		});
+		php = await requestHandler.getPrimaryPhp();
 	});
 
 	it('should run a basic blueprint', async () => {
@@ -57,21 +61,21 @@ describe('Blueprints', () => {
 			'/index.php',
 			'<?php require "/wp-config.php"; echo TEST_CONST;'
 		);
-		let result = await php.request({ url: '/index.php' });
+		let result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text).toBe('test_value');
 
 		php.writeFile(
 			'/index.php',
 			'<?php require "/wp-config.php"; echo SITE_URL;'
 		);
-		result = await php.request({ url: '/index.php' });
+		result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text).toBe('http://test.url');
 
 		php.writeFile(
 			'/index.php',
 			'<?php require "/wp-config.php"; var_dump(WP_AUTO_UPDATE_CORE);'
 		);
-		result = await php.request({ url: '/index.php' });
+		result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text.trim()).toBe('bool(false)');
 	});
 

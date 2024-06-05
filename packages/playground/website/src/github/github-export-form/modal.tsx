@@ -1,7 +1,8 @@
 import { signal } from '@preact/signals-react';
-import { usePlaygroundContext } from '../../components/playground-viewport/context';
+
 import Modal, { defaultStyles } from '../../components/modal';
 import GitHubExportForm, { GitHubExportFormProps } from './form';
+import { usePlaygroundContext } from '../../playground-context';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubExportModalOpen = signal(

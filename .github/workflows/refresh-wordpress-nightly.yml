@@ -25,12 +25,14 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  fetch-depth: 0
                   persist-credentials: false
             - uses: ./.github/actions/prepare-playground
+            - name: 'Install bun'
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
             - name: 'Recompile WordPress'
               shell: bash
-              run: npx nx bundle-wordpress:nightly playground-wordpress
+              run: PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:nightly playground-wordpress-builds
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"

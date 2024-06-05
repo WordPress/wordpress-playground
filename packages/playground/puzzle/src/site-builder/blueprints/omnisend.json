@@ -1,0 +1,15 @@
+{
+	"landingPage": "/wp-admin/admin.php?page=omnisend",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "omnisend"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}

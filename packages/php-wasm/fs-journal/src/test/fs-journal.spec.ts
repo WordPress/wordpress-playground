@@ -1,5 +1,5 @@
 /* eslint-disable @nx/enforce-module-boundaries */
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import {
 	FilesystemOperation,
 	journalFSEvents,
@@ -7,11 +7,12 @@ import {
 	recordExistingPath,
 } from '../lib/fs-journal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Journal MemFS', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(LatestSupportedPHPVersion);
+		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
 	});
 	it('Can recreate an existing directory structure', async () => {
 		php.mkdir('/test-ref');

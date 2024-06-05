@@ -6,7 +6,7 @@
 import { defineConfig } from 'vite';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 
-export default defineConfig(() => {
+export default defineConfig(function () {
 	return {
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
@@ -14,14 +14,6 @@ export default defineConfig(() => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			{
-				name: 'resolve-wasm-path',
-				load(id): any {
-					if (id.endsWith('.wasm')) {
-						return `export default ${JSON.stringify(id)}`;
-					}
-				},
-			},
 		],
 
 		// Configuration for building your library.

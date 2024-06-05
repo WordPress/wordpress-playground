@@ -212,15 +212,48 @@ export abstract class FetchResource extends Resource {
 	async resolve() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
-		let response = await fetch(url);
-		response = await cloneResponseMonitorProgress(
-			response,
-			this.progress?.loadingListener ?? noop
-		);
-		if (response.status !== 200) {
-			throw new Error(`Could not download "${url}"`);
+		try {
+			let response = await fetch(url);
+			if (!response.ok) {
+				throw new Error(`Could not download "${url}"`);
+			}
+			response = await cloneResponseMonitorProgress(
+				response,
+				this.progress?.loadingListener ?? noop
+			);
+			if (response.status !== 200) {
+				throw new Error(`Could not download "${url}"`);
+			}
+			return new File([await response.blob()], this.name);
+		} catch (e) {
+			throw new Error(
+				`Could not download "${url}".
+				Check if the URL is correct and the server is reachable.
+				If it is reachable, the server might be blocking the request.
+				Check the browser console and network tabs for more information.
+
+				## Does the console show the error "No 'Access-Control-Allow-Origin' header"?
+
+				This means the server that hosts your file does not allow requests from other sites
+				(cross-origin requests, or CORS).	You need to move the asset to a server that allows
+				cross-origin file downloads. Learn more about CORS at
+				https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS.
+
+				If your file is on GitHub, load it from "raw.githubusercontent.com".
+				Here's how to do that:
+
+				1. Start with the original GitHub URL of the file. For example:
+				https://github.com/username/repository/blob/branch/filename.
+				2. Replace "github.com" with "raw.githubusercontent.com".
+				3. Remove the "/blob/" part of the URL.
+
+				The resulting URL should look like this:
+				https://raw.githubusercontent.com/username/repository/branch/filename
+
+				Error:
+				${e}`
+			);
 		}
-		return new File([await response.blob()], this.name);
 	}
 
 	/**

@@ -1,18 +1,20 @@
-import { NodePHP } from '..';
 import { vi } from 'vitest';
 import {
 	SupportedPHPVersions,
+	setPhpIniEntries,
 	__private__dont__use,
+	PHP,
 } from '@php-wasm/universal';
+import { loadNodeRuntime } from '../lib';
 
 // @TODO Prevent crash on PHP versions 5.6, 7.2, 8.2
 describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 	'PHP %s – process crash',
 	(phpVersion) => {
-		let php: NodePHP;
+		let php: PHP;
 		beforeEach(async () => {
-			php = await NodePHP.load(phpVersion as any);
-			php.setPhpIniEntry('allow_url_fopen', '1');
+			php = new PHP(await loadNodeRuntime(phpVersion as any));
+			await setPhpIniEntries(php, { allow_url_fopen: 1 });
 			vi.restoreAllMocks();
 		});
 
@@ -107,10 +109,12 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				new Promise((accept) => setTimeout(accept, ms));
 
 			for (let i = 0; i < steps; i++) {
-				const instances = new Set<NodePHP>();
+				const instances = new Set<PHP>();
 
 				for (let j = 0; j < concurrent; j++) {
-					instances.add(await NodePHP.load(phpVersion as any));
+					instances.add(
+						new PHP(await loadNodeRuntime(phpVersion as any))
+					);
 				}
 
 				refCount += instances.size;
@@ -141,9 +145,11 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	describe('emscripten options', () => {
 		it('calls quit callback', async () => {
 			let result = '';
-			const php: NodePHP = await NodePHP.load(phpVersion as any, {
-				emscriptenOptions: { quit: () => (result = 'WordPress') },
-			});
+			const php: PHP = new PHP(
+				await loadNodeRuntime(phpVersion as any, {
+					emscriptenOptions: { quit: () => (result = 'WordPress') },
+				})
+			);
 			php.exit(0);
 			expect(result).toEqual('WordPress');
 		});

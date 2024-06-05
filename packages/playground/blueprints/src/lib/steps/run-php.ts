@@ -22,6 +22,7 @@ export interface RunPHPStep {
 
 /**
  * Runs PHP code.
+ * When running WordPress functions, the `code` key must first load [`wp-load.php`](https://github.com/WordPress/WordPress/blob/master/wp-load.php) and start with `"<?php require_once 'wordpress/wp-load.php'; "`.
  */
 export const runPHP: StepHandler<RunPHPStep, Promise<PHPResponse>> = async (
 	playground,
