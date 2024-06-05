@@ -1,8 +1,5 @@
 {
 	"version": "0.0.1",
 	"type": "module",
-	"private": true,
-	"dependencies": {
-		"vite-plugin-pwa": "0.19.2"
-	}
+	"private": true
 }
