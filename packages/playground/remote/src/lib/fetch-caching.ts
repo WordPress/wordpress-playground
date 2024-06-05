@@ -3,13 +3,22 @@ import { logger } from '@php-wasm/logger';
 const wpCacheKey = 'playground-cache';
 
 const validCacheFiles = [
-	/wp-\d+\.\d+(\.\d+)?(-.*)?\.zip$/,
-	/php_\d+_\d+(_\d+)?(-.*)?\.wasm$/,
-	/sqlite-database-integration(-.*)?\.zip$/,
+	/(wp-\d+\.\d+(\.\d+)?)(-.*)?\.zip$/,
+	/(php_\d+_\d+(_\d+)?)(-.*)?\.wasm$/,
+	/(sqlite-database-integration)(-.*)?\.zip$/,
 ];
 
 export const isValidFile = (key: string) => {
 	return validCacheFiles.some((pattern) => key.match(pattern));
+};
+
+export const areCacheKeysForSameFile = (key1: string, key2: string) => {
+	return validCacheFiles.some(
+		(pattern) =>
+			key1.match(pattern) &&
+			key2.match(pattern) &&
+			key1.match(pattern)![1] === key2.match(pattern)![1]
+	);
 };
 
 const isCacheFull = async () => {
@@ -52,7 +61,12 @@ export const cleanOutdatedCachedFile = async (key: string) => {
 	const outdatedKeys = cacheKeys.filter((cacheKey) =>
 		validCacheFiles.some(
 			// Check if the cache key and the key match the same pattern to prevent deleting unrelated cache entries
-			(pattern) => cacheKey.url.match(pattern) && key.match(pattern)
+			(pattern) => {
+				if (!cacheKey.url.match(pattern)) {
+					return false;
+				}
+				return areCacheKeysForSameFile(cacheKey.url, key);
+			}
 		)
 	);
 
@@ -72,7 +86,7 @@ export const cachedFetch = async (
 
 	const cache = await getCache(cacheKey);
 	if (cache) {
-		return cache;
+		// return cache;
 	}
 	const response = await fetchPromise;
 

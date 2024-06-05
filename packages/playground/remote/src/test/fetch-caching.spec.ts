@@ -1,4 +1,4 @@
-import { addCache, getCache, isValidFile } from '../lib/fetch-caching';
+import { areCacheKeysForSameFile, isValidFile } from '../lib/fetch-caching';
 
 describe('Valid files', () => {
 	it('Should return true for valid files', () => {
@@ -30,5 +30,26 @@ describe('Valid files', () => {
 				'https://playground.wordpress.net/assets/sqlite-database-integration.zip'
 			)
 		).toBe(true);
+	});
+
+	it('Shoud return true if the cache keys are for the same file', () => {
+		expect(
+			areCacheKeysForSameFile(
+				'/assets/wp-6.4.zip',
+				'/assets/wp-6.4-cache_key.zip'
+			)
+		).toBe(true);
+		expect(
+			areCacheKeysForSameFile(
+				'/assets/wp-6.4.zip',
+				'/assets/wp-6.4.1-cache_key.zip'
+			)
+		).toBe(false);
+		expect(
+			areCacheKeysForSameFile(
+				'/assets/wp-6.4.zip',
+				'/assets/php_8_0.wasm'
+			)
+		).toBe(false);
 	});
 });
