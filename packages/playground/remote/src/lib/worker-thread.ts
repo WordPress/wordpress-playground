@@ -90,6 +90,7 @@ const addWPVersionCache = async (version: string, response: Response) => {
 };
 
 const getWPVersionCache = async (version: string) => {
+	return undefined;
 	const cache = caches.open(wpCacheKey);
 	return await cache.then((c) => c.match(version));
 };
