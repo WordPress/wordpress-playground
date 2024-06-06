@@ -17,9 +17,17 @@
 .wp-block-cover.components-placeholder h2{
   color:inherit;
 }
+.wp-block-cover.is-transient{
+  position:relative;
+}
 .wp-block-cover.is-transient:before{
   background-color:#fff;
+  content:"";
+  height:100%;
   opacity:.3;
+  position:absolute;
+  width:100%;
+  z-index:1;
 }
 .wp-block-cover .components-spinner{
   left:50%;
@@ -78,8 +86,4 @@
 
 .color-block-support-panel__inner-wrapper>:not(.block-editor-tools-panel-color-gradient-settings__item){
   margin-top:24px;
-}
-
-.wp-block-cover:after{
-  min-height:auto;
 }

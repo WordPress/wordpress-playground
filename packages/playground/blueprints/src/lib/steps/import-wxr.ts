@@ -42,11 +42,11 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	await playground.run({
 		code: `<?php
 		require ${phpVar(docroot)} . '/wp-load.php';
-		if ( ! function_exists( 'wp_crop_image' ) ) {
-			require ${phpVar(docroot)} . '/wp-admin/includes/image.php';
-		}
+		require ${phpVar(docroot)} . '/wp-admin/includes/admin.php';
+  
 		kses_remove_filters();
-		$admin_id = get_users(array('role' => 'Administrator') )[0];
+		$admin_id = get_users(array('role' => 'Administrator') )[0]->ID;
+        wp_set_current_user( $admin_id );
 		$importer = new WXR_Importer( array(
 			'fetch_attachments' => true,
 			'default_author' => $admin_id

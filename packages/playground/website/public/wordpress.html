@@ -156,7 +156,7 @@
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
-			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+			const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
@@ -216,65 +216,12 @@
 			const blueprint = {
 				$schema:
 					'https://playground.wordpress.net/blueprint-schema.json',
-				landingPage: urlParams.get('url') || '/wp-admin/',
-				steps: [
-					{
-						step: 'mkdir',
-						path: '/wordpress-new',
-					},
-					/*
-					 * Download WordPress build from a given GitHub PR.
-					 *
-					 * Because the zip file is not publicly accessible, we use the
-					 * plugin-proxy API endpoint to download it. The source code of
-					 * that endpoint is available at:
-					 * https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/plugin-proxy.php
-					 */
-					{
-						step: 'writeFile',
-						path: '/tmp/pr.zip',
-						data: {
-							resource: 'url',
-							url: zipArtifactUrl,
-							caption: `Downloading WordPress PR ${prNumber}`,
-						},
-					},
-					// Extract and remove the zip file.
-					{
-						step: 'unzip',
-						zipPath: '/tmp/pr.zip',
-						extractToPath: '/tmp',
-					},
-					{
-						step: 'rm',
-						path: '/tmp/pr.zip',
-					},
-					// Import the unzipped PR.
-					{
-						step: 'importWordPressFiles',
-						wordPressFilesZip: {
-							resource: 'vfs',
-							path: '/tmp/wordpress.zip',
-						},
-						pathInZip: '/build',
-						progress: {
-							weight: 20,
-							caption: `Applying WordPress PR ${prNumber}`,
-						},
-					},
-					{
-						step: 'runPHP',
-						code: `<?php
-							$_GET['step'] = 'upgrade_db';
-							require '/wordpress/wp-admin/upgrade.php';
-						`,
-					},
-					{
-						step: 'login',
-						username: 'admin',
-						password: 'password',
-					},
-				],
+				landingPage: urlParams.get('url') || '/wp-admin',
+				login: true,
+				preferredVersions: {
+					php: "7.4",
+					wp: zipArtifactUrl
+				}
 			};
 			const encoded = JSON.stringify(blueprint);
 
