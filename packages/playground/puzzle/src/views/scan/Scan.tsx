@@ -21,7 +21,7 @@ export const Scan = () => {
 	const [siteLoading, setSiteLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [detectedActions, setDetectedActions] = useState<string[]>();
-	const [newAction, setNewAction] = useState<Action | null>(null);
+	const [newAction, setNewAction] = useState<Action | string | null>(null);
 	const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(
 		null
 	);
@@ -70,7 +70,11 @@ export const Scan = () => {
 			return;
 		}
 
-		setNewAction(actions[newActions[newActions.length - 1]!]);
+		setNewAction(
+			newActions.length === 1
+				? actions[newActions[newActions.length - 1]!]
+				: `Added ${newActions.length} piece`
+		);
 		setTimeout(() => {
 			setNewAction(null);
 		}, 2000);

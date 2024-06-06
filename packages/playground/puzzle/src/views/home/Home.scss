@@ -5,11 +5,20 @@ $blue: #3858e9;
 	flex-direction: column;
 	align-items: center;
 	overflow-y: hidden;
+	background-color: $blue;
+
+	.components-button.has-icon {
+		&,
+		&:hover {
+			background-color: #ffffff;
+			color: #1e1e1e;
+		}
+	}
 }
 
 .home__title,
 .home__description {
-	color: #1c2024;
+	color: #ffffff;
 	text-align: center;
 	font-style: normal;
 	font-weight: 400;
@@ -21,9 +30,6 @@ $blue: #3858e9;
 	line-height: 50px;
 	font-family: 'EB Garamond', serif;
 	margin: 74px 20px 20px;
-	> span {
-		color: $blue;
-	}
 }
 
 .home__description {
@@ -41,9 +47,18 @@ $blue: #3858e9;
 }
 
 .home__image {
-	width: 100%;
-	z-index: -1;
+	overflow: hidden;
 	position: absolute;
 	bottom: 0;
-	max-width: 428px;
+	width: calc(1.255 * 50vh);
+	max-width: 100%;
+	height: 50vh;
+	margin: 0 auto;
+	& > img {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: calc(1.255 * 50vh);
+		height: 50vh;
+	}
 }

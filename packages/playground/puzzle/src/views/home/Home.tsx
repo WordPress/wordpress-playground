@@ -18,7 +18,7 @@ export const Home = () => {
 		<>
 			<article className="view view--home">
 				<h1 className="home__title">
-					Build your site with <span>real blocks</span>
+					Build your site with real blocks
 				</h1>
 				<p className="home__description">
 					Arrange the puzzles, take a picture, and see your setup come
@@ -32,11 +32,9 @@ export const Home = () => {
 				>
 					Build your site
 				</Button>
-				<img
-					src={backgroundImage}
-					alt="Playground sites"
-					className="home__image"
-				/>
+				<div className="home__image">
+					<img src={backgroundImage} alt="Playground sites" />
+				</div>
 			</article>
 			<Footer />
 		</>
