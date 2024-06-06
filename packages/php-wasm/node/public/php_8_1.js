@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 14676696; 
+export const dependenciesTotalSize = 14676680; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -333,6 +333,7 @@ function createWasm() {
   /** @param {WebAssembly.Module=} module*/ function receiveInstance(instance, module) {
     wasmExports = instance.exports;
     wasmExports = Asyncify.instrumentWasmExports(wasmExports);
+    Module["wasmExports"] = wasmExports;
     wasmMemory = wasmExports["gb"];
     updateMemoryViews();
     wasmTable = wasmExports["jb"];
@@ -7458,6 +7459,8 @@ Module["addRunDependency"] = addRunDependency;
 
 Module["removeRunDependency"] = removeRunDependency;
 
+Module["wasmExports"] = wasmExports;
+
 Module["ccall"] = ccall;
 
 Module["FS_createPreloadedFile"] = FS_createPreloadedFile;
@@ -7560,12 +7563,12 @@ PHPLoader['removeRunDependency'] = function (...args) {
 /**
  * Other exports live in the Dockerfile in:
  * 
- * * EXTRA_EXPORTED_RUNTIME_METHODS
+ * * EXPORTED_RUNTIME_METHODS
  * * EXPORTED_FUNCTIONS
  * 
  * These exports, however, live in here because:
  * 
- * * Listing them in EXTRA_EXPORTED_RUNTIME_METHODS doesn't actually
+ * * Listing them in EXPORTED_RUNTIME_METHODS doesn't actually
  *   export them. This could be a bug in Emscripten or a consequence of
  *   that option being deprecated.
  * * Listing them in EXPORTED_FUNCTIONS works, but they are overridden
