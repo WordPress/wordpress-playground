@@ -3,7 +3,7 @@ import { isExitCodeZero } from './is-exit-code-zero';
 import { logger } from '@php-wasm/logger';
 
 type Runtime = {
-	asm: Record<string, unknown>;
+	wasmExports: Record<string, unknown>;
 	lastAsyncifyStackSource?: Error;
 };
 
@@ -34,14 +34,14 @@ export class UnhandledRejectionsTarget extends EventTarget {
  * @param runtime
  */
 export function improveWASMErrorReporting(runtime: Runtime) {
-	runtime.asm = {
-		...runtime.asm,
+	runtime.wasmExports = {
+		...runtime.wasmExports,
 	};
 	const target = new UnhandledRejectionsTarget();
-	for (const key in runtime.asm) {
-		if (typeof runtime.asm[key] == 'function') {
-			const original = runtime.asm[key] as any;
-			runtime.asm[key] = function (...args: any[]) {
+	for (const key in runtime.wasmExports) {
+		if (typeof runtime.wasmExports[key] == 'function') {
+			const original = runtime.wasmExports[key] as any;
+			runtime.wasmExports[key] = function (...args: any[]) {
 				try {
 					return original(...args);
 				} catch (e) {
