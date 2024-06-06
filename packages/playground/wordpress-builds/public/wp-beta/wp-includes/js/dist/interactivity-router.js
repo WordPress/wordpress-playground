@@ -36,8 +36,14 @@ var x = (y) => {
 var y = (x) => (() => (x))
 const interactivity_namespaceObject = x({ ["getConfig"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getConfig), ["privateApis"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.privateApis), ["store"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.store) });
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/interactivity-router/build-module/index.js
+var _getConfig$navigation;
 /**
  * WordPress dependencies
+ */
+
+
+/**
+ * Internal dependencies
  */
 
 const {
@@ -50,14 +56,17 @@ const {
   populateInitialData,
   batch
 } = (0,interactivity_namespaceObject.privateApis)('I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress.');
+// Check if the navigation mode is full page or region based.
+const navigationMode = (_getConfig$navigation = (0,interactivity_namespaceObject.getConfig)('core/router').navigationMode) !== null && _getConfig$navigation !== void 0 ? _getConfig$navigation : 'regionBased';
 
-// The cache of visited and prefetched pages.
+// The cache of visited and prefetched pages, stylesheets and scripts.
 const pages = new Map();
+const headElements = new Map();
 
 // Helper to remove domain and hash from the URL. We are only interesting in
 // caching the path and the query.
 const getPagePath = url => {
-  const u = new URL(url, window.location);
+  const u = new URL(url, window.location.href);
   return u.pathname + u.search;
 };
 
@@ -68,7 +77,9 @@ const fetchPage = async (url, {
   try {
     if (!html) {
       const res = await window.fetch(url);
-      if (res.status !== 200) return false;
+      if (res.status !== 200) {
+        return false;
+      }
       html = await res.text();
     }
     const dom = new window.DOMParser().parseFromString(html, 'text/html');
@@ -80,19 +91,26 @@ const fetchPage = async (url, {
 
 // Return an object with VDOM trees of those HTML regions marked with a
 // `router-region` directive.
-const regionsToVdom = (dom, {
+const regionsToVdom = async (dom, {
   vdom
 } = {}) => {
-  const regions = {};
-  const attrName = `data-${directivePrefix}-router-region`;
-  dom.querySelectorAll(`[${attrName}]`).forEach(region => {
-    const id = region.getAttribute(attrName);
-    regions[id] = vdom?.has(region) ? vdom.get(region) : toVdom(region);
-  });
+  const regions = {
+    body: undefined
+  };
+  let head;
+  if (false) {}
+  if (navigationMode === 'regionBased') {
+    const attrName = `data-${directivePrefix}-router-region`;
+    dom.querySelectorAll(`[${attrName}]`).forEach(region => {
+      const id = region.getAttribute(attrName);
+      regions[id] = vdom?.has(region) ? vdom.get(region) : toVdom(region);
+    });
+  }
   const title = dom.querySelector('title')?.innerText;
   const initialData = parseInitialData(dom);
   return {
     regions,
+    head,
     title,
     initialData
   };
@@ -101,13 +119,16 @@ const regionsToVdom = (dom, {
 // Render all interactive regions contained in the given page.
 const renderRegions = page => {
   batch(() => {
-    populateInitialData(page.initialData);
-    const attrName = `data-${directivePrefix}-router-region`;
-    document.querySelectorAll(`[${attrName}]`).forEach(region => {
-      const id = region.getAttribute(attrName);
-      const fragment = getRegionRootFragment(region);
-      render(page.regions[id], fragment);
-    });
+    if (false) {}
+    if (navigationMode === 'regionBased') {
+      populateInitialData(page.initialData);
+      const attrName = `data-${directivePrefix}-router-region`;
+      document.querySelectorAll(`[${attrName}]`).forEach(region => {
+        const id = region.getAttribute(attrName);
+        const fragment = getRegionRootFragment(region);
+        render(page.regions[id], fragment);
+      });
+    }
     if (page.title) {
       document.title = page.title;
     }
@@ -121,8 +142,8 @@ const renderRegions = page => {
  * potential feedback indicating that the navigation has finished while the new
  * page is being loaded.
  *
- * @param {string} href The page href.
- * @return {Promise} Promise that never resolves.
+ * @param href The page href.
+ * @return Promise that never resolves.
  */
 const forcePageReload = href => {
   window.location.assign(href);
@@ -132,7 +153,7 @@ const forcePageReload = href => {
 // Listen to the back and forward buttons and restore the page if it's in the
 // cache.
 window.addEventListener('popstate', async () => {
-  const pagePath = getPagePath(window.location); // Remove hash.
+  const pagePath = getPagePath(window.location.href); // Remove hash.
   const page = pages.has(pagePath) && (await pages.get(pagePath));
   if (page) {
     renderRegions(page);
@@ -143,10 +164,27 @@ window.addEventListener('popstate', async () => {
   }
 });
 
-// Cache the initial page using the intially parsed vDOM.
-pages.set(getPagePath(window.location), Promise.resolve(regionsToVdom(document, {
+// Initialize the router and cache the initial page using the initial vDOM.
+// Once this code is tested and more mature, the head should be updated for
+// region based navigation as well.
+if (false) {}
+pages.set(getPagePath(window.location.href), Promise.resolve(regionsToVdom(document, {
   vdom: initialVdom
 })));
+
+// Check if the link is valid for client-side navigation.
+const isValidLink = ref => ref && ref instanceof window.HTMLAnchorElement && ref.href && (!ref.target || ref.target === '_self') && ref.origin === window.location.origin && !ref.pathname.startsWith('/wp-admin') && !ref.pathname.startsWith('/wp-login.php') && !ref.getAttribute('href').startsWith('#') && !new URL(ref.href).searchParams.has('_wpnonce');
+
+// Check if the event is valid for client-side navigation.
+const isValidEvent = event => event && event.button === 0 &&
+// Left clicks only.
+!event.metaKey &&
+// Open in new tab (Mac).
+!event.ctrlKey &&
+// Open in new tab (Windows).
+!event.altKey &&
+// Download.
+!event.shiftKey && !event.defaultPrevented;
 
 // Variable to store the current navigation.
 let navigatingTo = '';
@@ -159,7 +197,11 @@ const {
     navigation: {
       hasStarted: false,
       hasFinished: false,
-      texts: {}
+      texts: {
+        loading: '',
+        loaded: ''
+      },
+      message: ''
     }
   },
   actions: {
@@ -170,16 +212,16 @@ const {
      * needed, and updates any interactive regions whose contents have
      * changed. It also creates a new entry in the browser session history.
      *
-     * @param {string}  href                               The page href.
-     * @param {Object}  [options]                          Options object.
-     * @param {boolean} [options.force]                    If true, it forces re-fetching the URL.
-     * @param {string}  [options.html]                     HTML string to be used instead of fetching the requested URL.
-     * @param {boolean} [options.replace]                  If true, it replaces the current entry in the browser session history.
-     * @param {number}  [options.timeout]                  Time until the navigation is aborted, in milliseconds. Default is 10000.
-     * @param {boolean} [options.loadingAnimation]         Whether an animation should be shown while navigating. Default to `true`.
-     * @param {boolean} [options.screenReaderAnnouncement] Whether a message for screen readers should be announced while navigating. Default to `true`.
+     * @param href                               The page href.
+     * @param [options]                          Options object.
+     * @param [options.force]                    If true, it forces re-fetching the URL.
+     * @param [options.html]                     HTML string to be used instead of fetching the requested URL.
+     * @param [options.replace]                  If true, it replaces the current entry in the browser session history.
+     * @param [options.timeout]                  Time until the navigation is aborted, in milliseconds. Default is 10000.
+     * @param [options.loadingAnimation]         Whether an animation should be shown while navigating. Default to `true`.
+     * @param [options.screenReaderAnnouncement] Whether a message for screen readers should be announced while navigating. Default to `true`.
      *
-     * @return {Promise} Promise that resolves once the navigation is completed or aborted.
+     * @return  Promise that resolves once the navigation is completed or aborted.
      */
     *navigate(href, options = {}) {
       const {
@@ -206,7 +248,9 @@ const {
 
       // Don't update the navigation status immediately, wait 400 ms.
       const loadingTimeout = setTimeout(() => {
-        if (navigatingTo !== href) return;
+        if (navigatingTo !== href) {
+          return;
+        }
         if (loadingAnimation) {
           navigation.hasStarted = true;
           navigation.hasFinished = false;
@@ -223,9 +267,11 @@ const {
       // Once the page is fetched, the destination URL could have changed
       // (e.g., by clicking another link in the meantime). If so, bail
       // out, and let the newer execution to update the HTML.
-      if (navigatingTo !== href) return;
+      if (navigatingTo !== href) {
+        return;
+      }
       if (page && !page.initialData?.config?.['core/router']?.clientNavigationDisabled) {
-        renderRegions(page);
+        yield renderRegions(page);
         window.history[options.replace ? 'replaceState' : 'pushState']({}, '', href);
 
         // Update the URL in the state.
@@ -243,6 +289,14 @@ const {
           // package: https://github.com/WordPress/gutenberg/blob/c395242b8e6ee20f8b06c199e4fc2920d7018af1/packages/a11y/src/filter-message.js#L20-L26
           navigation.message = navigation.texts.loaded + (navigation.message === navigation.texts.loaded ? '\u00A0' : '');
         }
+
+        // Scroll to the anchor if exits in the link.
+        const {
+          hash
+        } = new URL(href, window.location.href);
+        if (hash) {
+          document.querySelector(hash)?.scrollIntoView();
+        }
       } else {
         yield forcePageReload(href);
       }
@@ -253,24 +307,30 @@ const {
      * The function normalizes the URL and stores internally the fetch
      * promise, to avoid triggering a second fetch for an ongoing request.
      *
-     * @param {string}  url             The page URL.
-     * @param {Object}  [options]       Options object.
-     * @param {boolean} [options.force] Force fetching the URL again.
-     * @param {string}  [options.html]  HTML string to be used instead of
-     *                                  fetching the requested URL.
+     * @param url             The page URL.
+     * @param [options]       Options object.
+     * @param [options.force] Force fetching the URL again.
+     * @param [options.html]  HTML string to be used instead of fetching the requested URL.
      */
     prefetch(url, options = {}) {
       const {
         clientNavigationDisabled
       } = (0,interactivity_namespaceObject.getConfig)();
-      if (clientNavigationDisabled) return;
+      if (clientNavigationDisabled) {
+        return;
+      }
       const pagePath = getPagePath(url);
       if (options.force || !pages.has(pagePath)) {
-        pages.set(pagePath, fetchPage(pagePath, options));
+        pages.set(pagePath, fetchPage(pagePath, {
+          html: options.html
+        }));
       }
     }
   }
 });
+
+// Add click and prefetch to all links.
+if (false) {}
 
 var __webpack_exports__actions = __webpack_exports__.o;
 var __webpack_exports__state = __webpack_exports__.w;
