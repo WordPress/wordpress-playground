@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 15184050; 
+export const dependenciesTotalSize = 15184093; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -39,8 +39,6 @@ export function init(RuntimeName, PHPLoader) {
 
     // The rest of the code comes from the built php.js file and esm-suffix.js
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
-
-var ENVIRONMENT_IS_WEB=RuntimeName==="WEB";
 
 var ENVIRONMENT_IS_WORKER=RuntimeName==="WORKER";
 
@@ -284,17 +282,16 @@ function getBinarySync(file) {
 }
 
 function getBinaryPromise(binaryFile) {
-  if (!wasmBinary && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
-    if (typeof fetch == "function") {
-      return fetch(binaryFile, {
-        credentials: "same-origin"
-      }).then(response => {
-        if (!response["ok"]) {
-          throw `failed to load wasm binary file at '${binaryFile}'`;
+  if (!wasmBinary) {
+    return new Promise((resolve, reject) => {
+      readAsync(binaryFile, response => resolve(new Uint8Array(/** @type{!ArrayBuffer} */ (response))), error => {
+        try {
+          resolve(getBinarySync(binaryFile));
+        } catch (e) {
+          reject(e);
         }
-        return response["arrayBuffer"]();
-      }).catch(() => getBinarySync(binaryFile));
-    }
+      });
+    });
   }
   return Promise.resolve().then(() => getBinarySync(binaryFile));
 }
@@ -988,7 +985,6 @@ var MEMFS = {
       old_node.name = new_name;
       new_dir.contents[new_name] = old_node;
       new_dir.timestamp = old_node.parent.timestamp;
-      old_node.parent = new_dir;
     },
     unlink(parent, name) {
       delete parent.contents[name];
@@ -1669,7 +1665,6 @@ var PROXYFS = {
       try {
         oldNode.mount.opts.fs.rename(oldPath, newPath);
         oldNode.name = newName;
-        oldNode.parent = newDir;
       } catch (e) {
         if (!e.code) throw e;
         throw new FS.ErrnoError(ERRNO_CODES[e.code]);
@@ -2365,6 +2360,7 @@ var FS = {
     FS.hashRemoveNode(old_node);
     try {
       old_dir.node_ops.rename(old_node, new_dir, new_name);
+      old_node.parent = new_dir;
     } catch (e) {
       throw e;
     } finally {
@@ -6775,16 +6771,20 @@ var Asyncify = {
     var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
     HEAP32[(((ptr) + (8)) >> 2)] = rewindId;
   },
-  getDataRewindFunc(ptr) {
+  getDataRewindFuncName(ptr) {
     var id = HEAP32[(((ptr) + (8)) >> 2)];
     var name = Asyncify.callStackIdToName[id];
+    return name;
+  },
+  getDataRewindFunc(name) {
     var func = wasmExports[name];
     return func;
   },
   doRewind(ptr) {
-    var start = Asyncify.getDataRewindFunc(ptr);
+    var name = Asyncify.getDataRewindFuncName(ptr);
+    var func = Asyncify.getDataRewindFunc(name);
     runtimeKeepalivePop();
-    return start();
+    return func();
   },
   handleSleep(startAsync) {
     if (ABORT) return;
