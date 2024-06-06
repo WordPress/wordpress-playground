@@ -54,9 +54,9 @@ export const actions: { [key: string]: Action } = {
 	jetformbuilder: {
 		title: 'JetFormBuilder',
 	},
-	// fastspring: {
-	//   title: "Fastspring",
-	// },
+	fastspring: {
+		title: 'Fastspring',
+	},
 	cookiebot: {
 		title: 'Cookiebot',
 	},
@@ -66,9 +66,9 @@ export const actions: { [key: string]: Action } = {
 	siteground: {
 		title: 'SiteGround',
 	},
-	// yoast: {
-	//   title: "Yoast",
-	// },
+	yoast: {
+		title: 'Yoast',
+	},
 };
 
 const actionBlueprints = {
