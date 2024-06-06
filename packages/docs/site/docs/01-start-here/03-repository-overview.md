@@ -2,72 +2,111 @@
 slug: /playground-ecosystem
 ---
 
-# WordPress Playground ecosystem
+# About the WordPress Playground
 
-The various tools that make up the Playground project are managed in a few separate GitHub repositories:
-- [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground/).
-- [https://github.com/WordPress/playground-tools](https://github.com/WordPress/playground-tools/).
-- [https://github.com/WordPress/blueprints](https://github.com/WordPress/blueprints).
-- [https://github.com/WordPress/blueprints-library](https://github.com/WordPress/blueprints-library/).
+Thank you for your interest in the ecosystem and welcome to the Playground!
 
-By mapping where each part is, we hope to encourage you to get familiar with the codebase and understand how Playground is built. Visit the relevant repository to ask questions, report bugs, discover solutions to problems you run into, and share your knowledge with the community.
+## Official Documentation
+[WordPress Playground Official Documentation](https://wordpress.github.io/wordpress-playground/)
+- [WordPress Playground](https://github.com/WordPress/wordpress-playground/) — you are here
+- [Playground Tools](https://github.com/WordPress/playground-tools/) — utilities and software for the Playground
+- [Blueprints Library](https://github.com/WordPress/blueprints-library/) — active development around creating and parsing blueprints
+- [The Blueprints Community Gallery](https://github.com/WordPress/blueprints/) — a collaborative space to create and share blueprints
 
-## WordPress Playground
+Join discussions, report bugs and discover solutions, and share your knowledge with the community.
 
-The [main repository](https://github.com/WordPress/wordpress-playground) contains the core codebase and additional browser-based [utilities and demos](https://wordpress.github.io/wordpress-playground/links-and-resources#apps-built-with-wordpress-playground). Here are a few highlights:
+## Contributing to the WordPress Playground
+WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
 
-- [Blueprint Builder](https://playground.wordpress.net/builder/builder.html): create and test Blueprints in the browser ([source code](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/website/builder)).
-- [WordPress PR Previewer](https://playground.wordpress.net/wordpress.html): test pull requests submitted to WordPress core in the browser ([source code](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/wordpress.html)).
-- [Gutenberg PR Previewer](https://playground.wordpress.net/gutenberg.html): test pull requests from the Gutenberg plugin in the browser ([source code](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/gutenberg.html)).
+### Quick Start Guide 
 
-Explore the [source code for Playground](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground), join [the discussions](https://github.com/WordPress/wordpress-playground/discussions), suggest improvements by opening [issues](https://github.com/WordPress/wordpress-playground/issues) (or help others by commenting on their questions), submit [PRs](https://github.com/WordPress/wordpress-playground/pulls) for bug fixes, contribute to the documentation, and be a part of the community.
+Code contributions – see the [developer](https://wordpress.github.io/wordpress-playground/docs/contributing/code) section.
+Documentation – see the [documentation](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation) section.
+Triage – see the [triage](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing) section.
+Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
+Ideas, designs or anything else – open a [discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 
-## WordPress Playground tools
+## Playground Tools
 
-A [repository](https://github.com/WordPress/playground-tools) containing the tools and applications built using WordPress Playground:
-* [WordPress Playground Block](https://github.com/WordPress/playground-tools/blob/trunk/packages/wordpress-playground-block)
-* [WordPress Playground plugin](https://github.com/WordPress/playground-tools/blob/trunk/packages/playground)
-* [WordPress Playground for VS Code](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension)
-* [wp-now NPM package](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now)
+A [repository](https://github.com/WordPress/playground-tools) containing the tools and applications for the Playground.
+- [Playground Block](https://github.com/WordPress/playground-tools/blob/trunk/packages/wordpress-playground-block) — embed a Playground instance on a website
+- [Sandbox by WordPress Playground](https://github.com/WordPress/playground-tools/blob/trunk/packages/playground) — a plugin for working with Playgrounds
+- [VS Code Extension](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension) — start WordPress from within VS Code
+- [wp-now](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now) — node-based tool for creating WordPress installations
 
-Let's go over them briefly:
+---
 
-### WordPress Playground Block
-
-A plugin that allows you to add a Playground block to your WordPress site.
-After installing the plugin (available in the [Plugin Directory](https://wordpress.org/plugins/interactive-code-block/)), you can use the block to embed a Playground instance in posts and pages. You can also include an interactive code editor to demonstrate and teach others how to build WordPress plugins.
-
-### WordPress Playground plugin
-
-A plugin that allows you to clone your site and test plugins locally.
+## Sandbox by WordPress Playground
 After installing the plugin (available in the [Plugin Directory](https://wordpress.org/plugins/playground)), you can:
-* Create a copy of your site (including the database) in a private WordPress Playground instance—your data remains safe on your device.
-* Test plugins available in the WordPress Plugin from the admin dashboard without installing them on your site.
-⠀
-### WordPress Playground for VS Code
+* create a copy of your site WordPress Playground instance
+* test plugins without having to install them on your site
+* export snapshots of your instance to share, back-up or for version control
+* ...more features coming soon
 
-An extension for Microsoft Visual Studio Code that creates a [zero-setup WordPress development environment](https://wordpress.github.io/wordpress-playground/local-development/vscode-extension).
+Your site is cloned in Playground by copying all the files and a database into a new WordPress Playground instance. 
+
+It may sound scary, but your data stays safely with you and is **not** uploaded to any cloud service. Instead, your site's data is shipped directly to your web browser where it stays only as long as you keep your browser tab open. That’s right! WordPress Playground runs a copy of your site directly on your device.
+
+View the [code](https://github.com/WordPress/playground-tools/tree/trunk/packages/playground) for the Sandbox, or find more information in the [Playground Tools](https://github.com/WordPress/playground-tools) repository.
+
+We encourage [contributions](https://github.com/WordPress/playground-tools/blob/trunk/CONTRIBUTING.md) and hope to see this package grow with the community.
+
+---
+
+## Playground block
+A [plugin](https://wordpress.org/plugins/interactive-code-block/) that allows you to add a Playground block to your WordPress site.
+
+- embed a Playground instance in posts and pages
+- use WordPress as a service in the browser.
+- drop in an interactive code editor to teach how to build WordPress plugins
+- showcase demos
+- and test things out - you site is completely safe 
+
+Whatever you can do with WordPress you can do in the embedded Playground block.
+
+---
+
+## VS Code Extension
+
+Create a [zero-setup WordPress development environment](https://wordpress.github.io/wordpress-playground/local-development/vscode-extension).
+
 After installing the extension (available in the [official marketplace](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)), click the **WordPress Playground** icon in the **Activity Bar**, and you can start a local server from your IDE.
 
-### `wp-now` NPM package
+The VS Code extension runs `wp-now` behind the scenes to create virtualized sites, and is in development.
 
-This node-based CLI tool lets you spin up a [local WordPress development environment](https://wordpress.github.io/wordpress-playground/local-development/wp-now) or a test site with a single command.
-After installing `@wp-now/wp-now` (available in the [NPM registry](https://www.npmjs.com/package/@wp-now/wp-now)), you can develop, run, or test plugins, themes, and fully functional WordPress sites from your terminal.
+There are limitations, most specifically that you can not use blueprints.
 
-Visit the [playground-tools](https://github.com/WordPress/playground-tools/) repository to follow the ongoing development, submit issues, or contribute to the project.
+---
 
-## WordPress Blueprints Community Gallery
+## `wp-now` 
 
-The [repository](https://github.com/WordPress/blueprints) features a collection of Blueprints: pre-configured WordPress setup scripts that you can run in your browser using Playground.
-* [Browse the Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore various WordPress sites and different configurations.
-* [Submit your own Blueprint](https://github.com/WordPress/blueprints/blob/trunk/CONTRIBUTING.md) and share your WordPress setup with the community.
+Node-based CLI tool to spin up a [local WordPress development environments](https://wordpress.github.io/wordpress-playground/local-development/wp-now) with a single command.
 
-⠀Not sure what Blueprints are? Curious to understand how you can use them?
-* [Learn more about Blueprints](https://wordpress.github.io/wordpress-playground/blueprints-api/index) here in the documentation.
-* Check out the [Blueprints 101 crash course](https://github.com/WordPress/blueprints/blob/trunk/docs/index.md) over in the Blueprints Community Gallery.
+Install `wp-now` via [NPM](https://www.npmjs.com/package/@wp-now/wp-now) to develop, run or test plugins, themes, and fully functional WordPress sites from your terminal. 
 
-## The Blueprints PHP library
+Load up blueprints to perform actions while booting and creating a new WordPress installation, edit the file system via your preferred code editor, or perform media operations. You have a fully functioning WordPress website without needing to worry about running a server.
 
-This [repository](https://github.com/WordPress/blueprints-library) is where the Playground team explores ways to transition Blueprints from a TypeScript library to a PHP library. This would make Blueprints a platform-agnostic universal WordPress site setup tool that works in any environment: browser, Node.js, Docker, mobile, desktop, and hosting environments.
+---
 
-Follow the ongoing discussions about the proposed new specification, review the [roadmap](https://github.com/WordPress/blueprints-library/issues/84), check out [the experimental live demo](https://playground.wordpress.net/demos/php-blueprints.html), and consider contributing to help shape the next generation of Playground.
+## The Blueprints Community Gallery
+
+A [collection](https://github.com/WordPress/blueprints) of curated WordPress setup scripts: Blueprints
+- [Browse the Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore various WordPress sites and different configurations.
+- [Submit your own Blueprint](https://github.com/WordPress/blueprints/blob/trunk/CONTRIBUTING.md) and share your WordPress setup with the community.
+- [Take the Blueprints 101 crash course](https://github.com/WordPress/blueprints/blob/trunk/docs/index.md)
+
+Learn more about Blueprints in the [documentation](https://wordpress.github.io/wordpress-playground/blueprints-api/index).
+
+---
+
+## Blueprints Library
+A software library to work with Blueprints.
+
+Currently the Blueprints Library is in [v1](https://github.com/WordPress/blueprints-library) which is written in `TypeScript`, but [v2](https://github.com/WordPress/blueprints/issues/6) will be `PHP` based.
+
+#### API documentation
+- [Blueprints API](https://wordpress.github.io/wordpress-playground/blueprints-api/index) - create a Playground instance from a JSON file
+- [Query API](https://wordpress.github.io/wordpress-playground/query-api) - create Playgrounds via URL query parameters
+- [JavaScript API](https://wordpress.github.io/wordpress-playground/javascript-api/index) - JavaScript client that grants you full control over your instance
+
+Eventually the library will be a robust and useful tool for managing Playgrounds, and merged into WordPress Core.
