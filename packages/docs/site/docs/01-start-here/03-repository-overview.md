@@ -105,8 +105,8 @@ A software library to work with Blueprints.
 Currently the Blueprints Library is in [v1](https://github.com/WordPress/blueprints-library) which is written in `TypeScript`, but [v2](https://github.com/WordPress/blueprints/issues/6) will be `PHP` based.
 
 #### API documentation
-- [Blueprints API](https://wordpress.github.io/wordpress-playground/blueprints-api/index) - create a Playground instance from a JSON file
-- [Query API](https://wordpress.github.io/wordpress-playground/query-api) - create Playgrounds via URL query parameters
-- [JavaScript API](https://wordpress.github.io/wordpress-playground/javascript-api/index) - JavaScript client that grants you full control over your instance
+- [Blueprints API](https://wordpress.github.io/wordpress-playground/blueprints-api/index) — create a Playground instance from a JSON file
+- [Query API](https://wordpress.github.io/wordpress-playground/query-api) — create Playgrounds via URL query parameters
+- [JavaScript API](https://wordpress.github.io/wordpress-playground/javascript-api/index) — JavaScript client that grants you full control over your instance
 
 Eventually the library will be a robust and useful tool for managing Playgrounds, and merged into WordPress Core.
