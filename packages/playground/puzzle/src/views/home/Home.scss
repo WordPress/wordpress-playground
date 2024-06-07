@@ -1,19 +1,24 @@
 $blue: #3858e9;
 
 .view--home {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
 	overflow-y: hidden;
 	background-color: $blue;
 
-	.components-button.has-icon {
+	.components-button.is-primary.has-icon {
 		&,
 		&:hover {
-			background-color: #ffffff;
+			background-color: #ffffff !important;
 			color: #1e1e1e;
 		}
 	}
+}
+
+.home__content {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 }
 
 .home__title,
@@ -30,6 +35,10 @@ $blue: #3858e9;
 	line-height: 50px;
 	font-family: 'EB Garamond', serif;
 	margin: 74px 20px 20px;
+
+	@media screen and (max-height: 460px) {
+		margin-top: 48px;
+	}
 }
 
 .home__description {
@@ -50,6 +59,7 @@ $blue: #3858e9;
 	overflow: hidden;
 	position: absolute;
 	bottom: 0;
+	margin-top: 236px;
 	width: calc(1.255 * 50vh);
 	max-width: 100%;
 	height: 50vh;
@@ -60,5 +70,11 @@ $blue: #3858e9;
 		left: 0;
 		width: calc(1.255 * 50vh);
 		height: 50vh;
+		$home-content-height: 330px;
+		max-height: calc(100vh - #{$home-content-height});
+	}
+
+	@media screen and (max-height: 700px) {
+		display: none;
 	}
 }
