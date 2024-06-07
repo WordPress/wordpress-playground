@@ -400,6 +400,7 @@ export class PHP implements Disposable {
 		 * requests another PHP file, the second request may
 		 * be dispatched before the first one is finished.
 		 */
+		console.log('PHP run', request);
 		const release = await this.semaphore.acquire();
 		let heapBodyPointer;
 		try {
