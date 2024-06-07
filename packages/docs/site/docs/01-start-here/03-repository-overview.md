@@ -29,8 +29,8 @@ Ideas, designs or anything else – open a [discussion](https://github.com/WordP
 ## Playground Tools
 
 A [repository](https://github.com/WordPress/playground-tools) containing the tools and applications for the Playground.
-- [Playground Block](https://github.com/WordPress/playground-tools/blob/trunk/packages/wordpress-playground-block) — embed a Playground instance on a website
 - [Sandbox by WordPress Playground](https://github.com/WordPress/playground-tools/blob/trunk/packages/playground) — a plugin for working with Playgrounds
+- [Playground Block](https://github.com/WordPress/playground-tools/blob/trunk/packages/wordpress-playground-block) — embed a Playground instance on a website
 - [VS Code Extension](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension) — start WordPress from within VS Code
 - [wp-now](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now) — node-based tool for creating WordPress installations
 
