@@ -3,14 +3,6 @@ $blue: #3858e9;
 .view--home {
 	overflow-y: hidden;
 	background-color: $blue;
-
-	.components-button.is-primary.has-icon {
-		&,
-		&:hover {
-			background-color: #ffffff !important;
-			color: #1e1e1e;
-		}
-	}
 }
 
 .home__content {
@@ -27,14 +19,14 @@ $blue: #3858e9;
 	text-align: center;
 	font-style: normal;
 	font-weight: 400;
-	max-width: 320px;
+	max-width: 310px;
 }
 
 .home__title {
-	font-size: 48px;
-	line-height: 50px;
+	font-size: 40px;
+	line-height: 48px;
 	font-family: 'EB Garamond', serif;
-	margin: 74px 20px 20px;
+	margin: 56px 20px 20px;
 
 	@media screen and (max-height: 460px) {
 		margin-top: 48px;
@@ -77,6 +69,17 @@ $blue: #3858e9;
 	}
 
 	@media screen and (max-height: 700px) {
-		display: none;
+		top: 400px;
+	}
+}
+
+.home__action {
+	width: 186px;
+	height: 56px;
+	.components-spinner {
+		margin: 0;
+		$icon-size: 24px;
+		width: $icon-size;
+		height: $icon-size;
 	}
 }
