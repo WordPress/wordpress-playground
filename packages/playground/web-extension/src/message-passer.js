@@ -1,3 +1,3 @@
 window.addEventListener('message', (event) => {
-	console.log({ event });
+	console.log('message received', event);
 });

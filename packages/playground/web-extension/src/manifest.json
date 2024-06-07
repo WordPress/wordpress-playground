@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "Edit Visually powered by WordPress Playground",
-	"version": "1.1",
+	"version": "1.2",
 	"description": "Installs Playground Editor in specific textareas on GitHub and WordPress Trac",
 	"permissions": [
 		"tabs",
@@ -29,10 +29,12 @@
 	"web_accessible_resources": [
 		{
 			"resources": [
+				"popup.css",
 				"popup.html",
 				"wp-admin",
 				"wp-login.php",
 				"",
+				"*",
 				"index.html"
 			],
 			"matches": [
@@ -56,6 +58,15 @@
 				"https://meta.trac.wordpress.org/*"
 			],
 			"js": ["webcomponents-polyfill.js", "content-script.js"],
+			"run_at": "document_idle"
+		},
+		{
+			"matches": [
+				"https://playground.wordpress.net/remote.html",
+				"https://github.com/*",
+				"https://meta.trac.wordpress.org/*"
+			],
+			"js": ["message-passer.js"],
 			"run_at": "document_idle"
 		}
 	]

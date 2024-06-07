@@ -37,12 +37,13 @@ async function getPlaygroundUrl() {
 class PlaygroundEditorComponent extends HTMLElement {
 	constructor() {
 		super();
-		const shadow = this.attachShadow({ mode: 'open' });
-		shadow.innerHTML = `<iframe sandbox="allow-scripts allow-same-origin"></iframe>`;
-		const iframe = shadow.querySelector('iframe');
-		iframe.style.width = `100%`;
-		iframe.style.height = `100%`;
-		iframe.style.border = '1px solid #000';
+		// const shadow = this.attachShadow({ mode: 'open' });
+		// shadow.innerHTML = `<iframe sandbox="allow-scripts allow-same-origin"></iframe>`;
+		// const iframe = shadow.querySelector('iframe');
+		// iframe.style.width = `100%`;
+		// iframe.style.height = `100%`;
+		// iframe.style.border = '1px solid #000';
+		this.instanceUuid = crypto.randomUUID();
 	}
 
 	static get observedAttributes() {
@@ -68,10 +69,13 @@ class PlaygroundEditorComponent extends HTMLElement {
 		const initialFormat = this.getAttribute('format');
 
 		const url = getPlaygroundUrl().then((url) => {
-			const targetUrl = url + '/wp-admin/post-new.php?post_type=post';
+			const targetUrl =
+				url +
+				'/wp-admin/post-new.php?post_type=post&uuid=' +
+				this.instanceUuid;
 			console.log(url + '/wp-admin/post-new.php?post_type=post');
 
-			this.shadowRoot.querySelector('iframe').src = targetUrl;
+			// this.shadowRoot.querySelector('iframe').src = targetUrl;
 			this.windowHandle = window.open(
 				targetUrl,
 				'_blank',
@@ -87,6 +91,9 @@ class PlaygroundEditorComponent extends HTMLElement {
 					console.log({ v });
 				});
 			}, 2500);
+		});
+		this.windowHandle.addEventListener('message', (event) => {
+			console.log('Window handle message', event);
 		});
 
 		window.addEventListener('message', (event) => {
@@ -113,8 +120,8 @@ class PlaygroundEditorComponent extends HTMLElement {
 			this.addEventListener('change', (event) => {
 				resolve(event.detail);
 			});
-			// this.windowHandle?.postMessage(
-			this.shadowRoot.querySelector('iframe').contentWindow.postMessage(
+			this.windowHandle?.postMessage(
+				// this.shadowRoot.querySelector('iframe').contentWindow.postMessage(
 				{
 					command: 'getEditorContent',
 					format: this.getAttribute('format'),
@@ -132,10 +139,10 @@ class PlaygroundEditorComponent extends HTMLElement {
 			text: this.value,
 			type: 'relay',
 		};
-		this.shadowRoot
-			.querySelector('iframe')
-			?.contentWindow?.postMessage(message, '*');
-		// this.windowHandle?.postMessage(message, '*');
+		// this.shadowRoot
+		// 	.querySelector('iframe')
+		// 	?.contentWindow?.postMessage(message, '*');
+		this.windowHandle?.postMessage(message, '*');
 		console.log('get remote', this.windowHandle);
 	}
 

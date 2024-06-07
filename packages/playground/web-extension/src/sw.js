@@ -69,8 +69,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 	}
 });
 self.addEventListener('fetch', function (event) {
+	const requestedPath = new URL(event.request.url).pathname;
 	console.log('Fetch intercepted for:', event.request.url);
-	if (event.request.url.endsWith('/popup.html')) {
+	if (
+		requestedPath.endsWith('/popup.html') ||
+		requestedPath.endsWith('/popup.js') ||
+		requestedPath.endsWith('/popup.css')
+	) {
 		return;
 	}
 	event.respondWith(
@@ -121,7 +126,12 @@ chrome.action.onClicked.addListener(async function (tab) {
 				'top: 10px;right: 10px;width: 60vw;height:60vh;z-index: 2147483650;border: none; position:fixed;'
 			);
 			iframe.setAttribute('allow', '');
-			iframe.src = chrome.runtime.getURL('/popup.html');
+			iframe.src = chrome.runtime.getURL(
+				'popup.html?next=' +
+					chrome.runtime.getURL(
+						'/wp-admin/post-new.php?post_type=post'
+					)
+			);
 			document.body.appendChild(iframe);
 		},
 	});
