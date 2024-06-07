@@ -1,10 +1,10 @@
 {
-	"landingPage": "/",
+	"landingPage": "/wp-admin/admin.php?page=wpseo_installation_successful_free",
 	"steps": [
 		{
 			"step": "writeFile",
 			"path": "/wordpress/wp-content/mu-plugins/wp-seo.php",
-			"data": "<?php add_action('init', function() { add_filter( 'Yoast\\WP\\SEO\\should_index_indexables', '__return_false' ); $option_array = get_option('wpseo'); if ( $option_array && is_array( $option_array ) ) { $option_array['should_redirect_after_install_free'] = false; update_option( 'wpseo', $option_array ); } } ); ?>"
+			"data": "<?php add_action('init', function() { add_filter( 'Yoast\\WP\\SEO\\should_index_indexables', '__return_false' ); } ); ?>"
 		},
 		{
 			"step": "installPlugin",

@@ -161,6 +161,16 @@ export const processImage = async (actions: string[]) => {
 			path: '/wordpress/wp-content/mu-plugins/rewrite.php',
 			data: "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );",
 		},
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-elementor-onboarding.php',
+			data: "<?php add_action( 'activate_plugin', function() { update_option('elementor_onboarded', true); } );",
+		},
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-yoast-onboarding.php',
+			data: "<?php add_action( 'wpseo_activate', function() { $option_array = get_option('wpseo'); if ( $option_array && is_array( $option_array ) ) { $option_array['should_redirect_after_install_free'] = false; update_option( 'wpseo', $option_array ); } }, 1000 );",
+		},
 		...blueprint.steps,
 	];
 	return blueprint;
