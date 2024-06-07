@@ -85,7 +85,6 @@
 		"anchor": true,
 		"align": true,
 		"html": false,
-		"shadow": true,
 		"spacing": {
 			"padding": true,
 			"margin": [ "top", "bottom" ],
