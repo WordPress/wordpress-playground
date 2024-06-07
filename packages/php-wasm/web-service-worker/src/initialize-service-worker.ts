@@ -158,6 +158,7 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 		// registration of the service worker.
 		includeUncontrolled: true,
 	})) {
+		console.log('sending a message!', { client, scope, requestId });
 		client.postMessage({
 			...message,
 			/**

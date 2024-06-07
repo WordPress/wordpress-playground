@@ -187,6 +187,9 @@ export async function bootWordPress(options: BootOptions) {
 		}
 	}
 
+	php.defineConstant('WP_DEBUG', true);
+	php.defineConstant('WP_DEBUG_LOG', true);
+	php.defineConstant('WP_DEBUG_DISPLAY', true);
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
@@ -208,6 +211,8 @@ export async function bootWordPress(options: BootOptions) {
 		await installWordPress(php);
 	}
 
+	globalThis.php = php;
+
 	if (!(await isWordPressInstalled(php))) {
 		throw new Error('WordPress installation has failed.');
 	}
@@ -216,16 +221,16 @@ export async function bootWordPress(options: BootOptions) {
 }
 
 async function isWordPressInstalled(php: PHP) {
-	return (
-		(
-			await php.run({
-				code: `<?php 
-	require '${php.documentRoot}/wp-load.php';
-	echo is_blog_installed() ? '1' : '0';
-	`,
-			})
-		).text === '1'
-	);
+	const response = (
+		await php.run({
+			code: `<?php 
+require '${php.documentRoot}/wp-load.php';
+echo is_blog_installed() ? '1' : '0';
+`,
+		})
+	).text;
+	console.log({ response });
+	return response === '1';
 }
 
 async function installWordPress(php: PHP) {
@@ -237,8 +242,8 @@ async function installWordPress(php: PHP) {
 			disable_functions: 'fsockopen',
 			allow_url_fopen: '0',
 		},
-		async () =>
-			await php.request({
+		async () => {
+			const response = await php.request({
 				url: '/wp-admin/install.php?step=2',
 				method: 'POST',
 				body: {
@@ -253,6 +258,8 @@ async function installWordPress(php: PHP) {
 					pw_weak: '1',
 					admin_email: 'admin@localhost.com',
 				},
-			})
+			});
+			console.log(await response.text);
+		}
 	);
 }

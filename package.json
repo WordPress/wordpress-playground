@@ -56,6 +56,7 @@
 	"dependencies": {
 		"@preact/signals-react": "1.3.6",
 		"@reduxjs/toolkit": "2.2.5",
+		"@types/chrome": "0.0.268",
 		"@types/ini": "4.1.0",
 		"@types/wicg-file-system-access": "2023.10.5",
 		"axios": "1.6.1",

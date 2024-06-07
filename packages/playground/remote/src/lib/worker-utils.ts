@@ -56,7 +56,6 @@ export const startupOptions = {
 		? (receivedParams.phpVersion as SupportedPHPVersion)
 		: '8.0',
 	sapiName: receivedParams.sapiName || 'cli',
-	storage: receivedParams.storage || 'local',
 	phpExtensions: receivedParams.phpExtensions || [],
 	siteSlug: receivedParams.siteSlug,
 } as ParsedStartupOptions;

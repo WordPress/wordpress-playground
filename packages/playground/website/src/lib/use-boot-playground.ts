@@ -66,6 +66,15 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 						(url: string) => setUrl(url)
 					);
 					setPlayground(() => playgroundTmp);
+
+					const url = await (playgroundTmp as PlaygroundClient)
+						.absoluteUrl;
+					if (window.parent) {
+						window.parent.postMessage(
+							{ playgroundReadyAt: url },
+							'*'
+						);
+					}
 				}
 			}
 		}
