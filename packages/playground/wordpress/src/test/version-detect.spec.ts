@@ -4,6 +4,7 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- ignore circular package dep so @php-wasm/node can test with the WP file-not-found callback
 import { loadNodeRuntime } from '@php-wasm/node';
 import { bootWordPress } from '../boot';
 import {

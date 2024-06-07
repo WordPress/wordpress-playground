@@ -1,29 +1,60 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
+import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
 import {
+	FileNotFoundGetActionCallback,
 	PHP,
 	PHPRequestHandler,
+	PHPResponse,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { createSpawnHandler } from '@php-wasm/util';
+import { createSpawnHandler, joinPaths } from '@php-wasm/util';
 
-describe.each(SupportedPHPVersions)(
-	'[PHP %s] PHPRequestHandler – request',
-	(phpVersion) => {
+const configsForRequestTests = SupportedPHPVersions.map((phpVersion) => {
+	const documentRoots = ['/', '/wordpress'];
+	return documentRoots.map((docRoot) => {
+		const absoluteUrls = [
+			undefined,
+			'http://localhost:4321/nested/playground/',
+		];
+		return absoluteUrls.map((absoluteUrl) => ({
+			phpVersion,
+			docRoot,
+			absoluteUrl,
+		}));
+	});
+}).flat(2);
+
+describe.each(configsForRequestTests)(
+	'[PHP $phpVersion, DocRoot $docRoot, AbsUrl $absoluteUrl] PHPRequestHandler – request',
+	({ phpVersion, docRoot, absoluteUrl }) => {
 		let php: PHP;
 		let handler: PHPRequestHandler;
+		let getFileNotFoundActionForTest: FileNotFoundGetActionCallback =
+			() => ({
+				type: '404',
+			});
 		beforeEach(async () => {
 			handler = new PHPRequestHandler({
-				documentRoot: '/',
+				documentRoot: docRoot,
+				absoluteUrl,
 				phpFactory: async () =>
 					new PHP(await loadNodeRuntime(phpVersion)),
 				maxPhpInstances: 1,
+				getFileNotFoundAction: (relativePath: string) => {
+					return getFileNotFoundActionForTest(relativePath);
+				},
 			});
 			php = await handler.getPrimaryPhp();
+			php.mkdir(docRoot);
 		});
 
 		it('should execute a PHP file', async () => {
-			php.writeFile('/index.php', `<?php echo 'Hello World';`);
+			php.writeFile(
+				joinPaths(docRoot, 'index.php'),
+				`<?php echo 'Hello World';`
+			);
 			const response = await handler.request({
 				url: '/index.php',
 			});
@@ -39,8 +70,29 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
+		it('should execute a non-default PHP file in a directory', async () => {
+			php.mkdirTree(joinPaths(docRoot, 'folder'));
+			php.writeFile(
+				joinPaths(docRoot, 'folder/some.php'),
+				`<?php echo 'Some PHP file in a folder.';`
+			);
+			const response = await handler.request({
+				url: '/folder/some.php',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Some PHP file in a folder.'),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
 		it('should serve a static file', async () => {
-			php.writeFile('/index.html', `Hello World`);
+			php.writeFile(joinPaths(docRoot, 'index.html'), `Hello World`);
 			const response = await handler.request({
 				url: '/index.html',
 			});
@@ -61,7 +113,7 @@ describe.each(SupportedPHPVersions)(
 
 		it('should serve a static file with urlencoded entities in the path', async () => {
 			php.writeFile(
-				'/Screenshot 2024-04-05 at 7.13.36 AM.html',
+				joinPaths(docRoot, 'Screenshot 2024-04-05 at 7.13.36 AM.html'),
 				`Hello World`
 			);
 			const response = await handler.request({
@@ -84,7 +136,7 @@ describe.each(SupportedPHPVersions)(
 
 		it('should serve a PHP file with urlencoded entities in the path', async () => {
 			php.writeFile(
-				'/Screenshot 2024-04-05 at 7.13.36 AM.php',
+				joinPaths(docRoot, 'Screenshot 2024-04-05 at 7.13.36 AM.php'),
 				`Hello World`
 			);
 			const response = await handler.request({
@@ -102,14 +154,144 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
-		it('should yield x-file-type=static when a static file is not found', async () => {
+		const fileNotFoundFallbackTestUris = [
+			'/index.php',
+			'/other.php',
+			'/index.html',
+			'/testing.html',
+			'/',
+			'/subdir',
+		];
+		fileNotFoundFallbackTestUris.forEach((nonExistentFileUri) => {
+			it(`should relay a fallback response for non-existent file: '${nonExistentFileUri}'`, async () => {
+				getFileNotFoundActionForTest = (uri: string) => {
+					if (uri === nonExistentFileUri) {
+						return {
+							type: 'response',
+							response: new PHPResponse(
+								404,
+								{ 'x-backfill-from': ['remote-host'] },
+								new TextEncoder().encode('404 File not found')
+							),
+						};
+					} else {
+						return { type: '404' };
+					}
+				};
+				const response = await handler.request({
+					url: nonExistentFileUri,
+				});
+				expect(response).toEqual({
+					httpStatusCode: 404,
+					headers: {
+						'x-backfill-from': ['remote-host'],
+					},
+					bytes: expect.any(Uint8Array),
+					errors: '',
+					exitCode: 0,
+				});
+			});
+			it(`should support internal redirection to a PHP file as a fallback for non-existent file: '${nonExistentFileUri}'`, async () => {
+				const primaryPhp = await handler.getPrimaryPhp();
+				const scriptPath = joinPaths(docRoot, 'fallback.php');
+				primaryPhp.writeFile(
+					scriptPath,
+					`<?php
+						echo "expected fallback to PHP content:";
+						echo "{$_SERVER['REQUEST_URI']}:";
+						// TODO: Confirm how SCRIPT_NAME should behave and test that
+						//echo "{$_SERVER['SCRIPT_NAME']}:";
+						echo "{$_SERVER['SCRIPT_FILENAME']}";
+						`
+				);
+
+				getFileNotFoundActionForTest = (uri: string) => {
+					if (uri === nonExistentFileUri) {
+						return {
+							type: 'internal-redirect',
+							uri: '/fallback.php',
+						};
+					} else {
+						return { type: '404' };
+					}
+				};
+				const response = await handler.request({
+					url: nonExistentFileUri,
+				});
+
+				const expectedRequestUri =
+					absoluteUrl === undefined
+						? nonExistentFileUri
+						: joinPaths(
+								new URL(absoluteUrl as string).pathname,
+								nonExistentFileUri
+						  );
+				expect(response).toEqual({
+					httpStatusCode: 200,
+					headers: expect.any(Object),
+					bytes: new TextEncoder().encode(
+						'expected fallback to PHP content:' +
+							`${expectedRequestUri}:` +
+							`${scriptPath}`
+					),
+					errors: '',
+					exitCode: 0,
+				});
+			});
+			it(`should support internal redirection to a static file as a fallback for non-existent file: '${nonExistentFileUri}'`, async () => {
+				const primaryPhp = await handler.getPrimaryPhp();
+				primaryPhp.writeFile(
+					joinPaths(docRoot, 'fallback.txt'),
+					'expected fallback to static content'
+				);
+
+				getFileNotFoundActionForTest = (uri: string) => {
+					if (uri === nonExistentFileUri) {
+						return {
+							type: 'internal-redirect',
+							uri: '/fallback.txt',
+						};
+					} else {
+						return { type: '404' };
+					}
+				};
+				const response = await handler.request({
+					url: nonExistentFileUri,
+				});
+				expect(response).toEqual({
+					httpStatusCode: 200,
+					headers: expect.any(Object),
+					bytes: new TextEncoder().encode(
+						'expected fallback to static content'
+					),
+					errors: '',
+					exitCode: 0,
+				});
+			});
+			it(`should support responding with a plain 404 for non-existent file: '${nonExistentFileUri}'`, async () => {
+				getFileNotFoundActionForTest = () => ({ type: '404' });
+				const response = await handler.request({
+					url: nonExistentFileUri,
+				});
+				expect(response).toEqual({
+					httpStatusCode: 404,
+					headers: expect.any(Object),
+					bytes: expect.any(Uint8Array),
+					errors: '',
+					exitCode: 0,
+				});
+			});
+		});
+
+		it('should redirect to add trailing slash to existing dir', async () => {
+			php.mkdirTree(joinPaths(docRoot, 'folder'));
 			const response = await handler.request({
-				url: '/index.html',
+				url: '/folder',
 			});
 			expect(response).toEqual({
-				httpStatusCode: 404,
+				httpStatusCode: 301,
 				headers: {
-					'x-file-type': ['static'],
+					Location: ['/folder/'],
 				},
 				bytes: expect.any(Uint8Array),
 				errors: '',
@@ -117,22 +299,52 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
-		it('should not yield x-file-type=static when a PHP file is not found', async () => {
+		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
+			php.mkdirTree(joinPaths(docRoot, 'folder'));
+			php.writeFile(
+				joinPaths(docRoot, 'folder/index.php'),
+				`<?php echo $_GET['key'];`
+			);
 			const response = await handler.request({
-				url: '/index.php',
+				url: '/folder/?key=value',
 			});
-			expect(response).toEqual({
-				httpStatusCode: 404,
-				headers: {},
-				bytes: expect.any(Uint8Array),
-				errors: '',
-				exitCode: 0,
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('value');
+		});
+
+		it('should default a folder request to index.html if it exists and index.php does not', async () => {
+			php.mkdirTree(joinPaths(docRoot, 'folder'));
+			php.writeFile(
+				joinPaths(docRoot, 'folder/index.html'),
+				`INDEX DOT HTML`
+			);
+			const response = await handler.request({
+				url: '/folder/?key=value',
 			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('INDEX DOT HTML');
+		});
+
+		it('should default a folder request to index.php when when both index.php and index.html exist', async () => {
+			php.mkdirTree(joinPaths(docRoot, 'folder'));
+			php.writeFile(
+				joinPaths(docRoot, 'folder/index.php'),
+				`INDEX DOT PHP`
+			);
+			php.writeFile(
+				joinPaths(docRoot, 'folder/index.html'),
+				`INDEX DOT HTML`
+			);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('INDEX DOT PHP');
 		});
 
 		it('should return httpStatus 500 if exit code is not 0', async () => {
 			php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				 echo 'Hello World';
 				`
@@ -141,7 +353,7 @@ describe.each(SupportedPHPVersions)(
 				url: '/index.php',
 			});
 			php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				echo 'Hello World' // note there is no closing semicolon
 				`
@@ -150,7 +362,7 @@ describe.each(SupportedPHPVersions)(
 				url: '/index.php',
 			});
 			php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				 echo 'Hello World!';
 				`
@@ -197,7 +409,7 @@ describe.each(SupportedPHPVersions)(
 			 * phpwasm_init_uploaded_files_hash() docstring for more info.
 			 */
 			php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				echo json_encode($_POST);`
 			);
@@ -218,7 +430,7 @@ describe.each(SupportedPHPVersions)(
 			 * phpwasm_init_uploaded_files_hash() docstring for more info.
 			 */
 			php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
 				echo json_encode(file_exists('/tmp/moved.txt'));`
@@ -237,16 +449,21 @@ describe.each(SupportedPHPVersions)(
 		 * @see https://github.com/WordPress/wordpress-playground/issues/1120
 		 */
 		it('Should not propagate the # part of the URL to PHP', async () => {
-			php.writeFile('/index.php', `<?php echo $_SERVER['REQUEST_URI'];`);
+			php.writeFile(
+				joinPaths(docRoot, 'index.php'),
+				`<?php echo $_SERVER['REQUEST_URI'];`
+			);
 			const response = await handler.request({
 				url: '/index.php#foo',
 			});
-			expect(response.text).toEqual('/index.php');
+			const pathPrefix =
+				absoluteUrl === undefined ? '/' : new URL(absoluteUrl).pathname;
+			expect(response.text).toEqual(joinPaths(pathPrefix, 'index.php'));
 		});
 
 		it('Should allow mixing data and files when `body` is a JavaScript object', async () => {
 			php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
 				echo json_encode(array_merge(
@@ -269,7 +486,7 @@ describe.each(SupportedPHPVersions)(
 
 		it('Should handle an empty file object and post data', async () => {
 			await php.writeFile(
-				'/index.php',
+				joinPaths(docRoot, 'index.php'),
 				`<?php
 				echo json_encode($_POST);`
 			);
@@ -285,7 +502,10 @@ describe.each(SupportedPHPVersions)(
 		});
 
 		it('should return 200 and pass query strings when a valid request is made to a PHP file', async () => {
-			php.writeFile('/test.php', `<?php echo $_GET['key'];`);
+			php.writeFile(
+				joinPaths(docRoot, 'test.php'),
+				`<?php echo $_GET['key'];`
+			);
 			const response = await handler.request({
 				url: '/test.php?key=value',
 			});
@@ -293,23 +513,46 @@ describe.each(SupportedPHPVersions)(
 			expect(response.text).toEqual('value');
 		});
 
-		it('should return 200 status and pass query strings when a valid request is made to a WordPress permalink', async () => {
-			php.writeFile('/index.php', `<?php echo $_GET['key'];`);
-			const response = await handler.request({
-				url: '/category/uncategorized/?key=value',
+		describe('WordPress requests', () => {
+			beforeEach(() => {
+				getFileNotFoundActionForTest =
+					getFileNotFoundActionForWordPress;
 			});
-			expect(response.httpStatusCode).toEqual(200);
-			expect(response.text).toEqual('value');
-		});
+			it('should delegate request for non-existent PHP file to /index.php with query args', async () => {
+				php.writeFile(
+					joinPaths(docRoot, 'index.php'),
+					`<?php echo "DEFAULT with key={$_GET['key']}";`
+				);
+				const response = await handler.request({
+					url: '/non/existent/file.php?key=value',
+				});
+				expect(response.httpStatusCode).toEqual(200);
+				expect(response.text).toEqual('DEFAULT with key=value');
+			});
 
-		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
-			php.mkdirTree('/folder');
-			php.writeFile('/folder/index.php', `<?php echo $_GET['key'];`);
-			const response = await handler.request({
-				url: '/folder/?key=value',
+			it('should delegate request for non-existent non-PHP file to /index.php with query args', async () => {
+				php.writeFile(
+					joinPaths(docRoot, 'index.php'),
+					`<?php echo "DEFAULT with key={$_GET['key']}";`
+				);
+				const response = await handler.request({
+					url: '/non/existent/file?key=value',
+				});
+				expect(response.httpStatusCode).toEqual(200);
+				expect(response.text).toEqual('DEFAULT with key=value');
 			});
-			expect(response.httpStatusCode).toEqual(200);
-			expect(response.text).toEqual('value');
+
+			it('should return 200 status and pass query strings when a valid request is made to a WordPress permalink', async () => {
+				php.writeFile(
+					joinPaths(docRoot, 'index.php'),
+					`<?php echo $_GET['key'];`
+				);
+				const response = await handler.request({
+					url: '/category/uncategorized/?key=value',
+				});
+				expect(response.httpStatusCode).toEqual(200);
+				expect(response.text).toEqual('value');
+			});
 		});
 	}
 );
