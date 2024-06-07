@@ -7,11 +7,11 @@ import yith from './blueprints/yith.json';
 import dynamicOoo from './blueprints/dynamic-ooo.json';
 import personalizewp from './blueprints/personalizewp.json';
 import jetformbuilder from './blueprints/jetformbuilder.json';
-// import fastspring from './blueprints/fastspring.json';
+import fastspring from './blueprints/fastspring.json';
 import cookiebot from './blueprints/cookiebot.json';
 import w3TotalCache from './blueprints/w3-total-cache.json';
 import siteground from './blueprints/siteground.json';
-// import yoast from './blueprints/yoast.json';
+import yoast from './blueprints/yoast.json';
 
 export type Action = {
 	title: string;
@@ -80,11 +80,11 @@ const actionBlueprints = {
 	'dynamic.ooo': dynamicOoo,
 	personalizewp,
 	jetformbuilder,
-	// fastspring,
+	fastspring,
 	cookiebot,
 	'w3 total cache': w3TotalCache,
 	siteground,
-	// yoast,
+	yoast,
 };
 
 export const getActions = (titles: string[]) => {
