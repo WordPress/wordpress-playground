@@ -4,6 +4,7 @@
 	"version": "1.1",
 	"description": "Installs Playground Editor in specific textareas on GitHub and WordPress Trac",
 	"permissions": [
+		"tabs",
 		"activeTab",
 		"scripting",
 		"offscreen",
@@ -18,10 +19,35 @@
 		"https://playground.wordpress.net/",
 		"https://github.com/",
 		"https://meta.trac.wordpress.org/",
-		"http://playground.internal/"
+		"http://playground.internal/",
+		"https://adamadam.blog/",
+		"<all_urls>"
 	],
 	"content_security_policy": {
 		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self';"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"popup.html",
+				"wp-admin",
+				"wp-login.php",
+				"",
+				"index.html"
+			],
+			"matches": [
+				"https://playground.wordpress.net/*",
+				"https://github.com/*",
+				"https://meta.trac.wordpress.org/*",
+				"http://playground.internal/*",
+				"https://adamadam.blog/*",
+				"<all_urls>"
+			],
+			"use_dynamic_url": true
+		}
+	],
+	"action": {
+		"default_title": "Click Me"
 	},
 	"content_scripts": [
 		{

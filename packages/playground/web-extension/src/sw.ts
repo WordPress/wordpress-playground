@@ -43,6 +43,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
 self.addEventListener('fetch', function (event: any) {
 	console.log('Fetch intercepted for:', event.request.url);
+	if (event.request.url.endsWith('/popup.html')) {
+		return;
+	}
 	event.respondWith(
 		(async function () {
 			const url = new URL(event.request.url);
@@ -97,10 +100,10 @@ self.addEventListener('fetch', function (event: any) {
 // 		iframe.setAttribute('id', 'cm-frame');
 // 		iframe.setAttribute(
 // 		  'style',
-// 		  'top: 10px;right: 10px;width: 400px;height: calc(100% - 20px);z-index: 2147483650;border: none; position:fixed;'
+// 		  'top: 10px;right: 10px;width: 60vw;height:60vh;z-index: 2147483650;border: none; position:fixed;'
 // 		);
 // 		iframe.setAttribute('allow', '');
-// 		iframe.src = chrome.runtime.getURL('/wp-admin/');
+// 		iframe.src = chrome.runtime.getURL('/popup.html');
 
 // 		document.body.appendChild(iframe);
 // 	  },

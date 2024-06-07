@@ -70,6 +70,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 });
 self.addEventListener('fetch', function (event) {
 	console.log('Fetch intercepted for:', event.request.url);
+	if (event.request.url.endsWith('/popup.html')) {
+		return;
+	}
 	event.respondWith(
 		(async function () {
 			const url = new URL(event.request.url);
@@ -101,4 +104,25 @@ self.addEventListener('fetch', function (event) {
 			});
 		})()
 	);
+});
+chrome.action.onClicked.addListener(async function (tab) {
+	chrome.scripting.executeScript({
+		target: { tabId: tab.id },
+		func: () => {
+			const oldIframe = document.getElementById('cm-frame');
+			if (oldIframe) {
+				oldIframe.remove();
+				return;
+			}
+			const iframe = document.createElement('iframe');
+			iframe.setAttribute('id', 'cm-frame');
+			iframe.setAttribute(
+				'style',
+				'top: 10px;right: 10px;width: 60vw;height:60vh;z-index: 2147483650;border: none; position:fixed;'
+			);
+			iframe.setAttribute('allow', '');
+			iframe.src = chrome.runtime.getURL('/popup.html');
+			document.body.appendChild(iframe);
+		},
+	});
 });
