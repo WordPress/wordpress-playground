@@ -48,7 +48,7 @@ function siteName()
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => "POST",
         CURLOPT_POSTFIELDS => json_encode([
-            "model" => "gpt-3.5-turbo-instruct",
+            "model" => "gpt-4o",
             "prompt" => "Please come up with a random name for a website.
             That's related to playing, but don't use the word 'play' in the name.
             Don't suggest names combining multiple words into one.
@@ -90,7 +90,7 @@ function generatePost()
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => "POST",
         CURLOPT_POSTFIELDS => json_encode([
-            "model" => "gpt-3.5-turbo-instruct",
+            "model" => "gpt-4o",
             "prompt" => "Please write a short fictional blog post about a great experience someone had while attending a WordCamp.
             Make sure the post is complete and doesn't end abruptly. The post should be up to 300 words.
             The topic should be fun and not too serious. It should be something that people would enjoy reading.
@@ -174,7 +174,7 @@ function readImage($image)
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => "POST",
         CURLOPT_POSTFIELDS => json_encode([
-            "model" => "gpt-4-vision-preview",
+            "model" => "gpt-4-turbo",
             "messages" => [
                 [
                     "role" => "user",

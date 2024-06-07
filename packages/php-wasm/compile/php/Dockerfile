@@ -918,7 +918,7 @@ RUN set -euxo pipefail; \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-o /build/output/php.js \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
-	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "PROXYFS"]' \
+	-s EXPORTED_RUNTIME_METHODS='["ccall", "PROXYFS", "wasmExports"]' \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1         \
 	-s ASSERTIONS=0                  \

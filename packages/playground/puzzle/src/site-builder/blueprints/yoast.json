@@ -1,5 +1,5 @@
 {
-	"landingPage": "/wp-admin/admin.php?page=wpseo_installation_successful_free",
+	"landingPage": "/",
 	"steps": [
 		{
 			"step": "writeFile",
