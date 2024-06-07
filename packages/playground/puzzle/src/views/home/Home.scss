@@ -1,15 +1,29 @@
 $blue: #3858e9;
 
 .view--home {
+	overflow-y: hidden;
+	background-color: $blue;
+
+	.components-button.is-primary.has-icon {
+		&,
+		&:hover {
+			background-color: #ffffff !important;
+			color: #1e1e1e;
+		}
+	}
+}
+
+.home__content {
+	position: relative;
+	z-index: 1;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	overflow-y: hidden;
 }
 
 .home__title,
 .home__description {
-	color: #1c2024;
+	color: #ffffff;
 	text-align: center;
 	font-style: normal;
 	font-weight: 400;
@@ -21,8 +35,9 @@ $blue: #3858e9;
 	line-height: 50px;
 	font-family: 'EB Garamond', serif;
 	margin: 74px 20px 20px;
-	> span {
-		color: $blue;
+
+	@media screen and (max-height: 460px) {
+		margin-top: 48px;
 	}
 }
 
@@ -41,9 +56,25 @@ $blue: #3858e9;
 }
 
 .home__image {
-	width: 100%;
-	z-index: -1;
+	overflow: hidden;
 	position: absolute;
 	bottom: 0;
-	max-width: 428px;
+	margin-top: 236px;
+	width: calc(1.255 * 50vh);
+	max-width: 100%;
+	height: 50vh;
+	margin: 0 auto;
+	& > img {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: calc(1.255 * 50vh);
+		height: 50vh;
+		$home-content-height: 330px;
+		max-height: calc(100vh - #{$home-content-height});
+	}
+
+	@media screen and (max-height: 700px) {
+		display: none;
+	}
 }

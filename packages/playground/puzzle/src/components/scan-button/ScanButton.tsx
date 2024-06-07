@@ -1,4 +1,4 @@
-import { Button } from '@wordpress/components';
+import { Button, Spinner } from '@wordpress/components';
 import { capturePhoto } from '@wordpress/icons';
 import React, { useState } from 'react';
 import { useScanContext } from '../../context/scan';
@@ -38,13 +38,21 @@ export const ScanButton = ({ onSuccess }: { onSuccess: Function }) => {
 				setLoading(false);
 			});
 	};
+
+	const classNames = ['scan__button'];
+	if (loading) {
+		classNames.push('scan__button--loading');
+	}
 	return (
-		<Button
-			onClick={onClick}
-			variant="primary"
-			className="scan__button"
-			icon={capturePhoto}
-			isBusy={loading}
-		/>
+		<div className={classNames.join(' ')}>
+			<Button
+				onClick={onClick}
+				variant="primary"
+				icon={capturePhoto}
+				disabled={loading}
+			>
+				{loading && <Spinner />}
+			</Button>
+		</div>
 	);
 };

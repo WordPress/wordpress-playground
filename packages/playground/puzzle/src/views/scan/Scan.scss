@@ -29,14 +29,18 @@ $spacing: 18px;
 	text-align: center;
 	font-size: 16px;
 	font-weight: 400;
-	line-height: 30px;
 	position: absolute;
 	top: 0;
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 2;
 	max-width: 320px;
-	margin-top: 64px;
+	margin-top: 66px;
+	width: 100%;
+	> p {
+		margin-top: 0;
+		line-height: 30px;
+	}
 }
 
 .scan__dots {

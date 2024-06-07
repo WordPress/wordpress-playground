@@ -20,6 +20,14 @@ body,
 	height: 56px;
 	cursor: pointer;
 
+	&.is-primary {
+		&,
+		&:hover,
+		&.is-busy {
+			background-color: #3858e9;
+		}
+	}
+
 	&.is-secondary {
 		background-color: #fff;
 		color: #1e1e1e;
