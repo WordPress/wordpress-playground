@@ -135,7 +135,6 @@ export class PHPRequestHandler {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#cookieStore: HttpCookieStore;
-	#remoteAssetPaths: Set<string>;
 	rewriteRules: RewriteRule[];
 	processManager: PHPProcessManager;
 
@@ -195,8 +194,6 @@ export class PHPRequestHandler {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
-
-		this.#remoteAssetPaths = new Set<string>();
 	}
 
 	async getPrimaryPhp() {
@@ -309,88 +306,14 @@ export class PHPRequestHandler {
 			),
 			this.rewriteRules
 		);
-
-		const primaryPhp = await this.getPrimaryPhp();
-
-		let fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
-
-		if (primaryPhp.isDir(fsPath)) {
-			// Ensure directory URIs have a trailing slash. Otherwise,
-			// relative URIs in index.php or index.html files are relative
-			// to the next directory up.
-			//
-			// Example:
-			// For a request to "/wp-admin", the relative link "edit.php"
-			// resolves to "/edit.php" rather than "/wp-admin/edit.php".
-			//
-			// This is correct behavior for the browser:
-			// https://www.rfc-editor.org/rfc/rfc3986#section-5.2.3
-			//
-			// But the intent for `/wp-admin/index.php` is that its relative
-			// URIs are relative to `/wp-admin/`.
-			//
-			// In fact, WordPress also redirects like this when given a chance.
-			// - https://github.com/WordPress/wordpress-develop/blob/b6a3b9c7d1ce33cbeca6f95871a26c48141e524b/src/wp-includes/canonical.php#L696
-			// - https://github.com/WordPress/wordpress-develop/blob/b6a3b9c7d1ce33cbeca6f95871a26c48141e524b/src/wp-includes/canonical.php#L1036-L1045
-			// - https://github.com/WordPress/wordpress-develop/blob/b6a3b9c7d1ce33cbeca6f95871a26c48141e524b/src/wp-includes/link-template.php#L3558
-			if (!fsPath.endsWith('/')) {
-				return new PHPResponse(
-					301,
-					{ Location: [`${requestedUrl.pathname}/`] },
-					new Uint8Array(0)
-				);
-			}
-
-			// We can only satisfy requests for directories with a default file
-			// so let's first resolve to a default path when available.
-			const defaultFilePath = ['index.php', 'index.html']
-				.map((defaultFilename) => joinPaths(fsPath, defaultFilename))
-				.find((possibleDefaultPath) =>
-					primaryPhp.isFile(possibleDefaultPath)
-				);
-
-			if (defaultFilePath) {
-				fsPath = defaultFilePath;
-			}
+		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
+		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
+			return this.#serveStaticFile(
+				await this.processManager.getPrimaryPhp(),
+				fsPath
+			);
 		}
-
-		if (fsPath.endsWith('.php')) {
-			if (primaryPhp.isFile(fsPath)) {
-				const effectiveRequest: PHPRequest = {
-					...request,
-					url: joinPaths(this.#ABSOLUTE_URL, fsPath),
-				};
-				return this.#spawnPHPAndDispatchRequest(
-					effectiveRequest,
-					requestedUrl
-				);
-			}
-		} else {
-			if (primaryPhp.isFile(fsPath)) {
-				return this.#serveStaticFile(primaryPhp, fsPath);
-			} else if (
-				// Make sure fsPath doesn't describe any other entity on the filesystem
-				!primaryPhp.fileExists(fsPath) &&
-				this.#remoteAssetPaths.has(fsPath)
-			) {
-				// This path is listed as a remote asset. Mark it as a static file
-				// so the service worker knows it can issue a real fetch() to the server.
-				return new PHPResponse(
-					404,
-					{ 'x-file-type': ['static'] },
-					new TextEncoder().encode('404 File not found')
-				);
-			}
-		}
-
-		// Delegate unresolved requests to WordPress. This makes WP magic possible,
-		// like pretty permalinks and dynamically generated sitemaps.
-		const wpDefaultPath = joinPaths(this.#DOCROOT, 'index.php');
-		const effectiveRequest: PHPRequest = {
-			...request,
-			url: joinPaths(this.#ABSOLUTE_URL, wpDefaultPath),
-		};
-		return this.#spawnPHPAndDispatchRequest(effectiveRequest, requestedUrl);
+		return this.#spawnPHPAndDispatchRequest(request, requestedUrl);
 	}
 
 	/**
@@ -400,6 +323,17 @@ export class PHPRequestHandler {
 	 * @returns The response.
 	 */
 	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
+		if (!php.fileExists(fsPath)) {
+			return new PHPResponse(
+				404,
+				// Let the service worker know that no static file was found
+				// and that it's okay to issue a real fetch() to the server.
+				{
+					'x-file-type': ['static'],
+				},
+				new TextEncoder().encode('404 File not found')
+			);
+		}
 		const arrayBuffer = php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
@@ -552,19 +486,6 @@ export class PHPRequestHandler {
 		}
 		throw new Error(`File not found: ${resolvedFsPath}`);
 	}
-
-	/**
-	 * Add paths to static files we can assume exist remotely.
-	 *
-	 * @param relativePaths A list of paths to remote assets, relative to the document root.
-	 */
-	addRemoteAssetPaths(relativePaths: string[]) {
-		const separator = this.#DOCROOT.endsWith('/') ? '' : '/';
-		relativePaths.forEach((relativePath) => {
-			const fsPath = `${this.#DOCROOT}${separator}${relativePath}`;
-			this.#remoteAssetPaths.add(fsPath);
-		});
-	}
 }
 
 /**
@@ -580,6 +501,35 @@ export class PHPRequestHandler {
 function inferMimeType(path: string): string {
 	const extension = path.split('.').pop() as keyof typeof mimeTypes;
 	return mimeTypes[extension] || mimeTypes['_default'];
+}
+
+/**
+ * Guesses whether the given path looks like a PHP file.
+ *
+ * @example
+ * ```js
+ * seemsLikeAPHPRequestHandlerPath('/index.php') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.php') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.html') // false
+ * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
+ * seemsLikeAPHPRequestHandlerPath('/') // true
+ * ```
+ *
+ * @param  path The path to check.
+ * @returns Whether the path seems like a PHP server path.
+ */
+export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
+	return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
+}
+
+function seemsLikeAPHPFile(path: string) {
+	return path.endsWith('.php') || path.includes('.php/');
+}
+
+function seemsLikeADirectoryRoot(path: string) {
+	const lastSegment = path.split('/').pop();
+	return !lastSegment!.includes('.');
 }
 
 /**
