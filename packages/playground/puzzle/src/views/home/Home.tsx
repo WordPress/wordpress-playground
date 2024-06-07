@@ -1,18 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import './Home.scss';
 import { Footer } from '../../components/footer/Footer';
-import { Button } from '@wordpress/components';
+import { Button, Spinner } from '@wordpress/components';
 import { capturePhoto } from '@wordpress/icons';
 
 // @ts-ignore-next-linea
 import backgroundImage from '../../assets/home-background.png';
 
 export const Home = () => {
+	const [loading, setLoading] = useState(false);
 	const navigate = useNavigate();
 	const onClick = () => {
-		navigate('/puzzle/scan');
+		setLoading(true);
+		navigator.mediaDevices
+			.getUserMedia({
+				video: {
+					facingMode: 'environment',
+				},
+				audio: false,
+			})
+			.then(() => {
+				navigate('/puzzle/scan');
+			})
+			.catch((error) => {
+				// eslint-disable-next-line no-console
+				console.error(error);
+			})
+			.finally(() => {
+				setLoading(false);
+			});
 	};
 	return (
 		<>
@@ -27,11 +45,13 @@ export const Home = () => {
 					</p>
 					<Button
 						onClick={onClick}
-						variant="primary"
+						variant="secondary"
 						className="home__action"
-						icon={capturePhoto}
+						disabled={loading}
+						icon={loading ? undefined : capturePhoto}
 					>
-						Build your site
+						{loading && <Spinner />}
+						{!loading && 'Enable camera'}
 					</Button>
 				</div>
 				<div className="home__image">
