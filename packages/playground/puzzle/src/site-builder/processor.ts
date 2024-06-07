@@ -7,11 +7,11 @@ import yith from './blueprints/yith.json';
 import dynamicOoo from './blueprints/dynamic-ooo.json';
 import personalizewp from './blueprints/personalizewp.json';
 import jetformbuilder from './blueprints/jetformbuilder.json';
-// import fastspring from './blueprints/fastspring.json';
+import fastspring from './blueprints/fastspring.json';
 import cookiebot from './blueprints/cookiebot.json';
 import w3TotalCache from './blueprints/w3-total-cache.json';
 import siteground from './blueprints/siteground.json';
-// import yoast from './blueprints/yoast.json';
+import yoast from './blueprints/yoast.json';
 
 export type Action = {
 	title: string;
@@ -80,11 +80,11 @@ const actionBlueprints = {
 	'dynamic.ooo': dynamicOoo,
 	personalizewp,
 	jetformbuilder,
-	// fastspring,
+	fastspring,
 	cookiebot,
 	'w3 total cache': w3TotalCache,
 	siteground,
-	// yoast,
+	yoast,
 };
 
 export const getActions = (titles: string[]) => {
@@ -160,6 +160,16 @@ export const processImage = async (actions: string[]) => {
 			step: 'writeFile',
 			path: '/wordpress/wp-content/mu-plugins/rewrite.php',
 			data: "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );",
+		},
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-elementor-onboarding.php',
+			data: "<?php add_action( 'activate_plugin', function() { update_option('elementor_onboarded', true); } );",
+		},
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-yoast-onboarding.php',
+			data: "<?php add_action( 'wpseo_activate', function() { $option_array = get_option('wpseo'); if ( $option_array && is_array( $option_array ) ) { $option_array['should_redirect_after_install_free'] = false; update_option( 'wpseo', $option_array ); } }, 1000 );",
 		},
 		...blueprint.steps,
 	];

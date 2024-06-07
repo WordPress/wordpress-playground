@@ -40,7 +40,6 @@ function getOpenAiApiKey()
     return getenv('OPEN_AI_API_KEY');
 }
 
-
 function siteName()
 {
     $curl = curl_init();

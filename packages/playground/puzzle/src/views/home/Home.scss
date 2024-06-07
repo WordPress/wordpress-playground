@@ -59,6 +59,8 @@ $blue: #3858e9;
 	overflow: hidden;
 	position: absolute;
 	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
 	margin-top: 236px;
 	width: calc(1.255 * 50vh);
 	max-width: 100%;
