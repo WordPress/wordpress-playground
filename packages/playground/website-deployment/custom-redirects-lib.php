@@ -53,24 +53,28 @@ function playground_handle_request() {
 		// Note: Using the header `Vary: Referer` does not seem to affect cacheability.
 		$may_edge_cache = false;
 
-		$should_redirect = true;
-		if ( isset( $redirect['condition']['referers'] ) ) {
-			$should_redirect = false;
-			if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
-				foreach ( $redirect['condition']['referers'] as $referer ) {
-					if ( str_starts_with( $_SERVER['HTTP_REFERER'], $referer ) ) {
-						$should_redirect = true;
-						break;
+		if ( isset( $redirect['internal' ] ) && $redirect['internal'] ) {
+			$requested_path = $redirect['location'];
+		} else {
+			$should_redirect = true;
+			if ( isset( $redirect['condition']['referers'] ) ) {
+				$should_redirect = false;
+				if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
+					foreach ( $redirect['condition']['referers'] as $referer ) {
+						if ( str_starts_with( $_SERVER['HTTP_REFERER'], $referer ) ) {
+							$should_redirect = true;
+							break;
+						}
 					}
 				}
 			}
-		}
 
-		if ( $should_redirect ) {
-			$log( "Redirecting to '${redirect['location']}' with status '${redirect['status']}'" );
-			header( "Location: ${redirect['location']}" );
-			http_response_code( $redirect['status'] );
-			die();
+			if ( $should_redirect ) {
+				$log( "Redirecting to '${redirect['location']}' with status '${redirect['status']}'" );
+				header( "Location: ${redirect['location']}" );
+				http_response_code( $redirect['status'] );
+				die();
+			}
 		}
 	}
 
@@ -194,6 +198,16 @@ function playground_maybe_redirect( $requested_path ) {
 			),
 			'location' => '/index.html',
 			'status' => 302,
+		);
+	}
+
+	if (
+		1 === preg_match( '#^/puzzle/[^/]+/?$#', $requested_path ) &&
+		! str_ends_with( $requested_path, '/index.html' )
+	) {
+		return array(
+			'internal' => true,
+			'location' => '/puzzle/index.html',
 		);
 	}
 
