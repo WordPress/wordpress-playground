@@ -87,6 +87,7 @@ export function awaitReply(
 ): Promise<any> {
 	return new Promise((resolve, reject) => {
 		const responseHandler = (event: MessageEvent) => {
+			console.log('Got a message!', event.data, requestId);
 			if (
 				event.data.type === 'response' &&
 				event.data.requestId === requestId

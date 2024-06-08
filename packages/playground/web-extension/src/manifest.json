@@ -20,11 +20,12 @@
 		"https://github.com/",
 		"https://meta.trac.wordpress.org/",
 		"http://playground.internal/",
+		"http://localhost:5400/",
 		"https://adamadam.blog/",
 		"<all_urls>"
 	],
 	"content_security_policy": {
-		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self';"
+		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self' http://localhost:5400/;"
 	},
 	"web_accessible_resources": [
 		{

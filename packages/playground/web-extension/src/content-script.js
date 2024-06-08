@@ -17,33 +17,33 @@ function sleep(time) {
 }
 
 async function getPlaygroundUrl() {
-	console.log('Called getPlaygroundUrl()');
-	const retryInterval = 500;
-	let retryTime = 0;
-	let retryTimeout = 25000;
+	return 'http://localhost:5400/scope:777777777/';
+	// console.log('Called getPlaygroundUrl()');
+	// const retryInterval = 500;
+	// let retryTime = 0;
+	// let retryTimeout = 25000;
 
-	while (retryTime < retryTimeout) {
-		const url = await askForPlaygroundUrl();
-		if (url) {
-			return url;
-		}
-		await sleep(retryInterval);
-		retryTime += retryInterval;
-	}
+	// while (retryTime < retryTimeout) {
+	// 	const url = await askForPlaygroundUrl();
+	// 	if (url) {
+	// 		return url;
+	// 	}
+	// 	await sleep(retryInterval);
+	// 	retryTime += retryInterval;
+	// }
 
-	throw new Error('Failed to get Playground URL');
+	// throw new Error('Failed to get Playground URL');
 }
 
 class PlaygroundEditorComponent extends HTMLElement {
 	constructor() {
 		super();
-		// const shadow = this.attachShadow({ mode: 'open' });
-		// shadow.innerHTML = `<iframe sandbox="allow-scripts allow-same-origin"></iframe>`;
-		// const iframe = shadow.querySelector('iframe');
-		// iframe.style.width = `100%`;
-		// iframe.style.height = `100%`;
-		// iframe.style.border = '1px solid #000';
-		this.instanceUuid = crypto.randomUUID();
+		const shadow = this.attachShadow({ mode: 'open' });
+		shadow.innerHTML = `<iframe src="http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post" sandbox="allow-scripts allow-same-origin"></iframe>`;
+		const iframe = shadow.querySelector('iframe');
+		iframe.style.width = `100%`;
+		iframe.style.height = `100%`;
+		iframe.style.border = '1px solid #000';
 	}
 
 	static get observedAttributes() {
@@ -68,33 +68,15 @@ class PlaygroundEditorComponent extends HTMLElement {
 		const initialValue = this.getAttribute('value');
 		const initialFormat = this.getAttribute('format');
 
-		const url = getPlaygroundUrl().then((url) => {
-			const targetUrl =
-				url +
-				'/wp-admin/post-new.php?post_type=post&uuid=' +
-				this.instanceUuid;
-			console.log(url + '/wp-admin/post-new.php?post_type=post');
-
-			// this.shadowRoot.querySelector('iframe').src = targetUrl;
-			this.windowHandle = window.open(
-				targetUrl,
-				'_blank',
-				'toolbar=0,location=0,menubar=0,height=700,width=700'
-			);
-			// once the iframe is loaded, send the initial value
-			setTimeout(() => {
-				this.setRemoteValue(initialValue);
-			}, 1500);
-			setTimeout(() => {
-				console.log('get remote');
-				this.getRemoteValue().then((v) => {
-					console.log({ v });
-				});
-			}, 2500);
-		});
-		this.windowHandle.addEventListener('message', (event) => {
-			console.log('Window handle message', event);
-		});
+		setTimeout(() => {
+			this.setRemoteValue(initialValue);
+		}, 1500);
+		setTimeout(() => {
+			console.log('get remote');
+			this.getRemoteValue().then((v) => {
+				console.log({ v });
+			});
+		}, 2500);
 
 		window.addEventListener('message', (event) => {
 			console.log('message', event.data);
@@ -120,8 +102,8 @@ class PlaygroundEditorComponent extends HTMLElement {
 			this.addEventListener('change', (event) => {
 				resolve(event.detail);
 			});
-			this.windowHandle?.postMessage(
-				// this.shadowRoot.querySelector('iframe').contentWindow.postMessage(
+			// this.windowHandle?.postMessage(
+			this.shadowRoot.querySelector('iframe').contentWindow.postMessage(
 				{
 					command: 'getEditorContent',
 					format: this.getAttribute('format'),
@@ -139,10 +121,10 @@ class PlaygroundEditorComponent extends HTMLElement {
 			text: this.value,
 			type: 'relay',
 		};
-		// this.shadowRoot
-		// 	.querySelector('iframe')
-		// 	?.contentWindow?.postMessage(message, '*');
-		this.windowHandle?.postMessage(message, '*');
+		this.shadowRoot
+			.querySelector('iframe')
+			?.contentWindow?.postMessage(message, '*');
+		// this.windowHandle?.postMessage(message, '*');
 		console.log('get remote', this.windowHandle);
 	}
 

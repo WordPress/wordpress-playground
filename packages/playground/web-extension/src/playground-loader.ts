@@ -1,11 +1,11 @@
-import { logger } from '@php-wasm/logger';
 import {
-	Blueprint,
-	compileBlueprint,
-	runBlueprintSteps,
+	activatePlugin,
+	installPlugin,
+	login,
 } from '@wp-playground/blueprints';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadPHPRuntime } from '@php-wasm/universal';
+import { responseTo } from '@php-wasm/web-service-worker';
 import { listenForPhpRequests } from './messaging';
 
 const requestHandler = bootWorker();
@@ -44,7 +44,38 @@ listenForPhpRequests(async (request) => {
 	};
 });
 
+const iframe = document.querySelector(
+	'#playground-remote-service-worker'
+) as any;
+window.addEventListener('message', async (event) => {
+	console.log('Got some message!', event);
+	if (event.data.type === 'playground-extension-sw-message') {
+		if (event.data.data.method === 'request') {
+			const response = await (
+				await requestHandler
+			).request(...event.data.data.args);
+			console.log('sending a response!', event.data.requestId, response);
+			iframe.contentWindow.postMessage(
+				responseTo(event.data.requestId, response),
+				'*'
+			);
+		}
+		console.log('Got SW message!', event);
+	}
+});
+
 async function bootWorker() {
+	const iframe = document.querySelector(
+		'#playground-remote-service-worker'
+	) as any;
+	iframe.src = 'http://localhost:5400/extension.html';
+	// iframe.src = 'https://playground.wordpress.net';
+	setTimeout(() => {
+		iframe.contentWindow.addEventListener('message', (event) => {
+			console.log({ event });
+		});
+	}, 3000);
+
 	const [wordPressZip, sqliteIntegrationPluginZip] = await Promise.all([
 		readFileFromCurrentExtension('wordpress-6.5.4.zip'),
 		readFileFromCurrentExtension('sqlite-database-integration.zip'),
@@ -55,7 +86,7 @@ async function bootWorker() {
 		// not a real URL and WordPress will keep redirecting there.
 		// Fortunately, we can override it with `chrome.runtime.getURL`
 		// right after the installation is completed.
-		siteUrl: 'http://playground.internal',
+		siteUrl: 'http://localhost:5400/scope:777777777/',
 		createPhpRuntime: async () => {
 			// @ts-expect-error
 			const phpModule = await import('./php_8_0.js');
@@ -72,138 +103,123 @@ async function bootWorker() {
 		},
 	});
 
+	const url = 'http://localhost:5400/scope:777777777/';
 	const primaryPHP = await requestHandler.getPrimaryPhp();
+	primaryPHP.defineConstant('WP_HOME', url);
+	primaryPHP.defineConstant('WP_SITEURL', url);
 
-	// const url = chrome.runtime.getURL('');
-	// primaryPHP.defineConstant('WP_HOME', url);
-	// primaryPHP.defineConstant('WP_SITEURL', url);
-
-	return requestHandler;
-}
-
-function makePlaygroundBlueprint() {
-	return {
-		login: true,
-		landingPage: '/wp-admin/post-new.php?post_type=post',
-		preferredVersions: {
-			wp: 'nightly',
-			php: '8.0',
+	primaryPHP.mkdir('/wordpress/wp-content/plugins/playground-editor');
+	await installPlugin(primaryPHP, {
+		pluginZipFile: new File(
+			[await (await fetch('blocky-formats.zip')).blob()],
+			'blocky-formats.zip'
+		),
+		options: {
+			activate: false,
 		},
-		steps: [
-			{
-				step: 'mkdir',
-				path: '/wordpress/wp-content/plugins/playground-editor',
-			},
-			{
-				step: 'installPlugin',
-				pluginZipFile: {
-					resource: 'url',
-					url: 'https://github-proxy.com/proxy/?repo=dmsnell/blocky-formats',
-				},
-				options: {
-					activate: false,
-				},
-			},
-			{
-				step: 'mv',
-				fromPath: '/wordpress/wp-content/plugins/blocky-formats-trunk',
-				toPath: '/wordpress/wp-content/plugins/blocky-formats',
-			},
-			{
-				step: 'activatePlugin',
-				pluginPath: 'blocky-formats/blocky-formats.php',
-			},
-			{
-				step: 'writeFile',
-				path: '/wordpress/wp-content/plugins/playground-editor/script.js',
-				data: `
+	});
+	primaryPHP.mv(
+		'/wordpress/wp-content/plugins/blocky-formats-trunk',
+		'/wordpress/wp-content/plugins/blocky-formats'
+	);
+	await activatePlugin(primaryPHP, {
+		pluginPath: 'blocky-formats/blocky-formats.php',
+	});
+	await login(primaryPHP, {});
 
-				function waitForDOMContentLoaded() {
-					return new Promise((resolve) => {
-						if (
-							document.readyState === 'complete' ||
-							document.readyState === 'interactive'
-						) {
-							resolve();
-						} else {
-							document.addEventListener('DOMContentLoaded', resolve);
-						}
-					});
-				}
+	primaryPHP.writeFile(
+		'/wordpress/wp-content/plugins/playground-editor/script.js',
+		`
 
-				await import('../blocky-formats/vendor/commonmark.min.js');
-				const { markdownToBlocks, blocks2markdown } = await import('../blocky-formats/src/markdown.js');
-                const formatConverters = {
-                    markdown: {
-                        toBlocks: markdownToBlocks,
-                        fromBlocks: blocks2markdown
-                    }
-                };
-    
-                function populateEditorWithFormattedText(text, format) {
-                    if(!(format in formatConverters)) {
-                        throw new Error('Unsupported format');
-                    }
+	function waitForDOMContentLoaded() {
+		return new Promise((resolve) => {
+			if (
+				document.readyState === 'complete' ||
+				document.readyState === 'interactive'
+			) {
+				resolve();
+			} else {
+				document.addEventListener('DOMContentLoaded', resolve);
+			}
+		});
+	}
 
-					const createBlocks = blocks => blocks.map(block => wp.blocks.createBlock(block.name, block.attributes, createBlocks(block.innerBlocks)));
-                    const rawBlocks = formatConverters[format].toBlocks(text);
+	// @TODO: Figure out why this import is needed – blocky formats should hook this
+	//        file on its own. Do I need WP nightly with modules support?
+	await import('../blocky-formats/src/blocky-formats.js');
+	await import('../blocky-formats/vendor/commonmark.min.js');
+	const { markdownToBlocks, blocks2markdown } = await import('../blocky-formats/src/markdown.js');
+	const formatConverters = {
+		markdown: {
+			toBlocks: markdownToBlocks,
+			fromBlocks: blocks2markdown
+		}
+	};
 
-                    window.wp.data
-                        .dispatch('core/block-editor')
-                        .resetBlocks(createBlocks(rawBlocks))
-                }
-    
-                function pushEditorContentsToParent(format) {
-                    const blocks = wp.data.select('core/block-editor').getBlocks();
-					window.parent.postMessage({
-						command: 'playgroundEditorTextChanged',
-						format: format,
-						text: formatConverters[format].fromBlocks(blocks),
-						type: 'relay'
-					}, '*');
-                }
-    
-                // Accept commands from the parent window
-                let lastKnownFormat = '';
-                window.addEventListener('message', (event) => {
-                    if(typeof event.data !== 'object') {
-                        return;
-                    }
-                    
-                    const { command, format, text } = event.data;
-                    lastKnownFormat = format;
-    
-                    if(command === 'setEditorContent') {
-                        populateEditorWithFormattedText(text, format);
-                    } else if(command === 'getEditorContent') {
-                        const blocks = wp.data.select('core/block-editor').getBlocks();
-                        window.parent.postMessage({
-                            command: 'playgroundEditorTextChanged',
-                            format: format,
-                            text: formatConverters[format].fromBlocks(blocks),
-                            type: 'relay'
-                        }, '*');
-                    }
-                });
+	function populateEditorWithFormattedText(text, format) {
+		if(!(format in formatConverters)) {
+			throw new Error('Unsupported format');
+		}
 
-                waitForDOMContentLoaded().then(() => {
-                    // Experiment with sending the updated value back to the parent window
-                    // when typing. Debounce by 600ms.
-                    function debounce(func, wait) {
-                        let timeout;
-                        return function(...args) {
-                            const context = this;
-                            clearTimeout(timeout);
-                            timeout = setTimeout(() => func.apply(context, args), wait);
-                        };
-                    }
-                });
-                `,
-			},
-			{
-				step: 'writeFile',
-				path: '/wordpress/wp-content/plugins/playground-editor/index.php',
-				data: `<?php
+		const createBlocks = blocks => blocks.map(block => wp.blocks.createBlock(block.name, block.attributes, createBlocks(block.innerBlocks)));
+		const rawBlocks = formatConverters[format].toBlocks(text);
+
+		window.wp.data
+			.dispatch('core/block-editor')
+			.resetBlocks(createBlocks(rawBlocks))
+	}
+
+	function pushEditorContentsToParent(format) {
+		const blocks = wp.data.select('core/block-editor').getBlocks();
+		window.parent.postMessage({
+			command: 'playgroundEditorTextChanged',
+			format: format,
+			text: formatConverters[format].fromBlocks(blocks),
+			type: 'relay'
+		}, '*');
+	}
+
+	// Accept commands from the parent window
+	let lastKnownFormat = '';
+	window.addEventListener('message', (event) => {
+		if(typeof event.data !== 'object') {
+			return;
+		}
+		
+		const { command, format, text } = event.data;
+		lastKnownFormat = format;
+
+		if(command === 'setEditorContent') {
+			populateEditorWithFormattedText(text, format);
+		} else if(command === 'getEditorContent') {
+			const blocks = wp.data.select('core/block-editor').getBlocks();
+			window.parent.postMessage({
+				command: 'playgroundEditorTextChanged',
+				format: format,
+				text: formatConverters[format].fromBlocks(blocks),
+				type: 'relay'
+			}, '*');
+		}
+	});
+
+	waitForDOMContentLoaded().then(() => {
+		// Experiment with sending the updated value back to the parent window
+		// when typing. Debounce by 600ms.
+		function debounce(func, wait) {
+			let timeout;
+			return function(...args) {
+				const context = this;
+				clearTimeout(timeout);
+				timeout = setTimeout(() => func.apply(context, args), wait);
+			};
+		}
+	});
+	`
+	);
+
+	primaryPHP.writeFile(
+		'/wordpress/wp-content/plugins/playground-editor/index.php',
+		`<?php
     /**
     * Plugin Name: Playground Editor
     * Description: A simple plugin to edit rich text formats in Gutenberg.
@@ -229,14 +245,13 @@ function makePlaygroundBlueprint() {
     }
     return $tag;
     }, 10, 3);
-                `,
-			},
-			{
-				step: 'activatePlugin',
-				pluginPath: 'playground-editor/index.php',
-			},
-		],
-	};
+                `
+	);
+
+	await activatePlugin(primaryPHP, {
+		pluginPath: 'playground-editor/index.php',
+	});
+	return requestHandler;
 }
 
 async function readFileFromCurrentExtension(path: string): Promise<File> {
