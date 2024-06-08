@@ -13745,6 +13745,18 @@ var listenForPhpRequests = (callback) => {
 };
 
 // src/playground-loader.ts
+async function prerenderEditor() {
+	await requestHandler;
+	const iframe = document.createElement('iframe');
+	iframe.src = 'http://localhost:5400/scope:777777777/wp-admin/post-new.php';
+	document.body.appendChild(iframe);
+	await new Promise((resolve) => {
+		iframe.addEventListener('load', resolve);
+	});
+	setTimeout(() => {
+		document.body.removeChild(iframe);
+	}, 1e4);
+}
 async function bootWorker() {
 	const iframe = document.querySelector('#playground-remote-service-worker');
 	iframe.src = 'http://localhost:5400/extension.html';
@@ -13798,7 +13810,7 @@ async function bootWorker() {
 	primaryPHP.writeFile(
 		'/wordpress/wp-content/plugins/playground-editor/script.js',
 		`
-
+		
 		// Accept commands from the parent window
 		let lastKnownFormat = '';
 		window.addEventListener('message', (event) => {
@@ -13847,14 +13859,16 @@ async function bootWorker() {
 		}
 	};
 
+	const createBlocks = blocks => blocks.map(block =>
+		wp.blocks.createBlock(block.name, block.attributes, createBlocks(block.innerBlocks))
+	);
 	function populateEditorWithFormattedText(text, format) {
+		console.log(format, {text});
 		if(!(format in formatConverters)) {
 			throw new Error('Unsupported format');
 		}
 
-		const createBlocks = blocks => blocks.map(block => wp.blocks.createBlock(block.name, block.attributes, createBlocks(block.innerBlocks)));
 		const rawBlocks = formatConverters[format].toBlocks(text);
-
 		window.wp.data
 			.dispatch('core/block-editor')
 			.resetBlocks(createBlocks(rawBlocks))
@@ -13904,10 +13918,7 @@ async function bootWorker() {
 
             // Check if it is an actual publish or update action
             if (postStatus === 'publish' && postType !== 'auto-draft') {
-                console.log('Post is published or updated by user action!');
-                pushEditorContentsToParent('markdown');
-				window.close();
-				window.opener.focus();
+                onPublish()
             }
         }
 
@@ -13916,15 +13927,30 @@ async function bootWorker() {
     });
 
 	function onPublish() {
-		// Your custom logic here
-		alert('The post has been published!');
-	}
+		pushEditorContentsToParent('markdown');
+		window.close();
+		window.opener.focus();
+	}	
 
-	const initialText = decodeURIComponent((new URL(location.href)).hash?.substring(1))
+	const initialText = decodeURIComponent((new URL(location.href)).hash?.substring(1));
 	const initialFormat = 'markdown';
 	if(initialText) {
 		console.log(initialText, initialFormat);
 		populateEditorWithFormattedText(initialText, initialFormat);
+	} else {
+		const blocks = [{
+			name: 'core/paragraph',
+			attributes: {
+				content: ''
+			},
+			innerBlocks: []
+		}];
+		wp.data.dispatch('core/block-editor').resetBlocks(createBlocks(blocks));
+
+        const firstEditableBlock = document.querySelector('.editor-canvas__iframe').contentDocument.querySelector('.wp-block:not(.wp-block-post-title)');
+        if (firstEditableBlock) {
+            firstEditableBlock.focus();
+		}		
 	}
 	`
 	);
@@ -13948,13 +13974,27 @@ async function bootWorker() {
     	wp_enqueue_script( 'playground-editor-script', plugin_dir_url( __FILE__ ) . 'script.js', array( 'jquery' ), '1.0', true );
     }
     add_action( 'admin_init', 'enqueue_script' );
+
+	add_action('enqueue_block_editor_assets', 'myplugin_add_inline_editor_styles');
+
+	function myplugin_add_inline_editor_styles() {
+		\$custom_css = "
+			.editor-editor-canvas__post-title-wrapper {
+				display: none;
+			}
+			.is-root-container {
+				padding-top: 10px;
+			}
+		";
+		wp_add_inline_style('wp-block-library', \$custom_css);
+	}
     
     // Set script attribute to module
     add_filter('script_loader_tag', function(\$tag, \$handle, \$src) {
-    if (\$handle === 'playground-editor-script') {
-		\$tag = '<script type="module" src="' . esc_url(\$src) . '">'.'<'.'/script>';
-    }
-    return \$tag;
+		if (\$handle === 'playground-editor-script') {
+			\$tag = '<script type="module" src="' . esc_url(\$src) . '">'.'<'.'/script>';
+		}
+		return \$tag;
     }, 10, 3);
                 `
 	);
@@ -13968,6 +14008,7 @@ async function readFileFromCurrentExtension(path) {
 	return new File([await response.blob()], path);
 }
 var requestHandler = bootWorker();
+prerenderEditor();
 listenForPhpRequests(async (request3) => {
 	const handler2 = await requestHandler;
 	console.log({
@@ -14001,52 +14042,53 @@ listenForPhpRequests(async (request3) => {
 		),
 	};
 });
+var putInCache = async (request3, response) => {
+	const cache = await caches.open('v1');
+	await cache.put(request3, response);
+};
 var iframe = document.querySelector('#playground-remote-service-worker');
-var requestCache = {};
 window.addEventListener('message', async (event) => {
 	console.log('Got some message!', event);
 	if (event.data.type === 'playground-extension-sw-message') {
 		if (event.data.data.method === 'request') {
-			let response = null;
-			const requestUrl = new URL(event.data.data.args[0].url);
+			const phpRequest = event.data.data.args[0];
+			const requestUrl = new URL(phpRequest.url);
 			requestUrl.searchParams.delete('_ajax_nonce');
-			const cacheKey = [requestUrl, event.data.data.args[0].method].join(
-				'|'
-			);
-			let usedCache = false;
-			const hadCacheEntry = cacheKey in requestCache;
-			console.time('REQUEST HANDLER');
-			if (
-				event.data.data.args[0].url.includes('rest_route') ||
-				event.data.data.args[0].url.includes('wp-includes')
-			) {
-				if (cacheKey in requestCache) {
-					usedCache = true;
-					console.log('FROM CACHE', requestUrl, requestCache);
-					response = requestCache[cacheKey];
-				} else {
-					response = await (
-						await requestHandler
-					).request(...event.data.data.args);
-					requestCache[cacheKey] = response;
-				}
-			} else {
-				response = await (
-					await requestHandler
-				).request(...event.data.data.args);
-			}
-			console.timeEnd('REQUEST HANDLER');
-			console.log('sending a response!', {
-				request: event.data.data.args[0],
-				response,
-				usedCache,
-				hadCacheEntry,
-				hasCacheEntry: cacheKey in requestCache,
-				requestCache,
-				requestUrl: requestUrl + '',
+			const request3 = new Request(requestUrl.toString(), {
+				method: event.data.data.args[0].method,
 			});
+			const response = await caches.match(request3);
+			let phpResponse = undefined;
+			if (!response) {
+				phpResponse = await (
+					await requestHandler
+				).request(event.data.data.args[0]);
+				if (
+					requestUrl.searchParams.has('rest_route') ||
+					requestUrl.pathname.includes('wp-includes')
+				) {
+					putInCache(
+						request3,
+						new Response(phpResponse.bytes, {
+							headers: phpResponse.headers,
+							status: phpResponse.httpStatusCode,
+						})
+					);
+				}
+			}
+			if (response && !phpResponse) {
+				const phpResponseHeaders = {};
+				response.headers.forEach((value, key) => {
+					phpResponseHeaders[key.toLowerCase()] = [value];
+				});
+				phpResponse = {
+					bytes: await response.arrayBuffer(),
+					headers: phpResponseHeaders,
+					httpStatusCode: response.status,
+				};
+			}
 			iframe.contentWindow.postMessage(
-				responseTo(event.data.requestId, response),
+				responseTo(event.data.requestId, phpResponse),
 				'*'
 			);
 		}

@@ -140,8 +140,6 @@ async function editInPlayground(uuid: string) {
 	// iframe.src = chrome.runtime.getURL('/wp-admin/post-new.php?post_type=post&uuid=ccc25e2e-d1c8-427a-8a2d-41759e0b0406');
 	// document.body.appendChild(iframe);
 }
-// });
-// });
 
 chrome.action.onClicked.addListener(async function (tab) {
 	// editInPlayground('a');

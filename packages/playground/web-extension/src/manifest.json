@@ -29,15 +29,7 @@
 	},
 	"web_accessible_resources": [
 		{
-			"resources": [
-				"popup.css",
-				"popup.html",
-				"wp-admin",
-				"wp-login.php",
-				"",
-				"*",
-				"index.html"
-			],
+			"resources": ["wp-admin", "wp-login.php", "", "*", "index.html"],
 			"matches": [
 				"https://playground.wordpress.net/*",
 				"https://github.com/*",
@@ -59,15 +51,6 @@
 				"https://meta.trac.wordpress.org/*"
 			],
 			"js": ["webcomponents-polyfill.js", "content-script.js"],
-			"run_at": "document_idle"
-		},
-		{
-			"matches": [
-				"https://playground.wordpress.net/remote.html",
-				"https://github.com/*",
-				"https://meta.trac.wordpress.org/*"
-			],
-			"js": ["message-passer.js"],
 			"run_at": "document_idle"
 		}
 	]
