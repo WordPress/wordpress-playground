@@ -100,7 +100,7 @@ Learn more about Blueprints in the [documentation](https://wordpress.github.io/w
 ---
 
 ## Blueprints Library
-A software library to work with Blueprints.
+A [software library](https://github.com/WordPress/blueprints/) to work with Blueprints.
 
 Currently the Blueprints Library is in [v1](https://github.com/WordPress/blueprints-library) which is written in `TypeScript`, but [v2](https://github.com/WordPress/blueprints/issues/6) will be `PHP` based.
 
