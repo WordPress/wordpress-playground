@@ -47,14 +47,50 @@ listenForPhpRequests(async (request) => {
 const iframe = document.querySelector(
 	'#playground-remote-service-worker'
 ) as any;
+// Super naive caching, let's use actual request caches instead
+const requestCache: Record<string, PHPResponse> = {};
 window.addEventListener('message', async (event) => {
 	console.log('Got some message!', event);
 	if (event.data.type === 'playground-extension-sw-message') {
 		if (event.data.data.method === 'request') {
-			const response = await (
-				await requestHandler
-			).request(...event.data.data.args);
-			console.log('sending a response!', event.data.requestId, response);
+			let response = null;
+			const requestUrl = new URL(event.data.data.args[0].url);
+			requestUrl.searchParams.delete('_ajax_nonce');
+			const cacheKey = [requestUrl, event.data.data.args[0].method].join(
+				'|'
+			);
+			let usedCache = false;
+			const hadCacheEntry = cacheKey in requestCache;
+			console.time('REQUEST HANDLER');
+			if (
+				event.data.data.args[0].url.includes('rest_route') ||
+				event.data.data.args[0].url.includes('wp-includes')
+			) {
+				if (cacheKey in requestCache) {
+					usedCache = true;
+					console.log('FROM CACHE', requestUrl, requestCache);
+					response = requestCache[cacheKey];
+				} else {
+					response = await (
+						await requestHandler
+					).request(...(event.data.data.args as any));
+					requestCache[cacheKey] = response;
+				}
+			} else {
+				response = await (
+					await requestHandler
+				).request(...(event.data.data.args as any));
+			}
+			console.timeEnd('REQUEST HANDLER');
+			console.log('sending a response!', {
+				request: event.data.data.args[0],
+				response,
+				usedCache,
+				hadCacheEntry,
+				hasCacheEntry: cacheKey in requestCache,
+				requestCache,
+				requestUrl: requestUrl + '',
+			});
 			iframe.contentWindow.postMessage(
 				responseTo(event.data.requestId, response),
 				'*'
@@ -131,6 +167,29 @@ async function bootWorker() {
 		'/wordpress/wp-content/plugins/playground-editor/script.js',
 		`
 
+		// Accept commands from the parent window
+		let lastKnownFormat = '';
+		window.addEventListener('message', (event) => {
+			if(typeof event.data !== 'object') {
+				return;
+			}
+			
+			const { command, format, text } = event.data;
+			lastKnownFormat = format;
+	
+			if(command === 'setEditorContent') {
+				populateEditorWithFormattedText(text, format);
+			} else if(command === 'getEditorContent') {
+				const blocks = wp.data.select('core/block-editor').getBlocks();
+				window.opener.postMessage({
+					command: 'playgroundEditorTextChanged',
+					format: format,
+					text: formatConverters[format].fromBlocks(blocks),
+					type: 'relay'
+				}, '*');
+			}
+		});
+	
 	function waitForDOMContentLoaded() {
 		return new Promise((resolve) => {
 			if (
@@ -171,36 +230,13 @@ async function bootWorker() {
 
 	function pushEditorContentsToParent(format) {
 		const blocks = wp.data.select('core/block-editor').getBlocks();
-		window.parent.postMessage({
+		window.opener.postMessage({
 			command: 'playgroundEditorTextChanged',
 			format: format,
 			text: formatConverters[format].fromBlocks(blocks),
 			type: 'relay'
 		}, '*');
 	}
-
-	// Accept commands from the parent window
-	let lastKnownFormat = '';
-	window.addEventListener('message', (event) => {
-		if(typeof event.data !== 'object') {
-			return;
-		}
-		
-		const { command, format, text } = event.data;
-		lastKnownFormat = format;
-
-		if(command === 'setEditorContent') {
-			populateEditorWithFormattedText(text, format);
-		} else if(command === 'getEditorContent') {
-			const blocks = wp.data.select('core/block-editor').getBlocks();
-			window.parent.postMessage({
-				command: 'playgroundEditorTextChanged',
-				format: format,
-				text: formatConverters[format].fromBlocks(blocks),
-				type: 'relay'
-			}, '*');
-		}
-	});
 
 	waitForDOMContentLoaded().then(() => {
 		// Experiment with sending the updated value back to the parent window
@@ -213,7 +249,51 @@ async function bootWorker() {
 				timeout = setTimeout(() => func.apply(context, args), wait);
 			};
 		}
+
+		setInterval(() => {
+			pushEditorContentsToParent('markdown');
+		}, 1000);
 	});
+
+    const { subscribe, select, dispatch } = wp.data;
+    const { store } = wp.editPost;
+
+    // Store the current post visibility
+    let isSavingPost = false;
+
+    subscribe(() => {
+        const currentPost = select('core/editor').getCurrentPost();
+        const isSaving = select('core/editor').isSavingPost();
+
+        // Detect when the user initiated a save (publish or update)
+        if (!isSavingPost && isSaving) {
+            const postStatus = currentPost.status;
+            const postType = currentPost.type;
+
+            // Check if it is an actual publish or update action
+            if (postStatus === 'publish' && postType !== 'auto-draft') {
+                console.log('Post is published or updated by user action!');
+                pushEditorContentsToParent('markdown');
+				window.close();
+				window.opener.focus();
+            }
+        }
+
+        // Update the saving post flag
+        isSavingPost = isSaving;
+    });
+
+	function onPublish() {
+		// Your custom logic here
+		alert('The post has been published!');
+	}
+
+	const initialText = decodeURIComponent((new URL(location.href)).hash?.substring(1))
+	const initialFormat = 'markdown';
+	if(initialText) {
+		console.log(initialText, initialFormat);
+		populateEditorWithFormattedText(initialText, initialFormat);
+	}
 	`
 	);
 
@@ -226,10 +306,10 @@ async function bootWorker() {
     */
     // Disable welcome panel every time a user accesses the editor
     function disable_gutenberg_welcome_on_load() {
-    if (is_admin()) {
-    update_user_meta(get_current_user_id(), 'show_welcome_panel', 0);
-    remove_action('enqueue_block_editor_assets', 'wp_enqueue_editor_tips');
-    }
+		if (is_admin()) {
+			update_user_meta(get_current_user_id(), 'show_welcome_panel', 0);
+			remove_action('enqueue_block_editor_assets', 'wp_enqueue_editor_tips');
+		}
     }
     add_action('admin_init', 'disable_gutenberg_welcome_on_load');
     

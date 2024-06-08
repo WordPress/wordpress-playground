@@ -39,7 +39,7 @@ class PlaygroundEditorComponent extends HTMLElement {
 	constructor() {
 		super();
 		const shadow = this.attachShadow({ mode: 'open' });
-		shadow.innerHTML = `<iframe src="http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post" sandbox="allow-scripts allow-same-origin"></iframe>`;
+		shadow.innerHTML = `<iframe src="http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post"></iframe>`;
 		const iframe = shadow.querySelector('iframe');
 		iframe.style.width = `100%`;
 		iframe.style.height = `100%`;
@@ -68,9 +68,19 @@ class PlaygroundEditorComponent extends HTMLElement {
 		const initialValue = this.getAttribute('value');
 		const initialFormat = this.getAttribute('format');
 
+		window.open(
+			'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post#' +
+				encodeURIComponent(initialValue),
+			'_blank',
+			'width=800,height=600'
+		);
+
 		setTimeout(() => {
 			this.setRemoteValue(initialValue);
 		}, 1500);
+		setTimeout(() => {
+			this.setRemoteValue(initialValue);
+		}, 5500);
 		setTimeout(() => {
 			console.log('get remote');
 			this.getRemoteValue().then((v) => {
@@ -102,7 +112,14 @@ class PlaygroundEditorComponent extends HTMLElement {
 			this.addEventListener('change', (event) => {
 				resolve(event.detail);
 			});
-			// this.windowHandle?.postMessage(
+			this.windowHandle?.postMessage(
+				{
+					command: 'getEditorContent',
+					format: this.getAttribute('format'),
+					type: 'relay',
+				},
+				'*'
+			);
 			this.shadowRoot.querySelector('iframe').contentWindow.postMessage(
 				{
 					command: 'getEditorContent',
@@ -116,7 +133,7 @@ class PlaygroundEditorComponent extends HTMLElement {
 
 	setRemoteValue(value) {
 		const message = {
-			command: 'playgroundEditorTextChanged',
+			command: 'setEditorContent',
 			format: this.getAttribute('format'),
 			text: this.value,
 			type: 'relay',
@@ -124,7 +141,7 @@ class PlaygroundEditorComponent extends HTMLElement {
 		this.shadowRoot
 			.querySelector('iframe')
 			?.contentWindow?.postMessage(message, '*');
-		// this.windowHandle?.postMessage(message, '*');
+		this.windowHandle?.postMessage(message, '*');
 		console.log('get remote', this.windowHandle);
 	}
 
@@ -166,6 +183,9 @@ function activatePlaygroundEditor(element = undefined) {
 			onClose: ({ text, format }) => {
 				element.value = text;
 			},
+			onChange: ({ text, format }) => {
+				element.value = text;
+			},
 		});
 	} else {
 		showPlaygroundDialog({
@@ -173,6 +193,9 @@ function activatePlaygroundEditor(element = undefined) {
 			format: 'markdown', // @TODO dynamic
 			onClose: ({ text, format }) => {
 				element.innerHTML = text;
+			},
+			onChange: ({ text, format }) => {
+				element.value = text;
 			},
 		});
 	}
@@ -196,13 +219,13 @@ function showPlaygroundDialog({
 	editor.setAttribute('format', format);
 	editor.addEventListener('change', (event) => {
 		console.log({ value });
-		// onChange(event.target.getRemoteValue);
+		onChange(event.detail);
 	});
 
 	// Append iframe to modal
 	modal.appendChild(editor);
 	document.body.appendChild(modal);
-	modal.showModal();
+	// modal.showModal();
 
 	// Close modal when clicking outside of it
 	modal.addEventListener('click', async (event) => {
