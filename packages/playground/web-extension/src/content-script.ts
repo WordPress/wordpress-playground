@@ -1,69 +1,30 @@
-// ../../php-wasm/web-service-worker/src/messaging.ts
-function postMessageExpectReply(target, message, ...postMessageArgs) {
-	const requestId = getNextRequestId();
-	target.postMessage(
-		{
-			...message,
-			requestId,
-		},
-		...postMessageArgs
-	);
-	return requestId;
-}
-function getNextRequestId() {
-	return ++lastRequestId;
-}
-function awaitReply(
-	messageTarget,
-	requestId,
-	timeout = DEFAULT_RESPONSE_TIMEOUT
-) {
-	return new Promise((resolve, reject) => {
-		const responseHandler = (event) => {
-			if (
-				event.data.type === 'response' &&
-				event.data.requestId === requestId
-			) {
-				messageTarget.removeEventListener('message', responseHandler);
-				clearTimeout(failOntimeout);
-				resolve(event.data.response);
-			}
-		};
-		const failOntimeout = setTimeout(() => {
-			reject(new Error('Request timed out'));
-			messageTarget.removeEventListener('message', responseHandler);
-		}, timeout);
-		messageTarget.addEventListener('message', responseHandler);
-	});
-}
-function responseTo(requestId, response) {
-	return {
-		type: 'response',
-		requestId,
-		response,
-	};
-}
-var DEFAULT_RESPONSE_TIMEOUT = 25000;
-var lastRequestId = 0;
-// src/content-script.ts
-var enableEditInPlaygroundButton = function () {
-	let currentElement = undefined;
-	let activeEditor = undefined;
+import {
+	awaitReply,
+	postMessageExpectReply,
+	responseTo,
+} from '@php-wasm/web-service-worker';
+
+function enableEditInPlaygroundButton() {
+	let currentElement: any = undefined;
+	let activeEditor: any = undefined;
 	const button = createEditButton();
+
 	document.body.appendChild(button);
-	document.body.addEventListener('focusin', (event) => {
-		showButtonIfNeeded(event.target);
+	document.body.addEventListener('focusin', (event: any) => {
+		showButtonIfNeeded(event.target!);
 	});
 	showButtonIfNeeded(document.activeElement);
+
 	document.body.addEventListener('focusout', () => {
 		hideButton(button);
 	});
-	function showButtonIfNeeded(element) {
-		if (element.tagName === 'TEXTAREA' || element.isContentEditable) {
+
+	function showButtonIfNeeded(element: any) {
+		if (element!.tagName === 'TEXTAREA' || element!.isContentEditable) {
 			showButton(element);
 		}
 	}
-	function showButton(element) {
+	function showButton(element: any) {
 		currentElement = element;
 		const rect = element.getBoundingClientRect();
 		button.style.display = 'block';
@@ -72,22 +33,24 @@ var enableEditInPlaygroundButton = function () {
 			window.scrollX + rect.right - button.offsetWidth
 		}px`;
 	}
-	function hideButton(button2) {
+
+	function hideButton(button: HTMLButtonElement) {
 		currentElement = undefined;
-		button2.style.display = 'none';
+		button.style.display = 'none';
 	}
+
 	function createEditButton() {
-		const button2 = document.createElement('button');
-		button2.textContent = 'Edit in Playground';
-		button2.className = 'edit-btn';
-		button2.style.position = 'absolute';
-		button2.style.display = 'none';
-		button2.style.padding = '5px 10px';
-		button2.style.backgroundColor = '#007bff';
-		button2.style.color = 'white';
-		button2.style.border = 'none';
-		button2.style.cursor = 'pointer';
-		button2.addEventListener('mousedown', (event) => {
+		const button = document.createElement('button');
+		button.textContent = 'Edit in Playground';
+		button.className = 'edit-btn';
+		button.style.position = 'absolute';
+		button.style.display = 'none';
+		button.style.padding = '5px 10px';
+		button.style.backgroundColor = '#007bff';
+		button.style.color = 'white';
+		button.style.border = 'none';
+		button.style.cursor = 'pointer';
+		button.addEventListener('mousedown', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
 			if (
@@ -101,34 +64,45 @@ var enableEditInPlaygroundButton = function () {
 				};
 			}
 		});
-		return button2;
+		return button;
 	}
-};
-var openPlaygroundEditorFor = function (element) {
+}
+
+enableEditInPlaygroundButton();
+
+// Function to wait until DOM is fully loaded
+function openPlaygroundEditorFor(element: any) {
 	const localEditor = wrapLocalEditable(element);
 	const initialValue = localEditor.getValue();
 	const playgroundEditor = openPlaygroundEditor({
 		format: 'markdown',
 		initialValue,
 	});
-	const unbindBootListener = bindEventListener(window, 'message', (event) => {
-		if (
-			event.source === playgroundEditor.windowHandle &&
-			event.data.command === 'getBootParameters'
-		) {
-			playgroundEditor.windowHandle.postMessage(
-				responseTo(event.data.requestId, {
-					value: initialValue,
-					format: 'markdown',
-				}),
-				'*'
-			);
-			unbindBootListener();
-			pollEditorValue();
+
+	const unbindBootListener = bindEventListener(
+		window,
+		'message',
+		(event: MessageEvent) => {
+			if (
+				event.source === playgroundEditor.windowHandle &&
+				event.data.command === 'getBootParameters'
+			) {
+				playgroundEditor.windowHandle.postMessage(
+					responseTo(event.data.requestId, {
+						value: initialValue,
+						format: 'markdown',
+					}),
+					'*'
+				);
+				unbindBootListener();
+				pollEditorValue();
+			}
 		}
-	});
+	);
+
+	// Update the local editor when the playground editor changes
 	let lastRemoteValue = initialValue;
-	let pollInterval = null;
+	let pollInterval: any = null;
 	function pollEditorValue() {
 		pollInterval = setInterval(() => {
 			playgroundEditor.getValue().then((value) => {
@@ -139,12 +113,15 @@ var openPlaygroundEditorFor = function (element) {
 			});
 		}, 1000);
 	}
+
 	const cleanup = [
+		// When typing in the textarea, update the playground editor
 		bindEventListener(element, 'change', () => {
 			const value = localEditor.getValue();
 			playgroundEditor.setValue(value);
 			lastRemoteValue = value;
 		}),
+		// Close the editor popup if the user navigates away
 		bindEventListener(window, 'beforeunload', () => {
 			playgroundEditor.windowHandle.close();
 		}),
@@ -153,22 +130,26 @@ var openPlaygroundEditorFor = function (element) {
 			pollInterval && clearInterval(pollInterval);
 		},
 	];
+
 	onWindowClosed(playgroundEditor.windowHandle, () => {
 		cleanup.forEach((fn) => fn());
 	});
+
 	return playgroundEditor;
-};
-var bindEventListener = function (target, type, listener) {
+}
+
+function bindEventListener(target: any, type: string, listener: any) {
 	target.addEventListener(type, listener);
 	return () => target.removeEventListener(type, listener);
-};
-var wrapLocalEditable = function (element) {
+}
+
+function wrapLocalEditable(element: any) {
 	if (element.tagName === 'TEXTAREA') {
 		return {
 			getValue() {
 				return element.value;
 			},
-			setValue(value) {
+			setValue(value: string) {
 				element.value = value;
 			},
 		};
@@ -177,7 +158,7 @@ var wrapLocalEditable = function (element) {
 			getValue() {
 				return element.innerHTML;
 			},
-			setValue(value) {
+			setValue(value: string) {
 				element.innerHTML = value;
 			},
 		};
@@ -185,17 +166,28 @@ var wrapLocalEditable = function (element) {
 	throw new Error(
 		'Unsupported element type, only Textarea and contenteditable elements are accepted.'
 	);
-};
-var openPlaygroundEditor = function ({ format, initialValue }) {
+}
+
+interface PlaygroundEditorOptions {
+	format: 'markdown' | 'trac';
+	initialValue: string;
+}
+
+function openPlaygroundEditor({
+	format,
+	initialValue,
+}: PlaygroundEditorOptions) {
 	const windowHandle = window.open(
 		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post#' +
 			encodeURIComponent(initialValue),
 		'_blank',
 		'width=800,height=600'
-	);
-	if (windowHandle === null) {
+	)!;
+
+	if (null === windowHandle) {
 		throw new Error('Failed to open the playground editor window');
 	}
+
 	return {
 		windowHandle,
 		async getValue() {
@@ -209,7 +201,7 @@ var openPlaygroundEditor = function ({ format, initialValue }) {
 			const response = await awaitReply(window, requestId);
 			return response.value;
 		},
-		setValue(value) {
+		setValue(value: string) {
 			windowHandle.postMessage(
 				{
 					command: 'setEditorContent',
@@ -221,8 +213,11 @@ var openPlaygroundEditor = function ({ format, initialValue }) {
 			);
 		},
 	};
-};
-var onWindowClosed = function (windowObject, callback) {
+}
+
+// Function to check if the window is closed
+function onWindowClosed(windowObject: any, callback: any) {
+	// Set an interval to periodically check if the window is closed
 	const timer = setInterval(checkWindowClosed, 500);
 	function checkWindowClosed() {
 		if (windowObject.closed) {
@@ -230,5 +225,4 @@ var onWindowClosed = function (windowObject, callback) {
 			callback();
 		}
 	}
-};
-enableEditInPlaygroundButton();
+}

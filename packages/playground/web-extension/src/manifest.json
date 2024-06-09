@@ -41,9 +41,6 @@
 			"use_dynamic_url": true
 		}
 	],
-	"action": {
-		"default_title": "Click Me"
-	},
 	"content_scripts": [
 		{
 			"matches": [

@@ -28,9 +28,6 @@ async function prerenderEditor() {
 
 listenForPhpRequests(async (request) => {
 	const handler = await requestHandler;
-	console.log({
-		'handling a request': request,
-	});
 	request.headers = {
 		...(request.headers || {}),
 		Host: 'playground.internal',
@@ -44,10 +41,6 @@ listenForPhpRequests(async (request) => {
 			v.replace('http://playground.internal', chrome.runtime.getURL(''))
 		);
 	}
-	console.log({
-		'Got a response': response,
-		newHeaders,
-	});
 	return {
 		...response,
 		headers: newHeaders,
@@ -71,7 +64,6 @@ const iframe = document.querySelector(
 
 // Super naive caching, let's use actual request caches instead
 window.addEventListener('message', async (event) => {
-	console.log('Got some message!', event);
 	if (event.data.type === 'playground-extension-sw-message') {
 		if (event.data.data.method === 'request') {
 			const phpRequest = event.data.data.args[0] as PHPRequest;
@@ -122,7 +114,6 @@ window.addEventListener('message', async (event) => {
 				'*'
 			);
 		}
-		console.log('Got SW message!', event);
 	}
 });
 
@@ -131,12 +122,6 @@ async function bootWorker() {
 		'#playground-remote-service-worker'
 	) as any;
 	iframe.src = 'http://localhost:5400/extension.html';
-	// iframe.src = 'https://playground.wordpress.net';
-	setTimeout(() => {
-		iframe.contentWindow.addEventListener('message', (event) => {
-			console.log({ event });
-		});
-	}, 3000);
 
 	const [wordPressZip, sqliteIntegrationPluginZip] = await Promise.all([
 		readFileFromCurrentExtension('wordpress-6.5.4.zip'),
@@ -191,195 +176,12 @@ async function bootWorker() {
 
 	primaryPHP.writeFile(
 		'/wordpress/wp-content/plugins/playground-editor/script.js',
-		`
-		
-		// Accept commands from the parent window
-		let lastKnownFormat = '';
-		window.addEventListener('message', (event) => {
-			if(typeof event.data !== 'object') {
-				return;
-			}
-			
-			const { command, format, text } = event.data;
-			lastKnownFormat = format;
-	
-			if(command === 'setEditorContent') {
-				populateEditorWithFormattedText(text, format);
-			} else if(command === 'getEditorContent') {
-				const blocks = wp.data.select('core/block-editor').getBlocks();
-				window.opener.postMessage({
-					command: 'playgroundEditorTextChanged',
-					format: format,
-					text: formatConverters[format].fromBlocks(blocks),
-					type: 'relay'
-				}, '*');
-			}
-		});
-	
-	function waitForDOMContentLoaded() {
-		return new Promise((resolve) => {
-			if (
-				document.readyState === 'complete' ||
-				document.readyState === 'interactive'
-			) {
-				resolve();
-			} else {
-				document.addEventListener('DOMContentLoaded', resolve);
-			}
-		});
-	}
-
-	// @TODO: Figure out why this import is needed – blocky formats should hook this
-	//        file on its own. Do I need WP nightly with modules support?
-	await import('../blocky-formats/src/blocky-formats.js');
-	await import('../blocky-formats/vendor/commonmark.min.js');
-	const { markdownToBlocks, blocks2markdown } = await import('../blocky-formats/src/markdown.js');
-	const formatConverters = {
-		markdown: {
-			toBlocks: markdownToBlocks,
-			fromBlocks: blocks2markdown
-		}
-	};
-
-	const createBlocks = blocks => blocks.map(block =>
-		wp.blocks.createBlock(block.name, block.attributes, createBlocks(block.innerBlocks))
-	);
-	function populateEditorWithFormattedText(text, format) {
-		console.log(format, {text});
-		if(!(format in formatConverters)) {
-			throw new Error('Unsupported format');
-		}
-
-		const rawBlocks = formatConverters[format].toBlocks(text);
-		window.wp.data
-			.dispatch('core/block-editor')
-			.resetBlocks(createBlocks(rawBlocks))
-	}
-
-	function pushEditorContentsToParent(format) {
-		const blocks = wp.data.select('core/block-editor').getBlocks();
-		window.opener.postMessage({
-			command: 'playgroundEditorTextChanged',
-			format: format,
-			text: formatConverters[format].fromBlocks(blocks),
-			type: 'relay'
-		}, '*');
-	}
-
-	waitForDOMContentLoaded().then(() => {
-		// Experiment with sending the updated value back to the parent window
-		// when typing. Debounce by 600ms.
-		function debounce(func, wait) {
-			let timeout;
-			return function(...args) {
-				const context = this;
-				clearTimeout(timeout);
-				timeout = setTimeout(() => func.apply(context, args), wait);
-			};
-		}
-
-		setInterval(() => {
-			pushEditorContentsToParent('markdown');
-		}, 1000);
-	});
-
-    const { subscribe, select, dispatch } = wp.data;
-    const { store } = wp.editPost;
-
-    // Store the current post visibility
-    let isSavingPost = false;
-
-    subscribe(() => {
-        const currentPost = select('core/editor').getCurrentPost();
-        const isSaving = select('core/editor').isSavingPost();
-
-        // Detect when the user initiated a save (publish or update)
-        if (!isSavingPost && isSaving) {
-            const postStatus = currentPost.status;
-            const postType = currentPost.type;
-
-            // Check if it is an actual publish or update action
-            if (postStatus === 'publish' && postType !== 'auto-draft') {
-                onPublish()
-            }
-        }
-
-        // Update the saving post flag
-        isSavingPost = isSaving;
-    });
-
-	function onPublish() {
-		pushEditorContentsToParent('markdown');
-		window.close();
-		window.opener.focus();
-	}	
-
-	const initialText = decodeURIComponent((new URL(location.href)).hash?.substring(1));
-	const initialFormat = 'markdown';
-	if(initialText) {
-		console.log(initialText, initialFormat);
-		populateEditorWithFormattedText(initialText, initialFormat);
-	} else {
-		const blocks = [{
-			name: 'core/paragraph',
-			attributes: {
-				content: ''
-			},
-			innerBlocks: []
-		}];
-		wp.data.dispatch('core/block-editor').resetBlocks(createBlocks(blocks));
-
-        // const firstEditableBlock = document.querySelector('.editor-canvas__iframe').contentDocument.querySelector('.wp-block:not(.wp-block-post-title)');
-        // if (firstEditableBlock) {
-        //     firstEditableBlock.focus();
-		// }
-	}
-	`
+		await (await fetch('wordpress-plugin/script.js')).text()
 	);
 
 	primaryPHP.writeFile(
 		'/wordpress/wp-content/plugins/playground-editor/index.php',
-		`<?php
-    /**
-    * Plugin Name: Playground Editor
-    * Description: A simple plugin to edit rich text formats in Gutenberg.
-    */
-    // Disable welcome panel every time a user accesses the editor
-    function disable_gutenberg_welcome_on_load() {
-		if (is_admin()) {
-			update_user_meta(get_current_user_id(), 'show_welcome_panel', 0);
-			remove_action('enqueue_block_editor_assets', 'wp_enqueue_editor_tips');
-		}
-    }
-    add_action('admin_init', 'disable_gutenberg_welcome_on_load');
-    
-    function enqueue_script() {
-    	wp_enqueue_script( 'playground-editor-script', plugin_dir_url( __FILE__ ) . 'script.js', array( 'jquery' ), '1.0', true );
-    }
-    add_action( 'admin_init', 'enqueue_script' );
-
-	add_action('enqueue_block_editor_assets', 'myplugin_add_inline_editor_styles');
-
-	function myplugin_add_inline_editor_styles() {
-		$custom_css = "
-			.editor-editor-canvas__post-title-wrapper {
-				display: none;
-			}
-			.is-root-container {
-				padding-top: 10px;
-			}
-		";
-		wp_add_inline_style('wp-block-library', $custom_css);
-	}
-    
-    // Set script attribute to module
-    add_filter('script_loader_tag', function($tag, $handle, $src) {
-		if ($handle === 'playground-editor-script') {
-			$tag = '<script type="module" src="' . esc_url($src) . '">'.'<'.'/script>';
-		}
-		return $tag;
-    }, 10, 3);
-                `
+		await (await fetch('wordpress-plugin/index.php')).text()
 	);
 
 	await activatePlugin(primaryPHP, {
