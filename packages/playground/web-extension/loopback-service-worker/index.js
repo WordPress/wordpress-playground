@@ -57,7 +57,6 @@ if (!sw) {
 	}
 }
 var registration = await sw.register('/service-worker.js', {
-	type: 'module',
 	updateViaCache: 'none',
 });
 await registration.update();

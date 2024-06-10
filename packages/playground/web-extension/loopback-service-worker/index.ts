@@ -20,7 +20,6 @@ if (!sw) {
 }
 
 const registration = await sw.register('/service-worker.js', {
-	type: 'module',
 	// Always bypass HTTP cache when fetching the new Service Worker script:
 	updateViaCache: 'none',
 });
