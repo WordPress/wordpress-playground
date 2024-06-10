@@ -5,8 +5,7 @@
 	"description": "Edit GitHub and WordPress Trac comments using the block editor instead of plain textarea.",
 	"permissions": ["tabs", "activeTab", "scripting", "offscreen"],
 	"background": {
-		"service_worker": "sw.js",
-		"type": "module"
+		"service_worker": "sw.js"
 	},
 	"host_permissions": [
 		"https://playground-editor-extension.pages.dev/",
