@@ -1,8 +1,7 @@
-import { Logger } from '../lib/logger';
-import { clearMemoryLogs, logToMemory } from '../lib/log-handlers';
+import { logger } from '../lib/logger';
+import { clearMemoryLogs } from '../lib/log-handlers';
 
 describe('Logger', () => {
-	const logger = new Logger([logToMemory]);
 	beforeEach(async () => {
 		clearMemoryLogs();
 	});
@@ -14,5 +13,12 @@ describe('Logger', () => {
 		expect(logs[0]).toMatch(
 			/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\] JavaScript Warn: test/
 		);
+	});
+
+	it('Log event should be dispatched', () => {
+		const eventListener = vitest.fn();
+		logger.addEventListener('playground-log', eventListener);
+		logger.warn('test');
+		expect(eventListener).toHaveBeenCalled();
 	});
 });
