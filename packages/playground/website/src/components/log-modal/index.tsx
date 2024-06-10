@@ -20,7 +20,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
-	useEffect(getLogs, [activeModal]);
+	useEffect(() => {
+		getLogs();
+		logger.addEventListener('playground-log', getLogs);
+		return () => {
+			logger.removeEventListener('playground-log', getLogs);
+		};
+	}, [activeModal]);
 
 	function getLogs() {
 		setLogs(logger.getLogs());
