@@ -9,11 +9,12 @@ import { responseTo } from '@php-wasm/web-service-worker';
 import { LOOPBACK_SW_URL } from './config';
 
 const requestHandler = bootWorker();
+const swReady = bootServiceWorker();
 prerenderEditor();
 
 async function prerenderEditor() {
 	await requestHandler;
-	await bootServiceWorker();
+	await swReady;
 	const iframe = document.createElement('iframe');
 	iframe.src = `${LOOPBACK_SW_URL}/wp-admin/post-new.php`;
 	document.body.appendChild(iframe);

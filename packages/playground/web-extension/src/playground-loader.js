@@ -13708,7 +13708,7 @@ var LOOPBACK_SW_URL = 'https://playground-editor-extension.pages.dev';
 // src/playground-loader.ts
 async function prerenderEditor() {
 	await requestHandler;
-	await bootServiceWorker();
+	await swReady;
 	const iframe = document.createElement('iframe');
 	iframe.src = `${LOOPBACK_SW_URL}/wp-admin/post-new.php`;
 	document.body.appendChild(iframe);
@@ -13798,6 +13798,7 @@ async function readFileFromCurrentExtension(path) {
 	return new File([await response.blob()], path);
 }
 var requestHandler = bootWorker();
+var swReady = bootServiceWorker();
 prerenderEditor();
 var cache = await caches.open('v1.1');
 var putInCache = async (request3, response) => {

@@ -1,16 +1,9 @@
 {
 	"manifest_version": 3,
-	"name": "Edit Visually powered by WordPress Playground",
+	"name": "Edit Visually powered by WordPress Playground – EARLY ACCESS",
 	"version": "0.1",
-	"description": "Installs Playground Editor in specific textareas on GitHub and WordPress Trac",
-	"permissions": [
-		"tabs",
-		"activeTab",
-		"scripting",
-		"offscreen",
-		"webRequest",
-		"webRequestBlocking"
-	],
+	"description": "Edit GitHub and WordPress Trac comments using the block editor instead of plain textarea.",
+	"permissions": ["tabs", "activeTab", "scripting", "offscreen"],
 	"background": {
 		"service_worker": "sw.js",
 		"type": "module"
@@ -20,28 +13,11 @@
 		"https://playground.wordpress.net/",
 		"https://github.com/",
 		"https://meta.trac.wordpress.org/",
-		"http://playground.internal/",
-		"http://localhost:5400/",
-		"https://adamadam.blog/",
 		"<all_urls>"
 	],
 	"content_security_policy": {
-		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self' http://127.0.0.1:43673/ https://playground-editor-extension.pages.dev/;"
+		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self' https://playground-editor-extension.pages.dev/;"
 	},
-	"web_accessible_resources": [
-		{
-			"resources": ["wp-admin", "wp-login.php", "", "*", "index.html"],
-			"matches": [
-				"https://playground.wordpress.net/*",
-				"https://github.com/*",
-				"https://meta.trac.wordpress.org/*",
-				"http://playground.internal/*",
-				"https://adamadam.blog/*",
-				"<all_urls>"
-			],
-			"use_dynamic_url": true
-		}
-	],
 	"content_scripts": [
 		{
 			"matches": [
