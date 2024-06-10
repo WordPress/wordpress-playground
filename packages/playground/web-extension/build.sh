@@ -12,5 +12,6 @@ bun build ./src/wordpress-plugin/script.ts -e ./src/php_8_0.js \
 cd src
 rm blocky-formats.zip 
 zip -rq blocky-formats.zip blocky-formats
+zip -rq ../extension.zip ./
 
 echo "Build succesful"

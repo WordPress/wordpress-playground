@@ -25,7 +25,10 @@ const go = () => {
 	wp.blocks.getBlockTypes().forEach((blockType) => {
 		if (!supportedBlocks.includes(blockType.name)) {
 			wp.blocks.unregisterBlockType(blockType.name);
-		} else if (blockType.name === 'core/list-item') {
+		} else if (
+			blockType.name === 'core/list-item' ||
+			blockType.name === 'core/quote'
+		) {
 			// Remove restrictions on list item child blocks.
 			wp.blocks.unregisterBlockType(blockType.name);
 			const { allowedBlocks, ...newBlockType } = blockType;
