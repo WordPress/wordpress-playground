@@ -27,6 +27,21 @@ function myplugin_add_inline_editor_styles() {
         .is-root-container {
             padding-top: 10px;
         }
+        /* Make the 'Finish editing' button look like the primary button */
+        .components-button[aria-label=\"Finish editing\"] {
+            width: auto !important;
+            background: var(--wp-components-color-accent, var(--wp-admin-theme-color, #3858e9)) !important;
+            color: var(--wp-components-color-accent-inverted, #fff) !important;
+            outline: 1px solid #0000 !important;
+            text-decoration: none !important;
+            text-shadow: none !important;
+            white-space: nowrap !important;
+        }
+        /* Hide the default Publish button */
+        .edit-post-header__settings > .is-primary {
+            display: none !important;
+        }
+
     ";
     wp_add_inline_style('wp-block-library', $custom_css);
 }

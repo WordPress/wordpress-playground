@@ -13794,13 +13794,6 @@ async function bootWorker() {
 			activate: false,
 		},
 	});
-	primaryPHP.mv(
-		'/wordpress/wp-content/plugins/blocky-formats-trunk',
-		'/wordpress/wp-content/plugins/blocky-formats'
-	);
-	await activatePlugin(primaryPHP, {
-		pluginPath: 'blocky-formats/blocky-formats.php',
-	});
 	await login(primaryPHP, {});
 	primaryPHP.writeFile(
 		'/wordpress/wp-content/plugins/playground-editor/script.js',

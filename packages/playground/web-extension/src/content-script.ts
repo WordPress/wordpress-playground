@@ -52,17 +52,26 @@ function enableEditInPlaygroundButton() {
 		button.style.color = 'white';
 		button.style.border = 'none';
 		button.style.cursor = 'pointer';
-		button.addEventListener('mousedown', (event) => {
+		button.addEventListener('mousedown', async (event) => {
 			event.preventDefault();
 			event.stopPropagation();
 			if (
-				activeEditor?.editor?.windowObject?.closed ||
-				activeEditor?.element !== currentElement
+				activeEditor?.editor?.windowHandle &&
+				!activeEditor.editor.windowHandle.closed
 			) {
-				activeEditor?.editor?.windowObject?.close();
+				activeEditor.editor.windowHandle.focus();
+				return;
+			}
+			if (
+				!activeEditor ||
+				!activeEditor.editor.windowHandle ||
+				activeEditor.editor.windowHandle.closed ||
+				activeEditor.element !== currentElement
+			) {
+				activeEditor?.editor.windowHandle?.close();
 				activeEditor = {
 					element: currentElement,
-					editor: openPlaygroundEditorFor(currentElement),
+					editor: await openPlaygroundEditorFor(currentElement),
 				};
 			}
 		});
@@ -79,6 +88,13 @@ async function openPlaygroundEditorFor(element: any) {
 	const playgroundEditor = await openPlaygroundEditor({
 		format: 'markdown',
 		initialValue,
+		onClose(lastValue: string | null) {
+			if (lastValue !== null) {
+				lastRemoteValue = lastValue;
+				localEditor.setValue(lastValue);
+			}
+			cleanup.forEach((fn) => fn());
+		},
 	});
 
 	// Update the local editor when the playground editor changes
@@ -107,10 +123,6 @@ async function openPlaygroundEditorFor(element: any) {
 			pollInterval && clearInterval(pollInterval);
 		},
 	];
-
-	onWindowClosed(playgroundEditor.windowHandle, () => {
-		cleanup.forEach((fn) => fn());
-	});
 
 	return playgroundEditor;
 }
@@ -148,11 +160,13 @@ function wrapLocalEditable(element: any) {
 interface PlaygroundEditorOptions {
 	format: 'markdown' | 'trac';
 	initialValue: string;
+	onClose?: (value: string | null) => void;
 }
 
 async function openPlaygroundEditor({
 	format,
 	initialValue,
+	onClose,
 }: PlaygroundEditorOptions) {
 	const windowHandle = window.open(
 		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post',
@@ -194,6 +208,26 @@ async function openPlaygroundEditor({
 		);
 	});
 
+	let lastRemoteValue: string | null = null;
+	const unbindCloseListener = bindEventListener(
+		window,
+		'message',
+		(event: MessageEvent) => {
+			if (event.source !== windowHandle) {
+				return;
+			}
+			switch (event.data.command) {
+				case 'updateBeforeClose':
+					lastRemoteValue = event.data.text;
+					break;
+			}
+		}
+	);
+	onWindowClosed(windowHandle, () => {
+		unbindCloseListener();
+		onClose && onClose(lastRemoteValue || initialValue);
+	});
+
 	return {
 		windowHandle,
 		async getValue() {
@@ -228,7 +262,7 @@ function onWindowClosed(windowObject: any, callback: any) {
 		clearInterval(timer);
 	}
 	function checkWindowClosed() {
-		if (windowObject.closed) {
+		if (!windowObject || windowObject.closed) {
 			unbind();
 			callback();
 		}

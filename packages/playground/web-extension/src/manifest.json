@@ -47,7 +47,7 @@
 				"https://github.com/*",
 				"https://meta.trac.wordpress.org/*"
 			],
-			"js": ["webcomponents-polyfill.js", "content-script.js"],
+			"js": ["content-script.js"],
 			"run_at": "document_idle"
 		}
 	]
