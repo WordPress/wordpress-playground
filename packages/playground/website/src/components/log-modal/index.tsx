@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { logger } from '@php-wasm/logger';
+import { logEventType, logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
 
@@ -22,9 +22,9 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 
 	useEffect(() => {
 		getLogs();
-		logger.addEventListener('playground-log', getLogs);
+		logger.addEventListener(logEventType, getLogs);
 		return () => {
-			logger.removeEventListener('playground-log', getLogs);
+			logger.removeEventListener(logEventType, getLogs);
 		};
 	}, [activeModal]);
 

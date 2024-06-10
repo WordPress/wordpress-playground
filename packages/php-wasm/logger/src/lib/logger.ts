@@ -1,6 +1,8 @@
 import { logEvent } from './handlers/log-event';
 import { logToMemory, logToConsole, logs } from './log-handlers';
 
+export { logEventType } from './handlers/log-event';
+
 export type Log = {
 	message: any;
 	severity?: LogSeverity;
