@@ -3,6 +3,7 @@ import {
 	postMessageExpectReply,
 	responseTo,
 } from '@php-wasm/web-service-worker';
+import { LOOPBACK_SW_URL } from './config';
 
 function enableEditInPlaygroundButton() {
 	let currentElement: any = undefined;
@@ -169,9 +170,9 @@ async function openPlaygroundEditor({
 	onClose,
 }: PlaygroundEditorOptions) {
 	const windowHandle = window.open(
-		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post',
+		`${LOOPBACK_SW_URL}/wp-admin/post-new.php?post_type=post`,
 		'_blank',
-		'width=800,height=600'
+		'width=850,height=600'
 	)!;
 
 	if (null === windowHandle) {

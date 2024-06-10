@@ -65,10 +65,17 @@ async function defaultRequestHandler(event: FetchEvent) {
 	return workerResponse;
 }
 
-export async function convertFetchEventToPHPRequest(event: FetchEvent) {
+export interface ConvertFetchOptions {
+	requireScope: boolean;
+}
+export async function convertFetchEventToPHPRequest(
+	event: FetchEvent,
+	options?: ConvertFetchOptions
+) {
+	const { requireScope = true } = options || {};
 	let url = new URL(event.request.url);
 
-	if (!isURLScoped(url)) {
+	if (requireScope && !isURLScoped(url)) {
 		try {
 			const referrerUrl = new URL(event.request.referrer);
 			url = setURLScope(url, getURLScope(referrerUrl)!);
@@ -108,7 +115,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 			],
 		};
 		const scope = getURLScope(url);
-		if (scope === null) {
+		if (requireScope && scope === null) {
 			throw new Error(
 				`The URL ${url.toString()} is not scoped. This should not happen.`
 			);

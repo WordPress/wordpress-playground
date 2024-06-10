@@ -45,6 +45,9 @@ function responseTo(requestId, response) {
 }
 var DEFAULT_RESPONSE_TIMEOUT = 25000;
 var lastRequestId = 0;
+// src/config.ts
+var LOOPBACK_SW_URL = 'https://playground-editor-extension.pages.dev';
+
 // src/content-script.ts
 var enableEditInPlaygroundButton = function () {
 	let currentElement = undefined;
@@ -183,9 +186,9 @@ var wrapLocalEditable = function (element) {
 };
 async function openPlaygroundEditor({ format, initialValue, onClose }) {
 	const windowHandle = window.open(
-		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post',
+		`${LOOPBACK_SW_URL}/wp-admin/post-new.php?post_type=post`,
 		'_blank',
-		'width=800,height=600'
+		'width=850,height=600'
 	);
 	if (windowHandle === null) {
 		throw new Error('Failed to open the playground editor window');

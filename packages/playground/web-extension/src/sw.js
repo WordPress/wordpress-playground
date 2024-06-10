@@ -10,14 +10,22 @@ async function setupOffscreenDocument(path) {
 	}
 	if (creating) {
 		await creating;
-	} else {
-		creating = chrome.offscreen.createDocument({
-			url: path,
-			reasons: ['BLOBS'],
-			justification: 'reason for needing the document',
-		});
-		await creating;
-		creating = null;
+		return;
+	}
+	creating = createOffscreenDocument({
+		url: path,
+		reasons: ['BLOBS'],
+		justification: 'reason for needing the document',
+	});
+	await creating;
+	creating = null;
+}
+async function createOffscreenDocument(options) {
+	try {
+		return chrome.offscreen.createDocument(options);
+	} catch (e) {
+		await chrome.offscreen.closeDocument();
+		return chrome.offscreen.createDocument(options);
 	}
 }
 var creating = null;

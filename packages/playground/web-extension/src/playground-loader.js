@@ -13702,53 +13702,15 @@ function responseTo(requestId, response) {
 		response,
 	};
 }
-// src/messaging.ts
-var uint8ArrayToBase64 = (bytes) => {
-	let binary = '';
-	for (let i = 0; i < bytes.byteLength; i++) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return btoa(binary);
-};
-var base64ToUint8Array = (base64) => {
-	const byteCharacters = atob(base64);
-	const byteNumbers = new Array(byteCharacters.length);
-	for (let i = 0; i < byteCharacters.length; i++) {
-		byteNumbers[i] = byteCharacters.charCodeAt(i);
-	}
-	return new Uint8Array(byteNumbers);
-};
-var listenForPhpRequests = (callback) => {
-	chrome.runtime.onMessage.addListener(
-		async (message, sender, sendResponse) => {
-			if (message.type === 'PLAYGROUND_REQUEST') {
-				const decodedRequest = { ...message.request };
-				if (
-					decodedRequest.body &&
-					typeof decodedRequest.body === 'string'
-				) {
-					decodedRequest.body = base64ToUint8Array(
-						decodedRequest.body
-					);
-				}
-				const response = await callback(decodedRequest);
-				const encodedResponse = {
-					headers: response.headers,
-					httpStatusCode: response.httpStatusCode,
-					errors: response.errors,
-					bytes: uint8ArrayToBase64(new Uint8Array(response.bytes)),
-				};
-				sendResponse(encodedResponse);
-			}
-		}
-	);
-};
+// src/config.ts
+var LOOPBACK_SW_URL = 'https://playground-editor-extension.pages.dev';
 
 // src/playground-loader.ts
 async function prerenderEditor() {
 	await requestHandler;
+	await bootServiceWorker();
 	const iframe = document.createElement('iframe');
-	iframe.src = 'http://localhost:5400/scope:777777777/wp-admin/post-new.php';
+	iframe.src = `${LOOPBACK_SW_URL}/wp-admin/post-new.php`;
 	document.body.appendChild(iframe);
 	await new Promise((resolve) => {
 		iframe.addEventListener('load', resolve);
@@ -13757,15 +13719,38 @@ async function prerenderEditor() {
 		document.body.removeChild(iframe);
 	}, 1e4);
 }
+var emptyHtml = function () {
+	return new Response(
+		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
+		{
+			status: 200,
+			headers: {
+				'content-type': 'text/html',
+			},
+		}
+	);
+};
+async function bootServiceWorker() {
+	const isServiceWorkerRegistered = (
+		await fetch(`${LOOPBACK_SW_URL}/test.html`)
+	).ok;
+	if (!isServiceWorkerRegistered) {
+		const iframe = document.querySelector(
+			'#playground-remote-service-worker'
+		);
+		iframe.src = `${LOOPBACK_SW_URL}/register.html`;
+		await new Promise((resolve) => {
+			iframe.addEventListener('load', resolve);
+		});
+	}
+}
 async function bootWorker() {
-	const iframe = document.querySelector('#playground-remote-service-worker');
-	iframe.src = 'http://localhost:5400/extension.html';
 	const [wordPressZip, sqliteIntegrationPluginZip] = await Promise.all([
 		readFileFromCurrentExtension('wordpress-6.5.4.zip'),
 		readFileFromCurrentExtension('sqlite-database-integration.zip'),
 	]);
 	const requestHandler = await bootWordPress({
-		siteUrl: 'http://localhost:5400/scope:777777777/',
+		siteUrl: LOOPBACK_SW_URL,
 		createPhpRuntime: async () => {
 			const phpModule = await import('./php_8_0.js');
 			return await loadPHPRuntime(phpModule, {
@@ -13780,7 +13765,7 @@ async function bootWorker() {
 			disable_functions: '',
 		},
 	});
-	const url = 'http://localhost:5400/scope:777777777/';
+	const url = LOOPBACK_SW_URL;
 	const primaryPHP = await requestHandler.getPrimaryPhp();
 	primaryPHP.defineConstant('WP_HOME', url);
 	primaryPHP.defineConstant('WP_SITEURL', url);
@@ -13814,34 +13799,8 @@ async function readFileFromCurrentExtension(path) {
 }
 var requestHandler = bootWorker();
 prerenderEditor();
-listenForPhpRequests(async (request3) => {
-	const handler2 = await requestHandler;
-	request3.headers = {
-		...(request3.headers || {}),
-		Host: 'playground.internal',
-		Origin: 'http://playground.internal',
-		Referer: 'http://playground.internal',
-	};
-	const response = await handler2.request(request3);
-	const newHeaders = {};
-	for (const [key, value] of Object.entries(response.headers)) {
-		newHeaders[key.toLowerCase()] = value.map((v) =>
-			v.replace('http://playground.internal', chrome.runtime.getURL(''))
-		);
-	}
-	return {
-		...response,
-		headers: newHeaders,
-		bytes: new TextEncoder().encode(
-			response.text.replaceAll(
-				'http://playground.internal',
-				chrome.runtime.getURL('')
-			)
-		),
-	};
-});
+var cache = await caches.open('v1.1');
 var putInCache = async (request3, response) => {
-	const cache = await caches.open('v1');
 	await cache.put(request3, response);
 };
 var iframe = document.querySelector('#playground-remote-service-worker');
@@ -13851,15 +13810,51 @@ window.addEventListener('message', async (event) => {
 			const phpRequest = event.data.data.args[0];
 			const requestUrl = new URL(phpRequest.url);
 			requestUrl.searchParams.delete('_ajax_nonce');
+			if (requestUrl.pathname.endsWith('/empty.html')) {
+				iframe.contentWindow.postMessage(
+					responseTo(event.data.requestId, {
+						bytes: await emptyHtml().arrayBuffer(),
+						headers: {
+							'content-type': ['text/html'],
+						},
+						httpStatusCode: 200,
+					}),
+					'*'
+				);
+				return;
+			}
 			const request3 = new Request(requestUrl.toString(), {
 				method: event.data.data.args[0].method,
 			});
-			const response = await caches.match(request3);
+			const response = await cache.match(request3);
 			let phpResponse = undefined;
 			if (!response) {
 				phpResponse = await (
 					await requestHandler
 				).request(event.data.data.args[0]);
+				if (
+					requestUrl.pathname.endsWith(
+						'/wp-includes/js/dist/block-editor.js'
+					) ||
+					requestUrl.pathname.endsWith(
+						'/wp-includes/js/dist/block-editor.min.js'
+					) ||
+					requestUrl.pathname.endsWith(
+						'/build/block-editor/index.js'
+					) ||
+					requestUrl.pathname.endsWith(
+						'/build/block-editor/index.min.js'
+					)
+				) {
+					const script = new TextDecoder().decode(
+						await phpResponse.bytes
+					);
+					const newScript = `${controlledIframe} ${script.replace(
+						/\(\s*"iframe",/,
+						'(__playground_ControlledIframe,'
+					)}`;
+					phpResponse.bytes = new TextEncoder().encode(newScript);
+				}
 				if (
 					requestUrl.searchParams.has('rest_route') ||
 					requestUrl.pathname.includes('wp-includes')
@@ -13891,6 +13886,50 @@ window.addEventListener('message', async (event) => {
 		}
 	}
 });
+var controlledIframe = `
+window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
+	const source = window.wp.element.useMemo(function () {
+		/**
+		 * A synchronous function to read a blob URL as text.
+		 *
+		 * @param {string} url
+		 * @returns {string}
+		 */
+		const __playground_readBlobAsText = function (url) {
+			try {
+			let xhr = new XMLHttpRequest();
+			xhr.open('GET', url, false);
+			xhr.overrideMimeType('text/plain;charset=utf-8');
+			xhr.send();
+			return xhr.responseText;
+			} catch(e) {
+			return '';
+			} finally {
+			URL.revokeObjectURL(url);
+			}
+		};
+		if (props.srcDoc) {
+			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
+			return '/wp-includes/empty.html';
+		} else if (props.src && props.src.startsWith('blob:')) {
+			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
+			// Let's pass the document content to empty.html and render it there.
+			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+		} else {
+			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
+			return props.src;
+		}
+	}, [props.src]);
+	return (
+		window.wp.element.createElement('iframe', {
+			...props,
+			ref: ref,
+			src: source,
+			// Make sure there's no srcDoc, as it would interfere with the src.
+			srcDoc: undefined
+		})
+	)
+});`;
 var fakeWebsocket = () => {
 	return {
 		websocket: {

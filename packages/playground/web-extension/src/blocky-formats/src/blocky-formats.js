@@ -96,7 +96,6 @@ window.saveToTrac = async () => {
 	const { blocks2trac } = await import('./trac.js');
 	const blocks = wp.data.select('core/block-editor').getBlocks();
 	const trac = blocks2trac(blocks);
-	console.log(trac);
 	return trac;
 };
 

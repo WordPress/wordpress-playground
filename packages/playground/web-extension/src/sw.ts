@@ -15,14 +15,31 @@ async function setupOffscreenDocument(path: string) {
 	// create offscreen document
 	if (creating) {
 		await creating;
-	} else {
-		creating = chrome.offscreen.createDocument({
-			url: path,
-			reasons: ['BLOBS' as any],
-			justification: 'reason for needing the document',
-		});
-		await creating;
-		creating = null;
+		return;
+	}
+
+	creating = createOffscreenDocument({
+		url: path,
+		reasons: ['BLOBS' as any],
+		justification: 'reason for needing the document',
+	});
+	await creating;
+	creating = null;
+}
+
+async function createOffscreenDocument(
+	options: chrome.offscreen.CreateParameters
+) {
+	try {
+		// In rare cases, the createDocument call may fail due to the extension already
+		// having one document even in scenarios when the getContexts call above returned
+		// no contexts. I only saw it happening once and it could have been intermittent,
+		// but I'm still putting a failsafe in place.
+		// @TODO: Isolate the failure and get to the bottom of it.
+		return chrome.offscreen.createDocument(options);
+	} catch (e) {
+		await chrome.offscreen.closeDocument();
+		return chrome.offscreen.createDocument(options);
 	}
 }
 
