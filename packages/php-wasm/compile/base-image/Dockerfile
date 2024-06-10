@@ -36,6 +36,9 @@ RUN set -euxo pipefail;\
 # Install Emscripten from the repository. We'd use the official
 # Docker image, but there is no arm64 image available which makes
 # the build take forever on Apple Silicon.
+# 
+# When upgrading the Emscripten version, remember to build the PHP libraries before recompiling PHP versions.
+# Reference: https://github.com/WordPress/wordpress-playground/tree/trunk/packages/php-wasm/compile#libraries
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN git clone https://github.com/emscripten-core/emsdk.git && \
     ./emsdk/emsdk install 3.1.61 && \
