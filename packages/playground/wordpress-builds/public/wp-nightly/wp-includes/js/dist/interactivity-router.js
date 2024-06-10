@@ -56,6 +56,7 @@ const {
   populateInitialData,
   batch
 } = (0,interactivity_namespaceObject.privateApis)('I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress.');
+
 // Check if the navigation mode is full page or region based.
 const navigationMode = (_getConfig$navigation = (0,interactivity_namespaceObject.getConfig)('core/router').navigationMode) !== null && _getConfig$navigation !== void 0 ? _getConfig$navigation : 'regionBased';
 
@@ -66,7 +67,7 @@ const headElements = new Map();
 // Helper to remove domain and hash from the URL. We are only interesting in
 // caching the path and the query.
 const getPagePath = url => {
-  const u = new URL(url, window.location.href);
+  const u = new URL(url, window.location);
   return u.pathname + u.search;
 };
 
@@ -94,9 +95,7 @@ const fetchPage = async (url, {
 const regionsToVdom = async (dom, {
   vdom
 } = {}) => {
-  const regions = {
-    body: undefined
-  };
+  const regions = {};
   let head;
   if (false) {}
   if (navigationMode === 'regionBased') {
@@ -142,8 +141,8 @@ const renderRegions = page => {
  * potential feedback indicating that the navigation has finished while the new
  * page is being loaded.
  *
- * @param href The page href.
- * @return Promise that never resolves.
+ * @param {string} href The page href.
+ * @return {Promise} Promise that never resolves.
  */
 const forcePageReload = href => {
   window.location.assign(href);
@@ -153,7 +152,7 @@ const forcePageReload = href => {
 // Listen to the back and forward buttons and restore the page if it's in the
 // cache.
 window.addEventListener('popstate', async () => {
-  const pagePath = getPagePath(window.location.href); // Remove hash.
+  const pagePath = getPagePath(window.location); // Remove hash.
   const page = pages.has(pagePath) && (await pages.get(pagePath));
   if (page) {
     renderRegions(page);
@@ -165,10 +164,9 @@ window.addEventListener('popstate', async () => {
 });
 
 // Initialize the router and cache the initial page using the initial vDOM.
-// Once this code is tested and more mature, the head should be updated for
-// region based navigation as well.
+// Once this code is tested and more mature, the head should be updated for region based navigation as well.
 if (false) {}
-pages.set(getPagePath(window.location.href), Promise.resolve(regionsToVdom(document, {
+pages.set(getPagePath(window.location), Promise.resolve(regionsToVdom(document, {
   vdom: initialVdom
 })));
 
@@ -197,11 +195,7 @@ const {
     navigation: {
       hasStarted: false,
       hasFinished: false,
-      texts: {
-        loading: '',
-        loaded: ''
-      },
-      message: ''
+      texts: {}
     }
   },
   actions: {
@@ -212,16 +206,16 @@ const {
      * needed, and updates any interactive regions whose contents have
      * changed. It also creates a new entry in the browser session history.
      *
-     * @param href                               The page href.
-     * @param [options]                          Options object.
-     * @param [options.force]                    If true, it forces re-fetching the URL.
-     * @param [options.html]                     HTML string to be used instead of fetching the requested URL.
-     * @param [options.replace]                  If true, it replaces the current entry in the browser session history.
-     * @param [options.timeout]                  Time until the navigation is aborted, in milliseconds. Default is 10000.
-     * @param [options.loadingAnimation]         Whether an animation should be shown while navigating. Default to `true`.
-     * @param [options.screenReaderAnnouncement] Whether a message for screen readers should be announced while navigating. Default to `true`.
+     * @param {string}  href                               The page href.
+     * @param {Object}  [options]                          Options object.
+     * @param {boolean} [options.force]                    If true, it forces re-fetching the URL.
+     * @param {string}  [options.html]                     HTML string to be used instead of fetching the requested URL.
+     * @param {boolean} [options.replace]                  If true, it replaces the current entry in the browser session history.
+     * @param {number}  [options.timeout]                  Time until the navigation is aborted, in milliseconds. Default is 10000.
+     * @param {boolean} [options.loadingAnimation]         Whether an animation should be shown while navigating. Default to `true`.
+     * @param {boolean} [options.screenReaderAnnouncement] Whether a message for screen readers should be announced while navigating. Default to `true`.
      *
-     * @return  Promise that resolves once the navigation is completed or aborted.
+     * @return {Promise} Promise that resolves once the navigation is completed or aborted.
      */
     *navigate(href, options = {}) {
       const {
@@ -293,7 +287,7 @@ const {
         // Scroll to the anchor if exits in the link.
         const {
           hash
-        } = new URL(href, window.location.href);
+        } = new URL(href, window.location);
         if (hash) {
           document.querySelector(hash)?.scrollIntoView();
         }
@@ -307,10 +301,10 @@ const {
      * The function normalizes the URL and stores internally the fetch
      * promise, to avoid triggering a second fetch for an ongoing request.
      *
-     * @param url             The page URL.
-     * @param [options]       Options object.
-     * @param [options.force] Force fetching the URL again.
-     * @param [options.html]  HTML string to be used instead of fetching the requested URL.
+     * @param {string}  url             The page URL.
+     * @param {Object}  [options]       Options object.
+     * @param {boolean} [options.force] Force fetching the URL again.
+     * @param {string}  [options.html]  HTML string to be used instead of fetching the requested URL.
      */
     prefetch(url, options = {}) {
       const {
@@ -321,9 +315,7 @@ const {
       }
       const pagePath = getPagePath(url);
       if (options.force || !pages.has(pagePath)) {
-        pages.set(pagePath, fetchPage(pagePath, {
-          html: options.html
-        }));
+        pages.set(pagePath, fetchPage(pagePath, options));
       }
     }
   }

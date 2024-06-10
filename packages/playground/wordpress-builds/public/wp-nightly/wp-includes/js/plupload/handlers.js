@@ -16,8 +16,8 @@ function fileQueued( fileObj ) {
 	jQuery( '<div class="media-item">' )
 		.attr( 'id', 'media-item-' + fileObj.id )
 		.addClass( 'child-of-' + postid )
-		.append( jQuery( '<div class="filename original">' ).text( ' ' + fileObj.name ),
-			'<div class="progress"><div class="percent">0%</div><div class="bar"></div></div>' )
+		.append( '<div class="progress"><div class="percent">0%</div><div class="bar"></div></div>',
+			jQuery( '<div class="filename original">' ).text( ' ' + fileObj.name ) )
 		.appendTo( jQuery( '#media-items' ) );
 
 	// Disable submit.

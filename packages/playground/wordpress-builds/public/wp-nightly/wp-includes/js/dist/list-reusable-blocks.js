@@ -49,6 +49,8 @@ var __webpack_exports__ = {};
 // ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
 
+;// CONCATENATED MODULE: external "React"
+const external_React_namespaceObject = window["React"];
 ;// CONCATENATED MODULE: external ["wp","element"]
 const external_wp_element_namespaceObject = window["wp"]["element"];
 ;// CONCATENATED MODULE: external ["wp","i18n"]
@@ -637,9 +639,8 @@ async function importReusableBlock(file) {
 }
 /* harmony default export */ const utils_import = (importReusableBlock);
 
-;// CONCATENATED MODULE: external "ReactJSXRuntime"
-const external_ReactJSXRuntime_namespaceObject = window["ReactJSXRuntime"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/list-reusable-blocks/build-module/components/import-form/index.js
+
 /**
  * WordPress dependencies
  */
@@ -651,8 +652,6 @@ const external_ReactJSXRuntime_namespaceObject = window["ReactJSXRuntime"];
 /**
  * Internal dependencies
  */
-
-
 
 function ImportForm({
   instanceId,
@@ -703,35 +702,32 @@ function ImportForm({
   const onDismissError = () => {
     setError(null);
   };
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("form", {
+  return (0,external_React_namespaceObject.createElement)("form", {
     className: "list-reusable-blocks-import-form",
     onSubmit: onSubmit,
-    ref: formRef,
-    children: [error && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Notice, {
-      status: "error",
-      onRemove: () => onDismissError(),
-      children: error
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("label", {
-      htmlFor: inputId,
-      className: "list-reusable-blocks-import-form__label",
-      children: (0,external_wp_i18n_namespaceObject.__)('File')
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("input", {
-      id: inputId,
-      type: "file",
-      onChange: onChangeFile
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
-      type: "submit",
-      isBusy: isLoading,
-      disabled: !file || isLoading,
-      variant: "secondary",
-      className: "list-reusable-blocks-import-form__button",
-      children: (0,external_wp_i18n_namespaceObject._x)('Import', 'button label')
-    })]
-  });
+    ref: formRef
+  }, error && (0,external_React_namespaceObject.createElement)(external_wp_components_namespaceObject.Notice, {
+    status: "error",
+    onRemove: () => onDismissError()
+  }, error), (0,external_React_namespaceObject.createElement)("label", {
+    htmlFor: inputId,
+    className: "list-reusable-blocks-import-form__label"
+  }, (0,external_wp_i18n_namespaceObject.__)('File')), (0,external_React_namespaceObject.createElement)("input", {
+    id: inputId,
+    type: "file",
+    onChange: onChangeFile
+  }), (0,external_React_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
+    type: "submit",
+    isBusy: isLoading,
+    disabled: !file || isLoading,
+    variant: "secondary",
+    className: "list-reusable-blocks-import-form__button"
+  }, (0,external_wp_i18n_namespaceObject._x)('Import', 'button label')));
 }
 /* harmony default export */ const import_form = ((0,external_wp_compose_namespaceObject.withInstanceId)(ImportForm));
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/list-reusable-blocks/build-module/components/import-dropdown/index.js
+
 /**
  * WordPress dependencies
  */
@@ -743,11 +739,10 @@ function ImportForm({
  * Internal dependencies
  */
 
-
 function ImportDropdown({
   onUpload
 }) {
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Dropdown, {
+  return (0,external_React_namespaceObject.createElement)(external_wp_components_namespaceObject.Dropdown, {
     popoverProps: {
       placement: 'bottom-start'
     },
@@ -755,15 +750,14 @@ function ImportDropdown({
     renderToggle: ({
       isOpen,
       onToggle
-    }) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+    }) => (0,external_React_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
       "aria-expanded": isOpen,
       onClick: onToggle,
-      variant: "primary",
-      children: (0,external_wp_i18n_namespaceObject.__)('Import from JSON')
-    }),
+      variant: "primary"
+    }, (0,external_wp_i18n_namespaceObject.__)('Import from JSON')),
     renderContent: ({
       onClose
-    }) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(import_form, {
+    }) => (0,external_React_namespaceObject.createElement)(import_form, {
       onUpload: (0,external_wp_compose_namespaceObject.pipe)(onClose, onUpload)
     })
   });
@@ -771,6 +765,7 @@ function ImportDropdown({
 /* harmony default export */ const import_dropdown = (ImportDropdown);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/list-reusable-blocks/build-module/index.js
+
 /**
  * WordPress dependencies
  */
@@ -784,7 +779,6 @@ function ImportDropdown({
 
 
 // Setup Export Links.
-
 document.body.addEventListener('click', event => {
   if (!event.target.classList.contains('wp-list-reusable-blocks__export')) {
     return;
@@ -812,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.createElement('div');
   container.className = 'list-reusable-blocks__container';
   button.parentNode.insertBefore(container, button);
-  (0,external_wp_element_namespaceObject.createRoot)(container).render( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(import_dropdown, {
+  (0,external_wp_element_namespaceObject.createRoot)(container).render((0,external_React_namespaceObject.createElement)(import_dropdown, {
     onUpload: showNotice
   }));
 });
