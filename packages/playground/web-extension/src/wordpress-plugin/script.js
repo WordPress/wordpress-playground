@@ -31,7 +31,6 @@ var init_blocky_formats = __esm(() => {
 	];
 	go = () => {
 		wp.blocks.getBlockTypes().forEach((blockType) => {
-			console.log('blockType.name', blockType.name);
 			if (!supportedBlocks.includes(blockType.name)) {
 				wp.blocks.unregisterBlockType(blockType.name);
 			} else if (blockType.name === 'core/list-item') {
@@ -119,15 +118,32 @@ var populateEditorWithFormattedText = function (text) {
 	}
 	wp2.data.dispatch('core/block-editor').resetBlocks(createBlocks(rawBlocks));
 };
+var pushEditorContentsToParent = function () {
+	const blocks = wp2.data.select('core/block-editor').getBlocks();
+	window.opener.postMessage(
+		{
+			command: 'playgroundEditorTextChanged',
+			format,
+			text: formatConverters[format].fromBlocks(blocks),
+			type: 'relay',
+		},
+		'*'
+	);
+};
+var onPublish = function () {
+	pushEditorContentsToParent();
+	window.close();
+	window.opener.focus();
+};
 var wp2 = window.wp;
 var format = 'markdown';
 window.addEventListener('message', (event) => {
 	if (typeof event.data !== 'object') {
 		return;
 	}
-	const { command, text } = event.data;
+	const { command, value } = event.data;
 	if (command === 'setEditorContent') {
-		populateEditorWithFormattedText(text);
+		populateEditorWithFormattedText(value);
 	} else if (command === 'getEditorContent') {
 		const blocks = wp2.data.select('core/block-editor').getBlocks();
 		window.opener.postMessage(
@@ -172,3 +188,17 @@ var createBlocks = (blocks) =>
 			createBlocks(block.innerBlocks)
 		)
 	);
+var { subscribe, select } = wp2.data;
+var isSavingPost = false;
+subscribe(() => {
+	const currentPost = select('core/editor').getCurrentPost();
+	const isSaving = select('core/editor').isSavingPost();
+	if (!isSavingPost && isSaving) {
+		const postStatus = currentPost.status;
+		const postType = currentPost.type;
+		if (postStatus === 'publish' && postType !== 'auto-draft') {
+			onPublish();
+		}
+	}
+	isSavingPost = isSaving;
+});

@@ -67,7 +67,9 @@ var enableEditInPlaygroundButton = function () {
 		currentElement = element;
 		const rect = element.getBoundingClientRect();
 		button.style.display = 'block';
-		button.style.top = `${window.scrollY + rect.top}px`;
+		button.style.top = `${
+			window.scrollY + rect.bottom - button.offsetHeight
+		}px`;
 		button.style.left = `${
 			window.scrollX + rect.right - button.offsetWidth
 		}px`;
@@ -104,41 +106,22 @@ var enableEditInPlaygroundButton = function () {
 		return button2;
 	}
 };
-var openPlaygroundEditorFor = function (element) {
+async function openPlaygroundEditorFor(element) {
 	const localEditor = wrapLocalEditable(element);
 	const initialValue = localEditor.getValue();
-	const playgroundEditor = openPlaygroundEditor({
+	const playgroundEditor = await openPlaygroundEditor({
 		format: 'markdown',
 		initialValue,
 	});
-	const unbindBootListener = bindEventListener(window, 'message', (event) => {
-		if (
-			event.source === playgroundEditor.windowHandle &&
-			event.data.command === 'getBootParameters'
-		) {
-			playgroundEditor.windowHandle.postMessage(
-				responseTo(event.data.requestId, {
-					value: initialValue,
-					format: 'markdown',
-				}),
-				'*'
-			);
-			unbindBootListener();
-			pollEditorValue();
-		}
-	});
 	let lastRemoteValue = initialValue;
-	let pollInterval = null;
-	function pollEditorValue() {
-		pollInterval = setInterval(() => {
-			playgroundEditor.getValue().then((value) => {
-				if (value !== lastRemoteValue) {
-					lastRemoteValue = value;
-					localEditor.setValue(value);
-				}
-			});
-		}, 1000);
-	}
+	const pollInterval = setInterval(() => {
+		playgroundEditor.getValue().then((value) => {
+			if (value !== lastRemoteValue) {
+				lastRemoteValue = value;
+				localEditor.setValue(value);
+			}
+		});
+	}, 1000);
 	const cleanup = [
 		bindEventListener(element, 'change', () => {
 			const value = localEditor.getValue();
@@ -148,7 +131,6 @@ var openPlaygroundEditorFor = function (element) {
 		bindEventListener(window, 'beforeunload', () => {
 			playgroundEditor.windowHandle.close();
 		}),
-		unbindBootListener,
 		() => {
 			pollInterval && clearInterval(pollInterval);
 		},
@@ -157,7 +139,7 @@ var openPlaygroundEditorFor = function (element) {
 		cleanup.forEach((fn) => fn());
 	});
 	return playgroundEditor;
-};
+}
 var bindEventListener = function (target, type, listener) {
 	target.addEventListener(type, listener);
 	return () => target.removeEventListener(type, listener);
@@ -186,16 +168,43 @@ var wrapLocalEditable = function (element) {
 		'Unsupported element type, only Textarea and contenteditable elements are accepted.'
 	);
 };
-var openPlaygroundEditor = function ({ format, initialValue }) {
+async function openPlaygroundEditor({ format, initialValue }) {
 	const windowHandle = window.open(
-		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post#' +
-			encodeURIComponent(initialValue),
+		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post',
 		'_blank',
 		'width=800,height=600'
 	);
 	if (windowHandle === null) {
 		throw new Error('Failed to open the playground editor window');
 	}
+	await new Promise((resolve, reject) => {
+		const unbindRejectionListener = onWindowClosed(windowHandle, () => {
+			unbindBootListener();
+			unbindRejectionListener();
+			reject();
+		});
+		const unbindBootListener = bindEventListener(
+			window,
+			'message',
+			(event) => {
+				if (
+					event.source === windowHandle &&
+					event.data.command === 'getBootParameters'
+				) {
+					unbindBootListener();
+					unbindRejectionListener();
+					windowHandle.postMessage(
+						responseTo(event.data.requestId, {
+							value: initialValue,
+							format,
+						}),
+						'*'
+					);
+					resolve(null);
+				}
+			}
+		);
+	});
 	return {
 		windowHandle,
 		async getValue() {
@@ -213,22 +222,25 @@ var openPlaygroundEditor = function ({ format, initialValue }) {
 			windowHandle.postMessage(
 				{
 					command: 'setEditorContent',
-					format,
-					text: value,
+					value,
 					type: 'relay',
 				},
 				'*'
 			);
 		},
 	};
-};
+}
 var onWindowClosed = function (windowObject, callback) {
 	const timer = setInterval(checkWindowClosed, 500);
+	function unbind() {
+		clearInterval(timer);
+	}
 	function checkWindowClosed() {
 		if (windowObject.closed) {
-			clearInterval(timer);
+			unbind();
 			callback();
 		}
 	}
+	return unbind;
 };
 enableEditInPlaygroundButton();

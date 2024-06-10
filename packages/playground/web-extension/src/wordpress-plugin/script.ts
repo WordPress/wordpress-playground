@@ -13,10 +13,10 @@ window.addEventListener('message', (event) => {
 		return;
 	}
 
-	const { command, text } = event.data;
+	const { command, value } = event.data;
 
 	if (command === 'setEditorContent') {
-		populateEditorWithFormattedText(text);
+		populateEditorWithFormattedText(value);
 	} else if (command === 'getEditorContent') {
 		const blocks = wp.data.select('core/block-editor').getBlocks();
 		window.opener.postMessage(

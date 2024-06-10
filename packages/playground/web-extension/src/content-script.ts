@@ -28,7 +28,9 @@ function enableEditInPlaygroundButton() {
 		currentElement = element;
 		const rect = element.getBoundingClientRect();
 		button.style.display = 'block';
-		button.style.top = `${window.scrollY + rect.top}px`;
+		button.style.top = `${
+			window.scrollY + rect.bottom - button.offsetHeight
+		}px`;
 		button.style.left = `${
 			window.scrollX + rect.right - button.offsetWidth
 		}px`;
@@ -71,48 +73,24 @@ function enableEditInPlaygroundButton() {
 enableEditInPlaygroundButton();
 
 // Function to wait until DOM is fully loaded
-function openPlaygroundEditorFor(element: any) {
+async function openPlaygroundEditorFor(element: any) {
 	const localEditor = wrapLocalEditable(element);
 	const initialValue = localEditor.getValue();
-	const playgroundEditor = openPlaygroundEditor({
+	const playgroundEditor = await openPlaygroundEditor({
 		format: 'markdown',
 		initialValue,
 	});
 
-	const unbindBootListener = bindEventListener(
-		window,
-		'message',
-		(event: MessageEvent) => {
-			if (
-				event.source === playgroundEditor.windowHandle &&
-				event.data.command === 'getBootParameters'
-			) {
-				playgroundEditor.windowHandle.postMessage(
-					responseTo(event.data.requestId, {
-						value: initialValue,
-						format: 'markdown',
-					}),
-					'*'
-				);
-				unbindBootListener();
-				pollEditorValue();
-			}
-		}
-	);
-
 	// Update the local editor when the playground editor changes
 	let lastRemoteValue = initialValue;
-	let pollInterval: any = null;
-	function pollEditorValue() {
-		pollInterval = setInterval(() => {
-			playgroundEditor.getValue().then((value) => {
-				if (value !== lastRemoteValue) {
-					lastRemoteValue = value;
-					localEditor.setValue(value);
-				}
-			});
-		}, 1000);
-	}
+	const pollInterval = setInterval(() => {
+		playgroundEditor.getValue().then((value) => {
+			if (value !== lastRemoteValue) {
+				lastRemoteValue = value;
+				localEditor.setValue(value);
+			}
+		});
+	}, 1000);
 
 	const cleanup = [
 		// When typing in the textarea, update the playground editor
@@ -125,7 +103,6 @@ function openPlaygroundEditorFor(element: any) {
 		bindEventListener(window, 'beforeunload', () => {
 			playgroundEditor.windowHandle.close();
 		}),
-		unbindBootListener,
 		() => {
 			pollInterval && clearInterval(pollInterval);
 		},
@@ -173,13 +150,12 @@ interface PlaygroundEditorOptions {
 	initialValue: string;
 }
 
-function openPlaygroundEditor({
+async function openPlaygroundEditor({
 	format,
 	initialValue,
 }: PlaygroundEditorOptions) {
 	const windowHandle = window.open(
-		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post#' +
-			encodeURIComponent(initialValue),
+		'http://localhost:5400/scope:777777777/wp-admin/post-new.php?post_type=post',
 		'_blank',
 		'width=800,height=600'
 	)!;
@@ -187,6 +163,36 @@ function openPlaygroundEditor({
 	if (null === windowHandle) {
 		throw new Error('Failed to open the playground editor window');
 	}
+
+	await new Promise((resolve, reject) => {
+		const unbindRejectionListener = onWindowClosed(windowHandle, () => {
+			unbindBootListener();
+			unbindRejectionListener();
+			reject();
+		});
+
+		const unbindBootListener = bindEventListener(
+			window,
+			'message',
+			(event: MessageEvent) => {
+				if (
+					event.source === windowHandle &&
+					event.data.command === 'getBootParameters'
+				) {
+					unbindBootListener();
+					unbindRejectionListener();
+					windowHandle.postMessage(
+						responseTo(event.data.requestId, {
+							value: initialValue,
+							format: format,
+						}),
+						'*'
+					);
+					resolve(null);
+				}
+			}
+		);
+	});
 
 	return {
 		windowHandle,
@@ -205,8 +211,7 @@ function openPlaygroundEditor({
 			windowHandle.postMessage(
 				{
 					command: 'setEditorContent',
-					format,
-					text: value,
+					value,
 					type: 'relay',
 				},
 				'*'
@@ -219,10 +224,14 @@ function openPlaygroundEditor({
 function onWindowClosed(windowObject: any, callback: any) {
 	// Set an interval to periodically check if the window is closed
 	const timer = setInterval(checkWindowClosed, 500);
+	function unbind() {
+		clearInterval(timer);
+	}
 	function checkWindowClosed() {
 		if (windowObject.closed) {
-			clearInterval(timer);
+			unbind();
 			callback();
 		}
 	}
+	return unbind;
 }
