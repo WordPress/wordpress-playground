@@ -737,9 +737,10 @@ function useShortcut(name, callback, {
   }, [name, isDisabled, shortcuts]);
 }
 
-;// CONCATENATED MODULE: external "ReactJSXRuntime"
-const external_ReactJSXRuntime_namespaceObject = window["ReactJSXRuntime"];
+;// CONCATENATED MODULE: external "React"
+const external_React_namespaceObject = window["React"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/keyboard-shortcuts/build-module/components/shortcut-provider.js
+
 /**
  * WordPress dependencies
  */
@@ -748,7 +749,6 @@ const external_ReactJSXRuntime_namespaceObject = window["ReactJSXRuntime"];
 /**
  * Internal dependencies
  */
-
 
 const {
   Provider
@@ -775,13 +775,12 @@ function ShortcutProvider(props) {
   }
 
   /* eslint-disable jsx-a11y/no-static-element-interactions */
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(Provider, {
-    value: keyboardShortcuts,
-    children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
-      ...props,
-      onKeyDown: onKeyDown
-    })
-  });
+  return (0,external_React_namespaceObject.createElement)(Provider, {
+    value: keyboardShortcuts
+  }, (0,external_React_namespaceObject.createElement)("div", {
+    ...props,
+    onKeyDown: onKeyDown
+  }));
   /* eslint-enable jsx-a11y/no-static-element-interactions */
 }
 
