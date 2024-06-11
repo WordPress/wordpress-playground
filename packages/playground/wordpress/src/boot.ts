@@ -285,8 +285,7 @@ export async function getLoadedWordPressVersion(
 	}
 
 	if (!loadedVersion) {
-		// TODO: Is there something better than throwing at this stage?
-		return undefined;
+		throw new Error('Unable to detected loaded WordPress version.');
 	}
 
 	return loadedVersion;
