@@ -40,6 +40,8 @@ export function versionStringToLoadedWordPressVersion(
 		return majorMinorMatch[1];
 	}
 
+	// Return original version string if we could not parse it.
+	// This is important to allow so folks can bring their own WP builds.
 	return wpVersionString;
 }
 
