@@ -17,7 +17,9 @@ export const SiteButton = ({
 	const [title, setTitle] = useState<string>();
 
 	useEffect(() => {
-		if (newAction) {
+		if (typeof newAction === 'string') {
+			setTitle(newAction);
+		} else if (newAction) {
 			setTitle('Added ' + newAction.title);
 		} else {
 			setTitle(mainCta);

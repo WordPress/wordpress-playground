@@ -20,6 +20,14 @@ body,
 	height: 56px;
 	cursor: pointer;
 
+	&.is-primary {
+		&,
+		&:hover,
+		&.is-busy {
+			background-color: #3858e9;
+		}
+	}
+
 	&.is-secondary {
 		background-color: #fff;
 		color: #1e1e1e;
@@ -28,5 +36,22 @@ body,
 
 	& > svg {
 		margin-right: 8px;
+	}
+}
+
+.components-notice {
+	width: calc(100% - 72px);
+	max-width: 640px;
+	left: 50%;
+	transform: translateX(-50%);
+	margin: 4px 0;
+	bottom: 0;
+	position: absolute !important;
+	z-index: 3;
+	padding: 8px 12px !important;
+	height: 40px;
+	.components-button {
+		padding: 6px;
+		height: 40px;
 	}
 }

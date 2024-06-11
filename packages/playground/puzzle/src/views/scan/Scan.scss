@@ -16,27 +16,23 @@ $spacing: 18px;
 	}
 }
 
-.components-notice.scan__error {
-	margin: $spacing;
-	z-index: 2;
-	.components-button {
-		padding: 6px;
-	}
-}
-
 .scan__description {
 	color: #fff;
 	text-align: center;
 	font-size: 16px;
 	font-weight: 400;
-	line-height: 30px;
 	position: absolute;
 	top: 0;
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 2;
 	max-width: 320px;
-	margin-top: 64px;
+	margin-top: 66px;
+	width: 100%;
+	> p {
+		margin-top: 0;
+		line-height: 30px;
+	}
 }
 
 .scan__dots {
@@ -55,5 +51,15 @@ $spacing: 18px;
 		height: 13px;
 		width: 13px;
 		fill: #fff;
+	}
+}
+.scan__no-actions-button {
+	width: 100%;
+	background-color: #cc1818 !important;
+	color: #fff !important;
+	cursor: auto !important;
+	&:hover {
+		color: #fff !important;
+		box-shadow: none !important;
 	}
 }

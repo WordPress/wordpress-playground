@@ -413,10 +413,10 @@ export namespace Emscripten {
 		: StringToType<Exclude<R, null>>;
 
 	// Below runtime function/variable declarations are exportable by
-	// -s EXTRA_EXPORTED_RUNTIME_METHODS. You can extend or merge
+	// -s EXPORTED_RUNTIME_METHODS. You can extend or merge
 	// EmscriptenModule export interface to add runtime functions.
 	//
-	// For example, by using -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']"
+	// For example, by using -s "EXPORTED_RUNTIME_METHODS=['ccall']"
 	// You can access ccall() via Module["ccall"]. In this case, you should
 	// extend EmscriptenModule to pass the compiler check like the following:
 	//

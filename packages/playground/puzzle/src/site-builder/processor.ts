@@ -7,11 +7,11 @@ import yith from './blueprints/yith.json';
 import dynamicOoo from './blueprints/dynamic-ooo.json';
 import personalizewp from './blueprints/personalizewp.json';
 import jetformbuilder from './blueprints/jetformbuilder.json';
-// import fastspring from './blueprints/fastspring.json';
+import fastspring from './blueprints/fastspring.json';
 import cookiebot from './blueprints/cookiebot.json';
 import w3TotalCache from './blueprints/w3-total-cache.json';
 import siteground from './blueprints/siteground.json';
-// import yoast from './blueprints/yoast.json';
+import yoast from './blueprints/yoast.json';
 
 export type Action = {
 	title: string;
@@ -54,9 +54,9 @@ export const actions: { [key: string]: Action } = {
 	jetformbuilder: {
 		title: 'JetFormBuilder',
 	},
-	// fastspring: {
-	//   title: "Fastspring",
-	// },
+	fastspring: {
+		title: 'Fastspring',
+	},
 	cookiebot: {
 		title: 'Cookiebot',
 	},
@@ -66,9 +66,9 @@ export const actions: { [key: string]: Action } = {
 	siteground: {
 		title: 'SiteGround',
 	},
-	// yoast: {
-	//   title: "Yoast",
-	// },
+	yoast: {
+		title: 'Yoast',
+	},
 };
 
 const actionBlueprints = {
@@ -80,11 +80,11 @@ const actionBlueprints = {
 	'dynamic.ooo': dynamicOoo,
 	personalizewp,
 	jetformbuilder,
-	// fastspring,
+	fastspring,
 	cookiebot,
 	'w3 total cache': w3TotalCache,
 	siteground,
-	// yoast,
+	yoast,
 };
 
 export const getActions = (titles: string[]) => {
@@ -113,6 +113,8 @@ export const processImage = async (actions: string[]) => {
 	);
 	if (actions.includes('/wp-admin/')) {
 		blueprint['landingPage'] = '/wp-admin/';
+	} else if (actions.length > 1) {
+		blueprint['landingPage'] = '/wp-admin/plugins.php';
 	}
 
 	if (actions.includes('multisite')) {
@@ -161,6 +163,16 @@ export const processImage = async (actions: string[]) => {
 			path: '/wordpress/wp-content/mu-plugins/rewrite.php',
 			data: "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );",
 		},
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-elementor-onboarding.php',
+			data: "<?php add_action( 'activate_plugin', function() { update_option('elementor_onboarded', true); } );",
+		},
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/disable-yoast-onboarding.php',
+			data: "<?php add_action( 'wpseo_activate', function() { $option_array = get_option('wpseo'); if ( $option_array && is_array( $option_array ) ) { $option_array['should_redirect_after_install_free'] = false; update_option( 'wpseo', $option_array ); } }, 1000 );",
+		},
 		...blueprint.steps,
 	];
 	return blueprint;
@@ -178,7 +190,6 @@ const mergeBlueprints = (blueprints: any[]) => {
 	};
 
 	const landingPages: string[] = [];
-	let pluginsInstalled = 0;
 	let themeInstalled = false;
 	for (const blueprint of blueprints) {
 		if (!blueprint) {
@@ -197,10 +208,6 @@ const mergeBlueprints = (blueprints: any[]) => {
 			),
 		];
 
-		pluginsInstalled += blueprint.steps.filter(
-			(step: any) => step.step === 'installPlugin'
-		).length;
-
 		if (
 			themeInstalled === false &&
 			blueprint.steps.find((step: any) => step.step === 'installTheme')
@@ -209,12 +216,8 @@ const mergeBlueprints = (blueprints: any[]) => {
 		}
 	}
 
-	// If multiple plugins are installed, go to the plugins list
-	if (pluginsInstalled > 1) {
-		newBlueprint.landingPage = '/wp-admin/plugins.php';
-	}
 	// If one landing page is defined, use it
-	else if (themeInstalled) {
+	if (themeInstalled) {
 		newBlueprint.landingPage = '/';
 	}
 	// If multiple landing pages are defined, go to the first one

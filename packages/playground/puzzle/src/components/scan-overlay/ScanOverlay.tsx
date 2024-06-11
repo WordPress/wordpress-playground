@@ -27,7 +27,7 @@ export const ScanOverlay = () => {
 		ctx.globalCompositeOperation = 'destination-out';
 
 		const originalImageWidth = 526;
-		const originalImageHeight = 458;
+		const originalImageHeight = 526;
 		const img = new Image();
 		img.src = overlayImage;
 

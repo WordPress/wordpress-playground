@@ -4,7 +4,7 @@ import { ScanVideo } from '../../components/scan-video/ScanVideo';
 import './Scan.scss';
 import { ScanContext } from '../../context/scan';
 import { ScanButton } from '../../components/scan-button/ScanButton';
-import { Icon, Notice } from '@wordpress/components';
+import { Button, Icon, Notice } from '@wordpress/components';
 import { useNavigate } from 'react-router-dom';
 import { SiteButton } from '../../components/SiteButton/SiteButton';
 import { capturePhoto } from '@wordpress/icons';
@@ -21,7 +21,8 @@ export const Scan = () => {
 	const [siteLoading, setSiteLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [detectedActions, setDetectedActions] = useState<string[]>();
-	const [newAction, setNewAction] = useState<Action | null>(null);
+	const [newAction, setNewAction] = useState<Action | string | null>(null);
+	const [showNoActions, setShowNoActions] = useState(false);
 	const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(
 		null
 	);
@@ -59,6 +60,11 @@ export const Scan = () => {
 	};
 
 	const onSuccess = (newActionTitles: string[]) => {
+		setShowNoActions(false);
+		if (!newActionTitles || newActionTitles.length === 0) {
+			setShowNoActions(true);
+			return;
+		}
 		const newActions = getActions(newActionTitles).filter(
 			(newAction) =>
 				!detectedActions ||
@@ -70,7 +76,11 @@ export const Scan = () => {
 			return;
 		}
 
-		setNewAction(actions[newActions[newActions.length - 1]!]);
+		setNewAction(
+			newActions.length === 1
+				? actions[newActions[newActions.length - 1]!]
+				: `Added ${newActions.length} piece`
+		);
 		setTimeout(() => {
 			setNewAction(null);
 		}, 2000);
@@ -133,6 +143,13 @@ export const Scan = () => {
 								onClick={onClick}
 								newAction={newAction}
 								isBusy={siteLoading}
+							/>
+						)}
+						{showNoActions && (
+							<Button
+								className="scan__no-actions-button"
+								variant="secondary"
+								text="No puzzle pieces found. Focus the camera and try again."
 							/>
 						)}
 					</div>

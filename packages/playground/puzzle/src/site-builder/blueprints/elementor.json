@@ -20,16 +20,6 @@
 			"options": {
 				"activate": true
 			}
-		},
-		{
-			"step": "installPlugin",
-			"pluginZipFile": {
-				"resource": "wordpress.org/plugins",
-				"slug": "image-optimization"
-			},
-			"options": {
-				"activate": true
-			}
 		}
 	]
 }

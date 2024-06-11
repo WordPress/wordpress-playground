@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { logger } from '@php-wasm/logger';
+import { logEventType, logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
 
@@ -20,7 +20,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
-	useEffect(getLogs, [activeModal]);
+	useEffect(() => {
+		getLogs();
+		logger.addEventListener(logEventType, getLogs);
+		return () => {
+			logger.removeEventListener(logEventType, getLogs);
+		};
+	}, [activeModal]);
 
 	function getLogs() {
 		setLogs(logger.getLogs());

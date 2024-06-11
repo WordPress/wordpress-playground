@@ -1,4 +1,7 @@
+import { logEvent } from './handlers/log-event';
 import { logToMemory, logToConsole, logs } from './log-handlers';
+
+export { logEventType } from './handlers/log-event';
 
 export type Log = {
 	message: any;
@@ -154,12 +157,12 @@ export class Logger extends EventTarget {
 const getDefaultHandlers = () => {
 	try {
 		if (process.env['NODE_ENV'] === 'test') {
-			return [logToMemory];
+			return [logToMemory, logEvent];
 		}
 	} catch (e) {
 		// Process.env is not available in the browser
 	}
-	return [logToMemory, logToConsole];
+	return [logToMemory, logToConsole, logEvent];
 };
 
 /**
