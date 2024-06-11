@@ -18,6 +18,7 @@ import {
 	wordPressRewriteRules,
 } from '.';
 import { joinPaths } from '@php-wasm/util';
+import { SupportedWordPressVersions } from '@wp-playground/wordpress-builds';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -255,4 +256,48 @@ async function installWordPress(php: PHP) {
 				},
 			})
 	);
+}
+
+export async function getLoadedWordPressVersion(
+	php: PHP,
+	wordpressRoot: string
+): Promise<string | undefined> {
+	const result = await php.run({
+		code: `<?php
+			if (is_file('${wordpressRoot}/wp-includes/version.php')) {
+				require '${wordpressRoot}/wp-includes/version.php';
+				echo $wp_version;
+			}
+		`,
+	});
+
+	if (result.errors.length > 0) {
+		// TODO: Find a way to warn
+		return undefined;
+	}
+
+	let loadedVersion = '';
+	const wpVersion = result.text;
+	if (wpVersion) {
+		if (wpVersion.includes('-alpha')) {
+			loadedVersion = 'nightly';
+		} else if (wpVersion.includes('-beta')) {
+			loadedVersion = 'beta';
+		} else {
+			const majorMinorMatch = wpVersion.match(/^(\d+\.\d+)\.\d+$/);
+			loadedVersion = majorMinorMatch ? majorMinorMatch[1] : '';
+		}
+	}
+
+	if (!loadedVersion) {
+		// TODO: Is there something better than throwing at this stage?
+		return undefined;
+	}
+
+	return loadedVersion;
+}
+
+export function isSupportedWordPressVersion(wpVersion: string) {
+	const supportedVersionKeys = Object.keys(SupportedWordPressVersions);
+	return supportedVersionKeys.includes(wpVersion);
 }

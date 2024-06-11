@@ -35,7 +35,11 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { PHPWorker } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
+import {
+	bootWordPress,
+	getLoadedWordPressVersion,
+	isSupportedWordPressVersion,
+} from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
 
@@ -209,6 +213,7 @@ try {
 		'sqlite.zip'
 	);
 
+	const wordPressMountpoint = '/wordpress';
 	const requestHandler = await bootWordPress({
 		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 		createPhpRuntime,
@@ -222,7 +227,7 @@ try {
 				if (virtualOpfsDir) {
 					await bindOpfs({
 						php,
-						mountpoint: '/wordpress',
+						mountpoint: wordPressMountpoint,
 						opfs: virtualOpfsDir!,
 						initialSyncDirection: wordPressAvailableInOPFS
 							? 'opfs-to-memfs'
@@ -245,6 +250,21 @@ try {
 
 	const primaryPhp = await requestHandler.getPrimaryPhp();
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
+
+	// NOTE: We need to derive the loaded WP version or we might assume WP loaded
+	// from browser storage is the default version when it is actually something else.
+	// Incorrectly assuming WP version can break things like remote asset retrieval
+	// for minified WP builds.
+	const loadedWordPressVersion = await getLoadedWordPressVersion(
+		primaryPhp,
+		wordPressMountpoint
+	);
+	if (
+		loadedWordPressVersion !== undefined &&
+		isSupportedWordPressVersion(loadedWordPressVersion)
+	) {
+		apiEndpoint.wordPressVersion = loadedWordPressVersion;
+	}
 
 	setApiReady();
 } catch (e) {
