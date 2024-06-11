@@ -113,6 +113,8 @@ export const processImage = async (actions: string[]) => {
 	);
 	if (actions.includes('/wp-admin/')) {
 		blueprint['landingPage'] = '/wp-admin/';
+	} else if (actions.length > 1) {
+		blueprint['landingPage'] = '/wp-admin/plugins.php';
 	}
 
 	if (actions.includes('multisite')) {
@@ -188,7 +190,6 @@ const mergeBlueprints = (blueprints: any[]) => {
 	};
 
 	const landingPages: string[] = [];
-	let pluginsInstalled = 0;
 	let themeInstalled = false;
 	for (const blueprint of blueprints) {
 		if (!blueprint) {
@@ -207,10 +208,6 @@ const mergeBlueprints = (blueprints: any[]) => {
 			),
 		];
 
-		pluginsInstalled += blueprint.steps.filter(
-			(step: any) => step.step === 'installPlugin'
-		).length;
-
 		if (
 			themeInstalled === false &&
 			blueprint.steps.find((step: any) => step.step === 'installTheme')
@@ -219,12 +216,8 @@ const mergeBlueprints = (blueprints: any[]) => {
 		}
 	}
 
-	// If multiple plugins are installed, go to the plugins list
-	if (pluginsInstalled > 1) {
-		newBlueprint.landingPage = '/wp-admin/plugins.php';
-	}
 	// If one landing page is defined, use it
-	else if (themeInstalled) {
+	if (themeInstalled) {
 		newBlueprint.landingPage = '/';
 	}
 	// If multiple landing pages are defined, go to the first one
