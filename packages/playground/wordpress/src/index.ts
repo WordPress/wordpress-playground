@@ -1,11 +1,11 @@
 import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
+export { bootWordPress } from './boot';
 export {
-	bootWordPress,
 	getLoadedWordPressVersion,
 	isSupportedWordPressVersion,
-} from './boot';
+} from './version-detect';
 
 export * from './rewrite-rules';
 
