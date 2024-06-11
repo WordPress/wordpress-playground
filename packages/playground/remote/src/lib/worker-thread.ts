@@ -258,10 +258,7 @@ try {
 	const loadedWordPressVersion = await getLoadedWordPressVersion(
 		requestHandler
 	);
-	if (
-		loadedWordPressVersion !== undefined &&
-		isSupportedWordPressVersion(loadedWordPressVersion)
-	) {
+	if (isSupportedWordPressVersion(loadedWordPressVersion)) {
 		apiEndpoint.wordPressVersion = loadedWordPressVersion;
 	}
 

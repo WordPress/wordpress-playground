@@ -3,7 +3,7 @@ import { SupportedWordPressVersions } from '@wp-playground/wordpress-builds';
 
 export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
-): Promise<string | undefined> {
+): Promise<string> {
 	const php = await requestHandler.getPrimaryPhp();
 	const result = await php.run({
 		code: `<?php
