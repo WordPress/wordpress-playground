@@ -271,11 +271,6 @@ export async function getLoadedWordPressVersion(
 		`,
 	});
 
-	if (result.errors.length > 0) {
-		// TODO: Find a way to warn
-		return undefined;
-	}
-
 	let loadedVersion = '';
 	const wpVersion = result.text;
 	if (wpVersion) {
