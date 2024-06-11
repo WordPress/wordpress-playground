@@ -7,10 +7,8 @@ export async function getLoadedWordPressVersion(
 	const php = await requestHandler.getPrimaryPhp();
 	const result = await php.run({
 		code: `<?php
-			if (is_file('${requestHandler.documentRoot}/wp-includes/version.php')) {
-				require '${requestHandler.documentRoot}/wp-includes/version.php';
-				echo $wp_version;
-			}
+			require '${requestHandler.documentRoot}/wp-includes/version.php';
+			echo $wp_version;
 		`,
 	});
 
@@ -19,20 +17,13 @@ export async function getLoadedWordPressVersion(
 		throw new Error('Unable to read loaded WordPress version.');
 	}
 
-	const loadedVersion = versionStringToLoadedWordPressVersion(versionString);
-	if (!loadedVersion) {
-		throw new Error(
-			`Unable to parse loaded WordPress version: '${versionString}'`
-		);
-	}
-
-	return loadedVersion;
+	return versionStringToLoadedWordPressVersion(versionString);
 }
 
 // TODO: Improve name
 export function versionStringToLoadedWordPressVersion(
 	wpVersionString: string
-): string | undefined {
+): string {
 	const nightlyPattern = /-(alpha|beta|RC)\d*-\d+$/;
 	if (nightlyPattern.test(wpVersionString)) {
 		return 'nightly';
@@ -49,7 +40,7 @@ export function versionStringToLoadedWordPressVersion(
 		return majorMinorMatch[1];
 	}
 
-	return undefined;
+	return wpVersionString;
 }
 
 export function isSupportedWordPressVersion(wpVersion: string) {

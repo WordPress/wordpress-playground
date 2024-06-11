@@ -32,12 +32,29 @@ describe('Test WP version detection', async () => {
 		});
 	}
 
-	it('errors on failure to detect version at runtime', async () => {
+	it('errors when unable to read version at runtime', async () => {
 		const handler = await bootWordPress({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+		});
+		const php = await handler.getPrimaryPhp();
 
+		php.unlink(`${handler.documentRoot}/wp-includes/version.php`);
+		const detectionResult = await getLoadedWordPressVersion(handler).then(
+			() => 'no-error',
+			() => 'error'
+		);
+		expect(detectionResult).to.equal('error');
+	});
+
+	it('errors on reading empty version at runtime', async () => {
+		const handler = await bootWordPress({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 		});
@@ -45,7 +62,7 @@ describe('Test WP version detection', async () => {
 
 		php.writeFile(
 			`${handler.documentRoot}/wp-includes/version.php`,
-			'<?php $wp_version = "invalid-version";'
+			'<?php $wp_version = "";'
 		);
 
 		const detectionResult = await getLoadedWordPressVersion(handler).then(
@@ -68,7 +85,7 @@ describe('Test WP version detection', async () => {
 		'6.6-beta2': 'beta',
 		'6.6-RC': 'beta',
 		'6.6-RC2': 'beta',
-		'not-a-version': undefined,
+		'custom-version': 'custom-version',
 	};
 
 	for (const [input, expected] of Object.entries(versionMap)) {
