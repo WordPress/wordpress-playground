@@ -12,13 +12,6 @@ describe('Test WP version detection', async () => {
 	for (const expectedWordPressVersion of Object.keys(
 		SupportedWordPressVersions
 	)) {
-		if (expectedWordPressVersion === 'nightly') {
-			// The nightly version is an unstable case that is sometimes
-			// detected as "beta". Nightly builds are transient, and we
-			// do not yet have a plan for ensuring stable execution of
-			// cached, stale nightly builds. Let's skip testing this for now.
-			continue;
-		}
 		it(`detects WP ${expectedWordPressVersion}`, async () => {
 			const handler = await bootWordPress({
 				createPhpRuntime: async () =>

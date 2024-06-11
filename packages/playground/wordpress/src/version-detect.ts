@@ -17,7 +17,8 @@ export async function getLoadedWordPressVersion(
 	let loadedVersion = '';
 	const wpVersion = result.text;
 	if (wpVersion) {
-		if (wpVersion.includes('-alpha')) {
+		const nightlyPattern = /-(alpha|beta)\d*-\d+$/;
+		if (nightlyPattern.test(wpVersion)) {
 			loadedVersion = 'nightly';
 		} else if (wpVersion.includes('-beta')) {
 			loadedVersion = 'beta';
