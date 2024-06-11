@@ -23,9 +23,9 @@ describe('Test WP version detection', async () => {
 				),
 				sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 			});
-			const php = await handler.getPrimaryPhp();
-
-			const loadedWordPressVersion = await getLoadedWordPressVersion(php);
+			const loadedWordPressVersion = await getLoadedWordPressVersion(
+				handler
+			);
 			expect(loadedWordPressVersion).to.equal(expectedWordPressVersion);
 		});
 	}
@@ -46,7 +46,7 @@ describe('Test WP version detection', async () => {
 			'<?php $wp_version = "invalid-version";'
 		);
 
-		const detectionResult = await getLoadedWordPressVersion(php).then(
+		const detectionResult = await getLoadedWordPressVersion(handler).then(
 			() => 'no-error',
 			() => 'error'
 		);

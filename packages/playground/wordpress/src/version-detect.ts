@@ -1,13 +1,14 @@
-import type { PHP } from '@php-wasm/universal';
+import type { PHPRequestHandler } from '@php-wasm/universal';
 import { SupportedWordPressVersions } from '@wp-playground/wordpress-builds';
 
 export async function getLoadedWordPressVersion(
-	php: PHP
+	requestHandler: PHPRequestHandler
 ): Promise<string | undefined> {
+	const php = await requestHandler.getPrimaryPhp();
 	const result = await php.run({
 		code: `<?php
-			if (is_file('${php.documentRoot}/wp-includes/version.php')) {
-				require '${php.documentRoot}/wp-includes/version.php';
+			if (is_file('${requestHandler.documentRoot}/wp-includes/version.php')) {
+				require '${requestHandler.documentRoot}/wp-includes/version.php';
 				echo $wp_version;
 			}
 		`,

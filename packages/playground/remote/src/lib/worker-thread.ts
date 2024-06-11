@@ -256,8 +256,7 @@ try {
 	// Incorrectly assuming WP version can break things like remote asset retrieval
 	// for minified WP builds.
 	const loadedWordPressVersion = await getLoadedWordPressVersion(
-		primaryPhp,
-		wordPressMountpoint
+		requestHandler
 	);
 	if (
 		loadedWordPressVersion !== undefined &&
