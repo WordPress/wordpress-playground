@@ -20,7 +20,6 @@ export async function getLoadedWordPressVersion(
 	return versionStringToLoadedWordPressVersion(versionString);
 }
 
-// TODO: Improve name
 export function versionStringToLoadedWordPressVersion(
 	wpVersionString: string
 ): string {
