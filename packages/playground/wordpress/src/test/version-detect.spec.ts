@@ -17,7 +17,6 @@ describe('Test WP version detection', async () => {
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
 				siteUrl: 'http://playground-domain/',
-
 				wordPressZip: await getWordPressModule(
 					expectedWordPressVersion
 				),
