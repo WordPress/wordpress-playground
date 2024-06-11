@@ -213,7 +213,6 @@ try {
 		'sqlite.zip'
 	);
 
-	const wordPressMountpoint = '/wordpress';
 	const requestHandler = await bootWordPress({
 		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 		createPhpRuntime,
@@ -227,7 +226,7 @@ try {
 				if (virtualOpfsDir) {
 					await bindOpfs({
 						php,
-						mountpoint: wordPressMountpoint,
+						mountpoint: '/wordpress',
 						opfs: virtualOpfsDir!,
 						initialSyncDirection: wordPressAvailableInOPFS
 							? 'opfs-to-memfs'
