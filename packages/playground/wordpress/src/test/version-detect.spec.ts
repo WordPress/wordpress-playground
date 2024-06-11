@@ -6,13 +6,16 @@ import {
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { bootWordPress } from '../boot';
-import { getLoadedWordPressVersion } from '../version-detect';
+import {
+	getLoadedWordPressVersion,
+	versionStringToLoadedWordPressVersion,
+} from '../version-detect';
 
 describe('Test WP version detection', async () => {
 	for (const expectedWordPressVersion of Object.keys(
 		SupportedWordPressVersions
 	)) {
-		it(`detects WP ${expectedWordPressVersion}`, async () => {
+		it(`detects WP ${expectedWordPressVersion} at runtime`, async () => {
 			const handler = await bootWordPress({
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
@@ -29,7 +32,7 @@ describe('Test WP version detection', async () => {
 		});
 	}
 
-	it('errors on failure to detect version', async () => {
+	it('errors on failure to detect version at runtime', async () => {
 		const handler = await bootWordPress({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
@@ -51,4 +54,27 @@ describe('Test WP version detection', async () => {
 		);
 		expect(detectionResult).to.equal('error');
 	});
+
+	const versionMap = {
+		'6.3': '6.3',
+		'6.4.2': '6.4',
+		'6.5': '6.5',
+		'6.5.4': '6.5',
+		'6.6-alpha-57783': 'nightly',
+		'6.6-beta-57783': 'nightly',
+		'6.6-RC-54321': 'nightly',
+		'6.6-RC2-12345': 'nightly',
+		'6.6-beta': 'beta',
+		'6.6-beta2': 'beta',
+		'6.6-RC': 'beta',
+		'6.6-RC2': 'beta',
+		'not-a-version': undefined,
+	};
+
+	for (const [input, expected] of Object.entries(versionMap)) {
+		it(`maps '${input}' to '${expected}'`, () => {
+			const result = versionStringToLoadedWordPressVersion(input);
+			expect(result).to.equal(expected);
+		});
+	}
 });

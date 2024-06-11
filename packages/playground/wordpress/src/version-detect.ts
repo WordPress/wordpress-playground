@@ -14,25 +14,42 @@ export async function getLoadedWordPressVersion(
 		`,
 	});
 
-	let loadedVersion = '';
-	const wpVersion = result.text;
-	if (wpVersion) {
-		const nightlyPattern = /-(alpha|beta)\d*-\d+$/;
-		if (nightlyPattern.test(wpVersion)) {
-			loadedVersion = 'nightly';
-		} else if (wpVersion.includes('-beta')) {
-			loadedVersion = 'beta';
-		} else {
-			const majorMinorMatch = wpVersion.match(/^(\d+\.\d+)\.\d+$/);
-			loadedVersion = majorMinorMatch ? majorMinorMatch[1] : '';
-		}
+	const versionString = result.text;
+	if (!versionString) {
+		throw new Error('Unable to read loaded WordPress version.');
 	}
 
+	const loadedVersion = versionStringToLoadedWordPressVersion(versionString);
 	if (!loadedVersion) {
-		throw new Error('Unable to detected loaded WordPress version.');
+		throw new Error(
+			`Unable to parse loaded WordPress version: '${versionString}'`
+		);
 	}
 
 	return loadedVersion;
+}
+
+// TODO: Improve name
+export function versionStringToLoadedWordPressVersion(
+	wpVersionString: string
+): string | undefined {
+	const nightlyPattern = /-(alpha|beta|RC)\d*-\d+$/;
+	if (nightlyPattern.test(wpVersionString)) {
+		return 'nightly';
+	}
+
+	// TODO: Tighten this to detect specific old beta version, like 6.2-beta.
+	const betaPattern = /-(beta|RC)\d*$/;
+	if (betaPattern.test(wpVersionString)) {
+		return 'beta';
+	}
+
+	const majorMinorMatch = wpVersionString.match(/^(\d+\.\d+)(?:\.\d+)?$/);
+	if (majorMinorMatch !== null) {
+		return majorMinorMatch[1];
+	}
+
+	return undefined;
 }
 
 export function isSupportedWordPressVersion(wpVersion: string) {
