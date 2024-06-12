@@ -76,6 +76,12 @@ async function run() {
 			type: 'array',
 			string: true,
 		})
+		.option('copy', {
+			describe:
+				'Copy a file or a directory to the PHP runtime. You can provide --copy multiple times. Format: /host/path:/vfs/path',
+			type: 'array',
+			string: true,
+		})
 		.option('mountBeforeInstall', {
 			describe:
 				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
@@ -177,17 +183,40 @@ async function run() {
 		}
 	}
 
-	function mountResources(php: PHP, rawMounts: string[]) {
-		const parsedMounts = rawMounts.map((mount) => {
+	const parseMounts = (rawMounts: string[]) =>
+		rawMounts.map((mount) => {
 			const [source, vfsPath] = mount.split(':');
 			return {
 				hostPath: path.resolve(process.cwd(), source),
 				vfsPath,
 			};
 		});
-		for (const mount of parsedMounts) {
+
+	function mountResources(php: PHP, mounts: Mount[]) {
+		for (const mount of mounts) {
 			php.mkdir(mount.vfsPath);
 			php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
+		}
+	}
+
+	function copyResources(php: PHP, mounts: Mount[]) {
+		for (const mount of mounts) {
+			copyRecursive(php, mount.hostPath, mount.vfsPath);
+		}
+	}
+
+	function copyRecursive(php: PHP, hostPath: string, vfsPath: string) {
+		if (fs.statSync(hostPath).isDirectory()) {
+			php.mkdir(vfsPath);
+			for (const fileOrDir of fs.readdirSync(hostPath)) {
+				copyRecursive(
+					php,
+					path.join(hostPath, fileOrDir),
+					path.join(vfsPath, fileOrDir)
+				);
+			}
+		} else {
+			php.writeFile(vfsPath, fs.readFileSync(hostPath));
 		}
 	}
 
@@ -295,7 +324,10 @@ async function run() {
 				hooks: {
 					async beforeWordPressFiles(php) {
 						if (args.mountBeforeInstall) {
-							mountResources(php, args.mountBeforeInstall);
+							mountResources(
+								php,
+								parseMounts(args.mountBeforeInstall)
+							);
 						}
 					},
 				},
@@ -310,7 +342,10 @@ async function run() {
 			}
 
 			if (args.mount) {
-				mountResources(php, args.mount);
+				mountResources(php, parseMounts(args.mount));
+			}
+			if (args.copy) {
+				copyResources(php, parseMounts(args.copy));
 			}
 
 			wordPressReady = true;
