@@ -2,16 +2,6 @@
 	"landingPage": "/wp-admin/",
 	"steps": [
 		{
-			"step": "installTheme",
-			"themeZipFile": {
-				"resource": "wordpress.org/themes",
-				"slug": "hello-elementor"
-			},
-			"options": {
-				"activate": true
-			}
-		},
-		{
 			"step": "installPlugin",
 			"pluginZipFile": {
 				"resource": "wordpress.org/plugins",
