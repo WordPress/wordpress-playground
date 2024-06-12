@@ -3,6 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
+import { addCache, cachedFetch, getCache } from './fetch-caching';
 
 /**
  * Run this function in the service worker to install the required event
@@ -60,7 +61,7 @@ async function defaultRequestHandler(event: FetchEvent) {
 			// Omit credentials to avoid causing cache aborts due to presence of cookies
 			credentials: 'omit',
 		});
-		return fetch(request);
+		return cachedFetch(request);
 	}
 	return workerResponse;
 }

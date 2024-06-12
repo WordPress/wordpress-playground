@@ -36,7 +36,6 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { PHPWorker } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
-import { cachedFetch } from './fetch-caching';
 
 const scope = Math.random().toFixed(16);
 
@@ -76,7 +75,7 @@ downloadMonitor.expectAssets({
 		sqliteDatabaseIntegrationModuleDetails.size,
 });
 const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-	cachedFetch(sqliteDatabaseIntegrationModuleDetails.url)
+	fetch(sqliteDatabaseIntegrationModuleDetails.url)
 );
 
 // Start downloading WordPress if needed

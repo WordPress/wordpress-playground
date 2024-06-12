@@ -86,7 +86,9 @@ export const cachedFetch = async (
 
 	const cache = await getCache(cacheKey);
 	if (cache) {
-		// return cache;
+		return cache;
+	} else {
+		console.log('Cache miss for', cacheKey);
 	}
 	const response = await fetchPromise;
 

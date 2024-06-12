@@ -13,7 +13,6 @@ import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { createMemoizedFetch } from './create-memoized-fetch';
 import { logger } from '@php-wasm/logger';
-import { cachedFetch } from './fetch-caching';
 
 export type ReceivedStartupOptions = {
 	wpVersion?: string;
@@ -65,7 +64,7 @@ export const startupOptions = {
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 
 export const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
-	downloadMonitor.monitorFetch(cachedFetch(input, init));
+	downloadMonitor.monitorFetch(fetch(input, init));
 const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 export const createPhpRuntime = async () => {
