@@ -357,6 +357,45 @@ async function resolveWordPressZip(
 	const filenamePrefix = `prebuilt-wp-`;
 	const filenameSuffix = `.zip`;
 	let wpDetails;
+
+	// First, let's grab a pre-installed WordPress zip file we may have
+	// already prepared earlier.
+	const localVersions = globSync(
+		path.join(CACHE_FOLDER, `${filenamePrefix}*${filenameSuffix}`)
+	)
+		.sort()
+		.map((path) => path.split('/').pop()!)
+		.reverse();
+	let resolvedFilename: string | undefined;
+	if (preferredVersion === 'latest') {
+		resolvedFilename = localVersions.filter(
+			(filename) =>
+				!filename.includes('beta') && !filename.includes('nightly')
+		)[0];
+	} else if (preferredVersion === 'beta') {
+		resolvedFilename = localVersions.filter((filename) =>
+			filename.includes('beta')
+		)[0];
+	} else if (preferredVersion === 'nightly') {
+		resolvedFilename = localVersions.filter((filename) =>
+			filename.includes('nightly')
+		)[0];
+	} else {
+		resolvedFilename = localVersions.filter((filename) =>
+			filename.startsWith(`${filenamePrefix}${preferredVersion}`)
+		)[0];
+	}
+	if (resolvedFilename) {
+		const localZipPath = path.join(CACHE_FOLDER, resolvedFilename);
+		const zipFile = readAsFile(localZipPath);
+		return {
+			zipFile,
+			localZipPath,
+		};
+	}
+
+	// We don't have this WordPress version on the device. Let's
+	// do a network lookup.
 	try {
 		wpDetails = await resolveWPRelease(preferredVersion);
 		const localZipPath = path.join(
@@ -369,43 +408,13 @@ async function resolveWordPressZip(
 				: fetchWordPress(wpDetails.url, monitor),
 			localZipPath,
 		};
-	} catch {
-		const localVersions = globSync(
-			path.join(CACHE_FOLDER, `${filenamePrefix}*${filenameSuffix}`)
-		)
-			.sort()
-			.map((path) => path.split('/').pop()!)
-			.reverse();
-		let resolvedFilename: string | undefined;
-		if (preferredVersion === 'latest') {
-			resolvedFilename = localVersions.filter(
-				(filename) =>
-					!filename.includes('beta') && !filename.includes('nightly')
-			)[0];
-		} else if (preferredVersion === 'beta') {
-			resolvedFilename = localVersions.filter((filename) =>
-				filename.includes('beta')
-			)[0];
-		} else if (preferredVersion === 'nightly') {
-			resolvedFilename = localVersions.filter((filename) =>
-				filename.includes('nightly')
-			)[0];
-		} else {
-			resolvedFilename = localVersions.filter((filename) =>
-				filename.startsWith(`${filenamePrefix}${preferredVersion}`)
-			)[0];
-		}
-		if (!resolvedFilename) {
-			throw new Error(
-				`Could not resolve WordPress ${resolvedFilename} from local cache (you're offline)`
-			);
-		}
-		const localZipPath = path.join(CACHE_FOLDER, resolvedFilename);
-		const zipFile = readAsFile(localZipPath);
-		return {
-			zipFile,
-			localZipPath,
-		};
+	} catch (e) {
+		throw new Error(
+			`Could not resolve WordPress ${resolvedFilename} from local cache (you're offline)`,
+			{
+				cause: e,
+			}
+		);
 	}
 }
 
