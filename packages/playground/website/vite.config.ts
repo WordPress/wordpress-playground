@@ -146,6 +146,23 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			/**
+			 * Copy the `manifest.json` file to the `dist/` directory.
+			 */
+			{
+				name: 'manifest-plugin-build',
+				apply: 'build',
+				writeBundle({ dir: outputDir }) {
+					const manifestPath = path('./manifest.production.json');
+
+					if (existsSync(manifestPath) && outputDir) {
+						copyFileSync(
+							manifestPath,
+							join(outputDir, 'manifest.json')
+						);
+					}
+				},
+			} as Plugin,
 		],
 
 		// Configuration for building your library.
