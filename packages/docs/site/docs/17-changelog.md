@@ -9,6 +9,127 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## Unreleased 
+
+### **Breaking Changes**
+
+
+#### PHP WebAssembly
+
+- Breaking: PHP: Remove NodePHP and WebPHP classes in favor of a single "PHP" class. ([#1457](https://github.com/WordPress/wordpress-playground/pull/1457))
+
+### Enhancements
+
+- Add remote asset listing to build. ([#1502](https://github.com/WordPress/wordpress-playground/pull/1502))
+
+### Blueprints
+
+- Add resetData step. ([#1451](https://github.com/WordPress/wordpress-playground/pull/1451))
+- Remove support for the "request" step. ([#1464](https://github.com/WordPress/wordpress-playground/pull/1464))
+
+### Tools
+
+
+#### Blueprints
+
+- Include the admin kitchen sink for import. ([#1475](https://github.com/WordPress/wordpress-playground/pull/1475))
+- WXR Import: Import posts as correct user. ([#1477](https://github.com/WordPress/wordpress-playground/pull/1477))
+
+#### GitHub integration
+
+- Add option to specify pr number for export via query params. ([#1465](https://github.com/WordPress/wordpress-playground/pull/1465))
+
+#### Pull Request Previewer
+
+- WordPress PR Previewer: Simplify the Blueprint. ([#1429](https://github.com/WordPress/wordpress-playground/pull/1429))
+
+### Devrel
+
+- Add Puzzle app to Website build. ([#1440](https://github.com/WordPress/wordpress-playground/pull/1440))
+- Puzzle app improvements. ([#1489](https://github.com/WordPress/wordpress-playground/pull/1489))
+- Puzzle app: Add analytics. ([#1498](https://github.com/WordPress/wordpress-playground/pull/1498))
+- Puzzle app: Design feedback. ([#1497](https://github.com/WordPress/wordpress-playground/pull/1497))
+- Puzzle app: Disable plugin onboarding. ([#1495](https://github.com/WordPress/wordpress-playground/pull/1495))
+- Puzzle app: Update blueprint. ([#1499](https://github.com/WordPress/wordpress-playground/pull/1499))
+- Remove Elementor theme from blueprint. ([#1508](https://github.com/WordPress/wordpress-playground/pull/1508))
+
+### Documentation
+
+- Update the available options table in the Query API doc. ([#1480](https://github.com/WordPress/wordpress-playground/pull/1480))
+
+### Experiments
+
+
+#### File Synchronization
+
+- Browser: Php.mount() support for OPFS/Native FS handles. ([#1470](https://github.com/WordPress/wordpress-playground/pull/1470))
+- Move Filesystem methods to a static FSHelpers class. ([#1468](https://github.com/WordPress/wordpress-playground/pull/1468))
+
+#### Website
+
+- Web: Support mounting OPFS at arbitrary paths in Playground. ([#1479](https://github.com/WordPress/wordpress-playground/pull/1479))
+
+### PHP WebAssembly
+
+- Bump Emscripten version to `3.1.60`. ([#1471](https://github.com/WordPress/wordpress-playground/pull/1471))
+- Polyfill dns_check_record(), dns_get_record(), and dns_get_mx(). ([#1067](https://github.com/WordPress/wordpress-playground/pull/1067))
+- Revert "Route requests for missing static files using remote asset metadata (#1417)". ([#1474](https://github.com/WordPress/wordpress-playground/pull/1474))
+- Route requests for missing static files using remote asset metadata - Second attempt. ([#1490](https://github.com/WordPress/wordpress-playground/pull/1490))
+- Route requests for missing static files using remote asset metadata. ([#1417](https://github.com/WordPress/wordpress-playground/pull/1417))
+
+### Website
+
+- Add GTM tag to Website package. ([#1439](https://github.com/WordPress/wordpress-playground/pull/1439))
+- Add PWA support. ([#1086](https://github.com/WordPress/wordpress-playground/pull/1086))
+- Ensure all logs are visible in the log modal. ([#1500](https://github.com/WordPress/wordpress-playground/pull/1500))
+- Issue solved (#173) added feature - GitHub link. ([#1459](https://github.com/WordPress/wordpress-playground/pull/1459))
+- Prevent editor pairing from failing if it runs multiple times. ([#1460](https://github.com/WordPress/wordpress-playground/pull/1460))
+- Remove unsupported WP 6.1 build. ([#1491](https://github.com/WordPress/wordpress-playground/pull/1491))
+- Support mutliple sites when using browser storage. ([#1472](https://github.com/WordPress/wordpress-playground/pull/1472))
+- Add default internal redirect for /puzzle/ paths. ([#1493](https://github.com/WordPress/wordpress-playground/pull/1493))
+- Fix custom redirects. ([#1456](https://github.com/WordPress/wordpress-playground/pull/1456))
+- Setup postMessage relay in the website app. ([#1481](https://github.com/WordPress/wordpress-playground/pull/1481))
+- Stop disabling cache for non-root index.html files. ([#1461](https://github.com/WordPress/wordpress-playground/pull/1461))
+- V1 WordPress Boot Protocol. ([#1390](https://github.com/WordPress/wordpress-playground/pull/1390))
+- WordPress Build: Use Playground CLI to produce minified WordPress build (without the SQLite integration plugin). ([#1426](https://github.com/WordPress/wordpress-playground/pull/1426))
+
+#### Boot Flow
+
+- Mount a directory from the browser. ([#1482](https://github.com/WordPress/wordpress-playground/pull/1482))
+
+### Internal
+
+
+#### Documentation
+
+- Fix update-changelog workflow to commit all updates. ([#1449](https://github.com/WordPress/wordpress-playground/pull/1449))
+
+### Bug Fixes
+
+- Fix Puzzle API env variables. ([#1462](https://github.com/WordPress/wordpress-playground/pull/1462))
+- Revert "Route requests for missing static files using remote asset metadata - Second attempt". ([#1492](https://github.com/WordPress/wordpress-playground/pull/1492))
+
+#### Documentation
+
+- Update remaining localhost:5400 refs to 127.0.0.1:5400. ([#1509](https://github.com/WordPress/wordpress-playground/pull/1509))
+
+#### Boot Flow
+
+- Fix  http_build_query(): Passing null. ([#1458](https://github.com/WordPress/wordpress-playground/pull/1458))
+
+### Various
+
+- Add inline comment next to Emscripten version as reminder to upgrade PHP libraries. ([#1501](https://github.com/WordPress/wordpress-playground/pull/1501))
+- Add missing trailing slash on `landingPage` wp-admin path. ([#1454](https://github.com/WordPress/wordpress-playground/pull/1454))
+- Revert GPT models. ([#1496](https://github.com/WordPress/wordpress-playground/pull/1496))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @chakricherala @dd32 @fluiddot @ironprogrammer @ndiego @robertsreberski
+
+
 ## [v0.7.20] (2024-05-21)
 
 ### **Breaking Changes**
