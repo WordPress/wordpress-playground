@@ -381,6 +381,7 @@ wp-content/themes/twentytwentyfour/templates/single.html
 wp-content/themes/twentytwentyfour/templates/page.html
 wp-content/database/.ht.sqlite
 wp-content/database/.htaccess
+wp-content/debug.log
 wp-includes/images/xit-2x.gif
 wp-includes/images/admin-bar-sprite-2x.png
 wp-includes/images/uploader-icons-2x.png
