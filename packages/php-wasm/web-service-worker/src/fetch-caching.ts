@@ -53,3 +53,14 @@ export const cachedFetch = async (
 	await addCache(cacheKey, response);
 	return response;
 };
+
+const precachedResources: RequestInfo[] = [
+	'/website-server/',
+	'/website-server/index.html',
+];
+
+export const precacheResources = async (): Promise<any> => {
+	return caches
+		.open(wpCacheKey)
+		.then((cache) => cache.addAll(precachedResources));
+};

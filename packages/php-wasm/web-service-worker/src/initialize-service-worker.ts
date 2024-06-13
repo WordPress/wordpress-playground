@@ -3,7 +3,8 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
-import { cachedFetch } from './fetch-caching';
+import { cachedFetch, precacheResources } from './fetch-caching';
+import { logger } from '@php-wasm/logger';
 
 /**
  * Run this function in the service worker to install the required event
@@ -14,17 +15,28 @@ import { cachedFetch } from './fetch-caching';
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	const { handleRequest = defaultRequestHandler } = config;
 
+	self.addEventListener('install', (event) => {
+		try {
+			const precachePromise = precacheResources();
+			event.waitUntil(precachePromise);
+		} catch (e) {
+			logger.error('Failed to precache resources', e);
+		}
+	});
+
 	/**
 	 * The main method. It captures the requests and loop them back to the
 	 * Worker Thread using the Loopback request
 	 */
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
+		console.log('fetch', url);
 
 		// Don't handle requests to the service worker script itself.
 		if (url.pathname.startsWith(self.location.pathname)) {
-			return;
+			// return;
 		}
+		console.log('fetch', url);
 
 		// Only handle requests from scoped sites.
 		// So – bale out if the request URL is not scoped and the
@@ -34,9 +46,11 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 			try {
 				referrerUrl = new URL(event.request.referrer);
 			} catch (e) {
+				logger.error('Failed to parse referrer URL', e);
 				return;
 			}
 			if (!isURLScoped(referrerUrl)) {
+				console.log('fetch', url);
 				// Add caching for non-scoped requests
 				return cachedFetch(event.request);
 			}
