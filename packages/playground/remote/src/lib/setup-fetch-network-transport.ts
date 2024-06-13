@@ -74,19 +74,6 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 		const fetchHeaders = data.headers || {};
 		if (fetchMethod == 'POST') {
 			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-
-			/**
-			 * Removes a few custom request headers.
-			 *
-			 * This is required because the fetch API will send a CORS preflight
-			 * request if the request is cross-origin and has custom headers.
-			 *
-			 * However, the api.wordpress.org/core/version-check/1.7/ endpoint
-			 * doesn't support CORS preflight requests. These two headers
-			 * aren't critical to the request, so we can just remove them.
-			 */
-			delete fetchHeaders['wp_install'];
-			delete fetchHeaders['wp_blog'];
 		}
 
 		response = await fetchFn(fetchUrl, {
