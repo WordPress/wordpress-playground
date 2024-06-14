@@ -37,14 +37,12 @@ const isValidHostname = (url: URL) => {
 	return validHostnames.includes(url.hostname);
 };
 
-export const cachedFetch = async (
-	request: Request
-): Promise<Response | undefined> => {
-	if (!isValidHostname(new URL(request.url))) {
-		return;
+export const cachedFetch = async (request: Request): Promise<Response> => {
+	const url = new URL(request.url);
+	if (!isValidHostname(url)) {
+		return fetch(request);
 	}
-	const cacheKey = request.url;
-
+	const cacheKey = url.pathname;
 	const cache = await getCache(cacheKey);
 	if (cache) {
 		return cache;

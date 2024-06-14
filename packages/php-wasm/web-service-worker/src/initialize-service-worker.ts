@@ -30,30 +30,25 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	 */
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
-		console.log('fetch', url);
 
 		// Don't handle requests to the service worker script itself.
 		if (url.pathname.startsWith(self.location.pathname)) {
 			// return;
 		}
-		console.log('fetch', url);
 
 		// Only handle requests from scoped sites.
 		// So – bale out if the request URL is not scoped and the
 		// referrer URL is not scoped.
-		if (!isURLScoped(url)) {
-			let referrerUrl;
-			try {
-				referrerUrl = new URL(event.request.referrer);
-			} catch (e) {
-				logger.error('Failed to parse referrer URL', e);
-				return;
-			}
-			if (!isURLScoped(referrerUrl)) {
-				console.log('fetch', url);
-				// Add caching for non-scoped requests
-				return cachedFetch(event.request);
-			}
+		if (
+			!isURLScoped(url) &&
+			!(
+				event.request.referrer &&
+				isURLScoped(new URL(event.request.referrer))
+			)
+		) {
+			// Add caching for non-scoped requests
+			event.respondWith(cachedFetch(event.request));
+			return;
 		}
 		const response = handleRequest(event);
 		if (response) {

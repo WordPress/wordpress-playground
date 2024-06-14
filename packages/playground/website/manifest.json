@@ -3,7 +3,7 @@
 	"background_color": "#ffffff",
 	"display": "standalone",
 	"scope": "/",
-	"start_url": "/",
+	"start_url": "/website-server/",
 	"short_name": "WordPress Playground",
 	"description": "WordPress Playground",
 	"name": "WordPress Playground",
