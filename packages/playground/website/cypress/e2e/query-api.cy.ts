@@ -85,9 +85,12 @@ describe('Query API', () => {
 
 		/**
 		 * @see https://github.com/WordPress/wordpress-playground/pull/1045
+		 * @see https://github.com/WordPress/wordpress-playground/pull/1504
 		 */
-		it('should enable networking when requested AND the kitchen sink extension bundle is enabled', () => {
-			cy.visit('/?networking=yes&url=/wp-admin/plugin-install.php');
+		it('should enable networking when requested AND the kitchen sink extension bundle is NOT enabled', () => {
+			cy.visit(
+				'/?networking=yes&php-extension-bundle=light&url=/wp-admin/plugin-install.php'
+			);
 			cy.wordPressDocument()
 				.find('.plugin-card')
 				.should('have.length.above', 4);
@@ -104,6 +107,7 @@ describe('Query API', () => {
 				features: {
 					networking: true,
 				},
+				phpExtensionBundles: ['light'],
 				steps: [
 					{
 						step: 'writeFile',

@@ -99,7 +99,7 @@ add_action('admin_print_scripts', function () {
  * This mu-plugin provides that transport. It's one of the two:
  *
  * * WP_Http_Fetch – Sends requests using browser's fetch() function.
- * * Requests_Transport_Dummy – Does not send any requests and only exists to keep
+ * * WP_Http_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
 $__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
@@ -107,11 +107,19 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
 	/**
 	 * Force the Fetch transport to be used in Requests.
-	 * The 'http_api_transports' filter was deprecated, and is no longer actively in use.
 	 */
 	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
 		$options['transport'] = 'Wp_Http_Fetch';
 	}, 10, 5 );
+
+	/**
+	 * Force wp_http_supports() to work, which uses deprecated WP_HTTP methods.
+	 * This filter is deprecated, and no longer actively used, but is needed for wp_http_supports().
+	 * @see https://core.trac.wordpress.org/ticket/37708
+	 */
+	add_filter('http_api_transports', function() {
+		return [ 'Fetch' ];
+	});
 
 	/**
 	 * Disable signature verification as it doesn't seem to work with
@@ -137,6 +145,10 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
 		$options['transport'] = 'Wp_Http_Dummy';
 	}, 10, 5 );
+
+	add_filter('http_api_transports', function() {
+		return [ 'Dummy' ];
+	});
 }
 
 ?>
