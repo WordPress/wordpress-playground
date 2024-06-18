@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
+import { globSync } from 'glob';
 import { startServer } from './server';
 import {
 	PHP,
@@ -272,24 +273,14 @@ async function run() {
 					}
 				}) as any);
 
-				wpDetails = await resolveWPRelease(args.wp);
+				wpDetails = await resolveWordPressZip(args.wp, monitor);
 			}
-
-			const preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-			const wordPressZip = !wpDetails
-				? undefined
-				: fs.existsSync(preinstalledWpContentPath)
-				? readAsFile(preinstalledWpContentPath)
-				: fetchWordPress(wpDetails.url, monitor);
 
 			requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(compiledBlueprint.versions.php),
-				wordPressZip,
+				wordPressZip: wpDetails.zipFile,
 				sqliteIntegrationPluginZip: fetchSqliteIntegration(monitor),
 				sapiName: 'cli',
 				createFiles: {
@@ -313,8 +304,8 @@ async function run() {
 			const php = await requestHandler.getPrimaryPhp();
 			if (wpDetails && !args.mountBeforeInstall) {
 				fs.writeFileSync(
-					preinstalledWpContentPath,
-					await zipDirectory(php, '/wordpress')
+					wpDetails.localZipPath,
+					await zipDirectory(php, requestHandler.documentRoot)
 				);
 			}
 
@@ -357,6 +348,74 @@ async function run() {
 			return await requestHandler.request(request);
 		},
 	});
+}
+
+async function resolveWordPressZip(
+	preferredVersion: string,
+	monitor: EmscriptenDownloadMonitor
+): Promise<{ zipFile: File | Promise<File>; localZipPath: string }> {
+	const filenamePrefix = `prebuilt-wp-`;
+	const filenameSuffix = `.zip`;
+	let wpDetails;
+
+	// First, let's grab a pre-installed WordPress zip file we may have
+	// already prepared earlier.
+	const localVersions = globSync(
+		path.join(CACHE_FOLDER, `${filenamePrefix}*${filenameSuffix}`)
+	)
+		.sort()
+		.map((path) => path.split('/').pop()!)
+		.reverse();
+	let resolvedFilename: string | undefined;
+	if (preferredVersion === 'latest') {
+		resolvedFilename = localVersions.filter(
+			(filename) =>
+				!filename.includes('beta') && !filename.includes('nightly')
+		)[0];
+	} else if (preferredVersion === 'beta') {
+		resolvedFilename = localVersions.filter((filename) =>
+			filename.includes('beta')
+		)[0];
+	} else if (preferredVersion === 'nightly') {
+		resolvedFilename = localVersions.filter((filename) =>
+			filename.includes('nightly')
+		)[0];
+	} else {
+		resolvedFilename = localVersions.filter((filename) =>
+			filename.startsWith(`${filenamePrefix}${preferredVersion}`)
+		)[0];
+	}
+	if (resolvedFilename) {
+		const localZipPath = path.join(CACHE_FOLDER, resolvedFilename);
+		const zipFile = readAsFile(localZipPath);
+		return {
+			zipFile,
+			localZipPath,
+		};
+	}
+
+	// We don't have this WordPress version on the device. Let's
+	// do a network lookup.
+	try {
+		wpDetails = await resolveWPRelease(preferredVersion);
+		const localZipPath = path.join(
+			CACHE_FOLDER,
+			`${filenamePrefix}${wpDetails.version}${filenameSuffix}`
+		);
+		return {
+			zipFile: fs.existsSync(localZipPath)
+				? readAsFile(localZipPath)
+				: fetchWordPress(wpDetails.url, monitor),
+			localZipPath,
+		};
+	} catch (e) {
+		throw new Error(
+			`Could not resolve WordPress ${resolvedFilename} from local cache (you're offline)`,
+			{
+				cause: e,
+			}
+		);
+	}
 }
 
 run();
