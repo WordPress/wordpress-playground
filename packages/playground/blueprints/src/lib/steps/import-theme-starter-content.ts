@@ -23,7 +23,12 @@ export interface ImportThemeStarterContentStep {
  */
 export const importThemeStarterContent: StepHandler<
 	ImportThemeStarterContentStep
-> = async (playground, {}, progress) => {
+> = async (
+	playground,
+	// eslint-disable-next-line no-empty-pattern
+	{},
+	progress
+) => {
 	progress?.tracker?.setCaption('Importing theme starter content');
 
 	const docroot = await playground.documentRoot;
