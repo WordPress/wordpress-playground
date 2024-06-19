@@ -44,10 +44,16 @@ RUN rm -rf wordpress-static/wp-content/mu-plugins
 # to request a remote asset or delegate the request for a missing file to PHP.
 RUN find wordpress-static -type f | sed 's#^wordpress-static/##'> wordpress-remote-asset-paths
 
-# Make the remote asset listing available remotely so it can be downloaded 
+# Make the remote asset listing available remotely so it can be downloaded
 # directly in cases where an older minified WordPress build without this file
 # has been saved to browser storage.
-RUN cp wordpress-remote-asset-paths wordpress-static/
+RUN cp wordpress-remote-asset-paths wordpress-static
+
+# ZIP the static files
+RUN zip -r wordpress-static.zip wordpress-static/
+
+# Move ZIP to the public output directory
+RUN cp wordpress-static.zip wordpress-static/
 
 # Move the static files to the final output directory
 RUN mkdir /root/output/$OUT_FILENAME
@@ -135,6 +141,6 @@ RUN cd wordpress && \
 # Build the final wp.zip file
 RUN mv wordpress /wordpress && \
     cp wordpress-remote-asset-paths /wordpress/ && \
+    cp wordpress-static.zip /wordpress/ && \
     cd /wordpress && \
     zip /root/output/$OUT_FILENAME.zip -r .
-    
