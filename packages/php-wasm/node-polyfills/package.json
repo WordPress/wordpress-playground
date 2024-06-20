@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node-polyfills",
-	"version": "0.7.20",
+	"version": "0.9.0",
 	"description": "PHP.wasm – polyfills for Node.js",
 	"repository": {
 		"type": "git",

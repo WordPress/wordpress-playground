@@ -63,7 +63,7 @@ npx @wp-now/wp-now start --port=80
 There are a few ways to set up a local test domain, including editing your `hosts` file. If you're unsure how to do that, we suggest installing [Laravel Valet](https://laravel.com/docs/11.x/valet) and then running the following command:
 
 ```bash
-valet proxy playground.test http://localhost:5400 --secure
+valet proxy playground.test http://127.0.0.1:5400 --secure
 ```
 
 Your dev server is now available on https://playground.test.
