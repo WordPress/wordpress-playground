@@ -3,7 +3,11 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
-import { cachedFetch, precacheResources } from './fetch-caching';
+import {
+	cachedFetch,
+	precacheResources,
+	preloadStaticAssets,
+} from './fetch-caching';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -15,8 +19,10 @@ import { logger } from '@php-wasm/logger';
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	const { handleRequest = defaultRequestHandler } = config;
 
+	// Preload static assets from zip on install
 	self.addEventListener('install', (event) => {
 		try {
+			preloadStaticAssets();
 			const precachePromise = precacheResources();
 			event.waitUntil(precachePromise);
 		} catch (e) {
@@ -28,7 +34,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	 * The main method. It captures the requests and loop them back to the
 	 * Worker Thread using the Loopback request
 	 */
-	self.addEventListener('fetch', (event) => {
+	self.addEventListener('fetch', async (event) => {
 		const url = new URL(event.request.url);
 
 		// Don't handle requests to the service worker script itself.
@@ -189,19 +195,6 @@ interface ServiceWorkerConfiguration {
 	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
 }
 
-/**
- * Copy a request with custom overrides.
- *
- * This function is only needed because Request properties
- * are read-only. The only way to change e.g. a URL is to
- * create an entirely new request:
- *
- * https://developer.mozilla.org/en-US/docs/Web/API/Request
- *
- * @param  request
- * @param  overrides
- * @returns The new request.
- */
 export async function cloneRequest(
 	request: Request,
 	overrides: Record<string, any>

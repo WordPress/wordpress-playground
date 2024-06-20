@@ -1,4 +1,5 @@
 import { logger } from '@php-wasm/logger';
+import { decodeZip } from '@php-wasm/stream-compression';
 
 const wpCacheKey = 'playground-cache';
 
@@ -34,6 +35,12 @@ export const getCache = async (key: string) => {
 const validHostnames = ['playground.wordpress.net', '127.0.0.1', 'localhost'];
 
 const isValidHostname = (url: URL) => {
+	if (url.pathname.startsWith('/website-server/@')) {
+		return false;
+	}
+	if (url.href.includes('?html-proxy')) {
+		return false;
+	}
 	return validHostnames.includes(url.hostname);
 };
 
@@ -47,7 +54,7 @@ export const cachedFetch = async (request: Request): Promise<Response> => {
 			return new Response('Failed to fetch', { status: 500 });
 		}
 	}
-	const cacheKey = url.pathname;
+	const cacheKey = url.href;
 	const cache = await getCache(cacheKey);
 	if (cache) {
 		return cache;
@@ -66,4 +73,30 @@ export const precacheResources = async (): Promise<any> => {
 	return caches
 		.open(wpCacheKey)
 		.then((cache) => cache.addAll(precachedResources));
+};
+
+export const preloadStaticAssets = async () => {
+	cachedFetch(
+		new Request('/wp-nightly/wordpress-static.zip', {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/zip',
+			},
+		})
+	).then(async (response) => {
+		const zipBytes = await response.arrayBuffer();
+		const zipStream = decodeZip(new Blob([zipBytes]).stream());
+		const files = [];
+		for await (const file of zipStream) {
+			files.push(file);
+		}
+		for (const file of files) {
+			const url = new URL(
+				file.name.replace('/wordpress-static', ''),
+				self.location.origin
+			);
+			const content = new Uint8Array(await file.arrayBuffer());
+			addCache(url.pathname, new Response(content));
+		}
+	});
 };
