@@ -258,6 +258,7 @@ try {
 		requestHandler
 	);
 	if (isSupportedWordPressVersion(loadedWordPressVersion)) {
+		// TODO: Allow unsupported WP version but skip relaying a staticAssetsDirectory in that case
 		apiEndpoint.wordPressVersion = loadedWordPressVersion;
 	}
 
