@@ -40,6 +40,7 @@ import {
 	getLoadedWordPressVersion,
 	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
+import { logger } from '@php-wasm/logger';
 
 const scope = Math.random().toFixed(16);
 
@@ -106,18 +107,23 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	scope: string;
 
 	/**
-	 * A string representing the version of WordPress being used.
+	 * A string representing the requested version of WordPress.
 	 */
-	wordPressVersion: string;
+	requestedWordPressVersion: string;
+
+	/**
+	 * A string representing the version of WordPress that was loaded.
+	 */
+	loadedWordPressVersion: string | undefined;
 
 	constructor(
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
-		wordPressVersion: string
+		requestedWordPressVersion: string
 	) {
 		super(undefined, monitor);
 		this.scope = scope;
-		this.wordPressVersion = wordPressVersion;
+		this.requestedWordPressVersion = requestedWordPressVersion;
 	}
 
 	/**
@@ -125,11 +131,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	async getWordPressModuleDetails() {
 		return {
-			majorVersion: this.wordPressVersion,
-			staticAssetsDirectory: `wp-${this.wordPressVersion.replace(
-				'_',
-				'.'
-			)}`,
+			majorVersion:
+				this.loadedWordPressVersion || this.requestedWordPressVersion,
+			staticAssetsDirectory:
+				this.loadedWordPressVersion &&
+				isSupportedWordPressVersion(this.loadedWordPressVersion)
+					? `wp-${this.loadedWordPressVersion}`
+					: undefined,
 		};
 	}
 
@@ -254,12 +262,17 @@ try {
 	// from browser storage is the default version when it is actually something else.
 	// Incorrectly assuming WP version can break things like remote asset retrieval
 	// for minified WP builds.
-	const loadedWordPressVersion = await getLoadedWordPressVersion(
+	apiEndpoint.loadedWordPressVersion = await getLoadedWordPressVersion(
 		requestHandler
 	);
-	if (isSupportedWordPressVersion(loadedWordPressVersion)) {
-		// TODO: Allow unsupported WP version but skip relaying a staticAssetsDirectory in that case
-		apiEndpoint.wordPressVersion = loadedWordPressVersion;
+	if (
+		apiEndpoint.requestedWordPressVersion !==
+		apiEndpoint.loadedWordPressVersion
+	) {
+		logger.warn(
+			`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
+				`from requested version (${apiEndpoint.requestedWordPressVersion}).`
+		);
 	}
 
 	setApiReady();
