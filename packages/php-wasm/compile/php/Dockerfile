@@ -385,7 +385,7 @@ RUN set -euxo pipefail; \
 		# Without this, browsers will try the wasm:// protocol and never load the source map.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
 			export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
-			echo -n ' --source-map-base http://localhost:5400/@fs/Users/cloudnik/www/Automattic/core/plugins/playground/packages/php-wasm/web/public/${PHP_VERSION_ESCAPED}/' >> /root/.emcc-php-wasm-flags; \
+			echo -n ' --source-map-base http://127.0.0.1:5400/@fs/Users/cloudnik/www/Automattic/core/plugins/playground/packages/php-wasm/web/public/${PHP_VERSION_ESCAPED}/' >> /root/.emcc-php-wasm-flags; \
 		fi; \
 	else \
 		# Preserve symbol names in node.js build – the bundle size doesn't matter as much
