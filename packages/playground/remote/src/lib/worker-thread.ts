@@ -38,8 +38,8 @@ import { PHPWorker } from '@php-wasm/universal';
 import {
 	bootWordPress,
 	getLoadedWordPressVersion,
-	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
+import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 
 const scope = Math.random().toFixed(16);
@@ -133,11 +133,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		return {
 			majorVersion:
 				this.loadedWordPressVersion || this.requestedWordPressVersion,
-			staticAssetsDirectory:
-				this.loadedWordPressVersion &&
-				isSupportedWordPressVersion(this.loadedWordPressVersion)
-					? `wp-${this.loadedWordPressVersion}`
-					: undefined,
+			staticAssetsDirectory: this.loadedWordPressVersion
+				? wpVersionToStaticAssetsDirectory(this.loadedWordPressVersion)
+				: undefined,
 		};
 	}
 
