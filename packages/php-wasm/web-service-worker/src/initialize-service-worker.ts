@@ -3,7 +3,9 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
-
+import { cachedFetch, preCacheResources } from './worker-caching';
+// import { logger } from '@php-wasm/logger';
+const logger = console;
 /**
  * Run this function in the service worker to install the required event
  * handlers.
@@ -12,6 +14,14 @@ import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
  */
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	const { handleRequest = defaultRequestHandler } = config;
+
+	self.addEventListener('install', (event) => {
+		try {
+			event.waitUntil(preCacheResources());
+		} catch (e) {
+			logger.error('Failed to precache resources', e);
+		}
+	});
 
 	/**
 	 * The main method. It captures the requests and loop them back to the
@@ -22,28 +32,28 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 
 		// Don't handle requests to the service worker script itself.
 		if (url.pathname.startsWith(self.location.pathname)) {
-			return;
+			// return;
 		}
 
 		// Only handle requests from scoped sites.
 		// So – bale out if the request URL is not scoped and the
 		// referrer URL is not scoped.
-		if (!isURLScoped(url)) {
-			let referrerUrl;
-			try {
-				referrerUrl = new URL(event.request.referrer);
-			} catch (e) {
-				return;
-			}
-			if (!isURLScoped(referrerUrl)) {
-				// Let the browser handle uncoped requests as is.
-				return;
-			}
+		if (
+			!isURLScoped(url) &&
+			!(
+				event.request.referrer &&
+				isURLScoped(new URL(event.request.referrer))
+			)
+		) {
+			// Add caching for non-scoped requests
+			event.respondWith(cachedFetch(event.request));
+			return;
 		}
-		const responsePromise = handleRequest(event);
-		if (responsePromise) {
-			event.respondWith(responsePromise);
+		const response = handleRequest(event);
+		if (response) {
+			event.respondWith(response);
 		}
+		return;
 	});
 }
 
