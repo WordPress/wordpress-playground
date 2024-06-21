@@ -18,6 +18,11 @@ import {
 	wordPressRewriteRules,
 } from '.';
 import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
+import {
+	getLoadedWordPressVersion,
+	isSupportedWordPressVersion,
+} from './version-detect';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -190,11 +195,46 @@ export async function bootWordPress(options: BootOptions) {
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
-	// @TODO Assert WordPress core files are in place
-
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
+	}
+
+	// @TODO Assert WordPress core files are in place
+
+	const remoteAssetListPath = joinPaths(
+		requestHandler.documentRoot,
+		'wordpress-remote-asset-paths'
+	);
+	// Use a common WP static asset to guess whether we are using a minified WP build.
+	const commonStaticAssetPath = joinPaths(
+		requestHandler.documentRoot,
+		'wp-admin/css/common.css'
+	);
+	if (
+		!php.fileExists(remoteAssetListPath) &&
+		!php.fileExists(commonStaticAssetPath)
+	) {
+		// We are missing the remote asset listing and a common static file.
+		// This looks like a minified WP build missing a remote asset listing.
+		const loadedWordPressVersion = await getLoadedWordPressVersion(
+			requestHandler
+		);
+		if (isSupportedWordPressVersion(loadedWordPressVersion)) {
+			// TODO: Is this an absolute URI we can count on?
+			const wpAssetBaseUrl = `/wp-${loadedWordPressVersion}`;
+			const listUrl = `${wpAssetBaseUrl}/wordpress-remote-asset-paths`;
+			try {
+				const remoteAssetPaths = await fetch(listUrl).then((res) =>
+					res.text()
+				);
+				php.writeFile(remoteAssetListPath, remoteAssetPaths);
+			} catch (e) {
+				logger.warn(
+					`Failed to fetch remote asset paths from ${listUrl}`
+				);
+			}
+		}
 	}
 
 	if (options.sqliteIntegrationPluginZip) {
