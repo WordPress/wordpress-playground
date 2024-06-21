@@ -35,8 +35,12 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { PHPWorker, UniversalPHP } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
 import { decodeZip } from '@php-wasm/stream-compression';
+import {
+	bootWordPress,
+	getLoadedWordPressVersion,
+	isSupportedWordPressVersion,
+} from '@wp-playground/wordpress';
 import { logger } from '@php-wasm/logger';
 
 const scope = Math.random().toFixed(16);
@@ -104,18 +108,23 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	scope: string;
 
 	/**
-	 * A string representing the version of WordPress being used.
+	 * A string representing the requested version of WordPress.
 	 */
-	wordPressVersion: string;
+	requestedWordPressVersion: string;
+
+	/**
+	 * A string representing the version of WordPress that was loaded.
+	 */
+	loadedWordPressVersion: string | undefined;
 
 	constructor(
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
-		wordPressVersion: string
+		requestedWordPressVersion: string
 	) {
 		super(undefined, monitor);
 		this.scope = scope;
-		this.wordPressVersion = wordPressVersion;
+		this.requestedWordPressVersion = requestedWordPressVersion;
 	}
 
 	/**
@@ -123,11 +132,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	async getWordPressModuleDetails() {
 		return {
-			majorVersion: this.wordPressVersion,
-			staticAssetsDirectory: `wp-${this.wordPressVersion.replace(
-				'_',
-				'.'
-			)}`,
+			majorVersion:
+				this.loadedWordPressVersion || this.requestedWordPressVersion,
+			staticAssetsDirectory:
+				this.loadedWordPressVersion &&
+				isSupportedWordPressVersion(this.loadedWordPressVersion)
+					? `wp-${this.loadedWordPressVersion}`
+					: undefined,
 		};
 	}
 
@@ -286,6 +297,23 @@ try {
 
 	const primaryPhp = await requestHandler.getPrimaryPhp();
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
+
+	// NOTE: We need to derive the loaded WP version or we might assume WP loaded
+	// from browser storage is the default version when it is actually something else.
+	// Incorrectly assuming WP version can break things like remote asset retrieval
+	// for minified WP builds.
+	apiEndpoint.loadedWordPressVersion = await getLoadedWordPressVersion(
+		requestHandler
+	);
+	if (
+		apiEndpoint.requestedWordPressVersion !==
+		apiEndpoint.loadedWordPressVersion
+	) {
+		logger.warn(
+			`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
+				`from requested version (${apiEndpoint.requestedWordPressVersion}).`
+		);
+	}
 
 	setApiReady();
 } catch (e) {
