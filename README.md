@@ -131,6 +131,26 @@ PHP=7.4 npx @php-wasm/cli -v
 npx @php-wasm/cli phpcbf
 ```
 
+### Test offline support
+
+To test the offline support you need to build the website and run a local server:
+
+```bash
+npm run build:website
+```
+
+Then you can run a local server:
+
+```bash
+php -S localhost:9999 -t dist/packages/playground/wasm-wordpress-net
+```
+
+or using Docker:
+
+```bash
+docker run --rm -p 9999:80 -v $(pwd)/dist/packages/playground/wasm-wordpress-net:/usr/share/nginx/html:ro nginx:alpine
+```
+
 ## How can I contribute?
 
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
