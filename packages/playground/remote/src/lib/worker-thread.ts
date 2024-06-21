@@ -34,7 +34,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { PHPWorker, UniversalPHP } from '@php-wasm/universal';
+import { PHP, PHPWorker } from '@php-wasm/universal';
 import { decodeZip } from '@php-wasm/stream-compression';
 import {
 	bootWordPress,
@@ -42,6 +42,7 @@ import {
 	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { logger } from '@php-wasm/logger';
+import { getWordPressVersionFromPhp } from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
 
@@ -190,40 +191,39 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
-function downloadWordPressAssets(php: UniversalPHP) {
-	fetch(`/wp-${startupOptions.wpVersion}/wordpress-static.zip`).then(
-		async (response) => {
-			try {
-				const zipBytes = await response.arrayBuffer();
-				const zipStream = decodeZip(new Blob([zipBytes]).stream());
-				for await (const file of zipStream) {
-					const path = file.name.replace(
-						'wordpress-static',
-						'/wordpress'
-					);
+async function downloadWordPressAssets(php: PHP) {
+	const wpVersion = await getWordPressVersionFromPhp(php);
+	fetch(`/wp-${wpVersion}/wordpress-static.zip`).then(async (response) => {
+		try {
+			const zipBytes = await response.arrayBuffer();
+			const zipStream = decodeZip(new Blob([zipBytes]).stream());
+			for await (const file of zipStream) {
+				const path = file.name.replace(
+					'wordpress-static',
+					'/wordpress'
+				);
 
-					if (file.type === 'directory' && !php.isDir(path)) {
-						php.mkdir(path);
-					} else if (!php.fileExists(path)) {
-						try {
-							php.writeFile(
-								path,
-								new Uint8Array(await file.arrayBuffer())
-							);
-						} catch (e) {
-							logger.warn(
-								'Failed to write a WordPress asset file',
-								path,
-								e
-							);
-						}
+				if (file.type === 'directory' && !php.isDir(path)) {
+					php.mkdir(path);
+				} else if (!php.fileExists(path)) {
+					try {
+						php.writeFile(
+							path,
+							new Uint8Array(await file.arrayBuffer())
+						);
+					} catch (e) {
+						logger.warn(
+							'Failed to write a WordPress asset file',
+							path,
+							e
+						);
 					}
 				}
-			} catch (e) {
-				logger.warn('Failed to download WordPress assets', e);
 			}
+		} catch (e) {
+			logger.warn('Failed to download WordPress assets', e);
 		}
-	);
+	});
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
