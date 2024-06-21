@@ -24,6 +24,7 @@ export type Hook = (php: PHP) => void | Promise<void>;
 export interface Hooks {
 	beforeWordPressFiles?: Hook;
 	beforeDatabaseSetup?: Hook;
+	afterWordPressInstall?: Hook;
 }
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
@@ -212,6 +213,10 @@ export async function bootWordPress(options: BootOptions) {
 		throw new Error('WordPress installation has failed.');
 	}
 
+	if (options.hooks?.afterWordPressInstall) {
+		await options.hooks.afterWordPressInstall(php);
+	}
+
 	return requestHandler;
 }
 
@@ -219,7 +224,7 @@ async function isWordPressInstalled(php: PHP) {
 	return (
 		(
 			await php.run({
-				code: `<?php 
+				code: `<?php
 	require '${php.documentRoot}/wp-load.php';
 	echo is_blog_installed() ? '1' : '0';
 	`,
