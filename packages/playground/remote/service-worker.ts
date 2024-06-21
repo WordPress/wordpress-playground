@@ -49,13 +49,20 @@ initializeServiceWorker({
 				return emptyHtml();
 			}
 
-			const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
-
 			const workerResponse = await convertFetchEventToPHPRequest(event);
 			if (
 				workerResponse.status === 404 &&
 				workerResponse.headers.get('x-file-type') === 'static'
 			) {
+				const { staticAssetsDirectory } = await getScopedWpDetails(
+					scope!
+				);
+				if (!staticAssetsDirectory) {
+					const plain404Response = workerResponse.clone();
+					plain404Response.headers.delete('x-file-type');
+					return plain404Response;
+				}
+
 				// If we get a 404 for a static file, try to fetch it from
 				// the from the static assets directory at the remote server.
 				const requestedUrl = new URL(event.request.url);
@@ -230,7 +237,7 @@ function emptyHtml() {
 }
 
 type WPModuleDetails = {
-	staticAssetsDirectory: string;
+	staticAssetsDirectory?: string;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
