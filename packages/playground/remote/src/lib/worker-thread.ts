@@ -34,8 +34,10 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { PHPWorker } from '@php-wasm/universal';
+import { PHPWorker, UniversalPHP } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
+import { decodeZip } from '@php-wasm/stream-compression';
+import { logger } from '@php-wasm/logger';
 
 const scope = Math.random().toFixed(16);
 
@@ -177,6 +179,42 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
+function downloadWordPressAssets(php: UniversalPHP) {
+	fetch(`/wp-${startupOptions.wpVersion}/wordpress-static.zip`).then(
+		async (response) => {
+			try {
+				const zipBytes = await response.arrayBuffer();
+				const zipStream = decodeZip(new Blob([zipBytes]).stream());
+				for await (const file of zipStream) {
+					const path = file.name.replace(
+						'wordpress-static',
+						'/wordpress'
+					);
+
+					if (file.type === 'directory' && !php.isDir(path)) {
+						php.mkdir(path);
+					} else if (!php.fileExists(path)) {
+						try {
+							php.writeFile(
+								path,
+								new Uint8Array(await file.arrayBuffer())
+							);
+						} catch (e) {
+							logger.warn(
+								'Failed to write a WordPress asset file',
+								path,
+								e
+							);
+						}
+					}
+				}
+			} catch (e) {
+				logger.warn('Failed to download WordPress assets', e);
+			}
+		}
+	);
+}
+
 const apiEndpoint = new PlaygroundWorkerEndpoint(
 	downloadMonitor,
 	scope,
@@ -229,6 +267,9 @@ try {
 							: 'memfs-to-opfs',
 					});
 				}
+			},
+			afterWordPressInstall(php) {
+				downloadWordPressAssets(php);
 			},
 		},
 		createFiles: {
