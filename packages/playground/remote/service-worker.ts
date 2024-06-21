@@ -2,7 +2,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope } from '@php-wasm/scopes';
+import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -13,6 +13,7 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
+import { preCacheResources, cachedFetch } from './src/lib/fetch-caching';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -24,6 +25,17 @@ if (!(self as any).document) {
 }
 
 reportServiceWorkerMetrics(self);
+
+self.addEventListener('install', (event) => {
+	event.waitUntil(preCacheResources());
+});
+self.addEventListener('fetch', async (event) => {
+	const url = new URL(event.request.url);
+	if (isURLScoped(url)) {
+		return;
+	}
+	return cachedFetch(event.request);
+});
 
 initializeServiceWorker({
 	handleRequest(event) {
