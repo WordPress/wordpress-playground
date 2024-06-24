@@ -2,6 +2,7 @@ import { PHPWorker } from '@php-wasm/universal';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
+import { logger } from '@php-wasm/logger';
 
 /**
  * Run this in the main application to register the service worker or
@@ -43,8 +44,14 @@ export async function registerServiceWorker<Client extends Remote<PHPWorker>>(
 
 	// Check if there's a new service worker available and, if so, enqueue
 	// the update:
-	await registration.update();
-
+	try {
+		await registration.update();
+	} catch (e) {
+		logger.warn(
+			'Failed to update service worker. Check if you are online.',
+			e
+		);
+	}
 	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(
 		'message',
