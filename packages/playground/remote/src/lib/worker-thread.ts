@@ -275,42 +275,39 @@ try {
 		);
 	}
 
+	const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
+		apiEndpoint.loadedWordPressVersion
+	);
 	const remoteAssetListPath = joinPaths(
 		requestHandler.documentRoot,
 		'wordpress-remote-asset-paths'
 	);
-	// TODO: Is this a good choice of common static asset?
 	// Use a common WP static asset to guess whether we are using a minified WP build.
+	// This file is present in WP 6.2 - 6.5 and the current beta.
 	const commonStaticAssetPath = joinPaths(
 		requestHandler.documentRoot,
 		'wp-admin/css/common.css'
 	);
 
 	if (
+		wpStaticAssetsDir !== undefined &&
 		!primaryPhp.fileExists(remoteAssetListPath) &&
 		!primaryPhp.fileExists(commonStaticAssetPath)
 	) {
-		// We are missing the remote asset listing and a common static file.
+		// The loaded WP release has a remote static assets dir,
+		// and we are missing the remote asset listing and a common static file.
 		// This looks like a minified WP build missing a remote asset listing.
-		const loadedWordPressVersion = await getLoadedWordPressVersion(
-			requestHandler
+		const listUrl = new URL(
+			joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
+			wordPressSiteUrl
 		);
-		if (isSupportedWordPressVersion(loadedWordPressVersion)) {
-			const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
-				loadedWordPressVersion
+		try {
+			const remoteAssetPaths = await fetch(listUrl).then((res) =>
+				res.text()
 			);
-			// TODO: Consider version of joinPaths that works for URLs that include schemes like "http://"
-			const listUrl = `${wordPressSiteUrl}/${wpStaticAssetsDir}/wordpress-remote-asset-paths`;
-			try {
-				const remoteAssetPaths = await fetch(listUrl).then((res) =>
-					res.text()
-				);
-				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-			} catch (e) {
-				logger.warn(
-					`Failed to fetch remote asset paths from ${listUrl}`
-				);
-			}
+			primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
+		} catch (e) {
+			logger.warn(`Failed to fetch remote asset paths from ${listUrl}`);
 		}
 	}
 
