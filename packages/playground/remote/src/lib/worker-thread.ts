@@ -193,37 +193,39 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 async function downloadWordPressAssets(php: PHP) {
 	const wpVersion = await getWordPressVersionFromPhp(php);
-	fetch(`/wp-${wpVersion}/wordpress-static.zip`).then(async (response) => {
-		try {
-			const zipBytes = await response.arrayBuffer();
-			const zipStream = decodeZip(new Blob([zipBytes]).stream());
-			for await (const file of zipStream) {
-				const path = file.name.replace(
-					'wordpress-static',
-					'/wordpress'
-				);
+	fetch(`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`).then(
+		async (response) => {
+			try {
+				const zipBytes = await response.arrayBuffer();
+				const zipStream = decodeZip(new Blob([zipBytes]).stream());
+				for await (const file of zipStream) {
+					const path = file.name.replace(
+						'wordpress-static',
+						'/wordpress'
+					);
 
-				if (file.type === 'directory' && !php.isDir(path)) {
-					php.mkdir(path);
-				} else if (!php.fileExists(path)) {
-					try {
-						php.writeFile(
-							path,
-							new Uint8Array(await file.arrayBuffer())
-						);
-					} catch (e) {
-						logger.warn(
-							'Failed to write a WordPress asset file',
-							path,
-							e
-						);
+					if (file.type === 'directory' && !php.isDir(path)) {
+						php.mkdir(path);
+					} else if (!php.fileExists(path)) {
+						try {
+							php.writeFile(
+								path,
+								new Uint8Array(await file.arrayBuffer())
+							);
+						} catch (e) {
+							logger.warn(
+								'Failed to write a WordPress asset file',
+								path,
+								e
+							);
+						}
 					}
 				}
+			} catch (e) {
+				logger.warn('Failed to download WordPress assets', e);
 			}
-		} catch (e) {
-			logger.warn('Failed to download WordPress assets', e);
 		}
-	});
+	);
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
