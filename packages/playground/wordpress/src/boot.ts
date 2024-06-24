@@ -24,7 +24,6 @@ export type Hook = (php: PHP) => void | Promise<void>;
 export interface Hooks {
 	beforeWordPressFiles?: Hook;
 	beforeDatabaseSetup?: Hook;
-	afterWordPressInstall?: Hook;
 }
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
@@ -211,10 +210,6 @@ export async function bootWordPress(options: BootOptions) {
 
 	if (!(await isWordPressInstalled(php))) {
 		throw new Error('WordPress installation has failed.');
-	}
-
-	if (options.hooks?.afterWordPressInstall) {
-		await options.hooks.afterWordPressInstall(php);
 	}
 
 	return requestHandler;

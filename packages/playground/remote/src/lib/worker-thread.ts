@@ -279,9 +279,6 @@ try {
 					});
 				}
 			},
-			afterWordPressInstall(php) {
-				downloadWordPressAssets(php);
-			},
 		},
 		createFiles: {
 			'/internal/shared/mu-plugins': {
@@ -296,6 +293,7 @@ try {
 	apiEndpoint.__internal_setRequestHandler(requestHandler);
 
 	const primaryPhp = await requestHandler.getPrimaryPhp();
+	downloadWordPressAssets(primaryPhp);
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
 	// NOTE: We need to derive the loaded WP version or we might assume WP loaded
