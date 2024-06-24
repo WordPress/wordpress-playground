@@ -281,21 +281,12 @@ try {
 		requestHandler.documentRoot,
 		'wordpress-remote-asset-paths'
 	);
-	// Use a common WP static asset to guess whether we are using a minified WP build.
-	// This file is present in WP 6.2 - 6.5, nightly, and the current beta.
-	const commonStaticAssetPath = joinPaths(
-		requestHandler.documentRoot,
-		'wp-admin/css/common.css'
-	);
-
 	if (
 		wpStaticAssetsDir !== undefined &&
-		!primaryPhp.fileExists(remoteAssetListPath) &&
-		!primaryPhp.fileExists(commonStaticAssetPath)
+		!primaryPhp.fileExists(remoteAssetListPath)
 	) {
-		// The loaded WP release has a remote static assets dir,
-		// and we are missing the remote asset listing and a common static file.
-		// This looks like a minified WP build missing a remote asset listing.
+		// The loaded WP release has a remote static assets dir
+		// but no remote asset listing, so we need to backfill the listing.
 		const listUrl = new URL(
 			joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
 			wordPressSiteUrl
