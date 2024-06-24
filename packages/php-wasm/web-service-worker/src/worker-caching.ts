@@ -74,7 +74,7 @@ export const cachedFetch = async (request: Request): Promise<Response> => {
 	return response;
 };
 
-const preCachedResources: RequestInfo[] = ['/', '/index.html'];
+const preCachedResources: RequestInfo[] = ['/', '/index.html', '/sw.js'];
 
 export const preCacheResources = async (): Promise<any> => {
 	if (!isValidHostname(new URL(location.href))) {
