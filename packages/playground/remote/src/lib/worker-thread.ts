@@ -283,7 +283,7 @@ try {
 		'wordpress-remote-asset-paths'
 	);
 	// Use a common WP static asset to guess whether we are using a minified WP build.
-	// This file is present in WP 6.2 - 6.5 and the current beta.
+	// This file is present in WP 6.2 - 6.5, nightly, and the current beta.
 	const commonStaticAssetPath = joinPaths(
 		requestHandler.documentRoot,
 		'wp-admin/css/common.css'
