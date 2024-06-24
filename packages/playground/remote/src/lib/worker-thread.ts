@@ -39,7 +39,6 @@ import { PHPWorker } from '@php-wasm/universal';
 import {
 	bootWordPress,
 	getLoadedWordPressVersion,
-	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
