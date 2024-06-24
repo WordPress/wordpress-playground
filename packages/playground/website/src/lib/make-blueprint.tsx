@@ -12,6 +12,7 @@ interface MakeBlueprintOptions {
 	plugins?: string[];
 	importSite?: string;
 	importWxr?: string;
+	language?: string;
 }
 
 export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
@@ -56,6 +57,10 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 					slug: options.theme,
 				},
 				progress: { weight: 2 },
+			},
+			options.language && {
+				step: 'setSiteLanguage',
+				language: options.language,
 			},
 			...plugins.map<StepDefinition>((plugin) => ({
 				step: 'installPlugin',
