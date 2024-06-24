@@ -9,9 +9,12 @@ export async function getLoadedWordPressVersion(
 }
 
 export async function getWordPressVersionFromPhp(php: PHP): Promise<string> {
+	if (!php.requestHandler) {
+		throw new Error('PHP instance has no request handler.');
+	}
 	const result = await php.run({
 		code: `<?php
-			require '${php.documentRoot}/wp-includes/version.php';
+			require '${php.requestHandler.documentRoot}/wp-includes/version.php';
 			echo $wp_version;
 		`,
 	});
