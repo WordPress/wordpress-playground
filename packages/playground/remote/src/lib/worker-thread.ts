@@ -1,6 +1,7 @@
 import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
+import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
@@ -38,6 +39,7 @@ import { PHPWorker } from '@php-wasm/universal';
 import {
 	bootWordPress,
 	getLoadedWordPressVersion,
+	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
@@ -271,6 +273,45 @@ try {
 			`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
 				`from requested version (${apiEndpoint.requestedWordPressVersion}).`
 		);
+	}
+
+	const remoteAssetListPath = joinPaths(
+		requestHandler.documentRoot,
+		'wordpress-remote-asset-paths'
+	);
+	// TODO: Is this a good choice of common static asset?
+	// Use a common WP static asset to guess whether we are using a minified WP build.
+	const commonStaticAssetPath = joinPaths(
+		requestHandler.documentRoot,
+		'wp-admin/css/common.css'
+	);
+
+	if (
+		!primaryPhp.fileExists(remoteAssetListPath) &&
+		!primaryPhp.fileExists(commonStaticAssetPath)
+	) {
+		// We are missing the remote asset listing and a common static file.
+		// This looks like a minified WP build missing a remote asset listing.
+		const loadedWordPressVersion = await getLoadedWordPressVersion(
+			requestHandler
+		);
+		if (isSupportedWordPressVersion(loadedWordPressVersion)) {
+			const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
+				loadedWordPressVersion
+			);
+			// TODO: Consider version of joinPaths that works for URLs that include schemes like "http://"
+			const listUrl = `${wordPressSiteUrl}/${wpStaticAssetsDir}/wordpress-remote-asset-paths`;
+			try {
+				const remoteAssetPaths = await fetch(listUrl).then((res) =>
+					res.text()
+				);
+				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
+			} catch (e) {
+				logger.warn(
+					`Failed to fetch remote asset paths from ${listUrl}`
+				);
+			}
+		}
 	}
 
 	setApiReady();

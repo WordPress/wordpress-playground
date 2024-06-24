@@ -18,13 +18,6 @@ import {
 	wordPressRewriteRules,
 } from '.';
 import { joinPaths } from '@php-wasm/util';
-import { logger } from '@php-wasm/logger';
-import { removeURLScope } from '@php-wasm/scopes';
-import {
-	getLoadedWordPressVersion,
-	isSupportedWordPressVersion,
-} from './version-detect';
-import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -198,45 +191,6 @@ export async function bootWordPress(options: BootOptions) {
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
 	// @TODO Assert WordPress core files are in place
-
-	const remoteAssetListPath = joinPaths(
-		requestHandler.documentRoot,
-		'wordpress-remote-asset-paths'
-	);
-	// Use a common WP static asset to guess whether we are using a minified WP build.
-	const commonStaticAssetPath = joinPaths(
-		requestHandler.documentRoot,
-		'wp-admin/css/common.css'
-	);
-	if (
-		!php.fileExists(remoteAssetListPath) &&
-		!php.fileExists(commonStaticAssetPath)
-	) {
-		// We are missing the remote asset listing and a common static file.
-		// This looks like a minified WP build missing a remote asset listing.
-		const loadedWordPressVersion = await getLoadedWordPressVersion(
-			requestHandler
-		);
-		if (isSupportedWordPressVersion(loadedWordPressVersion)) {
-			const unscopedBaseUrl = removeURLScope(
-				new URL(requestHandler.absoluteUrl)
-			);
-			const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
-				loadedWordPressVersion
-			);
-			const listUrl = `${unscopedBaseUrl.href}/${wpStaticAssetsDir}/wordpress-remote-asset-paths`;
-			try {
-				const remoteAssetPaths = await fetch(listUrl).then((res) =>
-					res.text()
-				);
-				php.writeFile(remoteAssetListPath, remoteAssetPaths);
-			} catch (e) {
-				logger.warn(
-					`Failed to fetch remote asset paths from ${listUrl}`
-				);
-			}
-		}
-	}
 
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
