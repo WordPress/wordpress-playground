@@ -201,7 +201,7 @@ async function downloadWordPressAssets(php: PHP) {
 		return;
 	}
 	if (!response.body) {
-		logger.warn('Failed to download WordPress assets');
+		logger.warn('Response body is not readable');
 		return;
 	}
 	try {
@@ -228,7 +228,7 @@ async function downloadWordPressAssets(php: PHP) {
 			}
 		}
 	} catch (e) {
-		logger.warn('Failed to download WordPress assets', e);
+		logger.warn('Failed to extract WordPress assets', e);
 	}
 }
 
