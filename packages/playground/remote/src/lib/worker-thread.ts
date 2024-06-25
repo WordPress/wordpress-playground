@@ -192,8 +192,15 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 async function downloadWordPressAssets(php: PHP) {
 	const wpVersion = await getWordPressVersionFromPhp(php);
+	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
+	if (!staticAssetsDirectory) {
+		logger.warn('No static assets directory for WordPress', wpVersion);
+		return;
+	}
 	const response = await fetch(
-		`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`
+		[wordPressSiteUrl, staticAssetsDirectory, 'wordpress-static.zip'].join(
+			'/'
+		)
 	);
 
 	if (!response.ok) {
