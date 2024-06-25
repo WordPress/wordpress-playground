@@ -193,15 +193,18 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 async function downloadWordPressAssets(php: PHP) {
 	const wpVersion = await getWordPressVersionFromPhp(php);
-	fetch(`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`)
-		.then((response) => response.body)
-		.then(async (body) => {
-			if (!body) {
+	fetch(`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`).then(
+		async (response) => {
+			if (!response.ok) {
+				logger.warn('Failed to download WordPress assets');
+				return;
+			}
+			if (!response.body) {
 				logger.warn('Failed to download WordPress assets');
 				return;
 			}
 			try {
-				const zipStream = decodeZip(body);
+				const zipStream = decodeZip(response.body);
 
 				for await (const file of zipStream) {
 					const path = file.name.replace(
@@ -229,7 +232,8 @@ async function downloadWordPressAssets(php: PHP) {
 			} catch (e) {
 				logger.warn('Failed to download WordPress assets', e);
 			}
-		});
+		}
+	);
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
