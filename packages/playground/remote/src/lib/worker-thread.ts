@@ -192,47 +192,44 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 async function downloadWordPressAssets(php: PHP) {
 	const wpVersion = await getWordPressVersionFromPhp(php);
-	fetch(`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`).then(
-		async (response) => {
-			if (!response.ok) {
-				logger.warn('Failed to download WordPress assets');
-				return;
-			}
-			if (!response.body) {
-				logger.warn('Failed to download WordPress assets');
-				return;
-			}
-			try {
-				const zipStream = decodeZip(response.body);
+	const response = await fetch(
+		`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`
+	);
 
-				for await (const file of zipStream) {
-					const path = file.name.replace(
-						'wordpress-static',
-						'/wordpress'
+	if (!response.ok) {
+		logger.warn('Failed to download WordPress assets');
+		return;
+	}
+	if (!response.body) {
+		logger.warn('Failed to download WordPress assets');
+		return;
+	}
+	try {
+		const zipStream = decodeZip(response.body);
+
+		for await (const file of zipStream) {
+			const path = file.name.replace('wordpress-static', '/wordpress');
+
+			if (file.type === 'directory' && !php.isDir(path)) {
+				php.mkdir(path);
+			} else if (!php.fileExists(path)) {
+				try {
+					php.writeFile(
+						path,
+						new Uint8Array(await file.arrayBuffer())
 					);
-
-					if (file.type === 'directory' && !php.isDir(path)) {
-						php.mkdir(path);
-					} else if (!php.fileExists(path)) {
-						try {
-							php.writeFile(
-								path,
-								new Uint8Array(await file.arrayBuffer())
-							);
-						} catch (e) {
-							logger.warn(
-								'Failed to write a WordPress asset file',
-								path,
-								e
-							);
-						}
-					}
+				} catch (e) {
+					logger.warn(
+						'Failed to write a WordPress asset file',
+						path,
+						e
+					);
 				}
-			} catch (e) {
-				logger.warn('Failed to download WordPress assets', e);
 			}
 		}
-	);
+	} catch (e) {
+		logger.warn('Failed to download WordPress assets', e);
+	}
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
