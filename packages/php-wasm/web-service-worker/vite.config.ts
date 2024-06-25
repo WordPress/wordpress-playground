@@ -5,7 +5,8 @@ import dts from 'vite-plugin-dts';
 import { join } from 'path';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-web-service-worker',
@@ -19,6 +20,7 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
+		buildVersionPlugin('worker-version'),
 	],
 
 	test: {
