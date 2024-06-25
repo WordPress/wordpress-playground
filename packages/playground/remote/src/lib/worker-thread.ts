@@ -43,7 +43,6 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
-import { getWordPressVersionFromPhp } from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
 
@@ -191,7 +190,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 }
 
 async function downloadWordPressAssets(php: PHP) {
-	const wpVersion = await getWordPressVersionFromPhp(php);
+	if (!php.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return;
+	}
+	const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
 	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
 	if (!staticAssetsDirectory) {
 		logger.warn('No static assets directory for WordPress', wpVersion);

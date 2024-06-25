@@ -1,20 +1,13 @@
-import type { PHP, PHPRequestHandler } from '@php-wasm/universal';
+import type { PHPRequestHandler } from '@php-wasm/universal';
 import { SupportedWordPressVersions } from '@wp-playground/wordpress-builds';
 
 export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
 ): Promise<string> {
 	const php = await requestHandler.getPrimaryPhp();
-	return getWordPressVersionFromPhp(php);
-}
-
-export async function getWordPressVersionFromPhp(php: PHP): Promise<string> {
-	if (!php.requestHandler) {
-		throw new Error('PHP instance has no request handler.');
-	}
 	const result = await php.run({
 		code: `<?php
-			require '${php.requestHandler.documentRoot}/wp-includes/version.php';
+			require '${requestHandler.documentRoot}/wp-includes/version.php';
 			echo $wp_version;
 		`,
 	});
@@ -23,7 +16,6 @@ export async function getWordPressVersionFromPhp(php: PHP): Promise<string> {
 	if (!versionString) {
 		throw new Error('Unable to read loaded WordPress version.');
 	}
-
 	return versionStringToLoadedWordPressVersion(versionString);
 }
 
