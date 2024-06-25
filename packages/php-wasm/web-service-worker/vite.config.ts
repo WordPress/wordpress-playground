@@ -20,7 +20,7 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-		buildVersionPlugin('worker-version'),
+		buildVersionPlugin('worker-config'),
 	],
 
 	test: {
