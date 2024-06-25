@@ -1,6 +1,7 @@
 import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
+import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
@@ -39,8 +40,8 @@ import { decodeZip } from '@php-wasm/stream-compression';
 import {
 	bootWordPress,
 	getLoadedWordPressVersion,
-	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
+import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 import { getWordPressVersionFromPhp } from '@wp-playground/wordpress';
 
@@ -135,11 +136,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		return {
 			majorVersion:
 				this.loadedWordPressVersion || this.requestedWordPressVersion,
-			staticAssetsDirectory:
-				this.loadedWordPressVersion &&
-				isSupportedWordPressVersion(this.loadedWordPressVersion)
-					? `wp-${this.loadedWordPressVersion}`
-					: undefined,
+			staticAssetsDirectory: this.loadedWordPressVersion
+				? wpVersionToStaticAssetsDirectory(this.loadedWordPressVersion)
+				: undefined,
 		};
 	}
 
@@ -321,6 +320,33 @@ try {
 			`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
 				`from requested version (${apiEndpoint.requestedWordPressVersion}).`
 		);
+	}
+
+	const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
+		apiEndpoint.loadedWordPressVersion
+	);
+	const remoteAssetListPath = joinPaths(
+		requestHandler.documentRoot,
+		'wordpress-remote-asset-paths'
+	);
+	if (
+		wpStaticAssetsDir !== undefined &&
+		!primaryPhp.fileExists(remoteAssetListPath)
+	) {
+		// The loaded WP release has a remote static assets dir
+		// but no remote asset listing, so we need to backfill the listing.
+		const listUrl = new URL(
+			joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
+			wordPressSiteUrl
+		);
+		try {
+			const remoteAssetPaths = await fetch(listUrl).then((res) =>
+				res.text()
+			);
+			primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
+		} catch (e) {
+			logger.warn(`Failed to fetch remote asset paths from ${listUrl}`);
+		}
 	}
 
 	setApiReady();
