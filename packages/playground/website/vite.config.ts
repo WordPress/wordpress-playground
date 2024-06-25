@@ -2,9 +2,8 @@
 import { defineConfig } from 'vite';
 import type { Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
-import { execSync } from 'node:child_process';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -15,11 +14,11 @@ import {
 	remoteDevServerPort,
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import virtualModule from '../vite-virtual-module';
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -28,13 +27,6 @@ const proxy = {
 		secure: true,
 	},
 };
-
-let buildVersion: string;
-try {
-	buildVersion = execSync('git rev-parse HEAD').toString().trim();
-} catch (e) {
-	buildVersion = (new Date().getTime() / 1000).toFixed(0);
-}
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
@@ -83,11 +75,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
-			virtualModule({
-				name: 'website-config',
-				content: `
-				export const buildVersion = ${JSON.stringify(buildVersion)};`,
-			}),
+			buildVersionPlugin('website-config'),
 			// GitHub OAuth flow
 			{
 				name: 'configure-server',
