@@ -5,8 +5,6 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { importThemeStarterContent } from './import-theme-starter-content';
-import { installTheme } from './install-theme';
-import { readFile } from 'fs/promises';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
@@ -68,7 +66,7 @@ add_action( 'after_setup_theme', 'testtheme_theme_support' );
 		);
 
 		// Theme doesn't need to be active.
-		await importStarterContent(php, {
+		await importThemeStarterContent(php, {
 			themeSlug: 'test-theme',
 		});
 
@@ -81,7 +79,7 @@ add_action( 'after_setup_theme', 'testtheme_theme_support' );
 				]);
 			`,
 		});
-		const json = result.json;
+		const json = response.json;
 
 		expect(json.show_on_front).toEqual('page');
 		expect(json.front_page.post_title).toEqual('Static front');
