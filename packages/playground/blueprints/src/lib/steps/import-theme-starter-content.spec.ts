@@ -26,6 +26,7 @@ describe('Blueprint step importThemeStarterContent', () => {
 
 	it('Should import theme starter content', async () => {
 		const docroot = php.documentRoot;
+		// Create a test theme with starter content, Must have at a minimum style.css + index.php
 		php.mkdir(`${docroot}/wp-content/themes/test-theme`);
 		php.writeFile(
 			`${docroot}/wp-content/themes/test-theme/style.css`,
@@ -36,6 +37,7 @@ describe('Blueprint step importThemeStarterContent', () => {
 */
 			`
 		);
+		php.writeFile(`${docroot}/wp-content/themes/test-theme/index.php`, '');
 		php.writeFile(
 			`${docroot}/wp-content/themes/test-theme/functions.php`,
 			`<?php
@@ -69,7 +71,7 @@ add_action( 'after_setup_theme', 'testtheme_theme_support' );
 
 		const response = await php.run({
 			code: `<?php
-				require '/wordpress/wp-load.php';
+				require '${docroot}/wp-load.php';
 				echo json_encode([
 					'show_on_front' => get_option('show_on_front'),
 					'front_page'    => get_post( get_option('page_on_front') ),
