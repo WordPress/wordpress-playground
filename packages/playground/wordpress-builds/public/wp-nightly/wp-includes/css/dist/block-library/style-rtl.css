@@ -21,7 +21,7 @@
 .wp-block-audio{
   box-sizing:border-box;
 }
-.wp-block-audio figcaption{
+.wp-block-audio :where(figcaption){
   margin-bottom:1em;
   margin-top:.5em;
 }
@@ -699,7 +699,7 @@
 .wp-block-embed{
   overflow-wrap:break-word;
 }
-.wp-block-embed figcaption{
+.wp-block-embed :where(figcaption){
   margin-bottom:1em;
   margin-top:.5em;
 }
@@ -1137,7 +1137,7 @@ h1.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h1.has-t
   margin-left:auto;
   margin-right:auto;
 }
-.wp-block-image figcaption{
+.wp-block-image :where(figcaption){
   margin-bottom:1em;
   margin-top:.5em;
 }
@@ -1797,6 +1797,7 @@ button.wp-block-navigation-item__content{
   font-size:inherit;
   font-style:inherit;
   font-weight:inherit;
+  letter-spacing:inherit;
   line-height:inherit;
   text-align:right;
   text-transform:inherit;
@@ -2637,8 +2638,7 @@ ul.wp-block-rss.is-grid li{
 }
 
 .wp-block-search__input{
-  -webkit-appearance:initial;
-          appearance:none;
+  appearance:none;
   border:1px solid #949494;
   flex-grow:1;
   margin-left:0;
@@ -3373,7 +3373,7 @@ pre.wp-block-verse{
 .wp-block-video.aligncenter{
   text-align:center;
 }
-.wp-block-video figcaption{
+.wp-block-video :where(figcaption){
   margin-bottom:1em;
   margin-top:.5em;
 }
@@ -3493,7 +3493,6 @@ a[data-fn].fn:after{
 .screen-reader-text{
   border:0;
   clip:rect(1px, 1px, 1px, 1px);
-  -webkit-clip-path:inset(50%);
   clip-path:inset(50%);
   height:1px;
   margin:-1px;
@@ -3507,8 +3506,7 @@ a[data-fn].fn:after{
 .screen-reader-text:focus{
   background-color:#ddd;
   clip:auto !important;
-  -webkit-clip-path:none;
-          clip-path:none;
+  clip-path:none;
   color:#444;
   display:block;
   font-size:1em;
