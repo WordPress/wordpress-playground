@@ -45880,16 +45880,13 @@ function palette_edit_Option({
   canOnlyChangeValues,
   element,
   onChange,
-  isEditing,
-  onStartEditing,
   onRemove,
-  onStopEditing,
   popoverProps: receivedPopoverProps,
   slugPrefix,
   isGradient
 }) {
-  const focusOutsideProps = (0,external_wp_compose_namespaceObject.__experimentalUseFocusOutside)(onStopEditing);
   const value = isGradient ? element.gradient : element.color;
+  const [isEditingColor, setIsEditingColor] = (0,external_wp_element_namespaceObject.useState)(false);
 
   // Use internal state instead of a ref to make sure that the component
   // re-renders when the popover's anchor updates.
@@ -45900,22 +45897,25 @@ function palette_edit_Option({
     anchor: popoverAnchor
   }), [popoverAnchor, receivedPopoverProps]);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(PaletteItem, {
-    className: isEditing ? 'is-selected' : undefined,
-    as: isEditing ? 'div' : 'button',
-    onClick: onStartEditing,
-    "aria-label": isEditing ? undefined : (0,external_wp_i18n_namespaceObject.sprintf)(
-    // translators: %s is a color or gradient name, e.g. "Red".
-    (0,external_wp_i18n_namespaceObject.__)('Edit: %s'), element.name.trim().length ? element.name : value),
     ref: setPopoverAnchor,
-    ...(isEditing ? {
-      ...focusOutsideProps
-    } : {}),
+    as: "div",
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(h_stack_component, {
       justify: "flex-start",
-      children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(IndicatorStyled, {
-        colorValue: value
+      children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(build_module_button, {
+        onClick: () => {
+          setIsEditingColor(true);
+        },
+        "aria-label": (0,external_wp_i18n_namespaceObject.sprintf)(
+        // translators: %s is a color or gradient name, e.g. "Red".
+        (0,external_wp_i18n_namespaceObject.__)('Edit: %s'), element.name.trim().length ? element.name : value),
+        style: {
+          padding: 0
+        },
+        children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(IndicatorStyled, {
+          colorValue: value
+        })
       }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(flex_item_component, {
-        children: isEditing && !canOnlyChangeValues ? /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(NameInput, {
+        children: !canOnlyChangeValues ? /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(NameInput, {
           label: isGradient ? (0,external_wp_i18n_namespaceObject.__)('Gradient name') : (0,external_wp_i18n_namespaceObject.__)('Color name'),
           value: element.name,
           onChange: nextName => onChange({
@@ -45927,31 +45927,33 @@ function palette_edit_Option({
           children: element.name.trim().length ? element.name : /* Fall back to non-breaking space to maintain height */
           '\u00A0'
         })
-      }), isEditing && !canOnlyChangeValues && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(flex_item_component, {
+      }), !canOnlyChangeValues && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(flex_item_component, {
         children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(RemoveButton, {
           size: "small",
           icon: line_solid,
-          label: (0,external_wp_i18n_namespaceObject.__)('Remove color'),
+          label: (0,external_wp_i18n_namespaceObject.sprintf)(
+          // translators: %s is a color or gradient name, e.g. "Red".
+          (0,external_wp_i18n_namespaceObject.__)('Remove color: %s'), element.name.trim().length ? element.name : value),
           onClick: onRemove
         })
       })]
-    }), isEditing && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ColorPickerPopover, {
+    }), isEditingColor && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ColorPickerPopover, {
       isGradient: isGradient,
       onChange: onChange,
       element: element,
-      popoverProps: popoverProps
+      popoverProps: popoverProps,
+      onClose: () => setIsEditingColor(false)
     })]
   });
 }
 function PaletteEditListView({
   elements,
   onChange,
-  editingElement,
-  setEditingElement,
   canOnlyChangeValues,
   slugPrefix,
   isGradient,
-  popoverProps
+  popoverProps,
+  addColorRef
 }) {
   // When unmounting the component if there are empty elements (the user did not complete the insertion) clean them.
   const elementsReference = (0,external_wp_element_namespaceObject.useRef)();
@@ -45967,11 +45969,6 @@ function PaletteEditListView({
         isGradient: isGradient,
         canOnlyChangeValues: canOnlyChangeValues,
         element: element,
-        onStartEditing: () => {
-          if (editingElement !== index) {
-            setEditingElement(index);
-          }
-        },
         onChange: newElement => {
           debounceOnChange(elements.map((currentElement, currentIndex) => {
             if (currentIndex === index) {
@@ -45981,7 +45978,6 @@ function PaletteEditListView({
           }));
         },
         onRemove: () => {
-          setEditingElement(null);
           const newElements = elements.filter((_currentElement, currentIndex) => {
             if (currentIndex === index) {
               return false;
@@ -45989,12 +45985,7 @@ function PaletteEditListView({
             return true;
           });
           onChange(newElements.length ? newElements : undefined);
-        },
-        isEditing: index === editingElement,
-        onStopEditing: () => {
-          if (index === editingElement) {
-            setEditingElement(null);
-          }
+          addColorRef.current?.focus();
         },
         slugPrefix: slugPrefix,
         popoverProps: popoverProps
@@ -46054,6 +46045,7 @@ function PaletteEdit({
       setIsEditing(true);
     }
   }, [isGradient, elements]);
+  const addColorRef = (0,external_wp_element_namespaceObject.useRef)(null);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(PaletteEditStyles, {
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(h_stack_component, {
       children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(PaletteHeading, {
@@ -46068,6 +46060,7 @@ function PaletteEdit({
           },
           children: (0,external_wp_i18n_namespaceObject.__)('Done')
         }), !canOnlyChangeValues && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(build_module_button, {
+          ref: addColorRef,
           size: "small",
           isPressed: isAdding,
           icon: library_plus,
@@ -46142,11 +46135,10 @@ function PaletteEdit({
         // @ts-expect-error TODO: Don't know how to resolve
         ,
         onChange: onChange,
-        editingElement: editingElement,
-        setEditingElement: setEditingElement,
         slugPrefix: slugPrefix,
         isGradient: isGradient,
-        popoverProps: popoverProps
+        popoverProps: popoverProps,
+        addColorRef: addColorRef
       }), !isEditing && editingElement !== null && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ColorPickerPopover, {
         isGradient: isGradient,
         onClose: () => setEditingElement(null),
@@ -73946,7 +73938,7 @@ const external_wp_privateApis_namespaceObject = window["wp"]["privateApis"];
 const {
   lock,
   unlock
-} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I know using unstable features means my theme or plugin will inevitably break in the next version of WordPress.', '@wordpress/components');
+} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.', '@wordpress/components');
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/components/build-module/private-apis.js
 /**

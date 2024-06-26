@@ -1,6 +1,7 @@
 import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
@@ -35,14 +36,12 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { PHP, PHPWorker } from '@php-wasm/universal';
-import { decodeZip } from '@php-wasm/stream-compression';
 import {
 	bootWordPress,
 	getLoadedWordPressVersion,
-	isSupportedWordPressVersion,
 } from '@wp-playground/wordpress';
+import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
-import { getWordPressVersionFromPhp } from '@wp-playground/wordpress';
 
 const scope = Math.random().toFixed(16);
 
@@ -135,11 +134,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		return {
 			majorVersion:
 				this.loadedWordPressVersion || this.requestedWordPressVersion,
-			staticAssetsDirectory:
-				this.loadedWordPressVersion &&
-				isSupportedWordPressVersion(this.loadedWordPressVersion)
-					? `wp-${this.loadedWordPressVersion}`
-					: undefined,
+			staticAssetsDirectory: this.loadedWordPressVersion
+				? wpVersionToStaticAssetsDirectory(this.loadedWordPressVersion)
+				: undefined,
 		};
 	}
 
@@ -189,47 +186,86 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	async replayFSJournal(events: FilesystemOperation[]) {
 		return replayFSJournal(this.__internal_getPHP()!, events);
 	}
+
+	async downloadWordPressAssets() {
+		await downloadWordPressAssets(this.__internal_getPHP()!);
+	}
 }
 
 async function downloadWordPressAssets(php: PHP) {
-	const wpVersion = await getWordPressVersionFromPhp(php);
-	fetch(`${wordPressSiteUrl}/wp-${wpVersion}/wordpress-static.zip`)
-		.then((response) => response.body)
-		.then(async (body) => {
-			if (!body) {
-				logger.warn('Failed to download WordPress assets');
-				return;
-			}
-			try {
-				const zipStream = decodeZip(body);
+	if (!php.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return;
+	}
 
-				for await (const file of zipStream) {
-					const path = file.name.replace(
-						'wordpress-static',
-						'/wordpress'
-					);
+	try {
+		const remoteAssetListPath = joinPaths(
+			php.requestHandler.documentRoot,
+			'wordpress-remote-asset-paths'
+		);
+		// If the remote asset list is not available this means that the WordPress static assets are already downloaded.
+		if (!php.fileExists(remoteAssetListPath)) {
+			return;
+		}
+		const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
+		const staticAssetsDirectory =
+			wpVersionToStaticAssetsDirectory(wpVersion);
+		if (!staticAssetsDirectory) {
+			return;
+		}
+		const response = await fetch(
+			[
+				wordPressSiteUrl,
+				staticAssetsDirectory,
+				'wordpress-static.zip',
+			].join('/')
+		);
 
-					if (file.type === 'directory' && !php.isDir(path)) {
-						php.mkdir(path);
-					} else if (!php.fileExists(path)) {
-						try {
-							php.writeFile(
-								path,
-								new Uint8Array(await file.arrayBuffer())
-							);
-						} catch (e) {
-							logger.warn(
-								'Failed to write a WordPress asset file',
-								path,
-								e
-							);
+		if (!response.ok) {
+			logger.warn('Failed to download WordPress assets');
+			return;
+		}
+
+		const zipPath = '/tmp/wordpress-static-assets.zip';
+		await php.writeFile(
+			zipPath,
+			new Uint8Array(await response.arrayBuffer())
+		);
+		await php.run({
+			code: `<?php
+				$document_root = ${phpVar(php.requestHandler.documentRoot)};
+				$zip_path = ${phpVar(zipPath)};
+				$zip = new ZipArchive;
+				$res = $zip->open($zip_path);
+				if ($res !== TRUE) {
+					return;
+				}
+				for ($i = 0; $i < $zip->numFiles; $i++) {
+					$filename = $zip->getNameIndex($i);
+					$extractPath = str_replace('wordpress-static', $document_root, $filename);
+					// Create directories if they don't exist
+					if (substr($filename, -1) === '/') {
+						if (is_dir($extractPath)) {
+							continue;
 						}
+						mkdir($extractPath, 0777, true);
+					} else {
+						// Extract files
+						copy("zip://$zip_path#".$filename, $extractPath);
 					}
 				}
-			} catch (e) {
-				logger.warn('Failed to download WordPress assets', e);
-			}
+				$zip->close();
+			`,
 		});
+		if (await php.fileExists(zipPath)) {
+			await php.unlink(zipPath);
+		}
+		if (await php.fileExists(remoteAssetListPath)) {
+			await php.unlink(remoteAssetListPath);
+		}
+	} catch (e) {
+		logger.warn('Failed to download WordPress assets', e);
+	}
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
@@ -299,7 +335,6 @@ try {
 	apiEndpoint.__internal_setRequestHandler(requestHandler);
 
 	const primaryPhp = await requestHandler.getPrimaryPhp();
-	downloadWordPressAssets(primaryPhp);
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
 	// NOTE: We need to derive the loaded WP version or we might assume WP loaded
@@ -317,6 +352,33 @@ try {
 			`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
 				`from requested version (${apiEndpoint.requestedWordPressVersion}).`
 		);
+	}
+
+	const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
+		apiEndpoint.loadedWordPressVersion
+	);
+	const remoteAssetListPath = joinPaths(
+		requestHandler.documentRoot,
+		'wordpress-remote-asset-paths'
+	);
+	if (
+		wpStaticAssetsDir !== undefined &&
+		!primaryPhp.fileExists(remoteAssetListPath)
+	) {
+		// The loaded WP release has a remote static assets dir
+		// but no remote asset listing, so we need to backfill the listing.
+		const listUrl = new URL(
+			joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
+			wordPressSiteUrl
+		);
+		try {
+			const remoteAssetPaths = await fetch(listUrl).then((res) =>
+				res.text()
+			);
+			primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
+		} catch (e) {
+			logger.warn(`Failed to fetch remote asset paths from ${listUrl}`);
+		}
 	}
 
 	setApiReady();
