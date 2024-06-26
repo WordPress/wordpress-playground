@@ -19,7 +19,6 @@
 	"typings": "./index.d.ts",
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"private": true,
 	"engines": {
 		"node": ">=18.18.0",
 		"npm": ">=8.11.0"
