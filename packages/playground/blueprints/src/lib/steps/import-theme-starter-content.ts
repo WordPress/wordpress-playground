@@ -14,6 +14,10 @@ import { phpVar } from '@php-wasm/util';
 export interface ImportThemeStarterContentStep {
 	/** The step identifier. */
 	step: 'importThemeStarterContent';
+	/**
+	 * The name of the theme to import content from.
+	 */
+	themeSlug: string;
 }
 
 /**
@@ -23,12 +27,7 @@ export interface ImportThemeStarterContentStep {
  */
 export const importThemeStarterContent: StepHandler<
 	ImportThemeStarterContentStep
-> = async (
-	playground,
-	// eslint-disable-next-line no-empty-pattern
-	{},
-	progress
-) => {
+> = async (playground, { themeSlug = '' }, progress) => {
 	progress?.tracker?.setCaption('Importing theme starter content');
 
 	const docroot = await playground.documentRoot;
@@ -56,7 +55,7 @@ export const importThemeStarterContent: StepHandler<
 			 * See _wp_customize_include()
 			 */
 			$_REQUEST['wp_customize']        = 'on';
-			$_REQUEST['customize_theme']     = get_stylesheet();
+			$_REQUEST['customize_theme']     = ${phpVar(themeSlug)} ?: get_stylesheet();
 
 			/*
 			 * Claim this is a ajax request saving settings, to avoid the preview filters being applied.

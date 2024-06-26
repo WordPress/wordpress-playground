@@ -95,7 +95,8 @@
 							}
 						]
 					},
-					"description": "WordPress plugins to install and activate"
+					"description": "WordPress plugins to install and activate",
+					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
 				},
 				"siteOptions": {
 					"type": "object",
@@ -108,7 +109,8 @@
 							"description": "The site title"
 						}
 					},
-					"description": "WordPress site options to define"
+					"description": "WordPress site options to define",
+					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
 				},
 				"login": {
 					"anyOf": [
@@ -564,9 +566,13 @@
 							"type": "string",
 							"const": "importThemeStarterContent",
 							"description": "The step identifier."
+						},
+						"themeSlug": {
+							"type": "string",
+							"description": "The name of the theme to import content from."
 						}
 					},
-					"required": ["step"]
+					"required": ["step", "themeSlug"]
 				},
 				{
 					"type": "object",
@@ -672,6 +678,10 @@
 								"activate": {
 									"type": "boolean",
 									"description": "Whether to activate the theme after installing it."
+								},
+								"importStarterContent": {
+									"type": "boolean",
+									"description": "Whether to import the theme's starter content after installing it."
 								}
 							},
 							"additionalProperties": false,
