@@ -53,11 +53,11 @@ function testtheme_theme_support() {
 				'blog',
 			],
 			// Default to a static front page and assign the front and posts pages.
-			'options' => array(
+			'options' => [
 				'show_on_front'  => 'page',
 				'page_on_front'  => '{{front}}',
 				'page_for_posts' => '{{blog}}',
-			),
+			],
 		]
 	);
 }
@@ -74,8 +74,8 @@ add_action( 'after_setup_theme', 'testtheme_theme_support' );
 			code: `<?php
 				require '/wordpress/wp-load.php';
 				echo json_encode([
-					'show_on_front': get_option('show_on_front'),
-					'front_page': get_post( get_option('page_on_front') )
+					'show_on_front' => get_option('show_on_front'),
+					'front_page'    => get_post( get_option('page_on_front') ),
 				]);
 			`,
 		});
