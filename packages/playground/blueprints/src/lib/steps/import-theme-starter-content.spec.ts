@@ -40,26 +40,23 @@ describe('Blueprint step importThemeStarterContent', () => {
 			`${docroot}/wp-content/themes/test-theme/functions.php`,
 			`<?php
 function testtheme_theme_support() {
-	add_theme_support(
-		'starter-content',
-		// Basic starter content to set up a static front page.
-		[
-			'posts' => [
-				'front' => [
-					'post_type'    => 'page',
-					'post_title'   => 'Static front',
-					'post_content' => 'Static front page content'
-				],
-				'blog',
+	// Basic starter content to set up a static front page.
+	add_theme_support( 'starter-content', [
+		'posts' => [
+			'front' => [
+				'post_type'    => 'page',
+				'post_title'   => 'Static front',
+				'post_content' => 'Static front page content'
 			],
-			// Default to a static front page and assign the front and posts pages.
-			'options' => [
-				'show_on_front'  => 'page',
-				'page_on_front'  => '{{front}}',
-				'page_for_posts' => '{{blog}}',
-			],
-		]
-	);
+			'blog',
+		],
+		// Default to a static front page and assign the front and posts pages.
+		'options' => [
+			'show_on_front'  => 'page',
+			'page_on_front'  => '{{front}}',
+			'page_for_posts' => '{{blog}}',
+		],
+	] );
 }
 add_action( 'after_setup_theme', 'testtheme_theme_support' );
 			`
