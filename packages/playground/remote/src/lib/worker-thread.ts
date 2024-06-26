@@ -211,7 +211,6 @@ async function downloadWordPressAssets(php: PHP) {
 		const staticAssetsDirectory =
 			wpVersionToStaticAssetsDirectory(wpVersion);
 		if (!staticAssetsDirectory) {
-			logger.warn('No static assets directory for WordPress', wpVersion);
 			return;
 		}
 		const response = await fetch(
@@ -224,10 +223,6 @@ async function downloadWordPressAssets(php: PHP) {
 
 		if (!response.ok) {
 			logger.warn('Failed to download WordPress assets');
-			return;
-		}
-		if (!response.body) {
-			logger.warn('Response body is not readable');
 			return;
 		}
 
