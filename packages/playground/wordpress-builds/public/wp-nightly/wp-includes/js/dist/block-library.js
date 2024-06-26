@@ -2652,7 +2652,7 @@ const external_wp_privateApis_namespaceObject = window["wp"]["privateApis"];
 const {
   lock,
   unlock
-} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I know using unstable features means my theme or plugin will inevitably break in the next version of WordPress.', '@wordpress/block-library');
+} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.', '@wordpress/block-library');
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/embed/util.js
 /**
@@ -3145,6 +3145,7 @@ function Caption({
   placeholder = (0,external_wp_i18n_namespaceObject.__)('Add caption'),
   label = (0,external_wp_i18n_namespaceObject.__)('Caption text'),
   showToolbarButton = true,
+  excludeElementClassName,
   className,
   readOnly,
   tagName = 'figcaption',
@@ -3200,7 +3201,7 @@ function Caption({
     }), showCaption && (!RichText.isEmpty(caption) || isSelected) && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(RichText, {
       identifier: attributeKey,
       tagName: tagName,
-      className: dist_clsx(className, (0,external_wp_blockEditor_namespaceObject.__experimentalGetElementClassName)('caption')),
+      className: dist_clsx(className, excludeElementClassName ? '' : (0,external_wp_blockEditor_namespaceObject.__experimentalGetElementClassName)('caption')),
       ref: ref,
       "aria-label": label,
       placeholder: placeholder,
@@ -26741,6 +26742,7 @@ function image_Image({
       children: isResizable && dimensionsControl
     })
   });
+  const arePatternOverridesEnabled = metadata?.bindings?.__default?.source === 'core/pattern-overrides';
   const {
     lockUrlControls = false,
     lockHrefControls = false,
@@ -26777,7 +26779,7 @@ function image_Image({
       lockHrefControls:
       // Disable editing the link of the URL if the image is inside a pattern instance.
       // This is a temporary solution until we support overriding the link on the frontend.
-      hasParentPattern,
+      hasParentPattern || arePatternOverridesEnabled,
       lockCaption:
       // Disable editing the caption if the image is inside a pattern instance.
       // This is a temporary solution until we support overriding the caption on the frontend.
@@ -27151,7 +27153,7 @@ function image_Image({
       isSelected: isSingleSelected,
       insertBlocksAfter: insertBlocksAfter,
       label: (0,external_wp_i18n_namespaceObject.__)('Image caption text'),
-      showToolbarButton: isSingleSelected && hasNonContentControls,
+      showToolbarButton: isSingleSelected && hasNonContentControls && !arePatternOverridesEnabled,
       readOnly: lockCaption
     })]
   });
@@ -50443,6 +50445,7 @@ function QuoteEdit({
         (0,external_wp_i18n_namespaceObject.__)('Add citation'),
         addLabel: (0,external_wp_i18n_namespaceObject.__)('Add citation'),
         removeLabel: (0,external_wp_i18n_namespaceObject.__)('Remove citation'),
+        excludeElementClassName: true,
         className: "wp-block-quote__citation",
         insertBlocksAfter: insertBlocksAfter,
         ...(!edit_isWebPlatform ? {
@@ -55238,8 +55241,6 @@ const getNameBySite = name => {
 
 
 
-
-
 /**
  * Internal dependencies
  */
@@ -55251,12 +55252,8 @@ const SocialLinkURLPopover = ({
   url,
   setAttributes,
   setPopover,
-  popoverAnchor,
-  clientId
+  popoverAnchor
 }) => {
-  const {
-    removeBlock
-  } = (0,external_wp_data_namespaceObject.useDispatch)(external_wp_blockEditor_namespaceObject.store);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_blockEditor_namespaceObject.URLPopover, {
     anchor: popoverAnchor,
     onClose: () => setPopover(false),
@@ -55277,13 +55274,7 @@ const SocialLinkURLPopover = ({
           placeholder: (0,external_wp_i18n_namespaceObject.__)('Enter social link'),
           label: (0,external_wp_i18n_namespaceObject.__)('Enter social link'),
           hideLabelFromVision: true,
-          disableSuggestions: true,
-          onKeyDown: event => {
-            if (!!url || event.defaultPrevented || ![external_wp_keycodes_namespaceObject.BACKSPACE, external_wp_keycodes_namespaceObject.DELETE].includes(event.keyCode)) {
-              return;
-            }
-            removeBlock(clientId);
-          }
+          disableSuggestions: true
         })
       }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
         icon: keyboard_return,
@@ -55297,8 +55288,7 @@ const SocialLinkEdit = ({
   attributes,
   context,
   isSelected,
-  setAttributes,
-  clientId
+  setAttributes
 }) => {
   const {
     url,
@@ -55380,8 +55370,7 @@ const SocialLinkEdit = ({
         url: url,
         setAttributes: setAttributes,
         setPopover: setPopover,
-        popoverAnchor: popoverAnchor,
-        clientId: clientId
+        popoverAnchor: popoverAnchor
       })]
     })]
   });

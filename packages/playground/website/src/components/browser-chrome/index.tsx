@@ -9,7 +9,6 @@ interface BrowserChromeProps {
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	url?: string;
 	showAddressBar?: boolean;
-	initialIsFullSize?: boolean;
 	onUrlChange?: (url: string) => void;
 }
 
@@ -19,17 +18,11 @@ export default function BrowserChrome({
 	onUrlChange,
 	showAddressBar = true,
 	toolbarButtons,
-	initialIsFullSize = false,
 }: BrowserChromeProps) {
-	const [isFullSize, setIsFullSize] = useState(initialIsFullSize);
-
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
-	const wrapperClass = classNames(css.wrapper, {
-		[css.hasSmallWindow]: !isFullSize,
-		[css.hasFullSizeWindow]: isFullSize,
-	});
+	const wrapperClass = classNames(css.wrapper, css.hasFullSizeWindow);
 
 	const [noticeHidden, setNoticeHidden] = useState(
 		document.cookie.includes('hideExperimentalNotice=true')
@@ -62,8 +55,7 @@ export default function BrowserChrome({
 							className={`${css.windowControl} ${css.isNeutral}`}
 						></div>
 						<div
-							className={`${css.windowControl} ${css.isGreen} ${css.isActive}`}
-							onClick={() => setIsFullSize(!isFullSize)}
+							className={`${css.windowControl} ${css.isNeutral}`}
 						></div>
 					</div>
 
