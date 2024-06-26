@@ -7,7 +7,6 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { usePlaygroundContext } from '../../playground-context';
 
 export const supportedDisplayModes = [
-	'browser',
 	'browser-full-screen',
 	'seamless',
 ] as const;
@@ -32,7 +31,6 @@ export const PlaygroundViewport = React.forwardRef<
 	}
 	return (
 		<BrowserChrome
-			initialIsFullSize={displayMode === 'browser-full-screen'}
 			showAddressBar={!!playground}
 			url={url}
 			toolbarButtons={toolbarButtons}

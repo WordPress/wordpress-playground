@@ -68,7 +68,6 @@ body.is-embedded .fake-window-wrapper {
 	overflow: hidden;
 
 	animation: pulse 6s ease-in infinite;
-	transition: all ease-in 0.25s;
 }
 
 @keyframes pulse {
