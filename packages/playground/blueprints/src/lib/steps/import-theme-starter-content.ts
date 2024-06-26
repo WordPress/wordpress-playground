@@ -17,7 +17,7 @@ export interface ImportThemeStarterContentStep {
 	/**
 	 * The name of the theme to import content from.
 	 */
-	themeSlug: string;
+	themeSlug?: string;
 }
 
 /**
@@ -54,8 +54,8 @@ export const importThemeStarterContent: StepHandler<
 			 *
 			 * See _wp_customize_include()
 			 */
-			$_REQUEST['wp_customize']        = 'on';
-			$_REQUEST['customize_theme']     = ${phpVar(themeSlug)} ?: get_stylesheet();
+			$_REQUEST['wp_customize']    = 'on';
+			$_REQUEST['customize_theme'] = ${phpVar(themeSlug)} ?: get_stylesheet();
 
 			/*
 			 * Claim this is a ajax request saving settings, to avoid the preview filters being applied.
