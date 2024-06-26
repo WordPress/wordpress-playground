@@ -14,6 +14,8 @@ import {
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
+import { buildVersion } from 'virtual:remote-config';
+
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
@@ -26,6 +28,7 @@ if (!(self as any).document) {
 reportServiceWorkerMetrics(self);
 
 initializeServiceWorker({
+	cacheVersion: buildVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
