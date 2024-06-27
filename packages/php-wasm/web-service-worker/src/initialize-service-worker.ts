@@ -4,8 +4,7 @@ declare const self: ServiceWorkerGlobalScope;
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 import { WorkerCache } from './worker-caching';
-// import { logger } from '@php-wasm/logger';
-const logger = console;
+
 /**
  * Run this function in the service worker to install the required event
  * handlers.
@@ -22,11 +21,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	cache.cleanup();
 
 	self.addEventListener('install', (event) => {
-		try {
-			event.waitUntil(cache.preCacheResources());
-		} catch (e) {
-			logger.error('Failed to precache resources', e);
-		}
+		event.waitUntil(cache.preCacheResources());
 	});
 
 	/**
@@ -44,16 +39,18 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		// Only handle requests from scoped sites.
 		// So – bale out if the request URL is not scoped and the
 		// referrer URL is not scoped.
-		if (
-			!isURLScoped(url) &&
-			!(
-				event.request.referrer &&
-				isURLScoped(new URL(event.request.referrer))
-			)
-		) {
-			// Add caching for non-scoped requests
-			event.respondWith(cache.cachedFetch(event.request));
-			return;
+		if (!isURLScoped(url)) {
+			let referrerUrl;
+			try {
+				referrerUrl = new URL(event.request.referrer);
+			} catch (e) {
+				// ignore
+			}
+			if (!referrerUrl || !isURLScoped(referrerUrl)) {
+				// Add caching for non-scoped requests
+				event.respondWith(cache.cachedFetch(event.request));
+				return;
+			}
 		}
 
 		const response = handleRequest(event);
