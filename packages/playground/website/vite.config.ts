@@ -207,7 +207,7 @@ export default defineConfig(({ command, mode }) => {
 				// },
 				external: [],
 			},
-			manifest: 'cache-files.json',
+			manifest: 'website-cache-files.json',
 		},
 
 		test: {

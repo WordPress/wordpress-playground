@@ -85,11 +85,21 @@ export class WorkerCache {
 		const cache = await caches.open(this.cacheName);
 
 		// Get the cache manifest and add all the files to the cache
-		const manifestResponse = await fetch('/cache-files.json');
-		const manifest = await manifestResponse.json();
-		const urlsToCache = Object.values(manifest).map(
-			(entry: any) => entry.file
+		const websiteManifestResponse = await fetch(
+			'/website-cache-files.json'
 		);
-		return cache.addAll([...preCachedResources, ...urlsToCache]);
+		const websiteUrls = Object.values(
+			await websiteManifestResponse.json()
+		).map((entry: any) => entry.file);
+
+		const remoteManifestResponse = await fetch('/remote-cache-files.json');
+		const remoteUrls = Object.values(
+			await remoteManifestResponse.json()
+		).map((entry: any) => entry.file);
+		return cache.addAll([
+			...preCachedResources,
+			...websiteUrls,
+			...remoteUrls,
+		]);
 	};
 }
