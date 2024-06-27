@@ -68,9 +68,15 @@ export class WorkerCache {
 		// Resources required for the app to start while offline that are not in the cache manifest
 		const preCachedResources: RequestInfo[] = [
 			'/',
-			'/sw.js',
+			'/favicon.ico',
 			'/index.html',
+			'/logo-192.png',
+			'/logo-256.png',
+			'/logo-384.png',
+			'/logo-512.png',
+			'/manifest.json',
 			'/remote.html',
+			'/sw.js',
 		];
 		if (!this.isValidHostname(new URL(location.href))) {
 			return;
