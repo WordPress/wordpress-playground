@@ -24,6 +24,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		cache.preCacheResources();
 	});
 
+	self.addEventListener('activate', async () => {
+		self.clients.claim();
+	});
+
 	/**
 	 * The main method. It captures the requests and loop them back to the
 	 * Worker Thread using the Loopback request

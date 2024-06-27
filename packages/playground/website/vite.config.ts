@@ -18,7 +18,14 @@ import {
 import virtualModule from '../vite-virtual-module';
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync, cpSync } from 'node:fs';
+import {
+	copyFileSync,
+	existsSync,
+	cpSync,
+	writeFileSync,
+	readFileSync,
+	unlinkSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 const proxy = {
@@ -161,6 +168,41 @@ export default defineConfig(({ command, mode }) => {
 							join(outputDir, 'manifest.json')
 						);
 					}
+				},
+			} as Plugin,
+			/**
+			 * Merge cache manifest files into a single `cache-files.json` file.
+			 */
+			{
+				name: 'cache-manifest-plugin',
+				apply: 'build',
+				writeBundle({ dir: outputDir }) {
+					if (!outputDir) {
+						return;
+					}
+					const websiteManifestPath = join(
+						outputDir,
+						'website-cache-files.json'
+					);
+					const websiteManifest = JSON.parse(
+						readFileSync(websiteManifestPath).toString()
+					);
+					const remoteManifestPath = join(
+						outputDir,
+						'../remote/remote-cache-files.json'
+					);
+					const remoteManifest = JSON.parse(
+						readFileSync(remoteManifestPath).toString()
+					);
+					writeFileSync(
+						join(outputDir, 'cache-files.json'),
+						JSON.stringify({
+							...websiteManifest,
+							...remoteManifest,
+						})
+					);
+					unlinkSync(websiteManifestPath);
+					unlinkSync(remoteManifestPath);
 				},
 			} as Plugin,
 		],
