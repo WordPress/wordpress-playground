@@ -10,28 +10,10 @@ export class WorkerCache {
 		this.cacheName = `${this.cacheNamePrefix}-${cacheVersion}`;
 	}
 
-	isCacheFull = async () => {
-		if (navigator.storage && navigator.storage.estimate) {
-			const estimatedStorage = await navigator.storage.estimate();
-			if (estimatedStorage.usage && estimatedStorage.quota) {
-				return estimatedStorage.usage >= estimatedStorage.quota;
-			}
-		}
-		return false;
-	};
-
 	addCache = async (key: string, response: Response) => {
-		if (await this.isCacheFull()) {
-			console.warn('Cache is full, not caching response');
-			return;
-		}
-		try {
-			const clonedResponse = response.clone();
-			const cache = await caches.open(this.cacheName);
-			await cache.put(key, clonedResponse);
-		} catch (e) {
-			console.warn('Failed to cache response', e);
-		}
+		const clonedResponse = response.clone();
+		const cache = await caches.open(this.cacheName);
+		await cache.put(key, clonedResponse);
 	};
 
 	getCache = async (key: string) => {
