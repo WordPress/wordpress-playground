@@ -20,8 +20,8 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	const cache = new WorkerCache(cacheVersion);
 	cache.cleanup();
 
-	self.addEventListener('install', (event) => {
-		event.waitUntil(cache.preCacheResources());
+	self.addEventListener('install', async (event) => {
+		cache.preCacheResources();
 	});
 
 	/**

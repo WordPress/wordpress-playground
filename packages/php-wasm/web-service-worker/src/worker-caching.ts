@@ -54,7 +54,7 @@ export class WorkerCache {
 		if (!this.isValidHostname(url)) {
 			return await fetch(request);
 		}
-		const cacheKey = url.href;
+		const cacheKey = url.pathname;
 		const cache = await this.getCache(cacheKey);
 		if (cache) {
 			return cache;
@@ -64,14 +64,26 @@ export class WorkerCache {
 		return response;
 	};
 
-	preCachedResources: RequestInfo[] = ['/', '/index.html', '/sw.js'];
-
 	preCacheResources = async (): Promise<any> => {
+		// Resources required for the app to start while offline that are not in the cache manifest
+		const preCachedResources: RequestInfo[] = [
+			'/',
+			'/sw.js',
+			'/index.html',
+			'/remote.html',
+		];
 		if (!this.isValidHostname(new URL(location.href))) {
 			return;
 		}
-		return caches
-			.open(this.cacheName)
-			.then((cache) => cache.addAll(this.preCachedResources));
+
+		const cache = await caches.open(this.cacheName);
+
+		// Get the cache manifest and add all the files to the cache
+		const manifestResponse = await fetch('/cache-files.json');
+		const manifest = await manifestResponse.json();
+		const urlsToCache = Object.values(manifest).map(
+			(entry: any) => entry.file
+		);
+		return cache.addAll([...preCachedResources, ...urlsToCache]);
 	};
 }
