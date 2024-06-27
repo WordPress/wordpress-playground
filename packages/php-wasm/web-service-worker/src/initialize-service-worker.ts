@@ -3,7 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
-import { cachedFetch, preCacheResources } from './worker-caching';
+import { WorkerCache } from './worker-caching';
 // import { logger } from '@php-wasm/logger';
 const logger = console;
 /**
@@ -15,9 +15,15 @@ const logger = console;
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	const { handleRequest = defaultRequestHandler } = config;
 
+	// TODO use cache version from https://github.com/WordPress/wordpress-playground/pull/1541
+	const cacheVersion = '1';
+
+	const cache = new WorkerCache(cacheVersion);
+	cache.cleanup();
+
 	self.addEventListener('install', (event) => {
 		try {
-			event.waitUntil(preCacheResources());
+			event.waitUntil(cache.preCacheResources());
 		} catch (e) {
 			logger.error('Failed to precache resources', e);
 		}
@@ -46,7 +52,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 			)
 		) {
 			// Add caching for non-scoped requests
-			event.respondWith(cachedFetch(event.request));
+			event.respondWith(cache.cachedFetch(event.request));
 			return;
 		}
 
