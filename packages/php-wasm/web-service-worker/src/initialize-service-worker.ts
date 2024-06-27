@@ -32,7 +32,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 
 		// Don't handle requests to the service worker script itself.
 		if (url.pathname.startsWith(self.location.pathname)) {
-			// return;
+			return;
 		}
 
 		// Only handle requests from scoped sites.
@@ -49,6 +49,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 			event.respondWith(cachedFetch(event.request));
 			return;
 		}
+
 		const response = handleRequest(event);
 		if (response) {
 			event.respondWith(response);

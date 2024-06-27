@@ -54,20 +54,12 @@ const isValidHostname = (url: URL) => {
 export const cachedFetch = async (request: Request): Promise<Response> => {
 	const url = new URL(request.url);
 	if (!isValidHostname(url)) {
-		try {
-			return await fetch(request);
-		} catch (e) {
-			console.warn('Failed to fetch', request.url, e);
-			return new Response('Failed to fetch', { status: 500 });
-		}
+		return await fetch(request);
 	}
 	const cacheKey = url.href;
 	const cache = await getCache(cacheKey);
 	if (cache) {
-		console.log('Cache hit', cacheKey);
 		return cache;
-	} else {
-		console.warn('Cache miss', cacheKey);
 	}
 	const response = await fetch(request);
 	await addCache(cacheKey, response);
