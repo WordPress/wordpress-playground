@@ -175,6 +175,7 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 }
 
 interface ServiceWorkerConfiguration {
+	cacheVersion: string;
 	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
 }
 
