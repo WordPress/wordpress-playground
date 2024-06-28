@@ -12,10 +12,7 @@ import { WorkerCache } from './worker-caching';
  * @param  config
  */
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
-	const { handleRequest = defaultRequestHandler } = config;
-
-	// TODO use cache version from https://github.com/WordPress/wordpress-playground/pull/1541
-	const cacheVersion = '1';
+	const { handleRequest = defaultRequestHandler, cacheVersion } = config;
 
 	const cache = new WorkerCache(cacheVersion);
 	cache.cleanup();
