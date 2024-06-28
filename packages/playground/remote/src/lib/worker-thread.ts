@@ -29,11 +29,11 @@ import {
 	journalFSEvents,
 	replayFSJournal,
 } from '@php-wasm/fs-journal';
-/** @ts-ignore */
+/* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
-/** @ts-ignore */
+/* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
-/** @ts-ignore */
+/* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { PHP, PHPWorker } from '@php-wasm/universal';
 import {
