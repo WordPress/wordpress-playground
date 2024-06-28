@@ -6,8 +6,9 @@ import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [
@@ -32,6 +33,7 @@ const plugins = [
 			}
 		},
 	} as Plugin,
+	buildVersionPlugin('remote-config'),
 ];
 export default defineConfig({
 	assetsInclude: ['**/*.wasm', '*.zip'],

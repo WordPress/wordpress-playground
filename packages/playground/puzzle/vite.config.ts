@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -14,7 +14,7 @@ import {
 	remoteDevServerPort,
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import virtualModule from '../vite-virtual-module';
+import virtualModule from '../../vite-extensions/vite-virtual-module';
 import { fileURLToPath } from 'node:url';
 
 const proxy = {
