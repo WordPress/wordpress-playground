@@ -241,7 +241,7 @@ export async function bootPlaygroundRemote() {
 		 */
 		if (window.navigator.onLine) {
 			wpFrame.addEventListener('load', () => {
-				webApi.downloadWordPressAssets();
+				webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 			});
 		} else {
 			webApi.setProgress({
@@ -249,7 +249,7 @@ export async function bootPlaygroundRemote() {
 				isIndefinite: false,
 				visible: true,
 			});
-			await webApi.downloadWordPressAssets();
+			await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		}
 		setAPIReady();
 	} catch (e) {
