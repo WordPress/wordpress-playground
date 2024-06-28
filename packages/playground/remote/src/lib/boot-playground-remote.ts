@@ -201,8 +201,8 @@ export async function bootPlaygroundRemote() {
 		/**
 		 * Download WordPress assets.
 		 */
-		async downloadWordPressAssets() {
-			await workerApi.downloadWordPressAssets();
+		async backfillStaticFilesRemovedFromMinifiedBuild() {
+			await workerApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		},
 	};
 
@@ -240,7 +240,7 @@ export async function bootPlaygroundRemote() {
 	}
 
 	wpFrame.addEventListener('load', () => {
-		webApi.downloadWordPressAssets();
+		webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 	});
 	/*
 	 * An assertion to make sure Playground Client is compatible

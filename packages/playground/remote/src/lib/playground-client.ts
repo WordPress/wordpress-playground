@@ -52,7 +52,7 @@ export interface WebClientMixin extends ProgressReceiver {
 	replayFSJournal: PlaygroundWorkerEndpoint['replayFSJournal'];
 	addEventListener: PlaygroundWorkerEndpoint['addEventListener'];
 	removeEventListener: PlaygroundWorkerEndpoint['removeEventListener'];
-	downloadWordPressAssets: PlaygroundWorkerEndpoint['downloadWordPressAssets'];
+	backfillStaticFilesRemovedFromMinifiedBuild: PlaygroundWorkerEndpoint['backfillStaticFilesRemovedFromMinifiedBuild'];
 
 	/** @inheritDoc @php-wasm/universal!UniversalPHP.onMessage */
 	onMessage: PlaygroundWorkerEndpoint['onMessage'];

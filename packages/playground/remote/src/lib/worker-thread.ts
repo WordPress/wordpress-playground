@@ -187,12 +187,14 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		return replayFSJournal(this.__internal_getPHP()!, events);
 	}
 
-	async downloadWordPressAssets() {
-		await downloadWordPressAssets(this.__internal_getPHP()!);
+	async backfillStaticFilesRemovedFromMinifiedBuild() {
+		await backfillStaticFilesRemovedFromMinifiedBuild(
+			this.__internal_getPHP()!
+		);
 	}
 }
 
-async function downloadWordPressAssets(php: PHP) {
+async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	if (!php.requestHandler) {
 		logger.warn('No PHP request handler available');
 		return;
@@ -203,8 +205,20 @@ async function downloadWordPressAssets(php: PHP) {
 			php.requestHandler.documentRoot,
 			'wordpress-remote-asset-paths'
 		);
-		// If the remote asset list is not available this means that the WordPress static assets are already downloaded.
-		if (!php.fileExists(remoteAssetListPath)) {
+
+		/**
+		 * Don't download static assets if they're already downloaded.
+		 * WordPress may be loaded either from a production release or a minified bundle.
+		 * Minified bundles are shipped without most CSS files, JS files, and other static assets.
+		 * Instead, they contain a list of remote assets in wordpress-remote-asset-paths.
+		 * We use this list to determine if we should fetch them on demand or if they are already downloaded.
+		 * If the list is empty, we assume the assets are already downloaded.
+		 * See https://github.com/WordPress/wordpress-playground/pull/1531
+		 */
+		if (
+			!php.fileExists(remoteAssetListPath) ||
+			(await php.readFileAsText(remoteAssetListPath)) === ''
+		) {
 			return;
 		}
 		const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
@@ -214,16 +228,17 @@ async function downloadWordPressAssets(php: PHP) {
 			return;
 		}
 		const response = await fetch(
-			[
+			joinPaths(
 				wordPressSiteUrl,
 				staticAssetsDirectory,
-				'wordpress-static.zip',
-			].join('/')
+				'wordpress-static.zip'
+			)
 		);
 
 		if (!response.ok) {
-			logger.warn('Failed to download WordPress assets');
-			return;
+			throw new Error(
+				`Failed to fetch WordPress static assets: ${response.status} ${response.statusText}`
+			);
 		}
 
 		const zipPath = '/tmp/wordpress-static-assets.zip';
@@ -260,9 +275,8 @@ async function downloadWordPressAssets(php: PHP) {
 		if (await php.fileExists(zipPath)) {
 			await php.unlink(zipPath);
 		}
-		if (await php.fileExists(remoteAssetListPath)) {
-			await php.unlink(remoteAssetListPath);
-		}
+		// Clear the remote asset list to indicate that the assets are downloaded.
+		await php.writeFile(remoteAssetListPath, '');
 	} catch (e) {
 		logger.warn('Failed to download WordPress assets', e);
 	}
