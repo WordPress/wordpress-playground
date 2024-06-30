@@ -20,11 +20,9 @@ jobs:
                   sparse-checkout: 'packages/meta/'
 
             - name: Run PHP script in Docker container
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   docker run --rm \
-                    -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+                    -e GITHUB_TOKEN=${{ secrets.ACCESS_TOKEN }} \
                     -v ${{ github.workspace }}:/workspace \
                     -w /workspace \
                     php:8.0-cli php packages/meta/bin/project_board_automation.php
