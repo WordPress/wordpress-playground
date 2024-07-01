@@ -28,8 +28,8 @@ foreach($automation->iterateProjectItems() as $projectItem) {
             continue;
         }
 
-        if ($automation->archiveFutureWorkCard($projectItem)) {
-            echo "– Removing \"Future Work\" card from the board: $humanIssueName\n";
+        if ($automation->moveFutureWorkCardsToRoadmap($projectItem)) {
+            echo "– Moving \"Future Work\" cards to \"On the roadmap\" to hide them from the high-velocity views on the board: $humanIssueName\n";
             continue;
         }
 
