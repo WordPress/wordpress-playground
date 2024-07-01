@@ -96,7 +96,6 @@ export default defineConfig({
 				wordpress: path('/remote.html'),
 			},
 		},
-		manifest: 'remote-cache-files.json',
 	},
 
 	test: {

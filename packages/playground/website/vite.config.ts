@@ -16,16 +16,10 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import {
-	copyFileSync,
-	existsSync,
-	cpSync,
-	writeFileSync,
-	readFileSync,
-	unlinkSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+import { websiteCachePathsPlugin } from '../../vite-extensions/vite-website-cache-paths';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -161,38 +155,7 @@ export default defineConfig(({ command, mode }) => {
 			/**
 			 * Merge cache manifest files into a single `cache-files.json` file.
 			 */
-			{
-				name: 'cache-manifest-plugin',
-				apply: 'build',
-				writeBundle({ dir: outputDir }) {
-					if (!outputDir) {
-						return;
-					}
-					const websiteManifestPath = join(
-						outputDir,
-						'website-cache-files.json'
-					);
-					const websiteManifest = JSON.parse(
-						readFileSync(websiteManifestPath).toString()
-					);
-					const remoteManifestPath = join(
-						outputDir,
-						'../remote/remote-cache-files.json'
-					);
-					const remoteManifest = JSON.parse(
-						readFileSync(remoteManifestPath).toString()
-					);
-					writeFileSync(
-						join(outputDir, 'cache-files.json'),
-						JSON.stringify({
-							...websiteManifest,
-							...remoteManifest,
-						})
-					);
-					unlinkSync(websiteManifestPath);
-					unlinkSync(remoteManifestPath);
-				},
-			} as Plugin,
+			websiteCachePathsPlugin(),
 		],
 
 		// Configuration for building your library.
