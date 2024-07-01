@@ -17,7 +17,7 @@ return array (
       'options' => 
       array (
         'future_work' => '5d770dea',
-        'needs_triage_our_reply' => '0b055ebb',
+        'needs_triage' => '0b055ebb',
         'up_next' => '08afe404',
         'in_progress' => '47fc9ee4',
         'needs_review' => '4cc61d42',
@@ -25,8 +25,6 @@ return array (
         'done' => '98236657',
         'not_doing' => '2a2852fd',
         'needs_authors_reply' => '20567755',
-        'big_pile_of_projects' => '3171d170',
-        'on_the_roadmap' => '0480ee83',
       ),
     ),
     'priority' => 

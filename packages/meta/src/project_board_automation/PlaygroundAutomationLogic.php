@@ -48,19 +48,14 @@ class PlaygroundAutomationLogic {
         return true;
     }
 
-    public function moveFutureWorkCardsToRoadmap($projectItem)
+    public function archiveFutureWorkCard($projectItem)
     {
         if(
             !$this->hasStatus($projectItem, 'Future Work')
         ) {
             return false;
         }
-        $this->githubApi->setFieldValueById(
-            $this->projectId,
-            $projectItem['id'],
-            $this->statusFieldId,
-            $this->githubIds['fields']['status']['options']['on_the_roadmap']
-        );
+        $this->githubApi->removeItemFromProject($this->projectId, $projectItem['id']);
         return true;
     }
 
