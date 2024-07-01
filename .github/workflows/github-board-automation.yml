@@ -2,9 +2,9 @@ name: GitHub Board Automation
 
 on:
     workflow_dispatch:
-    # Run every 40 minutes
+    # Run every 20 minutes
     schedule:
-        - cron: '*/40 * * * *'
+        - cron: '*/20 * * * *'
 
 jobs:
     run-php-in-docker:
