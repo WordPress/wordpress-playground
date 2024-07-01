@@ -65,19 +65,6 @@ export class WorkerCache {
 	};
 
 	preCacheResources = async (): Promise<any> => {
-		// Resources required for the app to start while offline that are not in the cache manifest
-		const preCachedResources: RequestInfo[] = [
-			'/',
-			'/favicon.ico',
-			'/index.html',
-			'/logo-192.png',
-			'/logo-256.png',
-			'/logo-384.png',
-			'/logo-512.png',
-			'/manifest.json',
-			'/remote.html',
-			'/sw.js',
-		];
 		if (!this.isValidHostname(new URL(location.href))) {
 			return;
 		}
@@ -86,9 +73,7 @@ export class WorkerCache {
 
 		// Get the cache manifest and add all the files to the cache
 		const manifestResponse = await fetch('/cache-files.json');
-		const websiteUrls = Object.values(await manifestResponse.json()).map(
-			(entry: any) => entry.file
-		);
-		return cache.addAll([...preCachedResources, ...websiteUrls]);
+		const websiteUrls = await manifestResponse.json();
+		return cache.addAll([...websiteUrls, ...['/']]);
 	};
 }

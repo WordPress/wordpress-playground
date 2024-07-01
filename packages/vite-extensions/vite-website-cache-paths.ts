@@ -1,30 +1,29 @@
 import { readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// TODO create a list of files to cache
 const patternsToCache = [
 	'/',
 	'/index.html',
 	'/sw.js',
-	/^\/assets\/index-[\w]+\/.js/,
-	/^\/assets\/modulepreload-polyfill-[\w]+\/.js/,
+	'/favicon.ico',
+	'/remote.html',
+	/^\/logo-[\w]+\.png/,
+	/^\/wp-[\w]\/wordpress-static.zip/,
+	/^\/worker-thread-[\w]+\.js/,
+	/^\/assets\/index-[\w]+\.js/,
+	/^\/assets\/modulepreload-polyfill-[\w]+\.js/,
 	/^\/assets\/index-[\w]+\.css/,
 	/^\/assets\/preload-helper-[\w]+\.js/,
 	/^\/assets\/main-[\w]+\.css/,
 	/^\/assets\/client-[\w]+\.js/,
 	/^\/assets\/config-[\w]+\.js/,
 	/^\/assets\/main-[\w]+\.js/,
-	'/logo-192.png',
-	/^\/localhost:9999\/wp-nightly\/wordpress-static.zip/,
-	'/remote.html',
 	/^\/assets\/wordpress-[\w]+\.js/,
 	/^\/assets\/remote-[\w]+\.css/,
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/,
-	/^\/assets\/wp-[\w]+\.zip/,
-	'/favicon.ico',
-	'/worker-thread-[w]+.js',
-	/^\/assets\/wp-[\w]+\.zip/,
+	/^\/assets\/wp-\d+(\.\d+)+-[\w]+.zip/,
 	/^\/assets\/php_[\w-]+\.js/,
+	/^\/assets\/php_[\w-]+\.wasm/,
 ];
 
 export const websiteCachePathsPlugin = () => {
@@ -54,10 +53,21 @@ export const websiteCachePathsPlugin = () => {
 			const files = directoriesToList.flatMap((dir) => {
 				const fullDirPath = join(outputDir, dir);
 				return listFiles(fullDirPath)
-					.map((file) => file.replace(fullDirPath, '/'))
-					.filter((file) =>
-						file.match(new RegExp(patternsToCache.join('|')))
-					);
+					.map((file) => {
+						file = file.replace(fullDirPath, '');
+						if (file.startsWith('/')) {
+							return file;
+						}
+						return `/${file}`;
+					})
+					.filter((item) => {
+						return patternsToCache.some((pattern) => {
+							if (pattern instanceof RegExp) {
+								return pattern.test(item);
+							}
+							return pattern === item;
+						});
+					});
 			});
 
 			writeFileSync(outputManifestPath, JSON.stringify(files, null, 2));
