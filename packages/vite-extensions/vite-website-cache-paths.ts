@@ -24,6 +24,7 @@ const patternsToCache = [
 	/^\/assets\/wp-\d+(\.\d+)+-[\w]+.zip/,
 	/^\/assets\/php_[\w-]+\.js/,
 	/^\/assets\/php_[\w-]+\.wasm/,
+	/^\/wp-\w+((\.\d+)?)+\/wordpress-static.zip/,
 ];
 
 export const websiteCachePathsPlugin = () => {
