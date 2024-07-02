@@ -155,7 +155,7 @@ export default defineConfig(({ command, mode }) => {
 			/**
 			 * Merge cache manifest files into a single `cache-files.json` file.
 			 */
-			websiteCachePathsPlugin(),
+			websiteCachePathsPlugin() as Plugin,
 		],
 
 		// Configuration for building your library.
