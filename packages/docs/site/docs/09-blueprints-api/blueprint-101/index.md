@@ -1,16 +1,17 @@
 ---
 title: Blueprints 101
 description: Entrance to a short course on Blueprints
-hide_table_of_contents: true
+hide_table_of_contents: false
 ---
 
-# Blueprints 101
+# Blueprints 101 - A crash course
 
 Welcome to a Blueprints crash course, where you'll find everything you need to know about Blueprints: what they are, how to create them, and how to use them effectively.
 
-1. [What are Blueprints, and what can you do with them?](./what-are-blueprints-what-you-can-do-with-them.md)
-2. [How to load and run Blueprints](./how-to-load-run-blueprints.md)
-3. [Build your first Blueprint](./build-your-first-blueprint.md)
+1. [What are Blueprints, and what can you do with them?](./01-what-are-blueprints-what-you-can-do-with-them.md)
+2. [How to load and run Blueprints](./02-how-to-load-run-blueprints.md)
+3. [Build your first Blueprint](./03-build-your-first-blueprint.md)
+4. [Troubleshoot and debug Blueprints](./04-troubleshoot-debug-blueprints.md)
 
 > [!NOTE]
 >

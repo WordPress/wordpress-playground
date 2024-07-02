@@ -420,6 +420,7 @@ And that's it. Congratulations on creating your first Blueprint! 🥳
 
 **Table of contents**
 
-1. [What are Blueprints, and what can you do with them?](./what-are-blueprints-what-you-can-do-with-them.md)
-2. [How to load and run Blueprints?](./how-to-load-run-blueprints.md)
-3. Build your first Blueprint
+1. [What are Blueprints, and what can you do with them?](./01-what-are-blueprints-what-you-can-do-with-them.md)
+2. [How to load and run Blueprints?](./02-how-to-load-run-blueprints.md)
+3. **Build your first Blueprint**
+4. [Troubleshoot and debug Blueprints](./04-troubleshoot-debug-blueprints.md)

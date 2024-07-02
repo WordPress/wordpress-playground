@@ -1,5 +1,5 @@
 ---
-title: What are Blueprints, and what can you do with them
+title: What are Blueprints?
 description: Getting started with Blueprints
 hide_table_of_contents: true
 ---
@@ -59,7 +59,7 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 
 **Table of contents**
 
-1. What are Blueprints, and what can you do with them?
-2. [How to load and run Blueprints?]
-3. [Build your first Blueprint]
-4. [Troubleshoot and debug Blueprints]
+1. **What are Blueprints, and what can you do with them?**
+2. [How to load and run Blueprints?](./02-how-to-load-run-blueprints.md)
+3. [Build your first Blueprint](./03-build-your-first-blueprint.md)
+4. [Troubleshoot and debug Blueprints](./04-troubleshoot-debug-blueprints.md)
