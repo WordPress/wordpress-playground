@@ -4,8 +4,6 @@ description: Six steps to your first blueprint
 hide_table_of_contents: true
 ---
 
-## Build your first Blueprint
-
 Let's build an elementary Blueprint that
 
 1. Creates a new WordPress site
@@ -27,16 +25,17 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-> [!TIP] > **Autocomplete**
->
-> If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
->
-> ```json
-> {
-> 	"$schema": "https://playground.wordpress.net/blueprint-schema.json"
-> }
-> ```
+:::tip **Autocomplete**
 
+If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json"
+}
+```
+
+:::
 Here's what it looks like in VS Code:
 
 ![Autocompletion visualized](./assets/schema-autocompletion.png)
@@ -130,8 +129,9 @@ The example uses the `wordpress.org/themes` resource, which requires a `slug` id
 
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 
-> [!NOTE]
-> Learn more about the supported resources in the [Blueprint Resources API Reference](../resources/).
+:::note
+Learn more about the supported resources in the [Blueprint Resources API Reference](../resources/).
+:::
 
 ### 4. Install the _Hello Dolly_ plugin
 
