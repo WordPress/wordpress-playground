@@ -229,7 +229,7 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		}
 		const response = await fetch(
 			joinPaths(
-				wordPressSiteUrl,
+			'/',
 				staticAssetsDirectory,
 				'wordpress-static.zip'
 			)
