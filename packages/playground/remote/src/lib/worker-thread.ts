@@ -228,11 +228,7 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 			return;
 		}
 		const response = await fetch(
-			joinPaths(
-			'/',
-				staticAssetsDirectory,
-				'wordpress-static.zip'
-			)
+			joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip')
 		);
 
 		if (!response.ok) {
