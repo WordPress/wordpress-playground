@@ -117,8 +117,7 @@ class PlaygroundAutomationLogic {
             $this->projectId,
             $projectItem['id'],
             $this->statusFieldId,
-            // null means we're clearing the status field
-            null
+            'Inbox'
         );
         return true;
     }
