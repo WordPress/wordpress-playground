@@ -70,8 +70,8 @@ The `preferredVersions` property declares your preferred PHP and WordPress versi
 
 The `phpExtensionBundles` property is an array of PHP extension bundles that should be loaded. The following bundles are supported:
 
--   `light`: Default choice. It saves 6MB of downloads and loads none of the extensions below.
--   `kitchen-sink`: Installs [`gd`](https://www.php.net/manual/en/book.image.php), [`mbstring`](https://www.php.net/manual/en/mbstring.installation.php), [`iconv`](https://www.php.net/manual/en/function.iconv.php), [`openssl`](https://www.php.net/manual/en/book.openssl.php), [`libxml`](https://www.php.net/manual/en/book.libxml.php), [`xml`](https://www.php.net/manual/en/xml.installation.php), [`dom`](https://www.php.net/manual/en/intro.dom.php), [`simplexml`](https://www.php.net/manual/en/book.simplexml.php), [`xmlreader`](https://www.php.net/manual/en/book.xmlreader.php), and [`xmlwriter`](https://www.php.net/manual/en/book.xmlwriter.php)
+-   `kitchen-sink`: Default choice. Installs [`gd`](https://www.php.net/manual/en/book.image.php), [`mbstring`](https://www.php.net/manual/en/mbstring.installation.php), [`iconv`](https://www.php.net/manual/en/function.iconv.php), [`openssl`](https://www.php.net/manual/en/book.openssl.php), [`libxml`](https://www.php.net/manual/en/book.libxml.php), [`xml`](https://www.php.net/manual/en/xml.installation.php), [`dom`](https://www.php.net/manual/en/intro.dom.php), [`simplexml`](https://www.php.net/manual/en/book.simplexml.php), [`xmlreader`](https://www.php.net/manual/en/book.xmlreader.php), and [`xmlwriter`](https://www.php.net/manual/en/book.xmlwriter.php)
+-   `light`: It saves 6MB of downloads and loads none of the extensions above.
 
 ```js
 {
