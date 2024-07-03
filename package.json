@@ -152,7 +152,7 @@
 		"jest-environment-node": "^29.4.1",
 		"jsdom": "22.1.0",
 		"jsonc-eslint-parser": "^2.1.0",
-		"lerna": "6.6.2",
+		"lerna": "8.1.5",
 		"nx": "16.9.0",
 		"ora": "6.3.0",
 		"prettier": "^2.6.2",
