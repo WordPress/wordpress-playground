@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Mind Map</title>
+
+		<style>
+			.node {
+				/* stroke: black; */
+				cursor: pointer;
+				rect {
+					rx: 4;
+					ry: 4;
+					stroke-width: 2;
+					fill: white;
+					stroke: white;
+				}
+				text {
+					text-overflow: ellipsis;
+				}
+			}
+
+			.node.open rect {
+				fill: white;
+				stroke: rgb(31, 136, 61);
+			}
+
+			.node.closed {
+				rect {
+					/* fill: rgb(130, 80, 223); */
+					stroke: rgb(130, 80, 223);
+				}
+				text {
+					fill: rgb(130, 80, 223);
+				}
+			}
+
+			.node:hover rect {
+				fill: #f0f0f0; /* Lighter color on hover */
+			}
+
+			.node.highlighted rect {
+				stroke: lightgreen;
+			}
+			.node.highlighted-main rect {
+				fill: lightgreen;
+			}
+			.node.highlighted-main text {
+				font-weight: bold;
+			}
+
+			.node.dimmed rect {
+				fill: #f0f0f0; /* Dimmed color */
+				stroke: #f3f3f3;
+			}
+
+			.node text {
+				/* font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                    'Helvetica Neue', Arial, sans-serif;
+                font-size: 12px; */
+				fill: #333;
+			}
+			.node text {
+				font: 10px sans-serif;
+			}
+
+			/* .link {
+                fill: none;
+                stroke: #ccc;
+                stroke-width: 1.5px;
+            } */
+
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				border: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<svg width="100%" height="100%"></svg>
+		<script src="https://d3js.org/d3.v6.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.0.0/build/d3-flextree.min.js"></script>
+		<script>
+			const svgElement = document.querySelector('svg');
+			function drawSvg(treeData) {
+				var width = window.innerWidth - 20,
+					height = window.innerHeight - 20;
+
+				// append the svg object to the body of the page
+
+				const initialTranslate = [100, height / 2];
+				const svg = d3.select(svgElement);
+				const g = svg
+					.attr('width', width)
+					.attr('height', height)
+					.append('g')
+					.attr(
+						'transform',
+						`translate(${initialTranslate[0]},${initialTranslate[1]})`
+					);
+
+				// Add zooming and panning functionality
+				const zoom = d3
+					.zoom()
+					.scaleExtent([0.1, 10])
+					.on('zoom', zoomed);
+
+				svg.call(zoom);
+
+				function zoomed(event) {
+					g.attr(
+						'transform',
+						`translate(${initialTranslate[0] + event.transform.x},${
+							initialTranslate[1] + event.transform.y
+						}) scale(${event.transform.k})`
+					);
+				}
+
+				const NodeSizer = {
+					textCache: {},
+
+					rectPadding: {
+						top: 5,
+						right: 10,
+						bottom: 5,
+						left: 10,
+					},
+
+					getNodeSize(text) {
+						const bbox = NodeSizer.getTextSize(text);
+						const size = {
+							width:
+								bbox.width +
+								NodeSizer.rectPadding.left +
+								NodeSizer.rectPadding.right,
+							height:
+								bbox.height +
+								NodeSizer.rectPadding.top +
+								NodeSizer.rectPadding.bottom,
+						};
+						return size;
+					},
+
+					getTextSize(text) {
+						if (text in NodeSizer.textCache) {
+							return NodeSizer.textCache[text];
+						}
+						const g = svg.append('g').attr('class', 'node');
+						const textNode = g
+							.append('text')
+							.attr('x', 0)
+							.attr('y', 0)
+							.text(text);
+						const bbox = textNode.node().getBBox();
+						g.remove();
+						NodeSizer.textCache[text] = bbox;
+						return bbox;
+					},
+				};
+
+				const duration = 750;
+				let i = 0,
+					root = d3.hierarchy(treeData, function (d) {
+						return d.children;
+					});
+
+				// Collapse after second level
+				// root.children.forEach(collapse);
+				root.x0 = 0;
+				root.y0 = 0;
+
+				// Reverse size parameters, in order to maintain order in horizontal layout
+				loopOverHierarchy(treeData, (d) => {
+					const size = NodeSizer.getNodeSize(d.title);
+					d.boxSize = [size.height, size.width];
+					d._size = d.size = [d.boxSize[0] + 10, d.boxSize[1] + 100];
+					// if (Array.isArray(d.size)) {
+					// 	if (!d._size) d._size = d.size.slice();
+					// 	d.size = d._size.slice().reverse();
+					// }
+				});
+
+				const flexLayout = d3.flextree();
+
+				update(root);
+
+				// Collapse the node and all it's children
+				function collapse(d) {
+					if (d.children) {
+						d._children = d.children;
+						d._children.forEach(collapse);
+						d.children = null;
+					}
+				}
+
+				function loopOverHierarchy(d, callback) {
+					callback(d);
+					if (d.children)
+						d.children.forEach((c) =>
+							loopOverHierarchy(c, callback)
+						);
+					if (d._children)
+						d._children.forEach((c) =>
+							loopOverHierarchy(c, callback)
+						);
+				}
+
+				function update(source) {
+					// Assigns the x and y position to the nodes
+					var treeData = flexLayout(root);
+
+					// Switch x and y coordinates for horizontal layout
+					treeData.each((d) => {
+						const x = d.x;
+						d.x = d.y;
+						d.y = x;
+					});
+
+					// Compute the new tree layout.
+					var nodes = treeData.descendants().reverse(),
+						links = treeData.descendants().slice(1);
+
+					// ****************** Nodes section ***************************
+
+					// Update the nodes...
+					var node = g
+						.selectAll('g.node')
+						.data(nodes, (d) => d.id || (d.id = ++i));
+
+					// Enter any new modes at the parent's previous position.
+					var nodeEnter = node
+						.enter()
+						.append('g')
+						.attr('class', (d) =>
+							[
+								'node',
+								d.data.state === 'OPEN' ? 'open' : 'closed',
+							].join(' ')
+						)
+						.attr('transform', function (d) {
+							return (
+								'translate(' + source.x0 + ',' + source.y0 + ')'
+							);
+						});
+					// .on('click', click);
+
+					nodeEnter
+						.append('rect')
+						.attr('class', 'node')
+						.attr('width', 1e-6)
+						.attr('height', 1e-6);
+
+					// Add labels for the nodes
+					nodeEnter
+						.append('a')
+						.attr('xlink:href', (d) => d.data.url) // Assuming href is based on node name
+						.attr('target', '_blank')
+						.append('text')
+						.attr('dy', '0.35em')
+						.attr('y', (d) => (d.data.size[0] - 10) / 2)
+						.attr('x', NodeSizer.rectPadding.left)
+						.text(function (d) {
+							return d.data.title;
+						});
+
+					// UPDATE
+					var nodeUpdate = nodeEnter
+						.merge(node)
+						.attr('fill', '#fff')
+						.style('font', '12px sans-serif');
+
+					// Transition to the proper position for the node
+					nodeUpdate
+						.transition()
+						.duration(duration)
+						.attr('transform', function (event, i, arr) {
+							const d = d3.select(this).datum();
+							return 'translate(' + d.x + ',' + d.y + ')';
+						});
+
+					// Update the node attributes and style
+					nodeUpdate
+						.select('rect.node')
+						.attr('width', (d) => d.data.boxSize[1])
+						.attr('height', (d) => d.data.boxSize[0])
+						.attr('cursor', 'pointer');
+
+					// Remove any exiting nodes
+					var nodeExit = node
+						.exit()
+						.transition()
+						.duration(duration)
+						.attr('transform', function (event, i, arr) {
+							const d = d3.select(this).datum();
+							return (
+								'translate(' + source.x + ',' + source.y + ')'
+							);
+						})
+						.remove();
+
+					// On exit reduce the node circles size to 0
+					// nodeExit.select('rect').attr('width', 1e-6).attr('height', 1e-6);
+
+					// On exit reduce the opacity of text labels
+					nodeExit.select('text').style('fill-opacity', 1e-6);
+
+					// ****************** links section ***************************
+
+					// Update the links...
+					var link = g
+						.selectAll('path.link')
+						.data(links, function (d) {
+							return d.id;
+						});
+
+					// Enter any new links at the parent's previous position.
+					var linkEnter = link
+						.enter()
+						.insert('path', 'g')
+						.attr('class', 'link')
+						.attr('d', function (d) {
+							var o = {
+								x: source.x0,
+								y: source.y0,
+							};
+							return diagonal(o, o);
+						});
+
+					// UPDATE
+					var linkUpdate = linkEnter
+						.merge(link)
+						.attr('fill', 'none')
+						.attr('stroke', '#ccc')
+						.attr('stroke-width', '2px');
+
+					// Transition back to the parent element position
+					linkUpdate
+						.transition()
+						.duration(duration)
+						.attr('d', function (d) {
+							return diagonal(d, d.parent);
+						});
+
+					// Remove any exiting links
+					var linkExit = link
+						.exit()
+						.transition()
+						.duration(duration)
+						.attr('d', function (event, i, arr) {
+							const d = d3.select(this).datum();
+							var o = {
+								x: source.x,
+								y: source.y,
+							};
+							return diagonal(o, o);
+						})
+						.remove();
+
+					// Store the old positions for transition.
+					nodes.forEach(function (d) {
+						d.x0 = d.x;
+						d.y0 = d.y;
+					});
+
+					function diagonal2(source, target) {
+						// Enter or exit transition with a custom data source
+						if (Object.keys(source).length === 2) {
+							return diagonalPath(source, target);
+						}
+
+						const source2 = {
+							y: source.x,
+							x: source.y + source.data.size[0],
+						};
+						const target2 = { y: target.x, x: target.y };
+
+						return diagonalPath(source2, target2);
+					}
+					function diagonalPath(source, target) {
+						return `M${source.y},${source.x}C${
+							(source.y + target.y) / 2
+						},${source.x} ${(source.y + target.y) / 2},${
+							target.x
+						} ${target.y},${target.x}`;
+					}
+					// Creates a curved (diagonal) path from parent to the child nodes
+					function diagonal(s, t) {
+						// Define source and target x,y coordinates
+						const x = s.x;
+						const y =
+							s.y +
+							(s?.data?.boxSize ? s.data.boxSize[0] : 0) / 2 -
+							1;
+						const ex =
+							t.x + (t?.data?.boxSize ? t.data.boxSize[1] : 0);
+						const ey =
+							t.y +
+							(t?.data?.boxSize ? t.data.boxSize[0] : 0) / 2 -
+							1;
+
+						// Values in case of top reversed and left reversed diagonals
+						let xrvs = ex - x < 0 ? -1 : 1;
+						let yrvs = ey - y < 0 ? -1 : 1;
+
+						// Define preferred curve radius
+						let rdef = 35;
+
+						// Reduce curve radius, if source-target x space is smaller
+						let r =
+							Math.abs(ex - x) / 2 < rdef
+								? Math.abs(ex - x) / 2
+								: rdef;
+
+						// Further reduce curve radius, is y space is more small
+						r = Math.abs(ey - y) / 2 < r ? Math.abs(ey - y) / 2 : r;
+
+						// Defin width and height of link, excluding radius
+						let h = Math.abs(ey - y) / 2 - r;
+						let w = Math.abs(ex - x) / 2 - r;
+
+						// Build and return custom arc command
+						return `
+			            M ${x} ${y}
+			            L ${x + w * xrvs} ${y}
+			            C ${x + w * xrvs + r * xrvs} ${y}
+			              ${x + w * xrvs + r * xrvs} ${y}
+			              ${x + w * xrvs + r * xrvs} ${y + r * yrvs}
+			            L ${x + w * xrvs + r * xrvs} ${ey - r * yrvs}
+			            C ${x + w * xrvs + r * xrvs}  ${ey}
+			              ${x + w * xrvs + r * xrvs}  ${ey}
+			              ${ex - w * xrvs}  ${ey}
+			            L ${ex} ${ey}
+			 `;
+					}
+
+					// Toggle children on click.
+					function click(event, d) {
+						if (d.children) {
+							d._children = d.children;
+							d.children = null;
+						} else {
+							d.children = d._children;
+							d._children = null;
+						}
+						update(d);
+					}
+				}
+
+				return svg.node();
+			}
+
+			async function run() {
+				const { fetchMindmapData } = await import(
+					'./fetch-mindmap-data.js'
+				);
+				const isLocalhost =
+					window.location.hostname === 'localhost' ||
+					window.location.hostname === '127.0.0.1';
+				let mindmapData = null;
+				if (localStorage.getItem('mindmapData')) {
+					mindmapData = JSON.parse(
+						localStorage.getItem('mindmapData')
+					);
+				} else {
+					mindmapData = await fetchMindmapData();
+					localStorage.setItem(
+						'mindmapData',
+						JSON.stringify(mindmapData)
+					);
+				}
+				drawSvg(mindmapData);
+			}
+			run();
+
+			const refreshButton = document.createElement('button');
+			refreshButton.innerText = 'Refresh Data';
+			refreshButton.style.position = 'absolute';
+			refreshButton.style.top = '10px';
+			refreshButton.style.right = '10px';
+			refreshButton.addEventListener('click', () => {
+				localStorage.removeItem('mindmapData');
+				location.reload();
+			});
+			document.body.appendChild(refreshButton);
+		</script>
+	</body>
+</html>
