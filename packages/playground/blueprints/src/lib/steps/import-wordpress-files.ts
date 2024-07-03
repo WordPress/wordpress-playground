@@ -1,8 +1,7 @@
 import { StepHandler } from '.';
 import { unzip } from './unzip';
-import { dirname, joinPaths, phpVar } from '@php-wasm/util';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { UniversalPHP } from '@php-wasm/universal';
-import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
 /**
@@ -58,28 +57,6 @@ export const importWordPressFiles: StepHandler<
 		extractToPath: importPath,
 	});
 	importPath = joinPaths(importPath, pathInZip);
-
-	// Carry over any Playground-related files, such as the
-	// SQLite database plugin, from the current wp-content
-	// into the one that's about to be imported
-	const importedWpContentPath = joinPaths(importPath, 'wp-content');
-	const wpContentPath = joinPaths(documentRoot, 'wp-content');
-	for (const relativePath of wpContentFilesExcludedFromExport) {
-		// Remove any paths that were supposed to be excluded from the export
-		// but maybe weren't
-		const excludedImportPath = joinPaths(
-			importedWpContentPath,
-			relativePath
-		);
-		await removePath(playground, excludedImportPath);
-
-		// Replace them with files sourced from the live wp-content directory
-		const restoreFromPath = joinPaths(wpContentPath, relativePath);
-		if (await playground.fileExists(restoreFromPath)) {
-			await playground.mkdir(dirname(excludedImportPath));
-			await playground.mv(restoreFromPath, excludedImportPath);
-		}
-	}
 
 	// Carry over the database directory if the imported zip file doesn't
 	// already contain one.
