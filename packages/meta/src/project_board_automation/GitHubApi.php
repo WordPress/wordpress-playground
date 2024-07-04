@@ -10,7 +10,7 @@ class GitHubApi {
 		$this->token = $token;
 	}
 
-	public function graphqlQuery( $query, $variables = [] ) {
+	public function graphqlQuery( $query, $variables = [], $json_assoc = true ) {
 		$ch = curl_init();
 		curl_setopt( $ch, CURLOPT_URL, "https://api.github.com/graphql" );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
@@ -23,10 +23,17 @@ class GitHubApi {
 		] );
 		$response = curl_exec( $ch );
 		curl_close( $ch );
-		$response_data = json_decode( $response, true );
-		if ( isset( $response_data['errors'] ) || ( isset( $response['status'] ) && $response['status'] !== 200 ) ) {
-			var_dump( $response_data );
-			throw new Exception( 'GraphQL query failed' );
+		$response_data = json_decode( $response, $json_assoc );
+		if ($json_assoc) {
+			if (isset($response_data['errors']) || (isset($response['status']) && $response['status'] !== 200)) {
+				var_dump($response_data);
+				throw new Exception('GraphQL query failed');
+			}
+		} else {
+			if (isset($response_data->errors) || (isset($response->status) && $response->status !== 200)) {
+				var_dump($response_data);
+				throw new Exception('GraphQL query failed');
+			}
 		}
 
 		return $response_data;
@@ -61,15 +68,16 @@ class GitHubApi {
 
 	public function getProjectItemForIssueId($projectId, $issueId)
 	{
-		$projectItemSelection = self::PROJECT_ITEM_SELECTION;
-		$items = $this->graphqlQuery(<<<Q
-			query(\$id: ID!) {
-				node(id: \$id) {
+		$items = $this->graphqlQuery(
+			self::FRAGMENT_BASIC_PROJECT_INFO[1] .
+			<<<'Q'
+			query($id: ID!) {
+				node(id: $id) {
 					... on Issue {
 						id
 						projectItems(first:50) {
 							nodes {
-								$projectItemSelection
+								...BasicProjectInfo
 								project {
 									id
 								}
@@ -80,7 +88,7 @@ class GitHubApi {
 						id
 						projectItems(first:50) {
 							nodes {
-								$projectItemSelection
+								...BasicProjectInfo
 								project {
 									id
 								}
@@ -133,26 +141,27 @@ class GitHubApi {
 		}
 	}
 
-	public function iterateProjectItems($projectId)
+	public function iterateProjectItems($projectId, $fragment=self::FRAGMENT_BASIC_PROJECT_INFO)
 	{
 		$perPage = 100;
-		$projectItemSelection = self::PROJECT_ITEM_SELECTION;
-		$query = <<<GRAPHQL
-		query(\$projectId: ID!, \$perPage: Int, \$cursor: String) {
-			node(id: \$projectId) {
-				... on ProjectV2 {
-					items(first: \$perPage, after: \$cursor) {
-						edges {
-							cursor
-							node {
-								$projectItemSelection
+		$query = 
+			$fragment[1] .
+			<<<GRAPHQL
+			query(\$projectId: ID!, \$perPage: Int, \$cursor: String) {
+				node(id: \$projectId) {
+					... on ProjectV2 {
+						items(first: \$perPage, after: \$cursor) {
+							edges {
+								cursor
+								node {
+									...{$fragment[0]}
+								}
 							}
 						}
 					}
 				}
 			}
-		}
-		GRAPHQL;
+			GRAPHQL;
 
 		$cursor = '';
 		do {
@@ -730,92 +739,115 @@ GRAPHQL;
 		return [ null, null ];
 	}
 
-	public const PROJECT_ITEM_SELECTION = <<<'GRAPHQL'
-		id
-		fieldValues(first: 10) {
-			nodes {
-				... on ProjectV2ItemFieldSingleSelectValue {
-					field {
-						... on ProjectV2SingleSelectField {
-							id
-							name
-						}
-					}
-					updatedAt
-					name
-					id
+	public const FRAGMENT_EXTENDED_PROJECT_INFO = [
+		'ExtendedProjectInfo',
+		self::FRAGMENT_BASIC_PROJECT_INFO[1] .
+		<<<'GRAPHQL'
+		fragment ExtendedProjectInfo on ProjectV2Item {
+			...BasicProjectInfo
+			content {
+				... on Issue {
+					body
 				}
-				... on ProjectV2ItemFieldLabelValue {
-					field {
-						... on ProjectV2Field {
-							id
-							name
-						}
-					}
-					labels(first: 20) {
-						nodes {
-							id
-							name
-						}
-					}
+				... on PullRequest {
+					body
 				}
-				... on ProjectV2ItemFieldTextValue {
-					field {
-						... on ProjectV2Field {
-							id
-							name
+			}
+		}
+		GRAPHQL
+	];
+
+	public const FRAGMENT_BASIC_PROJECT_INFO = [
+		'BasicProjectInfo',
+		<<<'GRAPHQL'
+		fragment BasicProjectInfo on ProjectV2Item {
+			id
+			fieldValues(first: 10) {
+				nodes {
+					... on ProjectV2ItemFieldSingleSelectValue {
+						field {
+							... on ProjectV2SingleSelectField {
+								id
+								name
+							}
 						}
-					}
-					text
-					id
-					updatedAt
-					creator {
-						url
-					}
-				}
-				... on ProjectV2ItemFieldMilestoneValue {
-					field {
-						... on ProjectV2Field {
-							id
-							name
-						}
-					}
-					milestone {
+						updatedAt
+						name
 						id
 					}
-				}
-				... on ProjectV2ItemFieldRepositoryValue {
-					field {
-						... on ProjectV2Field {
-							id
-							name
+					... on ProjectV2ItemFieldLabelValue {
+						field {
+							... on ProjectV2Field {
+								id
+								name
+							}
+						}
+						labels(first: 20) {
+							nodes {
+								id
+								name
+							}
 						}
 					}
+					... on ProjectV2ItemFieldTextValue {
+						field {
+							... on ProjectV2Field {
+								id
+								name
+							}
+						}
+						text
+						id
+						updatedAt
+						creator {
+							url
+						}
+					}
+					... on ProjectV2ItemFieldMilestoneValue {
+						field {
+							... on ProjectV2Field {
+								id
+								name
+							}
+						}
+						milestone {
+							id
+						}
+					}
+					... on ProjectV2ItemFieldRepositoryValue {
+						field {
+							... on ProjectV2Field {
+								id
+								name
+							}
+						}
+						repository {
+							id
+							url
+						}
+					}
+				}
+			}
+			content {
+				... on Issue {
+					id
+					number
+					title
 					repository {
-						id
-						url
+						nameWithOwner
+					}
+				}
+				... on PullRequest {
+					id
+					number
+					title
+					repository {
+						nameWithOwner
 					}
 				}
 			}
 		}
-		content {
-			... on Issue {
-				id
-				number
-				title
-				repository {
-					nameWithOwner
-				}
-			}
-			... on PullRequest {
-				id
-				number
-				title
-				repository {
-					nameWithOwner
-				}
-			}
-		}
-	GRAPHQL;
+		GRAPHQL
+	];
 
 }

@@ -14,6 +14,7 @@
 		"format:uncommitted": "nx format --fix --parallel --uncommitted",
 		"lint": "nx run-many --all --target=lint",
 		"prepublishOnly": "npm run build",
+		"mindmap": "cd packages/meta/src/mindmap/v2 && php -S 127.0.0.1:5269",
 		"preview": "nx preview playground-website",
 		"recompile:php:web": "nx recompile-php:light:all php-wasm-web && nx recompile-php:kitchen-sink:all php-wasm-web ",
 		"recompile:php:web:light": "nx recompile-php:light:all php-wasm-web ",
