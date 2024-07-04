@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+import { websiteCachePathsPlugin } from '../../vite-extensions/vite-website-cache-paths';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -151,6 +152,10 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			/**
+			 * Merge cache manifest files into a single `cache-files.json` file.
+			 */
+			websiteCachePathsPlugin() as Plugin,
 		],
 
 		// Configuration for building your library.
@@ -195,6 +200,7 @@ export default defineConfig(({ command, mode }) => {
 				// },
 				external: [],
 			},
+			manifest: 'website-cache-files.json',
 		},
 
 		test: {
