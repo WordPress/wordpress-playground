@@ -10,15 +10,15 @@ export class WorkerCache {
 		this.cacheName = `${this.cacheNamePrefix}-${cacheVersion}`;
 	}
 
-	addCache = async (key: string, response: Response) => {
+	addCache = async (key: Request, response: Response) => {
 		const clonedResponse = response.clone();
 		const cache = await caches.open(this.cacheName);
 		await cache.put(key, clonedResponse);
 	};
 
-	getCache = async (key: string) => {
+	getCache = async (key: Request) => {
 		const cache = caches.open(this.cacheName);
-		return await cache.then((c) => c.match(key));
+		return await cache.then((c) => c.match(key, { ignoreSearch: true }));
 	};
 
 	isValidHostname = (url: URL) => {
@@ -54,7 +54,7 @@ export class WorkerCache {
 		if (!this.isValidHostname(url)) {
 			return await fetch(request);
 		}
-		const cacheKey = url.pathname;
+		const cacheKey = request;
 		const cache = await this.getCache(cacheKey);
 		if (cache) {
 			return cache;
