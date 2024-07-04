@@ -1,13 +1,8 @@
 import { loadWebRuntime } from '@php-wasm/web';
 import {
-	LatestSupportedWordPressVersion,
-	SupportedWordPressVersionsList,
-} from '@wp-playground/wordpress-builds';
-import {
 	PHPResponse,
 	PHPProcessManager,
 	SupportedPHPVersion,
-	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
@@ -32,47 +27,15 @@ export type ParsedStartupOptions = {
 	siteSlug: string;
 };
 
-export const receivedParams: ReceivedStartupOptions = {};
-self.addEventListener('message', (event) => {
-	if (event.data?.type === 'startup-options') {
-		const { startupOptions } = event.data;
-		receivedParams.wpVersion = startupOptions.wpVersion;
-		receivedParams.phpVersion = startupOptions.phpVersion;
-		receivedParams.sapiName = startupOptions.sapiName;
-		receivedParams.storage = startupOptions.storage;
-		receivedParams.phpExtensions = startupOptions.phpExtensions;
-		receivedParams.siteSlug = startupOptions.siteSlug;
-	}
-});
-
-// TODO find a better way to pass the startup options
-while (!receivedParams.wpVersion) {
-	// wait for the next event loop
-	await new Promise((resolve) => setTimeout(resolve, 0));
-}
-export const requestedWPVersion = receivedParams.wpVersion || '';
-export const startupOptions = {
-	wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
-		? requestedWPVersion
-		: LatestSupportedWordPressVersion,
-	phpVersion: SupportedPHPVersionsList.includes(
-		receivedParams.phpVersion || ''
-	)
-		? (receivedParams.phpVersion as SupportedPHPVersion)
-		: '8.0',
-	sapiName: receivedParams.sapiName || 'cli',
-	storage: receivedParams.storage || 'local',
-	phpExtensions: receivedParams.phpExtensions || [],
-	siteSlug: receivedParams.siteSlug,
-} as ParsedStartupOptions;
-
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 
 export const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 	downloadMonitor.monitorFetch(fetch(input, init));
 const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
-export const createPhpRuntime = async () => {
+export const createPhpRuntime = async (
+	startupOptions: ParsedStartupOptions
+) => {
 	let wasmUrl = '';
 	return await loadWebRuntime(startupOptions.phpVersion, {
 		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
