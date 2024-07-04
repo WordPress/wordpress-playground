@@ -1,7 +1,7 @@
 import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
@@ -42,6 +42,7 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
+import { unzipFile } from '@wp-playground/common';
 
 const scope = Math.random().toFixed(16);
 
@@ -238,36 +239,11 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		}
 
 		const zipPath = '/tmp/wordpress-static-assets.zip';
-		await php.writeFile(
-			zipPath,
-			new Uint8Array(await response.arrayBuffer())
+		await unzipFile(
+			php,
+			new File([await response.blob()], 'wordpress-static.zip'),
+			php.requestHandler.documentRoot
 		);
-		await php.run({
-			code: `<?php
-				$document_root = ${phpVar(php.requestHandler.documentRoot)};
-				$zip_path = ${phpVar(zipPath)};
-				$zip = new ZipArchive;
-				$res = $zip->open($zip_path);
-				if ($res !== TRUE) {
-					return;
-				}
-				for ($i = 0; $i < $zip->numFiles; $i++) {
-					$filename = $zip->getNameIndex($i);
-					$extractPath = str_replace('wordpress-static', $document_root, $filename);
-					// Create directories if they don't exist
-					if (substr($filename, -1) === '/') {
-						if (is_dir($extractPath)) {
-							continue;
-						}
-						mkdir($extractPath, 0777, true);
-					} else {
-						// Extract files
-						copy("zip://$zip_path#".$filename, $extractPath);
-					}
-				}
-				$zip->close();
-			`,
-		});
 		if (await php.fileExists(zipPath)) {
 			await php.unlink(zipPath);
 		}
