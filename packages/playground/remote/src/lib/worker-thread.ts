@@ -1,7 +1,7 @@
 import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
@@ -42,7 +42,7 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
-import { unzipFile } from '../../../common/src';
+import { unzipFile } from '@wp-playground/common';
 
 const scope = Math.random().toFixed(16);
 
