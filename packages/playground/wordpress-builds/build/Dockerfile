@@ -50,7 +50,9 @@ RUN find wordpress-static -type f | sed 's#^wordpress-static/##'> wordpress-remo
 RUN cp wordpress-remote-asset-paths wordpress-static/
 
 # ZIP the static files
-RUN zip -r wordpress-static.zip wordpress-static/
+RUN cd wordpress-static/ && \
+    zip -r ../wordpress-static.zip . && \
+    cd ..
 
 # Move ZIP to the public output directory
 RUN cp wordpress-static.zip wordpress-static/
