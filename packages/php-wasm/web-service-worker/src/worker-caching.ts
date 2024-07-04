@@ -1,4 +1,3 @@
-// import { logger } from '@php-wasm/logger';
 import { isURLScoped } from '@php-wasm/scopes';
 
 export class WorkerCache {
@@ -74,6 +73,7 @@ export class WorkerCache {
 		// Get the cache manifest and add all the files to the cache
 		const manifestResponse = await fetch('/cache-files.json');
 		const websiteUrls = await manifestResponse.json();
-		return cache.addAll([...websiteUrls, ...['/']]);
+		await cache.addAll([...websiteUrls, ...['/']]);
+		console.log('Playground is now ready to be used offline.');
 	};
 }
