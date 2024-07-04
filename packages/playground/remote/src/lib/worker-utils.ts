@@ -33,18 +33,23 @@ export type ParsedStartupOptions = {
 };
 
 export const receivedParams: ReceivedStartupOptions = {};
-const url = self?.location?.href;
-if (typeof url !== 'undefined') {
-	const params = new URL(self.location.href).searchParams;
-	receivedParams.wpVersion = params.get('wpVersion') || undefined;
-	receivedParams.phpVersion = params.get('phpVersion') || undefined;
-	receivedParams.storage = params.get('storage') || undefined;
-	// Default to CLI to support the WP-CLI Blueprint step
-	receivedParams.sapiName = params.get('sapiName') || 'cli';
-	receivedParams.phpExtensions = params.getAll('php-extension');
-	receivedParams.siteSlug = params.get('site-slug') || undefined;
-}
+self.addEventListener('message', (event) => {
+	if (event.data?.type === 'startup-options') {
+		const { startupOptions } = event.data;
+		receivedParams.wpVersion = startupOptions.wpVersion;
+		receivedParams.phpVersion = startupOptions.phpVersion;
+		receivedParams.sapiName = startupOptions.sapiName;
+		receivedParams.storage = startupOptions.storage;
+		receivedParams.phpExtensions = startupOptions.phpExtensions;
+		receivedParams.siteSlug = startupOptions.siteSlug;
+	}
+});
 
+// TODO find a better way to pass the startup options
+while (!receivedParams.wpVersion) {
+	// wait for the next event loop
+	await new Promise((resolve) => setTimeout(resolve, 0));
+}
 export const requestedWPVersion = receivedParams.wpVersion || '';
 export const startupOptions = {
 	wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
