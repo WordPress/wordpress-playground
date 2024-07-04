@@ -277,10 +277,10 @@ self.addEventListener('message', async (event) => {
 		// Start downloading WordPress if needed
 		let wordPressRequest = null;
 		if (!wordPressAvailableInOPFS) {
-			if (receivedParams.wpVersion.startsWith('http')) {
+			if (startupOptions.wpVersion.startsWith('http')) {
 				// We don't know the size upfront, but we can still monitor the download.
 				// monitorFetch will read the content-length response header when available.
-				wordPressRequest = monitoredFetch(receivedParams.wpVersion);
+				wordPressRequest = monitoredFetch(startupOptions.wpVersion);
 			} else {
 				const wpDetails = getWordPressModuleDetails(
 					startupOptions.wpVersion
