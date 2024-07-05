@@ -1,0 +1,6 @@
+packages:
+    # all packages in direct subdirs of packages/
+    - 'dist/packages/php-wasm/*'
+    - 'dist/packages/playground/*'
+    # exclude packages that are inside test directories
+    - '!**/test/**'
