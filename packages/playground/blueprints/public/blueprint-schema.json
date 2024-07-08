@@ -95,7 +95,8 @@
 							}
 						]
 					},
-					"description": "WordPress plugins to install and activate"
+					"description": "WordPress plugins to install and activate",
+					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
 				},
 				"siteOptions": {
 					"type": "object",
@@ -108,7 +109,8 @@
 							"description": "The site title"
 						}
 					},
-					"description": "WordPress site options to define"
+					"description": "WordPress site options to define",
+					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
 				},
 				"login": {
 					"anyOf": [
