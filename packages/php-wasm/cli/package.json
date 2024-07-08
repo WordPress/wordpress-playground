@@ -15,6 +15,7 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
+	"files": "../../../dist/packages/php-wasm/cli",
 	"publishConfig": {
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/cli"
