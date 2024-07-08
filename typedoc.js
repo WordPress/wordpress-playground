@@ -10,6 +10,6 @@ module.exports = {
 		'./packages/playground/blueprints',
 		'./packages/playground/client',
 	],
-	intentionallyNotExported: ['WebClientMixin', 'PlaygroundWorkerEndpoint'],
+	intentionallyNotExported: [],
 	excludeExternals: true,
 };
