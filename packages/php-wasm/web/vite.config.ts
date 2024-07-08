@@ -5,6 +5,8 @@ import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig(({ command }) => {
 	return {
@@ -79,7 +81,7 @@ export default defineConfig(({ command }) => {
 			rollupOptions: {
 				// Don't bundle the PHP loaders in the final build. See
 				// the preserve-php-loaders-imports plugin above.
-				external: [/php_\d_\d.js$/],
+				external: [/php_\d_\d.js$/, ...getExternalModules()],
 				output: {
 					// Ensure the PHP loaders are not hashed in the final build.
 					entryFileNames: '[name].js',

@@ -4,6 +4,8 @@ import type { Plugin } from 'vite';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
@@ -48,6 +50,7 @@ export default defineConfig({
 		assetsInlineLimit: 0,
 		rollupOptions: {
 			input: path('src/index.ts'),
+			external: getExternalModules(),
 			// These additional options are required to preserve
 			// all the exports from the entry point. Otherwise,
 			// vite only preserves the ones it considers to be used.
