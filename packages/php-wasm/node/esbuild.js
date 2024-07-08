@@ -21,7 +21,7 @@ esbuild.build({
 	},
 	bundle: true,
 	tsconfig: 'packages/php-wasm/node/tsconfig.json',
-	external: ['@php-wasm/*', '@wp-playground/*', 'ws'],
+	external: ['@php-wasm/*', '@wp-playground/*'],
 	loader: {
 		'.php': 'text',
 		'.ini': 'file',
