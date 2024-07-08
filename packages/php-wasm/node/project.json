@@ -68,23 +68,7 @@
 				],
 				"bundle": true,
 				"format": ["cjs"],
-				"esbuildOptions": {
-					"supported": {
-						"dynamic-import": false
-					},
-					"outdir": "dist/packages/php-wasm/node",
-					"platform": "node",
-					"assetNames": "[name]",
-					"chunkNames": "[name]",
-					"logOverride": {
-						"commonjs-variable-in-esm": "silent"
-					},
-					"loader": {
-						".php": "text",
-						".ini": "file",
-						".wasm": "file"
-					}
-				},
+				"esbuildConfig": "packages/php-wasm/node/esbuild.js",
 				"thirdParty": true
 			},
 			"configurations": {
