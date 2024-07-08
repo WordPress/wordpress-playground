@@ -1,12 +1,10 @@
 const esbuild = require('esbuild');
-const { nodeExternalsPlugin } = require('esbuild-node-externals');
 
-esbuild.build({
+module.exports = {
 	entryPoints: [
 		'packages/php-wasm/node/src/index.ts',
 		'packages/php-wasm/node/src/noop.ts',
 	],
-	plugins: [nodeExternalsPlugin()],
 	supported: {
 		'dynamic-import': false,
 	},
@@ -21,10 +19,10 @@ esbuild.build({
 	},
 	bundle: true,
 	tsconfig: 'packages/php-wasm/node/tsconfig.json',
-	external: ['@php-wasm/*', '@wp-playground/*'],
+	external: ['@php-wasm/*', '@wp-playground/*', 'ws'],
 	loader: {
 		'.php': 'text',
 		'.ini': 'file',
 		'.wasm': 'file',
 	},
-});
+};
