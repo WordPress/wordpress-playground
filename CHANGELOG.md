@@ -6,15 +6,7 @@ format.
 
 ## Unreleased 
 
-### PHP WebAssembly
 
-- php-wasm/node: Ship as ESM and CJS. ([#1585](https://github.com/WordPress/wordpress-playground/pull/1585))
-
-### Contributors
-
-The following contributors merged PRs in this release:
-
-@adamziel
 
 
 ## [v0.7.20] (2024-05-21)
