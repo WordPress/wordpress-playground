@@ -79,6 +79,7 @@
 					"logOverride": {
 						"commonjs-variable-in-esm": "silent"
 					},
+					"external": ["@php-wasm/*", "@wp-playground/*"],
 					"loader": {
 						".php": "text",
 						".ini": "file",
