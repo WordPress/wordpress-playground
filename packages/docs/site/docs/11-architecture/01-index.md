@@ -36,7 +36,7 @@ Here are the commands you'll need to publish the packages:
 
 ```bash
 ## Increment the version number of the packages
-npx lerna version <major|minor|patch>
+npx lerna version <major|minor|patch> --no-private --force-publish --yes
 
 ## Build all the packages
 npm run build
