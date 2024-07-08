@@ -36,7 +36,7 @@ async function build() {
 		},
 	});
 
-	const nodeModules = new RegExp(/^(?:.*[\\\/])?node_modules(?:[\\\/].*)?$/);
+	const nodeModules = new RegExp(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/);
 	await esbuild.build({
 		entryPoints: [
 			'packages/php-wasm/node/src/index.ts',
