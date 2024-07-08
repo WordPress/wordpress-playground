@@ -51,33 +51,11 @@
 		},
 		"build:bundle": {
 			"executor": "@nx/esbuild:esbuild",
-			"outputs": ["{options.outputPath}"],
-			"defaultConfiguration": "production",
+			"outputs": ["dist/packages/php-wasm/node"],
+			"executor": "nx:run-commands",
 			"options": {
-				"main": "packages/php-wasm/node/src/index.ts",
-				"outputPath": "dist/packages/php-wasm/node",
-				"additionalEntryPoints": ["packages/php-wasm/node/src/noop.ts"],
-				"tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
-				"project": "packages/php-wasm/node/package.json",
-				"assets": [
-					{
-						"glob": "packages/php-wasm/node/README.md",
-						"input": ".",
-						"output": "."
-					}
-				],
-				"bundle": true,
-				"format": ["cjs"],
-				"esbuildConfig": "packages/php-wasm/node/esbuild.js",
-				"thirdParty": true
-			},
-			"configurations": {
-				"development": {
-					"minify": false
-				},
-				"production": {
-					"minify": false
-				}
+				"command": "node packages/php-wasm/node/build.js",
+				"parallel": false
 			}
 		},
 		"recompile-php": {
