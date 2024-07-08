@@ -20,7 +20,8 @@
 			"import": "./index.js",
 			"require": "./index.cjs"
 		},
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./README.md": "./README.md"
 	},
 	"type": "module",
 	"main": "./index.cjs",
