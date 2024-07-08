@@ -12,6 +12,9 @@ on:
                 description: 'Dist tag (latest, next, etc.)'
                 required: false
                 default: 'latest'
+    schedule:
+        # Auto-publish every Monday
+        - cron: '0 9 * * 1'
 
 jobs:
     release:
@@ -52,4 +55,4 @@ jobs:
             # Version bump, release, tag a new version on GitHub
             - name: Release new version of NPM packages
               shell: bash
-              run: npx lerna@6.6.2 publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
+              run: npx lerna@6.6.2 publish ${{ inputs.version_bump || "patch" }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || "latest" }}
