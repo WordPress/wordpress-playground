@@ -36,36 +36,18 @@ async function build() {
 		},
 	});
 
-	const nodeModules = new RegExp(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/);
 	await esbuild.build({
 		entryPoints: [
 			'packages/php-wasm/node/src/index.ts',
 			'packages/php-wasm/node/src/noop.ts',
 		],
 		banner: {
-			js: "import { createRequire as topLevelCreateRequire } from 'module';\n const require = topLevelCreateRequire(import.meta.url);",
+			js: `import { createRequire as topLevelCreateRequire } from 'module';
+const require = topLevelCreateRequire(import.meta.url);
+const __dirname = new URL('.', import.meta.url).pathname;
+const __filename = new URL(import.meta.url).pathname;
+`,
 		},
-		plugins: [
-			{
-				name: 'Support __dirname in ESM',
-				setup(build) {
-					build.onLoad({ filter: /.*/ }, ({ path: filePath }) => {
-						if (!filePath.match(nodeModules)) {
-							let contents = fs.readFileSync(filePath, 'utf8');
-							const loader = path.extname(filePath).substring(1);
-							const dirname = path.dirname(filePath);
-							contents = contents
-								.replaceAll('__dirname', `"${dirname}"`)
-								.replaceAll('__filename', `"${filePath}"`);
-							return {
-								contents,
-								loader,
-							};
-						}
-					});
-				},
-			},
-		],
 		outdir: 'dist/packages/php-wasm/node',
 		platform: 'node',
 		assetNames: '[name]',
