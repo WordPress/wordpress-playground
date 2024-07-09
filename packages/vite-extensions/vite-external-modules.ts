@@ -1,3 +1,9 @@
+import packageJson from '../../package.json';
+
+const deps = [
+	...Object.keys(packageJson.dependencies || {}),
+	...Object.keys(packageJson.devDependencies || {}),
+];
 export const getExternalModules = () => {
 	return [
 		'yargs',
@@ -15,8 +21,8 @@ export const getExternalModules = () => {
 		'util',
 		'dns',
 		'ws',
-		/node_modules\//,
 		/^@php-wasm\//,
 		/^@wp-playground\//,
+		...deps,
 	];
 };
