@@ -48,8 +48,8 @@ export default defineConfig({
 		//            in the app mode.
 		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
-		external: getExternalModules(),
 		rollupOptions: {
+			external: getExternalModules(),
 			input: path('src/index.ts'),
 			// These additional options are required to preserve
 			// all the exports from the entry point. Otherwise,

@@ -23,12 +23,14 @@
 				"tsConfig": "packages/playground/wordpress/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/wordpress",
 				"buildTarget": "playground-wordpress:build:bundle:production"
-			}
+			},
+			"dependsOn": ["build:bundle"]
 		},
 		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
+			"emptyOutDir": true,
 			"options": {
 				"outputPath": "dist/packages/playground/wordpress"
 			},
