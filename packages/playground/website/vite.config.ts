@@ -118,23 +118,6 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Copy the Puzzle app form the `dist/packages/playground/puzzle` directory.
-			 */
-			{
-				name: 'puzzle-plugin',
-				apply: 'build',
-				writeBundle({ dir: outputDir }) {
-					const puzzleDir = path(
-						'../../../dist/packages/playground/puzzle/'
-					);
-					if (existsSync(puzzleDir) && outputDir) {
-						cpSync(puzzleDir, join(outputDir, 'puzzle'), {
-							recursive: true,
-						});
-					}
-				},
-			} as Plugin,
-			/**
 			 * Copy the `manifest.json` file to the `dist/` directory.
 			 */
 			{
