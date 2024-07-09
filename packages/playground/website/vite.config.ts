@@ -16,7 +16,7 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync, cpSync } from 'node:fs';
+import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
