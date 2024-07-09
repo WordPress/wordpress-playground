@@ -32,18 +32,24 @@ export type ParsedStartupOptions = {
 	siteSlug: string;
 };
 
-export const receivedParams: ReceivedStartupOptions = {};
-const url = self?.location?.href;
-if (typeof url !== 'undefined') {
-	const params = new URL(self.location.href).searchParams;
-	receivedParams.wpVersion = params.get('wpVersion') || undefined;
-	receivedParams.phpVersion = params.get('phpVersion') || undefined;
-	receivedParams.storage = params.get('storage') || undefined;
-	// Default to CLI to support the WP-CLI Blueprint step
-	receivedParams.sapiName = params.get('sapiName') || 'cli';
-	receivedParams.phpExtensions = params.getAll('php-extension');
-	receivedParams.siteSlug = params.get('site-slug') || undefined;
-}
+const getReceivedParams = async () => {
+	return new Promise<ReceivedStartupOptions>((resolve) => {
+		self.addEventListener('message', async (event) => {
+			if (event.data.type === 'startup-options') {
+				resolve({
+					wpVersion: event.data.startupOptions.wpVersion,
+					phpVersion: event.data.startupOptions.phpVersion,
+					storage: event.data.startupOptions.storage,
+					sapiName: event.data.startupOptions.sapiName,
+					phpExtensions: event.data.startupOptions['php-extension'],
+					siteSlug: event.data.startupOptions['site-slug'],
+				});
+			}
+		});
+	});
+};
+
+const receivedParams: ReceivedStartupOptions = await getReceivedParams();
 
 export const requestedWPVersion = receivedParams.wpVersion || '';
 export const startupOptions = {
