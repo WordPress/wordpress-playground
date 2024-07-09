@@ -1,5 +1,4 @@
 import type { PHPRequestHandler } from '@php-wasm/universal';
-import { SupportedWordPressVersions } from '@wp-playground/wordpress-builds';
 
 export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
@@ -42,9 +41,4 @@ export function versionStringToLoadedWordPressVersion(
 	// Return original version string if we could not parse it.
 	// This is important to allow so folks can bring their own WP builds.
 	return wpVersionString;
-}
-
-export function isSupportedWordPressVersion(wpVersion: string) {
-	const supportedVersionKeys = Object.keys(SupportedWordPressVersions);
-	return supportedVersionKeys.includes(wpVersion);
 }
