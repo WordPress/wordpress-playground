@@ -15,6 +15,7 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
+	"type": "module",
 	"main": "./index.js",
 	"typings": "./index.d.ts",
 	"license": "GPL-2.0-or-later",

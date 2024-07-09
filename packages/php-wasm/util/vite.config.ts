@@ -2,6 +2,8 @@
 import { defineConfig } from 'vite';
 
 import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-util',
@@ -31,7 +33,7 @@ export default defineConfig({
 		},
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 
