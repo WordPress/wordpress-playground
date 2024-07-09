@@ -22,6 +22,7 @@
 		},
 		"./package.json": "./package.json"
 	},
+	"types": "index.d.ts",
 	"publishConfig": {
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/stream-compression"

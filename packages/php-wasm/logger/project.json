@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/logger/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/logger",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-logger:build:bundle:production"
 			}
 		},
 		"build:bundle": {

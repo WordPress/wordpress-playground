@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/playground/wordpress-builds/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/wordpress-builds",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "playground-wordpress-builds:build:bundle:production"
 			}
 		},
 		"build:bundle": {

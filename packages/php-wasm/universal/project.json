@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/universal/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/universal",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-universal:build:bundle:production"
 			}
 		},
 		"build:bundle": {

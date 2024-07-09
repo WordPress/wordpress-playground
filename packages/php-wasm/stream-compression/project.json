@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/stream-compression/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/stream-compression",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-stream-compression:build:bundle:production"
 			}
 		},
 		"build:bundle": {

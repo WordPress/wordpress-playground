@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/playground/common/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/common",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "playground-common:build:bundle:production"
 			}
 		},
 		"build:bundle": {

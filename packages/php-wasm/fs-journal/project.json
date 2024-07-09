@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/fs-journal/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/fs-journal",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-fs-journal:build:bundle:production"
 			}
 		},
 		"build:bundle": {

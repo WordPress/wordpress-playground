@@ -22,7 +22,7 @@
 			"options": {
 				"tsConfig": "packages/playground/storage/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/storage",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "playground-storage:build:bundle:production"
 			}
 		},
 		"build:bundle": {

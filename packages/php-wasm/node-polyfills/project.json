@@ -18,7 +18,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/node-polyfills/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/node-polyfills",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-node-polyfills:build:bundle:production"
 			}
 		},
 		"build:bundle": {
