@@ -24,7 +24,8 @@
 					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node"
 				],
 				"parallel": false
-			}
+			},
+			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
