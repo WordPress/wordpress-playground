@@ -15,8 +15,7 @@
 				"commands": [
 					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
 				]
-			},
-			"dependsOn": ["build:rollup-declarations"]
+			}
 		},
 		"build:copy-wasms": {
 			"executor": "nx:run-commands",
@@ -25,21 +24,7 @@
 					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node"
 				],
 				"parallel": false
-			},
-			"dependsOn": ["build:rollup-declarations"]
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/php-wasm/node/src/rollup.d.ts -- packages/php-wasm/node/src/index.ts",
-					"rimraf dist/packages/php-wasm/node/lib/*.d.ts",
-					"rimraf dist/packages/php-wasm/node/*.d.ts",
-					"cp packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:package-json"]
+			}
 		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
