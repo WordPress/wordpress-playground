@@ -33,6 +33,5 @@
 		"directory": "../../../dist/packages/playground/storage"
 	},
 	"license": "GPL-2.0-or-later",
-	"type": "module",
-	"private": true
+	"type": "module"
 }

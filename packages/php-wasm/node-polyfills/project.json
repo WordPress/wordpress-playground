@@ -5,9 +5,27 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/node-polyfills/README.md dist/packages/php-wasm/node-polyfills"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/node-polyfills/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/node-polyfills",
+				"buildTarget": "php-wasm-web:build:bundle:production"
+			}
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
+				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/node-polyfills"
 			}
 		},

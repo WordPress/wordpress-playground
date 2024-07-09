@@ -5,9 +5,31 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/logger/README.md dist/packages/php-wasm/logger"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/logger/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/logger",
+				"buildTarget": "php-wasm-web:build:bundle:production"
+			}
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
+				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/logger"
 			}
 		},
