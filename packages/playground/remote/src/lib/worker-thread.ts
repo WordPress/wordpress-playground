@@ -238,15 +238,11 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 			);
 		}
 
-		const zipPath = '/tmp/wordpress-static-assets.zip';
 		await unzipFile(
 			php,
 			new File([await response.blob()], 'wordpress-static.zip'),
 			php.requestHandler.documentRoot
 		);
-		if (await php.fileExists(zipPath)) {
-			await php.unlink(zipPath);
-		}
 		// Clear the remote asset list to indicate that the assets are downloaded.
 		await php.writeFile(remoteAssetListPath, '');
 	} catch (e) {
