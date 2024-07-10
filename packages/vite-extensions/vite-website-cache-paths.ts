@@ -1,30 +1,36 @@
 import { readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const patternsToCache = [
-	'/',
-	'/index.html',
-	'/sw.js',
-	'/favicon.ico',
-	'/remote.html',
-	/^\/logo-[\w]+\.png/,
-	/^\/wp-[\w]\/wordpress-static.zip/,
-	/^\/worker-thread-[\w]+\.js/,
-	/^\/assets\/index-[\w]+\.js/,
-	/^\/assets\/modulepreload-polyfill-[\w]+\.js/,
-	/^\/assets\/index-[\w]+\.css/,
-	/^\/assets\/preload-helper-[\w]+\.js/,
-	/^\/assets\/main-[\w]+\.css/,
-	/^\/assets\/client-[\w]+\.js/,
-	/^\/assets\/config-[\w]+\.js/,
-	/^\/assets\/main-[\w]+\.js/,
-	/^\/assets\/wordpress-[\w]+\.js/,
-	/^\/assets\/remote-[\w]+\.css/,
-	/^\/assets\/sqlite-database-integration-[\w]+\.zip/,
-	/^\/assets\/wp-\d+(\.\d+)+-[\w]+.zip/,
-	/^\/assets\/php_[\w-]+\.js/,
-	/^\/assets\/php_[\w-]+\.wasm/,
-	/^\/wp-\w+((\.\d+)?)+\/wordpress-static.zip/,
+const patternsToNotCache = [
+	'/package.json',
+	'/README.md',
+	'/index.cjs',
+	'/index.d.ts',
+	'/builder/builder.html',
+	'/gutenberg.css',
+	'/gutenberg.html',
+	'/.htaccess',
+	'/ogimage.png',
+	'/previewer.css',
+	'/wordpress-importer.zip',
+	'/wordpress.html',
+	'/wordpress.svg',
+	'/.DS_Store',
+	'/.htaccess',
+	/^\/wp-[\w+((\.\d+)?)]+\/.*/, // WordPress static asset folders
+	/^\/demos\/.*/, // Demos
+	/\/.*\.php$/, // PHP files used by the website server
+	/\/lib\/.*/, // Remote lib files
+	/\/test-fixtures\/.*/,
+	/^\/assets\/.*\.svg$/,
+	/^\/assets\/builder.*/,
+	/^\/assets\/peer.*/,
+	/^\/assets\/php-blueprints.*/,
+	/^\/assets\/setup-playground-sync.*/,
+	/^\/assets\/sync.html-[\w]+\.js/,
+	/^\/assets\/terminal.*/,
+	/^\/assets\/time-traveling.*/,
+	/^\/assets\/wp-cli.html-[\w]+\.js/,
 ];
 
 export const websiteCachePathsPlugin = () => {
@@ -62,7 +68,7 @@ export const websiteCachePathsPlugin = () => {
 						return `/${file}`;
 					})
 					.filter((item) => {
-						return patternsToCache.some((pattern) => {
+						return !patternsToNotCache.some((pattern) => {
 							if (pattern instanceof RegExp) {
 								return pattern.test(item);
 							}
