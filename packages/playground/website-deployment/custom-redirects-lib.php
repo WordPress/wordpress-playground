@@ -201,16 +201,6 @@ function playground_maybe_redirect( $requested_path ) {
 		);
 	}
 
-	if (
-		1 === preg_match( '#^/puzzle/[^/]+/?$#', $requested_path ) &&
-		! str_ends_with( $requested_path, '/index.html' )
-	) {
-		return array(
-			'internal' => true,
-			'location' => '/puzzle/index.html',
-		);
-	}
-
 	return false;
 }
 
