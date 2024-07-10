@@ -5,6 +5,8 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig(function () {
 	return {
@@ -30,16 +32,7 @@ export default defineConfig(function () {
 			rollupOptions: {
 				// Don't bundle the PHP loaders in the final build. See
 				// the preserve-php-loaders-imports plugin above.
-				external: [
-					'net',
-					'fs',
-					'path',
-					'http',
-					'tls',
-					'util',
-					'dns',
-					'ws',
-				],
+				external: getExternalModules(),
 				output: {
 					entryFileNames: '[name].js',
 					chunkFileNames: '[name].js',

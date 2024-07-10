@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/fs-journal",
-	"version": "0.9.8",
+	"version": "0.9.18",
 	"description": "Bindings to journal the PHP filesystem",
 	"repository": {
 		"type": "git",
@@ -15,6 +15,7 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
+	"types": "index.d.ts",
 	"typedoc": {
 		"entryPoint": "./src/index.ts",
 		"readmeFile": "./README.md",

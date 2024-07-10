@@ -5,6 +5,27 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README", "build:rollup-declarations"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/common/README.md dist/packages/playground/common"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/common/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/common",
+				"buildTarget": "playground-common:build:bundle:production"
+			}
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
@@ -20,6 +41,19 @@
 				}
 			},
 			"dependsOn": ["^build"]
+		},
+		"build:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx dts-bundle-generator -o packages/playground/common/src/rollup.d.ts -- packages/playground/common/src/index.ts",
+					"rimraf dist/packages/playground/common/lib/*.d.ts",
+					"rimraf dist/packages/playground/common/*.d.ts",
+					"cp packages/playground/common/src/rollup.d.ts dist/packages/playground/common/index.d.ts"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
 		},
 		"publish": {
 			"executor": "nx:run-commands",

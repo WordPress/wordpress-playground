@@ -13,6 +13,7 @@ export { rmdir } from './rmdir';
 export { writeFile } from './write-file';
 export { defineSiteUrl } from './define-site-url';
 export { importWxr as importWxr } from './import-wxr';
+export { importThemeStarterContent as importThemeStarterContent } from './import-theme-starter-content';
 export { importWordPressFiles } from './import-wordpress-files';
 export { exportWXR } from './export-wxr';
 export { unzip } from './unzip';

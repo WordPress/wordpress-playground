@@ -135,6 +135,7 @@
 		"docusaurus-plugin-typedoc-api": "^3.0.0",
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "0.19.7",
+		"esbuild-node-externals": "1.13.1",
 		"esbuild-plugin-copy": "^2.1.0",
 		"esbuild-plugin-ignore": "1.1.1",
 		"eslint": "8.46.0",

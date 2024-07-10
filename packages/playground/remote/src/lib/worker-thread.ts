@@ -214,7 +214,7 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		 * Instead, they contain a list of remote assets in wordpress-remote-asset-paths.
 		 * We use this list to determine if we should fetch them on demand or if they are already downloaded.
 		 * If the list is empty, we assume the assets are already downloaded.
-		 * See https://github.com/WordPress/wordpress-playground/pull/1531
+		 * See https://github.com/WordPress/wordpress-playground/pull/1531 to understand how we use the remote asset list to backfill assets on demand.
 		 */
 		if (
 			!php.fileExists(remoteAssetListPath) ||
@@ -238,15 +238,11 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 			);
 		}
 
-		const zipPath = '/tmp/wordpress-static-assets.zip';
 		await unzipFile(
 			php,
 			new File([await response.blob()], 'wordpress-static.zip'),
 			php.requestHandler.documentRoot
 		);
-		if (await php.fileExists(zipPath)) {
-			await php.unlink(zipPath);
-		}
 		// Clear the remote asset list to indicate that the assets are downloaded.
 		await php.writeFile(remoteAssetListPath, '');
 	} catch (e) {

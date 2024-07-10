@@ -5,9 +5,32 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README", "build:rollup-declarations"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/wordpress/README.md dist/packages/playground/wordpress"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/wordpress/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/wordpress",
+				"buildTarget": "playground-wordpress:build:bundle:production"
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
+			"emptyOutDir": true,
 			"options": {
 				"outputPath": "dist/packages/playground/wordpress"
 			},
@@ -20,6 +43,19 @@
 				}
 			},
 			"dependsOn": ["^build"]
+		},
+		"build:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx dts-bundle-generator -o packages/playground/wordpress/src/rollup.d.ts -- packages/playground/wordpress/src/index.ts",
+					"rimraf dist/packages/playground/wordpress/lib/*.d.ts",
+					"rimraf dist/packages/playground/wordpress/*.d.ts",
+					"cp packages/playground/wordpress/src/rollup.d.ts dist/packages/playground/wordpress/index.d.ts"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
 		},
 		"publish": {
 			"executor": "nx:run-commands",
