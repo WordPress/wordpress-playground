@@ -12,7 +12,6 @@ const patternsToNotCache = [
 	'/.htaccess',
 	'/ogimage.png',
 	'/previewer.css',
-	'/wordpress-importer.zip',
 	'/wordpress.html',
 	'/wordpress.svg',
 	'/.DS_Store',
