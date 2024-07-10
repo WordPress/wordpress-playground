@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/wordpress-builds",
-	"version": "0.9.8",
+	"version": "0.9.18",
 	"description": "WordPress Compilation Pipeline for the WordPress Playground",
 	"repository": {
 		"type": "git",
@@ -16,6 +16,7 @@
 		}
 	],
 	"main": "./index.js",
+	"types": "index.d.ts",
 	"typings": "./index.d.ts",
 	"license": "GPL-2.0-or-later",
 	"type": "module",

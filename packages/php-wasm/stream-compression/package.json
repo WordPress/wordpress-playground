@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/stream-compression",
-	"version": "0.0.1",
+	"version": "0.9.18",
 	"description": "Stream-based compression bindings.",
 	"repository": {
 		"type": "git",
@@ -22,11 +22,11 @@
 		},
 		"./package.json": "./package.json"
 	},
+	"types": "index.d.ts",
 	"publishConfig": {
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/stream-compression"
 	},
 	"license": "GPL-2.0-or-later",
-	"type": "module",
-	"private": true
+	"type": "module"
 }

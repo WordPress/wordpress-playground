@@ -5,11 +5,46 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README", "build:rollup-declarations"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/fs-journal/README.md dist/packages/php-wasm/fs-journal"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/fs-journal/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/fs-journal",
+				"buildTarget": "php-wasm-fs-journal:build:bundle:production"
+			}
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
+				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/fs-journal"
 			}
+		},
+		"build:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx dts-bundle-generator -o packages/php-wasm/fs-journal/src/rollup.d.ts -- packages/php-wasm/fs-journal/src/index.ts",
+					"rimraf dist/packages/php-wasm/fs-journal/lib/*.d.ts",
+					"rimraf dist/packages/php-wasm/fs-journal/*.d.ts",
+					"cp packages/php-wasm/fs-journal/src/rollup.d.ts dist/packages/php-wasm/fs-journal/index.d.ts"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
 		},
 		"test": {
 			"executor": "nx:noop",
