@@ -183,7 +183,6 @@ export default defineConfig(({ command, mode }) => {
 				// },
 				external: [],
 			},
-			manifest: 'website-cache-files.json',
 		},
 
 		test: {
