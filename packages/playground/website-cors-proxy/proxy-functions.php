@@ -98,12 +98,27 @@ class IpUtils
      */
     private static function isPrivateIpv4($ip)
     {
-        // Private IPv4 address ranges
         $privateRanges = [
+            /**
+             * Private addresses according to RFC 1918.
+             * 
+             * See https://datatracker.ietf.org/doc/html/rfc1918#section-3.
+             */
             ['10.0.0.0', '10.255.255.255'],
             ['172.16.0.0', '172.31.255.255'],
             ['192.168.0.0', '192.168.255.255'],
-            ['127.0.0.0', '127.255.255.255'], // Loopback
+            /**
+             * IPv4 reserves the entire class A address block 127.0.0.0/8 for 
+             * use as private loopback addresses.
+             */
+            ['127.0.0.0', '127.255.255.255'],
+            /**
+             * In April 2012, IANA allocated the 100.64.0.0/10 block of IPv4 addresses 
+             * specifically for use in carrier-grade NAT scenarios
+             * 
+             * See https://datatracker.ietf.org/doc/html/rfc6598.
+             */
+            ['100.64.0.0', '100.127.255.255']
         ];
 
         foreach ($privateRanges as $range) {
@@ -123,10 +138,15 @@ class IpUtils
      */
     private static function isPrivateIpv6($ip)
     {
-        // Private IPv6 address ranges
         $privateRanges = [
-            ['fc00::', 'fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'], // Unique Local Address
-            ['fe80::', 'febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff'], // Link-local Addresses
+            /**
+             * The Local IPv6 addresses are created using a pseudo-randomly
+             * allocated global ID (RFC 4193).
+             * 
+             * See https://datatracker.ietf.org/doc/html/rfc4193#section-3
+             */
+            ['fc00::', 'fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
+            ['fe80::', 'febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
             ['::1', '::1'], // Loopback
         ];
 
