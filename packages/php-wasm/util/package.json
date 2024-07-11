@@ -1,7 +1,8 @@
 {
 	"name": "@php-wasm/util",
-	"version": "0.9.0",
-	"type": "commonjs",
+	"version": "0.9.18",
+	"type": "module",
+	"types": "index.d.ts",
 	"typedoc": {
 		"entryPoint": "./src/index.ts",
 		"readmeFile": "./README.md",

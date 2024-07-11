@@ -10,3 +10,11 @@ export const SupportedWordPressVersionsList = Object.keys(
 ) as any as string[];
 export const LatestSupportedWordPressVersion =
 	SupportedWordPressVersionsList.filter((v) => v.match(/^\d/))[0] as string;
+
+export function wpVersionToStaticAssetsDirectory(
+	wpVersion: string
+): string | undefined {
+	return wpVersion in SupportedWordPressVersions
+		? `wp-${wpVersion}`
+		: undefined;
+}

@@ -3,7 +3,9 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import * as path from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-stream-compression',
@@ -37,7 +39,7 @@ export default defineConfig({
 		},
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 

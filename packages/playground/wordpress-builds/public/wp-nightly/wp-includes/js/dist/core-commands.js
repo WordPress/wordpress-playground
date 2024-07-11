@@ -231,7 +231,7 @@ const external_wp_privateApis_namespaceObject = window["wp"]["privateApis"];
 const {
   lock,
   unlock
-} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I know using unstable features means my theme or plugin will inevitably break in the next version of WordPress.', '@wordpress/core-commands');
+} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.', '@wordpress/core-commands');
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/core-commands/build-module/utils/order-entity-records-by-search.js
 function orderEntityRecordsBySearch(records = [], search = '') {
@@ -517,7 +517,7 @@ function useSiteEditorBasicNavigationCommands() {
           close
         }) => {
           const args = {
-            post_type: 'page'
+            postType: 'page'
           };
           const targetUrl = (0,external_wp_url_namespaceObject.addQueryArgs)('site-editor.php', args);
           if (isSiteEditor) {

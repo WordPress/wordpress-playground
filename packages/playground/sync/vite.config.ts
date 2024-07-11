@@ -1,9 +1,11 @@
 /// <reference types="vitest" />
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default {
 	base: '/',
@@ -37,7 +39,7 @@ export default {
 		},
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 

@@ -4178,9 +4178,14 @@ class MapGenerator {
     } else if (this.previous().length === 1) {
       let prev = this.previous()[0].consumer()
       prev.file = this.outputFile()
-      this.map = SourceMapGenerator.fromSourceMap(prev)
+      this.map = SourceMapGenerator.fromSourceMap(prev, {
+        ignoreInvalidMapping: true
+      })
     } else {
-      this.map = new SourceMapGenerator({ file: this.outputFile() })
+      this.map = new SourceMapGenerator({
+        file: this.outputFile(),
+        ignoreInvalidMapping: true
+      })
       this.map.addMapping({
         generated: { column: 0, line: 1 },
         original: { column: 0, line: 1 },
@@ -4203,7 +4208,10 @@ class MapGenerator {
 
   generateString() {
     this.css = ''
-    this.map = new SourceMapGenerator({ file: this.outputFile() })
+    this.map = new SourceMapGenerator({
+      file: this.outputFile(),
+      ignoreInvalidMapping: true
+    })
 
     let line = 1
     let column = 1
@@ -4827,7 +4835,7 @@ class Node {
           column: opts.end.column,
           line: opts.end.line
         }
-      } else if (opts.endIndex) {
+      } else if (typeof opts.endIndex === 'number') {
         end = this.positionInside(opts.endIndex)
       } else if (opts.index) {
         end = this.positionInside(opts.index + 1)
@@ -5889,7 +5897,7 @@ let Root = __webpack_require__(9434)
 
 class Processor {
   constructor(plugins = []) {
-    this.version = '8.4.35'
+    this.version = '8.4.38'
     this.plugins = this.normalize(plugins)
   }
 
@@ -16563,6 +16571,11 @@ function getFluidTypographyOptionsFromSettings(settings) {
 
 
 /**
+ * WordPress dependencies
+ */
+
+
+/**
  * Internal dependencies
  */
 
@@ -16688,12 +16701,16 @@ const STYLE_PATH_TO_PRESET_BLOCK_ATTRIBUTE = {
   'typography.fontSize': 'fontSize',
   'typography.fontFamily': 'fontFamily'
 };
-const TOOLSPANEL_DROPDOWNMENU_PROPS = {
-  popoverProps: {
-    placement: 'left-start',
-    offset: 259 // Inner sidebar width (248px) - button width (24px) - border (1px) + padding (16px) + spacing (20px)
-  }
-};
+function useToolsPanelDropdownMenuProps() {
+  const isMobile = (0,external_wp_compose_namespaceObject.useViewportMatch)('medium', '<');
+  return !isMobile ? {
+    popoverProps: {
+      placement: 'left-start',
+      // For non-mobile, inner sidebar width (248px) - button width (24px) - border (1px) + padding (16px) + spacing (20px)
+      offset: 259
+    }
+  } : {};
+}
 function findInPresetsBy(features, blockName, presetPath, presetProperty, presetValueValue) {
   // Block presets take priority above root level presets.
   const orderedPresetsByOrigin = [getValueFromObjectPath(features, ['blocks', blockName, ...presetPath]), getValueFromObjectPath(features, presetPath)];
@@ -17372,6 +17389,7 @@ function useStyleOverride({
   css,
   assets,
   __unstableType,
+  variation,
   clientId
 } = {}) {
   const {
@@ -17391,6 +17409,7 @@ function useStyleOverride({
       css,
       assets,
       __unstableType,
+      variation,
       clientId
     };
     // Batch updates to style overrides to avoid triggering cascading renders
@@ -21330,6 +21349,7 @@ function BlockSupportToolsPanel({
     getSelectedBlockClientId,
     hasMultiSelection
   } = (0,external_wp_data_namespaceObject.useSelect)(store);
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const panelId = getSelectedBlockClientId();
   const resetAll = (0,external_wp_element_namespaceObject.useCallback)((resetFilters = []) => {
     const newAttributes = {};
@@ -21367,7 +21387,7 @@ function BlockSupportToolsPanel({
     ,
     __experimentalFirstVisibleItemClass: "first",
     __experimentalLastVisibleItemClass: "last",
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: children
   }, panelId);
 }
@@ -24546,6 +24566,7 @@ function BackgroundToolsPanel({
   children,
   headerLabel
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetAll = () => {
     const updatedValue = resetAllFilter(value);
     onChange(updatedValue);
@@ -24556,7 +24577,7 @@ function BackgroundToolsPanel({
     label: headerLabel,
     resetAll: resetAll,
     panelId: panelId,
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: children
   });
 }
@@ -25975,6 +25996,7 @@ function BorderToolsPanel({
   children,
   label
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetAll = () => {
     const updatedValue = resetAllFilter(value);
     onChange(updatedValue);
@@ -25983,7 +26005,7 @@ function BorderToolsPanel({
     label: label,
     resetAll: resetAll,
     panelId: panelId,
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: children
   });
 }
@@ -26868,6 +26890,7 @@ function ColorToolsPanel({
   panelId,
   children
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetAll = () => {
     const updatedValue = resetAllFilter(value);
     onChange(updatedValue);
@@ -26881,7 +26904,7 @@ function ColorToolsPanel({
     className: "color-block-support-panel",
     __experimentalFirstVisibleItemClass: "first",
     __experimentalLastVisibleItemClass: "last",
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
       className: "color-block-support-panel__inner-wrapper",
       children: children
@@ -28819,6 +28842,7 @@ function TypographyToolsPanel({
   panelId,
   children
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetAll = () => {
     const updatedValue = resetAllFilter(value);
     onChange(updatedValue);
@@ -28827,7 +28851,7 @@ function TypographyToolsPanel({
     label: (0,external_wp_i18n_namespaceObject.__)('Typography'),
     resetAll: resetAll,
     panelId: panelId,
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: children
   });
 }
@@ -31322,6 +31346,7 @@ function DimensionsToolsPanel({
   panelId,
   children
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetAll = () => {
     const updatedValue = resetAllFilter(value);
     onChange(updatedValue);
@@ -31330,7 +31355,7 @@ function DimensionsToolsPanel({
     label: (0,external_wp_i18n_namespaceObject.__)('Dimensions'),
     resetAll: resetAll,
     panelId: panelId,
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: children
   });
 }
@@ -32770,6 +32795,7 @@ function FiltersToolsPanel({
   panelId,
   children
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetAll = () => {
     const updatedValue = resetAllFilter(value);
     onChange(updatedValue);
@@ -32778,7 +32804,7 @@ function FiltersToolsPanel({
     label: (0,external_wp_i18n_namespaceObject._x)('Filters', 'Name for applying graphical effects'),
     resetAll: resetAll,
     panelId: panelId,
-    dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+    dropdownMenuProps: dropdownMenuProps,
     children: children
   });
 }
@@ -33153,25 +33179,30 @@ function useDuotoneStyles({
       return;
     }
 
-    // Safari does not always update the duotone filter when the duotone colors
-    // are changed. When using Safari, force the block element to be repainted by
-    // the browser to ensure any changes are reflected visually. This logic matches
-    // that used on the site frontend in `block-supports/duotone.php`.
+    // Safari does not always update the duotone filter when the duotone
+    // colors are changed. When using Safari, force the block element to be
+    // repainted by the browser to ensure any changes are reflected
+    // visually. This logic matches that used on the site frontend in
+    // `block-supports/duotone.php`.
     if (blockElement && isSafari) {
       const display = blockElement.style.display;
-      // Switch to `inline-block` to force a repaint. In the editor, `inline-block`
-      // is used instead of `none` to ensure that scroll position is not affected,
-      // as `none` results in the editor scrolling to the top of the block.
+      // Switch to `inline-block` to force a repaint. In the editor,
+      // `inline-block` is used instead of `none` to ensure that scroll
+      // position is not affected, as `none` results in the editor
+      // scrolling to the top of the block.
       blockElement.style.display = 'inline-block';
-      // Simply accessing el.offsetHeight flushes layout and style
-      // changes in WebKit without having to wait for setTimeout.
+      // Simply accessing el.offsetHeight flushes layout and style changes
+      // in WebKit without having to wait for setTimeout.
       // eslint-disable-next-line no-unused-expressions
       blockElement.offsetHeight;
       blockElement.style.display = display;
     }
-  }, [isValidFilter, blockElement]);
+    // `colors` must be a dependency so this effect runs when the colors
+    // change in Safari.
+  }, [isValidFilter, blockElement, colors]);
 }
 function duotone_useBlockProps({
+  clientId,
   name,
   style
 }) {
@@ -33207,7 +33238,7 @@ function duotone_useBlockProps({
   const filterClass = `wp-duotone-${id}`;
   const shouldRender = selector && attribute;
   useDuotoneStyles({
-    clientId: id,
+    clientId,
     id: filterClass,
     selector,
     attribute
@@ -34135,7 +34166,7 @@ const getNodesWithStyles = (tree, blockSelectors) => {
         if (variation?.css) {
           variations[variationName].css = variation.css;
         }
-        const variationSelector = blockSelectors[blockName].styleVariationSelectors?.[variationName];
+        const variationSelector = blockSelectors[blockName]?.styleVariationSelectors?.[variationName];
 
         // Process the variation's inner element styles.
         // This comes before the inner block styles so the
@@ -34153,9 +34184,9 @@ const getNodesWithStyles = (tree, blockSelectors) => {
         // Process the variations inner block type styles.
         Object.entries((_variation$blocks = variation?.blocks) !== null && _variation$blocks !== void 0 ? _variation$blocks : {}).forEach(([variationBlockName, variationBlockStyles]) => {
           var _variationBlockStyles;
-          const variationBlockSelector = scopeSelector(variationSelector, blockSelectors[variationBlockName].selector);
-          const variationDuotoneSelector = scopeSelector(variationSelector, blockSelectors[variationBlockName].duotoneSelector);
-          const variationFeatureSelectors = scopeFeatureSelectors(variationSelector, blockSelectors[variationBlockName].featureSelectors);
+          const variationBlockSelector = scopeSelector(variationSelector, blockSelectors[variationBlockName]?.selector);
+          const variationDuotoneSelector = scopeSelector(variationSelector, blockSelectors[variationBlockName]?.duotoneSelector);
+          const variationFeatureSelectors = scopeFeatureSelectors(variationSelector, blockSelectors[variationBlockName]?.featureSelectors);
           const variationBlockStyleNodes = pickStyleKeys(variationBlockStyles);
           if (variationBlockStyles?.css) {
             variationBlockStyleNodes.css = variationBlockStyles.css;
@@ -34164,8 +34195,8 @@ const getNodesWithStyles = (tree, blockSelectors) => {
             selector: variationBlockSelector,
             duotoneSelector: variationDuotoneSelector,
             featureSelectors: variationFeatureSelectors,
-            fallbackGapValue: blockSelectors[variationBlockName].fallbackGapValue,
-            hasLayoutSupport: blockSelectors[variationBlockName].hasLayoutSupport,
+            fallbackGapValue: blockSelectors[variationBlockName]?.fallbackGapValue,
+            hasLayoutSupport: blockSelectors[variationBlockName]?.hasLayoutSupport,
             styles: variationBlockStyleNodes
           });
 
@@ -34280,6 +34311,7 @@ const toStyles = (tree, blockSelectors, hasBlockGapSupport, hasFallbackGapSuppor
     marginReset: true,
     presets: true,
     rootPadding: true,
+    variationStyles: false,
     ...styleOptions
   };
   const nodesWithStyles = getNodesWithStyles(tree, blockSelectors);
@@ -34317,8 +34349,8 @@ const toStyles = (tree, blockSelectors, hasBlockGapSupport, hasFallbackGapSuppor
       ruleset += `padding-right: 0; padding-left: 0; padding-top: var(--wp--style--root--padding-top); padding-bottom: var(--wp--style--root--padding-bottom) }
 				.has-global-padding { padding-right: var(--wp--style--root--padding-right); padding-left: var(--wp--style--root--padding-left); }
 				.has-global-padding > .alignfull { margin-right: calc(var(--wp--style--root--padding-right) * -1); margin-left: calc(var(--wp--style--root--padding-left) * -1); }
-				.has-global-padding :where(.has-global-padding:not(.wp-block-block, .alignfull, .alignwide)) { padding-right: 0; padding-left: 0; }
-				.has-global-padding :where(.has-global-padding:not(.wp-block-block, .alignfull, .alignwide)) > .alignfull { margin-left: 0; margin-right: 0;
+				.has-global-padding :where(:not(.alignfull.is-layout-flow) > .has-global-padding:not(.wp-block-block, .alignfull)) { padding-right: 0; padding-left: 0; }
+				.has-global-padding :where(:not(.alignfull.is-layout-flow) > .has-global-padding:not(.wp-block-block, .alignfull)) > .alignfull { margin-left: 0; margin-right: 0;
 				`;
     }
     ruleset += '}';
@@ -34377,7 +34409,7 @@ const toStyles = (tree, blockSelectors, hasBlockGapSupport, hasFallbackGapSuppor
       if (styles?.css) {
         ruleset += processCSSNesting(styles.css, `:root :where(${selector})`);
       }
-      if (styleVariationSelectors) {
+      if (options.variationStyles && styleVariationSelectors) {
         Object.entries(styleVariationSelectors).forEach(([styleVariationName, styleVariationSelector]) => {
           const styleVariations = styles?.variations?.[styleVariationName];
           if (styleVariations) {
@@ -34671,6 +34703,10 @@ function useGlobalStylesOutput(disableRootPadding = false) {
 
 
 
+
+
+
+
 const VARIATION_PREFIX = 'is-style-';
 function getVariationMatches(className) {
   if (!className) {
@@ -34709,7 +34745,164 @@ function getVariationNameFromClass(className, registeredStyles = []) {
   }
   return null;
 }
-function useBlockSyleVariation(name, variation, clientId) {
+
+// A helper component to apply a style override using the useStyleOverride hook.
+function OverrideStyles({
+  override
+}) {
+  useStyleOverride(override);
+}
+
+/**
+ * This component is used to generate new block style variation overrides
+ * based on an incoming theme config. If a matching style is found in the config,
+ * a new override is created and returned. The overrides can be used in conjunction with
+ * useStyleOverride to apply the new styles to the editor. Its use is
+ * subject to change.
+ *
+ * @param {Object} props        Props.
+ * @param {Object} props.config A global styles object, containing settings and styles.
+ * @return {JSX.Element|undefined} An array of new block variation overrides.
+ */
+function __unstableBlockStyleVariationOverridesWithConfig({
+  config
+}) {
+  const {
+    getBlockStyles,
+    overrides
+  } = (0,external_wp_data_namespaceObject.useSelect)(select => ({
+    getBlockStyles: select(external_wp_blocks_namespaceObject.store).getBlockStyles,
+    overrides: unlock(select(store)).getStyleOverrides()
+  }), []);
+  const {
+    getBlockName
+  } = (0,external_wp_data_namespaceObject.useSelect)(store);
+  const overridesWithConfig = (0,external_wp_element_namespaceObject.useMemo)(() => {
+    if (!overrides?.length) {
+      return;
+    }
+    const newOverrides = [];
+    const overriddenClientIds = [];
+    for (const [, override] of overrides) {
+      if (override?.variation && override?.clientId &&
+      /*
+       * Because this component overwrites existing style overrides,
+       * filter out any overrides that are already present in the store.
+       */
+      !overriddenClientIds.includes(override.clientId)) {
+        const blockName = getBlockName(override.clientId);
+        const configStyles = config?.styles?.blocks?.[blockName]?.variations?.[override.variation];
+        if (configStyles) {
+          const variationConfig = {
+            settings: config?.settings,
+            // The variation style data is all that is needed to generate
+            // the styles for the current application to a block. The variation
+            // name is updated to match the instance specific class name.
+            styles: {
+              blocks: {
+                [blockName]: {
+                  variations: {
+                    [`${override.variation}-${override.clientId}`]: configStyles
+                  }
+                }
+              }
+            }
+          };
+          const blockSelectors = getBlockSelectors((0,external_wp_blocks_namespaceObject.getBlockTypes)(), getBlockStyles, override.clientId);
+          const hasBlockGapSupport = false;
+          const hasFallbackGapSupport = true;
+          const disableLayoutStyles = true;
+          const disableRootPadding = true;
+          const variationStyles = toStyles(variationConfig, blockSelectors, hasBlockGapSupport, hasFallbackGapSupport, disableLayoutStyles, disableRootPadding, {
+            blockGap: false,
+            blockStyles: true,
+            layoutStyles: false,
+            marginReset: false,
+            presets: false,
+            rootPadding: false,
+            variationStyles: true
+          });
+          newOverrides.push({
+            id: `${override.variation}-${override.clientId}`,
+            css: variationStyles,
+            __unstableType: 'variation',
+            variation: override.variation,
+            // The clientId will be stored with the override and used to ensure
+            // the order of overrides matches the order of blocks so that the
+            // correct CSS cascade is maintained.
+            clientId: override.clientId
+          });
+          overriddenClientIds.push(override.clientId);
+        }
+      }
+    }
+    return newOverrides;
+  }, [config, overrides, getBlockStyles, getBlockName]);
+  if (!overridesWithConfig || !overridesWithConfig.length) {
+    return;
+  }
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_ReactJSXRuntime_namespaceObject.Fragment, {
+    children: overridesWithConfig.map(override => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(OverrideStyles, {
+      override: override
+    }, override.id))
+  });
+}
+
+/**
+ * Retrieves any variation styles data and resolves any referenced values.
+ *
+ * @param {Object}    globalStyles A complete global styles object, containing settings and styles.
+ * @param {string}    name         The name of the desired block type.
+ * @param {variation} variation    The of the block style variation to retrieve data for.
+ *
+ * @return {Object|undefined} The global styles data for the specified variation.
+ */
+function getVariationStylesWithRefValues(globalStyles, name, variation) {
+  if (!globalStyles?.styles?.blocks?.[name]?.variations?.[variation]) {
+    return;
+  }
+
+  // Helper to recursively look for `ref` values to resolve.
+  const replaceRefs = variationStyles => {
+    Object.keys(variationStyles).forEach(key => {
+      const value = variationStyles[key];
+
+      // Only process objects.
+      if (typeof value === 'object' && value !== null) {
+        // Process `ref` value if present.
+        if (value.ref !== undefined) {
+          if (typeof value.ref !== 'string' || value.ref.trim() === '') {
+            // Remove invalid ref.
+            delete variationStyles[key];
+          } else {
+            // Resolve `ref` value.
+            const refValue = getValueFromObjectPath(globalStyles, value.ref);
+            if (refValue) {
+              variationStyles[key] = refValue;
+            } else {
+              delete variationStyles[key];
+            }
+          }
+        } else {
+          // Recursively resolve `ref` values in nested objects.
+          replaceRefs(value);
+
+          // After recursion, if value is empty due to explicitly
+          // `undefined` ref value, remove it.
+          if (Object.keys(value).length === 0) {
+            delete variationStyles[key];
+          }
+        }
+      }
+    });
+  };
+
+  // Deep clone variation node to avoid mutating it within global styles and losing refs.
+  const styles = JSON.parse(JSON.stringify(globalStyles.styles.blocks[name].variations[variation]));
+  replaceRefs(styles);
+  return styles;
+}
+function useBlockStyleVariation(name, variation, clientId) {
   // Prefer global styles data in GlobalStylesContext, which are available
   // if in the site editor. Otherwise fall back to whatever is in the
   // editor settings and available in the post editor.
@@ -34727,11 +34920,13 @@ function useBlockSyleVariation(name, variation, clientId) {
     };
   }, []);
   return (0,external_wp_element_namespaceObject.useMemo)(() => {
-    var _mergedConfig$styles, _mergedConfig$setting;
-    const styles = (_mergedConfig$styles = mergedConfig?.styles) !== null && _mergedConfig$styles !== void 0 ? _mergedConfig$styles : globalStyles;
-    const variationStyles = styles?.blocks?.[name]?.variations?.[variation];
-    return {
+    var _mergedConfig$setting, _mergedConfig$styles, _mergedConfig$setting2;
+    const variationStyles = getVariationStylesWithRefValues({
       settings: (_mergedConfig$setting = mergedConfig?.settings) !== null && _mergedConfig$setting !== void 0 ? _mergedConfig$setting : globalSettings,
+      styles: (_mergedConfig$styles = mergedConfig?.styles) !== null && _mergedConfig$styles !== void 0 ? _mergedConfig$styles : globalStyles
+    }, name, variation);
+    return {
+      settings: (_mergedConfig$setting2 = mergedConfig?.settings) !== null && _mergedConfig$setting2 !== void 0 ? _mergedConfig$setting2 : globalSettings,
       // The variation style data is all that is needed to generate
       // the styles for the current application to a block. The variation
       // name is updated to match the instance specific class name.
@@ -34765,7 +34960,7 @@ function block_style_variation_useBlockProps({
   const {
     settings,
     styles
-  } = useBlockSyleVariation(name, variation, clientId);
+  } = useBlockStyleVariation(name, variation, clientId);
   const variationStyles = (0,external_wp_element_namespaceObject.useMemo)(() => {
     if (!variation) {
       return;
@@ -34778,20 +34973,22 @@ function block_style_variation_useBlockProps({
     const hasBlockGapSupport = false;
     const hasFallbackGapSupport = true;
     const disableLayoutStyles = true;
-    const isTemplate = true;
-    return toStyles(variationConfig, blockSelectors, hasBlockGapSupport, hasFallbackGapSupport, disableLayoutStyles, isTemplate, {
+    const disableRootPadding = true;
+    return toStyles(variationConfig, blockSelectors, hasBlockGapSupport, hasFallbackGapSupport, disableLayoutStyles, disableRootPadding, {
       blockGap: false,
       blockStyles: true,
       layoutStyles: false,
       marginReset: false,
       presets: false,
-      rootPadding: false
+      rootPadding: false,
+      variationStyles: true
     });
   }, [variation, settings, styles, getBlockStyles, clientId]);
   useStyleOverride({
     id: `variation-${clientId}`,
     css: variationStyles,
     __unstableType: 'variation',
+    variation,
     // The clientId will be stored with the override and used to ensure
     // the order of overrides matches the order of blocks so that the
     // correct CSS cascade is maintained.
@@ -36851,6 +37048,7 @@ const withBlockBindingSupport = (0,external_wp_compose_namespaceObject.createHig
     clientId,
     context
   } = props;
+  const hasParentPattern = !!props.context['pattern/overrides'];
   const hasPatternOverridesDefaultBinding = props.attributes.metadata?.bindings?.[DEFAULT_ATTRIBUTE]?.source === 'core/pattern-overrides';
   const bindings = (0,external_wp_element_namespaceObject.useMemo)(() => replacePatternOverrideDefaultBindings(name, props.attributes.metadata?.bindings), [props.attributes.metadata?.bindings, name]);
   const boundAttributes = (0,external_wp_data_namespaceObject.useSelect)(() => {
@@ -36935,15 +37133,19 @@ const withBlockBindingSupport = (0,external_wp_compose_namespaceObject.createHig
           }
         }
       }
-
-      // Only apply normal attribute updates to blocks
-      // that have partial bindings. Currently this is
-      // only skipped for pattern overrides sources.
-      if (!hasPatternOverridesDefaultBinding && Object.keys(keptAttributes).length) {
+      if (
+      // Don't update non-connected attributes if the block is using pattern overrides
+      // and the editing is happening while overriding the pattern (not editing the original).
+      !(hasPatternOverridesDefaultBinding && hasParentPattern) && Object.keys(keptAttributes).length) {
+        // Don't update caption and href until they are supported.
+        if (hasPatternOverridesDefaultBinding) {
+          delete keptAttributes?.caption;
+          delete keptAttributes?.href;
+        }
         setAttributes(keptAttributes);
       }
     });
-  }, [registry, bindings, name, clientId, context, setAttributes, sources, hasPatternOverridesDefaultBinding]);
+  }, [registry, bindings, name, clientId, context, setAttributes, sources, hasPatternOverridesDefaultBinding, hasParentPattern]);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(BlockEdit, {
       ...props,
@@ -37490,6 +37692,7 @@ function useZoomOut(zoomOut = true) {
 createBlockEditFilter([block_bindings, align, text_align, hooks_anchor, custom_class_name, style, duotone, position, layout, content_lock_ui, block_hooks, layout_child].filter(Boolean));
 createBlockListBlockFilter([align, text_align, background, style, color, dimensions, duotone, font_family, font_size, border, position, block_style_variation, layout_child]);
 createBlockSaveFilter([align, text_align, hooks_anchor, aria_label, custom_class_name, border, color, style, font_family, font_size]);
+
 
 
 
@@ -54541,7 +54744,9 @@ function Shuffle({
         // otherwise we may shuffle to pattern that will not allow to continue shuffling.
         pattern.blocks.length === 1 && pattern.categories?.some(category => {
           return categories.includes(category);
-        })
+        }) && (
+        // Check if the pattern is not a synced pattern.
+        pattern.syncStatus === 'unsynced' || !pattern.id)
       );
     });
   }, [categories, patterns]);
@@ -60979,7 +61184,6 @@ function AspectRatioDropdown({
     label: (0,external_wp_i18n_namespaceObject.__)('Aspect Ratio'),
     popoverProps: constants_POPOVER_PROPS,
     toggleProps: toggleProps,
-    className: "wp-block-image__aspect-ratio",
     children: ({
       onClose
     }) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
@@ -67713,6 +67917,7 @@ function ImageSettingsPanel({
   inheritedValue,
   panelId
 }) {
+  const dropdownMenuProps = useToolsPanelDropdownMenuProps();
   const resetLightbox = () => {
     onChange(undefined);
   };
@@ -67730,7 +67935,7 @@ function ImageSettingsPanel({
       label: (0,external_wp_i18n_namespaceObject._x)('Settings', 'Image settings'),
       resetAll: resetLightbox,
       panelId: panelId,
-      dropdownMenuProps: TOOLSPANEL_DROPDOWNMENU_PROPS,
+      dropdownMenuProps: dropdownMenuProps,
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalToolsPanelItem
       // We use the `userSettings` prop instead of `settings`, because `settings`
       // contains the core/theme values for the lightbox and we want to show the
@@ -71232,7 +71437,8 @@ lock(privateApis, {
   PrivateBlockPopover: PrivateBlockPopover,
   PrivatePublishDateTimePicker: PrivatePublishDateTimePicker,
   useSpacingSizes: useSpacingSizes,
-  useBlockDisplayTitle: useBlockDisplayTitle
+  useBlockDisplayTitle: useBlockDisplayTitle,
+  __unstableBlockStyleVariationOverridesWithConfig: __unstableBlockStyleVariationOverridesWithConfig
 });
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/index.js

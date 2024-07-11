@@ -219,7 +219,7 @@ async function isWordPressInstalled(php: PHP) {
 	return (
 		(
 			await php.run({
-				code: `<?php 
+				code: `<?php
 	require '${php.documentRoot}/wp-load.php';
 	echo is_blog_installed() ? '1' : '0';
 	`,
