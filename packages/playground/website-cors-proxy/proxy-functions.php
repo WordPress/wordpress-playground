@@ -107,6 +107,7 @@ class IpUtils
             ['10.0.0.0', '10.255.255.255'],
             ['172.16.0.0', '172.31.255.255'],
             ['192.168.0.0', '192.168.255.255'],
+            
             /**
              * IPv4 reserves the entire class A address block 127.0.0.0/8 for 
              * use as private loopback addresses.
@@ -118,7 +119,35 @@ class IpUtils
              * 
              * See https://datatracker.ietf.org/doc/html/rfc6598.
              */
-            ['100.64.0.0', '100.127.255.255']
+            ['100.64.0.0', '100.127.255.255'],
+            /**
+             * Current (local, "this") network[1]
+             * See https://datatracker.ietf.org/doc/html/rfc6890.
+             */
+            ["0.0.0.0", "0.255.255.255"],
+            ["192.0.0.0", "192.0.0.255"],
+            ["240.0.0.0", "255.255.255.255"],
+            /**
+             * https://datatracker.ietf.org/doc/html/rfc3927
+             */
+            ["169.254.0.0", "169.254.255.255"],
+            /**
+             * https://datatracker.ietf.org/doc/html/rfc2544
+             */
+            ["198.18.0.0", "198.19.255.255"],
+            /**
+             * https://datatracker.ietf.org/doc/html/rfc5737
+             */
+            ["198.51.100.0", "198.51.100.255"],
+            ["203.0.113.0", "203.0.113.255"],
+            ["192.0.2.0", "192.0.2.255"],
+            ["192.88.99.0", "192.88.99.255"],
+            /**
+             * Multicast space
+             * https://datatracker.ietf.org/doc/html/rfc5771
+             */
+            ["224.0.0.0", "239.255.255.255"],
+            ["233.252.0.0", "233.252.0.255"],
         ];
 
         foreach ($privateRanges as $range) {
@@ -147,7 +176,68 @@ class IpUtils
              */
             ['fc00::', 'fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
             ['fe80::', 'febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
-            ['::1', '::1'], // Loopback
+            /*
+             * Unspecified address
+             */
+            ["::","::"],
+            /*
+             * Loopback address
+             */
+            ["::1","::1"],
+            /*
+             * IPv4-mapped addresses
+             */
+            ["::ffff:0.0.0.0","::ffff:255.255.255.255"],
+            ["::ffff:0:0","::ffff:ffff:ffff"],
+            /*
+             * IPv4-translated addresses
+             */
+            ["::ffff:0:0.0.0.0","::ffff:0:255.255.255.255"],
+            ["::ffff:0:0:0","::ffff:0:ffff:ffff"],
+            /*
+             * IPv4/IPv6 translation
+             * https://datatracker.ietf.org/doc/html/rfc6052
+             */
+            ["64:ff9b::0.0.0.0","64:ff9b::255.255.255.255"],
+            ["64:ff9b::0:0","64:ff9b::ffff:ffff"],
+            /*
+             * IPv4/IPv6 translation
+             * https://datatracker.ietf.org/doc/html/rfc8215
+             */
+            ["64:ff9b:1::","64:ff9b:1:ffff:ffff:ffff:ffff:ffff"],
+            /*
+             * Discard prefix
+             * https://datatracker.ietf.org/doc/html/rfc6666
+             */
+            ["100::","100::ffff:ffff:ffff:ffff"],
+            /*
+             * Teredo tunneling
+             * https://datatracker.ietf.org/doc/html/rfc4680
+             */
+            ["2001::","2001:0:ffff:ffff:ffff:ffff:ffff:ffff"],
+            /*
+             * ORCHIDv2 
+             * https://datatracker.ietf.org/doc/html/rfc7343
+             */
+            ["2001:20::","2001:2f:ffff:ffff:ffff:ffff:ffff:ffff"],
+            /*
+             * Addresses used in documentation and example source code.
+             * https://datatracker.ietf.org/doc/html/rfc3849
+             */
+            ["2001:db8::","2001:db8:ffff:ffff:ffff:ffff:ffff:ffff"],
+            /*
+             * Deprecated 6to4 addressing scheme
+             * https://datatracker.ietf.org/doc/html/rfc7526
+             */
+            ["2002::","2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff"],
+            /*
+             * SRv6 https://datatracker.ietf.org/doc/html/draft-ietf-6man-sids-06
+             */
+            ["5f00::","5f00:ffff:ffff:ffff:ffff:ffff:ffff:ffff"],
+            /*
+             * Multicast space
+             */
+            ["ff00::","ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"]
         ];
 
         foreach ($privateRanges as $range) {
@@ -186,12 +276,20 @@ class IpUtils
      */
     private static function ipv6InRange($ip, $start, $end)
     {
-        $ip = unpack("H*hex", inet_pton($ip))['hex'];
-        $start = unpack("H*hex", inet_pton($start))['hex'];
-        $end = unpack("H*hex", inet_pton($end))['hex'];
+        // Convert IP addresses to binary format
+        $ip = inet_pton($ip);
+        $from = inet_pton($start);
+        $to = inet_pton($end);
 
-        return $ip >= $start && $ip <= $end;
+        // Check if the IP is valid and within the range
+        if ($ip === false || $from === false || $to === false) {
+            return false; // Invalid IP format
+        }
+
+        // Compare the binary representations
+        return ($ip >= $from && $ip <= $to);
     }
+
 }
 
 

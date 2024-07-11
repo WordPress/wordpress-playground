@@ -17,16 +17,19 @@ class ProxyFunctionsTests extends TestCase
     static public function providerIps()
     {
         return [
-            ['127.0.0.1', true],     // Loopback address
-            ['192.168.1.1', true],   // Private network
-            ['10.0.0.1', true],      // Private network
-            ['172.16.0.1', true],    // Private network
+            ['127.0.0.1', true],      // Loopback address
+            ['192.168.1.1', true],    // Private network
+            ['10.0.0.1', true],       // Private network
+            ['172.16.0.1', true],     // Private network
             ['172.31.255.255', true], // Private network end
-            ['8.8.8.8', false],      // Public IP address (Google DNS)
-            ['54.239.28.85', false], // Public IP address
+            ['8.8.8.8', false],       // Public IP address (Google DNS)
+            ['54.239.28.85', false],  // Public IP address
+            ['192.88.99.1', true], 
             ['::1', true],           // Loopback IPv6
             ['fd00::', true],        // Unique Local Address IPv6
             ['fe80::', true],        // Link-local IPv6 address
+            ['2001:db8::', true],    
+            ['64:ff9b::0:0', true],    
             ['2001:4860:4860::8888', false], // Google Public IPv6 DNS
             ['204.79.197.200', false] // Public IP address (Microsoft)
         ];
@@ -69,16 +72,34 @@ class ProxyFunctionsTests extends TestCase
             ],
         ];
     }
-                
-    public function testGetTargetUrl()
+    
+    /**
+     * 
+     * @dataProvider providerGetTargetUrl
+     */
+    public function testGetTargetUrl($server_data, $expected_target_url)
     {
-        $server_data = [
-            'REQUEST_URI' => '/cors-proxy/proxy.php/http://example.com',
-            'SCRIPT_NAME' => '/cors-proxy/proxy.php'
-        ];
-        $this->assertEquals('http://example.com', get_target_url($server_data));
+        $this->assertEquals($expected_target_url, get_target_url($server_data));
     }
 
+    static public function providerGetTargetUrl() {
+        return [
+            'Simple request' => [
+                [
+                    'REQUEST_URI' => '/cors-proxy/proxy.php/http://example.com',
+                    'SCRIPT_NAME' => '/cors-proxy/proxy.php',
+                ],
+                'http://example.com'
+            ],
+            'Request with query params' => [
+                [
+                    'REQUEST_URI' => '/cors-proxy/proxy.php/http://example.com?test=1',
+                    'SCRIPT_NAME' => '/cors-proxy/proxy.php',
+                ],
+                'http://example.com?test=1'
+            ]
+        ];
+    }
     public function testGetCurrentScriptUri()
     {
         $this->assertEquals('http://localhost/cors-proxy/', get_current_script_uri('http://example.com', 'http://localhost/cors-proxy/http://example.com'));

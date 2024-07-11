@@ -3,6 +3,9 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+define('MAX_REQUEST_SIZE', 1 * 1024 * 1024); // 1MB
+define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
+
 require_once __DIR__ . '/proxy-functions.php';
 
 // Set CORS headers
@@ -15,6 +18,19 @@ function set_cors_headers() {
 // Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     set_cors_headers();
+    exit;
+}
+
+// Handle only GET and POST requests
+if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo "Method Not Allowed";
+    exit;
+}
+
+if ($_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
+    http_response_code(413);
+    echo "Request Entity Too Large";
     exit;
 }
 
@@ -53,6 +69,18 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl) {
     $len = strlen($header);
+    $colonPos = strpos($header, ':');
+    $name = strtolower(substr($header, 0, $colonPos));
+    $value = trim(substr($header, $colonPos + 1));
+
+    if($name === 'content-length') {
+        $content_length = intval($value);
+        if ($content_length >= MAX_RESPONSE_SIZE) {
+            http_response_code(413);
+            echo "Response Too Large";
+            exit;
+        }
+    }
     if (stripos($header, 'Location:') === 0) {
         // Adjust the redirection URL to go back to the proxy script
         $locationUrl = trim(substr($header, 9));
@@ -81,7 +109,7 @@ curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) {
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $requestMethod);
 
-if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD') {
+if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 'OPTIONS') {
     $input = fopen('php://input', 'r');
     curl_setopt($ch, CURLOPT_UPLOAD, true);
     curl_setopt($ch, CURLOPT_INFILE, $input);
