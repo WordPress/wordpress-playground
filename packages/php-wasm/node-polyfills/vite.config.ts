@@ -3,6 +3,8 @@ import { join } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-node-polyfills',
@@ -36,7 +38,7 @@ export default defineConfig({
 		},
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 

@@ -3,7 +3,9 @@ import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
@@ -47,6 +49,7 @@ export default defineConfig({
 		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
 		rollupOptions: {
+			external: getExternalModules(),
 			input: path('src/index.ts'),
 			// These additional options are required to preserve
 			// all the exports from the entry point. Otherwise,

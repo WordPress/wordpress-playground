@@ -2,10 +2,7 @@ import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 export { bootWordPress } from './boot';
-export {
-	getLoadedWordPressVersion,
-	isSupportedWordPressVersion,
-} from './version-detect';
+export { getLoadedWordPressVersion } from './version-detect';
 
 export * from './rewrite-rules';
 

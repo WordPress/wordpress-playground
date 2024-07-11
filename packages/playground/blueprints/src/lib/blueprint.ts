@@ -61,22 +61,16 @@ export interface Blueprint {
 
 	/**
 	 * PHP Constants to define on every request
-	 * @deprecated This experimental option will change without warning.
-	 *             Use `steps` instead.
 	 */
 	constants?: Record<string, string>;
 
 	/**
 	 * WordPress plugins to install and activate
-	 * @deprecated This experimental option will change without warning.
-	 *             Use `steps` instead.
 	 */
 	plugins?: Array<string | FileReference>;
 
 	/**
 	 * WordPress site options to define
-	 * @deprecated This experimental option will change without warning.
-	 *             Use `steps` instead.
 	 */
 	siteOptions?: Record<string, string> & {
 		/** The site title */

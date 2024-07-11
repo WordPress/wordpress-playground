@@ -1,6 +1,7 @@
 import { StepHandler } from '.';
 import { InstallAssetOptions, installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
+import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
 /**
@@ -17,7 +18,8 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * 			"slug": "pendant"
  * 		},
  * 		"options": {
- * 			"activate": true
+ * 			"activate": true,
+ * 			"importStarterContent": true
  * 		}
  * }
  * </code>
@@ -40,6 +42,10 @@ export interface InstallThemeStep<ResourceType>
 		 * Whether to activate the theme after installing it.
 		 */
 		activate?: boolean;
+		/**
+		 * Whether to import the theme's starter content after installing it.
+		 */
+		importStarterContent?: boolean;
 	};
 }
 
@@ -77,6 +83,20 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			playground,
 			{
 				themeFolderName: assetFolderName,
+			},
+			progress
+		);
+	}
+
+	const importStarterContent =
+		'importStarterContent' in options
+			? options.importStarterContent
+			: false;
+	if (importStarterContent) {
+		await importThemeStarterContent(
+			playground,
+			{
+				themeSlug: assetFolderName,
 			},
 			progress
 		);
