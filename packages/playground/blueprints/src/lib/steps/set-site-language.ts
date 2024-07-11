@@ -1,6 +1,6 @@
 import { StepHandler } from '.';
 import { unzipFile } from '@wp-playground/common';
-
+import { logger } from '@php-wasm/logger';
 /**
  * @inheritDoc setSiteLanguage
  * @hasRunnableExample
@@ -108,31 +108,40 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 		});
 	}
 
+	if (!(await playground.isDir(`${docroot}/wp-content/languages/plugins`))) {
+		await playground.mkdir(`${docroot}/wp-content/languages/plugins`);
+	}
+	if (!(await playground.isDir(`${docroot}/wp-content/languages/themes`))) {
+		await playground.mkdir(`${docroot}/wp-content/languages/themes`);
+	}
+
 	for (const { url, type } of translations) {
-		const response = await fetch(url);
+		try {
+			const response = await fetch(url);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to download translations for ${type}: ${response.statusText}`
+				);
+			}
 
-		if (!response.ok) {
-			throw new Error(
-				`Failed to fetch translation for ${type} (${language})`
+			let destination = `${docroot}/wp-content/languages`;
+			if (type === 'plugin') {
+				destination += '/plugins';
+			} else if (type === 'theme') {
+				destination += '/themes';
+			}
+
+			await unzipFile(
+				playground,
+				new File([await response.blob()], `${language}-${type}.zip`),
+				destination
 			);
+		} catch (error) {
+			/**
+			 * Some languages don't have translations and will return a 404 and a CORS error.
+			 * In this case, we can just skip the download because Playground can still work without them.
+			 */
+			logger.warn(`Error downloading translations for ${type}: ${error}`);
 		}
-
-		let destination = `${docroot}/wp-content/languages`;
-		if (type === 'plugin') {
-			destination += '/plugins';
-		} else if (type === 'theme') {
-			destination += '/themes';
-		}
-		if (!(await playground.isDir(destination))) {
-			await playground.mkdir(destination);
-		}
-
-		const zipPath = `${destination}/${language}-${type}.zip`;
-
-		await unzipFile(
-			playground,
-			new File([await response.blob()], zipPath),
-			destination
-		);
 	}
 };

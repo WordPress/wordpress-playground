@@ -25,7 +25,7 @@ describe('Blueprint step setSiteLanguage', () => {
 	});
 
 	it('should set the site language', async () => {
-		setSiteLanguage(php, {
+		await setSiteLanguage(php, {
 			language: 'hr',
 		});
 		const response = await php.run({
