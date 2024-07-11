@@ -117,7 +117,7 @@ class PlaygroundAutomationLogic {
             $this->projectId,
             $projectItem['id'],
             $this->statusFieldId,
-            'Inbox'
+            $this->githubIds['fields']['status']['options']['inbox']
         );
         return true;
     }

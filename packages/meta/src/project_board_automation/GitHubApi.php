@@ -126,6 +126,7 @@ class GitHubApi {
 	}
 
 	static public function extractProjectItemFieldValueByName($projectItem, $fieldName) {
+		var_dump($projectItem);
 		foreach($projectItem['fieldValues']['nodes'] as $fieldValue) {
 			if(isset($fieldValue['field']['name']) && $fieldValue['field']['name'] === $fieldName) {
 				return $fieldValue;
@@ -368,33 +369,44 @@ class GitHubApi {
 	public function getLabelIdByName($repoId, $labelName)
 	{
 		$query = <<<'GRAPHQL'
-		query($repoId: ID!) {
-			node(id: $repoId) {
-				... on Repository {
-					labels(first: 100) {
-						nodes {
-							id
-							name
+			query($repoId: ID!, $cursor: String) {
+				node(id: $repoId) {
+					... on Repository {
+						labels(first: 100, after: $cursor) {
+							nodes {
+								id
+								name
+							}
+							pageInfo {
+								hasNextPage
+								endCursor
+							}
 						}
 					}
 				}
 			}
-		}
 		GRAPHQL;
+
 		$variables = [
-			'repoId'    => $repoId,
-			'labelName' => $labelName,
+			'repoId' => $repoId,
 		];
 
-		$response = $this->graphqlQuery( $query, $variables );
-		$labels = $response['data']['node']['labels']['nodes'];
-		foreach ($labels as $label) {
-			if ($label['name'] === $labelName) {
-				return $label['id'];
+		$labelId = null;
+		do {
+			$response = $this->graphqlQuery($query, $variables);
+			$labels = $response['data']['node']['labels']['nodes'];
+			foreach ($labels as $label) {
+				if ($label['name'] === $labelName) {
+					$labelId = $label['id'];
+					break 2; // Exit both the foreach and do-while loop
+				}
 			}
-		}
+			$hasNextPage = $response['data']['node']['labels']['pageInfo']['hasNextPage'];
+			$variables['cursor'] = $response['data']['node']['labels']['pageInfo']['endCursor'];
+			var_dump($variables);
+		} while ($hasNextPage);
 
-		return null;
+		return $labelId;
 	}
 
 	public function commentOnIssue( $issueId, $comment ) {
