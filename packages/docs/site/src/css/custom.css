@@ -116,3 +116,12 @@ iframe {
 	display: block;
 	height: auto;
 }
+
+.navbar__link--active {
+	background-color: var(--ifm-color-primary);
+	color: white;
+}
+
+a.navbar__link--active:hover {
+	color: white;
+}
