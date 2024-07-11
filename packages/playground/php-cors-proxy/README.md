@@ -10,6 +10,7 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 
 -   Run `dev.sh` to start a local server, then go to http://127.0.0.1:5263/proxy.php/https://w.org/ and confirm it worked.
 -   Run `test.sh` to run PHPUnit tests, confirm they all pass.
+-   Run `test-watch.sh` to run PHPUnit tests in watch mode.
 
 ### Design decisions
 
