@@ -58,10 +58,6 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 				},
 				progress: { weight: 2 },
 			},
-			options.language && {
-				step: 'setSiteLanguage',
-				language: options.language,
-			},
 			...plugins.map<StepDefinition>((plugin) => ({
 				step: 'installPlugin',
 				pluginZipFile: {
@@ -70,6 +66,13 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 				},
 				progress: { weight: 2 },
 			})),
+			/**
+			 * The language step needs to run after the theme and plugins are installed to ensure that the translations are available.
+			 */
+			options.language && {
+				step: 'setSiteLanguage',
+				language: options.language,
+			},
 		],
 	};
 }

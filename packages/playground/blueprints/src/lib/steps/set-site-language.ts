@@ -23,10 +23,12 @@ export interface SetSiteLanguageStep {
  */
 export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 	playground,
-	{ language }
+	{ language },
+	progress
 ) => {
 	const docroot = await playground.documentRoot;
 
+	progress?.tracker.setCaption(progress?.initialCaption || 'Translating');
 	await playground.defineConstant('WPLANG', language);
 	await playground.run({
 		code: `<?php
