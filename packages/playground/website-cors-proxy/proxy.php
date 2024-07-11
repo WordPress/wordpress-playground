@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== 'POST
     exit;
 }
 
-if ($_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
+if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
     http_response_code(413);
     echo "Request Entity Too Large";
     exit;
