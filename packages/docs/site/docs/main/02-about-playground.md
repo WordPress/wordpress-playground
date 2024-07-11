@@ -1,6 +1,6 @@
 ---
-title: Overview
-slug: /overview
+title: About Playground
+slug: /about
 ---
 
 # Overview

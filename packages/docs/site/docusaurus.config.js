@@ -112,9 +112,21 @@ const config = {
 				items: [
 					{
 						type: 'docSidebar',
-						sidebarId: 'tutorialSidebar',
+						sidebarId: 'mainSidebar',
 						position: 'left',
 						label: 'Documentation',
+					},
+					{
+						type: 'docSidebar',
+						sidebarId: 'blueprintsSidebar',
+						position: 'left',
+						label: 'Blueprints',
+					},
+					{
+						type: 'docSidebar',
+						sidebarId: 'developersSidebar',
+						position: 'left',
+						label: 'Developers',
 					},
 					{
 						to: 'api',

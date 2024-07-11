@@ -12,7 +12,7 @@ https://github.com/WordPress/wordpress-playground/blob/15a660940ee9b4a332965ba2a
 
 Unfortunately, missing even a single item from that list results in a WebAssembly crash whenever that function is a part of the call stack when an asynchronous call is made. It looks like this:
 
-![A screenshot of an asyncify error in the terminal](../../static/img/asyncify-error.png)
+![A screenshot of an asyncify error in the terminal](../../../static/img/asyncify-error.png)
 
 Asyncify can auto-list all the required C functions when built without `ASYNCIFY_ONLY`, but that auto-detection is overeager and ends up listing about 70,000 C functions which increases the startup time to 4.5s. That's why we maintain the list manually.
 

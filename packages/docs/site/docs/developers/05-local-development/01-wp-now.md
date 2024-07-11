@@ -4,7 +4,7 @@ slug: wp-now
 
 # wp-now NPM package
 
-[`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/05-local-development/02-vscode-extension.md), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
+[`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](02-vscode-extension.md), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 
 ## Launch wp-now in a plugin or theme directory
 

@@ -1,6 +1,6 @@
 ---
-title: Start using WordPress Playground in 5 minutes
-slug: /start-using
+title: Quick Start Guide
+slug: /quick-start-guide
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
@@ -105,7 +105,7 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 
 You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
 
-You can also use [JSON Blueprints](../09-blueprints-api/01-index.md). See [getting started with Blueprints](../09-blueprints-api/01-index.md) to learn more.
+You can also use [JSON Blueprints](../blueprints/01-index.md). See [getting started with Blueprints](../blueprints/01-index.md) to learn more.
 
 This is different from the import feature described above. The import feature exports the entire site, including the database. This import feature imports a WXR file into an existing site.
 
@@ -113,4 +113,4 @@ This is different from the import feature described above. The import feature ex
 
 WordPress Playground is programmable which means you can build WordPress apps, setup plugin demos, and even use it as a zero-setup local development environment.
 
-To learn more about developing with WordPress Playground, check out the [development quick start](../03-build-an-app/01-index.md) section.
+To learn more about developing with WordPress Playground, check out the [development quick start](../developers/03-build-an-app/01-index.md) section.

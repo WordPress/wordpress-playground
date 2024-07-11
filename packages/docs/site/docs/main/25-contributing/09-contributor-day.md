@@ -6,7 +6,7 @@ slug: /wordcamp-contributor-day
 
 The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
 
-Keep reading to learn how to use these tools for [local development](../05-local-development/01-wp-now.md) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
+Keep reading to learn how to use these tools for [local development](../../developers/05-local-development/01-wp-now.md) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
 
 ## Getting Started
 

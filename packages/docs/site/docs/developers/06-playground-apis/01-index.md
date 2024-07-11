@@ -87,7 +87,7 @@ wp_insert_post(array(
 ]
 }} />
 
-Learn more about [JSON Blueprints](../09-blueprints-api/01-index.md).
+Learn more about [JSON Blueprints](../../blueprints/01-index.md).
 
 ## JavaScript API
 
@@ -97,4 +97,4 @@ import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx
 
 <JSApiShortExample />
 
-Learn more about the [JavaScript API](../10-javascript-api/01-index.md).
+Learn more about the [JavaScript API](../22-javascript-api/01-index.md).
