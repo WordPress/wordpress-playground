@@ -569,7 +569,7 @@
 							"description": "The name of the theme to import content from."
 						}
 					},
-					"required": ["step"]
+					"required": ["step", "themeSlug"]
 				},
 				{
 					"type": "object",
