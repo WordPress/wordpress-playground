@@ -42,6 +42,16 @@
 			"options": {
 				"command": "node packages/php-wasm/node/build.js",
 				"parallel": false
+			},
+			"dependsOn": ["build:mkdir"]
+		},
+		"build:mkdir": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"mkdir dist/packages/php-wasm/node"
+				],
+				"parallel": false
 			}
 		},
 		"recompile-php": {
