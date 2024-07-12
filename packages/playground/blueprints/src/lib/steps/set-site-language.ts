@@ -138,7 +138,15 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 			);
 		} catch (error) {
 			/**
-			 * Some languages don't have translations and will return a 404 and a CORS error.
+			 * If a core translation wasn't found we should throw an error because it means the language is not supported or the language code isn't correct.
+			 */
+			if (type === 'core') {
+				throw new Error(
+					`Failed to download translations for WordPress. Please check if the language code ${language} is correct. You can find all available languages and translations on https://translate.wordpress.org/.`
+				);
+			}
+			/**
+			 * Some languages don't have translations for themes and plugins and will return a 404 and a CORS error.
 			 * In this case, we can just skip the download because Playground can still work without them.
 			 */
 			logger.warn(`Error downloading translations for ${type}: ${error}`);
