@@ -3,6 +3,19 @@ import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
 
+export interface Client extends Remote<PHPWorker> {}
+
+let phpApi: Client;
+
+/**
+ * Sets the PHP API client.
+ *
+ * @param {Client} api The PHP API client.
+ */
+export function setPhpApi(api: Client) {
+	phpApi = api;
+}
+
 /**
  * Run this in the main application to register the service worker or
  * reload the registered worker if the app expects a different version
@@ -13,11 +26,7 @@ import { Remote } from 'comlink';
  *                                 mismatched with the actual version, the service worker
  *                                 will be re-registered.
  */
-export async function registerServiceWorker<Client extends Remote<PHPWorker>>(
-	phpApi: Client,
-	scope: string,
-	scriptUrl: string
-) {
+export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	const sw = navigator.serviceWorker;
 	if (!sw) {
 		/**
@@ -45,6 +54,13 @@ export async function registerServiceWorker<Client extends Remote<PHPWorker>>(
 	// the update:
 	await registration.update();
 
+	registration.addEventListener('worker-api', (event: CustomEventInit) => {
+		if (!event.detail.workerApi) {
+			return;
+		}
+		phpApi = event.detail.workerApi;
+	});
+
 	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(
 		'message',
@@ -69,4 +85,6 @@ export async function registerServiceWorker<Client extends Remote<PHPWorker>>(
 	);
 
 	sw.startMessages();
+
+	return registration;
 }

@@ -43,7 +43,7 @@ import {
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 
-const scope = Math.random().toFixed(16);
+const scope = startupOptions.scope;
 
 // post message to parent
 self.postMessage('worker-script-started');

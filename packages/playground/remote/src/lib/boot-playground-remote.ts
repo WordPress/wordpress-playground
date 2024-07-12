@@ -5,6 +5,7 @@ import {
 } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
+	setPhpApi,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
@@ -71,6 +72,10 @@ export async function bootPlaygroundRemote() {
 	);
 	const withNetworking = query.get('networking') === 'yes';
 	const sapiName = query.get('sapi-name') || undefined;
+
+	const scope = Math.random().toFixed(16);
+	await registerServiceWorker(scope, serviceWorkerUrl + '');
+
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
@@ -80,6 +85,7 @@ export async function bootPlaygroundRemote() {
 			storage: query.get('storage') || '',
 			...(sapiName ? { sapiName } : {}),
 			'site-slug': query.get('site-slug') || 'wordpress',
+			scope,
 		})
 	);
 
@@ -212,11 +218,9 @@ export async function bootPlaygroundRemote() {
 
 	try {
 		await workerApi.isReady();
-		await registerServiceWorker(
-			workerApi,
-			await workerApi.scope,
-			serviceWorkerUrl + ''
-		);
+
+		setPhpApi(workerApi);
+
 		setupPostMessageRelay(
 			wpFrame,
 			getOrigin((await playground.absoluteUrl)!)

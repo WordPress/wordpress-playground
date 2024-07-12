@@ -21,6 +21,7 @@ export type ReceivedStartupOptions = {
 	storage?: string;
 	phpExtensions?: string[];
 	siteSlug?: string;
+	scope?: string;
 };
 
 export type ParsedStartupOptions = {
@@ -30,6 +31,7 @@ export type ParsedStartupOptions = {
 	storage: string;
 	phpExtensions: string[];
 	siteSlug: string;
+	scope: string;
 };
 
 const getReceivedParams = async () => {
@@ -43,6 +45,7 @@ const getReceivedParams = async () => {
 					sapiName: event.data.startupOptions.sapiName,
 					phpExtensions: event.data.startupOptions['php-extension'],
 					siteSlug: event.data.startupOptions['site-slug'],
+					scope: event.data.startupOptions.scope,
 				});
 			}
 		});
@@ -65,6 +68,7 @@ export const startupOptions = {
 	storage: receivedParams.storage || 'local',
 	phpExtensions: receivedParams.phpExtensions || [],
 	siteSlug: receivedParams.siteSlug,
+	scope: receivedParams.scope || '',
 } as ParsedStartupOptions;
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();

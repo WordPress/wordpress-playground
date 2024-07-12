@@ -4,7 +4,7 @@ export type { LoaderOptions as PHPWebLoaderOptions } from './load-runtime';
 
 export { loadWebRuntime } from './load-runtime';
 export { getPHPLoaderModule } from './get-php-loader-module';
-export { registerServiceWorker } from './register-service-worker';
+export { registerServiceWorker, setPhpApi } from './register-service-worker';
 export { setupPostMessageRelay } from './setup-post-message-relay';
 
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
