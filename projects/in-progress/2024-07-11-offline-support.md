@@ -1,10 +1,3 @@
-Start date: June 18th 2024
-ETA: July 22nd 2024
-
-Updates: Weekly
-
-Status: In progress
-
 ### Problem we are solving
 
 Playground can't be used while offline.
@@ -26,8 +19,6 @@ Apps like SPAs and mobile apps that use WordPress as a backend will be able to e
 ### Limitations
 
 We will need to limit the switching of PHP and WordPress versions while offline to ensure users don't download too much data on the first load.
-
-## Project Requirements
 
 ## Project plan
 
