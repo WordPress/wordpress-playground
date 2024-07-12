@@ -40,7 +40,7 @@ Once Playground works offline we need to restrict some features like version swi
     -   [ ] Cache fetch requests
 -   [ ] Offline e2e tests
     -   [ ] Ensure tests run on a preview version of Playground
--   [ ] Limit features while offline
+-   [ ] [Limit features while offline](https://github.com/WordPress/wordpress-playground/pull/1607/files)
 
 ## Notes
 
