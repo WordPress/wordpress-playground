@@ -20,10 +20,6 @@ export async function spawnPHPWorkerThread(
 			(error as any).filename = e.filename;
 			reject(error);
 		};
-		worker.postMessage({
-			type: 'startup-options',
-			startupOptions,
-		});
 		// There is no way to know when the worker script has started
 		// executing, so we use a message to signal that.
 		function onStartup(event: { data: string }) {
