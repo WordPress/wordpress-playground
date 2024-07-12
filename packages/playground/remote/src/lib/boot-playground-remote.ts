@@ -88,6 +88,8 @@ export async function bootPlaygroundRemote() {
 			scope,
 		})
 	);
+	// Set PHP API in the service worker
+	setPhpApi(workerApi);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
@@ -218,8 +220,6 @@ export async function bootPlaygroundRemote() {
 
 	try {
 		await workerApi.isReady();
-
-		setPhpApi(workerApi);
 
 		setupPostMessageRelay(
 			wpFrame,
