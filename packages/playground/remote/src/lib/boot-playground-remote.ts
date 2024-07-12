@@ -239,9 +239,25 @@ export async function bootPlaygroundRemote() {
 		throw e;
 	}
 
-	wpFrame.addEventListener('load', () => {
-		webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-	});
+	/**
+	 * If the browser is online we can download WordPress assets asynchronously to speed up the boot process.
+	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
+	 *
+	 * If the browser is offline, we download WordPress assets synchronously to ensure the Playground is fully functional on load.
+	 */
+	if (window.navigator.onLine) {
+		wpFrame.addEventListener('load', () => {
+			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		});
+	} else {
+		webApi.setProgress({
+			caption: 'Downloading WordPress assets',
+			isIndefinite: false,
+			visible: true,
+		});
+		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+	}
+
 	/*
 	 * An assertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
