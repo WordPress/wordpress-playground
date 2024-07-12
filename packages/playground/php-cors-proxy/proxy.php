@@ -11,8 +11,8 @@ require_once __DIR__ . '/proxy-functions.php';
 // Set CORS headers
 function set_cors_headers() {
     header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+    header("Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS");
+    header("Access-Control-Allow-Headers: *");
 }
 
 // Handle preflight request
