@@ -195,6 +195,33 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
+/**
+ * Downloads static assets that are removed from minified WordPress builds.
+ *
+ * ## Background
+ *
+ * To load Playground faster, we ship minified WordPress builds without most CSS files, JS files, and other static assets.
+ *
+ * Instead, the build contains a list of remote assets in the wordpress-remote-asset-paths file which is located in the WordPress document root.
+ * Playground uses this list to determine if it should fetch the assets on demand.
+ *
+ * When Playground requests a static asset that is not in the minified build, we download the asset from the Playground.WordPress.net server.
+ *
+ * ## Backfilling
+ *
+ * At the end of the Playground boot process (see `bootPlaygroundRemote`), Playground starts the backfill process by calling `backfillStaticFilesRemovedFromMinifiedBuild`.
+ *
+ * The function checks if the wordpress-remote-asset-paths file exists and is not empty.
+ * The wordpress-remote-asset-paths file is emptied after the assets are downloaded, so we can assume that the assets are already downloaded if the file is empty.
+ * If the wordpress-remote-asset-paths file doesn't exist, this means that the WordPress files didn't originate from a minified Playground build.
+ * We backfill only for minified builds, so we skip the backfill process in this case.
+ *
+ * Each WordPress release has a corresponding static assets directory on the Playground.WordPress.net server.
+ * The file is downloaded from the server and unzipped into the WordPress document root.
+ *
+ * If any of the files already exist, they are skipped and not overwritten.
+ * By skipping existing files, we ensure that the backfill process doesn't overwrite any user changes.
+ */
 async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	if (!php.requestHandler) {
 		logger.warn('No PHP request handler available');
@@ -207,15 +234,6 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 			'wordpress-remote-asset-paths'
 		);
 
-		/**
-		 * Don't download static assets if they're already downloaded.
-		 * WordPress may be loaded either from a production release or a minified bundle.
-		 * Minified bundles are shipped without most CSS files, JS files, and other static assets.
-		 * Instead, they contain a list of remote assets in wordpress-remote-asset-paths.
-		 * We use this list to determine if we should fetch them on demand or if they are already downloaded.
-		 * If the list is empty, we assume the assets are already downloaded.
-		 * See https://github.com/WordPress/wordpress-playground/pull/1531 to understand how we use the remote asset list to backfill assets on demand.
-		 */
 		if (
 			!php.fileExists(remoteAssetListPath) ||
 			(await php.readFileAsText(remoteAssetListPath)) === ''
