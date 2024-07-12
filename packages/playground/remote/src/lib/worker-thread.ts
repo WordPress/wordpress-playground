@@ -241,7 +241,8 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		await unzipFile(
 			php,
 			new File([await response.blob()], 'wordpress-static.zip'),
-			php.requestHandler.documentRoot
+			php.requestHandler.documentRoot,
+			false
 		);
 		// Clear the remote asset list to indicate that the assets are downloaded.
 		await php.writeFile(remoteAssetListPath, '');

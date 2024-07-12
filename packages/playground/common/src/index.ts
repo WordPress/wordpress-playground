@@ -21,7 +21,8 @@ const tmpPath = '/tmp/file.zip';
 export const unzipFile = async (
 	php: UniversalPHP,
 	zipPath: string | File,
-	extractToPath: string
+	extractToPath: string,
+	overwrite = true
 ) => {
 	if (zipPath instanceof File) {
 		const zipFile = zipPath;
@@ -34,6 +35,7 @@ export const unzipFile = async (
 	const js = phpVars({
 		zipPath,
 		extractToPath,
+		overwrite,
 	});
 	await php.run({
 		code: `<?php
@@ -45,14 +47,23 @@ export const unzipFile = async (
             $zip = new ZipArchive;
             $res = $zip->open($zipPath);
             if ($res === TRUE) {
-                $zip->extractTo($extractTo);
-                $zip->close();
-                chmod($extractTo, 0777);
+				for ($i = 0; $i < $zip->numFiles; $i++) {
+					$filename = $zip->getNameIndex($i);
+					$fileinfo = pathinfo($filename);
+					$extractFilePath = $extractTo . DIRECTORY_SEPARATOR . $filename;
+					// Check if file exists and $overwrite is false
+					if (!file_exists($extractFilePath) || $overwrite) {
+						// Extract file
+						$zip->extractTo($extractTo, $filename);
+					}
+				}
+				$zip->close();
+				chmod($extractTo, 0777);
             } else {
                 throw new Exception("Could not unzip file");
             }
         }
-        unzip(${js.zipPath}, ${js.extractToPath});
+        unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwrite});
         `,
 	});
 	if (await php.fileExists(tmpPath)) {
