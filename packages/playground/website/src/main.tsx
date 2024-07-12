@@ -132,6 +132,7 @@ function Modals() {
 
 function Main() {
 	const dispatch: PlaygroundDispatch = useDispatch();
+	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
@@ -279,11 +280,20 @@ function Main() {
 										storage={currentConfiguration.storage}
 										onClose={onClose}
 									/>
-									<ReportError onClose={onClose} />
+									<ReportError
+										onClose={onClose}
+										disabled={offline}
+									/>
 									<DownloadAsZipMenuItem onClose={onClose} />
 									<RestoreFromZipMenuItem onClose={onClose} />
-									<GithubImportMenuItem onClose={onClose} />
-									<GithubExportMenuItem onClose={onClose} />
+									<GithubImportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
+									<GithubExportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
 									<ViewLogs onClose={onClose} />
 									<MenuItem
 										icon={external}

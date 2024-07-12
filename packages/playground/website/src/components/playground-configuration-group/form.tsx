@@ -8,6 +8,8 @@ import {
 import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
+import { PlaygroundReduxState } from '../../lib/redux-store';
+import { useSelector } from 'react-redux';
 
 export interface PlaygroundConfiguration {
 	wp: string;
@@ -40,6 +42,8 @@ export function PlaygroundConfigurationForm({
 	onSubmit,
 	onSelectLocalDirectory,
 }: PlaygroundConfigurationFormProps) {
+	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
+
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
 	const [withExtensions, setWithExtensions] = useState<boolean>(
@@ -257,6 +261,7 @@ export function PlaygroundConfigurationForm({
 							id="php-version"
 							value={php}
 							className={forms.largeSelect}
+							disabled={offline}
 							onChange={(
 								event: React.ChangeEvent<HTMLSelectElement>
 							) => {
@@ -278,6 +283,7 @@ export function PlaygroundConfigurationForm({
 							<input
 								type="checkbox"
 								name="with-extensions"
+								disabled={offline}
 								checked={withExtensions}
 								onChange={() =>
 									setWithExtensions(!withExtensions)
@@ -294,6 +300,7 @@ export function PlaygroundConfigurationForm({
 							<input
 								type="checkbox"
 								name="with-networking"
+								disabled={offline}
 								checked={withNetworking}
 								onChange={() =>
 									setWithNetworking(!withNetworking)
@@ -323,6 +330,7 @@ export function PlaygroundConfigurationForm({
 								id="wp-version"
 								value={wp}
 								className={forms.largeSelect}
+								disabled={offline}
 								onChange={(
 									event: React.ChangeEvent<HTMLSelectElement>
 								) => {
