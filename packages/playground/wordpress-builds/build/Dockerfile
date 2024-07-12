@@ -32,6 +32,7 @@ RUN rm -rf wordpress/wp-content/plugins/akismet
 RUN cp -r wordpress wordpress-static && \
     cd wordpress-static && \
     find ./ -name '*.php' -delete && \
+    find ./ -name '*.sqlite' -delete && \
     # Keep only the static files inside the directories like wp-admin or wp-content:
     find . -maxdepth 1 -type f -delete && \
     # Remove all empty directories
