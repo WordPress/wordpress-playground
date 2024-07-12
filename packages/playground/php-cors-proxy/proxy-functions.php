@@ -16,8 +16,9 @@ function get_target_url($server_data=null) {
         $targetUrl = substr($targetUrl, strlen($server_data['SCRIPT_NAME']));
     }
 
-    // Remove the leading slash
-    if ($targetUrl[0] === '/') {
+    // Remove the leading slash or question mark, depending on the method
+    // used to access the script
+    if (str_starts_with($targetUrl, '/') || str_starts_with($targetUrl, '?')) {
         $targetUrl = substr($targetUrl, 1);
     }
 

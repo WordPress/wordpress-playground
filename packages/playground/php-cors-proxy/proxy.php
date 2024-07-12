@@ -36,6 +36,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['CONTENT_LENGTH'] >= MAX_RE
 
 // Get the full target URL from the request path
 $targetUrl = get_target_url($_SERVER);
+if(!$targetUrl) {
+    http_response_code(400);
+    echo "Bad Request\n\nNo URL provided";
+    exit;
+}
 $resolved = url_validate_and_resolve($targetUrl);
 $host = $resolved['host'];
 $resolvedIp = $resolved['ip'];
