@@ -1202,6 +1202,33 @@
 						}
 					},
 					"required": ["command", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "setSiteLanguage"
+						},
+						"language": {
+							"type": "string",
+							"description": "The language to set, e.g. 'en_US'"
+						}
+					},
+					"required": ["language", "step"]
 				}
 			]
 		},

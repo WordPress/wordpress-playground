@@ -5,7 +5,7 @@ title: Blueprint data Format
 
 # Blueprint data format
 
-A Blueprint JSON file can have many different properties that will be used to define your Playground instance. The most important properties are detailed below. 
+A Blueprint JSON file can have many different properties that will be used to define your Playground instance. The most important properties are detailed below.
 
 Here's an example that uses many of them:
 
@@ -42,7 +42,7 @@ JSON files can be tedious to write and easy to get wrong. To help with that, Pla
 
 ## Landing page
 
-The `landingPage` property tells Playground which URL to navigate to after the Blueprint has been run. This is a great tool, especially when creating theme or plugin demos. Often, you will want to start Playground in the Site Editor or have a specific post open in the Post Editor. Make sure you use a relative path. 
+The `landingPage` property tells Playground which URL to navigate to after the Blueprint has been run. This is a great tool, especially when creating theme or plugin demos. Often, you will want to start Playground in the Site Editor or have a specific post open in the Post Editor. Make sure you use a relative path.
 
 ```js
 {

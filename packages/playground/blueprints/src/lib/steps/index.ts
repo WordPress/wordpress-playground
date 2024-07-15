@@ -30,6 +30,7 @@ import { ImportWxrStep } from './import-wxr';
 import { EnableMultisiteStep } from './enable-multisite';
 import { WPCLIStep } from './wp-cli';
 import { ResetDataStep } from './reset-data';
+import { SetSiteLanguageStep } from './set-site-language';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -72,7 +73,8 @@ export type GenericStep<Resource> =
 	| UnzipStep<Resource>
 	| UpdateUserMetaStep
 	| WriteFileStep<Resource>
-	| WPCLIStep;
+	| WPCLIStep
+	| SetSiteLanguageStep;
 
 export type {
 	ActivatePluginStep,
@@ -105,6 +107,7 @@ export type {
 	UpdateUserMetaStep,
 	WriteFileStep,
 	WPCLIStep,
+	SetSiteLanguageStep,
 };
 
 /**

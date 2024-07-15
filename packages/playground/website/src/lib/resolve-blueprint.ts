@@ -71,6 +71,7 @@ export async function resolveBlueprint() {
 				query.get('import-wxr') ||
 				query.get('import-content') ||
 				undefined,
+			language: query.get('language') || undefined,
 		});
 	}
 
