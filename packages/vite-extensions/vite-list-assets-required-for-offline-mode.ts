@@ -59,8 +59,10 @@ const patternsToNotCache = [
 ];
 
 /**
- * For Playground to work offline we need to cache all the files that are needed for the website to function.
- * Playground uses this list at the end of the boot process to cache files.
+ * This Vite plugin saves a list of those files as a JSON file served on
+ * `playground.wordpress.net`. Playground then consults the list to
+ * download and cache all those files at the end of the boot process.
+ * .
  */
 export const listAssetsRequiredForOfflineMode = ({
 	outputFile,
