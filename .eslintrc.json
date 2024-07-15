@@ -48,7 +48,13 @@
 				"@typescript-eslint/no-empty-interface": 0,
 				"@typescript-eslint/no-empty-function": 0,
 				"@typescript-eslint/no-unused-vars": "error",
-				"no-constant-condition": 0
+				"no-constant-condition": 0,
+				"max-len": [
+					"error",
+					{
+						"code": 120
+					}
+				]
 			}
 		},
 		{
