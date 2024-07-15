@@ -36,11 +36,9 @@ export const unzipFile = async (
 		zipPath,
 		extractToPath,
 		overwriteFiles,
-		documentRoot: php.documentRoot,
 	});
 	await php.run({
 		code: `<?php
-		require_once "${js.documentRoot}/wp-load.php";
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
         {
             if (!is_dir($extractTo)) {
@@ -52,7 +50,7 @@ export const unzipFile = async (
 				for ($i = 0; $i < $zip->numFiles; $i++) {
 					$filename = $zip->getNameIndex($i);
 					$fileinfo = pathinfo($filename);
-					$extractFilePath = untrailingslashit($extractTo) . '/' . $filename;
+					$extractFilePath = rtrim($extractTo, '/\\') . '/' . $filename;
 					// Check if file exists and $overwriteFiles is false
 					if (!file_exists($extractFilePath) || $overwriteFiles) {
 						// Extract file
