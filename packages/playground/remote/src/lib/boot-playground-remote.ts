@@ -243,7 +243,8 @@ export async function bootPlaygroundRemote() {
 	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
 	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
 	 *
-	 * If the browser is offline, we backfill WordPress assets synchronously from the cache to ensure Playground is fully functional before boot finishes.
+	 * If the browser is offline, we backfill WordPress assets synchronously
+	 * from cache to ensure Playground is fully functional before boot finishes.
 	 */
 	if (window.navigator.onLine) {
 		wpFrame.addEventListener('load', () => {
@@ -321,7 +322,8 @@ function assertNotInfiniteLoadingLoop() {
 	}
 	if (isBrowserInABrowser) {
 		throw new Error(
-			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-playground/issues'
+			`The service worker did not load correctly. This is a bug,
+			please report it on https://github.com/WordPress/wordpress-playground/issues`
 		);
 	}
 	(window as any).IS_WASM_WORDPRESS = true;

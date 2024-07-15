@@ -200,26 +200,42 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
  * the currently loaded minified WordPress build. Doesn't do anything if the
  * assets are already downloaded or if a non-minified WordPress build is loaded.
  *
- * ## Background
+ * # Asset Loading
  *
- * To load Playground faster, we default to minified WordPress builds shipped without most CSS files, JS files, and other static assets.
+ * ## WordPress minified build is loaded
  *
- * Instead, the build contains a list of remote assets in the wordpress-remote-asset-paths file which is located in the WordPress document root.
+ * To load Playground faster, we default to minified WordPress builds shipped
+ * without most CSS files, JS files, and other static assets.
+ *
+ * ## Static assets are fetched on demand before backfilling
+ *
+ * The build contains a list of remote assets in the wordpress-remote-asset-paths file
+ * which is located in the WordPress document root.
  * Playground uses this list to determine if it should fetch the assets on demand.
  *
- * When Playground requests a static asset that is not in the minified build, we download the asset from the Playground.WordPress.net server.
+ * When Playground requests a static asset that is not in the minified build,
+ * we download the asset from the Playground.WordPress.net server.
  *
- * ## Backfilling
+ * ## Backfilling on boot
  *
- * At the end of the Playground boot process (see `bootPlaygroundRemote`), Playground starts the backfill process by calling `backfillStaticFilesRemovedFromMinifiedBuild`.
+ * At the end of the Playground boot process (see `bootPlaygroundRemote`),
+ * Playground starts the backfill process by calling `backfillStaticFilesRemovedFromMinifiedBuild`.
+ *
+ * ### Prevent backfilling if assets are already available
  *
  * The function checks if the wordpress-remote-asset-paths file exists and is not empty.
- * The wordpress-remote-asset-paths file is emptied after the assets are downloaded, so we can assume that the assets are already downloaded if the file is empty.
- * If the wordpress-remote-asset-paths file doesn't exist, this means that the WordPress files didn't originate from a minified Playground build.
+ * The wordpress-remote-asset-paths file is emptied after the assets are downloaded,
+ * so we can assume that the assets are already downloaded if the file is empty.
+ * If the wordpress-remote-asset-paths file doesn't exist,
+ * this means that the WordPress files didn't originate from a minified Playground build.
  * We backfill only for minified builds, so we skip the backfill process in this case.
+ *
+ * ### Downloading assets during backfill
  *
  * Each WordPress release has a corresponding static assets directory on the Playground.WordPress.net server.
  * The file is downloaded from the server and unzipped into the WordPress document root.
+ *
+ * ### Skipping existing files during unzipping
  *
  * If any of the files already exist, they are skipped and not overwritten.
  * By skipping existing files, we ensure that the backfill process doesn't overwrite any user changes.
