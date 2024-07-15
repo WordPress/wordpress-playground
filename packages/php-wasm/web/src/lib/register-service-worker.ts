@@ -15,15 +15,16 @@ export const phpApiPromise = new Promise<Client>((resolve) => {
 	resolvePhpApi = resolve;
 });
 
-let phpApi: Client;
-
 /**
  * Sets the PHP API client.
  *
  * @param {Client} api The PHP API client.
+ *
  */
 export function setPhpApi(api: Client) {
-	phpApi = api;
+	if (!api) {
+		throw new PhpWasmError('PHP API client must be a valid client object.');
+	}
 	resolvePhpApi(api);
 }
 
@@ -32,10 +33,11 @@ export function setPhpApi(api: Client) {
  * reload the registered worker if the app expects a different version
  * than the currently registered one.
  *
- * @param {string} scriptUrl       The URL of the service worker script.
- * @param {string} expectedVersion The expected version of the service worker script. If
- *                                 mismatched with the actual version, the service worker
- *                                 will be re-registered.
+ * @param scope       The numeric value used in the path prefix of the site
+ *                    this service worker is meant to serve. E.g. for a prefix
+ *                    like `/scope:793/`, the scope would be `793`. See the
+ *                    `@php-wasm/scopes` package for more details.
+ * @param scriptUrl   The URL of the service worker script.
  */
 export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	const sw = navigator.serviceWorker;
@@ -69,9 +71,6 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
-			// Wait for the PHP API client to be set by bootPlaygroundRemote
-			await resolvePhpApi;
-
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
@@ -83,12 +82,10 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 				return;
 			}
 
-			if (!phpApi) {
-				throw new PhpWasmError('PHP API client is not set.');
-			}
+			// Wait for the PHP API client to be set by bootPlaygroundRemote
+			const phpApi = await phpApiPromise;
 
 			const args = event.data.args || [];
-
 			const method = event.data.method as keyof Client;
 			const result = await (phpApi[method] as Function)(...args);
 			event.source!.postMessage(responseTo(event.data.requestId, result));
