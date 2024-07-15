@@ -22,7 +22,7 @@ const patternsToNotCache = [
 	 *
 	 * We don't need to cache them, because they're only used in a short time
 	 * window after the Playground is initially loaded and before they're all backfilled
-	 * from a dedicated ZIP file shipping all the static assets for a given minified 
+	 * from a dedicated ZIP file shipping all the static assets for a given minified
 	 * build.
 	 *
 	 * See <Assets backfilling PR link>
@@ -56,7 +56,11 @@ const patternsToNotCache = [
  * For Playground to work offline we need to cache all the files that are needed for the website to function.
  * Playground uses this list at the end of the boot process to cache files.
  */
-export const websiteCachePathsPlugin = () => {
+export const listAssetsRequiredForOfflineModePlugin = ({
+	outputFile,
+}: {
+	outputFile: string;
+}) => {
 	function listFiles(dirPath: string, fileList: string[] = []) {
 		const files = readdirSync(dirPath);
 
@@ -77,7 +81,7 @@ export const websiteCachePathsPlugin = () => {
 		name: 'website-cache-paths-plugin',
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
-			const outputManifestPath = join(outputDir, 'cache-files.json');
+			const outputManifestPath = join(outputDir, outputFile);
 			const directoriesToList = ['/', '../remote', '../client'];
 
 			const files = directoriesToList.flatMap((dir) => {

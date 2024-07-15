@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
-import { websiteCachePathsPlugin } from '../../vite-extensions/vite-website-cache-paths';
+import { listAssetsRequiredForOfflineModePlugin } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -136,9 +136,11 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Merge cache manifest files into a single `cache-files.json` file.
+			 * Generate a list of files needed for the website to function offline.
 			 */
-			websiteCachePathsPlugin() as Plugin,
+			listAssetsRequiredForOfflineModePlugin({
+				outputFile: path('./assets-required-for-offline-mode.json'),
+			}) as Plugin,
 		],
 
 		// Configuration for building your library.
