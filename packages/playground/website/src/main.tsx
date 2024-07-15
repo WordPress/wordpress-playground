@@ -41,6 +41,7 @@ import { ErrorReportModal } from './components/error-report-modal';
 import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 import { LogModal } from './components/log-modal';
+import { OfflineNotice } from './components/offline-notice';
 import { StartErrorModal } from './components/start-error-modal';
 import { MountMarkdownDirectoryModal } from './components/mount-markdown-directory-modal';
 import { useBootPlayground } from './lib/use-boot-playground';
@@ -132,6 +133,7 @@ function Modals() {
 
 function Main() {
 	const dispatch: PlaygroundDispatch = useDispatch();
+	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
@@ -188,6 +190,7 @@ function Main() {
 				dispatch(setActiveModal('error-report'));
 			}
 		});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Add GA events for blueprint steps. For more information, see the README.md file.
@@ -202,6 +205,7 @@ function Main() {
 		for (const step of steps) {
 			logTrackingEvent('step', { step });
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [blueprint?.steps]);
 
 	return (
@@ -274,16 +278,26 @@ function Main() {
 					>
 						{({ onClose }) => (
 							<>
+								{offline ? <OfflineNotice /> : null}
 								<MenuGroup>
 									<ResetSiteMenuItem
 										storage={currentConfiguration.storage}
 										onClose={onClose}
 									/>
-									<ReportError onClose={onClose} />
+									<ReportError
+										onClose={onClose}
+										disabled={offline}
+									/>
 									<DownloadAsZipMenuItem onClose={onClose} />
 									<RestoreFromZipMenuItem onClose={onClose} />
-									<GithubImportMenuItem onClose={onClose} />
-									<GithubExportMenuItem onClose={onClose} />
+									<GithubImportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
+									<GithubExportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
 									<ViewLogs onClose={onClose} />
 									<MenuItem
 										icon={external}
@@ -304,6 +318,7 @@ function Main() {
 											].join('') as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										Edit the Blueprint
 									</MenuItem>
@@ -320,6 +335,7 @@ function Main() {
 											) as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										Preview WordPress Pull Request
 									</MenuItem>
@@ -334,6 +350,7 @@ function Main() {
 											) as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										More demos
 									</MenuItem>
@@ -345,6 +362,7 @@ function Main() {
 											'https://wordpress.github.io/wordpress-playground/' as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										Documentation
 									</MenuItem>
@@ -356,6 +374,7 @@ function Main() {
 											'https://github.com/WordPress/wordpress-playground' as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										GitHub
 									</MenuItem>

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -134,6 +135,13 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			/**
+			 * Generate a list of files needed for the website to function offline.
+			 */
+			listAssetsRequiredForOfflineMode({
+				outputFile: 'assets-required-for-offline-mode.json',
+				distDirectoriesToList: ['./', '../remote', '../client'],
+			}) as Plugin,
 		],
 
 		// Configuration for building your library.
