@@ -34,7 +34,29 @@ export type ParsedStartupOptions = {
 	scope: string;
 };
 
-const getReceivedParams = async () => {
+export let requestedWPVersion: string;
+export let startupOptions: ParsedStartupOptions;
+
+export const setStartupOptions = (receivedParams: ReceivedStartupOptions) => {
+	requestedWPVersion = receivedParams.wpVersion || '';
+	startupOptions = {
+		wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
+			? requestedWPVersion
+			: LatestSupportedWordPressVersion,
+		phpVersion: SupportedPHPVersionsList.includes(
+			receivedParams.phpVersion || ''
+		)
+			? (receivedParams.phpVersion as SupportedPHPVersion)
+			: '8.0',
+		sapiName: receivedParams.sapiName || 'cli',
+		storage: receivedParams.storage || 'local',
+		phpExtensions: receivedParams.phpExtensions || [],
+		siteSlug: receivedParams.siteSlug,
+		scope: receivedParams.scope || '',
+	} as ParsedStartupOptions;
+};
+
+export const waitForStartupOptions = async () => {
 	return new Promise<ReceivedStartupOptions>((resolve) => {
 		self.addEventListener('message', async (event) => {
 			if (event.data.type === 'startup-options') {
@@ -51,25 +73,6 @@ const getReceivedParams = async () => {
 		});
 	});
 };
-
-const receivedParams: ReceivedStartupOptions = await getReceivedParams();
-
-export const requestedWPVersion = receivedParams.wpVersion || '';
-export const startupOptions = {
-	wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
-		? requestedWPVersion
-		: LatestSupportedWordPressVersion,
-	phpVersion: SupportedPHPVersionsList.includes(
-		receivedParams.phpVersion || ''
-	)
-		? (receivedParams.phpVersion as SupportedPHPVersion)
-		: '8.0',
-	sapiName: receivedParams.sapiName || 'cli',
-	storage: receivedParams.storage || 'local',
-	phpExtensions: receivedParams.phpExtensions || [],
-	siteSlug: receivedParams.siteSlug,
-	scope: receivedParams.scope || '',
-} as ParsedStartupOptions;
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 

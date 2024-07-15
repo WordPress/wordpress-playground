@@ -23,6 +23,8 @@ import {
 	downloadMonitor,
 	spawnHandlerFactory,
 	createPhpRuntime,
+	setStartupOptions,
+	waitForStartupOptions,
 } from './worker-utils';
 import {
 	FilesystemOperation,
@@ -42,6 +44,12 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
+
+/**
+ * Startup options are received from spawnPHPWorkerThread using a message event.
+ * We need to wait for startup options to be received to setup the worker thread.
+ */
+setStartupOptions(await waitForStartupOptions());
 
 const scope = startupOptions.scope;
 
