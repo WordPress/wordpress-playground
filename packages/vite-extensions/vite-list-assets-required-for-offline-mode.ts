@@ -56,7 +56,7 @@ const patternsToNotCache = [
  * For Playground to work offline we need to cache all the files that are needed for the website to function.
  * Playground uses this list at the end of the boot process to cache files.
  */
-export const listAssetsRequiredForOfflineModePlugin = ({
+export const listAssetsRequiredForOfflineMode = ({
 	outputFile,
 	distDirectoriesToList,
 }: {
