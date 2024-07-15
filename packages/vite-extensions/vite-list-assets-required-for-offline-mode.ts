@@ -43,8 +43,14 @@ const patternsToNotCache = [
 	/\/.*\.php$/,
 	/**
 	 * WordPress, PHP, and SQLite files that are loaded during boot.
-	 * By loading these files during boot, we can ensure that only the current PHP/WordPress/SQLite files are cached.
-	 * These files are large, so loading only the current files will reduce the bandwidth usage.
+	 * Eagerly loading all the PHP and WordPress releases offered by Playground would use an
+	 * extra ~200MB of bandwidth every time you load Playground on a new device.
+	 *
+	 * However, most of the time time you only want to load a specific Playground configuration.
+	 *
+	 * Therefore, in here we're excluding the PHP and WP releases from being loaded
+	 * eagerly and instead we're defaulting to caching the specific release that's 
+	 * loaded anyway when booting Playgroung.
 	 */
 	/^\/assets\/php_.*\.wasm$/, // PHP WASM files
 	/^\/assets\/php_.*\.js$/, // PHP JS files
