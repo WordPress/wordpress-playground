@@ -1,0 +1,15 @@
+{
+	"name": "playground-php-cors-proxy",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/php-cors-proxy",
+	"projectType": "library",
+	"targets": {
+		"test": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["bash test.sh"],
+				"cwd": "packages/playground/php-cors-proxy"
+			}
+		}
+	}
+}
