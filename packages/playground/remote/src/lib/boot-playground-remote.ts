@@ -5,6 +5,7 @@ import {
 } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
+	setPhpApi,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
@@ -71,7 +72,11 @@ export async function bootPlaygroundRemote() {
 	);
 	const withNetworking = query.get('networking') === 'yes';
 	const sapiName = query.get('sapi-name') || undefined;
-	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
+
+	const scope = Math.random().toFixed(16);
+	await registerServiceWorker(scope, serviceWorkerUrl + '');
+
+	const phpApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
@@ -80,25 +85,28 @@ export async function bootPlaygroundRemote() {
 			storage: query.get('storage') || '',
 			...(sapiName ? { sapiName } : {}),
 			'site-slug': query.get('site-slug') || 'wordpress',
+			scope,
 		})
 	);
+	// Set PHP API in the service worker
+	setPhpApi(phpApi);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
-			return workerApi.onDownloadProgress(fn);
+			return phpApi.onDownloadProgress(fn);
 		},
 		async journalFSEvents(root: string, callback) {
-			return workerApi.journalFSEvents(root, callback);
+			return phpApi.journalFSEvents(root, callback);
 		},
 		async replayFSJournal(events: FilesystemOperation[]) {
-			return workerApi.replayFSJournal(events);
+			return phpApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await workerApi.addEventListener(event, listener);
+			return await phpApi.addEventListener(event, listener);
 		},
 		async removeEventListener(event, listener) {
-			return await workerApi.removeEventListener(event, listener);
+			return await phpApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
@@ -183,7 +191,7 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async onMessage(callback: MessageListener) {
-			return await workerApi.onMessage(callback);
+			return await phpApi.onMessage(callback);
 		},
 		/**
 		 * Ditto for this function.
@@ -195,11 +203,11 @@ export async function bootPlaygroundRemote() {
 			options: BindOpfsOptions,
 			onProgress?: SyncProgressCallback
 		) {
-			return await workerApi.bindOpfs(options, onProgress);
+			return await phpApi.bindOpfs(options, onProgress);
 		},
 	};
 
-	await workerApi.isConnected();
+	await phpApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
@@ -208,22 +216,18 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
+	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, phpApi);
 
 	try {
-		await workerApi.isReady();
-		await registerServiceWorker(
-			workerApi,
-			await workerApi.scope,
-			serviceWorkerUrl + ''
-		);
+		await phpApi.isReady();
+
 		setupPostMessageRelay(
 			wpFrame,
 			getOrigin((await playground.absoluteUrl)!)
 		);
 		setupMountListener(playground);
 		if (withNetworking) {
-			await setupFetchNetworkTransport(workerApi);
+			await setupFetchNetworkTransport(phpApi);
 		}
 
 		setAPIReady();
