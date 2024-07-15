@@ -49,7 +49,7 @@ const patternsToNotCache = [
 	 * However, most of the time time you only want to load a specific Playground configuration.
 	 *
 	 * Therefore, in here we're excluding the PHP and WP releases from being loaded
-	 * eagerly and instead we're defaulting to caching the specific release that's 
+	 * eagerly and instead we're defaulting to caching the specific release that's
 	 * loaded anyway when booting Playgroung.
 	 */
 	/^\/assets\/php_.*\.wasm$/, // PHP WASM files
@@ -57,6 +57,23 @@ const patternsToNotCache = [
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
 ];
+
+function listFiles(dirPath: string, fileList: string[] = []) {
+	const files = readdirSync(dirPath);
+
+	files.forEach((file) => {
+		const filePath = join(dirPath, file);
+		const fileStat = statSync(filePath);
+
+		if (fileStat.isDirectory()) {
+			listFiles(filePath, fileList);
+		} else {
+			fileList.push(filePath);
+		}
+	});
+
+	return fileList;
+}
 
 /**
  * This Vite plugin saves a list of those files as a JSON file served on
@@ -71,22 +88,6 @@ export const listAssetsRequiredForOfflineMode = ({
 	outputFile: string;
 	distDirectoriesToList: string[];
 }) => {
-	function listFiles(dirPath: string, fileList: string[] = []) {
-		const files = readdirSync(dirPath);
-
-		files.forEach((file) => {
-			const filePath = join(dirPath, file);
-			const fileStat = statSync(filePath);
-
-			if (fileStat.isDirectory()) {
-				listFiles(filePath, fileList);
-			} else {
-				fileList.push(filePath);
-			}
-		});
-
-		return fileList;
-	}
 	return {
 		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
