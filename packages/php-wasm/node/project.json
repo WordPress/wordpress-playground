@@ -49,7 +49,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"mkdir dist/packages/php-wasm/node"
+					"mkdir -p dist/packages/php-wasm/node"
 				],
 				"parallel": false
 			}
