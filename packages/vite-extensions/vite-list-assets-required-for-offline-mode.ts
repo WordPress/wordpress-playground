@@ -84,11 +84,11 @@ export const listAssetsRequiredForOfflineModePlugin = ({
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
 			const files = distDirectoriesToList.flatMap((dir) => {
-				const fullDirPath = join(outputDir, dir);
-				console.log(`Listing files in ${fullDirPath}`);
-				return listFiles(fullDirPath)
+				const absoluteDirPath = join(outputDir, dir);
+				console.log(`Listing files in ${absoluteDirPath}`);
+				return listFiles(absoluteDirPath)
 					.map((file) => {
-						file = file.replace(fullDirPath, '');
+						file = file.replace(absoluteDirPath, '');
 						if (file.startsWith('/')) {
 							return file;
 						}
