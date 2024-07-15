@@ -37,7 +37,7 @@ Once Playground works offline we need to restrict some features like version swi
     -   [ ] [Cache Playground assets to enable offline support ](https://github.com/WordPress/wordpress-playground/pull/1535)
     -   [x] [Add cache version number](https://github.com/WordPress/wordpress-playground/pull/1541)
     -   [x] [Set web worker startup options with messages instead of query strings](https://github.com/WordPress/wordpress-playground/pull/1574)
-    -   [ ] Cache fetch requests
+    -   [ ] Cache Playground static fetch requests
 -   [ ] Offline e2e tests
     -   [ ] Ensure tests run on a preview version of Playground
 -   [ ] [Limit features while offline](https://github.com/WordPress/wordpress-playground/pull/1607/files)
