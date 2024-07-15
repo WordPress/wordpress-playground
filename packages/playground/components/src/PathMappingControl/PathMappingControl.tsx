@@ -14,8 +14,6 @@ import { Icon, chevronRight, chevronDown } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import './style.css';
 
-// Define the type for the file structure
-// Define the type for the file structure
 type FileNode = {
 	name: string;
 	type: 'file' | 'folder';
