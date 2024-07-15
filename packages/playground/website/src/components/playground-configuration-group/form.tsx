@@ -8,6 +8,7 @@ import {
 import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
+import { OfflineNotice } from '../offline-notice';
 import { PlaygroundReduxState } from '../../lib/redux-store';
 import { useSelector } from 'react-redux';
 
@@ -101,6 +102,11 @@ export function PlaygroundConfigurationForm({
 			<h2 tabIndex={0} style={{ textAlign: 'center', marginTop: 0 }}>
 				Customize Playground
 			</h2>
+			{offline ? (
+				<div style={{ marginBottom: 20 }}>
+					<OfflineNotice />
+				</div>
+			) : null}
 			<div className={forms.formGroup}>
 				<label htmlFor="wp-version" className={forms.groupLabel}>
 					Storage type
