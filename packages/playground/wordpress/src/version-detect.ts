@@ -15,6 +15,7 @@ export async function getLoadedWordPressVersion(
 	if (!versionString) {
 		throw new Error('Unable to read loaded WordPress version.');
 	}
+
 	return versionStringToLoadedWordPressVersion(versionString);
 }
 
