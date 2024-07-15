@@ -196,11 +196,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 }
 
 /**
- * Downloads static assets that are removed from minified WordPress builds.
+ * Downloads and unzips a ZIP bundle of all the static assets removed from
+ * the currently loaded minified WordPress build. Doesn't do anything if the
+ * assets are already downloaded or if a non-minified WordPress build is loaded.
  *
  * ## Background
  *
- * To load Playground faster, we ship minified WordPress builds without most CSS files, JS files, and other static assets.
+ * To load Playground faster, we default to minified WordPress builds shipped without most CSS files, JS files, and other static assets.
  *
  * Instead, the build contains a list of remote assets in the wordpress-remote-asset-paths file which is located in the WordPress document root.
  * Playground uses this list to determine if it should fetch the assets on demand.

@@ -240,10 +240,10 @@ export async function bootPlaygroundRemote() {
 	}
 
 	/**
-	 * If the browser is online we can download WordPress assets asynchronously to speed up the boot process.
+	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
 	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
 	 *
-	 * If the browser is offline, we download WordPress assets synchronously to ensure the Playground is fully functional on load.
+	 * If the browser is offline, we backfill WordPress assets synchronously from the cache to ensure Playground is fully functional before boot finishes.
 	 */
 	if (window.navigator.onLine) {
 		wpFrame.addEventListener('load', () => {
