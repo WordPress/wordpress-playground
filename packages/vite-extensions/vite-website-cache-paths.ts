@@ -2,12 +2,11 @@ import { readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * We want to cache all files from the website root directory, and the assets directory, except for the files listed below.
+ * We want to cache all files from the website root directory, except for the files listed below.
  */
 const patternsToNotCache = [
 	/**
 	 * Static files that are not needed for the website to function offline.
-	 * TODO: Check if these are needed in the production build.
 	 */
 	'/package.json',
 	'/README.md',
@@ -17,7 +16,16 @@ const patternsToNotCache = [
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	/**
-	 * WordPress remote assets that are fetched on demand by Playground.
+	 * WordPress assets removed from the minified builds, for example:
+	 *
+	 *      /wp-6.2/wp-content/themes/twentytwentyone/style.css
+	 *
+	 * We don't need to cache them, because they're only used in a short time
+	 * window after the Playground is initially loaded and before they're all backfilled
+	 * from a dedicated ZIP file shipping all the static assets for a given minified 
+	 * build.
+	 *
+	 * See <Assets backfilling PR link>
 	 */
 	/^\/wp-[\w+((\.\d+)?)]+\/.*/,
 	/**
@@ -28,7 +36,11 @@ const patternsToNotCache = [
 	 * Files needed only by the Playground.WordPress.Net server.
 	 */
 	'/.htaccess',
-	/\/.*\.php$/, // PHP files used by the website server
+	/**
+	 * We can't download the PHP scripts – only get their execution result. This is fine,
+	 * we don't need them for the offline mode anyway. This includes things like plugins-proxy.php.
+	 */
+	/\/.*\.php$/,
 	/**
 	 * WordPress, PHP, and SQLite files that are loaded during boot.
 	 * By loading these files during boot, we can ensure that only the current PHP/WordPress/SQLite files are cached.
@@ -36,7 +48,7 @@ const patternsToNotCache = [
 	 */
 	/^\/assets\/php_.*\.wasm$/, // PHP WASM files
 	/^\/assets\/php_.*\.js$/, // PHP JS files
-	/^\/assets\/wp-.*\.zip$/, // WordPress zip files
+	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
 ];
 
