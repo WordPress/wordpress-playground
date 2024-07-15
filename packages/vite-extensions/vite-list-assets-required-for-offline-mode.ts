@@ -58,8 +58,10 @@ const patternsToNotCache = [
  */
 export const listAssetsRequiredForOfflineModePlugin = ({
 	outputFile,
+	distDirectoriesToList,
 }: {
 	outputFile: string;
+	distDirectoriesToList: string[];
 }) => {
 	function listFiles(dirPath: string, fileList: string[] = []) {
 		const files = readdirSync(dirPath);
@@ -78,14 +80,12 @@ export const listAssetsRequiredForOfflineModePlugin = ({
 		return fileList;
 	}
 	return {
-		name: 'website-cache-paths-plugin',
+		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
-			const outputManifestPath = join(outputDir, outputFile);
-			const directoriesToList = ['/', '../remote', '../client'];
-
-			const files = directoriesToList.flatMap((dir) => {
+			const files = distDirectoriesToList.flatMap((dir) => {
 				const fullDirPath = join(outputDir, dir);
+				console.log(`Listing files in ${fullDirPath}`);
 				return listFiles(fullDirPath)
 					.map((file) => {
 						file = file.replace(fullDirPath, '');
@@ -103,7 +103,10 @@ export const listAssetsRequiredForOfflineModePlugin = ({
 						});
 					});
 			});
-			writeFileSync(outputManifestPath, JSON.stringify(files, null, 2));
+			writeFileSync(
+				join(outputDir, outputFile),
+				JSON.stringify(files, null, 2)
+			);
 		},
 	};
 };

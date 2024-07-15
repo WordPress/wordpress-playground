@@ -139,7 +139,8 @@ export default defineConfig(({ command, mode }) => {
 			 * Generate a list of files needed for the website to function offline.
 			 */
 			listAssetsRequiredForOfflineModePlugin({
-				outputFile: path('./assets-required-for-offline-mode.json'),
+				outputFile: 'assets-required-for-offline-mode.json',
+				distDirectoriesToList: ['/', '../remote', '../client'],
 			}) as Plugin,
 		],
 
