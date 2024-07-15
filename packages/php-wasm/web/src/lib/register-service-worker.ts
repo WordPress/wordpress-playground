@@ -5,6 +5,16 @@ import { Remote } from 'comlink';
 
 export interface Client extends Remote<PHPWorker> {}
 
+/**
+ * Resolves when the PHP API client is set.
+ *
+ * This allows us to wait for the PHP API client to be set before proxying service worker messages to the web worker.
+ */
+let resolvePhpApi: (api: Client) => void;
+export const phpApiPromise = new Promise<Client>((resolve) => {
+	resolvePhpApi = resolve;
+});
+
 let phpApi: Client;
 
 /**
@@ -14,6 +24,7 @@ let phpApi: Client;
  */
 export function setPhpApi(api: Client) {
 	phpApi = api;
+	resolvePhpApi(api);
 }
 
 /**
@@ -54,17 +65,13 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	// the update:
 	await registration.update();
 
-	registration.addEventListener('worker-api', (event: CustomEventInit) => {
-		if (!event.detail.workerApi) {
-			return;
-		}
-		phpApi = event.detail.workerApi;
-	});
-
 	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
+			// Wait for the PHP API client to be set by bootPlaygroundRemote
+			await resolvePhpApi;
+
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
@@ -76,6 +83,10 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 				return;
 			}
 
+			if (!phpApi) {
+				throw new PhpWasmError('PHP API client is not set.');
+			}
+
 			const args = event.data.args || [];
 
 			const method = event.data.method as keyof Client;
@@ -85,6 +96,4 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	);
 
 	sw.startMessages();
-
-	return registration;
 }
