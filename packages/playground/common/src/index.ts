@@ -50,7 +50,7 @@ export const unzipFile = async (
 				for ($i = 0; $i < $zip->numFiles; $i++) {
 					$filename = $zip->getNameIndex($i);
 					$fileinfo = pathinfo($filename);
-					$extractFilePath = rtrim($extractTo, '/\\') . '/' . $filename;
+					$extractFilePath = rtrim($extractTo, '/') . '/' . $filename;
 					// Check if file exists and $overwriteFiles is false
 					if (!file_exists($extractFilePath) || $overwriteFiles) {
 						// Extract file
