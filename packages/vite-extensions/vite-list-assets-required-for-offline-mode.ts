@@ -33,7 +33,7 @@ const patternsToNotCache = [
 	 */
 	/^\/demos\/.*/,
 	/**
-	 * Files needed only by the Playground.WordPress.Net server.
+	 * Files needed only by the playground.wordpress.net server.
 	 */
 	'/.htaccess',
 	/**
