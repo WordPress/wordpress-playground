@@ -1,5 +1,4 @@
 wp-content/database/.htaccess
-wp-content/database/.ht.sqlite
 wp-content/themes/twentytwentyfour/screenshot.png
 wp-content/themes/twentytwentyfour/templates/search.html
 wp-content/themes/twentytwentyfour/templates/page-no-title.html
