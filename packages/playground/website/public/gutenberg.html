@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <head>
 	<title>Gutenberg PR Previewer</title>
 	<meta charset="utf-8" />
@@ -34,6 +35,7 @@
 		gtag('config', 'G-SVTNFCP8T7');
 	</script>
 </head>
+
 <body>
 	<div id="main">
 		<!--
@@ -212,6 +214,24 @@
 					},
 				],
 			};
+			// If there's a import-site query parameter, pass that to the blueprint
+			const urlParams = new URLSearchParams(window.location.search);
+			try {
+				const importSite = new URL(urlParams.get('import-site'));
+				if (importSite) {
+					// Add it as the first step in the blueprint
+					blueprint.steps.unshift({
+						step: 'importWordPressFiles',
+						wordPressFilesZip: {
+							resource: 'url',
+							url: importSite.origin + importSite.pathname,
+						},
+					});
+				}
+			} catch {
+				console.error('Invalid import-site URL');
+			}
+
 			const encoded = JSON.stringify(blueprint);
 			window.location = '/#' + encodeURI(encoded);
 		}
