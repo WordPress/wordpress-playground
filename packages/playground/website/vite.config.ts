@@ -16,10 +16,11 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
+import { addManifestJson } from '../../vite-extensions/vite-manifest';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -121,51 +122,13 @@ export default defineConfig(({ command, mode }) => {
 			 * Add `manifest.json` file to the `dist/` directory when building.
 			 * While in development, modify the `manifest.json` file to use the local server URL.
 			 */
-			{
-				name: 'manifest-plugin-build',
-				writeBundle({ dir: outputDir }) {
-					let manifestPath = path('./manifest.json');
-					if (mode === 'development') {
-						manifestPath = path('./manifest.development.json');
-					}
-
-					if (existsSync(manifestPath) && outputDir) {
-						copyFileSync(
-							manifestPath,
-							join(outputDir, 'manifest.json')
-						);
-					}
-				},
-				configureServer(server) {
-					server.middlewares.use((req, res, next) => {
-						/**
-						 * When the development server requests the `manifest.json` file,
-						 * modify the URL to use the local server URL.
-						 */
-						if (
-							mode !== 'production' &&
-							req.url?.endsWith('manifest.json') &&
-							req.headers.host === '127.0.0.1:5400'
-						) {
-							res.writeHead(200, {
-								'Content-Type': 'application/json',
-							});
-							res.end(
-								readFileSync(
-									path('./manifest.development.json')
-								)
-									.toString()
-									.replaceAll(
-										'http://localhost:9999/',
-										'http://127.0.0.1:5400/website-server/'
-									)
-							);
-							return;
-						}
-						next();
-					});
-				},
-			} as Plugin,
+			addManifestJson({
+				mode,
+				manifestPath: path('./manifest.json'),
+				defaultUrl: 'https://playground.wordpress.net/',
+				localServerUrl: `http://${websiteDevServerHost}:${websiteDevServerPort}/website-server/`,
+				developmentBuildUrl: 'http://localhost:9999/',
+			}) as Plugin,
 			/**
 			 * Generate a list of files needed for the website to function offline.
 			 */
