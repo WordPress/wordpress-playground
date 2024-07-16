@@ -76,12 +76,7 @@ export class WorkerCache {
 	};
 
 	preCacheResources = async (): Promise<any> => {
-		console.log('Pre-caching resources for offline mode...');
 		if (!this.isValidHostname(new URL(location.href))) {
-			console.log(
-				'Skipping cache pre-caching because of the hostname.',
-				location.href
-			);
 			return;
 		}
 
@@ -91,9 +86,7 @@ export class WorkerCache {
 		const manifestResponse = await fetch(
 			'/assets-required-for-offline-mode.json'
 		);
-		console.log('Manifest response:', manifestResponse);
 		const websiteUrls = await manifestResponse.json();
 		await cache.addAll([...websiteUrls, ...['/']]);
-		console.log('Playground is now ready to be used offline.');
 	};
 }

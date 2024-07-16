@@ -15,15 +15,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	const { handleRequest = defaultRequestHandler, cacheVersion } = config;
 
 	const cache = new WorkerCache(cacheVersion);
-	cache.cleanup();
 
-	self.addEventListener('install', async () => {
-		cache.preCacheResources();
-	});
+	self.addEventListener('install', cache.preCacheResources);
 
-	self.addEventListener('activate', async () => {
-		self.clients.claim();
-	});
+	self.addEventListener('activate', cache.cleanup);
 
 	/**
 	 * The main method. It captures the requests and loop them back to the
