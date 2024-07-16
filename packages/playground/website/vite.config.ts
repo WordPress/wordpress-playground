@@ -16,7 +16,7 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
@@ -67,7 +67,6 @@ export default defineConfig(({ command, mode }) => {
 				strict: false, // Serve files from the other project directories.
 			},
 		},
-
 		plugins: [
 			react({
 				jsxRuntime: 'automatic',
@@ -119,13 +118,16 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Copy the `manifest.json` file to the `dist/` directory.
+			 * Add `manifest.json` file to the `dist/` directory when building.
+			 * While in development, modify the `manifest.json` file to use the local server URL.
 			 */
 			{
 				name: 'manifest-plugin-build',
-				apply: 'build',
 				writeBundle({ dir: outputDir }) {
-					const manifestPath = path('./manifest.production.json');
+					let manifestPath = path('./manifest.json');
+					if (mode === 'development') {
+						manifestPath = path('./manifest.development.json');
+					}
 
 					if (existsSync(manifestPath) && outputDir) {
 						copyFileSync(
@@ -133,6 +135,35 @@ export default defineConfig(({ command, mode }) => {
 							join(outputDir, 'manifest.json')
 						);
 					}
+				},
+				configureServer(server) {
+					server.middlewares.use((req, res, next) => {
+						/**
+						 * When the development server requests the `manifest.json` file,
+						 * modify the URL to use the local server URL.
+						 */
+						if (
+							mode !== 'production' &&
+							req.url?.endsWith('manifest.json') &&
+							req.headers.host === '127.0.0.1:5400'
+						) {
+							res.writeHead(200, {
+								'Content-Type': 'application/json',
+							});
+							res.end(
+								readFileSync(
+									path('./manifest.development.json')
+								)
+									.toString()
+									.replaceAll(
+										'http://localhost:9999/',
+										'http://127.0.0.1:5400/website-server/'
+									)
+							);
+							return;
+						}
+						next();
+					});
 				},
 			} as Plugin,
 			/**
