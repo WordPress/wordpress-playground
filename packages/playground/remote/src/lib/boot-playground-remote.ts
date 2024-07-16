@@ -210,7 +210,7 @@ export async function bootPlaygroundRemote() {
 		 * Download WordPress assets.
 		 */
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
-			await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			await phpApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		},
 	};
 
