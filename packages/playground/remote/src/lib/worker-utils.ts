@@ -21,6 +21,7 @@ export type ReceivedStartupOptions = {
 	storage?: string;
 	phpExtensions?: string[];
 	siteSlug?: string;
+	scope?: string;
 };
 
 export type ParsedStartupOptions = {
@@ -30,36 +31,48 @@ export type ParsedStartupOptions = {
 	storage: string;
 	phpExtensions: string[];
 	siteSlug: string;
+	scope: string;
 };
 
-export const receivedParams: ReceivedStartupOptions = {};
-const url = self?.location?.href;
-if (typeof url !== 'undefined') {
-	const params = new URL(self.location.href).searchParams;
-	receivedParams.wpVersion = params.get('wpVersion') || undefined;
-	receivedParams.phpVersion = params.get('phpVersion') || undefined;
-	receivedParams.storage = params.get('storage') || undefined;
-	// Default to CLI to support the WP-CLI Blueprint step
-	receivedParams.sapiName = params.get('sapiName') || 'cli';
-	receivedParams.phpExtensions = params.getAll('php-extension');
-	receivedParams.siteSlug = params.get('site-slug') || undefined;
-}
+export let requestedWPVersion: string;
+export let startupOptions: ParsedStartupOptions;
 
-export const requestedWPVersion = receivedParams.wpVersion || '';
-export const startupOptions = {
-	wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
-		? requestedWPVersion
-		: LatestSupportedWordPressVersion,
-	phpVersion: SupportedPHPVersionsList.includes(
-		receivedParams.phpVersion || ''
-	)
-		? (receivedParams.phpVersion as SupportedPHPVersion)
-		: '8.0',
-	sapiName: receivedParams.sapiName || 'cli',
-	storage: receivedParams.storage || 'local',
-	phpExtensions: receivedParams.phpExtensions || [],
-	siteSlug: receivedParams.siteSlug,
-} as ParsedStartupOptions;
+export const setStartupOptions = (receivedParams: ReceivedStartupOptions) => {
+	requestedWPVersion = receivedParams.wpVersion || '';
+	startupOptions = {
+		wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
+			? requestedWPVersion
+			: LatestSupportedWordPressVersion,
+		phpVersion: SupportedPHPVersionsList.includes(
+			receivedParams.phpVersion || ''
+		)
+			? (receivedParams.phpVersion as SupportedPHPVersion)
+			: '8.0',
+		sapiName: receivedParams.sapiName || 'cli',
+		storage: receivedParams.storage || 'local',
+		phpExtensions: receivedParams.phpExtensions || [],
+		siteSlug: receivedParams.siteSlug,
+		scope: receivedParams.scope || '',
+	} as ParsedStartupOptions;
+};
+
+export const waitForStartupOptions = async () => {
+	return new Promise<ReceivedStartupOptions>((resolve) => {
+		self.addEventListener('message', async (event) => {
+			if (event.data.type === 'startup-options') {
+				resolve({
+					wpVersion: event.data.startupOptions.wpVersion,
+					phpVersion: event.data.startupOptions.phpVersion,
+					storage: event.data.startupOptions.storage,
+					sapiName: event.data.startupOptions.sapiName,
+					phpExtensions: event.data.startupOptions['php-extension'],
+					siteSlug: event.data.startupOptions['site-slug'],
+					scope: event.data.startupOptions.scope,
+				});
+			}
+		});
+	});
+};
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 

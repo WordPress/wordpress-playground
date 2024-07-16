@@ -14,6 +14,7 @@ export type ActiveModal =
 // Define the state types
 interface AppState {
 	activeModal: string | null;
+	offline: boolean;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -24,6 +25,7 @@ const initialState: AppState = {
 		query.get('modal') === 'mount-markdown-directory'
 			? 'mount-markdown-directory'
 			: null,
+	offline: !navigator.onLine,
 };
 
 if (initialState.activeModal !== 'mount-markdown-directory') {
@@ -45,6 +47,9 @@ const slice = createSlice({
 			}
 			state.activeModal = action.payload;
 		},
+		setOfflineStatus: (state, action: PayloadAction<boolean>) => {
+			state.offline = action.payload;
+		},
 	},
 });
 
@@ -55,6 +60,16 @@ export const { setActiveModal } = slice.actions;
 const store = configureStore({
 	reducer: slice.reducer,
 });
+
+function setupOnlineOfflineListeners(dispatch: PlaygroundDispatch) {
+	window.addEventListener('online', () => {
+		dispatch(slice.actions.setOfflineStatus(false));
+	});
+	window.addEventListener('offline', () => {
+		dispatch(slice.actions.setOfflineStatus(true));
+	});
+}
+setupOnlineOfflineListeners(store.dispatch);
 
 // Define RootState type
 export type PlaygroundReduxState = ReturnType<typeof store.getState>;
