@@ -7,10 +7,13 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:wasm-wordpress-net", "build:playground-puzzle"]
+			"dependsOn": [
+				"build:wasm-wordpress-net"
+			]
 		},
 		"build:wasm-wordpress-net": {
 			"executor": "nx:run-commands",
+			"defaultConfiguration": "production",
 			"options": {
 				"commands": [
 					"rimraf --no-preserve-root ./wasm-wordpress-net",
@@ -26,7 +29,19 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": ["build:standalone", "^build"]
+			"dependsOn": [
+				"build:standalone",
+				"^build"
+			],
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production",
+					"logLevel": "info"
+				}
+			}
 		},
 		"build:standalone": {
 			"executor": "@nx/vite:build",
