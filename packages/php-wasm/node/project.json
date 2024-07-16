@@ -15,7 +15,8 @@
 				"commands": [
 					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
 				]
-			}
+			},
+			"dependsOn": ["build:mkdir"]
 		},
 		"build:copy-wasms": {
 			"executor": "nx:run-commands",
@@ -33,7 +34,8 @@
 				"tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/node",
 				"buildTarget": "php-wasm-node:build:bundle:production"
-			}
+			},
+			"dependsOn": ["build:mkdir"]
 		},
 		"build:bundle": {
 			"executor": "@nx/esbuild:esbuild",
@@ -48,9 +50,7 @@
 		"build:mkdir": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": [
-					"mkdir -p dist/packages/php-wasm/node"
-				],
+				"commands": ["mkdir -p dist/packages/php-wasm/node"],
 				"parallel": false
 			}
 		},
