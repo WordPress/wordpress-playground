@@ -136,7 +136,7 @@ npx @php-wasm/cli phpcbf
 To test the offline support you need to build the website and run a local server:
 
 ```bash
-npm run build:website
+npx nx run playground-website:build:wasm-wordpress-net:development
 ```
 
 Then you can run a local server:
