@@ -210,7 +210,7 @@ export async function bootPlaygroundRemote() {
 		 * Download WordPress assets.
 		 */
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
-			await workerApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		},
 	};
 
@@ -247,7 +247,7 @@ export async function bootPlaygroundRemote() {
 	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
 	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
 	 *
-	 * If the browser is offline, we backfill WordPress assets synchronously
+	 * If the browser is offline, we await the backfill or WordPress assets
 	 * from cache to ensure Playground is fully functional before boot finishes.
 	 */
 	if (window.navigator.onLine) {
