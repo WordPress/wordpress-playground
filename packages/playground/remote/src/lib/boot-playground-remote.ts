@@ -205,6 +205,13 @@ export async function bootPlaygroundRemote() {
 		) {
 			return await phpApi.bindOpfs(options, onProgress);
 		},
+
+		/**
+		 * Download WordPress assets.
+		 */
+		async backfillStaticFilesRemovedFromMinifiedBuild() {
+			await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		},
 	};
 
 	await phpApi.isConnected();
@@ -234,6 +241,33 @@ export async function bootPlaygroundRemote() {
 	} catch (e) {
 		setAPIError(e as Error);
 		throw e;
+	}
+
+	/**
+	 * When WordPress is loaded from a minified bundle, some assets are removed to reduce the bundle size.
+	 * This function backfills the missing assets. If WordPress is loaded from a non-minified bundle,
+	 * we don't need to backfill because the assets are already included.
+	 *
+	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
+	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
+	 *
+	 * If the browser is offline, we await the backfill or WordPress assets
+	 * from cache to ensure Playground is fully functional before boot finishes.
+	 */
+	if (window.navigator.onLine) {
+		wpFrame.addEventListener('load', () => {
+			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		});
+	} else {
+		// Note this will run even if the static files are already in place, e.g. when running
+		// a non-minified build or an offline site. It doesn't seem like a big problem worth introducing
+		// a new API method like `webApi.needsBackfillingStaticFilesRemovedFromMinifiedBuild().
+		webApi.setProgress({
+			caption: 'Downloading WordPress assets',
+			isIndefinite: false,
+			visible: true,
+		});
+		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 	}
 
 	/*
@@ -299,7 +333,8 @@ function assertNotInfiniteLoadingLoop() {
 	}
 	if (isBrowserInABrowser) {
 		throw new Error(
-			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-playground/issues'
+			`The service worker did not load correctly. This is a bug,
+			please report it on https://github.com/WordPress/wordpress-playground/issues`
 		);
 	}
 	(window as any).IS_WASM_WORDPRESS = true;
