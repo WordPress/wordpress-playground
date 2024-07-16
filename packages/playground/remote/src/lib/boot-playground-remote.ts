@@ -244,6 +244,10 @@ export async function bootPlaygroundRemote() {
 	}
 
 	/**
+	 * When WordPress is loaded from a minified bundle, some assets are removed to reduce the bundle size.
+	 * This function backfills the missing assets. If WordPress is loaded from a non-minified bundle,
+	 * we don't need to backfill because the assets are already included.
+	 *
 	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
 	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
 	 *
