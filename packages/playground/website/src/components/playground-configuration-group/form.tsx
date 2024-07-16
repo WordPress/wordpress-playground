@@ -8,6 +8,9 @@ import {
 import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
+import { OfflineNotice } from '../offline-notice';
+import { PlaygroundReduxState } from '../../lib/redux-store';
+import { useSelector } from 'react-redux';
 
 export interface PlaygroundConfiguration {
 	wp: string;
@@ -40,6 +43,8 @@ export function PlaygroundConfigurationForm({
 	onSubmit,
 	onSelectLocalDirectory,
 }: PlaygroundConfigurationFormProps) {
+	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
+
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
 	const [withExtensions, setWithExtensions] = useState<boolean>(
@@ -97,6 +102,11 @@ export function PlaygroundConfigurationForm({
 			<h2 tabIndex={0} style={{ textAlign: 'center', marginTop: 0 }}>
 				Customize Playground
 			</h2>
+			{offline ? (
+				<div style={{ marginBottom: 20 }}>
+					<OfflineNotice />
+				</div>
+			) : null}
 			<div className={forms.formGroup}>
 				<label htmlFor="wp-version" className={forms.groupLabel}>
 					Storage type
@@ -257,6 +267,7 @@ export function PlaygroundConfigurationForm({
 							id="php-version"
 							value={php}
 							className={forms.largeSelect}
+							disabled={offline}
 							onChange={(
 								event: React.ChangeEvent<HTMLSelectElement>
 							) => {
@@ -278,6 +289,7 @@ export function PlaygroundConfigurationForm({
 							<input
 								type="checkbox"
 								name="with-extensions"
+								disabled={offline}
 								checked={withExtensions}
 								onChange={() =>
 									setWithExtensions(!withExtensions)
@@ -294,6 +306,7 @@ export function PlaygroundConfigurationForm({
 							<input
 								type="checkbox"
 								name="with-networking"
+								disabled={offline}
 								checked={withNetworking}
 								onChange={() =>
 									setWithNetworking(!withNetworking)
@@ -323,6 +336,7 @@ export function PlaygroundConfigurationForm({
 								id="wp-version"
 								value={wp}
 								className={forms.largeSelect}
+								disabled={offline}
 								onChange={(
 									event: React.ChangeEvent<HTMLSelectElement>
 								) => {

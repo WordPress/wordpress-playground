@@ -23,6 +23,8 @@ import {
 	downloadMonitor,
 	spawnHandlerFactory,
 	createPhpRuntime,
+	setStartupOptions,
+	waitForStartupOptions,
 } from './worker-utils';
 import {
 	FilesystemOperation,
@@ -35,15 +37,22 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { PHPWorker } from '@php-wasm/universal';
+import { PHP, PHPWorker } from '@php-wasm/universal';
 import {
 	bootWordPress,
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
+import { unzipFile } from '@wp-playground/common';
 
-const scope = Math.random().toFixed(16);
+/**
+ * Startup options are received from spawnPHPWorkerThread using a message event.
+ * We need to wait for startup options to be received to setup the worker thread.
+ */
+setStartupOptions(await waitForStartupOptions());
+
+const scope = startupOptions.scope;
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -185,6 +194,113 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	async replayFSJournal(events: FilesystemOperation[]) {
 		return replayFSJournal(this.__internal_getPHP()!, events);
+	}
+
+	async backfillStaticFilesRemovedFromMinifiedBuild() {
+		await backfillStaticFilesRemovedFromMinifiedBuild(
+			this.__internal_getPHP()!
+		);
+	}
+}
+
+/**
+ * Downloads and unzips a ZIP bundle of all the static assets removed from
+ * the currently loaded minified WordPress build. Doesn't do anything if the
+ * assets are already downloaded or if a non-minified WordPress build is loaded.
+ *
+ * ## Asset Loading
+ *
+ * To load Playground faster, we default to minified WordPress builds shipped
+ * without most CSS files, JS files, and other static assets.
+ *
+ * When Playground requests a static asset that is not in the minified build, the service
+ * worker consults the list of the assets removed during the minification process. Such
+ * a list is shipped with every minified build in a file called `wordpress-remote-asset-paths`.
+ *
+ * For example, when `/wp-includes/css/dist/block-library/common.min.css` isn't found
+ * in the Playground filesystem, the service worker looks for it in `/wordpress/wordpress-remote-asset-paths`
+ * and finds it there. This means it's available on the remote server, so the service
+ * worker fetches it from an URL like:
+ *
+ * https://playground.wordpress.net/wp-6.5/wp-includes/css/dist/block-library/common.min.css
+ *
+ * ## Assets backfilling
+ *
+ * Running Playground offline isn't possible without shipping all the static assets into the browser.
+ * Downloading every CSS and JS file one request at a time would be slow to run and tedious to maintain.
+ * This is where this function comes in!
+ *
+ * It downloads a zip archive containing all the static files removed from the currently running
+ * minified build, and unzips them in the Playground filesystem. Once it finishes, the WordPress
+ * installation running in the browser is complete and the service worker will no longer have
+ * to backfill any static assets again.
+ *
+ * This process is started after the Playground boots (see `bootPlaygroundRemote`) and the first
+ * page is rendered. This way we're not delaying the initial Playground paint with a large download.
+ *
+ * ## Prevent backfilling if assets are already available
+ *
+ * Running this function twice, or running it on a non-minified build will have no effect.
+ *
+ * The backfilling only runs when a non-empty `wordpress-remote-asset-paths` file
+ * exists. When one is missing, we're not running a minified build. When one is empty,
+ * it means the backfilling process was already done – this function empties the file
+ * after the backfilling is done.
+ *
+ * ### Downloading assets during backfill
+ *
+ * Each WordPress release has a corresponding static assets directory on the Playground.WordPress.net server.
+ * The file is downloaded from the server and unzipped into the WordPress document root.
+ *
+ * ### Skipping existing files during unzipping
+ *
+ * If any of the files already exist, they are skipped and not overwritten.
+ * By skipping existing files, we ensure that the backfill process doesn't overwrite any user changes.
+ */
+async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
+	if (!php.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return;
+	}
+
+	try {
+		const remoteAssetListPath = joinPaths(
+			php.requestHandler.documentRoot,
+			'wordpress-remote-asset-paths'
+		);
+
+		if (
+			!php.fileExists(remoteAssetListPath) ||
+			(await php.readFileAsText(remoteAssetListPath)) === ''
+		) {
+			return;
+		}
+		const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
+		const staticAssetsDirectory =
+			wpVersionToStaticAssetsDirectory(wpVersion);
+		if (!staticAssetsDirectory) {
+			return;
+		}
+		const response = await fetch(
+			joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip')
+		);
+
+		if (!response.ok) {
+			throw new Error(
+				`Failed to fetch WordPress static assets: ${response.status} ${response.statusText}`
+			);
+		}
+
+		await unzipFile(
+			php,
+			new File([await response.blob()], 'wordpress-static.zip'),
+			php.requestHandler.documentRoot,
+			false
+		);
+		// Clear the remote asset list to indicate that the assets are downloaded.
+		await php.writeFile(remoteAssetListPath, '');
+	} catch (e) {
+		logger.warn('Failed to download WordPress assets', e);
 	}
 }
 

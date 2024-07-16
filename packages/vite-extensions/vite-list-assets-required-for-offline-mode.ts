@@ -33,7 +33,7 @@ const patternsToNotCache = [
 	 */
 	/^\/demos\/.*/,
 	/**
-	 * Files needed only by the Playground.WordPress.Net server.
+	 * Files needed only by the playground.wordpress.net server.
 	 */
 	'/.htaccess',
 	/**
@@ -43,8 +43,14 @@ const patternsToNotCache = [
 	/\/.*\.php$/,
 	/**
 	 * WordPress, PHP, and SQLite files that are loaded during boot.
-	 * By loading these files during boot, we can ensure that only the current PHP/WordPress/SQLite files are cached.
-	 * These files are large, so loading only the current files will reduce the bandwidth usage.
+	 * Eagerly loading all the PHP and WordPress releases offered by Playground would use an
+	 * extra ~200MB of bandwidth every time you load Playground on a new device.
+	 *
+	 * However, most of the time time you only want to load a specific Playground configuration.
+	 *
+	 * Therefore, in here we're excluding the PHP and WP releases from being loaded
+	 * eagerly and instead we're defaulting to caching the specific release that's
+	 * loaded anyway when booting Playgroung.
 	 */
 	/^\/assets\/php_.*\.wasm$/, // PHP WASM files
 	/^\/assets\/php_.*\.js$/, // PHP JS files
@@ -52,33 +58,36 @@ const patternsToNotCache = [
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
 ];
 
+function listFiles(dirPath: string, fileList: string[] = []) {
+	const files = readdirSync(dirPath);
+
+	files.forEach((file) => {
+		const filePath = join(dirPath, file);
+		const fileStat = statSync(filePath);
+
+		if (fileStat.isDirectory()) {
+			listFiles(filePath, fileList);
+		} else {
+			fileList.push(filePath);
+		}
+	});
+
+	return fileList;
+}
+
 /**
- * For Playground to work offline we need to cache all the files that are needed for the website to function.
- * Playground uses this list at the end of the boot process to cache files.
+ * This Vite plugin saves a list of those files as a JSON file served on
+ * `playground.wordpress.net`. Playground then consults the list to
+ * download and cache all those files at the end of the boot process.
+ * .
  */
-export const listAssetsRequiredForOfflineModePlugin = ({
+export const listAssetsRequiredForOfflineMode = ({
 	outputFile,
 	distDirectoriesToList,
 }: {
 	outputFile: string;
 	distDirectoriesToList: string[];
 }) => {
-	function listFiles(dirPath: string, fileList: string[] = []) {
-		const files = readdirSync(dirPath);
-
-		files.forEach((file) => {
-			const filePath = join(dirPath, file);
-			const fileStat = statSync(filePath);
-
-			if (fileStat.isDirectory()) {
-				listFiles(filePath, fileList);
-			} else {
-				fileList.push(filePath);
-			}
-		});
-
-		return fileList;
-	}
 	return {
 		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
