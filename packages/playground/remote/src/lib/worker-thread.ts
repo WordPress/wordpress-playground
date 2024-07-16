@@ -208,35 +208,44 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
  * the currently loaded minified WordPress build. Doesn't do anything if the
  * assets are already downloaded or if a non-minified WordPress build is loaded.
  *
- * # Asset Loading
- *
- * ## WordPress minified build is loaded
+ * ## Asset Loading
  *
  * To load Playground faster, we default to minified WordPress builds shipped
  * without most CSS files, JS files, and other static assets.
  *
- * ## Static assets are fetched on demand before backfilling
+ * When Playground requests a static asset that is not in the minified build, the service
+ * worker consults the list of the assets removed during the minification process. Such
+ * a list is shipped with every minified build in a file called `wordpress-remote-asset-paths`.
  *
- * The build contains a list of remote assets in the wordpress-remote-asset-paths file
- * which is located in the WordPress document root.
- * Playground uses this list to determine if it should fetch the assets on demand.
+ * For example, when `/wp-includes/css/dist/block-library/common.min.css` isn't found
+ * in the Playground filesystem, the service worker looks for it in `/wordpress/wordpress-remote-asset-paths`
+ * and finds it there. This means it's available on the remote server, so the service
+ * worker fetches it from an URL like:
  *
- * When Playground requests a static asset that is not in the minified build,
- * we download the asset from the Playground.WordPress.net server.
+ * https://playground.wordpress.net/wp-6.5/wp-includes/css/dist/block-library/common.min.css
  *
- * ## Backfilling on boot
+ * ## Assets backfilling
  *
- * At the end of the Playground boot process (see `bootPlaygroundRemote`),
- * Playground starts the backfill process by calling `backfillStaticFilesRemovedFromMinifiedBuild`.
+ * Running Playground offline isn't possible without shipping all the static assets into the browser.
+ * Downloading every CSS and JS file one request at a time would be slow to run and tedious to maintain.
+ * This is where this function comes in!
  *
- * ### Prevent backfilling if assets are already available
+ * It downloads a zip archive containing all the static files removed from the currently running
+ * minified build, and unzips them in the Playground filesystem. Once it finishes, the WordPress
+ * installation running in the browser is complete and the service worker will no longer have
+ * to backfill any static assets again.
  *
- * The function checks if the wordpress-remote-asset-paths file exists and is not empty.
- * The wordpress-remote-asset-paths file is emptied after the assets are downloaded,
- * so we can assume that the assets are already downloaded if the file is empty.
- * If the wordpress-remote-asset-paths file doesn't exist,
- * this means that the WordPress files didn't originate from a minified Playground build.
- * We backfill only for minified builds, so we skip the backfill process in this case.
+ * This process is started after the Playground boots (see `bootPlaygroundRemote`) and the first
+ * page is rendered. This way we're not delaying the initial Playground paint with a large download.
+ *
+ * ## Prevent backfilling if assets are already available
+ *
+ * Running this function twice, or running it on a non-minified build will have no effect.
+ *
+ * The backfilling only runs when a non-empty `wordpress-remote-asset-paths` file
+ * exists. When one is missing, we're not running a minified build. When one is empty,
+ * it means the backfilling process was already done – this function empties the file
+ * after the backfilling is done.
  *
  * ### Downloading assets during backfill
  *
