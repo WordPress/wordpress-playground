@@ -24,11 +24,10 @@ const generateManifestJson = (
  *
  * When building for production, we copy the manifest.json file in the dist folder. This is the default build behavior.
  *
- * If the build runs in the development mode, it will modify the manifest.json file url
- * to the `developmentBuildUrl` and copy it to the dist folder.
- * To trigger a development build, run `npx nx run playground-website:build:wasm-wordpress-net:development`.
+ * If a `PLAYGROUND_URL` environment variable is provided during build, it will modify the manifest.json file url
+ * to the `PLAYGROUND_URL` and copy it to the dist folder.
  *
- * The development server needs it's own version of the manifest, so we modify the URL to use the `localServerUrl`.
+ * The development server needs it's own version of the manifest, so we modify the URL to use the local server URL.
  */
 export const addManifestJson = ({ manifestPath }: { manifestPath: string }) => {
 	const defaultUrl = 'https://playground.wordpress.net';
