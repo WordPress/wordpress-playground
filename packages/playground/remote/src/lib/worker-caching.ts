@@ -75,7 +75,7 @@ export class WorkerCache {
 		return response;
 	};
 
-	preCacheResources = async (): Promise<any> => {
+	cacheOfflineModeAssets = async (): Promise<any> => {
 		if (!this.isValidHostname(new URL(location.href))) {
 			return;
 		}

@@ -2,7 +2,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope } from '@php-wasm/scopes';
+import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -15,6 +15,7 @@ import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import { buildVersion } from 'virtual:remote-config';
+import { WorkerCache } from './src/lib/worker-caching';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -26,6 +27,48 @@ if (!(self as any).document) {
 }
 
 reportServiceWorkerMetrics(self);
+
+const cache = new WorkerCache(buildVersion);
+/**
+ * For offline mode to work we need to cache all required assets.
+ *
+ * These assets are listed in the `/assets-required-for-offline-mode.json` file
+ * and contain JavaScript, CSS, and other assets required to load the site without
+ * making any network requests.
+ */
+self.addEventListener('install', cache.cacheOfflineModeAssets);
+self.addEventListener('activate', cache.cleanup);
+
+/**
+ * The main method. It captures the requests and loop them back to the
+ * Worker Thread using the Loopback request
+ */
+self.addEventListener('fetch', (event) => {
+	const url = new URL(event.request.url);
+
+	// Don't handle requests to the service worker script itself.
+	if (url.pathname.startsWith(self.location.pathname)) {
+		return;
+	}
+
+	// Only handle requests from scoped sites.
+	// So – bale out if the request URL is not scoped and the
+	// referrer URL is not scoped.
+	if (!isURLScoped(url)) {
+		let referrerUrl;
+		try {
+			referrerUrl = new URL(event.request.referrer);
+		} catch (e) {
+			// ignore
+		}
+		if (!referrerUrl || !isURLScoped(referrerUrl)) {
+			// Add caching for non-scoped requests
+			event.respondWith(cache.cachedFetch(event.request));
+			return;
+		}
+	}
+	return;
+});
 
 initializeServiceWorker({
 	cacheVersion: buildVersion,

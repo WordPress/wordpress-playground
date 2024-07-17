@@ -3,7 +3,6 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
-import { WorkerCache } from './worker-caching';
 
 /**
  * Run this function in the service worker to install the required event
@@ -12,13 +11,7 @@ import { WorkerCache } from './worker-caching';
  * @param  config
  */
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
-	const { handleRequest = defaultRequestHandler, cacheVersion } = config;
-
-	const cache = new WorkerCache(cacheVersion);
-
-	self.addEventListener('install', cache.preCacheResources);
-
-	self.addEventListener('activate', cache.cleanup);
+	const { handleRequest = defaultRequestHandler } = config;
 
 	/**
 	 * The main method. It captures the requests and loop them back to the
@@ -40,20 +33,17 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 			try {
 				referrerUrl = new URL(event.request.referrer);
 			} catch (e) {
-				// ignore
+				return;
 			}
-			if (!referrerUrl || !isURLScoped(referrerUrl)) {
-				// Add caching for non-scoped requests
-				event.respondWith(cache.cachedFetch(event.request));
+			if (!isURLScoped(referrerUrl)) {
+				// Let the browser handle uncoped requests as is.
 				return;
 			}
 		}
-
-		const response = handleRequest(event);
-		if (response) {
-			event.respondWith(response);
+		const responsePromise = handleRequest(event);
+		if (responsePromise) {
+			event.respondWith(responsePromise);
 		}
-		return;
 	});
 }
 
