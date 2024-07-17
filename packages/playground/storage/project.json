@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -32,19 +32,6 @@
 				"emptyOutDir": false,
 				"outputPath": "dist/packages/playground/storage"
 			}
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/playground/storage/src/rollup.d.ts -- packages/playground/storage/src/index.ts",
-					"rimraf dist/packages/playground/storage/lib/*.d.ts",
-					"rimraf dist/packages/playground/storage/*.d.ts",
-					"cp packages/playground/storage/src/rollup.d.ts dist/packages/playground/storage/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
 		},
 		"test": {
 			"executor": "@nx/vite:test",
