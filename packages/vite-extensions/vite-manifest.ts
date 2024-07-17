@@ -35,7 +35,7 @@ export const addManifestJson = ({ manifestPath }: { manifestPath: string }) => {
 		name: 'manifest-plugin-build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
 			/**
-			 * If a PLAYGROUND_URL environment variable is set, use it as the URL for generating the manifest.json file.
+			 * If a `PLAYGROUND_URL` environment variable is set, use it as the URL for generating the manifest.json file.
 			 */
 			const url = process.env.PLAYGROUND_URL;
 			if (existsSync(manifestPath) && outputDir) {
