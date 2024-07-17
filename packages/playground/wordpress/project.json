@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -43,19 +43,6 @@
 				}
 			},
 			"dependsOn": ["^build"]
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/playground/wordpress/src/rollup.d.ts -- packages/playground/wordpress/src/index.ts",
-					"rimraf dist/packages/playground/wordpress/lib/*.d.ts",
-					"rimraf dist/packages/playground/wordpress/*.d.ts",
-					"cp packages/playground/wordpress/src/rollup.d.ts dist/packages/playground/wordpress/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
 		},
 		"publish": {
 			"executor": "nx:run-commands",
