@@ -2,19 +2,19 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ViteDevServer } from 'vite';
 
+const getManifestContent = (manifestPath: string) => {
+	return readFileSync(manifestPath).toString();
+};
+
 const generateManifestJson = (
 	manifestPath: string,
 	defaultUrl: string,
 	newServerUrl: string
 ) => {
-	const manifest = readFileSync(manifestPath).toString();
-
-	// Nothing to update if the default URL is the same as the new server URL.
-	if (defaultUrl === newServerUrl) {
-		return manifest;
-	}
-
-	return manifest.replace(new RegExp(defaultUrl, 'g'), newServerUrl);
+	return getManifestContent(manifestPath).replace(
+		new RegExp(defaultUrl, 'g'),
+		newServerUrl
+	);
 };
 
 /**
@@ -40,14 +40,14 @@ export const addManifestJson = ({ manifestPath }: { manifestPath: string }) => {
 			 */
 			const url = process.env.PLAYGROUND_URL;
 			if (existsSync(manifestPath) && outputDir) {
-				writeFileSync(
-					join(outputDir, 'manifest.json'),
-					generateManifestJson(
-						manifestPath,
-						defaultUrl,
-						url ?? defaultUrl
-					)
-				);
+				const manifest = url
+					? generateManifestJson(
+							manifestPath,
+							defaultUrl,
+							url ?? defaultUrl
+					  )
+					: getManifestContent(manifestPath);
+				writeFileSync(join(outputDir, 'manifest.json'), manifest);
 			}
 		},
 		configureServer(server: ViteDevServer) {
