@@ -123,11 +123,7 @@ export default defineConfig(({ command, mode }) => {
 			 * While in development, modify the `manifest.json` file to use the local server URL.
 			 */
 			addManifestJson({
-				mode,
 				manifestPath: path('./manifest.json'),
-				defaultUrl: 'https://playground.wordpress.net/',
-				localServerUrl: `http://${websiteDevServerHost}:${websiteDevServerPort}/website-server/`,
-				developmentBuildUrl: 'http://localhost:9999/',
 			}) as Plugin,
 			/**
 			 * Generate a list of files needed for the website to function offline.

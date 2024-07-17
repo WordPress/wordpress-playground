@@ -14,7 +14,7 @@ const generateManifestJson = (
 		return manifest;
 	}
 
-	return manifest.replaceAll(defaultUrl, newServerUrl);
+	return manifest.replace(new RegExp(defaultUrl, 'g'), newServerUrl);
 };
 
 /**
@@ -30,28 +30,23 @@ const generateManifestJson = (
  *
  * The development server needs it's own version of the manifest, so we modify the URL to use the `localServerUrl`.
  */
-export const addManifestJson = ({
-	mode,
-	manifestPath,
-	defaultUrl,
-	localServerUrl,
-	developmentBuildUrl,
-}: {
-	mode: string;
-	manifestPath: string;
-	defaultUrl: string;
-	localServerUrl: string;
-	developmentBuildUrl: string;
-}) => {
+export const addManifestJson = ({ manifestPath }: { manifestPath: string }) => {
+	const defaultUrl = 'https://playground.wordpress.net';
 	return {
 		name: 'manifest-plugin-build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
-			const siteUrl =
-				mode === 'development' ? developmentBuildUrl : defaultUrl;
+			/**
+			 * If a PLAYGROUND_URL environment variable is set, use it as the URL for generating the manifest.json file.
+			 */
+			const url = process.env.PLAYGROUND_URL;
 			if (existsSync(manifestPath) && outputDir) {
 				writeFileSync(
 					join(outputDir, 'manifest.json'),
-					generateManifestJson(manifestPath, defaultUrl, siteUrl)
+					generateManifestJson(
+						manifestPath,
+						defaultUrl,
+						url ?? defaultUrl
+					)
 				);
 			}
 		},
@@ -62,7 +57,6 @@ export const addManifestJson = ({
 				 * modify the URL to use the local server URL.
 				 */
 				if (
-					mode === 'development' &&
 					req.url?.endsWith('manifest.json') &&
 					req.headers.host === '127.0.0.1:5400'
 				) {
@@ -73,7 +67,7 @@ export const addManifestJson = ({
 						generateManifestJson(
 							manifestPath,
 							defaultUrl,
-							localServerUrl
+							'http://127.0.0.1:5400/website-server/'
 						)
 					);
 					return;
