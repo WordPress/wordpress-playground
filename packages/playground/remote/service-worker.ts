@@ -71,7 +71,6 @@ self.addEventListener('fetch', (event) => {
 });
 
 initializeServiceWorker({
-	cacheVersion: buildVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
