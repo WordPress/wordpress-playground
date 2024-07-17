@@ -35,6 +35,11 @@ export default function PathMappingControlDemo() {
 	const [mapping, setMapping] = React.useState({});
 	return (
 		<div>
+			<style>
+				{`.path-mapping-control td:last-child {
+					width: 500px;
+				}`}
+			</style>
 			<PathMappingControl
 				files={fileStructure}
 				initialState={{ '/': { isOpen: true } }}

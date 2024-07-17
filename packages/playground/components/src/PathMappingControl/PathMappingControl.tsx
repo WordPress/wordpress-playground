@@ -9,6 +9,7 @@ import {
 	// @ts-expect-error
 	__experimentalInputControl as InputControl,
 	Button,
+	SelectControl,
 } from '@wordpress/components';
 import { Icon, chevronRight, chevronDown } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
@@ -30,6 +31,7 @@ type MappingNodeStates = Record<string, MappingNodeState>;
 
 type MappingNodeState = {
 	isOpen?: boolean;
+	pathType?: string;
 	playgroundPath?: string;
 };
 
@@ -115,7 +117,11 @@ const NodeRow: React.FC<{
 	parentMapping = '',
 }) => {
 	const path = generatePath(node, parentPath);
-	const nodeState = nodeStates[path] || { isOpen: false, playgroundPath: '' };
+	const nodeState = nodeStates[path] || {
+		isOpen: false,
+		playgroundPath: '',
+		pathType: '',
+	};
 	const nodeMapping = computeMapping({
 		node,
 		nodeState,
@@ -128,6 +134,33 @@ const NodeRow: React.FC<{
 
 	const handlePathChange = (value: string) => {
 		updateNodeState(path, { playgroundPath: value });
+	};
+
+	const handlePathSelectChange = (pathType: string) => {
+		switch (pathType) {
+			case 'plugin':
+				updateNodeState(path, {
+					pathType,
+					playgroundPath:
+						'/wordpress/wp-content/plugins/' + node.name,
+				});
+				break;
+			case 'theme':
+				updateNodeState(path, {
+					pathType,
+					playgroundPath: '/wordpress/wp-content/themes/' + node.name,
+				});
+				break;
+			case 'wp-content':
+				updateNodeState(path, {
+					pathType,
+					playgroundPath: '/wordpress/wp-content',
+				});
+				break;
+			default:
+				updateNodeState(path, { pathType, playgroundPath: '' });
+				break;
+		}
 	};
 
 	const handleKeyDown = (event: any) => {
@@ -190,15 +223,42 @@ const NodeRow: React.FC<{
 				<TreeGridCell>
 					{() => (
 						<>
-							<InputControl
-								disabled={parentMapping}
-								value={nodeMapping}
-								onChange={handlePathChange}
-								onDrag={function noRefCheck() {}}
-								onDragEnd={function noRefCheck() {}}
-								onDragStart={function noRefCheck() {}}
-								onValidate={function noRefCheck() {}}
-							/>
+							{!parentMapping && (
+								<SelectControl
+									label="Path"
+									value={nodeState.pathType}
+									onChange={handlePathSelectChange}
+									options={[
+										{ label: 'Select a path', value: '' },
+										{ label: 'Plugin', value: 'plugin' },
+										{ label: 'Theme', value: 'theme' },
+										{
+											label: 'wp-content',
+											value: 'wp-content',
+										},
+										{
+											label: 'Custom path',
+											value: 'custom-path',
+										},
+									]}
+								/>
+							)}
+							{(parentMapping || nodeState.pathType !== '') && (
+								<InputControl
+									disabled={
+										parentMapping ||
+										(nodeState.pathType?.trim() !== '' &&
+											nodeState.pathType !==
+												'custom-path')
+									}
+									value={nodeMapping}
+									onChange={handlePathChange}
+									onDrag={function noRefCheck() {}}
+									onDragEnd={function noRefCheck() {}}
+									onDragStart={function noRefCheck() {}}
+									onValidate={function noRefCheck() {}}
+								/>
+							)}
 						</>
 					)}
 				</TreeGridCell>
