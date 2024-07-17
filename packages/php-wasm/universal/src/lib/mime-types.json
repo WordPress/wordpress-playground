@@ -9,6 +9,7 @@
 	"bin": "application/octet-stream",
 	"bmp": "image/x-ms-bmp",
 	"cco": "application/x-cocoa",
+	"cjs": "application/javascript",
 	"css": "text/css",
 	"data": "application/octet-stream",
 	"deb": "application/octet-stream",
