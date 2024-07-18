@@ -27,8 +27,8 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            #- run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
-            - run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test --testNamePattern='.*onMessage.*'
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
+            #- run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test --testNamePattern='.*onMessage.*'
     #php-wasm-node:testtest-e3e:
     #    runs-on: ubuntu-latest
     #    needs: [lint-and-typecheck]
