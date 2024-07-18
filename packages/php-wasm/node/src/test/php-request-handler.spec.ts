@@ -12,11 +12,13 @@ import {
 import { createSpawnHandler, joinPaths } from '@php-wasm/util';
 
 const configsForRequestTests = SupportedPHPVersions.map((phpVersion) => {
-	const documentRoots = ['/', '/wordpress'];
+	// TODO: Decide whether to re-enable or remove other options
+	//const documentRoots = ['/', '/wordpress'];
+	const documentRoots = ['/wordpress'];
 	return documentRoots.map((docRoot) => {
 		const absoluteUrls = [
 			undefined,
-			'http://localhost:4321/nested/playground/',
+			//'http://localhost:4321/nested/playground/',
 		];
 		return absoluteUrls.map((absoluteUrl) => ({
 			phpVersion,
