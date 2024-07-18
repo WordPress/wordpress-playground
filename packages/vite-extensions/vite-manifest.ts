@@ -66,7 +66,7 @@ export const addManifestJson = ({ manifestPath }: { manifestPath: string }) => {
 						generateManifestJson(
 							manifestPath,
 							defaultUrl,
-							'http://127.0.0.1:5400/website-server/'
+							'http://127.0.0.1:5400/website-server'
 						)
 					);
 					return;
