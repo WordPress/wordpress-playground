@@ -29,6 +29,7 @@ if (!(self as any).document) {
 reportServiceWorkerMetrics(self);
 
 const cache = new WorkerCache(buildVersion);
+
 /**
  * For offline mode to work we need to cache all required assets.
  *
@@ -36,38 +37,54 @@ const cache = new WorkerCache(buildVersion);
  * and contain JavaScript, CSS, and other assets required to load the site without
  * making any network requests.
  */
-self.addEventListener('install', cache.cacheOfflineModeAssets);
-self.addEventListener('activate', cache.cleanup);
+cache.cacheOfflineModeAssets();
 
 /**
- * The main method. It captures the requests and loop them back to the
- * Worker Thread using the Loopback request
+ * Cleanup old cache.
+ *
+ * We cache data based on `buildVersion` which is updated whenever Playground is built.
+ * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
+ *
+ * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
+ */
+cache.cleanup();
+
+/**
+ * Handle fetch events and respond with cached assets if available.
  */
 self.addEventListener('fetch', (event) => {
 	const url = new URL(event.request.url);
 
-	// Don't handle requests to the service worker script itself.
+	/**
+	 * Don't cache requests to the service worker script itself.
+	 */
 	if (url.pathname.startsWith(self.location.pathname)) {
 		return;
 	}
 
-	// Only handle requests from scoped sites.
-	// So – bale out if the request URL is not scoped and the
-	// referrer URL is not scoped.
-	if (!isURLScoped(url)) {
-		let referrerUrl;
-		try {
-			referrerUrl = new URL(event.request.referrer);
-		} catch (e) {
-			// ignore
-		}
-		if (!referrerUrl || !isURLScoped(referrerUrl)) {
-			// Add caching for non-scoped requests
-			event.respondWith(cache.cachedFetch(event.request));
-			return;
-		}
+	/**
+	 * Don't cache requests to scoped URLs or if the referrer URL is scoped.
+	 *
+	 * These requests are made to the PHP Worker Thread and are not static assets.
+	 */
+	if (isURLScoped(url)) {
+		return;
 	}
-	return;
+	let referrerUrl;
+	try {
+		referrerUrl = new URL(event.request.referrer);
+	} catch (e) {
+		// ignore
+	}
+	if (referrerUrl && isURLScoped(referrerUrl)) {
+		return;
+	}
+
+	/**
+	 * Respond with cached assets if available.
+	 * If the asset is not cached, fetch it from the network and cache it.
+	 */
+	event.respondWith(cache.cachedFetch(event.request));
 });
 
 initializeServiceWorker({
