@@ -52,7 +52,7 @@ import store, {
 	setActiveModal,
 } from './lib/redux-store';
 import { logTrackingEvent } from './lib/tracking';
-import { StepDefinition } from '@wp-playground/client';
+import { PlaygroundClient, StepDefinition } from '@wp-playground/client';
 
 collectWindowErrors(logger);
 
@@ -131,6 +131,53 @@ function Modals() {
 	return null;
 }
 
+/**
+ * Allow the parent window to execute PHP code in Playground.
+ *
+ * ## Example:
+ *
+ * ### Send a message to the Playground iframe:
+ * ```
+ * const frame = document.getElementById('iframe-id');
+ * frame.contentWindow.postMessage({ type: 'php-request', code: `<?php echo 'Hey Playground!';` }, '*');
+ * ```
+ *
+ * ### Receive a message from the Playground iframe:
+ * ```
+ * window.addEventListener('message', (event) => {
+ * 	if(event.data.type === 'php-response') {
+ *		console.log('Message received', event.data.response);
+ * 	}
+ * });
+ *
+ */
+function addPhpRequestListener(playground: PlaygroundClient) {
+	window.addEventListener('message', async (event) => {
+		if (event.data.type === 'php-request') {
+			try {
+				const response = await playground.run({
+					code: event.data.code,
+				});
+				window.parent.postMessage(
+					{
+						type: 'php-response',
+						response: response?.text,
+					},
+					'*'
+				);
+			} catch (error) {
+				window.parent.postMessage(
+					{
+						type: 'php-response',
+						error,
+					},
+					'*'
+				);
+			}
+		}
+	});
+}
+
 function Main() {
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
@@ -192,6 +239,13 @@ function Main() {
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	useEffect(() => {
+		if (!playground) {
+			return;
+		}
+		addPhpRequestListener(playground);
+	}, [playground]);
 
 	// Add GA events for blueprint steps. For more information, see the README.md file.
 	useEffect(() => {
