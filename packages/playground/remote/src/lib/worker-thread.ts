@@ -201,6 +201,10 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			this.__internal_getPHP()!
 		);
 	}
+
+	async cacheOfflineModeAssets() {
+		await cacheOfflineModeAssets();
+	}
 }
 
 /**
@@ -303,6 +307,10 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		logger.warn('Failed to download WordPress assets', e);
 	}
 }
+
+async function cacheOfflineModeAssets() {
+	self.postMessage({ type: 'web-worker-message', action: 'cache-offline-mode-assets' });
+};
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
 	downloadMonitor,

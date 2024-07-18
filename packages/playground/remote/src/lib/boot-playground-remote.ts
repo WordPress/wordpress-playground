@@ -212,6 +212,13 @@ export async function bootPlaygroundRemote() {
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
 			await phpApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		},
+
+		/**
+		 * Cache WordPress assets for offline use.
+		 */
+		async cacheOfflineModeAssets() {
+			await phpApi.cacheOfflineModeAssets();
+		},
 	};
 
 	await phpApi.isConnected();
@@ -245,7 +252,7 @@ export async function bootPlaygroundRemote() {
 
 	/**
 	 * When WordPress is loaded from a minified bundle, some assets are removed to reduce the bundle size.
-	 * This function backfills the missing assets. If WordPress is loaded from a non-minified bundle,
+	 * This code backfills the missing assets. If WordPress is loaded from a non-minified bundle,
 	 * we don't need to backfill because the assets are already included.
 	 *
 	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
@@ -258,6 +265,14 @@ export async function bootPlaygroundRemote() {
 		wpFrame.addEventListener('load', () => {
 			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		});
+		/**
+		 * For offline mode to work we need to cache all required assets.
+		 *
+		 * These assets are listed in the `/assets-required-for-offline-mode.json` file
+		 * and contain JavaScript, CSS, and other assets required to load the site without
+		 * making any network requests.
+		 */
+		webApi.cacheOfflineModeAssets();
 	} else {
 		// Note this will run even if the static files are already in place, e.g. when running
 		// a non-minified build or an offline site. It doesn't seem like a big problem worth introducing
