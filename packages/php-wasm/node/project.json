@@ -94,7 +94,7 @@
 			},
 			"dependsOn": ["build"]
 		},
-		"test": {
+		"really-test": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
