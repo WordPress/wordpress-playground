@@ -5,11 +5,12 @@
 	"scripts": {
 		"build": "nx run-many --all --target=build",
 		"build:website": "nx build playground-website",
+		"build:remote": "nx build playground-remote",
 		"build:docs": "nx build docs-site",
 		"dev:docs": "nx dev docs-site",
 		"changelog": "bun ./packages/meta/bin/update-changelog.ts",
 		"deploy:docs": "gh-pages -d dist/docs/build -t true",
-		"dev": "nx dev playground-website",
+		"dev": "nx dev playground-remote --host 0.0.0.0",
 		"format": "nx format",
 		"format:uncommitted": "nx format --fix --parallel --uncommitted",
 		"lint": "nx run-many --all --target=lint",

@@ -524,7 +524,11 @@ export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
 }
 
 function seemsLikeAPHPFile(path: string) {
-	return path.endsWith('.php') || path.includes('.php/');
+	return (
+		path.endsWith('.php') ||
+		path.includes('.php/') ||
+		path.match(/sitemap.*.xml$/) != null
+	);
 }
 
 function seemsLikeADirectoryRoot(path: string) {

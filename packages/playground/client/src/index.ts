@@ -88,7 +88,6 @@ export async function startPlaygroundWeb({
 	onBeforeBlueprint,
 	siteSlug,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
-	assertValidRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
 	remoteUrl = setQueryParams(remoteUrl, {
@@ -189,22 +188,8 @@ async function doStartPlaygroundWeb(
 	return playground;
 }
 
-const officialRemoteOrigin = 'https://playground.wordpress.net';
-function assertValidRemote(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
-	if (
-		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
-		url.pathname !== '/remote.html'
-	) {
-		throw new Error(
-			`Invalid remote URL: ${url}. ` +
-				`Expected origin to be ${officialRemoteOrigin}/remote.html.`
-		);
-	}
-}
-
 function setQueryParams(url: string, params: Record<string, unknown>) {
-	const urlObject = new URL(url, officialRemoteOrigin);
+	const urlObject = new URL(url, window.location.href);
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {
