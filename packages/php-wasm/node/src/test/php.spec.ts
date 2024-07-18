@@ -1723,7 +1723,7 @@ bar1
 			php.onMessage(async () => {
 				// Simulate getting data asynchronously.
 				return await new Promise<string>((resolve, reject) =>
-					setTimeout(() => reject('Failure!'), 100)
+					setTimeout(() => reject('Something'), 100)
 				);
 			});
 			const out = await php.run({
