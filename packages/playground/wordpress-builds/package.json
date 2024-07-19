@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/wordpress-builds",
-	"version": "0.9.20",
+	"version": "0.9.21",
 	"description": "WordPress Compilation Pipeline for the WordPress Playground",
 	"repository": {
 		"type": "git",
