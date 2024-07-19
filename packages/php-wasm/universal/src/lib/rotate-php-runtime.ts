@@ -37,22 +37,31 @@ export function rotatePHPRuntime({
 	 */
 	maxRequests = 400,
 }: RotateOptions) {
-	let handledCalls = 0;
+	let runtimeRequestCount = 0;
 	async function rotateRuntime() {
-		if (++handledCalls < maxRequests) {
-			return;
-		}
-		handledCalls = 0;
-
 		const release = await php.semaphore.acquire();
 		try {
 			php.hotSwapPHPRuntime(await recreateRuntime(), cwd);
+
+			// A new runtime has handled zero requests.
+			runtimeRequestCount = 0;
 		} finally {
 			release();
 		}
 	}
-	php.addEventListener('request.end', rotateRuntime);
+
+	async function rotateRuntimeAfterMaxRequests() {
+		if (++runtimeRequestCount < maxRequests) {
+			return;
+		}
+		await rotateRuntime();
+	}
+
+	php.addEventListener('request.error', rotateRuntime);
+	php.addEventListener('request.end', rotateRuntimeAfterMaxRequests);
+
 	return function () {
-		php.removeEventListener('request.end', rotateRuntime);
+		php.removeEventListener('request.error', rotateRuntime);
+		php.removeEventListener('request.end', rotateRuntimeAfterMaxRequests);
 	};
 }

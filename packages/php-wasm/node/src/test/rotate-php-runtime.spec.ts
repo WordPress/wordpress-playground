@@ -66,6 +66,23 @@ describe('rotatePHPRuntime()', () => {
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
+	it('Should recreate the PHP runtime after PHP crash', async () => {
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		const php = new PHP(await recreateRuntimeSpy());
+		rotatePHPRuntime({
+			php,
+			cwd: '/test-root',
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1234,
+		});
+		// Cause a PHP runtime rotation due to error
+		await php.dispatchEvent({
+			type: 'request.error',
+			error: new Error('mock error'),
+		});
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+	}, 30_000);
+
 	it('Should stop rotating after the cleanup handler is called', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
