@@ -31,7 +31,11 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	{ command, wpCliPath = '/tmp/wp-cli.phar' }
 ) => {
 	if (!(await playground.fileExists(wpCliPath))) {
-		throw new Error(`wp-cli.phar not found at ${wpCliPath}`);
+		throw new Error(`wp-cli.phar not found at ${wpCliPath}.
+			You can enable wp-cli suppodt by setting the "wpCli" feature to true in your blueprint.
+
+			Read more about it in the documentation.
+			https://wordpress.github.io/wordpress-playground/blueprints-api/data-format#features`);
 	}
 
 	let args: string[];

@@ -95,6 +95,16 @@ You can use the `features` property to turn on or off certain features of the Pl
 }
 ```
 
+-   `wpCli`: Defaults to `false`. Enables or disables WP-CLI support for Playground. If enabled, WP-CLI will be installed during boot. If disabled, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
+
+```js
+{
+	"features": {
+		"wpCli": true
+	},
+}
+```
+
 ## Steps
 
 Arguably the most powerful property, `steps` allows you to configure the Playground instance with preinstalled themes, plugins, demo content, and more. The following example logs the user in with a dedicated username and password. It then installs and activates the Gutenberg plugin. [Learn more about steps](./05-steps.md).
