@@ -11,7 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
-import { Step, StepDefinition } from './steps';
+import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
 import { logger } from '@php-wasm/logger';
@@ -52,6 +52,8 @@ export interface CompiledBlueprint {
 	features: {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;
+		/** Should boot with WP-CLI support. */
+		wpCli: boolean;
 	};
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
@@ -170,7 +172,10 @@ export function compileBlueprint(
 	const wpCliStepIndex = blueprint.steps?.findIndex(
 		(step) => typeof step === 'object' && step?.step === 'wp-cli'
 	);
-	if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
+	if (
+		blueprint?.features?.wpCli === true ||
+		(wpCliStepIndex !== undefined && wpCliStepIndex > -1)
+	) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
 				blueprint.phpExtensionBundles.filter(
@@ -182,7 +187,7 @@ export function compileBlueprint(
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
 		}
-		blueprint.steps?.splice(wpCliStepIndex, 0, {
+		const wpCliInstallStep: WriteFileStep<FileReference> = {
 			step: 'writeFile',
 			data: {
 				resource: 'url',
@@ -199,9 +204,13 @@ export function compileBlueprint(
 				url: 'https://playground.wordpress.net/wp-cli.phar',
 			},
 			path: '/tmp/wp-cli.phar',
-		});
+		};
+		if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
+			blueprint.steps?.splice(wpCliStepIndex, 0, wpCliInstallStep);
+		} else {
+			blueprint.steps?.push(wpCliInstallStep);
+		}
 	}
-	// }}}
 
 	/**
 	 * Download the WordPress-importer plugin. {{{
@@ -273,6 +282,7 @@ export function compileBlueprint(
 		features: {
 			// Disable networking by default
 			networking: blueprint.features?.networking ?? false,
+			wpCli: blueprint.features?.wpCli ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
 			try {

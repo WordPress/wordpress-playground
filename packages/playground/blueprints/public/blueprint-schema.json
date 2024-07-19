@@ -71,8 +71,13 @@
 						"networking": {
 							"type": "boolean",
 							"description": "Should boot with support for network request via wp_safe_remote_get?"
+						},
+						"wpCli": {
+							"type": "boolean",
+							"description": "Should boot with WP-CLI support."
 						}
 					},
+					"required": ["wpCli"],
 					"additionalProperties": false
 				},
 				"constants": {
@@ -569,7 +574,7 @@
 							"description": "The name of the theme to import content from."
 						}
 					},
-					"required": ["step", "themeSlug"]
+					"required": ["step"]
 				},
 				{
 					"type": "object",
