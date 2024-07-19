@@ -58,7 +58,7 @@ export interface Blueprint {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking?: boolean;
 		/** Should boot with WP-CLI support. */
-		wpCli: boolean;
+		wpCli?: boolean;
 	};
 
 	/**

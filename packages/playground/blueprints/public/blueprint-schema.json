@@ -77,7 +77,6 @@
 							"description": "Should boot with WP-CLI support."
 						}
 					},
-					"required": ["wpCli"],
 					"additionalProperties": false
 				},
 				"constants": {
