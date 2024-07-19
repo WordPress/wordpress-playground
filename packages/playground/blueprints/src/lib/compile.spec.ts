@@ -79,7 +79,7 @@ describe('Blueprints', () => {
 		expect(result.text.trim()).toBe('bool(false)');
 	});
 
-	it.only('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
+	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
 		await runBlueprintSteps(
 			compileBlueprint({
 				features: {
