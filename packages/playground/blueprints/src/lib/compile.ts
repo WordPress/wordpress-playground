@@ -282,6 +282,7 @@ export function compileBlueprint(
 		features: {
 			// Disable networking by default
 			networking: blueprint.features?.networking ?? false,
+			// Disable wpCli by default
 			wpCli: blueprint.features?.wpCli ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
