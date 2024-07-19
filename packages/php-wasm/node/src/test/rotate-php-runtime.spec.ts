@@ -66,24 +66,7 @@ describe('rotatePHPRuntime()', () => {
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
-	it('Should recreate the PHP runtime after PHP crash', async () => {
-		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
-			cwd: '/test-root',
-			recreateRuntime: recreateRuntimeSpy,
-			maxRequests: 1234,
-		});
-		// Cause a PHP runtime rotation due to error
-		await php.dispatchEvent({
-			type: 'request.error',
-			error: new Error('mock error'),
-		});
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-	}, 30_000);
-
-	it('Should stop rotating after the cleanup handler is called', async () => {
+	it('Should not rotate after the cleanup handler is called, even if max requests is reached', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
 		const cleanup = rotatePHPRuntime({
@@ -101,6 +84,47 @@ describe('rotatePHPRuntime()', () => {
 		// No further rotation should happen
 		await php.run({ code: `` });
 		await php.run({ code: `` });
+
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+	}, 30_000);
+
+	it('Should recreate the PHP runtime after PHP crash', async () => {
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		const php = new PHP(await recreateRuntimeSpy());
+		rotatePHPRuntime({
+			php,
+			cwd: '/test-root',
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1234,
+		});
+		// Cause a PHP runtime rotation due to error
+		await php.dispatchEvent({
+			type: 'request.error',
+			error: new Error('mock error'),
+		});
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+	}, 30_000);
+
+	it('Should not rotate after the cleanup handler is called, even if there is a PHP runtime error', async () => {
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		const php = new PHP(await recreateRuntimeSpy());
+		const cleanup = rotatePHPRuntime({
+			php,
+			cwd: '/test-root',
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1,
+		});
+		// Rotate the PHP runtime
+		await php.run({ code: `` });
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+
+		cleanup();
+
+		// No further rotation should happen
+		php.dispatchEvent({
+			type: 'request.error',
+			error: new Error('mock error'),
+		});
 
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
