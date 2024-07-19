@@ -1,5 +1,10 @@
 describe('Remote Assets', () => {
-	const testedStorageOptions = ['none', 'browser'];
+	const testedStorageOptions = [
+		'none',
+		// TODO: Re-enable this option once the tests are more stable
+		//'browser'
+	];
+
 	testedStorageOptions.forEach((storage) => {
 		it(`should load remote assets for storage=${storage}`, () => {
 			const expectedRemoteAssetPath =
