@@ -11,23 +11,7 @@ format.
 
 ## Unreleased 
 
-### Website
 
-- Fix manifest.json URLs. ([#1615](https://github.com/WordPress/wordpress-playground/pull/1615))
-
-### Internal
-
-- Fix joinPaths root edge case. ([#1620](https://github.com/WordPress/wordpress-playground/pull/1620))
-
-### Various
-
-- Disable PHP 7.0 and 7.1 version switcher end-to-end tests. ([#1626](https://github.com/WordPress/wordpress-playground/pull/1626))
-
-### Contributors
-
-The following contributors merged PRs in this release:
-
-@bgrgicak @brandonpayton
 
 
 ## [v0.7.20] (2024-05-21)
