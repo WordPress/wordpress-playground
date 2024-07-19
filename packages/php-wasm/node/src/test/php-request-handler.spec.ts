@@ -18,34 +18,29 @@ interface ConfigForRequestTests {
 }
 
 const configsForRequestTests: ConfigForRequestTests[] =
-	// TODO: Re-enable this before merge
-	//SupportedPHPVersions.map((phpVersion) => {
-	// TODO: Remove this before merge
-	[SupportedPHPVersions[0]]
-		.map((phpVersion) => {
-			const documentRoots = [
-				'/',
+	SupportedPHPVersions.map((phpVersion) => {
+		const documentRoots = [
+			'/',
+			// TODO: Re-enable when we can avoid GH workflow cancelation.
+			// Disable for now because the GH CI unit test workflow is getting
+			// auto-canceled when this is enabled
+			//'/wordpress',
+		];
+		return documentRoots.map((docRoot) => {
+			const absoluteUrls = [
+				undefined,
 				// TODO: Re-enable when we can avoid GH workflow cancelation.
-				// Disable for now because the GH CI unit test workflow is getting
-				// auto-canceled when this is enabled
-				'/wordpress',
+				// Disable for now because the GH CI unit test workflow is
+				// getting auto-canceled when this is enabled.
+				//'http://localhost:4321/nested/playground/',
 			];
-			return documentRoots.map((docRoot) => {
-				const absoluteUrls = [
-					undefined,
-					// TODO: Re-enable when we can avoid GH workflow cancelation.
-					// Disable for now because the GH CI unit test workflow is
-					// getting auto-canceled when this is enabled.
-					'http://localhost:4321/nested/playground/',
-				];
-				return absoluteUrls.map((absoluteUrl) => ({
-					phpVersion,
-					docRoot,
-					absoluteUrl,
-				}));
-			});
-		})
-		.flat(2);
+			return absoluteUrls.map((absoluteUrl) => ({
+				phpVersion,
+				docRoot,
+				absoluteUrl,
+			}));
+		});
+	}).flat(2);
 
 describe.each(configsForRequestTests)(
 	'[PHP $phpVersion, DocRoot $docRoot, AbsUrl $absoluteUrl] PHPRequestHandler – request',
