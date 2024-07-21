@@ -1,7 +1,7 @@
 ---
 name: Bug Report – playground.wordpress.net
 about: Something did not work as expected in the online version of Playground?
-title: 'Playground Online: Report an issue with playground.wordpress.net'
+title: 'Bug Report – playground.wordpress.net'
 labels: bug
 assignees: ''
 ---
