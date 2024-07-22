@@ -186,6 +186,19 @@ export class FSHelpers {
 	}
 
 	/**
+	 * Checks if a file exists in the PHP filesystem.
+	 *
+	 * @param  path – The path to check.
+	 * @returns True if the path is a file, false otherwise.
+	 */
+	static isFile(FS: Emscripten.RootFS, path: string): boolean {
+		if (!FSHelpers.fileExists(FS, path)) {
+			return false;
+		}
+		return FS.isFile(FS.lookupPath(path).node.mode);
+	}
+
+	/**
 	 * Checks if a file (or a directory) exists in the PHP filesystem.
 	 *
 	 * @param  path - The file path to check.

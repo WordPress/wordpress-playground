@@ -924,6 +924,16 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Checks if a file exists in the PHP filesystem.
+	 *
+	 * @param  path – The path to check.
+	 * @returns True if the path is a file, false otherwise.
+	 */
+	isFile(path: string) {
+		return FSHelpers.isFile(this[__private__dont__use].FS, path);
+	}
+
+	/**
 	 * Checks if a file (or a directory) exists in the PHP filesystem.
 	 *
 	 * @param  path - The file path to check.

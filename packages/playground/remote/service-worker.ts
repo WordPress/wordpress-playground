@@ -113,14 +113,14 @@ initializeServiceWorker({
 			const workerResponse = await convertFetchEventToPHPRequest(event);
 			if (
 				workerResponse.status === 404 &&
-				workerResponse.headers.get('x-file-type') === 'static'
+				workerResponse.headers.get('x-backfill-from') === 'remote-host'
 			) {
 				const { staticAssetsDirectory } = await getScopedWpDetails(
 					scope!
 				);
 				if (!staticAssetsDirectory) {
 					const plain404Response = workerResponse.clone();
-					plain404Response.headers.delete('x-file-type');
+					plain404Response.headers.delete('x-backfill-from');
 					return plain404Response;
 				}
 

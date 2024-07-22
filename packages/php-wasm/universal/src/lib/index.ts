@@ -64,6 +64,12 @@ export type {
 	RewriteRule,
 } from './php-request-handler';
 export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
+export type {
+	FileNotFoundGetActionCallback,
+	FileNotFoundToInternalRedirect,
+	FileNotFoundToResponse,
+	FileNotFoundAction,
+} from './php-request-handler';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 export type { FileTree } from './write-files';
