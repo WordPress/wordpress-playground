@@ -4,8 +4,10 @@ export class WorkerCache {
 	readonly cacheNamePrefix = 'playground-cache';
 
 	private cacheName: string;
+	private hostname: string;
 
-	constructor(cacheVersion: string) {
+	constructor(cacheVersion: string, hostname: string) {
+		this.hostname = hostname;
 		this.cacheName = `${this.cacheNamePrefix}-${cacheVersion}`;
 	}
 
@@ -46,9 +48,11 @@ export class WorkerCache {
 		if (url.pathname.endsWith('.php')) {
 			return false;
 		}
-		return ['playground.wordpress.net', '127.0.0.1', 'localhost'].includes(
-			url.hostname
-		);
+
+		/**
+		 * Allow only requests to the same hostname to be cached.
+		 */
+		return this.hostname === url.hostname;
 	};
 
 	cleanup = async () => {

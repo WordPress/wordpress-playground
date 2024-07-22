@@ -27,8 +27,7 @@ if (!(self as any).document) {
 }
 
 reportServiceWorkerMetrics(self);
-
-const cache = new WorkerCache(buildVersion);
+const cache = new WorkerCache(buildVersion, self.location.hostname);
 
 /**
  * For offline mode to work we need to cache all required assets.
