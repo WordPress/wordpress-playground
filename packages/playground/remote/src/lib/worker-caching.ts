@@ -22,7 +22,7 @@ export class WorkerCache {
 		return await cache.then((c) => c.match(key, { ignoreSearch: true }));
 	};
 
-	isValidHostname = (url: URL) => {
+	shouldCacheUrl = (url: URL) => {
 		/**
 		 * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
 		 * Check the README for offline development instructions.
@@ -66,7 +66,7 @@ export class WorkerCache {
 
 	cachedFetch = async (request: Request): Promise<Response> => {
 		const url = new URL(request.url);
-		if (!this.isValidHostname(url)) {
+		if (!this.shouldCacheUrl(url)) {
 			return await fetch(request);
 		}
 		const cacheKey = request;
@@ -80,7 +80,7 @@ export class WorkerCache {
 	};
 
 	cacheOfflineModeAssets = async (): Promise<any> => {
-		if (!this.isValidHostname(new URL(location.href))) {
+		if (!this.shouldCacheUrl(new URL(location.href))) {
 			return;
 		}
 
