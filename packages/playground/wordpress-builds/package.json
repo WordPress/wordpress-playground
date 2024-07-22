@@ -1,4 +1,5 @@
 {
+	"private": true,
 	"name": "@wp-playground/wordpress-builds",
 	"version": "0.9.23",
 	"description": "WordPress Compilation Pipeline for the WordPress Playground",
