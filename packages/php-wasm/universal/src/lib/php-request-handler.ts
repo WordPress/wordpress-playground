@@ -23,6 +23,25 @@ export type RewriteRule = {
 	replacement: string;
 };
 
+export type FileNotFoundToResponse = {
+	type: 'response';
+	response: PHPResponse;
+};
+export type FileNotFoundToInternalRedirect = {
+	type: 'internal-redirect';
+	uri: string;
+};
+export type FileNotFoundTo404 = { type: '404' };
+
+export type FileNotFoundAction =
+	| FileNotFoundToResponse
+	| FileNotFoundToInternalRedirect
+	| FileNotFoundTo404;
+
+export type FileNotFoundGetActionCallback = (
+	relativePath: string
+) => FileNotFoundAction;
+
 interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -38,6 +57,12 @@ interface BaseConfiguration {
 	 * Rewrite rules
 	 */
 	rewriteRules?: RewriteRule[];
+
+	/**
+	 * A callback that decides how to handle a file-not-found condition for a
+	 * given request URI.
+	 */
+	getFileNotFoundAction?: FileNotFoundGetActionCallback;
 }
 
 export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
@@ -137,6 +162,7 @@ export class PHPRequestHandler {
 	#cookieStore: HttpCookieStore;
 	rewriteRules: RewriteRule[];
 	processManager: PHPProcessManager;
+	getFileNotFoundAction: FileNotFoundGetActionCallback;
 
 	/**
 	 * The request handler needs to decide whether to serve a static asset or
@@ -154,6 +180,7 @@ export class PHPRequestHandler {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			rewriteRules = [],
+			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 		if ('processManager' in config) {
 			this.processManager = config.processManager;
@@ -194,6 +221,7 @@ export class PHPRequestHandler {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
+		this.getFileNotFoundAction = getFileNotFoundAction;
 	}
 
 	async getPrimaryPhp() {
@@ -306,14 +334,94 @@ export class PHPRequestHandler {
 			),
 			this.rewriteRules
 		);
-		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
-		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
-			return this.#serveStaticFile(
-				await this.processManager.getPrimaryPhp(),
-				fsPath
-			);
+
+		const primaryPhp = await this.getPrimaryPhp();
+
+		let fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
+
+		if (primaryPhp.isDir(fsPath)) {
+			// Ensure directory URIs have a trailing slash. Otherwise,
+			// relative URIs in index.php or index.html files are relative
+			// to the next directory up.
+			//
+			// Example:
+			// For an index page served for URI "/settings", we naturally expect
+			// links to be relative to "/settings", but without the trailing
+			// slash, a relative link "edit.php" resolves to "/edit.php"
+			// rather than "/settings/edit.php".
+			//
+			// This treatment of relative links is correct behavior for the browser:
+			// https://www.rfc-editor.org/rfc/rfc3986#section-5.2.3
+			//
+			// But user intent for `/settings/index.php` is that its relative
+			// URIs are relative to `/settings/`. So we redirect to add a
+			// trailing slash to directory URIs to meet this expecatation.
+			//
+			// This behavior is also necessary for WordPress to function properly.
+			// Otherwise, when viewing the WP admin dashboard at `/wp-admin`,
+			// links to other admin pages like `edit.php` will incorrectly
+			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
+			if (!fsPath.endsWith('/')) {
+				return new PHPResponse(
+					301,
+					{ Location: [`${requestedUrl.pathname}/`] },
+					new Uint8Array(0)
+				);
+			}
+
+			// We can only satisfy requests for directories with a default file
+			// so let's first resolve to a default path when available.
+			for (const possibleIndexFile of ['index.php', 'index.html']) {
+				const possibleIndexPath = joinPaths(fsPath, possibleIndexFile);
+				if (primaryPhp.isFile(possibleIndexPath)) {
+					fsPath = possibleIndexPath;
+					break;
+				}
+			}
 		}
-		return this.#spawnPHPAndDispatchRequest(request, requestedUrl);
+
+		if (!primaryPhp.isFile(fsPath)) {
+			const fileNotFoundAction = this.getFileNotFoundAction(
+				normalizedRequestedPath
+			);
+			switch (fileNotFoundAction.type) {
+				case 'response':
+					return fileNotFoundAction.response;
+				case 'internal-redirect':
+					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
+					break;
+				case '404':
+					return PHPResponse.forHttpCode(404);
+				default:
+					throw new Error(
+						'Unsupported file-not-found action type: ' +
+							// Cast because TS asserts the remaining possibility is `never`
+							`'${
+								(fileNotFoundAction as FileNotFoundAction).type
+							}'`
+					);
+			}
+		}
+
+		// We need to confirm that the current target file exists because
+		// file-not-found fallback actions may redirect to non-existent files.
+		if (primaryPhp.isFile(fsPath)) {
+			if (fsPath.endsWith('.php')) {
+				const effectiveRequest: PHPRequest = {
+					...request,
+					// Pass along URL with the #fragment filtered out
+					url: requestedUrl.toString(),
+				};
+				return this.#spawnPHPAndDispatchRequest(
+					effectiveRequest,
+					fsPath
+				);
+			} else {
+				return this.#serveStaticFile(primaryPhp, fsPath);
+			}
+		} else {
+			return PHPResponse.forHttpCode(404);
+		}
 	}
 
 	/**
@@ -323,17 +431,6 @@ export class PHPRequestHandler {
 	 * @returns The response.
 	 */
 	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
-		if (!php.fileExists(fsPath)) {
-			return new PHPResponse(
-				404,
-				// Let the service worker know that no static file was found
-				// and that it's okay to issue a real fetch() to the server.
-				{
-					'x-file-type': ['static'],
-				},
-				new TextEncoder().encode('404 File not found')
-			);
-		}
 		const arrayBuffer = php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
@@ -355,7 +452,7 @@ export class PHPRequestHandler {
 	 */
 	async #spawnPHPAndDispatchRequest(
 		request: PHPRequest,
-		requestedUrl: URL
+		scriptPath: string
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP | undefined = undefined;
 		try {
@@ -371,7 +468,7 @@ export class PHPRequestHandler {
 			return await this.#dispatchToPHP(
 				spawnedPHP.php,
 				request,
-				requestedUrl
+				scriptPath
 			);
 		} finally {
 			spawnedPHP.reap();
@@ -388,7 +485,7 @@ export class PHPRequestHandler {
 	async #dispatchToPHP(
 		php: PHP,
 		request: PHPRequest,
-		requestedUrl: URL
+		scriptPath: string
 	): Promise<PHPResponse> {
 		let preferredMethod: PHPRunOptions['method'] = 'GET';
 
@@ -406,20 +503,10 @@ export class PHPRequestHandler {
 			headers['content-type'] = contentType;
 		}
 
-		let scriptPath;
-		try {
-			scriptPath = this.#resolvePHPFilePath(
-				php,
-				decodeURIComponent(requestedUrl.pathname)
-			);
-		} catch (error) {
-			return PHPResponse.forHttpCode(404);
-		}
-
 		try {
 			const response = await php.run({
 				relativeUri: ensurePathPrefix(
-					toRelativeUrl(requestedUrl),
+					toRelativeUrl(new URL(request.url)),
 					this.#PATHNAME
 				),
 				protocol: this.#PROTOCOL,
@@ -447,45 +534,6 @@ export class PHPRequestHandler {
 			throw error;
 		}
 	}
-
-	/**
-	 * Resolve the requested path to the filesystem path of the requested PHP file.
-	 *
-	 * Fall back to index.php as if there was a url rewriting rule in place.
-	 *
-	 * @param  requestedPath - The requested pathname.
-	 * @throws {Error} If the requested path doesn't exist.
-	 * @returns The resolved filesystem path.
-	 */
-	#resolvePHPFilePath(php: PHP, requestedPath: string): string {
-		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
-		filePath = applyRewriteRules(filePath, this.rewriteRules);
-
-		if (filePath.includes('.php')) {
-			// If the path mentions a .php extension, that's our file's path.
-			filePath = filePath.split('.php')[0] + '.php';
-		} else if (php.isDir(`${this.#DOCROOT}${filePath}`)) {
-			if (!filePath.endsWith('/')) {
-				filePath = `${filePath}/`;
-			}
-			// If the path is a directory, let's assume the file is index.php
-			filePath = `${filePath}index.php`;
-		} else {
-			// Otherwise, let's assume the file is /index.php
-			filePath = '/index.php';
-		}
-
-		let resolvedFsPath = `${this.#DOCROOT}${filePath}`;
-		// If the requested PHP file doesn't exist, let's fall back to /index.php
-		// as the request may need to be rewritten.
-		if (!php.fileExists(resolvedFsPath)) {
-			resolvedFsPath = `${this.#DOCROOT}/index.php`;
-		}
-		if (php.fileExists(resolvedFsPath)) {
-			return resolvedFsPath;
-		}
-		throw new Error(`File not found: ${resolvedFsPath}`);
-	}
 }
 
 /**
@@ -501,35 +549,6 @@ export class PHPRequestHandler {
 function inferMimeType(path: string): string {
 	const extension = path.split('.').pop() as keyof typeof mimeTypes;
 	return mimeTypes[extension] || mimeTypes['_default'];
-}
-
-/**
- * Guesses whether the given path looks like a PHP file.
- *
- * @example
- * ```js
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
- * seemsLikeAPHPRequestHandlerPath('/index.html') // false
- * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
- * seemsLikeAPHPRequestHandlerPath('/') // true
- * ```
- *
- * @param  path The path to check.
- * @returns Whether the path seems like a PHP server path.
- */
-export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
-	return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
-}
-
-function seemsLikeAPHPFile(path: string) {
-	return path.endsWith('.php') || path.includes('.php/');
-}
-
-function seemsLikeADirectoryRoot(path: string) {
-	const lastSegment = path.split('/').pop();
-	return !lastSegment!.includes('.');
 }
 
 /**

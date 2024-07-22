@@ -4,8 +4,10 @@ export class WorkerCache {
 	readonly cacheNamePrefix = 'playground-cache';
 
 	private cacheName: string;
+	private hostname: string;
 
-	constructor(cacheVersion: string) {
+	constructor(cacheVersion: string, hostname: string) {
+		this.hostname = hostname;
 		this.cacheName = `${this.cacheNamePrefix}-${cacheVersion}`;
 	}
 
@@ -20,7 +22,7 @@ export class WorkerCache {
 		return await cache.then((c) => c.match(key, { ignoreSearch: true }));
 	};
 
-	isValidHostname = (url: URL) => {
+	shouldCacheUrl = (url: URL) => {
 		/**
 		 * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
 		 * Check the README for offline development instructions.
@@ -46,9 +48,11 @@ export class WorkerCache {
 		if (url.pathname.endsWith('.php')) {
 			return false;
 		}
-		return ['playground.wordpress.net', '127.0.0.1', 'localhost'].includes(
-			url.hostname
-		);
+
+		/**
+		 * Allow only requests to the same hostname to be cached.
+		 */
+		return this.hostname === url.hostname;
 	};
 
 	cleanup = async () => {
@@ -62,7 +66,7 @@ export class WorkerCache {
 
 	cachedFetch = async (request: Request): Promise<Response> => {
 		const url = new URL(request.url);
-		if (!this.isValidHostname(url)) {
+		if (!this.shouldCacheUrl(url)) {
 			return await fetch(request);
 		}
 		const cacheKey = request;
@@ -76,7 +80,7 @@ export class WorkerCache {
 	};
 
 	cacheOfflineModeAssets = async (): Promise<any> => {
-		if (!this.isValidHostname(new URL(location.href))) {
+		if (!this.shouldCacheUrl(new URL(location.href))) {
 			return;
 		}
 

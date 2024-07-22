@@ -53,7 +53,10 @@ async function defaultRequestHandler(event: FetchEvent) {
 	const workerResponse = await convertFetchEventToPHPRequest(event);
 	if (
 		workerResponse.status === 404 &&
-		workerResponse.headers.get('x-file-type') === 'static'
+		(workerResponse.headers.get('x-backfill-from') === 'remote-host' ||
+			// TODO: Remove this once it become clear we aren't reverting
+			// request routing changes
+			workerResponse.headers.get('x-file-type') === 'static')
 	) {
 		const request = await cloneRequest(event.request, {
 			url,

@@ -37,9 +37,10 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { PHP, PHPWorker } from '@php-wasm/universal';
+import { PHP, PHPResponse, PHPWorker } from '@php-wasm/universal';
 import {
 	bootWordPress,
+	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
@@ -344,6 +345,7 @@ try {
 		'sqlite.zip'
 	);
 
+	const knownRemoteAssetPaths = new Set<string>();
 	const requestHandler = await bootWordPress({
 		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 		createPhpRuntime,
@@ -374,6 +376,28 @@ try {
 					'wp_http_fetch.php': transportFetch,
 				},
 			},
+		},
+		getFileNotFoundAction(relativeUri: string) {
+			if (!knownRemoteAssetPaths.has(relativeUri)) {
+				return getFileNotFoundActionForWordPress(relativeUri);
+			}
+
+			// This path is listed as a remote asset. Mark it as a static file
+			// so the service worker knows it can issue a real fetch() to the server.
+			return {
+				type: 'response',
+				response: new PHPResponse(
+					404,
+					{
+						'x-backfill-from': ['remote-host'],
+						// Include x-file-type header so remote asset
+						// retrieval continues to work for clients
+						// running a prior service worker version.
+						'x-file-type': ['static'],
+					},
+					new TextEncoder().encode('404 File not found')
+				),
+			};
 		},
 	});
 	apiEndpoint.__internal_setRequestHandler(requestHandler);
@@ -423,6 +447,15 @@ try {
 		} catch (e) {
 			logger.warn(`Failed to fetch remote asset paths from ${listUrl}`);
 		}
+	}
+
+	if (primaryPhp.isFile(remoteAssetListPath)) {
+		const remoteAssetPaths = primaryPhp
+			.readFileAsText(remoteAssetListPath)
+			.split('\n');
+		remoteAssetPaths.forEach((wpRelativePath) =>
+			knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath))
+		);
 	}
 
 	setApiReady();

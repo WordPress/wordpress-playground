@@ -11,7 +11,19 @@ format.
 
 ## Unreleased 
 
+### PHP WebAssembly
 
+- Route requests more like a normal web server. ([#1539](https://github.com/WordPress/wordpress-playground/pull/1539))
+
+### Website
+
+- Remove old, unused website deployment workflow. ([#1633](https://github.com/WordPress/wordpress-playground/pull/1633))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
 
 
 ## [v0.7.20] (2024-05-21)
