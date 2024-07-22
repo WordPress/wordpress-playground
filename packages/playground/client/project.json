@@ -5,7 +5,12 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
-			"executor": "nx:noop",
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/client/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/client",
+				"buildTarget": "playground-client:build:bundle:production"
+			},
 			"dependsOn": ["build:README", "build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {

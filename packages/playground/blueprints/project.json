@@ -5,9 +5,13 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
-			"executor": "nx:noop",
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/blueprints/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/blueprints",
+				"buildTarget": "playground-blueprints:build:bundle:production"
+			},
 			"dependsOn": [
-				"build:bundle",
 				"build:blueprint-schema",
 				"build:rollup-declarations-for-schema-generation"
 			]
