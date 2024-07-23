@@ -46,6 +46,7 @@ import {
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
+import { cacheOfflineModeAssets } from './offline-mode-cache';
 
 /**
  * Startup options are received from spawnPHPWorkerThread using a message event.
@@ -308,10 +309,6 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		logger.warn('Failed to download WordPress assets', e);
 	}
 }
-
-async function cacheOfflineModeAssets() {
-	self.postMessage({ type: 'web-worker-message', action: 'cache-offline-mode-assets' });
-};
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
 	downloadMonitor,

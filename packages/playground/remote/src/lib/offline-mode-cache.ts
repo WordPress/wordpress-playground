@@ -1,5 +1,22 @@
 import { isURLScoped } from '@php-wasm/scopes';
 
+/**
+ * Checks if the current environment should be cached.
+ *
+ * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
+ * Check the README for offline development instructions.
+ */
+export const shouldCacheCurrentEnvironment = (url: URL) => {
+	if (
+		url.href.startsWith('http://127.0.0.1:5400/') ||
+		url.href.startsWith('http://localhost:5400/') ||
+		url.pathname.startsWith('/website-server/')
+	) {
+		return false;
+	}
+	return true;
+};
+
 export class OfflineModeCache {
 	readonly cacheNamePrefix = 'playground-cache';
 
@@ -23,15 +40,7 @@ export class OfflineModeCache {
 	};
 
 	shouldCacheUrl = (url: URL) => {
-		/**
-		 * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
-		 * Check the README for offline development instructions.
-		 */
-		if (
-			url.href.startsWith('http://127.0.0.1:5400/') ||
-			url.href.startsWith('http://localhost:5400/') ||
-			url.pathname.startsWith('/website-server/')
-		) {
+		if (!shouldCacheCurrentEnvironment(url)) {
 			return false;
 		}
 
@@ -79,19 +88,26 @@ export class OfflineModeCache {
 		await this.addCache(cacheKey, response);
 		return response;
 	};
+}
 
-	cacheOfflineModeAssets = async (): Promise<any> => {
-		if (!this.shouldCacheUrl(new URL(location.href))) {
-			return;
-		}
+/**
+ * For offline mode to work we need to cache all required assets.
+ *
+ * These assets are listed in the `/assets-required-for-offline-mode.json` file
+ * and contain JavaScript, CSS, and other assets required to load the site without
+ * making any network requests.
+ */
+export async function cacheOfflineModeAssets() {
+	if (!shouldCacheCurrentEnvironment(new URL(location.href))) {
+		return;
+	}
+	const manifestResponse = await fetch(
+		'/assets-required-for-offline-mode.json'
+	);
+	const websiteUrls = await manifestResponse.json();
 
-		const cache = await caches.open(this.cacheName);
-
-		// Get the cache manifest and add all the files to the cache
-		const manifestResponse = await fetch(
-			'/assets-required-for-offline-mode.json'
-		);
-		const websiteUrls = await manifestResponse.json();
-		await cache.addAll([...websiteUrls, ...['/']]);
-	};
+	/**
+	 * Also cache the homepage because it's not included in the manifest.
+	 */
+	[...websiteUrls, ...['/']].map((url: string) => fetch(url));
 }
