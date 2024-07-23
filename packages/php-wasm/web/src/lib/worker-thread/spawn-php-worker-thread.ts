@@ -11,7 +11,7 @@ export async function spawnPHPWorkerThread(
 ) {
 	const worker = new Worker(workerUrl, { type: 'module' });
 	return new Promise<Worker>((resolve, reject) => {
-		worker.onerror = (e: ErrorEvent) => {
+		worker.onerror = (e) => {
 			const error = new Error(
 				`WebWorker failed to load at ${workerUrl}. ${
 					e.message ? `Original error: ${e.message}` : ''
@@ -33,12 +33,5 @@ export async function spawnPHPWorkerThread(
 			}
 		}
 		worker.addEventListener('message', onStartup);
-
-		function relayMessageToServiceWorker(event: MessageEvent) {
-			if (event.data.type === 'web-worker-message') {
-				navigator.serviceWorker.controller?.postMessage(event.data);
-			}
-		}
-		worker.addEventListener('message', relayMessageToServiceWorker);
 	});
 }

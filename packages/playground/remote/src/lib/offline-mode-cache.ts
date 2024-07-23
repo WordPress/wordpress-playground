@@ -90,13 +90,6 @@ export class OfflineModeCache {
 	};
 }
 
-/**
- * For offline mode to work we need to cache all required assets.
- *
- * These assets are listed in the `/assets-required-for-offline-mode.json` file
- * and contain JavaScript, CSS, and other assets required to load the site without
- * making any network requests.
- */
 export async function cacheOfflineModeAssets() {
 	if (!shouldCacheCurrentEnvironment(new URL(location.href))) {
 		return;
