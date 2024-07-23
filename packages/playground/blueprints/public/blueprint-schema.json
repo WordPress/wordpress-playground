@@ -1,1496 +1,1641 @@
 {
-	"$schema": "http://json-schema.org/schema",
-	"$ref": "#/definitions/Blueprint",
-	"definitions": {
-		"Blueprint": {
-			"type": "object",
-			"properties": {
-				"landingPage": {
-					"type": "string",
-					"description": "The URL to navigate to after the blueprint has been run."
-				},
-				"description": {
-					"type": "string",
-					"description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what.",
-					"deprecated": "Use meta.description instead."
-				},
-				"meta": {
-					"type": "object",
-					"properties": {
-						"title": {
-							"type": "string",
-							"description": "A clear and concise name for your Blueprint."
-						},
-						"description": {
-							"type": "string",
-							"description": "A brief explanation of what your Blueprint offers."
-						},
-						"author": {
-							"type": "string",
-							"description": "A GitHub username of the author of this Blueprint."
-						},
-						"categories": {
-							"type": "array",
-							"items": {
-								"type": "string"
-							},
-							"description": "Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org."
-						}
-					},
-					"required": ["title", "author"],
-					"additionalProperties": false,
-					"description": "Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints"
-				},
-				"preferredVersions": {
-					"type": "object",
-					"properties": {
-						"php": {
-							"anyOf": [
-								{
-									"$ref": "#/definitions/SupportedPHPVersion"
-								},
-								{
-									"type": "string",
-									"const": "latest"
-								}
-							],
-							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used"
-						},
-						"wp": {
-							"type": "string",
-							"description": "The preferred WordPress version to use. If not specified, the latest supported version will be used"
-						}
-					},
-					"required": ["php", "wp"],
-					"additionalProperties": false,
-					"description": "The preferred PHP and WordPress versions to use."
-				},
-				"features": {
-					"type": "object",
-					"properties": {
-						"networking": {
-							"type": "boolean",
-							"description": "Should boot with support for network request via wp_safe_remote_get?"
-						}
-					},
-					"additionalProperties": false
-				},
-				"constants": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "string"
-					},
-					"description": "PHP Constants to define on every request"
-				},
-				"plugins": {
-					"type": "array",
-					"items": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"$ref": "#/definitions/FileReference"
-							}
-						]
-					},
-					"description": "WordPress plugins to install and activate"
-				},
-				"siteOptions": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "string"
-					},
-					"properties": {
-						"blogname": {
-							"type": "string",
-							"description": "The site title"
-						}
-					},
-					"description": "WordPress site options to define"
-				},
-				"login": {
-					"anyOf": [
-						{
-							"type": "boolean"
-						},
-						{
-							"type": "object",
-							"properties": {
-								"username": {
-									"type": "string"
-								},
-								"password": {
-									"type": "string"
-								}
-							},
-							"required": ["username", "password"],
-							"additionalProperties": false
-						}
-					],
-					"description": "User to log in as. If true, logs the user in as admin/password."
-				},
-				"phpExtensionBundles": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/SupportedPHPExtensionBundle"
-					},
-					"description": "The PHP extensions to use."
-				},
-				"steps": {
-					"type": "array",
-					"items": {
-						"anyOf": [
-							{
-								"$ref": "#/definitions/StepDefinition"
-							},
-							{
-								"type": "string"
-							},
-							{
-								"not": {}
-							},
-							{
-								"type": "boolean",
-								"const": false
-							},
-							{
-								"type": "null"
-							}
-						]
-					},
-					"description": "The steps to run after every other operation in this Blueprint was executed."
-				},
-				"$schema": {
-					"type": "string"
-				}
-			},
-			"additionalProperties": false
-		},
-		"SupportedPHPVersion": {
-			"type": "string",
-			"enum": [
-				"8.3",
-				"8.2",
-				"8.1",
-				"8.0",
-				"7.4",
-				"7.3",
-				"7.2",
-				"7.1",
-				"7.0"
-			]
-		},
-		"FileReference": {
-			"anyOf": [
-				{
-					"$ref": "#/definitions/VFSReference"
-				},
-				{
-					"$ref": "#/definitions/LiteralReference"
-				},
-				{
-					"$ref": "#/definitions/CoreThemeReference"
-				},
-				{
-					"$ref": "#/definitions/CorePluginReference"
-				},
-				{
-					"$ref": "#/definitions/UrlReference"
-				}
-			]
-		},
-		"VFSReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "vfs",
-					"description": "Identifies the file resource as Virtual File System (VFS)"
-				},
-				"path": {
-					"type": "string",
-					"description": "The path to the file in the VFS"
-				}
-			},
-			"required": ["resource", "path"],
-			"additionalProperties": false
-		},
-		"LiteralReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "literal",
-					"description": "Identifies the file resource as a literal file"
-				},
-				"name": {
-					"type": "string",
-					"description": "The name of the file"
-				},
-				"contents": {
-					"anyOf": [
-						{
-							"type": "string"
-						},
-						{
-							"type": "object",
-							"properties": {
-								"BYTES_PER_ELEMENT": {
-									"type": "number"
-								},
-								"buffer": {
-									"type": "object",
-									"properties": {
-										"byteLength": {
-											"type": "number"
-										}
-									},
-									"required": ["byteLength"],
-									"additionalProperties": false
-								},
-								"byteLength": {
-									"type": "number"
-								},
-								"byteOffset": {
-									"type": "number"
-								},
-								"length": {
-									"type": "number"
-								}
-							},
-							"required": [
-								"BYTES_PER_ELEMENT",
-								"buffer",
-								"byteLength",
-								"byteOffset",
-								"length"
-							],
-							"additionalProperties": {
-								"type": "number"
-							}
-						}
-					],
-					"description": "The contents of the file"
-				}
-			},
-			"required": ["resource", "name", "contents"],
-			"additionalProperties": false
-		},
-		"CoreThemeReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "wordpress.org/themes",
-					"description": "Identifies the file resource as a WordPress Core theme"
-				},
-				"slug": {
-					"type": "string",
-					"description": "The slug of the WordPress Core theme"
-				}
-			},
-			"required": ["resource", "slug"],
-			"additionalProperties": false
-		},
-		"CorePluginReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "wordpress.org/plugins",
-					"description": "Identifies the file resource as a WordPress Core plugin"
-				},
-				"slug": {
-					"type": "string",
-					"description": "The slug of the WordPress Core plugin"
-				}
-			},
-			"required": ["resource", "slug"],
-			"additionalProperties": false
-		},
-		"UrlReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "url",
-					"description": "Identifies the file resource as a URL"
-				},
-				"url": {
-					"type": "string",
-					"description": "The URL of the file"
-				},
-				"caption": {
-					"type": "string",
-					"description": "Optional caption for displaying a progress message"
-				}
-			},
-			"required": ["resource", "url"],
-			"additionalProperties": false
-		},
-		"SupportedPHPExtensionBundle": {
-			"type": "string",
-			"enum": ["kitchen-sink", "light"]
-		},
-		"StepDefinition": {
-			"type": "object",
-			"discriminator": {
-				"propertyName": "step"
-			},
-			"required": ["step"],
-			"oneOf": [
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "activatePlugin"
-						},
-						"pluginPath": {
-							"type": "string",
-							"description": "Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php)."
-						},
-						"pluginName": {
-							"type": "string",
-							"description": "Optional. Plugin name to display in the progress bar."
-						}
-					},
-					"required": ["pluginPath", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "activateTheme"
-						},
-						"themeFolderName": {
-							"type": "string",
-							"description": "The name of the theme folder inside wp-content/themes/"
-						}
-					},
-					"required": ["step", "themeFolderName"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "cp"
-						},
-						"fromPath": {
-							"type": "string",
-							"description": "Source path"
-						},
-						"toPath": {
-							"type": "string",
-							"description": "Target path"
-						}
-					},
-					"required": ["fromPath", "step", "toPath"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "defineWpConfigConsts"
-						},
-						"consts": {
-							"type": "object",
-							"additionalProperties": {},
-							"description": "The constants to define"
-						},
-						"method": {
-							"type": "string",
-							"enum": ["rewrite-wp-config", "define-before-run"],
-							"description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
-						},
-						"virtualize": {
-							"type": "boolean",
-							"deprecated": "This option is noop and will be removed in a future version.\nThis option is only kept in here to avoid breaking Blueprint schema validation\nfor existing apps using this option."
-						}
-					},
-					"required": ["consts", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "defineSiteUrl"
-						},
-						"siteUrl": {
-							"type": "string",
-							"description": "The URL"
-						}
-					},
-					"required": ["siteUrl", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "enableMultisite"
-						}
-					},
-					"required": ["step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "importWxr"
-						},
-						"file": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The file to import"
-						}
-					},
-					"required": ["file", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "importThemeStarterContent",
-							"description": "The step identifier."
-						},
-						"themeSlug": {
-							"type": "string",
-							"description": "The name of the theme to import content from."
-						}
-					},
-					"required": ["step", "themeSlug"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "importWordPressFiles"
-						},
-						"wordPressFilesZip": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The zip file containing the top-level WordPress files and directories."
-						},
-						"pathInZip": {
-							"type": "string",
-							"description": "The path inside the zip file where the WordPress files are."
-						}
-					},
-					"required": ["step", "wordPressFilesZip"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"ifAlreadyInstalled": {
-							"type": "string",
-							"enum": ["overwrite", "skip", "error"],
-							"description": "What to do if the asset already exists."
-						},
-						"step": {
-							"type": "string",
-							"const": "installPlugin",
-							"description": "The step identifier."
-						},
-						"pluginZipFile": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The plugin zip file to install."
-						},
-						"options": {
-							"$ref": "#/definitions/InstallPluginOptions",
-							"description": "Optional installation options."
-						}
-					},
-					"required": ["pluginZipFile", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"ifAlreadyInstalled": {
-							"type": "string",
-							"enum": ["overwrite", "skip", "error"],
-							"description": "What to do if the asset already exists."
-						},
-						"step": {
-							"type": "string",
-							"const": "installTheme",
-							"description": "The step identifier."
-						},
-						"themeZipFile": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The theme zip file to install."
-						},
-						"options": {
-							"type": "object",
-							"properties": {
-								"activate": {
-									"type": "boolean",
-									"description": "Whether to activate the theme after installing it."
-								},
-								"importStarterContent": {
-									"type": "boolean",
-									"description": "Whether to import the theme's starter content after installing it."
-								}
-							},
-							"additionalProperties": false,
-							"description": "Optional installation options."
-						}
-					},
-					"required": ["step", "themeZipFile"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "login"
-						},
-						"username": {
-							"type": "string",
-							"description": "The user to log in as. Defaults to 'admin'."
-						},
-						"password": {
-							"type": "string",
-							"description": "The password to log in with. Defaults to 'password'."
-						}
-					},
-					"required": ["step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "mkdir"
-						},
-						"path": {
-							"type": "string",
-							"description": "The path of the directory you want to create"
-						}
-					},
-					"required": ["path", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "mv"
-						},
-						"fromPath": {
-							"type": "string",
-							"description": "Source path"
-						},
-						"toPath": {
-							"type": "string",
-							"description": "Target path"
-						}
-					},
-					"required": ["fromPath", "step", "toPath"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "resetData"
-						}
-					},
-					"required": ["step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "request"
-						},
-						"request": {
-							"$ref": "#/definitions/PHPRequest",
-							"description": "Request details (See /wordpress-playground/api/universal/interface/PHPRequest)"
-						}
-					},
-					"required": ["request", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "rm"
-						},
-						"path": {
-							"type": "string",
-							"description": "The path to remove"
-						}
-					},
-					"required": ["path", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "rmdir"
-						},
-						"path": {
-							"type": "string",
-							"description": "The path to remove"
-						}
-					},
-					"required": ["path", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "runPHP",
-							"description": "The step identifier."
-						},
-						"code": {
-							"type": "string",
-							"description": "The PHP code to run."
-						}
-					},
-					"required": ["code", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "runPHPWithOptions"
-						},
-						"options": {
-							"$ref": "#/definitions/PHPRunOptions",
-							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))"
-						}
-					},
-					"required": ["options", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "runWpInstallationWizard"
-						},
-						"options": {
-							"$ref": "#/definitions/WordPressInstallationOptions"
-						}
-					},
-					"required": ["options", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "runSql",
-							"description": "The step identifier."
-						},
-						"sql": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The SQL to run. Each non-empty line must contain a valid SQL query."
-						}
-					},
-					"required": ["sql", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "setSiteOptions",
-							"description": "The name of the step. Must be \"setSiteOptions\"."
-						},
-						"options": {
-							"type": "object",
-							"additionalProperties": {},
-							"description": "The options to set on the site."
-						}
-					},
-					"required": ["options", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "unzip"
-						},
-						"zipFile": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The zip file to extract"
-						},
-						"zipPath": {
-							"type": "string",
-							"description": "The path of the zip file to extract",
-							"deprecated": "Use zipFile instead."
-						},
-						"extractToPath": {
-							"type": "string",
-							"description": "The path to extract the zip file to"
-						}
-					},
-					"required": ["extractToPath", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "updateUserMeta"
-						},
-						"meta": {
-							"type": "object",
-							"additionalProperties": {},
-							"description": "An object of user meta values to set, e.g. { \"first_name\": \"John\" }"
-						},
-						"userId": {
-							"type": "number",
-							"description": "User ID"
-						}
-					},
-					"required": ["meta", "step", "userId"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "writeFile"
-						},
-						"path": {
-							"type": "string",
-							"description": "The path of the file to write to"
-						},
-						"data": {
-							"anyOf": [
-								{
-									"$ref": "#/definitions/FileReference"
-								},
-								{
-									"type": "string"
-								},
-								{
-									"type": "object",
-									"properties": {
-										"BYTES_PER_ELEMENT": {
-											"type": "number"
-										},
-										"buffer": {
-											"type": "object",
-											"properties": {
-												"byteLength": {
-													"type": "number"
-												}
-											},
-											"required": ["byteLength"],
-											"additionalProperties": false
-										},
-										"byteLength": {
-											"type": "number"
-										},
-										"byteOffset": {
-											"type": "number"
-										},
-										"length": {
-											"type": "number"
-										}
-									},
-									"required": [
-										"BYTES_PER_ELEMENT",
-										"buffer",
-										"byteLength",
-										"byteOffset",
-										"length"
-									],
-									"additionalProperties": {
-										"type": "number"
-									}
-								}
-							],
-							"description": "The data to write"
-						}
-					},
-					"required": ["data", "path", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "wp-cli",
-							"description": "The step identifier."
-						},
-						"command": {
-							"anyOf": [
-								{
-									"type": "string"
-								},
-								{
-									"type": "array",
-									"items": {
-										"type": "string"
-									}
-								}
-							],
-							"description": "The WP CLI command to run."
-						},
-						"wpCliPath": {
-							"type": "string",
-							"description": "wp-cli.phar path"
-						}
-					},
-					"required": ["command", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "setSiteLanguage"
-						},
-						"language": {
-							"type": "string",
-							"description": "The language to set, e.g. 'en_US'"
-						}
-					},
-					"required": ["language", "step"]
-				}
-			]
-		},
-		"InstallPluginOptions": {
-			"type": "object",
-			"properties": {
-				"activate": {
-					"type": "boolean",
-					"description": "Whether to activate the plugin after installing it."
-				}
-			},
-			"additionalProperties": false
-		},
-		"PHPRequest": {
-			"type": "object",
-			"properties": {
-				"method": {
-					"$ref": "#/definitions/HTTPMethod",
-					"description": "Request method. Default: `GET`."
-				},
-				"url": {
-					"type": "string",
-					"description": "Request path or absolute URL."
-				},
-				"headers": {
-					"$ref": "#/definitions/PHPRequestHeaders",
-					"description": "Request headers."
-				},
-				"body": {
-					"anyOf": [
-						{
-							"type": "string"
-						},
-						{
-							"type": "object",
-							"properties": {
-								"BYTES_PER_ELEMENT": {
-									"type": "number"
-								},
-								"buffer": {
-									"type": "object",
-									"properties": {
-										"byteLength": {
-											"type": "number"
-										}
-									},
-									"required": ["byteLength"],
-									"additionalProperties": false
-								},
-								"byteLength": {
-									"type": "number"
-								},
-								"byteOffset": {
-									"type": "number"
-								},
-								"length": {
-									"type": "number"
-								}
-							},
-							"required": [
-								"BYTES_PER_ELEMENT",
-								"buffer",
-								"byteLength",
-								"byteOffset",
-								"length"
-							],
-							"additionalProperties": {
-								"type": "number"
-							}
-						},
-						{
-							"type": "object",
-							"additionalProperties": {
-								"anyOf": [
-									{
-										"type": "string"
-									},
-									{
-										"type": "object",
-										"properties": {
-											"BYTES_PER_ELEMENT": {
-												"type": "number"
-											},
-											"buffer": {
-												"type": "object",
-												"properties": {
-													"byteLength": {
-														"type": "number"
-													}
-												},
-												"required": ["byteLength"],
-												"additionalProperties": false
-											},
-											"byteLength": {
-												"type": "number"
-											},
-											"byteOffset": {
-												"type": "number"
-											},
-											"length": {
-												"type": "number"
-											}
-										},
-										"required": [
-											"BYTES_PER_ELEMENT",
-											"buffer",
-											"byteLength",
-											"byteOffset",
-											"length"
-										],
-										"additionalProperties": {
-											"type": "number"
-										}
-									},
-									{
-										"type": "object",
-										"properties": {
-											"size": {
-												"type": "number"
-											},
-											"type": {
-												"type": "string"
-											},
-											"lastModified": {
-												"type": "number"
-											},
-											"name": {
-												"type": "string"
-											},
-											"webkitRelativePath": {
-												"type": "string"
-											}
-										},
-										"required": [
-											"lastModified",
-											"name",
-											"size",
-											"type",
-											"webkitRelativePath"
-										],
-										"additionalProperties": false
-									}
-								]
-							}
-						}
-					],
-					"description": "Request body. If an object is given, the request will be encoded as multipart and sent with a `multipart/form-data` header."
-				}
-			},
-			"required": ["url"],
-			"additionalProperties": false
-		},
-		"HTTPMethod": {
-			"type": "string",
-			"enum": ["GET", "POST", "HEAD", "OPTIONS", "PATCH", "PUT", "DELETE"]
-		},
-		"PHPRequestHeaders": {
-			"type": "object",
-			"additionalProperties": {
-				"type": "string"
-			}
-		},
-		"PHPRunOptions": {
-			"type": "object",
-			"properties": {
-				"relativeUri": {
-					"type": "string",
-					"description": "Request path following the domain:port part."
-				},
-				"scriptPath": {
-					"type": "string",
-					"description": "Path of the .php file to execute."
-				},
-				"protocol": {
-					"type": "string",
-					"description": "Request protocol."
-				},
-				"method": {
-					"$ref": "#/definitions/HTTPMethod",
-					"description": "Request method. Default: `GET`."
-				},
-				"headers": {
-					"$ref": "#/definitions/PHPRequestHeaders",
-					"description": "Request headers."
-				},
-				"body": {
-					"anyOf": [
-						{
-							"type": "string"
-						},
-						{
-							"type": "object",
-							"properties": {
-								"BYTES_PER_ELEMENT": {
-									"type": "number"
-								},
-								"buffer": {
-									"type": "object",
-									"properties": {
-										"byteLength": {
-											"type": "number"
-										}
-									},
-									"required": ["byteLength"],
-									"additionalProperties": false
-								},
-								"byteLength": {
-									"type": "number"
-								},
-								"byteOffset": {
-									"type": "number"
-								},
-								"length": {
-									"type": "number"
-								}
-							},
-							"required": [
-								"BYTES_PER_ELEMENT",
-								"buffer",
-								"byteLength",
-								"byteOffset",
-								"length"
-							],
-							"additionalProperties": {
-								"type": "number"
-							}
-						}
-					],
-					"description": "Request body."
-				},
-				"env": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "string"
-					},
-					"description": "Environment variables to set for this run."
-				},
-				"$_SERVER": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "string"
-					},
-					"description": "$_SERVER entries to set for this run."
-				},
-				"code": {
-					"type": "string",
-					"description": "The code snippet to eval instead of a php file."
-				}
-			},
-			"additionalProperties": false
-		},
-		"WordPressInstallationOptions": {
-			"type": "object",
-			"properties": {
-				"adminUsername": {
-					"type": "string"
-				},
-				"adminPassword": {
-					"type": "string"
-				}
-			},
-			"additionalProperties": false
-		}
-	}
+  "$schema": "http://json-schema.org/schema",
+  "$ref": "#/definitions/Blueprint",
+  "definitions": {
+    "Blueprint": {
+      "type": "object",
+      "properties": {
+        "landingPage": {
+          "type": "string",
+          "description": "The URL to navigate to after the blueprint has been run."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what.",
+          "deprecated": "Use meta.description instead."
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "A clear and concise name for your Blueprint."
+            },
+            "description": {
+              "type": "string",
+              "description": "A brief explanation of what your Blueprint offers."
+            },
+            "author": {
+              "type": "string",
+              "description": "A GitHub username of the author of this Blueprint."
+            },
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org."
+            }
+          },
+          "required": [
+            "title",
+            "author"
+          ],
+          "additionalProperties": false,
+          "description": "Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints"
+        },
+        "preferredVersions": {
+          "type": "object",
+          "properties": {
+            "php": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SupportedPHPVersion"
+                },
+                {
+                  "type": "string",
+                  "const": "latest"
+                }
+              ],
+              "description": "The preferred PHP version to use. If not specified, the latest supported version will be used"
+            },
+            "wp": {
+              "type": "string",
+              "description": "The preferred WordPress version to use. If not specified, the latest supported version will be used"
+            }
+          },
+          "required": [
+            "php",
+            "wp"
+          ],
+          "additionalProperties": false,
+          "description": "The preferred PHP and WordPress versions to use."
+        },
+        "features": {
+          "type": "object",
+          "properties": {
+            "networking": {
+              "type": "boolean",
+              "description": "Should boot with support for network request via wp_safe_remote_get?"
+            }
+          },
+          "additionalProperties": false
+        },
+        "constants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "PHP Constants to define on every request"
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/FileReference"
+              }
+            ]
+          },
+          "description": "WordPress plugins to install and activate"
+        },
+        "siteOptions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "properties": {
+            "blogname": {
+              "type": "string",
+              "description": "The site title"
+            }
+          },
+          "description": "WordPress site options to define"
+        },
+        "login": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "password": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "username",
+                "password"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "User to log in as. If true, logs the user in as admin/password."
+        },
+        "phpExtensionBundles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SupportedPHPExtensionBundle"
+          },
+          "description": "The PHP extensions to use."
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/StepDefinition"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "not": {}
+              },
+              {
+                "type": "boolean",
+                "const": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "The steps to run after every other operation in this Blueprint was executed."
+        },
+        "$schema": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SupportedPHPVersion": {
+      "type": "string",
+      "enum": [
+        "8.3",
+        "8.2",
+        "8.1",
+        "8.0",
+        "7.4",
+        "7.3",
+        "7.2",
+        "7.1",
+        "7.0"
+      ]
+    },
+    "FileReference": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/VFSReference"
+        },
+        {
+          "$ref": "#/definitions/LiteralReference"
+        },
+        {
+          "$ref": "#/definitions/CoreThemeReference"
+        },
+        {
+          "$ref": "#/definitions/CorePluginReference"
+        },
+        {
+          "$ref": "#/definitions/UrlReference"
+        }
+      ]
+    },
+    "VFSReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "vfs",
+          "description": "Identifies the file resource as Virtual File System (VFS)"
+        },
+        "path": {
+          "type": "string",
+          "description": "The path to the file in the VFS"
+        }
+      },
+      "required": [
+        "resource",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "LiteralReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "literal",
+          "description": "Identifies the file resource as a literal file"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the file"
+        },
+        "contents": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "BYTES_PER_ELEMENT": {
+                  "type": "number"
+                },
+                "buffer": {
+                  "type": "object",
+                  "properties": {
+                    "byteLength": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "byteLength"
+                  ],
+                  "additionalProperties": false
+                },
+                "byteLength": {
+                  "type": "number"
+                },
+                "byteOffset": {
+                  "type": "number"
+                },
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "BYTES_PER_ELEMENT",
+                "buffer",
+                "byteLength",
+                "byteOffset",
+                "length"
+              ],
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          ],
+          "description": "The contents of the file"
+        }
+      },
+      "required": [
+        "resource",
+        "name",
+        "contents"
+      ],
+      "additionalProperties": false
+    },
+    "CoreThemeReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "wordpress.org/themes",
+          "description": "Identifies the file resource as a WordPress Core theme"
+        },
+        "slug": {
+          "type": "string",
+          "description": "The slug of the WordPress Core theme"
+        }
+      },
+      "required": [
+        "resource",
+        "slug"
+      ],
+      "additionalProperties": false
+    },
+    "CorePluginReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "wordpress.org/plugins",
+          "description": "Identifies the file resource as a WordPress Core plugin"
+        },
+        "slug": {
+          "type": "string",
+          "description": "The slug of the WordPress Core plugin"
+        }
+      },
+      "required": [
+        "resource",
+        "slug"
+      ],
+      "additionalProperties": false
+    },
+    "UrlReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "url",
+          "description": "Identifies the file resource as a URL"
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL of the file"
+        },
+        "caption": {
+          "type": "string",
+          "description": "Optional caption for displaying a progress message"
+        }
+      },
+      "required": [
+        "resource",
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "SupportedPHPExtensionBundle": {
+      "type": "string",
+      "enum": [
+        "kitchen-sink",
+        "light"
+      ]
+    },
+    "StepDefinition": {
+      "type": "object",
+      "discriminator": {
+        "propertyName": "step"
+      },
+      "required": [
+        "step"
+      ],
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "activatePlugin"
+            },
+            "pluginPath": {
+              "type": "string",
+              "description": "Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php)."
+            },
+            "pluginName": {
+              "type": "string",
+              "description": "Optional. Plugin name to display in the progress bar."
+            }
+          },
+          "required": [
+            "pluginPath",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "activateTheme"
+            },
+            "themeFolderName": {
+              "type": "string",
+              "description": "The name of the theme folder inside wp-content/themes/"
+            }
+          },
+          "required": [
+            "step",
+            "themeFolderName"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "cp"
+            },
+            "fromPath": {
+              "type": "string",
+              "description": "Source path"
+            },
+            "toPath": {
+              "type": "string",
+              "description": "Target path"
+            }
+          },
+          "required": [
+            "fromPath",
+            "step",
+            "toPath"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "defineWpConfigConsts"
+            },
+            "consts": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "The constants to define"
+            },
+            "method": {
+              "type": "string",
+              "enum": [
+                "rewrite-wp-config",
+                "define-before-run"
+              ],
+              "description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+            },
+            "virtualize": {
+              "type": "boolean",
+              "deprecated": "This option is noop and will be removed in a future version.\nThis option is only kept in here to avoid breaking Blueprint schema validation\nfor existing apps using this option."
+            }
+          },
+          "required": [
+            "consts",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "defineSiteUrl"
+            },
+            "siteUrl": {
+              "type": "string",
+              "description": "The URL"
+            }
+          },
+          "required": [
+            "siteUrl",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "enableMultisite"
+            }
+          },
+          "required": [
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "importWxr"
+            },
+            "file": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The file to import"
+            }
+          },
+          "required": [
+            "file",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "importThemeStarterContent",
+              "description": "The step identifier."
+            },
+            "themeSlug": {
+              "type": "string",
+              "description": "The name of the theme to import content from."
+            }
+          },
+          "required": [
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "importWordPressFiles"
+            },
+            "wordPressFilesZip": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The zip file containing the top-level WordPress files and directories."
+            },
+            "pathInZip": {
+              "type": "string",
+              "description": "The path inside the zip file where the WordPress files are."
+            }
+          },
+          "required": [
+            "step",
+            "wordPressFilesZip"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "ifAlreadyInstalled": {
+              "type": "string",
+              "enum": [
+                "overwrite",
+                "skip",
+                "error"
+              ],
+              "description": "What to do if the asset already exists."
+            },
+            "step": {
+              "type": "string",
+              "const": "installPlugin",
+              "description": "The step identifier."
+            },
+            "pluginZipFile": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The plugin zip file to install."
+            },
+            "options": {
+              "$ref": "#/definitions/InstallPluginOptions",
+              "description": "Optional installation options."
+            }
+          },
+          "required": [
+            "pluginZipFile",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "ifAlreadyInstalled": {
+              "type": "string",
+              "enum": [
+                "overwrite",
+                "skip",
+                "error"
+              ],
+              "description": "What to do if the asset already exists."
+            },
+            "step": {
+              "type": "string",
+              "const": "installTheme",
+              "description": "The step identifier."
+            },
+            "themeZipFile": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The theme zip file to install."
+            },
+            "options": {
+              "type": "object",
+              "properties": {
+                "activate": {
+                  "type": "boolean",
+                  "description": "Whether to activate the theme after installing it."
+                },
+                "importStarterContent": {
+                  "type": "boolean",
+                  "description": "Whether to import the theme's starter content after installing it."
+                }
+              },
+              "additionalProperties": false,
+              "description": "Optional installation options."
+            }
+          },
+          "required": [
+            "step",
+            "themeZipFile"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "login"
+            },
+            "username": {
+              "type": "string",
+              "description": "The user to log in as. Defaults to 'admin'."
+            },
+            "password": {
+              "type": "string",
+              "description": "The password to log in with. Defaults to 'password'."
+            }
+          },
+          "required": [
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "mkdir"
+            },
+            "path": {
+              "type": "string",
+              "description": "The path of the directory you want to create"
+            }
+          },
+          "required": [
+            "path",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "mv"
+            },
+            "fromPath": {
+              "type": "string",
+              "description": "Source path"
+            },
+            "toPath": {
+              "type": "string",
+              "description": "Target path"
+            }
+          },
+          "required": [
+            "fromPath",
+            "step",
+            "toPath"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "resetData"
+            }
+          },
+          "required": [
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "request"
+            },
+            "request": {
+              "$ref": "#/definitions/PHPRequest",
+              "description": "Request details (See /wordpress-playground/api/universal/interface/PHPRequest)"
+            }
+          },
+          "required": [
+            "request",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "rm"
+            },
+            "path": {
+              "type": "string",
+              "description": "The path to remove"
+            }
+          },
+          "required": [
+            "path",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "rmdir"
+            },
+            "path": {
+              "type": "string",
+              "description": "The path to remove"
+            }
+          },
+          "required": [
+            "path",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "runPHP",
+              "description": "The step identifier."
+            },
+            "code": {
+              "type": "string",
+              "description": "The PHP code to run."
+            }
+          },
+          "required": [
+            "code",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "runPHPWithOptions"
+            },
+            "options": {
+              "$ref": "#/definitions/PHPRunOptions",
+              "description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))"
+            }
+          },
+          "required": [
+            "options",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "runWpInstallationWizard"
+            },
+            "options": {
+              "$ref": "#/definitions/WordPressInstallationOptions"
+            }
+          },
+          "required": [
+            "options",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "runSql",
+              "description": "The step identifier."
+            },
+            "sql": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The SQL to run. Each non-empty line must contain a valid SQL query."
+            }
+          },
+          "required": [
+            "sql",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "setSiteOptions",
+              "description": "The name of the step. Must be \"setSiteOptions\"."
+            },
+            "options": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "The options to set on the site."
+            }
+          },
+          "required": [
+            "options",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "unzip"
+            },
+            "zipFile": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The zip file to extract"
+            },
+            "zipPath": {
+              "type": "string",
+              "description": "The path of the zip file to extract",
+              "deprecated": "Use zipFile instead."
+            },
+            "extractToPath": {
+              "type": "string",
+              "description": "The path to extract the zip file to"
+            }
+          },
+          "required": [
+            "extractToPath",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "updateUserMeta"
+            },
+            "meta": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "An object of user meta values to set, e.g. { \"first_name\": \"John\" }"
+            },
+            "userId": {
+              "type": "number",
+              "description": "User ID"
+            }
+          },
+          "required": [
+            "meta",
+            "step",
+            "userId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "writeFile"
+            },
+            "path": {
+              "type": "string",
+              "description": "The path of the file to write to"
+            },
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/FileReference"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "BYTES_PER_ELEMENT": {
+                      "type": "number"
+                    },
+                    "buffer": {
+                      "type": "object",
+                      "properties": {
+                        "byteLength": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "byteLength"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "byteLength": {
+                      "type": "number"
+                    },
+                    "byteOffset": {
+                      "type": "number"
+                    },
+                    "length": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "BYTES_PER_ELEMENT",
+                    "buffer",
+                    "byteLength",
+                    "byteOffset",
+                    "length"
+                  ],
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              ],
+              "description": "The data to write"
+            }
+          },
+          "required": [
+            "data",
+            "path",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "wp-cli",
+              "description": "The step identifier."
+            },
+            "command": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "The WP CLI command to run."
+            },
+            "wpCliPath": {
+              "type": "string",
+              "description": "wp-cli.phar path"
+            }
+          },
+          "required": [
+            "command",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
+              "const": "setSiteLanguage"
+            },
+            "language": {
+              "type": "string",
+              "description": "The language to set, e.g. 'en_US'"
+            }
+          },
+          "required": [
+            "language",
+            "step"
+          ]
+        }
+      ]
+    },
+    "InstallPluginOptions": {
+      "type": "object",
+      "properties": {
+        "activate": {
+          "type": "boolean",
+          "description": "Whether to activate the plugin after installing it."
+        }
+      },
+      "additionalProperties": false
+    },
+    "PHPRequest": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "$ref": "#/definitions/HTTPMethod",
+          "description": "Request method. Default: `GET`."
+        },
+        "url": {
+          "type": "string",
+          "description": "Request path or absolute URL."
+        },
+        "headers": {
+          "$ref": "#/definitions/PHPRequestHeaders",
+          "description": "Request headers."
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "BYTES_PER_ELEMENT": {
+                  "type": "number"
+                },
+                "buffer": {
+                  "type": "object",
+                  "properties": {
+                    "byteLength": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "byteLength"
+                  ],
+                  "additionalProperties": false
+                },
+                "byteLength": {
+                  "type": "number"
+                },
+                "byteOffset": {
+                  "type": "number"
+                },
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "BYTES_PER_ELEMENT",
+                "buffer",
+                "byteLength",
+                "byteOffset",
+                "length"
+              ],
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "BYTES_PER_ELEMENT": {
+                        "type": "number"
+                      },
+                      "buffer": {
+                        "type": "object",
+                        "properties": {
+                          "byteLength": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "byteLength"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "byteLength": {
+                        "type": "number"
+                      },
+                      "byteOffset": {
+                        "type": "number"
+                      },
+                      "length": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "BYTES_PER_ELEMENT",
+                      "buffer",
+                      "byteLength",
+                      "byteOffset",
+                      "length"
+                    ],
+                    "additionalProperties": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "size": {
+                        "type": "number"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "lastModified": {
+                        "type": "number"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "webkitRelativePath": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "lastModified",
+                      "name",
+                      "size",
+                      "type",
+                      "webkitRelativePath"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          ],
+          "description": "Request body. If an object is given, the request will be encoded as multipart and sent with a `multipart/form-data` header."
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "HTTPMethod": {
+      "type": "string",
+      "enum": [
+        "GET",
+        "POST",
+        "HEAD",
+        "OPTIONS",
+        "PATCH",
+        "PUT",
+        "DELETE"
+      ]
+    },
+    "PHPRequestHeaders": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "PHPRunOptions": {
+      "type": "object",
+      "properties": {
+        "relativeUri": {
+          "type": "string",
+          "description": "Request path following the domain:port part."
+        },
+        "scriptPath": {
+          "type": "string",
+          "description": "Path of the .php file to execute."
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Request protocol."
+        },
+        "method": {
+          "$ref": "#/definitions/HTTPMethod",
+          "description": "Request method. Default: `GET`."
+        },
+        "headers": {
+          "$ref": "#/definitions/PHPRequestHeaders",
+          "description": "Request headers."
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "BYTES_PER_ELEMENT": {
+                  "type": "number"
+                },
+                "buffer": {
+                  "type": "object",
+                  "properties": {
+                    "byteLength": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "byteLength"
+                  ],
+                  "additionalProperties": false
+                },
+                "byteLength": {
+                  "type": "number"
+                },
+                "byteOffset": {
+                  "type": "number"
+                },
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "BYTES_PER_ELEMENT",
+                "buffer",
+                "byteLength",
+                "byteOffset",
+                "length"
+              ],
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          ],
+          "description": "Request body."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variables to set for this run."
+        },
+        "$_SERVER": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "$_SERVER entries to set for this run."
+        },
+        "code": {
+          "type": "string",
+          "description": "The code snippet to eval instead of a php file."
+        }
+      },
+      "additionalProperties": false
+    },
+    "WordPressInstallationOptions": {
+      "type": "object",
+      "properties": {
+        "adminUsername": {
+          "type": "string"
+        },
+        "adminPassword": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

@@ -5,7 +5,7 @@ AddEncoding x-gzip .gz
 Header unset ETag
 Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
 </FilesMatch>
-<FilesMatch "index\.js|blueprint-schema\.json|logger.php|puzzle.php|wp-cli.phar|wordpress-importer.zip">
+<FilesMatch "index\.js|blueprint-schema\.json|logger.php|wp-cli.phar|wordpress-importer.zip">
 Header set Access-Control-Allow-Origin "*"
 Header unset ETag
 Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
