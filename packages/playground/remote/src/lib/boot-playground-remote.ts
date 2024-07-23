@@ -259,7 +259,7 @@ export async function bootPlaygroundRemote() {
 			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		});
 	} else {
-		// Note this will run even if the static files are already in place, e.g. when running
+		// Note the .setProgress() call will run even if the static files are already in place, e.g. when running
 		// a non-minified build or an offline site. It doesn't seem like a big problem worth introducing
 		// a new API method like `webApi.needsBackfillingStaticFilesRemovedFromMinifiedBuild().
 		webApi.setProgress({
@@ -267,6 +267,7 @@ export async function bootPlaygroundRemote() {
 			isIndefinite: false,
 			visible: true,
 		});
+		// Backfilling will not overwrite any existing files so it's safe to call here.
 		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 	}
 

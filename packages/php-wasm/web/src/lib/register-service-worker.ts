@@ -69,15 +69,13 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	try {
 		await registration.update();
 	} catch (e) {
-		if (!window.navigator.onLine) {
-			logger.warn(
-				'Failed to update service worker because the browser is offline.',
-				e
-			);
-		} else {
-			throw e;
-		}
+		// registration.update() throws if it can't reach the server.
+		// We're swallowing the error to keep the app working in offline mode
+		// or when playground.wordpress.net is down. We can be sure we have a functional
+		// service worker at this point because sw.register() succeeded.
+		logger.error('Failed to update service worker.', e);
 	}
+
 	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(
 		'message',
