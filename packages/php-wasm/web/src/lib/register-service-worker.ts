@@ -69,10 +69,14 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	try {
 		await registration.update();
 	} catch (e) {
-		logger.warn(
-			'Failed to update service worker. Check if you are online.',
-			e
-		);
+		if (window.navigator.onLine) {
+			logger.warn(
+				'Failed to update service worker because the browser is offline.',
+				e
+			);
+		} else {
+			throw e;
+		}
 	}
 	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(

@@ -15,7 +15,7 @@ import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import { buildVersion } from 'virtual:remote-config';
-import { WorkerCache } from './src/lib/worker-caching';
+import { OfflineModeCache } from './src/lib/offline-mode-cache';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -27,7 +27,7 @@ if (!(self as any).document) {
 }
 
 reportServiceWorkerMetrics(self);
-const cache = new WorkerCache(buildVersion, self.location.hostname);
+const cache = new OfflineModeCache(buildVersion, self.location.hostname);
 
 /**
  * For offline mode to work we need to cache all required assets.
