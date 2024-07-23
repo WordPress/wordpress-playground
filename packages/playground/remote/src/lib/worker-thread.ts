@@ -203,6 +203,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			this.__internal_getPHP()!
 		);
 	}
+
+	async hasCachedStaticFilesRemovedFromMinifiedBuild() {
+		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
+			this.__internal_getPHP()!
+		);
+	}
 }
 
 /**

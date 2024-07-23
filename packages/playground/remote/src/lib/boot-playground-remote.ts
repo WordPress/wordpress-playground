@@ -208,9 +208,18 @@ export async function bootPlaygroundRemote() {
 
 		/**
 		 * Download WordPress assets.
+		 * @see backfillStaticFilesRemovedFromMinifiedBuild in the worker-thread.ts
 		 */
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
 			await phpApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		},
+
+		/**
+		 * Checks whether we have the missing WordPress assets readily
+		 * available in the request cache.
+		 */
+		async hasCachedStaticFilesRemovedFromMinifiedBuild() {
+			return await phpApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
 	};
 
@@ -244,28 +253,40 @@ export async function bootPlaygroundRemote() {
 	}
 
 	/**
-	 * When WordPress is loaded from a minified bundle, some assets are removed to reduce the bundle size.
-	 * This function backfills the missing assets. If WordPress is loaded from a non-minified bundle,
-	 * we don't need to backfill because the assets are already included.
+	 * When we're running WordPress from a minified bundle, we're missing some static assets.
+	 * The section below backfills them if needed. It doesn't do anything if the assets are already
+	 * in place, or when WordPress is loaded from a non-minified bundle.
 	 *
-	 * If the browser is online we download the WordPress assets asynchronously to speed up the boot process.
-	 * Missing assets will be fetched on demand from the Playground server until they are downloaded.
+	 * Minified bundles are shipped without most static assets to reduce the bundle size and
+	 * the loading time. When WordPress loads for the first time, the browser parses all the
+	 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
 	 *
-	 * If the browser is offline, we await the backfill or WordPress assets
-	 * from cache to ensure Playground is fully functional before boot finishes.
+	 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
+	 *
+	 * Below we're downloading a zipped bundle of the missing assets.
 	 */
 	if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
-		// Note the .setProgress() call will run even if the static files are already in place, e.g. when running
-		// a non-minified build or an offline site. It doesn't seem like a big problem worth introducing
-		// a new API method like `webApi.needsBackfillingStaticFilesRemovedFromMinifiedBuild().
-		webApi.setProgress({
-			caption: 'Downloading WordPress assets',
-			isIndefinite: false,
-			visible: true,
-		});
-		// Backfilling will not overwrite any existing files so it's safe to call here.
+		/**
+		 * If we already have the static assets in the cache, the backfilling only
+		 * involves unzipping the archive. This is fast. Let's do it before the first
+		 * render.
+		 *
+		 * Why?
+		 *
+		 * Because otherwise the initial offline page render would lack CSS.
+		 * Without the static assets in /wordpress/wp-content, the browser would
+		 * attempt to fetch them from the server. However, we're in an offline mode
+		 * so nothing would be fetched.
+		 */
 		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 	} else {
+		/**
+		 * If we don't have the static assets in the cache, we need to fetch them.
+		 *
+		 * Let's wait for the initial page load before we start the backfilling.
+		 * The static assets are 12MB+ in size. Starting the download before
+		 * Playground is loaded would noticeably delay the first paint.
+		 */
 		wpFrame.addEventListener('load', () => {
 			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		});

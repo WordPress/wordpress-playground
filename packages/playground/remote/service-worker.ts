@@ -25,11 +25,78 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
+/**
+ * Ensures the very first Playground load is controlled by this service worker.
+ *
+ * This is necessary because service workers don't control any pages loaded
+ * before they are activated. This includes the page that actually registers
+ * the service worker. You need to reload it before `navigator.serviceWorker.controller`
+ * is set and the fetch() requests are intercepted here.
+ *
+ * However, the initial Playground load already downloads a few large assets,
+ * like a 12MB wordpress-static.zip file. We need to cache them these requests.
+ * Otherwise they'll be fetched again on the next page load.
+ *
+ * client.claim() only affects pages loaded before the initial servie worker
+ * registration. It shouldn't have unwanted side effects in our case. All these
+ * pages would get controlled eventually anyway.
+ *
+ * See:
+ * * The service worker lifecycle https://web.dev/articles/service-worker-lifecycle
+ * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
+ */
+self.addEventListener('activate', function (event) {
+	event.waitUntil(self.clients.claim());
+});
+
+/**
+ * Handle fetch() caching:
+ *
+ * * Put the initial fetch response in the cache
+ * * Serve the subsequent requests from the cache
+ */
+self.addEventListener('fetch', (event) => {
+	const url = new URL(event.request.url);
+
+	/**
+	 * Don't cache requests to the service worker script itself.
+	 */
+	if (url.pathname.startsWith(self.location.pathname)) {
+		return;
+	}
+
+	/**
+	 * Don't cache requests to scoped URLs or if the referrer URL is scoped.
+	 *
+	 * These requests are made to the PHP Worker Thread and are not static assets.
+	 */
+	if (isURLScoped(url)) {
+		return;
+	}
+
+	let referrerUrl;
+	try {
+		referrerUrl = new URL(event.request.referrer);
+	} catch (e) {
+		// ignore
+	}
+
+	if (referrerUrl && isURLScoped(referrerUrl)) {
+		return;
+	}
+
+	/**
+	 * Respond with cached assets if available.
+	 * If the asset is not cached, fetch it from the network and cache it.
+	 */
+	event.respondWith(
+		cachePromise.then((cache) => cache.cachedFetch(event.request))
+	);
+});
+
 reportServiceWorkerMetrics(self);
 
-async function initialize() {
-	const cache = await OfflineModeCache.getInstance();
-
+const cachePromise = OfflineModeCache.getInstance().then((cache) => {
 	/**
 	 * For offline mode to work we need to cache all required assets.
 	 *
@@ -50,48 +117,6 @@ async function initialize() {
 	cache.cleanup();
 
 	return cache;
-}
-
-const cachePromise = initialize();
-
-/**
- * Handle fetch events and respond with cached assets if available.
- */
-self.addEventListener('fetch', (event) => {
-	const url = new URL(event.request.url);
-
-	/**
-	 * Don't cache requests to the service worker script itself.
-	 */
-	if (url.pathname.startsWith(self.location.pathname)) {
-		return;
-	}
-
-	/**
-	 * Don't cache requests to scoped URLs or if the referrer URL is scoped.
-	 *
-	 * These requests are made to the PHP Worker Thread and are not static assets.
-	 */
-	if (isURLScoped(url)) {
-		return;
-	}
-	let referrerUrl;
-	try {
-		referrerUrl = new URL(event.request.referrer);
-	} catch (e) {
-		// ignore
-	}
-	if (referrerUrl && isURLScoped(referrerUrl)) {
-		return;
-	}
-
-	/**
-	 * Respond with cached assets if available.
-	 * If the asset is not cached, fetch it from the network and cache it.
-	 */
-	event.respondWith(
-		cachePromise.then((cache) => cache.cachedFetch(event.request))
-	);
 });
 
 initializeServiceWorker({

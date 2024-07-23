@@ -1,4 +1,5 @@
 import { isURLScoped } from '@php-wasm/scopes';
+// @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
 const CACHE_NAME_PREFIX = 'playground-cache';
