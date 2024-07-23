@@ -14,7 +14,6 @@ import {
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
-import { buildVersion } from 'virtual:remote-config';
 import { OfflineModeCache } from './src/lib/offline-mode-cache';
 
 if (!(self as any).document) {
@@ -27,26 +26,33 @@ if (!(self as any).document) {
 }
 
 reportServiceWorkerMetrics(self);
-const cache = new OfflineModeCache(buildVersion, self.location.hostname);
 
-/**
- * For offline mode to work we need to cache all required assets.
- *
- * These assets are listed in the `/assets-required-for-offline-mode.json` file
- * and contain JavaScript, CSS, and other assets required to load the site without
- * making any network requests.
- */
-cache.cacheOfflineModeAssets();
+async function initialize() {
+	const cache = await OfflineModeCache.getInstance();
 
-/**
- * Cleanup old cache.
- *
- * We cache data based on `buildVersion` which is updated whenever Playground is built.
- * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
- *
- * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
- */
-cache.cleanup();
+	/**
+	 * For offline mode to work we need to cache all required assets.
+	 *
+	 * These assets are listed in the `/assets-required-for-offline-mode.json` file
+	 * and contain JavaScript, CSS, and other assets required to load the site without
+	 * making any network requests.
+	 */
+	cache.cacheOfflineModeAssets();
+
+	/**
+	 * Cleanup old cache.
+	 *
+	 * We cache data based on `buildVersion` which is updated whenever Playground is built.
+	 * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
+	 *
+	 * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
+	 */
+	cache.cleanup();
+
+	return cache;
+}
+
+const cachePromise = initialize();
 
 /**
  * Handle fetch events and respond with cached assets if available.
@@ -83,7 +89,9 @@ self.addEventListener('fetch', (event) => {
 	 * Respond with cached assets if available.
 	 * If the asset is not cached, fetch it from the network and cache it.
 	 */
-	event.respondWith(cache.cachedFetch(event.request));
+	event.respondWith(
+		cachePromise.then((cache) => cache.cachedFetch(event.request))
+	);
 });
 
 initializeServiceWorker({

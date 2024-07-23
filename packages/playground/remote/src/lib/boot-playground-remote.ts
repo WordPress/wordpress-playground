@@ -254,11 +254,7 @@ export async function bootPlaygroundRemote() {
 	 * If the browser is offline, we await the backfill or WordPress assets
 	 * from cache to ensure Playground is fully functional before boot finishes.
 	 */
-	if (window.navigator.onLine) {
-		wpFrame.addEventListener('load', () => {
-			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-		});
-	} else {
+	if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
 		// Note the .setProgress() call will run even if the static files are already in place, e.g. when running
 		// a non-minified build or an offline site. It doesn't seem like a big problem worth introducing
 		// a new API method like `webApi.needsBackfillingStaticFilesRemovedFromMinifiedBuild().
@@ -269,6 +265,10 @@ export async function bootPlaygroundRemote() {
 		});
 		// Backfilling will not overwrite any existing files so it's safe to call here.
 		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+	} else {
+		wpFrame.addEventListener('load', () => {
+			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		});
 	}
 
 	/*
