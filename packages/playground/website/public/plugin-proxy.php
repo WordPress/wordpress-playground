@@ -392,7 +392,7 @@ try {
         throw new ApiException('Invalid query parameters');
     }
 } catch (ApiException $e) {
-    header('HTTP/1.1 400 Invalid request');
+    http_response_code(400);
     if (!headers_sent()) {
         header('Content-Type: application/json');
     }
