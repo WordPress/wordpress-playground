@@ -1,4 +1,5 @@
 import { PHP } from './php';
+import { PHPEvent } from './universal-php';
 
 export interface RotateOptions {
 	php: PHP;
@@ -57,11 +58,17 @@ export function rotatePHPRuntime({
 		await rotateRuntime();
 	}
 
-	php.addEventListener('request.error', rotateRuntime);
+	async function rotateRuntimeForPhpWasmError(event: PHPEvent) {
+		if (event.type === 'request.error' && event.source === 'php-wasm') {
+			await rotateRuntime();
+		}
+	}
+
+	php.addEventListener('request.error', rotateRuntimeForPhpWasmError);
 	php.addEventListener('request.end', rotateRuntimeAfterMaxRequests);
 
 	return function () {
-		php.removeEventListener('request.error', rotateRuntime);
+		php.removeEventListener('request.error', rotateRuntimeForPhpWasmError);
 		php.removeEventListener('request.end', rotateRuntimeAfterMaxRequests);
 	};
 }

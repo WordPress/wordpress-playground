@@ -88,7 +88,7 @@ describe('rotatePHPRuntime()', () => {
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
-	it('Should recreate the PHP runtime after PHP crash', async () => {
+	it('Should recreate the PHP runtime after a PHP runtime crash', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
@@ -101,8 +101,32 @@ describe('rotatePHPRuntime()', () => {
 		await php.dispatchEvent({
 			type: 'request.error',
 			error: new Error('mock error'),
+			source: 'php-wasm',
 		});
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+	}, 30_000);
+
+	it('Should not recreate the PHP runtime after a PHP fatal', async () => {
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		const php = new PHP(await recreateRuntimeSpy());
+		rotatePHPRuntime({
+			php,
+			cwd: '/test-root',
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1234,
+		});
+		// Trigger error with no `source`
+		await php.dispatchEvent({
+			type: 'request.error',
+			error: new Error('mock error'),
+		});
+		// Trigger error with request `source`
+		await php.dispatchEvent({
+			type: 'request.error',
+			error: new Error('mock error'),
+			source: 'request',
+		});
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
 	}, 30_000);
 
 	it('Should not rotate after the cleanup handler is called, even if there is a PHP runtime error', async () => {
@@ -124,6 +148,7 @@ describe('rotatePHPRuntime()', () => {
 		php.dispatchEvent({
 			type: 'request.error',
 			error: new Error('mock error'),
+			source: 'php-wasm',
 		});
 
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
