@@ -283,17 +283,11 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		) {
 			return;
 		}
-		const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
-		const staticAssetsDirectory =
-			wpVersionToStaticAssetsDirectory(wpVersion);
-		if (!staticAssetsDirectory) {
+
+		const staticAssetsUrl = await getWordPressStaticZipUrl(php);
+		if (!staticAssetsUrl) {
 			return;
 		}
-		const staticAssetsUrl = joinPaths(
-			'/',
-			staticAssetsDirectory,
-			'wordpress-static.zip'
-		);
 
 		// We don't have the WordPress assets cached yet. Let's fetch them and cache them without
 		// awaiting the response. We're awaiting the backfillStaticFilesRemovedFromMinifiedBuild()
@@ -320,21 +314,33 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 }
 
 async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
-	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
-	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
-	if (!staticAssetsDirectory) {
+	const staticAssetsUrl = await getWordPressStaticZipUrl(php);
+	if (!staticAssetsUrl) {
 		return false;
 	}
-	const staticAssetsUrl = joinPaths(
-		'/',
-		staticAssetsDirectory,
-		'wordpress-static.zip'
-	);
 	const cache = await OfflineModeCache.getInstance();
 	const response = await cache.cache.match(staticAssetsUrl, {
 		ignoreSearch: true,
 	});
 	return !!response;
+}
+
+/**
+ * Returns the URL of the wordpress-static.zip file containing all the
+ * static assets missing from the currently load minified build.
+ *
+ * Note: This function will produce a URL even if we're running a full
+ *       production WordPress build.
+ *
+ * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
+ */
+async function getWordPressStaticZipUrl(php: PHP) {
+	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
+	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
+	if (!staticAssetsDirectory) {
+		return false;
+	}
+	return joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip');
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
