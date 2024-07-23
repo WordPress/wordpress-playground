@@ -1,6 +1,6 @@
 import { isURLScoped } from '@php-wasm/scopes';
 
-export class WorkerCache {
+export class OfflineModeCache {
 	readonly cacheNamePrefix = 'playground-cache';
 
 	private cacheName: string;
@@ -29,6 +29,7 @@ export class WorkerCache {
 		 */
 		if (
 			url.href.startsWith('http://127.0.0.1:5400/') ||
+			url.href.startsWith('http://localhost:5400/') ||
 			url.pathname.startsWith('/website-server/')
 		) {
 			return false;
