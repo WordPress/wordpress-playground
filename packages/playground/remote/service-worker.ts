@@ -107,14 +107,14 @@ const cachePromise = OfflineModeCache.getInstance().then((cache) => {
 	cache.cacheOfflineModeAssets();
 
 	/**
-	 * Cleanup old cache.
+	 * Remove outdated files from the cache.
 	 *
 	 * We cache data based on `buildVersion` which is updated whenever Playground is built.
 	 * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
 	 *
 	 * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
 	 */
-	cache.cleanup();
+	cache.removeOutdatedFiles();
 
 	return cache;
 });

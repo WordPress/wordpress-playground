@@ -23,7 +23,7 @@ export class OfflineModeCache {
 		this.cache = cache;
 	}
 
-	async cleanup() {
+	async removeOutdatedFiles() {
 		const keys = await caches.keys();
 		const oldKeys = keys.filter(
 			(key) =>
