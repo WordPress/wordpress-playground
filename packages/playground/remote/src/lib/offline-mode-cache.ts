@@ -56,7 +56,7 @@ export class OfflineModeCache {
 		return this.hostname === url.hostname;
 	};
 
-	cleanup = async () => {
+	removeOutdatedFiles = async () => {
 		const keys = await caches.keys();
 		const oldKeys = keys.filter(
 			(key) =>

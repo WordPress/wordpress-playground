@@ -151,6 +151,15 @@ or using Docker:
 docker run --rm -p 9999:80 -v $(pwd)/dist/packages/playground/wasm-wordpress-net:/usr/share/nginx/html:ro nginx:alpine
 ```
 
+#### Using the browser to test the offline support
+
+1. Open the browser and go to `http://localhost:9999`.
+2. Open the browser's developer tools.
+3. Go to the "Network" tab.
+4. Select "Offline" in the throttling dropdown menu.
+5. Refresh the page.
+
+
 ## How can I contribute?
 
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
