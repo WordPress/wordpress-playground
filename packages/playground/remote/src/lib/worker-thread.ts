@@ -46,6 +46,7 @@ import {
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
+import { OfflineModeCache } from './offline-mode-cache';
 
 /**
  * Startup options are received from spawnPHPWorkerThread using a message event.
@@ -202,6 +203,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			this.__internal_getPHP()!
 		);
 	}
+
+	async hasCachedStaticFilesRemovedFromMinifiedBuild() {
+		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
+			this.__internal_getPHP()!
+		);
+	}
 }
 
 /**
@@ -276,33 +283,64 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		) {
 			return;
 		}
-		const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
-		const staticAssetsDirectory =
-			wpVersionToStaticAssetsDirectory(wpVersion);
-		if (!staticAssetsDirectory) {
+
+		const staticAssetsUrl = await getWordPressStaticZipUrl(php);
+		if (!staticAssetsUrl) {
 			return;
 		}
-		const response = await fetch(
-			joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip')
-		);
 
-		if (!response.ok) {
+		// We don't have the WordPress assets cached yet. Let's fetch them and cache them without
+		// awaiting the response. We're awaiting the backfillStaticFilesRemovedFromMinifiedBuild()
+		// call in the web app and we don't want to block the initial load on this download.
+		const response = await fetch(staticAssetsUrl);
+
+		// We have the WordPress assets already cached, let's unzip them and finish.
+		if (!response?.ok) {
 			throw new Error(
 				`Failed to fetch WordPress static assets: ${response.status} ${response.statusText}`
 			);
 		}
-
 		await unzipFile(
 			php,
-			new File([await response.blob()], 'wordpress-static.zip'),
-			php.requestHandler.documentRoot,
+			new File([await response!.blob()], 'wordpress-static.zip'),
+			php.requestHandler!.documentRoot,
 			false
 		);
 		// Clear the remote asset list to indicate that the assets are downloaded.
-		await php.writeFile(remoteAssetListPath, '');
+		php.writeFile(remoteAssetListPath, '');
 	} catch (e) {
 		logger.warn('Failed to download WordPress assets', e);
 	}
+}
+
+async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
+	const staticAssetsUrl = await getWordPressStaticZipUrl(php);
+	if (!staticAssetsUrl) {
+		return false;
+	}
+	const cache = await OfflineModeCache.getInstance();
+	const response = await cache.cache.match(staticAssetsUrl, {
+		ignoreSearch: true,
+	});
+	return !!response;
+}
+
+/**
+ * Returns the URL of the wordpress-static.zip file containing all the
+ * static assets missing from the currently load minified build.
+ *
+ * Note: This function will produce a URL even if we're running a full
+ *       production WordPress build.
+ *
+ * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
+ */
+async function getWordPressStaticZipUrl(php: PHP) {
+	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
+	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
+	if (!staticAssetsDirectory) {
+		return false;
+	}
+	return joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip');
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(

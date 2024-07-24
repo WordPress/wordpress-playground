@@ -14,7 +14,6 @@ import {
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
-import { buildVersion } from 'virtual:remote-config';
 import { OfflineModeCache } from './src/lib/offline-mode-cache';
 
 if (!(self as any).document) {
@@ -26,37 +25,35 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
-reportServiceWorkerMetrics(self);
-const cache = new OfflineModeCache(buildVersion, self.location.hostname);
-
 /**
- * Cleanup old cache.
+ * Ensures the very first Playground load is controlled by this service worker.
  *
- * We cache data based on `buildVersion` which is updated whenever Playground is built.
- * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
+ * This is necessary because service workers don't control any pages loaded
+ * before they are activated. This includes the page that actually registers
+ * the service worker. You need to reload it before `navigator.serviceWorker.controller`
+ * is set and the fetch() requests are intercepted here.
  *
- * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
+ * However, the initial Playground load already downloads a few large assets,
+ * like a 12MB wordpress-static.zip file. We need to cache them these requests.
+ * Otherwise they'll be fetched again on the next page load.
  *
- * We don't want to await `removeOutdatedFiles` because it's not critical for the
- * boot process to avoid blocking the service worker.
+ * client.claim() only affects pages loaded before the initial servie worker
+ * registration. It shouldn't have unwanted side effects in our case. All these
+ * pages would get controlled eventually anyway.
+ *
+ * See:
+ * * The service worker lifecycle https://web.dev/articles/service-worker-lifecycle
+ * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
-cache.removeOutdatedFiles();
+self.addEventListener('activate', function (event) {
+	event.waitUntil(self.clients.claim());
+});
 
 /**
- * For offline mode to work we need to cache all required assets.
+ * Handle fetch() caching:
  *
- * These assets are listed in the `/assets-required-for-offline-mode.json` file
- * and contain JavaScript, CSS, and other assets required to load the site without
- * making any network requests.
- *
- * We don't want to await `cacheOfflineModeAssets` because it's not critical for the
- * boot process to avoid blocking the service worker.
- */
-cache.cacheOfflineModeAssets();
-
-
-/**
- * Handle fetch events and respond with cached assets if available.
+ * * Put the initial fetch response in the cache
+ * * Serve the subsequent requests from the cache
  */
 self.addEventListener('fetch', (event) => {
 	const url = new URL(event.request.url);
@@ -76,12 +73,14 @@ self.addEventListener('fetch', (event) => {
 	if (isURLScoped(url)) {
 		return;
 	}
+
 	let referrerUrl;
 	try {
 		referrerUrl = new URL(event.request.referrer);
 	} catch (e) {
 		// ignore
 	}
+
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		return;
 	}
@@ -90,7 +89,34 @@ self.addEventListener('fetch', (event) => {
 	 * Respond with cached assets if available.
 	 * If the asset is not cached, fetch it from the network and cache it.
 	 */
-	event.respondWith(cache.cachedFetch(event.request));
+	event.respondWith(
+		cachePromise.then((cache) => cache.cachedFetch(event.request))
+	);
+});
+
+reportServiceWorkerMetrics(self);
+
+const cachePromise = OfflineModeCache.getInstance().then((cache) => {
+	/**
+	 * For offline mode to work we need to cache all required assets.
+	 *
+	 * These assets are listed in the `/assets-required-for-offline-mode.json` file
+	 * and contain JavaScript, CSS, and other assets required to load the site without
+	 * making any network requests.
+	 */
+	cache.cacheOfflineModeAssets();
+
+	/**
+	 * Remove outdated files from the cache.
+	 *
+	 * We cache data based on `buildVersion` which is updated whenever Playground is built.
+	 * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
+	 *
+	 * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
+	 */
+	cache.removeOutdatedFiles();
+
+	return cache;
 });
 
 initializeServiceWorker({

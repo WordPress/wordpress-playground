@@ -1,28 +1,70 @@
 import { isURLScoped } from '@php-wasm/scopes';
+// @ts-ignore
+import { buildVersion } from 'virtual:remote-config';
+
+const CACHE_NAME_PREFIX = 'playground-cache';
+const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
 export class OfflineModeCache {
-	readonly cacheNamePrefix = 'playground-cache';
+	public cache: Cache;
+	private hostname = self.location.hostname;
 
-	private cacheName: string;
-	private hostname: string;
+	private static instance?: OfflineModeCache;
 
-	constructor(cacheVersion: string, hostname: string) {
-		this.hostname = hostname;
-		this.cacheName = `${this.cacheNamePrefix}-${cacheVersion}`;
+	static async getInstance() {
+		if (!OfflineModeCache.instance) {
+			const cache = await caches.open(LATEST_CACHE_NAME);
+			OfflineModeCache.instance = new OfflineModeCache(cache);
+		}
+		return OfflineModeCache.instance;
 	}
 
-	addCache = async (key: Request, response: Response) => {
-		const clonedResponse = response.clone();
-		const cache = await caches.open(this.cacheName);
-		await cache.put(key, clonedResponse);
-	};
+	private constructor(cache: Cache) {
+		this.cache = cache;
+	}
 
-	getCache = async (key: Request) => {
-		const cache = caches.open(this.cacheName);
-		return await cache.then((c) => c.match(key, { ignoreSearch: true }));
-	};
+	async removeOutdatedFiles() {
+		const keys = await caches.keys();
+		const oldKeys = keys.filter(
+			(key) =>
+				key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
+		);
+		return Promise.all(oldKeys.map((key) => caches.delete(key)));
+	}
 
-	shouldCacheUrl = (url: URL) => {
+	async cachedFetch(request: Request): Promise<Response> {
+		if (!this.shouldCacheUrl(new URL(request.url))) {
+			return await fetch(request);
+		}
+
+		let response = await this.cache.match(request, { ignoreSearch: true });
+		if (!response) {
+			response = await fetch(request);
+			if (response.ok) {
+				await this.cache.put(request, response.clone());
+			}
+		}
+
+		return response;
+	}
+
+	async cacheOfflineModeAssets(): Promise<any> {
+		if (!this.shouldCacheUrl(new URL(location.href))) {
+			return;
+		}
+
+		// Get the cache manifest and add all the files to the cache
+		const manifestResponse = await fetch(
+			'/assets-required-for-offline-mode.json'
+		);
+		const websiteUrls = await manifestResponse.json();
+		await this.cache.addAll([...websiteUrls, ...['/']]);
+	}
+
+	private shouldCacheUrl(url: URL) {
+		if (url.href.includes('wordpress-static.zip')) {
+			return true;
+		}
 		/**
 		 * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
 		 * Check the README for offline development instructions.
@@ -54,44 +96,5 @@ export class OfflineModeCache {
 		 * Allow only requests to the same hostname to be cached.
 		 */
 		return this.hostname === url.hostname;
-	};
-
-	removeOutdatedFiles = async () => {
-		const keys = await caches.keys();
-		const oldKeys = keys.filter(
-			(key) =>
-				key.startsWith(this.cacheNamePrefix) && key !== this.cacheName
-		);
-		return Promise.all(oldKeys.map((key) => caches.delete(key)));
-	};
-
-	cachedFetch = async (request: Request): Promise<Response> => {
-		const url = new URL(request.url);
-		if (!this.shouldCacheUrl(url)) {
-			return await fetch(request);
-		}
-		const cacheKey = request;
-		const cache = await this.getCache(cacheKey);
-		if (cache) {
-			return cache;
-		}
-		const response = await fetch(request);
-		await this.addCache(cacheKey, response);
-		return response;
-	};
-
-	cacheOfflineModeAssets = async (): Promise<any> => {
-		if (!this.shouldCacheUrl(new URL(location.href))) {
-			return;
-		}
-
-		const cache = await caches.open(this.cacheName);
-
-		// Get the cache manifest and add all the files to the cache
-		const manifestResponse = await fetch(
-			'/assets-required-for-offline-mode.json'
-		);
-		const websiteUrls = await manifestResponse.json();
-		await cache.addAll([...websiteUrls, ...['/']]);
-	};
+	}
 }
