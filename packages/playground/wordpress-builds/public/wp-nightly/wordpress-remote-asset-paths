@@ -1359,7 +1359,6 @@ wp-includes/js/dist/wordcount.min.js
 wp-includes/js/dist/escape-html.js
 wp-includes/js/dist/vendor/wp-polyfill-importmap.js
 wp-includes/js/dist/vendor/react-dom.min.js
-wp-includes/js/dist/vendor/react-dom.min.js.LICENSE.txt
 wp-includes/js/dist/vendor/react.js
 wp-includes/js/dist/vendor/wp-polyfill-dom-rect.js
 wp-includes/js/dist/vendor/wp-polyfill-url.min.js
@@ -1381,7 +1380,6 @@ wp-includes/js/dist/vendor/react-dom.js
 wp-includes/js/dist/vendor/lodash.js
 wp-includes/js/dist/vendor/wp-polyfill-inert.min.js
 wp-includes/js/dist/vendor/wp-polyfill-url.js
-wp-includes/js/dist/vendor/react.min.js.LICENSE.txt
 wp-includes/js/dist/vendor/react.min.js
 wp-includes/js/dist/vendor/wp-polyfill-object-fit.js
 wp-includes/js/dist/vendor/wp-polyfill-importmap.min.js
