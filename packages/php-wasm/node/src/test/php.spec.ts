@@ -1163,6 +1163,12 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
+	describe('Interface', () => {
+		it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
+			expect(() => php.run({})).rejects.toThrowError(TypeError);
+		});
+	});
+
 	describe('Startup sequence – basics', () => {
 		/**
 		 * This test ensures that the PHP runtime can be loaded twice.
