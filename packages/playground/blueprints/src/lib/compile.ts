@@ -238,7 +238,7 @@ export function compileBlueprint(
 				errors![0].instance
 			)}`
 		);
-		// Attach Ajv output to the thrown object for easier debugging
+		// Attach jsonschema output to the thrown object for easier debugging
 		(e as any).errors = errors;
 		throw e;
 	}
@@ -333,7 +333,7 @@ export function validateBlueprint(blueprintMaybe: object) {
 	 * Each entry of "steps" can be either an object, null, undefined etc
 	 * via the "anyOf" part of the schema.
 	 *
-	 * If the step has any error in it, like a missing property, Ajv will
+	 * If the step has any error in it, like a missing property, jsonschema will
 	 * also return errors for each case listed in "anyOf" which means we'll
 	 * learn that step is not a null, undefined etc. This is not helpful, so
 	 * we filter out those errors.

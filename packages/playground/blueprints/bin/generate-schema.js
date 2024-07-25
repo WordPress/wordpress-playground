@@ -41,7 +41,7 @@ schema.definitions.Blueprint.properties.$schema = {
 	type: 'string',
 };
 
-// Use a discriminator to help the Ajv JSON schema validator
+// Use a discriminator to help the jsonschema JSON schema validator
 // provide more useful error messages with respect to StepDefinition.
 // Without a discriminator, it will validate each invalid step
 // against all possible `anyOf` entries, which is not helpful.
