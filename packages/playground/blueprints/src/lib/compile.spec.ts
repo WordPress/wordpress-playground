@@ -180,7 +180,7 @@ describe('Blueprints', () => {
 					],
 				});
 			});
-			test.only('invalid step type', () => {
+			test('invalid step type', () => {
 				const invalidBlueprint = {
 					steps: [14],
 				};
