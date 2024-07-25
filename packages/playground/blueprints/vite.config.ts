@@ -58,4 +58,11 @@ export default defineConfig({
 		environment: 'jsdom',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 	},
+
+	resolve: {
+		alias: {
+			// URL is required by the jsonschema library.
+			url: 'url',
+		},
+	},
 });
