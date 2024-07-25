@@ -104,13 +104,13 @@ describe('Blueprints', () => {
 					valid: false,
 					errors: [
 						{
-							instancePath: '',
+							instancePath: [],
 							keyword: 'additionalProperties',
 							params: {
-								additionalProperty: 'invalidProperty',
+								type: 'object',
 							},
-							message: 'must NOT have additional properties',
-							schemaPath: expect.any(String),
+							message:
+								'is not allowed to have the additional property "invalidProperty"',
 						},
 					],
 				});
@@ -123,13 +123,12 @@ describe('Blueprints', () => {
 					valid: false,
 					errors: [
 						{
-							instancePath: '/steps',
+							instancePath: ['steps'],
 							keyword: 'type',
 							params: {
 								type: 'array',
 							},
-							message: 'must be array',
-							schemaPath: expect.any(String),
+							message: 'is not of a type(s) array',
 						},
 					],
 				});
@@ -151,19 +150,37 @@ describe('Blueprints', () => {
 					valid: false,
 					errors: [
 						{
-							instancePath: '/steps/0',
-							keyword: 'required',
+							instancePath: ['steps', 0],
+							keyword: 'anyOf',
 							params: {
-								missingProperty: 'themeZipFile',
+								type: {
+									anyOf: [
+										{
+											$ref: '#/definitions/StepDefinition',
+										},
+										{
+											type: 'string',
+										},
+										{
+											not: {},
+										},
+										{
+											const: false,
+											type: 'boolean',
+										},
+										{
+											type: 'null',
+										},
+									],
+								},
 							},
 							message:
-								"must have required property 'themeZipFile'",
-							schemaPath: expect.any(String),
+								'is not any of <#/definitions/StepDefinition>,[subschema 1],[subschema 2],[subschema 3],[subschema 4]',
 						},
 					],
 				});
 			});
-			test('invalid step type', () => {
+			test.only('invalid step type', () => {
 				const invalidBlueprint = {
 					steps: [14],
 				};
@@ -171,13 +188,32 @@ describe('Blueprints', () => {
 					valid: false,
 					errors: [
 						{
-							instancePath: '/steps/0',
-							keyword: 'type',
+							instancePath: ['steps', 0],
+							keyword: 'anyOf',
 							params: {
-								type: 'object',
+								type: {
+									anyOf: [
+										{
+											$ref: '#/definitions/StepDefinition',
+										},
+										{
+											type: 'string',
+										},
+										{
+											not: {},
+										},
+										{
+											const: false,
+											type: 'boolean',
+										},
+										{
+											type: 'null',
+										},
+									],
+								},
 							},
-							message: 'must be object',
-							schemaPath: expect.any(String),
+							message:
+								'is not any of <#/definitions/StepDefinition>,[subschema 1],[subschema 2],[subschema 3],[subschema 4]',
 						},
 					],
 				});

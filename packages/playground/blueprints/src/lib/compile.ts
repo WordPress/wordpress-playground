@@ -235,7 +235,7 @@ export function compileBlueprint(
 	if (!valid) {
 		const e = new Error(
 			`Invalid blueprint: ${errors![0].message} at ${JSON.stringify(
-				errors![0].instance
+				errors![0].instancePath
 			)}`
 		);
 		// Attach jsonschema output to the thrown object for easier debugging
@@ -344,23 +344,26 @@ export function validateBlueprint(blueprintMaybe: object) {
 	 */
 	const hasErrorsDifferentThanAnyOf: Set<string> = new Set();
 	for (const error of validationResult.errors) {
-		if (
-			!error.schema
-				.toString()
-				.startsWith('#/properties/steps/items/anyOf')
-		) {
+		if (error.name !== 'anyOf') {
 			hasErrorsDifferentThanAnyOf.add(error.instance);
 		}
 	}
-	const errors = validationResult.errors?.filter(
-		(error) =>
-			!(
-				error.schema
-					.toString()
-					.startsWith('#/properties/steps/items/anyOf') &&
-				hasErrorsDifferentThanAnyOf.has(error.instance)
-			)
-	);
+	const errors = validationResult.errors
+		?.filter(
+			(error) =>
+				!(
+					error.name === 'anyOf' &&
+					hasErrorsDifferentThanAnyOf.has(error.instance)
+				)
+		)
+		.map((error) => ({
+			instancePath: error.path,
+			keyword: error.name,
+			params: {
+				type: (error.schema as Schema).type ?? error.schema,
+			},
+			message: error.message,
+		}));
 
 	return {
 		valid,
