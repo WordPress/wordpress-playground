@@ -75,8 +75,8 @@ const ajv = new Ajv({
 const validate = ajv.compile(schema);
 const rawValidationCode = ajvStandaloneCode(ajv, validate);
 
-// Use prettier to make the generated validation code more readable
-const prettierConfig = prettier.resolveConfig(validator_output_path);
+// Use prettier to make the generated validation code more readable.
+const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
 const formattedValidationCode = prettier.format(
 	rawValidationCode,
 	prettierConfig
