@@ -4,6 +4,10 @@ title: Getting started with Blueprints
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
+:::tip
+Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore a variety of ways you can use WordPress Playground to launch a WordPress site with any plugin or theme.
+:::
+
 # Getting started with Blueprints
 
 Blueprints are JSON files for setting up your very own WordPress Playground instance. For example:

@@ -163,6 +163,14 @@ const config = {
 								to: '/',
 							},
 							{
+								label: 'Blueprints',
+								to: '/blueprints',
+							},
+							{
+								label: 'Developers',
+								to: '/developers',
+							},
+							{
 								label: 'API Reference',
 								to: '/api',
 							},
