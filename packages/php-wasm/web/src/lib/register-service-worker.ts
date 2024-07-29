@@ -2,6 +2,7 @@ import { PHPWorker } from '@php-wasm/universal';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
+import { logger } from '@php-wasm/logger';
 
 export interface Client extends Remote<PHPWorker> {}
 
@@ -65,7 +66,15 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 
 	// Check if there's a new service worker available and, if so, enqueue
 	// the update:
-	await registration.update();
+	try {
+		await registration.update();
+	} catch (e) {
+		// registration.update() throws if it can't reach the server.
+		// We're swallowing the error to keep the app working in offline mode
+		// or when playground.wordpress.net is down. We can be sure we have a functional
+		// service worker at this point because sw.register() succeeded.
+		logger.error('Failed to update service worker.', e);
+	}
 
 	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(

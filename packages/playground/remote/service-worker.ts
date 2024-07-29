@@ -2,7 +2,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope } from '@php-wasm/scopes';
+import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -14,7 +14,7 @@ import {
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
-import { buildVersion } from 'virtual:remote-config';
+import { OfflineModeCache } from './src/lib/offline-mode-cache';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -25,10 +25,101 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
+/**
+ * Ensures the very first Playground load is controlled by this service worker.
+ *
+ * This is necessary because service workers don't control any pages loaded
+ * before they are activated. This includes the page that actually registers
+ * the service worker. You need to reload it before `navigator.serviceWorker.controller`
+ * is set and the fetch() requests are intercepted here.
+ *
+ * However, the initial Playground load already downloads a few large assets,
+ * like a 12MB wordpress-static.zip file. We need to cache them these requests.
+ * Otherwise they'll be fetched again on the next page load.
+ *
+ * client.claim() only affects pages loaded before the initial servie worker
+ * registration. It shouldn't have unwanted side effects in our case. All these
+ * pages would get controlled eventually anyway.
+ *
+ * See:
+ * * The service worker lifecycle https://web.dev/articles/service-worker-lifecycle
+ * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
+ */
+self.addEventListener('activate', function (event) {
+	event.waitUntil(self.clients.claim());
+});
+
+/**
+ * Handle fetch() caching:
+ *
+ * * Put the initial fetch response in the cache
+ * * Serve the subsequent requests from the cache
+ */
+self.addEventListener('fetch', (event) => {
+	const url = new URL(event.request.url);
+
+	/**
+	 * Don't cache requests to the service worker script itself.
+	 */
+	if (url.pathname.startsWith(self.location.pathname)) {
+		return;
+	}
+
+	/**
+	 * Don't cache requests to scoped URLs or if the referrer URL is scoped.
+	 *
+	 * These requests are made to the PHP Worker Thread and are not static assets.
+	 */
+	if (isURLScoped(url)) {
+		return;
+	}
+
+	let referrerUrl;
+	try {
+		referrerUrl = new URL(event.request.referrer);
+	} catch (e) {
+		// ignore
+	}
+
+	if (referrerUrl && isURLScoped(referrerUrl)) {
+		return;
+	}
+
+	/**
+	 * Respond with cached assets if available.
+	 * If the asset is not cached, fetch it from the network and cache it.
+	 */
+	event.respondWith(
+		cachePromise.then((cache) => cache.cachedFetch(event.request))
+	);
+});
+
 reportServiceWorkerMetrics(self);
 
+const cachePromise = OfflineModeCache.getInstance().then((cache) => {
+	/**
+	 * For offline mode to work we need to cache all required assets.
+	 *
+	 * These assets are listed in the `/assets-required-for-offline-mode.json` file
+	 * and contain JavaScript, CSS, and other assets required to load the site without
+	 * making any network requests.
+	 */
+	cache.cacheOfflineModeAssets();
+
+	/**
+	 * Remove outdated files from the cache.
+	 *
+	 * We cache data based on `buildVersion` which is updated whenever Playground is built.
+	 * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
+	 *
+	 * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
+	 */
+	cache.removeOutdatedFiles();
+
+	return cache;
+});
+
 initializeServiceWorker({
-	cacheVersion: buildVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
@@ -55,14 +146,14 @@ initializeServiceWorker({
 			const workerResponse = await convertFetchEventToPHPRequest(event);
 			if (
 				workerResponse.status === 404 &&
-				workerResponse.headers.get('x-file-type') === 'static'
+				workerResponse.headers.get('x-backfill-from') === 'remote-host'
 			) {
 				const { staticAssetsDirectory } = await getScopedWpDetails(
 					scope!
 				);
 				if (!staticAssetsDirectory) {
 					const plain404Response = workerResponse.clone();
-					plain404Response.headers.delete('x-file-type');
+					plain404Response.headers.delete('x-backfill-from');
 					return plain404Response;
 				}
 

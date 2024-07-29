@@ -15,6 +15,7 @@ const patternsToNotCache = [
 	'/index.d.ts',
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
+	'/index.js',
 	/**
 	 * WordPress assets removed from the minified builds, for example:
 	 *
