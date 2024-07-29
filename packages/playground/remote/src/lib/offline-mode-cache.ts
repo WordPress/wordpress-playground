@@ -1,6 +1,7 @@
 import { isURLScoped } from '@php-wasm/scopes';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
+import { logger } from '@php-wasm/logger';
 
 const CACHE_NAME_PREFIX = 'playground-cache';
 const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
@@ -53,12 +54,16 @@ export class OfflineModeCache {
 			return;
 		}
 
-		// Get the cache manifest and add all the files to the cache
-		const manifestResponse = await fetch(
-			'/assets-required-for-offline-mode.json'
-		);
-		const websiteUrls = await manifestResponse.json();
-		await this.cache.addAll([...websiteUrls, ...['/']]);
+		try {
+			// Get the cache manifest and add all the files to the cache
+			const manifestResponse = await fetch(
+				'/assets-required-for-offline-mode.json'
+			);
+			const websiteUrls = await manifestResponse.json();
+			await this.cache.addAll([...websiteUrls, ...['/']]);
+		} catch (error) {
+			logger.warn('Error caching offline mode assets:', error);
+		}
 	}
 
 	private shouldCacheUrl(url: URL) {
@@ -74,6 +79,11 @@ export class OfflineModeCache {
 			url.href.startsWith('http://localhost:5400/') ||
 			url.pathname.startsWith('/website-server/')
 		) {
+			return false;
+		}
+
+		// Don't cache the local test environment
+		if (url.href.startsWith('https://playground.test/')) {
 			return false;
 		}
 
