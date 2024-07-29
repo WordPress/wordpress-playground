@@ -125,6 +125,10 @@
 				"ci": {
 					"devServerTarget": "playground-website:preview:ci",
 					"baseUrl": "http://localhost/website-server/"
+				},
+				"preview": {
+					"devServerTarget": "playground-website:preview",
+					"baseUrl": "http://localhost:5932/website-server/"
 				}
 			},
 			"dependsOn": ["build"]
@@ -141,10 +145,6 @@
 				"headless": false,
 				"baseUrl": "https://playground.test/website-server/"
 			}
-		},
-		"e2e:preview": {
-			"executor": "nx:noop",
-			"dependsOn": ["build", "preview", "e2e:preview:cypress"]
 		},
 		"e2e:preview:cypress": {
 			"executor": "@nx/cypress:cypress",
