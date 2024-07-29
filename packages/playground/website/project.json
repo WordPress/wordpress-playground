@@ -7,9 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": [
-				"build:wasm-wordpress-net"
-			]
+			"dependsOn": ["build:wasm-wordpress-net"]
 		},
 		"build:wasm-wordpress-net": {
 			"executor": "nx:run-commands",
@@ -28,10 +26,7 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": [
-				"build:standalone",
-				"^build"
-			]
+			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
 			"executor": "@nx/vite:build",
@@ -145,6 +140,19 @@
 				"testingType": "e2e",
 				"headless": false,
 				"baseUrl": "https://playground.test/website-server/"
+			}
+		},
+		"e2e:preview": {
+			"executor": "nx:noop",
+			"dependsOn": ["build", "preview", "e2e:preview:cypress"]
+		},
+		"e2e:preview:cypress": {
+			"executor": "@nx/cypress:cypress",
+			"options": {
+				"cypressConfig": "packages/playground/website/cypress.config.ts",
+				"testingType": "e2e",
+				"headless": false,
+				"baseUrl": "http://localhost:5932/website-server/"
 			}
 		}
 	},
