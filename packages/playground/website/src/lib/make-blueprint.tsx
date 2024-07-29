@@ -12,6 +12,7 @@ interface MakeBlueprintOptions {
 	plugins?: string[];
 	importSite?: string;
 	importWxr?: string;
+	language?: string;
 }
 
 export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
@@ -65,6 +66,13 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 				},
 				progress: { weight: 2 },
 			})),
+			/**
+			 * The language step needs to run after the theme and plugins are installed to ensure that the translations are available.
+			 */
+			options.language && {
+				step: 'setSiteLanguage',
+				language: options.language,
+			},
 		],
 	};
 }

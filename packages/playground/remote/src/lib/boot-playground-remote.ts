@@ -5,6 +5,7 @@ import {
 } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
+	setPhpApi,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
@@ -71,7 +72,11 @@ export async function bootPlaygroundRemote() {
 	);
 	const withNetworking = query.get('networking') === 'yes';
 	const sapiName = query.get('sapi-name') || undefined;
-	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
+
+	const scope = Math.random().toFixed(16);
+	await registerServiceWorker(scope, serviceWorkerUrl + '');
+
+	const phpApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
@@ -80,25 +85,28 @@ export async function bootPlaygroundRemote() {
 			storage: query.get('storage') || '',
 			...(sapiName ? { sapiName } : {}),
 			'site-slug': query.get('site-slug') || 'wordpress',
+			scope,
 		})
 	);
+	// Set PHP API in the service worker
+	setPhpApi(phpApi);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
-			return workerApi.onDownloadProgress(fn);
+			return phpApi.onDownloadProgress(fn);
 		},
 		async journalFSEvents(root: string, callback) {
-			return workerApi.journalFSEvents(root, callback);
+			return phpApi.journalFSEvents(root, callback);
 		},
 		async replayFSJournal(events: FilesystemOperation[]) {
-			return workerApi.replayFSJournal(events);
+			return phpApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await workerApi.addEventListener(event, listener);
+			return await phpApi.addEventListener(event, listener);
 		},
 		async removeEventListener(event, listener) {
-			return await workerApi.removeEventListener(event, listener);
+			return await phpApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
@@ -183,7 +191,7 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async onMessage(callback: MessageListener) {
-			return await workerApi.onMessage(callback);
+			return await phpApi.onMessage(callback);
 		},
 		/**
 		 * Ditto for this function.
@@ -195,18 +203,27 @@ export async function bootPlaygroundRemote() {
 			options: BindOpfsOptions,
 			onProgress?: SyncProgressCallback
 		) {
-			return await workerApi.bindOpfs(options, onProgress);
+			return await phpApi.bindOpfs(options, onProgress);
 		},
 
 		/**
 		 * Download WordPress assets.
+		 * @see backfillStaticFilesRemovedFromMinifiedBuild in the worker-thread.ts
 		 */
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
-			await workerApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			await phpApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		},
+
+		/**
+		 * Checks whether we have the missing WordPress assets readily
+		 * available in the request cache.
+		 */
+		async hasCachedStaticFilesRemovedFromMinifiedBuild() {
+			return await phpApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
 	};
 
-	await workerApi.isConnected();
+	await phpApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
@@ -215,22 +232,18 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
+	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, phpApi);
 
 	try {
-		await workerApi.isReady();
-		await registerServiceWorker(
-			workerApi,
-			await workerApi.scope,
-			serviceWorkerUrl + ''
-		);
+		await phpApi.isReady();
+
 		setupPostMessageRelay(
 			wpFrame,
 			getOrigin((await playground.absoluteUrl)!)
 		);
 		setupMountListener(playground);
 		if (withNetworking) {
-			await setupFetchNetworkTransport(workerApi);
+			await setupFetchNetworkTransport(phpApi);
 		}
 
 		setAPIReady();
@@ -239,9 +252,46 @@ export async function bootPlaygroundRemote() {
 		throw e;
 	}
 
-	wpFrame.addEventListener('load', () => {
-		webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-	});
+	/**
+	 * When we're running WordPress from a minified bundle, we're missing some static assets.
+	 * The section below backfills them if needed. It doesn't do anything if the assets are already
+	 * in place, or when WordPress is loaded from a non-minified bundle.
+	 *
+	 * Minified bundles are shipped without most static assets to reduce the bundle size and
+	 * the loading time. When WordPress loads for the first time, the browser parses all the
+	 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
+	 *
+	 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
+	 *
+	 * Below we're downloading a zipped bundle of the missing assets.
+	 */
+	if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
+		/**
+		 * If we already have the static assets in the cache, the backfilling only
+		 * involves unzipping the archive. This is fast. Let's do it before the first
+		 * render.
+		 *
+		 * Why?
+		 *
+		 * Because otherwise the initial offline page render would lack CSS.
+		 * Without the static assets in /wordpress/wp-content, the browser would
+		 * attempt to fetch them from the server. However, we're in an offline mode
+		 * so nothing would be fetched.
+		 */
+		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+	} else {
+		/**
+		 * If we don't have the static assets in the cache, we need to fetch them.
+		 *
+		 * Let's wait for the initial page load before we start the backfilling.
+		 * The static assets are 12MB+ in size. Starting the download before
+		 * Playground is loaded would noticeably delay the first paint.
+		 */
+		wpFrame.addEventListener('load', () => {
+			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		});
+	}
+
 	/*
 	 * An assertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
@@ -305,7 +355,8 @@ function assertNotInfiniteLoadingLoop() {
 	}
 	if (isBrowserInABrowser) {
 		throw new Error(
-			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-playground/issues'
+			`The service worker did not load correctly. This is a bug,
+			please report it on https://github.com/WordPress/wordpress-playground/issues`
 		);
 	}
 	(window as any).IS_WASM_WORDPRESS = true;

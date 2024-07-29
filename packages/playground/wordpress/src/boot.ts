@@ -1,4 +1,6 @@
 import {
+	FileNotFoundAction,
+	FileNotFoundGetActionCallback,
 	FileTree,
 	PHP,
 	PHPProcessManager,
@@ -83,6 +85,12 @@ export interface BootOptions {
 	 * ```
 	 */
 	createFiles?: FileTree;
+
+	/**
+	 * A callback that decides how to handle a file-not-found condition for a
+	 * given request URI.
+	 */
+	getFileNotFoundAction?: FileNotFoundGetActionCallback;
 }
 
 /**
@@ -169,6 +177,8 @@ export async function bootWordPress(options: BootOptions) {
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
+		getFileNotFoundAction:
+			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 	});
 
 	const php = await requestHandler.getPrimaryPhp();
@@ -190,12 +200,12 @@ export async function bootWordPress(options: BootOptions) {
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
-	// @TODO Assert WordPress core files are in place
-
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
 	}
+
+	// @TODO Assert WordPress core files are in place
 
 	if (options.sqliteIntegrationPluginZip) {
 		await preloadSqliteIntegration(
@@ -255,4 +265,16 @@ async function installWordPress(php: PHP) {
 				},
 			})
 	);
+}
+
+export function getFileNotFoundActionForWordPress(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- maintain consistent FileNotFoundGetActionCallback signature
+	relativeUri: string
+): FileNotFoundAction {
+	// Delegate unresolved requests to WordPress. This makes WP magic possible,
+	// like pretty permalinks and dynamically generated sitemaps.
+	return {
+		type: 'internal-redirect',
+		uri: '/index.php',
+	};
 }

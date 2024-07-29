@@ -233,30 +233,6 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
-	if (str_ends_with($requested_path, 'puzzle.php')) {
-		// TODO: Remove this condition when we can confirm __atomic_env_define() is again always defined
-		if (function_exists('__atomic_env_define')) {
-			// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
-			// which is not set yet. But we can force its definition.
-			__atomic_env_define('DB_PASSWORD');
-
-			$secrets = new Atomic_Persistent_Data;
-			if (isset(
-				$secrets->OPEN_AI_API_KEY,
-				$secrets->PUZZLE_API_KEY,
-			)) {
-				putenv("OPEN_AI_API_KEY={$secrets->OPEN_AI_API_KEY}");
-				putenv("PUZZLE_API_KEY={$secrets->PUZZLE_API_KEY}");
-			} else {
-				error_log('PLAYGROUND: Missing secrets for puzzle.php');
-			}
-		} else {
-			error_log('PLAYGROUND: Unable to access secrets for puzzle.php');
-		}
-
-		return true;
-	}
-
 	if ( str_ends_with( $requested_path, 'plugin-proxy.php' ) ) {
 		// TODO: Remove this condition when we can confirm __atomic_env_define() is again always defined
 		if ( function_exists( '__atomic_env_define' ) ) {

@@ -16,26 +16,13 @@
 					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
 				]
 			},
-			"dependsOn": ["build:rollup-declarations"]
+			"dependsOn": ["build:mkdir"]
 		},
 		"build:copy-wasms": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:rollup-declarations"]
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/php-wasm/node/src/rollup.d.ts -- packages/php-wasm/node/src/index.ts",
-					"rimraf dist/packages/php-wasm/node/lib/*.d.ts",
-					"rimraf dist/packages/php-wasm/node/*.d.ts",
-					"cp packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
 				],
 				"parallel": false
 			},
@@ -47,7 +34,8 @@
 				"tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/node",
 				"buildTarget": "php-wasm-node:build:bundle:production"
-			}
+			},
+			"dependsOn": ["build:mkdir"]
 		},
 		"build:bundle": {
 			"executor": "@nx/esbuild:esbuild",
@@ -55,6 +43,14 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"command": "node packages/php-wasm/node/build.js",
+				"parallel": false
+			},
+			"dependsOn": ["build:mkdir"]
+		},
+		"build:mkdir": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["mkdir -p dist/packages/php-wasm/node"],
 				"parallel": false
 			}
 		},

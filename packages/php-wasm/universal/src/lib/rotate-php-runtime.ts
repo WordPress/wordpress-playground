@@ -1,4 +1,5 @@
 import { PHP } from './php';
+import { PHPEvent } from './universal-php';
 
 export interface RotateOptions {
 	php: PHP;
@@ -37,22 +38,37 @@ export function rotatePHPRuntime({
 	 */
 	maxRequests = 400,
 }: RotateOptions) {
-	let handledCalls = 0;
+	let runtimeRequestCount = 0;
 	async function rotateRuntime() {
-		if (++handledCalls < maxRequests) {
-			return;
-		}
-		handledCalls = 0;
-
 		const release = await php.semaphore.acquire();
 		try {
 			php.hotSwapPHPRuntime(await recreateRuntime(), cwd);
+
+			// A new runtime has handled zero requests.
+			runtimeRequestCount = 0;
 		} finally {
 			release();
 		}
 	}
-	php.addEventListener('request.end', rotateRuntime);
+
+	async function rotateRuntimeAfterMaxRequests() {
+		if (++runtimeRequestCount < maxRequests) {
+			return;
+		}
+		await rotateRuntime();
+	}
+
+	async function rotateRuntimeForPhpWasmError(event: PHPEvent) {
+		if (event.type === 'request.error' && event.source === 'php-wasm') {
+			await rotateRuntime();
+		}
+	}
+
+	php.addEventListener('request.error', rotateRuntimeForPhpWasmError);
+	php.addEventListener('request.end', rotateRuntimeAfterMaxRequests);
+
 	return function () {
-		php.removeEventListener('request.end', rotateRuntime);
+		php.removeEventListener('request.error', rotateRuntimeForPhpWasmError);
+		php.removeEventListener('request.end', rotateRuntimeAfterMaxRequests);
 	};
 }

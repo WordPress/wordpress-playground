@@ -22,9 +22,11 @@ describe('Playground website UI', () => {
 	// Test all PHP versions for completeness
 	describe('PHP version switcher', () => {
 		SupportedPHPVersions.forEach((version) => {
-			if (version === '7.0') {
-				// The SQLite integration plugin uses `private const` which is not supported in PHP 7.0
-				// @TODO: Adjust the plugin and remove this condition.
+			/**
+			 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 so we need to skip these versions.
+			 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
+			 */
+			if (['7.0', '7.1'].includes(version)) {
 				return;
 			}
 			it('should switch PHP version to ' + version, () => {
