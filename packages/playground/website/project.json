@@ -82,9 +82,7 @@
 				"port": 5932
 			},
 			"configurations": {
-				"ci": {
-					"port": 80
-				}
+				"ci": {}
 			}
 		},
 		"test": {
@@ -125,10 +123,6 @@
 				"ci": {
 					"devServerTarget": "playground-website:preview:ci",
 					"baseUrl": "http://localhost/website-server/"
-				},
-				"preview": {
-					"devServerTarget": "playground-website:preview",
-					"baseUrl": "http://localhost:5932/website-server/"
 				}
 			},
 			"dependsOn": ["build"]
