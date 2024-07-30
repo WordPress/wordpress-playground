@@ -4,7 +4,7 @@ slug: /
 id: introduction
 ---
 
-# WordPress Playground
+# WordPress Playground Docs
 
 :::info **Looking for the official Playground website?**
 
@@ -12,7 +12,7 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 
 :::
 
-👋 Hi! Welcome to WordPress Playground documentation. Playground is an online tool to experiment and learn about WordPress – learn more in the [About Playground](./02-about-playground.md) section.
+👋 Hi! Welcome to WordPress Playground documentation. Playground is an online tool to experiment and learn about WordPress – learn more in the [About Playground](./03-about-playground.md) section.
 
 This site (Documentation) is where you will find all the information you need to start using Playground.
 
@@ -29,17 +29,17 @@ This docs space is focused on starting with WordPress Playground and is divided 
 
 -   **[Quick Start Guide](/wordpress-playground/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
 
--   **[About Playground](/wordpress-playground/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
+-   **[About Playground](./03-about-playground.md)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
 
--   **[🛠️ Build](/wordpress-playground/build)**: Learn more in this section about how WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
+-   **[🛠️ Build](./10-build/01-index.md)**: Learn more in this section about how WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
 
--   **[📝 Test](/WordPress/test)**: This section explains how to upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
+-   **[📝 Test](./11-test/01-index.md)**: This section explains how to upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
 
--   **[🚀 Launch](/WordPress/launch)**: Learn more about using WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time.
+-   **[🚀 Launch](./12-launch/01-index.md)**: Learn more about using WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time.
 
--   **[Contributing](/wordpress-playground/main/contributing/index)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
+-   **[Contributing](./25-contributing/01-index.md)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
 
--   **[Links and resources](/wordpress-playground/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+-   **[Links and resources](./26-resources.md)**: A nice compilation of useful links and resources related to WordPress Playground.
 
 ## First steps
 
