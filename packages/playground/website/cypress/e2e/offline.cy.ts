@@ -32,6 +32,21 @@ const goOnline = () => {
 };
 
 /**
+ * We need to intercept the static assets download because the
+ * `backfillStaticFilesRemovedFromMinifiedBuild` function is the last part of
+ * the boot process that runs when the website is online.
+ */
+const interceptWordPressStaticAssets = () => {
+	cy.intercept('GET', '**/wordpress-static.zip').as('staticAssets');
+};
+/**
+ * Wait for the static assets to be downloaded.
+ */
+const waitForWordPressStaticAssets = () => {
+	cy.wait('@staticAssets', { timeout: 30000 });
+};
+
+/**
  * We need to skip these tests in development mode because offline mode works
  * only in a production like environment.
  * Vite prevents us from caching files correctly in development mode.
@@ -46,11 +61,9 @@ describe(
 	() => {
 		describe('Playground should load the website', () => {
 			before(() => {
-				cy.intercept('GET', '**/wordpress-static.zip').as(
-					'staticAssets'
-				);
+				interceptWordPressStaticAssets();
 				cy.visit('/');
-				cy.wait('@staticAssets', { timeout: 30000 });
+				waitForWordPressStaticAssets();
 			});
 
 			beforeEach(() => {
@@ -86,7 +99,7 @@ describe(
 					'staticAsset'
 				);
 				cy.setWordPressUrl('/wp-admin/');
-				cy.wait('@staticAsset', { timeout: 10000 })
+				cy.wait('@staticAsset', { timeout: 30000 })
 					.its('response.statusCode')
 					// 304 means returned from cache
 					.should('eq', 304);
