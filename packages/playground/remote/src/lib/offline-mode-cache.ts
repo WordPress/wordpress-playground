@@ -1,7 +1,6 @@
 import { isURLScoped } from '@php-wasm/scopes';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
-import { logger } from '@php-wasm/logger';
 
 const CACHE_NAME_PREFIX = 'playground-cache';
 const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
