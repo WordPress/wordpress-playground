@@ -20,27 +20,31 @@ const sidebars = {
 			items: [
 				'main/introduction',
 				'main/quick-start-guide',
-				'main/about-playground',
 				{
 					type: 'category',
-					label: '🛠️ Build',
+					label: 'About Playground',
 					link: {
 						type: 'doc',
-						id: 'main/build/index',
+						id: 'main/about/index',
 					},
-					items: ['main/build/development-environments'],
+					items: [
+						'main/about/build',
+						'main/about/test',
+						'main/about/launch',
+					],
 				},
-				'main/test/index',
-				// {
-				// 	type: 'category',
-				// 	label: '📝 Test',
-				// 	link: {
-				// 		type: 'doc',
-				// 		id: 'main/test/index',
-				// 	},
-				// 	items: ['main/test/for-theme-developers'],
-				// },
-				'main/launch/index',
+				{
+					type: 'category',
+					label: '📖 Guides',
+					link: {
+						type: 'doc',
+						id: 'main/guides/index',
+					},
+					items: [
+						'main/guides/for-theme-developers',
+						'main/guides/for-plugin-developers',
+					],
+				},
 				{
 					type: 'category',
 					label: 'Contributing',
