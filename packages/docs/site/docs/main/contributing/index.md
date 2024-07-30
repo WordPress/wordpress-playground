@@ -4,15 +4,15 @@ WordPress Playground is an open-source project that welcomes all contributors—
 
 ## How can I contribute?
 
--   Code? See the [developer section](./02-code.md).
--   Documentation? See the [documentation section](./20-documentation.md).
+-   Code? See the [developer section](./code.md).
+-   Documentation? See the [documentation section](./documentation.md).
 -   Reporting bugs? Open a [new issue](https://github.com/WordPress/wordpress-playground/issues/new) in the main GitHub repository, or in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
 -   Ideas, designs, or anything else? Open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions), and let's talk!
 
 ## Guidelines
 
 -   As with all WordPress projects, we want to ensure a welcoming and respectful environment for everyone. Please read our community's [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/) to learn more.
--   Code contributors should review the [coding principles](./03-coding-standards.md).
+-   Code contributors should review the [coding principles](./coding-standards.md).
 -   You maintain copyright over any contribution you make. By submitting a Pull Request, you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
 
 # Triaging issues
