@@ -54,16 +54,11 @@ export class OfflineModeCache {
 			return;
 		}
 
-		try {
-			// Get the cache manifest and add all the files to the cache
-			const manifestResponse = await fetch(
-				'/assets-required-for-offline-mode.json'
-			);
-			const websiteUrls = await manifestResponse.json();
-			await this.cache.addAll([...websiteUrls, ...['/']]);
-		} catch (error) {
-			logger.warn('Error caching offline mode assets:', error);
-		}
+		const manifestResponse = await fetch(
+			'/assets-required-for-offline-mode.json'
+		);
+		const websiteUrls = await manifestResponse.json();
+		await this.cache.addAll([...websiteUrls, ...['/']]);
 	}
 
 	private shouldCacheUrl(url: URL) {
@@ -76,11 +71,6 @@ export class OfflineModeCache {
 		 */
 		// @ts-ignore-next-line
 		if (import.meta.env.MODE === 'development') {
-			return false;
-		}
-
-		// Don't cache the local test environment
-		if (url.href.startsWith('https://playground.test/')) {
 			return false;
 		}
 

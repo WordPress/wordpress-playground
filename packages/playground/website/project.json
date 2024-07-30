@@ -83,7 +83,8 @@
 			},
 			"configurations": {
 				"ci": {
-					"port": 80
+					"port": 80,
+					"mode": "production"
 				}
 			}
 		},
