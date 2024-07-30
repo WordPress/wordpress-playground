@@ -45,7 +45,10 @@ describe(
 	{ browser: '!firefox', env: { NODE_ENV: 'production' } },
 	() => {
 		describe('Playground should load the website', () => {
-			before(() => cy.visit('/'));
+			before(() => {
+				cy.visit('/');
+				cy.wordPressDocument().should('exist');
+			});
 
 			beforeEach(() => {
 				goOffline();
