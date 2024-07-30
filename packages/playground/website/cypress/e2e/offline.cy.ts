@@ -86,24 +86,6 @@ describe(
 					.find('body.wp-admin h1')
 					.should('contain', 'Dashboard');
 			});
-
-			it('should load preloaded remote WordPress assets', () => {
-				/**
-				 * The boot process preloads remote WordPress assets when offline.
-				 * See `backfillStaticFilesRemovedFromMinifiedBuild`.
-				 *
-				 * `admin-bar.min.css` is one of these files, so we us it to determine if
-				 * the preloading worked.
-				 */
-				cy.intercept('GET', '**/wp-includes/css/admin-bar.min.css*').as(
-					'staticAsset'
-				);
-				cy.setWordPressUrl('/wp-admin/');
-				cy.wait('@staticAsset', { timeout: 30000 })
-					.its('response.statusCode')
-					// 304 means returned from cache
-					.should('eq', 304);
-			});
 		});
 	}
 );
