@@ -145,15 +145,6 @@
 				"headless": false,
 				"baseUrl": "https://playground.test/website-server/"
 			}
-		},
-		"e2e:preview:cypress": {
-			"executor": "@nx/cypress:cypress",
-			"options": {
-				"cypressConfig": "packages/playground/website/cypress.config.ts",
-				"testingType": "e2e",
-				"headless": false,
-				"baseUrl": "http://localhost:5932/website-server/"
-			}
 		}
 	},
 	"tags": ["scope:web-client"]

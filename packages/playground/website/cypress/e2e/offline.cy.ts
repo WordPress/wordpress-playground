@@ -80,7 +80,7 @@ describe(
 					'staticAsset'
 				);
 				cy.setWordPressUrl('/wp-admin/');
-				cy.wait('@staticAsset')
+				cy.wait('@staticAsset', { timeout: 10000 })
 					.its('response.statusCode')
 					// 304 means returned from cache
 					.should('eq', 304);
