@@ -16,7 +16,7 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 
 This site (Documentation) is where you will find all the information you need to start using Playground.
 
-The WordPress Playground documentation is distributed across four separate spaces:
+<p class="docs-spaces">The WordPress Playground documentation is distributed across four separate spaces:</p>
 
 -   [**Documentation**](/wordpress-playground/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
 -   [**Blueprints**](/wordpress-playground/blueprints/index) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about all its possibilities from this docs space.

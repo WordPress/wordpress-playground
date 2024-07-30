@@ -125,3 +125,13 @@ iframe {
 a.navbar__link--active:hover {
 	color: white;
 }
+
+.docs-spaces + ul li a {
+	padding: 0.2rem;
+}
+
+.docs-spaces + ul li a:hover {
+	background-color: var(--ifm-color-primary);
+	color: white;
+	text-decoration: none;
+}
