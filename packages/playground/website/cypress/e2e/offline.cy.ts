@@ -46,8 +46,11 @@ describe(
 	() => {
 		describe('Playground should load the website', () => {
 			before(() => {
+				cy.intercept('GET', '**/wordpress-static.zip').as(
+					'staticAssets'
+				);
 				cy.visit('/');
-				cy.wordPressDocument().should('exist');
+				cy.wait('@staticAssets', { timeout: 30000 });
 			});
 
 			beforeEach(() => {
