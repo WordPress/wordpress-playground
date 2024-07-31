@@ -30,14 +30,17 @@ import { addCrashListener, logger } from '@php-wasm/logger';
 import { asContentType } from '../github/import-from-github';
 import { GitHubOAuthGuardModal } from '../github/github-oauth-guard';
 import { OfflineNotice } from '../components/offline-notice';
-import { useBootPlayground } from '../lib/use-boot-playground';
 import { useDispatch, useSelector } from 'react-redux';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
 } from '../lib/redux-store';
-import { Blueprint, StepDefinition } from '@wp-playground/client';
+import {
+	Blueprint,
+	PlaygroundClient,
+	StepDefinition,
+} from '@wp-playground/client';
 import { acquireOAuthTokenIfNeeded } from '../github/acquire-oauth-token-if-needed';
 import { LogModal } from '../components/log-modal';
 import { ErrorReportModal } from '../components/error-report-modal';
@@ -71,21 +74,19 @@ export function SiteView({
 	blueprint,
 	currentConfiguration,
 	storage,
-	siteSlug,
+	playground,
+	url,
+	iframeRef,
 }: {
 	blueprint: Blueprint;
 	currentConfiguration: PlaygroundConfiguration;
 	storage: StorageType;
-	siteSlug?: string;
+	playground?: PlaygroundClient;
+	url?: string;
+	iframeRef: React.RefObject<HTMLIFrameElement>;
 }) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
-
-	const { playground, url, iframeRef } = useBootPlayground({
-		blueprint,
-		storage,
-		siteSlug,
-	});
 
 	const query = new URL(document.location.href).searchParams;
 

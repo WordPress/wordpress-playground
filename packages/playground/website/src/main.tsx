@@ -9,6 +9,8 @@ import { Provider } from 'react-redux';
 import { SiteView } from './views/site-view';
 import store from './lib/redux-store';
 import { StorageTypes, StorageType } from './types';
+import { SiteManager } from './views/site-manager';
+import { useBootPlayground } from './lib/use-boot-playground';
 
 collectWindowErrors(logger);
 
@@ -62,12 +64,23 @@ if (currentConfiguration.wp === '6.3') {
 }
 
 function Main() {
-	return (
+	const { playground, url, iframeRef } = useBootPlayground({
+		blueprint,
+		storage,
+		siteSlug,
+	});
+
+	const showSiteManager = query.get('site-manager') === 'true';
+	return showSiteManager ? (
+		<SiteManager iframeRef={iframeRef} />
+	) : (
 		<SiteView
 			blueprint={blueprint}
 			currentConfiguration={currentConfiguration}
 			storage={storage}
-			siteSlug={siteSlug}
+			playground={playground}
+			url={url}
+			iframeRef={iframeRef}
 		/>
 	);
 }

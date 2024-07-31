@@ -45,7 +45,7 @@ interface JustViewportProps {
 	iframeRef: Ref<HTMLIFrameElement>;
 }
 
-const JustViewport = function LoadedViewportComponent({
+export const JustViewport = function LoadedViewportComponent({
 	iframeRef,
 }: JustViewportProps) {
 	useEffect(() => {
