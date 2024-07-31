@@ -71,13 +71,16 @@
 						"networking": {
 							"type": "boolean",
 							"description": "Should boot with support for network request via wp_safe_remote_get?"
-						},
-						"wpCli": {
-							"type": "boolean",
-							"description": "Should boot with WP-CLI support."
 						}
 					},
 					"additionalProperties": false
+				},
+				"extraLibraries": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/ExtraLibrary"
+					},
+					"description": "Extra libraries to preload into the Playground instance."
 				},
 				"constants": {
 					"type": "object",
@@ -184,6 +187,10 @@
 				"7.1",
 				"7.0"
 			]
+		},
+		"ExtraLibrary": {
+			"type": "string",
+			"const": "wp-cli"
 		},
 		"FileReference": {
 			"anyOf": [
