@@ -164,11 +164,11 @@ const config = {
 							},
 							{
 								label: 'Blueprints',
-								to: '/blueprints/index',
+								to: '/blueprints',
 							},
 							{
 								label: 'Developers',
-								to: '/build-your-first-app',
+								to: '/developers',
 							},
 							{
 								label: 'API Reference',

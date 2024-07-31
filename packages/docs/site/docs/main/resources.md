@@ -1,6 +1,6 @@
 ---
 title: Links and Resources
-slug: /links-and-resources
+slug: /resources
 ---
 
 # Links and Resources

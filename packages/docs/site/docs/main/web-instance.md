@@ -23,7 +23,7 @@ From the Playground website there are also available some toolbars to customize 
 
 ![snapshot of customize playground window at playground instance](./_assets/customize-playground.png)
 
-All the options available from the "Customize Playground" window correpond to the following [Query API options](../developers/20-query-api/01-index.md##available-options) :
+All the options available from the "Customize Playground" window correpond to the following [Query API options](../developers/20-query-api/01-index.md##available-options):
 
 -   `storage`
 -   `php`
@@ -34,3 +34,20 @@ All the options available from the "Customize Playground" window correpond to th
 ## Playground Options Menu
 
 ![options menu at playground instance snapshot](./_assets/options.png)
+
+This menu contains links to some Playground resources and tools:
+
+-   **Reset Site**: - It will wipe out all data and reload the page with a new site.
+-   **Report error**: If you have any issue with WP Playground yoy can report it using the form available from this option. You can help resolve issues with Playground by sharing the error details with development team behind Playground.
+-   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
+-   **Download as zip**: It creates a `.zip` with the setup of the Playground instance including any themes or plugins installed. This `.zip` won't include content and database changes.
+-   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
+-   **Import from Github**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
+
+-   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
+
+-   **Edit the blueprint**: This option allows you to open a "builder" mode of the blueprint being used for the current Playground instance. In this mode you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+
+<span id="edit-the-blueprint"></span>
+
+![snapshot of Builder mode of WordPress Playground](./_assets/builder-mode.png)
