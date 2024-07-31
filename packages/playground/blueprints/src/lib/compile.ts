@@ -13,7 +13,7 @@ import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
-import { Blueprint } from './blueprint';
+import { Blueprint, ExtraLibrary } from './blueprint';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -52,9 +52,8 @@ export interface CompiledBlueprint {
 	features: {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;
-		/** Should boot with WP-CLI support. */
-		wpCli: boolean;
 	};
+	extraLibraries: ExtraLibrary[];
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -173,7 +172,7 @@ export function compileBlueprint(
 		(step) => typeof step === 'object' && step?.step === 'wp-cli'
 	);
 	if (
-		blueprint?.features?.wpCli === true ||
+		blueprint?.extraLibraries?.includes('wp-cli') ||
 		(wpCliStepIndex !== undefined && wpCliStepIndex > -1)
 	) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
@@ -286,9 +285,8 @@ export function compileBlueprint(
 		features: {
 			// Disable networking by default
 			networking: blueprint.features?.networking ?? false,
-			// Disable wpCli by default
-			wpCli: blueprint.features?.wpCli ?? false,
 		},
+		extraLibraries: blueprint.extraLibraries || [],
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early

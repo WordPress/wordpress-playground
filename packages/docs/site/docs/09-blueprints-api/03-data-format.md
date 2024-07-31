@@ -95,13 +95,15 @@ You can use the `features` property to turn on or off certain features of the Pl
 }
 ```
 
--   `wpCli`: Defaults to `false`. Enables or disables WP-CLI support for Playground. If enabled, WP-CLI will be installed during boot. If disabled, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
+## Extra libraries
+
+You can preload extra libraries into the Playground instance. The following libraries are supported:
+
+-   `wp-cli`: Enables WP-CLI support for Playground. If included, WP-CLI will be installed during boot. If not included, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
 
 ```js
 {
-	"features": {
-		"wpCli": true
-	},
+	"extraLibraries": [ "wp-cli" ],
 }
 ```
 

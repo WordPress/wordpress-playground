@@ -32,10 +32,10 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 ) => {
 	if (!(await playground.fileExists(wpCliPath))) {
 		throw new Error(`wp-cli.phar not found at ${wpCliPath}.
-			You can enable wp-cli support by setting the "wpCli" feature to true in your blueprint.
+			You can enable wp-cli support by adding "wp-cli" to the list of extra libraries in your blueprint.
 
 			Read more about it in the documentation.
-			https://wordpress.github.io/wordpress-playground/blueprints-api/data-format#features`);
+			https://wordpress.github.io/wordpress-playground/blueprints-api/data-format#extra-libraries`);
 	}
 
 	let args: string[];

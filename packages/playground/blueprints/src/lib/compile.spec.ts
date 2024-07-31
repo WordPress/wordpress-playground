@@ -82,9 +82,7 @@ describe('Blueprints', () => {
 	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
 		await runBlueprintSteps(
 			compileBlueprint({
-				features: {
-					wpCli: true,
-				},
+				extraLibraries: ['wp-cli'],
 			}),
 			php
 		);
