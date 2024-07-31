@@ -181,11 +181,7 @@ export function compileBlueprint(
 					(bundle) => bundle !== 'light'
 				);
 			logger.warn(
-				`The wpCli ${
-					wpCliStepIndex !== undefined && wpCliStepIndex > -1
-						? 'step'
-						: 'feature'
-				} used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+				`WP-CLI is used in your Blueprint, and it requires the iconv and mbstring PHP extensions. ` +
 					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
