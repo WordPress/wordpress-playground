@@ -43,20 +43,34 @@ export default function BrowserChrome({
 		[css.isHidden]: noticeHidden,
 	});
 
+	// Temporary feature flag for the site manager
+	const query = new URL(document.location.href).searchParams;
+	const showSiteManager = query.get('site-manager') === 'true';
+
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={css.window}>
 				<header className={css.toolbar} aria-label="Playground toolbar">
 					<div className={css.windowControls}>
-						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
-						></div>
-						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
-						></div>
-						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
-						></div>
+						{showSiteManager ? (
+							<img
+								src="/logo.svg"
+								alt="Logo"
+								className={css.logo}
+							/>
+						) : (
+							<>
+								<div
+									className={`${css.windowControl} ${css.isNeutral}`}
+								></div>
+								<div
+									className={`${css.windowControl} ${css.isNeutral}`}
+								></div>
+								<div
+									className={`${css.windowControl} ${css.isNeutral}`}
+								></div>
+							</>
+						)}
 					</div>
 
 					<div className={addressBarClass}>

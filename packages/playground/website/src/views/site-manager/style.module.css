@@ -1,0 +1,14 @@
+body {
+	--site-manager-background-color: #1e1e1e;
+	--site-manager-border-width: 12px;
+}
+
+.site-manager {
+	display: flex;
+	flex-direction: row;
+	height: 100vh;
+	overflow: hidden;
+	border: var(--site-manager-border-width) solid
+		var(--site-manager-background-color);
+	background-color: var(--site-manager-background-color);
+}

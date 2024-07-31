@@ -1,0 +1,17 @@
+.site-manager-preview {
+	height: calc(100vh - var(--site-manager-border-width) * 2);
+	width: 100%;
+	cursor: pointer;
+	position: relative;
+	border-radius: var(--site-manager-border-width);
+	overflow: hidden;
+}
+
+.site-manager-preview-overlay {
+	height: 100%;
+	width: 100%;
+	z-index: 1000;
+	position: absolute;
+	top: 0;
+	left: 0;
+}

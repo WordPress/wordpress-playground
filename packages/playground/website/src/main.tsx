@@ -72,7 +72,7 @@ function Main() {
 
 	const showSiteManager = query.get('site-manager') === 'true';
 	return showSiteManager ? (
-		<SiteManager iframeRef={iframeRef} />
+		<SiteManager iframeRef={iframeRef} siteSlug={siteSlug} />
 	) : (
 		<SiteView
 			blueprint={blueprint}
