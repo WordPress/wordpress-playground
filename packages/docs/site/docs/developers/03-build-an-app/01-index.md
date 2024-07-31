@@ -1,6 +1,6 @@
 ---
 title: Build your first app
-slug: /build-your-first-app
+slug: /developers/build-your-first-app
 ---
 
 # Build an app with WordPress Playground in 5 minutes

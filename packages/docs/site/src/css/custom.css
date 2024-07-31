@@ -126,12 +126,22 @@ a.navbar__link--active:hover {
 	color: white;
 }
 
-.docs-spaces + ul li a {
+.docs-hubs + ul li a {
 	padding: 0.2rem;
 }
 
-.docs-spaces + ul li a:hover {
+.docs-hubs + ul li a:hover {
 	background-color: var(--ifm-color-primary);
 	color: white;
 	text-decoration: none;
+}
+
+#customize-playground + p > img {
+	max-width: 50%;
+	border: 1px solid #bebebe;
+}
+
+#playground-options-menu + p > img {
+	max-width: 30%;
+	border: 1px solid #bebebe;
 }

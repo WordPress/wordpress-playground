@@ -16,26 +16,28 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 
 Playground is an online tool to experiment and learn about WordPress. This site (Documentation) is where you will find all the information you need to start using Playground.
 
-<p class="docs-spaces">The WordPress Playground documentation is distributed across four separate spaces:</p>
+<p class="docs-hubs">The WordPress Playground documentation is distributed across four separate hubs (subsites):</p>
 
 -   [**Documentation**](/wordpress-playground/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
--   [**Blueprints**](/wordpress-playground/blueprints/index) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about all its possibilities from this docs space.
--   [**Developers**](/wordpress-playground/build-your-first-app) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in this docs space.
+-   [**Blueprints**](/wordpress-playground/blueprints/index) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about all its possibilities from this docs hub.
+-   [**Developers**](/wordpress-playground/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in this docs hub.
 -   [**API Reference**](/wordpress-playground/api) – All the APIs exposed by WordPress Playground
 
-## Navigating this documentation space
+## Navigating this documentation hub
 
-This docs space is focused on starting with WordPress Playground and is divided into the following major sections.
+This docs hub is focused on starting with WordPress Playground and is divided into the following major sections.
 
--   **[Quick Start Guide](/wordpress-playground/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
+-   **[Quick Start Guide](./quick-start-guide.md)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
+
+-   **[Playground Website](./web-instance)**: Learn morea bout the Playground instance you get at https://playground.wordpress.net/
 
 -   **[About Playground](./about/index.md)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
 
--   **[📖 Guides](./guides/index.md)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
+-   **[📖 Guides](./guides/index)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
 
--   **[Contributing](./contributing/index.md)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
+-   **[Contributing](./contributing/)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
 
--   **[Links and resources](./resources.md)**: A nice compilation of useful links and resources related to WordPress Playground.
+-   **[Links and resources](./resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 
 ## First steps
 
@@ -66,7 +68,7 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. Don't worry, _you don't need to know WebAssembly_ to contribute!
 
--   See the [Contributors Handbook](./contributing/index.md) for all the details on how you can contribute.
+-   See the [Contributors Handbook](./contributing/) for all the details on how you can contribute.
 -   Join us in the `#meta-playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
 
 As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
