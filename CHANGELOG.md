@@ -4,27 +4,28 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v0.9.27] (2024-07-29)
+## [v0.9.27] (2024-07-29) 
 
 ### Enhancements
 
--   Support offline mode after the first Playground page load. ([#1643](https://github.com/WordPress/wordpress-playground/pull/1643))
+- Support offline mode after the first Playground page load. ([#1643](https://github.com/WordPress/wordpress-playground/pull/1643))
 
 ### Devrel
 
--   Remove puzzle app package. ([#1642](https://github.com/WordPress/wordpress-playground/pull/1642))
+- Remove puzzle app package. ([#1642](https://github.com/WordPress/wordpress-playground/pull/1642))
 
 ### PHP WebAssembly
 
--   Cache Playground assets to enable offline support. ([#1535](https://github.com/WordPress/wordpress-playground/pull/1535))
--   Rotate PHP runtime after runtime crash. ([#1628](https://github.com/WordPress/wordpress-playground/pull/1628))
--   Throw error when PHP run() receives no code to run. ([#1646](https://github.com/WordPress/wordpress-playground/pull/1646))
+- Cache Playground assets to enable offline support. ([#1535](https://github.com/WordPress/wordpress-playground/pull/1535))
+- Rotate PHP runtime after runtime crash. ([#1628](https://github.com/WordPress/wordpress-playground/pull/1628))
+- Throw error when PHP run() receives no code to run. ([#1646](https://github.com/WordPress/wordpress-playground/pull/1646))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @brandonpayton
+
 
 ## [v0.9.26] (2024-07-22)
 
