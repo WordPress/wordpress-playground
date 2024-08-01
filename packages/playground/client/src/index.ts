@@ -182,8 +182,12 @@ async function doStartPlaygroundWeb(
 	) as PlaygroundClient;
 	await playground.isConnected();
 	progressTracker.pipe(playground);
+	const currentProgress = (await playground.getDownloadProgress())!;
 	const downloadPHPandWP = progressTracker.stage();
-	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+	downloadPHPandWP.setFromProgressDetails(currentProgress);
+	await playground.onDownloadProgress((e) => {
+		downloadPHPandWP.setFromProgressDetails(e.detail);
+	});
 	await playground.isReady();
 	downloadPHPandWP.finish();
 	return playground;

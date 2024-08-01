@@ -10,15 +10,17 @@ export interface ProgressTrackerOptions {
 	fillTime?: number;
 }
 
-/**
- * Custom event providing information about a loading process.
- */
-export type LoadingEvent = CustomEvent<{
+export type LoadingProgress = {
 	/** The number representing how much was loaded. */
 	loaded: number;
 	/** The number representing how much needs to loaded in total. */
 	total: number;
-}>;
+};
+
+/**
+ * Custom event providing information about a loading process.
+ */
+export type LoadingEvent = CustomEvent<LoadingProgress>;
 
 /**
  * Custom event providing progress details.
@@ -286,13 +288,8 @@ export class ProgressTracker extends EventTarget {
 		return this._progressObserver;
 	}
 
-	get loadingListener() {
-		if (!this._loadingListener) {
-			this._loadingListener = (event: LoadingEvent) => {
-				this.set((event.detail.loaded / event.detail.total) * 100);
-			};
-		}
-		return this._loadingListener;
+	setFromProgressDetails(details: LoadingProgress) {
+		this.set((details.loaded / details.total) * 100);
 	}
 
 	pipe(receiver: ProgressReceiver) {

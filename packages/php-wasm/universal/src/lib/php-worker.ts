@@ -1,4 +1,4 @@
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { EmscriptenDownloadMonitor, LoadingProgress } from '@php-wasm/progress';
 import { PHP } from './php';
 import { PHPRequestHandler } from './php-request-handler';
 import { PHPResponse } from './php-response';
@@ -127,6 +127,10 @@ export class PHPWorker implements LimitedPHPApi {
 		return _private
 			.get(this)!
 			.requestHandler!.internalUrlToPath(internalUrl);
+	}
+
+	async getDownloadProgress(): Promise<LoadingProgress | undefined> {
+		return _private.get(this)!.monitor?.progress;
 	}
 
 	/**

@@ -50,7 +50,16 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	async monitorFetch(fetchPromise: Promise<Response>): Promise<Response> {
 		const response = await fetchPromise;
 		const onProgress = (event: CustomEvent<DownloadProgress>) => {
-			this.#notify(response.url, event.detail.loaded, event.detail.total);
+			this.#setFileProgress(
+				response.url,
+				event.detail.loaded,
+				event.detail.total
+			);
+			this.dispatchEvent(
+				new CustomEvent('progress', {
+					detail: this.progress,
+				})
+			);
 		};
 		return cloneResponseMonitorProgress(response, onProgress);
 	}
@@ -62,7 +71,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	 * @param  loaded The number of bytes of that file loaded so far.
 	 * @param  fileSize  The total number of bytes in the loaded file.
 	 */
-	#notify(file: string, loaded: number, fileSize: number) {
+	#setFileProgress(file: string, loaded: number, fileSize: number) {
 		const fileName = new URL(file, 'http://example.com').pathname
 			.split('/')
 			.pop()!;
@@ -81,14 +90,13 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 		}
 
 		this.#progress[fileName] = loaded;
-		this.dispatchEvent(
-			new CustomEvent('progress', {
-				detail: {
-					loaded: sumValues(this.#progress),
-					total: sumValues(this.#assetsSizes),
-				},
-			})
-		);
+	}
+
+	get progress() {
+		return {
+			loaded: sumValues(this.#progress),
+			total: sumValues(this.#assetsSizes),
+		};
 	}
 }
 

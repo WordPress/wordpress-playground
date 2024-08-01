@@ -219,7 +219,9 @@ export abstract class FetchResource extends Resource {
 			}
 			response = await cloneResponseMonitorProgress(
 				response,
-				this.progress?.loadingListener ?? noop
+				this.progress
+					? (e) => this.progress?.setFromProgressDetails(e.detail)
+					: noop
 			);
 			if (response.status !== 200) {
 				throw new Error(`Could not download "${url}"`);

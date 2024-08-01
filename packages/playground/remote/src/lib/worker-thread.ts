@@ -366,21 +366,22 @@ try {
 				LOGGED_IN_SALT: randomString(40),
 				NONCE_SALT: randomString(40),
 		  };
-	const wordPressZip = wordPressAvailableInOPFS
-		? undefined
-		: new File([await (await wordPressRequest!).blob()], 'wp.zip');
-
-	const sqliteIntegrationPluginZip = new File(
-		[await (await sqliteIntegrationRequest).blob()],
-		'sqlite.zip'
-	);
 
 	const knownRemoteAssetPaths = new Set<string>();
 	const requestHandler = await bootWordPress({
 		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 		createPhpRuntime,
-		wordPressZip,
-		sqliteIntegrationPluginZip,
+		// Do not await the WordPress download or the sqlite integration download.
+		// Let bootWordPress start the PHP runtime download first, and then await
+		// all the ZIP files right before they're used.
+		wordPressZip: wordPressAvailableInOPFS
+			? undefined
+			: wordPressRequest!
+					.then((r) => r.blob())
+					.then((b) => new File([b], 'wp.zip')),
+		sqliteIntegrationPluginZip: sqliteIntegrationRequest
+			.then((r) => r.blob())
+			.then((b) => new File([b], 'sqlite.zip')),
 		spawnHandler: spawnHandlerFactory,
 		sapiName: startupOptions.sapiName,
 		constants,
