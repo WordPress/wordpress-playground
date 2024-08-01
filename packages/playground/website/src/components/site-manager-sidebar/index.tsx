@@ -5,6 +5,7 @@ import css from './style.module.css';
 import classNames from 'classnames';
 
 // TODO: move types to site storage
+// TODO: Explore better ways of obtaining site logos
 type SiteLogo = {
 	mime: string;
 	data: string;
@@ -31,7 +32,7 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 		},
 	];
 
-	const getLogoDataURL = (logo?: SiteLogo) => {
+	const getLogoDataURL = (logo?: SiteLogo): string => {
 		if (!logo) {
 			return getLogoDataURL({
 				mime: 'image/png',
