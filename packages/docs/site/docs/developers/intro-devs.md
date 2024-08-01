@@ -1,10 +1,10 @@
 ---
-title: Introduction
+title: WordPress Playground Developers Docs
 slug: /developers/
 id: intro
 ---
 
-# WordPress Playground Developers Docs
+# Developers Docs
 
 Hi! Welcome to WordPress Playground Developer documentation.
 
@@ -19,10 +19,10 @@ Hi! Welcome to WordPress Playground Developer documentation.
 
 This docs hub is focused on Developers info and is divided into the following major sections:
 
--   [Build your first app](#) XXX
--   [Local Development](#)
--   [Playground APIs](#)
--   [Query API](#)
--   [Javascript API](#)
--   [Architecture](#)
--   [Limitations](#)
+-   [Build your first app](./03-build-an-app/01-index.md) XXX
+-   [Local Development](./05-local-development/intro.md)
+-   [Playground APIs](./06-playground-apis/01-index.md)
+-   [Query API](./20-query-api/01-index.md)
+-   [Javascript API](./22-javascript-api/01-index.md)
+-   [Architecture](./23-architecture/01-index.md)
+-   [Limitations](./24-limitations/01-index.md)

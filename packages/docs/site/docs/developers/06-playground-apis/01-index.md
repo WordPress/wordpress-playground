@@ -5,7 +5,7 @@ slug: /apis-overview
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
 
-# APIs overview
+# WordPress Playground APIs overview
 
 WordPress Playground exposes a few APIs that you can use to interact with the Playground:
 
@@ -29,6 +29,10 @@ Or a theme:
 <iframe style="width: 800px; height: 500px;" src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
 ```
 
+:::info
+Check the [Query API](../20-query-api/01-index.md) section for more info.
+:::
+
 ## Blueprints
 
 If you need more control over your Playground, you can use JSON Blueprints. For example, here's how to create a post and install a plugin:
@@ -37,30 +41,24 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <BlueprintExample
 display={`{
-    "steps": [
-        { "step": "login" },
-        {
-            "step": "installPlugin",
-            "pluginZipFile": {
-                "resource": "wordpress.org/plugins",
-                "slug": "friends"
-            }
-        },
-        {
-            "step": "runPHP",
-            "code": \`<?php
-include 'wordpress/wp-load.php';
-wp_insert_post(array(
-'post_title' => 'Post title',
-'post_content' => 'Post content',
-'post_status' => 'publish',
-'post_author' => 1
-));
-\`
-}
-]
-}`	}
-	blueprint={{
+  "steps": [
+    {
+      "step": "login"
+    },
+    {
+      "step": "installPlugin",
+      "pluginZipFile": {
+        "resource": "wordpress.org/plugins",
+        "slug": "friends"
+      }
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php include 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1)); ?>"
+    }
+  ]
+}` }
+blueprint={{
 		"steps": [
             {
                 "step": "login"
@@ -87,7 +85,11 @@ wp_insert_post(array(
 ]
 }} />
 
-Learn more about [JSON Blueprints](../../blueprints/01-index.md).
+<p></p>
+
+:::info
+Learn more about JSON Blueprints at the [Blueprints Docs Hub](/wordpress-playground/blueprints).
+:::
 
 ## JavaScript API
 
@@ -97,4 +99,6 @@ import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx
 
 <JSApiShortExample />
 
-Learn more about the [JavaScript API](../22-javascript-api/01-index.md).
+:::info
+Check the [JavaScript API](../22-javascript-api/01-index.md) section for more info.
+:::
