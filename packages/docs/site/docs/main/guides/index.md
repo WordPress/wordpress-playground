@@ -1,14 +1,18 @@
 ---
 title: 📖 Guides
 slug: /guides
-description: Build with WP Playground
+description: WordPress Playground Guides
 sidebar_class_name: navbar-build-item
 ---
 
-# Build
+# Guides
 
-Create and learn WordPress quickly—even on mobile with no signal. Use Playground where you work best, whether that’s in the browser, Node.js, mobile apps, VS Code, or elsewhere.
+In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to WordPress Playground.
 
--   Install WordPress [in a single click](#).
--   [Build a block theme](https://youtu.be/gKrij8V3nK0?si=Jz7Dhe3RvxUMl9Cn&t=2488) in your browser and save it to GitHub.
--   Integrate with [Open AI](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) and [CLI apps](https://wordpress.github.io/wordpress-playground/local-development/php-wasm-node) to create new tools.
+## [WordPress Playground for Theme Developers](./for-theme-developers.md)
+
+This guide will show you the essential settings to fully create a theme demo using WordPress Playground and how you can leverage it during the building stage.
+
+## [WordPress Playground for Plugin Developers](./for-plugin-developers.md)
+
+This guide will show you the basic settings to showcase your plugin using WordPress Playground and how to use it while developing your plugin.

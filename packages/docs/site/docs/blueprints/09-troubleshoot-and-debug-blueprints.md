@@ -30,7 +30,7 @@ To check the final internal filesytem structure and database (after the blueprin
 
 :::tip
 
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're available at the `playground` global object. Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](../developers/22-javascript-api/01-index.md#debugging-and-testing)). Some examples:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
