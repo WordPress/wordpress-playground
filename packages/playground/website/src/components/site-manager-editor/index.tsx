@@ -12,10 +12,10 @@ export function SiteManagerEditor({
 	className?: string;
 	iframeRef: React.RefObject<HTMLIFrameElement>;
 	siteSlug?: string;
-	onSiteChange?: (siteSlug: string) => void;
+	onSiteChange?: (siteSlug?: string) => void;
 }) {
 	const onClick = () => {
-		if (siteSlug && onSiteChange) {
+		if (onSiteChange) {
 			onSiteChange(siteSlug);
 		}
 	};

@@ -70,7 +70,7 @@ function Main() {
 		siteSlug,
 	});
 
-	const showSiteManager = query.get('site-manager') === 'true';
+	const showSiteManager = query.get('view') === 'manager';
 	return showSiteManager ? (
 		<SiteManager iframeRef={iframeRef} siteSlug={siteSlug} />
 	) : (

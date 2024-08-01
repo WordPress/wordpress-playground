@@ -10,17 +10,24 @@ export function SiteManager({
 	iframeRef: React.RefObject<HTMLIFrameElement>;
 	siteSlug?: string;
 }) {
-	const onSiteChange = (siteSlug: string) => {
+	const onSiteChange = (siteSlug?: string) => {
 		const url = new URL(window.location.href);
-		url.searchParams.set('site-slug', siteSlug);
-		// Return back to site view
-		url.searchParams.delete('site-manager');
+		if (siteSlug) {
+			url.searchParams.set('site-slug', siteSlug);
+		} else {
+			url.searchParams.delete('site-slug');
+		}
+		// Remove the site-manager param to return to the site view
+		url.searchParams.delete('view');
 		window.location.assign(url.toString());
 	};
 
 	return (
 		<div className={css.siteManager}>
-			<SiteManagerSidebar className={css.siteManagerSidebar} />
+			<SiteManagerSidebar
+				className={css.siteManagerSidebar}
+				onSiteChange={onSiteChange}
+			/>
 			<SiteManagerEditor
 				className={css.siteManagerEditor}
 				iframeRef={iframeRef}

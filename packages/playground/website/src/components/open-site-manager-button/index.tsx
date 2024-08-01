@@ -3,7 +3,7 @@ import css from './style.module.css';
 export function OpenSiteManagerButton() {
 	const onClick = () => {
 		const url = new URL(window.location.toString());
-		url.searchParams.set('site-manager', 'true');
+		url.searchParams.set('view', 'manager');
 		window.location.assign(url.toString());
 	};
 	return (

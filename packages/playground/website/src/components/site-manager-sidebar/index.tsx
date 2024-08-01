@@ -19,7 +19,13 @@ type Site = {
 	storage?: StorageType;
 };
 
-export function SiteManagerSidebar({ className }: { className?: string }) {
+export function SiteManagerSidebar({
+	className,
+	onSiteChange,
+}: {
+	className?: string;
+	onSiteChange: (siteSlug?: string) => void;
+}) {
 	const [sites, setSites] = useState<Site[]>([]);
 
 	/**
@@ -73,18 +79,8 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
-	const switchSite = (slug?: string) => {
-		const url = new URL(window.location.href);
-		if (slug) {
-			url.searchParams.set('site-slug', slug);
-		}
-		// Remove the site-manager param to return to the site view
-		url.searchParams.delete('site-manager');
-		window.location.assign(url.toString());
-	};
-
 	const onLogoClick = () => {
-		switchSite();
+		onSiteChange();
 	};
 
 	return (
@@ -156,7 +152,7 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 						>
 							<button
 								className={css.siteManagerSidebarItemButton}
-								onClick={() => switchSite(site.slug)}
+								onClick={() => onSiteChange(site.slug)}
 							>
 								<img
 									src={getLogoDataURL(site.logo)}
