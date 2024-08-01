@@ -45,10 +45,11 @@ export function SiteManagerSidebar({
 					 * The default site is stored in the `wordpress` directory
 					 * and it doesn't have a prefix.
 					 */
-					const name = entry.name.replace(/^site-/, '');
+					const slug = entry.name.replace(/^site-/, '');
+					const name = slug.charAt(0).toUpperCase() + slug.slice(1);
 					opfsSites.push({
-						slug: name,
-						name: name.toUpperCase(),
+						slug,
+						name,
 						storage: 'browser',
 					});
 				}
