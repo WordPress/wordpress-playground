@@ -33,8 +33,8 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 			for await (const entry of virtualOpfsRoot.values()) {
 				if (entry.kind === 'directory') {
 					/**
-					 * Sites stored in the OPFS are prefixed with "site-"
-					 * so we need to remove it to get the slug.
+					 * Sites stored in browser storage are prefixed with "site-"
+					 * so we need to remove the prefix to get the slug.
 					 *
 					 * The default site is stored in the `wordpress` directory
 					 * and it doesn't have a prefix.
