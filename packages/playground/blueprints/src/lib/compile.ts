@@ -11,9 +11,9 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
-import { Step, StepDefinition } from './steps';
+import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
-import { Blueprint } from './blueprint';
+import { Blueprint, ExtraLibrary } from './blueprint';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -53,6 +53,7 @@ export interface CompiledBlueprint {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;
 	};
+	extraLibraries: ExtraLibrary[];
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -167,22 +168,23 @@ export function compileBlueprint(
 	 * each Blueprint step may be able to specify any pre-requisite resources.
 	 * Also, wp-cli should only be downloaded if it's not already present.
 	 */
-	const wpCliStepIndex = blueprint.steps?.findIndex(
-		(step) => typeof step === 'object' && step?.step === 'wp-cli'
-	);
-	if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
+	const wpCliStepIndex =
+		blueprint.steps?.findIndex(
+			(step) => typeof step === 'object' && step?.step === 'wp-cli'
+		) ?? -1;
+	if (blueprint?.extraLibraries?.includes('wp-cli') || wpCliStepIndex > -1) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
 				blueprint.phpExtensionBundles.filter(
 					(bundle) => bundle !== 'light'
 				);
 			logger.warn(
-				`The wpCli step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+				`WP-CLI is used in your Blueprint, and it requires the iconv and mbstring PHP extensions. ` +
 					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
 		}
-		blueprint.steps?.splice(wpCliStepIndex, 0, {
+		const wpCliInstallStep: WriteFileStep<FileReference> = {
 			step: 'writeFile',
 			data: {
 				resource: 'url',
@@ -199,9 +201,20 @@ export function compileBlueprint(
 				url: 'https://playground.wordpress.net/wp-cli.phar',
 			},
 			path: '/tmp/wp-cli.phar',
-		});
+		};
+		/**
+		 * If the blueprint does not have a wp-cli step,
+		 * we can install wp-cli as the last step because other steps don't depend on wp-cli.
+		 *
+		 * If the blueprint has wp-cli steps,
+		 * we need to install wp-cli before running these steps.
+		 */
+		if (wpCliStepIndex === -1) {
+			blueprint.steps?.push(wpCliInstallStep);
+		} else {
+			blueprint.steps?.splice(wpCliStepIndex, 0, wpCliInstallStep);
+		}
 	}
-	// }}}
 
 	/**
 	 * Download the WordPress-importer plugin. {{{
@@ -274,6 +287,7 @@ export function compileBlueprint(
 			// Disable networking by default
 			networking: blueprint.features?.networking ?? false,
 		},
+		extraLibraries: blueprint.extraLibraries || [],
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early

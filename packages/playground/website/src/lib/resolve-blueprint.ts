@@ -51,8 +51,10 @@ export async function resolveBlueprint() {
 	// @ts-ignore
 	if (typeof blueprint === 'undefined') {
 		const features: Blueprint['features'] = {};
-		// Networking is enabled by default, so we only need to disable it
-		// if the query param is explicitly set to "no".
+		/**
+		 * Networking is disabled by default, so we only need to enable it
+		 * if the query param is explicitly set to "yes".
+		 */
 		if (query.get('networking') === 'yes') {
 			features['networking'] = true;
 		}
