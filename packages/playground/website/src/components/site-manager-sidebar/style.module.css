@@ -8,6 +8,7 @@
 .site-manager-sidebar-header {
 	display: flex;
 	padding: 16px 24px;
+	flex: 0 1 auto;
 }
 
 .site-manager-sidebar-section {
@@ -18,7 +19,8 @@
 }
 
 .site-manager-sidebar-content {
-	flex-grow: 1;
+	flex: 1 1 auto;
+	overflow: auto;
 }
 
 .site-manager-sidebar-subtitle {
@@ -85,7 +87,7 @@
 }
 
 .site-manager-sidebar-footer {
-	margin-bottom: 16px;
+	flex: 0 1 auto;
 }
 
 .site-manager-sidebar-footer-link {
