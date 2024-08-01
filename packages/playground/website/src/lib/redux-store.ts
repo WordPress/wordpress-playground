@@ -1,8 +1,5 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import {
-	directoryHandleResolve,
-	directoryHandleDone,
-} from './markdown-directory-handle';
+import { directoryHandleResolve } from './directory-handle';
 
 export type ActiveModal =
 	| 'error-report'
@@ -28,8 +25,19 @@ const initialState: AppState = {
 	offline: !navigator.onLine,
 };
 
-if (initialState.activeModal !== 'mount-markdown-directory') {
-	directoryHandleResolve(null);
+if (query.get('storage') === 'browser') {
+	const siteSlug = query.get('site-slug') || 'wordpress';
+	const opfsRoot = await navigator.storage.getDirectory();
+	const opfsDir = await opfsRoot.getDirectoryHandle(
+		siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,
+		{
+			create: true,
+		}
+	);
+	directoryHandleResolve({
+		handle: opfsDir,
+		mountpoint: '/wordpress',
+	});
 }
 
 // Create the slice
@@ -38,13 +46,6 @@ const slice = createSlice({
 	initialState,
 	reducers: {
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
-			if (
-				!directoryHandleDone &&
-				state.activeModal === 'mount-markdown-directory' &&
-				action.payload !== 'mount-markdown-directory'
-			) {
-				directoryHandleResolve(null);
-			}
 			state.activeModal = action.payload;
 		},
 		setOfflineStatus: (state, action: PayloadAction<boolean>) => {

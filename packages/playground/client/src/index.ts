@@ -36,6 +36,13 @@ import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import { PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
+
+export interface MountDescriptor {
+	mountpoint: string;
+	handle: FileSystemDirectoryHandle;
+	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
+}
+
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
@@ -67,6 +74,8 @@ export interface StartPlaygroundOptions {
 	 */
 	onBeforeBlueprint?: () => Promise<void>;
 	siteSlug?: string;
+	mounts?: Array<MountDescriptor>;
+	shouldInstallWordPress?: boolean;
 }
 
 /**
@@ -87,6 +96,8 @@ export async function startPlaygroundWeb({
 	sapiName,
 	onBeforeBlueprint,
 	siteSlug,
+	mounts,
+	shouldInstallWordPress = true,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -102,7 +113,9 @@ export async function startPlaygroundWeb({
 				['php-extension']: 'kitchen-sink',
 				'site-slug': siteSlug,
 			}),
-			progressTracker
+			progressTracker,
+			mounts || [],
+			shouldInstallWordPress
 		);
 		onClientConnected(playground);
 		return playground;
@@ -121,7 +134,9 @@ export async function startPlaygroundWeb({
 			['networking']: compiled.features.networking ? 'yes' : 'no',
 			'site-slug': siteSlug,
 		}),
-		progressTracker
+		progressTracker,
+		mounts || [],
+		shouldInstallWordPress
 	);
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
@@ -167,7 +182,9 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 async function doStartPlaygroundWeb(
 	iframe: HTMLIFrameElement,
 	remoteUrl: string,
-	progressTracker: ProgressTracker
+	progressTracker: ProgressTracker,
+	mounts: Array<MountDescriptor>,
+	shouldInstallWordPress: boolean
 ) {
 	await new Promise((resolve) => {
 		iframe.src = remoteUrl;
@@ -184,6 +201,10 @@ async function doStartPlaygroundWeb(
 	progressTracker.pipe(playground);
 	const downloadPHPandWP = progressTracker.stage();
 	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+	await playground.boot({
+		mounts,
+		shouldInstallWordPress,
+	});
 	await playground.isReady();
 	downloadPHPandWP.finish();
 	return playground;
@@ -219,33 +240,4 @@ function setQueryParams(url: string, params: Record<string, unknown>) {
 	}
 	urlObject.search = qs.toString();
 	return urlObject.toString();
-}
-
-/**
- * @deprecated Use `startPlayground` instead.
- *
- * @param iframe Any iframe with Playground's remote.html loaded.
- * @param options Optional. If `loadRemote` is set, the iframe's `src` will be set to that URL.
- *                In other words, use this option if your iframe doesn't have remote.html already
- * 				  loaded.
- */
-export async function connectPlayground(
-	iframe: HTMLIFrameElement,
-	options?: { loadRemote?: string }
-): Promise<PlaygroundClient> {
-	logger.warn(
-		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
-	);
-	if (options?.loadRemote) {
-		return startPlaygroundWeb({
-			iframe,
-			remoteUrl: options.loadRemote,
-		});
-	}
-	const client = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await client.isConnected();
-	return client;
 }

@@ -43,7 +43,6 @@ import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 import { LogModal } from './components/log-modal';
 import { OfflineNotice } from './components/offline-notice';
 import { StartErrorModal } from './components/start-error-modal';
-import { MountMarkdownDirectoryModal } from './components/mount-markdown-directory-modal';
 import { useBootPlayground } from './lib/use-boot-playground';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import store, {
@@ -124,8 +123,6 @@ function Modals() {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
-	} else if (currentModal === 'mount-markdown-directory') {
-		return <MountMarkdownDirectoryModal />;
 	}
 
 	return null;
@@ -137,8 +134,6 @@ function Main() {
 
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
-		storage,
-		siteSlug,
 	});
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();

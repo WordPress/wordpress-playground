@@ -162,7 +162,7 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
-			await playground.bindOpfs(
+			await playground.mountOpfs(
 				{
 					opfs: dirHandle,
 					mountpoint: '/wordpress',

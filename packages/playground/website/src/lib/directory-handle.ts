@@ -1,10 +1,15 @@
 export let directoryHandleDone = false;
 
+export type HandleDescription = {
+	handle: FileSystemDirectoryHandle;
+	mountpoint: string;
+};
+
 export let directoryHandleResolve: (
-	value: FileSystemDirectoryHandle | null
+	value: HandleDescription | null
 ) => void = () => {};
 
-export const directoryHandle = new Promise<FileSystemDirectoryHandle | null>(
+export const directoryHandle = new Promise<HandleDescription | null>(
 	(_directoryHandleResolve, _directoryHandleReject) => {
 		directoryHandleResolve = _directoryHandleResolve;
 	}

@@ -1,4 +1,8 @@
-import { SyncProgressCallback, exposeAPI } from '@php-wasm/web';
+import {
+	SyncProgressCallback,
+	createDirectoryHandleMountHandler,
+	exposeAPI,
+} from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
@@ -10,11 +14,6 @@ import {
 	sqliteDatabaseIntegrationModuleDetails,
 } from '@wp-playground/wordpress-builds';
 
-import {
-	BindOpfsOptions,
-	bindOpfs,
-	playgroundAvailableInOpfs,
-} from './opfs/bind-opfs';
 import { randomString } from '@php-wasm/util';
 import {
 	requestedWPVersion,
@@ -59,56 +58,14 @@ const scope = startupOptions.scope;
 // post message to parent
 self.postMessage('worker-script-started');
 
-let virtualOpfsRoot: FileSystemDirectoryHandle | undefined;
-let virtualOpfsDir: FileSystemDirectoryHandle | undefined;
-let lastOpfsHandle: FileSystemDirectoryHandle | undefined;
-let lastOpfsMountpoint: string | undefined;
-let wordPressAvailableInOPFS = false;
-if (
-	startupOptions.storage === 'browser' &&
-	// @ts-ignore
-	typeof navigator?.storage?.getDirectory !== 'undefined'
-) {
-	virtualOpfsRoot = await navigator.storage.getDirectory();
-	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle(
-		startupOptions.siteSlug === 'wordpress'
-			? startupOptions.siteSlug
-			: 'site-' + startupOptions.siteSlug,
-		{
-			create: true,
-		}
-	);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	lastOpfsHandle = virtualOpfsDir;
-	lastOpfsMountpoint = '/wordpress';
-	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
+export interface MountDescriptor {
+	mountpoint: string;
+	handle: FileSystemDirectoryHandle;
+	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
 }
-
-// The SQLite integration must always be downloaded, even when using OPFS or Native FS,
-// because it can't be assumed to exist in WordPress document root. Instead, it's installed
-// in the /internal directory to avoid polluting the mounted directory structure.
-downloadMonitor.expectAssets({
-	[sqliteDatabaseIntegrationModuleDetails.url]:
-		sqliteDatabaseIntegrationModuleDetails.size,
-});
-const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-	fetch(sqliteDatabaseIntegrationModuleDetails.url)
-);
-
-// Start downloading WordPress if needed
-let wordPressRequest = null;
-if (!wordPressAvailableInOPFS) {
-	if (requestedWPVersion.startsWith('http')) {
-		// We don't know the size upfront, but we can still monitor the download.
-		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = monitoredFetch(requestedWPVersion);
-	} else {
-		const wpDetails = getWordPressModuleDetails(startupOptions.wpVersion);
-		downloadMonitor.expectAssets({
-			[wpDetails.url]: wpDetails.size,
-		});
-		wordPressRequest = monitoredFetch(wpDetails.url);
-	}
+export interface WorkerBootOptions {
+	mounts: Array<MountDescriptor>;
+	shouldInstallWordPress: boolean;
 }
 
 /** @inheritDoc PHPClient */
@@ -127,6 +84,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	 * A string representing the version of WordPress that was loaded.
 	 */
 	loadedWordPressVersion: string | undefined;
+
+	unmounts: Record<string, () => any> = {};
 
 	constructor(
 		monitor: EmscriptenDownloadMonitor,
@@ -158,44 +117,25 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		};
 	}
 
-	async resetVirtualOpfs() {
-		if (!virtualOpfsRoot) {
-			throw new Error('No virtual OPFS available.');
-		}
-		await virtualOpfsRoot.removeEntry(virtualOpfsDir!.name, {
-			recursive: true,
-		});
-	}
-
-	async reloadFilesFromOpfs() {
-		await this.bindOpfs({
-			opfs: lastOpfsHandle!,
-			mountpoint: lastOpfsMountpoint!,
-		});
-	}
-
-	async bindOpfs(
-		options: Omit<BindOpfsOptions, 'php' | 'onProgress'>,
+	async mountOpfs(
+		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
-		lastOpfsHandle = options.opfs;
-		lastOpfsMountpoint = options.mountpoint;
-		await bindOpfs({
-			php: this.__internal_getPHP()!,
-			onProgress,
-			...options,
-		});
+		const php = this.__internal_getPHP()!;
+		this.unmounts[options.mountpoint] = await php.mount(
+			options.mountpoint,
+			createDirectoryHandleMountHandler(options.handle, {
+				initialSync: {
+					onProgress,
+					direction: options.initialSyncDirection,
+				},
+			})
+		);
 	}
 
-	async journalFSEvents(
-		root: string,
-		callback: (op: FilesystemOperation) => void
-	) {
-		return journalFSEvents(this.__internal_getPHP()!, root, callback);
-	}
-
-	async replayFSJournal(events: FilesystemOperation[]) {
-		return replayFSJournal(this.__internal_getPHP()!, events);
+	async unmountOpfs(mountpoint: string) {
+		this.unmounts[mountpoint]();
+		delete this.unmounts[mountpoint];
 	}
 
 	async backfillStaticFilesRemovedFromMinifiedBuild() {
@@ -208,6 +148,206 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
+	}
+
+	async boot({ mounts, shouldInstallWordPress }: WorkerBootOptions) {
+		try {
+			// Start downloading WordPress if needed
+			let wordPressRequest = null;
+			if (shouldInstallWordPress) {
+				// @TODO: Accept a WordPress ZIP file or a URL, do not
+				//        reason about the `requestedWPVersion` here.
+				if (requestedWPVersion.startsWith('http')) {
+					// We don't know the size upfront, but we can still monitor the download.
+					// monitorFetch will read the content-length response header when available.
+					wordPressRequest = monitoredFetch(requestedWPVersion);
+				} else {
+					const wpDetails = getWordPressModuleDetails(
+						startupOptions.wpVersion
+					);
+					downloadMonitor.expectAssets({
+						[wpDetails.url]: wpDetails.size,
+					});
+					wordPressRequest = monitoredFetch(wpDetails.url);
+				}
+			}
+
+			downloadMonitor.expectAssets({
+				[sqliteDatabaseIntegrationModuleDetails.url]:
+					sqliteDatabaseIntegrationModuleDetails.size,
+			});
+			const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
+				fetch(sqliteDatabaseIntegrationModuleDetails.url)
+			);
+
+			const constants: Record<string, any> = shouldInstallWordPress
+				? {
+						WP_DEBUG: true,
+						WP_DEBUG_LOG: true,
+						WP_DEBUG_DISPLAY: false,
+						AUTH_KEY: randomString(40),
+						SECURE_AUTH_KEY: randomString(40),
+						LOGGED_IN_KEY: randomString(40),
+						NONCE_KEY: randomString(40),
+						AUTH_SALT: randomString(40),
+						SECURE_AUTH_SALT: randomString(40),
+						LOGGED_IN_SALT: randomString(40),
+						NONCE_SALT: randomString(40),
+				  }
+				: {};
+
+			// eslint-disable-next-line @typescript-eslint/no-this-alias
+			const endpoint = this;
+			const knownRemoteAssetPaths = new Set<string>();
+			const requestHandler = await bootWordPress({
+				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
+				createPhpRuntime,
+				// Do not await the WordPress download or the sqlite integration download.
+				// Let bootWordPress start the PHP runtime download first, and then await
+				// all the ZIP files right before they're used.
+				wordPressZip: shouldInstallWordPress
+					? wordPressRequest!
+							.then((r) => r.blob())
+							.then((b) => new File([b], 'wp.zip'))
+					: undefined,
+				sqliteIntegrationPluginZip: sqliteIntegrationRequest
+					.then((r) => r.blob())
+					.then((b) => new File([b], 'sqlite.zip')),
+				spawnHandler: spawnHandlerFactory,
+				sapiName: startupOptions.sapiName,
+				constants,
+				hooks: {
+					async beforeWordPressFiles(php) {
+						for (const mount of mounts || []) {
+							const unmount = await php.mount(
+								mount.mountpoint,
+								createDirectoryHandleMountHandler(
+									mount.handle,
+									{
+										initialSync: {
+											direction:
+												mount.initialSyncDirection,
+										},
+									}
+								)
+							);
+							endpoint.unmounts[mount.mountpoint] = unmount;
+						}
+					},
+				},
+				createFiles: {
+					'/internal/shared/mu-plugins': {
+						'1-playground-web.php': playgroundWebMuPlugin,
+						'playground-includes': {
+							'wp_http_dummy.php': transportDummy,
+							'wp_http_fetch.php': transportFetch,
+						},
+					},
+				},
+				getFileNotFoundAction(relativeUri: string) {
+					if (!knownRemoteAssetPaths.has(relativeUri)) {
+						return getFileNotFoundActionForWordPress(relativeUri);
+					}
+
+					// This path is listed as a remote asset. Mark it as a static file
+					// so the service worker knows it can issue a real fetch() to the server.
+					return {
+						type: 'response',
+						response: new PHPResponse(
+							404,
+							{
+								'x-backfill-from': ['remote-host'],
+								// Include x-file-type header so remote asset
+								// retrieval continues to work for clients
+								// running a prior service worker version.
+								'x-file-type': ['static'],
+							},
+							new TextEncoder().encode('404 File not found')
+						),
+					};
+				},
+			});
+			apiEndpoint.__internal_setRequestHandler(requestHandler);
+
+			const primaryPhp = await requestHandler.getPrimaryPhp();
+			await apiEndpoint.setPrimaryPHP(primaryPhp);
+
+			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
+			// from browser storage is the default version when it is actually something else.
+			// Incorrectly assuming WP version can break things like remote asset retrieval
+			// for minified WP builds.
+			apiEndpoint.loadedWordPressVersion =
+				await getLoadedWordPressVersion(requestHandler);
+			if (
+				apiEndpoint.requestedWordPressVersion !==
+				apiEndpoint.loadedWordPressVersion
+			) {
+				logger.warn(
+					`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
+						`from requested version (${apiEndpoint.requestedWordPressVersion}).`
+				);
+			}
+
+			const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
+				apiEndpoint.loadedWordPressVersion
+			);
+			const remoteAssetListPath = joinPaths(
+				requestHandler.documentRoot,
+				'wordpress-remote-asset-paths'
+			);
+			if (
+				wpStaticAssetsDir !== undefined &&
+				!primaryPhp.fileExists(remoteAssetListPath)
+			) {
+				// The loaded WP release has a remote static assets dir
+				// but no remote asset listing, so we need to backfill the listing.
+				const listUrl = new URL(
+					joinPaths(
+						wpStaticAssetsDir,
+						'wordpress-remote-asset-paths'
+					),
+					wordPressSiteUrl
+				);
+				try {
+					const remoteAssetPaths = await fetch(listUrl).then((res) =>
+						res.text()
+					);
+					primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
+				} catch (e) {
+					logger.warn(
+						`Failed to fetch remote asset paths from ${listUrl}`
+					);
+				}
+			}
+
+			if (primaryPhp.isFile(remoteAssetListPath)) {
+				const remoteAssetPaths = primaryPhp
+					.readFileAsText(remoteAssetListPath)
+					.split('\n');
+				remoteAssetPaths.forEach((wpRelativePath) =>
+					knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath))
+				);
+			}
+
+			setApiReady();
+		} catch (e) {
+			setAPIError(e as Error);
+			throw e;
+		}
+	}
+
+	// These methods are only here for the time traveling Playground demo.
+	// Let's consider removing them in the future.
+
+	async journalFSEvents(
+		root: string,
+		callback: (op: FilesystemOperation) => void
+	) {
+		return journalFSEvents(this.__internal_getPHP()!, root, callback);
+	}
+
+	async replayFSJournal(events: FilesystemOperation[]) {
+		return replayFSJournal(this.__internal_getPHP()!, events);
 	}
 }
 
@@ -349,147 +489,3 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 	startupOptions.wpVersion
 );
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
-
-try {
-	const constants: Record<string, any> = wordPressAvailableInOPFS
-		? {}
-		: {
-				WP_DEBUG: true,
-				WP_DEBUG_LOG: true,
-				WP_DEBUG_DISPLAY: false,
-				AUTH_KEY: randomString(40),
-				SECURE_AUTH_KEY: randomString(40),
-				LOGGED_IN_KEY: randomString(40),
-				NONCE_KEY: randomString(40),
-				AUTH_SALT: randomString(40),
-				SECURE_AUTH_SALT: randomString(40),
-				LOGGED_IN_SALT: randomString(40),
-				NONCE_SALT: randomString(40),
-		  };
-	const wordPressZip = wordPressAvailableInOPFS
-		? undefined
-		: new File([await (await wordPressRequest!).blob()], 'wp.zip');
-
-	const sqliteIntegrationPluginZip = new File(
-		[await (await sqliteIntegrationRequest).blob()],
-		'sqlite.zip'
-	);
-
-	const knownRemoteAssetPaths = new Set<string>();
-	const requestHandler = await bootWordPress({
-		siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
-		createPhpRuntime,
-		wordPressZip,
-		sqliteIntegrationPluginZip,
-		spawnHandler: spawnHandlerFactory,
-		sapiName: startupOptions.sapiName,
-		constants,
-		hooks: {
-			async beforeDatabaseSetup(php) {
-				if (virtualOpfsDir) {
-					await bindOpfs({
-						php,
-						mountpoint: '/wordpress',
-						opfs: virtualOpfsDir!,
-						initialSyncDirection: wordPressAvailableInOPFS
-							? 'opfs-to-memfs'
-							: 'memfs-to-opfs',
-					});
-				}
-			},
-		},
-		createFiles: {
-			'/internal/shared/mu-plugins': {
-				'1-playground-web.php': playgroundWebMuPlugin,
-				'playground-includes': {
-					'wp_http_dummy.php': transportDummy,
-					'wp_http_fetch.php': transportFetch,
-				},
-			},
-		},
-		getFileNotFoundAction(relativeUri: string) {
-			if (!knownRemoteAssetPaths.has(relativeUri)) {
-				return getFileNotFoundActionForWordPress(relativeUri);
-			}
-
-			// This path is listed as a remote asset. Mark it as a static file
-			// so the service worker knows it can issue a real fetch() to the server.
-			return {
-				type: 'response',
-				response: new PHPResponse(
-					404,
-					{
-						'x-backfill-from': ['remote-host'],
-						// Include x-file-type header so remote asset
-						// retrieval continues to work for clients
-						// running a prior service worker version.
-						'x-file-type': ['static'],
-					},
-					new TextEncoder().encode('404 File not found')
-				),
-			};
-		},
-	});
-	apiEndpoint.__internal_setRequestHandler(requestHandler);
-
-	const primaryPhp = await requestHandler.getPrimaryPhp();
-	await apiEndpoint.setPrimaryPHP(primaryPhp);
-
-	// NOTE: We need to derive the loaded WP version or we might assume WP loaded
-	// from browser storage is the default version when it is actually something else.
-	// Incorrectly assuming WP version can break things like remote asset retrieval
-	// for minified WP builds.
-	apiEndpoint.loadedWordPressVersion = await getLoadedWordPressVersion(
-		requestHandler
-	);
-	if (
-		apiEndpoint.requestedWordPressVersion !==
-		apiEndpoint.loadedWordPressVersion
-	) {
-		logger.warn(
-			`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
-				`from requested version (${apiEndpoint.requestedWordPressVersion}).`
-		);
-	}
-
-	const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
-		apiEndpoint.loadedWordPressVersion
-	);
-	const remoteAssetListPath = joinPaths(
-		requestHandler.documentRoot,
-		'wordpress-remote-asset-paths'
-	);
-	if (
-		wpStaticAssetsDir !== undefined &&
-		!primaryPhp.fileExists(remoteAssetListPath)
-	) {
-		// The loaded WP release has a remote static assets dir
-		// but no remote asset listing, so we need to backfill the listing.
-		const listUrl = new URL(
-			joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
-			wordPressSiteUrl
-		);
-		try {
-			const remoteAssetPaths = await fetch(listUrl).then((res) =>
-				res.text()
-			);
-			primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-		} catch (e) {
-			logger.warn(`Failed to fetch remote asset paths from ${listUrl}`);
-		}
-	}
-
-	if (primaryPhp.isFile(remoteAssetListPath)) {
-		const remoteAssetPaths = primaryPhp
-			.readFileAsText(remoteAssetListPath)
-			.split('\n');
-		remoteAssetPaths.forEach((wpRelativePath) =>
-			knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath))
-		);
-	}
-
-	setApiReady();
-} catch (e) {
-	setAPIError(e as Error);
-	throw e;
-}

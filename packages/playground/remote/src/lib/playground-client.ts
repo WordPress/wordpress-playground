@@ -5,8 +5,10 @@ import { ProgressReceiver } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
 import { ProgressBarOptions } from './progress-bar';
-import type { PlaygroundWorkerEndpoint } from './worker-thread';
-import type { BindOpfsOptions } from './opfs/bind-opfs';
+import type {
+	PlaygroundWorkerEndpoint,
+	MountDescriptor,
+} from './worker-thread';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -58,8 +60,8 @@ export interface WebClientMixin extends ProgressReceiver {
 	/** @inheritDoc @php-wasm/universal!UniversalPHP.onMessage */
 	onMessage: PlaygroundWorkerEndpoint['onMessage'];
 
-	bindOpfs(
-		options: Omit<BindOpfsOptions, 'php' | 'onProgress'>,
+	mountOpfs(
+		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	): Promise<void>;
 }

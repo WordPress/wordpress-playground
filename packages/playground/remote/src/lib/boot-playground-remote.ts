@@ -13,7 +13,10 @@ import {
 	SyncProgressCallback,
 } from '@php-wasm/web';
 
-import type { PlaygroundWorkerEndpoint } from './worker-thread';
+import type {
+	PlaygroundWorkerEndpoint,
+	MountDescriptor,
+} from './worker-thread';
 import type { WebClientMixin } from './playground-client';
 import ProgressBar, { ProgressBarOptions } from './progress-bar';
 
@@ -30,7 +33,6 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
-import type { BindOpfsOptions } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -193,17 +195,18 @@ export async function bootPlaygroundRemote() {
 		async onMessage(callback: MessageListener) {
 			return await phpApi.onMessage(callback);
 		},
+
 		/**
 		 * Ditto for this function.
 		 * @see onMessage
 		 * @param callback
 		 * @returns
 		 */
-		async bindOpfs(
-			options: BindOpfsOptions,
+		async mountOpfs(
+			options: MountDescriptor,
 			onProgress?: SyncProgressCallback
 		) {
-			return await phpApi.bindOpfs(options, onProgress);
+			return await phpApi.mountOpfs(options, onProgress);
 		},
 
 		/**
@@ -241,7 +244,7 @@ export async function bootPlaygroundRemote() {
 			wpFrame,
 			getOrigin((await playground.absoluteUrl)!)
 		);
-		setupMountListener(playground);
+
 		if (withNetworking) {
 			await setupFetchNetworkTransport(phpApi);
 		}
@@ -301,27 +304,6 @@ export async function bootPlaygroundRemote() {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
-}
-
-function setupMountListener(playground: WebClientMixin) {
-	window.addEventListener('message', async (event) => {
-		if (typeof event.data !== 'object') {
-			return;
-		}
-		if (event.data.type !== 'mount-directory-handle') {
-			return;
-		}
-		if (typeof event.data.directoryHandle !== 'object') {
-			return;
-		}
-		if (!event.data.mountpoint) {
-			return;
-		}
-		await playground.bindOpfs({
-			opfs: event.data.directoryHandle,
-			mountpoint: event.data.mountpoint,
-		});
-	});
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {
