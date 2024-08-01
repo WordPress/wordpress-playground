@@ -8,6 +8,7 @@ import { ProgressBarOptions } from './progress-bar';
 import type {
 	PlaygroundWorkerEndpoint,
 	MountDescriptor,
+	WorkerBootOptions,
 } from './worker-thread';
 
 export interface WebClientMixin extends ProgressReceiver {
@@ -64,6 +65,10 @@ export interface WebClientMixin extends ProgressReceiver {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	): Promise<void>;
+
+	unmountOpfs(mountpoint: string): Promise<void>;
+
+	boot(options: WorkerBootOptions): Promise<void>;
 }
 
 /**

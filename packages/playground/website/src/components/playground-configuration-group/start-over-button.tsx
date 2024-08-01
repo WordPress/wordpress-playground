@@ -1,8 +1,8 @@
-import { usePlaygroundContext } from '../../playground-context';
+// import { usePlaygroundContext } from '../../playground-context';
 import Button from '../button';
 
 export function StartOverButton() {
-	const { playground } = usePlaygroundContext();
+	// const { playground } = usePlaygroundContext();
 	return (
 		<Button
 			onClick={async () => {
@@ -13,7 +13,8 @@ export function StartOverButton() {
 				) {
 					return;
 				}
-				await playground?.resetVirtualOpfs();
+				window.alert('Not implemented yet.');
+				// await playground?.resetVirtualOpfs();
 				window.location.reload();
 			}}
 		>

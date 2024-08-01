@@ -64,7 +64,6 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
-
 	/**
 	 * Called before the blueprint steps are run,
 	 * allows the caller to delay the Blueprint execution
@@ -106,38 +105,47 @@ export async function startPlaygroundWeb({
 		progressbar: !disableProgressBar,
 	});
 	progressTracker.setCaption('Preparing WordPress');
+
+	// Set a default blueprint if none is provided.
 	if (!blueprint) {
-		const playground = await doStartPlaygroundWeb(
-			iframe,
-			setQueryParams(remoteUrl, {
-				['php-extension']: 'kitchen-sink',
-				'site-slug': siteSlug,
-			}),
-			progressTracker,
-			mounts || [],
-			shouldInstallWordPress
-		);
-		onClientConnected(playground);
-		return playground;
+		blueprint = {
+			phpExtensionBundles: ['kitchen-sink'],
+		};
 	}
+
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
 	});
-	const playground = await doStartPlaygroundWeb(
-		iframe,
-		setQueryParams(remoteUrl, {
-			php: compiled.versions.php,
-			wp: compiled.versions.wp,
-			['sapi-name']: sapiName,
-			['php-extension']: compiled.phpExtensions,
-			['networking']: compiled.features.networking ? 'yes' : 'no',
-			'site-slug': siteSlug,
-		}),
-		progressTracker,
-		mounts || [],
-		shouldInstallWordPress
-	);
+
+	await new Promise((resolve) => {
+		iframe.src = remoteUrl;
+		iframe.addEventListener('load', resolve, false);
+	});
+
+	// Connect the Comlink API client to the remote worker,
+	// boot the playground, and run the blueprint steps.
+	const playground = consumeAPI<PlaygroundClient>(
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
+	) as PlaygroundClient;
+	await playground.isConnected();
+	progressTracker.pipe(playground);
+	const downloadPHPandWP = progressTracker.stage();
+	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+	await playground.boot({
+		mounts: mounts || [],
+		shouldInstallWordPress,
+		phpVersion: compiled.versions.php,
+		wpVersion: compiled.versions.wp,
+		sapiName: sapiName,
+		phpExtensions: compiled.phpExtensions,
+		withNetworking: compiled.features.networking,
+		siteSlug,
+	});
+	await playground.isReady();
+	downloadPHPandWP.finish();
+
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
@@ -169,45 +177,6 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 	) {
 		iframe.sandbox.add('allow-storage-access-by-user-activation');
 	}
-}
-
-/**
- * Internal function to connect an iframe to the playground remote.
- *
- * @param iframe
- * @param remoteUrl
- * @param progressTracker
- * @returns
- */
-async function doStartPlaygroundWeb(
-	iframe: HTMLIFrameElement,
-	remoteUrl: string,
-	progressTracker: ProgressTracker,
-	mounts: Array<MountDescriptor>,
-	shouldInstallWordPress: boolean
-) {
-	await new Promise((resolve) => {
-		iframe.src = remoteUrl;
-		iframe.addEventListener('load', resolve, false);
-	});
-
-	// Connect the Comlink client and wait until the
-	// playground is ready.
-	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await playground.isConnected();
-	progressTracker.pipe(playground);
-	const downloadPHPandWP = progressTracker.stage();
-	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
-	await playground.boot({
-		mounts,
-		shouldInstallWordPress,
-	});
-	await playground.isReady();
-	downloadPHPandWP.finish();
-	return playground;
 }
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';

@@ -1,8 +1,4 @@
-import {
-	LatestSupportedPHPVersion,
-	MessageListener,
-	SupportedPHPExtensionsList,
-} from '@php-wasm/universal';
+import { MessageListener } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
 	setPhpApi,
@@ -15,8 +11,10 @@ import {
 
 import type {
 	PlaygroundWorkerEndpoint,
+	WorkerBootOptions,
 	MountDescriptor,
 } from './worker-thread';
+export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
 import ProgressBar, { ProgressBarOptions } from './progress-bar';
 
@@ -32,7 +30,6 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -60,36 +57,12 @@ export async function bootPlaygroundRemote() {
 		document.body.prepend(bar.element);
 	}
 
-	const wpVersion = parseVersion(
-		query.get('wp'),
-		LatestSupportedWordPressVersion
-	);
-	const phpVersion = parseVersion(
-		query.get('php'),
-		LatestSupportedPHPVersion
-	);
-	const phpExtensions = parseList(
-		query.getAll('php-extension'),
-		SupportedPHPExtensionsList
-	);
-	const withNetworking = query.get('networking') === 'yes';
-	const sapiName = query.get('sapi-name') || undefined;
-
 	const scope = Math.random().toFixed(16);
 	await registerServiceWorker(scope, serviceWorkerUrl + '');
-
 	const phpApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl, {
-			wpVersion,
-			phpVersion,
-			['php-extension']: phpExtensions,
-			networking: withNetworking ? 'yes' : 'no',
-			storage: query.get('storage') || '',
-			...(sapiName ? { sapiName } : {}),
-			'site-slug': query.get('site-slug') || 'wordpress',
-			scope,
-		})
+		await spawnPHPWorkerThread(workerUrl)
 	);
+
 	// Set PHP API in the service worker
 	setPhpApi(phpApi);
 
@@ -210,6 +183,16 @@ export async function bootPlaygroundRemote() {
 		},
 
 		/**
+		 * Ditto for this function.
+		 * @see onMessage
+		 * @param mountpoint
+		 * @returns
+		 */
+		async unmountOpfs(mountpoint: string) {
+			return await phpApi.unmountOpfs(mountpoint);
+		},
+
+		/**
 		 * Download WordPress assets.
 		 * @see backfillStaticFilesRemovedFromMinifiedBuild in the worker-thread.ts
 		 */
@@ -224,6 +207,71 @@ export async function bootPlaygroundRemote() {
 		async hasCachedStaticFilesRemovedFromMinifiedBuild() {
 			return await phpApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
+
+		async boot(options: Omit<WorkerBootOptions, 'scope'>) {
+			await phpApi.boot({
+				...options,
+				scope,
+			});
+
+			try {
+				await phpApi.isReady();
+
+				setupPostMessageRelay(
+					wpFrame,
+					getOrigin((await playground.absoluteUrl)!)
+				);
+
+				if (options.withNetworking) {
+					await setupFetchNetworkTransport(phpApi);
+				}
+
+				setAPIReady();
+			} catch (e) {
+				setAPIError(e as Error);
+				throw e;
+			}
+
+			/**
+			 * When we're running WordPress from a minified bundle, we're missing some static assets.
+			 * The section below backfills them if needed. It doesn't do anything if the assets are already
+			 * in place, or when WordPress is loaded from a non-minified bundle.
+			 *
+			 * Minified bundles are shipped without most static assets to reduce the bundle size and
+			 * the loading time. When WordPress loads for the first time, the browser parses all the
+			 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
+			 *
+			 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
+			 *
+			 * Below we're downloading a zipped bundle of the missing assets.
+			 */
+			if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
+				/**
+				 * If we already have the static assets in the cache, the backfilling only
+				 * involves unzipping the archive. This is fast. Let's do it before the first
+				 * render.
+				 *
+				 * Why?
+				 *
+				 * Because otherwise the initial offline page render would lack CSS.
+				 * Without the static assets in /wordpress/wp-content, the browser would
+				 * attempt to fetch them from the server. However, we're in an offline mode
+				 * so nothing would be fetched.
+				 */
+				await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			} else {
+				/**
+				 * If we don't have the static assets in the cache, we need to fetch them.
+				 *
+				 * Let's wait for the initial page load before we start the backfilling.
+				 * The static assets are 12MB+ in size. Starting the download before
+				 * Playground is loaded would noticeably delay the first paint.
+				 */
+				wpFrame.addEventListener('load', () => {
+					webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+				});
+			}
+		},
 	};
 
 	await phpApi.isConnected();
@@ -237,64 +285,6 @@ export async function bootPlaygroundRemote() {
 	//        the onDownloadProgress method
 	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, phpApi);
 
-	try {
-		await phpApi.isReady();
-
-		setupPostMessageRelay(
-			wpFrame,
-			getOrigin((await playground.absoluteUrl)!)
-		);
-
-		if (withNetworking) {
-			await setupFetchNetworkTransport(phpApi);
-		}
-
-		setAPIReady();
-	} catch (e) {
-		setAPIError(e as Error);
-		throw e;
-	}
-
-	/**
-	 * When we're running WordPress from a minified bundle, we're missing some static assets.
-	 * The section below backfills them if needed. It doesn't do anything if the assets are already
-	 * in place, or when WordPress is loaded from a non-minified bundle.
-	 *
-	 * Minified bundles are shipped without most static assets to reduce the bundle size and
-	 * the loading time. When WordPress loads for the first time, the browser parses all the
-	 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
-	 *
-	 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
-	 *
-	 * Below we're downloading a zipped bundle of the missing assets.
-	 */
-	if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
-		/**
-		 * If we already have the static assets in the cache, the backfilling only
-		 * involves unzipping the archive. This is fast. Let's do it before the first
-		 * render.
-		 *
-		 * Why?
-		 *
-		 * Because otherwise the initial offline page render would lack CSS.
-		 * Without the static assets in /wordpress/wp-content, the browser would
-		 * attempt to fetch them from the server. However, we're in an offline mode
-		 * so nothing would be fetched.
-		 */
-		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-	} else {
-		/**
-		 * If we don't have the static assets in the cache, we need to fetch them.
-		 *
-		 * Let's wait for the initial page load before we start the backfilling.
-		 * The static assets are 12MB+ in size. Starting the download before
-		 * Playground is loaded would noticeably delay the first paint.
-		 */
-		wpFrame.addEventListener('load', () => {
-			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-		});
-	}
-
 	/*
 	 * An assertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
@@ -304,20 +294,6 @@ export async function bootPlaygroundRemote() {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
-}
-
-function parseVersion<T>(value: string | undefined | null, latest: T) {
-	if (!value || value === 'latest') {
-		return latest as string;
-	}
-	return value;
-}
-
-function parseList<T>(value: string[], list: readonly T[]) {
-	if (!value) {
-		return [];
-	}
-	return value.filter((item) => list.includes(item as any));
 }
 
 /**

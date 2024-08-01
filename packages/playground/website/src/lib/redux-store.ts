@@ -38,6 +38,8 @@ if (query.get('storage') === 'browser') {
 		handle: opfsDir,
 		mountpoint: '/wordpress',
 	});
+} else {
+	directoryHandleResolve(null);
 }
 
 // Create the slice

@@ -2,8 +2,8 @@ import {
 	SyncProgressCallback,
 	createDirectoryHandleMountHandler,
 	exposeAPI,
+	loadWebRuntime,
 } from '@php-wasm/web';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
@@ -12,19 +12,16 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 	sqliteDatabaseIntegrationModuleDetails,
+	SupportedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
-
 import { randomString } from '@php-wasm/util';
 import {
-	requestedWPVersion,
-	startupOptions,
-	monitoredFetch,
-	downloadMonitor,
 	spawnHandlerFactory,
-	createPhpRuntime,
-	setStartupOptions,
-	waitForStartupOptions,
+	backfillStaticFilesRemovedFromMinifiedBuild,
+	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { createMemoizedFetch } from './create-memoized-fetch';
 import {
 	FilesystemOperation,
 	journalFSEvents,
@@ -36,7 +33,12 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { PHP, PHPResponse, PHPWorker } from '@php-wasm/universal';
+import {
+	PHPResponse,
+	PHPWorker,
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
+} from '@php-wasm/universal';
 import {
 	bootWordPress,
 	getFileNotFoundActionForWordPress,
@@ -44,41 +46,54 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
-import { unzipFile } from '@wp-playground/common';
-import { OfflineModeCache } from './offline-mode-cache';
-
-/**
- * Startup options are received from spawnPHPWorkerThread using a message event.
- * We need to wait for startup options to be received to setup the worker thread.
- */
-setStartupOptions(await waitForStartupOptions());
-
-const scope = startupOptions.scope;
 
 // post message to parent
 self.postMessage('worker-script-started');
+
+const downloadMonitor = new EmscriptenDownloadMonitor();
+
+const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+	downloadMonitor.monitorFetch(fetch(input, init));
+const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 export interface MountDescriptor {
 	mountpoint: string;
 	handle: FileSystemDirectoryHandle;
 	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
 }
-export interface WorkerBootOptions {
-	mounts: Array<MountDescriptor>;
-	shouldInstallWordPress: boolean;
-}
+
+export type WorkerBootOptions = {
+	wpVersion?: string;
+	phpVersion?: string;
+	sapiName?: string;
+	phpExtensions?: string[];
+	siteSlug?: string;
+	scope?: string;
+	withNetworking: boolean;
+	mounts?: Array<MountDescriptor>;
+	shouldInstallWordPress?: boolean;
+};
+
+export type ParsedBootOptions = {
+	wpVersion: string;
+	phpVersion: SupportedPHPVersion;
+	sapiName: string;
+	phpExtensions: string[];
+	siteSlug: string;
+	scope: string;
+};
 
 /** @inheritDoc PHPClient */
 export class PlaygroundWorkerEndpoint extends PHPWorker {
 	/**
 	 * A string representing the scope of the Playground instance.
 	 */
-	scope: string;
+	scope: string | undefined;
 
 	/**
 	 * A string representing the requested version of WordPress.
 	 */
-	requestedWordPressVersion: string;
+	requestedWordPressVersion: string | undefined;
 
 	/**
 	 * A string representing the version of WordPress that was loaded.
@@ -87,14 +102,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	unmounts: Record<string, () => any> = {};
 
-	constructor(
-		monitor: EmscriptenDownloadMonitor,
-		scope: string,
-		requestedWordPressVersion: string
-	) {
+	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
-		this.scope = scope;
-		this.requestedWordPressVersion = requestedWordPressVersion;
 	}
 
 	/**
@@ -150,11 +159,31 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		);
 	}
 
-	async boot({ mounts, shouldInstallWordPress }: WorkerBootOptions) {
+	async boot(options: WorkerBootOptions) {
+		const requestedWPVersion = options.wpVersion || '';
+		const startupOptions = {
+			wpVersion: SupportedWordPressVersionsList.includes(
+				requestedWPVersion
+			)
+				? requestedWPVersion
+				: LatestSupportedWordPressVersion,
+			phpVersion: SupportedPHPVersionsList.includes(
+				options.phpVersion || ''
+			)
+				? (options.phpVersion as SupportedPHPVersion)
+				: '8.0',
+			sapiName: options.sapiName || 'cli',
+			phpExtensions: options.phpExtensions || [],
+			siteSlug: options.siteSlug,
+			scope: options.scope || '',
+		} as ParsedBootOptions;
+		this.scope = startupOptions.scope;
+		this.requestedWordPressVersion = startupOptions.wpVersion;
+
 		try {
 			// Start downloading WordPress if needed
 			let wordPressRequest = null;
-			if (shouldInstallWordPress) {
+			if (options.shouldInstallWordPress) {
 				// @TODO: Accept a WordPress ZIP file or a URL, do not
 				//        reason about the `requestedWPVersion` here.
 				if (requestedWPVersion.startsWith('http')) {
@@ -180,32 +209,73 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				fetch(sqliteDatabaseIntegrationModuleDetails.url)
 			);
 
-			const constants: Record<string, any> = shouldInstallWordPress
-				? {
-						WP_DEBUG: true,
-						WP_DEBUG_LOG: true,
-						WP_DEBUG_DISPLAY: false,
-						AUTH_KEY: randomString(40),
-						SECURE_AUTH_KEY: randomString(40),
-						LOGGED_IN_KEY: randomString(40),
-						NONCE_KEY: randomString(40),
-						AUTH_SALT: randomString(40),
-						SECURE_AUTH_SALT: randomString(40),
-						LOGGED_IN_SALT: randomString(40),
-						NONCE_SALT: randomString(40),
-				  }
-				: {};
+			const constants: Record<string, any> =
+				options.shouldInstallWordPress
+					? {
+							WP_DEBUG: true,
+							WP_DEBUG_LOG: true,
+							WP_DEBUG_DISPLAY: false,
+							AUTH_KEY: randomString(40),
+							SECURE_AUTH_KEY: randomString(40),
+							LOGGED_IN_KEY: randomString(40),
+							NONCE_KEY: randomString(40),
+							AUTH_SALT: randomString(40),
+							SECURE_AUTH_SALT: randomString(40),
+							LOGGED_IN_SALT: randomString(40),
+							NONCE_SALT: randomString(40),
+					  }
+					: {};
 
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const requestHandler = await bootWordPress({
-				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
-				createPhpRuntime,
+				siteUrl: setURLScope(
+					wordPressSiteUrl,
+					startupOptions.scope
+				).toString(),
+				createPhpRuntime: async () => {
+					let wasmUrl = '';
+					return await loadWebRuntime(startupOptions.phpVersion, {
+						onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+							wasmUrl = phpLoaderModule.dependencyFilename;
+							downloadMonitor.expectAssets({
+								[wasmUrl]:
+									phpLoaderModule.dependenciesTotalSize,
+							});
+						},
+						// We don't yet support loading specific PHP extensions one-by-one.
+						// Let's just indicate whether we want to load all of them.
+						loadAllExtensions:
+							startupOptions.phpExtensions?.length > 0,
+						emscriptenOptions: {
+							instantiateWasm(imports, receiveInstance) {
+								// Using .then because Emscripten typically returns an empty
+								// object here and not a promise.
+								memoizedFetch(wasmUrl, {
+									credentials: 'same-origin',
+								})
+									.then((response) =>
+										WebAssembly.instantiateStreaming(
+											response,
+											imports
+										)
+									)
+									.then((wasm) => {
+										receiveInstance(
+											wasm.instance,
+											wasm.module
+										);
+									});
+								return {};
+							},
+						},
+					});
+				},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip: shouldInstallWordPress
+				wordPressZip: options.shouldInstallWordPress
 					? wordPressRequest!
 							.then((r) => r.blob())
 							.then((b) => new File([b], 'wp.zip'))
@@ -214,11 +284,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					.then((r) => r.blob())
 					.then((b) => new File([b], 'sqlite.zip')),
 				spawnHandler: spawnHandlerFactory,
-				sapiName: startupOptions.sapiName,
+				sapiName: options.sapiName,
 				constants,
 				hooks: {
 					async beforeWordPressFiles(php) {
-						for (const mount of mounts || []) {
+						for (const mount of options.mounts || []) {
 							const unmount = await php.mount(
 								mount.mountpoint,
 								createDirectoryHandleMountHandler(
@@ -351,141 +421,5 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
-/**
- * Downloads and unzips a ZIP bundle of all the static assets removed from
- * the currently loaded minified WordPress build. Doesn't do anything if the
- * assets are already downloaded or if a non-minified WordPress build is loaded.
- *
- * ## Asset Loading
- *
- * To load Playground faster, we default to minified WordPress builds shipped
- * without most CSS files, JS files, and other static assets.
- *
- * When Playground requests a static asset that is not in the minified build, the service
- * worker consults the list of the assets removed during the minification process. Such
- * a list is shipped with every minified build in a file called `wordpress-remote-asset-paths`.
- *
- * For example, when `/wp-includes/css/dist/block-library/common.min.css` isn't found
- * in the Playground filesystem, the service worker looks for it in `/wordpress/wordpress-remote-asset-paths`
- * and finds it there. This means it's available on the remote server, so the service
- * worker fetches it from an URL like:
- *
- * https://playground.wordpress.net/wp-6.5/wp-includes/css/dist/block-library/common.min.css
- *
- * ## Assets backfilling
- *
- * Running Playground offline isn't possible without shipping all the static assets into the browser.
- * Downloading every CSS and JS file one request at a time would be slow to run and tedious to maintain.
- * This is where this function comes in!
- *
- * It downloads a zip archive containing all the static files removed from the currently running
- * minified build, and unzips them in the Playground filesystem. Once it finishes, the WordPress
- * installation running in the browser is complete and the service worker will no longer have
- * to backfill any static assets again.
- *
- * This process is started after the Playground boots (see `bootPlaygroundRemote`) and the first
- * page is rendered. This way we're not delaying the initial Playground paint with a large download.
- *
- * ## Prevent backfilling if assets are already available
- *
- * Running this function twice, or running it on a non-minified build will have no effect.
- *
- * The backfilling only runs when a non-empty `wordpress-remote-asset-paths` file
- * exists. When one is missing, we're not running a minified build. When one is empty,
- * it means the backfilling process was already done – this function empties the file
- * after the backfilling is done.
- *
- * ### Downloading assets during backfill
- *
- * Each WordPress release has a corresponding static assets directory on the Playground.WordPress.net server.
- * The file is downloaded from the server and unzipped into the WordPress document root.
- *
- * ### Skipping existing files during unzipping
- *
- * If any of the files already exist, they are skipped and not overwritten.
- * By skipping existing files, we ensure that the backfill process doesn't overwrite any user changes.
- */
-async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
-	if (!php.requestHandler) {
-		logger.warn('No PHP request handler available');
-		return;
-	}
-
-	try {
-		const remoteAssetListPath = joinPaths(
-			php.requestHandler.documentRoot,
-			'wordpress-remote-asset-paths'
-		);
-
-		if (
-			!php.fileExists(remoteAssetListPath) ||
-			(await php.readFileAsText(remoteAssetListPath)) === ''
-		) {
-			return;
-		}
-
-		const staticAssetsUrl = await getWordPressStaticZipUrl(php);
-		if (!staticAssetsUrl) {
-			return;
-		}
-
-		// We don't have the WordPress assets cached yet. Let's fetch them and cache them without
-		// awaiting the response. We're awaiting the backfillStaticFilesRemovedFromMinifiedBuild()
-		// call in the web app and we don't want to block the initial load on this download.
-		const response = await fetch(staticAssetsUrl);
-
-		// We have the WordPress assets already cached, let's unzip them and finish.
-		if (!response?.ok) {
-			throw new Error(
-				`Failed to fetch WordPress static assets: ${response.status} ${response.statusText}`
-			);
-		}
-		await unzipFile(
-			php,
-			new File([await response!.blob()], 'wordpress-static.zip'),
-			php.requestHandler!.documentRoot,
-			false
-		);
-		// Clear the remote asset list to indicate that the assets are downloaded.
-		php.writeFile(remoteAssetListPath, '');
-	} catch (e) {
-		logger.warn('Failed to download WordPress assets', e);
-	}
-}
-
-async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
-	const staticAssetsUrl = await getWordPressStaticZipUrl(php);
-	if (!staticAssetsUrl) {
-		return false;
-	}
-	const cache = await OfflineModeCache.getInstance();
-	const response = await cache.cache.match(staticAssetsUrl, {
-		ignoreSearch: true,
-	});
-	return !!response;
-}
-
-/**
- * Returns the URL of the wordpress-static.zip file containing all the
- * static assets missing from the currently load minified build.
- *
- * Note: This function will produce a URL even if we're running a full
- *       production WordPress build.
- *
- * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
- */
-async function getWordPressStaticZipUrl(php: PHP) {
-	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
-	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
-	if (!staticAssetsDirectory) {
-		return false;
-	}
-	return joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip');
-}
-
-const apiEndpoint = new PlaygroundWorkerEndpoint(
-	downloadMonitor,
-	scope,
-	startupOptions.wpVersion
-);
+const apiEndpoint = new PlaygroundWorkerEndpoint(downloadMonitor);
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);

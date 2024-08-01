@@ -8,7 +8,8 @@ export async function reloadWithNewConfiguration(
 ) {
 	if (playground && config.resetSite && config.storage === 'browser') {
 		try {
-			await playground?.resetVirtualOpfs();
+			window.alert('Not implemented yet.');
+			// await playground?.resetVirtualOpfs();
 		} catch (error) {
 			logger.error(error);
 		}

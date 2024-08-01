@@ -1,12 +1,12 @@
 import { trash } from '@wordpress/icons';
 import { MenuItem } from '@wordpress/components';
 import { StorageType } from '../../types';
-import { usePlaygroundContext } from '../../playground-context';
+// import { usePlaygroundContext } from '../../playground-context';
 
 type Props = { onClose: () => void; storage: StorageType };
 const opfsStorages: StorageType[] = ['browser', 'device'];
 export function ResetSiteMenuItem({ onClose, storage }: Props) {
-	const { playground } = usePlaygroundContext();
+	// const { playground } = usePlaygroundContext();
 	return (
 		<MenuItem
 			icon={trash}
@@ -22,7 +22,8 @@ export function ResetSiteMenuItem({ onClose, storage }: Props) {
 					return;
 				}
 				if (opfsStorages.includes(storage)) {
-					await playground?.resetVirtualOpfs();
+					alert('Not implemented yet.');
+					// await playground?.resetVirtualOpfs();
 				}
 				window.location.reload();
 				onClose();
