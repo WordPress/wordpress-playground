@@ -20,8 +20,9 @@ export function SiteManager({
 
 	return (
 		<div className={css.siteManager}>
-			<SiteManagerSidebar />
+			<SiteManagerSidebar className={css.siteManagerSidebar} />
 			<SiteManagerEditor
+				className={css.siteManagerEditor}
 				iframeRef={iframeRef}
 				siteSlug={siteSlug}
 				onSiteChange={onSiteChange}

@@ -12,3 +12,19 @@ body {
 		var(--site-manager-background-color);
 	background-color: var(--site-manager-background-color);
 }
+
+.site-manager-editor {
+	display: none;
+}
+.site-manager-sidebar {
+	width: 100%;
+}
+
+@media (min-width: 640px) {
+	.site-manager-editor {
+		display: unset;
+	}
+	.site-manager-sidebar {
+		width: 282px;
+	}
+}

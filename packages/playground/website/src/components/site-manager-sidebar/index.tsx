@@ -2,6 +2,7 @@ import { Blueprint } from '@wp-playground/blueprints';
 import { StorageType } from '../../types';
 
 import css from './style.module.css';
+import classNames from 'classnames';
 
 // TODO: move types to site storage
 type SiteLogo = {
@@ -16,7 +17,7 @@ type Site = {
 	storage?: StorageType;
 };
 
-export function SiteManagerSidebar() {
+export function SiteManagerSidebar({ className }: { className?: string }) {
 	const sites: Site[] = [
 		{
 			slug: 'wordpress',
@@ -55,7 +56,7 @@ export function SiteManagerSidebar() {
 	};
 
 	return (
-		<aside className={css.siteManagerSidebar}>
+		<aside className={classNames(css.siteManagerSidebar, className)}>
 			<header className={css.siteManagerSidebarHeader}>
 				{/* TODO move logo to components */}
 				<button

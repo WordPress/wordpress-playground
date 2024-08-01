@@ -1,12 +1,15 @@
+import classNames from 'classnames';
 import { SiteManagerPreview } from '../site-manager-preview';
 
 import css from './style.module.css';
 
 export function SiteManagerEditor({
+	className,
 	iframeRef,
 	siteSlug,
 	onSiteChange,
 }: {
+	className?: string;
 	iframeRef: React.RefObject<HTMLIFrameElement>;
 	siteSlug?: string;
 	onSiteChange?: (siteSlug: string) => void;
@@ -17,7 +20,7 @@ export function SiteManagerEditor({
 		}
 	};
 	return (
-		<div className={css.siteManagerEditor}>
+		<div className={classNames(css.siteManagerEditor, className)}>
 			<SiteManagerPreview iframeRef={iframeRef} onClick={onClick} />
 		</div>
 	);
