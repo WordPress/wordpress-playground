@@ -1,4 +1,80 @@
 .site-manager-sidebar {
 	width: 282px;
 	height: 100vh;
+	color: #fff;
+}
+
+.site-manager-sidebar-header {
+	display: flex;
+	padding: 16px 24px;
+}
+
+.site-manager-sidebar-content {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 16px;
+}
+
+.site-manager-sidebar-subtitle {
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 24px;
+	margin: 0 0 8px;
+}
+
+.site-manager-sidebar-list-label {
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 16px;
+	color: #949494;
+	text-transform: uppercase;
+}
+
+.site-manager-sidebar-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.site-manager-sidebar-item--button {
+	padding: 8px 0;
+	cursor: pointer;
+	border: none;
+	background: none;
+	margin: 0;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 510;
+	text-align: left;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	width: 100%;
+}
+
+.site-manager-sidebar-list-item--logo {
+	width: 24px;
+	height: 24px;
+}
+
+.site-manager-sidebar-item-site-name {
+	flex-grow: 1;
+	display: inline-flex;
+}
+
+.site-manager-sidebar-item-storage-icon {
+	width: 16px;
+	height: 16px;
+	margin: 0 8px;
+}
+
+.site-manager-sidebar-logo-button {
+	cursor: pointer;
+	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+	height: 32px;
+	width: 32px;
 }

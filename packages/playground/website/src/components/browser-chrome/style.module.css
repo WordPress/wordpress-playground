@@ -191,7 +191,6 @@ body.is-embedded .fake-window-wrapper {
 	.has-site-manager {
 		.window-controls {
 			display: flex;
-			padding: 5px;
 		}
 		.address-bar-slot {
 			margin-left: 36px;
@@ -222,5 +221,10 @@ body.is-embedded .fake-window-wrapper {
 	}
 	.address-bar-slot {
 		margin-bottom: 10px;
+	}
+	.has-site-manager {
+		.window-controls {
+			padding: 5px;
+		}
 	}
 }

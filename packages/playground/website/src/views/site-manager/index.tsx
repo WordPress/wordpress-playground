@@ -11,7 +11,11 @@ export function SiteManager({
 	siteSlug?: string;
 }) {
 	const onSiteChange = (siteSlug: string) => {
-		console.log(siteSlug);
+		const url = new URL(window.location.href);
+		url.searchParams.set('site-slug', siteSlug);
+		// Return back to site view
+		url.searchParams.delete('site-manager');
+		window.location.assign(url.toString());
 	};
 
 	return (
