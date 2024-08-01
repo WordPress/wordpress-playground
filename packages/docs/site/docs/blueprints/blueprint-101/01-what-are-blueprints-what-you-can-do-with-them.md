@@ -47,21 +47,12 @@ Blueprints are an invaluable tool for building WordPress sites via Playground
 -   **WordPress.org integration**: offer a [demo of your plugin](https://developer.wordpress.org/plugins/wordpress-org/previews-and-blueprints/) in the WordPress plugin directory, or a preview in a [Theme Trac ticket](https://meta.trac.wordpress.org/ticket/7382).
 -   **Spinning a development environment**: A new developer in the team could download the Blueprint, run a hypothetical `wp up` command, and get a fresh developer environments—loaded with everything they need. The entire CI/CD process can reuse the same Blueprint.
 
-:::info
-**More Resources**
+:::info **More Resources**
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 -   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
 -   [Blueprints examples](https://wordpress.github.io/wordpress-playground/blueprints-api/examples)
 -   [Demos and apps built with Blueprints](https://wordpress.github.io/wordpress-playground/links-and-resources#apps-built-with-wordpress-playground)
-    :::
 
----
-
-**Table of contents**
-
-1. **What are Blueprints, and what can you do with them?**
-2. [How to load and run Blueprints?](./02-how-to-load-run-blueprints.md)
-3. [Build your first Blueprint](./03-build-your-first-blueprint.md)
-4. [Troubleshoot and debug Blueprints](./04-troubleshoot-debug-blueprints.md)
+:::

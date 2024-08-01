@@ -51,9 +51,9 @@ This menu contains links to some Playground resources and tools:
 
 -   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
 
--   **View Logs**: This option allows you to search.
+-   **View Logs**: This option will take you to modal that will show any error logs for Playground, WordPress and PHP.
 
--   **Edit the blueprint**: This option allows you to open a "builder" mode of the blueprint being used for the current Playground instance. In this mode you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+-   **Edit the blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](../blueprints/09-troubleshoot-and-debug-blueprints.md#blueprints-builder). From this tool you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 
 <span id="edit-the-blueprint"></span>
 

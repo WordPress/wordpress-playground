@@ -45,12 +45,3 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 ```
 Access-Control-Allow-Origin: *
 ```
-
----
-
-**Table of contents**
-
-1. [What are Blueprints, and what can you do with them?](./01-what-are-blueprints-what-you-can-do-with-them.md)
-2. **How to load and run Blueprints?**
-3. [Build your first Blueprint](./03-build-your-first-blueprint.md)
-4. [Troubleshoot and debug Blueprints](./04-troubleshoot-debug-blueprints.md)

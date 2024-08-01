@@ -2,12 +2,6 @@
 title: Getting started with Blueprints
 ---
 
-import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
-
-:::tip
-Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of initial setups.
-:::
-
 # Getting started with Blueprints
 
 Blueprints are JSON files for setting up your very own WordPress Playground instance. For example:
@@ -81,9 +75,3 @@ With Blueprints, WordPress.org plugin directory may be able to offer live previe
 ### Write it once, use it anywhere
 
 Blueprints work both on the web and in node.js. You can run them both in the same JavaScript process, and through a remote Playground Client. They are the universal language of configuration. Where you can run Playground, you can use Blueprints.
-
-## Learn More
-
-Enhance your understanding of Blueprints with these resources:
-
--   [Blueprints 101](https://github.com/adamziel/blueprints/blob/trunk/docs/index.md) - Blueprints API crash course

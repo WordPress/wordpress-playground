@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# Resources
+# Resources References
 
 Resource References allow you use external files in Blueprints
 

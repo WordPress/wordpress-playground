@@ -7,6 +7,10 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 # Blueprints Examples
 
+:::tip
+Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of initial setups.
+:::
+
 Let's see some cool things you can do with Blueprints.
 
 ## Install a Theme and a Plugin
