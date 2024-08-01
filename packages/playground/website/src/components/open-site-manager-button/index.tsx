@@ -2,6 +2,7 @@ import css from './style.module.css';
 
 export function OpenSiteManagerButton() {
 	const onClick = () => {
+		// TODO use a shared function for switching views
 		const url = new URL(window.location.toString());
 		url.searchParams.set('view', 'manager');
 		window.location.assign(url.toString());
