@@ -103,7 +103,7 @@ const config = {
 				schedule: 'every 1 day',
 			},
 			navbar: {
-				title: 'Playground',
+				title: 'WordPress Playground',
 				logo: {
 					alt: 'WordPress Playground',
 					src: 'img/wordpress.svg',

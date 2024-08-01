@@ -23,13 +23,18 @@ From the Playground website there are also available some toolbars to customize 
 
 ![snapshot of customize playground window at playground instance](./_assets/customize-playground.png)
 
-All the options available from the "Customize Playground" window correpond to the following [Query API options](../developers/20-query-api/01-index.md##available-options):
+The options available from the "Customize Playground" window correpond to the following [Query API options](../developers/20-query-api/01-index.md##available-options):
 
 -   `storage`
 -   `php`
 -   `php-extension-bundle`
 -   `networking`
 -   `wp`
+
+:::tip
+
+You need to activate "Network access" to be able to browse for [plugins](https://w.org/plugins) and [themes](https://w.org/themes) from your WordPress instance.
+:::
 
 ## Playground Options Menu
 
@@ -45,6 +50,8 @@ This menu contains links to some Playground resources and tools:
 -   **Import from Github**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
 
 -   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
+
+-   **View Logs**: This option allows you to search.
 
 -   **Edit the blueprint**: This option allows you to open a "builder" mode of the blueprint being used for the current Playground instance. In this mode you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 
