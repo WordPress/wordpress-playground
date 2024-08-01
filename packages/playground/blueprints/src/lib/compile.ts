@@ -168,13 +168,11 @@ export function compileBlueprint(
 	 * each Blueprint step may be able to specify any pre-requisite resources.
 	 * Also, wp-cli should only be downloaded if it's not already present.
 	 */
-	const wpCliStepIndex = blueprint.steps?.findIndex(
-		(step) => typeof step === 'object' && step?.step === 'wp-cli'
-	);
-	if (
-		blueprint?.extraLibraries?.includes('wp-cli') ||
-		(wpCliStepIndex !== undefined && wpCliStepIndex > -1)
-	) {
+	const wpCliStepIndex =
+		blueprint.steps?.findIndex(
+			(step) => typeof step === 'object' && step?.step === 'wp-cli'
+		) ?? -1;
+	if (blueprint?.extraLibraries?.includes('wp-cli') || wpCliStepIndex > -1) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
 				blueprint.phpExtensionBundles.filter(
@@ -204,10 +202,17 @@ export function compileBlueprint(
 			},
 			path: '/tmp/wp-cli.phar',
 		};
-		if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
-			blueprint.steps?.splice(wpCliStepIndex, 0, wpCliInstallStep);
-		} else {
+		/**
+		 * If the blueprint does not have a wp-cli step,
+		 * we can install wp-cli as the last step because other steps don't depend on wp-cli.
+		 *
+		 * If the blueprint has wp-cli steps,
+		 * we need to install wp-cli before running these steps.
+		 */
+		if (wpCliStepIndex === -1) {
 			blueprint.steps?.push(wpCliInstallStep);
+		} else {
+			blueprint.steps?.splice(wpCliStepIndex, 0, wpCliInstallStep);
 		}
 	}
 
