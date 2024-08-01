@@ -8,7 +8,7 @@ import {
 // directly.
 // @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import * as SupportedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 import { Blueprint } from '@wp-playground/blueprints';
 
 describe('Playground website UI', () => {
@@ -84,7 +84,7 @@ describe('Playground website UI', () => {
 
 	// Test all WordPress versions for completeness
 	describe('WordPress version selector', () => {
-		for (const version in SupportedWordPressVersions) {
+		for (const version in MinifiedWordPressVersions) {
 			if (version === 'beta') {
 				continue;
 			}

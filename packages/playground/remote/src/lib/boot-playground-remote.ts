@@ -1,7 +1,7 @@
 import { MessageListener } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
-	setPhpApi,
+	setPhpInstanceUsedByServiceWorker,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
@@ -59,29 +59,28 @@ export async function bootPlaygroundRemote() {
 
 	const scope = Math.random().toFixed(16);
 	await registerServiceWorker(scope, serviceWorkerUrl + '');
-	const phpApi = consumeAPI<PlaygroundWorkerEndpoint>(
+
+	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
 	);
-
-	// Set PHP API in the service worker
-	setPhpApi(phpApi);
+	setPhpInstanceUsedByServiceWorker(phpWorkerApi);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const webApi: WebClientMixin = {
+	const phpRemoteApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
-			return phpApi.onDownloadProgress(fn);
+			return phpWorkerApi.onDownloadProgress(fn);
 		},
 		async journalFSEvents(root: string, callback) {
-			return phpApi.journalFSEvents(root, callback);
+			return phpWorkerApi.journalFSEvents(root, callback);
 		},
 		async replayFSJournal(events: FilesystemOperation[]) {
-			return phpApi.replayFSJournal(events);
+			return phpWorkerApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await phpApi.addEventListener(event, listener);
+			return await phpWorkerApi.addEventListener(event, listener);
 		},
 		async removeEventListener(event, listener) {
-			return await phpApi.removeEventListener(event, listener);
+			return await phpWorkerApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
@@ -166,7 +165,7 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async onMessage(callback: MessageListener) {
-			return await phpApi.onMessage(callback);
+			return await phpWorkerApi.onMessage(callback);
 		},
 
 		/**
@@ -179,7 +178,7 @@ export async function bootPlaygroundRemote() {
 			options: MountDescriptor,
 			onProgress?: SyncProgressCallback
 		) {
-			return await phpApi.mountOpfs(options, onProgress);
+			return await phpWorkerApi.mountOpfs(options, onProgress);
 		},
 
 		/**
@@ -189,7 +188,7 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async unmountOpfs(mountpoint: string) {
-			return await phpApi.unmountOpfs(mountpoint);
+			return await phpWorkerApi.unmountOpfs(mountpoint);
 		},
 
 		/**
@@ -197,7 +196,7 @@ export async function bootPlaygroundRemote() {
 		 * @see backfillStaticFilesRemovedFromMinifiedBuild in the worker-thread.ts
 		 */
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
-			await phpApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			await phpWorkerApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		},
 
 		/**
@@ -205,17 +204,17 @@ export async function bootPlaygroundRemote() {
 		 * available in the request cache.
 		 */
 		async hasCachedStaticFilesRemovedFromMinifiedBuild() {
-			return await phpApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
+			return await phpWorkerApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
 
 		async boot(options) {
-			await phpApi.boot({
+			await phpWorkerApi.boot({
 				...options,
 				scope,
 			});
 
 			try {
-				await phpApi.isReady();
+				await phpWorkerApi.isReady();
 
 				setupPostMessageRelay(
 					wpFrame,
@@ -223,7 +222,7 @@ export async function bootPlaygroundRemote() {
 				);
 
 				if (options.withNetworking) {
-					await setupFetchNetworkTransport(phpApi);
+					await setupFetchNetworkTransport(phpWorkerApi);
 				}
 
 				setAPIReady();
@@ -245,7 +244,9 @@ export async function bootPlaygroundRemote() {
 			 *
 			 * Below we're downloading a zipped bundle of the missing assets.
 			 */
-			if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
+			if (
+				await phpRemoteApi.hasCachedStaticFilesRemovedFromMinifiedBuild()
+			) {
 				/**
 				 * If we already have the static assets in the cache, the backfilling only
 				 * involves unzipping the archive. This is fast. Let's do it before the first
@@ -258,7 +259,7 @@ export async function bootPlaygroundRemote() {
 				 * attempt to fetch them from the server. However, we're in an offline mode
 				 * so nothing would be fetched.
 				 */
-				await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+				await phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
 			} else {
 				/**
 				 * If we don't have the static assets in the cache, we need to fetch them.
@@ -268,13 +269,13 @@ export async function bootPlaygroundRemote() {
 				 * Playground is loaded would noticeably delay the first paint.
 				 */
 				wpFrame.addEventListener('load', () => {
-					webApi.backfillStaticFilesRemovedFromMinifiedBuild();
+					phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
 				});
 			}
 		},
 	};
 
-	await phpApi.isConnected();
+	await phpWorkerApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
@@ -283,7 +284,10 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, phpApi);
+	const [setAPIReady, setAPIError, playground] = exposeAPI(
+		phpRemoteApi,
+		phpWorkerApi
+	);
 
 	/*
 	 * An assertion to make sure Playground Client is compatible

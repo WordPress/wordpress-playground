@@ -66,7 +66,7 @@ export default function PlaygroundConfigurationGroup({
 	>({});
 
 	useEffect(() => {
-		playground?.getSupportedWordPressVersions().then(({ all, latest }) => {
+		playground?.getMinifiedWordPressVersions().then(({ all, latest }) => {
 			const formOptions: Record<string, string> = {};
 			for (const version of Object.keys(all)) {
 				if (version === 'beta') {
@@ -162,10 +162,16 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
+			const docRoot = await playground.documentRoot;
+
+			if (await playground.hasOpfsMount(docRoot)) {
+				await playground.unmountOpfs(docRoot);
+			}
+
 			await playground.mountOpfs(
 				{
 					handle: dirHandle,
-					mountpoint: '/wordpress',
+					mountpoint: docRoot,
 					initialSyncDirection: isPlaygroundDir
 						? 'opfs-to-memfs'
 						: 'memfs-to-opfs',

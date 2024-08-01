@@ -9,10 +9,10 @@ import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
-	LatestSupportedWordPressVersion,
-	SupportedWordPressVersions,
+	LatestMinifiedWordPressVersion,
+	MinifiedWordPressVersions,
 	sqliteDatabaseIntegrationModuleDetails,
-	SupportedWordPressVersionsList,
+	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { randomString } from '@php-wasm/util';
 import {
@@ -73,14 +73,6 @@ export type WorkerBootOptions = {
 	shouldInstallWordPress?: boolean;
 };
 
-export type ParsedBootOptions = {
-	wpVersion: string;
-	phpVersion: SupportedPHPVersion;
-	sapiName: string;
-	phpExtensions: string[];
-	scope: string;
-};
-
 /** @inheritDoc PHPClient */
 export class PlaygroundWorkerEndpoint extends PHPWorker {
 	booted = false;
@@ -119,11 +111,15 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		};
 	}
 
-	async getSupportedWordPressVersions() {
+	async getMinifiedWordPressVersions() {
 		return {
-			all: SupportedWordPressVersions,
-			latest: LatestSupportedWordPressVersion,
+			all: MinifiedWordPressVersions,
+			latest: LatestMinifiedWordPressVersion,
 		};
+	}
+
+	async hasOpfsMount(mountpoint: string) {
+		return mountpoint in this.unmounts;
 	}
 
 	async mountOpfs(
@@ -162,7 +158,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	async boot({
 		scope,
 		mounts = [],
-		wpVersion = LatestSupportedWordPressVersion,
+		wpVersion = LatestMinifiedWordPressVersion,
 		phpVersion = '8.0',
 		phpExtensions = [],
 		sapiName = 'cli',
@@ -176,9 +172,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.scope = scope;
 		this.requestedWordPressVersion = wpVersion;
 
-		wpVersion = SupportedWordPressVersionsList.includes(wpVersion)
+		wpVersion = MinifiedWordPressVersionsList.includes(wpVersion)
 			? wpVersion
-			: LatestSupportedWordPressVersion;
+			: LatestMinifiedWordPressVersion;
 
 		if (!SupportedPHPVersionsList.includes(phpVersion)) {
 			throw new Error(
@@ -241,13 +237,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
 					return await loadWebRuntime(phpVersion, {
-						onPhpLoaderModuleLoaded: (phpLoaderModule) => {
-							wasmUrl = phpLoaderModule.dependencyFilename;
-							downloadMonitor.expectAssets({
-								[wasmUrl]:
-									phpLoaderModule.dependenciesTotalSize,
-							});
-						},
 						// We don't yet support loading specific PHP extensions one-by-one.
 						// Let's just indicate whether we want to load all of them.
 						loadAllExtensions: phpExtensions.length > 0,
@@ -272,6 +261,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 									});
 								return {};
 							},
+						},
+						onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+							wasmUrl = phpLoaderModule.dependencyFilename;
+							downloadMonitor.expectAssets({
+								[wasmUrl]:
+									phpLoaderModule.dependenciesTotalSize,
+							});
 						},
 					});
 				},
@@ -340,29 +336,29 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					};
 				},
 			});
-			apiEndpoint.__internal_setRequestHandler(requestHandler);
+			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
-			await apiEndpoint.setPrimaryPHP(primaryPhp);
+			await this.setPrimaryPHP(primaryPhp);
 
 			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
 			// from browser storage is the default version when it is actually something else.
-			// Incorrectly assuming WP version can break things like remote asset retrieval
-			// for minified WP builds.
-			apiEndpoint.loadedWordPressVersion =
-				await getLoadedWordPressVersion(requestHandler);
+			// Assuming an incorrect WP version would break remote asset retrieval for minified
+			// WP builds – we would download the wrong assets pack.
+			this.loadedWordPressVersion = await getLoadedWordPressVersion(
+				requestHandler
+			);
 			if (
-				apiEndpoint.requestedWordPressVersion !==
-				apiEndpoint.loadedWordPressVersion
+				this.requestedWordPressVersion !== this.loadedWordPressVersion
 			) {
 				logger.warn(
-					`Loaded WordPress version (${apiEndpoint.loadedWordPressVersion}) differs ` +
-						`from requested version (${apiEndpoint.requestedWordPressVersion}).`
+					`Loaded WordPress version (${this.loadedWordPressVersion}) differs ` +
+						`from requested version (${this.requestedWordPressVersion}).`
 				);
 			}
 
 			const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
-				apiEndpoint.loadedWordPressVersion
+				this.loadedWordPressVersion
 			);
 			const remoteAssetListPath = joinPaths(
 				requestHandler.documentRoot,
@@ -424,5 +420,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 }
 
-const apiEndpoint = new PlaygroundWorkerEndpoint(downloadMonitor);
-const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
+const [setApiReady, setAPIError] = exposeAPI(
+	new PlaygroundWorkerEndpoint(downloadMonitor)
+);

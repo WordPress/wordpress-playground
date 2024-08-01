@@ -3,10 +3,10 @@
 // directly.
 // @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import * as SupportedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
 const LatestSupportedWordPressVersion = Object.keys(
-	SupportedWordPressVersions
+	MinifiedWordPressVersions
 ).filter((x) => !['nightly', 'beta'].includes(x))[0];
 
 describe('Query API', () => {
