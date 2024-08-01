@@ -188,6 +188,15 @@ body.is-embedded .fake-window-wrapper {
 	.window-controls {
 		display: none;
 	}
+	.has-site-manager {
+		.window-controls {
+			display: flex;
+			padding: 5px;
+		}
+		.address-bar-slot {
+			margin-left: 36px;
+		}
+	}
 }
 
 @media (max-width: 902px) {

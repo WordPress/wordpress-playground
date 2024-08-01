@@ -3,6 +3,7 @@ import css from './style.module.css';
 import AddressBar from '../address-bar';
 import { close } from '@wordpress/icons';
 import classNames from 'classnames';
+import { OpenSiteManagerButton } from '../open-site-manager-button';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -44,21 +45,20 @@ export default function BrowserChrome({
 	});
 
 	// Temporary feature flag for the site manager
-	const query = new URL(document.location.href).searchParams;
-	const showSiteManager = query.get('site-manager') === 'true';
-
+	const query = new URL(window.location.href).searchParams;
+	const showSiteManager = query.get('storage') === 'browser';
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={css.window}>
-				<header className={css.toolbar} aria-label="Playground toolbar">
+				<header
+					className={`${css.toolbar} ${
+						showSiteManager ? css.hasSiteManager : ''
+					}`}
+					aria-label="Playground toolbar"
+				>
 					<div className={css.windowControls}>
-						{showSiteManager ? (
-							<img
-								src="/logo.svg"
-								alt="Logo"
-								className={css.logo}
-							/>
-						) : (
+						{showSiteManager && <OpenSiteManagerButton />}
+						{!showSiteManager && (
 							<>
 								<div
 									className={`${css.windowControl} ${css.isNeutral}`}
