@@ -22,6 +22,27 @@ The editor is under development and the embedded Playground sometimes fails to l
 
 :::
 
+## Check for the Filesystem and Database
+
+Some blueprint steps (such as [`writeFile`](/wordpress-playground/blueprints/steps#WriteFileStep)) alter the internal Filesystem structure of the Playground instance and some others (such as [`runSql`](/wordpress-playground/blueprints/steps#runSql)) alter the internal WordPress database.
+
+To check the final internal filesytem structure and database (after the blueprint steps have been applied) we can leverage some WordPress plugins that provide a SQL manager and a file explorer such as [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and [`WPide`](https://wordpress.org/plugins/wpide/) (you can see them in action from https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide)
+
+:::tip
+
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're available at the `playground` global object. Some examples:
+
+```
+> await playground.isDir("/wordpress/wp-content/plugins")
+true
+> await playground.listFiles("/wordpress/wp-content/plugins")
+(3) ['hello.php', 'index.php', 'WordPress-Importer-master']
+```
+
+Full list of methods we can use is available [here](/wordpress-playground/api/client/interface/PlaygroundClient)
+
+:::
+
 ## Check for errors in the browser console
 
 If your Blueprint isn’t running as expected, open the browser developer tools to see if there are any errors.
