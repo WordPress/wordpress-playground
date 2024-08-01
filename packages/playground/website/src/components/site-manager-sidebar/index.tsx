@@ -3,6 +3,7 @@ import { StorageType } from '../../types';
 
 import css from './style.module.css';
 import classNames from 'classnames';
+import { useEffect, useState } from 'react';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -19,18 +20,37 @@ type Site = {
 };
 
 export function SiteManagerSidebar({ className }: { className?: string }) {
-	const sites: Site[] = [
-		{
-			slug: 'wordpress',
-			name: 'WordPress',
-			storage: 'browser',
-		},
-		{
-			slug: 'test',
-			name: 'Test',
-			storage: 'none',
-		},
-	];
+	const [sites, setSites] = useState<Site[]>([]);
+
+	/**
+	 * TODO: This is a temporary solution to get the sites from the OPFS.
+	 * This will be removed when Site storage is implemented.
+	 */
+	useEffect(() => {
+		const getVirtualOpfsRoot = async () => {
+			const virtualOpfsRoot = await navigator.storage.getDirectory();
+			const opfsSites: Site[] = [];
+			for await (const entry of virtualOpfsRoot.values()) {
+				if (entry.kind === 'directory') {
+					/**
+					 * Sites stored in the OPFS are prefixed with "site-"
+					 * so we need to remove it to get the slug.
+					 *
+					 * The default site is stored in the `wordpress` directory
+					 * and it doesn't have a prefix.
+					 */
+					const name = entry.name.replace(/^site-/, '');
+					opfsSites.push({
+						slug: name,
+						name: name.toUpperCase(),
+						storage: 'browser',
+					});
+				}
+			}
+			setSites(opfsSites);
+		};
+		getVirtualOpfsRoot();
+	}, []);
 
 	const resources = [
 		{
