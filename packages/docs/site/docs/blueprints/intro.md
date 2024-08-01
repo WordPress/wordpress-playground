@@ -12,7 +12,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of initial setups.
 :::
 
-👋 Hi! Welcome to WordPress Playground Blueprints documentation.
+Hi! Welcome to WordPress Playground Blueprints documentation.
 
 Blueprints are JSON files for setting up your very own WordPress Playground instance. This subsite (Blueprints Docs) is where you will find all the information you need to use Blueprints.
 
@@ -29,7 +29,7 @@ This docs hub is focused on Blueprints info and is divided into the following ma
 
 -   [Getting started with Blueprints](./01-index.md): Quick Start Guide to setting up a WordPress Playground instance using Blueprint JSON files.
 
--   [Tutorial - Blueprints 101](./blueprint-101/index.md) - Blueprints API crash course.
+-   [Tutorial - Blueprints 101](./blueprint-101/index.md) - Blueprints API crash course. The tutorial will guide you through the complete process of creating a blueprint that loads a theme and plugin (among other things).
 
 -   [Blueprint data Format](./03-data-format.md): Blueprint JSON files define your Playground instance with various properties. This section highlights the key properties you need to know.
 
