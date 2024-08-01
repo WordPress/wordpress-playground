@@ -68,7 +68,7 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	unmountOpfs(mountpoint: string): Promise<void>;
 
-	boot(options: WorkerBootOptions): Promise<void>;
+	boot(options: Omit<WorkerBootOptions, 'scope'>): Promise<void>;
 }
 
 /**

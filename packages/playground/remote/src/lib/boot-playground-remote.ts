@@ -208,7 +208,7 @@ export async function bootPlaygroundRemote() {
 			return await phpApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
 
-		async boot(options: Omit<WorkerBootOptions, 'scope'>) {
+		async boot(options) {
 			await phpApi.boot({
 				...options,
 				scope,

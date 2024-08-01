@@ -94,9 +94,8 @@ export async function startPlaygroundWeb({
 	onClientConnected = () => {},
 	sapiName,
 	onBeforeBlueprint,
-	siteSlug,
 	mounts,
-	shouldInstallWordPress = true,
+	shouldInstallWordPress,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -134,14 +133,13 @@ export async function startPlaygroundWeb({
 	const downloadPHPandWP = progressTracker.stage();
 	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
 	await playground.boot({
-		mounts: mounts || [],
+		mounts,
+		sapiName,
 		shouldInstallWordPress,
 		phpVersion: compiled.versions.php,
 		wpVersion: compiled.versions.wp,
-		sapiName: sapiName,
 		phpExtensions: compiled.phpExtensions,
 		withNetworking: compiled.features.networking,
-		siteSlug,
 	});
 	await playground.isReady();
 	downloadPHPandWP.finish();

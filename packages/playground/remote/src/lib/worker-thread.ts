@@ -64,11 +64,10 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
-	phpVersion?: string;
+	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	phpExtensions?: string[];
-	siteSlug?: string;
-	scope?: string;
+	scope: string;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -79,12 +78,13 @@ export type ParsedBootOptions = {
 	phpVersion: SupportedPHPVersion;
 	sapiName: string;
 	phpExtensions: string[];
-	siteSlug: string;
 	scope: string;
 };
 
 /** @inheritDoc PHPClient */
 export class PlaygroundWorkerEndpoint extends PHPWorker {
+	booted = false;
+
 	/**
 	 * A string representing the scope of the Playground instance.
 	 */
@@ -159,41 +159,49 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		);
 	}
 
-	async boot(options: WorkerBootOptions) {
-		const requestedWPVersion = options.wpVersion || '';
-		const startupOptions = {
-			wpVersion: SupportedWordPressVersionsList.includes(
-				requestedWPVersion
-			)
-				? requestedWPVersion
-				: LatestSupportedWordPressVersion,
-			phpVersion: SupportedPHPVersionsList.includes(
-				options.phpVersion || ''
-			)
-				? (options.phpVersion as SupportedPHPVersion)
-				: '8.0',
-			sapiName: options.sapiName || 'cli',
-			phpExtensions: options.phpExtensions || [],
-			siteSlug: options.siteSlug,
-			scope: options.scope || '',
-		} as ParsedBootOptions;
-		this.scope = startupOptions.scope;
-		this.requestedWordPressVersion = startupOptions.wpVersion;
+	async boot({
+		scope,
+		mounts = [],
+		wpVersion = LatestSupportedWordPressVersion,
+		phpVersion = '8.0',
+		phpExtensions = [],
+		sapiName = 'cli',
+		shouldInstallWordPress = true,
+	}: WorkerBootOptions) {
+		if (this.booted) {
+			throw new Error('Playground already booted');
+		}
+
+		this.booted = true;
+		this.scope = scope;
+		this.requestedWordPressVersion = wpVersion;
+
+		wpVersion = SupportedWordPressVersionsList.includes(wpVersion)
+			? wpVersion
+			: LatestSupportedWordPressVersion;
+
+		if (!SupportedPHPVersionsList.includes(phpVersion)) {
+			throw new Error(
+				`Unsupported PHP version: ${phpVersion}. Supported versions: ${SupportedPHPVersionsList.join(
+					', '
+				)}`
+			);
+		}
 
 		try {
 			// Start downloading WordPress if needed
 			let wordPressRequest = null;
-			if (options.shouldInstallWordPress) {
+			if (shouldInstallWordPress) {
 				// @TODO: Accept a WordPress ZIP file or a URL, do not
 				//        reason about the `requestedWPVersion` here.
-				if (requestedWPVersion.startsWith('http')) {
+				if (this.requestedWordPressVersion.startsWith('http')) {
 					// We don't know the size upfront, but we can still monitor the download.
 					// monitorFetch will read the content-length response header when available.
-					wordPressRequest = monitoredFetch(requestedWPVersion);
-				} else {
-					const wpDetails = getWordPressModuleDetails(
-						startupOptions.wpVersion
+					wordPressRequest = monitoredFetch(
+						this.requestedWordPressVersion
 					);
+				} else {
+					const wpDetails = getWordPressModuleDetails(wpVersion);
 					downloadMonitor.expectAssets({
 						[wpDetails.url]: wpDetails.size,
 					});
@@ -209,34 +217,30 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				fetch(sqliteDatabaseIntegrationModuleDetails.url)
 			);
 
-			const constants: Record<string, any> =
-				options.shouldInstallWordPress
-					? {
-							WP_DEBUG: true,
-							WP_DEBUG_LOG: true,
-							WP_DEBUG_DISPLAY: false,
-							AUTH_KEY: randomString(40),
-							SECURE_AUTH_KEY: randomString(40),
-							LOGGED_IN_KEY: randomString(40),
-							NONCE_KEY: randomString(40),
-							AUTH_SALT: randomString(40),
-							SECURE_AUTH_SALT: randomString(40),
-							LOGGED_IN_SALT: randomString(40),
-							NONCE_SALT: randomString(40),
-					  }
-					: {};
+			const constants: Record<string, any> = shouldInstallWordPress
+				? {
+						WP_DEBUG: true,
+						WP_DEBUG_LOG: true,
+						WP_DEBUG_DISPLAY: false,
+						AUTH_KEY: randomString(40),
+						SECURE_AUTH_KEY: randomString(40),
+						LOGGED_IN_KEY: randomString(40),
+						NONCE_KEY: randomString(40),
+						AUTH_SALT: randomString(40),
+						SECURE_AUTH_SALT: randomString(40),
+						LOGGED_IN_SALT: randomString(40),
+						NONCE_SALT: randomString(40),
+				  }
+				: {};
 
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const requestHandler = await bootWordPress({
-				siteUrl: setURLScope(
-					wordPressSiteUrl,
-					startupOptions.scope
-				).toString(),
+				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
-					return await loadWebRuntime(startupOptions.phpVersion, {
+					return await loadWebRuntime(phpVersion, {
 						onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 							wasmUrl = phpLoaderModule.dependencyFilename;
 							downloadMonitor.expectAssets({
@@ -246,8 +250,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						},
 						// We don't yet support loading specific PHP extensions one-by-one.
 						// Let's just indicate whether we want to load all of them.
-						loadAllExtensions:
-							startupOptions.phpExtensions?.length > 0,
+						loadAllExtensions: phpExtensions.length > 0,
 						emscriptenOptions: {
 							instantiateWasm(imports, receiveInstance) {
 								// Using .then because Emscripten typically returns an empty
@@ -275,7 +278,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip: options.shouldInstallWordPress
+				wordPressZip: shouldInstallWordPress
 					? wordPressRequest!
 							.then((r) => r.blob())
 							.then((b) => new File([b], 'wp.zip'))
@@ -284,11 +287,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					.then((r) => r.blob())
 					.then((b) => new File([b], 'sqlite.zip')),
 				spawnHandler: spawnHandlerFactory,
-				sapiName: options.sapiName,
+				sapiName,
 				constants,
 				hooks: {
 					async beforeWordPressFiles(php) {
-						for (const mount of options.mounts || []) {
+						for (const mount of mounts) {
 							const unmount = await php.mount(
 								mount.mountpoint,
 								createDirectoryHandleMountHandler(
