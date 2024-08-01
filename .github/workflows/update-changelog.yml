@@ -45,7 +45,12 @@ jobs:
             - name: '✏️ Generate release changelog'
               run: |
                   ls ./
-                  PATH="${PATH}:${HOME}/.bun/bin" npm run changelog -- --version=${{ inputs.version }}
+                  if [ -z "${{ inputs.version }}" ]; then
+                      VERSION=current
+                  else
+                      VERSION=${{ inputs.version }}
+                  fi
+                  PATH="${PATH}:${HOME}/.bun/bin" npm run changelog -- --version=$VERSION
                   PATH="${PATH}:${HOME}/.bun/bin" bun packages/docs/site/bin/refresh-changelog.ts
             - name: '📦 Commit and push changelog'
               run: |
