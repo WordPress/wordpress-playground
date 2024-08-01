@@ -32,6 +32,17 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 		},
 	];
 
+	const resources = [
+		{
+			label: 'Documentation',
+			href: 'https://wordpress.github.io/wordpress-playground/',
+		},
+		{
+			label: 'GitHub',
+			href: 'https://github.com/wordpress/wordpress-playground',
+		},
+	];
+
 	const getLogoDataURL = (logo?: SiteLogo): string => {
 		if (!logo) {
 			return getLogoDataURL({
@@ -78,7 +89,7 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 							rx="3.86258"
 							transform="matrix(0.829038 -0.559193 0.838671 0.544639 7.45703 24.1775)"
 							stroke="white"
-							stroke-width="0.965644"
+							strokeWidth="0.965644"
 						/>
 						<rect
 							width="13.2346"
@@ -86,7 +97,7 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 							rx="3.86258"
 							transform="matrix(0.829038 -0.559193 0.838671 0.544639 5.0918 18.9934)"
 							stroke="white"
-							stroke-width="1.44847"
+							strokeWidth="1.44847"
 						/>
 						<rect
 							width="17.451"
@@ -94,17 +105,25 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 							rx="3.86258"
 							transform="matrix(0.829038 -0.559193 0.838671 0.544639 1.55371 11.6099)"
 							stroke="white"
-							stroke-width="1.93129"
+							strokeWidth="1.93129"
 						/>
 					</svg>
 				</button>
 			</header>
-			<div className={css.siteManagerSidebarContent}>
+			<div
+				className={classNames(
+					css.siteManagerSidebarSection,
+					css.siteManagerSidebarContent
+				)}
+			>
 				<h2 className={css.siteManagerSidebarSubtitle}>
 					WordPress Playground
 				</h2>
 				<label
-					className={css.siteManagerSidebarListLabel}
+					className={classNames(
+						css.siteManagerSidebarLabel,
+						css.siteManagerSidebarListLabel
+					)}
 					htmlFor="site-list"
 				>
 					Your sites
@@ -138,6 +157,7 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 										}
 										title="No storage"
 									>
+										{/* TODO: move icon to component package */}
 										<svg
 											width="16"
 											height="17"
@@ -146,8 +166,8 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 											xmlns="http://www.w3.org/2000/svg"
 										>
 											<path
-												fill-rule="evenodd"
-												clip-rule="evenodd"
+												fillRule="evenodd"
+												clipRule="evenodd"
 												d="M8 15C4.41015 15 1.5 12.0899 1.5 8.5C1.5 4.91015 4.41015 2 8 2C11.5899 2 14.5 4.91015 14.5 8.5C14.5 12.0899 11.5899 15 8 15ZM0 8.5C0 4.08172 3.58172 0.5 8 0.5C12.4183 0.5 16 4.08172 16 8.5C16 12.9183 12.4183 16.5 8 16.5C3.58172 16.5 0 12.9183 0 8.5ZM9 9.5V4.5H7.5V8H5.5V9.5H9Z"
 												fill="#949494"
 											/>
@@ -159,6 +179,36 @@ export function SiteManagerSidebar({ className }: { className?: string }) {
 					))}
 				</ul>
 			</div>
+			<footer
+				className={classNames(
+					css.siteManagerSidebarSection,
+					css.siteManagerSidebarFooter
+				)}
+			>
+				<label
+					className={css.siteManagerSidebarLabel}
+					htmlFor="site-manager-sidebar-footer-resources"
+				>
+					Respources
+				</label>
+				<ul
+					className={css.siteManagerSidebarList}
+					id="site-manager-sidebar-footer-resources"
+				>
+					{resources.map((item) => (
+						<li key={item.href}>
+							<a
+								target="_blank"
+								rel="noreferrer"
+								className={css.siteManagerSidebarFooterLink}
+								href={item.href}
+							>
+								{item.label} ↗
+							</a>
+						</li>
+					))}
+				</ul>
+			</footer>
 		</aside>
 	);
 }

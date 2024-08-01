@@ -1,6 +1,8 @@
 .site-manager-sidebar {
 	height: 100vh;
 	color: #fff;
+	display: flex;
+	flex-direction: column;
 }
 
 .site-manager-sidebar-header {
@@ -8,11 +10,15 @@
 	padding: 16px 24px;
 }
 
-.site-manager-sidebar-content {
+.site-manager-sidebar-section {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	padding: 16px;
+}
+
+.site-manager-sidebar-content {
+	flex-grow: 1;
 }
 
 .site-manager-sidebar-subtitle {
@@ -22,7 +28,7 @@
 	margin: 0 0 8px;
 }
 
-.site-manager-sidebar-list-label {
+.site-manager-sidebar-label {
 	font-size: 11px;
 	font-weight: 600;
 	line-height: 16px;
@@ -76,4 +82,16 @@
 	margin: 0;
 	height: 32px;
 	width: 32px;
+}
+
+.site-manager-sidebar-footer {
+	margin-bottom: 16px;
+}
+
+.site-manager-sidebar-footer-link {
+	color: #fff;
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 20px;
+	text-decoration: none;
 }

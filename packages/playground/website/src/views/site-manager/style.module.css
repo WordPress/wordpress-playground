@@ -11,6 +11,9 @@ body {
 	border: var(--site-manager-border-width) solid
 		var(--site-manager-background-color);
 	background-color: var(--site-manager-background-color);
+	background-image: url(../../../public/site-manager-background.svg);
+	background-position: bottom left;
+	background-repeat: no-repeat;
 }
 
 .site-manager-editor {
