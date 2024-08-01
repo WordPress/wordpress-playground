@@ -61,7 +61,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 			<header>
 				<h2>{props.title || 'Error Logs'}</h2>
 				{props.description}
-				{filteredLogs.length > 0 ? (
+				{logs.length > 0 ? (
 					<TextControl
 						aria-label="Search"
 						placeholder="Search logs"
@@ -74,6 +74,10 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 			</header>
 			{filteredLogs.length > 0 ? (
 				<main className={css.logModalMain}>{logList()}</main>
+			) : logs.length > 0 ? (
+				<div className={css.logModalEmptyPlaceholder}>
+					No matching logs found.
+				</div>
 			) : (
 				<div className={css.logModalEmptyPlaceholder}>
 					Error logs for Playground, WordPress, and PHP will show up
