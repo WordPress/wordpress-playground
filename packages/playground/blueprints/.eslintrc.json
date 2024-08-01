@@ -1,6 +1,6 @@
 {
 	"extends": ["../../../.eslintrc.json"],
-	"ignorePatterns": ["!**/*"],
+	"ignorePatterns": ["!**/*", "blueprint-schema-validator.js"],
 	"overrides": [
 		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],

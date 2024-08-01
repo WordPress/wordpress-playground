@@ -105,7 +105,7 @@ export async function startPlaygroundWeb({
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
-	// Set a default blueprint if none is provided.
+  // Set a default blueprint if none is provided.
 	if (!blueprint) {
 		blueprint = {
 			phpExtensionBundles: ['kitchen-sink'],

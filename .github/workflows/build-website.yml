@@ -32,6 +32,14 @@ jobs:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: npm run build
+            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
+            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
+            - uses: actions/upload-artifact@v2
+              with:
+                  name: playground-website
+                  path: wasm-wordpress-net.tar.gz
+            # The artifact only becomes available after this workflow wraps up, so let's wrap.
+            # This artifact enables the download of a pre-built package and hosting of one's own playground instance.
 
             - name: Deploy to playground.wordpress.net
               shell: bash

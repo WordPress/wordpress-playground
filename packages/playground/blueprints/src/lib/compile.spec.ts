@@ -79,6 +79,16 @@ describe('Blueprints', () => {
 		expect(result.text.trim()).toBe('bool(false)');
 	});
 
+	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
+		await runBlueprintSteps(
+			compileBlueprint({
+				extraLibraries: ['wp-cli'],
+			}),
+			php
+		);
+		expect(php.fileExists('/tmp/wp-cli.phar')).toBe(true);
+	});
+
 	describe('Validation', () => {
 		const validBlueprints = [
 			{},
