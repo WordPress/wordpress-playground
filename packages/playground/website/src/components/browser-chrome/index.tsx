@@ -44,7 +44,10 @@ export default function BrowserChrome({
 		[css.isHidden]: noticeHidden,
 	});
 
-	// Temporary feature flag for the site manager
+	/**
+	 * Temporary feature flag to enable the site manager
+	 * while using browser storage
+	 */
 	const query = new URL(window.location.href).searchParams;
 	const showSiteManager = query.get('storage') === 'browser';
 	return (
