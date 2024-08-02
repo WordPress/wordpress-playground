@@ -36,18 +36,18 @@ const sidebars = {
 						'main/about/launch',
 					],
 				},
-				{
-					type: 'category',
-					label: 'Guides',
-					link: {
-						type: 'doc',
-						id: 'main/guides/index',
-					},
-					items: [
-						'main/guides/for-theme-developers',
-						'main/guides/for-plugin-developers',
-					],
-				},
+				// {
+				// 	type: 'category',
+				// 	label: 'Guides',
+				// 	link: {
+				// 		type: 'doc',
+				// 		id: 'main/guides/index',
+				// 	},
+				// 	items: [
+				// 		'main/guides/for-theme-developers',
+				// 		'main/guides/for-plugin-developers',
+				// 	],
+				// },
 				{
 					type: 'category',
 					label: 'Contributing',
@@ -128,7 +128,7 @@ const sidebars = {
 					label: 'Local Development',
 					link: {
 						type: 'doc',
-						id: 'developers/local-development/intro',
+						id: 'developers/local-development/intro-local-development',
 					},
 					items: [
 						'developers/local-development/wp-now',
@@ -143,22 +143,24 @@ const sidebars = {
 						type: 'doc',
 						id: 'developers/playground-apis/index',
 					},
-					items: ['developers/playground-apis/api-concepts'],
-				},
-				'developers/query-api/index',
-				{
-					type: 'category',
-					label: 'Javascript API',
-					link: {
-						type: 'doc',
-						id: 'developers/javascript-api/index',
-					},
 					items: [
-						'developers/javascript-api/playground-api-client',
-						'developers/javascript-api/index-html-vs-remote-html',
-						'developers/javascript-api/blueprint-json-in-api-client',
-						'developers/javascript-api/blueprint-functions-in-api-client',
-						'developers/javascript-api/mount-data',
+						'developers/playground-apis/api-concepts',
+						'developers/query-api/index',
+						{
+							type: 'category',
+							label: 'Javascript API',
+							link: {
+								type: 'doc',
+								id: 'developers/javascript-api/index',
+							},
+							items: [
+								'developers/javascript-api/playground-api-client',
+								'developers/javascript-api/index-html-vs-remote-html',
+								'developers/javascript-api/blueprint-json-in-api-client',
+								'developers/javascript-api/blueprint-functions-in-api-client',
+								'developers/javascript-api/mount-data',
+							],
+						},
 					],
 				},
 				{

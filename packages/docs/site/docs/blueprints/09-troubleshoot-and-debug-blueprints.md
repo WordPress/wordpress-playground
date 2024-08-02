@@ -1,6 +1,5 @@
 ---
-sidebar_position: 9
-title: Troubleshoot and debug Blueprints
+title: Troubleshoot and debug
 ---
 
 # Troubleshoot and debug Blueprints

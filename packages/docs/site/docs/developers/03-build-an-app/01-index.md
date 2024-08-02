@@ -1,9 +1,9 @@
 ---
-title: Build your first app
+title: Quick Start Guide for Developers
 slug: /developers/build-your-first-app
 ---
 
-# Build an app with WordPress Playground in 5 minutes
+# Quick Start Guide for Developers
 
 WordPress Playground was created as a programmable tool. Below you'll find a few examples of what you can do with it. Each discussed API is described in detail in the [APIs section](../06-playground-apis/01-index.md):
 

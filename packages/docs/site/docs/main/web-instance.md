@@ -5,7 +5,7 @@ slug: /web-instance
 
 # WordPress Playground web instance
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) is a versatile tool that allows developers to run WordPress in a browser without needing a server. This environment is particularly useful for testing plugins, themes, and other WordPress features quickly and efficiently.
+[https://playground.wordpress.net/](https://playground.wordpress.net/) is a versatile web tool that allows developers to run WordPress in a browser without needing a server. This environment is particularly useful for testing plugins, themes, and other WordPress features quickly and efficiently.
 
 Some key features:
 
@@ -58,3 +58,10 @@ This menu contains links to some Playground resources and tools:
 <span id="edit-the-blueprint"></span>
 
 [![snapshot of Builder mode of WordPress Playground](./_assets/builder-mode.png)](https://playground.wordpress.net/builder/builder.html)
+
+:::caution
+
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](../developers/23-architecture/18-host-your-own-playground.md).
+:::

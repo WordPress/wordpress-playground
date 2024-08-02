@@ -88,7 +88,9 @@ wp_insert_post(array(
 <p></p>
 
 :::info
-Learn more about JSON Blueprints at the [Blueprints Docs Hub](/wordpress-playground/blueprints).
+
+Blueprints play a significant role in WordPress Playground, so they have their own dedicated documentation hub. Learn more about JSON Blueprints at the [Blueprints Docs Hub](/wordpress-playground/blueprints).
+
 :::
 
 ## JavaScript API
