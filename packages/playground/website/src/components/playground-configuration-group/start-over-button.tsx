@@ -1,8 +1,15 @@
 // import { usePlaygroundContext } from '../../playground-context';
+import { useSelector } from 'react-redux';
+import { usePlaygroundContext } from '../../playground-context';
 import Button from '../button';
+import { PlaygroundReduxState } from '../../lib/redux-store';
+import { removeDirHandleContents } from '../../opfs';
 
 export function StartOverButton() {
-	// const { playground } = usePlaygroundContext();
+	const { storage } = usePlaygroundContext();
+	const opfsHandle = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.handle
+	);
 	return (
 		<Button
 			onClick={async () => {
@@ -13,8 +20,12 @@ export function StartOverButton() {
 				) {
 					return;
 				}
-				window.alert('Not implemented yet.');
-				// await playground?.resetVirtualOpfs();
+				if (
+					opfsHandle &&
+					(storage === 'browser' || storage === 'device')
+				) {
+					await removeDirHandleContents(opfsHandle);
+				}
 				window.location.reload();
 			}}
 		>

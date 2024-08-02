@@ -1,12 +1,16 @@
 import { trash } from '@wordpress/icons';
 import { MenuItem } from '@wordpress/components';
 import { StorageType } from '../../types';
-// import { usePlaygroundContext } from '../../playground-context';
+import { PlaygroundReduxState } from '../../lib/redux-store';
+import { useSelector } from 'react-redux';
+import { removeDirHandleContents } from '../../opfs';
 
 type Props = { onClose: () => void; storage: StorageType };
 const opfsStorages: StorageType[] = ['browser', 'device'];
 export function ResetSiteMenuItem({ onClose, storage }: Props) {
-	// const { playground } = usePlaygroundContext();
+	const opfsHandle = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.handle
+	);
 	return (
 		<MenuItem
 			icon={trash}
@@ -21,9 +25,8 @@ export function ResetSiteMenuItem({ onClose, storage }: Props) {
 					onClose();
 					return;
 				}
-				if (opfsStorages.includes(storage)) {
-					alert('Not implemented yet.');
-					// await playground?.resetVirtualOpfs();
+				if (opfsHandle && opfsStorages.includes(storage)) {
+					removeDirHandleContents(opfsHandle);
 				}
 				window.location.reload();
 				onClose();

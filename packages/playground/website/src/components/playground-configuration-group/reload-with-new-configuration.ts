@@ -1,15 +1,14 @@
-import { PlaygroundClient } from '@wp-playground/client';
+import { removeDirHandleContents } from '../../opfs';
 import { PlaygroundConfiguration } from './form';
 import { logger } from '@php-wasm/logger';
 
 export async function reloadWithNewConfiguration(
 	config: PlaygroundConfiguration,
-	playground?: PlaygroundClient
+	directoryHandle?: FileSystemDirectoryHandle
 ) {
-	if (playground && config.resetSite && config.storage === 'browser') {
+	if (directoryHandle && config.resetSite && config.storage === 'browser') {
 		try {
-			window.alert('Not implemented yet.');
-			// await playground?.resetVirtualOpfs();
+			await removeDirHandleContents(directoryHandle);
 		} catch (error) {
 			logger.error(error);
 		}

@@ -16,6 +16,12 @@ import { OPFSButton } from './opfs-button';
 import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
 import { usePlaygroundContext } from '../../playground-context';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setOpfsMountDescriptor,
+} from '../../lib/redux-store';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -41,6 +47,10 @@ export default function PlaygroundConfigurationGroup({
 		resolve: any;
 		isResolved: boolean;
 	}>();
+	const dispatch: PlaygroundDispatch = useDispatch();
+	const opfsHandle = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.handle
+	);
 	const { playground } = usePlaygroundContext();
 	useEffect(() => {
 		if (!playgroundRef.current) {
@@ -144,6 +154,13 @@ export default function PlaygroundConfigurationGroup({
 		dirHandle: FileSystemDirectoryHandle
 	) {
 		const playground = await playgroundRef.current!.promise;
+		const mountpoint = await playground.documentRoot;
+		dispatch(
+			setOpfsMountDescriptor({
+				handle: dirHandle,
+				mountpoint,
+			})
+		);
 		if (idb) {
 			await saveDirectoryHandle(idb, dirHandle);
 		}
@@ -162,16 +179,14 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
-			const docRoot = await playground.documentRoot;
-
-			if (await playground.hasOpfsMount(docRoot)) {
-				await playground.unmountOpfs(docRoot);
+			if (await playground.hasOpfsMount(mountpoint)) {
+				await playground.unmountOpfs(mountpoint);
 			}
 
 			await playground.mountOpfs(
 				{
 					handle: dirHandle,
-					mountpoint: docRoot,
+					mountpoint: mountpoint,
 					initialSyncDirection: isPlaygroundDir
 						? 'opfs-to-memfs'
 						: 'memfs-to-opfs',
@@ -200,9 +215,6 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const hasPlayground = playgroundRef.current?.isResolved;
-		const playground = hasPlayground
-			? await playgroundRef.current!.promise
-			: undefined;
 		if (hasPlayground && config.resetSite && config.storage === 'browser') {
 			if (
 				!window.confirm(
@@ -213,7 +225,7 @@ export default function PlaygroundConfigurationGroup({
 			}
 		}
 
-		reloadWithNewConfiguration(config, playground);
+		reloadWithNewConfiguration(config, opfsHandle);
 	}
 	let WPLabel =
 		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
@@ -275,7 +287,7 @@ export default function PlaygroundConfigurationGroup({
 										...initialConfiguration,
 										storage: 'none',
 									},
-									playground
+									opfsHandle
 								);
 							}}
 						>

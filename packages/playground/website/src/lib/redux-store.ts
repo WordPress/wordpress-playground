@@ -1,5 +1,4 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { directoryHandleResolve } from './directory-handle';
 
 export type ActiveModal =
 	| 'error-report'
@@ -12,6 +11,10 @@ export type ActiveModal =
 interface AppState {
 	activeModal: string | null;
 	offline: boolean;
+	opfsMountDescriptor?: {
+		handle: FileSystemDirectoryHandle;
+		mountpoint: string;
+	};
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -34,18 +37,19 @@ if (query.get('storage') === 'browser') {
 			create: true,
 		}
 	);
-	directoryHandleResolve({
+	initialState.opfsMountDescriptor = {
 		handle: opfsDir,
 		mountpoint: '/wordpress',
-	});
-} else {
-	directoryHandleResolve(null);
+	};
 }
 
 // Create the slice
 const slice = createSlice({
 	name: 'app',
 	initialState,
+	selectors: {
+		getOpfsHandle: (state) => state.opfsMountDescriptor,
+	},
 	reducers: {
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			state.activeModal = action.payload;
@@ -53,15 +57,32 @@ const slice = createSlice({
 		setOfflineStatus: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
+		setOpfsMountDescriptor: (
+			state,
+			action: PayloadAction<AppState['opfsMountDescriptor']>
+		) => {
+			state.opfsMountDescriptor = action.payload;
+		},
 	},
 });
 
 // Export actions
-export const { setActiveModal } = slice.actions;
+export const { setActiveModal, setOpfsMountDescriptor } = slice.actions;
 
 // Configure store
 const store = configureStore({
 	reducer: slice.reducer,
+	middleware: (getDefaultMiddleware) =>
+		getDefaultMiddleware({
+			serializableCheck: {
+				// Ignore these action types
+				ignoredActions: ['setOpfsMountDescriptor'],
+				// Ignore these field paths in all actions
+				ignoredActionPaths: ['payload.handle'],
+				// Ignore these paths in the state
+				ignoredPaths: ['opfsMountDescriptor.handle'],
+			},
+		}),
 });
 
 function setupOnlineOfflineListeners(dispatch: PlaygroundDispatch) {

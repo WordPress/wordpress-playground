@@ -3,9 +3,12 @@ import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getRemoteUrl } from './config';
 import { logger } from '@php-wasm/logger';
-import { PlaygroundDispatch, setActiveModal } from './redux-store';
-import { useDispatch } from 'react-redux';
-import { directoryHandle } from './directory-handle';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from './redux-store';
+import { useDispatch, useSelector } from 'react-redux';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -15,6 +18,9 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const iframe = iframeRef.current;
 	const started = useRef(false);
 	const [url, setUrl] = useState<string>();
+	const opfsHandle = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+	);
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
 	const dispatch: PlaygroundDispatch = useDispatch();
@@ -34,14 +40,10 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 		started.current = true;
 
 		async function doRun() {
-			const resolvedDirectoryHandle = await directoryHandle;
-
 			let isWordPressInstalled = false;
-			if (resolvedDirectoryHandle) {
+			if (opfsHandle) {
 				try {
-					await resolvedDirectoryHandle?.handle.getFileHandle(
-						'wp-settings.php'
-					);
+					await opfsHandle?.handle.getFileHandle('wp-settings.php');
 					isWordPressInstalled = true;
 				} catch (error) {
 					// No WordPress.
@@ -60,10 +62,10 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 						playgroundTmp = playground;
 						(window as any)['playground'] = playground;
 					},
-					mounts: resolvedDirectoryHandle
+					mounts: opfsHandle
 						? [
 								{
-									...resolvedDirectoryHandle,
+									...opfsHandle,
 									initialSyncDirection: 'opfs-to-memfs',
 								},
 						  ]
@@ -84,7 +86,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 		}
 		doRun();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [iframe, awaitedIframe, directoryHandle]);
+	}, [iframe, awaitedIframe, opfsHandle]);
 
 	return { playground, url, iframeRef };
 }
