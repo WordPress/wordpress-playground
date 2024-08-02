@@ -13,5 +13,5 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 3. [Build your first Blueprint](./03-build-your-first-blueprint.md)
 
 :::tip
-If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](../09-troubleshoot-and-debug-blueprints.md) section for helpful tips and tools to resolve them.
+If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](../09-troubleshoot-and-debug-blueprints.md) section for tips and tools to help you solve them.
 :::

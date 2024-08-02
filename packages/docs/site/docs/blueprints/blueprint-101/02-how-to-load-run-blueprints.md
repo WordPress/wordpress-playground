@@ -1,7 +1,6 @@
 ---
 title: How to run Blueprints
 description: Learn about the multiple ways to use blueprints
-hide_table_of_contents: true
 ---
 
 # How to load and run Blueprints

@@ -49,13 +49,23 @@ If your Blueprint isn’t running as expected, open the browser developer tools 
 
 To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS.
 
-:::caution Warning
+:::caution
 
 If you haven't yet, enable the Develop menu: go to **Safari > Settings... > Advanced** and check **Show features for web developers**.
 
 :::
 
 The developer tools window allows you to inspect network requests, view console logs, debug JavaScript, and examine the DOM and CSS styles applied to your webpage. This is crucial for diagnosing and fixing issues with Blueprints.
+
+## Log your own error messages
+
+You can `error_log` your own error messages through [`runPHP` step](./steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](../main/web-instance.md#playground-options-menu) or from the browser's console.
+
+![Log errors snapshot](./_assets/log-errors.png)
+
+:::info
+When you download your Playground instance as a `zip` through the ["Download as zip" option](../main/web-instance.md#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
+:::
 
 ## Ask for help
 

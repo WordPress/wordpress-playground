@@ -11,4 +11,4 @@ Create and learn WordPress quickly—even on mobile with no signal. Use Playgrou
 
 -   Install WordPress [in a single click](#).
 -   [Build a block theme](https://youtu.be/gKrij8V3nK0?si=Jz7Dhe3RvxUMl9Cn&t=2488) in your browser and save it to GitHub.
--   Integrate with [Open AI](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) and [CLI apps](https://wordpress.github.io/wordpress-playground/local-development/php-wasm-node) to create new tools.
+-   Integrate with [Open AI](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) and [CLI apps](../../developers/05-local-development/03-php-wasm-node.md) to create new tools.

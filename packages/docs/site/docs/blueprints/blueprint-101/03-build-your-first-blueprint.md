@@ -1,7 +1,6 @@
 ---
 title: Build your first Blueprint
 description: Six steps to your first blueprint
-hide_table_of_contents: true
 ---
 
 Let's build an elementary Blueprint that
@@ -13,7 +12,7 @@ Let's build an elementary Blueprint that
 5. Installs a custom plugin
 6. Changes the site content
 
-### 1. Create a new WordPress site
+## 1. Create a new WordPress site
 
 Let's start by creating a `blueprint.json` file with the following contents:
 
@@ -38,9 +37,9 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 :::
 Here's what it looks like in VS Code:
 
-![Autocompletion visualized](./assets/schema-autocompletion.png)
+![Autocompletion visualized](../_assets/schema-autocompletion.png)
 
-### 2. Set the site title to "My first Blueprint"
+## 2. Set the site title to "My first Blueprint"
 
 Blueprints consist of a series of [steps](../steps) that define how to build a WordPress site. Before you write the first step, declare an empty list of steps:
 
@@ -88,9 +87,9 @@ You can specify some steps using a shorthand syntax. For example, you could writ
 
 The shorthand syntax and the step syntax correspond with each other. Every step specified with the shorthand syntax is automatically added at the beginning of the `steps` array in an arbitrary order. Which should you choose? Use shorthands when brevity is your main concern, use steps when you need more control over the order of execution.
 
-### 3. Install the _Adventurer_ theme
+## 3. Install the _Adventurer_ theme
 
-Adventurer is an open-source theme [available in the WordPress theme directory](https://wordpress.org/themes/adventurer/). Let's install it using the [`installTheme` step](https://wordpress.github.io/wordpress-playground/blueprints-api/steps#InstallThemeStep):
+Adventurer is an open-source theme [available in the WordPress theme directory](https://wordpress.org/themes/adventurer/). Let's install it using the [`installTheme` step](../steps#InstallThemeStep):
 
 ```json
 {
@@ -113,7 +112,7 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 
 The site should now look like the screenshot below:
 
-![Site with the adventurer theme](./assets/installed-adventurer-theme.png)
+![Site with the adventurer theme](../_assets/installed-adventurer-theme.png)
 
 ### Resources
 
@@ -133,7 +132,7 @@ In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.
 Learn more about the supported resources in the [Blueprint Resources API Reference](../resources/).
 :::
 
-### 4. Install the _Hello Dolly_ plugin
+## 4. Install the _Hello Dolly_ plugin
 
 A classic WordPress plugin that displays random lyrics from the song "Hello, Dolly!" in the admin dashboard. Let's install it using the [`installPlugin` step](../steps#InstallPluginStep):
 
@@ -167,7 +166,7 @@ The Hello Dolly plugin is now installed and activated.
 
 Like the `themeZipFile`, the `pluginZipFile` defines a reference to an external file required for the step. The example uses the `wordpress.org/plugins` resource to install the plugin with the matching `slug` from the WordPress plugin directory.
 
-### 5. Install a custom plugin
+## 5. Install a custom plugin
 
 Let's install a custom WordPress plugin that adds a message to the admin dashboard:
 
@@ -187,7 +186,7 @@ function my_custom_plugin() {
 add_action('admin_notices', 'my_custom_plugin');
 ```
 
-You can use the [installPlugin](https://wordpress.github.io/wordpress-playground/blueprints-api/steps#InstallPluginStep), but that requires creating a ZIP file. Let's start with something different to see if the plugin works:
+You can use the [installPlugin](../steps#InstallPluginStep), but that requires creating a ZIP file. Let's start with something different to see if the plugin works:
 
 1. Create a `wp-content/plugins/hello-from-the-dashboard` directory using the [`mkdir` step](../steps#MkdirStep).
 2. Write a `plugin.php` file using the [`writeFile` step](../steps#WriteFileStep).
@@ -273,11 +272,11 @@ Here's the complete Blueprint:
 
 That's what it looks like when you navigate to the dashboard:
 
-![Site with the custom plugin](./assets/installed-custom-plugin.png)
+![Site with the custom plugin](../_assets/installed-custom-plugin.png)
 
 ### Create a plugin and zip it
 
-Encoding PHP files as `JSON` can be useful for quick testing, but it's inconvenient and difficult to read. Instead, create a file with the plugin code, compress it, and use the `ZIP` file as the `resource` in the [`installPlugin` step](https://wordpress.github.io/wordpress-playground/blueprints-api/steps#InstallPluginStep) to install it (the path in the `URL` should match the one in your GitHub repository):
+Encoding PHP files as `JSON` can be useful for quick testing, but it's inconvenient and difficult to read. Instead, create a file with the plugin code, compress it, and use the `ZIP` file as the `resource` in the [`installPlugin` step](../steps#InstallPluginStep) to install it (the path in the `URL` should match the one in your GitHub repository):
 
 ```json
 {
@@ -336,7 +335,7 @@ You can shorten that Blueprint even more using the shorthand syntax:
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#eyIkc2NoZW1hIjoiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwibG9naW4iOnRydWUsInNpdGVPcHRpb25zIjp7ImJsb2duYW1lIjoiTXkgZmlyc3QgQmx1ZXByaW50In0sInBsdWdpbnMiOlsiaGVsbG8tZG9sbHkiLCJodHRwczovL3Jhdy5naXRodWJ1c2VyY29udGVudC5jb20vYWRhbXppZWwvYmx1ZXByaW50cy90cnVuay9kb2NzL2hlbGxvLW9uLXRoZS1kYXNoYm9hcmQuemlwIl0sInN0ZXBzIjpbeyJzdGVwIjoiaW5zdGFsbFRoZW1lIiwidGhlbWVaaXBGaWxlIjp7InJlc291cmNlIjoid29yZHByZXNzLm9yZy90aGVtZXMiLCJzbHVnIjoiYWR2ZW50dXJlciJ9fV19)
 
-### 6. Change the site content
+## 6. Change the site content
 
 Finally, let's delete the default content of the site and import a new one from a WordPress export file (WXR).
 
@@ -360,7 +359,7 @@ foreach ($posts as $post) {
 }
 ```
 
-To run that code during the site setup, use the [`runPHP` step](https://wordpress.github.io/wordpress-playground/blueprints-api/steps#RunPHPStep):
+To run that code during the site setup, use the [`runPHP` step](../steps#RunPHPStep):
 
 ```json
 {

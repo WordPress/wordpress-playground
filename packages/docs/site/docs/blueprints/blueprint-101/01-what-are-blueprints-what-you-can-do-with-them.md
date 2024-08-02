@@ -1,7 +1,6 @@
 ---
 title: What are Blueprints?
 description: Getting started with Blueprints
-hide_table_of_contents: true
 ---
 
 # What are Blueprints, and what can you do with them?
@@ -52,7 +51,7 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 -   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
--   [Blueprints examples](https://wordpress.github.io/wordpress-playground/blueprints-api/examples)
--   [Demos and apps built with Blueprints](https://wordpress.github.io/wordpress-playground/links-and-resources#apps-built-with-wordpress-playground)
+-   [Blueprints examples](../08-examples.md)
+-   [Demos and apps built with Blueprints](../../main/resources.md#apps-built-with-wordpress-playground)
 
 :::

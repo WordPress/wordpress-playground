@@ -29,7 +29,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 
 -   **[Quick Start Guide](./quick-start-guide.md)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
 
--   **[Playground Website](./web-instance)**: Learn morea bout the Playground instance you get at https://playground.wordpress.net/
+-   **[Playground web instance](./web-instance)**: Learn morea bout the Playground instance you get at https://playground.wordpress.net/
 
 -   **[About Playground](./about/index.md)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
 

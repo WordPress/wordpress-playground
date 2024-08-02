@@ -1,9 +1,9 @@
 ---
-title: Playground Website
+title: Playground web instance
 slug: /web-instance
 ---
 
-# WordPress Playground Website
+# WordPress Playground web instance
 
 [https://playground.wordpress.net/](https://playground.wordpress.net/) is a versatile tool that allows developers to run WordPress in a browser without needing a server. This environment is particularly useful for testing plugins, themes, and other WordPress features quickly and efficiently.
 
@@ -53,8 +53,8 @@ This menu contains links to some Playground resources and tools:
 
 -   **View Logs**: This option will take you to modal that will show any error logs for Playground, WordPress and PHP.
 
--   **Edit the blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](../blueprints/09-troubleshoot-and-debug-blueprints.md#blueprints-builder). From this tool you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+-   **Edit the blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 
 <span id="edit-the-blueprint"></span>
 
-![snapshot of Builder mode of WordPress Playground](./_assets/builder-mode.png)
+[![snapshot of Builder mode of WordPress Playground](./_assets/builder-mode.png)](https://playground.wordpress.net/builder/builder.html)
