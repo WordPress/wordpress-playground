@@ -9,6 +9,7 @@ import {
 	setActiveModal,
 } from './redux-store';
 import { useDispatch, useSelector } from 'react-redux';
+import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -42,12 +43,9 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 		async function doRun() {
 			let isWordPressInstalled = false;
 			if (opfsHandle) {
-				try {
-					await opfsHandle?.handle.getFileHandle('wp-settings.php');
-					isWordPressInstalled = true;
-				} catch (error) {
-					// No WordPress.
-				}
+				isWordPressInstalled = await playgroundAvailableInOpfs(
+					opfsHandle.handle
+				);
 			}
 
 			let playgroundTmp: PlaygroundClient | undefined = undefined;
