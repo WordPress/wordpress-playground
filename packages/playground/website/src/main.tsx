@@ -276,7 +276,7 @@ function Main() {
 							} as any
 						}
 					>
-						{({ onClose }) => (
+						{({ onClose }: { onClose: () => void }) => (
 							<>
 								{offline ? <OfflineNotice /> : null}
 								<MenuGroup>
@@ -303,20 +303,19 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to Blueprints Builder"
-										href={
-											[
-												joinPaths(
-													document.location.pathname,
-													'builder/builder.html'
-												),
-												'#',
-												btoa(
-													JSON.stringify(
-														blueprint
-													) as string
-												) as string,
-											].join('') as any
-										}
+										// @ts-ignore-next-line
+										href={[
+											joinPaths(
+												document.location.pathname,
+												'builder/builder.html'
+											),
+											'#',
+											btoa(
+												JSON.stringify(
+													blueprint
+												) as string
+											) as string,
+										].join('')}
 										target="_blank"
 										disabled={offline}
 									>
@@ -328,6 +327,7 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to WordPress PR previewer"
+										// @ts-ignore-next-line
 										href={
 											joinPaths(
 												document.location.pathname,
@@ -343,6 +343,7 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to a list of Playground demos"
+										// @ts-ignore-next-line
 										href={
 											joinPaths(
 												document.location.pathname,
@@ -358,6 +359,7 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to Playground documentation"
+										// @ts-ignore-next-line
 										href={
 											'https://wordpress.github.io/wordpress-playground/' as any
 										}
@@ -370,6 +372,7 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to the Playground git repository"
+										// @ts-ignore-next-line
 										href={
 											'https://github.com/WordPress/wordpress-playground' as any
 										}
