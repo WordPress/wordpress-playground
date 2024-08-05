@@ -181,6 +181,13 @@ function playground_maybe_rewrite( $original_requested_path ) {
 }
 
 function playground_maybe_redirect( $requested_path ) {
+	if ( str_ends_with( $requested_path, '/docs' ) ) {
+		return array(
+			'location' => 'https://wordpress.github.io/wordpress-playground/',
+			'status' => 301
+		);
+	}
+
 	if ( str_ends_with( $requested_path, '/wordpress-browser.html' ) ) {
 		return array(
 			'location' => '/',
