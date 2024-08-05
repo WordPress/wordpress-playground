@@ -1,6 +1,7 @@
 body {
 	--site-manager-background-color: #1e1e1e;
 	--site-manager-border-width: 12px;
+	--site-manager-sidebar-width: 282px;
 }
 
 .site-manager {
@@ -14,6 +15,7 @@ body {
 	background-image: url(../../../public/site-manager-background.svg);
 	background-position: bottom left;
 	background-repeat: no-repeat;
+	width: 100%;
 }
 
 .site-manager-editor {
@@ -28,7 +30,7 @@ body {
 	.site-manager-editor {
 		display: unset;
 	}
-	.site-manager-sidebar {
-		width: 282px;
+	.site-manager {
+		width: var(--site-manager-sidebar-width);
 	}
 }

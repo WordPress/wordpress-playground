@@ -1,17 +1,13 @@
 import css from './style.module.css';
 
+import { __experimentalNavigatorButton as NavigatorButton } from '@wordpress/components';
+
 export function OpenSiteManagerButton() {
-	const onClick = () => {
-		// TODO use a shared function for switching views
-		const url = new URL(window.location.toString());
-		url.searchParams.set('view', 'manager');
-		window.location.assign(url.toString());
-	};
 	return (
-		<button
+		<NavigatorButton
+			path="/manager"
 			aria-label="Open Site Manager"
 			className={css.openSiteManagerButton}
-			onClick={onClick}
 		>
 			<svg
 				width="14"
@@ -27,6 +23,6 @@ export function OpenSiteManagerButton() {
 					fill="white"
 				/>
 			</svg>
-		</button>
+		</NavigatorButton>
 	);
 }

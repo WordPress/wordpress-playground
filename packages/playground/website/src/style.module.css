@@ -1,3 +1,8 @@
 .dropdown-menu {
 	display: flex !important;
 }
+
+.playground-navigator {
+	height: 100vh;
+	display: flex;
+}

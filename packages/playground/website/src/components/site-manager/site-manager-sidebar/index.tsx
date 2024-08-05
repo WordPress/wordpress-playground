@@ -1,9 +1,10 @@
 import { Blueprint } from '@wp-playground/blueprints';
-import { StorageType } from '../../types';
+import { StorageType } from '../../../types';
 
 import css from './style.module.css';
 import classNames from 'classnames';
 import { useEffect, useState } from 'react';
+import { __experimentalNavigatorButton as NavigatorButton } from '@wordpress/components';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -81,17 +82,13 @@ export function SiteManagerSidebar({
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
-	const onLogoClick = () => {
-		onSiteChange();
-	};
-
 	return (
 		<aside className={classNames(css.siteManagerSidebar, className)}>
 			<header className={css.siteManagerSidebarHeader}>
 				{/* TODO move logo to components */}
-				<button
+				<NavigatorButton
 					className={css.siteManagerSidebarLogoButton}
-					onClick={onLogoClick}
+					path="/"
 				>
 					{/* TODO: move logo to component package */}
 					<svg
@@ -126,7 +123,7 @@ export function SiteManagerSidebar({
 							strokeWidth="1.93129"
 						/>
 					</svg>
-				</button>
+				</NavigatorButton>
 			</header>
 			<div
 				className={classNames(

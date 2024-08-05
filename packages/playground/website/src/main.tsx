@@ -1,16 +1,22 @@
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import css from './style.module.css';
 
 import { PlaygroundConfiguration } from './components/playground-configuration-group/form';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { Provider } from 'react-redux';
-import { SiteView } from './views/site-view';
+import { SiteView } from './components/site-view/site-view';
 import store from './lib/redux-store';
 import { StorageTypes, StorageType } from './types';
-import { SiteManager } from './views/site-manager';
+import { SiteManager } from './components/site-manager';
 import { useBootPlayground } from './lib/use-boot-playground';
+import {
+	__experimentalNavigatorProvider as NavigatorProvider,
+	__experimentalNavigatorScreen as NavigatorScreen,
+} from '@wordpress/components';
+import React from 'react';
 
 collectWindowErrors(logger);
 
@@ -69,18 +75,21 @@ function Main() {
 		storage,
 		siteSlug,
 	});
-	const showSiteManager = query.get('view') === 'manager';
-	return showSiteManager ? (
-		<SiteManager iframeRef={iframeRef} siteSlug={siteSlug} />
-	) : (
-		<SiteView
-			blueprint={blueprint}
-			currentConfiguration={currentConfiguration}
-			storage={storage}
-			playground={playground}
-			url={url}
-			iframeRef={iframeRef}
-		/>
+
+	return (
+		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
+			<NavigatorScreen path="/manager">
+				<SiteManager iframeRef={iframeRef} siteSlug={siteSlug} />
+			</NavigatorScreen>
+			<SiteView
+				blueprint={blueprint}
+				currentConfiguration={currentConfiguration}
+				storage={storage}
+				playground={playground}
+				url={url}
+				iframeRef={iframeRef}
+			/>
+		</NavigatorProvider>
 	);
 }
 

@@ -1,5 +1,5 @@
-import { SiteManagerEditor } from '../../components/site-manager-editor';
-import { SiteManagerSidebar } from '../../components/site-manager-sidebar';
+import { SiteManagerEditor } from './site-manager-editor';
+import { SiteManagerSidebar } from './site-manager-sidebar';
 
 import css from './style.module.css';
 
@@ -17,8 +17,6 @@ export function SiteManager({
 		} else {
 			url.searchParams.delete('site-slug');
 		}
-		// Remove the site-manager param to return to the site view
-		url.searchParams.delete('view');
 		window.location.assign(url.toString());
 	};
 
