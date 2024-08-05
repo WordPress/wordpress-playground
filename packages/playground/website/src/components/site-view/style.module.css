@@ -3,7 +3,7 @@
 	header {
 		max-height: 100px;
 		overflow: hidden;
-		transition: max-height 0.2s ease-in-out;
+		transition: max-height 0.14s ease-in-out;
 	}
 }
 .playground-view-manager-preview {
