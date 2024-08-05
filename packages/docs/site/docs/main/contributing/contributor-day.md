@@ -1,5 +1,5 @@
 ---
-slug: /wordcamp-contributor-day
+slug: /contributing/contributor-day
 ---
 
 # WordCamp Contributor Day

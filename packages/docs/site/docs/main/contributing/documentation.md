@@ -1,3 +1,7 @@
+---
+slug: /contributing/documentation
+---
+
 # Documentation contributions
 
 [WordPress Playground's documentation site](../intro.md) is maintained by volunteers like you, who'd love your help.

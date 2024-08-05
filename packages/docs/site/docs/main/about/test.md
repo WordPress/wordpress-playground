@@ -1,6 +1,6 @@
 ---
 title: Test
-slug: /test
+slug: /about/test
 ---
 
 # Test

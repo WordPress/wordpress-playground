@@ -1,5 +1,5 @@
 ---
 title: For Plugin Developers
-slug: /for-plugin-developers
+slug: /guides/for-plugin-developers
 description: WordPress Playground for Plugin Developers
 ---

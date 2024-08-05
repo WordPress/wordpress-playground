@@ -44,7 +44,7 @@ const sidebars = {
 						id: 'main/guides/index',
 					},
 					items: [
-						'main/guides/how-to-ship-a-real-wordpress-site-in-a-native-ios-app-via-playground',
+						'main/guides/wordpress-native-ios-app',
 						// 'main/guides/for-theme-developers',
 						// 'main/guides/for-plugin-developers',
 					],
@@ -83,13 +83,13 @@ const sidebars = {
 					label: 'Tutorial',
 					link: {
 						type: 'doc',
-						id: 'blueprints/blueprint-101/index',
+						id: 'blueprints/tutorial/index',
 					},
 
 					items: [
-						'blueprints/blueprint-101/what-are-blueprints-what-you-can-do-with-them',
-						'blueprints/blueprint-101/how-to-load-run-blueprints',
-						'blueprints/blueprint-101/build-your-first-blueprint',
+						'blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them',
+						'blueprints/tutorial/how-to-load-run-blueprints',
+						'blueprints/tutorial/build-your-first-blueprint',
 					],
 				},
 				'blueprints/data-format',
@@ -129,7 +129,7 @@ const sidebars = {
 					label: 'Local Development',
 					link: {
 						type: 'doc',
-						id: 'developers/local-development/intro-local-development',
+						id: 'developers/local-development/intro',
 					},
 					items: [
 						'developers/local-development/wp-now',
@@ -142,24 +142,23 @@ const sidebars = {
 					label: 'Playground APIs',
 					link: {
 						type: 'doc',
-						id: 'developers/playground-apis/index',
+						id: 'developers/apis/index',
 					},
 					items: [
-						'developers/playground-apis/api-concepts',
-						'developers/query-api/index',
+						'developers/apis/query-api/index',
 						{
 							type: 'category',
 							label: 'Javascript API',
 							link: {
 								type: 'doc',
-								id: 'developers/javascript-api/index',
+								id: 'developers/apis/javascript-api/index',
 							},
 							items: [
-								'developers/javascript-api/playground-api-client',
-								'developers/javascript-api/index-html-vs-remote-html',
-								'developers/javascript-api/blueprint-json-in-api-client',
-								'developers/javascript-api/blueprint-functions-in-api-client',
-								'developers/javascript-api/mount-data',
+								'developers/apis/javascript-api/playground-api-client',
+								'developers/apis/javascript-api/index-html-vs-remote-html',
+								'developers/apis/javascript-api/blueprint-json-in-api-client',
+								'developers/apis/javascript-api/blueprint-functions-in-api-client',
+								'developers/apis/javascript-api/mount-data',
 							],
 						},
 					],

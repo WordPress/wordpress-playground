@@ -1,6 +1,6 @@
 ---
 title: Build
-slug: /build
+slug: /about/build
 description: Build with WP Playground
 sidebar_class_name: navbar-build-item
 ---
@@ -34,4 +34,4 @@ Another interesting app built on top of Playground is **Translate Live** (see [e
 
 ## Enbed a WordPress site in non-web environments
 
-The [How to ship a real WordPress site in a native iOS app via Playground?](../guides/how-to-ship-a-real-wordpress-site-in-a-native-ios-app-via-playground) guide shows how we can leverage Playground to wrap a WordPress site into an IOS app.
+The [How to ship a real WordPress site in a native iOS app via Playground?](../guides/wordpress-native-ios-app) guide shows how we can leverage Playground to wrap a WordPress site into an IOS app.

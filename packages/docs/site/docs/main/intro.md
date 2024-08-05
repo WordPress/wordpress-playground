@@ -59,7 +59,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 
 import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
--   Read about [Playground APIs](../developers/06-playground-apis/01-index.md) and basic concepts
+-   Read about [Playground APIs](../developers/apis/index) and basic concepts
 -   Review [links and resources](./resources.md)
 -   Choose the right API for your app <APIList />
 -   Dive into the [architecture](../developers/23-architecture/01-index.md) and learn how it all works

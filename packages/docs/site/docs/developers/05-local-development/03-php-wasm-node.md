@@ -1,5 +1,6 @@
 ---
 title: php-wasm/node
+slug: /developers/local-development/php-wasm-node
 ---
 
 # Using WordPress Playground in Node.js

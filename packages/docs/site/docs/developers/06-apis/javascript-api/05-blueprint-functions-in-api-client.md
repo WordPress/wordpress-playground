@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+slug: /developers/apis/javascript-api/blueprint-functions-in-api-client
 ---
 
 # Blueprints Functions and the API Client
@@ -30,4 +30,4 @@ await installPlugin(client, {
 });
 ```
 
-For more information and live examples visit the [Blueprints Steps page](../../blueprints/05-steps.md).
+For more information and live examples visit the [Blueprints Steps page](../../../blueprints/05-steps.md).

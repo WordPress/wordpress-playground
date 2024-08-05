@@ -1,1 +1,1 @@
-This is called [Query API](../developers/20-query-api/01-index.md) and you can learn more about it [here](../developers/20-query-api/01-index.md).
+This is called [Query API](../developers/playground-apis/query-api/) and you can learn more about it [here](../developers/playground-apis/query-api/).

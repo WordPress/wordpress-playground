@@ -1,3 +1,7 @@
+---
+slug: /developers/apis/javascript-api/mount-data
+---
+
 # Mount data
 
 ## Mount a directory from the browser

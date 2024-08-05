@@ -13,7 +13,7 @@ Some key features:
 -   **Instant Setup**: Run WordPress with a single click.
 -   **Testing Environment**: Ideal for testing plugins and themes.
 
-Via [Query Params](../developers/20-query-api/01-index.md) we can directly load in the Playground instance things such as a specific version of WordPress, a theme, a plugin or a more complex setup via blueprints (check [here](./quick-start-guide.md#try-a-block-a-theme-or-a-plugin) some examples).
+Via [Query Params](../developers/playground-apis/query-api/) we can directly load in the Playground instance things such as a specific version of WordPress, a theme, a plugin or a more complex setup via blueprints (check [here](./quick-start-guide.md#try-a-block-a-theme-or-a-plugin) some examples).
 
 From the Playground website there are also available some toolbars to customize your playground instance and to provide quick access to some resources and utilities.
 
@@ -23,7 +23,7 @@ From the Playground website there are also available some toolbars to customize 
 
 ![snapshot of customize playground window at playground instance](./_assets/customize-playground.png)
 
-The options available from the "Customize Playground" window correpond to the following [Query API options](../developers/20-query-api/01-index.md##available-options):
+The options available from the "Customize Playground" window correpond to the following [Query API options](../developers/playground-apis/query-api/##available-options):
 
 -   `storage`
 -   `php`

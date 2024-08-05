@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+slug: /developers/apis/javascript-api/playground-api-client
 ---
 
 # Playground API Client

@@ -1,6 +1,6 @@
 ---
 title: wp-now
-slug: wp-now
+slug: /developers/local-development/wp-now
 ---
 
 # wp-now NPM package

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+slug: /blueprints/steps/resources
 ---
 
 # Resources References

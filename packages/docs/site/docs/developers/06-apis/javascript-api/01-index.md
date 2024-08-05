@@ -1,3 +1,7 @@
+---
+slug: /developers/apis/javascript-api
+---
+
 # JavaScript API
 
 WordPress Playground comes with a JavaScript API client that grants you full control over your WordPress.

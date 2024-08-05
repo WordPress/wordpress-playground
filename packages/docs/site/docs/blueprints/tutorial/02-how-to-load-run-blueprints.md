@@ -1,5 +1,6 @@
 ---
 title: How to run Blueprints
+slug: /blueprints/tutorial/how-to-load-run-blueprints
 description: Learn about the multiple ways to use blueprints
 ---
 
@@ -25,7 +26,7 @@ To run it, go to `https://playground.wordpress.net/#{"preferredVersions": {"php"
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{"preferredVersions":{"php":"7.4","wp":"5.9"}})
 
-Use this method to run the example code in the next chapter, [**Build your first Blueprint**](./03-build-your-first-blueprint.md).
+Use this method to run the example code in the next chapter, [**Build your first Blueprint**](./tutorial/build-your-first-blueprint).
 
 ### Base64 encoded Blueprints
 

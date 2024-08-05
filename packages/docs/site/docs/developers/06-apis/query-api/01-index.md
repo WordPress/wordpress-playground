@@ -1,6 +1,6 @@
 ---
 sidebar_position: 5
-slug: /query-api
+slug: /developers/apis/query-api
 ---
 
 # Query API

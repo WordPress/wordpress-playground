@@ -1,5 +1,6 @@
 ---
 title: Build your first Blueprint
+slug: /blueprints/tutorial/build-your-first-blueprint
 description: Six steps to your first blueprint
 ---
 

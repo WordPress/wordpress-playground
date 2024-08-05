@@ -5,7 +5,7 @@ slug: /developers/build-your-first-app
 
 # Quick Start Guide for Developers
 
-WordPress Playground was created as a programmable tool. Below you'll find a few examples of what you can do with it. Each discussed API is described in detail in the [APIs section](../06-playground-apis/01-index.md):
+WordPress Playground was created as a programmable tool. Below you'll find a few examples of what you can do with it. Each discussed API is described in detail in the [APIs section](../apis/index):
 
 import TOCInline from '@theme/TOCInline';
 
@@ -19,7 +19,7 @@ Playground can be embedded on your website using the HTML `<iframe>` tag as foll
 <iframe src="https://playground.wordpress.net/"></iframe>
 ```
 
-Every visitor will get their own private WordPress instance for free. You can then customize it using one of the [Playground APIs](../06-playground-apis/01-index.md).
+Every visitor will get their own private WordPress instance for free. You can then customize it using one of the [Playground APIs](../apis/index).
 
 import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
 
@@ -33,7 +33,7 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
 <APIList />
 
-Learn more about each of these APIs in the [APIs overview section](../06-playground-apis/01-index.md).
+Learn more about each of these APIs in the [APIs overview section](../apis/index).
 
 ## Showcase a plugin or theme from WordPress directory
 

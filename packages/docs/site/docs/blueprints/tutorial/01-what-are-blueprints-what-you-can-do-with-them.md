@@ -1,5 +1,6 @@
 ---
 title: What are Blueprints?
+slug: /blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them
 description: Getting started with Blueprints
 ---
 

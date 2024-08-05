@@ -1,5 +1,6 @@
 ---
 title: API Consistency
+slug: /blueprints/steps/api-consistency
 ---
 
 # JSON API and Function API

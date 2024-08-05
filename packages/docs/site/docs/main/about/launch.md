@@ -1,6 +1,6 @@
 ---
 title: Launch
-slug: /launch
+slug: /about/launch
 ---
 
 # Launch
@@ -17,4 +17,4 @@ Get inspiration about the type of interactive demos you can create at the [Bluep
 
 ## Put a native app running WordPress in the App Store.
 
-Check the [How to ship a real WordPress site in a native iOS app via Playground?](../guides/how-to-ship-a-real-wordpress-site-in-a-native-ios-app-via-playground) guide for info on this use case
+Check the [How to ship a real WordPress site in a native iOS app via Playground?](../guides/wordpress-native-ios-app) guide for info on this use case

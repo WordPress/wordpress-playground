@@ -1,3 +1,7 @@
+---
+slug: /developers/local-development/vscode-extension
+---
+
 # VS Code extension
 
 Start a zero-setup development environment using the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground), and develop your plugin or theme locally without installing Apache or MySQL.

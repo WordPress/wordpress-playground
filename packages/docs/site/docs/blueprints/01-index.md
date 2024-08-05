@@ -1,5 +1,6 @@
 ---
 title: Getting started
+slug: /blueprints/getting-started
 ---
 
 # Getting started with Blueprints
@@ -29,7 +30,7 @@ There are three ways to use Blueprints:
 
 -   [Paste a Blueprint into the URL "fragment" on WordPress Playground website](./02-using-blueprints.md#url-fragment).
 -   [Use them with the JavaScript API](./02-using-blueprints.md#javascript-api).
--   [Reference a blueprint JSON file via QueryParam blueprint-url](../developers/20-query-api/01-index.md)
+-   [Reference a blueprint JSON file via QueryParam blueprint-url](../developers/playground-apis/query-api/)
 
 ## What problems are solved by Blueprints?
 

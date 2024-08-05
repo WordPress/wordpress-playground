@@ -1,6 +1,6 @@
 ---
 title: Playground in native iOS apps
-slug: /wordpress-native-ios-app
+slug: /guides/wordpress-native-ios-app
 description: WordPress Playground in native iOS apps
 ---
 

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+slug: /developers/apis/javascript-api/-html-vs-remote-html
 ---
 
 # `remote.html` vs `index.html`
@@ -7,8 +7,8 @@ sidebar_position: 3
 [playground.wordpress.net](https://playground.wordpress.net/) exposes two distinct APIs through two separate HTML files: `remote.html` and `index.html`. Here's an overview of their functions and differences:
 
 -   `index.html` uses WordPress Playground API client to control the "endpoint" that is `remote.html`.
--   The [Query API](../20-query-api/01-index.md) is exclusively provided by `index.html`, independent of the WordPress Playground JavaScript API.
--   The [JavaScript API](../22-javascript-api/01-index.md) is exclusively provided by `remote.html`. Only that file can be used as an "endpoint" for the `PlaygroundClient` class.
+-   The [Query API](../query-api/) is exclusively provided by `index.html`, independent of the WordPress Playground JavaScript API.
+-   The [JavaScript API](../javascript-api/) is exclusively provided by `remote.html`. Only that file can be used as an "endpoint" for the `PlaygroundClient` class.
 
 Here's a bit more about each of these files:
 
