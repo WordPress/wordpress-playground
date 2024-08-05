@@ -1,4 +1,3 @@
-import { SiteManagerEditor } from './site-manager-editor';
 import { SiteManagerSidebar } from './site-manager-sidebar';
 
 import css from './style.module.css';
@@ -24,12 +23,6 @@ export function SiteManager({
 		<div className={css.siteManager}>
 			<SiteManagerSidebar
 				className={css.siteManagerSidebar}
-				onSiteChange={onSiteChange}
-			/>
-			<SiteManagerEditor
-				className={css.siteManagerEditor}
-				iframeRef={iframeRef}
-				siteSlug={siteSlug}
 				onSiteChange={onSiteChange}
 			/>
 		</div>
