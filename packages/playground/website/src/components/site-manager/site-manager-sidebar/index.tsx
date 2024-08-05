@@ -204,7 +204,7 @@ export function SiteManagerSidebar({
 					className={css.siteManagerSidebarLabel}
 					htmlFor="site-manager-sidebar-footer-resources"
 				>
-					Respources
+					Resources
 				</label>
 				<ul
 					className={css.siteManagerSidebarList}
