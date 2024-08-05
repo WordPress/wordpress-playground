@@ -20,6 +20,10 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
+	const filteredLogs = logs.filter((log) =>
+		log.toLowerCase().includes(searchTerm.toLowerCase())
+	);
+
 	useEffect(() => {
 		getLogs();
 		logger.addEventListener(logEventType, getLogs);
@@ -37,20 +41,15 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	}
 
 	function logList() {
-		return logs
-			.filter((log) =>
-				log.toLowerCase().includes(searchTerm.toLowerCase())
-			)
-			.reverse()
-			.map((log, index) => (
-				<div
-					className={css.logModalLog}
-					key={index}
-					dangerouslySetInnerHTML={{
-						__html: log.replace(/Error:|Fatal:/, '<mark>$&</mark>'),
-					}}
-				/>
-			));
+		return filteredLogs.reverse().map((log, index) => (
+			<div
+				className={css.logModalLog}
+				key={index}
+				dangerouslySetInnerHTML={{
+					__html: log.replace(/Error:|Fatal:/, '<mark>$&</mark>'),
+				}}
+			/>
+		));
 	}
 
 	const styles = {
@@ -60,18 +59,34 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	return (
 		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
 			<header>
-				<h2>{props.title || 'Logs'}</h2>
+				<h2>{props.title || 'Error Logs'}</h2>
 				{props.description}
-				<TextControl
-					aria-label="Search"
-					placeholder="Search logs"
-					value={searchTerm}
-					onChange={setSearchTerm}
-					autoFocus={true}
-					className={css.logModalSearch}
-				/>
+				{logs.length > 0 ? (
+					<TextControl
+						aria-label="Search"
+						placeholder="Search logs"
+						value={searchTerm}
+						onChange={setSearchTerm}
+						autoFocus={true}
+						className={css.logModalSearch}
+					/>
+				) : null}
 			</header>
-			<main className={css.logModalMain}>{logList()}</main>
+			{filteredLogs.length > 0 ? (
+				<main className={css.logModalMain}>{logList()}</main>
+			) : logs.length > 0 ? (
+				<div className={css.logModalEmptyPlaceholder}>
+					No matching logs found.
+				</div>
+			) : (
+				<div className={css.logModalEmptyPlaceholder}>
+					Error logs for Playground, WordPress, and PHP will show up
+					here when something goes wrong.
+					<br />
+					<br />
+					No problems so far – yay! 🎉
+				</div>
+			)}
 		</Modal>
 	);
 }

@@ -95,17 +95,11 @@ export async function startPlaygroundWeb({
 		progressbar: !disableProgressBar,
 	});
 	progressTracker.setCaption('Preparing WordPress');
+	// Set a default blueprint if none is provided.
 	if (!blueprint) {
-		const playground = await doStartPlaygroundWeb(
-			iframe,
-			setQueryParams(remoteUrl, {
-				['php-extension']: 'kitchen-sink',
-				'site-slug': siteSlug,
-			}),
-			progressTracker
-		);
-		onClientConnected(playground);
-		return playground;
+		blueprint = {
+			phpExtensionBundles: ['kitchen-sink'],
+		};
 	}
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
