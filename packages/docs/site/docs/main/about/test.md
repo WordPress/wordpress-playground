@@ -1,7 +1,6 @@
 ---
 title: Test
 slug: /test
-sidebar_class_name: navbar-build-item
 ---
 
 # Test
@@ -30,7 +29,7 @@ With the [Sandbox Site powered by Playground](https://wordpress.org/plugins/play
 
 ## Test different WordPress and PHP versions.
 
-With Playground, you can quickly test any major WordPress or PHP version by <span style="text-decoration:underline;">customizing its settings</span> or using a custom blueprint with the `preferredVersions` property.
+With Playground, you can quickly test any major WordPress or PHP version by _customizing its settings_ or using a custom blueprint with the `preferredVersions` property.
 
 For example, you can always test the latest development version of WordPress, also called [Beta Nightly](https://wordpress.org/download/beta-nightly/), from this link: [https://playground.wordpress.net/?wp=nightly](https://playground.wordpress.net/?wp=nightly)
 
