@@ -78,7 +78,10 @@ function Main() {
 
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
-			<NavigatorScreen path="/manager">
+			<NavigatorScreen
+				path="/manager"
+				className={css.playgroundNavigatorScreen}
+			>
 				<SiteManager iframeRef={iframeRef} siteSlug={siteSlug} />
 			</NavigatorScreen>
 			<SiteView

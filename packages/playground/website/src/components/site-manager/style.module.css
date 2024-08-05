@@ -25,9 +25,6 @@ body {
 }
 
 @media (min-width: 640px) {
-	.site-manager-editor {
-		display: unset;
-	}
 	.site-manager {
 		width: var(--site-manager-sidebar-width);
 	}

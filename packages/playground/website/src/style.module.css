@@ -6,3 +6,8 @@
 	height: 100vh;
 	display: flex;
 }
+
+.playground-navigator-screen {
+	overflow: hidden;
+	flex: 0 0 auto;
+}

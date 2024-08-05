@@ -215,7 +215,7 @@ body.is-embedded .fake-window-wrapper {
 }
 
 @media (max-width: 812px) {
-	.toolbar {
+	.toolbar:not(.toolbar-hidden) {
 		padding: 10px;
 		flex-direction: column;
 		height: auto;

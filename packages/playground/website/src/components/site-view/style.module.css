@@ -1,9 +1,16 @@
 .playground-view {
-	flex-grow: 1;
+	flex: 1 0 auto;
 }
 
 .playground-view-manager {
 	background-color: var(--site-manager-background-color);
+	display: none;
+}
+
+@media (min-width: 640px) {
+	.playground-view-manager {
+		display: block;
+	}
 }
 
 .playground-view-manager-section {
