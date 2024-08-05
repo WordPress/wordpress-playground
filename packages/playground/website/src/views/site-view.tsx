@@ -258,6 +258,7 @@ export function SiteView({
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to Blueprints Builder"
+										// @ts-ignore-next-line
 										href={
 											[
 												joinPaths(
@@ -283,6 +284,7 @@ export function SiteView({
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to WordPress PR previewer"
+										// @ts-ignore-next-line
 										href={
 											joinPaths(
 												document.location.pathname,
@@ -298,6 +300,7 @@ export function SiteView({
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to a list of Playground demos"
+										// @ts-ignore-next-line
 										href={
 											joinPaths(
 												document.location.pathname,
@@ -313,6 +316,7 @@ export function SiteView({
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to Playground documentation"
+										// @ts-ignore-next-line
 										href={
 											'https://wordpress.github.io/wordpress-playground/' as any
 										}
@@ -325,6 +329,7 @@ export function SiteView({
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to the Playground git repository"
+										// @ts-ignore-next-line
 										href={
 											'https://github.com/WordPress/wordpress-playground' as any
 										}
