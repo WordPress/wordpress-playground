@@ -75,6 +75,13 @@
 					},
 					"additionalProperties": false
 				},
+				"extraLibraries": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/ExtraLibrary"
+					},
+					"description": "Extra libraries to preload into the Playground instance."
+				},
 				"constants": {
 					"type": "object",
 					"additionalProperties": {
@@ -180,6 +187,10 @@
 				"7.1",
 				"7.0"
 			]
+		},
+		"ExtraLibrary": {
+			"type": "string",
+			"const": "wp-cli"
 		},
 		"FileReference": {
 			"anyOf": [
@@ -569,7 +580,7 @@
 							"description": "The name of the theme to import content from."
 						}
 					},
-					"required": ["step", "themeSlug"]
+					"required": ["step"]
 				},
 				{
 					"type": "object",

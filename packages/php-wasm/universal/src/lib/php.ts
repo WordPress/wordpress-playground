@@ -430,8 +430,13 @@ export class PHP implements Disposable {
 			if (typeof request.code === 'string') {
 				this.writeFile('/internal/eval.php', request.code);
 				this.#setScriptPath('/internal/eval.php');
-			} else {
+			} else if (typeof request.scriptPath === 'string') {
 				this.#setScriptPath(request.scriptPath || '');
+			} else {
+				throw new TypeError(
+					'The request object must have either a `code` or a ' +
+						'`scriptPath` property.'
+				);
 			}
 
 			const $_SERVER = this.#prepareServerEntries(
@@ -921,6 +926,16 @@ export class PHP implements Disposable {
 	 */
 	isDir(path: string) {
 		return FSHelpers.isDir(this[__private__dont__use].FS, path);
+	}
+
+	/**
+	 * Checks if a file exists in the PHP filesystem.
+	 *
+	 * @param  path – The path to check.
+	 * @returns True if the path is a file, false otherwise.
+	 */
+	isFile(path: string) {
+		return FSHelpers.isFile(this[__private__dont__use].FS, path);
 	}
 
 	/**

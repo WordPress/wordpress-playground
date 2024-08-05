@@ -1,9 +1,12 @@
 import tsj from 'ts-json-schema-generator';
 import fs from 'fs';
+import Ajv from 'ajv';
+import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
+import prettier from 'prettier';
 
 /** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
 const config = {
-	path: 'dist/packages/playground/blueprints/index.d.ts',
+	path: 'packages/playground/blueprints/src/rollup.d.ts',
 	tsconfig: './tsconfig.base.json',
 	type: 'Blueprint',
 	skipTypeCheck: true,
@@ -11,6 +14,8 @@ const config = {
 
 const output_path =
 	'packages/playground/blueprints/public/blueprint-schema.json';
+const validator_output_path =
+	'packages/playground/blueprints/public/blueprint-schema-validator.js';
 
 const maxRetries = 2;
 async function exponentialBackoff(callback, retries = 0, delay = 1000) {
@@ -58,6 +63,22 @@ const schemaString = JSON.stringify(schema, null, 2)
 	// Naively remove TypeScript generics <T> from the schema:
 	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
 	.replaceAll(/<[a-zA-Z]+>/g, '');
-fs.writeFile(output_path, schemaString, (err) => {
-	if (err) throw err;
+fs.writeFileSync(output_path, schemaString);
+
+const ajv = new Ajv({
+	discriminator: true,
+	code: {
+		source: true,
+		esm: true,
+	},
 });
+const validate = ajv.compile(schema);
+const rawValidationCode = ajvStandaloneCode(ajv, validate);
+
+// Use prettier to make the generated validation code more readable.
+const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
+const formattedValidationCode = prettier.format(
+	rawValidationCode,
+	prettierConfig
+);
+fs.writeFileSync(validator_output_path, formattedValidationCode);

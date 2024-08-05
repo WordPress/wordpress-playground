@@ -41,6 +41,7 @@ import { ErrorReportModal } from './components/error-report-modal';
 import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 import { LogModal } from './components/log-modal';
+import { OfflineNotice } from './components/offline-notice';
 import { StartErrorModal } from './components/start-error-modal';
 import { MountMarkdownDirectoryModal } from './components/mount-markdown-directory-modal';
 import { useBootPlayground } from './lib/use-boot-playground';
@@ -132,6 +133,7 @@ function Modals() {
 
 function Main() {
 	const dispatch: PlaygroundDispatch = useDispatch();
+	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
@@ -188,6 +190,7 @@ function Main() {
 				dispatch(setActiveModal('error-report'));
 			}
 		});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Add GA events for blueprint steps. For more information, see the README.md file.
@@ -202,6 +205,7 @@ function Main() {
 		for (const step of steps) {
 			logTrackingEvent('step', { step });
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [blueprint?.steps]);
 
 	return (
@@ -272,38 +276,48 @@ function Main() {
 							} as any
 						}
 					>
-						{({ onClose }) => (
+						{({ onClose }: { onClose: () => void }) => (
 							<>
+								{offline ? <OfflineNotice /> : null}
 								<MenuGroup>
 									<ResetSiteMenuItem
 										storage={currentConfiguration.storage}
 										onClose={onClose}
 									/>
-									<ReportError onClose={onClose} />
+									<ReportError
+										onClose={onClose}
+										disabled={offline}
+									/>
 									<DownloadAsZipMenuItem onClose={onClose} />
 									<RestoreFromZipMenuItem onClose={onClose} />
-									<GithubImportMenuItem onClose={onClose} />
-									<GithubExportMenuItem onClose={onClose} />
+									<GithubImportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
+									<GithubExportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
 									<ViewLogs onClose={onClose} />
 									<MenuItem
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to Blueprints Builder"
-										href={
-											[
-												joinPaths(
-													document.location.pathname,
-													'builder/builder.html'
-												),
-												'#',
-												btoa(
-													JSON.stringify(
-														blueprint
-													) as string
-												) as string,
-											].join('') as any
-										}
+										// @ts-ignore-next-line
+										href={[
+											joinPaths(
+												document.location.pathname,
+												'builder/builder.html'
+											),
+											'#',
+											btoa(
+												JSON.stringify(
+													blueprint
+												) as string
+											) as string,
+										].join('')}
 										target="_blank"
+										disabled={offline}
 									>
 										Edit the Blueprint
 									</MenuItem>
@@ -313,6 +327,7 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to WordPress PR previewer"
+										// @ts-ignore-next-line
 										href={
 											joinPaths(
 												document.location.pathname,
@@ -320,6 +335,7 @@ function Main() {
 											) as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										Preview WordPress Pull Request
 									</MenuItem>
@@ -327,6 +343,7 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to a list of Playground demos"
+										// @ts-ignore-next-line
 										href={
 											joinPaths(
 												document.location.pathname,
@@ -334,6 +351,7 @@ function Main() {
 											) as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										More demos
 									</MenuItem>
@@ -341,10 +359,12 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to Playground documentation"
+										// @ts-ignore-next-line
 										href={
 											'https://wordpress.github.io/wordpress-playground/' as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										Documentation
 									</MenuItem>
@@ -352,10 +372,12 @@ function Main() {
 										icon={external}
 										iconPosition="left"
 										aria-label="Go to the Playground git repository"
+										// @ts-ignore-next-line
 										href={
 											'https://github.com/WordPress/wordpress-playground' as any
 										}
 										target="_blank"
+										disabled={offline}
 									>
 										GitHub
 									</MenuItem>

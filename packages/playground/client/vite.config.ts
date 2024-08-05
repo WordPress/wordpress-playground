@@ -6,6 +6,8 @@ import { join } from 'path';
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/playground-client',
@@ -18,6 +20,13 @@ export default defineConfig({
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 		}),
 		ignoreWasmImports(),
+
+		// @wp-playground/client doesn't actually use the remote-config virtual module,
+		// @wp-playground/remote package does.
+		// @wp-playground/client imports a few things from @wp-playground/remote and,
+		// even though it doesn't involve the remote-config virtual module, the bundler
+		// still needs to know what to do when it sees `import from "virtual:remote-config"`.
+		buildVersionPlugin('remote-config'),
 	],
 
 	// Configuration for building your library.

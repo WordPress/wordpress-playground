@@ -19,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
+import { addManifestJson } from '../../vite-extensions/vite-manifest';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -66,7 +68,6 @@ export default defineConfig(({ command, mode }) => {
 				strict: false, // Serve files from the other project directories.
 			},
 		},
-
 		plugins: [
 			react({
 				jsxRuntime: 'automatic',
@@ -118,22 +119,19 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Copy the `manifest.json` file to the `dist/` directory.
+			 * Add `manifest.json` file to the `dist/` directory when building.
+			 * While in development, modify the `manifest.json` file to use the local server URL.
 			 */
-			{
-				name: 'manifest-plugin-build',
-				apply: 'build',
-				writeBundle({ dir: outputDir }) {
-					const manifestPath = path('./manifest.production.json');
-
-					if (existsSync(manifestPath) && outputDir) {
-						copyFileSync(
-							manifestPath,
-							join(outputDir, 'manifest.json')
-						);
-					}
-				},
-			} as Plugin,
+			addManifestJson({
+				manifestPath: path('./manifest.json'),
+			}) as Plugin,
+			/**
+			 * Generate a list of files needed for the website to function offline.
+			 */
+			listAssetsRequiredForOfflineMode({
+				outputFile: 'assets-required-for-offline-mode.json',
+				distDirectoriesToList: ['./', '../remote', '../client'],
+			}) as Plugin,
 		],
 
 		// Configuration for building your library.

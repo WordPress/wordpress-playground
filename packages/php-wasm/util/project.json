@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -32,19 +32,6 @@
 				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/util"
 			}
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/php-wasm/util/src/rollup.d.ts -- packages/php-wasm/util/src/index.ts",
-					"rimraf dist/packages/php-wasm/util/lib/*.d.ts",
-					"rimraf dist/packages/php-wasm/util/*.d.ts",
-					"cp packages/php-wasm/util/src/rollup.d.ts dist/packages/php-wasm/util/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
 		},
 		"publish": {
 			"executor": "nx:run-commands",

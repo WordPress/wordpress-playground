@@ -28,14 +28,18 @@
  * @returns A joined path
  */
 export function joinPaths(...paths: string[]) {
+	function hasTrailingSlash(p: string) {
+		return p.substring(p.length - 1) === '/';
+	}
+
 	let path = paths.join('/');
 	const isAbsolute = path[0] === '/';
-	const trailingSlash = path.substring(path.length - 1) === '/';
+	const trailingSlash = hasTrailingSlash(path);
 	path = normalizePath(path);
 	if (!path && !isAbsolute) {
 		path = '.';
 	}
-	if (path && trailingSlash) {
+	if (path && trailingSlash && !hasTrailingSlash(path)) {
 		path += '/';
 	}
 	return path;

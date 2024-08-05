@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -32,19 +32,6 @@
 				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/stream-compression"
 			}
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/php-wasm/stream-compression/src/rollup.d.ts -- packages/php-wasm/stream-compression/src/index.ts",
-					"rimraf dist/packages/php-wasm/stream-compression/lib/*.d.ts",
-					"rimraf dist/packages/php-wasm/stream-compression/*.d.ts",
-					"cp packages/php-wasm/stream-compression/src/rollup.d.ts dist/packages/php-wasm/stream-compression/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
 		},
 		"test": {
 			"executor": "@nx/vite:test",

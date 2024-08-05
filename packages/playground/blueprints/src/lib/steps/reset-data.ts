@@ -1,11 +1,6 @@
 import { StepHandler } from '.';
 
 /**
- * Deletes WordPress posts and comments and sets the auto increment sequence for the
- * posts and comments tables to 0.
- *
- * @private
- * @internal
  * @inheritDoc resetData
  * @example
  *
@@ -20,6 +15,9 @@ export interface ResetDataStep {
 }
 
 /**
+ * Deletes WordPress posts and comments and sets the auto increment sequence for the
+ * posts and comments tables to 0.
+ *
  * @param playground Playground client.
  */
 export const resetData: StepHandler<ResetDataStep> = async (

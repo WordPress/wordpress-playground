@@ -1,9 +1,10 @@
 import { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
-export { bootWordPress } from './boot';
+export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
 export { getLoadedWordPressVersion } from './version-detect';
 
+export * from './version-detect';
 export * from './rewrite-rules';
 
 /**
@@ -18,7 +19,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/preload/env.php',
 		`<?php
-    
+
         // Allow adding filters/actions prior to loading WordPress.
         // $function_to_add MUST be a string.
         function playground_add_filter( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
@@ -28,7 +29,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
         function playground_add_action( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
             playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
         }
-        
+
         // Load our mu-plugins after customer mu-plugins
         // NOTE: this means our mu-plugins can't use the muplugins_loaded action!
         playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
@@ -50,14 +51,6 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/mu-plugins/0-playground.php',
 		`<?php
-        // Redirect /wp-admin to /wp-admin/
-        add_filter( 'redirect_canonical', function( $redirect_url ) {
-            if ( '/wp-admin' === $redirect_url ) {
-                return $redirect_url . '/';
-            }
-            return $redirect_url;
-        } );
-		
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.
         add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
@@ -75,7 +68,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
         if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
             mkdir(WP_CONTENT_DIR . '/fonts');
         }
-		
+
         $log_file = WP_CONTENT_DIR . '/debug.log';
         define('ERROR_LOG_FILE', $log_file);
         ini_set('error_log', $log_file);
@@ -88,13 +81,24 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
 		`<?php
-		(function() { 
+		(function() {
 			$playground_consts = [];
 			if(file_exists('/internal/shared/consts.json')) {
 				$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
 				$playground_consts = array_keys($playground_consts);
 			}
 			set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
+				/**
+				 * We're forced to use this deprecated hook to ensure SSL operations work without
+				 * the kitchen-sink bundled. See https://github.com/WordPress/wordpress-playground/pull/1504
+				 * for more context.
+				 */
+				if (
+					strpos($message, "Hook http_api_transports is deprecated") !== false ||
+					strpos($message, "Hook http_api_transports is <strong>deprecated</strong>") !== false
+				) {
+					return;
+				}
 				/**
 				 * This is a temporary workaround to hide the 32bit integer warnings that
 				 * appear when using various time related function, such as strtotime and mktime.
@@ -204,7 +208,7 @@ export async function preloadSqliteIntegration(
 
 /**
  * Loads the SQLite integration plugin before WordPress is loaded
- * and without creating a drop-in "db.php" file. 
+ * and without creating a drop-in "db.php" file.
  *
  * Technically, it creates a global $wpdb object whose only two
  * purposes are to:

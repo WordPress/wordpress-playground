@@ -5,11 +5,15 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
-			"executor": "nx:noop",
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/blueprints/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/blueprints",
+				"buildTarget": "playground-blueprints:build:bundle:production"
+			},
 			"dependsOn": [
-				"build:bundle",
 				"build:blueprint-schema",
-				"build:rollup-declarations"
+				"build:rollup-declarations-for-schema-generation"
 			]
 		},
 		"build:blueprint-schema": {
@@ -20,17 +24,14 @@
 				],
 				"parallel": false
 			},
-			"dependsOn": ["build:rollup-declarations"]
+			"dependsOn": ["build:rollup-declarations-for-schema-generation"]
 		},
-		"build:rollup-declarations": {
+		"build:rollup-declarations-for-schema-generation": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"mkdir -p dist/packages/playground/blueprints",
-					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts",
-					"rimraf dist/packages/playground/blueprints/lib/*.d.ts",
-					"rimraf dist/packages/playground/blueprints/*.d.ts",
-					"cp packages/playground/blueprints/src/rollup.d.ts dist/packages/playground/blueprints/index.d.ts"
+					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts"
 				],
 				"parallel": false
 			},
