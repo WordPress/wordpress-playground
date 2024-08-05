@@ -20,11 +20,13 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 Each step is an object that contains a `step` property that specifies the type of step to run. The rest of the properties depend on the type of step. Learn and try each step type below.
 
-:::info
-Some steps have a shorthand version. Check the [Shorthands](./05-steps-shorthands.md) section for more information about them.
+The following step-related topics are addressed on dedicated pages included in this section:
 
-For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](./07-json-api-and-function-api.md) for further details.
-:::
+-   [Resources References](./04-resources.md) allow you use external files in Blueprints.
+
+-   Some steps have a shorthand version. Check the [Shorthands](./05-steps-shorthands.md) section for more information about them.
+
+-   For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](./07-json-api-and-function-api.md) page for further details.
 
 ---
 

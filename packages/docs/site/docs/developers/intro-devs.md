@@ -21,7 +21,7 @@ This docs hub is focused on Developers info and is divided into the following ma
 
 -   [Quick Start Guide for Developers](./03-build-an-app/01-index.md): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
 
--   [Local Development](./05-local-development/intro.md): Discover the tools provided by Playground to streamline the process of setting up and managing WordPress sites.
+-   [Local Development](./05-local-development/intro.md): Discover the tools provided by Playground to streamline the process of setting up and managing WordPress sites and build your apps.
 
 -   [Playground APIs](./06-playground-apis/01-index.md): Explore the main APIs exposed by WordPress Playground to interact with the Playground: [Query API](./20-query-api/01-index.md), [Blueprints](../blueprints/), [Javascript API](./22-javascript-api/01-index.md)
 

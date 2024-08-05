@@ -11,9 +11,9 @@ slug: /about
 
 WordPress Playground is your place to build, test, and launch:
 
--   [Build](https://file+.vscode-resource.vscode-cdn.net/Users/juanmanuelgarrido/PROJECTS/2024/wordpress-playground/packages/docs/site/docs/main/about/build.md): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
--   [Test](https://file+.vscode-resource.vscode-cdn.net/Users/juanmanuelgarrido/PROJECTS/2024/wordpress-playground/packages/docs/site/docs/main/about/test.md): Upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
--   [Launch](https://file+.vscode-resource.vscode-cdn.net/Users/juanmanuelgarrido/PROJECTS/2024/wordpress-playground/packages/docs/site/docs/main/about/launch.md): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time.
+-   [Build](./build.md): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
+-   [Test](./test.md): Upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
+-   [Launch](./launch.md): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time.
 
 ## Why WordPress Playground?
 

@@ -133,11 +133,11 @@ const config = {
 						label: 'API Reference',
 						position: 'left',
 					},
-					{
-						href: 'https://playground.wordpress.net/gutenberg.html',
-						label: 'Gutenberg PR Previewer',
-						position: 'right',
-					},
+					// {
+					// 	href: 'https://playground.wordpress.net/gutenberg.html',
+					// 	label: 'Gutenberg PR Previewer',
+					// 	position: 'right',
+					// },
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',

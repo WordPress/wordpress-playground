@@ -35,8 +35,6 @@ This docs hub is focused on Blueprints info and is divided into the following ma
 
 -   [Using Blueprints](./02-using-blueprints.md): Learn in this section different ways to use Blueprints.
 
--   [Resources References](./04-resources.md): Resource References allow you use external files in Blueprints. Learn more about them in this section.
-
 -   [Steps](./05-steps.md): API Reference of all the available steps that can be set in a blueprint to run tasks such as login, plugin/theme activation, file operations, and more.
 
 -   [Examples](./08-examples.md): Compilation of Blueprint examples for various WordPress Playground setups, including installing themes/plugins, running PHP code, enabling features, and loading specific WordPress versions.

@@ -36,18 +36,19 @@ const sidebars = {
 						'main/about/launch',
 					],
 				},
-				// {
-				// 	type: 'category',
-				// 	label: 'Guides',
-				// 	link: {
-				// 		type: 'doc',
-				// 		id: 'main/guides/index',
-				// 	},
-				// 	items: [
-				// 		'main/guides/for-theme-developers',
-				// 		'main/guides/for-plugin-developers',
-				// 	],
-				// },
+				{
+					type: 'category',
+					label: 'Guides',
+					link: {
+						type: 'doc',
+						id: 'main/guides/index',
+					},
+					items: [
+						'main/guides/how-to-ship-a-real-wordpress-site-in-a-native-ios-app-via-playground',
+						// 'main/guides/for-theme-developers',
+						// 'main/guides/for-plugin-developers',
+					],
+				},
 				{
 					type: 'category',
 					label: 'Contributing',
@@ -93,7 +94,6 @@ const sidebars = {
 				},
 				'blueprints/data-format',
 				'blueprints/using-blueprints',
-				'blueprints/resources',
 				{
 					type: 'category',
 					label: 'Steps',
@@ -103,6 +103,7 @@ const sidebars = {
 					},
 
 					items: [
+						'blueprints/resources',
 						'blueprints/steps-shorthands',
 						'blueprints/json-api-and-function-api',
 					],

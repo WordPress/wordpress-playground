@@ -1,5 +1,5 @@
 ---
-title: Getting started with Blueprints
+title: Getting started
 ---
 
 # Getting started with Blueprints
