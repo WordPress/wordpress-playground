@@ -1,21 +1,23 @@
-.playground-view {
-	flex: 1 0 auto;
+.site-view {
+	flex: 1 1 auto;
+	min-width: 320px;
 }
 
-.playground-view-manager {
+.site-view-has-site-manager {
 	background-color: var(--site-manager-background-color);
 	display: none;
 }
 
 @media (min-width: 640px) {
-	.playground-view-manager {
+	.site-view-has-site-manager {
 		display: block;
 	}
 }
 
-.playground-view-manager-section {
+.site-view-section {
 	border: var(--site-manager-border-width) solid
 		var(--site-manager-background-color);
+	background-color: var(--site-manager-border-color);
 	> div {
 		border-radius: 12px !important;
 		overflow: hidden;

@@ -123,7 +123,7 @@ body.is-embedded .fake-window-wrapper {
 	margin-right: auto;
 	margin-left: 100px;
 	min-width: 200px;
-	width: 100%;
+	width: calc(100% - 36px);
 	opacity: 1;
 	transition: opacity ease-in 0.25s;
 }
@@ -197,6 +197,7 @@ body.is-embedded .fake-window-wrapper {
 	.has-site-manager {
 		.window-controls {
 			display: flex;
+			align-items: center;
 		}
 		.address-bar-slot {
 			margin-left: 36px;
@@ -227,10 +228,5 @@ body.is-embedded .fake-window-wrapper {
 	}
 	.address-bar-slot {
 		margin-bottom: 10px;
-	}
-	.has-site-manager {
-		.window-controls {
-			padding: 5px;
-		}
 	}
 }

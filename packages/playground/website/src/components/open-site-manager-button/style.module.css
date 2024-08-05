@@ -1,9 +1,6 @@
-.open-site-manager-button {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: none;
-	border: none;
-	padding: 0;
-	cursor: pointer;
+@media (max-width: 812px) {
+	.open-site-manager-button {
+		position: relative;
+		top: -4px;
+	}
 }

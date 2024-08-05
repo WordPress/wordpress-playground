@@ -23,9 +23,3 @@ body {
 	width: 100%;
 	height: 100%;
 }
-
-@media (min-width: 640px) {
-	.site-manager {
-		width: var(--site-manager-sidebar-width);
-	}
-}

@@ -176,8 +176,8 @@ export function SiteView({
 			}}
 		>
 			<div
-				className={`${css.playgroundView} ${
-					isManager ? css.playgroundViewManager : ''
+				className={`${css.siteView} ${
+					isManager ? css.siteViewHasSiteManager : ''
 				}`}
 			>
 				<Modals />
@@ -225,9 +225,7 @@ export function SiteView({
 					storage={storage}
 					displayMode={displayMode}
 					hideToolbar={isManager}
-					className={
-						isManager ? css.playgroundViewManagerSection : ''
-					}
+					className={isManager ? css.siteViewSection : ''}
 					toolbarButtons={[
 						<PlaygroundConfigurationGroup
 							key="configuration"

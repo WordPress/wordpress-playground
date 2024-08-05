@@ -10,4 +10,11 @@
 .playground-navigator-screen {
 	overflow: hidden;
 	flex: 0 0 auto;
+	width: 100%;
+}
+
+@media (min-width: 640px) {
+	.playground-navigator-screen {
+		width: var(--site-manager-sidebar-width);
+	}
 }
