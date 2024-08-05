@@ -86,9 +86,11 @@ export function SiteView({
 	url?: string;
 	iframeRef: React.RefObject<HTMLIFrameElement>;
 }) {
+	const navigator = useNavigator();
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
-	const navigator = useNavigator();
+
+	const isManager = navigator.location.path === '/manager';
 
 	const query = new URL(document.location.href).searchParams;
 
@@ -175,9 +177,7 @@ export function SiteView({
 		>
 			<div
 				className={`${css.playgroundView} ${
-					navigator.location.path === '/manager'
-						? css.playgroundViewManagerPreview
-						: ''
+					isManager ? css.playgroundViewManager : ''
 				}`}
 			>
 				<Modals />
@@ -224,6 +224,10 @@ export function SiteView({
 					ref={iframeRef}
 					storage={storage}
 					displayMode={displayMode}
+					hideToolbar={isManager}
+					className={
+						isManager ? css.playgroundViewManagerSection : ''
+					}
 					toolbarButtons={[
 						<PlaygroundConfigurationGroup
 							key="configuration"

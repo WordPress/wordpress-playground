@@ -58,7 +58,6 @@ body.is-embedded .fake-window-wrapper {
 	max-width: 100vw;
 	width: 100%;
 	height: 100%;
-	border-radius: 0;
 }
 
 .window {
@@ -103,6 +102,13 @@ body.is-embedded .fake-window-wrapper {
 	height: 50px;
 	flex-direction: row;
 	align-items: center;
+	max-height: 100px;
+	overflow: hidden;
+	transition: max-height 0.14s ease-in-out;
+}
+
+.toolbar-hidden {
+	max-height: 0;
 }
 
 .toolbar-buttons {

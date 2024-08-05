@@ -1,13 +1,16 @@
 .playground-view {
 	flex-grow: 1;
-	header {
-		max-height: 100px;
-		overflow: hidden;
-		transition: max-height 0.14s ease-in-out;
-	}
 }
-.playground-view-manager-preview {
-	header {
-		max-height: 0;
+
+.playground-view-manager {
+	background-color: var(--site-manager-background-color);
+}
+
+.playground-view-manager-section {
+	border: var(--site-manager-border-width) solid
+		var(--site-manager-background-color);
+	> div {
+		border-radius: 12px !important;
+		overflow: hidden;
 	}
 }

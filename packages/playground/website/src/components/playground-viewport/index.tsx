@@ -17,29 +17,38 @@ interface PlaygroundViewportProps {
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;
 	siteSlug?: string;
+	hideToolbar?: boolean;
+	className?: string;
 }
 
 export const PlaygroundViewport = React.forwardRef<
 	HTMLIFrameElement,
 	PlaygroundViewportProps
->(({ displayMode = 'browser', toolbarButtons }, ref) => {
-	const { playground, currentUrl: url } = usePlaygroundContext();
+>(
+	(
+		{ displayMode = 'browser', toolbarButtons, hideToolbar, className },
+		ref
+	) => {
+		const { playground, currentUrl: url } = usePlaygroundContext();
 
-	if (displayMode === 'seamless') {
-		// No need to boot the playground if seamless.
-		return <JustViewport iframeRef={ref} />;
+		if (displayMode === 'seamless') {
+			// No need to boot the playground if seamless.
+			return <JustViewport iframeRef={ref} />;
+		}
+		return (
+			<BrowserChrome
+				showAddressBar={!!playground}
+				url={url}
+				toolbarButtons={toolbarButtons}
+				onUrlChange={(url) => playground?.goTo(url)}
+				hideToolbar={hideToolbar}
+				className={className}
+			>
+				<JustViewport iframeRef={ref} />
+			</BrowserChrome>
+		);
 	}
-	return (
-		<BrowserChrome
-			showAddressBar={!!playground}
-			url={url}
-			toolbarButtons={toolbarButtons}
-			onUrlChange={(url) => playground?.goTo(url)}
-		>
-			<JustViewport iframeRef={ref} />
-		</BrowserChrome>
-	);
-});
+);
 
 interface JustViewportProps {
 	iframeRef: Ref<HTMLIFrameElement>;

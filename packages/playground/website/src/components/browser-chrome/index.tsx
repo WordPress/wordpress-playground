@@ -11,6 +11,8 @@ interface BrowserChromeProps {
 	url?: string;
 	showAddressBar?: boolean;
 	onUrlChange?: (url: string) => void;
+	hideToolbar?: boolean;
+	className?: string;
 }
 
 export default function BrowserChrome({
@@ -19,6 +21,8 @@ export default function BrowserChrome({
 	onUrlChange,
 	showAddressBar = true,
 	toolbarButtons,
+	hideToolbar,
+	className,
 }: BrowserChromeProps) {
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
@@ -46,17 +50,23 @@ export default function BrowserChrome({
 
 	/**
 	 * Temporary feature flag to enable the site manager
-	 * while using browser storage
+	 * while using browser storage.
+	 *
+	 * TODO: Remove this once the site manager supports all storage options.
 	 */
 	const query = new URL(window.location.href).searchParams;
 	const showSiteManager = query.get('storage') === 'browser';
+
 	return (
-		<div className={wrapperClass} data-cy="simulated-browser">
-			<div className={css.window}>
+		<div
+			className={`${wrapperClass} ${className}`}
+			data-cy="simulated-browser"
+		>
+			<div className={`${css.window} browser-chrome-window`}>
 				<header
 					className={`${css.toolbar} ${
 						showSiteManager ? css.hasSiteManager : ''
-					}`}
+					} ${hideToolbar ? css.toolbarHidden : ''}`}
 					aria-label="Playground toolbar"
 				>
 					<div className={css.windowControls}>
