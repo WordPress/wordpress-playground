@@ -41,8 +41,7 @@
 					{
 						"maxLength": 100,
 						"tabSize": 0,
-						"ignoreUrls": true,
-						"ignorePattern": "^\\s*//\\s*"
+						"ignoreUrls": true
 					}
 				],
 				"comment-length/limit-multi-line-comments": [
@@ -50,8 +49,7 @@
 					{
 						"maxLength": 100,
 						"tabSize": 0,
-						"ignoreUrls": true,
-						"ignorePattern": "^\\s*//\\s*"
+						"ignoreUrls": true
 					}
 				],
 				"comment-length/limit-tagged-template-literal-comments": [
@@ -59,8 +57,7 @@
 					{
 						"maxLength": 100,
 						"tabSize": 0,
-						"ignoreUrls": true,
-						"ignorePattern": "^\\s*//\\s*"
+						"ignoreUrls": true
 					}
 				]
 			}
