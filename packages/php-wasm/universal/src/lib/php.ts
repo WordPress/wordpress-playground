@@ -747,8 +747,8 @@ export class PHP implements Disposable {
 		/*
 		 * Emscripten throws WASM failures outside of the promise chain so we need
 		 * to listen for them here and rethrow in the correct context. Otherwise we
-		 * get crashes and unhandled promise rejections without any useful error messages
-		 * or stack traces.
+		 * get crashes and unhandled promise rejections without any useful error
+		 * messages or stack traces.
 		 */
 		let errorListener: any;
 		try {

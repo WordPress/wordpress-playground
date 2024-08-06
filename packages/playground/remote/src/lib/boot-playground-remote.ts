@@ -230,8 +230,8 @@ export async function bootPlaygroundRemote() {
 	// cannot be cloned. Adding a transfer handler for functions
 	// doesn't help:
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
-	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
-	//        the onDownloadProgress method
+	// @TODO: Handle the callback conversion automatically and don't explicitly
+	// re-expose the onDownloadProgress method
 	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, phpApi);
 
 	try {
@@ -253,15 +253,18 @@ export async function bootPlaygroundRemote() {
 	}
 
 	/**
-	 * When we're running WordPress from a minified bundle, we're missing some static assets.
-	 * The section below backfills them if needed. It doesn't do anything if the assets are already
-	 * in place, or when WordPress is loaded from a non-minified bundle.
+	 * When we're running WordPress from a minified bundle, we're missing some
+	 * static assets. The section below backfills them if needed. It doesn't do
+	 * anything if the assets are already in place, or when WordPress is loaded
+	 * from a non-minified bundle.
 	 *
-	 * Minified bundles are shipped without most static assets to reduce the bundle size and
-	 * the loading time. When WordPress loads for the first time, the browser parses all the
-	 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
+	 * Minified bundles are shipped without most static assets to reduce the
+	 * bundle size and the loading time. When WordPress loads for the first time,
+	 * the browser parses all the <script src="">, <link href="">, etc. tags and
+	 * fetches the missing assets from the server.
 	 *
-	 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
+	 * Unfortunately, fetching these assets on demand wouldn't work in an offline
+	 * mode.
 	 *
 	 * Below we're downloading a zipped bundle of the missing assets.
 	 */

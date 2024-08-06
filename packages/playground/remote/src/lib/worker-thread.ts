@@ -49,8 +49,9 @@ import { unzipFile } from '@wp-playground/common';
 import { OfflineModeCache } from './offline-mode-cache';
 
 /**
- * Startup options are received from spawnPHPWorkerThread using a message event.
- * We need to wait for startup options to be received to setup the worker thread.
+ * Startup options are received from spawnPHPWorkerThread using a message
+ * event. We need to wait for startup options to be received to setup the
+ * worker thread.
  */
 setStartupOptions(await waitForStartupOptions());
 
@@ -84,9 +85,10 @@ if (
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
 
-// The SQLite integration must always be downloaded, even when using OPFS or Native FS,
-// because it can't be assumed to exist in WordPress document root. Instead, it's installed
-// in the /internal directory to avoid polluting the mounted directory structure.
+// The SQLite integration must always be downloaded, even when using OPFS or
+// Native FS, because it can't be assumed to exist in WordPress document root.
+// Instead, it's installed in the /internal directory to avoid polluting the
+// mounted directory structure.
 downloadMonitor.expectAssets({
 	[sqliteDatabaseIntegrationModuleDetails.url]:
 		sqliteDatabaseIntegrationModuleDetails.size,
@@ -221,49 +223,57 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
  * To load Playground faster, we default to minified WordPress builds shipped
  * without most CSS files, JS files, and other static assets.
  *
- * When Playground requests a static asset that is not in the minified build, the service
- * worker consults the list of the assets removed during the minification process. Such
- * a list is shipped with every minified build in a file called `wordpress-remote-asset-paths`.
+ * When Playground requests a static asset that is not in the minified build,
+ * the service worker consults the list of the assets removed during the
+ * minification process. Such a list is shipped with every minified build in a
+ * file called `wordpress-remote-asset-paths`.
  *
- * For example, when `/wp-includes/css/dist/block-library/common.min.css` isn't found
- * in the Playground filesystem, the service worker looks for it in `/wordpress/wordpress-remote-asset-paths`
- * and finds it there. This means it's available on the remote server, so the service
- * worker fetches it from an URL like:
+ * For example, when `/wp-includes/css/dist/block-library/common.min.css` isn't
+ * found in the Playground filesystem, the service worker looks for it in
+ * `/wordpress/wordpress-remote-asset-paths` and finds it there. This means
+ * it's available on the remote server, so the service worker fetches it from
+ * an URL like:
  *
  * https://playground.wordpress.net/wp-6.5/wp-includes/css/dist/block-library/common.min.css
  *
  * ## Assets backfilling
  *
- * Running Playground offline isn't possible without shipping all the static assets into the browser.
- * Downloading every CSS and JS file one request at a time would be slow to run and tedious to maintain.
- * This is where this function comes in!
+ * Running Playground offline isn't possible without shipping all the static
+ * assets into the browser. Downloading every CSS and JS file one request at a
+ * time would be slow to run and tedious to maintain. This is where this
+ * function comes in!
  *
- * It downloads a zip archive containing all the static files removed from the currently running
- * minified build, and unzips them in the Playground filesystem. Once it finishes, the WordPress
- * installation running in the browser is complete and the service worker will no longer have
- * to backfill any static assets again.
+ * It downloads a zip archive containing all the static files removed from the
+ * currently running minified build, and unzips them in the Playground
+ * filesystem. Once it finishes, the WordPress installation running in the
+ * browser is complete and the service worker will no longer have to backfill
+ * any static assets again.
  *
- * This process is started after the Playground boots (see `bootPlaygroundRemote`) and the first
- * page is rendered. This way we're not delaying the initial Playground paint with a large download.
+ * This process is started after the Playground boots (see
+ * `bootPlaygroundRemote`) and the first page is rendered. This way we're not
+ * delaying the initial Playground paint with a large download.
  *
  * ## Prevent backfilling if assets are already available
  *
- * Running this function twice, or running it on a non-minified build will have no effect.
+ * Running this function twice, or running it on a non-minified build will have
+ * no effect.
  *
- * The backfilling only runs when a non-empty `wordpress-remote-asset-paths` file
- * exists. When one is missing, we're not running a minified build. When one is empty,
- * it means the backfilling process was already done – this function empties the file
- * after the backfilling is done.
+ * The backfilling only runs when a non-empty `wordpress-remote-asset-paths`
+ * file exists. When one is missing, we're not running a minified build. When
+ * one is empty, it means the backfilling process was already done – this
+ * function empties the file after the backfilling is done.
  *
  * ### Downloading assets during backfill
  *
- * Each WordPress release has a corresponding static assets directory on the Playground.WordPress.net server.
- * The file is downloaded from the server and unzipped into the WordPress document root.
+ * Each WordPress release has a corresponding static assets directory on the
+ * Playground.WordPress.net server. The file is downloaded from the server and
+ * unzipped into the WordPress document root.
  *
  * ### Skipping existing files during unzipping
  *
  * If any of the files already exist, they are skipped and not overwritten.
- * By skipping existing files, we ensure that the backfill process doesn't overwrite any user changes.
+ * By skipping existing files, we ensure that the backfill process doesn't
+ * overwrite any user changes.
  */
 async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	if (!php.requestHandler) {
@@ -289,9 +299,10 @@ async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 			return;
 		}
 
-		// We don't have the WordPress assets cached yet. Let's fetch them and cache them without
-		// awaiting the response. We're awaiting the backfillStaticFilesRemovedFromMinifiedBuild()
-		// call in the web app and we don't want to block the initial load on this download.
+		// We don't have the WordPress assets cached yet. Let's fetch them and
+		// cache them without awaiting the response. We're awaiting the
+		// backfillStaticFilesRemovedFromMinifiedBuild() call in the web app and we
+		// don't want to block the initial load on this download.
 		const response = await fetch(staticAssetsUrl);
 
 		// We have the WordPress assets already cached, let's unzip them and finish.
@@ -436,9 +447,9 @@ try {
 	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
 	// NOTE: We need to derive the loaded WP version or we might assume WP loaded
-	// from browser storage is the default version when it is actually something else.
-	// Incorrectly assuming WP version can break things like remote asset retrieval
-	// for minified WP builds.
+	// from browser storage is the default version when it is actually something
+	// else. Incorrectly assuming WP version can break things like remote asset
+	// retrieval for minified WP builds.
 	apiEndpoint.loadedWordPressVersion = await getLoadedWordPressVersion(
 		requestHandler
 	);

@@ -111,9 +111,9 @@ export default function PlaygroundConfigurationGroup({
 			// Request permission to access the directory.
 			// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
 			dirHandle = await (window as any).showDirectoryPicker({
-				// By specifying an ID, the browser can remember different directories for
-				// different IDs.If the same ID is used for another picker, the picker opens
-				// in the same directory.
+				// By specifying an ID, the browser can remember different directories
+				// for different IDs.If the same ID is used for another picker, the
+				// picker opens in the same directory.
 				id: 'playground-directory',
 				mode: 'readwrite',
 			});
@@ -181,7 +181,8 @@ export default function PlaygroundConfigurationGroup({
 			});
 			await playground.goTo('/');
 
-			// Read current querystring and replace storage=browser with storage=device.
+			// Read current querystring and replace storage=browser with
+			// storage=device.
 			const url = new URL(window.location.href);
 			url.searchParams.set('storage', 'device');
 			window.history.pushState({}, '', url.toString());

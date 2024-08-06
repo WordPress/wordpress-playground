@@ -60,7 +60,8 @@ async function defaultRequestHandler(event: FetchEvent) {
 	) {
 		const request = await cloneRequest(event.request, {
 			url,
-			// Omit credentials to avoid causing cache aborts due to presence of cookies
+			// Omit credentials to avoid causing cache aborts due to presence of
+			// cookies
 			credentials: 'omit',
 		});
 		return fetch(request);

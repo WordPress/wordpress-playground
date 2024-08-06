@@ -21,11 +21,11 @@ export default defineConfig({
 		}),
 		ignoreWasmImports(),
 
-		// @wp-playground/client doesn't actually use the remote-config virtual module,
-		// @wp-playground/remote package does.
-		// @wp-playground/client imports a few things from @wp-playground/remote and,
-		// even though it doesn't involve the remote-config virtual module, the bundler
-		// still needs to know what to do when it sees `import from "virtual:remote-config"`.
+		// @wp-playground/client doesn't actually use the remote-config virtual
+		// module, @wp-playground/remote package does. @wp-playground/client imports
+		// a few things from @wp-playground/remote and, even though it doesn't
+		// involve the remote-config virtual module, the bundler still needs to know
+		// what to do when it sees `import from "virtual:remote-config"`.
 		buildVersionPlugin('remote-config'),
 	],
 

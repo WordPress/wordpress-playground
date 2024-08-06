@@ -15,8 +15,8 @@ export interface ResetDataStep {
 }
 
 /**
- * Deletes WordPress posts and comments and sets the auto increment sequence for the
- * posts and comments tables to 0.
+ * Deletes WordPress posts and comments and sets the auto increment sequence
+ * for the posts and comments tables to 0.
  *
  * @param playground Playground client.
  */

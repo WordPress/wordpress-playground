@@ -139,6 +139,7 @@
 		"esbuild-plugin-ignore": "1.1.1",
 		"eslint": "8.46.0",
 		"eslint-config-prettier": "8.1.0",
+		"eslint-plugin-comment-length": "1.7.3",
 		"eslint-plugin-cypress": "^2.13.4",
 		"eslint-plugin-import": "2.27.5",
 		"eslint-plugin-jsx-a11y": "6.7.1",

@@ -5,6 +5,7 @@
 	"overrides": [
 		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"extends": ["plugin:comment-length/recommended"],
 			"rules": {
 				"@nx/enforce-module-boundaries": [
 					"error",
@@ -34,7 +35,31 @@
 				"no-constant-condition": 0,
 				"no-nested-ternary": 0,
 				"jsx-a11y/click-events-have-key-events": 0,
-				"jsx-a11y/no-static-element-interactions": 0
+				"jsx-a11y/no-static-element-interactions": 0,
+				"comment-length/limit-single-line-comments": [
+					"warn",
+					{
+						"maxLength": 100,
+						"tabSize": 0,
+						"ignoreUrls": true
+					}
+				],
+				"comment-length/limit-multi-line-comments": [
+					"warn",
+					{
+						"maxLength": 100,
+						"tabSize": 0,
+						"ignoreUrls": true
+					}
+				],
+				"comment-length/limit-tagged-template-literal-comments": [
+					"warn",
+					{
+						"maxLength": 100,
+						"tabSize": 0,
+						"ignoreUrls": true
+					}
+				]
 			}
 		},
 		{
