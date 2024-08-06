@@ -12,8 +12,10 @@ import {
 	MenuItem,
 	__experimentalHStack as HStack,
 	FlexBlock,
+	__experimentalItemGroup as ItemGroup,
+	__experimentalItem as Item,
 } from '@wordpress/components';
-import { Logo } from '../icons';
+import { Logo, TemporaryStorageIcon, DefaultLogoDataURL } from '../icons';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -62,7 +64,7 @@ export function SiteManagerSidebar({
 					opfsSites.push({
 						slug,
 						name,
-						storage: 'browser',
+						storage: 'none',
 					});
 				}
 			}
@@ -84,11 +86,7 @@ export function SiteManagerSidebar({
 
 	const getLogoDataURL = (logo?: SiteLogo): string => {
 		if (!logo) {
-			// TODO  move to components
-			return getLogoDataURL({
-				mime: 'image/png',
-				data: 'iVBORw0KGgoAAAANSUhEUgAAABQAAAAVCAYAAABG1c6oAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAALFSURBVHgBlVVLaxpRFL6OLpLdJIssko0kixQSqJAHNCilC6UbJf0H7T/IRhE3mo0Iumh/QV27SapLhVZ84EKpBXWnDC6kuPCB+ABRe76LZ5hYE9oPxpl7zz3f+c45915N4gUEAgHbcrnEY11PVS0WixYOh6vP+Zi2Tfp8vuDu7u4dEamHh4dif39fzvd6PdHpdMRsNtNoeB+NRuMvEvr9futisXg4Pj62uVwuQe9t8US5XBbpdFr0+33NbDa/i0Qi2l+Ea7KfTqdTpUf8C5LJpMjn8xp9fiC1sgyKgez7/5DV63WplGCl5yEUCqkYWPBDZEGqlXVvb48XicvLS6mA6iUwj/d0OpVlgA2EmFvDOplMvkKpGepWq1V8NBrJRSg6mnByciLa7bacw4Nv4PT0VBwcHEhyzAPUQEG1fHV9fZ1VSN3d2dmZ2NnZkcajoyPBaePtdrv1NLEGazkDY9MwpkxuUcPXFxcXcgJoNpsyOgNKOVir1XpiYx/YQT4cDt+C0IYUz8/PpREOlUpFd0I67AgYbQgGoMbIjEpnBaEKJ0SAAajVasIIQ/Gf2FitIaAKwsFmCkgNzWGgDAzYaEPLb14DpWvyAQg1drDb7bojd5CdjA3grQXydTPksSRUQZhlJ04doBOgq4MCHEUG25A+Z9VoNPD6pVAhH1ForgdvC4yhAGp4i3C3YUskEroAqAM57cXPSiwW+0ELHnHYuY7siDk0hFUbu41A3OVMJoN1cVwS8izP5/NPhUJBwyJExZVlTJfBW4uBjZ/L5bCVcOvcY86Mn1KpNLu5uclSHd7TUL26utIL7/F49O2EN4Kgy6w6lUoNiOwNX2FmjlYsFn87HI5v5HBL8tVutysJQGgEyPjEkIDqs/ehEV6v96PJZApi50PJ5o2tKMpgPB5/ofqHNn23EhqI5f8JqbBhTAE0elX5Mt2GP/1pl0TWF7M6AAAAAElFTkSuQmCC',
-			});
+			return getLogoDataURL(DefaultLogoDataURL);
 		}
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
@@ -123,56 +121,47 @@ export function SiteManagerSidebar({
 					Your sites
 				</Heading>
 				<MenuGroup className={css.siteManagerSidebarList}>
-					{sites.map((site) => (
-						<MenuItem
-							key={site.slug}
-							className={classNames(css.siteManagerSidebarItem, {
-								[css.siteManagerSidebarItemSelected]:
-									site.slug === siteSlug,
-							})}
-							onClick={() => onSiteChange(site.slug)}
-							isSelected={site.slug === siteSlug}
-						>
-							<HStack justify="flex-start">
-								<img
-									src={getLogoDataURL(site.logo)}
-									alt="Site logo"
-									className={css.siteManagerSidebarItemLogo}
-								/>
-								<FlexBlock
-									className={
-										css.siteManagerSidebarItemSiteName
+					{sites.map((site) => {
+						const isSelected = site.slug === siteSlug;
+						return (
+							<MenuItem
+								key={site.slug}
+								className={classNames(
+									css.siteManagerSidebarItem,
+									{
+										[css.siteManagerSidebarItemSelected]:
+											isSelected,
 									}
-								>
-									{site.name}
-								</FlexBlock>
-								{(site.storage === 'none' || !site.storage) && (
-									<span
-										className={
-											css.siteManagerSidebarItemStorageIcon
-										}
-										title="No storage"
-									>
-										{/* TODO: move icon to component package */}
-										<svg
-											width="16"
-											height="17"
-											viewBox="0 0 16 17"
-											fill="none"
-											xmlns="http://www.w3.org/2000/svg"
-										>
-											<path
-												fillRule="evenodd"
-												clipRule="evenodd"
-												d="M8 15C4.41015 15 1.5 12.0899 1.5 8.5C1.5 4.91015 4.41015 2 8 2C11.5899 2 14.5 4.91015 14.5 8.5C14.5 12.0899 11.5899 15 8 15ZM0 8.5C0 4.08172 3.58172 0.5 8 0.5C12.4183 0.5 16 4.08172 16 8.5C16 12.9183 12.4183 16.5 8 16.5C3.58172 16.5 0 12.9183 0 8.5ZM9 9.5V4.5H7.5V8H5.5V9.5H9Z"
-												fill="#949494"
-											/>
-										</svg>
-									</span>
 								)}
-							</HStack>
-						</MenuItem>
-					))}
+								onClick={() => onSiteChange(site.slug)}
+								isSelected={isSelected}
+								role="menuitemradio"
+								icon={
+									site.storage === 'none' || !site.storage ? (
+										<TemporaryStorageIcon />
+									) : undefined
+								}
+								iconPosition="right"
+							>
+								<HStack justify="flex-start" alignment="center">
+									<img
+										src={getLogoDataURL(site.logo)}
+										alt={site.name + ' logo'}
+										className={
+											css.siteManagerSidebarItemLogo
+										}
+									/>
+									<FlexBlock
+										className={
+											css.siteManagerSidebarItemSiteName
+										}
+									>
+										{site.name}
+									</FlexBlock>
+								</HStack>
+							</MenuItem>
+						);
+					})}
 				</MenuGroup>
 			</nav>
 			<footer
@@ -181,29 +170,23 @@ export function SiteManagerSidebar({
 					css.siteManagerSidebarFooter
 				)}
 			>
-				<label
-					className={css.siteManagerSidebarLabel}
-					htmlFor="site-manager-sidebar-footer-resources"
-				>
+				<Heading level="6" className={css.siteManagerSidebarLabel}>
 					Resources
-				</label>
-				<ul
-					className={css.siteManagerSidebarList}
-					id="site-manager-sidebar-footer-resources"
-				>
+				</Heading>
+				<ItemGroup className={css.siteManagerSidebarList}>
 					{resources.map((item) => (
-						<li key={item.href}>
-							<a
-								target="_blank"
-								rel="noreferrer"
-								className={css.siteManagerSidebarFooterLink}
-								href={item.href}
-							>
-								{item.label} ↗
-							</a>
-						</li>
+						<Item
+							key={item.href}
+							as="a"
+							rel="noreferrer"
+							className={css.siteManagerSidebarFooterLink}
+							href={item.href}
+							target="_blank"
+						>
+							{item.label} ↗
+						</Item>
 					))}
-				</ul>
+				</ItemGroup>
 			</footer>
 		</NavigableMenu>
 	);
