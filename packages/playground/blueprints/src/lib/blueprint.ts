@@ -5,6 +5,10 @@ import {
 import { StepDefinition } from './steps';
 import { FileReference } from './resources';
 
+export type ExtraLibrary =
+	// Install WP-CLI during boot.
+	'wp-cli';
+
 export interface Blueprint {
 	/**
 	 * The URL to navigate to after the blueprint has been run.
@@ -58,6 +62,11 @@ export interface Blueprint {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking?: boolean;
 	};
+
+	/**
+	 * Extra libraries to preload into the Playground instance.
+	 */
+	extraLibraries?: ExtraLibrary[];
 
 	/**
 	 * PHP Constants to define on every request
