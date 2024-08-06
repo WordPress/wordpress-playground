@@ -131,6 +131,7 @@
 		"chalk": "5.2.0",
 		"clsx": "^1.2.1",
 		"cypress": "^13.0.0",
+		"cypress-wait-until": "3.0.2",
 		"docusaurus-plugin-typedoc-api": "^3.0.0",
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "0.19.7",
