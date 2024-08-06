@@ -4,7 +4,15 @@ import { StorageType } from '../../../types';
 import css from './style.module.css';
 import classNames from 'classnames';
 import { useEffect, useState } from 'react';
-import { __experimentalNavigatorButton as NavigatorButton } from '@wordpress/components';
+import {
+	__experimentalNavigatorButton as NavigatorButton,
+	__experimentalHeading as Heading,
+	NavigableMenu,
+	MenuGroup,
+	MenuItem,
+	__experimentalHStack as HStack,
+	FlexBlock,
+} from '@wordpress/components';
 import { Logo } from '../icons';
 
 // TODO: move types to site storage
@@ -23,9 +31,11 @@ type Site = {
 
 export function SiteManagerSidebar({
 	className,
+	siteSlug,
 	onSiteChange,
 }: {
 	className?: string;
+	siteSlug?: string;
 	onSiteChange: (siteSlug?: string) => void;
 }) {
 	const [sites, setSites] = useState<Site[]>([]);
@@ -84,55 +94,58 @@ export function SiteManagerSidebar({
 	};
 
 	return (
-		<aside className={classNames(css.siteManagerSidebar, className)}>
+		<NavigableMenu
+			className={classNames(css.siteManagerSidebar, className)}
+		>
 			<header className={css.siteManagerSidebarHeader}>
-				{/* TODO move logo to components */}
 				<NavigatorButton
 					className={css.siteManagerSidebarLogoButton}
 					path="/"
 					icon={Logo}
 				></NavigatorButton>
 			</header>
-			<div
+			<nav
 				className={classNames(
 					css.siteManagerSidebarSection,
 					css.siteManagerSidebarContent
 				)}
 			>
-				<h2 className={css.siteManagerSidebarSubtitle}>
+				<Heading className={css.siteManagerSidebarSubtitle} level="4">
 					WordPress Playground
-				</h2>
-				<label
+				</Heading>
+				<Heading
+					level="6"
 					className={classNames(
 						css.siteManagerSidebarLabel,
 						css.siteManagerSidebarListLabel
 					)}
-					htmlFor="site-list"
 				>
 					Your sites
-				</label>
-				<ul id="site-list" className={css.siteManagerSidebarList}>
+				</Heading>
+				<MenuGroup className={css.siteManagerSidebarList}>
 					{sites.map((site) => (
-						<li
+						<MenuItem
 							key={site.slug}
-							className={css.siteManagerSidebarItem}
+							className={classNames(css.siteManagerSidebarItem, {
+								[css.siteManagerSidebarItemSelected]:
+									site.slug === siteSlug,
+							})}
+							onClick={() => onSiteChange(site.slug)}
+							isSelected={site.slug === siteSlug}
 						>
-							<button
-								className={css.siteManagerSidebarItemButton}
-								onClick={() => onSiteChange(site.slug)}
-							>
+							<HStack justify="flex-start">
 								<img
 									src={getLogoDataURL(site.logo)}
 									alt="Site logo"
 									className={css.siteManagerSidebarItemLogo}
 								/>
-								<span
+								<FlexBlock
 									className={
 										css.siteManagerSidebarItemSiteName
 									}
 								>
 									{site.name}
-								</span>
+								</FlexBlock>
 								{(site.storage === 'none' || !site.storage) && (
 									<span
 										className={
@@ -157,11 +170,11 @@ export function SiteManagerSidebar({
 										</svg>
 									</span>
 								)}
-							</button>
-						</li>
+							</HStack>
+						</MenuItem>
 					))}
-				</ul>
-			</div>
+				</MenuGroup>
+			</nav>
 			<footer
 				className={classNames(
 					css.siteManagerSidebarSection,
@@ -192,6 +205,6 @@ export function SiteManagerSidebar({
 					))}
 				</ul>
 			</footer>
-		</aside>
+		</NavigableMenu>
 	);
 }

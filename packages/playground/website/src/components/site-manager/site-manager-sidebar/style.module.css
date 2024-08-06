@@ -1,8 +1,9 @@
 .site-manager-sidebar {
 	height: 100vh;
-	color: #fff;
 	display: flex;
 	flex-direction: column;
+	--site-manager-text-color: #fff;
+	color: var(--site-manager-text-color);
 }
 
 .site-manager-sidebar-header {
@@ -24,18 +25,15 @@
 }
 
 .site-manager-sidebar-subtitle {
-	font-size: 16px;
-	font-weight: 600;
-	line-height: 24px;
 	margin: 0 0 8px;
+	color: var(--site-manager-text-color) !important;
+	padding: 0 12px;
 }
 
 .site-manager-sidebar-label {
-	font-size: 11px;
-	font-weight: 600;
-	line-height: 16px;
-	color: #949494;
+	color: #949494 !important;
 	text-transform: uppercase;
+	padding: 0 12px;
 }
 
 .site-manager-sidebar-list {
@@ -44,20 +42,21 @@
 	list-style: none;
 }
 
-.site-manager-sidebar-item--button {
-	padding: 8px 0;
-	cursor: pointer;
-	border: none;
-	background: none;
-	margin: 0;
-	color: #fff;
+.site-manager-sidebar-item {
 	font-size: 13px;
 	font-weight: 510;
+	line-height: 20px;
+	color: var(--site-manager-text-color) !important;
 	text-align: left;
-	display: flex;
-	gap: 12px;
-	align-items: center;
-	width: 100%;
+}
+.site-manager-sidebar-item:hover,
+.site-manager-sidebar-item--selected {
+	color: var(--site-manager-text-color) !important;
+	background-color: #353535;
+}
+
+.site-manager-sidebar-item--selected:hover {
+	background-color: #545454;
 }
 
 .site-manager-sidebar-list-item--logo {

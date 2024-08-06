@@ -90,7 +90,7 @@ export function SiteView({
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
-	const isManager = navigator.location.path === '/manager';
+	const isSiteManagerActive = navigator.location.path === '/manager';
 
 	const query = new URL(document.location.href).searchParams;
 
@@ -177,7 +177,7 @@ export function SiteView({
 		>
 			<div
 				className={`${css.siteView} ${
-					isManager ? css.siteViewHasSiteManager : ''
+					isSiteManagerActive ? css.siteViewHasSiteManager : ''
 				}`}
 			>
 				<Modals />
@@ -224,8 +224,8 @@ export function SiteView({
 					ref={iframeRef}
 					storage={storage}
 					displayMode={displayMode}
-					hideToolbar={isManager}
-					className={isManager ? css.siteViewSection : ''}
+					hideToolbar={isSiteManagerActive}
+					className={isSiteManagerActive ? css.siteViewSection : ''}
 					toolbarButtons={[
 						<PlaygroundConfigurationGroup
 							key="configuration"

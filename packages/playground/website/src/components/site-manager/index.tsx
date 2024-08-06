@@ -24,6 +24,7 @@ export function SiteManager({
 			<SiteManagerSidebar
 				className={css.siteManagerSidebar}
 				onSiteChange={onSiteChange}
+				siteSlug={siteSlug}
 			/>
 		</div>
 	);
