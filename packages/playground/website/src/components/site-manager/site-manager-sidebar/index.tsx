@@ -33,11 +33,11 @@ type Site = {
 export function SiteManagerSidebar({
 	className,
 	siteSlug,
-	onSiteChange,
+	onSiteClick,
 }: {
 	className?: string;
 	siteSlug?: string;
-	onSiteChange: (siteSlug?: string) => void;
+	onSiteClick: (siteSlug?: string) => void;
 }) {
 	const [sites, setSites] = useState<Site[]>([]);
 
@@ -122,7 +122,7 @@ export function SiteManagerSidebar({
 											isSelected,
 									}
 								)}
-								onClick={() => onSiteChange(site.slug)}
+								onClick={() => onSiteClick(site.slug)}
 								isSelected={isSelected}
 								role="menuitemradio"
 								icon={

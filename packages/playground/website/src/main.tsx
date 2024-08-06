@@ -16,7 +16,7 @@ import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
 } from '@wordpress/components';
-import { useEffect, useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 
 collectWindowErrors(logger);
 
@@ -62,6 +62,7 @@ if (currentConfiguration.wp === '6.3') {
 }
 
 function Main() {
+	const siteViewRef = useRef<HTMLDivElement>(null);
 	const [siteSlug, setSiteSlug] = useState<string | undefined>(
 		query.get('site-slug') ?? undefined
 	);
@@ -80,26 +81,23 @@ function Main() {
 		siteSlug,
 	});
 
-	const onSiteChange = (slug?: string) => {
-		const url = new URL(window.location.href);
-		if (siteSlug) {
-			url.searchParams.set('site-slug', siteSlug);
-		} else {
-			url.searchParams.delete('site-slug');
-		}
-		window.history.pushState({}, '', url.toString());
-		setSiteSlug(slug);
-	};
-
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
 			<NavigatorScreen
 				path="/manager"
 				className={css.playgroundNavigatorScreen}
 			>
-				<SiteManager siteSlug={siteSlug} onSiteChange={onSiteChange} />
+				<SiteManager
+					siteSlug={siteSlug}
+					onSiteChange={setSiteSlug}
+					siteViewRef={siteViewRef}
+				/>
+			</NavigatorScreen>
+			<NavigatorScreen path="/">
+				<div />
 			</NavigatorScreen>
 			<SiteView
+				siteViewRef={siteViewRef}
 				blueprint={blueprint}
 				currentConfiguration={currentConfiguration}
 				storage={storage}

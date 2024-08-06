@@ -78,6 +78,7 @@ export function SiteView({
 	playground,
 	url,
 	iframeRef,
+	siteViewRef,
 }: {
 	blueprint: Blueprint;
 	currentConfiguration: PlaygroundConfiguration;
@@ -85,6 +86,7 @@ export function SiteView({
 	playground?: PlaygroundClient;
 	url?: string;
 	iframeRef: React.RefObject<HTMLIFrameElement>;
+	siteViewRef: React.RefObject<HTMLDivElement>;
 }) {
 	const navigator = useNavigator();
 	const dispatch: PlaygroundDispatch = useDispatch();
@@ -180,6 +182,7 @@ export function SiteView({
 				className={`${css.siteView} ${
 					isSiteManagerActive ? css.siteViewHasSiteManager : ''
 				}`}
+				ref={siteViewRef}
 			>
 				<Modals />
 
