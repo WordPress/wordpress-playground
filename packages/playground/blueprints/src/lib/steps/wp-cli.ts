@@ -10,7 +10,8 @@ import { phpVar } from '@php-wasm/util';
  * <code>
  * {
  * 		"step": "wp-cli",
- * 		"command": "wp post create --post_title='Test post' --post_excerpt='Some content'"
+ * 		"command": "wp post create --post_title='Test post' --post_excerpt='Some
+ * 		content'"
  * }
  * </code>
  */
@@ -96,8 +97,8 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 
 /**
  * Naive shell command parser.
- * Ensures that commands like `wp option set blogname "My blog name"` are split into
- * `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
+ * Ensures that commands like `wp option set blogname "My blog name"` are split
+ * into `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
  * `['wp', 'option', 'set', 'blogname', 'My', 'blog', 'name']`.
  *
  * @param command

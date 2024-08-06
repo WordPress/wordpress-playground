@@ -376,8 +376,8 @@ export function normalizeFilesystemOperations(
 				latter.operation === 'RENAME' &&
 				former.operation === 'RENAME'
 			) {
-				// Normalizing a double rename is a complex scenario so let's just give up.
-				// There's just too many possible scenarios to handle.
+				// Normalizing a double rename is a complex scenario so let's just give
+				// up. There's just too many possible scenarios to handle.
 				//
 				// For example, the following scenario may not be possible to normalize:
 				// RENAME /dir_a /dir_b
@@ -395,8 +395,8 @@ export function normalizeFilesystemOperations(
 				// CREATE_DIR /dir_b
 				// CREATE_FILE /dir_b/file_2
 				//
-				// But that's not a straightforward transformation so let's just not handle
-				// it for now.
+				// But that's not a straightforward transformation so let's just not
+				// handle it for now.
 				logger.warn(
 					'[FS Journal] Normalizing a double rename is not yet supported:',
 					{
@@ -410,8 +410,8 @@ export function normalizeFilesystemOperations(
 			if (former.operation === 'CREATE' || former.operation === 'WRITE') {
 				if (latter.operation === 'RENAME') {
 					if (formerType === 'same_node') {
-						// Creating a node and then renaming it is equivalent to creating it in
-						// the new location.
+						// Creating a node and then renaming it is equivalent to creating
+						// it in the new location.
 						substitutions[j] = [];
 						substitutions[i] = [
 							{
@@ -421,8 +421,8 @@ export function normalizeFilesystemOperations(
 							...(substitutions[i] || []),
 						];
 					} else if (formerType === 'descendant') {
-						// Creating a node and then renaming its parent directory is equivalent
-						// to creating it in the new location.
+						// Creating a node and then renaming its parent directory is
+						// equivalent to creating it in the new location.
 						substitutions[j] = [];
 						substitutions[i] = [
 							{
@@ -446,7 +446,8 @@ export function normalizeFilesystemOperations(
 					latter.operation === 'DELETE' &&
 					formerType === 'same_node'
 				) {
-					// Creating a node and then deleting it is equivalent to doing nothing.
+					// Creating a node and then deleting it is equivalent to doing
+					// nothing.
 					substitutions[j] = [];
 					substitutions[i] = [];
 				}

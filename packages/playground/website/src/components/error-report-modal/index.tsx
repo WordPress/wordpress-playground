@@ -138,7 +138,8 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	/**
-	 * Show the form if the error has not been submitted or if there was an error submitting it.
+	 * Show the form if the error has not been submitted or if there was an error
+	 * submitting it.
 	 *
 	 * @return {boolean}
 	 */

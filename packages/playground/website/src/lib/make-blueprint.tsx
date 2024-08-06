@@ -67,7 +67,8 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 				progress: { weight: 2 },
 			})),
 			/**
-			 * The language step needs to run after the theme and plugins are installed to ensure that the translations are available.
+			 * The language step needs to run after the theme and plugins are
+			 * installed to ensure that the translations are available.
 			 */
 			options.language && {
 				step: 'setSiteLanguage',
