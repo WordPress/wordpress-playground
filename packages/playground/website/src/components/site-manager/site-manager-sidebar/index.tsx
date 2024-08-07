@@ -165,8 +165,7 @@ export function SiteManagerSidebar({
 											css.siteManagerSidebarItemSiteName
 										}
 									>
-										{site.name} {site.name} {site.name}{' '}
-										{site.name} {site.name}
+										{site.name}
 									</FlexBlock>
 								</HStack>
 							</MenuItem>
