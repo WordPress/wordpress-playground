@@ -4,12 +4,17 @@
 	flex-direction: column;
 	--site-manager-text-color: #fff;
 	color: var(--site-manager-text-color);
+	overflow: auto;
 }
 
 .site-manager-sidebar-header {
 	display: flex;
 	padding: 16px 24px;
 	flex: 0 1 auto;
+	position: sticky;
+	top: 0;
+	left: 0;
+	background-color: var(--site-manager-background-color);
 }
 
 .site-manager-sidebar-section {
@@ -21,7 +26,6 @@
 
 .site-manager-sidebar-content {
 	flex: 1 1 auto;
-	overflow: auto;
 }
 
 .site-manager-sidebar-subtitle {
