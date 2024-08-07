@@ -18,8 +18,9 @@
 	border: var(--site-manager-border-width) solid
 		var(--site-manager-background-color);
 	background-color: var(--site-manager-border-color);
-	> div {
-		border-radius: var(--site-manager-border-radius);
-		overflow: hidden;
-	}
+}
+
+.site-view-section:global(> .browser-chrome-window) {
+	border-radius: var(--site-manager-border-radius);
+	overflow: hidden;
 }

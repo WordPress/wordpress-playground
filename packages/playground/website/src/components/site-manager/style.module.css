@@ -2,6 +2,7 @@ body {
 	--site-manager-background-color: #1e1e1e;
 	--site-manager-border-width: 12px;
 	--site-manager-sidebar-width: 282px;
+	--site-manager-border-radius: 12px;
 }
 
 .site-manager {
