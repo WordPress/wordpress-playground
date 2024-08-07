@@ -16,7 +16,7 @@ import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
 } from '@wordpress/components';
-import React from 'react';
+import { useEffect, useState } from '@wordpress/element';
 
 collectWindowErrors(logger);
 
@@ -42,14 +42,6 @@ const currentConfiguration: PlaygroundConfiguration = {
 	resetSite: false,
 };
 
-const siteSlug = query.get('site-slug') ?? undefined;
-
-if (siteSlug && storage !== 'browser') {
-	alert(
-		'Site slugs only work with browser storage. The site slug will be ignored.'
-	);
-}
-
 /*
  * The 6.3 release includes a caching bug where
  * registered styles aren't enqueued when they
@@ -70,11 +62,34 @@ if (currentConfiguration.wp === '6.3') {
 }
 
 function Main() {
+	const [siteSlug, setSiteSlug] = useState<string | undefined>(
+		query.get('site-slug') ?? undefined
+	);
+
+	useEffect(() => {
+		if (siteSlug && storage !== 'browser') {
+			alert(
+				'Site slugs only work with browser storage. The site slug will be ignored.'
+			);
+		}
+	}, [siteSlug]);
+
 	const { playground, url, iframeRef } = useBootPlayground({
 		blueprint,
 		storage,
 		siteSlug,
 	});
+
+	const onSiteChange = (slug?: string) => {
+		const url = new URL(window.location.href);
+		if (siteSlug) {
+			url.searchParams.set('site-slug', siteSlug);
+		} else {
+			url.searchParams.delete('site-slug');
+		}
+		window.history.pushState({}, '', url.toString());
+		setSiteSlug(slug);
+	};
 
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
@@ -82,7 +97,7 @@ function Main() {
 				path="/manager"
 				className={css.playgroundNavigatorScreen}
 			>
-				<SiteManager iframeRef={iframeRef} siteSlug={siteSlug} />
+				<SiteManager siteSlug={siteSlug} onSiteChange={onSiteChange} />
 			</NavigatorScreen>
 			<SiteView
 				blueprint={blueprint}

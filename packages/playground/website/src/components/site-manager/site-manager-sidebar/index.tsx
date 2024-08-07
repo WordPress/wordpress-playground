@@ -5,7 +5,6 @@ import css from './style.module.css';
 import classNames from 'classnames';
 import { useEffect, useState } from 'react';
 import {
-	__experimentalNavigatorButton as NavigatorButton,
 	__experimentalHeading as Heading,
 	NavigableMenu,
 	MenuGroup,
@@ -16,7 +15,6 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
-import { NavigatorToParentButton } from '@wordpress/components/build-types/navigator';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
