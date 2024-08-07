@@ -1,6 +1,7 @@
 .site-view {
 	flex: 1 1 auto;
 	min-width: 320px;
+	height: 100vh;
 }
 
 .site-view-has-site-manager {

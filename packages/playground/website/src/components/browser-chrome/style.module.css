@@ -37,7 +37,7 @@ body.is-embedded .fake-window-wrapper {
 
 .wrapper {
 	height: 100%;
-	transition: padding ease-in 0.25s;
+	transition: padding ease-in-out 0.2s;
 }
 
 .wrapper.has-small-window {
@@ -66,7 +66,7 @@ body.is-embedded .fake-window-wrapper {
 	margin: 0 auto;
 	overflow: hidden;
 
-	animation: pulse 6s ease-in infinite;
+	animation: pulse 6s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -104,7 +104,7 @@ body.is-embedded .fake-window-wrapper {
 	align-items: center;
 	max-height: 100px;
 	overflow: hidden;
-	transition: max-height 0.14s ease-in-out;
+	transition: max-height 0.2s ease-in-out;
 }
 
 .toolbar-hidden {
