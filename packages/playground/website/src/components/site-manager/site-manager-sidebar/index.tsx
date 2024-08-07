@@ -63,7 +63,7 @@ export function SiteManagerSidebar({
 					opfsSites.push({
 						slug,
 						name,
-						storage: 'none',
+						storage: 'browser',
 					});
 				}
 			}
@@ -100,9 +100,6 @@ export function SiteManagerSidebar({
 					css.siteManagerSidebarContent
 				)}
 			>
-				<Heading className={css.siteManagerSidebarSubtitle} level="4">
-					WordPress Playground
-				</Heading>
 				<Heading
 					level="6"
 					className={classNames(

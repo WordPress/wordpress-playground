@@ -28,11 +28,6 @@
 	flex: 1 1 auto;
 }
 
-.site-manager-sidebar-subtitle {
-	color: var(--site-manager-text-color) !important;
-	padding: 0 12px 16px;
-}
-
 .site-manager-sidebar-label {
 	color: #949494 !important;
 	text-transform: uppercase;
