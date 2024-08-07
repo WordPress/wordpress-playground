@@ -16,6 +16,7 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { NavigatorToParentButton } from '@wordpress/components/build-types/navigator';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -93,11 +94,7 @@ export function SiteManagerSidebar({
 			className={classNames(css.siteManagerSidebar, className)}
 		>
 			<header className={css.siteManagerSidebarHeader}>
-				<NavigatorButton
-					className={css.siteManagerSidebarLogoButton}
-					path="/"
-					icon={<Logo />}
-				></NavigatorButton>
+				<Logo className={css.siteManagerSidebarLogoButton} />
 			</header>
 			<nav
 				className={classNames(
