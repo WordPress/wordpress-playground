@@ -39,6 +39,7 @@
 	margin: 0;
 	padding: 0;
 	list-style: none;
+	padding-right: 4px;
 }
 
 .site-manager-sidebar-item {
@@ -65,10 +66,14 @@
 	height: 24px;
 }
 
-.site-manager-sidebar-item-storage-icon {
-	width: 16px;
-	height: 16px;
-	margin: 0 8px;
+.site-manager-sidebar-item--site-name {
+	line-height: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.site-manager-sidebar-item--storage-icon {
+	flex-shrink: 0;
 }
 
 .site-manager-sidebar-logo-button {

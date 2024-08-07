@@ -15,7 +15,7 @@ import {
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
 } from '@wordpress/components';
-import { Logo, TemporaryStorageIcon, DefaultLogoDataURL } from '../icons';
+import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -84,10 +84,7 @@ export function SiteManagerSidebar({
 		},
 	];
 
-	const getLogoDataURL = (logo?: SiteLogo): string => {
-		if (!logo) {
-			return getLogoDataURL(DefaultLogoDataURL);
-		}
+	const getLogoDataURL = (logo: SiteLogo): string => {
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
@@ -99,7 +96,7 @@ export function SiteManagerSidebar({
 				<NavigatorButton
 					className={css.siteManagerSidebarLogoButton}
 					path="/"
-					icon={Logo}
+					icon={<Logo />}
 				></NavigatorButton>
 			</header>
 			<nav
@@ -138,25 +135,38 @@ export function SiteManagerSidebar({
 								role="menuitemradio"
 								icon={
 									site.storage === 'none' || !site.storage ? (
-										<TemporaryStorageIcon />
+										<TemporaryStorageIcon
+											className={
+												css.siteManagerSidebarItemStorageIcon
+											}
+										/>
 									) : undefined
 								}
 								iconPosition="right"
 							>
 								<HStack justify="flex-start" alignment="center">
-									<img
-										src={getLogoDataURL(site.logo)}
-										alt={site.name + ' logo'}
-										className={
-											css.siteManagerSidebarItemLogo
-										}
-									/>
+									{site.logo ? (
+										<img
+											src={getLogoDataURL(site.logo)}
+											alt={site.name + ' logo'}
+											className={
+												css.siteManagerSidebarItemLogo
+											}
+										/>
+									) : (
+										<WordPressIcon
+											className={
+												css.siteManagerSidebarItemLogo
+											}
+										/>
+									)}
 									<FlexBlock
 										className={
 											css.siteManagerSidebarItemSiteName
 										}
 									>
-										{site.name}
+										{site.name} {site.name} {site.name}{' '}
+										{site.name} {site.name}
 									</FlexBlock>
 								</HStack>
 							</MenuItem>

@@ -1,4 +1,4 @@
-export const Logo = () => {
+export const Logo = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
 		<svg
 			width="32"
@@ -6,6 +6,7 @@ export const Logo = () => {
 			viewBox="0 0 32 32"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			{...props}
 		>
 			<rect
 				width="10.4176"
@@ -35,7 +36,7 @@ export const Logo = () => {
 	);
 };
 
-export const TemporaryStorageIcon = () => {
+export const TemporaryStorageIcon = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
 		<svg
 			width="16"
@@ -43,6 +44,7 @@ export const TemporaryStorageIcon = () => {
 			viewBox="0 0 16 17"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			{...props}
 		>
 			<path
 				fillRule="evenodd"
@@ -54,7 +56,20 @@ export const TemporaryStorageIcon = () => {
 	);
 };
 
-export const DefaultLogoDataURL = {
-	mime: 'image/png',
-	data: 'iVBORw0KGgoAAAANSUhEUgAAABQAAAAVCAYAAABG1c6oAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAALFSURBVHgBlVVLaxpRFL6OLpLdJIssko0kixQSqJAHNCilC6UbJf0H7T/IRhE3mo0Iumh/QV27SapLhVZ84EKpBXWnDC6kuPCB+ABRe76LZ5hYE9oPxpl7zz3f+c45915N4gUEAgHbcrnEY11PVS0WixYOh6vP+Zi2Tfp8vuDu7u4dEamHh4dif39fzvd6PdHpdMRsNtNoeB+NRuMvEvr9futisXg4Pj62uVwuQe9t8US5XBbpdFr0+33NbDa/i0Qi2l+Ea7KfTqdTpUf8C5LJpMjn8xp9fiC1sgyKgez7/5DV63WplGCl5yEUCqkYWPBDZEGqlXVvb48XicvLS6mA6iUwj/d0OpVlgA2EmFvDOplMvkKpGepWq1V8NBrJRSg6mnByciLa7bacw4Nv4PT0VBwcHEhyzAPUQEG1fHV9fZ1VSN3d2dmZ2NnZkcajoyPBaePtdrv1NLEGazkDY9MwpkxuUcPXFxcXcgJoNpsyOgNKOVir1XpiYx/YQT4cDt+C0IYUz8/PpREOlUpFd0I67AgYbQgGoMbIjEpnBaEKJ0SAAajVasIIQ/Gf2FitIaAKwsFmCkgNzWGgDAzYaEPLb14DpWvyAQg1drDb7bojd5CdjA3grQXydTPksSRUQZhlJ04doBOgq4MCHEUG25A+Z9VoNPD6pVAhH1ForgdvC4yhAGp4i3C3YUskEroAqAM57cXPSiwW+0ELHnHYuY7siDk0hFUbu41A3OVMJoN1cVwS8izP5/NPhUJBwyJExZVlTJfBW4uBjZ/L5bCVcOvcY86Mn1KpNLu5uclSHd7TUL26utIL7/F49O2EN4Kgy6w6lUoNiOwNX2FmjlYsFn87HI5v5HBL8tVutysJQGgEyPjEkIDqs/ehEV6v96PJZApi50PJ5o2tKMpgPB5/ofqHNn23EhqI5f8JqbBhTAE0elX5Mt2GP/1pl0TWF7M6AAAAAElFTkSuQmCC',
+export const WordPressIcon = (props?: React.SVGProps<SVGSVGElement>) => {
+	return (
+		<svg
+			width="20"
+			height="21"
+			viewBox="0 0 20 21"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			{...props}
+		>
+			<path
+				d="M20 10.5C20 4.99 15.51 0.5 10 0.5C4.48 0.5 0 4.99 0 10.5C0 16.02 4.48 20.5 10 20.5C15.51 20.5 20 16.02 20 10.5ZM7.78 15.87L4.37 6.72C4.92 6.7 5.54 6.64 5.54 6.64C6.04 6.58 5.98 5.51 5.48 5.53C5.48 5.53 4.03 5.64 3.11 5.64C2.93 5.64 2.74 5.64 2.53 5.63C4.12 3.19 6.87 1.61 10 1.61C12.33 1.61 14.45 2.48 16.05 3.95C15.37 3.84 14.4 4.34 14.4 5.53C14.4 6.27 14.85 6.89 15.3 7.63C15.65 8.24 15.85 8.99 15.85 10.09C15.85 11.58 14.45 15.09 14.45 15.09L11.42 6.72C11.96 6.7 12.24 6.55 12.24 6.55C12.74 6.5 12.68 5.3 12.18 5.33C12.18 5.33 10.74 5.45 9.8 5.45C8.93 5.45 7.47 5.33 7.47 5.33C6.97 5.3 6.91 6.53 7.41 6.55L8.33 6.63L9.59 10.04L7.78 15.87ZM17.41 10.5C17.65 9.86 18.15 8.63 17.84 6.25C18.54 7.54 18.89 8.96 18.89 10.5C18.89 13.79 17.16 16.74 14.49 18.28C15.46 15.69 16.43 13.08 17.41 10.5ZM6.1 18.59C3.12 17.15 1.11 14.03 1.11 10.5C1.11 9.2 1.34 8.02 1.83 6.91C3.25 10.8 4.67 14.7 6.1 18.59ZM10.13 11.96L12.71 18.94C11.85 19.23 10.95 19.39 10 19.39C9.21 19.39 8.43 19.28 7.71 19.06C8.52 16.68 9.33 14.32 10.13 11.96Z"
+				fill="#949494"
+			/>
+		</svg>
+	);
 };
