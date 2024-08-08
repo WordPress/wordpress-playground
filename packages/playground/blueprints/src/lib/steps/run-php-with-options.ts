@@ -21,7 +21,8 @@ import { PHPRunOptions } from '@php-wasm/universal';
 export interface RunPHPWithOptionsStep {
 	step: 'runPHPWithOptions';
 	/**
-	 * Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))
+	 * Run options (See
+	 * /wordpress-playground/api/universal/interface/PHPRunOptions/))
 	 */
 	options: PHPRunOptions;
 }

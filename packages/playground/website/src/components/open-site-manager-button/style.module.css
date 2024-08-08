@@ -1,0 +1,7 @@
+/* TODO: remove these styles when the new toolbar is implemented. */
+.open-site-manager-button {
+	background-color: rgb(107, 107, 107);
+	border-radius: 6px;
+	height: 26px;
+	padding: 0px 15px;
+}

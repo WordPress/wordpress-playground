@@ -65,8 +65,9 @@ export class OfflineModeCache {
 			return true;
 		}
 		/**
-		 * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
-		 * Check the README for offline development instructions.
+		 * The development environment uses Vite which doesn't work offline because
+		 * it dynamically generates assets. Check the README for offline development
+		 * instructions.
 		 */
 		// @ts-ignore-next-line
 		if (import.meta.env.MODE === 'development') {

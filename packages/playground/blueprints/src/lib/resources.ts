@@ -137,7 +137,8 @@ export abstract class Resource {
 	}
 }
 /**
- * A `Resource` that represents a file in the VFS (virtual file system) of the playground.
+ * A `Resource` that represents a file in the VFS (virtual file system) of the
+ * playground.
  */
 export class VFSResource extends Resource {
 	/**
@@ -372,7 +373,8 @@ export function toDirectoryZipName(rawInput: string) {
 }
 
 /**
- * A decorator for a resource that adds functionality such as progress tracking and caching.
+ * A decorator for a resource that adds functionality such as progress tracking
+ * and caching.
  */
 export class DecoratedResource<T extends Resource> extends Resource {
 	constructor(private resource: T) {
@@ -426,7 +428,8 @@ export class CachedResource<T extends Resource> extends DecoratedResource<T> {
 }
 
 /**
- * A decorator for a resource that adds concurrency control functionality through a semaphore.
+ * A decorator for a resource that adds concurrency control functionality
+ * through a semaphore.
  */
 export class SemaphoreResource<
 	T extends Resource

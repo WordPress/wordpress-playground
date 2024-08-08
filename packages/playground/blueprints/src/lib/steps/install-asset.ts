@@ -61,7 +61,8 @@ export async function installAsset(
 		let files = await playground.listFiles(tmpUnzippedFilesPath, {
 			prependPath: true,
 		});
-		// _unzip_file_ziparchive in WordPress skips the __MACOSX files, and so should we here.
+		// _unzip_file_ziparchive in WordPress skips the __MACOSX files, and so
+		// should we here.
 		files = files.filter((name) => !name.endsWith('/__MACOSX'));
 
 		/**

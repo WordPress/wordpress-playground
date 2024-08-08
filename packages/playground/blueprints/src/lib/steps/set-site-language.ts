@@ -138,7 +138,8 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 			);
 		} catch (error) {
 			/**
-			 * If a core translation wasn't found we should throw an error because it means the language is not supported or the language code isn't correct.
+			 * If a core translation wasn't found we should throw an error because it
+			 * means the language is not supported or the language code isn't correct.
 			 */
 			if (type === 'core') {
 				throw new Error(
@@ -146,8 +147,9 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 				);
 			}
 			/**
-			 * Some languages don't have translations for themes and plugins and will return a 404 and a CORS error.
-			 * In this case, we can just skip the download because Playground can still work without them.
+			 * Some languages don't have translations for themes and plugins and will
+			 * return a 404 and a CORS error. In this case, we can just skip the
+			 * download because Playground can still work without them.
 			 */
 			logger.warn(`Error downloading translations for ${type}: ${error}`);
 		}
