@@ -1,0 +1,23 @@
+body {
+	--site-manager-background-color: #1e1e1e;
+	--site-manager-border-width: 12px;
+	--site-manager-sidebar-width: 282px;
+	--site-manager-border-radius: 12px;
+}
+
+.site-manager {
+	height: 100vh;
+	overflow: hidden;
+	border: var(--site-manager-border-width) solid
+		var(--site-manager-background-color);
+	background-color: var(--site-manager-background-color);
+	background-image: url(../../../public/site-manager-background.svg);
+	background-position: bottom left;
+	background-repeat: no-repeat;
+	width: 100%;
+}
+
+.site-manager-sidebar {
+	width: 100%;
+	height: 100%;
+}

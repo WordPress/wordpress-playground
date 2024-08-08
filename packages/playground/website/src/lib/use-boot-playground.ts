@@ -20,14 +20,16 @@ export function useBootPlayground({
 }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
-	const started = useRef(false);
+	const started = useRef<string | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
 	const dispatch: PlaygroundDispatch = useDispatch();
 
 	useEffect(() => {
-		if (started.current) {
+		const remoteUrl = getRemoteUrl();
+		console.log('remoteUrl', remoteUrl.toString(), started.current);
+		if (started.current === remoteUrl.toString()) {
 			return;
 		}
 		if (!iframe) {
@@ -38,12 +40,12 @@ export function useBootPlayground({
 			}
 			return;
 		}
-		started.current = true;
 
-		const remoteUrl = getRemoteUrl();
 		if (storage) {
 			remoteUrl.searchParams.set('storage', storage);
 		}
+
+		started.current = remoteUrl.toString();
 
 		let playgroundTmp: PlaygroundClient | undefined = undefined;
 		startPlaygroundWeb({
@@ -85,7 +87,7 @@ export function useBootPlayground({
 				}
 			});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [iframe, awaitedIframe, directoryHandle]);
+	}, [iframe, awaitedIframe, directoryHandle, siteSlug]);
 
 	return { playground, url, iframeRef };
 }
