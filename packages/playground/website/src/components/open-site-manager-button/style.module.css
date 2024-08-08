@@ -5,10 +5,3 @@
 	height: 26px;
 	padding: 0px 15px;
 }
-
-@media (max-width: 812px) {
-	.open-site-manager-button {
-		position: relative;
-		top: -4px;
-	}
-}
