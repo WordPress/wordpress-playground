@@ -39,7 +39,8 @@ export interface Blueprint {
 		 */
 		author: string;
 		/**
-		 * Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org.
+		 * Relevant categories to help users find your Blueprint in the future
+		 * Blueprints section on WordPress.org.
 		 */
 		categories?: string[];
 	};

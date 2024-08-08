@@ -37,8 +37,8 @@ export const zipWpContent = async (
 		// This is a bit backwards, so hang on!
 		// We have a list of paths to exclude.
 		// We then *remove* the default theme and the SQLite plugin from that list.
-		// As a result, we *include* the default theme and the SQLite plugin in the final zip.
-		// It is hacky and will be removed soon.
+		// As a result, we *include* the default theme and the SQLite plugin in the
+		// final zip. It is hacky and will be removed soon.
 		exceptPaths = exceptPaths
 			.filter((path) => !path.startsWith('themes/twenty'))
 			.filter(

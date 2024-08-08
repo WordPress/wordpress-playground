@@ -7,9 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": [
-				"build:wasm-wordpress-net"
-			]
+			"dependsOn": ["build:wasm-wordpress-net"]
 		},
 		"build:wasm-wordpress-net": {
 			"executor": "nx:run-commands",
@@ -28,10 +26,7 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": [
-				"build:standalone",
-				"^build"
-			]
+			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
 			"executor": "@nx/vite:build",

@@ -112,8 +112,8 @@ export function normalizePath(path: string) {
  *
  * For example:
  *
- * > normalizePathsArray(['wordpress', 'wp-content', '..', '', '.', 'wp-includes'])
- * ['wordpress', 'wp-includes']
+ * > normalizePathsArray(['wordpress', 'wp-content', '..', '', '.',
+ * 'wp-includes']) ['wordpress', 'wp-includes']
  *
  * @param parts parts of the path to normalize
  * @param allowAboveRoot allow paths above the root

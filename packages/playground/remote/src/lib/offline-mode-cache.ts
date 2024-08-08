@@ -53,7 +53,6 @@ export class OfflineModeCache {
 			return;
 		}
 
-		// Get the cache manifest and add all the files to the cache
 		const manifestResponse = await fetch(
 			'/assets-required-for-offline-mode.json'
 		);
@@ -66,14 +65,12 @@ export class OfflineModeCache {
 			return true;
 		}
 		/**
-		 * The development environment uses Vite which doesn't work offline because it dynamically generates assets.
-		 * Check the README for offline development instructions.
+		 * The development environment uses Vite which doesn't work offline because
+		 * it dynamically generates assets. Check the README for offline development
+		 * instructions.
 		 */
-		if (
-			url.href.startsWith('http://127.0.0.1:5400/') ||
-			url.href.startsWith('http://localhost:5400/') ||
-			url.pathname.startsWith('/website-server/')
-		) {
+		// @ts-ignore-next-line
+		if (import.meta.env.MODE === 'development') {
 			return false;
 		}
 

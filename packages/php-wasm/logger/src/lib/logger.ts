@@ -205,7 +205,8 @@ export const formatLogEntry = (
 /**
  * Add a listener for the Playground crashes.
  * These crashes include Playground errors like Asyncify errors.
- * The callback function will receive an Event object with logs in the detail property.
+ * The callback function will receive an Event object with logs in the detail
+ * property.
  *
  * @param loggerInstance The logger instance
  * @param callback The callback function

@@ -26,7 +26,8 @@ describe('Blueprint step importThemeStarterContent', () => {
 
 	it('Should import theme starter content', async () => {
 		const docroot = php.documentRoot;
-		// Create a test theme with starter content, Must have at a minimum style.css + index.php
+		// Create a test theme with starter content, Must have at a minimum
+		// style.css + index.php
 		php.mkdir(`${docroot}/wp-content/themes/test-theme`);
 		php.writeFile(
 			`${docroot}/wp-content/themes/test-theme/style.css`,

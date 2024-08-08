@@ -68,7 +68,8 @@ async function run() {
 			type: 'string',
 			default: 'latest',
 		})
-		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom ReadOnlyNODEFS, or by copying the files into MEMFS
+		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
+		// ReadOnlyNODEFS, or by copying the files into MEMFS
 		.option('mount', {
 			describe:
 				'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
@@ -142,7 +143,8 @@ async function run() {
 
 	/**
 	 * TODO: This exact feature will be provided in the PHP Blueprints library.
-	 *       Let's use it when it ships. Let's also use it in the web Playground app.
+	 *       Let's use it when it ships. Let's also use it in the web Playground
+	 *       app.
 	 */
 	async function zipSite(outfile: string) {
 		// Fake URL for the build
@@ -256,7 +258,8 @@ async function run() {
 			let wpDetails: any = undefined;
 			const monitor = new EmscriptenDownloadMonitor();
 			if (!args.skipWordPressSetup) {
-				// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
+				// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
+				// about that class anymore.
 				monitor.addEventListener('progress', ((
 					e: CustomEvent<ProgressEvent & { finished: boolean }>
 				) => {

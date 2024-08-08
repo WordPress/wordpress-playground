@@ -307,10 +307,10 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	php.mkdir('/tmp/unzipped-wordpress');
 	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
 
-	// The zip file may contain another zip file if it's coming from GitHub artifacts
-	// @TODO: Don't make so many guesses about the zip file contents. Allow the
-	//        API consumer to specify the exact "coordinates" of WordPress inside
-	//        the zip archive.
+	// The zip file may contain another zip file if it's coming from GitHub
+	// artifacts @TODO: Don't make so many guesses about the zip file contents.
+	// Allow the API consumer to specify the exact "coordinates" of WordPress
+	// inside the zip archive.
 	if (php.fileExists('/tmp/unzipped-wordpress/wordpress.zip')) {
 		await unzipFile(
 			php,
