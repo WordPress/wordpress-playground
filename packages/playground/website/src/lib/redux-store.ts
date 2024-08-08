@@ -3,6 +3,7 @@ import {
 	directoryHandleResolve,
 	directoryHandleDone,
 } from './markdown-directory-handle';
+import { type SiteInfo, listSites } from './site-storage';
 
 export type ActiveModal =
 	| 'error-report'
@@ -11,10 +12,34 @@ export type ActiveModal =
 	| 'mount-markdown-directory'
 	| false;
 
+export type SiteListingStatus =
+	| {
+			type: 'uninitialized';
+	  }
+	| {
+			type: 'loading';
+			// TODO
+			//progress: number,
+			//total?: number,
+	  }
+	| {
+			type: 'loaded';
+	  }
+	| {
+			type: 'error';
+			error: string;
+	  };
+
+export type SiteListing = {
+	status: SiteListingStatus;
+	sites: SiteInfo[];
+};
+
 // Define the state types
 interface AppState {
 	activeModal: string | null;
 	offline: boolean;
+	siteListing: SiteListing;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -26,6 +51,10 @@ const initialState: AppState = {
 			? 'mount-markdown-directory'
 			: null,
 	offline: !navigator.onLine,
+	siteListing: {
+		status: { type: 'loading' },
+		sites: [],
+	},
 };
 
 if (initialState.activeModal !== 'mount-markdown-directory') {
@@ -50,6 +79,21 @@ const slice = createSlice({
 		setOfflineStatus: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
+		setSiteListingLoaded: (state, action: PayloadAction<SiteInfo[]>) => {
+			state.siteListing = {
+				status: { type: 'loaded' },
+				sites: action.payload,
+			};
+		},
+		setSiteListingError: (state, action: PayloadAction<string>) => {
+			state.siteListing = {
+				status: {
+					type: 'error',
+					error: action.payload,
+				},
+				sites: [],
+			};
+		},
 	},
 });
 
@@ -70,6 +114,19 @@ function setupOnlineOfflineListeners(dispatch: PlaygroundDispatch) {
 	});
 }
 setupOnlineOfflineListeners(store.dispatch);
+
+// NOTE: We will likely want to configure and list sites someplace else,
+// but for now, it seems fine to just kick off loading from OPFS
+// after the store is created.
+listSites().then(
+	(sites) => store.dispatch(slice.actions.setSiteListingLoaded(sites)),
+	(error) =>
+		store.dispatch(
+			slice.actions.setSiteListingError(
+				error instanceof Error ? error.message : 'Unknown error'
+			)
+		)
+);
 
 // Define RootState type
 export type PlaygroundReduxState = ReturnType<typeof store.getState>;

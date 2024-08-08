@@ -1,9 +1,6 @@
-import { Blueprint } from '@wp-playground/blueprints';
-import { StorageType } from '../../../types';
-
 import css from './style.module.css';
 import classNames from 'classnames';
-import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
 	__experimentalHeading as Heading,
 	NavigableMenu,
@@ -15,20 +12,8 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
-
-// TODO: move types to site storage
-// TODO: Explore better ways of obtaining site logos
-type SiteLogo = {
-	mime: string;
-	data: string;
-};
-type Site = {
-	slug: string;
-	name: string;
-	logo?: SiteLogo;
-	blueprint?: Blueprint;
-	storage?: StorageType;
-};
+import { PlaygroundReduxState } from '../../../lib/redux-store';
+import { type SiteLogo } from '../../../lib/site-storage';
 
 export function SiteManagerSidebar({
 	className,
@@ -39,38 +24,9 @@ export function SiteManagerSidebar({
 	siteSlug?: string;
 	onSiteClick: (siteSlug?: string) => void;
 }) {
-	const [sites, setSites] = useState<Site[]>([]);
-
-	/**
-	 * TODO: This is a temporary solution to get the sites from the OPFS.
-	 * This will be removed when Site storage is implemented.
-	 */
-	useEffect(() => {
-		const getVirtualOpfsRoot = async () => {
-			const virtualOpfsRoot = await navigator.storage.getDirectory();
-			const opfsSites: Site[] = [];
-			for await (const entry of virtualOpfsRoot.values()) {
-				if (entry.kind === 'directory') {
-					/**
-					 * Sites stored in browser storage are prefixed with "site-"
-					 * so we need to remove the prefix to get the slug.
-					 *
-					 * The default site is stored in the `wordpress` directory
-					 * and it doesn't have a prefix.
-					 */
-					const slug = entry.name.replace(/^site-/, '');
-					const name = slug.charAt(0).toUpperCase() + slug.slice(1);
-					opfsSites.push({
-						slug,
-						name,
-						storage: 'browser',
-					});
-				}
-			}
-			setSites(opfsSites);
-		};
-		getVirtualOpfsRoot();
-	}, []);
+	const sites = useSelector(
+		(state: PlaygroundReduxState) => state.siteListing.sites
+	);
 
 	const resources = [
 		{
@@ -126,7 +82,8 @@ export function SiteManagerSidebar({
 								isSelected={isSelected}
 								role="menuitemradio"
 								icon={
-									site.storage === 'none' || !site.storage ? (
+									site.storage === 'temporary' ||
+									!site.storage ? (
 										<TemporaryStorageIcon
 											className={
 												css.siteManagerSidebarItemStorageIcon
