@@ -7,6 +7,20 @@
 .site-view-has-site-manager {
 	background-color: var(--site-manager-background-color);
 	display: none;
+	position: relative;
+}
+
+.site-view-has-site-manager:before {
+	content: '';
+	display: block;
+	width: 100%;
+	height: 100vh;
+	background-color: transparent;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1;
+	cursor: pointer;
 }
 
 @media (min-width: 640px) {

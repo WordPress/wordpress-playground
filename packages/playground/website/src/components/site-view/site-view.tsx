@@ -170,6 +170,12 @@ export function SiteView({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [blueprint?.steps]);
 
+	const maybeHideSiteManagerOnClick = () => {
+		if (isSiteManagerActive) {
+			navigator.goTo('/');
+		}
+	};
+
 	return (
 		<PlaygroundContext.Provider
 			value={{
@@ -183,6 +189,7 @@ export function SiteView({
 					isSiteManagerActive ? css.siteViewHasSiteManager : ''
 				}`}
 				ref={siteViewRef}
+				onClick={maybeHideSiteManagerOnClick}
 			>
 				<Modals />
 
