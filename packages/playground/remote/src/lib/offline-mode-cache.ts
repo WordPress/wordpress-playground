@@ -53,6 +53,7 @@ export class OfflineModeCache {
 			return;
 		}
 
+		// Get the cache manifest and add all the files to the cache
 		const manifestResponse = await fetch(
 			'/assets-required-for-offline-mode.json'
 		);
@@ -69,8 +70,11 @@ export class OfflineModeCache {
 		 * it dynamically generates assets. Check the README for offline development
 		 * instructions.
 		 */
-		// @ts-ignore-next-line
-		if (import.meta.env.MODE === 'development') {
+		if (
+			url.href.startsWith('http://127.0.0.1:5400/') ||
+			url.href.startsWith('http://localhost:5400/') ||
+			url.pathname.startsWith('/website-server/')
+		) {
 			return false;
 		}
 
