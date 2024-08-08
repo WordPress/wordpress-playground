@@ -15,6 +15,7 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { AddSiteButton } from '../add-site-button';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -59,7 +60,13 @@ export function SiteManagerSidebar({
 					 * and it doesn't have a prefix.
 					 */
 					const slug = entry.name.replace(/^site-/, '');
-					const name = slug.charAt(0).toUpperCase() + slug.slice(1);
+					let name = slug.charAt(0).toUpperCase() + slug.slice(1);
+					/**
+					 * Ensure WordPress is spelt correctly in the UI.
+					 */
+					if (slug === 'wordpress') {
+						name = 'WordPress';
+					}
 					opfsSites.push({
 						slug,
 						name,
@@ -111,7 +118,16 @@ export function SiteManagerSidebar({
 				</Heading>
 				<MenuGroup className={css.siteManagerSidebarList}>
 					{sites.map((site) => {
-						const isSelected = site.slug === siteSlug;
+						/**
+						 * The default site is selected when no site slug provided.
+						 *
+						 * The default site is stored in the `wordpress` directory
+						 * and that's used as the slug.
+						 */
+						const isSelected =
+							site.slug === siteSlug ||
+							(siteSlug === undefined &&
+								site.slug === 'wordpress');
 						return (
 							<MenuItem
 								key={site.slug}
@@ -189,6 +205,7 @@ export function SiteManagerSidebar({
 					))}
 				</ItemGroup>
 			</footer>
+			<AddSiteButton onAddSite={onSiteClick} />
 		</NavigableMenu>
 	);
 }
