@@ -1,6 +1,7 @@
 import css from './style.module.css';
 
-import { __experimentalNavigatorButton as NavigatorButton } from '@wordpress/components';
+import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import Button from '../button';
 
 function SiteManagerIcon() {
 	return (
@@ -22,13 +23,18 @@ function SiteManagerIcon() {
 }
 
 export function OpenSiteManagerButton() {
+	const { goTo } = useNavigator();
+	const onClick = () => {
+		goTo('/manager');
+	};
 	return (
-		<NavigatorButton
-			path="/manager"
+		<Button
+			variant="browser-chrome"
 			aria-label="Open Site Manager"
 			className={css.openSiteManagerButton}
-			iconSize={14}
-			icon={<SiteManagerIcon />}
-		></NavigatorButton>
+			onClick={onClick}
+		>
+			<SiteManagerIcon />
+		</Button>
 	);
 }
