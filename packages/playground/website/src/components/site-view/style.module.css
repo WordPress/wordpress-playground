@@ -32,6 +32,7 @@
 .site-view-section {
 	border: var(--site-manager-border-width) solid
 		var(--site-manager-background-color);
+	border-left: none;
 	background-color: var(--site-manager-border-color);
 }
 

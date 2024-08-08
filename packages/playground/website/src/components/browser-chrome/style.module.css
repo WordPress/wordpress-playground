@@ -65,23 +65,6 @@ body.is-embedded .fake-window-wrapper {
 	flex-direction: column;
 	margin: 0 auto;
 	overflow: hidden;
-
-	animation: pulse 6s ease-in-out infinite;
-}
-
-@keyframes pulse {
-	0% {
-		box-shadow: 0 4px 44px rgba(13, 32, 117, 0.5),
-			0 0 0 0 rgba(13, 32, 117, 0.5);
-	}
-	50% {
-		box-shadow: 0 4px 44px rgba(13, 32, 117, 0.5),
-			0 0 88px 5px rgba(13, 32, 117, 0.5);
-	}
-	100% {
-		box-shadow: 0 4px 44px rgba(13, 32, 117, 0.5),
-			0 0 0 0 rgba(13, 32, 117, 0.5);
-	}
 }
 
 .content {
