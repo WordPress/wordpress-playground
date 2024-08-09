@@ -148,7 +148,10 @@ a.navbar__link--active:hover {
 	color: black;
 }
 
-#customize-playground + p > img {
+#customize-playground + p > img,
+#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests
+	+ p
+	> img {
 	max-width: 50%;
 	border: 1px solid #bebebe;
 }
