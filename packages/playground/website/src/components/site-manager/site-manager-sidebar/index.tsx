@@ -43,13 +43,13 @@ export function SiteManagerSidebar({
 	const [sites, setSites] = useState<Site[]>([]);
 
 	const generateSiteFromSlug = (slug: string): Site => {
-		slug = slug.replace('-', ' ');
-		let name = slug.charAt(0).toUpperCase() + slug.slice(1);
-
+		let name = slug.replaceAll('-', ' ');
+		name = name.charAt(0).toUpperCase() + name.slice(1);
 		/**
 		 * Ensure WordPress is spelt correctly in the UI.
 		 */
 		name = name.replace(/wordpress/i, 'WordPress');
+
 		return {
 			slug,
 			name,
@@ -83,13 +83,13 @@ export function SiteManagerSidebar({
 		getVirtualOpfsRoot();
 	}, []);
 
-	const addSite = (newSlug: string) => {
+	const addSite = (newName: string) => {
 		/**
 		 * Generate a slug from the site name.
 		 * TODO: remove this when site storage is implemented.
 		 * In site storage slugs will be generated automatically.
 		 */
-		newSlug = newSlug.replace(' ', '-');
+		const newSlug = newName.replaceAll(' ', '-');
 		/**
 		 * If the site name already exists, we won't need to add it again.
 		 * TODO: remove this check when site storage is implemented.
