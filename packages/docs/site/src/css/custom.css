@@ -157,3 +157,7 @@ a.navbar__link--active:hover {
 	max-width: 30%;
 	border: 1px solid #bebebe;
 }
+
+#list-resources-redirections a {
+	font-weight: normal;
+}

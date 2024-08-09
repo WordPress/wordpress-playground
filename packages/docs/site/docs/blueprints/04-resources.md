@@ -34,6 +34,11 @@ To use the URLReference resource, you need to provide the URL of the file. For e
 }
 ```
 
+The resource `url` type works really in combination with blueprint steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or
+[`installTheme`](http://localhost:3000/wordpress-playground/blueprints/steps#InstallThemeStep). These steps require a `ResourceType` to define the location of the plugin or the theme to install.
+
+With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point direclty to a GitHub repo. To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that also allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme.
+
 ### CoreThemeReference
 
 The CoreThemeReference resource is used to reference WordPress core themes. The CoreThemeReference resource is defined as follows:
