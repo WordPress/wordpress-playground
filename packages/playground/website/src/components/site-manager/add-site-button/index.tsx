@@ -35,7 +35,7 @@ export function AddSiteButton({
 		return /^[a-z0-9 ]+$/.test(newSiteName);
 	};
 
-	const onAddSiteClick = () => {
+	const submitSite = () => {
 		if (!siteName) {
 			return;
 		}
@@ -43,7 +43,7 @@ export function AddSiteButton({
 		closeModal();
 	};
 
-	const maybeSetSiteName = (nextValue?: string) => {
+	const setSiteNameIfValid = (nextValue?: string) => {
 		if (!nextValue) {
 			setSiteName(undefined);
 			return;
@@ -76,12 +76,12 @@ export function AddSiteButton({
 
 			{isModalOpen && (
 				<Modal title="Add site" onRequestClose={closeModal}>
-					<form onSubmit={onAddSiteClick} ref={addSiteFormRef}>
+					<form onSubmit={submitSite} ref={addSiteFormRef}>
 						<InputControl
 							label="Site name"
 							value={siteName}
 							onChange={(nextValue) =>
-								maybeSetSiteName(nextValue)
+								setSiteNameIfValid(nextValue)
 							}
 							placeholder="my site"
 							help="Can be lowercase letters, numbers, and spaces."
