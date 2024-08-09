@@ -26,7 +26,8 @@ import { logger } from '@php-wasm/logger';
 export interface RequestStep {
 	step: 'request';
 	/**
-	 * Request details (See /wordpress-playground/api/universal/interface/PHPRequest)
+	 * Request details (See
+	 * /wordpress-playground/api/universal/interface/PHPRequest)
 	 */
 	request: PHPRequest;
 }

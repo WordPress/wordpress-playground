@@ -190,13 +190,13 @@ export function compileBlueprint(
 				resource: 'url',
 				/**
 				 * Use compression for downloading the wp-cli.phar file.
-				 * The official release, hosted at raw.githubusercontent.com, is ~7MB and the
-				 * transfer is uncompressed. playground.wordpress.net supports transfer compression
-				 * and only transmits ~1.4MB.
+				 * The official release, hosted at raw.githubusercontent.com, is ~7MB
+				 * and the transfer is uncompressed. playground.wordpress.net supports
+				 * transfer compression and only transmits ~1.4MB.
 				 *
 				 * @TODO: minify the wp-cli.phar file. It can be as small as 1MB when all the
-				 *        whitespaces and are removed, and even 500KB when libraries like the
-				 *        JavaScript parser or Composer are removed.
+				 *        whitespaces and are removed, and even 500KB when libraries
+				 *        like the JavaScript parser or Composer are removed.
 				 */
 				url: 'https://playground.wordpress.net/wp-cli.phar',
 			},
@@ -204,7 +204,8 @@ export function compileBlueprint(
 		};
 		/**
 		 * If the blueprint does not have a wp-cli step,
-		 * we can install wp-cli as the last step because other steps don't depend on wp-cli.
+		 * we can install wp-cli as the last step because other steps don't depend
+		 * on wp-cli.
 		 *
 		 * If the blueprint has wp-cli steps,
 		 * we need to install wp-cli before running these steps.

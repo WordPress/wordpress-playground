@@ -3,6 +3,7 @@ import css from './style.module.css';
 import AddressBar from '../address-bar';
 import { close } from '@wordpress/icons';
 import classNames from 'classnames';
+import { OpenSiteManagerButton } from '../open-site-manager-button';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -10,6 +11,8 @@ interface BrowserChromeProps {
 	url?: string;
 	showAddressBar?: boolean;
 	onUrlChange?: (url: string) => void;
+	hideToolbar?: boolean;
+	className?: string;
 }
 
 export default function BrowserChrome({
@@ -18,6 +21,8 @@ export default function BrowserChrome({
 	onUrlChange,
 	showAddressBar = true,
 	toolbarButtons,
+	hideToolbar,
+	className,
 }: BrowserChromeProps) {
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
@@ -43,20 +48,42 @@ export default function BrowserChrome({
 		[css.isHidden]: noticeHidden,
 	});
 
+	/**
+	 * Temporary feature flag to enable the site manager
+	 * while using browser storage.
+	 *
+	 * TODO: Remove this once the site manager supports all storage options.
+	 */
+	const query = new URLSearchParams(window.location.search);
+	const showSiteManager = query.get('storage') === 'browser';
+
 	return (
-		<div className={wrapperClass} data-cy="simulated-browser">
-			<div className={css.window}>
-				<header className={css.toolbar} aria-label="Playground toolbar">
+		<div
+			className={`${wrapperClass} ${className}`}
+			data-cy="simulated-browser"
+		>
+			<div className={`${css.window} browser-chrome-window`}>
+				<header
+					className={`${css.toolbar} ${
+						showSiteManager ? css.hasSiteManager : ''
+					} ${hideToolbar ? css.toolbarHidden : ''}`}
+					aria-label="Playground toolbar"
+				>
 					<div className={css.windowControls}>
-						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
-						></div>
-						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
-						></div>
-						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
-						></div>
+						{showSiteManager && <OpenSiteManagerButton />}
+						{!showSiteManager && (
+							<>
+								<div
+									className={`${css.windowControl} ${css.isNeutral}`}
+								></div>
+								<div
+									className={`${css.windowControl} ${css.isNeutral}`}
+								></div>
+								<div
+									className={`${css.windowControl} ${css.isNeutral}`}
+								></div>
+							</>
+						)}
 					</div>
 
 					<div className={addressBarClass}>

@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-misused-new */
 /* eslint-disable @typescript-eslint/no-namespace */
-/** Other WebAssembly declarations, for compatibility with older versions of Typescript */
+/**
+ * Other WebAssembly declarations, for compatibility with older versions of
+ * Typescript
+ */
 
 export namespace Emscripten {
 	export interface RootFS extends Emscripten.FileSystemInstance {
@@ -112,12 +115,12 @@ export namespace Emscripten {
 	 * to `1` in your Emscripten build. It return a Promise that resolves to an
 	 * initialized, ready-to-call `EmscriptenModule` instance.
 	 *
-	 * By default, the factory function will be named `Module`. It's recommended to
-	 * use the `EXPORT_ES6` option, in which the factory function will be the
-	 * default export. If used without `EXPORT_ES6`, the factory function will be a
-	 * global variable. You can rename the variable using the `EXPORT_NAME` build
-	 * option. It's left to you to export any global variables as needed in your
-	 * application's types.
+	 * By default, the factory function will be named `Module`. It's recommended
+	 * to use the `EXPORT_ES6` option, in which the factory function will be the
+	 * default export. If used without `EXPORT_ES6`, the factory function will be
+	 * a global variable. You can rename the variable using the `EXPORT_NAME`
+	 * build option. It's left to you to export any global variables as needed in
+	 * your application's types.
 	 * @param moduleOverrides Default properties for the initialized module.
 	 */
 	export type EmscriptenModuleFactory<

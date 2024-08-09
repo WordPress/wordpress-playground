@@ -56,18 +56,20 @@ export class MaxPhpInstancesError extends Error {
  * * A pool of disposable PHP instances that are spawned to handle a single
  *   request and reaped immediately after.
  *
- * When a new request comes in, PHPProcessManager yields the idle instance to handle it,
- * and immediately starts initializing a new idle instance. In other words, for n concurrent
- * requests, there are at most n+1 PHP instances running at the same time.
+ * When a new request comes in, PHPProcessManager yields the idle instance to
+ * handle it, and immediately starts initializing a new idle instance. In other
+ * words, for n concurrent requests, there are at most n+1 PHP instances
+ * running at the same time.
  *
- * A slight nuance is that the first idle instance is not initialized until the first
- * concurrent request comes in. This is because many use-cases won't involve parallel
- * requests and, for those, we can avoid eagerly spinning up a second PHP instance.
+ * A slight nuance is that the first idle instance is not initialized until the
+ * first concurrent request comes in. This is because many use-cases won't
+ * involve parallel requests and, for those, we can avoid eagerly spinning up a
+ * second PHP instance.
  *
- * This strategy is inspired by Cowboy, an Erlang HTTP server. Handling a single extra
- * request can happen immediately, while handling multiple extra requests requires
- * extra time to spin up a few PHP instances. This is a more resource-friendly tradeoff
- * than keeping 5 idle instances at all times.
+ * This strategy is inspired by Cowboy, an Erlang HTTP server. Handling a
+ * single extra request can happen immediately, while handling multiple extra
+ * requests requires extra time to spin up a few PHP instances. This is a more
+ * resource-friendly tradeoff than keeping 5 idle instances at all times.
  */
 export class PHPProcessManager implements AsyncDisposable {
 	private primaryPhp?: PHP;
@@ -119,8 +121,9 @@ export class PHPProcessManager implements AsyncDisposable {
 	/**
 	 * Get a PHP instance.
 	 *
-	 * It could be either the primary PHP instance, an idle disposable PHP instance,
-	 * or a newly spawned PHP instance – depending on the resource availability.
+	 * It could be either the primary PHP instance, an idle disposable PHP
+	 * instance, or a newly spawned PHP instance – depending on the resource
+	 * availability.
 	 *
 	 * @throws {MaxPhpInstancesError} when the maximum number of PHP instances is reached
 	 *                                and the waiting timeout is exceeded.
