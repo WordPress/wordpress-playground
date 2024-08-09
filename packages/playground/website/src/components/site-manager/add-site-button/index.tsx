@@ -78,7 +78,7 @@ export function AddSiteButton({
 				<Modal title="Add site" onRequestClose={closeModal}>
 					<form onSubmit={submitSite} ref={addSiteFormRef}>
 						<InputControl
-							label="Site name"
+							label="Name"
 							value={siteName}
 							onChange={(nextValue) =>
 								setSiteNameIfValid(nextValue)
