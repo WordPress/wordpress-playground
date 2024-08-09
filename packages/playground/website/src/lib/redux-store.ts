@@ -3,7 +3,12 @@ import {
 	directoryHandleResolve,
 	directoryHandleDone,
 } from './markdown-directory-handle';
-import { type SiteInfo, listSites } from './site-storage';
+import {
+	type SiteInfo,
+	listSites,
+	addSite as addSiteToStorage,
+	removeSite as removeSiteFromStorage,
+} from './site-storage';
 
 export type ActiveModal =
 	| 'error-report'
@@ -94,11 +99,43 @@ const slice = createSlice({
 				sites: [],
 			};
 		},
+		addSite: (state, action: PayloadAction<SiteInfo>) => {
+			state.siteListing.sites.push(action.payload);
+		},
+		removeSite: (state, action: PayloadAction<string>) => {
+			const slugToRemove = action.payload;
+			const siteIndex = state.siteListing.sites.findIndex(
+				(siteInfo) => siteInfo.slug === slugToRemove
+			);
+			if (siteIndex !== undefined) {
+				state.siteListing.sites.splice(siteIndex, 1);
+			}
+		},
 	},
 });
 
 // Export actions
 export const { setActiveModal } = slice.actions;
+
+// Redux thunk for adding a site
+export function addSite(slug: string, siteInfo: SiteInfo) {
+	return async (dispatch: typeof store.dispatch) => {
+		// TODO: Handle errors
+		// TODO: Possibly reflect addition in progress
+		await addSiteToStorage(slug, siteInfo);
+		dispatch(slice.actions.addSite(siteInfo));
+	};
+}
+
+// Redux thunk for removing a site
+export function removeSite(slug: string) {
+	return async (dispatch: typeof store.dispatch) => {
+		// TODO: Handle errors
+		// TODO: Possibly reflect removal in progress
+		await removeSiteFromStorage(slug);
+		dispatch(slice.actions.removeSite(slug));
+	};
+}
 
 // Configure store
 const store = configureStore({
