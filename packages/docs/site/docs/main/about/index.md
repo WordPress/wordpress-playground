@@ -35,7 +35,7 @@ But hey! You can also connect your Playground instance to a GitHub repo and crea
 Overall, WordPress Playground provides a risk-free environment for beginners to learn and get hands-on experience with WordPress. It helps you to gain confidence and knowledge before making changes to your live website.
 
 :::tip
-Check the [guides section](#) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
+Check the [guides section](/guides) to learn more about how to leverage WordPress Playground to test your themes and plugins and create content on the fly.
 :::
 
 ## How does WordPress Playground work?

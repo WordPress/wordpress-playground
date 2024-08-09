@@ -27,4 +27,4 @@ This docs hub is focused on Developers info and is divided into the following ma
 
 -   [Architecture](./23-architecture/01-index.md): The specifics of WordPress Playground's architecture, including its various components and tools.
 
--   [Limitations](./24-limitations/01-index.md): Learn more about the current limitations of WordPress Playground, which include disabled network connections, temporary data, iframe quirks, PHP function execution requirements, and partial WP-CLI support.
+-   [Limitations](/developers/limitations/): Learn more about the current limitations of WordPress Playground, which include disabled network connections, temporary data, iframe quirks, PHP function execution requirements, and partial WP-CLI support.

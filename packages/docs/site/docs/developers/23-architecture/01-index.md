@@ -6,7 +6,7 @@ WordPress Playground consists of the following high-level components:
 -   [WebAssembly PHP](./02-wasm-php-overview.md)
 -   [Browser bindings](./08-browser-concepts.md)
 -   Node.js bindings via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
--   [Public API](../apis/index)
+-   [Public API](/developers/apis/)
 
 Visit each section to learn more about the specific parts of the architecture.
 

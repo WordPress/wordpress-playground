@@ -12,11 +12,11 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Access the Plugins, Themes, Blocks, or Patterns directories
 
-Playground [disables network connections](../../blueprints/03-data-format.md#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](../query-api/#available-options) or [Blueprints API](../../blueprints/09-troubleshoot-and-debug-blueprints.md#review-common-gotchas).
+Playground [disables network connections](../../blueprints/03-data-format.md#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](/developers/apis/query-api#available-options) or [Blueprints API](../../blueprints/09-troubleshoot-and-debug-blueprints.md#review-common-gotchas).
 
 ### Temporary by design
 
-As Playground [streams rather than serves](../../main/about/index.md#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](../../main/quick-start-guide.md#save-your-site) before or enable storage in the browser/device via the [Query API](../query-api/#available-options) or the UI.
+As Playground [streams rather than serves](../../main/about/index.md#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](../../main/quick-start-guide.md#save-your-site) before or enable storage in the browser/device via the [Query API](/developers/apis/query-api#available-options) or the UI.
 
 ## When developing with Playground
 

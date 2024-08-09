@@ -117,7 +117,7 @@ The site should now look like the screenshot below:
 
 ### Resources
 
-The `themeZipFile` defines a [resource](../resources/) and referrences an external file required to complete the step. Playground supports different types of resources, including
+The `themeZipFile` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
 
 -   `url`,
 -   `wordpress.org/themes`,
@@ -130,7 +130,7 @@ The example uses the `wordpress.org/themes` resource, which requires a `slug` id
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 
 :::note
-Learn more about the supported resources in the [Blueprint Resources API Reference](../resources/).
+Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
 :::
 
 ## 4. Install the _Hello Dolly_ plugin

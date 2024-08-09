@@ -9,7 +9,7 @@ Upgrade your QA process with the ability to review progress in your browser in a
 
 ## Test any theme or plugin
 
-With Playground, you can test any plugin or theme. Use the [Query API](#) to quickly load any plugin or theme published in wordpress.org [plugins](https://wordpress.org/plugins) and [themes](https://wordpress.org/themes/) directories.
+With Playground, you can test any plugin or theme. Use the [Query API](/developers/apis/query-api) to quickly load any plugin or theme published in wordpress.org [plugins](https://wordpress.org/plugins) and [themes](https://wordpress.org/themes/) directories.
 
 For example, the following link will load the [“pendant” theme](https://wordpress.org/themes/pendant/) and the[ “gutenberg” plugin](https://wordpress.org/plugins/gutenberg/) on a Playground instance:
 
@@ -35,6 +35,6 @@ For example, you can always test the latest development version of WordPress, al
 
 During the Beta period of any WordPress release, you can also test the latest WordPress Beta or RC release with theme test data and debugging plugins (see [blueprint](https://github.com/WordPress/blueprints/blob/trunk/blueprints/beta-rc/blueprint.json) and [live demo). ](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/beta-rc/blueprint.json)
 
-You can also load any [theme, plugin](#), or [configuration](#) in any of the available WordPress and PHP versions to check how they work in that environment.
+You can also load any [theme, plugin](/developers/apis/query-api), or [configuration](/blueprints) in any of the available WordPress and PHP versions to check how they work in that environment.
 
 The [WordPress Playground: the ultimate learning, testing, & teaching tool for WordPress](https://www.youtube.com/watch?v=dN_LaenY8bI) provides a great overview of the testing possibilities with Playground.

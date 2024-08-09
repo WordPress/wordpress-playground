@@ -28,6 +28,10 @@ The following step-related topics are addressed on dedicated pages included in t
 
 -   For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](./07-json-api-and-function-api.md) page for further details.
 
+:::tip
+The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
+:::
+
 ---
 
 import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep';
