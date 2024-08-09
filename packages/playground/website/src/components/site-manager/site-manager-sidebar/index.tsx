@@ -23,7 +23,7 @@ type SiteLogo = {
 	mime: string;
 	data: string;
 };
-type Site = {
+export type Site = {
 	slug: string;
 	name: string;
 	logo?: SiteLogo;
@@ -224,7 +224,7 @@ export function SiteManagerSidebar({
 					))}
 				</ItemGroup>
 			</footer>
-			<AddSiteButton onAddSite={addSite} />
+			<AddSiteButton onAddSite={addSite} sites={sites} />
 		</NavigableMenu>
 	);
 }
