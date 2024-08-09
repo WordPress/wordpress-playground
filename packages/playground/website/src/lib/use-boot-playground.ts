@@ -28,7 +28,6 @@ export function useBootPlayground({
 
 	useEffect(() => {
 		const remoteUrl = getRemoteUrl();
-		console.log('remoteUrl', remoteUrl.toString(), started.current);
 		if (started.current === remoteUrl.toString()) {
 			return;
 		}
