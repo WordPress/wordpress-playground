@@ -141,10 +141,7 @@ export function SiteManagerSidebar({
 				<MenuGroup className={css.siteManagerSidebarList}>
 					{sites.map((site) => {
 						/**
-						 * The default site is selected when no site slug provided.
-						 *
-						 * The default site is stored in the `wordpress` directory
-						 * and that's used as the slug.
+						 * The `wordpress` site is selected when no site slug is provided.
 						 */
 						const isSelected =
 							site.slug === siteSlug ||
