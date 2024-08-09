@@ -5,7 +5,7 @@ import {
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
 import css from './style.module.css';
-import { useState } from '@wordpress/element';
+import { useRef, useState } from '@wordpress/element';
 import classNames from 'classnames';
 
 export function AddSiteButton({
@@ -15,6 +15,7 @@ export function AddSiteButton({
 }) {
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [siteName, setSiteName] = useState<string | undefined>(undefined);
+	const addSiteFormRef = useRef<HTMLFormElement>(null);
 
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => {
@@ -53,6 +54,16 @@ export function AddSiteButton({
 		}
 	};
 
+	const onEnterPress = (event: React.KeyboardEvent) => {
+		if (event.key !== 'Enter') {
+			return;
+		}
+		if (!addSiteFormRef.current) {
+			return;
+		}
+		addSiteFormRef.current.submit();
+	};
+
 	return (
 		<div className={css.addSiteButton}>
 			<Button
@@ -65,30 +76,36 @@ export function AddSiteButton({
 
 			{isModalOpen && (
 				<Modal title="Add site" onRequestClose={closeModal}>
-					<InputControl
-						label="Site name"
-						value={siteName}
-						onChange={(nextValue) => maybeSetSiteName(nextValue)}
-						placeholder="my site"
-						help="Can be lowercase letters, numbers, and spaces."
-						className={classNames(css.addSiteInput, {
-							[css.invalidInput]:
-								// We don't want to show the error message if the site name is empty
-								!isValidSiteName(siteName) && siteName,
-						})}
-					/>
-					<HStack justify="flex-end">
-						<Button variant="tertiary" onClick={closeModal}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							onClick={onAddSiteClick}
-							disabled={!isValidSiteName(siteName)}
-						>
-							Add site
-						</Button>
-					</HStack>
+					<form onSubmit={onAddSiteClick} ref={addSiteFormRef}>
+						<InputControl
+							label="Site name"
+							value={siteName}
+							onChange={(nextValue) =>
+								maybeSetSiteName(nextValue)
+							}
+							placeholder="my site"
+							help="Can be lowercase letters, numbers, and spaces."
+							className={classNames(css.addSiteInput, {
+								[css.invalidInput]:
+									// We don't want to show the error message if the site name is empty
+									!isValidSiteName(siteName) && siteName,
+							})}
+							onKeyDown={onEnterPress}
+							autoFocus={true}
+						/>
+						<HStack justify="flex-end">
+							<Button variant="tertiary" onClick={closeModal}>
+								Cancel
+							</Button>
+							<Button
+								variant="primary"
+								type="submit"
+								disabled={!isValidSiteName(siteName)}
+							>
+								Add site
+							</Button>
+						</HStack>
+					</form>
 				</Modal>
 			)}
 		</div>

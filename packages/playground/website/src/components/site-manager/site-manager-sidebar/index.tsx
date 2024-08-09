@@ -42,6 +42,21 @@ export function SiteManagerSidebar({
 }) {
 	const [sites, setSites] = useState<Site[]>([]);
 
+	const generateSiteFromSlug = (slug: string): Site => {
+		slug = slug.replace('-', ' ');
+		let name = slug.charAt(0).toUpperCase() + slug.slice(1);
+
+		/**
+		 * Ensure WordPress is spelt correctly in the UI.
+		 */
+		name = name.replace(/wordpress/i, 'WordPress');
+		return {
+			slug,
+			name,
+			storage: 'browser',
+		};
+	};
+
 	/**
 	 * TODO: This is a temporary solution to get the sites from the OPFS.
 	 * This will be removed when Site storage is implemented.
@@ -60,24 +75,31 @@ export function SiteManagerSidebar({
 					 * and it doesn't have a prefix.
 					 */
 					const slug = entry.name.replace(/^site-/, '');
-					let name = slug.charAt(0).toUpperCase() + slug.slice(1);
-					/**
-					 * Ensure WordPress is spelt correctly in the UI.
-					 */
-					if (slug === 'wordpress') {
-						name = 'WordPress';
-					}
-					opfsSites.push({
-						slug,
-						name,
-						storage: 'browser',
-					});
+					opfsSites.push(generateSiteFromSlug(slug));
 				}
 			}
 			setSites(opfsSites);
 		};
 		getVirtualOpfsRoot();
 	}, []);
+
+	const addSite = (newSlug: string) => {
+		/**
+		 * Generate a slug from the site name.
+		 * TODO: remove this when site storage is implemented.
+		 * In site storage slugs will be generated automatically.
+		 */
+		newSlug = newSlug.replace(' ', '-');
+		/**
+		 * If the site name already exists, we won't need to add it again.
+		 * TODO: remove this check when site storage is implemented.
+		 * In site storage we won't be limited to having unique site names.
+		 */
+		if (!sites.some((site) => site.slug === newSlug)) {
+			setSites([...sites, generateSiteFromSlug(newSlug)]);
+		}
+		onSiteClick(newSlug);
+	};
 
 	const resources = [
 		{
@@ -205,7 +227,7 @@ export function SiteManagerSidebar({
 					))}
 				</ItemGroup>
 			</footer>
-			<AddSiteButton onAddSite={onSiteClick} />
+			<AddSiteButton onAddSite={addSite} />
 		</NavigableMenu>
 	);
 }
