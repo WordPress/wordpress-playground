@@ -6,27 +6,40 @@ import {
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
 import css from './style.module.css';
-import { useRef, useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 import { Site } from '../site-manager-sidebar';
 import classNames from 'classnames';
 
 export function AddSiteButton({
 	onAddSite,
-	defaultName = 'My site',
 	sites,
 }: {
 	onAddSite: (siteName: string) => void;
-	defaultName?: string;
 	sites: Site[];
 }) {
+	const defaultName = 'My site';
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [siteName, setSiteName] = useState<string | undefined>(defaultName);
 	const addSiteButtonRef = useRef<HTMLFormElement>(null);
 	const [error, setError] = useState<string | undefined>(undefined);
 
+	const generateUniqueName = () => {
+		const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
+			site.name.startsWith(defaultName)
+		).length;
+		if (numberOfSitesStartingWithDefaultName === 0) {
+			return defaultName;
+		}
+		return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
+	};
+
+	useEffect(() => {
+		setSiteName(generateUniqueName());
+	}, [sites]);
+
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => {
-		setSiteName(defaultName);
+		setSiteName(generateUniqueName());
 		setModalOpen(false);
 	};
 
@@ -93,7 +106,7 @@ export function AddSiteButton({
 							className={classNames(css.addSiteInput, {
 								[css.invalidInput]: !!error,
 							})}
-							placeholder="my site"
+							placeholder="Site name"
 							onKeyDown={onEnterPress}
 							autoFocus={true}
 							data-1p-ignore
