@@ -13,9 +13,10 @@
 	width: 100%;
 }
 
-.add-site-input {
-	margin-bottom: 24px;
+.add-site-actions {
+	margin-top: 16px;
 }
+
 .add-site-input.invalid-input :global(.components-input-control__backdrop) {
 	border-color: #e26f56 !important;
 }

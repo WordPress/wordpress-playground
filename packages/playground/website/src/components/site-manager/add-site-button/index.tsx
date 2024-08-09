@@ -3,65 +3,71 @@ import {
 	Modal,
 	__experimentalInputControl as InputControl,
 	__experimentalHStack as HStack,
+	__experimentalVStack as VStack,
 } from '@wordpress/components';
 import css from './style.module.css';
 import { useRef, useState } from '@wordpress/element';
+import { Site } from '../site-manager-sidebar';
 import classNames from 'classnames';
 
 export function AddSiteButton({
 	onAddSite,
+	defaultName = 'my site',
+	sites,
 }: {
 	onAddSite: (siteName: string) => void;
+	defaultName?: string;
+	sites: Site[];
 }) {
 	const [isModalOpen, setModalOpen] = useState(false);
-	const [siteName, setSiteName] = useState<string | undefined>(undefined);
-	const addSiteFormRef = useRef<HTMLFormElement>(null);
+	const [siteName, setSiteName] = useState<string | undefined>(defaultName);
+	const addSiteButtonRef = useRef<HTMLFormElement>(null);
+	const [error, setError] = useState<string | undefined>(undefined);
 
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => {
-		setSiteName(undefined);
+		setSiteName(defaultName);
 		setModalOpen(false);
 	};
-	const isValidSiteName = (newSiteName?: string) => {
+
+	const validateSiteName = (newSiteName?: string) => {
 		if (!newSiteName) {
+			setError('Name is required');
 			return false;
 		}
-		/**
-		 * We currently only allow lowercase letters, numbers, and spaces.
-		 *
-		 * This allows us to convert the site name to a site slug.
-		 * TODO: auto-generate site slug and save site name as-is in site storage
-		 */
-		return /^[a-z0-9 ]+$/.test(newSiteName);
+		if (
+			sites.some(
+				(site) => site.name.toLowerCase() === newSiteName.toLowerCase()
+			)
+		) {
+			setError('Name already exists');
+			return false;
+		}
+		setError(undefined);
+		return true;
 	};
 
-	const submitSite = () => {
-		if (!siteName) {
+	const addSite = () => {
+		if (!validateSiteName(siteName)) {
 			return;
 		}
-		onAddSite(siteName);
+		onAddSite(siteName!);
 		closeModal();
-	};
-
-	const setSiteNameIfValid = (nextValue?: string) => {
-		if (!nextValue) {
-			setSiteName(undefined);
-			return;
-		}
-		nextValue = nextValue.trim();
-		if (isValidSiteName(nextValue)) {
-			setSiteName(nextValue);
-		}
 	};
 
 	const onEnterPress = (event: React.KeyboardEvent) => {
 		if (event.key !== 'Enter') {
 			return;
 		}
-		if (!addSiteFormRef.current) {
+		if (!addSiteButtonRef.current) {
 			return;
 		}
-		addSiteFormRef.current.submit();
+		addSiteButtonRef.current.click();
+	};
+
+	const onSiteNameChange = (nextValue?: string) => {
+		validateSiteName(nextValue);
+		setSiteName(nextValue);
 	};
 
 	return (
@@ -76,36 +82,39 @@ export function AddSiteButton({
 
 			{isModalOpen && (
 				<Modal title="Add site" onRequestClose={closeModal}>
-					<form onSubmit={submitSite} ref={addSiteFormRef}>
+					<VStack>
 						<InputControl
 							label="Name"
 							value={siteName}
 							onChange={(nextValue) =>
-								setSiteNameIfValid(nextValue)
+								onSiteNameChange(nextValue)
 							}
-							placeholder="my site"
-							help="Can be lowercase letters, numbers, and spaces."
+							help={error}
 							className={classNames(css.addSiteInput, {
-								[css.invalidInput]:
-									// We don't want to show the error message if the site name is empty
-									!isValidSiteName(siteName) && siteName,
+								[css.invalidInput]: !!error,
 							})}
+							placeholder="my site"
 							onKeyDown={onEnterPress}
 							autoFocus={true}
+							data-1p-ignore
 						/>
-						<HStack justify="flex-end">
+						<HStack
+							justify="flex-end"
+							className={css.addSiteActions}
+						>
 							<Button variant="tertiary" onClick={closeModal}>
 								Cancel
 							</Button>
 							<Button
 								variant="primary"
-								type="submit"
-								disabled={!isValidSiteName(siteName)}
+								disabled={!!error}
+								onClick={addSite}
+								ref={addSiteButtonRef}
 							>
 								Add site
 							</Button>
 						</HStack>
-					</form>
+					</VStack>
 				</Modal>
 			)}
 		</div>
