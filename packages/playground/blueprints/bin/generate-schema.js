@@ -59,11 +59,20 @@ schema.definitions.StepDefinition.oneOf =
 	schema.definitions.StepDefinition.anyOf;
 delete schema.definitions.StepDefinition.anyOf;
 
-const schemaString = JSON.stringify(schema, null, 2)
+const rawSchemaString = JSON.stringify(schema, null, 2)
 	// Naively remove TypeScript generics <T> from the schema:
 	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
 	.replaceAll(/<[a-zA-Z]+>/g, '');
-fs.writeFileSync(output_path, schemaString);
+
+// Use prettier to make the generated text more readable
+// and to avoid differing with the files formatted by pre-commit hook.
+const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
+const formattedSchemaString = prettier.format(rawSchemaString, {
+	...prettierConfig,
+	parser: 'json',
+});
+
+fs.writeFileSync(output_path, formattedSchemaString);
 
 const ajv = new Ajv({
 	discriminator: true,
@@ -75,8 +84,6 @@ const ajv = new Ajv({
 const validate = ajv.compile(schema);
 const rawValidationCode = ajvStandaloneCode(ajv, validate);
 
-// Use prettier to make the generated validation code more readable.
-const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
 const formattedValidationCode = prettier.format(
 	rawValidationCode,
 	prettierConfig
