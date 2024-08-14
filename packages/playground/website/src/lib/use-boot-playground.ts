@@ -10,6 +10,7 @@ import {
 } from './redux-store';
 import { useDispatch, useSelector } from 'react-redux';
 import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
+import { opfsPathToDirectoryHandle } from '@wp-playground/storage';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -44,7 +45,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 			let isWordPressInstalled = false;
 			if (opfsHandle) {
 				isWordPressInstalled = await playgroundAvailableInOpfs(
-					opfsHandle.handle
+					await opfsPathToDirectoryHandle(opfsHandle.opfsPath)
 				);
 			}
 

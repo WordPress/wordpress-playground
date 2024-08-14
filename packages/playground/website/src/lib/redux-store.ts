@@ -12,7 +12,7 @@ interface AppState {
 	activeModal: string | null;
 	offline: boolean;
 	opfsMountDescriptor?: {
-		handle: FileSystemDirectoryHandle;
+		opfsPath: string;
 		mountpoint: string;
 	};
 }
@@ -37,8 +37,13 @@ if (query.get('storage') === 'browser') {
 			create: true,
 		}
 	);
+	const opfsPathParts = await opfsRoot.resolve(opfsDir);
+	if (!opfsPathParts) {
+		throw new Error('Unable to resolve OPFS path for mount.');
+	}
+
 	initialState.opfsMountDescriptor = {
-		handle: opfsDir,
+		opfsPath: opfsPathParts?.join('/'),
 		mountpoint: '/wordpress',
 	};
 }

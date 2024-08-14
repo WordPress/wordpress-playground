@@ -22,7 +22,7 @@ export {
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
-export type { PlaygroundClient } from '@wp-playground/remote';
+export type { PlaygroundClient, MountDescriptor } from '@wp-playground/remote';
 
 export { phpVar, phpVars } from '@php-wasm/util';
 
@@ -34,14 +34,8 @@ import {
 } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
-import { PlaygroundClient } from '@wp-playground/remote';
+import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
-
-export interface MountDescriptor {
-	mountpoint: string;
-	handle: FileSystemDirectoryHandle;
-	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
-}
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -105,7 +99,7 @@ export async function startPlaygroundWeb({
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
-  // Set a default blueprint if none is provided.
+	// Set a default blueprint if none is provided.
 	if (!blueprint) {
 		blueprint = {
 			phpExtensionBundles: ['kitchen-sink'],
