@@ -12,8 +12,38 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
-import { PlaygroundReduxState } from '../../../lib/redux-store';
-import { type SiteLogo } from '../../../lib/site-storage';
+import store, {
+	PlaygroundReduxState,
+	addSite as addSiteToStore,
+} from '../../../lib/redux-store';
+import type { SiteLogo, SiteInfo } from '../../../lib/site-storage';
+import { AddSiteButton } from '../add-site-button';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
+
+function generateNewSiteFromName(name: string): SiteInfo {
+	/**
+	 * Ensure WordPress is capitalized correctly in the UI.
+	 */
+	name = name.replace(/wordpress/i, 'WordPress');
+
+	/**
+	 * Generate a slug from the site name.
+	 * TODO: remove this when site storage is implemented.
+	 * In site storage slugs will be generated automatically.
+	 */
+	const slug = name.toLowerCase().replaceAll(' ', '-');
+
+	return {
+		id: crypto.randomUUID(),
+		slug,
+		name,
+		storage: 'opfs',
+		wpVersion: LatestSupportedWordPressVersion,
+		phpVersion: LatestSupportedPHPVersion,
+		phpExtensionBundle: 'kitchen-sink',
+	};
+}
 
 export function SiteManagerSidebar({
 	className,
@@ -27,6 +57,12 @@ export function SiteManagerSidebar({
 	const sites = useSelector(
 		(state: PlaygroundReduxState) => state.siteListing.sites
 	);
+
+	const addSite = (newName: string) => {
+		const newSite = generateNewSiteFromName(newName);
+		store.dispatch(addSiteToStore(newSite.slug, newSite));
+		onSiteClick(newSite.slug);
+	};
 
 	const resources = [
 		{
@@ -67,7 +103,13 @@ export function SiteManagerSidebar({
 				</Heading>
 				<MenuGroup className={css.siteManagerSidebarList}>
 					{sites.map((site) => {
-						const isSelected = site.slug === siteSlug;
+						/**
+						 * The `wordpress` site is selected when no site slug is provided.
+						 */
+						const isSelected =
+							site.slug === siteSlug ||
+							(siteSlug === undefined &&
+								site.slug === 'wordpress');
 						return (
 							<MenuItem
 								key={site.slug}
@@ -146,6 +188,7 @@ export function SiteManagerSidebar({
 					))}
 				</ItemGroup>
 			</footer>
+			<AddSiteButton onAddSite={addSite} sites={sites} />
 		</NavigableMenu>
 	);
 }
