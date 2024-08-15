@@ -6,8 +6,8 @@ import { PlaygroundReduxState } from '../../lib/redux-store';
 
 export function SyncLocalFilesButton() {
 	const { playground, currentUrl } = usePlaygroundContext();
-	const opfsHandle = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.handle
+	const opfsPath = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.opfsPath
 	);
 	const [isSyncing, setIsSyncing] = useState(false);
 	return (
@@ -18,8 +18,9 @@ export function SyncLocalFilesButton() {
 				try {
 					const docroot = await playground!.documentRoot;
 					await playground!.unmountOpfs(docroot);
+
 					await playground!.mountOpfs({
-						handle: opfsHandle!,
+						opfsPath: opfsPath!,
 						mountpoint: docroot,
 						initialSyncDirection: 'opfs-to-memfs',
 					});

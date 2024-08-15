@@ -1,14 +1,14 @@
-import { removeDirHandleContents } from '../../opfs';
+import { removeContentsFromOpfsPath } from '@wp-playground/storage';
 import { PlaygroundConfiguration } from './form';
 import { logger } from '@php-wasm/logger';
 
 export async function reloadWithNewConfiguration(
 	config: PlaygroundConfiguration,
-	directoryHandle?: FileSystemDirectoryHandle
+	opfsPath?: string
 ) {
-	if (directoryHandle && config.resetSite && config.storage === 'browser') {
+	if (opfsPath && config.resetSite && config.storage === 'browser') {
 		try {
-			await removeDirHandleContents(directoryHandle);
+			await removeContentsFromOpfsPath(opfsPath);
 		} catch (error) {
 			logger.error(error);
 		}

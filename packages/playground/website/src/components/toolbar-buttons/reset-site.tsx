@@ -3,13 +3,13 @@ import { MenuItem } from '@wordpress/components';
 import { StorageType } from '../../types';
 import { PlaygroundReduxState } from '../../lib/redux-store';
 import { useSelector } from 'react-redux';
-import { removeDirHandleContents } from '../../opfs';
+import { removeContentsFromOpfsPath } from '@wp-playground/storage';
 
 type Props = { onClose: () => void; storage: StorageType };
 const opfsStorages: StorageType[] = ['browser', 'device'];
 export function ResetSiteMenuItem({ onClose, storage }: Props) {
-	const opfsHandle = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.handle
+	const opfsPath = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.opfsPath
 	);
 	return (
 		<MenuItem
@@ -25,8 +25,8 @@ export function ResetSiteMenuItem({ onClose, storage }: Props) {
 					onClose();
 					return;
 				}
-				if (opfsHandle && opfsStorages.includes(storage)) {
-					removeDirHandleContents(opfsHandle);
+				if (opfsPath && opfsStorages.includes(storage)) {
+					removeContentsFromOpfsPath(opfsPath);
 				}
 				window.location.reload();
 				onClose();

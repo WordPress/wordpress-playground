@@ -22,6 +22,7 @@ import {
 	PlaygroundReduxState,
 	setOpfsMountDescriptor,
 } from '../../lib/redux-store';
+import { directoryHandleToOpfsPath } from '@wp-playground/storage';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -48,8 +49,8 @@ export default function PlaygroundConfigurationGroup({
 		isResolved: boolean;
 	}>();
 	const dispatch: PlaygroundDispatch = useDispatch();
-	const opfsHandle = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.handle
+	const opfsPath = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.opfsPath
 	);
 	const { playground } = usePlaygroundContext();
 	useEffect(() => {
@@ -157,7 +158,7 @@ export default function PlaygroundConfigurationGroup({
 		const mountpoint = await playground.documentRoot;
 		dispatch(
 			setOpfsMountDescriptor({
-				handle: dirHandle,
+				opfsPath: await directoryHandleToOpfsPath(dirHandle),
 				mountpoint,
 			})
 		);
@@ -185,7 +186,7 @@ export default function PlaygroundConfigurationGroup({
 
 			await playground.mountOpfs(
 				{
-					handle: dirHandle,
+					opfsPath: await directoryHandleToOpfsPath(dirHandle),
 					mountpoint: mountpoint,
 					initialSyncDirection: isPlaygroundDir
 						? 'opfs-to-memfs'
@@ -226,7 +227,7 @@ export default function PlaygroundConfigurationGroup({
 			}
 		}
 
-		reloadWithNewConfiguration(config, opfsHandle);
+		reloadWithNewConfiguration(config, opfsPath);
 	}
 	let WPLabel =
 		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
@@ -288,7 +289,7 @@ export default function PlaygroundConfigurationGroup({
 										...initialConfiguration,
 										storage: 'none',
 									},
-									opfsHandle
+									opfsPath
 								);
 							}}
 						>
