@@ -1,4 +1,5 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { directoryHandleToOpfsPath } from '@wp-playground/storage';
 
 export type ActiveModal =
 	| 'error-report'
@@ -37,13 +38,9 @@ if (query.get('storage') === 'browser') {
 			create: true,
 		}
 	);
-	const opfsPathParts = await opfsRoot.resolve(opfsDir);
-	if (!opfsPathParts) {
-		throw new Error('Unable to resolve OPFS path for mount.');
-	}
 
 	initialState.opfsMountDescriptor = {
-		opfsPath: opfsPathParts?.join('/'),
+		opfsPath: await directoryHandleToOpfsPath(opfsDir),
 		mountpoint: '/wordpress',
 	};
 }
