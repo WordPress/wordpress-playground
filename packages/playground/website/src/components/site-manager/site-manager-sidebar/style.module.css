@@ -1,0 +1,105 @@
+.site-manager-sidebar {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	--site-manager-text-color: #fff;
+	color: var(--site-manager-text-color);
+	overflow: auto;
+}
+
+.site-manager-sidebar-header {
+	display: flex;
+	padding: 16px 24px;
+	flex: 0 1 auto;
+	position: sticky;
+	top: 0;
+	left: 0;
+	background-color: var(--site-manager-background-color);
+}
+
+.site-manager-sidebar-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 16px;
+}
+
+.site-manager-sidebar-content {
+	flex: 1 1 auto;
+}
+
+.site-manager-sidebar-label {
+	color: #949494 !important;
+	text-transform: uppercase;
+	padding: 0 12px 8px;
+}
+
+.site-manager-sidebar-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	padding-right: 4px;
+}
+
+.site-manager-sidebar-item {
+	font-size: 13px;
+	font-weight: 510;
+	line-height: 20px;
+	color: var(--site-manager-text-color) !important;
+	text-align: left;
+	border-radius: 4px;
+	margin-bottom: 2px;
+}
+.site-manager-sidebar-item:hover,
+.site-manager-sidebar-item--selected {
+	color: var(--site-manager-text-color) !important;
+	background-color: #353535;
+}
+
+.site-manager-sidebar-item--selected:hover {
+	background-color: #545454;
+}
+
+.site-manager-sidebar-list-item--logo {
+	width: 24px;
+	height: 24px;
+}
+
+.site-manager-sidebar-item--site-name {
+	line-height: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.site-manager-sidebar-item--storage-icon {
+	flex-shrink: 0;
+}
+
+.site-manager-sidebar-logo-button {
+	cursor: pointer;
+	border: none;
+	background: none;
+	margin: 0;
+	height: 32px;
+	width: 32px;
+}
+
+.site-manager-sidebar-footer {
+	flex: 0 1 auto;
+}
+
+.site-manager-sidebar-footer-link,
+.site-manager-sidebar-footer-link:hover {
+	color: #fff !important;
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 20px;
+	text-decoration: none;
+}
+
+.site-manager-sidebar-footer-link-icon {
+	font-family: 'Inter', sans-serif;
+	font-size: 14px;
+	font-weight: 400;
+	vertical-align: middle;
+}

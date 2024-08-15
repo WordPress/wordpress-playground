@@ -18,7 +18,7 @@ interface UsePlaygroundOptions {
 export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
-	const started = useRef(false);
+	const started = useRef<string | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
 	const opfsHandle = useSelector(
 		(state: PlaygroundReduxState) => state.opfsMountDescriptor
@@ -28,7 +28,8 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 
 	useEffect(() => {
-		if (started.current) {
+		const remoteUrl = getRemoteUrl();
+		if (started.current === remoteUrl.toString()) {
 			return;
 		}
 		if (!iframe) {
@@ -39,9 +40,10 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 			}
 			return;
 		}
-		started.current = true;
 
 		async function doRun() {
+			started.current = remoteUrl.toString();
+
 			let isWordPressInstalled = false;
 			if (opfsHandle) {
 				isWordPressInstalled = await playgroundAvailableInOpfs(

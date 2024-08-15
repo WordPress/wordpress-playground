@@ -400,8 +400,9 @@ export async function deleteFile(
 ): Promise<GitHubTreeNode | undefined> {
 	const release = await blobSemaphore.acquire();
 	try {
-		// Deleting a non-existent file from a tree leads to an "GitRPC::BadObjectState" error,
-		// so we only attempt to delete the file if it exists.
+		// Deleting a non-existent file from a tree leads to an
+		// "GitRPC::BadObjectState" error, so we only attempt to delete the file if
+		// it exists.
 		await octokit.request('HEAD /repos/{owner}/{repo}/contents/:path', {
 			owner,
 			repo,

@@ -119,7 +119,11 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 				<>
 					We were unable to submit the error report. Please try again
 					or open an{' '}
-					<a href="https://github.com/WordPress/wordpress-playground/issues/">
+					<a
+						href="https://github.com/WordPress/wordpress-playground/issues/"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						issue on GitHub.
 					</a>
 				</>
@@ -128,7 +132,11 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 			return (
 				<>
 					Your report has been submitted to the{' '}
-					<a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">
+					<a
+						href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						Making WordPress #playground-logs Slack channel
 					</a>{' '}
 					and will be reviewed by the team.
@@ -138,7 +146,8 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	/**
-	 * Show the form if the error has not been submitted or if there was an error submitting it.
+	 * Show the form if the error has not been submitted or if there was an error
+	 * submitting it.
 	 *
 	 * @return {boolean}
 	 */

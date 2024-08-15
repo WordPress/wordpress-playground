@@ -1,4 +1,3 @@
-
 // @ts-ignore
 import url from './sqlite-database-integration.zip?url';
 
@@ -8,6 +7,5 @@ import url from './sqlite-database-integration.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export const size = 85175;
+export const size = 85211;
 export { url };
-

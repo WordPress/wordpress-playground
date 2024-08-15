@@ -9,28 +9,95 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v0.9.27] (2024-07-29) 
+## [v0.9.29] (2024-08-12)
 
-### Enhancements
+### Tools
 
-- Support offline mode after the first Playground page load. ([#1643](https://github.com/WordPress/wordpress-playground/pull/1643))
+-   Add max-len rule. ([#1613](https://github.com/WordPress/wordpress-playground/pull/1613))
 
-### Devrel
+### Experiments
 
-- Remove puzzle app package. ([#1642](https://github.com/WordPress/wordpress-playground/pull/1642))
+#### GitHub integration
+
+-   Add site manager view and sidebar. ([#1661](https://github.com/WordPress/wordpress-playground/pull/1661))
+-   Add sites from the site manager. ([#1680](https://github.com/WordPress/wordpress-playground/pull/1680))
 
 ### PHP WebAssembly
 
-- Cache Playground assets to enable offline support. ([#1535](https://github.com/WordPress/wordpress-playground/pull/1535))
-- Rotate PHP runtime after runtime crash. ([#1628](https://github.com/WordPress/wordpress-playground/pull/1628))
-- Throw error when PHP run() receives no code to run. ([#1646](https://github.com/WordPress/wordpress-playground/pull/1646))
+-   Offline mode end-to-end tests. ([#1648](https://github.com/WordPress/wordpress-playground/pull/1648))
+
+### Website
+
+-   Add nice redirects for the new documentation site. ([#1681](https://github.com/WordPress/wordpress-playground/pull/1681))
+-   Fix site manager button styles. ([#1676](https://github.com/WordPress/wordpress-playground/pull/1676))
+
+### Bug Fixes
+
+-   Revert "Offline mode end-to-end tests". ([#1673](https://github.com/WordPress/wordpress-playground/pull/1673))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak
+
+## [v0.9.28] (2024-08-05)
+
+### Blueprints
+
+-   Add support for loading wpCli without running blueprint steps. ([#1629](https://github.com/WordPress/wordpress-playground/pull/1629))
+
+### Documentation
+
+-   Blueprints: Add resetData step to documentation. ([#1658](https://github.com/WordPress/wordpress-playground/pull/1658))
+-   Docs: Redirect from /docs to https://wordpress.github.io/wordpress-playground. ([#1671](https://github.com/WordPress/wordpress-playground/pull/1671))
+
+### Website
+
+-   Suppress unavoidable Deprecated notices - Networking. ([#1660](https://github.com/WordPress/wordpress-playground/pull/1660))
+-   UI: Explain the Logs modal. ([#1666](https://github.com/WordPress/wordpress-playground/pull/1666))
+
+#### Blueprints
+
+-   Precompile Ajv Blueprint validator to avoid CSP issues. ([#1649](https://github.com/WordPress/wordpress-playground/pull/1649))
+
+### Internal
+
+-   Reinstantiate Changelog generation in GitHub CI. ([#1657](https://github.com/WordPress/wordpress-playground/pull/1657))
+
+### Various
+
+-   Rollback artifact creation to enable downloading a pre-built package …. ([#1624](https://github.com/WordPress/wordpress-playground/pull/1624))
+-   Update WordPress packages. ([#1672](https://github.com/WordPress/wordpress-playground/pull/1672))
+-   Update `ws` package version to fix DOS vulnerability. ([#1635](https://github.com/WordPress/wordpress-playground/pull/1635))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @PiotrPress
+
+## [v0.9.27] (2024-07-29)
+
+### Enhancements
+
+-   Support offline mode after the first Playground page load. ([#1643](https://github.com/WordPress/wordpress-playground/pull/1643))
+
+### Devrel
+
+-   Remove puzzle app package. ([#1642](https://github.com/WordPress/wordpress-playground/pull/1642))
+
+### PHP WebAssembly
+
+-   Cache Playground assets to enable offline support. ([#1535](https://github.com/WordPress/wordpress-playground/pull/1535))
+-   Rotate PHP runtime after runtime crash. ([#1628](https://github.com/WordPress/wordpress-playground/pull/1628))
+-   Throw error when PHP run() receives no code to run. ([#1646](https://github.com/WordPress/wordpress-playground/pull/1646))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @brandonpayton
-
 
 ## [v0.9.26] (2024-07-22)
 

@@ -9,7 +9,8 @@ export interface Client extends Remote<PHPWorker> {}
 /**
  * Resolves when the PHP API client is set.
  *
- * This allows us to wait for the PHP API client to be set before proxying service worker messages to the web worker.
+ * This allows us to wait for the PHP API client to be set before proxying
+ * service worker messages to the web worker.
  */
 let resolvePhpApi: (api: Client) => void;
 export const phpApiPromise = new Promise<Client>((resolve) => {
@@ -71,8 +72,8 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 	} catch (e) {
 		// registration.update() throws if it can't reach the server.
 		// We're swallowing the error to keep the app working in offline mode
-		// or when playground.wordpress.net is down. We can be sure we have a functional
-		// service worker at this point because sw.register() succeeded.
+		// or when playground.wordpress.net is down. We can be sure we have a
+		// functional service worker at this point because sw.register() succeeded.
 		logger.error('Failed to update service worker.', e);
 	}
 

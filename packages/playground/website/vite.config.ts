@@ -33,10 +33,10 @@ const proxy = {
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	return {
-		// Split traffic from this server on dev so that the iframe content and outer
-		// content can be served from the same origin. In production it's already
-		// the same host, but dev builds run two separate servers.
-		// See proxy config above.
+		// Split traffic from this server on dev so that the iframe content and
+		// outer content can be served from the same origin. In production it's
+		// already the same host, but dev builds run two separate servers. See proxy
+		// config above.
 		base: mode === 'production' ? '/' : '/website-server/',
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
@@ -58,8 +58,8 @@ export default defineConfig(({ command, mode }) => {
 			host: websiteDevServerHost,
 			proxy: {
 				...proxy,
-				// Proxy requests to the remote content through this server for dev builds.
-				// See base config below.
+				// Proxy requests to the remote content through this server for dev
+				// builds. See base config below.
 				'^[/]((?!website-server).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 				},
@@ -120,7 +120,8 @@ export default defineConfig(({ command, mode }) => {
 			} as Plugin,
 			/**
 			 * Add `manifest.json` file to the `dist/` directory when building.
-			 * While in development, modify the `manifest.json` file to use the local server URL.
+			 * While in development, modify the `manifest.json` file to use the local
+			 * server URL.
 			 */
 			addManifestJson({
 				manifestPath: path('./manifest.json'),

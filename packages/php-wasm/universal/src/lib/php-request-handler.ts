@@ -274,8 +274,8 @@ export class PHPRequestHandler {
 	 * dispatching it to the PHP runtime.
 	 *
 	 * The request() method mode behaves like a web server and only works if
-	 * the PHP was initialized with a `requestHandler` option (which the online version
-	 * of WordPress Playground does by default).
+	 * the PHP was initialized with a `requestHandler` option (which the online
+	 * version of WordPress Playground does by default).
 	 *
 	 * In the request mode, you pass an object containing the request information
 	 * (method, headers, body, etc.) and the path to the PHP file to run:
@@ -436,9 +436,9 @@ export class PHPRequestHandler {
 			200,
 			{
 				'content-length': [`${arrayBuffer.byteLength}`],
-				// @TODO: Infer the content-type from the arrayBuffer instead of the file path.
-				//        The code below won't return the correct mime-type if the extension
-				//        was tampered with.
+				// @TODO: Infer the content-type from the arrayBuffer instead of the
+				// file path. The code below won't return the correct mime-type if the
+				// extension was tampered with.
 				'content-type': [inferMimeType(fsPath)],
 				'accept-ranges': ['bytes'],
 				'cache-control': ['public, max-age=0'],

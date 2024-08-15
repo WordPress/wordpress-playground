@@ -61,8 +61,8 @@ async function run() {
 			' '
 		)} ${process.argv[1]}`;
 		// Naively replace the PHP binary with the PHP-WASM command
-		// @TODO: Don't process the command. Lean on the shell to do it, e.g. through
-		//        a PATH or an alias.
+		// @TODO: Don't process the command. Lean on the shell to do it, e.g.
+		// through a PATH or an alias.
 		const updatedCommand = command.replace(
 			/^(?:\\ |[^ ])*php\d?(\s|$)/,
 			phpWasmCommand + '$1'

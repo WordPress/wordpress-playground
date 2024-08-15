@@ -30,8 +30,9 @@ if (!(self as any).document) {
  *
  * This is necessary because service workers don't control any pages loaded
  * before they are activated. This includes the page that actually registers
- * the service worker. You need to reload it before `navigator.serviceWorker.controller`
- * is set and the fetch() requests are intercepted here.
+ * the service worker. You need to reload it before
+ * `navigator.serviceWorker.controller` is set and the fetch() requests are
+ * intercepted here.
  *
  * However, the initial Playground load already downloads a few large assets,
  * like a 12MB wordpress-static.zip file. We need to cache them these requests.
@@ -100,19 +101,21 @@ const cachePromise = OfflineModeCache.getInstance().then((cache) => {
 	/**
 	 * For offline mode to work we need to cache all required assets.
 	 *
-	 * These assets are listed in the `/assets-required-for-offline-mode.json` file
-	 * and contain JavaScript, CSS, and other assets required to load the site without
-	 * making any network requests.
+	 * These assets are listed in the `/assets-required-for-offline-mode.json`
+	 * file and contain JavaScript, CSS, and other assets required to load the
+	 * site without making any network requests.
 	 */
 	cache.cacheOfflineModeAssets();
 
 	/**
 	 * Remove outdated files from the cache.
 	 *
-	 * We cache data based on `buildVersion` which is updated whenever Playground is built.
-	 * So when a new version of Playground is deployed, the service worker will remove the old cache and cache the new assets.
+	 * We cache data based on `buildVersion` which is updated whenever Playground
+	 * is built. So when a new version of Playground is deployed, the service
+	 * worker will remove the old cache and cache the new assets.
 	 *
-	 * If your build version doesn't change while developing locally check `buildVersionPlugin` for more details on how it's generated.
+	 * If your build version doesn't change while developing locally check
+	 * `buildVersionPlugin` for more details on how it's generated.
 	 */
 	cache.removeOutdatedFiles();
 
@@ -174,7 +177,8 @@ initializeServiceWorker({
 				}
 				const request = await cloneRequest(event.request, {
 					url: resolvedUrl,
-					// Omit credentials to avoid causing cache aborts due to presence of cookies
+					// Omit credentials to avoid causing cache aborts due to presence of
+					// cookies
 					credentials: 'omit',
 				});
 				return fetch(request).catch((e) => {
@@ -266,9 +270,9 @@ initializeServiceWorker({
  * * Install Gutenberg from the plugin directory
  * * Upload a Gutenberg zip
  *
- * It's too difficult to patch Gutenberg in all these cases, so we blanket-patch
- * all the scripts requested over the network whose names seem to indicate they're
- * related to the Gutenberg plugin.
+ * It's too difficult to patch Gutenberg in all these cases, so we
+ * blanket-patch all the scripts requested over the network whose names seem to
+ * indicate they're related to the Gutenberg plugin.
  */
 const controlledIframe = `
 window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {

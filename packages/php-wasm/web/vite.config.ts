@@ -39,8 +39,9 @@ export default defineConfig(({ command }) => {
 			 * This workaround replaces the actual php_5_6.js modules paths used
 			 * in the dev mode with their filenames. Then, the filenames are marked
 			 * as external further down in this config. As a result, the final
-			 * bundle contains literal `import('php_5_6.js')` and `import('php_5_6.wasm')`
-			 * statements which allows the consumers to use their own loaders.
+			 * bundle contains literal `import('php_5_6.js')` and
+			 * `import('php_5_6.wasm')` statements which allows the consumers to use
+			 * their own loaders.
 			 *
 			 * This keeps the dev mode working AND avoids inlining 5mb of
 			 * wasm via base64 in the final bundle.

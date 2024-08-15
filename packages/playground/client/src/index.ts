@@ -152,13 +152,14 @@ export async function startPlaygroundWeb({
 }
 
 /**
- * Chrome does not allow Service Workers to be registered from cross-origin iframes
- * when third-party cookies are disabled unless `requestStorageAccess()` is called
- * and the user grants storage access.
+ * Chrome does not allow Service Workers to be registered from cross-origin
+ * iframes when third-party cookies are disabled unless
+ * `requestStorageAccess()` is called and the user grants storage access.
  *
  * However, sandboxed <iframe>s cannot be granted storage access by default for
- * security reasons. Therefore, we need to add the `allow-storage-access-by-user-activation`
- * flag to the iframe's sandbox attribute if it is not already present.
+ * security reasons. Therefore, we need to add the
+ * `allow-storage-access-by-user-activation` flag to the iframe's sandbox
+ * attribute if it is not already present.
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/Storage_Access_API
  */

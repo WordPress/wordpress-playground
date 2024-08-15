@@ -22,12 +22,12 @@ export default defineConfig({
 		{
 			name: 'use-correct-wp-data-file-url-in-vitest-environment',
 			/**
-			 * When ran inside the `wordpress` package, vitest resolves `wp-6-4.data?url`
-			 * as `/src/wordpress/wp-6-4.data?url`. However, when ran inside other packages,
-			 * it resolves as `/@fs/full/path/to/wp-6-4.data`.
+			 * When ran inside the `wordpress` package, vitest resolves
+			 * `wp-6-4.data?url` as `/src/wordpress/wp-6-4.data?url`. However, when ran
+			 * inside other packages, it resolves as `/@fs/full/path/to/wp-6-4.data`.
 			 *
-			 * This plugin ensures that the `wp-6-4.data` file is always consistently resolved
-			 * as the latter.
+			 * This plugin ensures that the `wp-6-4.data` file is always consistently
+			 * resolved as the latter.
 			 */
 			transform(code, id) {
 				if (id.match(new RegExp(`/wp-\\d.\\d\\.data\\?url`))) {

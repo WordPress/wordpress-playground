@@ -181,6 +181,41 @@ function playground_maybe_rewrite( $original_requested_path ) {
 }
 
 function playground_maybe_redirect( $requested_path ) {
+	if ( str_ends_with( $requested_path, '/docs' ) ) {
+		return array(
+			'location' => 'https://wordpress.github.io/wordpress-playground/',
+			'status' => 301
+		);
+	}
+
+	if ( str_ends_with( $requested_path, '/builder' ) ) {
+		return array(
+			'location' => 'https://playground.wordpress.net/builder/builder.html',
+			'status' => 301
+		);
+	}
+
+	if ( str_ends_with( $requested_path, '/wordpress' ) ) {
+		return array(
+			'location' => 'https://playground.wordpress.net/wordpress.html',
+			'status' => 301
+		);
+	}
+
+	if ( str_ends_with( $requested_path, '/gutenberg' ) ) {
+		return array(
+			'location' => 'https://playground.wordpress.net/gutenberg.html',
+			'status' => 301
+		);
+	}
+
+	if ( str_ends_with( $requested_path, '/proxy' ) ) {
+		return array(
+			'location' => 'https://github-proxy.com/',
+			'status' => 301
+		);
+	}
+
 	if ( str_ends_with( $requested_path, '/wordpress-browser.html' ) ) {
 		return array(
 			'location' => '/',

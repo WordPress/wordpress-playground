@@ -3,10 +3,9 @@ import {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 
-// We can't import the WordPress versions directly from the remote package because
-// of ESModules vs CommonJS incompatibilities. Let's just import the JSON file
-// directly.
-// @ts-ignore
+// We can't import the WordPress versions directly from the remote package
+// because of ESModules vs CommonJS incompatibilities. Let's just import the
+// JSON file directly. @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 import { Blueprint } from '@wp-playground/blueprints';
