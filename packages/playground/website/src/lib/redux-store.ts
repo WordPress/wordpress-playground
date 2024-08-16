@@ -1,5 +1,6 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { directoryHandleToOpfsPath } from '@wp-playground/storage';
+import type { MountDevice } from '@php-wasm/web';
 
 export type ActiveModal =
 	| 'error-report'
@@ -13,7 +14,7 @@ interface AppState {
 	activeModal: string | null;
 	offline: boolean;
 	opfsMountDescriptor?: {
-		opfsPath: string;
+		device: MountDevice;
 		mountpoint: string;
 	};
 }
@@ -40,7 +41,10 @@ if (query.get('storage') === 'browser') {
 	);
 
 	initialState.opfsMountDescriptor = {
-		opfsPath: await directoryHandleToOpfsPath(opfsDir),
+		device: {
+			type: 'opfs',
+			path: await directoryHandleToOpfsPath(opfsDir),
+		},
 		mountpoint: '/wordpress',
 	};
 }

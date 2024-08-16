@@ -1,14 +1,15 @@
-import { removeContentsFromOpfsPath } from '@wp-playground/storage';
+import { clearContentsFromMountDevice } from '@wp-playground/storage';
 import { PlaygroundConfiguration } from './form';
 import { logger } from '@php-wasm/logger';
+import { MountDevice } from '@php-wasm/web';
 
 export async function reloadWithNewConfiguration(
 	config: PlaygroundConfiguration,
-	opfsPath?: string
+	mountDevice?: MountDevice
 ) {
-	if (opfsPath && config.resetSite && config.storage === 'browser') {
+	if (mountDevice && config.resetSite && config.storage === 'browser') {
 		try {
-			await removeContentsFromOpfsPath(opfsPath);
+			await clearContentsFromMountDevice(mountDevice);
 		} catch (error) {
 			logger.error(error);
 		}

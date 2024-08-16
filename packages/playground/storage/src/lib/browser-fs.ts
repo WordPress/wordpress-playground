@@ -1,3 +1,15 @@
+import type { MountDevice } from '@php-wasm/web';
+
+export async function directoryHandleFromMountDevice(
+	device: MountDevice
+): Promise<FileSystemDirectoryHandle> {
+	if (device.type === 'local-fs') {
+		return device.handle;
+	}
+
+	return opfsPathToDirectoryHandle(device.path);
+}
+
 export async function opfsPathToDirectoryHandle(
 	opfsPath: string
 ): Promise<FileSystemDirectoryHandle> {
@@ -23,9 +35,8 @@ export async function directoryHandleToOpfsPath(
 	return '/' + pathParts.join('/');
 }
 
-export async function removeContentsFromOpfsPath(parentOpfsPath: string) {
-	const parentHandle = await opfsPathToDirectoryHandle(parentOpfsPath);
-
+export async function clearContentsFromMountDevice(mountDevice: MountDevice) {
+	const parentHandle = await directoryHandleFromMountDevice(mountDevice);
 	for await (const name of parentHandle.keys()) {
 		await parentHandle.removeEntry(name, {
 			recursive: true,

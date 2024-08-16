@@ -3,12 +3,12 @@ import { useSelector } from 'react-redux';
 import { usePlaygroundContext } from '../../playground-context';
 import Button from '../button';
 import { PlaygroundReduxState } from '../../lib/redux-store';
-import { removeContentsFromOpfsPath } from '@wp-playground/storage';
+import { clearContentsFromMountDevice } from '@wp-playground/storage';
 
 export function StartOverButton() {
 	const { storage } = usePlaygroundContext();
-	const opfsPath = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.opfsPath
+	const mountDevice = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.device
 	);
 	return (
 		<Button
@@ -21,10 +21,10 @@ export function StartOverButton() {
 					return;
 				}
 				if (
-					opfsPath &&
+					mountDevice &&
 					(storage === 'browser' || storage === 'device')
 				) {
-					await removeContentsFromOpfsPath(opfsPath);
+					await clearContentsFromMountDevice(mountDevice);
 				}
 				window.location.reload();
 			}}

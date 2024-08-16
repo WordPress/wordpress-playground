@@ -13,6 +13,7 @@ export { setupPostMessageRelay } from './setup-post-message-relay';
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
 export { createDirectoryHandleMountHandler } from './directory-handle-mount';
 export type {
+	MountDevice,
 	MountOptions,
 	SyncProgress,
 	SyncProgressCallback,

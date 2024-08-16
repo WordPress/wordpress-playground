@@ -29,6 +29,16 @@ declare global {
 	}
 }
 
+export type MountDevice =
+	| {
+			type: 'opfs';
+			path: string;
+	  }
+	| {
+			type: 'local-fs';
+			handle: FileSystemDirectoryHandle;
+	  };
+
 export interface MountOptions {
 	initialSync: {
 		direction?: 'opfs-to-memfs' | 'memfs-to-opfs';

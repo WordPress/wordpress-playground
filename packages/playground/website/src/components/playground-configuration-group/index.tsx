@@ -22,7 +22,7 @@ import {
 	PlaygroundReduxState,
 	setOpfsMountDescriptor,
 } from '../../lib/redux-store';
-import { directoryHandleToOpfsPath } from '@wp-playground/storage';
+import { MountDevice } from '@php-wasm/web';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -49,8 +49,8 @@ export default function PlaygroundConfigurationGroup({
 		isResolved: boolean;
 	}>();
 	const dispatch: PlaygroundDispatch = useDispatch();
-	const opfsPath = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.opfsPath
+	const mountDescriptor = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor
 	);
 	const { playground } = usePlaygroundContext();
 	useEffect(() => {
@@ -156,12 +156,11 @@ export default function PlaygroundConfigurationGroup({
 	) {
 		const playground = await playgroundRef.current!.promise;
 		const mountpoint = await playground.documentRoot;
-		dispatch(
-			setOpfsMountDescriptor({
-				opfsPath: await directoryHandleToOpfsPath(dirHandle),
-				mountpoint,
-			})
-		);
+		const device: MountDevice = {
+			type: 'local-fs',
+			handle: dirHandle,
+		};
+		dispatch(setOpfsMountDescriptor({ device, mountpoint }));
 		if (idb) {
 			await saveDirectoryHandle(idb, dirHandle);
 		}
@@ -186,8 +185,8 @@ export default function PlaygroundConfigurationGroup({
 
 			await playground.mountOpfs(
 				{
-					opfsPath: await directoryHandleToOpfsPath(dirHandle),
-					mountpoint: mountpoint,
+					device,
+					mountpoint,
 					initialSyncDirection: isPlaygroundDir
 						? 'opfs-to-memfs'
 						: 'memfs-to-opfs',
@@ -227,7 +226,7 @@ export default function PlaygroundConfigurationGroup({
 			}
 		}
 
-		reloadWithNewConfiguration(config, opfsPath);
+		reloadWithNewConfiguration(config, mountDescriptor?.device);
 	}
 	let WPLabel =
 		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
@@ -289,7 +288,7 @@ export default function PlaygroundConfigurationGroup({
 										...initialConfiguration,
 										storage: 'none',
 									},
-									opfsPath
+									mountDescriptor?.device
 								);
 							}}
 						>

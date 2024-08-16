@@ -1,4 +1,5 @@
 import {
+	MountDevice,
 	SyncProgressCallback,
 	createDirectoryHandleMountHandler,
 	exposeAPI,
@@ -14,7 +15,7 @@ import {
 	sqliteDatabaseIntegrationModuleDetails,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
-import { opfsPathToDirectoryHandle } from '@wp-playground/storage';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { randomString } from '@php-wasm/util';
 import {
 	spawnHandlerFactory,
@@ -59,7 +60,7 @@ const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 export interface MountDescriptor {
 	mountpoint: string;
-	opfsPath: string;
+	device: MountDevice;
 	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
 }
 
@@ -127,7 +128,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
-		const handle = await opfsPathToDirectoryHandle(options.opfsPath);
+		const handle = await directoryHandleFromMountDevice(options.device);
 		const php = this.__internal_getPHP()!;
 		this.unmounts[options.mountpoint] = await php.mount(
 			options.mountpoint,
@@ -290,8 +291,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				hooks: {
 					async beforeWordPressFiles(php) {
 						for (const mount of mounts) {
-							const handle = await opfsPathToDirectoryHandle(
-								mount.opfsPath
+							const handle = await directoryHandleFromMountDevice(
+								mount.device
 							);
 							const unmount = await php.mount(
 								mount.mountpoint,

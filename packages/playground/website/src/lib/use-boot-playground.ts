@@ -10,7 +10,7 @@ import {
 } from './redux-store';
 import { useDispatch, useSelector } from 'react-redux';
 import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
-import { opfsPathToDirectoryHandle } from '@wp-playground/storage';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -20,7 +20,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const iframe = iframeRef.current;
 	const started = useRef<string | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
-	const opfsHandle = useSelector(
+	const mountDescriptor = useSelector(
 		(state: PlaygroundReduxState) => state.opfsMountDescriptor
 	);
 	const [playground, setPlayground] = useState<PlaygroundClient>();
@@ -45,9 +45,9 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 			started.current = remoteUrl.toString();
 
 			let isWordPressInstalled = false;
-			if (opfsHandle) {
+			if (mountDescriptor) {
 				isWordPressInstalled = await playgroundAvailableInOpfs(
-					await opfsPathToDirectoryHandle(opfsHandle.opfsPath)
+					await directoryHandleFromMountDevice(mountDescriptor.device)
 				);
 			}
 
@@ -63,10 +63,10 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 						playgroundTmp = playground;
 						(window as any)['playground'] = playground;
 					},
-					mounts: opfsHandle
+					mounts: mountDescriptor
 						? [
 								{
-									...opfsHandle,
+									...mountDescriptor,
 									initialSyncDirection: 'opfs-to-memfs',
 								},
 						  ]
@@ -87,7 +87,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 		}
 		doRun();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [iframe, awaitedIframe, opfsHandle]);
+	}, [iframe, awaitedIframe, mountDescriptor]);
 
 	return { playground, url, iframeRef };
 }
