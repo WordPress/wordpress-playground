@@ -112,7 +112,7 @@ function Authenticate({
 							checked={exported}
 							onChange={() => setExported(!exported)}
 						/>
-						I exported my Playground as zip.
+						I understand, and I have exported my Playground as a zip if needed.
 					</label>
 				</>
 			) : null}
