@@ -7,7 +7,7 @@ import {
 } from '@wordpress/components';
 import css from './style.module.css';
 import { useEffect, useRef, useState } from '@wordpress/element';
-import { SiteInfo } from '../../../lib/site-storage';
+import { type SiteInfo } from '../../../lib/site-storage';
 import classNames from 'classnames';
 
 function generateUniqueName(defaultName: string, sites: SiteInfo[]) {
