@@ -58,9 +58,9 @@ export function SiteManagerSidebar({
 		(state: PlaygroundReduxState) => state.siteListing.sites
 	);
 
-	const addSite = (newName: string) => {
+	const addSite = async (newName: string) => {
 		const newSite = generateNewSiteFromName(newName);
-		store.dispatch(addSiteToStore(newSite.slug, newSite));
+		await store.dispatch(addSiteToStore(newSite));
 		onSiteClick(newSite.slug);
 	};
 

@@ -102,10 +102,10 @@ const slice = createSlice({
 		addSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.siteListing.sites.push(action.payload);
 		},
-		removeSite: (state, action: PayloadAction<string>) => {
-			const slugToRemove = action.payload;
+		removeSite: (state, action: PayloadAction<SiteInfo>) => {
+			const idToRemove = action.payload.id;
 			const siteIndex = state.siteListing.sites.findIndex(
-				(siteInfo) => siteInfo.slug === slugToRemove
+				(siteInfo) => siteInfo.id === idToRemove
 			);
 			if (siteIndex !== undefined) {
 				state.siteListing.sites.splice(siteIndex, 1);
@@ -118,22 +118,22 @@ const slice = createSlice({
 export const { setActiveModal } = slice.actions;
 
 // Redux thunk for adding a site
-export function addSite(slug: string, siteInfo: SiteInfo) {
+export function addSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
-		await addSiteToStorage(slug, siteInfo);
+		await addSiteToStorage(siteInfo);
 		dispatch(slice.actions.addSite(siteInfo));
 	};
 }
 
 // Redux thunk for removing a site
-export function removeSite(slug: string) {
+export function removeSite(site: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect removal in progress
-		await removeSiteFromStorage(slug);
-		dispatch(slice.actions.removeSite(slug));
+		await removeSiteFromStorage(site);
+		dispatch(slice.actions.removeSite(site));
 	};
 }
 
