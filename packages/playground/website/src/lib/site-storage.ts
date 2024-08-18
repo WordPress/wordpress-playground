@@ -90,9 +90,6 @@ export async function addSite(siteInfo: SiteInfo) {
 /**
  * Creates a top-level directory with the given name.
  *
- * This function attempts to create a new directory in the root OPFS storage.
- * If the directory already exists, it throws an error
- *
  * @param newDirName - The name of the new directory to be created.
  * @throws {Error} If the directory already exists.
  * @returns {Promise<void>} A promise that resolves when the directory is created.
@@ -133,8 +130,7 @@ export async function removeSite(site: SiteInfo) {
 /**
  * List all sites from client storage.
  *
- * @returns {Promise<SiteInfo[]>} A promise that resolves to an array of SiteInfo objects
- * representing the sites stored in the OPFS.
+ * @returns {Promise<SiteInfo[]>} A promise for the list of sites from client storage.
  * @throws {Error} If there is an issue accessing the OPFS or reading site information.
  * @returns {Promise<SiteInfo[]>} A promise for a list of SiteInfo objects.
  */
