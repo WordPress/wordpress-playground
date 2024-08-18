@@ -130,35 +130,14 @@ export async function removeSite(site: SiteInfo) {
 	await opfsRoot.removeEntry(siteDirectoryName, { recursive: true });
 }
 
-function looksLikeSiteDirectory(name: string) {
-	return name === 'wordpress' || name.startsWith('site-');
-}
-
-function getDirectoryNameForSite(site: SiteInfo) {
-	const { slug } = site;
-	return slug === 'wordpress' ? slug : `site-${slug}`;
-}
-
-function getSlugFromDirectoryName(dirName: string) {
-	if (dirName === 'wordpress') {
-		return dirName;
-	}
-
-	return looksLikeSiteDirectory(dirName)
-		? dirName.substring('site-'.length)
-		: undefined;
-}
-
-function getFallbackSiteNameFromSlug(slug: string) {
-	return (
-		slug
-			.replaceAll('-', ' ')
-			/* capital P dangit */
-			.replace(/wordpress/i, 'WordPress')
-			.replaceAll(/\b\w/g, (s) => s.toUpperCase())
-	);
-}
-
+/**
+ * List all sites from client storage.
+ *
+ * @returns {Promise<SiteInfo[]>} A promise that resolves to an array of SiteInfo objects
+ * representing the sites stored in the OPFS.
+ * @throws {Error} If there is an issue accessing the OPFS or reading site information.
+ * @returns {Promise<SiteInfo[]>} A promise for a list of SiteInfo objects.
+ */
 export async function listSites(): Promise<SiteInfo[]> {
 	const opfsRoot = await navigator.storage.getDirectory();
 	const opfsSites: SiteInfo[] = [];
@@ -181,13 +160,19 @@ export async function listSites(): Promise<SiteInfo[]> {
 	return opfsSites;
 }
 
-export async function readSiteFromDirectory(
+/**
+ * Reads information for a single site from a given directory.
+ *
+ * @param dir - The directory handle from which to read the site information.
+ * @returns {Promise<SiteInfo>} A promise for the site information.
+ * @throws {Error} If there is an issue accessing the metadata file or parsing its contents.
+ */
+async function readSiteFromDirectory(
 	dir: FileSystemDirectoryHandle
-): Promise<SiteInfo | undefined> {
+): Promise<SiteInfo> {
 	const slug = getSlugFromDirectoryName(dir.name);
 	if (slug === undefined) {
-		// TODO: Warn
-		return undefined;
+		throw new Error(`Invalid site directory name: '${dir.name}'.`);
 	}
 
 	try {
@@ -217,6 +202,35 @@ export async function readSiteFromDirectory(
 			throw e;
 		}
 	}
+}
+
+function looksLikeSiteDirectory(name: string) {
+	return name === 'wordpress' || name.startsWith('site-');
+}
+
+function getDirectoryNameForSite(site: SiteInfo) {
+	const { slug } = site;
+	return slug === 'wordpress' ? slug : `site-${slug}`;
+}
+
+function getSlugFromDirectoryName(dirName: string) {
+	if (dirName === 'wordpress') {
+		return dirName;
+	}
+
+	return looksLikeSiteDirectory(dirName)
+		? dirName.substring('site-'.length)
+		: undefined;
+}
+
+function getFallbackSiteNameFromSlug(slug: string) {
+	return (
+		slug
+			.replaceAll('-', ' ')
+			/* capital P dangit */
+			.replace(/wordpress/i, 'WordPress')
+			.replaceAll(/\b\w/g, (s) => s.toUpperCase())
+	);
 }
 
 function deriveDefaultSite(slug: string): SiteInfo {
