@@ -1,3 +1,11 @@
+/**
+ * This worker module exists to allow writing file content to OPFS from the
+ * main browser thread. Today (2024-08-17), Safari only appears to support
+ * writing to OPFS via createSyncAccessHandle(), and that is only supported
+ * within dedicated workers.
+ *
+ * This worker exists so non-worker threads can trigger writing to OPFS files.
+ */
 onmessage = async function (event: MessageEvent) {
 	const filePath: string = event.data.path;
 	const content: string = event.data.content;

@@ -13,22 +13,34 @@ import {
 import { type Blueprint } from '@wp-playground/blueprints';
 import metadataWorkerUrl from './site-storage-metadata-worker?worker&url';
 
-// NOTE: We are using different storage terms than our query API in order
-// to be more explicit about storage medium in the site metadata format.
-// The key "browser" doesn't describe what kind of storage,
-// and the key ""
+// TODO: Decide on metadata filename
+const SITE_METADATA_FILENAME = 'playground-site-metadata.json';
+
+/**
+ * The supported site storage types.
+ *
+ * NOTE: We are using different storage terms than our query API in order
+ * to be more explicit about storage medium in the site metadata format.
+ */
 export type SiteStorageType = 'temporary' | 'opfs' | 'local-fs';
 
-// TODO: Explore better ways of obtaining site logos
+/**
+ * The site logo data.
+ */
 export type SiteLogo = {
 	mime: string;
 	data: string;
 };
 
-// TODO: Move this type to @php-wasm/web
+/**
+ * The supported PHP extension bundles.
+ */
 export type PhpExtensionBundle = 'light' | 'kitchen-sink';
 
 // TODO: Create a schema for this as the design matures
+/**
+ * The Site metadata that is persisted.
+ */
 interface SiteMetadata {
 	id: string;
 	name: string;
@@ -48,17 +60,25 @@ interface SiteMetadata {
 	originalBlueprint?: Blueprint;
 }
 
+/**
+ * The Site model used to represent a site within Playground.
+ */
 export interface SiteInfo extends SiteMetadata {
 	storage: SiteStorageType;
 	slug: string;
 }
 
-// TODO: Decide on metadata filename
-const SITE_METADATA_FILENAME = 'playground-site-metadata.json';
-
+/**
+ * Adds a new site to the Playground site storage.
+ *
+ * This function creates a new site directory and writes the site metadata.
+ * Currently, only 'opfs' sites are supported.
+ *
+ * @param siteInfo - The information about the site to be added.
+ * @throws {Error} If a site with the given slug already exists.
+ * @returns {Promise<void>} A promise that resolves when the site is added.
+ */
 export async function addSite(siteInfo: SiteInfo) {
-	// TODO: Make sure site with given slug doesn't already exist
-
 	if (siteInfo.storage === 'opfs') {
 		const newSiteDirName = getDirectoryNameForSite(siteInfo);
 		await createTopLevelDirectory(newSiteDirName);
@@ -67,6 +87,16 @@ export async function addSite(siteInfo: SiteInfo) {
 	}
 }
 
+/**
+ * Creates a top-level directory with the given name.
+ *
+ * This function attempts to create a new directory in the root OPFS storage.
+ * If the directory already exists, it throws an error
+ *
+ * @param newDirName - The name of the new directory to be created.
+ * @throws {Error} If the directory already exists.
+ * @returns {Promise<void>} A promise that resolves when the directory is created.
+ */
 async function createTopLevelDirectory(newDirName: string) {
 	const root = await navigator.storage.getDirectory();
 
@@ -85,6 +115,15 @@ async function createTopLevelDirectory(newDirName: string) {
 	await root.getDirectoryHandle(newDirName, { create: true });
 }
 
+/**
+ * Removes a site from the Playground site storage.
+ *
+ * This function deletes the directory associated with the given site from OPFS.
+ *
+ * @param site - The information about the site to be removed.
+ * @throws {Error} If the directory cannot be found or removed.
+ * @returns {Promise<void>} A promise that resolves when the site is removed.
+ */
 export async function removeSite(site: SiteInfo) {
 	const opfsRoot = await navigator.storage.getDirectory();
 	const siteDirectoryName = getDirectoryNameForSite(site);
@@ -193,7 +232,7 @@ function deriveDefaultSite(slug: string): SiteInfo {
 	};
 }
 
-export async function writeSiteMetadata(site: SiteInfo) {
+async function writeSiteMetadata(site: SiteInfo) {
 	const metadata = getSiteMetadataFromSiteInfo(site);
 	const metadataJson = JSON.stringify(metadata, undefined, '  ');
 	const siteDirName = getDirectoryNameForSite(site);
