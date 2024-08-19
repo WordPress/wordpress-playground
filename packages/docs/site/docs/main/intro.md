@@ -33,6 +33,8 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 
 -   **[About Playground](./about/index.md)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
 
+    Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/test) your products.
+
 -   **[Guides](./guides/)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
 
 -   **[Contributing](./contributing/)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
