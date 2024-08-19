@@ -41,7 +41,7 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 			Theme not found at the provided theme path: ${themeFolderPath}.
 			Check the theme path to ensure it's correct.
 			If the theme is not installed, you can install it using the installTheme step.
-			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints-api/steps/#ActivateThemeStep
+			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints/steps/#ActivateThemeStep
 		`);
 	}
 	const result = await playground.run({

@@ -361,7 +361,7 @@ export function PlaygroundConfigurationForm({
 							</select>
 							<br />
 							<a
-								href="https://wordpress.github.io/wordpress-playground/blueprints-api/examples#load-an-older-wordpress-version"
+								href="https://wordpress.github.io/wordpress-playground/blueprints/examples#load-an-older-wordpress-version"
 								target="_blank"
 								rel="noreferrer"
 								style={{ fontSize: '0.9em' }}
