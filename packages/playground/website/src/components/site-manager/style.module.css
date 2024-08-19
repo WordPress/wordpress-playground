@@ -8,8 +8,7 @@ body {
 .site-manager {
 	height: 100vh;
 	overflow: hidden;
-	border: var(--site-manager-border-width) solid
-		var(--site-manager-background-color);
+	padding: var(--site-manager-border-width);
 	background-color: var(--site-manager-background-color);
 	background-image: url(../../../public/site-manager-background.svg);
 	background-position: bottom left;

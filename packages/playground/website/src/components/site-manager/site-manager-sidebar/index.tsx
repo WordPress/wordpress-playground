@@ -15,6 +15,7 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { AddSiteButton } from '../add-site-button';
 
 // TODO: move types to site storage
 // TODO: Explore better ways of obtaining site logos
@@ -22,7 +23,7 @@ type SiteLogo = {
 	mime: string;
 	data: string;
 };
-type Site = {
+export type Site = {
 	slug: string;
 	name: string;
 	logo?: SiteLogo;
@@ -40,6 +41,21 @@ export function SiteManagerSidebar({
 	onSiteClick: (siteSlug?: string) => void;
 }) {
 	const [sites, setSites] = useState<Site[]>([]);
+
+	const generateSiteFromSlug = (slug: string): Site => {
+		let name = slug.replaceAll('-', ' ');
+		name = name.charAt(0).toUpperCase() + name.slice(1);
+		/**
+		 * Ensure WordPress is spelt correctly in the UI.
+		 */
+		name = name.replace(/wordpress/i, 'WordPress');
+
+		return {
+			slug,
+			name,
+			storage: 'browser',
+		};
+	};
 
 	/**
 	 * TODO: This is a temporary solution to get the sites from the OPFS.
@@ -59,18 +75,31 @@ export function SiteManagerSidebar({
 					 * and it doesn't have a prefix.
 					 */
 					const slug = entry.name.replace(/^site-/, '');
-					const name = slug.charAt(0).toUpperCase() + slug.slice(1);
-					opfsSites.push({
-						slug,
-						name,
-						storage: 'browser',
-					});
+					opfsSites.push(generateSiteFromSlug(slug));
 				}
 			}
 			setSites(opfsSites);
 		};
 		getVirtualOpfsRoot();
 	}, []);
+
+	const addSite = (newName: string) => {
+		/**
+		 * Generate a slug from the site name.
+		 * TODO: remove this when site storage is implemented.
+		 * In site storage slugs will be generated automatically.
+		 */
+		const newSlug = newName.replaceAll(' ', '-');
+		/**
+		 * If the site name already exists, we won't need to add it again.
+		 * TODO: remove this check when site storage is implemented.
+		 * In site storage we won't be limited to having unique site names.
+		 */
+		if (!sites.some((site) => site.slug === newSlug)) {
+			setSites([...sites, generateSiteFromSlug(newSlug)]);
+		}
+		onSiteClick(newSlug);
+	};
 
 	const resources = [
 		{
@@ -111,7 +140,13 @@ export function SiteManagerSidebar({
 				</Heading>
 				<MenuGroup className={css.siteManagerSidebarList}>
 					{sites.map((site) => {
-						const isSelected = site.slug === siteSlug;
+						/**
+						 * The `wordpress` site is selected when no site slug is provided.
+						 */
+						const isSelected =
+							site.slug === siteSlug ||
+							(siteSlug === undefined &&
+								site.slug === 'wordpress');
 						return (
 							<MenuItem
 								key={site.slug}
@@ -189,6 +224,7 @@ export function SiteManagerSidebar({
 					))}
 				</ItemGroup>
 			</footer>
+			<AddSiteButton onAddSite={addSite} sites={sites} />
 		</NavigableMenu>
 	);
 }

@@ -23,6 +23,7 @@
 			}
 
 			body.has-error {
+				padding: 15px;
 				background: #f1f1f1;
 				display: flex;
 				flex-direction: column;
@@ -38,6 +39,7 @@
 			}
 			body.has-error button {
 				margin-top: 15px;
+				margin-bottom: 15px;
 				font-size: 20px;
 				padding: 5px 10px;
 				cursor: pointer;
@@ -86,101 +88,137 @@
 				document.body.className = 'has-error';
 				document.body.innerHTML = '';
 
+				if (e?.name === 'NotSupportedError') {
+					document.body.append(await renderStorageErrorUI());
+				} else {
+					document.body.append(renderGenericErrorUI(e));
+				}
+			} finally {
+				document.body.classList.remove('is-loading');
+			}
+
+			function renderGenericErrorUI(error) {
+				const fragment = document.createDocumentFragment();
+
 				const div = document.createElement('div');
 				div.className = 'error-message';
 				const userFriendlyMessage =
-					e?.userFriendlyMessage ||
+					error.userFriendlyMessage ||
 					'See the developer tools for error details.';
 				div.innerHTML =
 					'Ooops! WordPress Playground had a hiccup! <br/><br/> ' +
 					userFriendlyMessage;
-				document.body.append(div);
+				fragment.append(div);
 
 				const button = document.createElement('button');
 				button.innerText = 'Try again';
 				button.onclick = () => {
 					window.location.reload();
 				};
-				if (e?.name === 'NotSupportedError') {
-					/**
-					 * Chrome does not allow Service Workers to be registered from cross-origin iframes
-					 * when third-party cookies are disabled unless `requestStorageAccess()` is called
-					 * and the user grants storage access.
-					 *
-					 * Let's assess the situation and provide a helpful message.
-					 */
-					let hasStorageAccess = false;
-					try {
-						const { state } = await navigator.permissions.query({
-							name: 'storage-access',
-						});
-						hasStorageAccess = state === 'granted';
-					} catch (e) {
-						// noop
-					}
+				fragment.append(button);
 
-					if (
-						hasStorageAccess ||
-						!('requestStorageAccess' in document)
-					) {
-						// The user has granted storage access, but the error still persists.
-						// Let's explain why.
-						div.innerText =
-							'It looks like you have disabled third-party cookies in your browser. This ' +
-							'also disables the Service Worker API used by WordPress Playground. Please re-enable ' +
-							'third-party cookies and try again.';
-					} else {
-						// The user has not granted storage access.
-						// There's a chance we can fix this by asking for storage access.
-						div.innerText =
-							'WordPress Playground needs to use storage in your browser';
-						button.innerText = 'Allow storage access';
-						button.onclick = async () => {
-							try {
-								await document.requestStorageAccess();
-								window.location.reload();
-							} catch (e) {
-								// Either the user denied storage access OR chrome is not allowing
-								// storage access to be requested from an iframe for some reason.
+				const reportIssues = document.createElement('p');
+				reportIssues.innerHTML = `
+					If the problem persists, please
+					<a href="https://github.com/WordPress/playground-tools/issues/new"
+						target="_blank"
+						>report an issue on GitHub</a>.
+				`;
+				fragment.append(reportIssues);
 
-								// The two errors are indistinguishable and just say "requestStorageAccess not allowed"
-								// https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/dom/document.cc;drc=daf56cfa413f10dee6aa15b0b1e4572fcf5578df;l=462
-								// It's confusing! But we can at least tell the user what to do.
-								div.innerHTML = `
-									<p>
-										Oops! Playground failed to start. Here's what to do:
-									</p>
-									
-									<h3>Did you disable third-party cookies?</h3>
-									<p>
-										It also disables the required Service Worker API. Please re-enable 
-										third-party cookies and try again.
-									</p>
+				return fragment;
+			}
 
-									<h3>Did you refuse to grant Playground storage access?</h3>
-									<p>
-										Click the button below and grant storage access. Note the button may 
-										not work if you have disabled third-party cookies in your browser.
-									</p>
-									`;
-								const reportIssues =
-									document.createElement('p');
-								reportIssues.innerHTML = `
-									If neither method helped, please 
-									<a href="https://github.com/WordPress/playground-tools/issues/new"
-									   target="_blank">
-										report an issue on GitHub
-									</a>.
-								`;
-								document.body.append(reportIssues);
-							}
-						};
-					}
+			async function renderStorageErrorUI() {
+				const fragment = document.createDocumentFragment();
+
+				/**
+				 * Chrome does not allow Service Workers to be registered from cross-origin iframes
+				 * when third-party cookies are disabled unless `requestStorageAccess()` is called
+				 * and the user grants storage access.
+				 *
+				 * Let's assess the situation and provide a helpful message.
+				 */
+				let hasStorageAccess = false;
+				try {
+					const { state } = await navigator.permissions.query({
+						name: 'storage-access',
+					});
+					hasStorageAccess = state === 'granted';
+				} catch (e) {
+					// noop
 				}
 
-				document.body.append(button);
-			} finally {
-				document.body.classList.remove('is-loading');
+				if (hasStorageAccess || !('requestStorageAccess' in document)) {
+					const div = document.createElement('div');
+
+					// The user has granted storage access, but the error still persists.
+					// Let's explain why.
+					div.innerText =
+						'It looks like you have disabled third-party cookies in your browser. This ' +
+						'also disables the Service Worker API used by WordPress Playground. Please re-enable ' +
+						'third-party cookies and try again.';
+					fragment.append(div);
+
+					const button = document.createElement('button');
+					button.innerText = 'Try again';
+					button.onclick = () => {
+						window.location.reload();
+					};
+					fragment.append(button);
+				} else {
+					const div = document.createElement('div');
+
+					// The user has not granted storage access.
+					// There's a chance we can fix this by asking for storage access.
+					div.innerText =
+						'WordPress Playground needs to use storage in your browser.';
+					fragment.append(div);
+
+					const button = document.createElement('button');
+					button.innerText = 'Allow storage access';
+					fragment.append(button);
+
+					button.onclick = async () => {
+						try {
+							await document.requestStorageAccess();
+							window.location.reload();
+						} catch (e) {
+							// Either the user denied storage access OR chrome is not allowing
+							// storage access to be requested from an iframe for some reason.
+
+							// The two errors are indistinguishable and just say "requestStorageAccess not allowed"
+							// https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/dom/document.cc;drc=daf56cfa413f10dee6aa15b0b1e4572fcf5578df;l=462
+							// It's confusing! But we can at least tell the user what to do.
+							div.innerHTML = `
+								<p>
+									Oops! Playground failed to start. Here's what to do:
+								</p>
+
+								<h3>Did you disable third-party cookies?</h3>
+								<p>
+									It also disables the required Service Worker API. Please re-enable
+									third-party cookies and try again.
+								</p>
+
+								<h3>Did you refuse to grant Playground storage access?</h3>
+								<p>
+									Click the button below and grant storage access. Note the button may
+									not work if you have disabled third-party cookies in your browser.
+								</p>
+								<p>
+									If neither method helped, please
+									<a href="https://github.com/WordPress/playground-tools/issues/new"
+										target="_blank">
+										report an issue on GitHub
+									</a>.
+								</p>
+								`;
+						}
+					};
+				}
+
+				return fragment;
 			}
 		</script>
 	</body>
