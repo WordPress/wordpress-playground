@@ -26,7 +26,7 @@ export function ResetSiteMenuItem({ onClose, storage }: Props) {
 					return;
 				}
 				if (mountDescriptor && opfsStorages.includes(storage)) {
-					clearContentsFromMountDevice(mountDescriptor.device);
+					await clearContentsFromMountDevice(mountDescriptor.device);
 				}
 				window.location.reload();
 				onClose();
