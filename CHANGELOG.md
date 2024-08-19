@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v0.9.30] (2024-08-19)
+
+### Website
+
+-   Ask users to report errors if Playground load fails. ([#1686](https://github.com/WordPress/wordpress-playground/pull/1686))
+
+### Bug Fixes
+
+-   Avoid Blueprint schema formatting changes by build. ([#1685](https://github.com/WordPress/wordpress-playground/pull/1685))
+
+### Various
+
+-   [Website] Improves the messaging around exporting a zip if needed, when connecting to GitHub. ([#1689](https://github.com/WordPress/wordpress-playground/pull/1689))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @jonathanbossenger
+
 ## [v0.9.29] (2024-08-12)
 
 ### Tools
