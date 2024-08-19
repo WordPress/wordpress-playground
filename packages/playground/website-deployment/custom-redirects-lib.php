@@ -188,7 +188,12 @@ function playground_maybe_redirect( $requested_path ) {
 		);
 	}
 
-	if ( str_ends_with( $requested_path, '/builder' ) ) {
+	if (
+		// Since `/builder/` is an actual directory,
+		// nginx redirects requests for `/builder` to `/builder/`.
+		str_ends_with( $requested_path, '/builder/' ) ||
+		str_ends_with( $requested_path, '/builder/index.php' )
+	) {
 		return array(
 			'location' => 'https://playground.wordpress.net/builder/builder.html',
 			'status' => 301
