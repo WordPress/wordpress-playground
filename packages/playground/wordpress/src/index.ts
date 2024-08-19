@@ -173,10 +173,16 @@ export async function preloadSqliteIntegration(
 	await php.mkdir('/tmp/sqlite-database-integration');
 	await unzipFile(php, sqliteZip, '/tmp/sqlite-database-integration');
 	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
-	await php.mv(
-		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
-		SQLITE_PLUGIN_FOLDER
-	);
+
+	const temporarySqlitePluginFolder = (await php.isDir(
+		'/tmp/sqlite-database-integration/sqlite-database-integration-main'
+	))
+		? // This is the name when the dev branch used to be called "main"
+		  '/tmp/sqlite-database-integration/sqlite-database-integration-main'
+		: // This is the name today when the dev branch is called "develop"
+		  '/tmp/sqlite-database-integration/sqlite-database-integration-develop';
+	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
+
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
