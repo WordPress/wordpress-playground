@@ -69,22 +69,41 @@ export interface SiteInfo extends SiteMetadata {
 }
 
 /**
+ * The initial information used to create a new site.
+ */
+export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug'>;
+
+/**
+ * Create a new site info structure from initial configuration.
+ *
+ * @param initialInfo The starting configuration for the site.
+ * @returns SiteInfo The new site info structure.
+ */
+export function createNewSiteInfo(initialInfo: InitialSiteInfo): SiteInfo {
+	return {
+		id: crypto.randomUUID(),
+		slug: deriveSlugFromSiteName(initialInfo.name),
+		...initialInfo,
+	};
+}
+
+/**
  * Adds a new site to the Playground site storage.
  *
  * This function creates a new site directory and writes the site metadata.
  * Currently, only 'opfs' sites are supported.
  *
- * @param siteInfo - The information about the site to be added.
+ * @param initialInfo - The information about the site to be added.
  * @throws {Error} If a site with the given slug already exists.
- * @returns {Promise<void>} A promise that resolves when the site is added.
+ * @returns {Promise<SiteInfo>} A promise that resolves when the site is added.
  */
-export async function addSite(siteInfo: SiteInfo) {
-	if (siteInfo.storage === 'opfs') {
-		const newSiteDirName = getDirectoryNameForSite(siteInfo);
-		await createTopLevelDirectory(newSiteDirName);
+export async function addSite(newSiteInfo: SiteInfo): Promise<SiteInfo> {
+	const newSiteDirName = getDirectoryNameForSlug(newSiteInfo.slug);
+	await createTopLevelDirectory(newSiteDirName);
 
-		await writeSiteMetadata(siteInfo);
-	}
+	await writeSiteMetadata(newSiteInfo);
+
+	return newSiteInfo;
 }
 
 /**
@@ -123,7 +142,7 @@ async function createTopLevelDirectory(newDirName: string) {
  */
 export async function removeSite(site: SiteInfo) {
 	const opfsRoot = await navigator.storage.getDirectory();
-	const siteDirectoryName = getDirectoryNameForSite(site);
+	const siteDirectoryName = getDirectoryNameForSlug(site.slug);
 	await opfsRoot.removeEntry(siteDirectoryName, { recursive: true });
 }
 
@@ -204,8 +223,7 @@ function looksLikeSiteDirectory(name: string) {
 	return name === 'wordpress' || name.startsWith('site-');
 }
 
-function getDirectoryNameForSite(site: SiteInfo) {
-	const { slug } = site;
+function getDirectoryNameForSlug(slug: string) {
 	return slug === 'wordpress' ? slug : `site-${slug}`;
 }
 
@@ -217,6 +235,10 @@ function getSlugFromDirectoryName(dirName: string) {
 	return looksLikeSiteDirectory(dirName)
 		? dirName.substring('site-'.length)
 		: undefined;
+}
+
+function deriveSlugFromSiteName(name: string) {
+	return name.toLowerCase().replaceAll(' ', '-');
 }
 
 function getFallbackSiteNameFromSlug(slug: string) {
@@ -245,7 +267,7 @@ function deriveDefaultSite(slug: string): SiteInfo {
 async function writeSiteMetadata(site: SiteInfo) {
 	const metadata = getSiteMetadataFromSiteInfo(site);
 	const metadataJson = JSON.stringify(metadata, undefined, '  ');
-	const siteDirName = getDirectoryNameForSite(site);
+	const siteDirName = getDirectoryNameForSlug(site.slug);
 	await writeOpfsContent(
 		`/${siteDirName}/${SITE_METADATA_FILENAME}`,
 		metadataJson

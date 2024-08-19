@@ -16,34 +16,10 @@ import store, {
 	PlaygroundReduxState,
 	addSite as addSiteToStore,
 } from '../../../lib/redux-store';
-import type { SiteLogo, SiteInfo } from '../../../lib/site-storage';
+import { type SiteLogo, createNewSiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
-
-function generateNewSiteFromName(name: string): SiteInfo {
-	/**
-	 * Ensure WordPress is capitalized correctly in the UI.
-	 */
-	name = name.replace(/wordpress/i, 'WordPress');
-
-	/**
-	 * Generate a slug from the site name.
-	 * TODO: remove this when site storage is implemented.
-	 * In site storage slugs will be generated automatically.
-	 */
-	const slug = name.toLowerCase().replaceAll(' ', '-');
-
-	return {
-		id: crypto.randomUUID(),
-		slug,
-		name,
-		storage: 'opfs',
-		wpVersion: LatestSupportedWordPressVersion,
-		phpVersion: LatestSupportedPHPVersion,
-		phpExtensionBundle: 'kitchen-sink',
-	};
-}
 
 export function SiteManagerSidebar({
 	className,
@@ -58,10 +34,16 @@ export function SiteManagerSidebar({
 		(state: PlaygroundReduxState) => state.siteListing.sites
 	);
 
-	const addSite = async (newName: string) => {
-		const newSite = generateNewSiteFromName(newName);
-		await store.dispatch(addSiteToStore(newSite));
-		onSiteClick(newSite.slug);
+	const addSite = async (name: string) => {
+		const newSiteInfo = createNewSiteInfo({
+			name,
+			storage: 'opfs',
+			wpVersion: LatestSupportedWordPressVersion,
+			phpVersion: LatestSupportedPHPVersion,
+			phpExtensionBundle: 'kitchen-sink',
+		});
+		await store.dispatch(addSiteToStore(newSiteInfo));
+		onSiteClick(newSiteInfo.slug);
 	};
 
 	const resources = [
