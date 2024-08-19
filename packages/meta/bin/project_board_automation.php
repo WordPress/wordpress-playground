@@ -38,7 +38,11 @@ foreach($automation->iterateProjectItems() as $projectItem) {
             continue;
         }
 
-        if ($automation->addNeedsAuthorReplyLabelToANewItemWithThatStatus($projectItem)) {
+        if (
+            // TODO: Replace this with explicit permissions check if that is possible.
+            $projectItem['content']['repository']['nameWithOwner'] !== 'WordPress/wporg-theme-directory' &&
+            $automation->addNeedsAuthorReplyLabelToANewItemWithThatStatus($projectItem)
+        ) {
             echo "– Adding \"Need Author's reply\" label to: $humanIssueName\n";
             continue;
         }
