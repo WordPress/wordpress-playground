@@ -14,7 +14,7 @@ const args = parser.argv;
 
 const outputZipPath = `${args.outputDir}/sqlite-database-integration.zip`;
 const sqliteResponse = await fetch(
-	'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip'
+	'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/develop.zip'
 );
 const sqliteZip = Buffer.from(await sqliteResponse.arrayBuffer());
 await fs.writeFile(outputZipPath, sqliteZip);
