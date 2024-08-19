@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Button from '../button';
 import { usePlaygroundContext } from '../../playground-context';
 import { useSelector } from 'react-redux';
-import { PlaygroundReduxState } from '../../lib/redux-store';
+import { type PlaygroundReduxState } from '../../lib/redux-store';
 
 export function SyncLocalFilesButton() {
 	const { playground, currentUrl } = usePlaygroundContext();
