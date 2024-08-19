@@ -45,7 +45,6 @@ import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-n
 import { LogModal } from '../log-modal';
 import { ErrorReportModal } from '../error-report-modal';
 import { StartErrorModal } from '../start-error-modal';
-import { MountMarkdownDirectoryModal } from '../mount-markdown-directory-modal';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 import { logTrackingEvent } from '../../lib/tracking';
 import { StorageType } from '../../types';
@@ -64,8 +63,6 @@ function Modals(blueprint: Blueprint) {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
-	} else if (currentModal === 'mount-markdown-directory') {
-		return <MountMarkdownDirectoryModal />;
 	}
 
 	return null;

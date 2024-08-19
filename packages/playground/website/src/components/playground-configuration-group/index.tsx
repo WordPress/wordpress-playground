@@ -16,6 +16,13 @@ import { OPFSButton } from './opfs-button';
 import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
 import { usePlaygroundContext } from '../../playground-context';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setOpfsMountDescriptor,
+} from '../../lib/redux-store';
+import { MountDevice } from '@php-wasm/web';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -41,6 +48,10 @@ export default function PlaygroundConfigurationGroup({
 		resolve: any;
 		isResolved: boolean;
 	}>();
+	const dispatch: PlaygroundDispatch = useDispatch();
+	const mountDescriptor = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+	);
 	const { playground } = usePlaygroundContext();
 	useEffect(() => {
 		if (!playgroundRef.current) {
@@ -66,7 +77,7 @@ export default function PlaygroundConfigurationGroup({
 	>({});
 
 	useEffect(() => {
-		playground?.getSupportedWordPressVersions().then(({ all, latest }) => {
+		playground?.getMinifiedWordPressVersions().then(({ all, latest }) => {
 			const formOptions: Record<string, string> = {};
 			for (const version of Object.keys(all)) {
 				if (version === 'beta') {
@@ -144,6 +155,12 @@ export default function PlaygroundConfigurationGroup({
 		dirHandle: FileSystemDirectoryHandle
 	) {
 		const playground = await playgroundRef.current!.promise;
+		const mountpoint = await playground.documentRoot;
+		const device: MountDevice = {
+			type: 'local-fs',
+			handle: dirHandle,
+		};
+		dispatch(setOpfsMountDescriptor({ device, mountpoint }));
 		if (idb) {
 			await saveDirectoryHandle(idb, dirHandle);
 		}
@@ -162,10 +179,14 @@ export default function PlaygroundConfigurationGroup({
 				}
 			}
 
-			await playground.bindOpfs(
+			if (await playground.hasOpfsMount(mountpoint)) {
+				await playground.unmountOpfs(mountpoint);
+			}
+
+			await playground.mountOpfs(
 				{
-					opfs: dirHandle,
-					mountpoint: '/wordpress',
+					device,
+					mountpoint,
 					initialSyncDirection: isPlaygroundDir
 						? 'opfs-to-memfs'
 						: 'memfs-to-opfs',
@@ -195,9 +216,6 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const hasPlayground = playgroundRef.current?.isResolved;
-		const playground = hasPlayground
-			? await playgroundRef.current!.promise
-			: undefined;
 		if (hasPlayground && config.resetSite && config.storage === 'browser') {
 			if (
 				!window.confirm(
@@ -208,7 +226,7 @@ export default function PlaygroundConfigurationGroup({
 			}
 		}
 
-		reloadWithNewConfiguration(config, playground);
+		reloadWithNewConfiguration(config, mountDescriptor?.device);
 	}
 	let WPLabel =
 		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
@@ -270,7 +288,7 @@ export default function PlaygroundConfigurationGroup({
 										...initialConfiguration,
 										storage: 'none',
 									},
-									playground
+									mountDescriptor?.device
 								);
 							}}
 						>

@@ -23,7 +23,7 @@ export const phpApiPromise = new Promise<Client>((resolve) => {
  * @param {Client} api The PHP API client.
  *
  */
-export function setPhpApi(api: Client) {
+export function setPhpInstanceUsedByServiceWorker(api: Client) {
 	if (!api) {
 		throw new PhpWasmError('PHP API client must be a valid client object.');
 	}

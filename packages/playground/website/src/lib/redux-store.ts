@@ -1,8 +1,6 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import {
-	directoryHandleResolve,
-	directoryHandleDone,
-} from './markdown-directory-handle';
+import { directoryHandleToOpfsPath } from '@wp-playground/storage';
+import type { MountDevice } from '@php-wasm/web';
 
 export type ActiveModal =
 	| 'error-report'
@@ -15,6 +13,10 @@ export type ActiveModal =
 interface AppState {
 	activeModal: string | null;
 	offline: boolean;
+	opfsMountDescriptor?: {
+		device: MountDevice;
+		mountpoint: string;
+	};
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -28,37 +30,65 @@ const initialState: AppState = {
 	offline: !navigator.onLine,
 };
 
-if (initialState.activeModal !== 'mount-markdown-directory') {
-	directoryHandleResolve(null);
+if (query.get('storage') === 'browser') {
+	const siteSlug = query.get('site-slug') || 'wordpress';
+	const opfsRoot = await navigator.storage.getDirectory();
+	const opfsDir = await opfsRoot.getDirectoryHandle(
+		siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,
+		{
+			create: true,
+		}
+	);
+
+	initialState.opfsMountDescriptor = {
+		device: {
+			type: 'opfs',
+			path: await directoryHandleToOpfsPath(opfsDir),
+		},
+		mountpoint: '/wordpress',
+	};
 }
 
 // Create the slice
 const slice = createSlice({
 	name: 'app',
 	initialState,
+	selectors: {
+		getOpfsHandle: (state) => state.opfsMountDescriptor,
+	},
 	reducers: {
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
-			if (
-				!directoryHandleDone &&
-				state.activeModal === 'mount-markdown-directory' &&
-				action.payload !== 'mount-markdown-directory'
-			) {
-				directoryHandleResolve(null);
-			}
 			state.activeModal = action.payload;
 		},
 		setOfflineStatus: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
+		setOpfsMountDescriptor: (
+			state,
+			action: PayloadAction<AppState['opfsMountDescriptor']>
+		) => {
+			state.opfsMountDescriptor = action.payload;
+		},
 	},
 });
 
 // Export actions
-export const { setActiveModal } = slice.actions;
+export const { setActiveModal, setOpfsMountDescriptor } = slice.actions;
 
 // Configure store
 const store = configureStore({
 	reducer: slice.reducer,
+	middleware: (getDefaultMiddleware) =>
+		getDefaultMiddleware({
+			serializableCheck: {
+				// Ignore these action types
+				ignoredActions: ['setOpfsMountDescriptor'],
+				// Ignore these field paths in all actions
+				ignoredActionPaths: ['payload.handle'],
+				// Ignore these paths in the state
+				ignoredPaths: ['opfsMountDescriptor.handle'],
+			},
+		}),
 });
 
 function setupOnlineOfflineListeners(dispatch: PlaygroundDispatch) {

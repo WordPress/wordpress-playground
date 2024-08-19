@@ -6,17 +6,17 @@ import { PlaygroundConfiguration } from './components/playground-configuration-g
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
-import { Provider } from 'react-redux';
 import { SiteView } from './components/site-view/site-view';
-import store from './lib/redux-store';
 import { StorageTypes, StorageType } from './types';
 import { SiteManager } from './components/site-manager';
 import { useBootPlayground } from './lib/use-boot-playground';
+import { Provider } from 'react-redux';
+import { useEffect, useRef, useState } from '@wordpress/element';
+import store from './lib/redux-store';
 import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
 } from '@wordpress/components';
-import { useEffect, useRef, useState } from '@wordpress/element';
 
 collectWindowErrors(logger);
 
@@ -75,11 +75,7 @@ function Main() {
 		}
 	}, [siteSlug]);
 
-	const { playground, url, iframeRef } = useBootPlayground({
-		blueprint,
-		storage,
-		siteSlug,
-	});
+	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
 
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
