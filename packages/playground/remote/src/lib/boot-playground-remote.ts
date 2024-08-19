@@ -1,11 +1,7 @@
-import {
-	LatestSupportedPHPVersion,
-	MessageListener,
-	SupportedPHPExtensionsList,
-} from '@php-wasm/universal';
+import { MessageListener } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
-	setPhpApi,
+	setPhpInstanceUsedByServiceWorker,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
@@ -13,7 +9,12 @@ import {
 	SyncProgressCallback,
 } from '@php-wasm/web';
 
-import type { PlaygroundWorkerEndpoint } from './worker-thread';
+import type {
+	PlaygroundWorkerEndpoint,
+	WorkerBootOptions,
+	MountDescriptor,
+} from './worker-thread';
+export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
 import ProgressBar, { ProgressBarOptions } from './progress-bar';
 
@@ -29,8 +30,6 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
-import type { BindOpfsOptions } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -58,55 +57,30 @@ export async function bootPlaygroundRemote() {
 		document.body.prepend(bar.element);
 	}
 
-	const wpVersion = parseVersion(
-		query.get('wp'),
-		LatestSupportedWordPressVersion
-	);
-	const phpVersion = parseVersion(
-		query.get('php'),
-		LatestSupportedPHPVersion
-	);
-	const phpExtensions = parseList(
-		query.getAll('php-extension'),
-		SupportedPHPExtensionsList
-	);
-	const withNetworking = query.get('networking') === 'yes';
-	const sapiName = query.get('sapi-name') || undefined;
-
 	const scope = Math.random().toFixed(16);
 	await registerServiceWorker(scope, serviceWorkerUrl + '');
 
-	const phpApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl, {
-			wpVersion,
-			phpVersion,
-			['php-extension']: phpExtensions,
-			networking: withNetworking ? 'yes' : 'no',
-			storage: query.get('storage') || '',
-			...(sapiName ? { sapiName } : {}),
-			'site-slug': query.get('site-slug') || 'wordpress',
-			scope,
-		})
+	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
+		await spawnPHPWorkerThread(workerUrl)
 	);
-	// Set PHP API in the service worker
-	setPhpApi(phpApi);
+	setPhpInstanceUsedByServiceWorker(phpWorkerApi);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const webApi: WebClientMixin = {
+	const phpRemoteApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
-			return phpApi.onDownloadProgress(fn);
+			return phpWorkerApi.onDownloadProgress(fn);
 		},
 		async journalFSEvents(root: string, callback) {
-			return phpApi.journalFSEvents(root, callback);
+			return phpWorkerApi.journalFSEvents(root, callback);
 		},
 		async replayFSJournal(events: FilesystemOperation[]) {
-			return phpApi.replayFSJournal(events);
+			return phpWorkerApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await phpApi.addEventListener(event, listener);
+			return await phpWorkerApi.addEventListener(event, listener);
 		},
 		async removeEventListener(event, listener) {
-			return await phpApi.removeEventListener(event, listener);
+			return await phpWorkerApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
@@ -191,19 +165,30 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async onMessage(callback: MessageListener) {
-			return await phpApi.onMessage(callback);
+			return await phpWorkerApi.onMessage(callback);
 		},
+
 		/**
 		 * Ditto for this function.
 		 * @see onMessage
 		 * @param callback
 		 * @returns
 		 */
-		async bindOpfs(
-			options: BindOpfsOptions,
+		async mountOpfs(
+			options: MountDescriptor,
 			onProgress?: SyncProgressCallback
 		) {
-			return await phpApi.bindOpfs(options, onProgress);
+			return await phpWorkerApi.mountOpfs(options, onProgress);
+		},
+
+		/**
+		 * Ditto for this function.
+		 * @see onMessage
+		 * @param mountpoint
+		 * @returns
+		 */
+		async unmountOpfs(mountpoint: string) {
+			return await phpWorkerApi.unmountOpfs(mountpoint);
 		},
 
 		/**
@@ -211,7 +196,7 @@ export async function bootPlaygroundRemote() {
 		 * @see backfillStaticFilesRemovedFromMinifiedBuild in the worker-thread.ts
 		 */
 		async backfillStaticFilesRemovedFromMinifiedBuild() {
-			await phpApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			await phpWorkerApi.backfillStaticFilesRemovedFromMinifiedBuild();
 		},
 
 		/**
@@ -219,81 +204,90 @@ export async function bootPlaygroundRemote() {
 		 * available in the request cache.
 		 */
 		async hasCachedStaticFilesRemovedFromMinifiedBuild() {
-			return await phpApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
+			return await phpWorkerApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
+		},
+
+		async boot(options) {
+			await phpWorkerApi.boot({
+				...options,
+				scope,
+			});
+
+			try {
+				await phpWorkerApi.isReady();
+
+				setupPostMessageRelay(
+					wpFrame,
+					getOrigin((await playground.absoluteUrl)!)
+				);
+
+				if (options.withNetworking) {
+					await setupFetchNetworkTransport(phpWorkerApi);
+				}
+
+				setAPIReady();
+			} catch (e) {
+				setAPIError(e as Error);
+				throw e;
+			}
+
+			/**
+			 * When we're running WordPress from a minified bundle, we're missing some static assets.
+			 * The section below backfills them if needed. It doesn't do anything if the assets are already
+			 * in place, or when WordPress is loaded from a non-minified bundle.
+			 *
+			 * Minified bundles are shipped without most static assets to reduce the bundle size and
+			 * the loading time. When WordPress loads for the first time, the browser parses all the
+			 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
+			 *
+			 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
+			 *
+			 * Below we're downloading a zipped bundle of the missing assets.
+			 */
+			if (
+				await phpRemoteApi.hasCachedStaticFilesRemovedFromMinifiedBuild()
+			) {
+				/**
+				 * If we already have the static assets in the cache, the backfilling only
+				 * involves unzipping the archive. This is fast. Let's do it before the first
+				 * render.
+				 *
+				 * Why?
+				 *
+				 * Because otherwise the initial offline page render would lack CSS.
+				 * Without the static assets in /wordpress/wp-content, the browser would
+				 * attempt to fetch them from the server. However, we're in an offline mode
+				 * so nothing would be fetched.
+				 */
+				await phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			} else {
+				/**
+				 * If we don't have the static assets in the cache, we need to fetch them.
+				 *
+				 * Let's wait for the initial page load before we start the backfilling.
+				 * The static assets are 12MB+ in size. Starting the download before
+				 * Playground is loaded would noticeably delay the first paint.
+				 */
+				wpFrame.addEventListener('load', () => {
+					phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
+				});
+			}
 		},
 	};
 
-	await phpApi.isConnected();
+	await phpWorkerApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
 	// cannot be cloned. Adding a transfer handler for functions
 	// doesn't help:
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
-	// @TODO: Handle the callback conversion automatically and don't explicitly
-	// re-expose the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, phpApi);
-
-	try {
-		await phpApi.isReady();
-
-		setupPostMessageRelay(
-			wpFrame,
-			getOrigin((await playground.absoluteUrl)!)
-		);
-		setupMountListener(playground);
-		if (withNetworking) {
-			await setupFetchNetworkTransport(phpApi);
-		}
-
-		setAPIReady();
-	} catch (e) {
-		setAPIError(e as Error);
-		throw e;
-	}
-
-	/**
-	 * When we're running WordPress from a minified bundle, we're missing some
-	 * static assets. The section below backfills them if needed. It doesn't do
-	 * anything if the assets are already in place, or when WordPress is loaded
-	 * from a non-minified bundle.
-	 *
-	 * Minified bundles are shipped without most static assets to reduce the
-	 * bundle size and the loading time. When WordPress loads for the first time,
-	 * the browser parses all the <script src="">, <link href="">, etc. tags and
-	 * fetches the missing assets from the server.
-	 *
-	 * Unfortunately, fetching these assets on demand wouldn't work in an offline
-	 * mode.
-	 *
-	 * Below we're downloading a zipped bundle of the missing assets.
-	 */
-	if (await webApi.hasCachedStaticFilesRemovedFromMinifiedBuild()) {
-		/**
-		 * If we already have the static assets in the cache, the backfilling only
-		 * involves unzipping the archive. This is fast. Let's do it before the first
-		 * render.
-		 *
-		 * Why?
-		 *
-		 * Because otherwise the initial offline page render would lack CSS.
-		 * Without the static assets in /wordpress/wp-content, the browser would
-		 * attempt to fetch them from the server. However, we're in an offline mode
-		 * so nothing would be fetched.
-		 */
-		await webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-	} else {
-		/**
-		 * If we don't have the static assets in the cache, we need to fetch them.
-		 *
-		 * Let's wait for the initial page load before we start the backfilling.
-		 * The static assets are 12MB+ in size. Starting the download before
-		 * Playground is loaded would noticeably delay the first paint.
-		 */
-		wpFrame.addEventListener('load', () => {
-			webApi.backfillStaticFilesRemovedFromMinifiedBuild();
-		});
-	}
+	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
+	//        the onDownloadProgress method
+	const [setAPIReady, setAPIError, playground] = exposeAPI(
+		phpRemoteApi,
+		phpWorkerApi
+	);
 
 	/*
 	 * An assertion to make sure Playground Client is compatible
@@ -304,41 +298,6 @@ export async function bootPlaygroundRemote() {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
-}
-
-function setupMountListener(playground: WebClientMixin) {
-	window.addEventListener('message', async (event) => {
-		if (typeof event.data !== 'object') {
-			return;
-		}
-		if (event.data.type !== 'mount-directory-handle') {
-			return;
-		}
-		if (typeof event.data.directoryHandle !== 'object') {
-			return;
-		}
-		if (!event.data.mountpoint) {
-			return;
-		}
-		await playground.bindOpfs({
-			opfs: event.data.directoryHandle,
-			mountpoint: event.data.mountpoint,
-		});
-	});
-}
-
-function parseVersion<T>(value: string | undefined | null, latest: T) {
-	if (!value || value === 'latest') {
-		return latest as string;
-	}
-	return value;
-}
-
-function parseList<T>(value: string[], list: readonly T[]) {
-	if (!value) {
-		return [];
-	}
-	return value.filter((item) => list.includes(item as any));
 }
 
 /**

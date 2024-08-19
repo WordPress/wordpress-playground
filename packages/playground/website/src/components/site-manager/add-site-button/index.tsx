@@ -17,7 +17,7 @@ export function AddSiteButton({
 	onAddSite: (siteName: string) => void;
 	sites: Site[];
 }) {
-	const defaultName = 'My site';
+	const defaultName = 'My Site';
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [siteName, setSiteName] = useState<string | undefined>(defaultName);
 	const addSiteButtonRef = useRef<HTMLFormElement>(null);

@@ -2,19 +2,19 @@ export { getWordPressModuleDetails } from './wordpress/get-wordpress-module-deta
 export { getWordPressModule } from './wordpress/get-wordpress-module';
 export * as sqliteDatabaseIntegrationModuleDetails from './sqlite-database-integration/get-sqlite-database-plugin-details';
 export { getSqliteDatabaseModule } from './sqlite-database-integration/get-sqlite-database-module';
-import SupportedWordPressVersions from './wordpress/wp-versions.json';
+import MinifiedWordPressVersions from './wordpress/wp-versions.json';
 
-export { SupportedWordPressVersions };
-export const SupportedWordPressVersionsList = Object.keys(
-	SupportedWordPressVersions
+export { MinifiedWordPressVersions };
+export const MinifiedWordPressVersionsList = Object.keys(
+	MinifiedWordPressVersions
 ) as any as string[];
-export const LatestSupportedWordPressVersion =
-	SupportedWordPressVersionsList.filter((v) => v.match(/^\d/))[0] as string;
+export const LatestMinifiedWordPressVersion =
+	MinifiedWordPressVersionsList.filter((v) => v.match(/^\d/))[0] as string;
 
 export function wpVersionToStaticAssetsDirectory(
 	wpVersion: string
 ): string | undefined {
-	return wpVersion in SupportedWordPressVersions
+	return wpVersion in MinifiedWordPressVersions
 		? `wp-${wpVersion}`
 		: undefined;
 }

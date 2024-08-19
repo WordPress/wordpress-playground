@@ -226,16 +226,21 @@ export async function bootWordPress(options: BootOptions) {
 }
 
 async function isWordPressInstalled(php: PHP) {
-	return (
-		(
-			await php.run({
-				code: `<?php
-	require '${php.documentRoot}/wp-load.php';
-	echo is_blog_installed() ? '1' : '0';
-	`,
-			})
-		).text === '1'
-	);
+	const result = await php.run({
+		code: `<?php
+$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+if (!file_exists($wp_load)) {
+	echo '0';
+	exit;
+}
+require $wp_load;
+echo is_blog_installed() ? '1' : '0';
+`,
+		env: {
+			DOCUMENT_ROOT: php.documentRoot,
+		},
+	});
+	return result.text === '1';
 }
 
 async function installWordPress(php: PHP) {

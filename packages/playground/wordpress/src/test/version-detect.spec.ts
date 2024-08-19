@@ -1,5 +1,5 @@
 import {
-	SupportedWordPressVersions,
+	MinifiedWordPressVersions,
 	getSqliteDatabaseModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
@@ -14,7 +14,7 @@ import {
 
 describe('Test WP version detection', async () => {
 	for (const expectedWordPressVersion of Object.keys(
-		SupportedWordPressVersions
+		MinifiedWordPressVersions
 	)) {
 		it(`detects WP ${expectedWordPressVersion} at runtime`, async () => {
 			const handler = await bootWordPress({

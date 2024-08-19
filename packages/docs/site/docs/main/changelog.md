@@ -9,19 +9,19 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v0.9.30] (2024-08-19) 
+## [v0.9.30] (2024-08-19)
 
 ### Website
 
-- Ask users to report errors if Playground load fails. ([#1686](https://github.com/WordPress/wordpress-playground/pull/1686))
+-   Ask users to report errors if Playground load fails. ([#1686](https://github.com/WordPress/wordpress-playground/pull/1686))
 
 ### Bug Fixes
 
-- Avoid Blueprint schema formatting changes by build. ([#1685](https://github.com/WordPress/wordpress-playground/pull/1685))
+-   Avoid Blueprint schema formatting changes by build. ([#1685](https://github.com/WordPress/wordpress-playground/pull/1685))
 
 ### Various
 
-- [Website] Improves the messaging around exporting a zip if needed, when connecting to GitHub. ([#1689](https://github.com/WordPress/wordpress-playground/pull/1689))
+-   [Website] Improves the messaging around exporting a zip if needed, when connecting to GitHub. ([#1689](https://github.com/WordPress/wordpress-playground/pull/1689))
 
 ### Contributors
 
@@ -29,40 +29,37 @@ The following contributors merged PRs in this release:
 
 @brandonpayton @jonathanbossenger
 
-
-## [v0.9.29] (2024-08-12) 
+## [v0.9.29] (2024-08-12)
 
 ### Tools
 
-- Add max-len rule. ([#1613](https://github.com/WordPress/wordpress-playground/pull/1613))
+-   Add max-len rule. ([#1613](https://github.com/WordPress/wordpress-playground/pull/1613))
 
 ### Experiments
 
-
 #### GitHub integration
 
-- Add site manager view and sidebar. ([#1661](https://github.com/WordPress/wordpress-playground/pull/1661))
-- Add sites from the site manager. ([#1680](https://github.com/WordPress/wordpress-playground/pull/1680))
+-   Add site manager view and sidebar. ([#1661](https://github.com/WordPress/wordpress-playground/pull/1661))
+-   Add sites from the site manager. ([#1680](https://github.com/WordPress/wordpress-playground/pull/1680))
 
 ### PHP WebAssembly
 
-- Offline mode end-to-end tests. ([#1648](https://github.com/WordPress/wordpress-playground/pull/1648))
+-   Offline mode end-to-end tests. ([#1648](https://github.com/WordPress/wordpress-playground/pull/1648))
 
 ### Website
 
-- Add nice redirects for the new documentation site. ([#1681](https://github.com/WordPress/wordpress-playground/pull/1681))
-- Fix site manager button styles. ([#1676](https://github.com/WordPress/wordpress-playground/pull/1676))
+-   Add nice redirects for the new documentation site. ([#1681](https://github.com/WordPress/wordpress-playground/pull/1681))
+-   Fix site manager button styles. ([#1676](https://github.com/WordPress/wordpress-playground/pull/1676))
 
 ### Bug Fixes
 
-- Revert "Offline mode end-to-end tests". ([#1673](https://github.com/WordPress/wordpress-playground/pull/1673))
+-   Revert "Offline mode end-to-end tests". ([#1673](https://github.com/WordPress/wordpress-playground/pull/1673))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak
-
 
 ## [v0.9.28] (2024-08-05)
 
