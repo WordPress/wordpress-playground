@@ -103,7 +103,7 @@ const config = {
 				schedule: 'every 1 day',
 			},
 			navbar: {
-				title: 'Playground',
+				title: 'WordPress Playground',
 				logo: {
 					alt: 'WordPress Playground',
 					src: 'img/wordpress.svg',
@@ -112,20 +112,32 @@ const config = {
 				items: [
 					{
 						type: 'docSidebar',
-						sidebarId: 'tutorialSidebar',
+						sidebarId: 'mainSidebar',
 						position: 'left',
 						label: 'Documentation',
+					},
+					{
+						type: 'docSidebar',
+						sidebarId: 'blueprintsSidebar',
+						position: 'left',
+						label: 'Blueprints',
+					},
+					{
+						type: 'docSidebar',
+						sidebarId: 'developersSidebar',
+						position: 'left',
+						label: 'Developers',
 					},
 					{
 						to: 'api',
 						label: 'API Reference',
 						position: 'left',
 					},
-					{
-						href: 'https://playground.wordpress.net/gutenberg.html',
-						label: 'Gutenberg PR Previewer',
-						position: 'right',
-					},
+					// {
+					// 	href: 'https://playground.wordpress.net/gutenberg.html',
+					// 	label: 'Gutenberg PR Previewer',
+					// 	position: 'right',
+					// },
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
@@ -149,6 +161,14 @@ const config = {
 							{
 								label: 'Documentation',
 								to: '/',
+							},
+							{
+								label: 'Blueprints',
+								to: '/blueprints',
+							},
+							{
+								label: 'Developers',
+								to: '/developers',
 							},
 							{
 								label: 'API Reference',
