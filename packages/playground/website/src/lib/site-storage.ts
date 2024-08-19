@@ -120,8 +120,13 @@ async function createTopLevelDirectory(newDirName: string) {
 	try {
 		await root.getDirectoryHandle(newDirName);
 		directoryAlreadyExists = true;
-	} catch (e) {
-		directoryAlreadyExists = false;
+	} catch (e: any) {
+		if (e?.name === 'NotFoundError') {
+			throw e;
+			directoryAlreadyExists = false;
+		} else {
+			throw e;
+		}
 	}
 
 	if (directoryAlreadyExists) {
