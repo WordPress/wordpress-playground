@@ -116,3 +116,51 @@ iframe {
 	display: block;
 	height: auto;
 }
+
+.navbar__link--active {
+	background-color: var(--ifm-color-primary);
+	color: white;
+}
+
+[data-theme='dark'] .navbar__link--active {
+	color: black;
+}
+
+a.navbar__link--active:hover {
+	color: white;
+}
+
+[data-theme='dark'] a.navbar__link--active:hover {
+	color: black;
+}
+
+.docs-hubs + ul li a {
+	padding: 0.2rem;
+}
+
+.docs-hubs + ul li a:hover {
+	background-color: var(--ifm-color-primary);
+	color: white;
+	text-decoration: none;
+}
+
+[data-theme='dark'] .docs-hubs + ul li a:hover {
+	color: black;
+}
+
+#customize-playground + p > img,
+#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests
+	+ p
+	> img {
+	max-width: 50%;
+	border: 1px solid #bebebe;
+}
+
+#playground-options-menu + p > img {
+	max-width: 30%;
+	border: 1px solid #bebebe;
+}
+
+#list-resources-redirections a {
+	font-weight: normal;
+}
