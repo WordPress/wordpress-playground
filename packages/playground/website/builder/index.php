@@ -1,3 +1,9 @@
+<?php
+	/**
+	 * This file exists so nginx invokes PHP and custom-redirects.php to give 
+	 * us a chance to redirect the URI `/builder` to `/builder/builder.html`.
+	 */
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
