@@ -1,5 +1,6 @@
 import { SiteManagerSidebar } from './site-manager-sidebar';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import store, { selectSite } from '../../lib/redux-store';
 
 import css from './style.module.css';
 
@@ -26,7 +27,7 @@ export function SiteManager({
 		);
 	};
 
-	const onSiteClick = (siteSlug?: string) => {
+	const onSiteClick = async (siteSlug: string) => {
 		onSiteChange(siteSlug);
 		const url = new URL(window.location.href);
 		if (siteSlug) {
@@ -35,6 +36,11 @@ export function SiteManager({
 			url.searchParams.delete('site-slug');
 		}
 		window.history.pushState({}, '', url.toString());
+
+		await store.dispatch(
+			// TODO: Decide about default
+			selectSite(siteSlug)
+		);
 
 		/**
 		 * On mobile, the site editor and site preview are hidden.
