@@ -37,7 +37,7 @@ export interface Mount {
 
 async function run() {
 	/**
-	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/query-api
+	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
 	 *       Perhaps the two could be handled by the same code?
 	 */
 	const yargsObject = await yargs(process.argv.slice(2))
