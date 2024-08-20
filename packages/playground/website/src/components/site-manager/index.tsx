@@ -37,10 +37,7 @@ export function SiteManager({
 		}
 		window.history.pushState({}, '', url.toString());
 
-		await store.dispatch(
-			// TODO: Decide about default
-			selectSite(siteSlug)
-		);
+		await store.dispatch(selectSite(siteSlug));
 
 		/**
 		 * On mobile, the site editor and site preview are hidden.
