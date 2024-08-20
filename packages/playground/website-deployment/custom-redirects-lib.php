@@ -23,7 +23,7 @@ function playground_handle_request() {
 		? function ( $str ) { error_log( "PLAYGROUND: $str" ); }
 		: function () {};
 
-	$log( "Handling request for '${_SERVER['REQUEST_URI']}'" );
+	$log( "Handling request for '{$_SERVER['REQUEST_URI']}'" );
 
 	$url = parse_url( $_SERVER['REQUEST_URI'] );
 	if ( false === $url ) {
@@ -70,8 +70,8 @@ function playground_handle_request() {
 			}
 
 			if ( $should_redirect ) {
-				$log( "Redirecting to '${redirect['location']}' with status '${redirect['status']}'" );
-				header( "Location: ${redirect['location']}" );
+				$log( "Redirecting to '{$redirect['location']}' with status '{$redirect['status']}'" );
+				header( "Location: {$redirect['location']}" );
 				http_response_code( $redirect['status'] );
 				die();
 			}
@@ -188,7 +188,12 @@ function playground_maybe_redirect( $requested_path ) {
 		);
 	}
 
-	if ( str_ends_with( $requested_path, '/builder' ) ) {
+	if (
+		// Since `/builder/` is an actual directory,
+		// nginx redirects requests for `/builder` to `/builder/`.
+		str_ends_with( $requested_path, '/builder/' ) ||
+		str_ends_with( $requested_path, '/builder/index.php' )
+	) {
 		return array(
 			'location' => 'https://playground.wordpress.net/builder/builder.html',
 			'status' => 301

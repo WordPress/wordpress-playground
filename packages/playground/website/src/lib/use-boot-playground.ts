@@ -3,25 +3,26 @@ import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getRemoteUrl } from './config';
 import { logger } from '@php-wasm/logger';
-import { PlaygroundDispatch, setActiveModal } from './redux-store';
-import { useDispatch } from 'react-redux';
-import { directoryHandle } from './markdown-directory-handle';
-import { joinPaths } from '@php-wasm/util';
+import {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveModal,
+} from './redux-store';
+import { useDispatch, useSelector } from 'react-redux';
+import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	storage?: 'browser' | 'device' | 'none';
-	siteSlug?: string;
 }
-export function useBootPlayground({
-	blueprint,
-	storage,
-	siteSlug,
-}: UsePlaygroundOptions) {
+export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef<string | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
+	const mountDescriptor = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+	);
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
 	const dispatch: PlaygroundDispatch = useDispatch();
@@ -40,53 +41,53 @@ export function useBootPlayground({
 			return;
 		}
 
-		if (storage) {
-			remoteUrl.searchParams.set('storage', storage);
-		}
+		async function doRun() {
+			started.current = remoteUrl.toString();
 
-		started.current = remoteUrl.toString();
+			let isWordPressInstalled = false;
+			if (mountDescriptor) {
+				isWordPressInstalled = await playgroundAvailableInOpfs(
+					await directoryHandleFromMountDevice(mountDescriptor.device)
+				);
+			}
 
-		let playgroundTmp: PlaygroundClient | undefined = undefined;
-		startPlaygroundWeb({
-			iframe,
-			remoteUrl: remoteUrl.toString(),
-			blueprint,
-			siteSlug,
-			// Intercept the Playground client even if the
-			// Blueprint fails.
-			onClientConnected: (playground) => {
-				playgroundTmp = playground;
-				(window as any)['playground'] = playground;
-			},
-			async onBeforeBlueprint() {
-				const newDirectoryHandle = await directoryHandle;
-				if (!newDirectoryHandle) {
-					return;
-				}
-				await playgroundTmp!.bindOpfs({
-					opfs: newDirectoryHandle,
-					mountpoint: joinPaths(
-						await playgroundTmp!.documentRoot,
-						'wp-content',
-						'uploads',
-						'markdown'
-					),
-					initialSyncDirection: 'opfs-to-memfs',
+			let playgroundTmp: PlaygroundClient | undefined = undefined;
+			try {
+				await startPlaygroundWeb({
+					iframe: iframe!,
+					remoteUrl: getRemoteUrl().toString(),
+					blueprint,
+					// Intercept the Playground client even if the
+					// Blueprint fails.
+					onClientConnected: (playground) => {
+						playgroundTmp = playground;
+						(window as any)['playground'] = playground;
+					},
+					mounts: mountDescriptor
+						? [
+								{
+									...mountDescriptor,
+									initialSyncDirection: 'opfs-to-memfs',
+								},
+						  ]
+						: [],
+					shouldInstallWordPress: !isWordPressInstalled,
 				});
-			},
-		})
-			.catch((error) => {
+			} catch (error) {
 				logger.error(error);
 				dispatch(setActiveModal('start-error'));
-			})
-			.finally(async () => {
+			} finally {
 				if (playgroundTmp) {
-					playgroundTmp.onNavigation((url) => setUrl(url));
+					(playgroundTmp as PlaygroundClient).onNavigation(
+						(url: string) => setUrl(url)
+					);
 					setPlayground(() => playgroundTmp);
 				}
-			});
+			}
+		}
+		doRun();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [iframe, awaitedIframe, directoryHandle, siteSlug]);
+	}, [iframe, awaitedIframe, mountDescriptor]);
 
 	return { playground, url, iframeRef };
 }
