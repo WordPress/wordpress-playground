@@ -19,7 +19,7 @@ import store, {
 import { type SiteLogo, createNewSiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
+import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 
 export function SiteManagerSidebar({
 	className,
@@ -38,7 +38,7 @@ export function SiteManagerSidebar({
 		const newSiteInfo = createNewSiteInfo({
 			name,
 			storage: 'opfs',
-			wpVersion: LatestSupportedWordPressVersion,
+			wpVersion: LatestMinifiedWordPressVersion,
 			phpVersion: LatestSupportedPHPVersion,
 			phpExtensionBundle: 'kitchen-sink',
 		});

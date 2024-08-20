@@ -5,7 +5,7 @@
  * let's keep this module with the web app.
  */
 
-import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
+import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersion,
@@ -263,7 +263,7 @@ function deriveDefaultSite(slug: string): SiteInfo {
 		name: getFallbackSiteNameFromSlug(slug),
 		storage: 'opfs',
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		wpVersion: LatestSupportedWordPressVersion,
+		wpVersion: LatestMinifiedWordPressVersion,
 		phpVersion: LatestSupportedPHPVersion,
 		phpExtensionBundle: 'kitchen-sink',
 	};
