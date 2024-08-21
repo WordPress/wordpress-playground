@@ -176,6 +176,11 @@ export async function listSites(): Promise<SiteInfo[]> {
 			opfsSites.push(site);
 		}
 	}
+
+	opfsSites.sort((a, b) =>
+		a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+	);
+
 	return opfsSites;
 }
 
