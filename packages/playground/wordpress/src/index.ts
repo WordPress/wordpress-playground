@@ -335,7 +335,22 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		? '/tmp/unzipped-wordpress/build'
 		: '/tmp/unzipped-wordpress';
 
-	php.mv(wpPath, php.documentRoot);
+	if (
+		php.isDir(php.documentRoot) &&
+		isCleanDirContainingSiteMetadata(php.documentRoot, php)
+	) {
+		// We cannot mv the directory over a non-empty directory,
+		// but we can move the children one by one.
+		for (const file of php.listFiles(wpPath)) {
+			const sourcePath = joinPaths(wpPath, file);
+			const targetPath = joinPaths(php.documentRoot, file);
+			php.mv(sourcePath, targetPath);
+		}
+		php.rmdir(wpPath, { recursive: true });
+	} else {
+		php.mv(wpPath, php.documentRoot);
+	}
+
 	if (
 		!php.fileExists(joinPaths(php.documentRoot, 'wp-config.php')) &&
 		php.fileExists(joinPaths(php.documentRoot, 'wp-config-sample.php'))
@@ -347,4 +362,21 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 			)
 		);
 	}
+}
+
+function isCleanDirContainingSiteMetadata(path: string, php: PHP) {
+	const files = php.listFiles(path);
+	if (files.length === 0) {
+		return true;
+	}
+
+	if (
+		files.length === 1 &&
+		// TODO: use a constant from a site storage package
+		files[0] === 'playground-site-metadata.json'
+	) {
+		return true;
+	}
+
+	return false;
 }
