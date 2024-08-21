@@ -28,7 +28,7 @@ export function SiteManagerSidebar({
 }: {
 	className?: string;
 	siteSlug?: string;
-	onSiteClick: (siteSlug?: string) => void;
+	onSiteClick: (siteSlug: string) => void;
 }) {
 	const sites = useSelector(
 		(state: PlaygroundReduxState) => state.siteListing.sites

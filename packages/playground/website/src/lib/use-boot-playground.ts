@@ -29,9 +29,6 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 
 	useEffect(() => {
 		const remoteUrl = getRemoteUrl();
-		if (started.current === remoteUrl.toString()) {
-			return;
-		}
 		if (!iframe) {
 			// Iframe ref is likely not set on the initial render.
 			// Re-render the current component to start the playground.
