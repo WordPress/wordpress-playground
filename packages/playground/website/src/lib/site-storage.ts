@@ -122,7 +122,6 @@ async function createTopLevelDirectory(newDirName: string) {
 		directoryAlreadyExists = true;
 	} catch (e: any) {
 		if (e?.name === 'NotFoundError') {
-			throw e;
 			directoryAlreadyExists = false;
 		} else {
 			throw e;
