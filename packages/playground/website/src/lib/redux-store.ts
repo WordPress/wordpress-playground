@@ -75,6 +75,27 @@ const slice = createSlice({
 // Export actions
 export const { setActiveModal, setOpfsMountDescriptor } = slice.actions;
 
+export function selectSite(siteSlug: string) {
+	return async (dispatch: typeof store.dispatch) => {
+		const opfsRoot = await navigator.storage.getDirectory();
+		const opfsDir = await opfsRoot.getDirectoryHandle(
+			siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,
+			{
+				create: true,
+			}
+		);
+		dispatch(
+			setOpfsMountDescriptor({
+				device: {
+					type: 'opfs',
+					path: await directoryHandleToOpfsPath(opfsDir),
+				},
+				mountpoint: '/wordpress',
+			})
+		);
+	};
+}
+
 // Configure store
 const store = configureStore({
 	reducer: slice.reducer,

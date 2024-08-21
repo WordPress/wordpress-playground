@@ -38,7 +38,7 @@ export function SiteManagerSidebar({
 }: {
 	className?: string;
 	siteSlug?: string;
-	onSiteClick: (siteSlug?: string) => void;
+	onSiteClick: (siteSlug: string) => void;
 }) {
 	const [sites, setSites] = useState<Site[]>([]);
 

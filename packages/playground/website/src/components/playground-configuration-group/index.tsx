@@ -160,7 +160,6 @@ export default function PlaygroundConfigurationGroup({
 			type: 'local-fs',
 			handle: dirHandle,
 		};
-		dispatch(setOpfsMountDescriptor({ device, mountpoint }));
 		if (idb) {
 			await saveDirectoryHandle(idb, dirHandle);
 		}
@@ -200,7 +199,6 @@ export default function PlaygroundConfigurationGroup({
 				...currentConfiguration,
 				storage: 'device',
 			});
-			await playground.goTo('/');
 
 			// Read current querystring and replace storage=browser with
 			// storage=device.
@@ -208,7 +206,8 @@ export default function PlaygroundConfigurationGroup({
 			url.searchParams.set('storage', 'device');
 			window.history.pushState({}, '', url.toString());
 
-			alert('You are now using WordPress from your local directory.');
+			dispatch(setOpfsMountDescriptor({ device, mountpoint }));
+			alert('You are now loading WordPress from your local directory.');
 		} finally {
 			setMounting(false);
 		}
