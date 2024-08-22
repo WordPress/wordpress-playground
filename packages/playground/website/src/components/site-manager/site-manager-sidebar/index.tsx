@@ -11,7 +11,7 @@ import {
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
 } from '@wordpress/components';
-import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { TemporaryStorageIcon, WordPressIcon } from '../icons';
 import store, {
 	PlaygroundReduxState,
 	addSite as addSiteToStore,
@@ -71,7 +71,8 @@ export function SiteManagerSidebar({
 			className={classNames(css.siteManagerSidebar, className)}
 		>
 			<header className={css.siteManagerSidebarHeader}>
-				<Logo className={css.siteManagerSidebarLogoButton} />
+				{/* Remove Playground logo because branding isn't finalized. */}
+				{/* <Logo className={css.siteManagerSidebarLogoButton} /> */}
 			</header>
 			<nav
 				className={classNames(
