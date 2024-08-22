@@ -71,7 +71,8 @@ export function SiteManagerSidebar({
 			className={classNames(css.siteManagerSidebar, className)}
 		>
 			<header className={css.siteManagerSidebarHeader}>
-				<Logo className={css.siteManagerSidebarLogoButton} />
+				{/* Remove Playground logo because branding isn't finalized. */}
+				{/* <Logo className={css.siteManagerSidebarLogoButton} /> */}
 			</header>
 			<nav
 				className={classNames(
