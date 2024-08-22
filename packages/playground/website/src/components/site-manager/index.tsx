@@ -3,6 +3,7 @@ import { __experimentalUseNavigator as useNavigator } from '@wordpress/component
 import store, { selectSite } from '../../lib/redux-store';
 
 import css from './style.module.css';
+import { SiteInfoView } from './site-info-view';
 
 export function SiteManager({
 	siteSlug,
@@ -55,6 +56,12 @@ export function SiteManager({
 				onSiteClick={onSiteClick}
 				siteSlug={siteSlug}
 			/>
+			{selectedSite && (
+				<SiteInfoView
+					className={css.siteManagerSiteInfo}
+					site={selectedSite}
+				/>
+			)}
 		</div>
 	);
 }
