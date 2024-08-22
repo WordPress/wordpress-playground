@@ -11,7 +11,7 @@ import {
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
 } from '@wordpress/components';
-import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { TemporaryStorageIcon, WordPressIcon } from '../icons';
 import store, {
 	PlaygroundReduxState,
 	addSite as addSiteToStore,
