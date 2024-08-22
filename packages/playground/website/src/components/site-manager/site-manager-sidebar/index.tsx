@@ -30,9 +30,14 @@ export function SiteManagerSidebar({
 	siteSlug?: string;
 	onSiteClick: (siteSlug: string) => void;
 }) {
-	const sites = useSelector(
+	const unsortedSites = useSelector(
 		(state: PlaygroundReduxState) => state.siteListing.sites
 	);
+	const sites = unsortedSites
+		.concat()
+		.sort((a, b) =>
+			a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+		);
 
 	const addSite = async (name: string) => {
 		const newSiteInfo = createNewSiteInfo({
