@@ -7,7 +7,7 @@ $ bun packages/playground/cli/src/cli.ts start --wp=6.5
 WordPress is running on http://127.0.0.1:9400
 ```
 
-Playground CLI is simple, configurable, and unoppinionated. You can set it up
+Playground CLI is simple, configurable, and unopinionated. You can set it up
 to your unique WordPress setup. For example, this command would run the documentation
 workflow at https://github.com/adamziel/playground-docs-workflow:
 
@@ -47,7 +47,7 @@ so you can always be sure you're starting from a clean slate.
 The CLI tool will have the following commands:
 
 -   `serve` - start a fresh WordPress playground server.
--   `build` – run a Blueprint and output a .zip file with the resulting WordPress instance.
+-   `build` - run a Blueprint and output a .zip file with the resulting WordPress instance.
 -   `php` - run the specified PHP file.
 
 It will also support:
