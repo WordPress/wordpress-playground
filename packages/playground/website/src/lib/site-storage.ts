@@ -305,6 +305,7 @@ function getSiteMetadataFromSiteInfo(site: SiteInfo): SiteMetadata {
 	const metadata: SiteMetadata = {
 		id: site.id,
 		name: site.name,
+		whenCreated: site.whenCreated,
 		wpVersion: site.wpVersion,
 		phpVersion: site.phpVersion,
 		phpExtensionBundle: site.phpExtensionBundle,
