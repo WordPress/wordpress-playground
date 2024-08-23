@@ -1,8 +1,16 @@
 import { SiteManagerSidebar } from './site-manager-sidebar';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
-import store, { selectSite } from '../../lib/redux-store';
+import store, {
+	PlaygroundReduxState,
+	selectSite,
+	addSite as addSiteToStore,
+} from '../../lib/redux-store';
+import { useSelector } from 'react-redux';
 
 import css from './style.module.css';
+import { createNewSiteInfo } from '../../lib/site-storage';
+import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { SiteInfoView } from './site-info-view';
 
 export function SiteManager({
@@ -15,6 +23,25 @@ export function SiteManager({
 	siteViewRef: React.RefObject<HTMLDivElement>;
 }) {
 	const { goTo } = useNavigator();
+
+	const sites = useSelector(
+		(state: PlaygroundReduxState) => state.siteListing.sites
+	);
+
+	siteSlug ??= 'wordpress';
+	const selectedSite = sites.find((site) => site.slug === siteSlug);
+
+	const addSite = async (name: string) => {
+		const newSiteInfo = createNewSiteInfo({
+			name,
+			storage: 'opfs',
+			wpVersion: LatestMinifiedWordPressVersion,
+			phpVersion: LatestSupportedPHPVersion,
+			phpExtensionBundle: 'kitchen-sink',
+		});
+		await store.dispatch(addSiteToStore(newSiteInfo));
+		return newSiteInfo;
+	};
 
 	const shouldHideSiteManagerOnSiteChange = () => {
 		/**
@@ -38,7 +65,7 @@ export function SiteManager({
 		}
 		window.history.pushState({}, '', url.toString());
 
-		await store.dispatch(selectSite(siteSlug));
+		//await store.dispatch(selectSite(siteSlug));
 
 		/**
 		 * On mobile, the site editor and site preview are hidden.
@@ -55,6 +82,8 @@ export function SiteManager({
 				className={css.siteManagerSidebar}
 				onSiteClick={onSiteClick}
 				siteSlug={siteSlug}
+				addSite={addSite}
+				sites={sites}
 			/>
 			{selectedSite && (
 				<SiteInfoView

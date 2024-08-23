@@ -23,12 +23,18 @@
 	to {
 		transform: none;
 		opacity: 1;
-		width: var(--site-manager-sidebar-width);
+		width: calc(
+			var(--site-manager-sidebar-width) +
+				var(--site-manager-site-info-width)
+		);
 	}
 }
 
 @media (min-width: 640px) {
 	.playground-navigator-screen {
-		width: var(--site-manager-sidebar-width);
+		width: calc(
+			var(--site-manager-sidebar-width) +
+				var(--site-manager-site-info-width)
+		);
 	}
 }

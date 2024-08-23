@@ -1,3 +1,5 @@
+import { SiteLogo } from '../../lib/site-storage';
+
 export const Logo = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
 		<svg
@@ -73,3 +75,7 @@ export const WordPressIcon = (props?: React.SVGProps<SVGSVGElement>) => {
 		</svg>
 	);
 };
+
+export function getLogoDataURL(logo: SiteLogo): string {
+	return `data:${logo.mime};base64,${logo.data}`;
+}

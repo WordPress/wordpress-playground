@@ -50,11 +50,10 @@ interface SiteMetadata {
 	phpExtensionBundle: PhpExtensionBundle;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
-
+	whenCreated?: number;
 	// TODO: Consider keeping timestamps.
 	//       For a user, timestamps might be useful to disambiguate identically-named sites.
 	//       For playground, we might choose to sort by most recently used.
-	//whenCreated: number;
 	//whenLastLoaded: number;
 
 	originalBlueprint?: Blueprint;
@@ -71,7 +70,7 @@ export interface SiteInfo extends SiteMetadata {
 /**
  * The initial information used to create a new site.
  */
-export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug'>;
+export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
 
 /**
  * Create a new site info structure from initial configuration.
@@ -83,6 +82,7 @@ export function createNewSiteInfo(initialInfo: InitialSiteInfo): SiteInfo {
 	return {
 		id: crypto.randomUUID(),
 		slug: deriveSlugFromSiteName(initialInfo.name),
+		whenCreated: Date.now(),
 		...initialInfo,
 	};
 }
