@@ -21,8 +21,8 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 22px 24px 8px;
 	gap: 16px;
+	width: 100%;
 }
 
 .site-manager-site-info-header-icon {
@@ -36,7 +36,6 @@
 	border-radius: 4px;
 
 	flex: none;
-	order: 0;
 	flex-grow: 0;
 }
 
@@ -56,11 +55,9 @@
 	align-items: flex-start;
 	padding: 0px;
 
-	width: 365px;
 	height: 44px;
 
 	flex: none;
-	order: 1;
 	flex-grow: 1;
 }
 
@@ -100,6 +97,14 @@
 }
 
 .site-manager-site-info-header-actions {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	padding: 0px;
+	gap: 12px;
+
+	height: 20px;
+	flex: none;
 }
 
 .site-manager-site-info-section {
@@ -157,6 +162,5 @@
 
 	/* Inside auto layout */
 	flex: none;
-	order: 0;
 	flex-grow: 0;
 }
