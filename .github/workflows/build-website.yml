@@ -23,21 +23,21 @@ jobs:
         # - From the trunk branch
         #     or invoked from another workflow with a non-production environment
         # - Triggered by another workflow OR specific Playground maintainers
-        if: >
-            (
-                github.ref == 'refs/heads/trunk' ||
-                (
-                    github.event_name == 'workflow_call' &&
-                    inputs.environment != 'playground-wordpress-net-wp-cloud'
-                )
-            ) && (
-                github.event_name == 'workflow_run' ||
-                github.event_name == 'workflow_dispatch' ||
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton'
-            )
+        # if: >
+        #     (
+        #         github.ref == 'refs/heads/trunk' ||
+        #         (
+        #             github.event_name == 'workflow_call' &&
+        #             inputs.environment != 'playground-wordpress-net-wp-cloud'
+        #         )
+        #     ) && (
+        #         github.event_name == 'workflow_run' ||
+        #         github.event_name == 'workflow_dispatch' ||
+        #         github.actor == 'adamziel' ||
+        #         github.actor == 'dmsnell' ||
+        #         github.actor == 'bgrgicak' ||
+        #         github.actor == 'brandonpayton'
+        #     )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
