@@ -200,21 +200,21 @@ function playground_maybe_redirect( $requested_path ) {
 		str_ends_with( $requested_path, '/builder/index.php' )
 	) {
 		return array(
-			'location' => 'https://playground.wordpress.net/builder/builder.html',
+			'location' => 'builder.html',
 			'status' => 301
 		);
 	}
 
 	if ( str_ends_with( $requested_path, '/wordpress' ) ) {
 		return array(
-			'location' => 'https://playground.wordpress.net/wordpress.html',
+			'location' => 'wordpress.html',
 			'status' => 301
 		);
 	}
 
 	if ( str_ends_with( $requested_path, '/gutenberg' ) ) {
 		return array(
-			'location' => 'https://playground.wordpress.net/gutenberg.html',
+			'location' => 'gutenberg.html',
 			'status' => 301
 		);
 	}
