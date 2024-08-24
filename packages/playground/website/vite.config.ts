@@ -21,7 +21,6 @@ import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 import { addManifestJson } from '../../vite-extensions/vite-manifest';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 const proxy = {
 	'^/plugin-proxy': {
