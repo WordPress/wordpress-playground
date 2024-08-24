@@ -19,9 +19,18 @@ concurrency:
 
 jobs:
     build_and_deploy:
-        # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
+        # Only run this workflow when it is:
+        # - From the trunk branch
+        #     or invoked from another workflow with a non-production environment
+        # - Triggered by another workflow OR specific Playground maintainers
         if: >
-            github.ref == 'refs/heads/trunk' && (
+            (
+                github.ref == 'refs/heads/trunk' ||
+                (
+                    github.event_name == 'workflow_call' &&
+                    inputs.environment != 'playground-wordpress-net-wp-cloud'
+                )
+            ) && (
                 github.event_name == 'workflow_run' ||
                 github.event_name == 'workflow_dispatch' ||
                 github.actor == 'adamziel' ||
