@@ -6,6 +6,12 @@ on:
     schedule:
         - cron: '0 9,18 * * *'
 
+    # Allow this workflow to be reused
+    workflow_call:
+        inputs:
+            environment:
+                type: string
+
 concurrency:
     group: website-deployment
     # TODO: Enable cancel-in-progress once we are deploying per commit?
@@ -27,7 +33,7 @@ jobs:
         # Specify runner + deployment step
         runs-on: ubuntu-latest
         environment:
-            name: playground-wordpress-net-wp-cloud
+            name: ${{ inputs.environment || 'playground-wordpress-net-wp-cloud' }}
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
