@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 import { addManifestJson } from '../../vite-extensions/vite-manifest';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -133,6 +134,24 @@ export default defineConfig(({ command, mode }) => {
 				outputFile: 'assets-required-for-offline-mode.json',
 				distDirectoriesToList: ['./', '../remote', '../client'],
 			}) as Plugin,
+
+			/**
+			 * Copy the `builder/index.php` workaround to the `dist/playground/website/builder/` directory.
+			 */
+			{
+				name: 'builder-index-plugin',
+				apply: 'build',
+				writeBundle({ dir: outputDir }) {
+					const indexPath = path('builder/index.php');
+
+					if (existsSync(indexPath) && outputDir) {
+						copyFileSync(
+							indexPath,
+							join(outputDir, 'builder/index.php')
+						);
+					}
+				},
+			} as Plugin,
 		],
 
 		// Configuration for building your library.
