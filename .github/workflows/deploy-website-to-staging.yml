@@ -3,6 +3,9 @@ name: Deploy to wordpress-playground-staging.atomicsites.blog
 on:
     workflow_dispatch:
 
+    # TODO: Remove this after testing
+    pull_request:
+
 concurrency:
     group: staging-website-deployment
 
