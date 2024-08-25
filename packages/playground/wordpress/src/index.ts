@@ -339,12 +339,17 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	if (!php.fileExists(joinPaths(wpPath, 'wp-config-sample.php'))) {
 		// Still don't know the directory structure of the zip file.
 		// 1. Get the first item in path.
-		const firstDir = php.listFiles(wpPath)[0];
-		// 2. If it's a directory that contains wp-config-sample.php, use it.
-		if (
-			php.fileExists(joinPaths(wpPath, firstDir, 'wp-config-sample.php'))
-		) {
-			wpPath = joinPaths(wpPath, firstDir);
+		const files = php.listFiles(wpPath);
+		if (files.length) {
+			const firstDir = files[0];
+			// 2. If it's a directory that contains wp-config-sample.php, use it.
+			if (
+				php.fileExists(
+					joinPaths(wpPath, firstDir, 'wp-config-sample.php')
+				)
+			) {
+				wpPath = joinPaths(wpPath, firstDir);
+			}
 		}
 	}
 
