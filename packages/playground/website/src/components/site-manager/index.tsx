@@ -4,11 +4,12 @@ import store, {
 	PlaygroundReduxState,
 	selectSite,
 	addSite as addSiteToStore,
+	removeSite as removeSiteFromStore,
 } from '../../lib/redux-store';
 import { useSelector } from 'react-redux';
 
 import css from './style.module.css';
-import { createNewSiteInfo } from '../../lib/site-storage';
+import { createNewSiteInfo, SiteInfo } from '../../lib/site-storage';
 import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { SiteInfoView } from './site-info-view';
@@ -43,6 +44,15 @@ export function SiteManager({
 		return newSiteInfo;
 	};
 
+	const removeSite = async (siteToRemove: SiteInfo) => {
+		const removingSelectedSite = siteToRemove.slug === selectedSite?.slug;
+		await store.dispatch(removeSiteFromStore(siteToRemove));
+		if (removingSelectedSite) {
+			// TODO: What site to select after removing the current selection?
+			onSiteClick('wordpress');
+		}
+	};
+
 	const shouldHideSiteManagerOnSiteChange = () => {
 		/**
 		 * TODO: Currently we check if the site view is hidden.
@@ -65,7 +75,7 @@ export function SiteManager({
 		}
 		window.history.pushState({}, '', url.toString());
 
-		//await store.dispatch(selectSite(siteSlug));
+		await store.dispatch(selectSite(siteSlug));
 
 		/**
 		 * On mobile, the site editor and site preview are hidden.
@@ -89,6 +99,7 @@ export function SiteManager({
 				<SiteInfoView
 					className={css.siteManagerSiteInfo}
 					site={selectedSite}
+					removeSite={removeSite}
 				/>
 			)}
 		</div>

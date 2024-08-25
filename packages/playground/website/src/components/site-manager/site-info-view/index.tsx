@@ -13,10 +13,23 @@ import { moreVertical, external } from '@wordpress/icons';
 export function SiteInfoView({
 	className,
 	site,
+	removeSite,
 }: {
 	className: string;
 	site: SiteInfo;
+	removeSite: (site: SiteInfo) => Promise<void>;
 }) {
+	const removeSiteAndCloseMenu = async (onClose: () => void) => {
+		// TODO: Replace with HTML-based dialog
+		const proceed = window.confirm(
+			`Are you sure you want to delete the site '${site.name}'?`
+		);
+		if (proceed) {
+			await removeSite(site);
+			onClose();
+		}
+	};
+
 	return (
 		<section className={classNames(className, css.siteManagerSiteInfo)}>
 			<header className={css.siteManagerSiteInfoHeader}>
@@ -69,9 +82,20 @@ export function SiteInfoView({
 										Duplicate
 									</MenuItem>
 									<MenuItem onClick={onClose}>Reset</MenuItem>
-									<MenuItem onClick={onClose}>
-										Delete
-									</MenuItem>
+									{
+										// Avoid deleting the default WordPress site
+										site.slug !== 'wordpress' && (
+											<MenuItem
+												onClick={() =>
+													removeSiteAndCloseMenu(
+														onClose
+													)
+												}
+											>
+												Delete
+											</MenuItem>
+										)
+									}
 								</MenuGroup>
 								<MenuGroup>
 									<MenuItem onClick={onClose}>
