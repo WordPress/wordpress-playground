@@ -8,7 +8,7 @@ import {
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
-import { moreVertical, external } from '@wordpress/icons';
+import { moreVertical } from '@wordpress/icons';
 
 export function SiteInfoView({
 	className,
@@ -49,7 +49,11 @@ export function SiteInfoView({
 					<h1 className={css.siteManagerSiteInfoHeaderDetailsName}>
 						{site.name}
 					</h1>
-					<span className={css.siteManagerSiteInfoHeaderDetailsDate}>
+					<span
+						className={
+							css.siteManagerSiteInfoHeaderDetailsCreatedAt
+						}
+					>
 						{site.whenCreated
 							? `Created ${new Date(
 									site.whenCreated
@@ -58,8 +62,15 @@ export function SiteInfoView({
 					</span>
 				</div>
 				<div className={css.siteManagerSiteInfoHeaderActions}>
-					<Button>WP Admin</Button>
-					<Button>Open site</Button>
+					{/* TODO: Find how to specify classes on WP component Buttons. They don't seem to be applying. */}
+					<Button
+						className={css.sieManagerSiteInfoHeaderActionsWpAdmin}
+					>
+						WP Admin
+					</Button>
+					<Button className={css.sieManagerSiteInfoHeaderActionsOpen}>
+						Open site
+					</Button>
 					<DropdownMenu
 						icon={moreVertical}
 						label="Select a direction"
@@ -69,35 +80,30 @@ export function SiteInfoView({
 					>
 						{({ onClose }) => (
 							<>
-								<MenuGroup>
+								{/* <MenuGroup>
 									<MenuItem icon={external} onClick={onClose}>
 										Open site
 									</MenuItem>
 									<MenuItem icon={external} onClick={onClose}>
 										WP Admin
 									</MenuItem>
-								</MenuGroup>
+								</MenuGroup> */}
 								<MenuGroup>
-									<MenuItem onClick={onClose}>
+									{/* <MenuItem onClick={onClose}>
 										Duplicate
 									</MenuItem>
-									<MenuItem onClick={onClose}>Reset</MenuItem>
-									{
+									<MenuItem onClick={onClose}>Reset</MenuItem> */}
+									<MenuItem
+										onClick={() =>
+											removeSiteAndCloseMenu(onClose)
+										}
 										// Avoid deleting the default WordPress site
-										site.slug !== 'wordpress' && (
-											<MenuItem
-												onClick={() =>
-													removeSiteAndCloseMenu(
-														onClose
-													)
-												}
-											>
-												Delete
-											</MenuItem>
-										)
-									}
+										disabled={site.slug === 'wordpress'}
+									>
+										Delete
+									</MenuItem>
 								</MenuGroup>
-								<MenuGroup>
+								{/* <MenuGroup>
 									<MenuItem onClick={onClose}>
 										Download as .zip
 									</MenuItem>
@@ -109,7 +115,7 @@ export function SiteInfoView({
 									<MenuItem onClick={onClose}>
 										Share feedback
 									</MenuItem>
-								</MenuGroup>
+								</MenuGroup> */}
 							</>
 						)}
 					</DropdownMenu>
