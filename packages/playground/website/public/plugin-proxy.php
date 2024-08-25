@@ -357,8 +357,6 @@ try {
                 'Content-Disposition: attachment; filename="wordpress.zip"',
             ]
         );
-
-
     } else if (isset($_GET['url'])) {
         // Proxy the current request to $_GET['url'] and return the response,
         // but only if the URL is allowlisted.
