@@ -329,11 +329,24 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	// @TODO: Don't make so many guesses about the zip file contents. Allow the
 	//        API consumer to specify the exact "coordinates" of WordPress inside
 	//        the zip archive.
-	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
+	let wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
 		? '/tmp/unzipped-wordpress/wordpress'
 		: php.fileExists('/tmp/unzipped-wordpress/build')
 		? '/tmp/unzipped-wordpress/build'
 		: '/tmp/unzipped-wordpress';
+
+	// One last guess if the path does not contain the sample config file.
+	if (!php.fileExists(joinPaths(wpPath, 'wp-config-sample.php'))) {
+		// Still don't know the directory structure of the zip file.
+		// 1. Get the first item in path.
+		const firstDir = php.listFiles(wpPath)[0];
+		// 2. If it's a directory that contains wp-config-sample.php, use it.
+		if (
+			php.fileExists(joinPaths(wpPath, firstDir, 'wp-config-sample.php'))
+		) {
+			wpPath = joinPaths(wpPath, firstDir);
+		}
+	}
 
 	if (
 		php.isDir(php.documentRoot) &&

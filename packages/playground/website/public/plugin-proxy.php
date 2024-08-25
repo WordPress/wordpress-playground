@@ -355,7 +355,6 @@ try {
             null,
             [
                 'Content-Disposition: attachment; filename="wordpress.zip"',
-                "X-Proxy-Zip-Path: WordPress-{$branch}"
             ]
         );
 
