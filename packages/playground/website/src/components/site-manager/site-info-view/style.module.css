@@ -1,6 +1,20 @@
 /* Site details */
 
-.site-manager-site-info {
+.site-manager-site-info-container {
+	/* Black & White / White */
+	background: #ffffff;
+	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
+	border-radius: var(--site-manager-border-radius);
+	overflow: hidden;
+}
+
+.site-notice {
+	background-color: #f3f6fd;
+	padding: 40px 24px;
+	border: 0;
+}
+
+.site-manager-site-info-contents {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
@@ -8,11 +22,6 @@
 	isolation: isolate;
 
 	overflow-y: scroll;
-
-	/* Black & White / White */
-	background: #ffffff;
-	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
-	border-radius: var(--site-manager-border-radius);
 
 	gap: 32px;
 }
