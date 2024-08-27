@@ -334,8 +334,8 @@ try {
         }
 
         $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
-    } else if ( isset( $_GET['branch'] ) ) {
-        $branch = strtolower( $_GET['branch'] );
+    } else if ( isset( $_GET['wordpress-branch'] ) ) {
+        $branch = strtolower( $_GET['wordpress-branch'] );
         if ( $branch === 'trunk' || $branch === 'master' ) {
             $branch = 'master';
             // If the brach is of the form x.x append '-branch' to it.
