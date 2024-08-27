@@ -28,6 +28,10 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 
 	useEffect(() => {
+		if (!blueprint) {
+			return;
+		}
+
 		const remoteUrl = getRemoteUrl();
 		if (!iframe) {
 			// Iframe ref is likely not set on the initial render.
@@ -84,7 +88,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 		}
 		doRun();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [iframe, awaitedIframe, mountDescriptor]);
+	}, [iframe, awaitedIframe, mountDescriptor, blueprint]);
 
 	return { playground, url, iframeRef };
 }

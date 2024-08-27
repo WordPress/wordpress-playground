@@ -1,6 +1,8 @@
 import { SiteManagerSidebar } from './site-manager-sidebar';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
-import store, { selectSite } from '../../lib/redux-store';
+import store, { selectSite, type AppState } from '../../lib/redux-store';
+import { useSelector } from 'react-redux';
+import { siteInfoToUrl } from '../../lib/query-api';
 
 import css from './style.module.css';
 
@@ -14,6 +16,7 @@ export function SiteManager({
 	siteViewRef: React.RefObject<HTMLDivElement>;
 }) {
 	const { goTo } = useNavigator();
+	const sites = useSelector((state: AppState) => state.siteListing.sites);
 
 	const shouldHideSiteManagerOnSiteChange = () => {
 		/**
@@ -28,13 +31,14 @@ export function SiteManager({
 	};
 
 	const onSiteClick = async (siteSlug: string) => {
-		onSiteChange(siteSlug);
-		const url = new URL(window.location.href);
-		if (siteSlug) {
-			url.searchParams.set('site-slug', siteSlug);
-		} else {
-			url.searchParams.delete('site-slug');
+		const selectedSite = sites.find((site) => site.slug === siteSlug);
+		if (!selectedSite) {
+			return;
 		}
+
+		onSiteChange(siteSlug);
+
+		const url = siteInfoToUrl(new URL(window.location.href), selectedSite);
 		window.history.pushState({}, '', url.toString());
 
 		await store.dispatch(selectSite(siteSlug));

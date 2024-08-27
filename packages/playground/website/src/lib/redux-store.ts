@@ -40,7 +40,7 @@ export type SiteListing = {
 };
 
 // Define the state types
-interface AppState {
+export interface AppState {
 	activeModal: string | null;
 	offline: boolean;
 	siteListing: SiteListing;

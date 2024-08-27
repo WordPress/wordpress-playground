@@ -1,5 +1,5 @@
 import { Blueprint } from '@wp-playground/client';
-import { makeBlueprint } from './make-blueprint';
+import { queryParamsToBlueprint } from './query-api';
 
 const query = new URL(document.location.href).searchParams;
 const fragment = decodeURI(document.location.hash || '#').substring(1);
@@ -50,31 +50,7 @@ export async function resolveBlueprint() {
 	// If no blueprint was passed, prepare one based on the query params.
 	// @ts-ignore
 	if (typeof blueprint === 'undefined') {
-		const features: Blueprint['features'] = {};
-		/**
-		 * Networking is disabled by default, so we only need to enable it
-		 * if the query param is explicitly set to "yes".
-		 */
-		if (query.get('networking') === 'yes') {
-			features['networking'] = true;
-		}
-		blueprint = makeBlueprint({
-			php: query.get('php') || '8.0',
-			wp: query.get('wp') || 'latest',
-			theme: query.get('theme') || undefined,
-			login: !query.has('login') || query.get('login') === 'yes',
-			multisite: query.get('multisite') === 'yes',
-			features,
-			plugins: query.getAll('plugin'),
-			landingPage: query.get('url') || undefined,
-			phpExtensionBundles: query.getAll('php-extension-bundle') || [],
-			importSite: query.get('import-site') || undefined,
-			importWxr:
-				query.get('import-wxr') ||
-				query.get('import-content') ||
-				undefined,
-			language: query.get('language') || undefined,
-		});
+		blueprint = queryParamsToBlueprint(query);
 	}
 
 	return blueprint;

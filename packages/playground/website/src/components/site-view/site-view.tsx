@@ -77,8 +77,8 @@ export function SiteView({
 	iframeRef,
 	siteViewRef,
 }: {
-	blueprint: Blueprint;
-	currentConfiguration: PlaygroundConfiguration;
+	blueprint?: Blueprint;
+	currentConfiguration?: PlaygroundConfiguration;
 	storage: StorageType;
 	playground?: PlaygroundClient;
 	url?: string;
@@ -172,6 +172,10 @@ export function SiteView({
 			navigator.goTo('/');
 		}
 	};
+
+	if (blueprint === undefined || currentConfiguration === undefined) {
+		return null;
+	}
 
 	return (
 		<PlaygroundContext.Provider
