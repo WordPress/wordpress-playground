@@ -17,6 +17,21 @@ import {
 import { moreVertical, external, copy, seen } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 
+function SiteInfoRow({
+	label,
+	value,
+}: {
+	label: string;
+	value: string | JSX.Element;
+}) {
+	return (
+		<Flex justify="flex-start" align="baseline">
+			<FlexItem className={css.infoRowLabel}>{label}</FlexItem>
+			<FlexItem className={css.infoRowValue}>{value}</FlexItem>
+		</Flex>
+	);
+}
+
 export function SiteInfoView({
 	className,
 	site,
@@ -168,6 +183,7 @@ export function SiteInfoView({
 					</div>
 				</header>
 				<TabPanel
+					className={css.maxWidth}
 					onSelect={function noRefCheck() {}}
 					tabs={[
 						{
@@ -181,12 +197,14 @@ export function SiteInfoView({
 					]}
 				>
 					{(tab) => (
-						<div>
+						<div className={css.maxWidth}>
 							{tab.name === 'settings' && (
-								<section
-									className={css.siteManagerSiteInfoSection}
-								>
-									<Flex direction="column" gap={4}>
+								<section className={css.maxWidth}>
+									<Flex
+										direction="column"
+										gap={4}
+										className={css.infoTable}
+									>
 										<FlexItem>
 											<h3
 												className={
@@ -196,61 +214,37 @@ export function SiteInfoView({
 												Site details
 											</h3>
 										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>Name:</FlexItem>
-												<FlexItem>{site.name}</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>Theme:</FlexItem>
-												<FlexItem>TBD</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>Storage:</FlexItem>
-												<FlexItem>
-													{
-														{
-															temporary: 'None',
-															'local-fs':
-																'Local directory',
-															opfs: 'This browser',
-														}[site.storage]
-													}
-												</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>
-													WordPress version:
-												</FlexItem>
-												<FlexItem>
-													{site.wpVersion}
-												</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>
-													PHP version:
-												</FlexItem>
-												<FlexItem>
-													{site.phpVersion}
-												</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>
-													Network access:
-												</FlexItem>
-												<FlexItem>TODO</FlexItem>
-											</Flex>
-										</FlexItem>
+										<SiteInfoRow
+											label="Name:"
+											value={site.name}
+										/>
+										<SiteInfoRow
+											label="Theme:"
+											value="TBD"
+										/>
+										<SiteInfoRow
+											label="Storage:"
+											value={
+												{
+													temporary: 'None',
+													'local-fs':
+														'Local directory',
+													opfs: 'This browser',
+												}[site.storage]
+											}
+										/>
+										<SiteInfoRow
+											label="WordPress version:"
+											value={site.wpVersion}
+										/>
+										<SiteInfoRow
+											label="PHP version:"
+											value={site.phpVersion}
+										/>
+										<SiteInfoRow
+											label="Network access:"
+											value="TODO"
+										/>
 									</Flex>
 
 									<Flex direction="column" gap={4}>
@@ -263,10 +257,10 @@ export function SiteInfoView({
 												WP Admin
 											</h3>
 										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>Username:</FlexItem>
-												<FlexItem>
+										<SiteInfoRow
+											label="Username:"
+											value={
+												<>
 													admin
 													<Button
 														variant="secondary"
@@ -279,71 +273,61 @@ export function SiteInfoView({
 														}}
 														label="Copy password"
 													/>
-												</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>Password:</FlexItem>
-												<FlexItem>
-													<Flex gap={2}>
-														<FlexItem>
-															••••••••
-															<Button
-																variant="secondary"
-																size="small"
-																icon={
-																	<Icon
-																		icon={
-																			copy
-																		}
-																	/>
-																}
-																onClick={() => {
-																	/* TODO: Implement copy */
-																}}
-																label="Copy password"
-															/>
-															<Button
-																variant="secondary"
-																size="small"
-																icon={
-																	<Icon
-																		icon={
-																			seen
-																		}
-																	/>
-																}
-																onClick={() => {
-																	/* TODO: Implement reveal */
-																}}
-																label="Reveal password"
-															/>
-														</FlexItem>
-													</Flex>
-												</FlexItem>
-											</Flex>
-										</FlexItem>
-										<FlexItem>
-											<Flex justify="space-between">
-												<FlexItem>
-													WP Admin URL:
-												</FlexItem>
-												<FlexItem>
-													<a
-														href={`${site.url}/wp-admin`}
-														target="_blank"
-														rel="noopener noreferrer"
-													>
-														{site.url}/wp-admin{' '}
-														<Icon
-															icon={external}
-															size={16}
+												</>
+											}
+										/>
+										<SiteInfoRow
+											label="Password:"
+											value={
+												<Flex gap={2}>
+													<FlexItem>
+														••••••••
+														<Button
+															variant="secondary"
+															size="small"
+															icon={
+																<Icon
+																	icon={copy}
+																/>
+															}
+															onClick={() => {
+																/* TODO: Implement copy */
+															}}
+															label="Copy password"
 														/>
-													</a>
-												</FlexItem>
-											</Flex>
-										</FlexItem>
+														<Button
+															variant="secondary"
+															size="small"
+															icon={
+																<Icon
+																	icon={seen}
+																/>
+															}
+															onClick={() => {
+																/* TODO: Implement reveal */
+															}}
+															label="Reveal password"
+														/>
+													</FlexItem>
+												</Flex>
+											}
+										/>
+										<SiteInfoRow
+											label="WP Admin URL:"
+											value={
+												<a
+													href={`${site.url}/wp-admin`}
+													target="_blank"
+													rel="noopener noreferrer"
+												>
+													{site.url}/wp-admin{' '}
+													<Icon
+														icon={external}
+														size={16}
+													/>
+												</a>
+											}
+										/>
 									</Flex>
 
 									<Flex direction="row" gap={2}>

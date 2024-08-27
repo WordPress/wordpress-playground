@@ -148,18 +148,24 @@
 	width: 100%;
 }
 
-.site-manager-site-info-section-row-label {
+.info-table {
+	max-width: 250px;
+}
+
+.info-row-label {
 	/* font-family: 'SF Pro Text'; */
 	font-style: normal;
 	font-weight: 400;
 	font-size: 13px;
 	line-height: 16px;
-	/* identical to box height, or 123% */
-	flex-basis: 50%;
+	min-width: 130px;
+	flex-basis: 130px;
+	/* flex-basis: 50%; */
+	color: #6a6a6a;
 }
 
-.site-manager-site-info-section-row-value {
-	flex-basis: 50%;
+.info-row-value {
+	/* flex-basis: 50%; */
 
 	/* font-family: 'SF Pro Text'; */
 	font-style: normal;
@@ -174,4 +180,8 @@
 	/* Inside auto layout */
 	flex: none;
 	flex-grow: 0;
+}
+
+.max-width {
+	width: 100%;
 }
