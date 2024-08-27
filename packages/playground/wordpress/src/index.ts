@@ -335,7 +335,9 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		? '/tmp/unzipped-wordpress/build'
 		: '/tmp/unzipped-wordpress';
 
-	// One last guess if the path does not contain the sample config file.
+	// Dive one directory deeper if the zip root does not contain the sample
+	// config file. This is relevant when unzipping a zipped branch from the 
+	// https://github.com/WordPress/WordPress repository.
 	if (!php.fileExists(joinPaths(wpPath, 'wp-config-sample.php'))) {
 		// Still don't know the directory structure of the zip file.
 		// 1. Get the first item in path.
