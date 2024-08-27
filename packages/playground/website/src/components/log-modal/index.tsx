@@ -17,6 +17,27 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 		(state: PlaygroundReduxState) => state.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
+
+	function onClose() {
+		dispatch(setActiveModal(null));
+	}
+
+	const styles = {
+		content: { width: 800 },
+	};
+
+	return (
+		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
+			<header>
+				<h2>{props.title || 'Error Logs'}</h2>
+				{props.description}
+			</header>
+			<SiteLogs key={activeModal} />
+		</Modal>
+	);
+}
+
+export function SiteLogs() {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
@@ -30,14 +51,10 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 		return () => {
 			logger.removeEventListener(logEventType, getLogs);
 		};
-	}, [activeModal]);
+	}, []);
 
 	function getLogs() {
 		setLogs(logger.getLogs());
-	}
-
-	function onClose() {
-		dispatch(setActiveModal(null));
 	}
 
 	function logList() {
@@ -52,26 +69,18 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 		));
 	}
 
-	const styles = {
-		content: { width: 800 },
-	};
-
 	return (
-		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
-			<header>
-				<h2>{props.title || 'Error Logs'}</h2>
-				{props.description}
-				{logs.length > 0 ? (
-					<TextControl
-						aria-label="Search"
-						placeholder="Search logs"
-						value={searchTerm}
-						onChange={setSearchTerm}
-						autoFocus={true}
-						className={css.logModalSearch}
-					/>
-				) : null}
-			</header>
+		<>
+			{logs.length > 0 ? (
+				<TextControl
+					aria-label="Search"
+					placeholder="Search logs"
+					value={searchTerm}
+					onChange={setSearchTerm}
+					autoFocus={true}
+					className={css.logModalSearch}
+				/>
+			) : null}
 			{filteredLogs.length > 0 ? (
 				<main className={css.logModalMain}>{logList()}</main>
 			) : logs.length > 0 ? (
@@ -87,6 +96,6 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 					No problems so far – yay! 🎉
 				</div>
 			)}
-		</Modal>
+		</>
 	);
 }

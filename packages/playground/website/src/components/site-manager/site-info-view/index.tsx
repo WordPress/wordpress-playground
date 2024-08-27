@@ -8,11 +8,14 @@ import {
 	Notice,
 	Flex,
 	FlexItem,
+	Icon,
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
+	TabPanel,
 } from '@wordpress/components';
-import { moreVertical } from '@wordpress/icons';
+import { moreVertical, external, copy, seen } from '@wordpress/icons';
+import { SiteLogs } from '../../log-modal';
 
 export function SiteInfoView({
 	className,
@@ -98,18 +101,21 @@ export function SiteInfoView({
 						</span>
 					</div>
 					<div className={css.siteManagerSiteInfoHeaderActions}>
-						{/* TODO: Find how to specify classes on WP component Buttons. They don't seem to be applying. */}
-						<Button
-							className={
-								css.sieManagerSiteInfoHeaderActionsWpAdmin
-							}
-						>
+						<Button variant="tertiary">
 							WP Admin
+							<Icon
+								icon={external}
+								size={16}
+								style={{ marginLeft: '8px' }}
+							/>
 						</Button>
-						<Button
-							className={css.sieManagerSiteInfoHeaderActionsOpen}
-						>
+						<Button variant="secondary">
 							Open site
+							<Icon
+								icon={external}
+								size={16}
+								style={{ marginLeft: '8px' }}
+							/>
 						</Button>
 						<DropdownMenu
 							icon={moreVertical}
@@ -161,51 +167,226 @@ export function SiteInfoView({
 						</DropdownMenu>
 					</div>
 				</header>
-				<section className={css.siteManagerSiteInfoSection}>
-					<header className={css.siteManagerSiteInfoSectionTitle}>
-						Site details
-					</header>
-					<div className={css.siteManagerSiteInfoSectionRow}>
-						<div className={css.siteManagerSiteInfoSectionRowLabel}>
-							Name:
+				<TabPanel
+					onSelect={function noRefCheck() {}}
+					tabs={[
+						{
+							name: 'settings',
+							title: 'Settings',
+						},
+						{
+							name: 'logs',
+							title: 'Logs',
+						},
+					]}
+				>
+					{(tab) => (
+						<div>
+							{tab.name === 'settings' && (
+								<section
+									className={css.siteManagerSiteInfoSection}
+								>
+									<Flex direction="column" gap={4}>
+										<FlexItem>
+											<h3
+												className={
+													css.siteManagerSiteInfoSectionTitle
+												}
+											>
+												Site details
+											</h3>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>Name:</FlexItem>
+												<FlexItem>{site.name}</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>Theme:</FlexItem>
+												<FlexItem>TBD</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>Storage:</FlexItem>
+												<FlexItem>
+													{
+														{
+															temporary: 'None',
+															'local-fs':
+																'Local directory',
+															opfs: 'This browser',
+														}[site.storage]
+													}
+												</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>
+													WordPress version:
+												</FlexItem>
+												<FlexItem>
+													{site.wpVersion}
+												</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>
+													PHP version:
+												</FlexItem>
+												<FlexItem>
+													{site.phpVersion}
+												</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>
+													Network access:
+												</FlexItem>
+												<FlexItem>TODO</FlexItem>
+											</Flex>
+										</FlexItem>
+									</Flex>
+
+									<Flex direction="column" gap={4}>
+										<FlexItem>
+											<h3
+												className={
+													css.siteManagerSiteInfoSectionTitle
+												}
+											>
+												WP Admin
+											</h3>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>Username:</FlexItem>
+												<FlexItem>
+													admin
+													<Button
+														variant="secondary"
+														size="small"
+														icon={
+															<Icon icon={copy} />
+														}
+														onClick={() => {
+															/* TODO: Implement copy */
+														}}
+														label="Copy password"
+													/>
+												</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>Password:</FlexItem>
+												<FlexItem>
+													<Flex gap={2}>
+														<FlexItem>
+															••••••••
+															<Button
+																variant="secondary"
+																size="small"
+																icon={
+																	<Icon
+																		icon={
+																			copy
+																		}
+																	/>
+																}
+																onClick={() => {
+																	/* TODO: Implement copy */
+																}}
+																label="Copy password"
+															/>
+															<Button
+																variant="secondary"
+																size="small"
+																icon={
+																	<Icon
+																		icon={
+																			seen
+																		}
+																	/>
+																}
+																onClick={() => {
+																	/* TODO: Implement reveal */
+																}}
+																label="Reveal password"
+															/>
+														</FlexItem>
+													</Flex>
+												</FlexItem>
+											</Flex>
+										</FlexItem>
+										<FlexItem>
+											<Flex justify="space-between">
+												<FlexItem>
+													WP Admin URL:
+												</FlexItem>
+												<FlexItem>
+													<a
+														href={`${site.url}/wp-admin`}
+														target="_blank"
+														rel="noopener noreferrer"
+													>
+														{site.url}/wp-admin{' '}
+														<Icon
+															icon={external}
+															size={16}
+														/>
+													</a>
+												</FlexItem>
+											</Flex>
+										</FlexItem>
+									</Flex>
+
+									<Flex direction="row" gap={2}>
+										<FlexItem>
+											<Button
+												variant="tertiary"
+												onClick={() => {
+													/* TODO: Implement edit site details */
+												}}
+											>
+												Edit site details
+											</Button>
+										</FlexItem>
+										<FlexItem>
+											<Button
+												variant="tertiary"
+												href="#" // TODO: Replace with actual Blueprint preview URL
+												target="_blank"
+												rel="noopener noreferrer"
+												icon={
+													<Icon
+														icon={external}
+														size={16}
+													/>
+												}
+												iconPosition="right"
+											>
+												Preview Blueprint
+											</Button>
+										</FlexItem>
+									</Flex>
+								</section>
+							)}
+							{tab.name === 'logs' && (
+								<section
+									className={css.siteManagerSiteInfoSection}
+								>
+									<SiteLogs />
+								</section>
+							)}
 						</div>
-						<div className={css.siteManagerSiteInfoSectionRowValue}>
-							{site.name}
-						</div>
-					</div>
-					<div className={css.siteManagerSiteInfoSectionRow}>
-						<div className={css.siteManagerSiteInfoSectionRowLabel}>
-							Storage:
-						</div>
-						<div className={css.siteManagerSiteInfoSectionRowValue}>
-							{site.storage}
-						</div>
-					</div>
-					<div className={css.siteManagerSiteInfoSectionRow}>
-						<div className={css.siteManagerSiteInfoSectionRowLabel}>
-							WordPress version:
-						</div>
-						<div className={css.siteManagerSiteInfoSectionRowValue}>
-							{site.wpVersion}
-						</div>
-					</div>
-					<div className={css.siteManagerSiteInfoSectionRow}>
-						<div className={css.siteManagerSiteInfoSectionRowLabel}>
-							PHP version:
-						</div>
-						<div className={css.siteManagerSiteInfoSectionRowValue}>
-							{site.phpVersion}
-						</div>
-					</div>
-					<div className={css.siteManagerSiteInfoSectionRow}>
-						<div className={css.siteManagerSiteInfoSectionRowLabel}>
-							Network access:
-						</div>
-						<div className={css.siteManagerSiteInfoSectionRowValue}>
-							TODO
-						</div>
-					</div>
-				</section>
+					)}
+				</TabPanel>
 			</section>
 		</section>
 	);

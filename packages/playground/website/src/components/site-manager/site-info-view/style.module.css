@@ -118,17 +118,6 @@
 	flex: none;
 }
 
-.site-manager-site-info-header-actions-open {
-	/* Gutenberg/Blueberry */
-	color: #3858e9;
-}
-
-.site-manager-site-info-header-actions-open {
-	/* Gutenberg/Blueberry */
-	border: 1px solid #3858e9;
-	border-radius: 2px;
-}
-
 .site-manager-site-info-section {
 	display: flex;
 	flex-direction: column;
