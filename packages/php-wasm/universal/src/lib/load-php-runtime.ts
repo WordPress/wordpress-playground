@@ -162,7 +162,7 @@ export async function loadPHPRuntime(
 
 	PHPRuntime._exit = function (code: number) {
 		if (PHPRuntime?.webServer) {
-			PHPRuntime?.webServer?.close();
+			PHPRuntime?.webServer?.closeAllConnections();
 		}
 		loadedRuntimes.delete(id);
 		return PHPRuntime.originalExit(code);
