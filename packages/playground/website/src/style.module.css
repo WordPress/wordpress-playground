@@ -9,9 +9,20 @@
 
 .playground-navigator-screen {
 	overflow: hidden;
+}
+
+.playground-navigator-screen.open {
 	flex: 0 0 auto;
-	width: 100%;
+	width: calc(
+		var(--site-manager-sidebar-width) + var(--site-manager-site-info-width)
+	);
 	animation: open-navigator-screen 0.2s ease-in-out !important;
+}
+
+.playground-navigator-screen.close {
+	flex: 0 0 auto;
+	width: 0%;
+	animation: open-navigator-screen 0.2s ease-in-out reverse !important;
 }
 
 @keyframes open-navigator-screen {

@@ -14,8 +14,11 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, external, copy, seen } from '@wordpress/icons';
+import { moreVertical, external, copy, seen, unseen } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
+import { StorageType } from '../storage-type';
+import { useSelector } from 'react-redux';
+import { PlaygroundReduxState } from '../../../lib/redux-store';
 
 function SiteInfoRow({
 	label,
@@ -25,7 +28,7 @@ function SiteInfoRow({
 	value: string | JSX.Element;
 }) {
 	return (
-		<Flex justify="flex-start" align="baseline" expanded={true}>
+		<Flex justify="flex-start" expanded={true}>
 			<FlexItem className={css.infoRowLabel}>{label}</FlexItem>
 			<FlexItem className={css.infoRowValue}>{value}</FlexItem>
 		</Flex>
@@ -51,6 +54,9 @@ export function SiteInfoView({
 			onClose();
 		}
 	};
+	const playground = useSelector(
+		(state: PlaygroundReduxState) => state.playgroundClient
+	);
 
 	const [showNotice, setShowNotice] = useState(site.storage === 'temporary');
 	return (
@@ -137,9 +143,23 @@ export function SiteInfoView({
 							</Flex>
 						</FlexItem>
 						<FlexItem>
-							<Flex direction="row" gap={2} align="center">
-								<Button variant="tertiary">WP Admin</Button>
-								<Button variant="secondary">Open site</Button>
+							<Flex direction="row" gap={4} align="center">
+								<Button
+									variant="link"
+									onClick={() => {
+										playground?.goTo('/wp-admin');
+									}}
+								>
+									WP Admin
+								</Button>
+								<Button
+									variant="secondary"
+									onClick={() => {
+										playground?.goTo('/');
+									}}
+								>
+									Open site
+								</Button>
 								<DropdownMenu
 									icon={moreVertical}
 									label="Select a direction"
@@ -169,6 +189,8 @@ export function SiteInfoView({
 														)
 													}
 													// Avoid deleting the default WordPress site
+													// ^ Why, though? Seeing a disabled delete button is confusing.
+													//   Can we just delete it?
 													disabled={
 														site.slug ===
 														'wordpress'
@@ -197,7 +219,7 @@ export function SiteInfoView({
 						</FlexItem>
 					</Flex>
 				</FlexItem>
-				<FlexItem>
+				<FlexItem style={{ flexGrow: 1 }}>
 					<TabPanel
 						className={css.tabs}
 						onSelect={function noRefCheck() {}}
@@ -213,21 +235,32 @@ export function SiteInfoView({
 						]}
 					>
 						{(tab) => (
-							<div
-								className={classNames(
-									css.tabContents,
-									css.padded
-								)}
-							>
+							<>
 								{tab.name === 'settings' && (
-									<SiteSettingsTab site={site} />
+									<div
+										className={classNames(
+											css.tabContents,
+											css.padded
+										)}
+									>
+										<SiteSettingsTab site={site} />
+									</div>
 								)}
 								{tab.name === 'logs' && (
-									<section className={css.siteInfoSection}>
-										<SiteLogs />
-									</section>
+									<div className={css.tabContents}>
+										<div
+											className={classNames(
+												css.scrollPane,
+												css.padded
+											)}
+										>
+											<SiteLogs
+												className={css.logsSection}
+											/>
+										</div>
+									</div>
 								)}
-							</div>
+							</>
 						)}
 					</TabPanel>
 				</FlexItem>
@@ -237,6 +270,10 @@ export function SiteInfoView({
 }
 
 function SiteSettingsTab({ site }: { site: SiteInfo }) {
+	const [masked, setMasked] = useState(true);
+	const username = 'admin';
+	const password = 'password';
+
 	return (
 		<Flex
 			gap={8}
@@ -257,21 +294,28 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					<SiteInfoRow label="Site name" value={site.name} />
 					<SiteInfoRow
 						label="Storage"
-						value={
-							{
-								temporary: 'None',
-								'local-fs': 'Local directory',
-								opfs: 'This browser',
-							}[site.storage]
-						}
+						value={<StorageType type={site.storage} />}
 					/>
 					<SiteInfoRow
 						label="WordPress version"
 						value={site.wpVersion}
 					/>
-					<SiteInfoRow label="PHP version" value={site.phpVersion} />
-					<SiteInfoRow label="Network access" value="TODO" />
-					<SiteInfoRow label="Theme:" value="TBD" />
+					<SiteInfoRow
+						label="PHP version"
+						value={`${site.phpVersion}${
+							site.phpExtensionBundle === 'light'
+								? ''
+								: ' (with extensions)'
+						}`}
+					/>
+					<SiteInfoRow
+						label="Network access"
+						value={
+							site.originalBlueprint?.features?.networking
+								? 'Yes'
+								: 'No'
+						}
+					/>
 				</Flex>
 			</FlexItem>
 
@@ -292,11 +336,11 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 								icon={() => <Icon size={16} icon={copy} />}
 								iconPosition="right"
 								onClick={() => {
-									/* TODO: Implement copy */
+									navigator.clipboard.writeText(username);
 								}}
-								label="Copy password"
+								label="Copy username"
 							>
-								admin
+								{username}
 							</Button>
 						}
 					/>
@@ -318,11 +362,11 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 									icon={() => <Icon size={16} icon={copy} />}
 									iconPosition="right"
 									onClick={() => {
-										/* TODO: Implement copy */
+										navigator.clipboard.writeText(password);
 									}}
 									label="Copy password"
 								>
-									••••••••
+									{masked ? '••••••••' : 'password'}
 								</Button>
 								<Button
 									variant="link"
@@ -330,10 +374,15 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 										css.grayLink,
 										css.buttonNoPadding
 									)}
-									icon={() => <Icon size={18} icon={seen} />}
+									icon={() => (
+										<Icon
+											size={18}
+											icon={masked ? seen : unseen}
+										/>
+									)}
 									iconPosition="right"
 									onClick={() => {
-										/* TODO: Implement reveal */
+										setMasked(!masked);
 									}}
 									label="Reveal password"
 								/>
@@ -345,12 +394,14 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						value={
 							<Button
 								variant="link"
-								href={`${site.url}/wp-admin`}
+								onClick={() => {
+									playground?.goTo('/wp-admin');
+								}}
 								target="_blank"
 								rel="noopener noreferrer"
 								className={css.buttonNoPadding}
-								icon={() => <Icon size={16} icon={external} />}
-								iconPosition="right"
+								// icon={() => <Icon size={16} icon={external} />}
+								// iconPosition="right"
 								label="Go to Admin"
 							>
 								{site.url}/wp-admin{' '}
@@ -362,34 +413,39 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 			<FlexItem>
 				<Flex
 					direction="row"
-					gap={3}
+					gap={4}
 					expanded={true}
 					justify="flex-start"
 				>
-					<FlexItem>
+					{/* <FlexItem>
 						<Button
 							variant="tertiary"
 							className={css.buttonNoPadding}
 							onClick={() => {
-								/* TODO: Implement edit site details */
+								alert('Not implemented yet');
+								// dispatch(setActiveModal('edit-site-details'));
 							}}
 						>
 							Edit settings
 						</Button>
-					</FlexItem>
-					<FlexItem>
-						<Button
-							variant="link"
-							className={css.buttonNoPadding}
-							href="#" // TODO: Replace with actual Blueprint preview URL
-							target="_blank"
-							rel="noopener noreferrer"
-							icon={() => <Icon icon={external} size={16} />}
-							iconPosition="right"
-						>
-							View Blueprint
-						</Button>
-					</FlexItem>
+					</FlexItem> */}
+					{site.originalBlueprint ? (
+						<FlexItem>
+							<Button
+								variant="link"
+								className={css.buttonNoPadding}
+								href={`/builder#${encodeURIComponent(
+									site.originalBlueprint.id
+								)}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								icon={() => <Icon icon={external} size={16} />}
+								iconPosition="right"
+							>
+								View Blueprint
+							</Button>
+						</FlexItem>
+					) : null}
 				</Flex>
 			</FlexItem>
 		</Flex>

@@ -17,6 +17,7 @@ import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
 } from '@wordpress/components';
+import classNames from 'classnames';
 
 collectWindowErrors(logger);
 
@@ -77,20 +78,26 @@ function Main() {
 
 	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
 
+	const siteManager = (
+		<SiteManager
+			siteSlug={siteSlug}
+			onSiteChange={setSiteSlug}
+			siteViewRef={siteViewRef}
+		/>
+	);
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
 			<NavigatorScreen
 				path="/manager"
-				className={css.playgroundNavigatorScreen}
+				className={classNames(css.playgroundNavigatorScreen, css.open)}
 			>
-				<SiteManager
-					siteSlug={siteSlug}
-					onSiteChange={setSiteSlug}
-					siteViewRef={siteViewRef}
-				/>
+				{siteManager}
 			</NavigatorScreen>
-			<NavigatorScreen path="/">
-				<div />
+			<NavigatorScreen
+				path="/"
+				className={classNames(css.playgroundNavigatorScreen, css.close)}
+			>
+				{siteManager}
 			</NavigatorScreen>
 			<SiteView
 				siteViewRef={siteViewRef}

@@ -7,7 +7,7 @@
 
 	background: #ffffff;
 	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
-	border-radius: var(--border-radius);
+	border-radius: var(--site-manager-border-radius);
 	overflow: hidden;
 }
 
@@ -17,6 +17,10 @@
 
 .tabs {
 	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+
 	& :global(.components-tab-panel__tabs) {
 		--wp-components-color-accent: var(--color-gray-900);
 		border-bottom: 1px solid #ddd;
@@ -25,12 +29,40 @@
 		padding-left: var(--padding-size);
 		padding-right: var(--padding-size);
 	}
+	& :global(.components-tab-panel__tab-content) {
+		flex-grow: 1;
+		display: flex;
+		height: 100%;
+	}
 }
 
 .tab-contents {
 	width: 100%;
+	height: 100%;
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
 	padding-top: var(--padding-size);
 	padding-bottom: var(--padding-size);
+	position: relative;
+}
+
+/**
+ * A workaround for scrolling overflowing content within
+ * a flex container. TODO: find a way to avoid using
+ * position: absolute.
+ */
+.scroll-pane {
+	position: absolute;
+	display: flex;
+	flex-direction: row;
+	isolation: isolate;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+	max-height: 100%;
+	overflow: auto;
 }
 
 .site-notice {
@@ -54,6 +86,13 @@
 .button-no-padding {
 	padding-left: 0 !important;
 	padding-right: 0 !important;
+}
+
+.logs-section {
+	display: flex;
+	height: 100%;
+	flex-direction: column;
+	width: 100%;
 }
 
 .site-info-header-icon {
@@ -131,31 +170,14 @@
 	gap: 16px;
 }
 
-.info-table {
-	max-width: 250px;
-}
-
 .info-row-label {
-	font-size: 13px;
-	line-height: 16px;
 	min-width: 130px;
 	flex-basis: 130px;
-	/* flex-basis: 50%; */
 	color: var(--color-gray-600);
 }
 
 .info-row-value {
-	/* flex-basis: 50%; */
-	font-size: 13px;
-	line-height: 16px;
-	/* identical to box height, or 123% */
-
-	/* Gutenberg/Gray 900 */
 	color: var(--color-gray-900);
-
-	/* Inside auto layout */
-	flex: none;
-	flex-grow: 0;
 }
 
 .max-width {

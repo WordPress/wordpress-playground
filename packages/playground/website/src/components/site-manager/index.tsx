@@ -97,6 +97,7 @@ export function SiteManager({
 			/>
 			{selectedSite && (
 				<SiteInfoView
+					key={selectedSite.slug}
 					className={css.siteManagerSiteInfo}
 					site={selectedSite}
 					removeSite={removeSite}
