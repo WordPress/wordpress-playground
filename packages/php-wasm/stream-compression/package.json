@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/stream-compression",
-	"version": "0.9.32",
+	"version": "0.9.33",
 	"description": "Stream-based compression bindings.",
 	"repository": {
 		"type": "git",
