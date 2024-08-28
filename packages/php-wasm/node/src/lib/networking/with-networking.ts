@@ -12,13 +12,13 @@ export async function withNetworking(
 	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
 		await findFreePorts(2);
 
-	const webServer = await initOutboundWebsocketProxyServer(
+	const outboundNetworkProxyServer = await initOutboundWebsocketProxyServer(
 		outboundProxyWsServerPort
 	);
 
 	return {
 		...phpModuleArgs,
-		webServer,
+		outboundNetworkProxyServer,
 		websocket: {
 			...(phpModuleArgs['websocket'] || {}),
 			url: (_: any, host: string, port: string) => {

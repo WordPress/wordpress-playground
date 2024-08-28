@@ -161,8 +161,8 @@ export async function loadPHPRuntime(
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
-		if (PHPRuntime?.webServer) {
-			PHPRuntime?.webServer?.closeAllConnections();
+		if (PHPRuntime?.outboundNetworkProxyServer) {
+			PHPRuntime?.outboundNetworkProxyServer?.closeAllConnections();
 		}
 		loadedRuntimes.delete(id);
 		return PHPRuntime.originalExit(code);
@@ -242,7 +242,10 @@ export type EmscriptenOptions = {
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
-	webServer?: Server<typeof IncomingMessage, typeof ServerResponse>;
+	outboundNetworkProxyServer?: Server<
+		typeof IncomingMessage,
+		typeof ServerResponse
+	>;
 	instantiateWasm?: (
 		info: WebAssembly.Imports,
 		receiveInstance: (
