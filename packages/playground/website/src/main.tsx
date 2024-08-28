@@ -10,9 +10,9 @@ import { SiteView } from './components/site-view/site-view';
 import { StorageTypes, StorageType } from './types';
 import { SiteManager } from './components/site-manager';
 import { useBootPlayground } from './lib/use-boot-playground';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { useEffect, useRef, useState } from '@wordpress/element';
-import store from './lib/redux-store';
+import store, { PlaygroundReduxState } from './lib/redux-store';
 import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
@@ -35,6 +35,9 @@ function Main() {
 	}
 	const storage = storageRaw as StorageType;
 
+	const mountDescriptor = useSelector(
+		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+	);
 	const siteViewRef = useRef<HTMLDivElement>(null);
 	const [siteSlug, setSiteSlug] = useState<string | undefined>(
 		query.get('site-slug') ?? undefined
@@ -49,16 +52,21 @@ function Main() {
 		async function assignConfigState() {
 			setBlueprintAndConfig(await compileConfiguration(storage));
 		}
+		assignConfigState();
+	}, [storage, mountDescriptor]);
 
+	useEffect(() => {
 		if (siteSlug && storage !== 'browser') {
 			alert(
 				'Site slugs only work with browser storage. The site slug will be ignored.'
 			);
 		}
-		assignConfigState();
 	}, [siteSlug, storage]);
 
-	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
+	const { playground, url, iframeRef } = useBootPlayground({
+		blueprint,
+		mountDescriptor,
+	});
 
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
