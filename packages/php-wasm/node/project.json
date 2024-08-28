@@ -7,7 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:copy-wasms"]
+			"dependsOn": ["build:README", "build:dts"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -36,6 +36,18 @@
 				"buildTarget": "php-wasm-node:build:bundle:production"
 			},
 			"dependsOn": ["build:mkdir"]
+		},
+		"build:dts": {
+			"executor": "nx:run-commands",
+			"options": {
+				"cwd": "packages/php-wasm/node",
+				"commands": [
+					"npx -p typescript tsc --project tsconfig.lib.json --declaration --allowJs --emitDeclarationOnly --outDir ../../../dist/packages/php-wasm/out-tsc-phpwasm-node",
+					"cp -r ../../../dist/packages/php-wasm/out-tsc-phpwasm-node/packages/php-wasm/node/src/* ../../../dist/packages/php-wasm/node"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:copy-wasms"]
 		},
 		"build:bundle": {
 			"executor": "@nx/esbuild:esbuild",
