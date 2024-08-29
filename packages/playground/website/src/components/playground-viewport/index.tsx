@@ -5,6 +5,8 @@ import BrowserChrome from '../browser-chrome';
 import { StorageType } from '../../types';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { usePlaygroundContext } from '../../playground-context';
+import { useSelector } from 'react-redux';
+import { PlaygroundReduxState } from '../../lib/redux-store';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -63,10 +65,14 @@ export const JustViewport = function LoadedViewportComponent({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	const siteSlug = useSelector(
+		(state: PlaygroundReduxState) => state.activeSiteSlug
+	);
 	return (
 		<div className={css.fullSize}>
 			<iframe
 				id="playground-viewport"
+				key={siteSlug}
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={css.fullSize}
 				ref={iframeRef}

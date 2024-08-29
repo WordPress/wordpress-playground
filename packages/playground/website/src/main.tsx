@@ -10,9 +10,13 @@ import { SiteView } from './components/site-view/site-view';
 import { StorageTypes, StorageType } from './types';
 import { SiteManager } from './components/site-manager';
 import { useBootPlayground } from './lib/use-boot-playground';
-import { Provider } from 'react-redux';
-import { useEffect, useRef, useState } from '@wordpress/element';
-import store from './lib/redux-store';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { useEffect, useRef } from '@wordpress/element';
+import store, {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+	setActiveSiteSlug,
+} from './lib/redux-store';
 import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
@@ -63,9 +67,13 @@ if (currentConfiguration.wp === '6.3') {
 
 function Main() {
 	const siteViewRef = useRef<HTMLDivElement>(null);
-	const [siteSlug, setSiteSlug] = useState<string | undefined>(
-		query.get('site-slug') ?? undefined
+	const siteSlug = useSelector(
+		(state: PlaygroundReduxState) => state.activeSiteSlug
 	);
+	const dispatch = useDispatch<PlaygroundDispatch>();
+	const setSiteSlug = (slug?: string) => {
+		dispatch(setActiveSiteSlug(slug));
+	};
 
 	useEffect(() => {
 		if (siteSlug && storage !== 'browser') {

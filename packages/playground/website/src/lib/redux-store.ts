@@ -41,6 +41,7 @@ export type SiteListing = {
 
 // Define the state types
 interface AppState {
+	activeSiteSlug: string | undefined;
 	activeModal: string | null;
 	offline: boolean;
 	siteListing: SiteListing;
@@ -54,6 +55,7 @@ const query = new URL(document.location.href).searchParams;
 
 // Define the initial state
 const initialState: AppState = {
+	activeSiteSlug: query.get('site-slug') || undefined,
 	activeModal:
 		query.get('modal') === 'mount-markdown-directory'
 			? 'mount-markdown-directory'
@@ -92,6 +94,12 @@ const slice = createSlice({
 		getOpfsHandle: (state) => state.opfsMountDescriptor,
 	},
 	reducers: {
+		setActiveSiteSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.activeSiteSlug = action.payload;
+		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			state.activeModal = action.payload;
 		},
@@ -135,7 +143,8 @@ const slice = createSlice({
 });
 
 // Export actions
-export const { setActiveModal, setOpfsMountDescriptor } = slice.actions;
+export const { setActiveSiteSlug, setActiveModal, setOpfsMountDescriptor } =
+	slice.actions;
 
 // Redux thunk for adding a site
 export function addSite(siteInfo: SiteInfo) {
@@ -166,6 +175,7 @@ export function selectSite(siteSlug: string) {
 				create: true,
 			}
 		);
+		dispatch(setActiveSiteSlug(siteSlug));
 		dispatch(
 			setOpfsMountDescriptor({
 				device: {
