@@ -13,16 +13,19 @@ import { createNewSiteInfo, SiteInfo } from '../../lib/site-storage';
 import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { SiteInfoView } from './site-info-view';
+import classNames from 'classnames';
 
-export function SiteManager({
-	siteSlug,
-	onSiteChange,
-	siteViewRef,
-}: {
-	siteSlug?: string;
-	onSiteChange: (siteSlug?: string) => void;
-	siteViewRef: React.RefObject<HTMLDivElement>;
-}) {
+import React, { forwardRef } from 'react';
+
+export const SiteManager = forwardRef<
+	HTMLDivElement,
+	{
+		className?: string;
+		siteSlug?: string;
+		onSiteChange: (siteSlug?: string) => void;
+		siteViewRef: React.RefObject<HTMLDivElement>;
+	}
+>(({ siteSlug, onSiteChange, siteViewRef, className, ...rest }, ref) => {
 	const { goTo } = useNavigator();
 
 	const sites = useSelector(
@@ -87,7 +90,7 @@ export function SiteManager({
 		}
 	};
 	return (
-		<div className={css.siteManager}>
+		<div className={classNames(css.siteManager, className)} ref={ref}>
 			<SiteManagerSidebar
 				className={css.siteManagerSidebar}
 				onSiteClick={onSiteClick}
@@ -105,4 +108,4 @@ export function SiteManager({
 			)}
 		</div>
 	);
-}
+});

@@ -9,38 +9,42 @@
 
 .playground-navigator-screen {
 	overflow: hidden;
+	animation: none !important;
 }
 
-.playground-navigator-screen.open {
+.sidebar {
 	flex: 0 0 auto;
+}
+
+.sidebar-enter {
+	opacity: 0;
+	width: 0;
+}
+
+.sidebar-exit,
+.sidebar-enter-active {
+	opacity: 1;
+	transform: none;
 	width: calc(
 		var(--site-manager-sidebar-width) + var(--site-manager-site-info-width)
 	);
-	animation: open-navigator-screen 0.2s ease-in-out !important;
 }
 
-.playground-navigator-screen.close {
-	flex: 0 0 auto;
-	width: 0%;
-	animation: open-navigator-screen 0.2s ease-in-out reverse !important;
+/* 
+ * Repeated rule to ensure it's more specific than
+ * .sidebar-exit
+ */
+.sidebar-exit-active {
+	opacity: 0;
+	width: 0;
 }
 
-@keyframes open-navigator-screen {
-	from {
-		transform: translateX(-50px);
-		opacity: 0;
-		width: 0;
-	}
-	to {
-		transform: none;
-		opacity: 1;
-		width: calc(
-			var(--site-manager-sidebar-width) +
-				var(--site-manager-site-info-width)
-		);
-	}
+.sidebar-exit-active,
+.sidebar-enter-active {
+	transition: width 300ms, opacity 300ms;
 }
 
+/*
 @media (min-width: 640px) {
 	.playground-navigator-screen {
 		width: calc(
@@ -48,4 +52,4 @@
 				var(--site-manager-site-info-width)
 		);
 	}
-}
+} */

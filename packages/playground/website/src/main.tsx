@@ -13,11 +13,9 @@ import { useBootPlayground } from './lib/use-boot-playground';
 import { Provider } from 'react-redux';
 import { useEffect, useRef, useState } from '@wordpress/element';
 import store from './lib/redux-store';
-import {
-	__experimentalNavigatorProvider as NavigatorProvider,
-	__experimentalNavigatorScreen as NavigatorScreen,
-} from '@wordpress/components';
-import classNames from 'classnames';
+import { __experimentalNavigatorProvider as NavigatorProvider } from '@wordpress/components';
+import { CSSTransition } from 'react-transition-group';
+import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 
 collectWindowErrors(logger);
 
@@ -77,28 +75,33 @@ function Main() {
 	}, [siteSlug]);
 
 	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
+	const {
+		location: { path },
+	} = useNavigator();
 
-	const siteManager = (
-		<SiteManager
-			siteSlug={siteSlug}
-			onSiteChange={setSiteSlug}
-			siteViewRef={siteViewRef}
-		/>
-	);
 	return (
-		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
-			<NavigatorScreen
-				path="/manager"
-				className={classNames(css.playgroundNavigatorScreen, css.open)}
+		<>
+			{/* We could use the <NavigatorScreen /> component here, but it doesn't
+			    see, to play well with CSSTransition. */}
+			<CSSTransition
+				in={path === '/manager'}
+				timeout={500}
+				classNames={{
+					enter: css.sidebarEnter,
+					enterActive: css.sidebarEnterActive,
+					exit: css.sidebarExit,
+					exitActive: css.sidebarExitActive,
+				}}
+				unmountOnExit
 			>
-				{siteManager}
-			</NavigatorScreen>
-			<NavigatorScreen
-				path="/"
-				className={classNames(css.playgroundNavigatorScreen, css.close)}
-			>
-				{siteManager}
-			</NavigatorScreen>
+				<div className={css.sidebar}>
+					<SiteManager
+						siteSlug={siteSlug}
+						onSiteChange={setSiteSlug}
+						siteViewRef={siteViewRef}
+					/>
+				</div>
+			</CSSTransition>
 			<SiteView
 				siteViewRef={siteViewRef}
 				blueprint={blueprint}
@@ -108,15 +111,17 @@ function Main() {
 				url={url}
 				iframeRef={iframeRef}
 			/>
-		</NavigatorProvider>
+		</>
 	);
 }
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
-	<Provider store={store}>
-		<Main />
-	</Provider>
+	<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
+		<Provider store={store}>
+			<Main />
+		</Provider>
+	</NavigatorProvider>
 );
 
 function resolveVersion<T>(
