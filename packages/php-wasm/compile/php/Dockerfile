@@ -538,6 +538,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
+"zif_stream_select",\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
 "php_stream_read_to_str",\
@@ -777,6 +778,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "shutdown_executor",\
 "shutdown_destructors",\
 "stream_resource_regular_dtor",\
+"stream_array_from_fd_set",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_close_rsrc_list",\
