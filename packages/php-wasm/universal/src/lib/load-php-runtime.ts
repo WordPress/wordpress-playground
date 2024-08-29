@@ -162,7 +162,8 @@ export async function loadPHPRuntime(
 
 	PHPRuntime._exit = function (code: number) {
 		if (PHPRuntime.outboundNetworkProxyServer) {
-			PHPRuntime.outboundNetworkProxyServer?.closeAllConnections();
+			PHPRuntime.outboundNetworkProxyServer.close();
+			PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
 		}
 		loadedRuntimes.delete(id);
 		return PHPRuntime.originalExit(code);
