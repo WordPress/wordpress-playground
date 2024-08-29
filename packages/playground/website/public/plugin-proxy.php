@@ -338,14 +338,26 @@ try {
         $branch = strtolower( $_GET['wordpress-branch'] );
         if ( $branch === 'trunk' || $branch === 'master' ) {
             $branch = 'master';
+            $prefix = 'refs/heads/';
             // If the brach is of the form x.x append '-branch' to it.
         } elseif ( preg_match( '/^\d+\.\d+$/', $branch ) ) {
             $branch .= '-branch';
+            $prefix = 'refs/heads/';
+            // If the branch is in the form x.x.x, it's a tag.
+        } elseif ( preg_match( '/^\d+\.\d+\.\d+$/', $branch ) ) {
+            // Remove trailing .0 if present.
+            if ( substr( $branch, -2 ) === '.0' ) {
+                $branch = substr( $branch, 0, -2 );
+            }
+            $prefix = 'refs/tags/';
+            // If the branch is in the form [a-f0-9]{7,40} it's a commit hash.
+        } elseif ( preg_match( '/^[a-f0-9]{7,40}$/', $branch ) ) {
+            $prefix = '';
         } elseif ( ! preg_match( '/^\d+\.\d+-branch$/', $branch ) ) {
-            throw new ApiException( 'Invalid branch' );
+            throw new ApiException( 'Invalid reference' );
         }
 
-        $url = "https://codeload.github.com/WordPress/WordPress/zip/refs/heads/{$branch}";
+        $url = "https://codeload.github.com/WordPress/WordPress/zip/{$prefix}{$branch}";
 
         streamHttpResponse(
             $url,
