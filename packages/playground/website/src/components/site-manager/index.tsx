@@ -1,5 +1,5 @@
 import { SiteManagerSidebar } from './site-manager-sidebar';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import { useMediaQuery } from '@wordpress/compose';
 import store, {
 	PlaygroundReduxState,
 	selectSite,
@@ -16,23 +16,25 @@ import { SiteInfoView } from './site-info-view';
 import classNames from 'classnames';
 
 import React, { forwardRef } from 'react';
+import { useNavigatorParams } from '../../lib/use-navigator-params';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
 	{
 		className?: string;
-		siteSlug?: string;
 		onSiteChange: (siteSlug?: string) => void;
 		siteViewRef: React.RefObject<HTMLDivElement>;
 	}
->(({ siteSlug, onSiteChange, siteViewRef, className, ...rest }, ref) => {
-	const { goTo } = useNavigator();
+>(({ onSiteChange, siteViewRef, className, ...rest }, ref) => {
+	const {
+		goTo,
+		matchedParams: { siteSlug },
+	} = useNavigatorParams('/manager/:siteSlug');
 
 	const sites = useSelector(
 		(state: PlaygroundReduxState) => state.siteListing.sites
 	);
 
-	siteSlug ??= 'wordpress';
 	const selectedSite = sites.find((site) => site.slug === siteSlug);
 
 	const addSite = async (name: string) => {
@@ -56,18 +58,6 @@ export const SiteManager = forwardRef<
 		}
 	};
 
-	const shouldHideSiteManagerOnSiteChange = () => {
-		/**
-		 * TODO: Currently we check if the site view is hidden.
-		 * Once we add the site editor to the site manager,
-		 * we should check if the site editor is hidden instead.
-		 */
-		return (
-			siteViewRef.current &&
-			window.getComputedStyle(siteViewRef.current).display === 'none'
-		);
-	};
-
 	const onSiteClick = async (siteSlug: string) => {
 		onSiteChange(siteSlug);
 		const url = new URL(window.location.href);
@@ -79,32 +69,40 @@ export const SiteManager = forwardRef<
 		window.history.pushState({}, '', url.toString());
 
 		await store.dispatch(selectSite(siteSlug));
-
-		/**
-		 * On mobile, the site editor and site preview are hidden.
-		 * This doesn't give users any way to go back to the site view.
-		 * So we hide the site manager on site change.
-		 */
-		if (shouldHideSiteManagerOnSiteChange()) {
-			goTo('/');
-		}
+		goTo('/manager/' + siteSlug);
 	};
+
+	const fullScreenSections = useMediaQuery('(max-width: 750px)');
+	const siteManagerSidebar = (
+		<SiteManagerSidebar
+			className={css.siteManagerSidebar}
+			onSiteClick={onSiteClick}
+			siteSlug={siteSlug}
+			addSite={addSite}
+			sites={sites}
+		/>
+	);
+	const siteInfoView = selectedSite && (
+		<SiteInfoView
+			key={selectedSite.slug}
+			className={css.siteManagerSiteInfo}
+			site={selectedSite}
+			removeSite={removeSite}
+			showBackButton={fullScreenSections}
+			onBackButtonClick={() => {
+				goTo('/manager');
+			}}
+		/>
+	);
 	return (
 		<div className={classNames(css.siteManager, className)} ref={ref}>
-			<SiteManagerSidebar
-				className={css.siteManagerSidebar}
-				onSiteClick={onSiteClick}
-				siteSlug={siteSlug}
-				addSite={addSite}
-				sites={sites}
-			/>
-			{selectedSite && (
-				<SiteInfoView
-					key={selectedSite.slug}
-					className={css.siteManagerSiteInfo}
-					site={selectedSite}
-					removeSite={removeSite}
-				/>
+			{fullScreenSections ? (
+				siteInfoView || siteManagerSidebar
+			) : (
+				<>
+					{siteManagerSidebar}
+					{siteInfoView}
+				</>
 			)}
 		</div>
 	);

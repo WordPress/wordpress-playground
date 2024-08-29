@@ -14,7 +14,14 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, external, copy, seen, unseen } from '@wordpress/icons';
+import {
+	moreVertical,
+	external,
+	copy,
+	seen,
+	unseen,
+	chevronLeft,
+} from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { StorageType } from '../storage-type';
 import { useSelector } from 'react-redux';
@@ -39,10 +46,14 @@ export function SiteInfoView({
 	className,
 	site,
 	removeSite,
+	showBackButton,
+	onBackButtonClick,
 }: {
 	className: string;
 	site: SiteInfo;
 	removeSite: (site: SiteInfo) => Promise<void>;
+	showBackButton?: boolean;
+	onBackButtonClick?: () => void;
 }) {
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
@@ -59,6 +70,7 @@ export function SiteInfoView({
 	);
 
 	const [showNotice, setShowNotice] = useState(site.storage === 'temporary');
+
 	return (
 		<section className={classNames(className, css.siteInfoView)}>
 			{showNotice ? (
@@ -101,7 +113,23 @@ export function SiteInfoView({
 						className={css.padded}
 					>
 						<FlexItem>
-							<Flex direction="row" gap={4}>
+							<Flex direction="row" gap={2}>
+								{showBackButton && (
+									<FlexItem>
+										<Button
+											variant="link"
+											label="Back to sites list"
+											icon={() => (
+												<Icon
+													icon={chevronLeft}
+													size={38}
+												/>
+											)}
+											className={css.grayLinkDark}
+											onClick={onBackButtonClick}
+										/>
+									</FlexItem>
+								)}
 								<FlexItem className={css.siteInfoHeaderIcon}>
 									{site.logo ? (
 										<img
@@ -144,14 +172,6 @@ export function SiteInfoView({
 						</FlexItem>
 						<FlexItem>
 							<Flex direction="row" gap={4} align="center">
-								<Button
-									variant="link"
-									onClick={() => {
-										playground?.goTo('/wp-admin');
-									}}
-								>
-									WP Admin
-								</Button>
 								<Button
 									variant="secondary"
 									onClick={() => {

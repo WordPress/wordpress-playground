@@ -6,16 +6,13 @@ import { PlaygroundConfiguration } from './components/playground-configuration-g
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
-import { SiteView } from './components/site-view/site-view';
 import { StorageTypes, StorageType } from './types';
-import { SiteManager } from './components/site-manager';
 import { useBootPlayground } from './lib/use-boot-playground';
 import { Provider } from 'react-redux';
-import { useEffect, useRef, useState } from '@wordpress/element';
+import { useEffect, useState } from '@wordpress/element';
 import store from './lib/redux-store';
 import { __experimentalNavigatorProvider as NavigatorProvider } from '@wordpress/components';
-import { CSSTransition } from 'react-transition-group';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import { Layout } from './components/layout';
 
 collectWindowErrors(logger);
 
@@ -61,7 +58,6 @@ if (currentConfiguration.wp === '6.3') {
 }
 
 function Main() {
-	const siteViewRef = useRef<HTMLDivElement>(null);
 	const [siteSlug, setSiteSlug] = useState<string | undefined>(
 		query.get('site-slug') ?? undefined
 	);
@@ -75,43 +71,18 @@ function Main() {
 	}, [siteSlug]);
 
 	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
-	const {
-		location: { path },
-	} = useNavigator();
 
 	return (
-		<>
-			{/* We could use the <NavigatorScreen /> component here, but it doesn't
-			    see, to play well with CSSTransition. */}
-			<CSSTransition
-				in={path === '/manager'}
-				timeout={500}
-				classNames={{
-					enter: css.sidebarEnter,
-					enterActive: css.sidebarEnterActive,
-					exit: css.sidebarExit,
-					exitActive: css.sidebarExitActive,
-				}}
-				unmountOnExit
-			>
-				<div className={css.sidebar}>
-					<SiteManager
-						siteSlug={siteSlug}
-						onSiteChange={setSiteSlug}
-						siteViewRef={siteViewRef}
-					/>
-				</div>
-			</CSSTransition>
-			<SiteView
-				siteViewRef={siteViewRef}
-				blueprint={blueprint}
-				currentConfiguration={currentConfiguration}
-				storage={storage}
-				playground={playground}
-				url={url}
-				iframeRef={iframeRef}
-			/>
-		</>
+		<Layout
+			playground={playground!}
+			url={url!}
+			iframeRef={iframeRef}
+			blueprint={blueprint}
+			storage={storage}
+			currentConfiguration={currentConfiguration}
+			siteSlug={siteSlug}
+			setSiteSlug={setSiteSlug}
+		/>
 	);
 }
 

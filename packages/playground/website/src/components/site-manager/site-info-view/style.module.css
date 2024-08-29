@@ -83,6 +83,10 @@
 	color: var(--color-gray-600) !important;
 }
 
+.gray-link-dark {
+	color: var(--color-gray-900) !important;
+}
+
 .button-no-padding {
 	padding-left: 0 !important;
 	padding-right: 0 !important;
@@ -100,6 +104,7 @@
 
 	width: 48px;
 	height: 48px;
+	margin-right: 8px;
 
 	background: #ffffff;
 	border: 1px solid rgba(0, 0, 0, 0.1);

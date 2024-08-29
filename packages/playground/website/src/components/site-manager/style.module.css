@@ -1,11 +1,3 @@
-body {
-	--site-manager-background-color: #1e1e1e;
-	--site-manager-border-width: 12px;
-	--site-manager-sidebar-width: 282px;
-	--site-manager-site-info-width: 564px;
-	--site-manager-border-radius: 12px;
-}
-
 .site-manager {
 	height: 100vh;
 	overflow: hidden;
@@ -22,11 +14,12 @@ body {
 }
 
 .site-manager-sidebar {
-	width: var(--site-manager-sidebar-width);
+	width: var(--site-manager-site-list-width);
 	height: 100%;
 }
 
 .site-manager-site-info {
-	width: var(--site-manager-site-info-width);
+	min-width: var(--site-manager-site-list-width);
 	height: 100%;
+	flex-grow: 1;
 }
