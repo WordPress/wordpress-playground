@@ -1,4 +1,4 @@
-import { SiteManagerSidebar } from './site-manager-sidebar';
+import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
 import store, {
 	PlaygroundReduxState,
@@ -12,7 +12,7 @@ import css from './style.module.css';
 import { createNewSiteInfo, SiteInfo } from '../../lib/site-storage';
 import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { SiteInfoView } from './site-info-view';
+import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import React, { forwardRef } from 'react';
@@ -73,17 +73,17 @@ export const SiteManager = forwardRef<
 	};
 
 	const fullScreenSections = useMediaQuery('(max-width: 750px)');
-	const siteManagerSidebar = (
-		<SiteManagerSidebar
-			className={css.siteManagerSidebar}
+	const sitesList = (
+		<Sidebar
+			className={css.sidebar}
 			onSiteClick={onSiteClick}
 			siteSlug={siteSlug}
 			addSite={addSite}
 			sites={sites}
 		/>
 	);
-	const siteInfoView = selectedSite && (
-		<SiteInfoView
+	const siteInfoPanel = selectedSite && (
+		<SiteInfoPanel
 			key={selectedSite.slug}
 			className={css.siteManagerSiteInfo}
 			site={selectedSite}
@@ -97,11 +97,11 @@ export const SiteManager = forwardRef<
 	return (
 		<div className={classNames(css.siteManager, className)} ref={ref}>
 			{fullScreenSections ? (
-				siteInfoView || siteManagerSidebar
+				siteInfoPanel || sitesList
 			) : (
 				<>
-					{siteManagerSidebar}
-					{siteInfoView}
+					{sitesList}
+					{siteInfoPanel}
 				</>
 			)}
 		</div>

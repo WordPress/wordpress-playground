@@ -13,7 +13,7 @@
 	flex-direction: row;
 }
 
-.site-manager-sidebar {
+.sidebar {
 	width: var(--site-manager-site-list-width);
 	height: 100%;
 }

@@ -42,7 +42,7 @@ function SiteInfoRow({
 	);
 }
 
-export function SiteInfoView({
+export function SiteInfoPanel({
 	className,
 	site,
 	removeSite,
@@ -72,7 +72,7 @@ export function SiteInfoView({
 	const [showNotice, setShowNotice] = useState(site.storage === 'temporary');
 
 	return (
-		<section className={classNames(className, css.siteInfoView)}>
+		<section className={classNames(className, css.siteInfoPanel)}>
 			{showNotice ? (
 				<Notice
 					className={css.siteNotice}
@@ -291,14 +291,20 @@ export function SiteInfoView({
 
 function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const [masked, setMasked] = useState(true);
+	// @TODO: Get username and password from the site object
 	const username = 'admin';
 	const password = 'password';
+
+	const playground = useSelector(
+		(state: PlaygroundReduxState) => state.playgroundClient
+	);
 
 	return (
 		<Flex
 			gap={8}
 			direction="column"
 			className={css.maxWidth}
+			justify="flex-start"
 			expanded={true}
 		>
 			<FlexItem>
@@ -420,11 +426,9 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 								target="_blank"
 								rel="noopener noreferrer"
 								className={css.buttonNoPadding}
-								// icon={() => <Icon size={16} icon={external} />}
-								// iconPosition="right"
 								label="Go to Admin"
 							>
-								{site.url}/wp-admin{' '}
+								{/*@TODO: site.url*/}/wp-admin{' '}
 							</Button>
 						}
 					/>
@@ -455,7 +459,9 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 								variant="link"
 								className={css.buttonNoPadding}
 								href={`/builder#${encodeURIComponent(
-									site.originalBlueprint.id
+									JSON.stringify(
+										site.originalBlueprint as any
+									)
 								)}`}
 								target="_blank"
 								rel="noopener noreferrer"
