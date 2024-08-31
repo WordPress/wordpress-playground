@@ -162,7 +162,7 @@ class PluginDownloader
         }
     }
 
-    protected function gitHubRequest($url, $decode = true, $follow_location = true)
+    public function gitHubRequest($url, $decode = true, $follow_location = true)
     {
         $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36';
         $headers[] = 'Authorization: Bearer ' . $this->githubToken;
@@ -353,14 +353,41 @@ try {
             // If the branch is in the form [a-f0-9]{7,40} it's a commit hash.
         } elseif ( preg_match( '/^[a-f0-9]{7,40}$/', $branch ) ) {
             $prefix = '';
-        } elseif ( ! preg_match( '/^\d+\.\d+-branch$/', $branch ) ) {
-            throw new ApiException( 'Invalid reference' );
+        } elseif ( preg_match( '/^\d+\.\d+-branch$/', $branch ) ) {
+            $prefix = 'refs/heads/';
+        } else {
+            throw new ApiException('artifact_not_found');
         }
 
-        $url = "https://codeload.github.com/WordPress/WordPress/zip/{$prefix}{$branch}";
+        /*
+         * URL provided by GitHub by the "Download ZIP" button.
+         *
+         * The URL of the actual zip file is provided by the location header, the
+         * zip file's final URL is known to change occasionally so it's required
+         * to fetch the official URL before streaming the file.
+         */
+        $url = "https://github.com/WordPress/WordPress/archive/{$prefix}{$branch}.zip";
 
+        $github_response = $downloader->gitHubRequest( $url, false, false );
+
+        // Get the real zip file's location header from the response.
+        $zipUrl = null;
+        foreach ( $github_response['headers'] as $header_line ) {
+            $header_name = strtolower( substr( $header_line, 0, strpos( $header_line, ':' ) ) );
+            $header_value = trim( substr( $header_line, 1 + strpos( $header_line, ':' ) ) );
+            if ( $header_name === 'location' ) {
+                $zipUrl = $header_value;
+                break;
+            }
+        }
+
+        if ( ! $zipUrl ) {
+            throw new ApiException('artifact_not_found');
+        }
+
+        // Stream the zip file from the real location.
         streamHttpResponse(
-            $url,
+            $zipUrl,
             'GET',
             [],
             file_get_contents('php://input'),
