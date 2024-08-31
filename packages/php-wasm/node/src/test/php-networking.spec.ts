@@ -2,10 +2,12 @@ import {
 	PHP,
 	SupportedPHPVersions,
 	setPhpIniEntries,
+	getLoadedRuntime,
 } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
+import http from 'http';
 
 describe.each(SupportedPHPVersions)(
 	'PHP %s',
@@ -168,6 +170,27 @@ describe.each(SupportedPHPVersions)(
 				});
 				console.log(text);
 				expect(text).toContain('bool(true)');
+			});
+
+			it('should close server when runtime is exited', async () => {
+				const id = await loadNodeRuntime(phpVersion);
+				const php = new PHP(id);
+				const rt = getLoadedRuntime(id);
+
+				expect(rt.outboundNetworkProxyServer).toBeDefined();
+				expect(rt.outboundNetworkProxyServer).toBeInstanceOf(
+					http.Server
+				);
+
+				expect(rt.outboundNetworkProxyServer.listening).toBe(true);
+				php.exit();
+
+				// Wait for the server to close
+				await new Promise((resolve) => {
+					rt.outboundNetworkProxyServer.on('close', resolve);
+				});
+
+				expect(rt.outboundNetworkProxyServer.listening).toBe(false);
 			});
 		});
 	},
