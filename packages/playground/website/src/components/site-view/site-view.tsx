@@ -34,13 +34,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
+	getSiteClient,
 	setActiveModal,
 } from '../../lib/redux-store';
-import {
-	Blueprint,
-	PlaygroundClient,
-	StepDefinition,
-} from '@wp-playground/client';
+import { Blueprint, StepDefinition } from '@wp-playground/client';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { LogModal } from '../log-modal';
 import { ErrorReportModal } from '../error-report-modal';
@@ -54,7 +51,7 @@ acquireOAuthTokenIfNeeded();
 
 function Modals(blueprint: Blueprint) {
 	const currentModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+		(state: PlaygroundReduxState) => state.app.activeModal
 	);
 
 	if (currentModal === 'log') {
@@ -70,24 +67,22 @@ function Modals(blueprint: Blueprint) {
 
 export function SiteView({
 	blueprint,
+	siteSlug,
 	currentConfiguration,
 	storage,
-	playground,
-	url,
-	iframeRef,
 	siteViewRef,
 }: {
 	blueprint: Blueprint;
+	siteSlug?: string;
 	currentConfiguration: PlaygroundConfiguration;
 	storage: StorageType;
-	playground?: PlaygroundClient;
-	url?: string;
-	iframeRef: React.RefObject<HTMLIFrameElement>;
 	siteViewRef: React.RefObject<HTMLDivElement>;
 }) {
 	const navigator = useNavigator();
 	const dispatch: PlaygroundDispatch = useDispatch();
-	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
+	const offline = useSelector(
+		(state: PlaygroundReduxState) => state.app.offline
+	);
 
 	const isSiteManagerActive = navigator.location.path === '/manager';
 
@@ -173,12 +168,16 @@ export function SiteView({
 		}
 	};
 
+	const siteClient = useSelector((state: PlaygroundReduxState) =>
+		getSiteClient(state, siteSlug)
+	);
+
 	return (
 		<PlaygroundContext.Provider
 			value={{
 				storage,
-				playground,
-				currentUrl: url,
+				playground: siteClient?.client,
+				currentUrl: siteClient?.lastUrl,
 			}}
 		>
 			<div
@@ -229,7 +228,6 @@ export function SiteView({
 					}}
 				/>
 				<PlaygroundViewport
-					ref={iframeRef}
 					storage={storage}
 					displayMode={displayMode}
 					hideToolbar={isSiteManagerActive}

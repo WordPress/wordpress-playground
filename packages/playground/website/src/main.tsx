@@ -9,7 +9,6 @@ import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { SiteView } from './components/site-view/site-view';
 import { StorageTypes, StorageType } from './types';
 import { SiteManager } from './components/site-manager';
-import { useBootPlayground } from './lib/use-boot-playground';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { useEffect, useRef } from '@wordpress/element';
 import store, {
@@ -68,7 +67,7 @@ if (currentConfiguration.wp === '6.3') {
 function Main() {
 	const siteViewRef = useRef<HTMLDivElement>(null);
 	const siteSlug = useSelector(
-		(state: PlaygroundReduxState) => state.activeSiteSlug
+		(state: PlaygroundReduxState) => state.app.activeSiteSlug
 	);
 	const dispatch = useDispatch<PlaygroundDispatch>();
 	const setSiteSlug = (slug?: string) => {
@@ -82,8 +81,6 @@ function Main() {
 			);
 		}
 	}, [siteSlug]);
-
-	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
 
 	return (
 		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
@@ -101,13 +98,11 @@ function Main() {
 				<div />
 			</NavigatorScreen>
 			<SiteView
-				siteViewRef={siteViewRef}
+				siteSlug={siteSlug}
 				blueprint={blueprint}
+				siteViewRef={siteViewRef}
 				currentConfiguration={currentConfiguration}
 				storage={storage}
-				playground={playground}
-				url={url}
-				iframeRef={iframeRef}
 			/>
 		</NavigatorProvider>
 	);

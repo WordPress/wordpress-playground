@@ -1,12 +1,17 @@
-import React, { Ref, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import { StorageType } from '../../types';
-import { setupPostMessageRelay } from '@php-wasm/web';
 import { usePlaygroundContext } from '../../playground-context';
 import { useSelector } from 'react-redux';
-import { PlaygroundReduxState } from '../../lib/redux-store';
+import {
+	bootPlayground,
+	getClientState,
+	PlaygroundReduxState,
+	useAppDispatch,
+} from '../../lib/redux-store';
+import { setupPostMessageRelay } from '@php-wasm/web';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -23,51 +28,63 @@ interface PlaygroundViewportProps {
 	className?: string;
 }
 
-export const PlaygroundViewport = React.forwardRef<
-	HTMLIFrameElement,
-	PlaygroundViewportProps
->(
-	(
-		{ displayMode = 'browser', toolbarButtons, hideToolbar, className },
-		ref
-	) => {
-		const { playground, currentUrl: url } = usePlaygroundContext();
+export const PlaygroundViewport = ({
+	displayMode = 'browser-full-screen',
+	toolbarButtons,
+	hideToolbar,
+	className,
+}: PlaygroundViewportProps) => {
+	const { playground, currentUrl: url } = usePlaygroundContext();
 
-		if (displayMode === 'seamless') {
-			// No need to boot the playground if seamless.
-			return <JustViewport iframeRef={ref} />;
-		}
-		return (
-			<BrowserChrome
-				showAddressBar={!!playground}
-				url={url}
-				toolbarButtons={toolbarButtons}
-				onUrlChange={(url) => playground?.goTo(url)}
-				hideToolbar={hideToolbar}
-				className={className}
-			>
-				<JustViewport iframeRef={ref} />
-			</BrowserChrome>
-		);
+	if (displayMode === 'seamless') {
+		// No need to boot the playground if seamless.
+		return <JustViewport />;
 	}
-);
+	return (
+		<BrowserChrome
+			showAddressBar={!!playground}
+			url={url}
+			toolbarButtons={toolbarButtons}
+			onUrlChange={(url) => playground?.goTo(url)}
+			hideToolbar={hideToolbar}
+			className={className}
+		>
+			<JustViewport />
+		</BrowserChrome>
+	);
+};
 
-interface JustViewportProps {
-	iframeRef: Ref<HTMLIFrameElement>;
-}
-
-export const JustViewport = function LoadedViewportComponent({
-	iframeRef,
-}: JustViewportProps) {
+export const JustViewport = function LoadedViewportComponent() {
+	const iframeRef = useRef<HTMLIFrameElement>(null);
+	const iframe = (iframeRef as any)?.current;
 	useEffect(() => {
-		const iframe = (iframeRef! as any).current!;
-		setupPostMessageRelay(iframe, document.location.origin);
+		if (iframe) {
+			setupPostMessageRelay(iframe, document.location.origin);
+		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [!!iframe]);
 
 	const siteSlug = useSelector(
-		(state: PlaygroundReduxState) => state.activeSiteSlug
+		(state: PlaygroundReduxState) => state.app.activeSiteSlug
 	);
+	const clientState = useSelector((state: PlaygroundReduxState) =>
+		getClientState(state, siteSlug)
+	);
+
+	const dispatch = useAppDispatch();
+	useEffect(() => {
+		if (clientState === 'missing' && iframe) {
+			dispatch(
+				bootPlayground({
+					blueprint: {},
+					iframe,
+					siteId: siteSlug,
+				})
+			);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [clientState, !!iframe]);
+
 	return (
 		<div className={css.fullSize}>
 			<iframe
