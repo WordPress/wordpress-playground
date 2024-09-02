@@ -529,6 +529,58 @@ describe.each(configsForRequestTests)(
 			expect(response.text).toEqual('value');
 		});
 
+		it('should serve a symlinked file', async () => {
+			php.writeFile(
+				joinPaths(docRoot, 'target.php'),
+				`<?php echo 'foo';`
+			);
+			php.symlink('target.php', joinPaths(docRoot, 'test.php'));
+
+			const response = await handler.request({
+				url: '/test.php',
+			});
+
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('foo');
+		});
+
+		it('should serve a symlinked directory', async () => {
+			php.mkdir(joinPaths(docRoot, 'target'));
+			php.writeFile(
+				joinPaths(docRoot, 'target', 'index.php'),
+				`<?php echo 'foo';`
+			);
+			php.symlink(
+				joinPaths(docRoot, 'target'),
+				joinPaths(docRoot, 'test')
+			);
+
+			const response = await handler.request({
+				url: '/test/',
+			});
+
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('foo');
+		});
+
+		it('should return 301 when requesting a symlinked directory without a trailing slash', async () => {
+			php.mkdir(joinPaths(docRoot, 'target'));
+			php.writeFile(
+				joinPaths(docRoot, 'target', 'index.php'),
+				`<?php echo 'foo';`
+			);
+			php.symlink(
+				joinPaths(docRoot, 'target'),
+				joinPaths(docRoot, 'test')
+			);
+
+			const response = await handler.request({
+				url: '/test',
+			});
+
+			expect(response.httpStatusCode).toEqual(301);
+		});
+
 		describe('WordPress requests', () => {
 			beforeEach(() => {
 				getFileNotFoundActionForTest =

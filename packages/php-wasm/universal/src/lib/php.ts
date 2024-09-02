@@ -938,6 +938,10 @@ export class PHP implements Disposable {
 		return FSHelpers.isFile(this[__private__dont__use].FS, path);
 	}
 
+	symlink(target: string, path: string) {
+		return FSHelpers.symlink(this[__private__dont__use].FS, target, path);
+	}
+
 	/**
 	 * Checks if a path is a symlink in the PHP filesystem.
 	 *

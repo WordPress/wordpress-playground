@@ -199,6 +199,17 @@ export class FSHelpers {
 	}
 
 	/**
+	 * Creates a symlink in the PHP filesystem.
+	 *
+	 * @param FS
+	 * @param target
+	 * @param link
+	 */
+	static symlink(FS: Emscripten.RootFS, target: string, link: string): any {
+		return FS.symlink(target, link);
+	}
+
+	/**
 	 * Checks if a path is a symlink in the PHP filesystem.
 	 *
 	 * @param FS
