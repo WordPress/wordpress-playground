@@ -339,6 +339,12 @@ export class PHPRequestHandler {
 
 		let fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
 
+		// If we are dealing with a symlink, lets resolve the target
+		// and continue using that instead of the symlink.
+		if (primaryPhp.isSymlink(fsPath)) {
+			fsPath = primaryPhp.readLink(fsPath);
+		}
+
 		if (primaryPhp.isDir(fsPath)) {
 			// Ensure directory URIs have a trailing slash. Otherwise,
 			// relative URIs in index.php or index.html files are relative

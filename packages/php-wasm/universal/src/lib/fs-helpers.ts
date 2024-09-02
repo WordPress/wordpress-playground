@@ -198,6 +198,21 @@ export class FSHelpers {
 		return FS.isFile(FS.lookupPath(path).node.mode);
 	}
 
+	static isSymlink(FS: Emscripten.RootFS, path: string): boolean {
+		if (!FSHelpers.fileExists(FS, path)) {
+			return false;
+		}
+
+		return FS.isLink(FS.lookupPath(path).node.mode);
+	}
+
+	static readLink(FS: Emscripten.RootFS, path: string): string {
+		if (!FSHelpers.isSymlink(FS, path)) {
+			throw new Error(`"${path}" is not a symlink`);
+		}
+		return FS.readlink(path);
+	}
+
 	/**
 	 * Checks if a file (or a directory) exists in the PHP filesystem.
 	 *
