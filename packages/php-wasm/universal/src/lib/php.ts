@@ -942,8 +942,8 @@ export class PHP implements Disposable {
 		return FSHelpers.isSymlink(this[__private__dont__use].FS, path);
 	}
 
-	readLink(path: string) {
-		return FSHelpers.readLink(this[__private__dont__use].FS, path);
+	readlink(path: string) {
+		return FSHelpers.readlink(this[__private__dont__use].FS, path);
 	}
 
 	/**

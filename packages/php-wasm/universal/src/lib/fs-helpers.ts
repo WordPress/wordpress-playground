@@ -206,7 +206,7 @@ export class FSHelpers {
 		return FS.isLink(FS.lookupPath(path).node.mode);
 	}
 
-	static readLink(FS: Emscripten.RootFS, path: string): string {
+	static readlink(FS: Emscripten.RootFS, path: string): string {
 		if (!FSHelpers.isSymlink(FS, path)) {
 			throw new Error(`"${path}" is not a symlink`);
 		}

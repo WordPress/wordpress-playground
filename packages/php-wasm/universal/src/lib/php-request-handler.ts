@@ -342,7 +342,7 @@ export class PHPRequestHandler {
 		// If we are dealing with a symlink, lets resolve the target
 		// and continue using that instead of the symlink.
 		if (primaryPhp.isSymlink(fsPath)) {
-			fsPath = primaryPhp.readLink(fsPath);
+			fsPath = primaryPhp.readlink(fsPath);
 		}
 
 		if (primaryPhp.isDir(fsPath)) {
