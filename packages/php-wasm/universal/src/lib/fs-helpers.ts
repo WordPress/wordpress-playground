@@ -198,6 +198,13 @@ export class FSHelpers {
 		return FS.isFile(FS.lookupPath(path).node.mode);
 	}
 
+	/**
+	 * Checks if a path is a symlink in the PHP filesystem.
+	 *
+	 * @param FS
+	 * @param path
+	 * @returns True if the path is a symlink, false otherwise.
+	 */
 	static isSymlink(FS: Emscripten.RootFS, path: string): boolean {
 		if (!FSHelpers.fileExists(FS, path)) {
 			return false;
@@ -206,6 +213,12 @@ export class FSHelpers {
 		return FS.isLink(FS.lookupPath(path).node.mode);
 	}
 
+	/**
+	 * Reads the target of a symlink in the PHP filesystem.
+	 * @param FS
+	 * @param path
+	 * @returns The target of the symlink.
+	 */
 	static readlink(FS: Emscripten.RootFS, path: string): string {
 		if (!FSHelpers.isSymlink(FS, path)) {
 			throw new Error(`"${path}" is not a symlink`);
