@@ -343,7 +343,7 @@ export class PHPRequestHandler {
 		// and continue using that instead of the symlink.
 		if (primaryPhp.isSymlink(fsPath)) {
 			const originalPathEndsWithSlash = fsPath.endsWith('/');
-			fsPath = primaryPhp.readlink(fsPath);
+			fsPath = primaryPhp.realpath(fsPath);
 
 			// We need to add a trailing slash to the path if the original path
 			// had one, to ensure handling of directory requests is consistent.

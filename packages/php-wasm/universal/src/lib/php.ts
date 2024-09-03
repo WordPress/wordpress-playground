@@ -967,6 +967,10 @@ export class PHP implements Disposable {
 		return FSHelpers.readlink(this[__private__dont__use].FS, path);
 	}
 
+	realpath(path: string) {
+		return FSHelpers.realpath(this[__private__dont__use].FS, path);
+	}
+
 	/**
 	 * Checks if a file (or a directory) exists in the PHP filesystem.
 	 *

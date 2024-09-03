@@ -229,12 +229,60 @@ export class FSHelpers {
 	 * @param FS
 	 * @param path
 	 * @returns The target of the symlink.
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the path is not a symlink.
 	 */
 	static readlink(FS: Emscripten.RootFS, path: string): string {
-		if (!FSHelpers.isSymlink(FS, path)) {
-			throw new Error(`"${path}" is not a symlink`);
-		}
 		return FS.readlink(path);
+	}
+
+	/**
+	 * Gets the real path of a file in the PHP filesystem.
+	 * @param FS
+	 * @param path
+	 *
+	 * @returns The real path of the file.
+	 */
+	static realpath(FS: Emscripten.RootFS, path: string): string {
+		const MAX_SYMLINK_DEPTH = 40;
+		let symlinksFollowed = 0;
+		let remainingPath = path;
+		let resolvedParts: string[] = [];
+		while (symlinksFollowed < MAX_SYMLINK_DEPTH) {
+			const parts = remainingPath.split('/');
+			remainingPath = '';
+
+			for (const [idx, part] of parts.entries()) {
+				if (part === '' || part === '.') continue;
+				const currentPath = joinPaths(resolvedParts.join('/'), part);
+				if (!FSHelpers.fileExists(FS, currentPath)) {
+					resolvedParts.push(part, ...parts.slice(idx + 1));
+					return '/' + resolvedParts.join('/');
+				}
+
+				if (FSHelpers.isSymlink(FS, currentPath)) {
+					const target = FSHelpers.readlink(FS, currentPath);
+					symlinksFollowed++;
+
+					if (symlinksFollowed >= MAX_SYMLINK_DEPTH) {
+						throw new Error(
+							`Too many symlinks followed in path: ${path}`
+						);
+					}
+
+					resolvedParts = [];
+					remainingPath = joinPaths(target, ...parts.slice(idx + 1));
+					break;
+				} else {
+					resolvedParts.push(part);
+				}
+			}
+
+			if (remainingPath === '') {
+				return '/' + resolvedParts.join('/');
+			}
+		}
+
+		throw new Error(`Too many symlinks followed in path: ${path}`);
 	}
 
 	/**

@@ -581,6 +581,22 @@ describe.each(configsForRequestTests)(
 			expect(response.httpStatusCode).toEqual(301);
 		});
 
+		it('should serve symlink to symlinked file', async () => {
+			php.writeFile(
+				joinPaths(docRoot, 'target.php'),
+				`<?php echo 'foo';`
+			);
+			php.symlink('target.php', joinPaths(docRoot, 'symlink.php'));
+			php.symlink('symlink.php', joinPaths(docRoot, 'test.php'));
+
+			const response = await handler.request({
+				url: '/test.php',
+			});
+
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('foo');
+		});
+
 		describe('WordPress requests', () => {
 			beforeEach(() => {
 				getFileNotFoundActionForTest =
