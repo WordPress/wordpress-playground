@@ -500,10 +500,13 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "curl_easy_perform",\
 "Curl_wait_ms",\
 "Curl_http_connect",\
+"Curl_proxy_connect",\
 "RAND_status",\
 "rand_status",\
+"call_extract_if_dead",\
 "__wrap_select",\
 "Curl_socket_check",\
+"Curl_conncache_foreach",\
 "Curl_is_connected",\
 "multi_runsingle",\
 "curl_multi_perform",\
