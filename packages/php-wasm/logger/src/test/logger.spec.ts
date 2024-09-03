@@ -11,9 +11,7 @@ describe('Logger', () => {
 		const logs = logger.getLogs();
 		expect(logs.length).toBe(1);
 		expect(logs[0]).toMatch(
-			// TODO: Replace with the following regex pattern:
-			///\[\d{2}-[A-Za-z]{3,4}-\d{4} \d{2}:\d{2}:\d{2} UTC\] JavaScript Warn: test/
-			/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\] JavaScript Warn: test/
+			/\[\d{2}-[A-Za-z]{3,4}-\d{4} \d{2}:\d{2}:\d{2} UTC\] JavaScript Warn: test/
 		);
 	});
 
