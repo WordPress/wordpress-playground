@@ -39,7 +39,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 			}
 
 			Read more about it in the documentation.
-			https://wordpress.github.io/wordpress-playground/blueprints-api/data-format#extra-libraries`);
+			https://wordpress.github.io/wordpress-playground/blueprints/data-format#extra-libraries`);
 	}
 
 	let args: string[];

@@ -334,6 +334,29 @@ try {
         }
 
         $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
+    } else if ( isset( $_GET['wordpress-branch'] ) ) {
+        $branch = strtolower( $_GET['wordpress-branch'] );
+        if ( $branch === 'trunk' || $branch === 'master' ) {
+            $branch = 'master';
+            // If the brach is of the form x.x append '-branch' to it.
+        } elseif ( preg_match( '/^\d+\.\d+$/', $branch ) ) {
+            $branch .= '-branch';
+        } elseif ( ! preg_match( '/^\d+\.\d+-branch$/', $branch ) ) {
+            throw new ApiException( 'Invalid branch' );
+        }
+
+        $url = "https://codeload.github.com/WordPress/WordPress/zip/refs/heads/{$branch}";
+
+        streamHttpResponse(
+            $url,
+            'GET',
+            [],
+            file_get_contents('php://input'),
+            null,
+            [
+                'Content-Disposition: attachment; filename="wordpress.zip"',
+            ]
+        );
     } else if (isset($_GET['url'])) {
         // Proxy the current request to $_GET['url'] and return the response,
         // but only if the URL is allowlisted.

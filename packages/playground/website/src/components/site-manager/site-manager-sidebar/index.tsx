@@ -1,9 +1,6 @@
-import { Blueprint } from '@wp-playground/blueprints';
-import { StorageType } from '../../../types';
-
 import css from './style.module.css';
 import classNames from 'classnames';
-import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
 	__experimentalHeading as Heading,
 	NavigableMenu,
@@ -14,22 +11,15 @@ import {
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
 } from '@wordpress/components';
-import { Logo, TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { TemporaryStorageIcon, WordPressIcon } from '../icons';
+import store, {
+	PlaygroundReduxState,
+	addSite as addSiteToStore,
+} from '../../../lib/redux-store';
+import { type SiteLogo, createNewSiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
-
-// TODO: move types to site storage
-// TODO: Explore better ways of obtaining site logos
-type SiteLogo = {
-	mime: string;
-	data: string;
-};
-export type Site = {
-	slug: string;
-	name: string;
-	logo?: SiteLogo;
-	blueprint?: Blueprint;
-	storage?: StorageType;
-};
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 
 export function SiteManagerSidebar({
 	className,
@@ -38,67 +28,27 @@ export function SiteManagerSidebar({
 }: {
 	className?: string;
 	siteSlug?: string;
-	onSiteClick: (siteSlug?: string) => void;
+	onSiteClick: (siteSlug: string) => void;
 }) {
-	const [sites, setSites] = useState<Site[]>([]);
+	const unsortedSites = useSelector(
+		(state: PlaygroundReduxState) => state.siteListing.sites
+	);
+	const sites = unsortedSites
+		.concat()
+		.sort((a, b) =>
+			a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+		);
 
-	const generateSiteFromSlug = (slug: string): Site => {
-		let name = slug.replaceAll('-', ' ');
-		name = name.charAt(0).toUpperCase() + name.slice(1);
-		/**
-		 * Ensure WordPress is spelt correctly in the UI.
-		 */
-		name = name.replace(/wordpress/i, 'WordPress');
-
-		return {
-			slug,
+	const addSite = async (name: string) => {
+		const newSiteInfo = createNewSiteInfo({
 			name,
-			storage: 'browser',
-		};
-	};
-
-	/**
-	 * TODO: This is a temporary solution to get the sites from the OPFS.
-	 * This will be removed when Site storage is implemented.
-	 */
-	useEffect(() => {
-		const getVirtualOpfsRoot = async () => {
-			const virtualOpfsRoot = await navigator.storage.getDirectory();
-			const opfsSites: Site[] = [];
-			for await (const entry of virtualOpfsRoot.values()) {
-				if (entry.kind === 'directory') {
-					/**
-					 * Sites stored in browser storage are prefixed with "site-"
-					 * so we need to remove the prefix to get the slug.
-					 *
-					 * The default site is stored in the `wordpress` directory
-					 * and it doesn't have a prefix.
-					 */
-					const slug = entry.name.replace(/^site-/, '');
-					opfsSites.push(generateSiteFromSlug(slug));
-				}
-			}
-			setSites(opfsSites);
-		};
-		getVirtualOpfsRoot();
-	}, []);
-
-	const addSite = (newName: string) => {
-		/**
-		 * Generate a slug from the site name.
-		 * TODO: remove this when site storage is implemented.
-		 * In site storage slugs will be generated automatically.
-		 */
-		const newSlug = newName.replaceAll(' ', '-');
-		/**
-		 * If the site name already exists, we won't need to add it again.
-		 * TODO: remove this check when site storage is implemented.
-		 * In site storage we won't be limited to having unique site names.
-		 */
-		if (!sites.some((site) => site.slug === newSlug)) {
-			setSites([...sites, generateSiteFromSlug(newSlug)]);
-		}
-		onSiteClick(newSlug);
+			storage: 'opfs',
+			wpVersion: LatestMinifiedWordPressVersion,
+			phpVersion: LatestSupportedPHPVersion,
+			phpExtensionBundle: 'kitchen-sink',
+		});
+		await store.dispatch(addSiteToStore(newSiteInfo));
+		onSiteClick(newSiteInfo.slug);
 	};
 
 	const resources = [
@@ -121,7 +71,8 @@ export function SiteManagerSidebar({
 			className={classNames(css.siteManagerSidebar, className)}
 		>
 			<header className={css.siteManagerSidebarHeader}>
-				<Logo className={css.siteManagerSidebarLogoButton} />
+				{/* Remove Playground logo because branding isn't finalized. */}
+				{/* <Logo className={css.siteManagerSidebarLogoButton} /> */}
 			</header>
 			<nav
 				className={classNames(
@@ -161,7 +112,8 @@ export function SiteManagerSidebar({
 								isSelected={isSelected}
 								role="menuitemradio"
 								icon={
-									site.storage === 'none' || !site.storage ? (
+									site.storage === 'temporary' ||
+									!site.storage ? (
 										<TemporaryStorageIcon
 											className={
 												css.siteManagerSidebarItemStorageIcon
