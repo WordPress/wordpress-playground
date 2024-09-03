@@ -874,7 +874,10 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_llist_del_element",\
 "zend_lookup_class_ex",\
 "zend_stream_fixup",\
-"zif_spl_autoload_call"';\
+"zif_spl_autoload_call",\
+"php_error_docref",\
+"php_pcre_replace_func_impl",\
+"php_verror"';\
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
