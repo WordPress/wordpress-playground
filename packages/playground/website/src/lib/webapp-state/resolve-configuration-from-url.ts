@@ -1,10 +1,75 @@
-import { Blueprint } from '@wp-playground/client';
+import { Blueprint, SupportedPHPVersions } from '@wp-playground/client';
 import { makeBlueprint } from './make-blueprint';
+import { StorageType, StorageTypes } from '../../types';
+import { PlaygroundConfiguration } from '../../components/playground-configuration-group/form';
 
-const query = new URL(document.location.href).searchParams;
-const fragment = decodeURI(document.location.hash || '#').substring(1);
+export async function resolveRuntimeConfiguration(url: URL) {
+	const query = url.searchParams;
+	const blueprint = await resolveBlueprint(url);
 
-export async function resolveBlueprint() {
+	// @ts-ignore
+	const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
+	let storageRaw = query.get('storage');
+	if (StorageTypes.includes(storageRaw as any) && !opfsSupported) {
+		storageRaw = 'none';
+	} else if (!StorageTypes.includes(storageRaw as any)) {
+		storageRaw = 'none';
+	}
+	const storage = storageRaw as StorageType;
+
+	const runtime: PlaygroundConfiguration = {
+		wp: blueprint.preferredVersions?.wp || 'latest',
+		siteSlug: query.get('site-slug') || undefined,
+		php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
+		storage: storage || 'none',
+		withExtensions: blueprint.phpExtensionBundles?.[0] !== 'light',
+		withNetworking: blueprint.features?.networking || false,
+		resetSite: false,
+	};
+
+	/*
+	* The 6.3 release includes a caching bug where
+	* registered styles aren't enqueued when they
+	* should be. This isn't present in all environments
+	* but it does here in the Playground. For now,
+	* the fix is to define `WP_DEVELOPMENT_MODE = all`
+	* to bypass the style cache.
+	*
+	* @see https://core.trac.wordpress.org/ticket/59056
+	*/
+	if (runtime.wp === '6.3') {
+		blueprint.steps?.unshift({
+			step: 'defineWpConfigConsts',
+			consts: {
+				WP_DEVELOPMENT_MODE: 'all',
+			},
+		});
+	}
+
+	return {
+		blueprint,
+		runtime
+	};
+}
+
+function resolveVersion<T>(
+	version: string | undefined,
+	allVersions: readonly T[],
+	defaultVersion: T = allVersions[0]
+): T {
+	if (
+		!version ||
+		!allVersions.includes(version as any) ||
+		version === 'latest'
+	) {
+		return defaultVersion;
+	}
+	return version as T;
+}
+
+export async function resolveBlueprint(url: URL) {
+	const query = url.searchParams;
+	const fragment = decodeURI(document.location.hash || '#').substring(1);
 	let blueprint: Blueprint;
 	/*
 	 * Support passing blueprints via query parameter, e.g.:

@@ -12,7 +12,7 @@ import {
 	listSites,
 	addSite as addSiteToStorage,
 	removeSite as removeSiteFromStorage,
-} from './site-storage';
+} from '../site-storage';
 import {
 	directoryHandleFromMountDevice,
 	directoryHandleToOpfsPath,
@@ -24,9 +24,10 @@ import {
 	PlaygroundClient,
 	startPlaygroundWeb,
 } from '@wp-playground/client';
-import { getRemoteUrl } from './config';
-import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
+import { getRemoteUrl } from '../config';
+import { playgroundAvailableInOpfs } from '../../components/playground-configuration-group/playground-available-in-opfs';
 import { useDispatch } from 'react-redux';
+import { PlaygroundConfiguration } from '../../components/playground-configuration-group/form';
 
 // -----------------------------------------
 // Playground slice
@@ -43,6 +44,7 @@ type SiteClient = {
 	siteId: SiteId;
 	lastUrl?: string;
 	client?: PlaygroundClient;
+	configuration?: PlaygroundConfiguration;
 	state: 'initializing' | 'ready' | 'error';
 };
 
@@ -203,7 +205,7 @@ interface AppState {
 
 const query = new URL(document.location.href).searchParams;
 
-const initialState: AppState = {
+const initialAppState: AppState = {
 	activeSiteSlug: query.get('site-slug') || undefined,
 	activeModal:
 		query.get('modal') === 'mount-markdown-directory'
@@ -227,7 +229,7 @@ if (query.get('storage') === 'browser') {
 		}
 	);
 
-	initialState.opfsMountDescriptor = {
+	initialAppState.opfsMountDescriptor = {
 		device: {
 			type: 'opfs',
 			path: await directoryHandleToOpfsPath(opfsDir),
@@ -238,7 +240,7 @@ if (query.get('storage') === 'browser') {
 
 const appSlice = createSlice({
 	name: 'app',
-	initialState,
+	initialState: initialAppState,
 	selectors: {
 		getOpfsHandle: (state) => state.opfsMountDescriptor,
 	},
@@ -301,7 +303,7 @@ export function addSite(siteInfo: SiteInfo) {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
 		await addSiteToStorage(siteInfo);
-		dispatch(appSlice.actions.addSite(siteInfo));
+		return dispatch(appSlice.actions.addSite(siteInfo));
 	};
 }
 
@@ -317,6 +319,17 @@ export function removeSite(site: SiteInfo) {
 
 export function selectSite(siteSlug: string) {
 	return async (dispatch: typeof store.dispatch) => {
+		// @TODO: A router layer that will manage this for us without
+		//        requiring an explicit pushState() here
+		const url = new URL(window.location.href);
+		if (siteSlug) {
+			url.searchParams.set('site-slug', siteSlug);
+		} else {
+			url.searchParams.delete('site-slug');
+		}
+		window.history.pushState({}, '', url.toString());
+
+		// The rest of the selectSite() logic:
 		const opfsRoot = await navigator.storage.getDirectory();
 		const opfsDir = await opfsRoot.getDirectoryHandle(
 			siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,

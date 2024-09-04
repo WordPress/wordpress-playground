@@ -21,7 +21,7 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setOpfsMountDescriptor,
-} from '../../lib/redux-store';
+} from '../../lib/webapp-state/redux-store';
 import { MountDevice } from '@php-wasm/web';
 
 interface SiteSetupGroupProps {
@@ -50,7 +50,7 @@ export default function PlaygroundConfigurationGroup({
 	}>();
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+		(state: PlaygroundReduxState) => state.app.opfsMountDescriptor
 	);
 	const { playground } = usePlaygroundContext();
 	useEffect(() => {

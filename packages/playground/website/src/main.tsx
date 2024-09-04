@@ -2,130 +2,78 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import css from './style.module.css';
 
-import { PlaygroundConfiguration } from './components/playground-configuration-group/form';
-import { SupportedPHPVersions } from '@php-wasm/universal';
-import { resolveBlueprint } from './lib/resolve-blueprint';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { SiteView } from './components/site-view/site-view';
-import { StorageTypes, StorageType } from './types';
 import { SiteManager } from './components/site-manager';
-import { Provider, useDispatch, useSelector } from 'react-redux';
-import { useEffect, useRef } from '@wordpress/element';
-import store, {
-	PlaygroundDispatch,
-	PlaygroundReduxState,
-	setActiveSiteSlug,
-} from './lib/redux-store';
+import { Provider } from 'react-redux';
+import { useEffect } from '@wordpress/element';
+import store from './lib/webapp-state/redux-store';
 import {
 	__experimentalNavigatorProvider as NavigatorProvider,
 	__experimentalNavigatorScreen as NavigatorScreen,
 } from '@wordpress/components';
+import { resolveRuntimeConfiguration } from './lib/webapp-state/resolve-configuration-from-url';
 
 collectWindowErrors(logger);
 
-const query = new URL(document.location.href).searchParams;
-const blueprint = await resolveBlueprint();
-
-// @ts-ignore
-const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
-let storageRaw = query.get('storage');
-if (StorageTypes.includes(storageRaw as any) && !opfsSupported) {
-	storageRaw = 'none';
-} else if (!StorageTypes.includes(storageRaw as any)) {
-	storageRaw = 'none';
-}
-const storage = storageRaw as StorageType;
-
-const currentConfiguration: PlaygroundConfiguration = {
-	wp: blueprint.preferredVersions?.wp || 'latest',
-	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
-	storage: storage || 'none',
-	withExtensions: blueprint.phpExtensionBundles?.[0] !== 'light',
-	withNetworking: blueprint.features?.networking || false,
-	resetSite: false,
-};
-
-/*
- * The 6.3 release includes a caching bug where
- * registered styles aren't enqueued when they
- * should be. This isn't present in all environments
- * but it does here in the Playground. For now,
- * the fix is to define `WP_DEVELOPMENT_MODE = all`
- * to bypass the style cache.
- *
- * @see https://core.trac.wordpress.org/ticket/59056
- */
-if (currentConfiguration.wp === '6.3') {
-	blueprint.steps?.unshift({
-		step: 'defineWpConfigConsts',
-		consts: {
-			WP_DEVELOPMENT_MODE: 'all',
-		},
-	});
-}
-
 function Main() {
-	const siteViewRef = useRef<HTMLDivElement>(null);
-	const siteSlug = useSelector(
-		(state: PlaygroundReduxState) => state.app.activeSiteSlug
-	);
-	const dispatch = useDispatch<PlaygroundDispatch>();
-	const setSiteSlug = (slug?: string) => {
-		dispatch(setActiveSiteSlug(slug));
-	};
-
 	useEffect(() => {
-		if (siteSlug && storage !== 'browser') {
-			alert(
-				'Site slugs only work with browser storage. The site slug will be ignored.'
+		async function init() {
+			const config = await resolveRuntimeConfiguration(
+				new URL(document.location.href)
 			);
+
+			if (
+				config.runtime.siteSlug &&
+				config.runtime.storage !== 'browser'
+			) {
+				alert(
+					'Site slugs only work with browser storage. The site slug will be ignored.'
+				);
+			}
+
+			// @TODO: Activate the requested site.
+			//        Load an existing site if it was requested through site slug. Do
+			//        not execute the Blueprint.
+			//        Create a new site if that was requested through query args.
+			//        Perhaps "bootWebApp()" should be its own function, and perhaps
+			//        it should execute redux actions based on the query args. I'm not sure
+			//        whether parsing the entire query args to a "runtime config" is the
+			//        right approach here as we'll end up ignoring some of these values
+			//        in either boot scenario:
+			//
+			//        1. Load an existing site
+			//        2. Create a new site
+			//
+			//        Also, keep in mind we can switch between these two scenarios
+			//        using buttons in the app, and then we'll want to make sure
+			//        refreshing the page does something sensible, e.g. does not
+			//        create a new site every time.
 		}
-	}, [siteSlug]);
+
+		init();
+	}, []);
 
 	return (
-		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
-			<NavigatorScreen
-				path="/manager"
-				className={css.playgroundNavigatorScreen}
+		<Provider store={store}>
+			<NavigatorProvider
+				initialPath="/"
+				className={css.playgroundNavigator}
 			>
-				<SiteManager
-					siteSlug={siteSlug}
-					onSiteChange={setSiteSlug}
-					siteViewRef={siteViewRef}
-				/>
-			</NavigatorScreen>
-			<NavigatorScreen path="/">
-				<div />
-			</NavigatorScreen>
-			<SiteView
-				siteSlug={siteSlug}
-				blueprint={blueprint}
-				siteViewRef={siteViewRef}
-				currentConfiguration={currentConfiguration}
-				storage={storage}
-			/>
-		</NavigatorProvider>
+				<NavigatorScreen
+					path="/manager"
+					className={css.playgroundNavigatorScreen}
+				>
+					<SiteManager />
+				</NavigatorScreen>
+				<NavigatorScreen path="/">
+					<div />
+				</NavigatorScreen>
+				<SiteView />
+			</NavigatorProvider>
+		</Provider>
 	);
 }
 
 const root = createRoot(document.getElementById('root')!);
-root.render(
-	<Provider store={store}>
-		<Main />
-	</Provider>
-);
-
-function resolveVersion<T>(
-	version: string | undefined,
-	allVersions: readonly T[],
-	defaultVersion: T = allVersions[0]
-): T {
-	if (
-		!version ||
-		!allVersions.includes(version as any) ||
-		version === 'latest'
-	) {
-		return defaultVersion;
-	}
-	return version as T;
-}
+root.render(<Main />);

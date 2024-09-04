@@ -9,10 +9,11 @@ import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
 import { OfflineNotice } from '../offline-notice';
-import { PlaygroundReduxState } from '../../lib/redux-store';
+import { PlaygroundReduxState } from '../../lib/webapp-state/redux-store';
 import { useSelector } from 'react-redux';
 
 export interface PlaygroundConfiguration {
+	siteSlug?: string;
 	wp: string;
 	php: SupportedPHPVersion;
 	withExtensions: boolean;
@@ -43,7 +44,9 @@ export function PlaygroundConfigurationForm({
 	onSubmit,
 	onSelectLocalDirectory,
 }: PlaygroundConfigurationFormProps) {
-	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
+	const offline = useSelector(
+		(state: PlaygroundReduxState) => state.app.offline
+	);
 
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);

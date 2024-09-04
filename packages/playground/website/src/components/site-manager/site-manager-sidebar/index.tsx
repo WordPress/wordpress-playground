@@ -15,23 +15,19 @@ import { TemporaryStorageIcon, WordPressIcon } from '../icons';
 import store, {
 	PlaygroundReduxState,
 	addSite as addSiteToStore,
-} from '../../../lib/redux-store';
+	selectSite,
+} from '../../../lib/webapp-state/redux-store';
 import { type SiteLogo, createNewSiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 
-export function SiteManagerSidebar({
-	className,
-	siteSlug,
-	onSiteClick,
-}: {
-	className?: string;
-	siteSlug?: string;
-	onSiteClick: (siteSlug: string) => void;
-}) {
+export function SiteManagerSidebar({ className }: { className?: string }) {
 	const unsortedSites = useSelector(
-		(state: PlaygroundReduxState) => state.siteListing.sites
+		(state: PlaygroundReduxState) => state.app.siteListing.sites
+	);
+	const siteSlug = useSelector(
+		(state: PlaygroundReduxState) => state.app.activeSiteSlug
 	);
 	const sites = unsortedSites
 		.concat()
@@ -47,8 +43,8 @@ export function SiteManagerSidebar({
 			phpVersion: LatestSupportedPHPVersion,
 			phpExtensionBundle: 'kitchen-sink',
 		});
-		await store.dispatch(addSiteToStore(newSiteInfo));
-		onSiteClick(newSiteInfo.slug);
+		const newSite = await store.dispatch(addSiteToStore(newSiteInfo));
+		await store.dispatch(selectSite(newSite.payload.slug));
 	};
 
 	const resources = [
@@ -108,7 +104,9 @@ export function SiteManagerSidebar({
 											isSelected,
 									}
 								)}
-								onClick={() => onSiteClick(site.slug)}
+								onClick={() =>
+									store.dispatch(selectSite(site.slug))
+								}
 								isSelected={isSelected}
 								role="menuitemradio"
 								icon={

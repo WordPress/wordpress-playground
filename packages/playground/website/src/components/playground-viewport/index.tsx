@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import { StorageType } from '../../types';
 import { usePlaygroundContext } from '../../playground-context';
 import { useSelector } from 'react-redux';
 import {
@@ -10,7 +9,7 @@ import {
 	getClientState,
 	PlaygroundReduxState,
 	useAppDispatch,
-} from '../../lib/redux-store';
+} from '../../lib/webapp-state/redux-store';
 import { setupPostMessageRelay } from '@php-wasm/web';
 
 export const supportedDisplayModes = [
@@ -19,7 +18,6 @@ export const supportedDisplayModes = [
 ] as const;
 export type DisplayMode = (typeof supportedDisplayModes)[number];
 interface PlaygroundViewportProps {
-	storage?: StorageType;
 	displayMode?: DisplayMode;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;

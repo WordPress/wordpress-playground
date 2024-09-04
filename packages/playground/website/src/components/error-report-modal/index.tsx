@@ -11,11 +11,11 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
-} from '../../lib/redux-store';
+} from '../../lib/webapp-state/redux-store';
 
 export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const activeModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+		(state: PlaygroundReduxState) => state.app.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const [loading, setLoading] = useState(false);

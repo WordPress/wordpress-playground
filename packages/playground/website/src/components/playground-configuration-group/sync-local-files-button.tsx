@@ -2,12 +2,12 @@ import { useState } from 'react';
 import Button from '../button';
 import { usePlaygroundContext } from '../../playground-context';
 import { useSelector } from 'react-redux';
-import { type PlaygroundReduxState } from '../../lib/redux-store';
+import { type PlaygroundReduxState } from '../../lib/webapp-state/redux-store';
 
 export function SyncLocalFilesButton() {
 	const { playground, currentUrl } = usePlaygroundContext();
 	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+		(state: PlaygroundReduxState) => state.app.opfsMountDescriptor
 	);
 	const [isSyncing, setIsSyncing] = useState(false);
 	return (

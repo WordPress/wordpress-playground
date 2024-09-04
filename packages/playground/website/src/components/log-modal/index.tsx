@@ -9,12 +9,12 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
-} from '../../lib/redux-store';
+} from '../../lib/webapp-state/redux-store';
 import { useDispatch, useSelector } from 'react-redux';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+		(state: PlaygroundReduxState) => state.app.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const [logs, setLogs] = useState<string[]>([]);

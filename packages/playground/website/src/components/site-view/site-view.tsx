@@ -9,8 +9,6 @@ import buttonCss from '../button/style.module.css';
 import '../../styles.css';
 import css from './style.module.css';
 
-import PlaygroundConfigurationGroup from '../playground-configuration-group';
-import { ResetSiteMenuItem } from '../toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from '../toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from '../toolbar-buttons/restore-from-zip';
 import { ReportError } from '../toolbar-buttons/report-error';
@@ -25,7 +23,6 @@ import {
 	asPullRequestAction,
 } from '../../github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
-import { PlaygroundContext } from '../../playground-context';
 import { addCrashListener, logger } from '@php-wasm/logger';
 import { asContentType } from '../../github/import-from-github';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
@@ -34,17 +31,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	getSiteClient,
 	setActiveModal,
-} from '../../lib/redux-store';
-import { Blueprint, StepDefinition } from '@wp-playground/client';
+} from '../../lib/webapp-state/redux-store';
+import { Blueprint } from '@wp-playground/client';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { LogModal } from '../log-modal';
 import { ErrorReportModal } from '../error-report-modal';
 import { StartErrorModal } from '../start-error-modal';
-import { PlaygroundConfiguration } from '../playground-configuration-group/form';
-import { logTrackingEvent } from '../../lib/tracking';
-import { StorageType } from '../../types';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 
 acquireOAuthTokenIfNeeded();
@@ -65,19 +58,7 @@ function Modals(blueprint: Blueprint) {
 	return null;
 }
 
-export function SiteView({
-	blueprint,
-	siteSlug,
-	currentConfiguration,
-	storage,
-	siteViewRef,
-}: {
-	blueprint: Blueprint;
-	siteSlug?: string;
-	currentConfiguration: PlaygroundConfiguration;
-	storage: StorageType;
-	siteViewRef: React.RefObject<HTMLDivElement>;
-}) {
+export function SiteView() {
 	const navigator = useNavigator();
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const offline = useSelector(
@@ -146,230 +127,194 @@ export function SiteView({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	// @TODO: Restore
 	// Add GA events for blueprint steps. For more information, see the README.md
 	// file.
-	useEffect(() => {
-		logTrackingEvent('load');
-		// Log the names of provided Blueprint's steps.
-		// Only the names (e.g. "runPhp" or "login") are logged. Step options like
-		// code, password, URLs are never sent anywhere.
-		const steps = (blueprint?.steps || [])
-			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
-			.map((step) => (step as StepDefinition).step);
-		for (const step of steps) {
-			logTrackingEvent('step', { step });
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [blueprint?.steps]);
-
-	const maybeHideSiteManagerOnClick = () => {
-		if (isSiteManagerActive) {
-			navigator.goTo('/');
-		}
-	};
-
-	const siteClient = useSelector((state: PlaygroundReduxState) =>
-		getSiteClient(state, siteSlug)
-	);
+	// useEffect(() => {
+	// 	logTrackingEvent('load');
+	// 	createNewSite(blueprint);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	// }, [blueprint?.steps]);
 
 	return (
-		<PlaygroundContext.Provider
-			value={{
-				storage,
-				playground: siteClient?.client,
-				currentUrl: siteClient?.lastUrl,
-			}}
+		<div
+			className={`${css.siteView} ${
+				isSiteManagerActive ? css.siteViewHasSiteManager : ''
+			}`}
 		>
-			<div
-				className={`${css.siteView} ${
-					isSiteManagerActive ? css.siteViewHasSiteManager : ''
-				}`}
-				ref={siteViewRef}
-				onClick={maybeHideSiteManagerOnClick}
-			>
-				<Modals />
+			<Modals />
 
-				{query.get('gh-ensure-auth') === 'yes' ? (
-					<GitHubOAuthGuardModal />
-				) : (
-					''
-				)}
-				<GithubImportModal
-					onImported={({
-						url,
-						path,
-						files,
-						pluginOrThemeName,
+			{query.get('gh-ensure-auth') === 'yes' ? (
+				<GitHubOAuthGuardModal />
+			) : (
+				''
+			)}
+			<GithubImportModal
+				onImported={({
+					url,
+					path,
+					files,
+					pluginOrThemeName,
+					contentType,
+					urlInformation: { owner, repo, type, pr },
+				}) => {
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pr?.toString(),
+						toPathInRepo: path,
+						prAction: pr ? 'update' : 'create',
 						contentType,
-						urlInformation: { owner, repo, type, pr },
-					}) => {
-						setGithubExportValues({
-							repoUrl: url,
-							prNumber: pr?.toString(),
-							toPathInRepo: path,
-							prAction: pr ? 'update' : 'create',
-							contentType,
-							plugin: pluginOrThemeName,
-							theme: pluginOrThemeName,
-						});
-						setGithubExportFiles(files);
-					}}
-				/>
-				<GithubExportModal
-					allowZipExport={
-						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
-						'yes'
-					}
-					initialValues={githubExportValues}
-					initialFilesBeforeChanges={githubExportFiles}
-					onExported={(prUrl, formValues) => {
-						setGithubExportValues(formValues);
-						setGithubExportFiles(undefined);
-					}}
-				/>
-				<PlaygroundViewport
-					storage={storage}
-					displayMode={displayMode}
-					hideToolbar={isSiteManagerActive}
-					className={isSiteManagerActive ? css.siteViewSection : ''}
-					toolbarButtons={[
-						<PlaygroundConfigurationGroup
-							key="configuration"
-							initialConfiguration={currentConfiguration}
-						/>,
-						<DropdownMenu
-							key="menu"
-							icon={menu}
-							label="Additional actions"
-							className={css.dropdownMenu}
-							toggleProps={
-								{
-									className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
-									'data-cy': 'dropdown-menu',
-								} as any
-							}
-						>
-							{({ onClose }) => (
-								<>
-									{offline ? <OfflineNotice /> : null}
-									<MenuGroup>
-										<ResetSiteMenuItem
-											storage={
-												currentConfiguration.storage
-											}
-											onClose={onClose}
-										/>
-										<ReportError
-											onClose={onClose}
-											disabled={offline}
-										/>
-										<DownloadAsZipMenuItem
-											onClose={onClose}
-										/>
-										<RestoreFromZipMenuItem
-											onClose={onClose}
-										/>
-										<GithubImportMenuItem
-											onClose={onClose}
-											disabled={offline}
-										/>
-										<GithubExportMenuItem
-											onClose={onClose}
-											disabled={offline}
-										/>
-										<ViewLogs onClose={onClose} />
-										<MenuItem
-											icon={external}
-											iconPosition="left"
-											aria-label="Go to Blueprints Builder"
-											// @ts-ignore-next-line
-											href={
-												[
-													joinPaths(
-														document.location
-															.pathname,
-														'builder/builder.html'
-													),
-													'#',
-													btoa(
-														JSON.stringify(
-															blueprint
-														) as string
-													) as string,
-												].join('') as any
-											}
-											target="_blank"
-											disabled={offline}
-										>
-											Edit the Blueprint
-										</MenuItem>
-									</MenuGroup>
-									<MenuGroup label="More resources">
-										<MenuItem
-											icon={external}
-											iconPosition="left"
-											aria-label="Go to WordPress PR previewer"
-											// @ts-ignore-next-line
-											href={
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
+					});
+					setGithubExportFiles(files);
+				}}
+			/>
+			<GithubExportModal
+				allowZipExport={
+					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+				}
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
+			/>
+			<PlaygroundViewport
+				displayMode={displayMode}
+				hideToolbar={isSiteManagerActive}
+				className={isSiteManagerActive ? css.siteViewSection : ''}
+				toolbarButtons={[
+					/* @TODO: Restore */
+					// <PlaygroundConfigurationGroup
+					// 	key="configuration"
+					// 	initialConfiguration={currentConfiguration}
+					// />,
+					<DropdownMenu
+						key="menu"
+						icon={menu}
+						label="Additional actions"
+						className={css.dropdownMenu}
+						toggleProps={
+							{
+								className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
+								'data-cy': 'dropdown-menu',
+							} as any
+						}
+					>
+						{({ onClose }) => (
+							<>
+								{offline ? <OfflineNotice /> : null}
+								<MenuGroup>
+									<ReportError
+										onClose={onClose}
+										disabled={offline}
+									/>
+									<DownloadAsZipMenuItem onClose={onClose} />
+									<RestoreFromZipMenuItem onClose={onClose} />
+									<GithubImportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
+									<GithubExportMenuItem
+										onClose={onClose}
+										disabled={offline}
+									/>
+									<ViewLogs onClose={onClose} />
+
+									{/* @TODO: Restore */}
+									{/* <MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to Blueprints Builder"
+										// @ts-ignore-next-line
+										href={
+											[
 												joinPaths(
-													document.location.pathname,
-													'wordpress.html'
-												) as any
-											}
-											target="_blank"
-											disabled={offline}
-										>
-											Preview WordPress Pull Request
-										</MenuItem>
-										<MenuItem
-											icon={external}
-											iconPosition="left"
-											aria-label="Go to a list of Playground demos"
-											// @ts-ignore-next-line
-											href={
-												joinPaths(
-													document.location.pathname,
-													'demos/index.html'
-												) as any
-											}
-											target="_blank"
-											disabled={offline}
-										>
-											More demos
-										</MenuItem>
-										<MenuItem
-											icon={external}
-											iconPosition="left"
-											aria-label="Go to Playground documentation"
-											// @ts-ignore-next-line
-											href={
-												'https://wordpress.github.io/wordpress-playground/' as any
-											}
-											target="_blank"
-											disabled={offline}
-										>
-											Documentation
-										</MenuItem>
-										<MenuItem
-											icon={external}
-											iconPosition="left"
-											aria-label="Go to the Playground git repository"
-											// @ts-ignore-next-line
-											href={
-												'https://github.com/WordPress/wordpress-playground' as any
-											}
-											target="_blank"
-											disabled={offline}
-										>
-											GitHub
-										</MenuItem>
-									</MenuGroup>
-								</>
-							)}
-						</DropdownMenu>,
-					]}
-				/>
-			</div>
-		</PlaygroundContext.Provider>
+													document.location
+														.pathname,
+													'builder/builder.html'
+												),
+												'#',
+												btoa(
+													JSON.stringify(
+														blueprint
+													) as string
+												) as string,
+											].join('') as any
+										}
+										target="_blank"
+										disabled={offline}
+									>
+										Edit the Blueprint
+									</MenuItem> */}
+								</MenuGroup>
+								<MenuGroup label="More resources">
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to WordPress PR previewer"
+										// @ts-ignore-next-line
+										href={
+											joinPaths(
+												document.location.pathname,
+												'wordpress.html'
+											) as any
+										}
+										target="_blank"
+										disabled={offline}
+									>
+										Preview WordPress Pull Request
+									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to a list of Playground demos"
+										// @ts-ignore-next-line
+										href={
+											joinPaths(
+												document.location.pathname,
+												'demos/index.html'
+											) as any
+										}
+										target="_blank"
+										disabled={offline}
+									>
+										More demos
+									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to Playground documentation"
+										// @ts-ignore-next-line
+										href={
+											'https://wordpress.github.io/wordpress-playground/' as any
+										}
+										target="_blank"
+										disabled={offline}
+									>
+										Documentation
+									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to the Playground git repository"
+										// @ts-ignore-next-line
+										href={
+											'https://github.com/WordPress/wordpress-playground' as any
+										}
+										target="_blank"
+										disabled={offline}
+									>
+										GitHub
+									</MenuItem>
+								</MenuGroup>
+							</>
+						)}
+					</DropdownMenu>,
+				]}
+			/>
+		</div>
 	);
 }

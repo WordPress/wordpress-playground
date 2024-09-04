@@ -1,7 +1,7 @@
 import { trash } from '@wordpress/icons';
 import { MenuItem } from '@wordpress/components';
 import { StorageType } from '../../types';
-import { PlaygroundReduxState } from '../../lib/redux-store';
+import { PlaygroundReduxState } from '../../lib/webapp-state/redux-store';
 import { useSelector } from 'react-redux';
 import { clearContentsFromMountDevice } from '@wp-playground/storage';
 
@@ -9,7 +9,7 @@ type Props = { onClose: () => void; storage: StorageType };
 const opfsStorages: StorageType[] = ['browser', 'device'];
 export function ResetSiteMenuItem({ onClose, storage }: Props) {
 	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+		(state: PlaygroundReduxState) => state.app.opfsMountDescriptor
 	);
 	return (
 		<MenuItem

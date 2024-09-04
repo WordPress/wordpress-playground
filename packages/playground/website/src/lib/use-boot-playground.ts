@@ -7,7 +7,7 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
-} from './redux-store';
+} from './webapp-state/redux-store';
 import { useDispatch, useSelector } from 'react-redux';
 import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
@@ -21,7 +21,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 	const started = useRef<string | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
 	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+		(state: PlaygroundReduxState) => state.app.opfsMountDescriptor
 	);
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);

@@ -2,7 +2,10 @@ import { MenuItem } from '@wordpress/components';
 import { bug } from '@wordpress/icons';
 
 import { useDispatch } from 'react-redux';
-import { PlaygroundDispatch, setActiveModal } from '../../lib/redux-store';
+import {
+	PlaygroundDispatch,
+	setActiveModal,
+} from '../../lib/webapp-state/redux-store';
 
 type Props = { onClose: () => void; disabled?: boolean };
 export function ReportError({ onClose, disabled }: Props) {
