@@ -38,7 +38,7 @@ export function Layout({
 	return (
 		<div className={css.layout}>
 			{/* We could use the <NavigatorScreen /> component here, but it doesn't
-			    see, to play well with CSSTransition. */}
+			    seem to play well with CSSTransition. */}
 			<CSSTransition
 				in={path?.startsWith('/manager')}
 				timeout={500}
