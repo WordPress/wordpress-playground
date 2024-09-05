@@ -21,7 +21,7 @@ export function StartOverButton() {
 				}
 				if (
 					mountDevice &&
-					(storage === 'browser' || storage === 'device')
+					(storage === 'opfs' || storage === 'device')
 				) {
 					await clearContentsFromMountDevice(mountDevice);
 				}

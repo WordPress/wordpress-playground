@@ -45,7 +45,7 @@ export function EnsurePlaygroundSiteSlug({
 			//        site.
 			if (siteSlug) {
 				if (!storage) {
-					setQuery({ storage: opfsSupported ? 'browser' : 'none' });
+					setQuery({ storage: opfsSupported ? 'opfs' : 'none' });
 				}
 				return;
 			}

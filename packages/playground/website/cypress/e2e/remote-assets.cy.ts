@@ -2,7 +2,7 @@ describe('Remote Assets', () => {
 	const testedStorageOptions = [
 		'none',
 		// TODO: Re-enable this option once the tests are more stable
-		//'browser'
+		//'opfs'
 	];
 
 	testedStorageOptions.forEach((storage) => {
@@ -15,7 +15,7 @@ describe('Remote Assets', () => {
 			cy.visit(`/?storage=${storage}#${blueprint}`);
 			runAssertions();
 
-			if (storage === 'browser') {
+			if (storage === 'opfs') {
 				// Reload and re-assert to test when loading from browser storage
 				cy.reload();
 				runAssertions();

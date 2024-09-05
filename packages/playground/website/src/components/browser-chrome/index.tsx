@@ -55,7 +55,7 @@ export default function BrowserChrome({
 	 * TODO: Remove this once the site manager supports all storage options.
 	 */
 	const query = new URLSearchParams(window.location.search);
-	const showSiteManager = query.get('storage') === 'browser';
+	const showSiteManager = query.get('storage') === 'opfs';
 
 	return (
 		<div

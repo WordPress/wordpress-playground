@@ -7,7 +7,7 @@ export async function reloadWithNewConfiguration(
 	config: PlaygroundConfiguration,
 	mountDevice?: MountDevice
 ) {
-	if (mountDevice && config.resetSite && config.storage === 'browser') {
+	if (mountDevice && config.resetSite && config.storage === 'opfs') {
 		try {
 			await clearContentsFromMountDevice(mountDevice);
 		} catch (error) {

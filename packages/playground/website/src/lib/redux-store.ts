@@ -69,7 +69,7 @@ const initialState: AppState = {
 	},
 };
 
-if (query.get('storage') === 'browser') {
+if (query.get('storage') === 'opfs') {
 	const siteSlug = query.get('site-slug') || 'wordpress';
 	const opfsRoot = await navigator.storage.getDirectory();
 	const opfsDir = await opfsRoot.getDirectoryHandle(

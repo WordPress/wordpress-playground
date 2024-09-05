@@ -215,7 +215,7 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const hasPlayground = playgroundRef.current?.isResolved;
-		if (hasPlayground && config.resetSite && config.storage === 'browser') {
+		if (hasPlayground && config.resetSite && config.storage === 'opfs') {
 			if (
 				!window.confirm(
 					'This will wipe out all stored data and start a new site. Do you want to proceed?'
@@ -247,7 +247,7 @@ export default function PlaygroundConfigurationGroup({
 				WP {WPLabel} {' - '}
 				{currentConfiguration.storage === 'device'
 					? `Storage: Device (${dirName})`
-					: currentConfiguration.storage === 'browser'
+					: currentConfiguration.storage === 'opfs'
 					? 'Storage: Browser'
 					: '⚠️ Storage: None'}
 			</Button>
