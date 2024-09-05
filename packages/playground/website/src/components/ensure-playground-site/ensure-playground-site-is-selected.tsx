@@ -33,6 +33,11 @@ export function EnsurePlaygroundSiteIsSelected({
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
 			if (activeSite) {
+				if (activeSite.slug && activeSite.storage !== 'opfs') {
+					alert(
+						'Site slugs only work with browser storage. The site slug will be ignored.'
+					);
+				}
 				return;
 			}
 
@@ -53,6 +58,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 
 		ensureSiteIsSelected();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [urlString, activeSite, siteSlug, dispatch]);
 
 	if (!activeSite) {

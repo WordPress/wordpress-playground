@@ -41,13 +41,18 @@ export type SiteListing = {
 	sites: SiteInfo[];
 };
 
+export interface ClientInfo {
+	client: PlaygroundClient;
+	url: string;
+}
+
 // Define the state types
 interface AppState {
 	activeSite?: SiteInfo;
 	activeModal: string | null;
 	offline: boolean;
 	siteListing: SiteListing;
-	playgroundClient?: PlaygroundClient;
+	clients: Record<string, ClientInfo>;
 	opfsMountDescriptor?: {
 		device: MountDevice;
 		mountpoint: string;
@@ -63,6 +68,7 @@ const initialState: AppState = {
 			? 'mount-markdown-directory'
 			: null,
 	offline: !navigator.onLine,
+	clients: {},
 	siteListing: {
 		status: { type: 'loading' },
 		sites: [],
@@ -94,16 +100,37 @@ const slice = createSlice({
 	initialState,
 	selectors: {
 		getOpfsHandle: (state) => state.opfsMountDescriptor,
+		getActiveClient: (state): ClientInfo | undefined =>
+			state.activeSite ? state.clients[state.activeSite.slug] : undefined,
 	},
 	reducers: {
 		setActiveSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.activeSite = action.payload;
 		},
-		setPlaygroundClient: (
+		forgetClientInfo: (state, action: PayloadAction<string>) => {
+			delete state.clients[action.payload];
+		},
+		setClientInfo: (
 			state,
-			action: PayloadAction<PlaygroundClient>
+			action: PayloadAction<{
+				siteSlug: string;
+				info: Partial<ClientInfo>;
+			}>
 		) => {
-			state.playgroundClient = action.payload;
+			const siteSlug = action.payload.siteSlug;
+			const clientInfo = action.payload.info;
+			if (!state.clients[siteSlug]) {
+				return;
+			}
+
+			for (const [key, value] of Object.entries(clientInfo)) {
+				if (value === undefined) {
+					delete state.clients[siteSlug][key as keyof ClientInfo];
+				} else {
+					state.clients[siteSlug][key as keyof ClientInfo] =
+						value as any;
+				}
+			}
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			state.activeModal = action.payload;
@@ -151,9 +178,11 @@ const slice = createSlice({
 export const {
 	setActiveModal,
 	setOpfsMountDescriptor,
-	setPlaygroundClient,
+	setClientInfo,
+	forgetClientInfo,
 	setActiveSite,
 } = slice.actions;
+export const { getActiveClient } = slice.selectors;
 
 // Redux thunk for adding a site
 export function addSite(siteInfo: SiteInfo) {
@@ -206,17 +235,12 @@ const store = configureStore({
 				ignoredActions: [
 					'setOpfsMountDescriptor',
 					'app/setPlaygroundClient',
+					'app/setActiveSite',
 				],
 				// Ignore these field paths in all actions
-				ignoredActionPaths: [
-					'payload.handle',
-					'payload.playgroundClient',
-				],
+				ignoredActionPaths: ['payload.handle', 'payload.info.client'],
 				// Ignore these paths in the state
-				ignoredPaths: [
-					'opfsMountDescriptor.handle',
-					'playgroundClient',
-				],
+				ignoredPaths: ['opfsMountDescriptor.handle', 'clients'],
 			},
 		}),
 });

@@ -32,15 +32,13 @@ import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import { OfflineNotice } from '../offline-notice';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+	getActiveClient,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
+	useAppSelector,
 } from '../../lib/redux-store';
-import {
-	Blueprint,
-	PlaygroundClient,
-	StepDefinition,
-} from '@wp-playground/client';
+import { Blueprint, StepDefinition } from '@wp-playground/client';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { LogModal } from '../log-modal';
 import { ErrorReportModal } from '../error-report-modal';
@@ -71,20 +69,14 @@ export function SiteView({
 	blueprint,
 	currentConfiguration,
 	storage,
-	playground,
-	url,
 	hideToolbar,
-	iframeRef,
 	siteViewRef,
 	className = '',
 }: {
 	blueprint: Blueprint;
 	currentConfiguration: PlaygroundConfiguration;
 	storage: SiteStorageType;
-	playground?: PlaygroundClient;
 	hideToolbar?: boolean;
-	url?: string;
-	iframeRef: React.RefObject<HTMLIFrameElement>;
 	siteViewRef: React.RefObject<HTMLDivElement>;
 	className?: string;
 }) {
@@ -166,12 +158,14 @@ export function SiteView({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [blueprint?.steps]);
 
+	const client = useAppSelector((state) => getActiveClient({ app: state }));
+
 	return (
 		<PlaygroundContext.Provider
 			value={{
-				storage,
-				playground,
-				currentUrl: url,
+				storage: currentConfiguration.storage,
+				playground: client?.client,
+				currentUrl: client?.url,
 			}}
 		>
 			<div className={`${css.siteView} ${className}`} ref={siteViewRef}>
@@ -216,8 +210,6 @@ export function SiteView({
 					}}
 				/>
 				<PlaygroundViewport
-					ref={iframeRef}
-					storage={storage}
 					displayMode={displayMode}
 					hideToolbar={hideToolbar}
 					toolbarButtons={[

@@ -5,19 +5,10 @@ import { SiteManager } from '../site-manager';
 import { useRef } from '@wordpress/element';
 import { CSSTransition } from 'react-transition-group';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
-import { PlaygroundClient } from '@wp-playground/client';
 import { useAppSelector } from '../../lib/redux-store';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 
-export function Layout({
-	playground,
-	url,
-	iframeRef,
-}: {
-	playground: PlaygroundClient;
-	url: string;
-	iframeRef: React.RefObject<HTMLIFrameElement>;
-}) {
+export function Layout() {
 	const siteViewRef = useRef<HTMLDivElement>(null);
 
 	const activeSite = useAppSelector((state) => state.activeSite!);
@@ -69,9 +60,6 @@ export function Layout({
 					blueprint={blueprint}
 					currentConfiguration={currentConfiguration}
 					storage={storage}
-					playground={playground}
-					url={url}
-					iframeRef={iframeRef}
 					className={css.siteViewContent}
 					hideToolbar={path?.startsWith('/manager')}
 				/>
