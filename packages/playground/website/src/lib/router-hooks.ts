@@ -11,10 +11,14 @@ export function useSearchParams() {
 			[search]
 		),
 		useCallback(
-			(params: Record<string, string>) => {
+			(params: Record<string, string | undefined>) => {
 				const currentUrl = new URL(location);
 				Object.entries(params).forEach(([key, value]) => {
-					currentUrl.searchParams.set(key, value);
+					if (value === undefined) {
+						currentUrl.searchParams.delete(key);
+					} else {
+						currentUrl.searchParams.set(key, value);
+					}
 				});
 				setLocation(currentUrl.toString());
 			},

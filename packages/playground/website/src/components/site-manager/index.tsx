@@ -20,40 +20,30 @@ export const SiteManager = forwardRef<
 	{
 		className?: string;
 	}
->(({ className, ...rest }, ref) => {
-	const {
-		goTo,
-		matchedParams: { siteSlug },
-	} = useNavigatorParams('/manager/:siteSlug');
+>(({ className }, ref) => {
+	const { goTo } = useNavigatorParams('/manager/:siteSlug');
 	const [, setQuery] = useSearchParams();
 
-	const sites = useSelector(
-		(state: PlaygroundReduxState) => state.siteListing.sites
+	const activeSite = useSelector(
+		(state: PlaygroundReduxState) => state.activeSite!
 	);
 
-	const selectedSite = sites.find((site) => site.slug === siteSlug);
-
 	const removeSite = async (siteToRemove: SiteInfo) => {
-		const removingSelectedSite = siteToRemove.slug === selectedSite?.slug;
+		const removingSelectedSite = siteToRemove.slug === activeSite?.slug;
 		await store.dispatch(removeSiteFromStore(siteToRemove));
 		if (removingSelectedSite) {
-			// TODO: What site to select after removing the current selection?
-			onSiteClick('wordpress');
+			setQuery({ 'site-slug': undefined });
+			goTo('/manager');
 		}
-	};
-
-	const onSiteClick = async (siteSlug: string) => {
-		setQuery({ 'site-slug': siteSlug });
-		goTo('/manager/' + siteSlug);
 	};
 
 	const fullScreenSections = useMediaQuery('(max-width: 750px)');
 	const sitesList = <Sidebar className={css.sidebar} />;
-	const siteInfoPanel = selectedSite && (
+	const siteInfoPanel = activeSite && (
 		<SiteInfoPanel
-			key={selectedSite.slug}
+			key={activeSite.slug}
 			className={css.siteManagerSiteInfo}
-			site={selectedSite}
+			site={activeSite}
 			removeSite={removeSite}
 			showBackButton={fullScreenSections}
 			onBackButtonClick={() => {
