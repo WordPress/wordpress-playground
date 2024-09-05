@@ -27,13 +27,13 @@ export function EnsurePlaygroundSiteIsSelected({
 	const dispatch = useAppDispatch();
 	const [query] = useSearchParams();
 	const urlString = useCurrentUrl();
-	const siteSlug = query.get('site-slug');
+	const requestedSiteSlug = query.get('site-slug');
 	const storage = query.get('storage')! as SiteStorageType;
 
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
-			if (activeSite) {
-				if (activeSite.slug && activeSite.storage !== 'opfs') {
+			if (activeSite && activeSite.slug === requestedSiteSlug) {
+				if (activeSite.storage !== 'opfs') {
 					alert(
 						'Site slugs only work with browser storage. The site slug will be ignored.'
 					);
@@ -41,8 +41,10 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			if (siteSlug !== 'create') {
-				const siteInfo = await getSiteInfoBySlug(siteSlug!);
+			console.log({ requestedSiteSlug });
+			if (requestedSiteSlug !== 'create') {
+				const siteInfo = await getSiteInfoBySlug(requestedSiteSlug!);
+				console.log({ siteInfo });
 				dispatch(setActiveSite(siteInfo!));
 				return;
 			}
@@ -59,7 +61,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [urlString, activeSite, siteSlug, dispatch]);
+	}, [urlString, requestedSiteSlug, dispatch]);
 
 	if (!activeSite) {
 		return null;

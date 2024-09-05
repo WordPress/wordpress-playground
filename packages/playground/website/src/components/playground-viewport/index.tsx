@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
@@ -67,11 +67,14 @@ export const JustViewport = function LoadedViewportComponent() {
 		(state) => state.opfsMountDescriptor
 	);
 
+	const [, setHasMounted] = useState(false);
 	const dispatch = useAppDispatch();
 	useEffect(() => {
 		if (!iframe) {
+			setHasMounted(true);
 			return;
 		}
+
 		let unmounted = false;
 		async function doTheWork() {
 			const playground = await bootPlayground({
@@ -94,7 +97,6 @@ export const JustViewport = function LoadedViewportComponent() {
 				})
 			);
 
-			console.log('playground', playground);
 			playground.onNavigation((url) => {
 				dispatch(
 					setClientInfo({
@@ -113,7 +115,6 @@ export const JustViewport = function LoadedViewportComponent() {
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [activeSite.slug, !!iframe]);
-	console.log('deps', activeSite.slug, !!iframe);
 
 	return (
 		<div className={css.fullSize}>
