@@ -70,14 +70,12 @@ export function SiteView({
 	currentConfiguration,
 	storage,
 	hideToolbar,
-	siteViewRef,
 	className = '',
 }: {
 	blueprint: Blueprint;
 	currentConfiguration: PlaygroundConfiguration;
 	storage: SiteStorageType;
 	hideToolbar?: boolean;
-	siteViewRef: React.RefObject<HTMLDivElement>;
 	className?: string;
 }) {
 	const dispatch: PlaygroundDispatch = useDispatch();
@@ -149,6 +147,7 @@ export function SiteView({
 		// Log the names of provided Blueprint's steps.
 		// Only the names (e.g. "runPhp" or "login") are logged. Step options like
 		// code, password, URLs are never sent anywhere.
+		// @TODO: Log this in the addSite() action
 		const steps = (blueprint?.steps || [])
 			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
 			.map((step) => (step as StepDefinition).step);
@@ -168,7 +167,7 @@ export function SiteView({
 				currentUrl: client?.url,
 			}}
 		>
-			<div className={`${css.siteView} ${className}`} ref={siteViewRef}>
+			<div className={`${css.siteView} ${className}`}>
 				<Modals />
 
 				{query.get('gh-ensure-auth') === 'yes' ? (

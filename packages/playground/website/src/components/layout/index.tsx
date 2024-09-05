@@ -2,15 +2,12 @@ import css from './style.module.css';
 
 import { SiteView } from '../site-view/site-view';
 import { SiteManager } from '../site-manager';
-import { useRef } from '@wordpress/element';
 import { CSSTransition } from 'react-transition-group';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 import { useAppSelector } from '../../lib/redux-store';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 
 export function Layout() {
-	const siteViewRef = useRef<HTMLDivElement>(null);
-
 	const activeSite = useAppSelector((state) => state.activeSite!);
 	const blueprint = activeSite.originalBlueprint || {};
 	const storage = activeSite.storage;
@@ -45,7 +42,7 @@ export function Layout() {
 				unmountOnExit
 			>
 				<div className={css.sidebar}>
-					<SiteManager siteViewRef={siteViewRef} />
+					<SiteManager />
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
@@ -56,7 +53,6 @@ export function Layout() {
 					/>
 				)}
 				<SiteView
-					siteViewRef={siteViewRef}
 					blueprint={blueprint}
 					currentConfiguration={currentConfiguration}
 					storage={storage}

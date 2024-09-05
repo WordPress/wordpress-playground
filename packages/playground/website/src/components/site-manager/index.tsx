@@ -19,9 +19,8 @@ export const SiteManager = forwardRef<
 	HTMLDivElement,
 	{
 		className?: string;
-		siteViewRef: React.RefObject<HTMLDivElement>;
 	}
->(({ siteViewRef, className, ...rest }, ref) => {
+>(({ className, ...rest }, ref) => {
 	const {
 		goTo,
 		matchedParams: { siteSlug },
