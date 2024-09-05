@@ -80,11 +80,6 @@ const initialState: AppState = {
 const slice = createSlice({
 	name: 'app',
 	initialState,
-	selectors: {
-		getOpfsHandle: (state) => state.opfsMountDescriptor,
-		getActiveClient: (state): ClientInfo | undefined =>
-			state.activeSite ? state.clients[state.activeSite.slug] : undefined,
-	},
 	reducers: {
 		setActiveSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.activeSite = action.payload;
@@ -171,7 +166,11 @@ export const {
 	forgetClientInfo,
 	setActiveSite,
 } = slice.actions;
-export const { getActiveClient } = slice.selectors;
+
+export const getActiveClient = (
+	state: PlaygroundReduxState
+): ClientInfo | undefined =>
+	state.activeSite ? state.clients[state.activeSite.slug] : undefined;
 
 // Redux thunk for adding a site
 export function addSite(siteInfo: SiteInfo) {

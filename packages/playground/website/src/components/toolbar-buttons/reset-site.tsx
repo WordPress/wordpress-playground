@@ -5,11 +5,14 @@ import { useSelector } from 'react-redux';
 import { clearContentsFromMountDevice } from '@wp-playground/storage';
 import { SiteStorageType } from '../../lib/site-storage';
 
-type Props = { onClose: () => void; storage: SiteStorageType };
+type Props = { onClose: () => void };
 const opfsStorages: SiteStorageType[] = ['opfs', 'local-fs'];
-export function ResetSiteMenuItem({ onClose, storage }: Props) {
+export function ResetSiteMenuItem({ onClose }: Props) {
 	const mountDescriptor = useSelector(
 		(state: PlaygroundReduxState) => state.opfsMountDescriptor
+	);
+	const storage = useSelector(
+		(state: PlaygroundReduxState) => state.activeSite!.storage
 	);
 	return (
 		<MenuItem

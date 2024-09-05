@@ -2,10 +2,10 @@ import { Icon, Spinner } from '@wordpress/components';
 import { oAuthState } from '../state';
 import { GitHubIcon } from '../github';
 import css from './style.module.css';
-import { useContext, useState } from 'react';
-import { PlaygroundContext } from '../../playground-context';
+import { useState } from 'react';
 import Modal, { defaultStyles } from '../../components/modal';
 import classNames from 'classnames';
+import { useAppSelector } from '../../lib/redux-store';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
@@ -77,7 +77,8 @@ function Authenticate({
 	authenticateUrl,
 	mayLoseProgress = undefined,
 }: AuthenticateProps) {
-	const { storage } = useContext(PlaygroundContext);
+	const storage = useAppSelector((state) => state.activeSite!.storage);
+
 	if (mayLoseProgress === undefined) {
 		mayLoseProgress = storage === 'none';
 	}

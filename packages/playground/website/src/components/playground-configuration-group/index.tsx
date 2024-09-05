@@ -15,12 +15,13 @@ import {
 import { OPFSButton } from './opfs-button';
 import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
-import { usePlaygroundContext } from '../../playground-context';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+	getActiveClient,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setOpfsMountDescriptor,
+	useAppSelector,
 } from '../../lib/redux-store';
 import { MountDevice } from '@php-wasm/web';
 
@@ -52,7 +53,7 @@ export default function PlaygroundConfigurationGroup({
 	const mountDescriptor = useSelector(
 		(state: PlaygroundReduxState) => state.opfsMountDescriptor
 	);
-	const { playground } = usePlaygroundContext();
+	const playground = useAppSelector(getActiveClient)?.client;
 	useEffect(() => {
 		if (!playgroundRef.current) {
 			let resolve;

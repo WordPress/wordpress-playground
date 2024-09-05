@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import { usePlaygroundContext } from '../../playground-context';
 import {
 	forgetClientInfo,
+	getActiveClient,
 	setActiveModal,
 	setClientInfo,
 	useAppDispatch,
@@ -34,7 +34,9 @@ export const PlaygroundViewport = ({
 	hideToolbar,
 	className,
 }: PlaygroundViewportProps) => {
-	const { playground, currentUrl: url } = usePlaygroundContext();
+	const clientInfo = useAppSelector(getActiveClient);
+	const playground = clientInfo?.client;
+	const url = clientInfo?.url;
 
 	if (displayMode === 'seamless') {
 		// No need to boot the playground if seamless.

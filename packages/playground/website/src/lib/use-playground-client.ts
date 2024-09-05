@@ -1,6 +1,6 @@
 import { PlaygroundClient } from '@wp-playground/remote';
 import { useRef, useEffect } from 'react';
-import { usePlaygroundContext } from '../playground-context';
+import { useAppSelector, getActiveClient } from './redux-store';
 
 export function usePlaygroundClient() {
 	const playgroundRef = useRef<{
@@ -8,7 +8,7 @@ export function usePlaygroundClient() {
 		resolve: any;
 		isResolved: boolean;
 	}>();
-	const { playground } = usePlaygroundContext();
+	const playground = useAppSelector(getActiveClient)?.client;
 	useEffect(() => {
 		if (!playgroundRef.current) {
 			let resolve;

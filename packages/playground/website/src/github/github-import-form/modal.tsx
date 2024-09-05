@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals-react';
 import Modal, { defaultStyles } from '../../components/modal';
 import GitHubImportForm, { GitHubImportFormProps } from './form';
-import { usePlaygroundContext } from '../../playground-context';
+import { getActiveClient, useAppSelector } from '../../lib/redux-store';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubModalOpen = signal(query.get('state') === 'github-import');
@@ -25,7 +25,7 @@ export function openModal() {
 	window.history.replaceState({}, '', url.href);
 }
 export function GithubImportModal({ onImported }: GithubImportModalProps) {
-	const { playground } = usePlaygroundContext();
+	const playground = useAppSelector(getActiveClient)?.client;
 	return (
 		<Modal
 			style={{
