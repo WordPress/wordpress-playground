@@ -326,7 +326,7 @@ function looksLikeSiteDirectory(name: string) {
 	return name === 'wordpress' || name.startsWith('site-');
 }
 
-function getDirectoryNameForSlug(slug: string) {
+export function getDirectoryNameForSlug(slug: string) {
 	return slug === 'wordpress' ? slug : `site-${slug}`;
 }
 

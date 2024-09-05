@@ -1,16 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import { usePlaygroundContext } from '../../playground-context';
 import {
 	forgetClientInfo,
+	setActiveModal,
 	setClientInfo,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/redux-store';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { bootPlayground } from '../../lib/boot-playground';
+import { PlaygroundClient } from '@wp-playground/remote';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -67,21 +69,25 @@ export const JustViewport = function LoadedViewportComponent() {
 		(state) => state.opfsMountDescriptor
 	);
 
-	const [, setHasMounted] = useState(false);
 	const dispatch = useAppDispatch();
 	useEffect(() => {
-		if (!iframe) {
-			setHasMounted(true);
-			return;
-		}
-
 		let unmounted = false;
 		async function doTheWork() {
-			const playground = await bootPlayground({
-				blueprint: activeSite.originalBlueprint!,
-				iframe,
-				mountDescriptor,
-			});
+			const iframe = (iframeRef as any)?.current;
+			let playground: PlaygroundClient;
+
+			console.log('booting playground');
+
+			try {
+				playground = await bootPlayground({
+					blueprint: activeSite.originalBlueprint!,
+					iframe,
+					mountDescriptor,
+				});
+			} catch (e) {
+				dispatch(setActiveModal('error-report'));
+				return;
+			}
 
 			// @TODO: Set the client immediately, delete it after a timeout.
 			if (unmounted) {
@@ -108,6 +114,7 @@ export const JustViewport = function LoadedViewportComponent() {
 				);
 			});
 		}
+		// Give React a chance to re-render the iframe.
 		doTheWork();
 		return () => {
 			unmounted = true;
@@ -115,6 +122,8 @@ export const JustViewport = function LoadedViewportComponent() {
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [activeSite.slug, !!iframe]);
+
+	console.log('rendering viewport with key', activeSite.slug);
 
 	return (
 		<div className={css.fullSize}>

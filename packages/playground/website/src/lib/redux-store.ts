@@ -5,6 +5,7 @@ import {
 	listSites,
 	addSite as addSiteToStorage,
 	removeSite as removeSiteFromStorage,
+	getDirectoryNameForSlug,
 } from './site-storage';
 import { directoryHandleToOpfsPath } from '@wp-playground/storage';
 import type { MountDevice } from '@php-wasm/web';
@@ -75,25 +76,6 @@ const initialState: AppState = {
 	},
 };
 
-if (query.get('storage') === 'opfs') {
-	const siteSlug = query.get('site-slug') || 'wordpress';
-	const opfsRoot = await navigator.storage.getDirectory();
-	const opfsDir = await opfsRoot.getDirectoryHandle(
-		siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,
-		{
-			create: true,
-		}
-	);
-
-	initialState.opfsMountDescriptor = {
-		device: {
-			type: 'opfs',
-			path: await directoryHandleToOpfsPath(opfsDir),
-		},
-		mountpoint: '/wordpress',
-	};
-}
-
 // Create the slice
 const slice = createSlice({
 	name: 'app',
@@ -106,6 +88,13 @@ const slice = createSlice({
 	reducers: {
 		setActiveSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.activeSite = action.payload;
+			state.opfsMountDescriptor = {
+				device: {
+					type: 'opfs',
+					path: '/' + getDirectoryNameForSlug(action.payload.slug),
+				},
+				mountpoint: '/wordpress',
+			};
 		},
 		forgetClientInfo: (state, action: PayloadAction<string>) => {
 			delete state.clients[action.payload];

@@ -11,16 +11,12 @@ import { EnsurePlaygroundSite } from './components/ensure-playground-site';
 
 collectWindowErrors(logger);
 
-function Main() {
-	return <Layout />;
-}
-
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
 		<Provider store={store}>
 			<EnsurePlaygroundSite>
-				<Main />
+				<Layout />
 			</EnsurePlaygroundSite>
 		</Provider>
 	</NavigatorProvider>
