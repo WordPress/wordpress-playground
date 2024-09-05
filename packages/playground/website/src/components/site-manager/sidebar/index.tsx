@@ -16,16 +16,19 @@ import { AddSiteButton } from '../add-site-button';
 import { useAppSelector } from '../../../lib/redux-store';
 import { useSearchParams } from '../../../lib/router-hooks';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import { useMemo } from 'react';
 
 export function Sidebar({ className }: { className?: string }) {
-	const sites = useAppSelector(
+	const sitesRaw = useAppSelector(
 		// Sites may be in an arbitrary order, so let's sort them by name
 		// @TODO: Sort by last access date
-		(state) =>
-			state.siteListing.sites.sort((a, b) =>
-				a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-			)
+		(state) => state.siteListing?.sites
 	);
+	const sites = useMemo(() => {
+		return sitesRaw
+			? sitesRaw.slice().sort((a, b) => a.name.localeCompare(b.name))
+			: [];
+	}, [sitesRaw]);
 	const activeSite = useAppSelector((state) => state.activeSite!);
 
 	const [, setQuery] = useSearchParams();
