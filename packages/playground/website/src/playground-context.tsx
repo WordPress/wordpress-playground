@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
-import { StorageType } from './types';
 import { PlaygroundClient } from '@wp-playground/remote';
+import { SiteStorageType } from './lib/site-storage';
 
 export const PlaygroundContext = createContext<{
-	storage: StorageType;
+	storage: SiteStorageType;
 	playground?: PlaygroundClient;
 	currentUrl?: string;
 }>({

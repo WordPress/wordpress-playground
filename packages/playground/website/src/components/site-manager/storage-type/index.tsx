@@ -19,7 +19,7 @@ export function StorageType({ type }: { type: SiteStorageType }) {
 					<span>Browser</span>
 				</div>
 			);
-		case 'temporary':
+		case 'none':
 			return (
 				<div className={css.storageType}>
 					<Icon size={16} icon={ClockIcon} />

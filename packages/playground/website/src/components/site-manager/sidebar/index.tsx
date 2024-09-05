@@ -12,32 +12,34 @@ import {
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
 import { type SiteLogo } from '../../../lib/site-storage';
-import { SiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
+import { useAppSelector } from '../../../lib/redux-store';
+import { useSearchParams } from '../../../lib/router-hooks';
+import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 
-export function Sidebar({
-	className,
-	siteSlug,
-	sites,
-	onSiteClick,
-	addSite,
-}: {
-	className?: string;
-	siteSlug?: string;
-	sites: SiteInfo[];
-	onSiteClick: (siteSlug: string) => void;
-	addSite: (name: string) => Promise<SiteInfo>;
-}) {
-	// Sites may be in an arbitrary order, so let's sort them by name.
-	sites = sites
-		.concat()
-		.sort((a, b) =>
-			a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-		);
+export function Sidebar({ className }: { className?: string }) {
+	const sites = useAppSelector(
+		// Sites may be in an arbitrary order, so let's sort them by name
+		// @TODO: Sort by last access date
+		(state) =>
+			state.siteListing.sites.sort((a, b) =>
+				a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+			)
+	);
+	const activeSite = useAppSelector((state) => state.activeSite!);
 
+	const [, setQuery] = useSearchParams();
+
+	// @TODO: Get rid of navigator
+	const { goTo } = useNavigator();
 	const onAddSite = async (name: string) => {
-		const newSiteInfo = await addSite(name);
-		onSiteClick(newSiteInfo.slug);
+		setQuery({ 'site-slug': 'create', storage: 'opfs' });
+		goTo('/manager/' + activeSite.slug);
+	};
+
+	const onSiteClick = (slug: string) => {
+		setQuery({ 'site-slug': slug });
+		goTo('/manager/' + slug);
 	};
 
 	const resources = [
@@ -76,10 +78,7 @@ export function Sidebar({
 						/**
 						 * The `wordpress` site is selected when no site slug is provided.
 						 */
-						const isSelected =
-							site.slug === siteSlug ||
-							(siteSlug === undefined &&
-								site.slug === 'wordpress');
+						const isSelected = site.slug === activeSite.slug;
 						return (
 							<MenuItem
 								key={site.slug}
@@ -90,8 +89,7 @@ export function Sidebar({
 								isSelected={isSelected}
 								role="menuitemradio"
 								icon={
-									site.storage === 'temporary' ||
-									!site.storage ? (
+									site.storage === 'none' || !site.storage ? (
 										<TemporaryStorageIcon
 											className={
 												css.sidebarItemStorageIcon

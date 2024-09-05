@@ -5,19 +5,19 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
 import { OfflineNotice } from '../offline-notice';
 import { PlaygroundReduxState } from '../../lib/redux-store';
 import { useSelector } from 'react-redux';
+import { SiteStorageType } from '../../lib/site-storage';
 
 export interface PlaygroundConfiguration {
 	wp: string;
 	php: SupportedPHPVersion;
 	withExtensions: boolean;
 	withNetworking: boolean;
-	storage: StorageType;
+	storage: SiteStorageType;
 	resetSite: boolean;
 }
 
@@ -46,7 +46,9 @@ export function PlaygroundConfigurationForm({
 	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
 	const [php, setPhp] = useState(initialData.php);
-	const [storage, setStorage] = useState<StorageType>(initialData.storage);
+	const [storage, setStorage] = useState<SiteStorageType>(
+		initialData.storage
+	);
 	const [withExtensions, setWithExtensions] = useState<boolean>(
 		initialData.withExtensions
 	);
@@ -57,7 +59,7 @@ export function PlaygroundConfigurationForm({
 	const handleStorageChange = async (
 		event: React.ChangeEvent<HTMLInputElement>
 	) => {
-		setStorage(event.target.value as any as StorageType);
+		setStorage(event.target.value as any as SiteStorageType);
 	};
 
 	const [resetSite, setResetSite] = useState(initialData.resetSite);
@@ -137,7 +139,7 @@ export function PlaygroundConfigurationForm({
 							id="storage-browser"
 							className={forms.radioInput}
 							onChange={handleStorageChange}
-							checked={storage === 'browser'}
+							checked={storage === 'opfs'}
 						/>
 						<label
 							htmlFor="storage-browser"
@@ -146,7 +148,7 @@ export function PlaygroundConfigurationForm({
 							Browser: stored in this browser.
 						</label>
 					</li>
-					{storage === 'browser' ? (
+					{storage === 'opfs' ? (
 						<li
 							style={{ marginLeft: 40 }}
 							className={resetSite ? css.danger : ''}
@@ -188,7 +190,7 @@ export function PlaygroundConfigurationForm({
 									: `${forms.radioInput} ${forms.notAvailable}`
 							}
 							onChange={handleStorageChange}
-							checked={storage === 'device'}
+							checked={storage === 'local-fs'}
 							disabled={!liveDirectoryAvailable}
 						/>
 						<label htmlFor="device" className={forms.radioLabel}>
@@ -207,7 +209,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{storage === 'device' ? (
+					{storage === 'local-fs' ? (
 						<li>
 							<div>
 								<p>
@@ -252,7 +254,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-			{storage !== 'device' ? (
+			{storage !== 'local-fs' ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}

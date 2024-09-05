@@ -23,10 +23,10 @@ import {
 	chevronLeft,
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
-import { StorageType } from '../storage-type';
 import { useSelector } from 'react-redux';
 import { PlaygroundReduxState } from '../../../lib/redux-store';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import { StorageType } from '../storage-type';
 
 function SiteInfoRow({
 	label,
@@ -71,7 +71,7 @@ export function SiteInfoPanel({
 	);
 	const { goTo } = useNavigator();
 
-	const [showNotice, setShowNotice] = useState(site.storage === 'temporary');
+	const [showNotice, setShowNotice] = useState(site.storage === 'none');
 
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>

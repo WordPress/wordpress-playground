@@ -2,9 +2,9 @@ import React, { Ref, useEffect } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import { StorageType } from '../../types';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { usePlaygroundContext } from '../../playground-context';
+import { SiteStorageType } from '../../lib/site-storage';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -12,7 +12,7 @@ export const supportedDisplayModes = [
 ] as const;
 export type DisplayMode = (typeof supportedDisplayModes)[number];
 interface PlaygroundViewportProps {
-	storage?: StorageType;
+	storage?: SiteStorageType;
 	displayMode?: DisplayMode;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;

@@ -47,7 +47,7 @@ import { ErrorReportModal } from '../error-report-modal';
 import { StartErrorModal } from '../start-error-modal';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 import { logTrackingEvent } from '../../lib/tracking';
-import { StorageType } from '../../types';
+import { SiteStorageType } from '../../lib/site-storage';
 
 acquireOAuthTokenIfNeeded();
 
@@ -80,7 +80,7 @@ export function SiteView({
 }: {
 	blueprint: Blueprint;
 	currentConfiguration: PlaygroundConfiguration;
-	storage: StorageType;
+	storage: SiteStorageType;
 	playground?: PlaygroundClient;
 	hideToolbar?: boolean;
 	url?: string;

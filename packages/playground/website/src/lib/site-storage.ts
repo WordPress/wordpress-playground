@@ -9,6 +9,7 @@ import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds'
 import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersion,
+	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { type Blueprint } from '@wp-playground/blueprints';
 import metadataWorkerUrl from './site-storage-metadata-worker?worker&url';
@@ -22,7 +23,8 @@ const SITE_METADATA_FILENAME = 'playground-site-metadata.json';
  * NOTE: We are using different storage terms than our query API in order
  * to be more explicit about storage medium in the site metadata format.
  */
-export type SiteStorageType = 'temporary' | 'opfs' | 'local-fs';
+export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
+export type SiteStorageType = (typeof SiteStorageTypes)[number];
 
 /**
  * The site logo data.
@@ -77,21 +79,97 @@ export interface SiteInfo extends SiteMetadata {
 export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
 
 /**
+ * Generates a random, human readable site name.
+ * For example: "Abandoned Road", "Old School", "Greenwich Village" etc.
+ */
+export function randomSiteName() {
+	const adjectives = [
+		'Abandoned',
+		'Old',
+		'Greenwich',
+		'Sunny',
+		'Quiet',
+		'Busy',
+		'Noisy',
+		'Peaceful',
+	];
+	const nouns = [
+		'Road',
+		'School',
+		'Village',
+		'Town',
+		'City',
+		'State',
+		'Country',
+	];
+	return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${
+		nouns[Math.floor(Math.random() * nouns.length)]
+	}`;
+}
+
+/**
  * Create a new site info structure from initial configuration.
  *
  * @param initialInfo The starting configuration for the site.
  * @returns SiteInfo The new site info structure.
  */
 export function createNewSiteInfo(
-	initialInfo: Omit<InitialSiteInfo, 'siteLifecycle'>
+	initialInfo: Partial<Omit<InitialSiteInfo, 'siteLifecycle'>> = {}
 ): SiteInfo {
+	const name = initialInfo.name ?? randomSiteName();
+	const givenBlueprint: Blueprint = initialInfo.originalBlueprint ?? {};
+	const resolvedBlueprint: Blueprint = {
+		preferredVersions: {
+			wp:
+				givenBlueprint.preferredVersions?.wp ??
+				LatestMinifiedWordPressVersion,
+			php: resolveVersion(
+				givenBlueprint.preferredVersions?.php,
+				SupportedPHPVersions,
+				LatestSupportedPHPVersion
+			),
+			...givenBlueprint.preferredVersions,
+		},
+		phpExtensionBundles: givenBlueprint.phpExtensionBundles,
+		...givenBlueprint,
+	};
+
 	return {
 		id: crypto.randomUUID(),
-		slug: deriveSlugFromSiteName(initialInfo.name),
+		slug: deriveSlugFromSiteName(name),
 		whenCreated: Date.now(),
+
+		name,
+		storage: 'none',
+		wpVersion:
+			resolvedBlueprint.preferredVersions?.wp ||
+			LatestMinifiedWordPressVersion,
+		phpVersion: resolveVersion(
+			resolvedBlueprint.preferredVersions?.php,
+			SupportedPHPVersions,
+			LatestSupportedPHPVersion
+		),
+		phpExtensionBundle:
+			resolvedBlueprint.phpExtensionBundles?.[0] ?? 'kitchen-sink',
+
 		...initialInfo,
 		siteLifecycle: 'new',
 	};
+}
+
+function resolveVersion<T>(
+	version: string | undefined,
+	allVersions: readonly T[],
+	defaultVersion: T = allVersions[0]
+): T {
+	if (
+		!version ||
+		!allVersions.includes(version as any) ||
+		version === 'latest'
+	) {
+		return defaultVersion;
+	}
+	return version as T;
 }
 
 /**

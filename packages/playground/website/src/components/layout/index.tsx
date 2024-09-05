@@ -5,30 +5,33 @@ import { SiteManager } from '../site-manager';
 import { useRef } from '@wordpress/element';
 import { CSSTransition } from 'react-transition-group';
 import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
-import { Blueprint, PlaygroundClient } from '@wp-playground/client';
-import { StorageType } from '../../types';
+import { PlaygroundClient } from '@wp-playground/client';
+import { useAppSelector } from '../../lib/redux-store';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 
 export function Layout({
 	playground,
 	url,
 	iframeRef,
-	blueprint,
-	storage,
-	currentConfiguration,
-	siteSlug,
-	setSiteSlug,
 }: {
 	playground: PlaygroundClient;
 	url: string;
 	iframeRef: React.RefObject<HTMLIFrameElement>;
-	blueprint: Blueprint;
-	storage: StorageType;
-	currentConfiguration: PlaygroundConfiguration;
-	siteSlug: string | undefined;
-	setSiteSlug: (siteSlug?: string) => void;
 }) {
 	const siteViewRef = useRef<HTMLDivElement>(null);
+
+	const activeSite = useAppSelector((state) => state.activeSite!);
+	const blueprint = activeSite.originalBlueprint || {};
+	const storage = activeSite.storage;
+	// @TODO: Use SiteMetadata directly
+	const currentConfiguration: PlaygroundConfiguration = {
+		storage: storage ?? 'none',
+		wp: activeSite.wpVersion,
+		php: activeSite.phpVersion,
+		withExtensions: activeSite.phpExtensionBundle === 'kitchen-sink',
+		withNetworking: blueprint?.features?.networking || false,
+		resetSite: false,
+	};
 
 	const {
 		goTo,
@@ -51,10 +54,7 @@ export function Layout({
 				unmountOnExit
 			>
 				<div className={css.sidebar}>
-					<SiteManager
-						onSiteChange={setSiteSlug}
-						siteViewRef={siteViewRef}
-					/>
+					<SiteManager siteViewRef={siteViewRef} />
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
