@@ -13,6 +13,8 @@ import { useEffect, useState } from '@wordpress/element';
 import store from './lib/redux-store';
 import { __experimentalNavigatorProvider as NavigatorProvider } from '@wordpress/components';
 import { Layout } from './components/layout';
+import { EnsurePlaygroundSiteSlug } from './components/ensure-playground-site-slug';
+import { useSearchParams } from './lib/router-hooks';
 
 collectWindowErrors(logger);
 
@@ -58,12 +60,13 @@ if (currentConfiguration.wp === '6.3') {
 }
 
 function Main() {
+	const [query] = useSearchParams();
 	const [siteSlug, setSiteSlug] = useState<string | undefined>(
 		query.get('site-slug') ?? undefined
 	);
 
 	useEffect(() => {
-		if (siteSlug && storage !== 'browser') {
+		if (siteSlug && query.get('storage') !== 'browser') {
 			alert(
 				'Site slugs only work with browser storage. The site slug will be ignored.'
 			);
@@ -72,6 +75,8 @@ function Main() {
 
 	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
 
+	// @TODO: Source query args from the `useSearchParams();` hook,
+	//        not from the initial URL.
 	return (
 		<Layout
 			playground={playground!}
@@ -90,7 +95,9 @@ const root = createRoot(document.getElementById('root')!);
 root.render(
 	<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
 		<Provider store={store}>
-			<Main />
+			<EnsurePlaygroundSiteSlug>
+				<Main />
+			</EnsurePlaygroundSiteSlug>
 		</Provider>
 	</NavigatorProvider>
 );

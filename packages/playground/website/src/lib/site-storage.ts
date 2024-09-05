@@ -37,6 +37,8 @@ export type SiteLogo = {
  */
 export type PhpExtensionBundle = 'light' | 'kitchen-sink';
 
+export type SiteLifecycleState = 'new' | 'booting' | 'booted';
+
 // TODO: Create a schema for this as the design matures
 /**
  * The Site metadata that is persisted.
@@ -57,6 +59,7 @@ interface SiteMetadata {
 	//whenLastLoaded: number;
 
 	originalBlueprint?: Blueprint;
+	siteLifecycle: SiteLifecycleState;
 }
 
 /**
@@ -65,6 +68,7 @@ interface SiteMetadata {
 export interface SiteInfo extends SiteMetadata {
 	storage: SiteStorageType;
 	slug: string;
+	siteLifecycle: SiteLifecycleState;
 }
 
 /**
@@ -78,12 +82,15 @@ export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
  * @param initialInfo The starting configuration for the site.
  * @returns SiteInfo The new site info structure.
  */
-export function createNewSiteInfo(initialInfo: InitialSiteInfo): SiteInfo {
+export function createNewSiteInfo(
+	initialInfo: Omit<InitialSiteInfo, 'siteLifecycle'>
+): SiteInfo {
 	return {
 		id: crypto.randomUUID(),
 		slug: deriveSlugFromSiteName(initialInfo.name),
 		whenCreated: Date.now(),
 		...initialInfo,
+		siteLifecycle: 'new',
 	};
 }
 
@@ -180,6 +187,19 @@ export async function listSites(): Promise<SiteInfo[]> {
 	return opfsSites;
 }
 
+export async function getSiteInfoBySlug(
+	slug: string
+): Promise<SiteInfo | undefined> {
+	const opfsRoot = await navigator.storage.getDirectory();
+	const siteDirectoryName = getDirectoryNameForSlug(slug);
+	const siteDirectory = await opfsRoot.getDirectoryHandle(siteDirectoryName);
+	if (!siteDirectory) {
+		return undefined;
+	}
+
+	return readSiteFromDirectory(siteDirectory);
+}
+
 /**
  * Reads information for a single site from a given directory.
  *
@@ -266,6 +286,7 @@ function deriveDefaultSite(slug: string): SiteInfo {
 		wpVersion: LatestMinifiedWordPressVersion,
 		phpVersion: LatestSupportedPHPVersion,
 		phpExtensionBundle: 'kitchen-sink',
+		siteLifecycle: 'new',
 	};
 }
 
@@ -309,6 +330,7 @@ function getSiteMetadataFromSiteInfo(site: SiteInfo): SiteMetadata {
 		wpVersion: site.wpVersion,
 		phpVersion: site.phpVersion,
 		phpExtensionBundle: site.phpExtensionBundle,
+		siteLifecycle: site.siteLifecycle,
 	};
 
 	if (site.logo !== undefined) {

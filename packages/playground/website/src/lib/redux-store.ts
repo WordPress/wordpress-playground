@@ -9,6 +9,7 @@ import {
 import { directoryHandleToOpfsPath } from '@wp-playground/storage';
 import type { MountDevice } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/client';
+import { useDispatch, useSelector } from 'react-redux';
 
 export type ActiveModal =
 	| 'error-report'
@@ -42,6 +43,7 @@ export type SiteListing = {
 
 // Define the state types
 interface AppState {
+	activeSite?: SiteInfo;
 	activeModal: string | null;
 	offline: boolean;
 	siteListing: SiteListing;
@@ -94,6 +96,9 @@ const slice = createSlice({
 		getOpfsHandle: (state) => state.opfsMountDescriptor,
 	},
 	reducers: {
+		setActiveSite: (state, action: PayloadAction<SiteInfo>) => {
+			state.activeSite = action.payload;
+		},
 		setPlaygroundClient: (
 			state,
 			action: PayloadAction<PlaygroundClient>
@@ -143,8 +148,12 @@ const slice = createSlice({
 });
 
 // Export actions
-export const { setActiveModal, setOpfsMountDescriptor, setPlaygroundClient } =
-	slice.actions;
+export const {
+	setActiveModal,
+	setOpfsMountDescriptor,
+	setPlaygroundClient,
+	setActiveSite,
+} = slice.actions;
 
 // Redux thunk for adding a site
 export function addSite(siteInfo: SiteInfo) {
@@ -234,6 +243,16 @@ listSites().then(
 			)
 		)
 );
+
+export function useAppSelector<T>(
+	selector: (state: PlaygroundReduxState) => T
+): T {
+	return useSelector(selector);
+}
+
+export function useAppDispatch() {
+	return useDispatch<PlaygroundDispatch>();
+}
 
 // Define RootState type
 export type PlaygroundReduxState = ReturnType<typeof store.getState>;

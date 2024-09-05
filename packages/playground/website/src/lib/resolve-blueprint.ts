@@ -4,6 +4,15 @@ import { makeBlueprint } from './make-blueprint';
 const query = new URL(document.location.href).searchParams;
 const fragment = decodeURI(document.location.hash || '#').substring(1);
 
+export function urlContainsSiteConfiguration() {
+	const queryKeys = new Set(Array.from(query.keys()));
+	const ignoredQueryKeys = new Set(['storage']);
+	const differentKeys = new Set(
+		[...queryKeys].filter((key) => !ignoredQueryKeys.has(key))
+	);
+	return fragment.length > 0 || differentKeys.size > 0;
+}
+
 export async function resolveBlueprint() {
 	let blueprint: Blueprint;
 	/*
