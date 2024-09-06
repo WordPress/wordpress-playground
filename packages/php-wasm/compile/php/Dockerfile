@@ -860,7 +860,24 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zim_ReflectionClass_newInstanceArgs",\
 "zim_reflection_class_newInstanceArgs",\
 "zim_reflection_method_invoke",\
-"zim_reflection_method_invokeArgs"'; \
+"zim_reflection_method_invokeArgs",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
+"ZEND_NEW_SPEC_CONST_UNUSED_HANDLER",\
+"compile_file",\
+"file_handle_dtor",\
+"open_file_for_scanning",\
+"phar_compile_file",\
+"php_zend_stream_closer",\
+"zend_fetch_class_by_name",\
+"zend_file_handle_dtor",\
+"zend_include_or_eval",\
+"zend_llist_del_element",\
+"zend_lookup_class_ex",\
+"zend_stream_fixup",\
+"zif_spl_autoload_call",\
+"php_error_docref",\
+"php_pcre_replace_func_impl",\
+"php_verror"';\
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \

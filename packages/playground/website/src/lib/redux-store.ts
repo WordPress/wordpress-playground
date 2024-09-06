@@ -8,6 +8,7 @@ import {
 } from './site-storage';
 import { directoryHandleToOpfsPath } from '@wp-playground/storage';
 import type { MountDevice } from '@php-wasm/web';
+import { PlaygroundClient } from '@wp-playground/client';
 
 export type ActiveModal =
 	| 'error-report'
@@ -44,6 +45,7 @@ interface AppState {
 	activeModal: string | null;
 	offline: boolean;
 	siteListing: SiteListing;
+	playgroundClient?: PlaygroundClient;
 	opfsMountDescriptor?: {
 		device: MountDevice;
 		mountpoint: string;
@@ -92,6 +94,12 @@ const slice = createSlice({
 		getOpfsHandle: (state) => state.opfsMountDescriptor,
 	},
 	reducers: {
+		setPlaygroundClient: (
+			state,
+			action: PayloadAction<PlaygroundClient>
+		) => {
+			state.playgroundClient = action.payload;
+		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			state.activeModal = action.payload;
 		},
@@ -135,7 +143,8 @@ const slice = createSlice({
 });
 
 // Export actions
-export const { setActiveModal, setOpfsMountDescriptor } = slice.actions;
+export const { setActiveModal, setOpfsMountDescriptor, setPlaygroundClient } =
+	slice.actions;
 
 // Redux thunk for adding a site
 export function addSite(siteInfo: SiteInfo) {
@@ -185,11 +194,20 @@ const store = configureStore({
 		getDefaultMiddleware({
 			serializableCheck: {
 				// Ignore these action types
-				ignoredActions: ['setOpfsMountDescriptor'],
+				ignoredActions: [
+					'setOpfsMountDescriptor',
+					'app/setPlaygroundClient',
+				],
 				// Ignore these field paths in all actions
-				ignoredActionPaths: ['payload.handle'],
+				ignoredActionPaths: [
+					'payload.handle',
+					'payload.playgroundClient',
+				],
 				// Ignore these paths in the state
-				ignoredPaths: ['opfsMountDescriptor.handle'],
+				ignoredPaths: [
+					'opfsMountDescriptor.handle',
+					'playgroundClient',
+				],
 			},
 		}),
 });
