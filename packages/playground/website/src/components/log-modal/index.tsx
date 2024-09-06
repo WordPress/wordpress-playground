@@ -55,6 +55,7 @@ export function SiteLogs({ className }: { className?: string }) {
 	}, []);
 
 	function getLogs() {
+		// TODO: Fix log querying/listing to be per site
 		setLogs(logger.getLogs());
 	}
 
