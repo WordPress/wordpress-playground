@@ -39,8 +39,6 @@ export type SiteLogo = {
  */
 export type PhpExtensionBundle = 'light' | 'kitchen-sink';
 
-export type SiteLifecycleState = 'new' | 'booting' | 'booted';
-
 // TODO: Create a schema for this as the design matures
 /**
  * The Site metadata that is persisted.
@@ -61,7 +59,6 @@ interface SiteMetadata {
 	//whenLastLoaded: number;
 
 	originalBlueprint?: Blueprint;
-	siteLifecycle: SiteLifecycleState;
 }
 
 /**
@@ -70,7 +67,6 @@ interface SiteMetadata {
 export interface SiteInfo extends SiteMetadata {
 	storage: SiteStorageType;
 	slug: string;
-	siteLifecycle: SiteLifecycleState;
 }
 
 /**
@@ -114,7 +110,7 @@ export function randomSiteName() {
  * @returns SiteInfo The new site info structure.
  */
 export function createNewSiteInfo(
-	initialInfo: Partial<Omit<InitialSiteInfo, 'siteLifecycle'>> = {}
+	initialInfo: Partial<InitialSiteInfo> = {}
 ): SiteInfo {
 	const name = initialInfo.name ?? randomSiteName();
 	const givenBlueprint: Blueprint = initialInfo.originalBlueprint ?? {};
@@ -153,7 +149,6 @@ export function createNewSiteInfo(
 			resolvedBlueprint.phpExtensionBundles?.[0] ?? 'kitchen-sink',
 
 		...initialInfo,
-		siteLifecycle: 'new',
 	};
 }
 
@@ -364,7 +359,6 @@ function deriveDefaultSite(slug: string): SiteInfo {
 		wpVersion: LatestMinifiedWordPressVersion,
 		phpVersion: LatestSupportedPHPVersion,
 		phpExtensionBundle: 'kitchen-sink',
-		siteLifecycle: 'new',
 	};
 }
 
@@ -408,7 +402,6 @@ function getSiteMetadataFromSiteInfo(site: SiteInfo): SiteMetadata {
 		wpVersion: site.wpVersion,
 		phpVersion: site.phpVersion,
 		phpExtensionBundle: site.phpExtensionBundle,
-		siteLifecycle: site.siteLifecycle,
 	};
 
 	if (site.logo !== undefined) {

@@ -10,9 +10,13 @@ import {
 	useAppSelector,
 } from '../../lib/redux-store';
 import { setupPostMessageRelay } from '@php-wasm/web';
-import { bootPlayground } from '../../lib/boot-playground';
 import { PlaygroundClient } from '@wp-playground/remote';
 import { getDirectoryNameForSlug } from '../../lib/site-storage';
+import { logger } from '@php-wasm/logger';
+import { getRemoteUrl } from '../../lib/config';
+import { playgroundAvailableInOpfs } from '../playground-configuration-group/playground-available-in-opfs';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
+import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -73,15 +77,56 @@ export const JustViewport = function LoadedViewportComponent() {
 				} as const;
 			}
 
+			let isWordPressInstalled = false;
+			if (mountDescriptor) {
+				isWordPressInstalled = await playgroundAvailableInOpfs(
+					await directoryHandleFromMountDevice(mountDescriptor.device)
+				);
+			}
+
+			let blueprint: Blueprint = activeSite.originalBlueprint || {};
+			if (isWordPressInstalled) {
+				// Only apply the runtime configuration if WordPress is already installed.
+				// We assume the Blueprint steps were already executed. We don't want to
+				// execute them again as, e.g. installing the same plugin twice could break
+				// the site or lead to a data loss.
+				// @TODO: Separate the runtime configuration from the blueprint.
+				// @TODO: Source the runtime configuration from the site data, not from
+				//        the original blueprint.
+				blueprint = {
+					features: blueprint.features,
+					phpExtensionBundles: blueprint.phpExtensionBundles,
+					extraLibraries: blueprint.extraLibraries,
+					login: blueprint.login,
+					landingPage: blueprint.landingPage,
+					constants: blueprint.constants,
+				};
+			}
+
 			let playground: PlaygroundClient;
 			const iframe = (iframeRef as any)?.current;
 			try {
-				playground = await bootPlayground({
-					blueprint: activeSite.originalBlueprint!,
-					iframe,
-					mountDescriptor,
+				playground = await startPlaygroundWeb({
+					iframe: iframe!,
+					remoteUrl: getRemoteUrl().toString(),
+					blueprint,
+					// Intercept the Playground client even if the
+					// Blueprint fails.
+					onClientConnected: (playground) => {
+						(window as any)['playground'] = playground;
+					},
+					mounts: mountDescriptor
+						? [
+								{
+									...mountDescriptor,
+									initialSyncDirection: 'opfs-to-memfs',
+								},
+						  ]
+						: [],
+					shouldInstallWordPress: !isWordPressInstalled,
 				});
 			} catch (e) {
+				logger.error(e);
 				dispatch(setActiveModal('error-report'));
 				return;
 			}
