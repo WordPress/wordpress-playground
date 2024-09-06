@@ -52,6 +52,7 @@ interface SiteMetadata {
 	//       For playground, we might choose to sort by most recently used.
 	//whenLastLoaded: number;
 
+	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: Pick<
 		Required<Blueprint>,
 		| 'features'
