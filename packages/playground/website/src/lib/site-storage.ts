@@ -6,13 +6,10 @@
  */
 
 import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersion,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
-import { type Blueprint } from '@wp-playground/blueprints';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { compileBlueprint, type Blueprint } from '@wp-playground/blueprints';
 import metadataWorkerUrl from './site-storage-metadata-worker?worker&url';
+import { resolveBlueprint } from './resolve-blueprint';
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'playground-site-metadata.json';
@@ -47,9 +44,6 @@ interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
-	wpVersion: string;
-	phpVersion: SupportedPHPVersion;
-	phpExtensionBundle: PhpExtensionBundle;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
@@ -58,7 +52,14 @@ interface SiteMetadata {
 	//       For playground, we might choose to sort by most recently used.
 	//whenLastLoaded: number;
 
-	originalBlueprint?: Blueprint;
+	runtimeConfiguration: Pick<
+		Required<Blueprint>,
+		| 'features'
+		| 'extraLibraries'
+		| 'phpExtensionBundles'
+		| 'preferredVersions'
+	>;
+	originalBlueprint: Blueprint;
 }
 
 /**
@@ -122,62 +123,38 @@ export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
  * @param initialInfo The starting configuration for the site.
  * @returns SiteInfo The new site info structure.
  */
-export function createNewSiteInfo(
-	initialInfo: Partial<InitialSiteInfo>
-): SiteInfo {
+export async function createNewSiteInfo(
+	initialInfo: Partial<Omit<InitialSiteInfo, 'runtimeConfiguration'>>
+): Promise<SiteInfo> {
 	const name = initialInfo.name ?? randomSiteName();
-	const givenBlueprint: Blueprint = initialInfo.originalBlueprint ?? {};
-	const resolvedBlueprint: Blueprint = {
-		preferredVersions: {
-			wp:
-				givenBlueprint.preferredVersions?.wp ??
-				LatestMinifiedWordPressVersion,
-			php: resolveVersion(
-				givenBlueprint.preferredVersions?.php,
-				SupportedPHPVersions,
-				LatestSupportedPHPVersion
-			),
-			...givenBlueprint.preferredVersions,
-		},
-		phpExtensionBundles: givenBlueprint.phpExtensionBundles,
-		...givenBlueprint,
-	};
+	const blueprint: Blueprint =
+		initialInfo.originalBlueprint ??
+		(await resolveBlueprint(new URL('https://w.org')));
+
+	const compiledBlueprint = compileBlueprint(blueprint);
 
 	return {
 		id: crypto.randomUUID(),
 		slug: deriveSlugFromSiteName(name),
 		whenCreated: Date.now(),
-
 		storage: 'none',
-		wpVersion:
-			resolvedBlueprint.preferredVersions?.wp ||
-			LatestMinifiedWordPressVersion,
-		phpVersion: resolveVersion(
-			resolvedBlueprint.preferredVersions?.php,
-			SupportedPHPVersions,
-			LatestSupportedPHPVersion
-		),
-		phpExtensionBundle:
-			resolvedBlueprint.phpExtensionBundles?.[0] ?? 'kitchen-sink',
 
 		...initialInfo,
+
+		runtimeConfiguration: {
+			preferredVersions: {
+				wp: compiledBlueprint.versions.wp,
+				php: compiledBlueprint.versions.php,
+			},
+			phpExtensionBundles: blueprint.phpExtensionBundles || [
+				'kitchen-sink',
+			],
+			features: compiledBlueprint.features,
+			extraLibraries: compiledBlueprint.extraLibraries,
+		},
+		originalBlueprint: blueprint,
 		name,
 	};
-}
-
-function resolveVersion<T>(
-	version: string | undefined,
-	allVersions: readonly T[],
-	defaultVersion: T = allVersions[0]
-): T {
-	if (
-		!version ||
-		!allVersions.includes(version as any) ||
-		version === 'latest'
-	) {
-		return defaultVersion;
-	}
-	return version as T;
 }
 
 /**
@@ -363,15 +340,23 @@ function getFallbackSiteNameFromSlug(slug: string) {
 }
 
 function deriveDefaultSite(slug: string): SiteInfo {
+	const runtimeConfiguration: SiteInfo['runtimeConfiguration'] = {
+		preferredVersions: {
+			wp: LatestMinifiedWordPressVersion,
+			php: LatestSupportedPHPVersion,
+		},
+		phpExtensionBundles: ['kitchen-sink'],
+		features: {},
+		extraLibraries: [],
+	};
 	return {
 		id: crypto.randomUUID(),
 		slug,
 		name: getFallbackSiteNameFromSlug(slug),
 		storage: 'opfs',
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		wpVersion: LatestMinifiedWordPressVersion,
-		phpVersion: LatestSupportedPHPVersion,
-		phpExtensionBundle: 'kitchen-sink',
+		runtimeConfiguration,
+		originalBlueprint: runtimeConfiguration,
 	};
 }
 
@@ -412,9 +397,8 @@ function getSiteMetadataFromSiteInfo(site: SiteInfo): SiteMetadata {
 		id: site.id,
 		name: site.name,
 		whenCreated: site.whenCreated,
-		wpVersion: site.wpVersion,
-		phpVersion: site.phpVersion,
-		phpExtensionBundle: site.phpExtensionBundle,
+		runtimeConfiguration: site.runtimeConfiguration,
+		originalBlueprint: site.originalBlueprint,
 	};
 
 	if (site.logo !== undefined) {

@@ -8,7 +8,6 @@ import {
 	useAppDispatch,
 	setSiteManagerIsOpen,
 } from '../../lib/redux-store';
-import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
@@ -17,15 +16,6 @@ export function Layout() {
 	const activeSite = useAppSelector((state) => state.activeSite!);
 	const blueprint = activeSite.originalBlueprint || {};
 	const storage = activeSite.storage;
-	// @TODO: Use SiteMetadata directly
-	const currentConfiguration: PlaygroundConfiguration = {
-		storage: storage ?? 'none',
-		wp: activeSite.wpVersion,
-		php: activeSite.phpVersion,
-		withExtensions: activeSite.phpExtensionBundle === 'kitchen-sink',
-		withNetworking: blueprint?.features?.networking || false,
-		resetSite: false,
-	};
 
 	const dispatch = useAppDispatch();
 
@@ -57,7 +47,6 @@ export function Layout() {
 				)}
 				<SiteView
 					blueprint={blueprint}
-					currentConfiguration={currentConfiguration}
 					storage={storage}
 					className={css.siteViewContent}
 					hideToolbar={siteManagerIsOpen}

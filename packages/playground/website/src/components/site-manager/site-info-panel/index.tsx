@@ -326,12 +326,15 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					/>
 					<SiteInfoRow
 						label="WordPress version"
-						value={site.wpVersion}
+						value={site.runtimeConfiguration.preferredVersions.wp}
 					/>
 					<SiteInfoRow
 						label="PHP version"
-						value={`${site.phpVersion}${
-							site.phpExtensionBundle === 'light'
+						value={`${
+							site.runtimeConfiguration.preferredVersions.php
+						}${
+							site.runtimeConfiguration
+								.phpExtensionBundles?.[0] === 'light'
 								? ''
 								: ' (with extensions)'
 						}`}
@@ -339,7 +342,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					<SiteInfoRow
 						label="Network access"
 						value={
-							site.originalBlueprint?.features?.networking
+							site.runtimeConfiguration.features?.networking
 								? 'Yes'
 								: 'No'
 						}

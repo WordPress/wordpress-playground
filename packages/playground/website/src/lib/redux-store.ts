@@ -173,18 +173,22 @@ export function createSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
-		await addSiteToStorage(siteInfo);
+		if (siteInfo.storage === 'opfs') {
+			await addSiteToStorage(siteInfo);
+		}
 		dispatch(slice.actions.addSite(siteInfo));
 	};
 }
 
 // Redux thunk for removing a site
-export function deleteSite(site: SiteInfo) {
+export function deleteSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect removal in progress
-		await removeSiteFromStorage(site);
-		dispatch(slice.actions.removeSite(site));
+		if (siteInfo.storage === 'opfs') {
+			await removeSiteFromStorage(siteInfo);
+		}
+		dispatch(slice.actions.removeSite(siteInfo));
 	};
 }
 

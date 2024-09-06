@@ -31,7 +31,7 @@ export function AddSiteButton() {
 	const [, setUrlComponents] = useCurrentUrl();
 
 	const onAddSite = async (name: string) => {
-		const newSiteInfo = createNewSiteInfo({
+		const newSiteInfo = await createNewSiteInfo({
 			storage: 'opfs',
 			name: name,
 		});

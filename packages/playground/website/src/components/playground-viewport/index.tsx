@@ -16,7 +16,7 @@ import { logger } from '@php-wasm/logger';
 import { getRemoteUrl } from '../../lib/config';
 import { playgroundAvailableInOpfs } from '../playground-configuration-group/playground-available-in-opfs';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
-import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
+import { startPlaygroundWeb } from '@wp-playground/client';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -84,36 +84,9 @@ export const JustViewport = function LoadedViewportComponent() {
 				);
 			}
 
-			let blueprint: Blueprint = activeSite.originalBlueprint || {};
-			if (isWordPressInstalled) {
-				// Only apply the runtime configuration if WordPress is already installed.
-				// We assume the Blueprint steps were already executed. We don't want to
-				// execute them again as, e.g. installing the same plugin twice could break
-				// the site or lead to a data loss.
-				// @TODO: Separate the runtime configuration from the blueprint.
-				// @TODO: Source the runtime configuration from the site data, not from
-				//        the original blueprint.
-				// @TODO: Spend more time here in general and make sure we can distinguish between the
-				//        initial Blueprint, the current runtime configuration, move the site between
-				//        different storage types, etc. Ideally we'd end up with a few clearly specified
-				//        operations and data formats, and stop relying on query parameters so much.
-				//        ?storage=browser is difficult to think about when we're considering operations like
-				//        "make this temporary site permanent" or "export to local directory" or "save to github".
-				blueprint = {
-					// @TODO: Store networking in the site data.
-					// features: blueprint.features,
-					phpExtensionBundles: [activeSite.phpExtensionBundle],
-					// @TODO: Store extraLibraries in the site data. Or not?
-					// extraLibraries: blueprint.extraLibraries,
-					// @TODO: Store the `login` flag in the site data. Or not?
-					// login: activeSite.login,
-					constants: activeSite.originalBlueprint?.constants,
-					preferredVersions: {
-						php: activeSite.phpVersion,
-						wp: activeSite.wpVersion,
-					},
-				};
-			}
+			const blueprint = isWordPressInstalled
+				? activeSite.runtimeConfiguration
+				: activeSite.originalBlueprint;
 
 			let playground: PlaygroundClient;
 			const iframe = (iframeRef as any)?.current;

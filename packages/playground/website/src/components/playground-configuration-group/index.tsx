@@ -1,8 +1,11 @@
-import type { PlaygroundClient } from '@wp-playground/client';
+import type {
+	PlaygroundClient,
+	SupportedPHPVersion,
+} from '@wp-playground/client';
 
 import css from './style.module.css';
 import Button from '../button';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Modal, { defaultStyles } from '../modal';
 import { playgroundAvailableInOpfs } from './playground-available-in-opfs';
 import { PlaygroundConfiguration, PlaygroundConfigurationForm } from './form';
@@ -26,10 +29,6 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { MountDevice } from '@php-wasm/web';
 
-interface SiteSetupGroupProps {
-	initialConfiguration: PlaygroundConfiguration;
-}
-
 let idb: IDBDatabase | null,
 	lastDirectoryHandle: FileSystemDirectoryHandle | null;
 try {
@@ -39,9 +38,7 @@ try {
 	// Ignore errors.
 }
 
-export default function PlaygroundConfigurationGroup({
-	initialConfiguration,
-}: SiteSetupGroupProps) {
+export default function PlaygroundConfigurationGroup() {
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => setOpen(true);
 	const closeModal = () => setOpen(false);
@@ -50,6 +47,26 @@ export default function PlaygroundConfigurationGroup({
 		resolve: any;
 		isResolved: boolean;
 	}>();
+
+	const activeSite = useSelector(
+		(state: PlaygroundReduxState) => state.activeSite!
+	);
+	const initialConfiguration = useMemo<PlaygroundConfiguration>(() => {
+		return {
+			storage: activeSite.storage || 'none',
+			wp: activeSite.runtimeConfiguration.preferredVersions.wp,
+			php: activeSite.runtimeConfiguration.preferredVersions
+				.php as SupportedPHPVersion,
+			withExtensions:
+				activeSite.runtimeConfiguration.phpExtensionBundles.includes(
+					'kitchen-sink'
+				),
+			withNetworking:
+				activeSite.runtimeConfiguration.features.networking || false,
+			resetSite: false,
+		};
+	}, [activeSite]);
+
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
 	useEffect(() => {
@@ -99,9 +116,6 @@ export default function PlaygroundConfigurationGroup({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!!playground]);
 
-	const activeSite = useSelector(
-		(state: PlaygroundReduxState) => state.activeSite
-	);
 	const mountDescriptor =
 		useAppSelector(getActiveClient)?.opfsMountDescriptor;
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(

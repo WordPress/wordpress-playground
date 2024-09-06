@@ -40,7 +40,6 @@ import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-n
 import { LogModal } from '../log-modal';
 import { ErrorReportModal } from '../error-report-modal';
 import { StartErrorModal } from '../start-error-modal';
-import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 import { logTrackingEvent } from '../../lib/tracking';
 import { SiteStorageType } from '../../lib/site-storage';
 
@@ -64,13 +63,11 @@ function Modals(blueprint: Blueprint) {
 
 export function SiteView({
 	blueprint,
-	currentConfiguration,
 	storage,
 	hideToolbar,
 	className = '',
 }: {
 	blueprint: Blueprint;
-	currentConfiguration: PlaygroundConfiguration;
 	storage: SiteStorageType;
 	hideToolbar?: boolean;
 	className?: string;
@@ -199,10 +196,7 @@ export function SiteView({
 				displayMode={displayMode}
 				hideToolbar={hideToolbar}
 				toolbarButtons={[
-					<PlaygroundConfigurationGroup
-						key="configuration"
-						initialConfiguration={currentConfiguration}
-					/>,
+					<PlaygroundConfigurationGroup key="configuration" />,
 					<DropdownMenu
 						key="menu"
 						icon={menu}
