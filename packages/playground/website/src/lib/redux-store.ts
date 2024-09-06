@@ -106,6 +106,12 @@ const slice = createSlice({
 			const siteSlug = action.payload.siteSlug;
 			const clientInfo = action.payload.info;
 			if (!state.clients[siteSlug]) {
+				if (clientInfo.client!) {
+					state.clients[siteSlug] = {
+						url: '/',
+						...clientInfo,
+					} as ClientInfo;
+				}
 				return;
 			}
 
