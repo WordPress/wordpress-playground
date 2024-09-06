@@ -86,7 +86,7 @@ export const JustViewport = function LoadedViewportComponent() {
 				return;
 			}
 
-			// @TODO: Set the client immediately, delete it after a timeout.
+			// @TODO: Keep the client around for some time to enable quick switching between sites.
 			if (unmounted) {
 				return;
 			}
