@@ -33,7 +33,9 @@ export function AddSiteButton() {
 	const onAddSite = async (name: string) => {
 		const newSiteInfo = await createNewSiteInfo({
 			storage: 'opfs',
-			name: name,
+			metadata: {
+				name: name,
+			},
 		});
 		dispatch(createSite(newSiteInfo));
 		setUrlComponents({
@@ -58,7 +60,9 @@ export function AddSiteButton() {
 		//        let them do it.
 		if (
 			sites.some(
-				(site) => site.name.toLowerCase() === newSiteName.toLowerCase()
+				(site) =>
+					site.metadata.name.toLowerCase() ===
+					newSiteName.toLowerCase()
 			)
 		) {
 			setError('Name already exists');

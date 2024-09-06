@@ -66,9 +66,10 @@ interface SiteMetadata {
 /**
  * The Site model used to represent a site within Playground.
  */
-export interface SiteInfo extends SiteMetadata {
+export interface SiteInfo {
 	storage: SiteStorageType;
 	slug: string;
+	metadata: SiteMetadata;
 }
 
 /**
@@ -110,7 +111,7 @@ export function randomSiteName() {
  */
 export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
 	const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
-		site.name.startsWith(defaultName)
+		site.metadata.name.startsWith(defaultName)
 	).length;
 	if (numberOfSitesStartingWithDefaultName === 0) {
 		return defaultName;
@@ -125,36 +126,42 @@ export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
  * @returns SiteInfo The new site info structure.
  */
 export async function createNewSiteInfo(
-	initialInfo: Partial<Omit<InitialSiteInfo, 'runtimeConfiguration'>>
+	initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
+		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
+	}
 ): Promise<SiteInfo> {
-	const name = initialInfo.name ?? randomSiteName();
+	const name = initialInfo.metadata?.name ?? randomSiteName();
 	const blueprint: Blueprint =
-		initialInfo.originalBlueprint ??
+		initialInfo.metadata?.originalBlueprint ??
 		(await resolveBlueprint(new URL('https://w.org')));
 
 	const compiledBlueprint = compileBlueprint(blueprint);
 
 	return {
-		id: crypto.randomUUID(),
 		slug: deriveSlugFromSiteName(name),
-		whenCreated: Date.now(),
 		storage: 'none',
 
 		...initialInfo,
 
-		runtimeConfiguration: {
-			preferredVersions: {
-				wp: compiledBlueprint.versions.wp,
-				php: compiledBlueprint.versions.php,
+		metadata: {
+			id: crypto.randomUUID(),
+			whenCreated: Date.now(),
+			runtimeConfiguration: {
+				preferredVersions: {
+					wp: compiledBlueprint.versions.wp,
+					php: compiledBlueprint.versions.php,
+				},
+				phpExtensionBundles: blueprint.phpExtensionBundles || [
+					'kitchen-sink',
+				],
+				features: compiledBlueprint.features,
+				extraLibraries: compiledBlueprint.extraLibraries,
 			},
-			phpExtensionBundles: blueprint.phpExtensionBundles || [
-				'kitchen-sink',
-			],
-			features: compiledBlueprint.features,
-			extraLibraries: compiledBlueprint.extraLibraries,
+			originalBlueprint: blueprint,
+			name,
+
+			...(initialInfo.metadata ?? {}),
 		},
-		originalBlueprint: blueprint,
-		name,
 	};
 }
 
@@ -293,7 +300,7 @@ async function readSiteFromDirectory(
 		return {
 			storage: 'opfs',
 			slug,
-			...metadata,
+			metadata,
 		};
 	} catch (e: any) {
 		if (e?.name === 'NotFoundError') {
@@ -341,7 +348,7 @@ function getFallbackSiteNameFromSlug(slug: string) {
 }
 
 function deriveDefaultSite(slug: string): SiteInfo {
-	const runtimeConfiguration: SiteInfo['runtimeConfiguration'] = {
+	const runtimeConfiguration: SiteInfo['metadata']['runtimeConfiguration'] = {
 		preferredVersions: {
 			wp: LatestMinifiedWordPressVersion,
 			php: LatestSupportedPHPVersion,
@@ -351,19 +358,21 @@ function deriveDefaultSite(slug: string): SiteInfo {
 		extraLibraries: [],
 	};
 	return {
-		id: crypto.randomUUID(),
 		slug,
-		name: getFallbackSiteNameFromSlug(slug),
 		storage: 'opfs',
-		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		runtimeConfiguration,
-		originalBlueprint: runtimeConfiguration,
+		metadata: {
+			id: crypto.randomUUID(),
+			name: getFallbackSiteNameFromSlug(slug),
+
+			// TODO: Backfill site info file if missing, detecting actual WP version if possible
+			runtimeConfiguration,
+			originalBlueprint: runtimeConfiguration,
+		},
 	};
 }
 
 async function writeSiteMetadata(site: SiteInfo) {
-	const metadata = getSiteMetadataFromSiteInfo(site);
-	const metadataJson = JSON.stringify(metadata, undefined, '  ');
+	const metadataJson = JSON.stringify(site.metadata, undefined, '  ');
 	const siteDirName = getDirectoryNameForSlug(site.slug);
 	await writeOpfsContent(
 		`/${siteDirName}/${SITE_METADATA_FILENAME}`,
@@ -391,23 +400,4 @@ function writeOpfsContent(path: string, content: string): Promise<void> {
 	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
 		worker.terminate()
 	);
-}
-
-function getSiteMetadataFromSiteInfo(site: SiteInfo): SiteMetadata {
-	const metadata: SiteMetadata = {
-		id: site.id,
-		name: site.name,
-		whenCreated: site.whenCreated,
-		runtimeConfiguration: site.runtimeConfiguration,
-		originalBlueprint: site.originalBlueprint,
-	};
-
-	if (site.logo !== undefined) {
-		metadata.logo = site.logo;
-	}
-	if (site.originalBlueprint !== undefined) {
-		metadata.originalBlueprint = site.originalBlueprint;
-	}
-
-	return metadata;
 }

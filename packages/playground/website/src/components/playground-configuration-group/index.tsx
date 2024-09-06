@@ -54,15 +54,16 @@ export default function PlaygroundConfigurationGroup() {
 	const initialConfiguration = useMemo<PlaygroundConfiguration>(() => {
 		return {
 			storage: activeSite.storage || 'none',
-			wp: activeSite.runtimeConfiguration.preferredVersions.wp,
-			php: activeSite.runtimeConfiguration.preferredVersions
+			wp: activeSite.metadata.runtimeConfiguration.preferredVersions.wp,
+			php: activeSite.metadata.runtimeConfiguration.preferredVersions
 				.php as SupportedPHPVersion,
 			withExtensions:
-				activeSite.runtimeConfiguration.phpExtensionBundles.includes(
+				activeSite.metadata.runtimeConfiguration.phpExtensionBundles.includes(
 					'kitchen-sink'
 				),
 			withNetworking:
-				activeSite.runtimeConfiguration.features.networking || false,
+				activeSite.metadata.runtimeConfiguration.features.networking ||
+				false,
 			resetSite: false,
 		};
 	}, [activeSite]);

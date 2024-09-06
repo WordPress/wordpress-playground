@@ -25,7 +25,11 @@ export function Sidebar({ className }: { className?: string }) {
 	);
 	const sites = useMemo(() => {
 		return sitesRaw
-			? sitesRaw.slice().sort((a, b) => a.name.localeCompare(b.name))
+			? sitesRaw
+					.slice()
+					.sort((a, b) =>
+						a.metadata.name.localeCompare(b.metadata.name)
+					)
 			: [];
 	}, [sitesRaw]);
 	const activeSite = useAppSelector((state) => state.activeSite!);
@@ -94,10 +98,12 @@ export function Sidebar({ className }: { className?: string }) {
 								iconPosition="right"
 							>
 								<HStack justify="flex-start" alignment="center">
-									{site.logo ? (
+									{site.metadata.logo ? (
 										<img
-											src={getLogoDataURL(site.logo)}
-											alt={site.name + ' logo'}
+											src={getLogoDataURL(
+												site.metadata.logo
+											)}
+											alt={site.metadata.name + ' logo'}
 											className={css.sidebarItemLogo}
 										/>
 									) : (
@@ -108,7 +114,7 @@ export function Sidebar({ className }: { className?: string }) {
 									<FlexBlock
 										className={css.sidebarItemSiteName}
 									>
-										{site.name}
+										{site.metadata.name}
 									</FlexBlock>
 								</HStack>
 							</MenuItem>

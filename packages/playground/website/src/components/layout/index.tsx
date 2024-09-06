@@ -14,7 +14,7 @@ export function Layout() {
 		(state) => state.siteManagerIsOpen
 	);
 	const activeSite = useAppSelector((state) => state.activeSite!);
-	const blueprint = activeSite.originalBlueprint || {};
+	const blueprint = activeSite.metadata.originalBlueprint || {};
 	const storage = activeSite.storage;
 
 	const dispatch = useAppDispatch();

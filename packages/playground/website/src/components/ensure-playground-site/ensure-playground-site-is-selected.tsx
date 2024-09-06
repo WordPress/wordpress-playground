@@ -47,7 +47,9 @@ export function EnsurePlaygroundSiteIsSelected({
 				const url = new URL(window.location.href);
 				const blueprint = await resolveBlueprint(url);
 				const newSiteInfo = await createNewSiteInfo({
-					originalBlueprint: blueprint,
+					metadata: {
+						originalBlueprint: blueprint,
+					},
 				});
 				await dispatch(createSite(newSiteInfo));
 				dispatch(setActiveSite(newSiteInfo!));

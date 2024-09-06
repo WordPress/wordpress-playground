@@ -85,8 +85,8 @@ export const JustViewport = function LoadedViewportComponent() {
 			}
 
 			const blueprint = isWordPressInstalled
-				? activeSite.runtimeConfiguration
-				: activeSite.originalBlueprint;
+				? activeSite.metadata.runtimeConfiguration
+				: activeSite.metadata.originalBlueprint;
 
 			let playground: PlaygroundClient;
 			const iframe = (iframeRef as any)?.current;

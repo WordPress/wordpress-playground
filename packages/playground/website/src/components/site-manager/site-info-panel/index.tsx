@@ -58,7 +58,7 @@ export function SiteInfoPanel({
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
-			`Are you sure you want to delete the site '${site.name}'?`
+			`Are you sure you want to delete the site '${site.metadata.name}'?`
 		);
 		if (proceed) {
 			await removeSite(site);
@@ -130,10 +130,12 @@ export function SiteInfoPanel({
 									</FlexItem>
 								)}
 								<FlexItem className={css.siteInfoHeaderIcon}>
-									{site.logo ? (
+									{site.metadata.logo ? (
 										<img
-											src={getLogoDataURL(site.logo)}
-											alt={site.name + ' logo'}
+											src={getLogoDataURL(
+												site.metadata.logo
+											)}
+											alt={site.metadata.name + ' logo'}
 										/>
 									) : (
 										<WordPressIcon
@@ -153,16 +155,16 @@ export function SiteInfoPanel({
 											css.siteInfoHeaderDetailsName
 										}
 									>
-										{site.name}
+										{site.metadata.name}
 									</h1>
 									<span
 										className={
 											css.siteInfoHeaderDetailsCreatedAt
 										}
 									>
-										{site.whenCreated
+										{site.metadata.whenCreated
 											? `Created ${new Date(
-													site.whenCreated
+													site.metadata.whenCreated
 											  ).toLocaleString()}`
 											: 'Created recently'}
 									</span>
@@ -319,21 +321,25 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					<FlexItem>
 						<h3 className={css.sectionTitle}>Site details</h3>
 					</FlexItem>
-					<SiteInfoRow label="Site name" value={site.name} />
+					<SiteInfoRow label="Site name" value={site.metadata.name} />
 					<SiteInfoRow
 						label="Storage"
 						value={<StorageType type={site.storage} />}
 					/>
 					<SiteInfoRow
 						label="WordPress version"
-						value={site.runtimeConfiguration.preferredVersions.wp}
+						value={
+							site.metadata.runtimeConfiguration.preferredVersions
+								.wp
+						}
 					/>
 					<SiteInfoRow
 						label="PHP version"
 						value={`${
-							site.runtimeConfiguration.preferredVersions.php
+							site.metadata.runtimeConfiguration.preferredVersions
+								.php
 						}${
-							site.runtimeConfiguration
+							site.metadata.runtimeConfiguration
 								.phpExtensionBundles?.[0] === 'light'
 								? ''
 								: ' (with extensions)'
@@ -342,7 +348,8 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					<SiteInfoRow
 						label="Network access"
 						value={
-							site.runtimeConfiguration.features?.networking
+							site.metadata.runtimeConfiguration.features
+								?.networking
 								? 'Yes'
 								: 'No'
 						}
@@ -458,14 +465,14 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 							Edit settings
 						</Button>
 					</FlexItem> */}
-					{site.originalBlueprint ? (
+					{site.metadata.originalBlueprint ? (
 						<FlexItem>
 							<Button
 								variant="link"
 								className={css.buttonNoPadding}
 								href={`/builder#${encodeURIComponent(
 									JSON.stringify(
-										site.originalBlueprint as any
+										site.metadata.originalBlueprint as any
 									)
 								)}`}
 								target="_blank"

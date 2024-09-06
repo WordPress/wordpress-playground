@@ -140,9 +140,9 @@ const slice = createSlice({
 			state.siteListing.sites.push(action.payload);
 		},
 		removeSite: (state, action: PayloadAction<SiteInfo>) => {
-			const idToRemove = action.payload.id;
+			const idToRemove = action.payload.metadata.id;
 			const siteIndex = state.siteListing.sites.findIndex(
-				(siteInfo) => siteInfo.id === idToRemove
+				(siteInfo) => siteInfo.metadata.id === idToRemove
 			);
 			if (siteIndex !== undefined) {
 				state.siteListing.sites.splice(siteIndex, 1);
