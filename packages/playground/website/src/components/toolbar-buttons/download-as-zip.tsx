@@ -3,11 +3,11 @@ import { download } from '@wordpress/icons';
 
 import { PlaygroundClient, zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
-import { getActiveClient, useAppSelector } from '../../lib/redux-store';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
 
 type Props = { onClose: () => void };
 export function DownloadAsZipMenuItem({ onClose }: Props) {
-	const playground = useAppSelector(getActiveClient)?.client;
+	const playground = usePlaygroundClient();
 	return (
 		<MenuItem
 			icon={download}

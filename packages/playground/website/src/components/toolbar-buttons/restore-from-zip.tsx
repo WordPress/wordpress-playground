@@ -4,11 +4,11 @@ import { upload } from '@wordpress/icons';
 
 import ImportForm from '../import-form';
 import Modal from '../modal';
-import { getActiveClient, useAppSelector } from '../../lib/redux-store';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
 
 type Props = { onClose: () => void };
 export function RestoreFromZipMenuItem({ onClose }: Props) {
-	const playground = useAppSelector(getActiveClient)?.client;
+	const playground = usePlaygroundClient();
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => {
 		if (!playground) return;

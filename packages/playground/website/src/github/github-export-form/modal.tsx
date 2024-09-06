@@ -2,7 +2,7 @@ import { signal } from '@preact/signals-react';
 
 import Modal, { defaultStyles } from '../../components/modal';
 import GitHubExportForm, { GitHubExportFormProps } from './form';
-import { getActiveClient, useAppSelector } from '../../lib/redux-store';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubExportModalOpen = signal(
@@ -36,7 +36,7 @@ export function GithubExportModal({
 	initialValues,
 	initialFilesBeforeChanges,
 }: GithubExportModalProps) {
-	const playground = useAppSelector(getActiveClient)?.client;
+	const playground = usePlaygroundClient();
 	return (
 		<Modal
 			style={{
