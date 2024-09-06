@@ -12,7 +12,7 @@ import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import React, { forwardRef } from 'react';
-import { useNavigatorParams } from '../../lib/use-navigator-params';
+import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 import { useSearchParams } from '../../lib/router-hooks';
 
 export const SiteManager = forwardRef<
@@ -21,7 +21,7 @@ export const SiteManager = forwardRef<
 		className?: string;
 	}
 >(({ className }, ref) => {
-	const { goTo } = useNavigatorParams('/manager/:siteSlug');
+	const { goTo } = useNavigator();
 	const [, setQuery] = useSearchParams();
 
 	const activeSite = useSelector(

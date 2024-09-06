@@ -42,7 +42,7 @@ export function Sidebar({ className }: { className?: string }) {
 
 	const onSiteClick = (slug: string) => {
 		setQuery({ 'site-slug': slug });
-		goTo('/manager/' + slug);
+		goTo('/manager');
 	};
 
 	const resources = [
