@@ -30,19 +30,6 @@ export function AddSiteButton() {
 
 	const [, setUrlComponents] = useCurrentUrl();
 
-	const onAddSite = async (name: string) => {
-		const newSiteInfo = await createNewSiteInfo({
-			storage: 'opfs',
-			metadata: {
-				name: name,
-			},
-		});
-		dispatch(createSite(newSiteInfo));
-		setUrlComponents({
-			searchParams: { 'site-slug': newSiteInfo.slug },
-		});
-	};
-
 	const openModal = () => {
 		setSiteName(generateUniqueSiteName(siteName, sites));
 		setModalOpen(true);
@@ -72,11 +59,20 @@ export function AddSiteButton() {
 		return true;
 	};
 
-	const addSite = () => {
+	const addSite = async () => {
 		if (!validateSiteName(siteName)) {
 			return;
 		}
-		onAddSite(siteName!);
+		const newSiteInfo = await createNewSiteInfo({
+			storage: 'opfs',
+			metadata: {
+				name: siteName!,
+			},
+		});
+		dispatch(createSite(newSiteInfo));
+		setUrlComponents({
+			searchParams: { 'site-slug': newSiteInfo.slug },
+		});
 		closeModal();
 	};
 
