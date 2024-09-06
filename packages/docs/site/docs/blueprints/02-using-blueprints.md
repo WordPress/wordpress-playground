@@ -26,7 +26,24 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 ```
 
 And then you would go to
-`https://playground.wordpress.net/#{"preferredVersions": {"php":"7.4", "wp":"6.5"}}`.
+`https://playground.wordpress.net/#{"preferredVersions":{"php":"7.4","wp":"6.5"}}`.
+
+:::tip
+In Javascript, you can get a compact version of any blueprint json with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
+Example:
+
+```js
+const blueprintJson = `{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"preferredVersions": {
+		"php": "7.4",
+		"wp": "6.5"
+	}
+}`;
+const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"7.4","wp":"6.5"}}
+```
+
+:::
 
 You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
 
@@ -44,6 +61,24 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 Some tools, including GitHub, might not format the Blueprint correctly when pasted into the URL. In such cases, encode your Blueprint in Base64 and append it to the URL. For example, that's the above Blueprint in Base64 format: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
 
 To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
+
+:::tip
+In Javascript, You can get any blueprint json in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`
+
+Example:
+
+```js
+const blueprintJson = `{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"preferredVersions": {
+		"php": "7.4",
+		"wp": "6.5"
+	}
+}`;
+const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
+```
+
+:::
 
 ### Load Blueprint from a URL
 
