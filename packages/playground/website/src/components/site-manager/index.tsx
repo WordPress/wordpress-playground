@@ -4,7 +4,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 	setSiteManagerIsOpen,
-	removeSite as removeSiteFromStore,
+	deleteSite,
 } from '../../lib/redux-store';
 
 import css from './style.module.css';
@@ -28,7 +28,7 @@ export const SiteManager = forwardRef<
 
 	const removeSite = async (siteToRemove: SiteInfo) => {
 		const removingSelectedSite = siteToRemove.slug === activeSite?.slug;
-		await dispatch(removeSiteFromStore(siteToRemove));
+		await dispatch(deleteSite(siteToRemove));
 		if (removingSelectedSite) {
 			setQuery({ 'site-slug': undefined });
 			dispatch(setSiteManagerIsOpen(true));

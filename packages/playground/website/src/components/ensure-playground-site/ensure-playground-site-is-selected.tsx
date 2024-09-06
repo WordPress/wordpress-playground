@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { resolveBlueprint } from '../../lib/resolve-blueprint';
 import { useCurrentUrl, useSearchParams } from '../../lib/router-hooks';
 import {
-	addSite,
+	createSite,
 	setActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -53,7 +53,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				originalBlueprint: blueprint,
 				storage: storage,
 			});
-			await dispatch(addSite(newSiteInfo));
+			await dispatch(createSite(newSiteInfo));
 			dispatch(setActiveSite(newSiteInfo!));
 		}
 

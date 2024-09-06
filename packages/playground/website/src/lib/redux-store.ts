@@ -169,7 +169,7 @@ export const getActiveClient = (
 	state.activeSite ? state.clients[state.activeSite.slug] : undefined;
 
 // Redux thunk for adding a site
-export function addSite(siteInfo: SiteInfo) {
+export function createSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
@@ -179,7 +179,7 @@ export function addSite(siteInfo: SiteInfo) {
 }
 
 // Redux thunk for removing a site
-export function removeSite(site: SiteInfo) {
+export function deleteSite(site: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect removal in progress
