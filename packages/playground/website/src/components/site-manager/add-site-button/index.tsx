@@ -39,7 +39,7 @@ export function AddSiteButton() {
 		});
 		dispatch(createSite(newSiteInfo));
 		setUrlComponents({
-			searchParams: { 'site-slug': newSiteInfo.slug, storage: 'opfs' },
+			searchParams: { 'site-slug': newSiteInfo.slug },
 		});
 	};
 

@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import css from './style.module.css';
-import { SiteInfo } from '../../../lib/site-storage';
+import { getDirectoryNameForSlug, SiteInfo } from '../../../lib/site-storage';
 import { getLogoDataURL, WordPressIcon } from '../icons';
 import { useState } from '@wordpress/element';
 import {
@@ -23,9 +23,15 @@ import {
 	chevronLeft,
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
-import { useAppDispatch, setSiteManagerIsOpen } from '../../../lib/redux-store';
+import {
+	setClientInfo,
+	useAppDispatch,
+	setSiteManagerIsOpen,
+	updateSite,
+} from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
+import { useCurrentUrl } from '../../../lib/router-hooks';
 
 function SiteInfoRow({
 	label,
@@ -68,15 +74,16 @@ export function SiteInfoPanel({
 	const playground = usePlaygroundClient();
 	const dispatch = useAppDispatch();
 
-	const [showNotice, setShowNotice] = useState(site.storage === 'none');
+	const [noticeDismissed, setNoticeDismissed] = useState(false);
+	const [, setUrlComponents] = useCurrentUrl();
 
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>
-			{showNotice ? (
+			{site.storage === 'none' && !noticeDismissed ? (
 				<Notice
 					className={css.siteNotice}
 					status="info"
-					onRemove={() => setShowNotice(false)}
+					onRemove={() => setNoticeDismissed(true)}
 				>
 					<Flex direction="row" gap={2} expanded={true}>
 						<FlexItem>
@@ -86,11 +93,56 @@ export function SiteInfoPanel({
 						<FlexItem>
 							<Button
 								variant="primary"
-								onClick={() => {
-									alert('@TODO implement me');
+								onClick={async () => {
+									// @TODO: A similar snippet exists in the `JustViewport` component,
+									//        would it make sense to refactor this into a shared function?
+									//        e.g. a `saveSiteToOpfs` redux thunk
+									const mountDescriptor = {
+										device: {
+											type: 'opfs',
+											path:
+												'/' +
+												getDirectoryNameForSlug(
+													site!.slug
+												),
+										},
+										mountpoint: '/wordpress',
+									} as const;
+									await playground!.mountOpfs(
+										{
+											...mountDescriptor,
+											initialSyncDirection:
+												'memfs-to-opfs',
+										},
+										(progress) => {
+											// @TODO: Display progress information
+											// setMountProgress(progress);
+										}
+									);
+									// @TODO: Tell the user the operation is complete
+									dispatch(
+										setClientInfo({
+											siteSlug: site!.slug,
+											info: {
+												opfsMountDescriptor:
+													mountDescriptor,
+											},
+										})
+									);
+									dispatch(
+										updateSite({
+											...site,
+											storage: 'opfs',
+										})
+									);
+									setUrlComponents({
+										searchParams: {
+											'site-slug': site!.slug,
+										},
+									});
 								}}
 							>
-								Save locally
+								Save in this browser
 							</Button>
 						</FlexItem>
 					</Flex>

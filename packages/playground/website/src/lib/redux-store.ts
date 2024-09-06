@@ -136,6 +136,18 @@ const slice = createSlice({
 				sites: [],
 			};
 		},
+		updateSite: (state, action: PayloadAction<SiteInfo>) => {
+			const siteIndex = state.siteListing.sites.findIndex(
+				(siteInfo) =>
+					siteInfo.metadata.id === action.payload.metadata.id
+			);
+			if (siteIndex !== undefined) {
+				state.siteListing.sites[siteIndex] = action.payload;
+			}
+			if (state.activeSite?.metadata.id === action.payload.metadata.id) {
+				state.activeSite = action.payload;
+			}
+		},
 		addSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.siteListing.sites.push(action.payload);
 		},
@@ -161,6 +173,7 @@ export const {
 	forgetClientInfo,
 	setActiveSite,
 	setSiteManagerIsOpen,
+	updateSite,
 } = slice.actions;
 
 export const getActiveClient = (
