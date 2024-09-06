@@ -32,10 +32,6 @@ export function Sidebar({ className }: { className?: string }) {
 
 	const [, setQuery] = useSearchParams();
 
-	const onAddSite = async (name: string) => {
-		setQuery({ 'site-slug': 'create', storage: 'opfs' });
-	};
-
 	const onSiteClick = (slug: string) => {
 		setQuery({ 'site-slug': slug });
 	};
@@ -141,7 +137,7 @@ export function Sidebar({ className }: { className?: string }) {
 					))}
 				</ItemGroup>
 			</footer>
-			<AddSiteButton onAddSite={onAddSite} sites={sites} />
+			<AddSiteButton />
 		</NavigableMenu>
 	);
 }

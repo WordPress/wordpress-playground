@@ -6,40 +6,44 @@ import {
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
 import css from './style.module.css';
-import { useEffect, useRef, useState } from '@wordpress/element';
-import { type SiteInfo } from '../../../lib/site-storage';
+import { useRef, useState } from '@wordpress/element';
 import classNames from 'classnames';
+import {
+	createSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../../lib/redux-store';
+import { useSearchParams } from '../../../lib/router-hooks';
+import {
+	createNewSiteInfo,
+	generateUniqueSiteName,
+	randomSiteName,
+} from '../../../lib/site-storage';
 
-function generateUniqueName(defaultName: string, sites: SiteInfo[]) {
-	const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
-		site.name.startsWith(defaultName)
-	).length;
-	if (numberOfSitesStartingWithDefaultName === 0) {
-		return defaultName;
-	}
-	return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
-}
-
-export function AddSiteButton({
-	onAddSite,
-	sites,
-}: {
-	onAddSite: (siteName: string) => void;
-	sites: SiteInfo[];
-}) {
-	const defaultName = 'My Site';
+export function AddSiteButton() {
 	const [isModalOpen, setModalOpen] = useState(false);
-	const [siteName, setSiteName] = useState<string | undefined>(defaultName);
+	const [siteName, setSiteName] = useState<string>(randomSiteName());
 	const addSiteButtonRef = useRef<HTMLFormElement>(null);
 	const [error, setError] = useState<string | undefined>(undefined);
+	const dispatch = useAppDispatch();
+	const sites = useAppSelector((state) => state.siteListing?.sites);
 
-	useEffect(() => {
-		setSiteName(generateUniqueName(defaultName, sites));
-	}, [sites]);
+	const [, setQuery] = useSearchParams();
 
-	const openModal = () => setModalOpen(true);
+	const onAddSite = async (name: string) => {
+		const newSiteInfo = createNewSiteInfo({
+			storage: 'opfs',
+			name: name,
+		});
+		dispatch(createSite(newSiteInfo));
+		setQuery({ 'site-slug': newSiteInfo.slug, storage: 'opfs' });
+	};
+
+	const openModal = () => {
+		setSiteName(generateUniqueSiteName(siteName, sites));
+		setModalOpen(true);
+	};
 	const closeModal = () => {
-		setSiteName(generateUniqueName(defaultName, sites));
 		setModalOpen(false);
 	};
 
@@ -48,6 +52,8 @@ export function AddSiteButton({
 			setError('Name is required');
 			return false;
 		}
+		// @TODO: Lift this constraint. If the user wants multiple sites with the same name,
+		//        let them do it.
 		if (
 			sites.some(
 				(site) => site.name.toLowerCase() === newSiteName.toLowerCase()
@@ -78,11 +84,6 @@ export function AddSiteButton({
 		addSiteButtonRef.current.click();
 	};
 
-	const onSiteNameChange = (nextValue?: string) => {
-		validateSiteName(nextValue);
-		setSiteName(nextValue);
-	};
-
 	return (
 		<div className={css.addSiteButton}>
 			<Button
@@ -99,9 +100,10 @@ export function AddSiteButton({
 						<InputControl
 							label="Name"
 							value={siteName}
-							onChange={(nextValue) =>
-								onSiteNameChange(nextValue)
-							}
+							onChange={(nextValue) => {
+								validateSiteName(nextValue);
+								setSiteName(nextValue ?? '');
+							}}
 							help={error}
 							className={classNames(css.addSiteInput, {
 								[css.invalidInput]: !!error,

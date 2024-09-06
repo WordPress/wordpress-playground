@@ -104,13 +104,26 @@ export function randomSiteName() {
 }
 
 /**
+ * @TODO: Do not generate unique site names. As a user I want the ability to have duplicates.
+ */
+export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
+	const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
+		site.name.startsWith(defaultName)
+	).length;
+	if (numberOfSitesStartingWithDefaultName === 0) {
+		return defaultName;
+	}
+	return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
+}
+
+/**
  * Create a new site info structure from initial configuration.
  *
  * @param initialInfo The starting configuration for the site.
  * @returns SiteInfo The new site info structure.
  */
 export function createNewSiteInfo(
-	initialInfo: Partial<InitialSiteInfo> = {}
+	initialInfo: Partial<InitialSiteInfo>
 ): SiteInfo {
 	const name = initialInfo.name ?? randomSiteName();
 	const givenBlueprint: Blueprint = initialInfo.originalBlueprint ?? {};
@@ -135,7 +148,6 @@ export function createNewSiteInfo(
 		slug: deriveSlugFromSiteName(name),
 		whenCreated: Date.now(),
 
-		name,
 		storage: 'none',
 		wpVersion:
 			resolvedBlueprint.preferredVersions?.wp ||
@@ -149,6 +161,7 @@ export function createNewSiteInfo(
 			resolvedBlueprint.phpExtensionBundles?.[0] ?? 'kitchen-sink',
 
 		...initialInfo,
+		name,
 	};
 }
 
