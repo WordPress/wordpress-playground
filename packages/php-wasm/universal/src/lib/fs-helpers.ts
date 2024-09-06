@@ -190,7 +190,7 @@ export class FSHelpers {
 		if (!FSHelpers.fileExists(FS, path)) {
 			return false;
 		}
-		return FS.isDir(FS.lookupPath(path).node.mode);
+		return FS.isDir(FS.lookupPath(path, { follow: true }).node.mode);
 	}
 
 	/**
@@ -205,7 +205,7 @@ export class FSHelpers {
 		if (!FSHelpers.fileExists(FS, path)) {
 			return false;
 		}
-		return FS.isFile(FS.lookupPath(path).node.mode);
+		return FS.isFile(FS.lookupPath(path, { follow: true }).node.mode);
 	}
 
 	/**
