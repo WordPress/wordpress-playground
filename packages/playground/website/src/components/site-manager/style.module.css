@@ -1,22 +1,25 @@
-body {
-	--site-manager-background-color: #1e1e1e;
-	--site-manager-border-width: 12px;
-	--site-manager-sidebar-width: 282px;
-	--site-manager-border-radius: 12px;
-}
-
 .site-manager {
 	height: 100vh;
 	overflow: hidden;
 	padding: var(--site-manager-border-width);
 	background-color: var(--site-manager-background-color);
-	background-image: url(../../../public/site-manager-background.svg);
+	/* Remove Playground background graphic because branding isn't finalized. */
+	/* background-image: url(../../../public/site-manager-background.svg); */
 	background-position: bottom left;
 	background-repeat: no-repeat;
 	width: 100%;
+
+	display: flex;
+	flex-direction: row;
 }
 
-.site-manager-sidebar {
-	width: 100%;
+.sidebar {
+	width: var(--site-manager-site-list-width);
 	height: 100%;
+}
+
+.site-manager-site-info {
+	min-width: var(--site-manager-site-list-width);
+	height: 100%;
+	flex-grow: 1;
 }

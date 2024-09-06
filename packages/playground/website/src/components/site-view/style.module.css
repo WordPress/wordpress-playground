@@ -1,42 +1,4 @@
 .site-view {
-	flex: 1 1 auto;
-	min-width: 320px;
-	height: 100vh;
-}
-
-.site-view-has-site-manager {
-	background-color: var(--site-manager-background-color);
-	display: none;
-	position: relative;
-}
-
-.site-view-has-site-manager:before {
-	content: '';
-	display: block;
 	width: 100%;
-	height: 100vh;
-	background-color: transparent;
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 1;
-	cursor: pointer;
-}
-
-@media (min-width: 640px) {
-	.site-view-has-site-manager {
-		display: block;
-	}
-}
-
-.site-view-section {
-	border: var(--site-manager-border-width) solid
-		var(--site-manager-background-color);
-	border-left: none;
-	background-color: var(--site-manager-border-color);
-}
-
-.site-view-section:global(> .browser-chrome-window) {
-	border-radius: var(--site-manager-border-radius);
-	overflow: hidden;
+	height: 100%;
 }

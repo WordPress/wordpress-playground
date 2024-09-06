@@ -48,7 +48,6 @@ import { StartErrorModal } from '../start-error-modal';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 import { logTrackingEvent } from '../../lib/tracking';
 import { StorageType } from '../../types';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 
 acquireOAuthTokenIfNeeded();
 
@@ -74,25 +73,25 @@ export function SiteView({
 	storage,
 	playground,
 	url,
+	hideToolbar,
 	iframeRef,
 	siteViewRef,
+	className = '',
 }: {
 	blueprint: Blueprint;
 	currentConfiguration: PlaygroundConfiguration;
 	storage: StorageType;
 	playground?: PlaygroundClient;
+	hideToolbar?: boolean;
 	url?: string;
 	iframeRef: React.RefObject<HTMLIFrameElement>;
 	siteViewRef: React.RefObject<HTMLDivElement>;
+	className?: string;
 }) {
-	const navigator = useNavigator();
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
-	const isSiteManagerActive = navigator.location.path === '/manager';
-
 	const query = new URL(document.location.href).searchParams;
-
 	const displayMode: DisplayMode = supportedDisplayModes.includes(
 		query.get('mode') as any
 	)
@@ -167,12 +166,6 @@ export function SiteView({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [blueprint?.steps]);
 
-	const maybeHideSiteManagerOnClick = () => {
-		if (isSiteManagerActive) {
-			navigator.goTo('/');
-		}
-	};
-
 	return (
 		<PlaygroundContext.Provider
 			value={{
@@ -181,13 +174,7 @@ export function SiteView({
 				currentUrl: url,
 			}}
 		>
-			<div
-				className={`${css.siteView} ${
-					isSiteManagerActive ? css.siteViewHasSiteManager : ''
-				}`}
-				ref={siteViewRef}
-				onClick={maybeHideSiteManagerOnClick}
-			>
+			<div className={`${css.siteView} ${className}`} ref={siteViewRef}>
 				<Modals />
 
 				{query.get('gh-ensure-auth') === 'yes' ? (
@@ -232,8 +219,7 @@ export function SiteView({
 					ref={iframeRef}
 					storage={storage}
 					displayMode={displayMode}
-					hideToolbar={isSiteManagerActive}
-					className={isSiteManagerActive ? css.siteViewSection : ''}
+					hideToolbar={hideToolbar}
 					toolbarButtons={[
 						<PlaygroundConfigurationGroup
 							key="configuration"
