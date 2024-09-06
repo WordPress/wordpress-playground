@@ -1,5 +1,4 @@
 import { EnsurePlaygroundSiteIsSelected } from './ensure-playground-site-is-selected';
-import { EnsurePlaygroundSiteSlug } from './ensure-playground-site-slug';
 
 export function EnsurePlaygroundSite({
 	children,
@@ -7,10 +6,8 @@ export function EnsurePlaygroundSite({
 	children: React.ReactNode;
 }) {
 	return (
-		<EnsurePlaygroundSiteSlug>
-			<EnsurePlaygroundSiteIsSelected>
-				{children}
-			</EnsurePlaygroundSiteIsSelected>
-		</EnsurePlaygroundSiteSlug>
+		<EnsurePlaygroundSiteIsSelected>
+			{children}
+		</EnsurePlaygroundSiteIsSelected>
 	);
 }

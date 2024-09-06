@@ -7,11 +7,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/redux-store';
-import {
-	createNewSiteInfo,
-	getSiteInfoBySlug,
-	SiteStorageType,
-} from '../../lib/site-storage';
+import { createNewSiteInfo, getSiteInfoBySlug } from '../../lib/site-storage';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -28,38 +24,28 @@ export function EnsurePlaygroundSiteIsSelected({
 	const [query] = useSearchParams();
 	const urlString = useCurrentUrl();
 	const requestedSiteSlug = query.get('site-slug');
-	const storage = query.get('storage')! as SiteStorageType;
 
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
-			if (activeSite && activeSite.slug === requestedSiteSlug) {
-				if (activeSite.storage !== 'opfs') {
-					alert(
-						'Site slugs only work with browser storage. The site slug will be ignored.'
-					);
-				}
-				return;
-			}
-
-			if (requestedSiteSlug !== 'create') {
+			if (requestedSiteSlug) {
 				const siteInfo = await getSiteInfoBySlug(requestedSiteSlug!);
 				dispatch(setActiveSite(siteInfo!));
-				return;
+				// @TODO: Handle the case where site is not found
+			} else {
+				// Create a new temporary site using the config passed in the current URL
+				const url = new URL(urlString);
+				const blueprint = await resolveBlueprint(url);
+				const newSiteInfo = createNewSiteInfo({
+					originalBlueprint: blueprint,
+				});
+				await dispatch(createSite(newSiteInfo));
+				dispatch(setActiveSite(newSiteInfo!));
 			}
-
-			const url = new URL(urlString);
-			const blueprint = await resolveBlueprint(url);
-			const newSiteInfo = createNewSiteInfo({
-				originalBlueprint: blueprint,
-				storage: storage,
-			});
-			await dispatch(createSite(newSiteInfo));
-			dispatch(setActiveSite(newSiteInfo!));
 		}
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [urlString, requestedSiteSlug, dispatch]);
+	}, [requestedSiteSlug]);
 
 	if (!activeSite) {
 		return null;

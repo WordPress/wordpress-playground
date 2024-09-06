@@ -204,12 +204,6 @@ export default function PlaygroundConfigurationGroup({
 				storage: 'local-fs',
 			});
 
-			// Read current querystring and replace storage=browser with
-			// storage=device.
-			const url = new URL(window.location.href);
-			url.searchParams.set('storage', 'device');
-			window.history.pushState({}, '', url.toString());
-
 			dispatch(
 				setClientInfo({
 					siteSlug: activeSite!.slug,

@@ -20,7 +20,7 @@ interface BrowserChromeProps {
  * TODO: Remove this once the site manager supports all storage options.
  */
 const query = new URLSearchParams(window.location.search);
-const showSiteManager = query.get('storage') === 'opfs';
+const showSiteManager = query.has('site-manager');
 
 export default function BrowserChrome({
 	children,

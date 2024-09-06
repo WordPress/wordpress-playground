@@ -23,13 +23,9 @@ import {
 	chevronLeft,
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
-import { useSelector } from 'react-redux';
-import {
-	PlaygroundReduxState,
-	useAppDispatch,
-	setSiteManagerIsOpen,
-} from '../../../lib/redux-store';
+import { useAppDispatch, setSiteManagerIsOpen } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
+import { usePlaygroundClient } from '../../../lib/use-playground-client';
 
 function SiteInfoRow({
 	label,
@@ -69,9 +65,7 @@ export function SiteInfoPanel({
 			onClose();
 		}
 	};
-	const playground = useSelector(
-		(state: PlaygroundReduxState) => state.playgroundClient
-	);
+	const playground = usePlaygroundClient();
 	const dispatch = useAppDispatch();
 
 	const [showNotice, setShowNotice] = useState(site.storage === 'none');
@@ -305,9 +299,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const username = 'admin';
 	const password = 'password';
 
-	const playground = useSelector(
-		(state: PlaygroundReduxState) => state.playgroundClient
-	);
+	const playground = usePlaygroundClient();
 
 	return (
 		<Flex
