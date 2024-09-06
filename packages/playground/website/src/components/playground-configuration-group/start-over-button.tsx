@@ -1,13 +1,11 @@
-import { useSelector } from 'react-redux';
 import Button from '../button';
-import { PlaygroundReduxState, useAppSelector } from '../../lib/redux-store';
+import { getActiveClient, useAppSelector } from '../../lib/redux-store';
 import { clearContentsFromMountDevice } from '@wp-playground/storage';
 
 export function StartOverButton() {
 	const storage = useAppSelector((state) => state.activeSite!.storage);
-	const mountDevice = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor?.device
-	);
+	const opfsMountDescriptor =
+		useAppSelector(getActiveClient)?.opfsMountDescriptor;
 	return (
 		<Button
 			onClick={async () => {
@@ -19,10 +17,12 @@ export function StartOverButton() {
 					return;
 				}
 				if (
-					mountDevice &&
+					opfsMountDescriptor &&
 					(storage === 'opfs' || storage === 'local-fs')
 				) {
-					await clearContentsFromMountDevice(mountDevice);
+					await clearContentsFromMountDevice(
+						opfsMountDescriptor.device
+					);
 				}
 				window.location.reload();
 			}}

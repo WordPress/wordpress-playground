@@ -12,6 +12,7 @@ import {
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { bootPlayground } from '../../lib/boot-playground';
 import { PlaygroundClient } from '@wp-playground/remote';
+import { getDirectoryNameForSlug } from '../../lib/site-storage';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -51,9 +52,6 @@ export const PlaygroundViewport = ({
 export const JustViewport = function LoadedViewportComponent() {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const activeSite = useAppSelector((state) => state.activeSite!);
-	const mountDescriptor = useAppSelector(
-		(state) => state.opfsMountDescriptor
-	);
 
 	const dispatch = useAppDispatch();
 	useEffect(() => {
@@ -64,9 +62,19 @@ export const JustViewport = function LoadedViewportComponent() {
 
 		let unmounted = false;
 		async function doTheWork() {
-			const iframe = (iframeRef as any)?.current;
-			let playground: PlaygroundClient;
+			let mountDescriptor = undefined;
+			if (activeSite.storage === 'opfs') {
+				mountDescriptor = {
+					device: {
+						type: 'opfs',
+						path: '/' + getDirectoryNameForSlug(activeSite.slug),
+					},
+					mountpoint: '/wordpress',
+				} as const;
+			}
 
+			let playground: PlaygroundClient;
+			const iframe = (iframeRef as any)?.current;
 			try {
 				playground = await bootPlayground({
 					blueprint: activeSite.originalBlueprint!,
@@ -90,6 +98,7 @@ export const JustViewport = function LoadedViewportComponent() {
 					siteSlug: activeSite.slug,
 					info: {
 						client: playground,
+						opfsMountDescriptor: mountDescriptor,
 					},
 				})
 			);

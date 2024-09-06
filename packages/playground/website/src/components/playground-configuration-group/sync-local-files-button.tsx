@@ -1,20 +1,10 @@
 import { useState } from 'react';
 import Button from '../button';
-import { useSelector } from 'react-redux';
-import {
-	getActiveClient,
-	useAppSelector,
-	type PlaygroundReduxState,
-} from '../../lib/redux-store';
+import { getActiveClient, useAppSelector } from '../../lib/redux-store';
 
 export function SyncLocalFilesButton() {
-	const clientInfo = useAppSelector(getActiveClient);
-	const playground = clientInfo?.client;
-	const currentUrl = clientInfo?.url;
-
-	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
-	);
+	const { client, url, opfsMountDescriptor } =
+		useAppSelector(getActiveClient) || {};
 	const [isSyncing, setIsSyncing] = useState(false);
 	return (
 		<Button
@@ -22,18 +12,18 @@ export function SyncLocalFilesButton() {
 			onClick={async () => {
 				setIsSyncing(true);
 				try {
-					const docroot = await playground!.documentRoot;
-					await playground!.unmountOpfs(docroot);
+					const docroot = await client!.documentRoot;
+					await client!.unmountOpfs(docroot);
 
-					await playground!.mountOpfs({
-						device: mountDescriptor!.device,
+					await client!.mountOpfs({
+						device: opfsMountDescriptor!.device,
 						mountpoint: docroot,
 						initialSyncDirection: 'opfs-to-memfs',
 					});
 				} finally {
 					setIsSyncing(false);
 				}
-				await playground!.goTo(currentUrl!);
+				await client!.goTo(url!);
 			}}
 		>
 			{isSyncing ? 'Syncing...' : 'Sync local files'}

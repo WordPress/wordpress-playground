@@ -5,9 +5,7 @@ import {
 	listSites,
 	addSite as addSiteToStorage,
 	removeSite as removeSiteFromStorage,
-	getDirectoryNameForSlug,
 } from './site-storage';
-import { directoryHandleToOpfsPath } from '@wp-playground/storage';
 import type { MountDevice } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/client';
 import { useDispatch, useSelector } from 'react-redux';
@@ -45,6 +43,10 @@ export type SiteListing = {
 export interface ClientInfo {
 	client: PlaygroundClient;
 	url: string;
+	opfsMountDescriptor?: {
+		device: MountDevice;
+		mountpoint: string;
+	};
 }
 
 // Define the state types
@@ -54,10 +56,6 @@ interface AppState {
 	offline: boolean;
 	siteListing: SiteListing;
 	clients: Record<string, ClientInfo>;
-	opfsMountDescriptor?: {
-		device: MountDevice;
-		mountpoint: string;
-	};
 	siteManagerIsOpen: boolean;
 }
 
@@ -85,13 +83,6 @@ const slice = createSlice({
 	reducers: {
 		setActiveSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.activeSite = action.payload;
-			state.opfsMountDescriptor = {
-				device: {
-					type: 'opfs',
-					path: '/' + getDirectoryNameForSlug(action.payload.slug),
-				},
-				mountpoint: '/wordpress',
-			};
 		},
 		forgetClientInfo: (state, action: PayloadAction<string>) => {
 			delete state.clients[action.payload];
@@ -157,12 +148,6 @@ const slice = createSlice({
 				state.siteListing.sites.splice(siteIndex, 1);
 			}
 		},
-		setOpfsMountDescriptor: (
-			state,
-			action: PayloadAction<AppState['opfsMountDescriptor']>
-		) => {
-			state.opfsMountDescriptor = action.payload;
-		},
 		setSiteManagerIsOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
 		},
@@ -172,7 +157,6 @@ const slice = createSlice({
 // Export actions
 export const {
 	setActiveModal,
-	setOpfsMountDescriptor,
 	setClientInfo,
 	forgetClientInfo,
 	setActiveSite,
@@ -201,27 +185,6 @@ export function removeSite(site: SiteInfo) {
 		// TODO: Possibly reflect removal in progress
 		await removeSiteFromStorage(site);
 		dispatch(slice.actions.removeSite(site));
-	};
-}
-
-export function selectSite(siteSlug: string) {
-	return async (dispatch: typeof store.dispatch) => {
-		const opfsRoot = await navigator.storage.getDirectory();
-		const opfsDir = await opfsRoot.getDirectoryHandle(
-			siteSlug === 'wordpress' ? siteSlug : 'site-' + siteSlug,
-			{
-				create: true,
-			}
-		);
-		dispatch(
-			setOpfsMountDescriptor({
-				device: {
-					type: 'opfs',
-					path: await directoryHandleToOpfsPath(opfsDir),
-				},
-				mountpoint: '/wordpress',
-			})
-		);
 	};
 }
 

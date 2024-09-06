@@ -1,6 +1,10 @@
 import { trash } from '@wordpress/icons';
 import { MenuItem } from '@wordpress/components';
-import { PlaygroundReduxState } from '../../lib/redux-store';
+import {
+	getActiveClient,
+	PlaygroundReduxState,
+	useAppSelector,
+} from '../../lib/redux-store';
 import { useSelector } from 'react-redux';
 import { clearContentsFromMountDevice } from '@wp-playground/storage';
 import { SiteStorageType } from '../../lib/site-storage';
@@ -8,9 +12,8 @@ import { SiteStorageType } from '../../lib/site-storage';
 type Props = { onClose: () => void };
 const opfsStorages: SiteStorageType[] = ['opfs', 'local-fs'];
 export function ResetSiteMenuItem({ onClose }: Props) {
-	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
-	);
+	const opfsMountDescriptor =
+		useAppSelector(getActiveClient)?.opfsMountDescriptor;
 	const storage = useSelector(
 		(state: PlaygroundReduxState) => state.activeSite!.storage
 	);
@@ -28,8 +31,10 @@ export function ResetSiteMenuItem({ onClose }: Props) {
 					onClose();
 					return;
 				}
-				if (mountDescriptor && opfsStorages.includes(storage)) {
-					await clearContentsFromMountDevice(mountDescriptor.device);
+				if (opfsMountDescriptor && opfsStorages.includes(storage)) {
+					await clearContentsFromMountDevice(
+						opfsMountDescriptor.device
+					);
 				}
 				window.location.reload();
 				onClose();

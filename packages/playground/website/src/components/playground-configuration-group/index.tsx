@@ -17,9 +17,11 @@ import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+	getActiveClient,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setOpfsMountDescriptor,
+	setClientInfo,
+	useAppSelector,
 } from '../../lib/redux-store';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { MountDevice } from '@php-wasm/web';
@@ -49,9 +51,6 @@ export default function PlaygroundConfigurationGroup({
 		isResolved: boolean;
 	}>();
 	const dispatch: PlaygroundDispatch = useDispatch();
-	const mountDescriptor = useSelector(
-		(state: PlaygroundReduxState) => state.opfsMountDescriptor
-	);
 	const playground = usePlaygroundClient();
 	useEffect(() => {
 		if (!playgroundRef.current) {
@@ -100,8 +99,13 @@ export default function PlaygroundConfigurationGroup({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!!playground]);
 
+	const activeSite = useSelector(
+		(state: PlaygroundReduxState) => state.activeSite
+	);
+	const mountDescriptor =
+		useAppSelector(getActiveClient)?.opfsMountDescriptor;
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
-		initialConfiguration.storage === 'device' && !!lastDirectoryHandle
+		initialConfiguration.storage === 'local-fs' && !!lastDirectoryHandle
 	);
 	const closeResumeLastDirModal = () => setResumeLastDirOpen(false);
 
@@ -197,7 +201,7 @@ export default function PlaygroundConfigurationGroup({
 
 			setCurrentConfiguration({
 				...currentConfiguration,
-				storage: 'device',
+				storage: 'local-fs',
 			});
 
 			// Read current querystring and replace storage=browser with
@@ -206,7 +210,17 @@ export default function PlaygroundConfigurationGroup({
 			url.searchParams.set('storage', 'device');
 			window.history.pushState({}, '', url.toString());
 
-			dispatch(setOpfsMountDescriptor({ device, mountpoint }));
+			dispatch(
+				setClientInfo({
+					siteSlug: activeSite!.slug,
+					info: {
+						opfsMountDescriptor: {
+							device,
+							mountpoint,
+						},
+					},
+				})
+			);
 			alert('You are now loading WordPress from your local directory.');
 		} finally {
 			setMounting(false);
@@ -245,13 +259,13 @@ export default function PlaygroundConfigurationGroup({
 			>
 				PHP {currentConfiguration.php} {' - '}
 				WP {WPLabel} {' - '}
-				{currentConfiguration.storage === 'device'
+				{currentConfiguration.storage === 'local-fs'
 					? `Storage: Device (${dirName})`
 					: currentConfiguration.storage === 'opfs'
 					? 'Storage: Browser'
 					: '⚠️ Storage: None'}
 			</Button>
-			{currentConfiguration.storage === 'device' ? (
+			{currentConfiguration.storage === 'local-fs' ? (
 				<SyncLocalFilesButton />
 			) : null}
 			{isResumeLastDirOpen ? (
