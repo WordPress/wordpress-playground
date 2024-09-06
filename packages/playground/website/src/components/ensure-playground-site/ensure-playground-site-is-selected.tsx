@@ -41,10 +41,8 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			console.log({ requestedSiteSlug });
 			if (requestedSiteSlug !== 'create') {
 				const siteInfo = await getSiteInfoBySlug(requestedSiteSlug!);
-				console.log({ siteInfo });
 				dispatch(setActiveSite(siteInfo!));
 				return;
 			}

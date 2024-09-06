@@ -4,26 +4,33 @@ import AddressBar from '../address-bar';
 import { close } from '@wordpress/icons';
 import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
+import { useAppSelector, getActiveClient } from '../../lib/redux-store';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
-	url?: string;
-	showAddressBar?: boolean;
-	onUrlChange?: (url: string) => void;
 	hideToolbar?: boolean;
 	className?: string;
 }
 
+/**
+ * Temporary feature flag to enable the site manager
+ * while using browser storage.
+ *
+ * TODO: Remove this once the site manager supports all storage options.
+ */
+const query = new URLSearchParams(window.location.search);
+const showSiteManager = query.get('storage') === 'opfs';
+
 export default function BrowserChrome({
 	children,
-	url,
-	onUrlChange,
-	showAddressBar = true,
 	toolbarButtons,
 	hideToolbar,
 	className,
 }: BrowserChromeProps) {
+	const clientInfo = useAppSelector(getActiveClient);
+	const showAddressBar = !!clientInfo;
+	const url = clientInfo?.url;
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
@@ -47,15 +54,6 @@ export default function BrowserChrome({
 	const experimentalNoticeClass = classNames(css.experimentalNotice, {
 		[css.isHidden]: noticeHidden,
 	});
-
-	/**
-	 * Temporary feature flag to enable the site manager
-	 * while using browser storage.
-	 *
-	 * TODO: Remove this once the site manager supports all storage options.
-	 */
-	const query = new URLSearchParams(window.location.search);
-	const showSiteManager = query.get('storage') === 'opfs';
 
 	return (
 		<div
@@ -87,7 +85,12 @@ export default function BrowserChrome({
 					</div>
 
 					<div className={addressBarClass}>
-						<AddressBar url={url} onUpdate={onUrlChange} />
+						<AddressBar
+							url={url}
+							onUpdate={(newUrl) =>
+								clientInfo?.client.goTo(newUrl)
+							}
+						/>
 					</div>
 
 					<div className={css.toolbarButtons}>{toolbarButtons}</div>

@@ -4,7 +4,6 @@ import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import {
 	forgetClientInfo,
-	getActiveClient,
 	setActiveModal,
 	setClientInfo,
 	useAppDispatch,
@@ -34,20 +33,13 @@ export const PlaygroundViewport = ({
 	hideToolbar,
 	className,
 }: PlaygroundViewportProps) => {
-	const clientInfo = useAppSelector(getActiveClient);
-	const playground = clientInfo?.client;
-	const url = clientInfo?.url;
-
 	if (displayMode === 'seamless') {
 		// No need to boot the playground if seamless.
 		return <JustViewport />;
 	}
 	return (
 		<BrowserChrome
-			showAddressBar={!!playground}
-			url={url}
 			toolbarButtons={toolbarButtons}
-			onUrlChange={(url) => playground?.goTo(url)}
 			hideToolbar={hideToolbar}
 			className={className}
 		>
@@ -58,14 +50,6 @@ export const PlaygroundViewport = ({
 
 export const JustViewport = function LoadedViewportComponent() {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
-	const iframe = (iframeRef as any)?.current;
-	useEffect(() => {
-		if (iframe) {
-			setupPostMessageRelay(iframe, document.location.origin);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [!!iframe]);
-
 	const activeSite = useAppSelector((state) => state.activeSite!);
 	const mountDescriptor = useAppSelector(
 		(state) => state.opfsMountDescriptor
@@ -73,12 +57,15 @@ export const JustViewport = function LoadedViewportComponent() {
 
 	const dispatch = useAppDispatch();
 	useEffect(() => {
+		const iframe = iframeRef.current;
+		if (!iframe) {
+			return;
+		}
+
 		let unmounted = false;
 		async function doTheWork() {
 			const iframe = (iframeRef as any)?.current;
 			let playground: PlaygroundClient;
-
-			console.log('booting playground');
 
 			try {
 				playground = await bootPlayground({
@@ -95,6 +82,8 @@ export const JustViewport = function LoadedViewportComponent() {
 			if (unmounted) {
 				return;
 			}
+
+			setupPostMessageRelay(iframe, document.location.origin);
 
 			dispatch(
 				setClientInfo({
@@ -123,9 +112,7 @@ export const JustViewport = function LoadedViewportComponent() {
 			dispatch(forgetClientInfo(activeSite.slug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeSite.slug, !!iframe]);
-
-	console.log('rendering viewport with key', activeSite.slug);
+	}, [activeSite.slug, iframeRef]);
 
 	return (
 		<div className={css.fullSize}>

@@ -1,6 +1,5 @@
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import css from './style.module.css';
 
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { Provider } from 'react-redux';
