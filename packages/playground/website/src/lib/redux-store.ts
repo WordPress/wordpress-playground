@@ -58,6 +58,7 @@ interface AppState {
 		device: MountDevice;
 		mountpoint: string;
 	};
+	siteManagerIsOpen: boolean;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -74,6 +75,7 @@ const initialState: AppState = {
 		status: { type: 'loading' },
 		sites: [],
 	},
+	siteManagerIsOpen: false,
 };
 
 // Create the slice
@@ -155,6 +157,9 @@ const slice = createSlice({
 		) => {
 			state.opfsMountDescriptor = action.payload;
 		},
+		setSiteManagerIsOpen: (state, action: PayloadAction<boolean>) => {
+			state.siteManagerIsOpen = action.payload;
+		},
 	},
 });
 
@@ -165,6 +170,7 @@ export const {
 	setClientInfo,
 	forgetClientInfo,
 	setActiveSite,
+	setSiteManagerIsOpen,
 } = slice.actions;
 
 export const getActiveClient = (

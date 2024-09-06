@@ -3,11 +3,17 @@ import css from './style.module.css';
 import { SiteView } from '../site-view/site-view';
 import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
-import { useAppSelector } from '../../lib/redux-store';
+import {
+	useAppSelector,
+	useAppDispatch,
+	setSiteManagerIsOpen,
+} from '../../lib/redux-store';
 import { PlaygroundConfiguration } from '../playground-configuration-group/form';
 
 export function Layout() {
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.siteManagerIsOpen
+	);
 	const activeSite = useAppSelector((state) => state.activeSite!);
 	const blueprint = activeSite.originalBlueprint || {};
 	const storage = activeSite.storage;
@@ -21,17 +27,12 @@ export function Layout() {
 		resetSite: false,
 	};
 
-	const {
-		goTo,
-		location: { path },
-	} = useNavigator();
+	const dispatch = useAppDispatch();
 
 	return (
 		<div className={css.layout}>
-			{/* We could use the <NavigatorScreen /> component here, but it doesn't
-			    seem to play well with CSSTransition. */}
 			<CSSTransition
-				in={path?.startsWith('/manager')}
+				in={siteManagerIsOpen}
 				timeout={500}
 				classNames={{
 					enter: css.sidebarEnter,
@@ -46,10 +47,12 @@ export function Layout() {
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
-				{path?.startsWith('/manager') && (
+				{siteManagerIsOpen && (
 					<div
 						className={css.siteViewOverlay}
-						onClick={() => goTo('/')}
+						onClick={() => {
+							dispatch(setSiteManagerIsOpen(false));
+						}}
 					/>
 				)}
 				<SiteView
@@ -57,7 +60,7 @@ export function Layout() {
 					currentConfiguration={currentConfiguration}
 					storage={storage}
 					className={css.siteViewContent}
-					hideToolbar={path?.startsWith('/manager')}
+					hideToolbar={siteManagerIsOpen}
 				/>
 			</div>
 		</div>

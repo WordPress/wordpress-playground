@@ -1,6 +1,6 @@
 import css from './style.module.css';
+import { useAppDispatch, setSiteManagerIsOpen } from '../../lib/redux-store';
 
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 import Button from '../button';
 
 function SiteManagerIcon() {
@@ -23,9 +23,10 @@ function SiteManagerIcon() {
 }
 
 export function OpenSiteManagerButton() {
-	const { goTo } = useNavigator();
+	const dispatch = useAppDispatch();
+
 	const onClick = () => {
-		goTo('/manager');
+		dispatch(setSiteManagerIsOpen(true));
 	};
 	return (
 		<Button

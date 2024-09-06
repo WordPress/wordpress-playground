@@ -24,8 +24,11 @@ import {
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useSelector } from 'react-redux';
-import { PlaygroundReduxState } from '../../../lib/redux-store';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
+import {
+	PlaygroundReduxState,
+	useAppDispatch,
+	setSiteManagerIsOpen,
+} from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 
 function SiteInfoRow({
@@ -69,7 +72,7 @@ export function SiteInfoPanel({
 	const playground = useSelector(
 		(state: PlaygroundReduxState) => state.playgroundClient
 	);
-	const { goTo } = useNavigator();
+	const dispatch = useAppDispatch();
 
 	const [showNotice, setShowNotice] = useState(site.storage === 'none');
 
@@ -180,7 +183,7 @@ export function SiteInfoPanel({
 										// Collapse the sidebar when opening a site
 										// because otherwise the site view will remain
 										// hidden by the sidebar on small screens.
-										goTo('/');
+										dispatch(setSiteManagerIsOpen(false));
 
 										playground?.goTo('/');
 									}}

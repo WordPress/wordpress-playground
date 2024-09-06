@@ -1,10 +1,11 @@
 import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
-import store, {
-	PlaygroundReduxState,
+import {
+	useAppDispatch,
+	useAppSelector,
+	setSiteManagerIsOpen,
 	removeSite as removeSiteFromStore,
 } from '../../lib/redux-store';
-import { useSelector } from 'react-redux';
 
 import css from './style.module.css';
 import { SiteInfo } from '../../lib/site-storage';
@@ -12,7 +13,6 @@ import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import React, { forwardRef } from 'react';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 import { useSearchParams } from '../../lib/router-hooks';
 
 export const SiteManager = forwardRef<
@@ -21,19 +21,17 @@ export const SiteManager = forwardRef<
 		className?: string;
 	}
 >(({ className }, ref) => {
-	const { goTo } = useNavigator();
 	const [, setQuery] = useSearchParams();
 
-	const activeSite = useSelector(
-		(state: PlaygroundReduxState) => state.activeSite!
-	);
+	const activeSite = useAppSelector((state) => state.activeSite!);
+	const dispatch = useAppDispatch();
 
 	const removeSite = async (siteToRemove: SiteInfo) => {
 		const removingSelectedSite = siteToRemove.slug === activeSite?.slug;
-		await store.dispatch(removeSiteFromStore(siteToRemove));
+		await dispatch(removeSiteFromStore(siteToRemove));
 		if (removingSelectedSite) {
 			setQuery({ 'site-slug': undefined });
-			goTo('/manager');
+			dispatch(setSiteManagerIsOpen(true));
 		}
 	};
 
@@ -47,7 +45,7 @@ export const SiteManager = forwardRef<
 			removeSite={removeSite}
 			showBackButton={fullScreenSections}
 			onBackButtonClick={() => {
-				goTo('/manager');
+				dispatch(setSiteManagerIsOpen(true));
 			}}
 		/>
 	);

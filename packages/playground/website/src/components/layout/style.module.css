@@ -22,11 +22,6 @@ body {
 	overflow: hidden;
 }
 
-.playground-navigator {
-	height: 100vh;
-	display: flex;
-}
-
 .sidebar {
 	flex: 0 0 auto;
 	width: var(--site-manager-width);

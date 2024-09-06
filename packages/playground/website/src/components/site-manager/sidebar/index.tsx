@@ -15,7 +15,6 @@ import { type SiteLogo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
 import { useAppSelector } from '../../../lib/redux-store';
 import { useSearchParams } from '../../../lib/router-hooks';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
 import { useMemo } from 'react';
 
 export function Sidebar({ className }: { className?: string }) {
@@ -33,16 +32,12 @@ export function Sidebar({ className }: { className?: string }) {
 
 	const [, setQuery] = useSearchParams();
 
-	// @TODO: Get rid of navigator
-	const { goTo } = useNavigator();
 	const onAddSite = async (name: string) => {
 		setQuery({ 'site-slug': 'create', storage: 'opfs' });
-		goTo('/manager/' + activeSite.slug);
 	};
 
 	const onSiteClick = (slug: string) => {
 		setQuery({ 'site-slug': slug });
-		goTo('/manager');
 	};
 
 	const resources = [
