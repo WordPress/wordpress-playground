@@ -6,7 +6,7 @@ export function urlContainsSiteConfiguration(url: URL) {
 	const fragment = decodeURI(url.hash || '#').substring(1);
 
 	const queryKeys = new Set(Array.from(query.keys()));
-	const ignoredQueryKeys = new Set(['storage']);
+	const ignoredQueryKeys = new Set(['storage', 'site-slug']);
 	const differentKeys = new Set(
 		[...queryKeys].filter((key) => !ignoredQueryKeys.has(key))
 	);

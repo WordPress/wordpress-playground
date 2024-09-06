@@ -50,6 +50,9 @@ export function EnsurePlaygroundSiteSlug({
 				return;
 			}
 
+			// @TODO: urlContainsSiteConfiguration is flaky and will keep breaking as
+			//        it's very easy to have extra URL parameters or forget to clear them.
+			//        We need a more reliable logic here.
 			if (urlContainsSiteConfiguration(new URL(urlString))) {
 				if (!storage || storage === 'none') {
 					setQuery({ 'site-slug': 'create', storage: 'none' });
@@ -57,10 +60,10 @@ export function EnsurePlaygroundSiteSlug({
 					setQuery({ 'site-slug': 'create' });
 				}
 			} else {
-				// @TODO: Sort sites by most recently used
 				const sites = await listSites();
+				// @TODO: Sort sites by most recently used
 				if (sites.length > 0) {
-					setQuery({ 'site-slug': sites[0].slug });
+					setQuery({ 'site-slug': sites[sites.length - 1].slug });
 				} else {
 					setQuery({ 'site-slug': 'create' });
 				}

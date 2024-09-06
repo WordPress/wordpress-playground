@@ -158,7 +158,12 @@ export function compileBlueprint(
 	// Default to the "kitchen sink" PHP extensions bundle if no
 	// other bundles are specified.
 	if (blueprint.phpExtensionBundles.length === 0) {
-		blueprint.phpExtensionBundles.push('kitchen-sink');
+		// Don't `push` as phpExtensionBundles may not be mutable.
+		// @TODO: Clone the input Blueprint so we can safely mutate it.
+		blueprint.phpExtensionBundles = [
+			...blueprint.phpExtensionBundles,
+			'kitchen-sink',
+		];
 	}
 
 	/**
