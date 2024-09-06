@@ -967,6 +967,11 @@ export class PHP implements Disposable {
 		return FSHelpers.readlink(this[__private__dont__use].FS, path);
 	}
 
+	/**
+	 * Resolves the real path of a file in the PHP filesystem.
+	 * @param path
+	 * @returns The real path of the file.
+	 */
 	realpath(path: string) {
 		return FSHelpers.realpath(this[__private__dont__use].FS, path);
 	}
