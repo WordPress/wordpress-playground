@@ -1,24 +1,78 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearch, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 
 export function useSearchParams() {
-	const search = useSearch();
-	const location = useCurrentUrl();
+	const [url, setUrl] = useCurrentUrl();
+
+	return [
+		url.searchParams,
+		(searchParams: URLComponents['searchParams']) => {
+			setUrl({
+				...url,
+				searchParams,
+			});
+		},
+	];
+}
+
+export type URLComponents = {
+	searchParams: Record<string, string | undefined>;
+	hash?: string;
+	host?: string;
+	port?: string;
+	protocol?: string;
+	pathname?: string;
+};
+
+export function useCurrentUrl() {
+	const [url, setUrl] = useState(window.location.href);
+	useEffect(() => {
+		const unsubscribe = subscribeToLocationUpdates(() => {
+			setUrl(window.location.href);
+		});
+		return () => {
+			unsubscribe();
+		};
+	}, []);
+
+	const location = url;
 	const [, setLocation] = useLocation();
 	return [
-		useMemo(
-			() => new URL('?' + search, window.location.href).searchParams,
-			[search]
-		),
-		(params: Record<string, string | undefined>) => {
+		useMemo(() => new URL(location), [location]),
+		(
+			urlComponents: Partial<URLComponents>,
+			searchParamsMode: 'replace' | 'merge' = 'replace'
+		) => {
 			const currentUrl = new URL(location);
-			Object.entries(params).forEach(([key, value]) => {
-				if (value === undefined) {
-					currentUrl.searchParams.delete(key);
-				} else {
-					currentUrl.searchParams.set(key, value);
+			if (urlComponents.searchParams) {
+				if (searchParamsMode === 'replace') {
+					currentUrl.search = '';
 				}
-			});
+				Object.entries(urlComponents.searchParams).forEach(
+					([key, value]) => {
+						if (value === undefined) {
+							currentUrl.searchParams.delete(key);
+						} else {
+							currentUrl.searchParams.set(key, value);
+						}
+					}
+				);
+			}
+			if (urlComponents.hash) {
+				currentUrl.hash = urlComponents.hash;
+			}
+			if (urlComponents.host) {
+				currentUrl.host = urlComponents.host;
+			}
+			if (urlComponents.port) {
+				currentUrl.port = urlComponents.port;
+			}
+			if (urlComponents.protocol) {
+				currentUrl.protocol = urlComponents.protocol;
+			}
+			if (urlComponents.pathname) {
+				currentUrl.pathname = urlComponents.pathname;
+			}
 			setLocation(currentUrl.toString());
 		},
 	] as const;
@@ -88,17 +142,4 @@ if (
 	// patch history object only once
 	// See: https://github.com/molefrog/wouter/issues/167
 	Object.defineProperty(window, patchKey, { value: true });
-}
-
-export function useCurrentUrl() {
-	const [url, setUrl] = useState(window.location.href);
-	useEffect(() => {
-		const unsubscribe = subscribeToLocationUpdates(() => {
-			setUrl(window.location.href);
-		});
-		return () => {
-			unsubscribe();
-		};
-	}, []);
-	return url;
 }

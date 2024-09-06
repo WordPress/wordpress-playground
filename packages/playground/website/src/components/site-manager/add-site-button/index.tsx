@@ -13,7 +13,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/redux-store';
-import { useSearchParams } from '../../../lib/router-hooks';
+import { useCurrentUrl } from '../../../lib/router-hooks';
 import {
 	createNewSiteInfo,
 	generateUniqueSiteName,
@@ -28,7 +28,7 @@ export function AddSiteButton() {
 	const dispatch = useAppDispatch();
 	const sites = useAppSelector((state) => state.siteListing?.sites);
 
-	const [, setQuery] = useSearchParams();
+	const [, setUrlComponents] = useCurrentUrl();
 
 	const onAddSite = async (name: string) => {
 		const newSiteInfo = createNewSiteInfo({
@@ -36,7 +36,9 @@ export function AddSiteButton() {
 			name: name,
 		});
 		dispatch(createSite(newSiteInfo));
-		setQuery({ 'site-slug': newSiteInfo.slug, storage: 'opfs' });
+		setUrlComponents({
+			searchParams: { 'site-slug': newSiteInfo.slug, storage: 'opfs' },
+		});
 	};
 
 	const openModal = () => {

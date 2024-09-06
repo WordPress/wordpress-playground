@@ -14,7 +14,7 @@ import { TemporaryStorageIcon, WordPressIcon } from '../icons';
 import { type SiteLogo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
 import { useAppSelector } from '../../../lib/redux-store';
-import { useSearchParams } from '../../../lib/router-hooks';
+import { useCurrentUrl } from '../../../lib/router-hooks';
 import { useMemo } from 'react';
 
 export function Sidebar({ className }: { className?: string }) {
@@ -30,10 +30,10 @@ export function Sidebar({ className }: { className?: string }) {
 	}, [sitesRaw]);
 	const activeSite = useAppSelector((state) => state.activeSite!);
 
-	const [, setQuery] = useSearchParams();
+	const [, setUrlComponents] = useCurrentUrl();
 
 	const onSiteClick = (slug: string) => {
-		setQuery({ 'site-slug': slug });
+		setUrlComponents({ searchParams: { 'site-slug': slug } });
 	};
 
 	const resources = [

@@ -13,7 +13,7 @@ import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import React, { forwardRef } from 'react';
-import { useSearchParams } from '../../lib/router-hooks';
+import { useCurrentUrl } from '../../lib/router-hooks';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
@@ -21,7 +21,7 @@ export const SiteManager = forwardRef<
 		className?: string;
 	}
 >(({ className }, ref) => {
-	const [, setQuery] = useSearchParams();
+	const [, setUrlComponents] = useCurrentUrl();
 
 	const activeSite = useAppSelector((state) => state.activeSite!);
 	const dispatch = useAppDispatch();
@@ -30,7 +30,10 @@ export const SiteManager = forwardRef<
 		const removingSelectedSite = siteToRemove.slug === activeSite?.slug;
 		await dispatch(deleteSite(siteToRemove));
 		if (removingSelectedSite) {
-			setQuery({ 'site-slug': undefined });
+			setUrlComponents(
+				{ searchParams: { 'site-slug': undefined } },
+				'replace'
+			);
 			dispatch(setSiteManagerIsOpen(true));
 		}
 	};

@@ -100,12 +100,18 @@ export const JustViewport = function LoadedViewportComponent() {
 				//        ?storage=browser is difficult to think about when we're considering operations like
 				//        "make this temporary site permanent" or "export to local directory" or "save to github".
 				blueprint = {
-					features: blueprint.features,
-					phpExtensionBundles: blueprint.phpExtensionBundles,
-					extraLibraries: blueprint.extraLibraries,
-					login: blueprint.login,
-					landingPage: blueprint.landingPage,
-					constants: blueprint.constants,
+					// @TODO: Store networking in the site data.
+					// features: blueprint.features,
+					phpExtensionBundles: [activeSite.phpExtensionBundle],
+					// @TODO: Store extraLibraries in the site data. Or not?
+					// extraLibraries: blueprint.extraLibraries,
+					// @TODO: Store the `login` flag in the site data. Or not?
+					// login: activeSite.login,
+					constants: activeSite.originalBlueprint?.constants,
+					preferredVersions: {
+						php: activeSite.phpVersion,
+						wp: activeSite.wpVersion,
+					},
 				};
 			}
 
@@ -165,7 +171,6 @@ export const JustViewport = function LoadedViewportComponent() {
 				);
 			});
 		}
-		// Give React a chance to re-render the iframe.
 		doTheWork();
 		return () => {
 			unmounted = true;

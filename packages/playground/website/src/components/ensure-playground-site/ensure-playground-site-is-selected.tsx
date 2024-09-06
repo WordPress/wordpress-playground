@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { resolveBlueprint } from '../../lib/resolve-blueprint';
-import { useCurrentUrl, useSearchParams } from '../../lib/router-hooks';
+import { useCurrentUrl } from '../../lib/router-hooks';
 import {
 	createSite,
 	setActiveSite,
@@ -21,19 +21,30 @@ export function EnsurePlaygroundSiteIsSelected({
 }) {
 	const activeSite = useAppSelector((state) => state.activeSite);
 	const dispatch = useAppDispatch();
-	const [query] = useSearchParams();
-	const urlString = useCurrentUrl();
-	const requestedSiteSlug = query.get('site-slug');
+	const [url, setUrlComponents] = useCurrentUrl();
+	const requestedSiteSlug = url.searchParams.get('site-slug');
 
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
 			if (requestedSiteSlug) {
 				const siteInfo = await getSiteInfoBySlug(requestedSiteSlug!);
+				if (!siteInfo) {
+					// @TODO: We can do better than alert() here.
+					alert('Site not found');
+					setUrlComponents({
+						searchParams: { 'site-slug': '' },
+					});
+					return;
+				}
+				// @TODO: Incorporate any query arg-driven config changes such as ?login=no.
+				// Do not use any mutating query args like ?plugin= for now.
 				dispatch(setActiveSite(siteInfo!));
-				// @TODO: Handle the case where site is not found
+				setUrlComponents({
+					searchParams: { 'site-slug': siteInfo!.slug },
+				});
 			} else {
 				// Create a new temporary site using the config passed in the current URL
-				const url = new URL(urlString);
+				const url = new URL(window.location.href);
 				const blueprint = await resolveBlueprint(url);
 				const newSiteInfo = createNewSiteInfo({
 					originalBlueprint: blueprint,
