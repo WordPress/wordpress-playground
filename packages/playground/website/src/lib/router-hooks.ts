@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearch, useLocation } from 'wouter';
 
 export function useSearchParams() {
@@ -10,20 +10,17 @@ export function useSearchParams() {
 			() => new URL('?' + search, window.location.href).searchParams,
 			[search]
 		),
-		useCallback(
-			(params: Record<string, string | undefined>) => {
-				const currentUrl = new URL(location);
-				Object.entries(params).forEach(([key, value]) => {
-					if (value === undefined) {
-						currentUrl.searchParams.delete(key);
-					} else {
-						currentUrl.searchParams.set(key, value);
-					}
-				});
-				setLocation(currentUrl.toString());
-			},
-			[setLocation, location]
-		),
+		(params: Record<string, string | undefined>) => {
+			const currentUrl = new URL(location);
+			Object.entries(params).forEach(([key, value]) => {
+				if (value === undefined) {
+					currentUrl.searchParams.delete(key);
+				} else {
+					currentUrl.searchParams.set(key, value);
+				}
+			});
+			setLocation(currentUrl.toString());
+		},
 	] as const;
 }
 
