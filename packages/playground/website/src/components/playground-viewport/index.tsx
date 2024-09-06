@@ -93,6 +93,12 @@ export const JustViewport = function LoadedViewportComponent() {
 				// @TODO: Separate the runtime configuration from the blueprint.
 				// @TODO: Source the runtime configuration from the site data, not from
 				//        the original blueprint.
+				// @TODO: Spend more time here in general and make sure we can distinguish between the
+				//        initial Blueprint, the current runtime configuration, move the site between
+				//        different storage types, etc. Ideally we'd end up with a few clearly specified
+				//        operations and data formats, and stop relying on query parameters so much.
+				//        ?storage=browser is difficult to think about when we're considering operations like
+				//        "make this temporary site permanent" or "export to local directory" or "save to github".
 				blueprint = {
 					features: blueprint.features,
 					phpExtensionBundles: blueprint.phpExtensionBundles,
