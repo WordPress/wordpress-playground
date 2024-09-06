@@ -334,26 +334,26 @@ try {
         }
 
         $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
-    } else if ( isset( $_GET['wordpress-branch'] ) ) {
-        $branch = strtolower( $_GET['wordpress-branch'] );
-        if ( $branch === 'trunk' || $branch === 'master' ) {
-            $branch = 'master';
+    } else if ( isset( $_GET['build-ref'] ) ) {
+        $build_ref = strtolower( $_GET['build-ref'] );
+        if ( $build_ref === 'trunk' || $build_ref === 'master' ) {
+            $build_ref = 'master';
             $prefix = 'refs/heads/';
-            // If the brach is of the form x.x append '-branch' to it.
-        } elseif ( preg_match( '/^\d+\.\d+$/', $branch ) ) {
-            $branch .= '-branch';
+            // If the build ref is of the form x.x append '-branch' to it.
+        } elseif ( preg_match( '/^\d+\.\d+$/', $build_ref ) ) {
+            $build_ref .= '-branch';
             $prefix = 'refs/heads/';
-            // If the branch is in the form x.x.x, it's a tag.
-        } elseif ( preg_match( '/^\d+\.\d+\.\d+$/', $branch ) ) {
+            // If the build ref is in the form x.x.x, it's a tag.
+        } elseif ( preg_match( '/^\d+\.\d+\.\d+$/', $build_ref ) ) {
             // Remove trailing .0 if present.
-            if ( substr( $branch, -2 ) === '.0' ) {
-                $branch = substr( $branch, 0, -2 );
+            if ( substr( $build_ref, -2 ) === '.0' ) {
+                $build_ref = substr( $build_ref, 0, -2 );
             }
             $prefix = 'refs/tags/';
-            // If the branch is in the form [a-f0-9]{7,40} it's a commit hash.
-        } elseif ( preg_match( '/^[a-f0-9]{7,40}$/', $branch ) ) {
+            // If the build ref is in the form [a-f0-9]{7,40} it's a commit hash.
+        } elseif ( preg_match( '/^[a-f0-9]{7,40}$/', $build_ref ) ) {
             $prefix = '';
-        } elseif ( preg_match( '/^\d+\.\d+-branch$/', $branch ) ) {
+        } elseif ( preg_match( '/^\d+\.\d+-branch$/', $build_ref ) ) {
             $prefix = 'refs/heads/';
         } else {
             throw new ApiException('artifact_not_found');
@@ -366,7 +366,7 @@ try {
          * zip file's final URL is known to change occasionally so it's required
          * to fetch the official URL before streaming the file.
          */
-        $url = "https://github.com/WordPress/WordPress/archive/{$prefix}{$branch}.zip";
+        $url = "https://github.com/WordPress/WordPress/archive/{$prefix}{$build_ref}.zip";
 
         $github_response = $downloader->gitHubRequest( $url, false, false );
 
