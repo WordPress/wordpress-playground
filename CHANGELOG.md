@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## Unreleased 
+
+### Internal
+
+- Fix changelog updates for latest doc structure. ([#1734](https://github.com/WordPress/wordpress-playground/pull/1734))
+
+### Various
+
+- Add support for handling symlinks in the request handler. ([#1724](https://github.com/WordPress/wordpress-playground/pull/1724))
+- Docs: Playground block in launch section. ([#1722](https://github.com/WordPress/wordpress-playground/pull/1722))
+- documentation - Blueprints - Resources: Highlight installPlugin and installTheme steps and most common resouces for them. ([#1733](https://github.com/WordPress/wordpress-playground/pull/1733))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @jeroenpf @juanmaguitar
+
+
 ## [v0.9.37] (2024-09-05)
 
 ### PHP WebAssembly
