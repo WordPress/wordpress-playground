@@ -381,6 +381,8 @@ async function writeSiteMetadata(site: SiteInfo) {
 }
 
 function writeOpfsContent(path: string, content: string): Promise<void> {
+	// Note: Safari appears to require a worker to write OPFS file content,
+	// and that is why we're using a worker here.
 	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
 
 	const promiseToWrite = new Promise<void>((resolve, reject) => {
