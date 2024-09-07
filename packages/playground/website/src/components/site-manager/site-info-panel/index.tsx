@@ -13,6 +13,7 @@ import {
 	MenuGroup,
 	MenuItem,
 	TabPanel,
+	Modal,
 } from '@wordpress/components';
 import {
 	moreVertical,
@@ -31,6 +32,7 @@ import {
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
+import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
 
 function SiteInfoRow({
 	label,
@@ -539,18 +541,19 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					expanded={true}
 					justify="flex-start"
 				>
-					{/* <FlexItem>
-						<Button
-							variant="tertiary"
-							className={css.buttonNoPadding}
-							onClick={() => {
-								alert('Not implemented yet');
-								// dispatch(setActiveModal('edit-site-details'));
-							}}
-						>
-							Edit settings
-						</Button>
-					</FlexItem> */}
+					<FlexItem>
+						<EditSiteSettingsButton siteSlug={site.slug}>
+							{(onClick) => (
+								<Button
+									variant="tertiary"
+									className={css.buttonNoPadding}
+									onClick={onClick}
+								>
+									Edit settings
+								</Button>
+							)}
+						</EditSiteSettingsButton>
+					</FlexItem>
 					{site.metadata.originalBlueprint ? (
 						<FlexItem>
 							<Button
@@ -573,5 +576,43 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 				</Flex>
 			</FlexItem>
 		</Flex>
+	);
+}
+
+function EditSiteSettingsButton({
+	siteSlug,
+	children,
+}: {
+	siteSlug: string;
+	children: (onClick: () => void) => React.ReactNode;
+}) {
+	const [isModalOpen, setModalOpen] = useState(false);
+	const updateSite = async (data: SiteFormData) => {
+		alert('Not implemented yet');
+		setModalOpen(false);
+	};
+
+	return (
+		<div className={css.addSiteButton}>
+			{children(() => setModalOpen(true))}
+
+			{isModalOpen && (
+				<Modal
+					title="Edit site settings"
+					onRequestClose={() => setModalOpen(false)}
+				>
+					<SiteSettingsForm
+						onSubmit={updateSite}
+						submitButtonText="Save"
+						formFields={{
+							phpVersion: true,
+							withExtensions: true,
+							withNetworking: true,
+							name: true,
+						}}
+					/>
+				</Modal>
+			)}
+		</div>
 	);
 }
