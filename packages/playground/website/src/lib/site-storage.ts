@@ -130,7 +130,7 @@ export async function createNewSiteInfo(
 		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
 	}
 ): Promise<SiteInfo> {
-	const name = initialInfo.metadata?.name ?? randomSiteName();
+	const name = initialInfo.metadata?.name || randomSiteName();
 	const blueprint: Blueprint =
 		initialInfo.metadata?.originalBlueprint ??
 		(await resolveBlueprint(new URL('https://w.org')));

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { resolveBlueprint } from '../../lib/resolve-blueprint';
 import { useCurrentUrl } from '../../lib/router-hooks';
 import {
@@ -11,8 +11,11 @@ import { createNewSiteInfo, getSiteInfoBySlug } from '../../lib/site-storage';
 
 /**
  * Ensures the redux store always has an activeSite value.
- * It uses the URL as the source of truth and assumes the
- * `site-slug` and `storage` query args are always set.
+ *
+ * It has two routing modes:
+ * * When `site-slug` is provided, it load an existing site
+ * * When `site-slug` is missing, it creates a new site using the Query API and Blueprint API
+ *   data sourced from the current URL.
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -24,6 +27,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	const [url, setUrlComponents] = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
 
+	// If the site slug is provided, try to load the site.
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
 			if (requestedSiteSlug) {
@@ -42,15 +46,38 @@ export function EnsurePlaygroundSiteIsSelected({
 				setUrlComponents({
 					searchParams: { 'site-slug': siteInfo!.slug },
 				});
-			} else {
+			}
+		}
+
+		ensureSiteIsSelected();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [requestedSiteSlug]);
+
+	// If the site slug is missing, create a new temporary site.
+	const lastSiteInfoRef = useRef<string | undefined>(undefined);
+	useEffect(() => {
+		async function ensureSiteIsSelected() {
+			if (!requestedSiteSlug) {
 				// Create a new temporary site using the config passed in the current URL
 				const url = new URL(window.location.href);
 				const blueprint = await resolveBlueprint(url);
+				const siteNameFromUrl = (
+					url.searchParams.get('name') || ''
+				).trim();
 				const newSiteInfo = await createNewSiteInfo({
 					metadata: {
+						name: siteNameFromUrl || undefined,
 						originalBlueprint: blueprint,
+						// @TODO store the URL in the site info so
+						//       that we can navigate back to this site later
+						// url: url.href,
 					},
 				});
+				const comparable = JSON.stringify(newSiteInfo);
+				if (comparable === lastSiteInfoRef.current) {
+					return;
+				}
+				lastSiteInfoRef.current = comparable;
 				await dispatch(createSite(newSiteInfo));
 				dispatch(setActiveSite(newSiteInfo!));
 			}
@@ -58,7 +85,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [requestedSiteSlug]);
+	}, [url.href]);
 
 	if (!activeSite) {
 		return null;

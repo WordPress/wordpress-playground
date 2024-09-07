@@ -28,8 +28,10 @@ export function Sidebar({ className }: { className?: string }) {
 		return sitesRaw
 			? sitesRaw
 					.slice()
-					.sort((a, b) =>
-						a.metadata.name.localeCompare(b.metadata.name)
+					.sort(
+						(a, b) =>
+							(a.metadata.whenCreated || 0) -
+							(b.metadata.whenCreated || 0)
 					)
 			: [];
 	}, [sitesRaw]);

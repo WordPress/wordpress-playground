@@ -1,90 +1,25 @@
-import {
-	Button,
-	Modal,
-	__experimentalInputControl as InputControl,
-	__experimentalHStack as HStack,
-	__experimentalVStack as VStack,
-} from '@wordpress/components';
+import { Button, Modal } from '@wordpress/components';
 import css from './style.module.css';
-import { useRef, useState } from '@wordpress/element';
-import classNames from 'classnames';
-import {
-	createSite,
-	useAppDispatch,
-	useAppSelector,
-} from '../../../lib/redux-store';
+import { useState } from '@wordpress/element';
 import { useCurrentUrl } from '../../../lib/router-hooks';
-import {
-	createNewSiteInfo,
-	generateUniqueSiteName,
-	randomSiteName,
-} from '../../../lib/site-storage';
-import AddSiteForm from '../add-site-form';
+import AddSiteForm, { AddSiteFormData } from '../add-site-form';
 
 export function AddSiteButton() {
 	const [isModalOpen, setModalOpen] = useState(false);
-	const [siteName, setSiteName] = useState<string>(randomSiteName());
-	const addSiteButtonRef = useRef<HTMLFormElement>(null);
-	const [error, setError] = useState<string | undefined>(undefined);
-	const dispatch = useAppDispatch();
-	const sites = useAppSelector((state) => state.siteListing?.sites);
-
 	const [, setUrlComponents] = useCurrentUrl();
 
-	const openModal = () => {
-		setSiteName(generateUniqueSiteName(siteName, sites));
-		setModalOpen(true);
-	};
-	const closeModal = () => {
-		setModalOpen(false);
-	};
-
-	const validateSiteName = (newSiteName?: string) => {
-		if (!newSiteName) {
-			setError('Name is required');
-			return false;
-		}
-		// @TODO: Lift this constraint. If the user wants multiple sites with the same name,
-		//        let them do it.
-		if (
-			sites.some(
-				(site) =>
-					site.metadata.name.toLowerCase() ===
-					newSiteName.toLowerCase()
-			)
-		) {
-			setError('Name already exists');
-			return false;
-		}
-		setError(undefined);
-		return true;
-	};
-
-	const addSite = async () => {
-		if (!validateSiteName(siteName)) {
-			return;
-		}
-		const newSiteInfo = await createNewSiteInfo({
-			metadata: {
-				storage: 'none',
-				name: siteName!,
+	const addSite = async (data: AddSiteFormData) => {
+		// @TODO: A single module to orchestrate these redirects.
+		//        Right now we're duplicating the logic everywhere and changing
+		//        these routes will be painful.
+		setUrlComponents({
+			searchParams: {
+				php: data.phpVersion,
+				wp: data.wpVersion,
+				name: data.name,
 			},
 		});
-		dispatch(createSite(newSiteInfo));
-		setUrlComponents({
-			searchParams: { 'site-slug': newSiteInfo.slug },
-		});
-		closeModal();
-	};
-
-	const onEnterPress = (event: React.KeyboardEvent) => {
-		if (event.key !== 'Enter') {
-			return;
-		}
-		if (!addSiteButtonRef.current) {
-			return;
-		}
-		addSiteButtonRef.current.click();
+		setModalOpen(false);
 	};
 
 	return (
@@ -92,14 +27,17 @@ export function AddSiteButton() {
 			<Button
 				variant="primary"
 				className={css.addSiteButtonComponent}
-				onClick={openModal}
+				onClick={() => setModalOpen(true)}
 			>
 				Add site
 			</Button>
 
 			{isModalOpen && (
-				<Modal title="Add site" onRequestClose={closeModal}>
-					<AddSiteForm />
+				<Modal
+					title="Add site"
+					onRequestClose={() => setModalOpen(false)}
+				>
+					<AddSiteForm onSubmit={addSite} />
 				</Modal>
 			)}
 		</div>
