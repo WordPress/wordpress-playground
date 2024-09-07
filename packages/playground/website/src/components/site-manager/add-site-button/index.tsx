@@ -17,6 +17,10 @@ export function AddSiteButton() {
 				php: data.phpVersion,
 				wp: data.wpVersion,
 				name: data.name,
+				networking: data.withNetworking ? 'yes' : 'no',
+				'php-extension-bundle': data.withExtensions
+					? 'kitchen-sink'
+					: 'light',
 			},
 		});
 		setModalOpen(false);

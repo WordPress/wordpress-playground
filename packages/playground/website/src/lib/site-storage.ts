@@ -69,6 +69,10 @@ interface SiteMetadata {
  */
 export interface SiteInfo {
 	slug: string;
+	originalUrlParams?: {
+		searchParams?: Record<string, string>;
+		hash?: string;
+	};
 	metadata: SiteMetadata;
 }
 

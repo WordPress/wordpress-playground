@@ -8,9 +8,11 @@ import {
 	getDirectoryNameForSlug,
 } from './site-storage';
 import type { MountDevice, SyncProgress } from '@php-wasm/web';
-import { PlaygroundClient } from '@wp-playground/client';
+import { MountDescriptor, PlaygroundClient } from '@wp-playground/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateUrl } from './router-hooks';
+import { logger } from '@php-wasm/logger';
+import { saveDirectoryHandle } from '../components/playground-configuration-group/idb-opfs';
 
 export type ActiveModal =
 	| 'error-report'
@@ -134,6 +136,8 @@ const slice = createSlice({
 			state,
 			action: PayloadAction<Partial<SiteInfo> & { slug: string }>
 		) => {
+			// @TODO: Update stored site metadata, not just the redux store.
+
 			const siteIndex = state.siteListing.sites.findIndex(
 				(siteInfo) => siteInfo.slug === action.payload.slug
 			);
@@ -199,9 +203,8 @@ export const getActiveClient = (
 // Redux thunk
 export function saveSiteToDevice(
 	siteSlug: string,
-	device: 'opfs' | (MountDevice & { type: 'local-fs' })
+	deviceType: 'opfs' | 'local-fs'
 ) {
-	const deviceType = typeof device === 'string' ? device : device.type;
 	return async (
 		dispatch: typeof store.dispatch,
 		getState: () => PlaygroundReduxState
@@ -225,16 +228,44 @@ export function saveSiteToDevice(
 			},
 		});
 
-		const mountDescriptor = {
-			device:
-				device === 'opfs'
-					? ({
-							type: 'opfs',
-							path: '/' + getDirectoryNameForSlug(siteSlug),
-					  } as const)
-					: device,
-			mountpoint: '/wordpress',
-		} as const;
+		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
+		if (deviceType === 'opfs') {
+			mountDescriptor = {
+				device: {
+					type: 'opfs',
+					path: '/' + getDirectoryNameForSlug(siteSlug),
+				},
+				mountpoint: '/wordpress',
+			} as const;
+		} else if (deviceType === 'local-fs') {
+			let dirHandle: FileSystemDirectoryHandle;
+			try {
+				// Request permission to access the directory.
+				// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
+				dirHandle = await (window as any).showDirectoryPicker({
+					// By specifying an ID, the browser can remember different directories
+					// for different IDs.If the same ID is used for another picker, the
+					// picker opens in the same directory.
+					id: 'playground-directory',
+					mode: 'readwrite',
+				});
+			} catch (e) {
+				// No directory selected but log the error just in case.
+				logger.error(e);
+				return;
+			}
+			await saveDirectoryHandle(siteSlug, dirHandle);
+
+			mountDescriptor = {
+				device: {
+					type: 'local-fs',
+					handle: dirHandle,
+				},
+				mountpoint: '/wordpress',
+			} as const;
+		} else {
+			throw new Error(`Unsupported device type: ${deviceType}`);
+		}
 
 		dispatch(
 			updateClientInfo({
@@ -274,6 +305,18 @@ export function saveSiteToDevice(
 				})
 			);
 		}
+
+		dispatch(
+			// @TODO: Update stored site metadata
+			updateSite({
+				slug: siteSlug,
+				originalUrlParams: undefined,
+				metadata: {
+					...siteInfo.metadata,
+					storage: deviceType,
+				},
+			})
+		);
 
 		window.history.pushState(
 			{},

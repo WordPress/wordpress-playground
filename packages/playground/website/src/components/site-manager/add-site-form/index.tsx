@@ -1,7 +1,7 @@
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
-import { Button, SelectControl } from '@wordpress/components';
+import { Button, CheckboxControl, SelectControl } from '@wordpress/components';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import classNames from 'classnames';
@@ -21,7 +21,10 @@ export interface AddSiteFormData {
 	name: string;
 	phpVersion: SupportedPHPVersion;
 	wpVersion: string;
+	// @TODO:
 	// language: string;
+	withExtensions: boolean;
+	withNetworking: boolean;
 }
 
 export default function AddSiteForm({ onSubmit }: AddSiteFormProps) {
@@ -30,13 +33,14 @@ export default function AddSiteForm({ onSubmit }: AddSiteFormProps) {
 		setValue,
 		control,
 		formState: { errors },
-	} = useForm<AddSiteFormData>();
-
-	// the defaultValues option seems broken, so we set the values manually
-	useEffect(() => {
-		setValue('name', randomSiteName());
-		setValue('phpVersion', '8.0');
-	}, [setValue]);
+	} = useForm<AddSiteFormData>({
+		defaultValues: {
+			name: randomSiteName(),
+			phpVersion: '8.0',
+			withExtensions: true,
+			withNetworking: true,
+		},
+	});
 
 	const { supportedWPVersions, latestWPVersion } =
 		useSupportedWordPressVersions();
@@ -156,9 +160,36 @@ export default function AddSiteForm({ onSubmit }: AddSiteFormProps) {
 						)}
 					/>
 				</HStack>
-				{/* @TODO: Discuss exposing storage type in the site creation form is a good idea.
-						The "Local FS" option will require a complex interaction involving a directory picker.
-				*/}
+				<Controller
+					control={control}
+					name="withExtensions"
+					render={({ field: { onChange, ...rest } }) => (
+						<CheckboxControl
+							label="Load extensions: libxml, openssl, mbstring, iconv, gd. Uncheck to save ~6MB of initial downloads."
+							onChange={(isChecked) => {
+								setValue('withExtensions', isChecked);
+							}}
+							{...rest}
+							value={rest.value ? 'true' : 'false'}
+							checked={rest.value}
+						/>
+					)}
+				/>
+				<Controller
+					control={control}
+					name="withNetworking"
+					render={({ field: { onChange, ...rest } }) => (
+						<CheckboxControl
+							label="Network access (e.g. for browsing plugins)"
+							onChange={(isChecked) => {
+								setValue('withNetworking', isChecked);
+							}}
+							{...rest}
+							value={rest.value ? 'true' : 'false'}
+							checked={rest.value}
+						/>
+					)}
+				/>
 				{/* <VStack>
 					<RadioControl
 						label="Storage type"

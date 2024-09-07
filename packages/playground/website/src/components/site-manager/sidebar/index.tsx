@@ -40,7 +40,13 @@ export function Sidebar({ className }: { className?: string }) {
 	const [, setUrlComponents] = useCurrentUrl();
 
 	const onSiteClick = (slug: string) => {
-		setUrlComponents({ searchParams: { 'site-slug': slug } });
+		const site = sites.find((site) => site.slug === slug);
+		console.log({ site });
+		if (site?.originalUrlParams) {
+			setUrlComponents(site.originalUrlParams);
+		} else {
+			setUrlComponents({ searchParams: { 'site-slug': slug } });
+		}
 	};
 
 	const resources = [

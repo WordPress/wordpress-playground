@@ -31,8 +31,6 @@ import {
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
-import { logger } from '@php-wasm/logger';
-import { saveDirectoryHandle } from '../../playground-configuration-group/idb-opfs';
 
 function SiteInfoRow({
 	label,
@@ -331,35 +329,7 @@ function SaveSiteButton({
 				variant="primary"
 				disabled={!clientInfo?.client}
 				onClick={async () => {
-					if (mode === 'opfs') {
-						dispatch(saveSiteToDevice(siteSlug, 'opfs'));
-					} else {
-						let dirHandle: FileSystemDirectoryHandle;
-						try {
-							// Request permission to access the directory.
-							// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
-							dirHandle = await (
-								window as any
-							).showDirectoryPicker({
-								// By specifying an ID, the browser can remember different directories
-								// for different IDs.If the same ID is used for another picker, the
-								// picker opens in the same directory.
-								id: 'playground-directory',
-								mode: 'readwrite',
-							});
-						} catch (e) {
-							// No directory selected but log the error just in case.
-							logger.error(e);
-							return;
-						}
-						await saveDirectoryHandle(siteSlug, dirHandle);
-						dispatch(
-							saveSiteToDevice(siteSlug, {
-								type: 'local-fs',
-								handle: dirHandle,
-							})
-						);
-					}
+					dispatch(saveSiteToDevice(siteSlug, mode));
 				}}
 			>
 				{children}

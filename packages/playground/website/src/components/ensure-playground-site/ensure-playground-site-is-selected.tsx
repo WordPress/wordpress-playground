@@ -22,6 +22,7 @@ export function EnsurePlaygroundSiteIsSelected({
 }: {
 	children: React.ReactNode;
 }) {
+	const sites = useAppSelector((state) => state.siteListing.sites);
 	const activeSite = useAppSelector((state) => state.activeSite);
 	const dispatch = useAppDispatch();
 	const [url, setUrlComponents] = useCurrentUrl();
@@ -64,22 +65,43 @@ export function EnsurePlaygroundSiteIsSelected({
 				const siteNameFromUrl = (
 					url.searchParams.get('name') || ''
 				).trim();
+				const urlParams = {
+					searchParams: Object.fromEntries(
+						url.searchParams.entries()
+					),
+					hash: url.hash,
+				};
 				const newSiteInfo = await createNewSiteInfo({
 					metadata: {
 						name: siteNameFromUrl || undefined,
 						originalBlueprint: blueprint,
-						// @TODO store the URL in the site info so
-						//       that we can navigate back to this site later
-						// url: url.href,
 					},
+					originalUrlParams: urlParams,
 				});
 				const comparable = JSON.stringify(newSiteInfo);
+
+				// Short-circuit if the site is already active
 				if (comparable === lastSiteInfoRef.current) {
 					return;
 				}
 				lastSiteInfoRef.current = comparable;
+
+				// Activate an existing site if it already exists
+				const existingSite = sites.find(
+					(site) =>
+						JSON.stringify(site.originalUrlParams) ===
+						JSON.stringify(urlParams)
+				);
+				if (existingSite) {
+					dispatch(setActiveSite(existingSite));
+					return;
+				}
+
+				// Create a new site otherwise
 				await dispatch(createSite(newSiteInfo));
 				dispatch(setActiveSite(newSiteInfo!));
+			} else {
+				lastSiteInfoRef.current = undefined;
 			}
 		}
 
