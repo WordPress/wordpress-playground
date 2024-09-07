@@ -19,6 +19,7 @@ import {
 	generateUniqueSiteName,
 	randomSiteName,
 } from '../../../lib/site-storage';
+import AddSiteForm from '../add-site-form';
 
 export function AddSiteButton() {
 	const [isModalOpen, setModalOpen] = useState(false);
@@ -64,8 +65,8 @@ export function AddSiteButton() {
 			return;
 		}
 		const newSiteInfo = await createNewSiteInfo({
-			storage: 'opfs',
 			metadata: {
+				storage: 'none',
 				name: siteName!,
 			},
 		});
@@ -98,40 +99,7 @@ export function AddSiteButton() {
 
 			{isModalOpen && (
 				<Modal title="Add site" onRequestClose={closeModal}>
-					<VStack>
-						<InputControl
-							label="Name"
-							value={siteName}
-							onChange={(nextValue) => {
-								validateSiteName(nextValue);
-								setSiteName(nextValue ?? '');
-							}}
-							help={error}
-							className={classNames(css.addSiteInput, {
-								[css.invalidInput]: !!error,
-							})}
-							placeholder="Site name"
-							onKeyDown={onEnterPress}
-							autoFocus={true}
-							data-1p-ignore
-						/>
-						<HStack
-							justify="flex-end"
-							className={css.addSiteActions}
-						>
-							<Button variant="tertiary" onClick={closeModal}>
-								Cancel
-							</Button>
-							<Button
-								variant="primary"
-								disabled={!!error}
-								onClick={addSite}
-								ref={addSiteButtonRef}
-							>
-								Add site
-							</Button>
-						</HStack>
-					</VStack>
+					<AddSiteForm />
 				</Modal>
 			)}
 		</div>
