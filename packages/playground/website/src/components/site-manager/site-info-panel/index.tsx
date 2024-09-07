@@ -74,16 +74,14 @@ export function SiteInfoPanel({
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
 
-	const [noticeDismissed, setNoticeDismissed] = useState(false);
-
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>
-			{site.metadata.storage === 'none' && !noticeDismissed ? (
+			{site.metadata.storage === 'none' ? (
 				<Notice
 					className={css.siteNotice}
 					spokenMessage="This is a temporary site. Your changes will be lost on page refresh."
 					status="info"
-					onRemove={() => setNoticeDismissed(true)}
+					isDismissible={false}
 				>
 					<Flex direction="row" gap={2} expanded={true}>
 						<FlexItem>
