@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import css from './style.module.css';
-import { getDirectoryNameForSlug, SiteInfo } from '../../../lib/site-storage';
+import { SiteInfo } from '../../../lib/site-storage';
 import { getLogoDataURL, WordPressIcon } from '../icons';
 import { useState } from '@wordpress/element';
 import {
@@ -24,14 +24,13 @@ import {
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import {
-	setClientInfo,
 	useAppDispatch,
 	setSiteManagerIsOpen,
-	updateSite,
+	saveSiteToOpfs,
+	useAppSelector,
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
-import { useCurrentUrl } from '../../../lib/router-hooks';
 
 function SiteInfoRow({
 	label,
@@ -71,17 +70,18 @@ export function SiteInfoPanel({
 			onClose();
 		}
 	};
-	const playground = usePlaygroundClient();
+	const clientInfo = useAppSelector((state) => state.clients[site.slug]);
+	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
 
 	const [noticeDismissed, setNoticeDismissed] = useState(false);
-	const [, setUrlComponents] = useCurrentUrl();
 
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>
 			{site.storage === 'none' && !noticeDismissed ? (
 				<Notice
 					className={css.siteNotice}
+					spokenMessage="This is a temporary site. Your changes will be lost on page refresh."
 					status="info"
 					onRemove={() => setNoticeDismissed(true)}
 				>
@@ -91,59 +91,7 @@ export function SiteInfoPanel({
 							be lost on page refresh.
 						</FlexItem>
 						<FlexItem>
-							<Button
-								variant="primary"
-								onClick={async () => {
-									// @TODO: A similar snippet exists in the `JustViewport` component,
-									//        would it make sense to refactor this into a shared function?
-									//        e.g. a `saveSiteToOpfs` redux thunk
-									const mountDescriptor = {
-										device: {
-											type: 'opfs',
-											path:
-												'/' +
-												getDirectoryNameForSlug(
-													site!.slug
-												),
-										},
-										mountpoint: '/wordpress',
-									} as const;
-									await playground!.mountOpfs(
-										{
-											...mountDescriptor,
-											initialSyncDirection:
-												'memfs-to-opfs',
-										},
-										(progress) => {
-											// @TODO: Display progress information
-											// setMountProgress(progress);
-										}
-									);
-									// @TODO: Tell the user the operation is complete
-									dispatch(
-										setClientInfo({
-											siteSlug: site!.slug,
-											info: {
-												opfsMountDescriptor:
-													mountDescriptor,
-											},
-										})
-									);
-									dispatch(
-										updateSite({
-											...site,
-											storage: 'opfs',
-										})
-									);
-									setUrlComponents({
-										searchParams: {
-											'site-slug': site!.slug,
-										},
-									});
-								}}
-							>
-								Save in this browser
-							</Button>
+							<SaveSiteButton siteSlug={site.slug} />
 						</FlexItem>
 					</Flex>
 				</Notice>
@@ -347,13 +295,60 @@ export function SiteInfoPanel({
 	);
 }
 
+function SaveSiteButton({ siteSlug }: { siteSlug: string }) {
+	const clientInfo = useAppSelector((state) => state.clients[siteSlug]);
+	const dispatch = useAppDispatch();
+
+	if (!clientInfo?.opfsIsSyncing) {
+		return (
+			<Button
+				variant="primary"
+				disabled={!clientInfo?.client}
+				onClick={async () => {
+					dispatch(saveSiteToOpfs(siteSlug));
+				}}
+			>
+				Save in this browser
+			</Button>
+		);
+	}
+
+	if (!clientInfo?.opfsSyncProgress) {
+		return (
+			<>
+				<div>
+					<progress id="file" max="100" value="0"></progress>
+				</div>
+				<div>Preparing to save...</div>
+			</>
+		);
+	}
+
+	return (
+		<>
+			<div>
+				<progress
+					id="file"
+					max={clientInfo.opfsSyncProgress.total}
+					value={clientInfo.opfsSyncProgress.files}
+				></progress>
+			</div>
+			<div>
+				{clientInfo.opfsSyncProgress.files}
+				{' / '}
+				{clientInfo.opfsSyncProgress.total} files saved
+			</div>
+		</>
+	);
+}
+
 function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const [masked, setMasked] = useState(true);
 	// @TODO: Get username and password from the site object
 	const username = 'admin';
 	const password = 'password';
 
-	const playground = usePlaygroundClient();
+	const playground = usePlaygroundClient(site.slug);
 
 	return (
 		<Flex

@@ -23,6 +23,7 @@ export function Sidebar({ className }: { className?: string }) {
 		// @TODO: Sort by last access date
 		(state) => state.siteListing?.sites
 	);
+	console.log('sites', sitesRaw);
 	const sites = useMemo(() => {
 		return sitesRaw
 			? sitesRaw

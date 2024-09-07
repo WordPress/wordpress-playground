@@ -5,7 +5,7 @@ import BrowserChrome from '../browser-chrome';
 import {
 	forgetClientInfo,
 	setActiveModal,
-	setClientInfo,
+	updateClientInfo,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/redux-store';
@@ -124,7 +124,7 @@ export const JustViewport = function LoadedViewportComponent() {
 			setupPostMessageRelay(iframe, document.location.origin);
 
 			dispatch(
-				setClientInfo({
+				updateClientInfo({
 					siteSlug: activeSite.slug,
 					info: {
 						client: playground,
@@ -135,7 +135,7 @@ export const JustViewport = function LoadedViewportComponent() {
 
 			playground.onNavigation((url) => {
 				dispatch(
-					setClientInfo({
+					updateClientInfo({
 						siteSlug: activeSite.slug,
 						info: {
 							url,

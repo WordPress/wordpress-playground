@@ -5,10 +5,12 @@ import {
 	listSites,
 	addSite as addSiteToStorage,
 	removeSite as removeSiteFromStorage,
+	getDirectoryNameForSlug,
 } from './site-storage';
-import type { MountDevice } from '@php-wasm/web';
+import type { MountDevice, SyncProgress } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/client';
 import { useDispatch, useSelector } from 'react-redux';
+import { updateUrl } from './router-hooks';
 
 export type ActiveModal =
 	| 'error-report'
@@ -47,6 +49,8 @@ export interface ClientInfo {
 		device: MountDevice;
 		mountpoint: string;
 	};
+	opfsIsSyncing?: boolean;
+	opfsSyncProgress?: SyncProgress;
 }
 
 // Define the state types
@@ -87,7 +91,7 @@ const slice = createSlice({
 		forgetClientInfo: (state, action: PayloadAction<string>) => {
 			delete state.clients[action.payload];
 		},
-		setClientInfo: (
+		updateClientInfo: (
 			state,
 			action: PayloadAction<{
 				siteSlug: string;
@@ -95,25 +99,15 @@ const slice = createSlice({
 			}>
 		) => {
 			const siteSlug = action.payload.siteSlug;
-			const clientInfo = action.payload.info;
 			if (!state.clients[siteSlug]) {
-				if (clientInfo.client!) {
-					state.clients[siteSlug] = {
-						url: '/',
-						...clientInfo,
-					} as ClientInfo;
-				}
-				return;
+				state.clients[siteSlug] = {
+					url: '/',
+				} as ClientInfo;
 			}
-
-			for (const [key, value] of Object.entries(clientInfo)) {
-				if (value === undefined) {
-					delete state.clients[siteSlug][key as keyof ClientInfo];
-				} else {
-					state.clients[siteSlug][key as keyof ClientInfo] =
-						value as any;
-				}
-			}
+			state.clients[siteSlug] = {
+				...state.clients[siteSlug],
+				...action.payload.info,
+			};
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			state.activeModal = action.payload;
@@ -124,7 +118,7 @@ const slice = createSlice({
 		setSiteListingLoaded: (state, action: PayloadAction<SiteInfo[]>) => {
 			state.siteListing = {
 				status: { type: 'loaded' },
-				sites: action.payload,
+				sites: [...action.payload, ...state.siteListing.sites],
 			};
 		},
 		setSiteListingError: (state, action: PayloadAction<string>) => {
@@ -136,20 +130,26 @@ const slice = createSlice({
 				sites: [],
 			};
 		},
-		updateSite: (state, action: PayloadAction<SiteInfo>) => {
+		updateSite: (
+			state,
+			action: PayloadAction<Partial<SiteInfo> & { slug: string }>
+		) => {
 			const siteIndex = state.siteListing.sites.findIndex(
-				(siteInfo) =>
-					siteInfo.metadata.id === action.payload.metadata.id
+				(siteInfo) => siteInfo.slug === action.payload.slug
 			);
-			if (siteIndex !== undefined) {
-				state.siteListing.sites[siteIndex] = action.payload;
+			const site = state.siteListing.sites[siteIndex];
+			if (!site) {
+				// @TODO: Handle errors?
+				return;
 			}
-			if (state.activeSite?.metadata.id === action.payload.metadata.id) {
-				state.activeSite = action.payload;
-			}
+			state.siteListing.sites[siteIndex] = recursiveMerge(
+				site,
+				action.payload
+			);
 		},
 		addSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.siteListing.sites.push(action.payload);
+			console.log('added site', { action });
 		},
 		removeSite: (state, action: PayloadAction<SiteInfo>) => {
 			const idToRemove = action.payload.metadata.id;
@@ -159,6 +159,7 @@ const slice = createSlice({
 			if (siteIndex !== undefined) {
 				state.siteListing.sites.splice(siteIndex, 1);
 			}
+			console.log('removed site', { action });
 		},
 		setSiteManagerIsOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
@@ -166,10 +167,26 @@ const slice = createSlice({
 	},
 });
 
+function recursiveMerge<T extends Record<string, any>>(
+	original: T,
+	updated: Partial<T>
+): T {
+	for (const [key, value] of Object.entries(updated)) {
+		if (typeof value === 'object' && value !== null) {
+			(original as any)[key] = recursiveMerge(original[key] || {}, value);
+		} else if (value === undefined) {
+			delete (original as any)[key];
+		} else {
+			(original as any)[key] = value;
+		}
+	}
+	return original;
+}
+
 // Export actions
 export const {
 	setActiveModal,
-	setClientInfo,
+	updateClientInfo,
 	forgetClientInfo,
 	setActiveSite,
 	setSiteManagerIsOpen,
@@ -181,7 +198,87 @@ export const getActiveClient = (
 ): ClientInfo | undefined =>
 	state.activeSite ? state.clients[state.activeSite.slug] : undefined;
 
-// Redux thunk for adding a site
+// Redux thunk
+export function saveSiteToOpfs(siteSlug: string) {
+	return async (
+		dispatch: typeof store.dispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		// @TODO: Handle errors
+
+		const state = getState();
+		const playground = state.clients[siteSlug].client;
+		if (!playground) {
+			throw new Error(
+				`Site ${siteSlug} must have an active client to be saved to OPFS, but none was found.`
+			);
+		}
+
+		const mountDescriptor = {
+			device: {
+				type: 'opfs',
+				path: '/' + getDirectoryNameForSlug(siteSlug),
+			},
+			mountpoint: '/wordpress',
+		} as const;
+
+		dispatch(
+			updateClientInfo({
+				siteSlug: siteSlug,
+				info: {
+					opfsMountDescriptor: mountDescriptor,
+					opfsIsSyncing: true,
+				},
+			})
+		);
+		try {
+			await playground!.mountOpfs(
+				{
+					...mountDescriptor,
+					initialSyncDirection: 'memfs-to-opfs',
+				},
+				(progress) => {
+					dispatch(
+						updateClientInfo({
+							siteSlug: siteSlug,
+							info: {
+								opfsSyncProgress: progress,
+							},
+						})
+					);
+				}
+			);
+		} finally {
+			// @TODO: Tell the user the operation is complete
+			dispatch(
+				updateClientInfo({
+					siteSlug: siteSlug,
+					info: {
+						opfsIsSyncing: false,
+						opfsSyncProgress: undefined,
+					},
+				})
+			);
+		}
+		dispatch(
+			updateSite({
+				slug: siteSlug,
+				storage: 'opfs',
+			})
+		);
+		window.history.pushState(
+			{},
+			'',
+			updateUrl(window.location.href, {
+				searchParams: {
+					'site-slug': siteSlug,
+				},
+			})
+		);
+	};
+}
+
+// Redux thunk
 export function createSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
@@ -189,11 +286,12 @@ export function createSite(siteInfo: SiteInfo) {
 		if (siteInfo.storage === 'opfs') {
 			await addSiteToStorage(siteInfo);
 		}
+		console.log('creating site', { siteInfo });
 		dispatch(slice.actions.addSite(siteInfo));
 	};
 }
 
-// Redux thunk for removing a site
+// Redux thunk
 export function deleteSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors

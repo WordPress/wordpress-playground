@@ -43,39 +43,45 @@ export function useCurrentUrl() {
 			urlComponents: Partial<URLComponents>,
 			searchParamsMode: 'replace' | 'merge' = 'replace'
 		) => {
-			const currentUrl = new URL(location);
-			if (urlComponents.searchParams) {
-				if (searchParamsMode === 'replace') {
-					currentUrl.search = '';
-				}
-				Object.entries(urlComponents.searchParams).forEach(
-					([key, value]) => {
-						if (value === undefined) {
-							currentUrl.searchParams.delete(key);
-						} else {
-							currentUrl.searchParams.set(key, value);
-						}
-					}
-				);
-			}
-			if (urlComponents.hash) {
-				currentUrl.hash = urlComponents.hash;
-			}
-			if (urlComponents.host) {
-				currentUrl.host = urlComponents.host;
-			}
-			if (urlComponents.port) {
-				currentUrl.port = urlComponents.port;
-			}
-			if (urlComponents.protocol) {
-				currentUrl.protocol = urlComponents.protocol;
-			}
-			if (urlComponents.pathname) {
-				currentUrl.pathname = urlComponents.pathname;
-			}
-			setLocation(currentUrl.toString());
+			setLocation(updateUrl(location, urlComponents, searchParamsMode));
 		},
 	] as const;
+}
+
+export function updateUrl(
+	currentLocation: string,
+	urlComponents: Partial<URLComponents>,
+	searchParamsMode: 'replace' | 'merge' = 'replace'
+) {
+	const currentUrl = new URL(currentLocation);
+	if (urlComponents.searchParams) {
+		if (searchParamsMode === 'replace') {
+			currentUrl.search = '';
+		}
+		Object.entries(urlComponents.searchParams).forEach(([key, value]) => {
+			if (value === undefined) {
+				currentUrl.searchParams.delete(key);
+			} else {
+				currentUrl.searchParams.set(key, value);
+			}
+		});
+	}
+	if (urlComponents.hash) {
+		currentUrl.hash = urlComponents.hash;
+	}
+	if (urlComponents.host) {
+		currentUrl.host = urlComponents.host;
+	}
+	if (urlComponents.port) {
+		currentUrl.port = urlComponents.port;
+	}
+	if (urlComponents.protocol) {
+		currentUrl.protocol = urlComponents.protocol;
+	}
+	if (urlComponents.pathname) {
+		currentUrl.pathname = urlComponents.pathname;
+	}
+	return currentUrl.toString();
 }
 
 /**

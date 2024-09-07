@@ -23,7 +23,7 @@ import {
 	getActiveClient,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setClientInfo,
+	updateClientInfo,
 	useAppSelector,
 } from '../../lib/redux-store';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
@@ -220,7 +220,7 @@ export default function PlaygroundConfigurationGroup() {
 			});
 
 			dispatch(
-				setClientInfo({
+				updateClientInfo({
 					siteSlug: activeSite!.slug,
 					info: {
 						opfsMountDescriptor: {
