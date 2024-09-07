@@ -13,15 +13,6 @@ interface BrowserChromeProps {
 	className?: string;
 }
 
-/**
- * Temporary feature flag to enable the site manager
- * while using browser storage.
- *
- * TODO: Remove this once the site manager supports all storage options.
- */
-const query = new URLSearchParams(window.location.search);
-const showSiteManager = query.has('site-manager');
-
 export default function BrowserChrome({
 	children,
 	toolbarButtons,
@@ -62,26 +53,14 @@ export default function BrowserChrome({
 		>
 			<div className={`${css.window} browser-chrome-window`}>
 				<header
-					className={`${css.toolbar} ${
-						showSiteManager ? css.hasSiteManager : ''
-					} ${hideToolbar ? css.toolbarHidden : ''}`}
+					className={`
+						${css.toolbar}
+						${hideToolbar ? css.toolbarHidden : ''}
+					`}
 					aria-label="Playground toolbar"
 				>
 					<div className={css.windowControls}>
-						{showSiteManager && <OpenSiteManagerButton />}
-						{!showSiteManager && (
-							<>
-								<div
-									className={`${css.windowControl} ${css.isNeutral}`}
-								></div>
-								<div
-									className={`${css.windowControl} ${css.isNeutral}`}
-								></div>
-								<div
-									className={`${css.windowControl} ${css.isNeutral}`}
-								></div>
-							</>
-						)}
+						<OpenSiteManagerButton />
 					</div>
 
 					<div className={addressBarClass}>
