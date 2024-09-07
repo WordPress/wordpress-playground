@@ -22,7 +22,7 @@ export interface AddSiteFormData {
 	phpVersion: SupportedPHPVersion;
 	wpVersion: string;
 	// @TODO:
-	// language: string;
+	language: string;
 	withExtensions: boolean;
 	withNetworking: boolean;
 }
@@ -37,6 +37,7 @@ export default function AddSiteForm({ onSubmit }: AddSiteFormProps) {
 		defaultValues: {
 			name: randomSiteName(),
 			phpVersion: '8.0',
+			language: '',
 			withExtensions: true,
 			withNetworking: true,
 		},
@@ -102,7 +103,6 @@ export default function AddSiteForm({ onSubmit }: AddSiteFormProps) {
 								className={classNames(css.addSiteInput, {
 									[css.invalidInput]: !!errors.wpVersion,
 								})}
-								autoFocus={true}
 								options={
 									/*
 									 * Without an empty option, React sometimes says
@@ -139,6 +139,54 @@ export default function AddSiteForm({ onSubmit }: AddSiteFormProps) {
 					>
 						Need an older version?
 					</a> */}
+
+					<Controller
+						control={control}
+						name="language"
+						render={({ field: { onChange, ...rest } }) => (
+							<SelectControl
+								label="Language"
+								help={errors.language?.message}
+								className={classNames(css.addSiteInput, {
+									[css.invalidInput]: !!errors.language,
+								})}
+								options={[
+									// @TODO: Use the correct WordPress language codes, add more languages.
+									{ label: 'English', value: '' },
+									{ label: 'French', value: 'fr_FR' },
+									{ label: 'Spanish', value: 'es_ES' },
+									{ label: 'German', value: 'de_DE' },
+									{ label: 'Italian', value: 'it_IT' },
+									{ label: 'Portuguese', value: 'pt_BR' },
+									{ label: 'Russian', value: 'ru_RU' },
+									{ label: 'Turkish', value: 'tr_TR' },
+									{ label: 'Chinese', value: 'zh_CN' },
+									// { label: 'Japanese', value: 'ja_JP' },
+									{ label: 'Korean', value: 'ko_KR' },
+									{ label: 'Arabic', value: 'ar_AR' },
+									{ label: 'Dutch', value: 'nl_NL' },
+									{ label: 'Polish', value: 'pl_PL' },
+									// { label: 'Swedish', value: 'sv_SE' },
+									{ label: 'Finnish', value: 'fi_FI' },
+									{ label: 'Danish', value: 'da_DK' },
+									{ label: 'Norwegian', value: 'no_NO' },
+									// { label: 'Czech', value: 'cs_CZ' },
+									{ label: 'Slovak', value: 'sk_SK' },
+									{ label: 'Slovenian', value: 'sl_SI' },
+									{ label: 'Croatian', value: 'hr_HR' },
+									{ label: 'Hungarian', value: 'hu_HU' },
+									{ label: 'Romanian', value: 'ro_RO' },
+									{ label: 'Bulgarian', value: 'bg_BG' },
+								].sort((a, b) =>
+									a.label.localeCompare(b.label)
+								)}
+								onChange={(value, extra) => {
+									onChange(extra?.event);
+								}}
+								{...rest}
+							/>
+						)}
+					/>
 					<Controller
 						control={control}
 						name="phpVersion"

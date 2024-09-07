@@ -21,6 +21,7 @@ export function AddSiteButton() {
 				'php-extension-bundle': data.withExtensions
 					? 'kitchen-sink'
 					: 'light',
+				language: data.language,
 			},
 		});
 		setModalOpen(false);
