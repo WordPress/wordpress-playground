@@ -199,7 +199,10 @@ export const getActiveClient = (
 	state.activeSite ? state.clients[state.activeSite.slug] : undefined;
 
 // Redux thunk
-export function saveSiteToOpfs(siteSlug: string) {
+export function saveSiteToDevice(
+	siteSlug: string,
+	device: 'opfs' | (MountDevice & { type: 'local-fs' })
+) {
 	return async (
 		dispatch: typeof store.dispatch,
 		getState: () => PlaygroundReduxState
@@ -215,10 +218,13 @@ export function saveSiteToOpfs(siteSlug: string) {
 		}
 
 		const mountDescriptor = {
-			device: {
-				type: 'opfs',
-				path: '/' + getDirectoryNameForSlug(siteSlug),
-			},
+			device:
+				device === 'opfs'
+					? ({
+							type: 'opfs',
+							path: '/' + getDirectoryNameForSlug(siteSlug),
+					  } as const)
+					: device,
 			mountpoint: '/wordpress',
 		} as const;
 
@@ -263,7 +269,7 @@ export function saveSiteToOpfs(siteSlug: string) {
 		dispatch(
 			updateSite({
 				slug: siteSlug,
-				storage: 'opfs',
+				storage: device === 'opfs' ? 'opfs' : 'local-fs',
 			})
 		);
 		window.history.pushState(

@@ -25,23 +25,24 @@ export function getIndexedDB() {
 // Function to save directory handle to IndexedDB
 export function saveDirectoryHandle(
 	db: IDBDatabase,
+	siteSlug: string,
 	directoryHandle: FileSystemDirectoryHandle
 ) {
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readwrite');
 		const store = tx.objectStore('fileSystemStore');
-		store.put(directoryHandle, 'directoryHandleKey');
+		store.put(directoryHandle, siteSlug);
 		tx.oncomplete = resolve;
 		tx.onerror = reject;
 	});
 }
 
 // Function to retrieve directory handle from IndexedDB
-export function loadDirectoryHandle(db: IDBDatabase) {
+export function loadDirectoryHandle(db: IDBDatabase, siteSlug: string) {
 	return new Promise<FileSystemDirectoryHandle>((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readonly');
 		const store = tx.objectStore('fileSystemStore');
-		const handleDataRequest = store.get('directoryHandleKey');
+		const handleDataRequest = store.get(siteSlug);
 		handleDataRequest.onsuccess = async function () {
 			// If there's data to retrieve, convert it back to a handle
 			if (!handleDataRequest.result) {

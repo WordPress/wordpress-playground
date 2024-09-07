@@ -26,11 +26,16 @@ import { SiteLogs } from '../../log-modal';
 import {
 	useAppDispatch,
 	setSiteManagerIsOpen,
-	saveSiteToOpfs,
+	saveSiteToDevice,
 	useAppSelector,
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
+import { logger } from '@php-wasm/logger';
+import {
+	getIndexedDB,
+	saveDirectoryHandle,
+} from '../../playground-configuration-group/idb-opfs';
 
 function SiteInfoRow({
 	label,
@@ -91,7 +96,15 @@ export function SiteInfoPanel({
 							be lost on page refresh.
 						</FlexItem>
 						<FlexItem>
-							<SaveSiteButton siteSlug={site.slug} />
+							<SaveSiteButton siteSlug={site.slug} mode="opfs">
+								Save in this browser
+							</SaveSiteButton>
+							<SaveSiteButton
+								siteSlug={site.slug}
+								mode="local-fs"
+							>
+								Save on your computer
+							</SaveSiteButton>
 						</FlexItem>
 					</Flex>
 				</Notice>
@@ -295,9 +308,33 @@ export function SiteInfoPanel({
 	);
 }
 
-function SaveSiteButton({ siteSlug }: { siteSlug: string }) {
+let idb: IDBDatabase | null;
+try {
+	idb = await getIndexedDB();
+} catch (e) {
+	// Ignore errors.
+}
+
+function SaveSiteButton({
+	siteSlug,
+	mode,
+	children,
+}: {
+	siteSlug: string;
+	mode: 'local-fs' | 'opfs';
+	children: React.ReactNode;
+}) {
 	const clientInfo = useAppSelector((state) => state.clients[siteSlug]);
 	const dispatch = useAppDispatch();
+
+	// @TODO: The parent component should be aware if local FS is unavailable so that it
+	//        can adjust the UI accordingly.
+	// @TODO: Acknowledge Safari doesn't support local FS yet as we cannot pass the directory
+	//        handle to the worker. Perhaps we could work around this by triggering showDirectoryPicker
+	//        from the worker thread.
+	if (mode === 'local-fs' && !idb) {
+		return null;
+	}
 
 	if (!clientInfo?.opfsIsSyncing) {
 		return (
@@ -305,10 +342,38 @@ function SaveSiteButton({ siteSlug }: { siteSlug: string }) {
 				variant="primary"
 				disabled={!clientInfo?.client}
 				onClick={async () => {
-					dispatch(saveSiteToOpfs(siteSlug));
+					if (mode === 'opfs') {
+						dispatch(saveSiteToDevice(siteSlug, 'opfs'));
+					} else {
+						let dirHandle: FileSystemDirectoryHandle;
+						try {
+							// Request permission to access the directory.
+							// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
+							dirHandle = await (
+								window as any
+							).showDirectoryPicker({
+								// By specifying an ID, the browser can remember different directories
+								// for different IDs.If the same ID is used for another picker, the
+								// picker opens in the same directory.
+								id: 'playground-directory',
+								mode: 'readwrite',
+							});
+						} catch (e) {
+							// No directory selected but log the error just in case.
+							logger.error(e);
+							return;
+						}
+						await saveDirectoryHandle(idb!, siteSlug, dirHandle);
+						dispatch(
+							saveSiteToDevice(siteSlug, {
+								type: 'local-fs',
+								handle: dirHandle,
+							})
+						);
+					}
 				}}
 			>
-				Save in this browser
+				{children}
 			</Button>
 		);
 	}
