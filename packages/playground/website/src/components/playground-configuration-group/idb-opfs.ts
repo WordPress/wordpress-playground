@@ -3,6 +3,7 @@ export function getIndexedDB() {
 	return new Promise<IDBDatabase>((resolve, reject) => {
 		if (db) {
 			resolve(db);
+			return;
 		}
 		const openRequest = indexedDB.open('fileSystemDB', 1);
 
@@ -23,11 +24,11 @@ export function getIndexedDB() {
 }
 
 // Function to save directory handle to IndexedDB
-export function saveDirectoryHandle(
-	db: IDBDatabase,
+export async function saveDirectoryHandle(
 	siteSlug: string,
 	directoryHandle: FileSystemDirectoryHandle
 ) {
+	const db = await getIndexedDB();
 	return new Promise((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readwrite');
 		const store = tx.objectStore('fileSystemStore');
@@ -38,7 +39,8 @@ export function saveDirectoryHandle(
 }
 
 // Function to retrieve directory handle from IndexedDB
-export function loadDirectoryHandle(db: IDBDatabase, siteSlug: string) {
+export async function loadDirectoryHandle(siteSlug: string) {
+	const db = await getIndexedDB();
 	return new Promise<FileSystemDirectoryHandle>((resolve, reject) => {
 		const tx = db.transaction(['fileSystemStore'], 'readonly');
 		const store = tx.objectStore('fileSystemStore');

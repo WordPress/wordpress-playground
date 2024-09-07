@@ -32,10 +32,7 @@ import {
 import { StorageType } from '../storage-type';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { logger } from '@php-wasm/logger';
-import {
-	getIndexedDB,
-	saveDirectoryHandle,
-} from '../../playground-configuration-group/idb-opfs';
+import { saveDirectoryHandle } from '../../playground-configuration-group/idb-opfs';
 
 function SiteInfoRow({
 	label,
@@ -83,7 +80,7 @@ export function SiteInfoPanel({
 
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>
-			{site.storage === 'none' && !noticeDismissed ? (
+			{site.metadata.storage === 'none' && !noticeDismissed ? (
 				<Notice
 					className={css.siteNotice}
 					spokenMessage="This is a temporary site. Your changes will be lost on page refresh."
@@ -308,13 +305,6 @@ export function SiteInfoPanel({
 	);
 }
 
-let idb: IDBDatabase | null;
-try {
-	idb = await getIndexedDB();
-} catch (e) {
-	// Ignore errors.
-}
-
 function SaveSiteButton({
 	siteSlug,
 	mode,
@@ -327,16 +317,15 @@ function SaveSiteButton({
 	const clientInfo = useAppSelector((state) => state.clients[siteSlug]);
 	const dispatch = useAppDispatch();
 
+	const isSyncing =
+		clientInfo?.opfsIsSyncing &&
+		clientInfo?.opfsMountDescriptor?.device.type === mode;
 	// @TODO: The parent component should be aware if local FS is unavailable so that it
 	//        can adjust the UI accordingly.
-	// @TODO: Acknowledge Safari doesn't support local FS yet as we cannot pass the directory
+	// 		  Also, acknowledge Safari doesn't support local FS yet as we cannot pass the directory
 	//        handle to the worker. Perhaps we could work around this by triggering showDirectoryPicker
 	//        from the worker thread.
-	if (mode === 'local-fs' && !idb) {
-		return null;
-	}
-
-	if (!clientInfo?.opfsIsSyncing) {
+	if (!isSyncing) {
 		return (
 			<Button
 				variant="primary"
@@ -363,7 +352,7 @@ function SaveSiteButton({
 							logger.error(e);
 							return;
 						}
-						await saveDirectoryHandle(idb!, siteSlug, dirHandle);
+						await saveDirectoryHandle(siteSlug, dirHandle);
 						dispatch(
 							saveSiteToDevice(siteSlug, {
 								type: 'local-fs',
@@ -436,7 +425,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					<SiteInfoRow label="Site name" value={site.metadata.name} />
 					<SiteInfoRow
 						label="Storage"
-						value={<StorageType type={site.storage} />}
+						value={<StorageType type={site.metadata.storage} />}
 					/>
 					<SiteInfoRow
 						label="WordPress version"

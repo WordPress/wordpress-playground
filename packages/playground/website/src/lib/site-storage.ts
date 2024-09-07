@@ -44,6 +44,7 @@ interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
+	storage: SiteStorageType;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
@@ -67,7 +68,6 @@ interface SiteMetadata {
  * The Site model used to represent a site within Playground.
  */
 export interface SiteInfo {
-	storage: SiteStorageType;
 	slug: string;
 	metadata: SiteMetadata;
 }
@@ -139,11 +139,11 @@ export async function createNewSiteInfo(
 
 	return {
 		slug: deriveSlugFromSiteName(name),
-		storage: 'none',
 
 		...initialInfo,
 
 		metadata: {
+			storage: 'none',
 			id: crypto.randomUUID(),
 			whenCreated: Date.now(),
 			runtimeConfiguration: {
@@ -298,9 +298,8 @@ async function readSiteFromDirectory(
 		const metadata = JSON.parse(metadataContents) as SiteMetadata;
 
 		return {
-			storage: 'opfs',
 			slug,
-			metadata,
+			metadata: metadata,
 		};
 	} catch (e: any) {
 		if (e?.name === 'NotFoundError') {
@@ -359,10 +358,10 @@ function deriveDefaultSite(slug: string): SiteInfo {
 	};
 	return {
 		slug,
-		storage: 'opfs',
 		metadata: {
 			id: crypto.randomUUID(),
 			name: getFallbackSiteNameFromSlug(slug),
+			storage: 'opfs',
 
 			// TODO: Backfill site info file if missing, detecting actual WP version if possible
 			runtimeConfiguration,

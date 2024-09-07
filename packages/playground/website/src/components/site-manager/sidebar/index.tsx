@@ -88,7 +88,8 @@ export function Sidebar({ className }: { className?: string }) {
 								isSelected={isSelected}
 								role="menuitemradio"
 								icon={
-									site.storage === 'none' || !site.storage ? (
+									site.metadata.storage === 'none' ||
+									!site.metadata.storage ? (
 										<TemporaryStorageIcon
 											className={
 												css.sidebarItemStorageIcon

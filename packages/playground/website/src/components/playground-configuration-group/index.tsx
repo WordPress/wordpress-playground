@@ -10,11 +10,7 @@ import Modal, { defaultStyles } from '../modal';
 import { playgroundAvailableInOpfs } from './playground-available-in-opfs';
 import { PlaygroundConfiguration, PlaygroundConfigurationForm } from './form';
 import { reloadWithNewConfiguration } from './reload-with-new-configuration';
-import {
-	getIndexedDB,
-	loadDirectoryHandle,
-	saveDirectoryHandle,
-} from './idb-opfs';
+import { loadDirectoryHandle, saveDirectoryHandle } from './idb-opfs';
 import { OPFSButton } from './opfs-button';
 import { SyncLocalFilesButton } from './sync-local-files-button';
 import { logger } from '@php-wasm/logger';
@@ -29,11 +25,9 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { MountDevice } from '@php-wasm/web';
 
-let idb: IDBDatabase | null,
-	lastDirectoryHandle: FileSystemDirectoryHandle | null;
+let lastDirectoryHandle: FileSystemDirectoryHandle | null;
 try {
-	idb = await getIndexedDB();
-	lastDirectoryHandle = await loadDirectoryHandle(idb);
+	lastDirectoryHandle = await loadDirectoryHandle('default');
 } catch (e) {
 	// Ignore errors.
 }
@@ -53,7 +47,7 @@ export default function PlaygroundConfigurationGroup() {
 	);
 	const initialConfiguration = useMemo<PlaygroundConfiguration>(() => {
 		return {
-			storage: activeSite.storage || 'none',
+			storage: activeSite.metadata.storage || 'none',
 			wp: activeSite.metadata.runtimeConfiguration.preferredVersions.wp,
 			php: activeSite.metadata.runtimeConfiguration.preferredVersions
 				.php as SupportedPHPVersion,
@@ -179,9 +173,7 @@ export default function PlaygroundConfigurationGroup() {
 			type: 'local-fs',
 			handle: dirHandle,
 		};
-		if (idb) {
-			await saveDirectoryHandle(idb, dirHandle);
-		}
+		await saveDirectoryHandle('default', dirHandle);
 
 		setMounting(true);
 		try {

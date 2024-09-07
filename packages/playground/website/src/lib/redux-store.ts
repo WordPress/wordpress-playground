@@ -149,7 +149,6 @@ const slice = createSlice({
 		},
 		addSite: (state, action: PayloadAction<SiteInfo>) => {
 			state.siteListing.sites.push(action.payload);
-			console.log('added site', { action });
 		},
 		removeSite: (state, action: PayloadAction<SiteInfo>) => {
 			const idToRemove = action.payload.metadata.id;
@@ -159,7 +158,6 @@ const slice = createSlice({
 			if (siteIndex !== undefined) {
 				state.siteListing.sites.splice(siteIndex, 1);
 			}
-			console.log('removed site', { action });
 		},
 		setSiteManagerIsOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
@@ -203,6 +201,7 @@ export function saveSiteToDevice(
 	siteSlug: string,
 	device: 'opfs' | (MountDevice & { type: 'local-fs' })
 ) {
+	const deviceType = typeof device === 'string' ? device : device.type;
 	return async (
 		dispatch: typeof store.dispatch,
 		getState: () => PlaygroundReduxState
@@ -216,6 +215,15 @@ export function saveSiteToDevice(
 				`Site ${siteSlug} must have an active client to be saved to OPFS, but none was found.`
 			);
 		}
+
+		const siteInfo = getSiteInfo(state, siteSlug)!;
+		await addSiteToStorage({
+			...siteInfo,
+			metadata: {
+				...siteInfo.metadata,
+				storage: deviceType,
+			},
+		});
 
 		const mountDescriptor = {
 			device:
@@ -266,12 +274,7 @@ export function saveSiteToDevice(
 				})
 			);
 		}
-		dispatch(
-			updateSite({
-				slug: siteSlug,
-				storage: device === 'opfs' ? 'opfs' : 'local-fs',
-			})
-		);
+
 		window.history.pushState(
 			{},
 			'',
@@ -284,15 +287,21 @@ export function saveSiteToDevice(
 	};
 }
 
+export function getSiteInfo(
+	state: PlaygroundReduxState,
+	siteSlug: string
+): SiteInfo | undefined {
+	return state.siteListing.sites.find((site) => site.slug === siteSlug);
+}
+
 // Redux thunk
 export function createSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
-		if (siteInfo.storage === 'opfs') {
+		if (siteInfo.metadata.storage === 'opfs') {
 			await addSiteToStorage(siteInfo);
 		}
-		console.log('creating site', { siteInfo });
 		dispatch(slice.actions.addSite(siteInfo));
 	};
 }
@@ -302,7 +311,7 @@ export function deleteSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect removal in progress
-		if (siteInfo.storage === 'opfs') {
+		if (siteInfo.metadata.storage === 'opfs') {
 			await removeSiteFromStorage(siteInfo);
 		}
 		dispatch(slice.actions.removeSite(siteInfo));
@@ -322,7 +331,11 @@ const store = configureStore({
 					'app/setActiveSite',
 				],
 				// Ignore these field paths in all actions
-				ignoredActionPaths: ['payload.handle', 'payload.info.client'],
+				ignoredActionPaths: [
+					'payload.handle',
+					'payload.info.client',
+					'payload.info.opfsMountDescriptor.device.handle',
+				],
 				// Ignore these paths in the state
 				ignoredPaths: ['opfsMountDescriptor.handle', 'clients'],
 			},

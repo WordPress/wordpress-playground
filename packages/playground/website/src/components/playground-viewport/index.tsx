@@ -17,6 +17,7 @@ import { getRemoteUrl } from '../../lib/config';
 import { playgroundAvailableInOpfs } from '../playground-configuration-group/playground-available-in-opfs';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { startPlaygroundWeb } from '@wp-playground/client';
+import { loadDirectoryHandle } from '../playground-configuration-group/idb-opfs';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -67,11 +68,19 @@ export const JustViewport = function LoadedViewportComponent() {
 		let unmounted = false;
 		async function doTheWork() {
 			let mountDescriptor = undefined;
-			if (activeSite.storage === 'opfs') {
+			if (activeSite.metadata.storage === 'opfs') {
 				mountDescriptor = {
 					device: {
 						type: 'opfs',
 						path: '/' + getDirectoryNameForSlug(activeSite.slug),
+					},
+					mountpoint: '/wordpress',
+				} as const;
+			} else if (activeSite.metadata.storage === 'local-fs') {
+				mountDescriptor = {
+					device: {
+						type: 'local-fs',
+						handle: await loadDirectoryHandle(activeSite.slug),
 					},
 					mountpoint: '/wordpress',
 				} as const;
