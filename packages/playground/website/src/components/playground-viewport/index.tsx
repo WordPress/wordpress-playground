@@ -84,6 +84,7 @@ export const JustViewport = function LoadedViewportComponent() {
 					},
 					mountpoint: '/wordpress',
 				} as const;
+				// @TODO: Handle errors, e.g. when the local directory was deleted.
 			}
 
 			let isWordPressInstalled = false;

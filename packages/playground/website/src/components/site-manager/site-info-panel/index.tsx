@@ -30,7 +30,7 @@ import {
 	useAppSelector,
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
-import { usePlaygroundClient } from '../../../lib/use-playground-client';
+import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { logger } from '@php-wasm/logger';
 import { saveDirectoryHandle } from '../../playground-configuration-group/idb-opfs';
 
@@ -402,7 +402,8 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const username = 'admin';
 	const password = 'password';
 
-	const playground = usePlaygroundClient(site.slug);
+	const { client, opfsMountDescriptor } =
+		usePlaygroundClientInfo(site.slug) || {};
 
 	return (
 		<Flex
@@ -425,7 +426,23 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					<SiteInfoRow label="Site name" value={site.metadata.name} />
 					<SiteInfoRow
 						label="Storage"
-						value={<StorageType type={site.metadata.storage} />}
+						value={
+							<>
+								<StorageType type={site.metadata.storage} />
+								{opfsMountDescriptor?.device?.type ===
+								'local-fs' ? (
+									<>
+										{' '}
+										(
+										{
+											opfsMountDescriptor.device?.handle
+												.name
+										}
+										)
+									</>
+								) : null}
+							</>
+						}
 					/>
 					<SiteInfoRow
 						label="WordPress version"
@@ -534,7 +551,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 							<Button
 								variant="link"
 								onClick={() => {
-									playground?.goTo('/wp-admin');
+									client?.goTo('/wp-admin');
 								}}
 								target="_blank"
 								rel="noopener noreferrer"

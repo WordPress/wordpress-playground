@@ -1,10 +1,20 @@
 import { useAppSelector, getActiveClient } from './redux-store';
 
-export function usePlaygroundClient(siteSlug?: string) {
+export function usePlaygroundClientInfo(siteSlug?: string) {
 	return useAppSelector((state) => {
 		if (siteSlug) {
-			return state.clients[siteSlug]?.client;
+			return state.clients[siteSlug];
 		}
-		return getActiveClient(state)?.client;
+		return getActiveClient(state);
 	});
+}
+
+export function usePlaygroundClient(siteSlug?: string) {
+	const clientInfo = usePlaygroundClientInfo(siteSlug);
+
+	if (!clientInfo) {
+		return null;
+	}
+
+	return clientInfo.client;
 }

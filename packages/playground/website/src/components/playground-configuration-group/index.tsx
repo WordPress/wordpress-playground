@@ -127,7 +127,7 @@ export default function PlaygroundConfigurationGroup() {
 	const [currentConfiguration, setCurrentConfiguration] =
 		useState(initialConfiguration);
 
-	const isSameOriginAsPlayground = useIsSameOriginAsPlayground(playground);
+	const isSameOriginAsPlayground = useIsSameOriginAsPlayground(playground!);
 
 	async function handleSelectLocalDirectory() {
 		let dirHandle: FileSystemDirectoryHandle;
