@@ -372,6 +372,7 @@ const store = configureStore({
 					'setOpfsMountDescriptor',
 					'app/setPlaygroundClient',
 					'app/setActiveSite',
+					'app/updateClientInfo',
 				],
 				// Ignore these field paths in all actions
 				ignoredActionPaths: [
