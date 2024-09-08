@@ -939,6 +939,44 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Creates a symlink in the PHP filesystem.
+	 * @param target
+	 * @param path
+	 */
+	symlink(target: string, path: string) {
+		return FSHelpers.symlink(this[__private__dont__use].FS, target, path);
+	}
+
+	/**
+	 * Checks if a path is a symlink in the PHP filesystem.
+	 *
+	 * @param path
+	 * @returns True if the path is a symlink, false otherwise.
+	 */
+	isSymlink(path: string) {
+		return FSHelpers.isSymlink(this[__private__dont__use].FS, path);
+	}
+
+	/**
+	 * Reads the target of a symlink in the PHP filesystem.
+	 *
+	 * @param path
+	 * @returns The target of the symlink.
+	 */
+	readlink(path: string) {
+		return FSHelpers.readlink(this[__private__dont__use].FS, path);
+	}
+
+	/**
+	 * Resolves the real path of a file in the PHP filesystem.
+	 * @param path
+	 * @returns The real path of the file.
+	 */
+	realpath(path: string) {
+		return FSHelpers.realpath(this[__private__dont__use].FS, path);
+	}
+
+	/**
 	 * Checks if a file (or a directory) exists in the PHP filesystem.
 	 *
 	 * @param  path - The file path to check.

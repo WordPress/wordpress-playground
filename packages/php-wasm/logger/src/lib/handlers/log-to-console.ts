@@ -6,9 +6,19 @@ import { Log, prepareLogMessage } from '../logger';
  */
 export const logToConsole: LogHandler = (log: Log, ...args: any[]): void => {
 	if (typeof log.message === 'string') {
-		log.message = prepareLogMessage(log.message);
+		// Some errors have a read-only message property where direct
+		// assignment will throw an error. The assignment is merely for
+		// formatting, so let's assign with Reflect.set and avoid the error.
+		Reflect.set(log, 'message', prepareLogMessage(log.message));
 	} else if (log.message.message && typeof log.message.message === 'string') {
-		log.message.message = prepareLogMessage(log.message.message);
+		// Some errors have a read-only message property where direct
+		// assignment will throw an error. The assignment is merely for
+		// formatting, so let's assign with Reflect.set and avoid the error.
+		Reflect.set(
+			log.message,
+			'message',
+			prepareLogMessage(log.message.message)
+		);
 	}
 	/* eslint-disable no-console */
 	switch (log.severity) {

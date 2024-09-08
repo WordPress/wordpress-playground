@@ -23,6 +23,16 @@ The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) 
 
 Another handy tool to create a blueprint is the [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool that provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
 
+## Embed demos in posts and pages with the WordPress Playground block
+
+This [WordPress Playground block](https://wordpress.org/plugins/interactive-code-block/) allows you to embed WordPress Playground in your posts and pages. You can also include an interactive code editor to demonstrate and teach your readers how WordPress plugins are built.
+
+With this block you have a straightforward and effective way to create live WordPress environments that can be embedded within your blog posts.
+
+:::info
+For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
+:::
+
 ## Put a native app running WordPress in the App Store.
 
 Check the [How to ship a real WordPress site in a native iOS app via Playground?](../guides/wordpress-native-ios-app) guide for info on this use case

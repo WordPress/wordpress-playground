@@ -7,6 +7,7 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
+	setPlaygroundClient,
 } from './redux-store';
 import { useDispatch, useSelector } from 'react-redux';
 import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
@@ -79,6 +80,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 						(url: string) => setUrl(url)
 					);
 					setPlayground(() => playgroundTmp);
+					dispatch(setPlaygroundClient(playgroundTmp));
 				}
 			}
 		}

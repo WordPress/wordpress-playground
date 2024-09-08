@@ -1,6 +1,5 @@
 import css from './style.module.css';
 import classNames from 'classnames';
-import { useSelector } from 'react-redux';
 import {
 	__experimentalHeading as Heading,
 	NavigableMenu,
@@ -12,42 +11,32 @@ import {
 	__experimentalItem as Item,
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
-import store, {
-	PlaygroundReduxState,
-	addSite as addSiteToStore,
-} from '../../../lib/redux-store';
-import { type SiteLogo, createNewSiteInfo } from '../../../lib/site-storage';
+import { type SiteLogo } from '../../../lib/site-storage';
+import { SiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 
-export function SiteManagerSidebar({
+export function Sidebar({
 	className,
 	siteSlug,
+	sites,
 	onSiteClick,
+	addSite,
 }: {
 	className?: string;
 	siteSlug?: string;
+	sites: SiteInfo[];
 	onSiteClick: (siteSlug: string) => void;
+	addSite: (name: string) => Promise<SiteInfo>;
 }) {
-	const unsortedSites = useSelector(
-		(state: PlaygroundReduxState) => state.siteListing.sites
-	);
-	const sites = unsortedSites
+	// Sites may be in an arbitrary order, so let's sort them by name.
+	sites = sites
 		.concat()
 		.sort((a, b) =>
 			a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
 		);
 
-	const addSite = async (name: string) => {
-		const newSiteInfo = createNewSiteInfo({
-			name,
-			storage: 'opfs',
-			wpVersion: LatestMinifiedWordPressVersion,
-			phpVersion: LatestSupportedPHPVersion,
-			phpExtensionBundle: 'kitchen-sink',
-		});
-		await store.dispatch(addSiteToStore(newSiteInfo));
+	const onAddSite = async (name: string) => {
+		const newSiteInfo = await addSite(name);
 		onSiteClick(newSiteInfo.slug);
 	};
 
@@ -67,29 +56,22 @@ export function SiteManagerSidebar({
 	};
 
 	return (
-		<NavigableMenu
-			className={classNames(css.siteManagerSidebar, className)}
-		>
-			<header className={css.siteManagerSidebarHeader}>
+		<NavigableMenu className={classNames(css.sidebar, className)}>
+			<header className={css.sidebarHeader}>
 				{/* Remove Playground logo because branding isn't finalized. */}
-				{/* <Logo className={css.siteManagerSidebarLogoButton} /> */}
+				{/* <Logo className={css.sidebarLogoButton} /> */}
 			</header>
-			<nav
-				className={classNames(
-					css.siteManagerSidebarSection,
-					css.siteManagerSidebarContent
-				)}
-			>
+			<nav className={classNames(css.sidebarSection, css.sidebarContent)}>
 				<Heading
 					level="6"
 					className={classNames(
-						css.siteManagerSidebarLabel,
-						css.siteManagerSidebarListLabel
+						css.sidebarLabel,
+						css.sidebarListLabel
 					)}
 				>
 					Your sites
 				</Heading>
-				<MenuGroup className={css.siteManagerSidebarList}>
+				<MenuGroup className={css.sidebarList}>
 					{sites.map((site) => {
 						/**
 						 * The `wordpress` site is selected when no site slug is provided.
@@ -101,13 +83,9 @@ export function SiteManagerSidebar({
 						return (
 							<MenuItem
 								key={site.slug}
-								className={classNames(
-									css.siteManagerSidebarItem,
-									{
-										[css.siteManagerSidebarItemSelected]:
-											isSelected,
-									}
-								)}
+								className={classNames(css.sidebarItem, {
+									[css.sidebarItemSelected]: isSelected,
+								})}
 								onClick={() => onSiteClick(site.slug)}
 								isSelected={isSelected}
 								role="menuitemradio"
@@ -116,7 +94,7 @@ export function SiteManagerSidebar({
 									!site.storage ? (
 										<TemporaryStorageIcon
 											className={
-												css.siteManagerSidebarItemStorageIcon
+												css.sidebarItemStorageIcon
 											}
 										/>
 									) : undefined
@@ -128,21 +106,15 @@ export function SiteManagerSidebar({
 										<img
 											src={getLogoDataURL(site.logo)}
 											alt={site.name + ' logo'}
-											className={
-												css.siteManagerSidebarItemLogo
-											}
+											className={css.sidebarItemLogo}
 										/>
 									) : (
 										<WordPressIcon
-											className={
-												css.siteManagerSidebarItemLogo
-											}
+											className={css.sidebarItemLogo}
 										/>
 									)}
 									<FlexBlock
-										className={
-											css.siteManagerSidebarItemSiteName
-										}
+										className={css.sidebarItemSiteName}
 									>
 										{site.name}
 									</FlexBlock>
@@ -153,21 +125,18 @@ export function SiteManagerSidebar({
 				</MenuGroup>
 			</nav>
 			<footer
-				className={classNames(
-					css.siteManagerSidebarSection,
-					css.siteManagerSidebarFooter
-				)}
+				className={classNames(css.sidebarSection, css.sidebarFooter)}
 			>
-				<Heading level="6" className={css.siteManagerSidebarLabel}>
+				<Heading level="6" className={css.sidebarLabel}>
 					Resources
 				</Heading>
-				<ItemGroup className={css.siteManagerSidebarList}>
+				<ItemGroup className={css.sidebarList}>
 					{resources.map((item) => (
 						<Item
 							key={item.href}
 							as="a"
 							rel="noreferrer"
-							className={css.siteManagerSidebarFooterLink}
+							className={css.sidebarFooterLink}
 							href={item.href}
 							target="_blank"
 						>
@@ -176,7 +145,7 @@ export function SiteManagerSidebar({
 					))}
 				</ItemGroup>
 			</footer>
-			<AddSiteButton onAddSite={addSite} sites={sites} />
+			<AddSiteButton onAddSite={onAddSite} sites={sites} />
 		</NavigableMenu>
 	);
 }

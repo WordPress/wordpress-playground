@@ -6,7 +6,11 @@ slug: /blueprints/steps/resources
 
 Resource References allow you use external files in Blueprints
 
-In the `installPlugin` step in the example above, we reference the `https://downloads.wordpress.org/plugins/friends.latest-stable.zip` file by using the `wordpress.org/plugins` resource reference.
+:::info
+Blueprints steps such as [[`installPlugin`](/blueprints/steps#InstallPluginStep)] or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
+
+That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containg the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for thouse plugins/themes published in the official WordPress directories.
+:::
 
 The following resource references are available:
 
@@ -37,7 +41,11 @@ To use the URLReference resource, you need to provide the URL of the file. For e
 The resource `url` type works really in combination with blueprint steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or
 [`installTheme`](http://localhost:3000/wordpress-playground/blueprints/steps#InstallThemeStep). These steps require a `ResourceType` to define the location of the plugin or the theme to install.
 
-With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point direclty to a GitHub repo. To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that also allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme.
+With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point direclty to a GitHub repo.
+
+:::tip
+The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others..
+:::
 
 ### CoreThemeReference
 

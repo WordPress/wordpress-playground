@@ -1,0 +1,124 @@
+:root {
+	--site-manager-site-list-width: 282px;
+	--site-manager-site-info-min-width: 524px;
+	--site-manager-width: calc(
+		var(--site-manager-site-list-width) +
+			var(--site-manager-site-info-min-width)
+	);
+	--site-view-min-width: 320px;
+	--site-manager-background-color: #1e1e1e;
+	--site-manager-border-width: 12px;
+	--site-manager-border-radius: 12px;
+}
+
+body {
+	background-color: var(--site-manager-background-color);
+}
+
+.layout {
+	display: flex;
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+}
+
+.playground-navigator {
+	height: 100vh;
+	display: flex;
+}
+
+.sidebar {
+	flex: 0 0 auto;
+	width: var(--site-manager-width);
+}
+
+.sidebar-enter {
+	opacity: 0;
+	width: 0;
+}
+
+.sidebar-exit,
+.sidebar-enter-active {
+	opacity: 1;
+	transform: none;
+	width: var(--site-manager-width);
+}
+
+/* 
+ * Repeated rule to ensure it's more specific than
+ * .sidebar-exit
+ */
+.sidebar-exit-active {
+	opacity: 0;
+	width: 0;
+}
+
+.sidebar-exit-active,
+.sidebar-enter-active {
+	transition: width 300ms, opacity 300ms;
+}
+
+.site-view {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: var(--site-view-min-width);
+	height: 100vh;
+	border: 0px solid var(--site-manager-background-color);
+	transition: border-radius 300ms, border-width 300ms;
+	border-radius: 0;
+	border-width: 0;
+}
+
+.sidebar + .site-view {
+	position: relative;
+	border-width: var(--site-manager-border-width);
+	border-left-width: 0;
+	.site-view-content {
+		border-radius: var(--site-manager-border-radius);
+	}
+}
+
+.sidebar-exit-active + .site-view {
+	border-radius: 0;
+	border-width: 0;
+	.site-view-content {
+		border-radius: 0;
+	}
+}
+
+.site-view-content {
+	overflow: hidden;
+	transition: border-radius 300ms;
+}
+
+.site-view-overlay {
+	content: '';
+	display: block;
+	width: 100%;
+	height: 100vh;
+	background-color: transparent;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1;
+	cursor: pointer;
+}
+
+/*
+ * Unfortunately we cannot use calc() in media queries.
+ * 
+ * 1166px = --site-manager-width + --site-view-min-width
+ *
+ * This manual calculation ensures the site view gets hidden
+ * on smaller screens and never overflows out of the screen.
+ */
+@media (max-width: 1126px) {
+	.sidebar + .site-view {
+		display: none;
+	}
+	.sidebar,
+	.sidebar-exit,
+	.sidebar-enter-active {
+		width: 100%;
+	}
+}
