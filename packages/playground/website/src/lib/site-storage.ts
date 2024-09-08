@@ -41,10 +41,10 @@ export type PhpExtensionBundle = 'light' | 'kitchen-sink';
  * The Site metadata that is persisted.
  */
 interface SiteMetadata {
+	storage: SiteStorageType;
 	id: string;
 	name: string;
 	logo?: SiteLogo;
-	storage: SiteStorageType;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
@@ -299,11 +299,16 @@ async function readSiteFromDirectory(
 
 		// TODO: Read metadata file and parse and validate via JSON schema
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		const metadata = JSON.parse(metadataContents) as SiteMetadata;
+		const metadata = JSON.parse(metadataContents);
 
 		return {
 			slug,
-			metadata: metadata,
+			metadata: {
+				// Work with existing OPFS-site metadata files that don't have storage
+				// @TODO: Consider dropping this.
+				storage: 'opfs',
+				...metadata,
+			} as SiteMetadata,
 		};
 	} catch (e: any) {
 		if (e?.name === 'NotFoundError') {
@@ -363,9 +368,9 @@ function deriveDefaultSite(slug: string): SiteInfo {
 	return {
 		slug,
 		metadata: {
+			storage: 'opfs',
 			id: crypto.randomUUID(),
 			name: getFallbackSiteNameFromSlug(slug),
-			storage: 'opfs',
 
 			// TODO: Backfill site info file if missing, detecting actual WP version if possible
 			runtimeConfiguration,

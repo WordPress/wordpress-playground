@@ -215,11 +215,14 @@ export function saveSiteToDevice(
 		const playground = state.clients[siteSlug].client;
 		if (!playground) {
 			throw new Error(
-				`Site ${siteSlug} must have an active client to be saved to OPFS, but none was found.`
+				`Site ${siteSlug} must have an active client to be saved, but none was found.`
 			);
 		}
 
 		const siteInfo = getSiteInfo(state, siteSlug)!;
+		if (!siteInfo) {
+			throw new Error(`Cannot find site ${siteSlug} to save.`);
+		}
 		await addSiteToStorage({
 			...siteInfo,
 			metadata: {
@@ -307,7 +310,6 @@ export function saveSiteToDevice(
 		}
 
 		dispatch(
-			// @TODO: Update stored site metadata
 			updateSite({
 				slug: siteSlug,
 				originalUrlParams: undefined,
