@@ -134,10 +134,15 @@ export async function createNewSiteInfo(
 		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
 	}
 ): Promise<SiteInfo> {
-	const name = initialInfo.metadata?.name || randomSiteName();
+	const {
+		name: providedName,
+		originalBlueprint,
+		...remainingMetadata
+	} = initialInfo.metadata || {};
+
+	const name = providedName || randomSiteName();
 	const blueprint: Blueprint =
-		initialInfo.metadata?.originalBlueprint ??
-		(await resolveBlueprint(new URL('https://w.org')));
+		originalBlueprint ?? (await resolveBlueprint(new URL('https://w.org')));
 
 	const compiledBlueprint = compileBlueprint(blueprint);
 
@@ -147,9 +152,14 @@ export async function createNewSiteInfo(
 		...initialInfo,
 
 		metadata: {
-			storage: 'none',
+			name,
 			id: crypto.randomUUID(),
 			whenCreated: Date.now(),
+			storage: 'none',
+			originalBlueprint: blueprint,
+
+			...remainingMetadata,
+
 			runtimeConfiguration: {
 				preferredVersions: {
 					wp: compiledBlueprint.versions.wp,
@@ -161,10 +171,6 @@ export async function createNewSiteInfo(
 				features: compiledBlueprint.features,
 				extraLibraries: compiledBlueprint.extraLibraries,
 			},
-			originalBlueprint: blueprint,
-			name,
-
-			...(initialInfo.metadata ?? {}),
 		},
 	};
 }

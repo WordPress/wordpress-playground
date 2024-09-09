@@ -63,9 +63,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				// Create a new temporary site using the config passed in the current URL
 				const url = new URL(window.location.href);
 				const blueprint = await resolveBlueprint(url);
-				const siteNameFromUrl = (
-					url.searchParams.get('name') || ''
-				).trim();
+				const siteNameFromUrl = url.searchParams.get('name')?.trim();
 				const urlParams = {
 					searchParams: Object.fromEntries(
 						url.searchParams.entries()
