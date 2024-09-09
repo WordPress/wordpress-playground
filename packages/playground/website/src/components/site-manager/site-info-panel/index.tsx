@@ -5,7 +5,6 @@ import { getLogoDataURL, WordPressIcon } from '../icons';
 import { useState } from '@wordpress/element';
 import {
 	Button,
-	Notice,
 	Flex,
 	FlexItem,
 	Icon,
@@ -27,7 +26,6 @@ import { SiteLogs } from '../../log-modal';
 import {
 	useAppDispatch,
 	setSiteManagerIsOpen,
-	saveSiteToDevice,
 	useAppSelector,
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
@@ -39,6 +37,7 @@ import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-i
 import { GithubImportMenuItem } from '../../toolbar-buttons/github-import-menu-item';
 import { ReportError } from '../../toolbar-buttons/report-error';
 import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
+import { TemporarySiteNotice } from '../temporary-site-notice';
 
 function SiteInfoRow({
 	label,
@@ -86,30 +85,7 @@ export function SiteInfoPanel({
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>
 			{site.metadata.storage === 'none' ? (
-				<Notice
-					className={css.siteNotice}
-					spokenMessage="This is a temporary site. Your changes will be lost on page refresh."
-					status="info"
-					isDismissible={false}
-				>
-					<Flex direction="row" gap={2} expanded={true}>
-						<FlexItem>
-							<b>This is a temporary site.</b> Your changes will
-							be lost on page refresh.
-						</FlexItem>
-						<FlexItem>
-							<SaveSiteButton siteSlug={site.slug} mode="opfs">
-								Save in this browser
-							</SaveSiteButton>
-							<SaveSiteButton
-								siteSlug={site.slug}
-								mode="local-fs"
-							>
-								Save on your computer
-							</SaveSiteButton>
-						</FlexItem>
-					</Flex>
-				</Notice>
+				<TemporarySiteNotice className={css.siteNotice} />
 			) : null}
 			<Flex
 				direction="column"
@@ -300,69 +276,6 @@ export function SiteInfoPanel({
 				</FlexItem>
 			</Flex>
 		</section>
-	);
-}
-
-function SaveSiteButton({
-	siteSlug,
-	mode,
-	children,
-}: {
-	siteSlug: string;
-	mode: 'local-fs' | 'opfs';
-	children: React.ReactNode;
-}) {
-	const clientInfo = useAppSelector((state) => state.clients[siteSlug]);
-	const dispatch = useAppDispatch();
-
-	const isSyncing =
-		clientInfo?.opfsIsSyncing &&
-		clientInfo?.opfsMountDescriptor?.device.type === mode;
-	// @TODO: The parent component should be aware if local FS is unavailable so that it
-	//        can adjust the UI accordingly.
-	// 		  Also, acknowledge Safari doesn't support local FS yet as we cannot pass the directory
-	//        handle to the worker. Perhaps we could work around this by triggering showDirectoryPicker
-	//        from the worker thread.
-	if (!isSyncing) {
-		return (
-			<Button
-				variant="primary"
-				disabled={!clientInfo?.client}
-				onClick={async () => {
-					dispatch(saveSiteToDevice(siteSlug, mode));
-				}}
-			>
-				{children}
-			</Button>
-		);
-	}
-
-	if (!clientInfo?.opfsSyncProgress) {
-		return (
-			<>
-				<div>
-					<progress id="file" max="100" value="0"></progress>
-				</div>
-				<div>Preparing to save...</div>
-			</>
-		);
-	}
-
-	return (
-		<>
-			<div>
-				<progress
-					id="file"
-					max={clientInfo.opfsSyncProgress.total}
-					value={clientInfo.opfsSyncProgress.files}
-				></progress>
-			</div>
-			<div>
-				{clientInfo.opfsSyncProgress.files}
-				{' / '}
-				{clientInfo.opfsSyncProgress.total} files saved
-			</div>
-		</>
 	);
 }
 

@@ -67,6 +67,7 @@ interface AppState {
 }
 
 const query = new URL(document.location.href).searchParams;
+const isEmbeddedInAnIframe = window.self !== window.top;
 
 // Define the initial state
 const initialState: AppState = {
@@ -80,7 +81,10 @@ const initialState: AppState = {
 		status: { type: 'loading' },
 		sites: [],
 	},
-	siteManagerIsOpen: false,
+	// Open site manager for direct playground.wordpress.net visitors,
+	// unless they specifically request seamless mode.
+	siteManagerIsOpen:
+		query.get('mode') !== 'seamless' && !isEmbeddedInAnIframe,
 };
 
 // Create the slice
