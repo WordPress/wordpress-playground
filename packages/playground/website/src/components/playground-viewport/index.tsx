@@ -14,14 +14,13 @@ import { PlaygroundClient } from '@wp-playground/remote';
 import { getDirectoryNameForSlug } from '../../lib/site-storage';
 import { logger } from '@php-wasm/logger';
 import { getRemoteUrl } from '../../lib/config';
-import { playgroundAvailableInOpfs } from '../playground-configuration-group/playground-available-in-opfs';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import {
 	Blueprint,
 	startPlaygroundWeb,
 	StepDefinition,
 } from '@wp-playground/client';
-import { loadDirectoryHandle } from '../playground-configuration-group/idb-opfs';
+import { loadDirectoryHandle } from '../../lib/idb-opfs';
 import { logTrackingEvent } from '../../lib/tracking';
 
 export const supportedDisplayModes = [
@@ -192,3 +191,43 @@ export const JustViewport = function LoadedViewportComponent() {
 		</div>
 	);
 };
+
+/**
+ * Check if the given OPFS directory is a Playground directory.
+ *
+ * This function is duplicated in @wp-playground/remote package.
+ *
+ * @TODO: Create a shared package like @wp-playground/wordpress for such utilities
+ * and bring in the context detection logic from wp-now – only express it in terms of
+ * either abstract FS operations or isomorphic PHP FS operations.
+ * (we can't just use Node.js require('fs') in the browser, for example)
+ *
+ * @TODO: Reuse the "isWordPressInstalled" logic implemented in the boot protocol.
+ *        Perhaps mount OPFS first, and only then check for the presence of the
+ *        WordPress installation? Or, if not, perhaps implement a shared file access
+ * 		  abstraction that can be used both with the PHP module and OPFS directory handles?
+ *
+ * @param opfs
+ */
+export async function playgroundAvailableInOpfs(
+	opfs: FileSystemDirectoryHandle
+) {
+	try {
+		/**
+		 * Assume it's a Playground directory if these files exist:
+		 * - wp-config.php
+		 * - wp-content/database/.ht.sqlite
+		 */
+		await opfs.getFileHandle('wp-config.php', { create: false });
+		const wpContent = await opfs.getDirectoryHandle('wp-content', {
+			create: false,
+		});
+		const database = await wpContent.getDirectoryHandle('database', {
+			create: false,
+		});
+		await database.getFileHandle('.ht.sqlite', { create: false });
+	} catch (e) {
+		return false;
+	}
+	return true;
+}

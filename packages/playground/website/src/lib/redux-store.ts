@@ -13,7 +13,7 @@ import { MountDescriptor, PlaygroundClient } from '@wp-playground/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateUrl } from './router-hooks';
 import { logger } from '@php-wasm/logger';
-import { saveDirectoryHandle } from '../components/playground-configuration-group/idb-opfs';
+import { saveDirectoryHandle } from './idb-opfs';
 
 export type ActiveModal =
 	| 'error-report'

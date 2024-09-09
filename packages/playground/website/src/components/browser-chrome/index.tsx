@@ -9,7 +9,7 @@ import {
 	getActiveClient,
 	useActiveSite,
 } from '../../lib/redux-store';
-import { SyncLocalFilesButton } from '../playground-configuration-group/sync-local-files-button';
+import { SyncLocalFilesButton } from '../sync-local-files-button';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
