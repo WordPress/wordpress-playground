@@ -16,8 +16,13 @@ import { logger } from '@php-wasm/logger';
 import { getRemoteUrl } from '../../lib/config';
 import { playgroundAvailableInOpfs } from '../playground-configuration-group/playground-available-in-opfs';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
-import { startPlaygroundWeb } from '@wp-playground/client';
+import {
+	Blueprint,
+	startPlaygroundWeb,
+	StepDefinition,
+} from '@wp-playground/client';
 import { loadDirectoryHandle } from '../playground-configuration-group/idb-opfs';
+import { logTrackingEvent } from '../../lib/tracking';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -26,7 +31,6 @@ export const supportedDisplayModes = [
 export type DisplayMode = (typeof supportedDisplayModes)[number];
 interface PlaygroundViewportProps {
 	displayMode?: DisplayMode;
-	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;
 	siteSlug?: string;
 	hideToolbar?: boolean;
@@ -35,7 +39,6 @@ interface PlaygroundViewportProps {
 
 export const PlaygroundViewport = ({
 	displayMode = 'browser-full-screen',
-	toolbarButtons,
 	hideToolbar,
 	className,
 }: PlaygroundViewportProps) => {
@@ -44,11 +47,7 @@ export const PlaygroundViewport = ({
 		return <JustViewport />;
 	}
 	return (
-		<BrowserChrome
-			toolbarButtons={toolbarButtons}
-			hideToolbar={hideToolbar}
-			className={className}
-		>
+		<BrowserChrome hideToolbar={hideToolbar} className={className}>
 			<JustViewport />
 		</BrowserChrome>
 	);
@@ -94,9 +93,26 @@ export const JustViewport = function LoadedViewportComponent() {
 				);
 			}
 
-			const blueprint = isWordPressInstalled
-				? activeSite.metadata.runtimeConfiguration
-				: activeSite.metadata.originalBlueprint;
+			logTrackingEvent('load');
+
+			let blueprint: Blueprint;
+			if (isWordPressInstalled) {
+				blueprint = activeSite.metadata.runtimeConfiguration;
+			} else {
+				blueprint = activeSite.metadata.originalBlueprint;
+				// Log the names of provided Blueprint's steps.
+				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
+				// code, password, URLs are never sent anywhere.
+				const steps = (blueprint?.steps || [])
+					?.filter(
+						(step: any) =>
+							!!(typeof step === 'object' && step?.step)
+					)
+					.map((step) => (step as StepDefinition).step);
+				for (const step of steps) {
+					logTrackingEvent('step', { step });
+				}
+			}
 
 			let playground: PlaygroundClient;
 			const iframe = (iframeRef as any)?.current;

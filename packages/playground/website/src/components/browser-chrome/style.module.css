@@ -117,56 +117,9 @@ body.is-embedded .fake-window-wrapper {
 	display: flex;
 }
 
-.window-control {
-	display: flex;
-	width: 22px;
-	height: 20px;
-	border-radius: 50%;
-	position: relative;
-}
-
-.window-control::before {
-	content: '';
-	position: absolute;
-	box-sizing: border-box;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	width: 10px;
-	height: 10px;
-	border-radius: 50%;
-}
-
-.window-control.is-neutral::before {
-	background: #a5afbc;
-	border: 1px solid #a5afbc;
-}
-
-.window-control.is-active {
-	cursor: pointer;
-}
-
-.window-control.is-red::before {
-	background: #ff6057;
-	border: 1px solid #e14640;
-}
-
-.window-control.is-amber::before {
-	background: #ffbd2e;
-	border: 1px solid #dfa123;
-}
-
-.window-control.is-green::before {
-	background: #27c93f;
-	border: 1px solid #1dad2b;
-}
-
 @media (max-width: 1100px) {
 	.toolbar {
 		grid-template-columns: 1fr auto;
-	}
-	.window-controls {
-		display: none;
 	}
 	.has-site-manager {
 		grid-template-columns: auto 1fr auto;
