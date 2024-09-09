@@ -215,7 +215,7 @@ export function SiteInfoPanel({
 												* https://github.com/adamziel/wxr-normalize/pull/1
 												* https://github.com/adamziel/site-transfer-protocol
 											*/}
-											{/* <MenuItem onClick={onClose}>Duplicate</MenuItem> */}
+											{/* <MenuItem onClick={onClose}>Duplicate Site</MenuItem> */}
 											<ReportError
 												onClose={onClose}
 												disabled={offline}
