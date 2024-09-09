@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## Unreleased 
+## [v0.9.38] (2024-09-09) 
 
 ### Internal
 
