@@ -1,10 +1,13 @@
-import { Button, Modal } from '@wordpress/components';
-import css from './style.module.css';
+import { Modal } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 import { useCurrentUrl } from '../../../lib/router-hooks';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
 
-export function AddSiteButton() {
+export function SiteCreateButton({
+	children,
+}: {
+	children: (onClick: () => void) => React.ReactNode;
+}) {
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [, setUrlComponents] = useCurrentUrl();
 
@@ -28,14 +31,8 @@ export function AddSiteButton() {
 	};
 
 	return (
-		<div className={css.addSiteButton}>
-			<Button
-				variant="primary"
-				className={css.addSiteButtonComponent}
-				onClick={() => setModalOpen(true)}
-			>
-				Add site
-			</Button>
+		<>
+			{children(() => setModalOpen(true))}
 
 			{isModalOpen && (
 				<Modal
@@ -48,6 +45,6 @@ export function AddSiteButton() {
 					/>
 				</Modal>
 			)}
-		</div>
+		</>
 	);
 }

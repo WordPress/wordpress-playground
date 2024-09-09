@@ -5,7 +5,7 @@ import css from './style.module.css';
 import { useState } from 'react';
 import Modal, { defaultStyles } from '../../components/modal';
 import classNames from 'classnames';
-import { useAppSelector } from '../../lib/redux-store';
+import { useActiveSite } from '../../lib/redux-store';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
@@ -77,7 +77,7 @@ function Authenticate({
 	authenticateUrl,
 	mayLoseProgress = undefined,
 }: AuthenticateProps) {
-	const storage = useAppSelector((state) => state.activeSite!.storage);
+	const storage = useActiveSite()!.metadata.storage;
 
 	if (mayLoseProgress === undefined) {
 		mayLoseProgress = storage === 'none';

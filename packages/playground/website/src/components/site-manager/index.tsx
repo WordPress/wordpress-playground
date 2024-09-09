@@ -2,9 +2,9 @@ import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
 import {
 	useAppDispatch,
-	useAppSelector,
 	setSiteManagerIsOpen,
 	deleteSite,
+	useActiveSite,
 } from '../../lib/redux-store';
 
 import css from './style.module.css';
@@ -23,7 +23,7 @@ export const SiteManager = forwardRef<
 >(({ className }, ref) => {
 	const [, setUrlComponents] = useCurrentUrl();
 
-	const activeSite = useAppSelector((state) => state.activeSite!);
+	const activeSite = useActiveSite()!;
 	const dispatch = useAppDispatch();
 
 	const removeSite = async (siteToRemove: SiteInfo) => {

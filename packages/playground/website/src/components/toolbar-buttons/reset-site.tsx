@@ -2,10 +2,9 @@ import { trash } from '@wordpress/icons';
 import { MenuItem } from '@wordpress/components';
 import {
 	getActiveClient,
-	PlaygroundReduxState,
+	useActiveSite,
 	useAppSelector,
 } from '../../lib/redux-store';
-import { useSelector } from 'react-redux';
 import { clearContentsFromMountDevice } from '@wp-playground/storage';
 import { SiteStorageType } from '../../lib/site-storage';
 
@@ -14,9 +13,7 @@ const opfsStorages: SiteStorageType[] = ['opfs', 'local-fs'];
 export function ResetSiteMenuItem({ onClose }: Props) {
 	const opfsMountDescriptor =
 		useAppSelector(getActiveClient)?.opfsMountDescriptor;
-	const storage = useSelector(
-		(state: PlaygroundReduxState) => state.activeSite!.storage
-	);
+	const storage = useActiveSite()!.metadata.storage;
 	return (
 		<MenuItem
 			icon={trash}

@@ -4,6 +4,7 @@ import { useCurrentUrl } from '../../lib/router-hooks';
 import {
 	createSite,
 	setActiveSite,
+	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/redux-store';
@@ -23,7 +24,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	children: React.ReactNode;
 }) {
 	const sites = useAppSelector((state) => state.siteListing.sites);
-	const activeSite = useAppSelector((state) => state.activeSite);
+	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const [url, setUrlComponents] = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
@@ -43,7 +44,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				}
 				// @TODO: Incorporate any query arg-driven config changes such as ?login=no.
 				// Do not use any mutating query args like ?plugin= for now.
-				dispatch(setActiveSite(siteInfo!));
+				dispatch(setActiveSite(siteInfo!.slug));
 				setUrlComponents({
 					searchParams: { 'site-slug': siteInfo!.slug },
 				});
@@ -93,13 +94,13 @@ export function EnsurePlaygroundSiteIsSelected({
 						JSON.stringify(urlParams)
 				);
 				if (existingSite) {
-					dispatch(setActiveSite(existingSite));
+					dispatch(setActiveSite(existingSite.slug));
 					return;
 				}
 
 				// Create a new site otherwise
 				await dispatch(createSite(newSiteInfo));
-				dispatch(setActiveSite(newSiteInfo!));
+				dispatch(setActiveSite(newSiteInfo.slug));
 			} else {
 				lastSiteInfoRef.current = undefined;
 			}

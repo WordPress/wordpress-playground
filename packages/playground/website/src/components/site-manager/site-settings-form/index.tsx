@@ -15,8 +15,9 @@ import { useSupportedWordPressVersions } from './use-supported-wordpress-version
 
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;
-	formFields?: Record<Partial<keyof SiteFormData>, boolean>;
+	formFields?: Partial<Record<keyof SiteFormData, boolean>>;
 	submitButtonText?: string;
+	defaultValues?: Partial<SiteFormData>;
 }
 
 export interface SiteFormData {
@@ -32,6 +33,7 @@ export interface SiteFormData {
 export default function SiteSettingsForm({
 	onSubmit,
 	submitButtonText,
+	defaultValues = {},
 	formFields = {
 		name: true,
 		phpVersion: true,
@@ -41,29 +43,36 @@ export default function SiteSettingsForm({
 		withNetworking: true,
 	},
 }: SiteSettingsFormProps) {
+	defaultValues = {
+		name: randomSiteName(),
+		phpVersion: '8.0',
+		wpVersion: 'latest',
+		language: '',
+		withExtensions: true,
+		withNetworking: true,
+		...defaultValues,
+	};
 	const {
 		handleSubmit,
 		setValue,
+		getValues,
 		control,
 		formState: { errors },
 	} = useForm<SiteFormData>({
-		defaultValues: {
-			name: randomSiteName(),
-			phpVersion: '8.0',
-			language: '',
-			withExtensions: true,
-			withNetworking: true,
-		},
+		defaultValues,
 	});
 
 	const { supportedWPVersions, latestWPVersion } =
 		useSupportedWordPressVersions();
 
 	useEffect(() => {
-		if (latestWPVersion) {
+		if (
+			latestWPVersion &&
+			['', 'latest'].includes(getValues('wpVersion'))
+		) {
 			setValue('wpVersion', latestWPVersion);
 		}
-	}, [latestWPVersion, setValue]);
+	}, [latestWPVersion, setValue, getValues]);
 
 	return (
 		<form onSubmit={handleSubmit(onSubmit)}>

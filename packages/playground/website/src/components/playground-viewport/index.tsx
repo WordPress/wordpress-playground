@@ -6,8 +6,8 @@ import {
 	forgetClientInfo,
 	setActiveModal,
 	updateClientInfo,
+	useActiveSite,
 	useAppDispatch,
-	useAppSelector,
 } from '../../lib/redux-store';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/remote';
@@ -56,7 +56,7 @@ export const PlaygroundViewport = ({
 
 export const JustViewport = function LoadedViewportComponent() {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
-	const activeSite = useAppSelector((state) => state.activeSite!);
+	const activeSite = useActiveSite()!;
 
 	const dispatch = useAppDispatch();
 	useEffect(() => {
@@ -127,6 +127,8 @@ export const JustViewport = function LoadedViewportComponent() {
 			}
 
 			// @TODO: Keep the client around for some time to enable quick switching between sites.
+			// @TODO: Trash the client if we're staying on the same site slug and only changing the
+			//        runtime configuration such as the PHP version.
 			if (unmounted) {
 				return;
 			}
@@ -160,7 +162,7 @@ export const JustViewport = function LoadedViewportComponent() {
 			dispatch(forgetClientInfo(activeSite.slug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeSite.slug, iframeRef]);
+	}, [activeSite.slug, iframeRef, activeSite.metadata.runtimeConfiguration]);
 
 	return (
 		<div className={css.fullSize}>

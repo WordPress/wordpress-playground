@@ -9,13 +9,14 @@ import {
 	FlexBlock,
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
+	Button,
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
 import { type SiteLogo } from '../../../lib/site-storage';
-import { AddSiteButton } from '../add-site-button';
-import { useAppSelector } from '../../../lib/redux-store';
+import { useActiveSite, useAppSelector } from '../../../lib/redux-store';
 import { useCurrentUrl } from '../../../lib/router-hooks';
 import { useMemo } from 'react';
+import { SiteCreateButton } from '../site-create-button';
 
 export function Sidebar({ className }: { className?: string }) {
 	const sitesRaw = useAppSelector(
@@ -23,7 +24,6 @@ export function Sidebar({ className }: { className?: string }) {
 		// @TODO: Sort by last access date
 		(state) => state.siteListing?.sites
 	);
-	console.log('sites', sitesRaw);
 	const sites = useMemo(() => {
 		return sitesRaw
 			? sitesRaw
@@ -35,13 +35,12 @@ export function Sidebar({ className }: { className?: string }) {
 					)
 			: [];
 	}, [sitesRaw]);
-	const activeSite = useAppSelector((state) => state.activeSite!);
+	const activeSite = useActiveSite()!;
 
 	const [, setUrlComponents] = useCurrentUrl();
 
 	const onSiteClick = (slug: string) => {
 		const site = sites.find((site) => site.slug === slug);
-		console.log({ site });
 		if (site?.originalUrlParams) {
 			setUrlComponents(site.originalUrlParams);
 		} else {
@@ -153,7 +152,19 @@ export function Sidebar({ className }: { className?: string }) {
 					))}
 				</ItemGroup>
 			</footer>
-			<AddSiteButton />
+			<SiteCreateButton>
+				{(onClick) => (
+					<div className={css.addSiteButton}>
+						<Button
+							variant="primary"
+							className={css.addSiteButtonComponent}
+							onClick={onClick}
+						>
+							Add site
+						</Button>
+					</div>
+				)}
+			</SiteCreateButton>
 		</NavigableMenu>
 	);
 }

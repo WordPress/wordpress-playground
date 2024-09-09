@@ -13,7 +13,6 @@ import {
 	MenuGroup,
 	MenuItem,
 	TabPanel,
-	Modal,
 } from '@wordpress/components';
 import {
 	moreVertical,
@@ -32,7 +31,7 @@ import {
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
-import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
+import { SiteEditButton } from '../site-edit-button';
 
 function SiteInfoRow({
 	label,
@@ -427,10 +426,11 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 							site.metadata.runtimeConfiguration.preferredVersions
 								.php
 						}${
-							site.metadata.runtimeConfiguration
-								.phpExtensionBundles?.[0] === 'light'
-								? ''
-								: ' (with extensions)'
+							site.metadata.runtimeConfiguration.phpExtensionBundles?.includes(
+								'kitchen-sink'
+							)
+								? ' (with extensions)'
+								: ''
 						}`}
 					/>
 					<SiteInfoRow
@@ -542,7 +542,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 					justify="flex-start"
 				>
 					<FlexItem>
-						<EditSiteSettingsButton siteSlug={site.slug}>
+						<SiteEditButton siteSlug={site.slug}>
 							{(onClick) => (
 								<Button
 									variant="tertiary"
@@ -552,7 +552,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 									Edit settings
 								</Button>
 							)}
-						</EditSiteSettingsButton>
+						</SiteEditButton>
 					</FlexItem>
 					{site.metadata.originalBlueprint ? (
 						<FlexItem>
@@ -576,43 +576,5 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 				</Flex>
 			</FlexItem>
 		</Flex>
-	);
-}
-
-function EditSiteSettingsButton({
-	siteSlug,
-	children,
-}: {
-	siteSlug: string;
-	children: (onClick: () => void) => React.ReactNode;
-}) {
-	const [isModalOpen, setModalOpen] = useState(false);
-	const updateSite = async (data: SiteFormData) => {
-		alert('Not implemented yet');
-		setModalOpen(false);
-	};
-
-	return (
-		<div className={css.addSiteButton}>
-			{children(() => setModalOpen(true))}
-
-			{isModalOpen && (
-				<Modal
-					title="Edit site settings"
-					onRequestClose={() => setModalOpen(false)}
-				>
-					<SiteSettingsForm
-						onSubmit={updateSite}
-						submitButtonText="Save"
-						formFields={{
-							phpVersion: true,
-							withExtensions: true,
-							withNetworking: true,
-							name: true,
-						}}
-					/>
-				</Modal>
-			)}
-		</div>
 	);
 }

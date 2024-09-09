@@ -5,6 +5,7 @@ import {
 	listSites,
 	addSite as addSiteToStorage,
 	removeSite as removeSiteFromStorage,
+	updateSite as updateSiteInStorage,
 	getDirectoryNameForSlug,
 } from './site-storage';
 import type { MountDevice, SyncProgress } from '@php-wasm/web';
@@ -57,7 +58,7 @@ export interface ClientInfo {
 
 // Define the state types
 interface AppState {
-	activeSite?: SiteInfo;
+	activeSiteSlug?: string;
 	activeModal: string | null;
 	offline: boolean;
 	siteListing: SiteListing;
@@ -87,8 +88,8 @@ const slice = createSlice({
 	name: 'app',
 	initialState,
 	reducers: {
-		setActiveSite: (state, action: PayloadAction<SiteInfo>) => {
-			state.activeSite = action.payload;
+		setActiveSite: (state, action: PayloadAction<string>) => {
+			state.activeSiteSlug = action.payload;
 		},
 		forgetClientInfo: (state, action: PayloadAction<string>) => {
 			delete state.clients[action.payload];
@@ -136,8 +137,6 @@ const slice = createSlice({
 			state,
 			action: PayloadAction<Partial<SiteInfo> & { slug: string }>
 		) => {
-			// @TODO: Update stored site metadata, not just the redux store.
-
 			const siteIndex = state.siteListing.sites.findIndex(
 				(siteInfo) => siteInfo.slug === action.payload.slug
 			);
@@ -192,15 +191,36 @@ export const {
 	forgetClientInfo,
 	setActiveSite,
 	setSiteManagerIsOpen,
-	updateSite,
 } = slice.actions;
 
 export const getActiveClient = (
 	state: PlaygroundReduxState
 ): ClientInfo | undefined =>
-	state.activeSite ? state.clients[state.activeSite.slug] : undefined;
+	state.activeSiteSlug ? state.clients[state.activeSiteSlug] : undefined;
+
+export const getActiveSite = (
+	state: PlaygroundReduxState
+): SiteInfo | undefined =>
+	state.activeSiteSlug
+		? state.siteListing.sites.find(
+				(site) => site.slug === state.activeSiteSlug
+		  )
+		: undefined;
+
+export const useActiveSite = () => useAppSelector(getActiveSite);
 
 // Redux thunk
+export function updateSiteMetadata(siteInfo: SiteInfo) {
+	return async (dispatch: typeof store.dispatch) => {
+		// @TODO: Handle errors.
+		// @TODO: Throw if storage type changed. This thunk is not for moving sites between
+		//        storage backends.
+
+		dispatch(slice.actions.updateSite(siteInfo));
+		await updateSiteInStorage(siteInfo);
+	};
+}
+
 export function saveSiteToDevice(
 	siteSlug: string,
 	deviceType: 'opfs' | 'local-fs'
@@ -310,7 +330,7 @@ export function saveSiteToDevice(
 		}
 
 		dispatch(
-			updateSite({
+			slice.actions.updateSite({
 				slug: siteSlug,
 				originalUrlParams: undefined,
 				metadata: {

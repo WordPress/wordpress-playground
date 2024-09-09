@@ -7,17 +7,21 @@ import {
 	useAppSelector,
 	useAppDispatch,
 	setSiteManagerIsOpen,
+	useActiveSite,
 } from '../../lib/redux-store';
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.siteManagerIsOpen
 	);
-	const activeSite = useAppSelector((state) => state.activeSite!);
-	const blueprint = activeSite.metadata.originalBlueprint || {};
-	const storage = activeSite.storage;
-
 	const dispatch = useAppDispatch();
+	const activeSite = useActiveSite()!;
+	if (!activeSite) {
+		// @TODO: Why does this happen for a brief moment when updating a local site?
+		return null;
+	}
+	const blueprint = activeSite.metadata.originalBlueprint || {};
+	const storage = activeSite.metadata.storage;
 
 	return (
 		<div className={css.layout}>

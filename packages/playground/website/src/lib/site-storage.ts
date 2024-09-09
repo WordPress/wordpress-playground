@@ -188,6 +188,10 @@ export async function addSite(newSiteInfo: SiteInfo): Promise<SiteInfo> {
 	return newSiteInfo;
 }
 
+export async function updateSite(site: SiteInfo) {
+	await writeSiteMetadata(site);
+}
+
 /**
  * Creates a top-level directory with the given name.
  *
