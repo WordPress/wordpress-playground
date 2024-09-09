@@ -6,17 +6,13 @@ import { PlaygroundConfiguration } from './components/playground-configuration-g
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
-import { SiteView } from './components/site-view/site-view';
 import { StorageTypes, StorageType } from './types';
-import { SiteManager } from './components/site-manager';
 import { useBootPlayground } from './lib/use-boot-playground';
 import { Provider } from 'react-redux';
-import { useEffect, useRef, useState } from '@wordpress/element';
+import { useEffect, useState } from '@wordpress/element';
 import store from './lib/redux-store';
-import {
-	__experimentalNavigatorProvider as NavigatorProvider,
-	__experimentalNavigatorScreen as NavigatorScreen,
-} from '@wordpress/components';
+import { __experimentalNavigatorProvider as NavigatorProvider } from '@wordpress/components';
+import { Layout } from './components/layout';
 
 collectWindowErrors(logger);
 
@@ -62,7 +58,6 @@ if (currentConfiguration.wp === '6.3') {
 }
 
 function Main() {
-	const siteViewRef = useRef<HTMLDivElement>(null);
 	const [siteSlug, setSiteSlug] = useState<string | undefined>(
 		query.get('site-slug') ?? undefined
 	);
@@ -78,38 +73,26 @@ function Main() {
 	const { playground, url, iframeRef } = useBootPlayground({ blueprint });
 
 	return (
-		<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
-			<NavigatorScreen
-				path="/manager"
-				className={css.playgroundNavigatorScreen}
-			>
-				<SiteManager
-					siteSlug={siteSlug}
-					onSiteChange={setSiteSlug}
-					siteViewRef={siteViewRef}
-				/>
-			</NavigatorScreen>
-			<NavigatorScreen path="/">
-				<div />
-			</NavigatorScreen>
-			<SiteView
-				siteViewRef={siteViewRef}
-				blueprint={blueprint}
-				currentConfiguration={currentConfiguration}
-				storage={storage}
-				playground={playground}
-				url={url}
-				iframeRef={iframeRef}
-			/>
-		</NavigatorProvider>
+		<Layout
+			playground={playground!}
+			url={url!}
+			iframeRef={iframeRef}
+			blueprint={blueprint}
+			storage={storage}
+			currentConfiguration={currentConfiguration}
+			siteSlug={siteSlug}
+			setSiteSlug={setSiteSlug}
+		/>
 	);
 }
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
-	<Provider store={store}>
-		<Main />
-	</Provider>
+	<NavigatorProvider initialPath="/" className={css.playgroundNavigator}>
+		<Provider store={store}>
+			<Main />
+		</Provider>
+	</NavigatorProvider>
 );
 
 function resolveVersion<T>(

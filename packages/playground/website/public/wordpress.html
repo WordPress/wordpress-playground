@@ -96,7 +96,7 @@
 		>
 		and the
 		<a
-			href="https://wordpress.github.io/wordpress-playground/docs/build-your-first-app#preview-pull-requests-from-your-repository"
+			href="https://wordpress.github.io/wordpress-playground/developers/build-your-first-app/#preview-pull-requests-from-your-repository"
 		>
 			documentation page</a
 		>.
@@ -110,7 +110,7 @@
 		 * Learn more at:
 		 *
 		 * * https://wordpress.github.io/wordpress-playground/
-		 * * https://wordpress.github.io/wordpress-playground/docs/build-your-first-app#preview-pull-requests-from-your-repository
+		 * * https://wordpress.github.io/wordpress-playground/developers/build-your-first-app/#preview-pull-requests-from-your-repository
 		 */
 
 		let submitting = false;
@@ -219,9 +219,12 @@
 				landingPage: urlParams.get('url') || '/wp-admin',
 				login: true,
 				preferredVersions: {
-					php: "7.4",
-					wp: zipArtifactUrl
-				}
+					php: '7.4',
+					wp: zipArtifactUrl,
+				},
+				features: {
+					networking: true,
+				},
 			};
 			const encoded = JSON.stringify(blueprint);
 

@@ -5,7 +5,11 @@
  */
 
 // Used during deployment to identify files that need to be served in a custom way via PHP
-function playground_file_needs_special_treatment( $path ) {
+function playground_is_static_file_needing_special_treatment( $path ) {
+	if ( str_ends_with( $path, '.php' ) ) {
+		return false;
+	}
+
 	return (
 		!! playground_maybe_rewrite( $path ) ||
 		!! playground_maybe_redirect( $path ) ||
@@ -86,8 +90,9 @@ function playground_handle_request() {
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
-	if ( false === $resolved_path ) {
-		$resolved_path = realpath( __DIR__ . '/files-to-serve-via-php' . $requested_path );
+	if ( false === $resolved_path && ! str_ends_with( $requested_path, '.php' ) ) {
+		// Static files that need special treatment are served from a different directory.
+		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $requested_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
@@ -195,21 +200,21 @@ function playground_maybe_redirect( $requested_path ) {
 		str_ends_with( $requested_path, '/builder/index.php' )
 	) {
 		return array(
-			'location' => 'https://playground.wordpress.net/builder/builder.html',
+			'location' => 'builder.html',
 			'status' => 301
 		);
 	}
 
 	if ( str_ends_with( $requested_path, '/wordpress' ) ) {
 		return array(
-			'location' => 'https://playground.wordpress.net/wordpress.html',
+			'location' => 'wordpress.html',
 			'status' => 301
 		);
 	}
 
 	if ( str_ends_with( $requested_path, '/gutenberg' ) ) {
 		return array(
-			'location' => 'https://playground.wordpress.net/gutenberg.html',
+			'location' => 'gutenberg.html',
 			'status' => 301
 		);
 	}

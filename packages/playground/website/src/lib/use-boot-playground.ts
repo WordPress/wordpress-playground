@@ -7,6 +7,7 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
+	setPlaygroundClient,
 } from './redux-store';
 import { useDispatch, useSelector } from 'react-redux';
 import { playgroundAvailableInOpfs } from '../components/playground-configuration-group/playground-available-in-opfs';
@@ -29,9 +30,6 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 
 	useEffect(() => {
 		const remoteUrl = getRemoteUrl();
-		if (started.current === remoteUrl.toString()) {
-			return;
-		}
 		if (!iframe) {
 			// Iframe ref is likely not set on the initial render.
 			// Re-render the current component to start the playground.
@@ -82,6 +80,7 @@ export function useBootPlayground({ blueprint }: UsePlaygroundOptions) {
 						(url: string) => setUrl(url)
 					);
 					setPlayground(() => playgroundTmp);
+					dispatch(setPlaygroundClient(playgroundTmp));
 				}
 			}
 		}

@@ -7,15 +7,25 @@ import {
 } from '@wordpress/components';
 import css from './style.module.css';
 import { useEffect, useRef, useState } from '@wordpress/element';
-import { Site } from '../site-manager-sidebar';
+import { type SiteInfo } from '../../../lib/site-storage';
 import classNames from 'classnames';
+
+function generateUniqueName(defaultName: string, sites: SiteInfo[]) {
+	const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
+		site.name.startsWith(defaultName)
+	).length;
+	if (numberOfSitesStartingWithDefaultName === 0) {
+		return defaultName;
+	}
+	return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
+}
 
 export function AddSiteButton({
 	onAddSite,
 	sites,
 }: {
 	onAddSite: (siteName: string) => void;
-	sites: Site[];
+	sites: SiteInfo[];
 }) {
 	const defaultName = 'My Site';
 	const [isModalOpen, setModalOpen] = useState(false);
@@ -23,23 +33,13 @@ export function AddSiteButton({
 	const addSiteButtonRef = useRef<HTMLFormElement>(null);
 	const [error, setError] = useState<string | undefined>(undefined);
 
-	const generateUniqueName = () => {
-		const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
-			site.name.startsWith(defaultName)
-		).length;
-		if (numberOfSitesStartingWithDefaultName === 0) {
-			return defaultName;
-		}
-		return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
-	};
-
 	useEffect(() => {
-		setSiteName(generateUniqueName());
+		setSiteName(generateUniqueName(defaultName, sites));
 	}, [sites]);
 
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => {
-		setSiteName(generateUniqueName());
+		setSiteName(generateUniqueName(defaultName, sites));
 		setModalOpen(false);
 	};
 
