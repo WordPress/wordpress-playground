@@ -6,7 +6,13 @@ description: WordPress Playground for Theme Developers
 
 The WordPress Playground is an innovative tool that allows theme developers to build, test and showcase their themes directly in a browser environment.
 
-This guide will explore how you can leverage the WordPress Playground to enhance your theme development workflow, create live demos to showcase your Wordpress theme to the world, and streamline your theme review process.
+This guide will explore **how you can leverage the WordPress Playground to enhance your theme development workflow, create live demos to showcase your Wordpress theme to the world, and streamline your theme review process**.
+
+:::info
+
+Discover how you can leverage WordPress Playground to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products in the [About Playground](/about) section
+
+:::
 
 ## Launching a Playground instance with a theme
 
@@ -181,10 +187,19 @@ With the shorthand [`login`](/blueprints/steps/shorthands#login) you can launch 
 You can also use the [`login`](/blueprints/steps#login) step to launch your Playground instance logged in with any specific user.
 
 :::tip
-Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+
+Some useful tools and resources provided by the Playground project to work with blueprints are:
+
+-   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+-   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+-   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+-   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it direclty in a Playground instance.
+
 :::
 
-## Local Theme Development with Playground
+## Theme development
+
+### Local theme development and testing with Playground
 
 From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated by launching the [`wp-now` command](/developers/local-development/wp-now) or the [Visual Code Studio extension](/developers/local-development/vscode-extension).
 
@@ -195,3 +210,19 @@ git clone git@github.com:WordPress/community-themes.git
 cd community-themes/blue-note
 npx @wp-now/wp-now start
 ```
+
+### Design your theme using the WordPress UI and save your changes as Pull Requests
+
+You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you’ve done through the WordPress UI in the Playground instance, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin. You can also make changes to that theme and export a zip.
+
+Note that you'll need [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin installed and activated in the Playground instance in order to use this workflow.
+
+<iframe width="800" src="https://www.youtube.com/embed/94KnoFhQg1g" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<p></p>
+
+:::tip
+
+Check [About Playground > Build > Save changes done on a Block Theme and create Github Pull Requests](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) for more info
+
+:::
