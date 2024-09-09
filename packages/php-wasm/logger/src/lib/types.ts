@@ -16,7 +16,7 @@ export interface UniversalPHP {
 
 	addEventListener(
 		event: string,
-		listener: (event: PHPRequestEndEvent | PHPRequestErrorEvent) => void
+		listener: (event: PHPRequestErrorEvent) => void
 	): void;
 }
 
