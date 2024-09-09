@@ -1,5 +1,5 @@
 :root {
-	--site-manager-site-list-width: 282px;
+	--site-manager-site-list-width: 350px;
 	--site-manager-site-info-min-width: 524px;
 	--site-manager-width: calc(
 		var(--site-manager-site-list-width) +
@@ -89,6 +89,7 @@ body {
 .site-view-content {
 	overflow: hidden;
 	transition: border-radius 300ms;
+	height: 100%;
 }
 
 .site-view-overlay {

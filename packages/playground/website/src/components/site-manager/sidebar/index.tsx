@@ -50,7 +50,7 @@ export function Sidebar({ className }: { className?: string }) {
 
 	const resources = [
 		{
-			label: 'Preview WordPress Pull Request',
+			label: 'Preview WordPress PR',
 			href: '/wordpress.html',
 		},
 		{
@@ -162,10 +162,10 @@ export function Sidebar({ className }: { className?: string }) {
 			</footer>
 			<SiteCreateButton>
 				{(onClick) => (
-					<div className={css.addSiteButton}>
+					<div className={css.addSiteButtonWrapper}>
 						<Button
 							variant="primary"
-							className={css.addSiteButtonComponent}
+							className={css.addSiteButtonButton}
 							onClick={onClick}
 						>
 							Add site

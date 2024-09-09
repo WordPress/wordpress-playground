@@ -80,10 +80,12 @@ export function Layout() {
 						}}
 					/>
 				)}
-				<PlaygroundViewport
-					displayMode={displayMode}
-					hideToolbar={siteManagerIsOpen}
-				/>
+				<div className={css.siteViewContent}>
+					<PlaygroundViewport
+						displayMode={displayMode}
+						hideToolbar={siteManagerIsOpen}
+					/>
+				</div>
 			</div>
 		</div>
 	);

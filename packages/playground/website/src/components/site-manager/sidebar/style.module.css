@@ -103,3 +103,22 @@
 	font-weight: 400;
 	vertical-align: middle;
 }
+
+.add-site-button-button {
+	margin: 0;
+	padding: 0 16px;
+	border-top: 1px solid #2b2b2b;
+	background-color: var(--site-manager-background-color);
+	position: sticky;
+	bottom: 0;
+	align-items: center;
+	justify-content: center;
+}
+
+.add-site-button-wrapper {
+	text-align: center;
+	display: block;
+	width: 100%;
+	margin-top: 16px;
+	padding: 0 16px;
+}
