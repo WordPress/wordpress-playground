@@ -50,6 +50,14 @@ export function Sidebar({ className }: { className?: string }) {
 
 	const resources = [
 		{
+			label: 'Preview WordPress Pull Request',
+			href: '/wordpress.html',
+		},
+		{
+			label: 'More demos',
+			href: '/demos/index.html',
+		},
+		{
 			label: 'Documentation',
 			href: 'https://wordpress.github.io/wordpress-playground/',
 		},

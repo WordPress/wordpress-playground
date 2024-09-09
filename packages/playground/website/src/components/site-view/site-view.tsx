@@ -1,34 +1,22 @@
-import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
-import { menu, external } from '@wordpress/icons';
 import {
 	DisplayMode,
 	PlaygroundViewport,
 	supportedDisplayModes,
 } from '../playground-viewport';
-import buttonCss from '../button/style.module.css';
 import '../../styles.css';
 import css from './style.module.css';
 
 import PlaygroundConfigurationGroup from '../playground-configuration-group';
-import { ResetSiteMenuItem } from '../toolbar-buttons/reset-site';
-import { DownloadAsZipMenuItem } from '../toolbar-buttons/download-as-zip';
-import { RestoreFromZipMenuItem } from '../toolbar-buttons/restore-from-zip';
-import { ReportError } from '../toolbar-buttons/report-error';
-import { ViewLogs } from '../toolbar-buttons/view-logs';
-import { GithubImportMenuItem } from '../toolbar-buttons/github-import-menu-item';
 import { GithubImportModal } from '../../github/github-import-form';
-import { GithubExportMenuItem } from '../toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from '../../github/github-export-form';
 import { useState, useEffect } from 'react';
 import {
 	ExportFormValues,
 	asPullRequestAction,
 } from '../../github/github-export-form/form';
-import { joinPaths } from '@php-wasm/util';
 import { addCrashListener, logger } from '@php-wasm/logger';
 import { asContentType } from '../../github/import-from-github';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
-import { OfflineNotice } from '../offline-notice';
 import { useDispatch, useSelector } from 'react-redux';
 import {
 	PlaygroundDispatch,
@@ -73,7 +61,6 @@ export function SiteView({
 	className?: string;
 }) {
 	const dispatch: PlaygroundDispatch = useDispatch();
-	const offline = useSelector((state: PlaygroundReduxState) => state.offline);
 
 	const query = new URL(document.location.href).searchParams;
 	const displayMode: DisplayMode = supportedDisplayModes.includes(
@@ -197,126 +184,6 @@ export function SiteView({
 				hideToolbar={hideToolbar}
 				toolbarButtons={[
 					<PlaygroundConfigurationGroup key="configuration" />,
-					<DropdownMenu
-						key="menu"
-						icon={menu}
-						label="Additional actions"
-						className={css.dropdownMenu}
-						toggleProps={
-							{
-								className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
-								'data-cy': 'dropdown-menu',
-							} as any
-						}
-					>
-						{({ onClose }) => (
-							<>
-								{offline ? <OfflineNotice /> : null}
-								<MenuGroup>
-									<ResetSiteMenuItem onClose={onClose} />
-									<ReportError
-										onClose={onClose}
-										disabled={offline}
-									/>
-									<DownloadAsZipMenuItem onClose={onClose} />
-									<RestoreFromZipMenuItem onClose={onClose} />
-									<GithubImportMenuItem
-										onClose={onClose}
-										disabled={offline}
-									/>
-									<GithubExportMenuItem
-										onClose={onClose}
-										disabled={offline}
-									/>
-									<ViewLogs onClose={onClose} />
-									<MenuItem
-										icon={external}
-										iconPosition="left"
-										aria-label="Go to Blueprints Builder"
-										// @ts-ignore-next-line
-										href={
-											[
-												joinPaths(
-													document.location.pathname,
-													'builder/builder.html'
-												),
-												'#',
-												btoa(
-													JSON.stringify(
-														blueprint
-													) as string
-												) as string,
-											].join('') as any
-										}
-										target="_blank"
-										disabled={offline}
-									>
-										Edit the Blueprint
-									</MenuItem>
-								</MenuGroup>
-								<MenuGroup label="More resources">
-									<MenuItem
-										icon={external}
-										iconPosition="left"
-										aria-label="Go to WordPress PR previewer"
-										// @ts-ignore-next-line
-										href={
-											joinPaths(
-												document.location.pathname,
-												'wordpress.html'
-											) as any
-										}
-										target="_blank"
-										disabled={offline}
-									>
-										Preview WordPress Pull Request
-									</MenuItem>
-									<MenuItem
-										icon={external}
-										iconPosition="left"
-										aria-label="Go to a list of Playground demos"
-										// @ts-ignore-next-line
-										href={
-											joinPaths(
-												document.location.pathname,
-												'demos/index.html'
-											) as any
-										}
-										target="_blank"
-										disabled={offline}
-									>
-										More demos
-									</MenuItem>
-									<MenuItem
-										icon={external}
-										iconPosition="left"
-										aria-label="Go to Playground documentation"
-										// @ts-ignore-next-line
-										href={
-											'https://wordpress.github.io/wordpress-playground/' as any
-										}
-										target="_blank"
-										disabled={offline}
-									>
-										Documentation
-									</MenuItem>
-									<MenuItem
-										icon={external}
-										iconPosition="left"
-										aria-label="Go to the Playground git repository"
-										// @ts-ignore-next-line
-										href={
-											'https://github.com/WordPress/wordpress-playground' as any
-										}
-										target="_blank"
-										disabled={offline}
-									>
-										GitHub
-									</MenuItem>
-								</MenuGroup>
-							</>
-						)}
-					</DropdownMenu>,
 				]}
 			/>
 		</div>

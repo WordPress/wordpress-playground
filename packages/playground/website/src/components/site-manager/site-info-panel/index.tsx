@@ -32,6 +32,12 @@ import {
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteEditButton } from '../site-edit-button';
+import { OfflineNotice } from '../../offline-notice';
+import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
+import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
+import { GithubImportMenuItem } from '../../toolbar-buttons/github-import-menu-item';
+import { ReportError } from '../../toolbar-buttons/report-error';
+import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
 
 function SiteInfoRow({
 	label,
@@ -61,6 +67,7 @@ export function SiteInfoPanel({
 	showBackButton?: boolean;
 	onBackButtonClick?: () => void;
 }) {
+	const offline = useAppSelector((state) => state.offline);
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
@@ -195,57 +202,47 @@ export function SiteInfoPanel({
 								</Button>
 								<DropdownMenu
 									icon={moreVertical}
-									label="Select a direction"
+									label="Additional actions"
 									popoverProps={{
 										placement: 'bottom-end',
 									}}
 								>
 									{({ onClose }) => (
-										<>
-											{/* <MenuGroup>
-										<MenuItem icon={external} onClick={onClose}>
-											Open site
-										</MenuItem>
-										<MenuItem icon={external} onClick={onClose}>
-											WP Admin
-										</MenuItem>
-									</MenuGroup> */}
-											<MenuGroup>
-												{/* <MenuItem onClick={onClose}>
-											Duplicate
-										</MenuItem>
-										<MenuItem onClick={onClose}>Reset</MenuItem> */}
-												<MenuItem
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
-													}
-													// Avoid deleting the default WordPress site
-													// ^ Why, though? Seeing a disabled delete button is confusing.
-													//   Can we just delete it?
-													disabled={
-														site.slug ===
-														'wordpress'
-													}
-												>
-													Delete
-												</MenuItem>
-											</MenuGroup>
-											{/* <MenuGroup>
-										<MenuItem onClick={onClose}>
-											Download as .zip
-										</MenuItem>
-										<MenuItem onClick={onClose}>
-											Restore from .zip
-										</MenuItem>
-									</MenuGroup>
-									<MenuGroup>
-										<MenuItem onClick={onClose}>
-											Share feedback
-										</MenuItem>
-									</MenuGroup> */}
-										</>
+										<MenuGroup>
+											{/* 
+												@TODO: Duplicate site feature = Export site + import site using these PHP tools:
+												* https://github.com/adamziel/wxr-normalize/pull/1
+												* https://github.com/adamziel/site-transfer-protocol
+											*/}
+											{/* <MenuItem onClick={onClose}>Duplicate</MenuItem> */}
+											<ReportError
+												onClose={onClose}
+												disabled={offline}
+											/>
+											<DownloadAsZipMenuItem
+												onClose={onClose}
+											/>
+											<RestoreFromZipMenuItem
+												onClose={onClose}
+											/>
+											<GithubImportMenuItem
+												onClose={onClose}
+												disabled={offline}
+											/>
+											<GithubExportMenuItem
+												onClose={onClose}
+												disabled={offline}
+											/>
+											<MenuItem
+												onClick={() =>
+													removeSiteAndCloseMenu(
+														onClose
+													)
+												}
+											>
+												Delete
+											</MenuItem>
+										</MenuGroup>
 									)}
 								</DropdownMenu>
 							</Flex>
@@ -371,114 +368,95 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const username = 'admin';
 	const password = 'password';
 
+	const offline = useAppSelector((state) => state.offline);
+
 	const { client, opfsMountDescriptor } =
 		usePlaygroundClientInfo(site.slug) || {};
 
 	return (
-		<Flex
-			gap={8}
-			direction="column"
-			className={css.maxWidth}
-			justify="flex-start"
-			expanded={true}
-		>
-			<FlexItem>
-				<Flex
-					gap={4}
-					direction="column"
-					className={css.infoTable}
-					expanded={true}
-				>
-					<FlexItem>
-						<h3 className={css.sectionTitle}>Site details</h3>
-					</FlexItem>
-					<SiteInfoRow label="Site name" value={site.metadata.name} />
-					<SiteInfoRow
-						label="Storage"
-						value={
-							<>
-								<StorageType type={site.metadata.storage} />
-								{opfsMountDescriptor?.device?.type ===
-								'local-fs' ? (
-									<>
-										{' '}
-										(
-										{
-											opfsMountDescriptor.device?.handle
-												.name
-										}
-										)
-									</>
-								) : null}
-							</>
-						}
-					/>
-					<SiteInfoRow
-						label="WordPress version"
-						value={
-							site.metadata.runtimeConfiguration.preferredVersions
-								.wp
-						}
-					/>
-					<SiteInfoRow
-						label="PHP version"
-						value={`${
-							site.metadata.runtimeConfiguration.preferredVersions
-								.php
-						}${
-							site.metadata.runtimeConfiguration.phpExtensionBundles?.includes(
-								'kitchen-sink'
-							)
-								? ' (with extensions)'
-								: ''
-						}`}
-					/>
-					<SiteInfoRow
-						label="Network access"
-						value={
-							site.metadata.runtimeConfiguration.features
-								?.networking
-								? 'Yes'
-								: 'No'
-						}
-					/>
-				</Flex>
-			</FlexItem>
+		<>
+			{offline ? <OfflineNotice /> : null}
+			<Flex
+				gap={8}
+				direction="column"
+				className={css.maxWidth}
+				justify="flex-start"
+				expanded={true}
+			>
+				<FlexItem>
+					<Flex
+						gap={4}
+						direction="column"
+						className={css.infoTable}
+						expanded={true}
+					>
+						<FlexItem>
+							<h3 className={css.sectionTitle}>Site details</h3>
+						</FlexItem>
+						<SiteInfoRow
+							label="Site name"
+							value={site.metadata.name}
+						/>
+						<SiteInfoRow
+							label="Storage"
+							value={
+								<>
+									<StorageType type={site.metadata.storage} />
+									{opfsMountDescriptor?.device?.type ===
+									'local-fs' ? (
+										<>
+											{' '}
+											(
+											{
+												opfsMountDescriptor.device
+													?.handle.name
+											}
+											)
+										</>
+									) : null}
+								</>
+							}
+						/>
+						<SiteInfoRow
+							label="WordPress version"
+							value={
+								site.metadata.runtimeConfiguration
+									.preferredVersions.wp
+							}
+						/>
+						<SiteInfoRow
+							label="PHP version"
+							value={`${
+								site.metadata.runtimeConfiguration
+									.preferredVersions.php
+							}${
+								site.metadata.runtimeConfiguration.phpExtensionBundles?.includes(
+									'kitchen-sink'
+								)
+									? ' (with extensions)'
+									: ''
+							}`}
+						/>
+						<SiteInfoRow
+							label="Network access"
+							value={
+								site.metadata.runtimeConfiguration.features
+									?.networking
+									? 'Yes'
+									: 'No'
+							}
+						/>
+					</Flex>
+				</FlexItem>
 
-			<FlexItem>
-				<Flex direction="column" gap={2} expanded={true}>
-					<FlexItem>
-						<h3 className={css.sectionTitle}>WP Admin</h3>
-					</FlexItem>
-					<SiteInfoRow
-						label="Username"
-						value={
-							<Button
-								variant="link"
-								className={classNames(
-									css.grayLink,
-									css.buttonNoPadding
-								)}
-								icon={() => <Icon size={16} icon={copy} />}
-								iconPosition="right"
-								onClick={() => {
-									navigator.clipboard.writeText(username);
-								}}
-								label="Copy username"
-							>
-								{username}
-							</Button>
-						}
-					/>
-					<SiteInfoRow
-						label="Password"
-						value={
-							<Flex
-								gap={0}
-								expanded={true}
-								align="center"
-								justify="space-between"
-							>
+				<FlexItem>
+					<Flex direction="column" gap={2} expanded={true}>
+						<FlexItem>
+							<h3 className={css.sectionTitle}>WP Admin</h3>
+						</FlexItem>
+						<SiteInfoRow
+							label="Username"
+							value={
 								<Button
 									variant="link"
 									className={classNames(
@@ -488,93 +466,132 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 									icon={() => <Icon size={16} icon={copy} />}
 									iconPosition="right"
 									onClick={() => {
-										navigator.clipboard.writeText(password);
+										navigator.clipboard.writeText(username);
 									}}
-									label="Copy password"
+									label="Copy username"
 								>
-									{masked ? '••••••••' : 'password'}
+									{username}
 								</Button>
+							}
+						/>
+						<SiteInfoRow
+							label="Password"
+							value={
+								<Flex
+									gap={0}
+									expanded={true}
+									align="center"
+									justify="space-between"
+								>
+									<Button
+										variant="link"
+										className={classNames(
+											css.grayLink,
+											css.buttonNoPadding
+										)}
+										icon={() => (
+											<Icon size={16} icon={copy} />
+										)}
+										iconPosition="right"
+										onClick={() => {
+											navigator.clipboard.writeText(
+												password
+											);
+										}}
+										label="Copy password"
+									>
+										{masked ? '••••••••' : 'password'}
+									</Button>
+									<Button
+										variant="link"
+										className={classNames(
+											css.grayLink,
+											css.buttonNoPadding
+										)}
+										icon={() => (
+											<Icon
+												size={18}
+												icon={masked ? seen : unseen}
+											/>
+										)}
+										iconPosition="right"
+										onClick={() => {
+											setMasked(!masked);
+										}}
+										label="Reveal password"
+									/>
+								</Flex>
+							}
+						/>
+						<SiteInfoRow
+							label="Admin URL"
+							value={
 								<Button
 									variant="link"
-									className={classNames(
-										css.grayLink,
-										css.buttonNoPadding
-									)}
-									icon={() => (
-										<Icon
-											size={18}
-											icon={masked ? seen : unseen}
-										/>
-									)}
-									iconPosition="right"
 									onClick={() => {
-										setMasked(!masked);
+										client?.goTo('/wp-admin');
 									}}
-									label="Reveal password"
-								/>
-							</Flex>
-						}
-					/>
-					<SiteInfoRow
-						label="Admin URL"
-						value={
-							<Button
-								variant="link"
-								onClick={() => {
-									client?.goTo('/wp-admin');
-								}}
-								target="_blank"
-								rel="noopener noreferrer"
-								className={css.buttonNoPadding}
-								label="Go to Admin"
-							>
-								{/*@TODO: site.url*/}/wp-admin{' '}
-							</Button>
-						}
-					/>
-				</Flex>
-			</FlexItem>
-			<FlexItem>
-				<Flex
-					direction="row"
-					gap={4}
-					expanded={true}
-					justify="flex-start"
-				>
-					<FlexItem>
-						<SiteEditButton siteSlug={site.slug}>
-							{(onClick) => (
-								<Button
-									variant="tertiary"
+									target="_blank"
+									rel="noopener noreferrer"
 									className={css.buttonNoPadding}
-									onClick={onClick}
+									label="Go to Admin"
 								>
-									Edit settings
+									{/*@TODO: site.url*/}/wp-admin{' '}
 								</Button>
-							)}
-						</SiteEditButton>
-					</FlexItem>
-					{site.metadata.originalBlueprint ? (
+							}
+						/>
+					</Flex>
+				</FlexItem>
+				<FlexItem>
+					<Flex
+						direction="row"
+						gap={4}
+						expanded={true}
+						justify="flex-start"
+					>
 						<FlexItem>
-							<Button
-								variant="link"
-								className={css.buttonNoPadding}
-								href={`/builder#${encodeURIComponent(
-									JSON.stringify(
-										site.metadata.originalBlueprint as any
-									)
-								)}`}
-								target="_blank"
-								rel="noopener noreferrer"
-								icon={() => <Icon icon={external} size={16} />}
-								iconPosition="right"
-							>
-								View Blueprint
-							</Button>
+							<SiteEditButton siteSlug={site.slug}>
+								{(onClick) => (
+									<Button
+										variant="tertiary"
+										className={css.buttonNoPadding}
+										onClick={onClick}
+									>
+										Edit settings
+									</Button>
+								)}
+							</SiteEditButton>
 						</FlexItem>
-					) : null}
-				</Flex>
-			</FlexItem>
-		</Flex>
+						{site.metadata.originalBlueprint ? (
+							<FlexItem>
+								<Button
+									variant="link"
+									className={css.buttonNoPadding}
+									href={`/builder/builder.html#${encodeURIComponent(
+										btoa(
+											JSON.stringify(
+												// @TODO: Merge with the current runtime configuration
+												site.metadata
+													.originalBlueprint as any
+											) as string
+										) as string
+									)}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									icon={() => (
+										<Icon icon={external} size={16} />
+									)}
+									aria-label="Go to Blueprints Builder"
+									iconPosition="right"
+									disabled={offline}
+								>
+									View Blueprint
+								</Button>
+							</FlexItem>
+						) : null}
+					</Flex>
+				</FlexItem>
+			</Flex>
+		</>
 	);
 }

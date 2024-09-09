@@ -327,6 +327,8 @@ async function readSiteFromDirectory(
 	}
 }
 
+// @TODO: Reconsider using 'wordpress' as a special directory name.
+// @TODO: Move all the sites to the /sites/ subdirectory and do away with the 'site-' name prefix.
 function looksLikeSiteDirectory(name: string) {
 	return name === 'wordpress' || name.startsWith('site-');
 }
