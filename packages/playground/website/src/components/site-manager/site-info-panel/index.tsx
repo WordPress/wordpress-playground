@@ -21,6 +21,7 @@ import {
 	seen,
 	unseen,
 	chevronLeft,
+	trash,
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import {
@@ -234,6 +235,9 @@ export function SiteInfoPanel({
 												disabled={offline}
 											/>
 											<MenuItem
+												icon={trash}
+												iconPosition="left"
+												aria-label="Delete this site"
 												onClick={() =>
 													removeSiteAndCloseMenu(
 														onClose
