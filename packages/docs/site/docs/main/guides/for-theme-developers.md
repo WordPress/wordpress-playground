@@ -6,7 +6,7 @@ description: WordPress Playground for Theme Developers
 
 The WordPress Playground is an innovative tool that allows theme developers to build, test and showcase their themes directly in a browser environment.
 
-This guide will explore **how you can leverage the WordPress Playground to enhance your theme development workflow, create live demos to showcase your Wordpress theme to the world, and streamline your theme review process**.
+This guide will explore **how you can leverage the WordPress Playground to enhance your theme development workflow, create live demos to showcase your WordPress theme to the world, and streamline your theme review process**.
 
 :::info
 
@@ -22,7 +22,7 @@ With WordPress Playground, you can quickly launch a WordPress installation using
 
 ### Themes in a GitHub repository
 
-You can also load a theme stored in a GitHub repository. with a custom `blueprint.json` passed to the Playground instance.
+You can also load a theme stored in a GitHub repository with a custom `blueprint.json` passed to the Playground instance.
 
 With the `themeZipFile` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
 
@@ -55,13 +55,13 @@ A blueprint like the one above could be passed to a Playground instance [in seve
 
 ## Setting up a demo theme with Blueprints
 
-When providing a link to a WordPress Playground instance with a specific theme activated, you may also want to customize the inital setup for that theme.
+When providing a link to a WordPress Playground instance with a specific theme activated, you may also want to customize the initial setup for that theme.
 
-By providing a [blueprint](/blueprints/getting-started) to Playground you'll be able to load, activate, and configure a theme. Through [`steps`](/blueprints/steps) in the blueprint, you can configure an inital setup of your theme in the Playground instance.
+By providing a [blueprint](/blueprints/getting-started) to Playground you'll be able to load, activate, and configure a theme. Through [`steps`](/blueprints/steps) in the blueprint, you can configure an initial setup of your theme in the Playground instance.
 
 ### `resetData`
 
-With [`resetData`](/blueprints/steps#resetData) step you can remove the default content of a WordPress installation in order to import your own content.
+With [`resetData`](/blueprints/steps#resetData) step, you can remove the default content of a WordPress installation in order to import your own content.
 
 ```json
 "steps": [
@@ -75,7 +75,7 @@ With [`resetData`](/blueprints/steps#resetData) step you can remove the default 
 
 ### `writeFile`
 
-With [`writeFile`](/blueprints/steps#resetData) step you can writes data to a file at a specified path. You may want to use this step to write custom PHP code in a PHP file inside the `mu-plugins` of the Playground WordPress instance so the code is executed automatically when the instance is loaded.
+With [`writeFile`](/blueprints/steps#resetData) step, you can write data to a file at a specified path. You may want to use this step to write custom PHP code in a PHP file inside the `mu-plugins` of the Playground WordPress instance, so the code is executed automatically when the instance is loaded.
 One of the things you can do through this step is to enable pretty permalinks for your Playground instance:
 
 ```json
@@ -92,7 +92,7 @@ One of the things you can do through this step is to enable pretty permalinks fo
 
 ### `updateUserMeta`
 
-With [`updateUserMeta`](/blueprints/steps#updateUserMeta) step you can update any user meta data. For example, you could update the meta data of the default `admin` user of any WordPress installation:
+With [`updateUserMeta`](/blueprints/steps#updateUserMeta) step, you can update any user metadata. For example, you could update the metadata of the default `admin` user of any WordPress installation:
 
 ```json
 "steps": [
@@ -112,7 +112,7 @@ With [`updateUserMeta`](/blueprints/steps#updateUserMeta) step you can update an
 
 ### `importWxr`
 
-With [`importWxr`](/blueprints/steps#importWxr) step you can import your own content via a `.xml` file previously [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/):
+With [`importWxr`](/blueprints/steps#importWxr) step, you can import your own content via a `.xml` file previously [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/):
 
 ```json
 "steps": [
@@ -145,7 +145,7 @@ One of the things you'll want to import for your default content are images. A r
 
 ### `setSiteOptions`
 
-With [`setSiteOptions`](/blueprints/steps#setSiteOptions) step you can set [site options](https://developer.wordpress.org/apis/options/#available-options-by-category) such as site name, description or which page to use for posts.
+With [`setSiteOptions`](/blueprints/steps#setSiteOptions) step, you can set [site options](https://developer.wordpress.org/apis/options/#available-options-by-category) such as site name, description or which page to use for posts.
 
 ```json
 "steps": [
@@ -193,7 +193,7 @@ Some useful tools and resources provided by the Playground project to work with 
 -   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 -   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
 -   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
--   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it direclty in a Playground instance.
+-   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
 :::
 
@@ -223,6 +223,6 @@ Note that you'll need [Create Block Theme](https://wordpress.org/plugins/create-
 
 :::tip
 
-Check [About Playground > Build > Save changes done on a Block Theme and create Github Pull Requests](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) for more info
+Check [About Playground > Build > Save changes done on a Block Theme and create GitHub Pull Requests](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) for more info
 
 :::
