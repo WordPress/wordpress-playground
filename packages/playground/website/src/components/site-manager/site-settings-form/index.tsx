@@ -28,6 +28,7 @@ export interface SiteFormData {
 	language: string;
 	withExtensions: boolean;
 	withNetworking: boolean;
+	multisite: boolean;
 }
 
 export default function SiteSettingsForm({
@@ -41,6 +42,7 @@ export default function SiteSettingsForm({
 		language: true,
 		withExtensions: true,
 		withNetworking: true,
+		multisite: true,
 	},
 }: SiteSettingsFormProps) {
 	defaultValues = {
@@ -50,6 +52,7 @@ export default function SiteSettingsForm({
 		language: '',
 		withExtensions: true,
 		withNetworking: true,
+		multisite: false,
 		...defaultValues,
 	};
 	const {
@@ -275,6 +278,23 @@ export default function SiteSettingsForm({
 								label="Network access (e.g. for browsing plugins)"
 								onChange={(isChecked) => {
 									setValue('withNetworking', isChecked);
+								}}
+								{...rest}
+								value={rest.value ? 'true' : 'false'}
+								checked={rest.value}
+							/>
+						)}
+					/>
+				)}
+				{formFields.multisite && (
+					<Controller
+						control={control}
+						name="multisite"
+						render={({ field: { onChange, ...rest } }) => (
+							<CheckboxControl
+								label="Is multisite?"
+								onChange={(isChecked) => {
+									setValue('multisite', isChecked);
 								}}
 								{...rest}
 								value={rest.value ? 'true' : 'false'}

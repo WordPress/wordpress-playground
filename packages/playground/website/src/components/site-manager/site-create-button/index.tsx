@@ -25,6 +25,7 @@ export function SiteCreateButton({
 					? 'kitchen-sink'
 					: 'light',
 				language: data.language,
+				multisite: data.multisite ? 'yes' : 'no',
 			},
 		});
 		setModalOpen(false);

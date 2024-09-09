@@ -132,6 +132,7 @@ function InMemorySiteEditButton({
 					? 'kitchen-sink'
 					: 'light',
 				language: data.language,
+				multisite: data.multisite ? 'yes' : 'no',
 			},
 		});
 		// @TODO: Display a notification "site updated"
@@ -147,6 +148,7 @@ function InMemorySiteEditButton({
 			withExtensions:
 				searchParams['php-extension-bundle'] === 'kitchen-sink',
 			language: searchParams.language,
+			multisite: searchParams.multisite === 'yes',
 		};
 	}, [siteInfo]);
 
