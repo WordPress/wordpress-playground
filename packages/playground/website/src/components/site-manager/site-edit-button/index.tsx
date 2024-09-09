@@ -91,7 +91,11 @@ function StoredSiteEditButton({
 				>
 					<SiteSettingsForm
 						onSubmit={updateSite}
-						submitButtonText="Save"
+						submitButtonText={
+							siteInfo?.metadata?.storage === 'none'
+								? 'Start a new temporary site with these settings'
+								: 'Update site settings'
+						}
 						formFields={{
 							name: true,
 							phpVersion: true,

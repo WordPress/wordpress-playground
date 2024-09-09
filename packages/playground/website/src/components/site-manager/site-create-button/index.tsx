@@ -42,7 +42,7 @@ export function SiteCreateButton({
 				>
 					<SiteSettingsForm
 						onSubmit={addSite}
-						submitButtonText="Add site"
+						submitButtonText="Create site"
 					/>
 				</Modal>
 			)}

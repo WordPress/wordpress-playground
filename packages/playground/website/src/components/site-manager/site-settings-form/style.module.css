@@ -1,3 +1,7 @@
+.grow-children > * {
+	flex-grow: 1;
+}
+
 .invalid-input :global(.components-input-control__backdrop) {
 	border-color: #e26f56 !important;
 }
