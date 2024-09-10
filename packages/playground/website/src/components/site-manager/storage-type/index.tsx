@@ -1,4 +1,4 @@
-import { SiteStorageType } from '../../../lib/site-storage';
+import { SiteStorageType } from '../../../lib/state/opfs/opfs-site-storage';
 import { Icon } from '@wordpress/components';
 import { ClockIcon, FolderIcon, LayoutIcon } from '../icons';
 import css from './style.module.css';

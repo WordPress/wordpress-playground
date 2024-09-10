@@ -1,4 +1,4 @@
-import { useAppSelector, getActiveClient } from './redux-store';
+import { useAppSelector, getActiveClient } from './state/redux/store';
 
 export function usePlaygroundClientInfo(siteSlug?: string) {
 	return useAppSelector((state) => {

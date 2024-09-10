@@ -1,8 +1,8 @@
 import {
 	useAppSelector,
 	useAppDispatch,
-	saveSiteToDevice,
-} from '../../../lib/redux-store';
+	persistTemporarySite,
+} from '../../../lib/state/redux/store';
 import {
 	DropdownMenu,
 	DropdownMenuItem,
@@ -30,7 +30,9 @@ export function SitePersistButton({
 		return (
 			<DropdownMenu trigger={children}>
 				<DropdownMenuItem
-					onClick={() => dispatch(saveSiteToDevice(siteSlug, 'opfs'))}
+					onClick={() =>
+						dispatch(persistTemporarySite(siteSlug, 'opfs'))
+					}
 				>
 					<DropdownMenuItemLabel>
 						Save in this browser
@@ -38,7 +40,7 @@ export function SitePersistButton({
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					onClick={() =>
-						dispatch(saveSiteToDevice(siteSlug, 'local-fs'))
+						dispatch(persistTemporarySite(siteSlug, 'local-fs'))
 					}
 				>
 					<DropdownMenuItemLabel>

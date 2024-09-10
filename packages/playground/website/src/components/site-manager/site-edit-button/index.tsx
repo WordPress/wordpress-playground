@@ -5,8 +5,8 @@ import {
 	getSiteInfo,
 	useAppDispatch,
 	updateSiteMetadata,
-} from '../../../lib/redux-store';
-import { useCurrentUrl } from '../../../lib/router-hooks';
+} from '../../../lib/state/redux/store';
+import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
 
 export function SiteEditButton({

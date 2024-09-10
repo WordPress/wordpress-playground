@@ -1,5 +1,8 @@
 import css from './style.module.css';
-import { useAppDispatch, setSiteManagerIsOpen } from '../../lib/redux-store';
+import {
+	useAppDispatch,
+	setSiteManagerIsOpen,
+} from '../../lib/state/redux/store';
 
 import Button from '../button';
 

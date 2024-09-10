@@ -12,9 +12,9 @@ import {
 	Button,
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
-import { type SiteLogo } from '../../../lib/site-storage';
-import { useActiveSite, useAppSelector } from '../../../lib/redux-store';
-import { useCurrentUrl } from '../../../lib/router-hooks';
+import { type SiteLogo } from '../../../lib/state/opfs/opfs-site-storage';
+import { useActiveSite, useAppSelector } from '../../../lib/state/redux/store';
+import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
 import { useMemo } from 'react';
 import { SiteCreateButton } from '../site-create-button';
 

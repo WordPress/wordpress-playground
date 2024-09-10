@@ -10,7 +10,7 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
-} from '../../lib/redux-store';
+} from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {

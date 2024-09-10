@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Button from '../button';
-import { getActiveClient, useAppSelector } from '../../lib/redux-store';
+import { getActiveClient, useAppSelector } from '../../lib/state/redux/store';
 
 export function SyncLocalFilesButton() {
 	const { client, url, opfsMountDescriptor } =

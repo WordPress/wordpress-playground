@@ -11,7 +11,7 @@ import {
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
-import { randomSiteName } from '../../../lib/redux-store';
+import { randomSiteName } from '../../../lib/state/redux/store';
 
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;

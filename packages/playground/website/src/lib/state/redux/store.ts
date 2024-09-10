@@ -1,6 +1,9 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { getDirectoryNameForSlug, siteStorage } from './site-storage';
+import {
+	getDirectoryNameForSlug,
+	opfsSiteStorage,
+} from '../opfs/opfs-site-storage';
 import type { MountDevice, SyncProgress } from '@php-wasm/web';
 import {
 	Blueprint,
@@ -9,11 +12,11 @@ import {
 	PlaygroundClient,
 } from '@wp-playground/client';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateUrl } from './router-hooks';
+import { updateUrl } from '../url/router-hooks';
 import { logger } from '@php-wasm/logger';
-import { saveDirectoryHandle } from './idb-opfs';
-import { resolveBlueprint } from './resolve-blueprint';
-import { SiteMetadata } from './site-metadata';
+import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
+import { resolveBlueprint } from '../url/resolve-blueprint';
+import { SiteMetadata } from '../../site-metadata';
 
 export type ActiveModal =
 	| 'error-report'
@@ -238,20 +241,19 @@ export function updateSiteMetadata(siteInfo: SiteInfo) {
 		//        storage backends.
 
 		dispatch(slice.actions.updateSite(siteInfo));
-		await siteStorage?.update(siteInfo.slug, siteInfo.metadata);
+		await opfsSiteStorage?.update(siteInfo.slug, siteInfo.metadata);
 	};
 }
 
-export function saveSiteToDevice(
+export function persistTemporarySite(
 	siteSlug: string,
-	deviceType: 'opfs' | 'local-fs'
+	storageType: 'opfs' | 'local-fs'
 ) {
+	// @TODO: Handle errors
 	return async (
 		dispatch: typeof store.dispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		// @TODO: Handle errors
-
 		const state = getState();
 		const playground = state.clients[siteSlug].client;
 		if (!playground) {
@@ -264,13 +266,13 @@ export function saveSiteToDevice(
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
 		}
-		await siteStorage?.create(siteInfo.slug, {
+		await opfsSiteStorage?.create(siteInfo.slug, {
 			...siteInfo.metadata,
-			storage: deviceType,
+			storage: storageType,
 		});
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
-		if (deviceType === 'opfs') {
+		if (storageType === 'opfs') {
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
@@ -278,7 +280,7 @@ export function saveSiteToDevice(
 				},
 				mountpoint: '/wordpress',
 			} as const;
-		} else if (deviceType === 'local-fs') {
+		} else if (storageType === 'local-fs') {
 			let dirHandle: FileSystemDirectoryHandle;
 			try {
 				// Request permission to access the directory.
@@ -305,7 +307,7 @@ export function saveSiteToDevice(
 				mountpoint: '/wordpress',
 			} as const;
 		} else {
-			throw new Error(`Unsupported device type: ${deviceType}`);
+			throw new Error(`Unsupported device type: ${storageType}`);
 		}
 
 		dispatch(
@@ -353,7 +355,7 @@ export function saveSiteToDevice(
 				originalUrlParams: undefined,
 				metadata: {
 					...siteInfo.metadata,
-					storage: deviceType,
+					storage: storageType,
 				},
 			})
 		);
@@ -377,25 +379,23 @@ export function getSiteInfo(
 	return state.siteListing.sites.find((site) => site.slug === siteSlug);
 }
 
-// Redux thunk
 export function createSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
 		if (siteInfo.metadata.storage === 'opfs') {
-			await siteStorage?.create(siteInfo.slug, siteInfo.metadata);
+			await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
 		}
 		dispatch(slice.actions.addSite(siteInfo));
 	};
 }
 
-// Redux thunk
 export function deleteSite(siteInfo: SiteInfo) {
 	return async (dispatch: typeof store.dispatch) => {
 		// TODO: Handle errors
 		// TODO: Possibly reflect removal in progress
 		if (siteInfo.metadata.storage === 'opfs') {
-			await siteStorage?.delete(siteInfo.slug);
+			await opfsSiteStorage?.delete(siteInfo.slug);
 		}
 		dispatch(slice.actions.removeSite(siteInfo));
 	};
@@ -439,7 +439,7 @@ setupOnlineOfflineListeners(store.dispatch);
 // NOTE: We will likely want to configure and list sites someplace else,
 // but for now, it seems fine to just kick off loading from OPFS
 // after the store is created.
-siteStorage?.list().then(
+opfsSiteStorage?.list().then(
 	(sites) => store.dispatch(slice.actions.setSiteListingLoaded(sites)),
 	(error) =>
 		store.dispatch(

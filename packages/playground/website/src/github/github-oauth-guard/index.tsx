@@ -5,7 +5,7 @@ import css from './style.module.css';
 import { useState } from 'react';
 import Modal, { defaultStyles } from '../../components/modal';
 import classNames from 'classnames';
-import { useActiveSite } from '../../lib/redux-store';
+import { useActiveSite } from '../../lib/state/redux/store';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);

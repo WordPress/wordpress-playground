@@ -1,6 +1,6 @@
 import { Modal } from '@wordpress/components';
 import { useState } from '@wordpress/element';
-import { useCurrentUrl } from '../../../lib/router-hooks';
+import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
 
 export function SiteCreateButton({

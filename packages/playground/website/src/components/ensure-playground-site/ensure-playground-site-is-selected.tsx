@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { resolveBlueprint } from '../../lib/resolve-blueprint';
-import { useCurrentUrl } from '../../lib/router-hooks';
+import { resolveBlueprint } from '../../lib/state/url/resolve-blueprint';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import {
 	createNewSiteInfo,
 	createSite,
@@ -8,8 +8,8 @@ import {
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
-} from '../../lib/redux-store';
-import { siteStorage } from '../../lib/site-storage';
+} from '../../lib/state/redux/store';
+import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -39,7 +39,9 @@ export function EnsurePlaygroundSiteIsSelected({
 			if (requestedSiteSlug) {
 				// @TODO: Consult the redux store, not the siteStorage directly.
 				// @TODO: wait until the redux store is populated with sites.
-				const siteInfo = await siteStorage?.read(requestedSiteSlug!);
+				const siteInfo = await opfsSiteStorage?.read(
+					requestedSiteSlug!
+				);
 				if (!siteInfo) {
 					// @TODO: We can do better than alert() here.
 					alert('Site not found');

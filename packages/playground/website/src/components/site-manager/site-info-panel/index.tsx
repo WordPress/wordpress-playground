@@ -19,7 +19,7 @@ import {
 	setSiteManagerIsOpen,
 	useAppSelector,
 	SiteInfo,
-} from '../../../lib/redux-store';
+} from '../../../lib/state/redux/store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteEditButton } from '../site-edit-button';

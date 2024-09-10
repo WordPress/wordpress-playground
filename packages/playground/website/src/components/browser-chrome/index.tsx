@@ -7,7 +7,7 @@ import {
 	useAppSelector,
 	getActiveClient,
 	useActiveSite,
-} from '../../lib/redux-store';
+} from '../../lib/state/redux/store';
 import { SyncLocalFilesButton } from '../sync-local-files-button';
 
 interface BrowserChromeProps {

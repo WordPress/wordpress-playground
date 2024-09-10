@@ -8,10 +8,10 @@ import {
 	updateClientInfo,
 	useActiveSite,
 	useAppDispatch,
-} from '../../lib/redux-store';
+} from '../../lib/state/redux/store';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/remote';
-import { getDirectoryNameForSlug } from '../../lib/site-storage';
+import { getDirectoryNameForSlug } from '../../lib/state/opfs/opfs-site-storage';
 import { logger } from '@php-wasm/logger';
 import { getRemoteUrl } from '../../lib/config';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
@@ -20,7 +20,7 @@ import {
 	startPlaygroundWeb,
 	StepDefinition,
 } from '@wp-playground/client';
-import { loadDirectoryHandle } from '../../lib/idb-opfs';
+import { loadDirectoryHandle } from '../../lib/state/opfs/opfs-directory-handle-storage';
 import { logTrackingEvent } from '../../lib/tracking';
 
 export const supportedDisplayModes = [

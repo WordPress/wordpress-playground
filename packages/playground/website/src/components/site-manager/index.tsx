@@ -4,15 +4,15 @@ import {
 	useAppDispatch,
 	deleteSite,
 	useActiveSite,
-} from '../../lib/redux-store';
+} from '../../lib/state/redux/store';
 
 import css from './style.module.css';
-import { SiteInfo } from '../../lib/site-storage';
+import { SiteInfo } from '../../lib/state/opfs/opfs-site-storage';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import React, { forwardRef, useState } from 'react';
-import { useCurrentUrl } from '../../lib/router-hooks';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,

@@ -1,5 +1,5 @@
 import { Blueprint } from '@wp-playground/client';
-import { makeBlueprint } from './make-blueprint';
+import { makeBlueprint } from '../../make-blueprint';
 
 export async function resolveBlueprint(url: URL) {
 	const query = url.searchParams;

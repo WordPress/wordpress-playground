@@ -10,7 +10,7 @@ import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 	setActiveModal,
-} from '../../lib/redux-store';
+} from '../../lib/state/redux/store';
 import { addCrashListener, logger } from '@php-wasm/logger';
 import { Blueprint } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';

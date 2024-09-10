@@ -5,9 +5,9 @@
  * let's keep this module with the web app.
  */
 
-import metadataWorkerUrl from './site-storage-metadata-worker?worker&url';
-import { SiteMetadata } from './site-metadata';
-import { SiteInfo } from './redux-store';
+import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
+import { SiteMetadata } from '../../site-metadata';
+import { SiteInfo } from '../redux/store';
 import { joinPaths } from '@php-wasm/util';
 
 // TODO: Decide on metadata filename
@@ -107,7 +107,7 @@ class OpfsSiteStorage {
 	}
 }
 
-export const siteStorage: OpfsSiteStorage | undefined = opfsRoot
+export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsRoot
 	? new OpfsSiteStorage(opfsRoot)
 	: undefined;
 
