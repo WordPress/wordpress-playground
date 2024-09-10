@@ -42,6 +42,7 @@ export function SiteCreateButton({
 				>
 					<SiteSettingsForm
 						onSubmit={addSite}
+						onCancel={() => setModalOpen(false)}
 						submitButtonText="Create site"
 					/>
 				</Modal>

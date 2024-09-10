@@ -86,15 +86,20 @@ function StoredSiteEditButton({
 
 			{isModalOpen && (
 				<Modal
-					title="Edit site settings"
+					title={
+						siteInfo?.metadata?.storage === 'none'
+							? 'Duplicate site with new settings'
+							: 'Edit site settings'
+					}
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
 						onSubmit={updateSite}
+						onCancel={() => setModalOpen(false)}
 						submitButtonText={
 							siteInfo?.metadata?.storage === 'none'
-								? 'Start a new temporary site with these settings'
-								: 'Update site settings'
+								? 'Duplicate'
+								: 'Update'
 						}
 						formFields={{
 							name: true,
@@ -167,6 +172,7 @@ function InMemorySiteEditButton({
 				>
 					<SiteSettingsForm
 						onSubmit={updateSite}
+						onCancel={() => setModalOpen(false)}
 						submitButtonText="Update"
 						defaultValues={defaultValues}
 					/>

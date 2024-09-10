@@ -544,7 +544,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 				<FlexItem>
 					<Flex
 						direction="row"
-						gap={4}
+						gap={8}
 						expanded={true}
 						justify="flex-start"
 					>

@@ -30,6 +30,13 @@ body {
 	text-decoration: none !important;
 }
 
+.components-modal__header-heading-container .components-modal__header-heading {
+	font-size: 20px;
+	font-style: normal;
+	font-weight: 300;
+	line-height: 28px;
+}
+
 #root {
 	height: 100%;
 	width: 100%;

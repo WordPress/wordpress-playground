@@ -15,6 +15,7 @@ import { useSupportedWordPressVersions } from './use-supported-wordpress-version
 
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;
+	onCancel?: () => void;
 	formFields?: Partial<Record<keyof SiteFormData, boolean>>;
 	submitButtonText?: string;
 	defaultValues?: Partial<SiteFormData>;
@@ -33,6 +34,7 @@ export interface SiteFormData {
 
 export default function SiteSettingsForm({
 	onSubmit,
+	onCancel,
 	submitButtonText,
 	defaultValues = {},
 	formFields = {
@@ -466,6 +468,14 @@ export default function SiteSettingsForm({
 									className={classNames(css.addSiteInput, {
 										[css.invalidInput]: !!errors.phpVersion,
 									})}
+									// Workaround to avoid cutting off the "PHP Version" label.
+									// In `@wordpress/components`, the field label is ~10px shorter
+									// than the <select> element. That's not a problem when the select
+									// options have long names and stretch the <select> element, but
+									// the options in this specific fields are shorter than the label.
+									// 100px is an arbitrary value that seems to work.
+									// @TODO: Contribute to @wordpress/components to fix this.
+									style={{ minWidth: '100px' }}
 									autoFocus={true}
 									options={SupportedPHPVersionsList.map(
 										(version) => ({
@@ -483,16 +493,34 @@ export default function SiteSettingsForm({
 					)}
 				</HStack>
 				<VStack spacing={1}>
+					{formFields.multisite && (
+						<Controller
+							control={control}
+							name="multisite"
+							render={({ field: { onChange, ...rest } }) => (
+								<CheckboxControl
+									label="Create a multisite network"
+									onChange={(isChecked) => {
+										setValue('multisite', isChecked);
+									}}
+									{...rest}
+									value={rest.value ? 'true' : 'false'}
+									checked={rest.value}
+								/>
+							)}
+						/>
+					)}
 					{formFields.withExtensions && (
 						<Controller
 							control={control}
 							name="withExtensions"
 							render={({ field: { onChange, ...rest } }) => (
 								<CheckboxControl
-									label="Load extensions: libxml, openssl, mbstring, iconv, gd. Uncheck to save ~6MB of initial downloads."
+									label="Load libxml, openssl, mbstring, iconv, gd"
 									onChange={(isChecked) => {
 										setValue('withExtensions', isChecked);
 									}}
+									help="Uncheck to reduce download size by ~ 6MB."
 									{...rest}
 									value={rest.value ? 'true' : 'false'}
 									checked={rest.value}
@@ -506,26 +534,9 @@ export default function SiteSettingsForm({
 							name="withNetworking"
 							render={({ field: { onChange, ...rest } }) => (
 								<CheckboxControl
-									label="Network access (e.g. for browsing plugins)"
+									label="Allow network access"
 									onChange={(isChecked) => {
 										setValue('withNetworking', isChecked);
-									}}
-									{...rest}
-									value={rest.value ? 'true' : 'false'}
-									checked={rest.value}
-								/>
-							)}
-						/>
-					)}
-					{formFields.multisite && (
-						<Controller
-							control={control}
-							name="multisite"
-							render={({ field: { onChange, ...rest } }) => (
-								<CheckboxControl
-									label="Is multisite?"
-									onChange={(isChecked) => {
-										setValue('multisite', isChecked);
 									}}
 									{...rest}
 									value={rest.value ? 'true' : 'false'}
@@ -564,11 +575,16 @@ export default function SiteSettingsForm({
 					)}
 				</VStack> */}
 
-				<div>
+				<HStack justify="flex-end" spacing={6}>
+					{onCancel && (
+						<Button variant="link" onClick={onCancel}>
+							Cancel
+						</Button>
+					)}
 					<Button type="submit" variant="primary">
 						{submitButtonText}
 					</Button>
-				</div>
+				</HStack>
 			</VStack>
 		</form>
 	);
