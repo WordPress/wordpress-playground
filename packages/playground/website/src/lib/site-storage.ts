@@ -5,462 +5,173 @@
  * let's keep this module with the web app.
  */
 
-import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { compileBlueprint, type Blueprint } from '@wp-playground/blueprints';
 import metadataWorkerUrl from './site-storage-metadata-worker?worker&url';
-import { resolveBlueprint } from './resolve-blueprint';
+import { SiteMetadata } from './site-metadata';
+import { SiteInfo } from './redux-store';
+import { joinPaths } from '@php-wasm/util';
 
 // TODO: Decide on metadata filename
+const ROOT_PATH = '/sites';
 const SITE_METADATA_FILENAME = 'playground-site-metadata.json';
 
 /**
- * The supported site storage types.
+ * StoredSiteMetadata is the data structure that is written to disk.
  *
- * NOTE: We are using different storage terms than our query API in order
- * to be more explicit about storage medium in the site metadata format.
+ * It's different from SiteInfo:
+ * * It extends SiteMetadata instead of embedding it.
+ * * It adds slug to SiteMetadata so we can recover it after a page reload.
+ * * It's not concerned with any extra information stored in SiteInfo by the redux store.
+ *
+ * I'm not yet sure whether that's the right approach. Let's keep going and find out as the
+ * design matures.
  */
-export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
-export type SiteStorageType = (typeof SiteStorageTypes)[number];
-
-/**
- * The site logo data.
- */
-export type SiteLogo = {
-	mime: string;
-	data: string;
-};
-
-/**
- * The supported PHP extension bundles.
- */
-export type PhpExtensionBundle = 'light' | 'kitchen-sink';
-
-// TODO: Create a schema for this as the design matures
-/**
- * The Site metadata that is persisted.
- */
-interface SiteMetadata {
-	storage: SiteStorageType;
-	id: string;
-	name: string;
-	logo?: SiteLogo;
-
-	// TODO: The designs show keeping admin username and password. Why do we want that?
-	whenCreated?: number;
-	// TODO: Consider keeping timestamps.
-	//       For a user, timestamps might be useful to disambiguate identically-named sites.
-	//       For playground, we might choose to sort by most recently used.
-	//whenLastLoaded: number;
-
-	// @TODO: Accept any string as a php version?
-	runtimeConfiguration: Pick<
-		Required<Blueprint>,
-		| 'features'
-		| 'extraLibraries'
-		| 'phpExtensionBundles'
-		| 'preferredVersions'
-	>;
-	originalBlueprint: Blueprint;
-}
-
-/**
- * The Site model used to represent a site within Playground.
- */
-export interface SiteInfo {
+export interface StoredSiteMetadata extends SiteMetadata {
 	slug: string;
-	originalUrlParams?: {
-		searchParams?: Record<string, string>;
-		hash?: string;
-	};
-	metadata: SiteMetadata;
 }
 
-/**
- * The initial information used to create a new site.
- */
-export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
-
-/**
- * Generates a random, human readable site name.
- * For example: "Abandoned Road", "Old School", "Greenwich Village" etc.
- */
-export function randomSiteName() {
-	const adjectives = [
-		'Happy',
-		'Sad',
-		'Excited',
-		'Calm',
-		'Brave',
-		'Shy',
-		'Clever',
-		'Funny',
-		'Kind',
-		'Honest',
-		'Loyal',
-		'Patient',
-		'Creative',
-		'Energetic',
-		'Ambitious',
-		'Generous',
-		'Humble',
-		'Confident',
-		'Curious',
-		'Determined',
-	];
-	const differentAdjectives = [
-		'Abandoned',
-		'Old',
-		'Sunny',
-		'Quiet',
-		'Busy',
-		'Noisy',
-		'Peaceful',
-		'Cozy',
-		'Modern',
-		'Vintage',
-		'Classic',
-		'Trendy',
-		'Hip',
-		'Chic',
-		'Glamorous',
-	];
-	const nouns = [
-		'Road',
-		'School',
-		'Village',
-		'Town',
-		'City',
-		'State',
-		'Country',
-		'Garden',
-		'Park',
-		'Forest',
-		'Mountain',
-		'Lake',
-		'Ocean',
-		'River',
-		'Valley',
-	];
-	return [
-		adjectives[Math.floor(Math.random() * adjectives.length)],
-		differentAdjectives[
-			Math.floor(Math.random() * differentAdjectives.length)
-		],
-		nouns[Math.floor(Math.random() * nouns.length)],
-	].join(' ');
-}
-
-/**
- * @TODO: Do not generate unique site names. As a user I want the ability to have duplicates.
- */
-export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
-	const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
-		site.metadata.name.startsWith(defaultName)
-	).length;
-	if (numberOfSitesStartingWithDefaultName === 0) {
-		return defaultName;
+let opfsRoot: FileSystemDirectoryHandle | undefined = undefined;
+try {
+	opfsRoot = await navigator.storage.getDirectory();
+	for (const path of ROOT_PATH.replace(/^\//, '').split('/')) {
+		opfsRoot = await opfsRoot.getDirectoryHandle(path, { create: true });
 	}
-	return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
+} catch (e) {
+	// Ignore. OPFS is not supported in this environment.
 }
 
-/**
- * Create a new site info structure from initial configuration.
- *
- * @param initialInfo The starting configuration for the site.
- * @returns SiteInfo The new site info structure.
- */
-export async function createNewSiteInfo(
-	initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
-		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
-	}
-): Promise<SiteInfo> {
-	const {
-		name: providedName,
-		originalBlueprint,
-		...remainingMetadata
-	} = initialInfo.metadata || {};
-
-	const name = providedName || randomSiteName();
-	const blueprint: Blueprint =
-		originalBlueprint ?? (await resolveBlueprint(new URL('https://w.org')));
-
-	const compiledBlueprint = compileBlueprint(blueprint);
-
-	return {
-		slug: deriveSlugFromSiteName(name),
-
-		...initialInfo,
-
-		metadata: {
-			name,
-			id: crypto.randomUUID(),
-			whenCreated: Date.now(),
-			storage: 'none',
-			originalBlueprint: blueprint,
-
-			...remainingMetadata,
-
-			runtimeConfiguration: {
-				preferredVersions: {
-					wp: compiledBlueprint.versions.wp,
-					php: compiledBlueprint.versions.php,
-				},
-				phpExtensionBundles: blueprint.phpExtensionBundles || [
-					'kitchen-sink',
-				],
-				features: compiledBlueprint.features,
-				extraLibraries: compiledBlueprint.extraLibraries,
-			},
-		},
-	};
+interface SiteStorage {
+	create(slug: string, metadata: SiteMetadata): Promise<void>;
+	update(slug: string, metadata: SiteMetadata): Promise<void>;
+	delete(slug: string): Promise<void>;
+	list(): Promise<SiteInfo[]>;
+	read(slug: string): Promise<SiteInfo | undefined>;
 }
 
-/**
- * Adds a new site to the Playground site storage.
- *
- * This function creates a new site directory and writes the site metadata.
- * Currently, only 'opfs' sites are supported.
- *
- * @param initialInfo - The information about the site to be added.
- * @throws {Error} If a site with the given slug already exists.
- * @returns {Promise<SiteInfo>} A promise that resolves when the site is added.
- */
-export async function addSite(newSiteInfo: SiteInfo): Promise<SiteInfo> {
-	const newSiteDirName = getDirectoryNameForSlug(newSiteInfo.slug);
-	await createTopLevelDirectory(newSiteDirName);
+class OpfsSiteStorage implements SiteStorage {
+	constructor(private readonly root: FileSystemDirectoryHandle) {}
 
-	await writeSiteMetadata(newSiteInfo);
-
-	return newSiteInfo;
-}
-
-export async function updateSite(site: SiteInfo) {
-	await writeSiteMetadata(site);
-}
-
-/**
- * Creates a top-level directory with the given name.
- *
- * @param newDirName - The name of the new directory to be created.
- * @throws {Error} If the directory already exists.
- * @returns {Promise<void>} A promise that resolves when the directory is created.
- */
-async function createTopLevelDirectory(newDirName: string) {
-	const root = await navigator.storage.getDirectory();
-
-	let directoryAlreadyExists;
-	try {
-		await root.getDirectoryHandle(newDirName);
-		directoryAlreadyExists = true;
-	} catch (e: any) {
-		if (e?.name === 'NotFoundError') {
-			directoryAlreadyExists = false;
-		} else {
-			throw e;
-		}
-	}
-
-	if (directoryAlreadyExists) {
-		throw new Error(`Directory already exists: '${newDirName}'.`);
-	}
-
-	await root.getDirectoryHandle(newDirName, { create: true });
-}
-
-/**
- * Removes a site from the Playground site storage.
- *
- * This function deletes the directory associated with the given site from OPFS.
- *
- * @param site - The information about the site to be removed.
- * @throws {Error} If the directory cannot be found or removed.
- * @returns {Promise<void>} A promise that resolves when the site is removed.
- */
-export async function removeSite(site: SiteInfo) {
-	const opfsRoot = await navigator.storage.getDirectory();
-	const siteDirectoryName = getDirectoryNameForSlug(site.slug);
-	await opfsRoot.removeEntry(siteDirectoryName, { recursive: true });
-}
-
-/**
- * List all sites from client storage.
- *
- * @returns {Promise<SiteInfo[]>} A promise for the list of sites from client storage.
- * @throws {Error} If there is an issue accessing the OPFS or reading site information.
- * @returns {Promise<SiteInfo[]>} A promise for a list of SiteInfo objects.
- */
-export async function listSites(): Promise<SiteInfo[]> {
-	const opfsRoot = await navigator.storage.getDirectory();
-	const opfsSites: SiteInfo[] = [];
-	for await (const entry of opfsRoot.values()) {
-		if (entry.kind !== 'directory') {
-			continue;
+	async create(slug: string, metadata: SiteMetadata): Promise<void> {
+		const newSiteDirName = getDirectoryNameForSlug(slug);
+		if (await OPFSHelper.childExists(this.root, newSiteDirName)) {
+			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
 
-		// To give us flexibility for the future,
-		// let's not assume all top-level OPFS dirs are sites.
-		if (!looksLikeSiteDirectory(entry.name)) {
-			continue;
+		await this.root.getDirectoryHandle(newSiteDirName, {
+			create: true,
+		});
+		await OPFSHelper.writeFile(
+			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			metadataToStoredFormat(slug, metadata)
+		);
+	}
+
+	async update(slug: string, metadata: SiteMetadata): Promise<void> {
+		const newSiteDirName = getDirectoryNameForSlug(slug);
+		if (!(await OPFSHelper.childExists(this.root, newSiteDirName))) {
+			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
 
-		const site = await readSiteFromDirectory(entry);
-		if (site) {
-			opfsSites.push(site);
+		await OPFSHelper.writeFile(
+			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			metadataToStoredFormat(slug, metadata)
+		);
+	}
+
+	async list(): Promise<SiteInfo[]> {
+		const sites: SiteInfo[] = [];
+		for await (const entry of this.root.values()) {
+			if (entry.kind === 'directory') {
+				const site = await this.readSite(entry.name);
+				if (site) {
+					sites.push(site);
+				}
+			}
 		}
+		return sites;
 	}
 
-	return opfsSites;
-}
-
-export async function getSiteInfoBySlug(
-	slug: string
-): Promise<SiteInfo | undefined> {
-	const opfsRoot = await navigator.storage.getDirectory();
-	const siteDirectoryName = getDirectoryNameForSlug(slug);
-	const siteDirectory = await opfsRoot.getDirectoryHandle(siteDirectoryName);
-	if (!siteDirectory) {
-		return undefined;
+	async read(slug: string): Promise<SiteInfo | undefined> {
+		return await this.readSite(getDirectoryNameForSlug(slug));
 	}
 
-	return readSiteFromDirectory(siteDirectory);
-}
+	private async readSite(siteDirName: string) {
+		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
+		if (!siteDirectory) {
+			return undefined;
+		}
 
-/**
- * Reads information for a single site from a given directory.
- *
- * @param dir - The directory handle from which to read the site information.
- * @returns {Promise<SiteInfo>} A promise for the site information.
- * @throws {Error} If there is an issue accessing the metadata file or parsing its contents.
- */
-async function readSiteFromDirectory(
-	dir: FileSystemDirectoryHandle
-): Promise<SiteInfo> {
-	const slug = getSlugFromDirectoryName(dir.name);
-	if (slug === undefined) {
-		throw new Error(`Invalid site directory name: '${dir.name}'.`);
-	}
-
-	try {
-		const metadataFileHandle = await dir.getFileHandle(
+		const siteInfoFileHandle = await siteDirectory.getFileHandle(
 			SITE_METADATA_FILENAME
 		);
-		const file = await metadataFileHandle.getFile();
-		const metadataContents = await file.text();
-
+		const file = await siteInfoFileHandle.getFile();
 		// TODO: Read metadata file and parse and validate via JSON schema
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		const metadata = JSON.parse(metadataContents);
+		return storedFormatToMetadata(await file.text());
+	}
 
-		return {
-			slug,
-			metadata: {
-				// Work with existing OPFS-site metadata files that don't have storage
-				// @TODO: Consider dropping this.
-				storage: 'opfs',
-				...metadata,
-			} as SiteMetadata,
-		};
-	} catch (e: any) {
-		if (e?.name === 'NotFoundError') {
-			// TODO: Warn
-			return deriveDefaultSite(slug);
-		} else if (e?.name === 'SyntaxError') {
-			// TODO: Warn
-			return deriveDefaultSite(slug);
-		} else {
-			throw e;
-		}
+	async delete(slug: string): Promise<void> {
+		const siteDirName = getDirectoryNameForSlug(slug);
+		await this.root.removeEntry(siteDirName, { recursive: true });
 	}
 }
 
-// @TODO: Reconsider using 'wordpress' as a special directory name.
-// @TODO: Move all the sites to the /sites/ subdirectory and do away with the 'site-' name prefix.
-function looksLikeSiteDirectory(name: string) {
-	return name === 'wordpress' || name.startsWith('site-');
-}
+export const siteStorage: SiteStorage | undefined = opfsRoot
+	? new OpfsSiteStorage(opfsRoot)
+	: undefined;
 
 export function getDirectoryNameForSlug(slug: string) {
-	return slug === 'wordpress' ? slug : `site-${slug}`;
+	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
 }
 
-function getSlugFromDirectoryName(dirName: string) {
-	if (dirName === 'wordpress') {
-		return dirName;
-	}
-
-	return looksLikeSiteDirectory(dirName)
-		? dirName.substring('site-'.length)
-		: undefined;
+function metadataToStoredFormat(slug: string, metadata: SiteMetadata): string {
+	return JSON.stringify({ slug, ...metadata }, undefined, '  ');
 }
 
-function deriveSlugFromSiteName(name: string) {
-	return name.toLowerCase().replaceAll(' ', '-');
-}
+function storedFormatToMetadata(data: string) {
+	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
 
-function getFallbackSiteNameFromSlug(slug: string) {
-	return (
-		slug
-			.replaceAll('-', ' ')
-			/* capital P dangit */
-			.replace(/wordpress/i, 'WordPress')
-			.replaceAll(/\b\w/g, (s) => s.toUpperCase())
-	);
-}
-
-function deriveDefaultSite(slug: string): SiteInfo {
-	const runtimeConfiguration: SiteInfo['metadata']['runtimeConfiguration'] = {
-		preferredVersions: {
-			wp: LatestMinifiedWordPressVersion,
-			php: LatestSupportedPHPVersion,
-		},
-		phpExtensionBundles: ['kitchen-sink'],
-		features: {},
-		extraLibraries: [],
-	};
 	return {
 		slug,
-		metadata: {
-			storage: 'opfs',
-			id: crypto.randomUUID(),
-			name: getFallbackSiteNameFromSlug(slug),
-
-			// TODO: Backfill site info file if missing, detecting actual WP version if possible
-			runtimeConfiguration,
-			originalBlueprint: runtimeConfiguration,
-		},
+		metadata,
 	};
 }
 
-async function writeSiteMetadata(site: SiteInfo) {
-	const metadataJson = JSON.stringify(site.metadata, undefined, '  ');
-	const siteDirName = getDirectoryNameForSlug(site.slug);
-	await writeOpfsContent(
-		`/${siteDirName}/${SITE_METADATA_FILENAME}`,
-		metadataJson
-	);
-}
-
-function writeOpfsContent(path: string, content: string): Promise<void> {
-	// Note: Safari appears to require a worker to write OPFS file content,
-	// and that is why we're using a worker here.
-	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
-
-	const promiseToWrite = new Promise<void>((resolve, reject) => {
-		worker.onmessage = function (event: MessageEvent) {
-			if (event.data === 'ready') {
-				worker.postMessage({ path, content });
-			} else if (event.data === 'done') {
-				resolve();
+class OPFSHelper {
+	static async childExists(handle: FileSystemDirectoryHandle, name: string) {
+		try {
+			await handle.getDirectoryHandle(name);
+			return true;
+		} catch (e) {
+			try {
+				await handle.getFileHandle(name);
+				return true;
+			} catch (e) {
+				return false;
 			}
-		};
-		worker.onerror = reject;
-	});
-	const promiseToTimeout = new Promise<void>((resolve, reject) => {
-		setTimeout(() => reject(new Error('timeout')), 5000);
-	});
+		}
+	}
 
-	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
-		worker.terminate()
-	);
+	static async writeFile(path: string, content: string) {
+		// Note: Safari appears to require a worker to write OPFS file content,
+		// and that is why we're using a worker here.
+		const worker = new Worker(metadataWorkerUrl, { type: 'module' });
+
+		const promiseToWrite = new Promise<void>((resolve, reject) => {
+			worker.onmessage = function (event: MessageEvent) {
+				if (event.data === 'ready') {
+					worker.postMessage({ path, content });
+				} else if (event.data === 'done') {
+					resolve();
+				}
+			};
+			worker.onerror = reject;
+		});
+		const promiseToTimeout = new Promise<void>((resolve, reject) => {
+			setTimeout(() => reject(new Error('timeout')), 5000);
+		});
+
+		return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(
+			() => worker.terminate()
+		);
+	}
 }

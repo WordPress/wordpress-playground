@@ -1,19 +1,19 @@
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import {
-	type SiteInfo,
-	listSites,
-	addSite as addSiteToStorage,
-	removeSite as removeSiteFromStorage,
-	updateSite as updateSiteInStorage,
-	getDirectoryNameForSlug,
-} from './site-storage';
+import { getDirectoryNameForSlug, siteStorage } from './site-storage';
 import type { MountDevice, SyncProgress } from '@php-wasm/web';
-import { MountDescriptor, PlaygroundClient } from '@wp-playground/client';
+import {
+	Blueprint,
+	compileBlueprint,
+	MountDescriptor,
+	PlaygroundClient,
+} from '@wp-playground/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateUrl } from './router-hooks';
 import { logger } from '@php-wasm/logger';
 import { saveDirectoryHandle } from './idb-opfs';
+import { resolveBlueprint } from './resolve-blueprint';
+import { SiteMetadata } from './site-metadata';
 
 export type ActiveModal =
 	| 'error-report'
@@ -39,6 +39,23 @@ export type SiteListingStatus =
 			type: 'error';
 			error: string;
 	  };
+
+/**
+ * The Site model used to represent a site within Playground.
+ */
+export interface SiteInfo {
+	slug: string;
+	originalUrlParams?: {
+		searchParams?: Record<string, string>;
+		hash?: string;
+	};
+	metadata: SiteMetadata;
+}
+
+/**
+ * The initial information used to create a new site.
+ */
+export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
 
 export type SiteListing = {
 	status: SiteListingStatus;
@@ -221,7 +238,7 @@ export function updateSiteMetadata(siteInfo: SiteInfo) {
 		//        storage backends.
 
 		dispatch(slice.actions.updateSite(siteInfo));
-		await updateSiteInStorage(siteInfo);
+		await siteStorage?.update(siteInfo.slug, siteInfo.metadata);
 	};
 }
 
@@ -247,12 +264,9 @@ export function saveSiteToDevice(
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
 		}
-		await addSiteToStorage({
-			...siteInfo,
-			metadata: {
-				...siteInfo.metadata,
-				storage: deviceType,
-			},
+		await siteStorage?.create(siteInfo.slug, {
+			...siteInfo.metadata,
+			storage: deviceType,
 		});
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
@@ -369,7 +383,7 @@ export function createSite(siteInfo: SiteInfo) {
 		// TODO: Handle errors
 		// TODO: Possibly reflect addition in progress
 		if (siteInfo.metadata.storage === 'opfs') {
-			await addSiteToStorage(siteInfo);
+			await siteStorage?.create(siteInfo.slug, siteInfo.metadata);
 		}
 		dispatch(slice.actions.addSite(siteInfo));
 	};
@@ -381,7 +395,7 @@ export function deleteSite(siteInfo: SiteInfo) {
 		// TODO: Handle errors
 		// TODO: Possibly reflect removal in progress
 		if (siteInfo.metadata.storage === 'opfs') {
-			await removeSiteFromStorage(siteInfo);
+			await siteStorage?.delete(siteInfo.slug);
 		}
 		dispatch(slice.actions.removeSite(siteInfo));
 	};
@@ -425,7 +439,7 @@ setupOnlineOfflineListeners(store.dispatch);
 // NOTE: We will likely want to configure and list sites someplace else,
 // but for now, it seems fine to just kick off loading from OPFS
 // after the store is created.
-listSites().then(
+siteStorage?.list().then(
 	(sites) => store.dispatch(slice.actions.setSiteListingLoaded(sites)),
 	(error) =>
 		store.dispatch(
@@ -434,6 +448,145 @@ listSites().then(
 			)
 		)
 );
+
+/**
+ * Generates a random, human readable site name.
+ * For example: "Abandoned Road", "Old School", "Greenwich Village" etc.
+ */
+export function randomSiteName() {
+	const adjectives = [
+		'Happy',
+		'Sad',
+		'Excited',
+		'Calm',
+		'Brave',
+		'Shy',
+		'Clever',
+		'Funny',
+		'Kind',
+		'Honest',
+		'Loyal',
+		'Patient',
+		'Creative',
+		'Energetic',
+		'Ambitious',
+		'Generous',
+		'Humble',
+		'Confident',
+		'Curious',
+		'Determined',
+	];
+	const differentAdjectives = [
+		'Abandoned',
+		'Old',
+		'Sunny',
+		'Quiet',
+		'Busy',
+		'Noisy',
+		'Peaceful',
+		'Cozy',
+		'Modern',
+		'Vintage',
+		'Classic',
+		'Trendy',
+		'Hip',
+		'Chic',
+		'Glamorous',
+	];
+	const nouns = [
+		'Road',
+		'School',
+		'Village',
+		'Town',
+		'City',
+		'State',
+		'Country',
+		'Garden',
+		'Park',
+		'Forest',
+		'Mountain',
+		'Lake',
+		'Ocean',
+		'River',
+		'Valley',
+	];
+	return [
+		adjectives[Math.floor(Math.random() * adjectives.length)],
+		differentAdjectives[
+			Math.floor(Math.random() * differentAdjectives.length)
+		],
+		nouns[Math.floor(Math.random() * nouns.length)],
+	].join(' ');
+}
+
+/**
+ * @TODO: Do not generate unique site names. As a user I want the ability to have duplicates.
+ */
+export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
+	const numberOfSitesStartingWithDefaultName = sites.filter((site) =>
+		site.metadata.name.startsWith(defaultName)
+	).length;
+	if (numberOfSitesStartingWithDefaultName === 0) {
+		return defaultName;
+	}
+	return `${defaultName} ${numberOfSitesStartingWithDefaultName}`;
+}
+
+/**
+ * Create a new site info structure from initial configuration.
+ *
+ * @param initialInfo The starting configuration for the site.
+ * @returns SiteInfo The new site info structure.
+ */
+export async function createNewSiteInfo(
+	initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
+		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
+	}
+): Promise<SiteInfo> {
+	const {
+		name: providedName,
+		originalBlueprint,
+		...remainingMetadata
+	} = initialInfo.metadata || {};
+
+	const name = providedName || randomSiteName();
+	const blueprint: Blueprint =
+		originalBlueprint ?? (await resolveBlueprint(new URL('https://w.org')));
+
+	const compiledBlueprint = compileBlueprint(blueprint);
+
+	return {
+		slug: deriveSlugFromSiteName(name),
+
+		...initialInfo,
+
+		metadata: {
+			name,
+			id: crypto.randomUUID(),
+			whenCreated: Date.now(),
+			storage: 'none',
+			originalBlueprint: blueprint,
+
+			...remainingMetadata,
+
+			runtimeConfiguration: {
+				preferredVersions: {
+					wp: compiledBlueprint.versions.wp,
+					php: compiledBlueprint.versions.php,
+				},
+				phpExtensionBundles: blueprint.phpExtensionBundles || [
+					'kitchen-sink',
+				],
+				features: compiledBlueprint.features,
+				extraLibraries: compiledBlueprint.extraLibraries,
+			},
+		},
+	};
+}
+
+function deriveSlugFromSiteName(name: string) {
+	return name.toLowerCase().replaceAll(' ', '-');
+}
 
 export function useAppSelector<T>(
 	selector: (state: PlaygroundReduxState) => T

@@ -10,8 +10,8 @@ import {
 	__experimentalVStack as VStack,
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
-import { randomSiteName } from '../../../lib/site-storage';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
+import { randomSiteName } from '../../../lib/redux-store';
 
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;

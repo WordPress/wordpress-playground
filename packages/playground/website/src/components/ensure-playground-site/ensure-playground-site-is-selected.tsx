@@ -2,13 +2,14 @@ import { useEffect, useRef } from 'react';
 import { resolveBlueprint } from '../../lib/resolve-blueprint';
 import { useCurrentUrl } from '../../lib/router-hooks';
 import {
+	createNewSiteInfo,
 	createSite,
 	setActiveSite,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/redux-store';
-import { createNewSiteInfo, getSiteInfoBySlug } from '../../lib/site-storage';
+import { siteStorage } from '../../lib/site-storage';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -23,6 +24,9 @@ export function EnsurePlaygroundSiteIsSelected({
 }: {
 	children: React.ReactNode;
 }) {
+	const siteListingStatus = useAppSelector(
+		(state) => state.siteListing.status
+	);
 	const sites = useAppSelector((state) => state.siteListing.sites);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
@@ -33,7 +37,9 @@ export function EnsurePlaygroundSiteIsSelected({
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
 			if (requestedSiteSlug) {
-				const siteInfo = await getSiteInfoBySlug(requestedSiteSlug!);
+				// @TODO: Consult the redux store, not the siteStorage directly.
+				// @TODO: wait until the redux store is populated with sites.
+				const siteInfo = await siteStorage?.read(requestedSiteSlug!);
 				if (!siteInfo) {
 					// @TODO: We can do better than alert() here.
 					alert('Site not found');
@@ -53,7 +59,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [requestedSiteSlug]);
+	}, [requestedSiteSlug, siteListingStatus]);
 
 	// If the site slug is missing, create a new temporary site.
 	const lastSiteInfoRef = useRef<string | undefined>(undefined);
@@ -106,7 +112,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href]);
+	}, [url.href, siteListingStatus]);
 
 	if (!activeSite) {
 		return null;

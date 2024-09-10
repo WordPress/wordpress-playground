@@ -1,6 +1,5 @@
 import classNames from 'classnames';
 import css from './style.module.css';
-import { SiteInfo } from '../../../lib/site-storage';
 import { getLogoDataURL, WordPressIcon } from '../icons';
 import {
 	Button,
@@ -19,6 +18,7 @@ import {
 	useAppDispatch,
 	setSiteManagerIsOpen,
 	useAppSelector,
+	SiteInfo,
 } from '../../../lib/redux-store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
