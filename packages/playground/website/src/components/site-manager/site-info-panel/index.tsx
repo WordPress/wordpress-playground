@@ -409,11 +409,21 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 									</FlexItem>
 
 									{site.metadata.storage === 'none' ? (
-										<FlexItem>
+										<FlexItem
+											style={{
+												display: 'flex',
+												alignItems: 'center',
+												justifyContent: 'center',
+												alignSelf: 'stretch',
+											}}
+										>
 											<SitePersistButton
 												siteSlug={site.slug}
 											>
-												<Button variant="link">
+												<Button
+													variant="link"
+													style={{ marginTop: '1px' }}
+												>
 													Save
 												</Button>
 											</SitePersistButton>

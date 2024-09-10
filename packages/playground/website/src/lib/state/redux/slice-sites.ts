@@ -155,7 +155,7 @@ export function updateSite({
 			})
 		);
 		const updatedSite = selectSiteBySlug(getState(), slug);
-		if (updatedSite.metadata.storage === 'opfs') {
+		if (updatedSite.metadata.storage !== 'none') {
 			await opfsSiteStorage?.update(
 				updatedSite.slug,
 				updatedSite.metadata
@@ -175,7 +175,7 @@ export function addSite(siteInfo: SiteInfo) {
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		if (siteInfo.metadata.storage === 'opfs') {
+		if (siteInfo.metadata.storage !== 'none') {
 			await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
 		}
 		dispatch(sitesSlice.actions.addSite(siteInfo));
@@ -190,7 +190,7 @@ export function addSite(siteInfo: SiteInfo) {
  */
 export function removeSite(siteInfo: SiteInfo) {
 	return async (dispatch: PlaygroundDispatch) => {
-		if (siteInfo.metadata.storage === 'opfs') {
+		if (siteInfo.metadata.storage !== 'none') {
 			await opfsSiteStorage?.delete(siteInfo.slug);
 		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
