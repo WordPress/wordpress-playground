@@ -140,8 +140,8 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 ]
 ```
 
-:::tip
-One of the things you'll want to import for your default content is images. A recommended approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`
+:::info
+One of the things you'll want to import for your default content is images. A recommended approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
 
 ```html
 <!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
@@ -197,6 +197,11 @@ With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch 
 ```
 
 You can also use the [`login`](/blueprints/steps#login) step to launch your Playground instance logged in with any specific user.
+
+:::tip
+
+The ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) blueprint example is a great reference that shows how to load, activate and configure a block themes on a Playground instance. [Open it in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) or [view the `blueprint.json` source](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json).
+:::
 
 ## Theme development
 
