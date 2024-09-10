@@ -60,10 +60,10 @@ export function Layout() {
 				in={siteManagerIsOpen}
 				timeout={500}
 				classNames={{
-					enter: css.sidebarEnter,
-					enterActive: css.sidebarEnterActive,
-					exit: css.sidebarExit,
-					exitActive: css.sidebarExitActive,
+					enter: css.siteManagerWrapperEnter,
+					enterActive: css.siteManagerWrapperEnterActive,
+					exit: css.siteManagerWrapperExit,
+					exitActive: css.siteManagerWrapperExitActive,
 				}}
 				unmountOnExit
 			>

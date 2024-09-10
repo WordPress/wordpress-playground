@@ -20,7 +20,6 @@ import {
 	seen,
 	unseen,
 	chevronLeft,
-	trash,
 } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import {
@@ -58,13 +57,13 @@ export function SiteInfoPanel({
 	className,
 	site,
 	removeSite,
-	showBackButton,
+	mobileUi,
 	onBackButtonClick,
 }: {
 	className: string;
 	site: SiteInfo;
 	removeSite: (site: SiteInfo) => Promise<void>;
-	showBackButton?: boolean;
+	mobileUi?: boolean;
 	onBackButtonClick?: () => void;
 }) {
 	const offline = useAppSelector((state) => state.offline);
@@ -81,6 +80,17 @@ export function SiteInfoPanel({
 	const clientInfo = useAppSelector((state) => state.clients[site.slug]);
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
+
+	function navigateTo(path: string) {
+		if (mobileUi) {
+			// Collapse the sidebar when opening a site
+			// because otherwise the site view will remain
+			// hidden by the sidebar on small screens.
+			dispatch(setSiteManagerIsOpen(false));
+		}
+
+		playground?.goTo(path);
+	}
 
 	return (
 		<section className={classNames(className, css.siteInfoPanel)}>
@@ -104,7 +114,7 @@ export function SiteInfoPanel({
 					>
 						<FlexItem>
 							<Flex direction="row" gap={2}>
-								{showBackButton && (
+								{mobileUi && (
 									<FlexItem>
 										<Button
 											variant="link"
@@ -164,19 +174,26 @@ export function SiteInfoPanel({
 						</FlexItem>
 						<FlexItem>
 							<Flex direction="row" gap={4} align="center">
-								<Button
-									variant="secondary"
-									onClick={() => {
-										// Collapse the sidebar when opening a site
-										// because otherwise the site view will remain
-										// hidden by the sidebar on small screens.
-										dispatch(setSiteManagerIsOpen(false));
-
-										playground?.goTo('/');
-									}}
-								>
-									Open site
-								</Button>
+								{!mobileUi && (
+									<>
+										<Button
+											variant="tertiary"
+											disabled={!playground}
+											onClick={() =>
+												navigateTo('/wp-admin/')
+											}
+										>
+											WP Admin
+										</Button>
+										<Button
+											variant="secondary"
+											disabled={!playground}
+											onClick={() => navigateTo('/')}
+										>
+											Homepage
+										</Button>
+									</>
+								)}
 								<DropdownMenu
 									icon={moreVertical}
 									label="Additional actions"
@@ -185,44 +202,75 @@ export function SiteInfoPanel({
 									}}
 								>
 									{({ onClose }) => (
-										<MenuGroup>
-											{/* 
-												@TODO: Duplicate site feature = Export site + import site using these PHP tools:
-												* https://github.com/adamziel/wxr-normalize/pull/1
-												* https://github.com/adamziel/site-transfer-protocol
-											*/}
-											{/* <MenuItem onClick={onClose}>Duplicate Site</MenuItem> */}
-											<ReportError
-												onClose={onClose}
-												disabled={offline}
-											/>
-											<DownloadAsZipMenuItem
-												onClose={onClose}
-											/>
-											<RestoreFromZipMenuItem
-												onClose={onClose}
-											/>
-											<GithubImportMenuItem
-												onClose={onClose}
-												disabled={offline}
-											/>
-											<GithubExportMenuItem
-												onClose={onClose}
-												disabled={offline}
-											/>
-											<MenuItem
-												icon={trash}
-												iconPosition="left"
-												aria-label="Delete this site"
-												onClick={() =>
-													removeSiteAndCloseMenu(
-														onClose
-													)
-												}
-											>
-												Delete
-											</MenuItem>
-										</MenuGroup>
+										<>
+											{mobileUi && (
+												<MenuGroup>
+													<MenuItem
+														icon={external}
+														iconPosition="right"
+														aria-label="Go to homepage"
+														onClick={() =>
+															navigateTo('/')
+														}
+													>
+														Open site
+													</MenuItem>
+													<MenuItem
+														icon={external}
+														iconPosition="right"
+														aria-label="Go to WP Admin"
+														onClick={() =>
+															navigateTo(
+																'/wp-admin/'
+															)
+														}
+													>
+														WP Admin
+													</MenuItem>
+												</MenuGroup>
+											)}
+											<MenuGroup>
+												<MenuItem
+													aria-label="Delete this site"
+													className={css.danger}
+													onClick={() =>
+														removeSiteAndCloseMenu(
+															onClose
+														)
+													}
+												>
+													Delete
+												</MenuItem>
+											</MenuGroup>
+											<MenuGroup>
+												{/* 
+													@TODO: Duplicate site feature = Export site + import site using these PHP tools:
+													* https://github.com/adamziel/wxr-normalize/pull/1
+													* https://github.com/adamziel/site-transfer-protocol
+												*/}
+												{/* <MenuItem onClick={onClose}>Duplicate Site</MenuItem> */}
+												<DownloadAsZipMenuItem
+													onClose={onClose}
+												/>
+												<RestoreFromZipMenuItem
+													onClose={onClose}
+												/>
+												<GithubImportMenuItem
+													onClose={onClose}
+													disabled={offline}
+												/>
+												<GithubExportMenuItem
+													onClose={onClose}
+													disabled={offline}
+												/>
+											</MenuGroup>
+											<MenuGroup>
+												<ReportError
+													onClose={onClose}
+													disabled={offline}
+												/>
+											</MenuGroup>
+										</>
 									)}
 								</DropdownMenu>
 							</Flex>

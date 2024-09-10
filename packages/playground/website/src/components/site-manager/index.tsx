@@ -54,7 +54,7 @@ export const SiteManager = forwardRef<
 			className={css.siteManagerSiteInfo}
 			site={activeSite}
 			removeSite={removeSite}
-			showBackButton={fullScreenSections}
+			mobileUi={fullScreenSections}
 			onBackButtonClick={() => {
 				setActiveSection('sites');
 			}}

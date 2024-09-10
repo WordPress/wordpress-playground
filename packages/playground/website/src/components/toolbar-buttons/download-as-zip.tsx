@@ -1,5 +1,4 @@
 import { MenuItem } from '@wordpress/components';
-import { download } from '@wordpress/icons';
 
 import { PlaygroundClient, zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
@@ -10,8 +9,6 @@ export function DownloadAsZipMenuItem({ onClose }: Props) {
 	const playground = usePlaygroundClient();
 	return (
 		<MenuItem
-			icon={download}
-			iconPosition="left"
 			data-cy="download-as-zip"
 			aria-label="Download the current playground as a .zip file"
 			onClick={() => {

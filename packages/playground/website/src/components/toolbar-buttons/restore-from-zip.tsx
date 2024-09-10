@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { MenuItem } from '@wordpress/components';
-import { upload } from '@wordpress/icons';
 
 import ImportForm from '../import-form';
 import Modal from '../modal';
@@ -29,8 +28,6 @@ export function RestoreFromZipMenuItem({ onClose }: Props) {
 	return (
 		<>
 			<MenuItem
-				icon={upload}
-				iconPosition="left"
 				data-cy="restore-from-zip"
 				aria-label="Download the current playground as a .zip file"
 				onClick={openModal}

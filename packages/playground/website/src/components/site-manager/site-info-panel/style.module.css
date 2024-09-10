@@ -2,8 +2,6 @@
 
 .site-info-panel {
 	--padding-size: 24px;
-	--color-gray-600: #6a6a6a;
-	--color-gray-900: #1e1e1e;
 
 	background: #ffffff;
 	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
@@ -185,4 +183,8 @@
 
 .max-width {
 	width: 100%;
+}
+
+.danger {
+	color: var(--color-alert-red);
 }
