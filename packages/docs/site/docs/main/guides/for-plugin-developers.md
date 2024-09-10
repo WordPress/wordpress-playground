@@ -10,7 +10,7 @@ This guide will explore **how you can leverage the WordPress Playground to enhan
 
 :::info
 
-Discover how you can leverage WordPress Playground to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products in the [About Playground](/about) section
+Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products with WordPress Playground in the [About Playground](/about) section.
 
 :::
 
@@ -18,15 +18,39 @@ Discover how you can leverage WordPress Playground to [Build](/about/build), [Te
 
 ### Plugin in the WordPress themes directory
 
-With WordPress Playground, you can quickly launch a WordPress installation using any plugin available in the [WordPress PLugins Directory](https://wordpress.org/plugins/). Simply pass the `plugin` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) like this: https://playground.wordpress.net/?plugin=gutenberg.
+With WordPress Playground, you can quickly launch a WordPress installation with any plugin available in the [WordPress Plugins Directory](https://wordpress.org/plugins/) installed and activated. Simply pass the `plugin` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) like this: https://playground.wordpress.net/?plugin=gutenberg.
 
 :::tip
 You can install and activate several plugins via query parameters by repeating the `plugin` parameter for every plugin you want to be installed and activated in the Playground instance. For example: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo.
 :::
 
+You can also load any plugin from the WordPress plugins directory by setting the [`installPlugin` step](/blueprints/steps#InstallPluginStep) of a [Blueprint](/blueprints/getting-started) passed to the Playground instance.
+
+```json
+{
+	"landingPage": "/wp-admin/plugins.php",
+	"login": true,
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "gutenberg"
+			}
+		}
+	]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginZipFile%22:{%22resource%22:%22wordpress.org/plugins%22,%22slug%22:%22gutenberg%22}}]})
+
+:::info
+Blueprints can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
+:::
+
 ### Plugin in a GitHub repository
 
-You can also load a plugin stored in a GitHub repository with a custom Blueprint passed to the Playground instance.
+A plugin stored in a GitHub repository can also be loaded in a Playground instance via Blueprints.
 
 With the `pluginZipFile` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the plugin you want to load in the Playground instance.
 
@@ -36,52 +60,85 @@ To avoid CORS issues, the Playground project provides a [GitHub proxy](https://p
 [GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load plugins from GitHub repositories as it allows you to load a plugin from a specific branch, a specific directory, a specific commit or a specific PR.
 :::
 
-For example, the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
+For example, the following `blueprint.json` installs a plugin from a GitHub repository leveraging the https://github-proxy.com tool:
 
 ```json
 {
+	"landingPage": "/wp-admin/admin.php?page=add-media-from-third-party-service",
+	"login": true,
 	"steps": [
-        ...,
-		 {
-            "step": "installPlugin",
-            "pluginZipFile": {
-                "resource": "wordpress.org/plugins",
-                "slug": "gutenberg"
-            },
-            "options": {
-                "activate": true
-            }
-        },
-        ...
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "url",
+				"url": "https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin"
+			}
+		}
 	]
 }
 ```
 
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginZipFile%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin%22}}]})
+
 ### Plugin code from a gist
 
-You can launch a WP Playground instance with [a plugin built on the fly from code on a gist](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]})
+By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePlugin`](/blueprints/steps#activatePlugin) steps you can also launch a WP Playground instance with a plugin built on the fly from code stored on a gist:
 
 ```json
-"steps": [
-    {
-        "step": "login"
-    },
-    {
-        "step": "writeFile",
-        "path": "/wordpress/wp-content/plugins/0-plugin.php",
-        "data": {
-            "resource": "url",
-            "url": "https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php"
-        }
-    },
-    {
-        "step": "activatePlugin",
-        "pluginName": "Block Hooks Demo",
-        "pluginPath": "0-plugin.php"
-    }
-]
+{
+	"landingPage": "/wp-admin/plugins.php",
+	"login": true,
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/plugins/0-plugin.php",
+			"data": {
+				"resource": "url",
+				"url": "https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php"
+			}
+		},
+		{
+			"step": "activatePlugin",
+			"pluginName": "Block Hooks Demo",
+			"pluginPath": "0-plugin.php"
+		}
+	]
+}
 ```
 
-:::info
-Blueprints can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]})
+
+## Plugin Development
+
+### Local plugin development and testing with Playground
+
+From a plugins' folder in your local development environment, you can quickly load locally a Playground instance with that plugin loaded and activated. You can do that by launching, in the plugin's directory, the [`wp-now` command](/developers/local-development/wp-now) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
+
+For example:
+
+```
+git clone git@github.com:wptrainingteam/devblog-dataviews-plugin.git
+cd devblog-dataviews-plugin
+npx @wp-now/wp-now start
+```
+
+### See your local changes in a Playground instance and directly create PRs in a GitHub repo with your changes
+
+With Google Chrome (it only works with this browser, for now) you can synchronize a Playground instance with your local plugin's code and your plugin's GitHub repo. With this connection you can:
+
+-   See live (in the Playground instance) your local changes
+-   Create PRs in the GitHub repo with your changes
+
+Here's a little demo of this workflow in action:
+
+<iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<p></p>
+
+:::tip
+
+Check [About Playground > Build > Synchronize your playground instance with a local folder and create Github Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+
 :::
