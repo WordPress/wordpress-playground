@@ -5,6 +5,7 @@ import {
 } from '@reduxjs/toolkit';
 import { SiteMetadata } from '../../site-metadata';
 import { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -40,13 +41,7 @@ const sitesSlice = createSlice({
 		// Add one or many sites
 		addSites: sitesAdapter.addMany,
 		addSite: sitesAdapter.addOne,
-
-		// Update one or many sites
-		updateSites: sitesAdapter.updateMany,
 		updateSite: sitesAdapter.updateOne,
-
-		// Remove one or many sites
-		removeSites: sitesAdapter.removeMany,
 		removeSite: sitesAdapter.removeOne,
 
 		// Custom reducer for updating nested properties
@@ -108,49 +103,101 @@ export function deriveSlugFromSiteName(name: string) {
 	return name.toLowerCase().replaceAll(' ', '-');
 }
 
-// export function updateSiteMetadata(siteInfo: SiteInfo) {
-// 	return async (dispatch: typeof store.dispatch) => {
-// 		// @TODO: Handle errors.
-// 		// @TODO: Throw if storage type changed. This thunk is not for moving sites between
-// 		//        storage backends.
+/**
+ * Updates the site metadata in the OPFS and in the redux state.
+ */
+export function updateSiteMetadata({
+	slug,
+	changes,
+}: {
+	slug: string;
+	changes: Omit<Partial<SiteMetadata>, 'storage'>;
+}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const storedSite = selectSiteBySlug(getState(), slug);
+		dispatch(
+			updateSite({
+				slug,
+				changes: {
+					metadata: {
+						...storedSite.metadata,
+						...changes,
+					},
+				},
+			})
+		);
+	};
+}
+/**
+ * Updates a site in the OPFS and in the redux state.
+ *
+ * @param siteInfo The site info to update.
+ * @returns
+ */
+export function updateSite({
+	slug,
+	changes,
+}: {
+	slug: string;
+	changes: Partial<SiteInfo>;
+}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		dispatch(
+			sitesSlice.actions.updateSite({
+				id: slug,
+				changes,
+			})
+		);
+		const updatedSite = selectSiteBySlug(getState(), slug);
+		if (updatedSite.metadata.storage === 'opfs') {
+			await opfsSiteStorage?.update(
+				updatedSite.slug,
+				updatedSite.metadata
+			);
+		}
+	};
+}
 
-// 		dispatch(slice.actions.updateSite(siteInfo));
-// 		await opfsSiteStorage?.update(siteInfo.slug, siteInfo.metadata);
-// 	};
-// }
+/**
+ * Creates a new site in the OPFS and in the redux state.
+ *
+ * @param siteInfo The site info to add.
+ * @returns
+ */
+export function addSite(siteInfo: SiteInfo) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		if (siteInfo.metadata.storage === 'opfs') {
+			await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
+		}
+		dispatch(sitesSlice.actions.addSite(siteInfo));
+	};
+}
 
-// export function createSite(siteInfo: SiteInfo) {
-// 	return async (dispatch: typeof store.dispatch) => {
-// 		// TODO: Handle errors
-// 		// TODO: Possibly reflect addition in progress
-// 		if (siteInfo.metadata.storage === 'opfs') {
-// 			await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
-// 		}
-// 		dispatch(slice.actions.addSite(siteInfo));
-// 	};
-// }
+/**
+ * Removes a site from the OPFS and from the redux state.
+ *
+ * @param siteInfo The site info to remove.
+ * @returns
+ */
+export function removeSite(siteInfo: SiteInfo) {
+	return async (dispatch: PlaygroundDispatch) => {
+		if (siteInfo.metadata.storage === 'opfs') {
+			await opfsSiteStorage?.delete(siteInfo.slug);
+		}
+		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
+	};
+}
 
-// export function deleteSite(siteInfo: SiteInfo) {
-// 	return async (dispatch: typeof store.dispatch) => {
-// 		// TODO: Handle errors
-// 		// TODO: Possibly reflect removal in progress
-// 		if (siteInfo.metadata.storage === 'opfs') {
-// 			await opfsSiteStorage?.delete(siteInfo.slug);
-// 		}
-// 		dispatch(slice.actions.removeSite(siteInfo));
-// 	};
-// }
-
-export const {
-	addSites,
-	addSite,
-	updateSites,
-	updateSite,
-	removeSites,
-	removeSite,
-	updateSiteMetadata,
-	setLoadingState,
-} = sitesSlice.actions;
+export const { setLoadingState } = sitesSlice.actions;
 
 export const {
 	selectAll: selectAllSites,

@@ -116,7 +116,7 @@ export function persistTemporarySite(
 
 		dispatch(
 			updateSite({
-				id: siteSlug,
+				slug: siteSlug,
 				changes: {
 					originalUrlParams: undefined,
 					metadata: {

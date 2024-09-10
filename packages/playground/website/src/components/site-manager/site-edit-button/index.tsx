@@ -41,9 +41,8 @@ function StoredSiteEditButton({
 	const updateSite = async (data: SiteFormData) => {
 		await dispatch(
 			updateSiteMetadata({
-				...siteInfo,
-				metadata: {
-					...siteInfo.metadata,
+				slug: siteSlug,
+				changes: {
 					name: data.name,
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
