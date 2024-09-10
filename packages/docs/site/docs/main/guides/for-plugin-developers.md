@@ -111,6 +111,50 @@ By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePl
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]})
 
+## Setting up a demo for your plugin with Blueprints
+
+When providing a link to a WordPress Playground instance with some plugins activated, you may also want to customize the initial setup for that Playground instance using those plugins. With Playground's [Blueprints](/blueprints/getting-started) you can load, activate, and configure the Playground instance.
+
+:::tip
+
+Some useful tools and resources provided by the Playground project to work with blueprints are:
+
+-   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+-   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+-   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
+
+:::
+
+Through properties and [`steps`](/blueprints/steps) in the Blueprint, you can configure the Playground instance's initial setup, providing your plugins with the content and configuration needed for proper showcasing.
+
+### `plugins`
+
+If your plugin has dependencies on other plugins you can use the `plugins` shorthand to install yours along with any other needed plugins.
+
+```json
+{
+	"landingPage": "/wp-admin/plugins.php",
+	"plugins": ["gutenberg", "sql-buddy", "create-block-theme"],
+	"login": true
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22plugins%22:[%22gutenberg%22,%22sql-buddy%22,%22create-block-theme%22],%22login%22:true})
+
+### `landinPage`
+
+If your plugin has a settings view or onboarding wizard, you can use the `landingPage` shorthand to automatically redirect to any page in the Playground instance upon loading.
+
+```json
+{
+	"landingPage": "/wp-admin/admin.php?page=my-custom-gutenberg-app",
+	"login": true,
+	"plugins": ["https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip"]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=my-custom-gutenberg-app%22,%22login%22:true,%22plugins%22:[%22https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip%22]})
+
 ## Plugin Development
 
 ### Local plugin development and testing with Playground
@@ -119,10 +163,12 @@ From a plugins' folder in your local development environment, you can quickly lo
 
 For example:
 
-```
+````
+
 git clone git@github.com:wptrainingteam/devblog-dataviews-plugin.git
 cd devblog-dataviews-plugin
 npx @wp-now/wp-now start
+
 ```
 
 ### See your local changes in a Playground instance and directly create PRs in a GitHub repo with your changes
@@ -142,3 +188,5 @@ Here's a little demo of this workflow in action:
 Check [About Playground > Build > Synchronize your playground instance with a local folder and create Github Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 :::
+```
+````
