@@ -2,7 +2,6 @@ import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
 import {
 	useAppDispatch,
-	setSiteManagerIsOpen,
 	deleteSite,
 	useActiveSite,
 } from '../../lib/redux-store';
@@ -12,7 +11,7 @@ import { SiteInfo } from '../../lib/site-storage';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import { useCurrentUrl } from '../../lib/router-hooks';
 
 export const SiteManager = forwardRef<
@@ -24,6 +23,10 @@ export const SiteManager = forwardRef<
 	const [, setUrlComponents] = useCurrentUrl();
 
 	const activeSite = useActiveSite()!;
+	const [activeSection, setActiveSection] = useState<'sites' | 'site-info'>(
+		activeSite ? 'site-info' : 'sites'
+	);
+
 	const dispatch = useAppDispatch();
 
 	const removeSite = async (siteToRemove: SiteInfo) => {
@@ -34,12 +37,17 @@ export const SiteManager = forwardRef<
 				{ searchParams: { 'site-slug': undefined } },
 				'replace'
 			);
-			dispatch(setSiteManagerIsOpen(true));
+			setActiveSection('sites');
 		}
 	};
 
-	const fullScreenSections = useMediaQuery('(max-width: 750px)');
-	const sitesList = <Sidebar className={css.sidebar} />;
+	const fullScreenSections = useMediaQuery('(max-width: 875px)');
+	const sitesList = (
+		<Sidebar
+			className={css.sidebar}
+			afterSiteClick={() => setActiveSection('site-info')}
+		/>
+	);
 	const siteInfoPanel = activeSite && (
 		<SiteInfoPanel
 			key={activeSite.slug}
@@ -48,14 +56,18 @@ export const SiteManager = forwardRef<
 			removeSite={removeSite}
 			showBackButton={fullScreenSections}
 			onBackButtonClick={() => {
-				dispatch(setSiteManagerIsOpen(true));
+				setActiveSection('sites');
 			}}
 		/>
 	);
 	return (
 		<div className={classNames(css.siteManager, className)} ref={ref}>
 			{fullScreenSections ? (
-				siteInfoPanel || sitesList
+				activeSection === 'site-info' ? (
+					siteInfoPanel
+				) : (
+					sitesList
+				)
 			) : (
 				<>
 					{sitesList}

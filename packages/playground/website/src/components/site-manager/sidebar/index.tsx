@@ -18,7 +18,13 @@ import { useCurrentUrl } from '../../../lib/router-hooks';
 import { useMemo } from 'react';
 import { SiteCreateButton } from '../site-create-button';
 
-export function Sidebar({ className }: { className?: string }) {
+export function Sidebar({
+	className,
+	afterSiteClick,
+}: {
+	className?: string;
+	afterSiteClick?: (slug: string) => void;
+}) {
 	const sitesRaw = useAppSelector(
 		// Sites may be in an arbitrary order, so let's sort them by name
 		// @TODO: Sort by last access date
@@ -46,6 +52,7 @@ export function Sidebar({ className }: { className?: string }) {
 		} else {
 			setUrlComponents({ searchParams: { 'site-slug': slug } });
 		}
+		afterSiteClick?.(slug);
 	};
 
 	const resources = [

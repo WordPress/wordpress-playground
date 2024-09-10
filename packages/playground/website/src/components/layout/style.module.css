@@ -1,7 +1,7 @@
 :root {
 	--site-manager-site-list-width: 350px;
 	--site-manager-site-info-min-width: 524px;
-	--site-manager-width: calc(
+	--site-manager-width-desktop: calc(
 		var(--site-manager-site-list-width) +
 			var(--site-manager-site-info-min-width)
 	);
@@ -27,34 +27,41 @@ body {
 	height: 100%;
 }
 
-.sidebar {
+.site-manager-wrapper {
 	flex: 0 0 auto;
-	width: var(--site-manager-width);
+	min-width: var(--site-manager-width-desktop);
+	@media (max-width: 875px) {
+		min-width: 0;
+		width: 100%;
+	}
 }
 
-.sidebar-enter {
+.site-manager-wrapper-enter {
 	opacity: 0;
 	width: 0;
 }
 
-.sidebar-exit,
-.sidebar-enter-active {
+.site-manager-wrapper-exit,
+.site-manager-wrapper-enter-active {
 	opacity: 1;
 	transform: none;
-	width: var(--site-manager-width);
+	width: var(--site-manager-width-desktop);
+	@media (max-width: 875px) {
+		width: 100%;
+	}
 }
 
 /* 
  * Repeated rule to ensure it's more specific than
- * .sidebar-exit
+ * .site-manager-wrapper-exit
  */
-.sidebar-exit-active {
+.site-manager-wrapper-exit-active {
 	opacity: 0;
 	width: 0;
 }
 
-.sidebar-exit-active,
-.sidebar-enter-active {
+.site-manager-wrapper-exit-active,
+.site-manager-wrapper-enter-active {
 	transition: width 300ms, opacity 300ms;
 }
 
@@ -69,7 +76,7 @@ body {
 	border-width: 0;
 }
 
-.sidebar + .site-view {
+.site-manager-wrapper + .site-view {
 	position: relative;
 	border-width: var(--site-manager-border-width);
 	border-left-width: 0;
@@ -78,7 +85,7 @@ body {
 	}
 }
 
-.sidebar-exit-active + .site-view {
+.site-manager-wrapper-exit-active + .site-view {
 	border-radius: 0;
 	border-width: 0;
 	.site-view-content {
@@ -114,12 +121,12 @@ body {
  * on smaller screens and never overflows out of the screen.
  */
 @media (max-width: 1126px) {
-	.sidebar + .site-view {
+	.site-manager-wrapper + .site-view {
 		display: none;
 	}
-	.sidebar,
-	.sidebar-exit,
-	.sidebar-enter-active {
+	.site-manager-wrapper,
+	.site-manager-wrapper-exit,
+	.site-manager-wrapper-enter-active {
 		width: 100%;
 	}
 }

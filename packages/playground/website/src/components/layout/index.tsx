@@ -67,7 +67,7 @@ export function Layout() {
 				}}
 				unmountOnExit
 			>
-				<div className={css.sidebar}>
+				<div className={css.siteManagerWrapper}>
 					<SiteManager />
 				</div>
 			</CSSTransition>
