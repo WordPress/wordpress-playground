@@ -20,11 +20,33 @@ Discover how you can leverage WordPress Playground to [Build](/about/build), [Te
 
 With WordPress Playground, you can quickly launch a WordPress installation using any theme available in the [WordPress Themes Directory](https://wordpress.org/themes/). Simply pass the `theme` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) like this: https://playground.wordpress.net/?theme=disco.
 
+You can also load any theme from the WordPress themes directory by setting the [`installTheme` step](/blueprints/steps#InstallThemeStep) of a custom `blueprint.json` passed to the Playground instance.
+
+```json
+{
+	"steps": [
+		{
+			"step": "installTheme",
+			"themeZipFile": {
+				"resource": "wordpress.org/themes",
+				"slug": "twentytwenty"
+			},
+			"options": {
+				"activate": true,
+				"importStarterContent": true
+			}
+		}
+	]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22},%22options%22:{%22activate%22:true,%22importStarterContent%22:true}}]})
+
 ### Themes in a GitHub repository
 
-You can also load a theme stored in a GitHub repository with a custom `blueprint.json` passed to the Playground instance.
+A theme stored in a GitHub repository can also be loaded in a Playground instance with a custom `blueprint.json`.
 
-With the `themeZipFile` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
+In the `themeZipFile` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
 
 To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your or theme.
 
@@ -32,7 +54,7 @@ To avoid CORS issues, the Playground project provides a [GitHub proxy](https://p
 [GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load themes from GitHub repositories as it allows you to load a theme from a specific branch, a specific directory, a specific commit or a specific PR.
 :::
 
-For example, the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
+For example the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
 
 ```json
 {
@@ -51,7 +73,9 @@ For example, the following `blueprint.json` installs a theme from a GitHub repos
 }
 ```
 
-A blueprint like the one above could be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
+
+A blueprint can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
 
 ## Setting up a demo theme with Blueprints
 
@@ -69,9 +93,116 @@ Some useful tools and resources provided by the Playground project to work with 
 
 :::
 
-Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance:
+Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance.
 
-### `resetData`
+### Importing content for your demo
+
+One of the things you may want to do to provide a good demo of your theme via Playground is to load default content to better highlight the features of your theme. This default content may include images or other assets.
+
+There are several blueprint steps and strategies you can use to import content in the theme you want to display in the Playground instance:
+
+#### `importWxr`
+
+With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your own content via a `.xml` file previously [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/):
+
+```json
+"steps": [
+	...,
+	{
+		"step": "importWxr",
+		"file": {
+			"resource": "url",
+			"url": "https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint-content.xml"
+		}
+	},
+	...
+]
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L43)
+
+:::info
+To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
+
+```html
+<!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
+<figure class="wp-block-image aligncenter size-full is-resized no-border">
+	<img src="https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/images/avatars.png" alt="" class="wp-image-4751" style="width:78px" />
+</figure>
+<!-- /wp:image -->
+```
+
+:::
+
+It is recommended to upload your exported `.xml` file and any referenced assets (such as images) to the same directory as your `blueprint.json` in your GitHub repository.
+
+#### `importWordPressFiles`
+
+With the [`importWordPressFiles`](/blueprints/steps#importWordPressFiles) step, you can import your own top-level WordPress files from a given `.zip` file into the instance's root folder. For example, if a `.zip` file contains the `wp-content` and `wp-includes` directories, they will replace the corresponding directories in Playground's root folder.
+
+This `zip` file can be created from any Playground instance with the "Download as zip" option in the [Playground Options Menu](/web-instance#playground-options-menu).
+
+You can prepare a demo of your WordPress theme (including images and other assets) in a Playground instance and then export a snapshot of that demo into a `.zip` file. This file can be imported later using the `importWordPressFiles` step.
+
+```json
+{
+	"landingPage": "/",
+	"login": true,
+	"steps": [
+		{
+			"step": "importWordPressFiles",
+			"wordPressFilesZip": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/adamziel/playground-sites/main/playground-for-site-builders/playground.zip"
+			}
+		}
+	]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/%22,%22login%22:true,%22steps%22:[{%22step%22:%22importWordPressFiles%22,%22wordPressFilesZip%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/adamziel/playground-sites/main/playground-for-site-builders/playground.zip%22}}]})
+
+#### `importThemeStarterContent`
+
+[Some themes have starter content](https://make.wordpress.org/core/2016/11/30/starter-content-for-themes-in-4-7/) that can be published to highlight the features of a theme.
+
+With the [`importThemeStarterContent` step](/blueprints/steps#importThemeStarterContent) you can publish the starter content of any theme even if that theme is not activated.
+
+```json
+
+"steps": [
+    {
+      "step": "installTheme",
+      "themeZipFile": {
+        "resource": "wordpress.org/themes",
+        "slug": "twentytwenty"
+      }
+    },
+    {
+      "step": "installTheme",
+      "themeZipFile": {
+        "resource": "wordpress.org/themes",
+        "slug": "twentytwentyone"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "importThemeStarterContent",
+      "themeSlug": "twentytwenty"
+    }
+  ]
+
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22}},{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwentyone%22},%22options%22:{%22activate%22:true}},{%22step%22:%22importThemeStarterContent%22,%22themeSlug%22:%22twentytwenty%22}]})
+
+You can also publish the starter content of a theme when installing it with the [`installTheme` step](/blueprints/steps#installTheme) by setting to `true` its `importStarterContent` option.
+
+### Other Settings
+
+#### `resetData`
 
 With the [`resetData`](/blueprints/steps#resetData) step, you can remove the default content of a WordPress installation in order to import your own content.
 
@@ -85,7 +216,9 @@ With the [`resetData`](/blueprints/steps#resetData) step, you can remove the def
 ]
 ```
 
-### `writeFile`
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L16)
+
+#### `writeFile`
 
 With the [`writeFile`](/blueprints/steps#resetData) step, you can write data to a file at a specified path. You may want to use this step to write custom PHP code in a PHP file inside the `mu-plugins` folder of the Playground WordPress instance, so the code is executed automatically when the WordPress instance is loaded.
 One of the things you can do through this step is to enable pretty permalinks for your Playground instance:
@@ -102,7 +235,9 @@ One of the things you can do through this step is to enable pretty permalinks fo
 ]
 ```
 
-### `updateUserMeta`
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L19)
+
+#### `updateUserMeta`
 
 With the [`updateUserMeta`](/blueprints/steps#updateUserMeta) step, you can update any user metadata. For example, you could update the metadata of the default `admin` user of any WordPress installation:
 
@@ -122,40 +257,9 @@ With the [`updateUserMeta`](/blueprints/steps#updateUserMeta) step, you can upda
 ]
 ```
 
-### `importWxr`
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L24)
 
-With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your own content via a `.xml` file previously [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/):
-
-```json
-"steps": [
-	...,
-	{
-		"step": "importWxr",
-		"file": {
-			"resource": "url",
-			"url": "https://raw.githubusercontent.com/wordpress-juanmaguitar/blueprints/install-theme-directory-from-repo/blueprints/install-activate-setup-theme-from-gh-repo/blueprint-content.xml"
-		}
-	},
-	...
-]
-```
-
-:::info
-One of the things you'll want to import for your default content is images. A recommended approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
-
-```html
-<!-- wp:image {"lightbox":{"enabled":false},"id":4751,"width":"78px","sizeSlug":"full","linkDestination":"none","align":"center","className":"no-border"} -->
-<figure class="wp-block-image aligncenter size-full is-resized no-border">
-	<img src="https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/images/avatars.png" alt="" class="wp-image-4751" style="width:78px" />
-</figure>
-<!-- /wp:image -->
-```
-
-:::
-
-It is recommended to upload your exported `.xml` file and any referenced assets (such as images) to the same directory as your `blueprint.json` in your GitHub repository.
-
-### `setSiteOptions`
+#### `setSiteOptions`
 
 With the [`setSiteOptions`](/blueprints/steps#setSiteOptions) step, you can set [site options](https://developer.wordpress.org/apis/options/#available-options-by-category) such as the site name, description, or page to use for posts.
 
@@ -176,9 +280,11 @@ With the [`setSiteOptions`](/blueprints/steps#setSiteOptions) step, you can set 
 ]
 ```
 
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L50)
+
 There's also a [`siteOptions`](/blueprints/steps/shorthands#siteoptions) shorthand that can be used instead of the `setSiteOptions` step.
 
-### `plugins`
+#### `plugins`
 
 With the [`plugins`](/blueprints/steps/shorthands#plugins) shorthand you can set a list of plugins you want to be installed and activated with your theme in the Playground instance.
 
@@ -186,9 +292,11 @@ With the [`plugins`](/blueprints/steps/shorthands#plugins) shorthand you can set
 "plugins": ["todo-list-block", "markdown-comment-block"]
 ```
 
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L60)
+
 You can also use the [`installPlugin`](/blueprints/steps#installPlugin) step to install and activate plugins for your Playground instance but the shorthand way is recommended.
 
-### `login`
+#### `login`
 
 With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch your Playground instance with the admin user logged in.
 
@@ -196,11 +304,23 @@ With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch 
  "login": true,
 ```
 
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L10)
+
 You can also use the [`login`](/blueprints/steps#login) step to launch your Playground instance logged in with any specific user.
+
+#### `login`
+
+With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch your Playground instance with the admin user logged in.
+
+```json
+ "login": true,
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L10)
 
 :::tip
 
-The ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) blueprint example is a great reference that shows how to load, activate and configure a block themes on a Playground instance. [Open it in Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) or [view the `blueprint.json` source](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json).
+The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
 :::
 
 ## Theme development
