@@ -10,7 +10,7 @@ This guide will explore **how you can leverage the WordPress Playground to enhan
 
 :::info
 
-Discover how you can leverage WordPress Playground to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products in the [About Playground](/about) section
+Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/launch) your products with WordPress Playground in the [About Playground](/about) section
 
 :::
 
@@ -20,7 +20,7 @@ Discover how you can leverage WordPress Playground to [Build](/about/build), [Te
 
 With WordPress Playground, you can quickly launch a WordPress installation using any theme available in the [WordPress Themes Directory](https://wordpress.org/themes/). Simply pass the `theme` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) like this: https://playground.wordpress.net/?theme=disco.
 
-You can also load any theme from the WordPress themes directory by setting the [`installTheme` step](/blueprints/steps#InstallThemeStep) of a custom `blueprint.json` passed to the Playground instance.
+You can also load any theme from the WordPress themes directory by setting the [`installTheme` step](/blueprints/steps#InstallThemeStep) of a [Blueprint](/blueprints/getting-started) passed to the Playground instance.
 
 ```json
 {
@@ -44,7 +44,7 @@ You can also load any theme from the WordPress themes directory by setting the [
 
 ### Themes in a GitHub repository
 
-A theme stored in a GitHub repository can also be loaded in a Playground instance with a custom `blueprint.json`.
+A theme stored in a GitHub repository can also be loaded in a Playground instance with Blueprints.
 
 In the `themeZipFile` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
 
@@ -79,9 +79,7 @@ A blueprint can be passed to a Playground instance [in several ways](/blueprints
 
 ## Setting up a demo theme with Blueprints
 
-When providing a link to a WordPress Playground instance with a specific theme activated, you may also want to customize the initial setup for that theme.
-
-By providing a [blueprint](/blueprints/getting-started) to Playground you'll be able to load, activate, and configure a theme.
+When providing a link to a WordPress Playground instance with a specific theme activated, you may also want to customize the initial setup for that theme. With Playground's [Blueprints](/blueprints/getting-started) you can load, activate, and configure a theme.
 
 :::tip
 
@@ -307,16 +305,6 @@ With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L10)
 
 You can also use the [`login`](/blueprints/steps#login) step to launch your Playground instance logged in with any specific user.
-
-#### `login`
-
-With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch your Playground instance with the admin user logged in.
-
-```json
- "login": true,
-```
-
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L10)
 
 :::tip
 
