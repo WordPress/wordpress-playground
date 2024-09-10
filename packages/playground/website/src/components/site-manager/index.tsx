@@ -7,8 +7,7 @@ import css from './style.module.css';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
-import React, { forwardRef, useState } from 'react';
-import { useCurrentUrl } from '../../lib/state/url/router-hooks';
+import { forwardRef, useState } from 'react';
 import { SiteInfo } from '../../lib/state/redux/slice-sites';
 
 export const SiteManager = forwardRef<
@@ -17,8 +16,6 @@ export const SiteManager = forwardRef<
 		className?: string;
 	}
 >(({ className }, ref) => {
-	const [, setUrlComponents] = useCurrentUrl();
-
 	const activeSite = useActiveSite()!;
 	const [activeSection, setActiveSection] = useState<'sites' | 'site-info'>(
 		activeSite ? 'site-info' : 'sites'
@@ -27,15 +24,8 @@ export const SiteManager = forwardRef<
 	const dispatch = useAppDispatch();
 
 	const onRemoveSite = async (siteToRemove: SiteInfo) => {
-		const removingSelectedSite = siteToRemove.slug === activeSite?.slug;
 		await dispatch(removeSite(siteToRemove.slug));
-		if (removingSelectedSite) {
-			setUrlComponents(
-				{ searchParams: { 'site-slug': undefined } },
-				'replace'
-			);
-			setActiveSection('sites');
-		}
+		setActiveSection('sites');
 	};
 
 	const fullScreenSections = useMediaQuery('(max-width: 875px)');

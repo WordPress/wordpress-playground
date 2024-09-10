@@ -41,6 +41,8 @@ const uiSlice = createSlice({
 	},
 });
 
+export const __internal_uiSlice = uiSlice;
+
 export const listenToOnlineOfflineEventsMiddleware: Middleware =
 	(store) => (next) => (action) => {
 		if (typeof window !== 'undefined') {
@@ -54,7 +56,7 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 		return next(action);
 	};
 
-export const { setActiveSite, setActiveModal, setOffline, setSiteManagerOpen } =
+export const { setActiveModal, setOffline, setSiteManagerOpen } =
 	uiSlice.actions;
 
 export default uiSlice.reducer;

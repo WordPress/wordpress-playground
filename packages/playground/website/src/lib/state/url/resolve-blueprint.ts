@@ -1,5 +1,6 @@
 import { Blueprint } from '@wp-playground/client';
 import { makeBlueprint } from '../../make-blueprint';
+import { parseBlueprint } from './router';
 
 export async function resolveBlueprint(url: URL) {
 	const query = url.searchParams;
@@ -21,15 +22,7 @@ export async function resolveBlueprint(url: URL) {
 		 * Support passing blueprints in the URI fragment, e.g.:
 		 * /#{"landingPage": "/?p=4"}
 		 */
-		try {
-			try {
-				blueprint = JSON.parse(atob(fragment));
-			} catch (e) {
-				blueprint = JSON.parse(fragment);
-			}
-		} catch (e) {
-			// Noop
-		}
+		blueprint = parseBlueprint(fragment);
 	}
 
 	// If no blueprint was passed, prepare one based on the query params.

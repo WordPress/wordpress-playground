@@ -1,12 +1,12 @@
 import { Modal } from '@wordpress/components';
 import { useMemo, useState } from 'react';
 import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
-import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
 import {
 	selectSiteBySlug,
 	updateSiteMetadata,
 } from '../../../lib/state/redux/slice-sites';
+import { redirectTo, PlaygroundRoute } from '../../../lib/state/url/router';
 
 export function SiteEditButton({
 	siteSlug,
@@ -120,26 +120,23 @@ function InMemorySiteEditButton({
 		selectSiteBySlug(state, siteSlug)
 	)!;
 	const [isModalOpen, setModalOpen] = useState(false);
-	const [, setUrlComponents] = useCurrentUrl();
 	const updateSite = async (data: SiteFormData) => {
-		// @TODO: A single module to orchestrate these redirects.
-		//        Right now we're duplicating the logic everywhere and changing
-		//        these routes will be painful.
-		setUrlComponents({
-			hash: siteInfo.originalUrlParams?.hash,
-			searchParams: {
-				...(siteInfo.originalUrlParams?.searchParams || {}),
-				php: data.phpVersion,
-				wp: data.wpVersion,
-				name: data.name,
-				networking: data.withNetworking ? 'yes' : 'no',
-				'php-extension-bundle': data.withExtensions
-					? 'kitchen-sink'
-					: 'light',
-				language: data.language,
-				multisite: data.multisite ? 'yes' : 'no',
-			},
-		});
+		redirectTo(
+			PlaygroundRoute.newTemporarySite({
+				query: {
+					...(siteInfo.originalUrlParams?.searchParams || {}),
+					php: data.phpVersion,
+					wp: data.wpVersion,
+					name: data.name,
+					networking: data.withNetworking ? 'yes' : 'no',
+					'php-extension-bundle': data.withExtensions
+						? 'kitchen-sink'
+						: 'light',
+					language: data.language,
+					multisite: data.multisite ? 'yes' : 'no',
+				},
+			})
+		);
 		// @TODO: Display a notification "site updated"
 		setModalOpen(false);
 	};

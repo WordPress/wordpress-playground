@@ -3,12 +3,16 @@ import { MountDescriptor } from '@wp-playground/remote';
 import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	opfsSiteStorage,
-	getDirectoryNameForSlug,
+	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
-import { updateUrl } from '../url/router-hooks';
 import store, { PlaygroundReduxState } from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
-import { selectSiteBySlug, updateSite } from './slice-sites';
+import {
+	selectSiteBySlug,
+	updateSite,
+	updateSiteMetadata,
+} from './slice-sites';
+import { PlaygroundRoute, redirectTo } from '../url/router';
 
 export function persistTemporarySite(
 	siteSlug: string,
@@ -41,7 +45,7 @@ export function persistTemporarySite(
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					path: '/' + getDirectoryNameForSlug(siteSlug),
+					path: getDirectoryPathForSlug(siteSlug),
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -114,27 +118,39 @@ export function persistTemporarySite(
 			);
 		}
 
-		dispatch(
+		await dispatch(
 			updateSite({
 				slug: siteSlug,
 				changes: {
 					originalUrlParams: undefined,
-					metadata: {
-						...siteInfo.metadata,
-						storage: storageType,
-					},
+				},
+			})
+		);
+		await dispatch(
+			updateSiteMetadata({
+				slug: siteSlug,
+				changes: {
+					storage: storageType,
 				},
 			})
 		);
 
-		window.history.pushState(
-			{},
-			'',
-			updateUrl(window.location.href, {
-				searchParams: {
-					'site-slug': siteSlug,
+		/**
+		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
+		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
+		 * I suspect the postMessage call we do to the safari worker causes it to
+		 * respond with another message and these unexpected exchange throws off
+		 * Comlink. We should make Comlink ignore those.
+		 */
+		// redirectTo(PlaygroundRoute.site(selectSiteBySlug(state, siteSlug)));
+
+		redirectTo(
+			PlaygroundRoute.site({
+				slug: siteSlug,
+				metadata: {
+					storage: storageType,
 				},
-			})
+			} as any)
 		);
 	};
 }

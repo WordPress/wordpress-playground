@@ -1,6 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit';
-import uiReducer, { listenToOnlineOfflineEventsMiddleware } from './slice-ui';
-import sitesReducer, { SiteInfo } from './slice-sites';
+import uiReducer, {
+	__internal_uiSlice,
+	listenToOnlineOfflineEventsMiddleware,
+} from './slice-ui';
+import sitesReducer, { selectSiteBySlug, SiteInfo } from './slice-sites';
+import { PlaygroundRoute, redirectTo } from '../url/router';
 import clientsReducer, { ClientInfo } from './slice-clients';
 import { GetDefaultMiddleware } from '@reduxjs/toolkit/dist/getDefaultMiddleware';
 import { useDispatch, useSelector } from 'react-redux';
@@ -50,14 +54,27 @@ export function useAppDispatch() {
 	return useDispatch<PlaygroundDispatch>();
 }
 
-export const getActiveSite = (
+export const selectActiveSite = (
 	state: PlaygroundReduxState
 ): SiteInfo | undefined =>
 	state.ui.activeSiteSlug
 		? state.sites.entities[state.ui.activeSiteSlug]
 		: undefined;
 
-export const useActiveSite = () => useAppSelector(getActiveSite);
+export const useActiveSite = () => useAppSelector(selectActiveSite);
+
+export const setActiveSite = (slug: string | undefined) => {
+	return (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		dispatch(__internal_uiSlice.actions.setActiveSite(slug));
+		if (slug) {
+			const site = selectSiteBySlug(getState(), slug);
+			redirectTo(PlaygroundRoute.site(site));
+		}
+	};
+};
 
 export const getActiveClientInfo = (
 	state: PlaygroundReduxState

@@ -1,19 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'wouter';
-
-export function useSearchParams() {
-	const [url, setUrl] = useCurrentUrl();
-
-	return [
-		url.searchParams,
-		(searchParams: URLComponents['searchParams']) => {
-			setUrl({
-				...url,
-				searchParams,
-			});
-		},
-	];
-}
 
 export type URLComponents = {
 	searchParams: Record<string, string | undefined>;
@@ -35,17 +20,7 @@ export function useCurrentUrl() {
 		};
 	}, []);
 
-	const location = url;
-	const [, setLocation] = useLocation();
-	return [
-		useMemo(() => new URL(location), [location]),
-		(
-			urlComponents: Partial<URLComponents>,
-			searchParamsMode: 'replace' | 'merge' = 'replace'
-		) => {
-			setLocation(updateUrl(location, urlComponents, searchParamsMode));
-		},
-	] as const;
+	return useMemo(() => new URL(url), [url]);
 }
 
 export function updateUrl(

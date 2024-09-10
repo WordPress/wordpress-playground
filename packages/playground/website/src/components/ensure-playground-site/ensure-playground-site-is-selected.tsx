@@ -7,16 +7,18 @@ import {
 	siteListingLoaded,
 	deriveSlugFromSiteName,
 	SiteInfo,
+	selectSiteBySlug,
 } from '../../lib/state/redux/slice-sites';
 import { Blueprint, compileBlueprint } from '@wp-playground/blueprints';
 import { SiteMetadata } from '../../lib/site-metadata';
 import {
+	setActiveSite,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { setActiveSite } from '../../lib/state/redux/slice-ui';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -37,8 +39,11 @@ export function EnsurePlaygroundSiteIsSelected({
 	const sites = useAppSelector((state) => state.sites.entities);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const [url, setUrlComponents] = useCurrentUrl();
+	const url = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
+	const requestedSiteObject = useAppSelector((state) =>
+		selectSiteBySlug(state, requestedSiteSlug!)
+	);
 
 	useEffect(() => {
 		opfsSiteStorage?.list().then(
@@ -55,27 +60,17 @@ export function EnsurePlaygroundSiteIsSelected({
 			return;
 		}
 		async function ensureSiteIsSelected() {
-			if (requestedSiteSlug) {
-				// @TODO: Consult the redux store, not the siteStorage directly.
-				// @TODO: wait until the redux store is populated with sites.
-				const siteInfo = await opfsSiteStorage?.read(
-					requestedSiteSlug!
-				);
-				if (!siteInfo) {
-					// @TODO: We can do better than alert() here.
-					alert('Site not found');
-					setUrlComponents({
-						searchParams: { 'site-slug': '' },
-					});
-					return;
-				}
-				// @TODO: Incorporate any query arg-driven config changes such as ?login=no.
-				// Do not use any mutating query args like ?plugin= for now.
-				dispatch(setActiveSite(siteInfo!.slug));
-				setUrlComponents({
-					searchParams: { 'site-slug': siteInfo!.slug },
-				});
+			if (!requestedSiteSlug || siteListingStatus !== 'loaded') {
+				return;
 			}
+			if (!requestedSiteObject) {
+				// @TODO: We can do better than alert() here.
+				alert('Site not found');
+				redirectTo(PlaygroundRoute.newTemporarySite());
+				return;
+			}
+			// @TODO: Incorporate any query arg-driven config changes such as ?login=no.
+			dispatch(setActiveSite(requestedSiteSlug));
 		}
 
 		ensureSiteIsSelected();

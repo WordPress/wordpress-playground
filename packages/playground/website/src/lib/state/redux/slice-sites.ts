@@ -4,8 +4,13 @@ import {
 	PayloadAction,
 } from '@reduxjs/toolkit';
 import { SiteMetadata } from '../../site-metadata';
-import { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import {
+	selectActiveSite,
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+} from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import { PlaygroundRoute, redirectTo } from '../url/router';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -111,14 +116,14 @@ export function updateSiteMetadata({
 	changes,
 }: {
 	slug: string;
-	changes: Omit<Partial<SiteMetadata>, 'storage'>;
+	changes: Partial<SiteMetadata>;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
 		const storedSite = selectSiteBySlug(getState(), slug);
-		dispatch(
+		await dispatch(
 			updateSite({
 				slug,
 				changes: {
@@ -188,12 +193,20 @@ export function addSite(siteInfo: SiteInfo) {
  * @param siteInfo The site info to remove.
  * @returns
  */
-export function removeSite(siteInfo: SiteInfo) {
-	return async (dispatch: PlaygroundDispatch) => {
+export function removeSite(slug: string) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const activeSite = selectActiveSite(getState());
+		const siteInfo = selectSiteBySlug(getState(), slug);
 		if (siteInfo.metadata.storage !== 'none') {
 			await opfsSiteStorage?.delete(siteInfo.slug);
 		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
+		if (activeSite?.slug === siteInfo.slug) {
+			redirectTo(PlaygroundRoute.newTemporarySite());
+		}
 	};
 }
 

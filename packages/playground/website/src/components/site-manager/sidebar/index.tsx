@@ -12,8 +12,12 @@ import {
 	Button,
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
-import { useActiveSite, useAppSelector } from '../../../lib/state/redux/store';
-import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
+import {
+	setActiveSite,
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../../lib/state/redux/store';
 import { useMemo } from 'react';
 import { SiteCreateButton } from '../site-create-button';
 import { SiteLogo } from '../../../lib/site-metadata';
@@ -40,16 +44,10 @@ export function Sidebar({
 			: [];
 	}, [sitesRaw]);
 	const activeSite = useActiveSite()!;
-
-	const [, setUrlComponents] = useCurrentUrl();
+	const dispatch = useAppDispatch();
 
 	const onSiteClick = (slug: string) => {
-		const site = sites.find((site) => site.slug === slug);
-		if (site?.originalUrlParams) {
-			setUrlComponents(site.originalUrlParams);
-		} else {
-			setUrlComponents({ searchParams: { 'site-slug': slug } });
-		}
+		dispatch(setActiveSite(slug));
 		afterSiteClick?.(slug);
 	};
 

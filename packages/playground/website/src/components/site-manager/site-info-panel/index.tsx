@@ -29,6 +29,7 @@ import { SitePersistButton } from '../site-persist-button';
 import { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import { encodeStringAsBase64 } from '../../../lib/base64';
 
 function SiteInfoRow({
 	label,
@@ -367,7 +368,8 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 
 	const offline = useAppSelector((state) => state.ui.offline);
 
-	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
+	const { opfsMountDescriptor, client } =
+		usePlaygroundClientInfo(site.slug) || {};
 
 	return (
 		<>
@@ -422,6 +424,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 											>
 												<Button
 													variant="link"
+													disabled={!client}
 													style={{ marginTop: '1px' }}
 												>
 													Save
@@ -600,13 +603,11 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 								<Button
 									variant="link"
 									className={css.buttonNoPadding}
-									href={`/builder/builder.html#${encodeURIComponent(
-										btoa(
-											JSON.stringify(
-												// @TODO: Merge with the current runtime configuration
-												site.metadata
-													.originalBlueprint as any
-											) as string
+									href={`/builder/builder.html#${encodeStringAsBase64(
+										JSON.stringify(
+											// @TODO: Merge with the current runtime configuration
+											site.metadata
+												.originalBlueprint as any
 										) as string
 									)}`}
 									target="_blank"
