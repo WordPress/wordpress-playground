@@ -2,16 +2,10 @@ import React, { useEffect, useRef } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import {
-	forgetClientInfo,
-	setActiveModal,
-	updateClientInfo,
-	useActiveSite,
-	useAppDispatch,
-} from '../../lib/state/redux/store';
+import { useActiveSite, useAppDispatch } from '../../lib/state/redux/store';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/remote';
-import { getDirectoryNameForSlug } from '../../lib/state/opfs/opfs-site-storage';
+import { getDirectoryPathForSlug } from '../../lib/state/opfs/opfs-site-storage';
 import { logger } from '@php-wasm/logger';
 import { getRemoteUrl } from '../../lib/config';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
@@ -22,6 +16,12 @@ import {
 } from '@wp-playground/client';
 import { loadDirectoryHandle } from '../../lib/state/opfs/opfs-directory-handle-storage';
 import { logTrackingEvent } from '../../lib/tracking';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	addClientInfo,
+	removeClientInfo,
+	updateClientInfo,
+} from '../../lib/state/redux/slice-clients';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -57,6 +57,9 @@ export const JustViewport = function LoadedViewportComponent() {
 	const activeSite = useActiveSite()!;
 
 	const dispatch = useAppDispatch();
+	const runtimeConfigString = JSON.stringify(
+		activeSite.metadata.runtimeConfiguration
+	);
 	useEffect(() => {
 		const iframe = iframeRef.current;
 		if (!iframe) {
@@ -70,7 +73,7 @@ export const JustViewport = function LoadedViewportComponent() {
 				mountDescriptor = {
 					device: {
 						type: 'opfs',
-						path: '/' + getDirectoryNameForSlug(activeSite.slug),
+						path: getDirectoryPathForSlug(activeSite.slug),
 					},
 					mountpoint: '/wordpress',
 				} as const;
@@ -151,12 +154,11 @@ export const JustViewport = function LoadedViewportComponent() {
 			setupPostMessageRelay(iframe, document.location.origin);
 
 			dispatch(
-				updateClientInfo({
+				addClientInfo({
 					siteSlug: activeSite.slug,
-					info: {
-						client: playground,
-						opfsMountDescriptor: mountDescriptor,
-					},
+					url: '/',
+					client: playground,
+					opfsMountDescriptor: mountDescriptor,
 				})
 			);
 
@@ -164,7 +166,7 @@ export const JustViewport = function LoadedViewportComponent() {
 				dispatch(
 					updateClientInfo({
 						siteSlug: activeSite.slug,
-						info: {
+						changes: {
 							url,
 						},
 					})
@@ -174,10 +176,10 @@ export const JustViewport = function LoadedViewportComponent() {
 		doTheWork();
 		return () => {
 			unmounted = true;
-			dispatch(forgetClientInfo(activeSite.slug));
+			dispatch(removeClientInfo(activeSite.slug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeSite.slug, iframeRef, activeSite.metadata.runtimeConfiguration]);
+	}, [activeSite.slug, iframeRef, runtimeConfigString]);
 
 	return (
 		<div className={css.fullSize}>

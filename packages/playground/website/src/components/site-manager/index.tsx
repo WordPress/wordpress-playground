@@ -1,18 +1,15 @@
 import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
-import {
-	useAppDispatch,
-	deleteSite,
-	useActiveSite,
-} from '../../lib/state/redux/store';
+import { useAppDispatch, useActiveSite } from '../../lib/state/redux/store';
+import { removeSite } from '../../lib/state/redux/slice-sites';
 
 import css from './style.module.css';
-import { SiteInfo } from '../../lib/state/opfs/opfs-site-storage';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import React, { forwardRef, useState } from 'react';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
+import { SiteInfo } from '../../lib/state/redux/slice-sites';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
@@ -29,9 +26,9 @@ export const SiteManager = forwardRef<
 
 	const dispatch = useAppDispatch();
 
-	const removeSite = async (siteToRemove: SiteInfo) => {
+	const onRemoveSite = async (siteToRemove: SiteInfo) => {
 		const removingSelectedSite = siteToRemove.slug === activeSite?.slug;
-		await dispatch(deleteSite(siteToRemove));
+		await dispatch(removeSite(siteToRemove.slug));
 		if (removingSelectedSite) {
 			setUrlComponents(
 				{ searchParams: { 'site-slug': undefined } },
@@ -53,7 +50,7 @@ export const SiteManager = forwardRef<
 			key={activeSite.slug}
 			className={css.siteManagerSiteInfo}
 			site={activeSite}
-			removeSite={removeSite}
+			removeSite={onRemoveSite}
 			mobileUi={fullScreenSections}
 			onBackButtonClick={() => {
 				setActiveSection('sites');

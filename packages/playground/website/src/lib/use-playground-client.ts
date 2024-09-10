@@ -1,11 +1,12 @@
-import { useAppSelector, getActiveClient } from './state/redux/store';
+import { selectClientInfoBySiteSlug } from './state/redux/slice-clients';
+import { useAppSelector, getActiveClientInfo } from './state/redux/store';
 
 export function usePlaygroundClientInfo(siteSlug?: string) {
 	return useAppSelector((state) => {
 		if (siteSlug) {
-			return state.clients[siteSlug];
+			return selectClientInfoBySiteSlug(state, siteSlug);
 		}
-		return getActiveClient(state);
+		return getActiveClientInfo(state);
 	});
 }
 

@@ -5,16 +5,13 @@ import { CSSTransition } from 'react-transition-group';
 import {
 	useAppSelector,
 	useAppDispatch,
-	setSiteManagerIsOpen,
 	useActiveSite,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setActiveModal,
 } from '../../lib/state/redux/store';
 import { addCrashListener, logger } from '@php-wasm/logger';
 import { Blueprint } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
 import {
@@ -32,6 +29,10 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
+import {
+	setActiveModal,
+	setSiteManagerOpen,
+} from '../../lib/state/redux/slice-ui';
 
 acquireOAuthTokenIfNeeded();
 
@@ -44,7 +45,7 @@ const displayMode: DisplayMode = supportedDisplayModes.includes(
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
-		(state) => state.siteManagerIsOpen
+		(state) => state.ui.siteManagerIsOpen
 	);
 	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
 	const dispatch = useAppDispatch();
@@ -82,7 +83,7 @@ export function Layout() {
 						title="Open site"
 						className={css.siteViewOverlay}
 						onClick={() => {
-							dispatch(setSiteManagerIsOpen(false));
+							dispatch(setSiteManagerOpen(false));
 						}}
 					/>
 				)}
@@ -104,7 +105,7 @@ export function Layout() {
  *        the "Show modal" button is rendered.
  */
 function Modals(blueprint: Blueprint) {
-	const dispatch: PlaygroundDispatch = useDispatch();
+	const dispatch: PlaygroundDispatch = useAppDispatch();
 
 	const query = new URL(document.location.href).searchParams;
 
@@ -160,8 +161,8 @@ function Modals(blueprint: Blueprint) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const currentModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+	const currentModal = useAppSelector(
+		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 
 	if (currentModal === 'log') {

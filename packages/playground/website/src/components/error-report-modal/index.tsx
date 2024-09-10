@@ -6,16 +6,17 @@ import { Button, TextareaControl, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 
 import { Blueprint } from '@wp-playground/blueprints';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setActiveModal,
+	useAppSelector,
 } from '../../lib/state/redux/store';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 
 export function ErrorReportModal(props: { blueprint: Blueprint }) {
-	const activeModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+	const activeModal = useAppSelector(
+		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const [loading, setLoading] = useState(false);

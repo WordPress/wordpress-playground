@@ -12,11 +12,11 @@ import {
 	Button,
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
-import { type SiteLogo } from '../../../lib/state/opfs/opfs-site-storage';
 import { useActiveSite, useAppSelector } from '../../../lib/state/redux/store';
 import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
 import { useMemo } from 'react';
 import { SiteCreateButton } from '../site-create-button';
+import { SiteLogo } from '../../../lib/site-metadata';
 
 export function Sidebar({
 	className,
@@ -28,17 +28,15 @@ export function Sidebar({
 	const sitesRaw = useAppSelector(
 		// Sites may be in an arbitrary order, so let's sort them by name
 		// @TODO: Sort by last access date
-		(state) => state.siteListing?.sites
+		(state) => state.sites.entities
 	);
 	const sites = useMemo(() => {
 		return sitesRaw
-			? sitesRaw
-					.slice()
-					.sort(
-						(a, b) =>
-							(a.metadata.whenCreated || 0) -
-							(b.metadata.whenCreated || 0)
-					)
+			? Object.values(sitesRaw).sort(
+					(a, b) =>
+						(a.metadata.whenCreated || 0) -
+						(b.metadata.whenCreated || 0)
+			  )
 			: [];
 	}, [sitesRaw]);
 	const activeSite = useActiveSite()!;

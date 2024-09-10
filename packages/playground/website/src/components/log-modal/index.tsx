@@ -9,13 +9,13 @@ import { TextControl } from '@wordpress/components';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setActiveModal,
 } from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
 

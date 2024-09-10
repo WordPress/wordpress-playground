@@ -14,12 +14,7 @@ import {
 import { useMediaQuery } from '@wordpress/compose';
 import { moreVertical, external, copy, chevronLeft } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
-import {
-	useAppDispatch,
-	setSiteManagerIsOpen,
-	useAppSelector,
-	SiteInfo,
-} from '../../../lib/state/redux/store';
+import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import { SiteEditButton } from '../site-edit-button';
@@ -31,6 +26,9 @@ import { ReportError } from '../../toolbar-buttons/report-error';
 import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
 import { TemporarySiteNotice } from '../temporary-site-notice';
 import { SitePersistButton } from '../site-persist-button';
+import { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
+import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 
 function SiteInfoRow({
 	label,
@@ -60,7 +58,7 @@ export function SiteInfoPanel({
 	mobileUi?: boolean;
 	onBackButtonClick?: () => void;
 }) {
-	const offline = useAppSelector((state) => state.offline);
+	const offline = useAppSelector((state) => state.ui.offline);
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
@@ -71,7 +69,9 @@ export function SiteInfoPanel({
 			onClose();
 		}
 	};
-	const clientInfo = useAppSelector((state) => state.clients[site.slug]);
+	const clientInfo = useAppSelector((state) =>
+		selectClientInfoBySiteSlug(state, site.slug)
+	);
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
 
@@ -85,7 +85,7 @@ export function SiteInfoPanel({
 			// Collapse the sidebar when opening a site
 			// because otherwise the site view will remain
 			// hidden by the sidebar on small screens.
-			dispatch(setSiteManagerIsOpen(false));
+			dispatch(setSiteManagerOpen(false));
 		}
 
 		playground?.goTo(path);
@@ -365,7 +365,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const username = 'admin';
 	const password = 'password';
 
-	const offline = useAppSelector((state) => state.offline);
+	const offline = useAppSelector((state) => state.ui.offline);
 
 	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
 

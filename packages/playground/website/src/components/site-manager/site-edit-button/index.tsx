@@ -1,13 +1,12 @@
 import { Modal } from '@wordpress/components';
 import { useMemo, useState } from 'react';
-import {
-	useAppSelector,
-	getSiteInfo,
-	useAppDispatch,
-	updateSiteMetadata,
-} from '../../../lib/state/redux/store';
+import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
 import { useCurrentUrl } from '../../../lib/state/url/router-hooks';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
+import {
+	selectSiteBySlug,
+	updateSiteMetadata,
+} from '../../../lib/state/redux/slice-sites';
 
 export function SiteEditButton({
 	siteSlug,
@@ -16,7 +15,9 @@ export function SiteEditButton({
 	siteSlug: string;
 	children: (onClick: () => void) => React.ReactNode;
 }) {
-	const siteInfo = useAppSelector((state) => getSiteInfo(state, siteSlug))!;
+	const siteInfo = useAppSelector((state) =>
+		selectSiteBySlug(state, siteSlug)
+	)!;
 	if (siteInfo.metadata.storage === 'none') {
 		return (
 			<InMemorySiteEditButton siteSlug={siteSlug} children={children} />
@@ -32,7 +33,9 @@ function StoredSiteEditButton({
 	siteSlug: string;
 	children: (onClick: () => void) => React.ReactNode;
 }) {
-	const siteInfo = useAppSelector((state) => getSiteInfo(state, siteSlug))!;
+	const siteInfo = useAppSelector((state) =>
+		selectSiteBySlug(state, siteSlug)
+	)!;
 	const [isModalOpen, setModalOpen] = useState(false);
 	const dispatch = useAppDispatch();
 	const updateSite = async (data: SiteFormData) => {
@@ -114,7 +117,9 @@ function InMemorySiteEditButton({
 	siteSlug: string;
 	children: (onClick: () => void) => React.ReactNode;
 }) {
-	const siteInfo = useAppSelector((state) => getSiteInfo(state, siteSlug))!;
+	const siteInfo = useAppSelector((state) =>
+		selectSiteBySlug(state, siteSlug)
+	)!;
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [, setUrlComponents] = useCurrentUrl();
 	const updateSite = async (data: SiteFormData) => {

@@ -1,10 +1,10 @@
 import { Notice, Flex, FlexItem, Button } from '@wordpress/components';
 import css from './style.module.css';
-import { useActiveSite } from '../../../lib/state/redux/store';
 import { SitePersistButton } from '../site-persist-button';
 import { useState } from 'react';
 import classNames from 'classnames';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
+import { useActiveSite } from '../../../lib/state/redux/store';
 
 export function TemporarySiteNotice({
 	isDismissible = false,

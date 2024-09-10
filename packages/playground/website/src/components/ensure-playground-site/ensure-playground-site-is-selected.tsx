@@ -1,15 +1,22 @@
 import { useEffect, useRef } from 'react';
 import { resolveBlueprint } from '../../lib/state/url/resolve-blueprint';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
+import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
-	createNewSiteInfo,
-	createSite,
-	setActiveSite,
+	addSite,
+	siteListingLoaded,
+	deriveSlugFromSiteName,
+	SiteInfo,
+} from '../../lib/state/redux/slice-sites';
+import { Blueprint, compileBlueprint } from '@wp-playground/blueprints';
+import { SiteMetadata } from '../../lib/site-metadata';
+import {
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
+import { setActiveSite } from '../../lib/state/redux/slice-ui';
+import { randomSiteName } from '../../lib/state/redux/random-site-name';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -25,16 +32,28 @@ export function EnsurePlaygroundSiteIsSelected({
 	children: React.ReactNode;
 }) {
 	const siteListingStatus = useAppSelector(
-		(state) => state.siteListing.status
+		(state) => state.sites.loadingState
 	);
-	const sites = useAppSelector((state) => state.siteListing.sites);
+	const sites = useAppSelector((state) => state.sites.entities);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const [url, setUrlComponents] = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
 
+	useEffect(() => {
+		opfsSiteStorage?.list().then(
+			(sites) => dispatch(siteListingLoaded(sites)),
+			(error) => {
+				console.error('Error loading sites:', error);
+			}
+		);
+	}, [dispatch]);
+
 	// If the site slug is provided, try to load the site.
 	useEffect(() => {
+		if (siteListingStatus !== 'loaded') {
+			return;
+		}
 		async function ensureSiteIsSelected() {
 			if (requestedSiteSlug) {
 				// @TODO: Consult the redux store, not the siteStorage directly.
@@ -94,7 +113,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				lastSiteInfoRef.current = comparable;
 
 				// Activate an existing site if it already exists
-				const existingSite = sites.find(
+				const existingSite = Object.values(sites).find(
 					(site) =>
 						JSON.stringify(site.originalUrlParams) ===
 						JSON.stringify(urlParams)
@@ -105,7 +124,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				}
 
 				// Create a new site otherwise
-				await dispatch(createSite(newSiteInfo));
+				await dispatch(addSite(newSiteInfo));
 				dispatch(setActiveSite(newSiteInfo.slug));
 			} else {
 				lastSiteInfoRef.current = undefined;
@@ -121,4 +140,54 @@ export function EnsurePlaygroundSiteIsSelected({
 	}
 
 	return children;
+}
+
+/**
+ * The initial information used to create a new site.
+ */
+export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
+async function createNewSiteInfo(
+	initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
+		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
+	}
+): Promise<SiteInfo> {
+	const {
+		name: providedName,
+		originalBlueprint,
+		...remainingMetadata
+	} = initialInfo.metadata || {};
+
+	const name = providedName || randomSiteName();
+	const blueprint: Blueprint =
+		originalBlueprint ?? (await resolveBlueprint(new URL('https://w.org')));
+
+	const compiledBlueprint = compileBlueprint(blueprint);
+
+	return {
+		slug: deriveSlugFromSiteName(name),
+
+		...initialInfo,
+
+		metadata: {
+			name,
+			id: crypto.randomUUID(),
+			whenCreated: Date.now(),
+			storage: 'none',
+			originalBlueprint: blueprint,
+
+			...remainingMetadata,
+
+			runtimeConfiguration: {
+				preferredVersions: {
+					wp: compiledBlueprint.versions.wp,
+					php: compiledBlueprint.versions.php,
+				},
+				phpExtensionBundles: blueprint.phpExtensionBundles || [
+					'kitchen-sink',
+				],
+				features: compiledBlueprint.features,
+				extraLibraries: compiledBlueprint.extraLibraries,
+			},
+		},
+	};
 }

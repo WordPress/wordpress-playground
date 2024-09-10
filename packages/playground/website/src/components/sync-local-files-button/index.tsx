@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import Button from '../button';
-import { getActiveClient, useAppSelector } from '../../lib/state/redux/store';
+import {
+	getActiveClientInfo,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 
 export function SyncLocalFilesButton() {
 	const { client, url, opfsMountDescriptor } =
-		useAppSelector(getActiveClient) || {};
+		useAppSelector(getActiveClientInfo) || {};
 	const [isSyncing, setIsSyncing] = useState(false);
 	return (
 		<Button

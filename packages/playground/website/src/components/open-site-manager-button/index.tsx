@@ -1,10 +1,8 @@
 import css from './style.module.css';
-import {
-	useAppDispatch,
-	setSiteManagerIsOpen,
-} from '../../lib/state/redux/store';
+import { useAppDispatch } from '../../lib/state/redux/store';
 
 import Button from '../button';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 
 function SiteManagerIcon() {
 	return (
@@ -29,7 +27,7 @@ export function OpenSiteManagerButton() {
 	const dispatch = useAppDispatch();
 
 	const onClick = () => {
-		dispatch(setSiteManagerIsOpen(true));
+		dispatch(setSiteManagerOpen(true));
 	};
 	return (
 		<Button

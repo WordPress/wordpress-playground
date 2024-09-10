@@ -1,7 +1,7 @@
-import { SiteStorageType } from '../../../lib/state/opfs/opfs-site-storage';
 import { Icon } from '@wordpress/components';
 import { ClockIcon, FolderIcon, LayoutIcon } from '../icons';
 import css from './style.module.css';
+import { SiteStorageType } from '../../../lib/site-metadata';
 
 export function StorageType({ type }: { type: SiteStorageType }) {
 	switch (type) {

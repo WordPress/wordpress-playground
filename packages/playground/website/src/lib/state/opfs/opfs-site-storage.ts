@@ -7,7 +7,7 @@
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
 import { SiteMetadata } from '../../site-metadata';
-import { SiteInfo } from '../redux/store';
+import { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 
 // TODO: Decide on metadata filename
@@ -110,6 +110,10 @@ class OpfsSiteStorage {
 export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsRoot
 	? new OpfsSiteStorage(opfsRoot)
 	: undefined;
+
+export function getDirectoryPathForSlug(slug: string) {
+	return joinPaths(ROOT_PATH, getDirectoryNameForSlug(slug));
+}
 
 export function getDirectoryNameForSlug(slug: string) {
 	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');

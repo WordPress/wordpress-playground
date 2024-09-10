@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
 import {
 	useAppSelector,
-	getActiveClient,
+	getActiveClientInfo,
 	useActiveSite,
 } from '../../lib/state/redux/store';
 import { SyncLocalFilesButton } from '../sync-local-files-button';
@@ -21,7 +21,7 @@ export default function BrowserChrome({
 	hideToolbar,
 	className,
 }: BrowserChromeProps) {
-	const clientInfo = useAppSelector(getActiveClient);
+	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite()!;
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;

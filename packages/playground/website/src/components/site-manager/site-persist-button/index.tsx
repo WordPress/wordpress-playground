@@ -1,8 +1,4 @@
-import {
-	useAppSelector,
-	useAppDispatch,
-	persistTemporarySite,
-} from '../../../lib/state/redux/store';
+import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
 import {
 	DropdownMenu,
 	DropdownMenuItem,
@@ -10,6 +6,8 @@ import {
 	// @ts-ignore
 } from '@wordpress/components/build/dropdown-menu-v2/index.js';
 import css from './style.module.css';
+import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary-site';
+import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 
 export function SitePersistButton({
 	siteSlug,
@@ -18,7 +16,9 @@ export function SitePersistButton({
 	siteSlug: string;
 	children: React.ReactNode;
 }) {
-	const clientInfo = useAppSelector((state) => state.clients[siteSlug]);
+	const clientInfo = useAppSelector((state) =>
+		selectClientInfoBySiteSlug(state, siteSlug)
+	);
 	const dispatch = useAppDispatch();
 
 	// @TODO: The parent component should be aware if local FS is unavailable so that it

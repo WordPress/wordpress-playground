@@ -1,4 +1,4 @@
-import { SiteLogo } from '../../lib/state/opfs/opfs-site-storage';
+import { SiteLogo } from '../../lib/site-metadata';
 
 export const Logo = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
