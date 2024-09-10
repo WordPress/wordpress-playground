@@ -22,7 +22,8 @@
 }
 
 .site-manager-site-info {
-	min-width: var(--site-manager-site-list-width);
+	min-width: var(--site-manager-site-info-min-width);
 	height: 100%;
+	flex-shrink: 1;
 	flex-grow: 1;
 }

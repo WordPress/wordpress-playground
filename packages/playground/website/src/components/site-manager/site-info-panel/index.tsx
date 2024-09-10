@@ -12,6 +12,7 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
+import { useMediaQuery } from '@wordpress/compose';
 import { moreVertical, external, copy, chevronLeft } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import {
@@ -73,6 +74,11 @@ export function SiteInfoPanel({
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
 
+	const navigationButtonsPlacement = useMediaQuery('(min-width: 1400px)')
+		? 'header'
+		: mobileUi
+		? 'footer'
+		: 'menu';
 	function navigateTo(path: string) {
 		if (mobileUi) {
 			// Collapse the sidebar when opening a site
@@ -108,7 +114,7 @@ export function SiteInfoPanel({
 						expanded={true}
 						className={css.padded}
 					>
-						<FlexItem>
+						<FlexItem style={{ flexShrink: 0 }}>
 							<Flex direction="row" gap={2}>
 								{mobileUi && (
 									<FlexItem>
@@ -168,9 +174,9 @@ export function SiteInfoPanel({
 								</Flex>
 							</Flex>
 						</FlexItem>
-						<FlexItem>
+						<FlexItem style={{ flexShrink: 0 }}>
 							<Flex direction="row" gap={4} align="center">
-								{!mobileUi && (
+								{navigationButtonsPlacement === 'header' && (
 									<>
 										<Button
 											variant="tertiary"
@@ -199,7 +205,8 @@ export function SiteInfoPanel({
 								>
 									{({ onClose }) => (
 										<>
-											{mobileUi && (
+											{navigationButtonsPlacement ===
+												'menu' && (
 												<MenuGroup>
 													<MenuItem
 														icon={external}
@@ -322,7 +329,7 @@ export function SiteInfoPanel({
 						)}
 					</TabPanel>
 				</FlexItem>
-				{mobileUi && (
+				{navigationButtonsPlacement === 'footer' && (
 					<FlexItem className={css.mobileFooter}>
 						<Flex direction="row" gap={2} justify="center">
 							<FlexItem style={{ flexGrow: 1 }}>
