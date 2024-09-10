@@ -86,21 +86,13 @@ function StoredSiteEditButton({
 
 			{isModalOpen && (
 				<Modal
-					title={
-						siteInfo?.metadata?.storage === 'none'
-							? 'Duplicate site with new settings'
-							: 'Edit site settings'
-					}
+					title="Edit site settings"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
 						onSubmit={updateSite}
 						onCancel={() => setModalOpen(false)}
-						submitButtonText={
-							siteInfo?.metadata?.storage === 'none'
-								? 'Duplicate'
-								: 'Update'
-						}
+						submitButtonText="Update"
 						formFields={{
 							name: true,
 							phpVersion: true,

@@ -37,13 +37,13 @@ export function SiteCreateButton({
 
 			{isModalOpen && (
 				<Modal
-					title="Add site"
+					title="Add a new site"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
 						onSubmit={addSite}
 						onCancel={() => setModalOpen(false)}
-						submitButtonText="Create site"
+						submitButtonText="Create a temporary site"
 					/>
 				</Modal>
 			)}

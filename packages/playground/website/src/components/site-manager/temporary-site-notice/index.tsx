@@ -1,9 +1,10 @@
-import { Notice, Flex, FlexItem } from '@wordpress/components';
+import { Notice, Flex, FlexItem, Button } from '@wordpress/components';
 import css from './style.module.css';
 import { useActiveSite } from '../../../lib/redux-store';
 import { SitePersistButton } from '../site-persist-button';
 import { useState } from 'react';
 import classNames from 'classnames';
+import { usePlaygroundClient } from '../../../lib/use-playground-client';
 
 export function TemporarySiteNotice({
 	isDismissible = false,
@@ -14,6 +15,7 @@ export function TemporarySiteNotice({
 }) {
 	const [isDismissed, setIsDismissed] = useState(false);
 	const site = useActiveSite()!;
+	const playground = usePlaygroundClient(site.slug);
 	if (isDismissed) {
 		return null;
 	}
@@ -31,11 +33,10 @@ export function TemporarySiteNotice({
 					on page refresh.
 				</FlexItem>
 				<FlexItem>
-					<SitePersistButton siteSlug={site.slug} mode="opfs">
-						Save in this browser
-					</SitePersistButton>
-					<SitePersistButton siteSlug={site.slug} mode="local-fs">
-						Save on your computer
+					<SitePersistButton siteSlug={site.slug}>
+						<Button variant="primary" disabled={!playground}>
+							Save
+						</Button>
 					</SitePersistButton>
 				</FlexItem>
 			</Flex>

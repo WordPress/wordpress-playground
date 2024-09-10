@@ -30,6 +30,7 @@ import { GithubImportMenuItem } from '../../toolbar-buttons/github-import-menu-i
 import { ReportError } from '../../toolbar-buttons/report-error';
 import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
 import { TemporarySiteNotice } from '../temporary-site-notice';
+import { SitePersistButton } from '../site-persist-button';
 
 function SiteInfoRow({
 	label,
@@ -395,21 +396,42 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						<SiteInfoRow
 							label="Storage"
 							value={
-								<>
-									<StorageType type={site.metadata.storage} />
-									{opfsMountDescriptor?.device?.type ===
-									'local-fs' ? (
-										<>
+								<Flex
+									direction="row"
+									gap={4}
+									justify="center"
+									align="center"
+								>
+									<FlexItem>
+										<StorageType
+											type={site.metadata.storage}
+										/>
+									</FlexItem>
+
+									{site.metadata.storage === 'none' ? (
+										<FlexItem>
+											<SitePersistButton
+												siteSlug={site.slug}
+											>
+												<Button variant="link">
+													Save
+												</Button>
+											</SitePersistButton>
+										</FlexItem>
+									) : null}
+
+									{site.metadata.storage === 'local-fs' ? (
+										<FlexItem>
 											{' '}
 											(
 											{
-												opfsMountDescriptor.device
-													?.handle.name
+												(opfsMountDescriptor as any)
+													?.device?.handle.name
 											}
 											)
-										</>
+										</FlexItem>
 									) : null}
-								</>
+								</Flex>
 							}
 						/>
 						<SiteInfoRow
@@ -556,7 +578,9 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 										className={css.buttonNoPadding}
 										onClick={onClick}
 									>
-										Edit settings
+										{site.metadata.storage === 'none'
+											? 'Edit site settings'
+											: 'Edit runtime configuration'}
 									</Button>
 								)}
 							</SiteEditButton>
