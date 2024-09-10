@@ -1,4 +1,4 @@
-import { UniversalPHP, PHPRequestErrorEvent } from '../../universal';
+import type { UniversalPHP, PHPRequestErrorEvent } from '../types';
 import { Logger } from '../logger';
 
 let lastPHPLogLength = 0;

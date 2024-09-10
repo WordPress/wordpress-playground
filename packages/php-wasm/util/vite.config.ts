@@ -15,6 +15,7 @@ export default defineConfig({
 		dts({
 			entryRoot: 'src',
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
 		}),
 
 		viteTsConfigPaths({

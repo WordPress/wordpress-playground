@@ -4,12 +4,12 @@ slug: /blueprints/steps/resources
 
 # Resources References
 
-Resource References allow you use external files in Blueprints
+"Resource References" allow you use external files in Blueprints
 
 :::info
-Blueprints steps such as [[`installPlugin`](/blueprints/steps#InstallPluginStep)] or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
+Blueprints steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or [`installTheme`](/blueprints/steps#InstallThemeStep) require a location of the plugin or theme to be installed.
 
-That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containg the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for thouse plugins/themes published in the official WordPress directories.
+That location can be defined as [a `URL` resource](#urlreference) of the `.zip` file containing the theme or plugin. It can also be defined as a [`wordpress.org/plugins`](#corepluginreference) or [`wordpress.org/themes`](#corethemereference) resource for those plugins/themes published in the official WordPress directories.
 :::
 
 The following resource references are available:
@@ -20,7 +20,7 @@ import TOCInline from '@theme/TOCInline';
 
 ### URLReference
 
-The URLReference resource is used to reference files that are stored on a remote server. The URLReference resource is defined as follows:
+The `URLReference` resource is used to reference files that are stored on a remote server. The `URLReference` resource is defined as follows:
 
 ```typescript
 type URLReference = {
@@ -29,7 +29,7 @@ type URLReference = {
 };
 ```
 
-To use the URLReference resource, you need to provide the URL of the file. For example, to reference a file named "index.html" that is stored on a remote server, you can create a URLReference as follows:
+To use the `URLReference` resource, you need to provide the URL of the file. For example, to reference a file named "index.html" that is stored on a remote server, you can create a `URLReference` as follows:
 
 ```json
 {
@@ -39,17 +39,18 @@ To use the URLReference resource, you need to provide the URL of the file. For e
 ```
 
 The resource `url` type works really in combination with blueprint steps such as [`installPlugin`](/blueprints/steps#InstallPluginStep) or
-[`installTheme`](http://localhost:3000/wordpress-playground/blueprints/steps#InstallThemeStep). These steps require a `ResourceType` to define the location of the plugin or the theme to install.
+[`installTheme`](http://localhost:3000/wordpress-playground/blueprints/steps#InstallThemeStep).
+These steps require a `ResourceType` to define the location of the plugin or the theme to install.
 
-With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point direclty to a GitHub repo.
+With a `"resource": "url"` we can define the location of a `.zip` containing the plugin/theme via a URL that can point directly to a GitHub repo.
 
 :::tip
-The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others..
+The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others.
 :::
 
 ### CoreThemeReference
 
-The CoreThemeReference resource is used to reference WordPress core themes. The CoreThemeReference resource is defined as follows:
+The _CoreThemeReference_ resource is used to reference WordPress core themes. The _CoreThemeReference_ resource is defined as follows:
 
 ```typescript
 type CoreThemeReference = {
@@ -59,7 +60,7 @@ type CoreThemeReference = {
 };
 ```
 
-To use the CoreThemeReference resource, you need to provide the slug of the theme. For example, to reference the "Twenty Twenty-One" theme, you can create a CoreThemeReference as follows:
+To use the _CoreThemeReference_ resource, you need to provide the slug of the theme. For example, to reference the "Twenty Twenty-One" theme, you can create a _CoreThemeReference_ as follows:
 
 ```json
 {
@@ -70,7 +71,7 @@ To use the CoreThemeReference resource, you need to provide the slug of the them
 
 ### CorePluginReference
 
-The CorePluginReference resource is used to reference WordPress core plugins. The CorePluginReference resource is defined as follows:
+The _CorePluginReference_ resource is used to reference WordPress core plugins. The _CorePluginReference_ resource is defined as follows:
 
 ```typescript
 type CorePluginReference = {
@@ -80,7 +81,7 @@ type CorePluginReference = {
 };
 ```
 
-To use the CorePluginReference resource, you need to provide the slug of the plugin. For example, to reference the "Akismet" plugin, you can create a CorePluginReference as follows:
+To use the _CorePluginReference_ resource, you need to provide the slug of the plugin. For example, to reference the "Akismet" plugin, you can create a _CorePluginReference_ as follows:
 
 ```json
 {
@@ -91,7 +92,7 @@ To use the CorePluginReference resource, you need to provide the slug of the plu
 
 ### VFSReference
 
-The VFSReference resource is used to reference files that are stored in a virtual file system (VFS). The VFS is a file system that is stored in memory and can be used to store files that are not part of the file system of the operating system. The VFSReference resource is defined as follows:
+The _VFSReference_ resource is used to reference files that are stored in a virtual file system (VFS). The VFS is a file system that is stored in memory and can be used to store files that are not part of the file system of the operating system. The _VFSReference_ resource is defined as follows:
 
 ```typescript
 type VFSReference = {
@@ -100,7 +101,7 @@ type VFSReference = {
 };
 ```
 
-To use the VFSReference resource, you need to provide the path to the file in the VFS. For example, to reference a file named "index.html" that is stored in the root of the VFS, you can create a VFSReference as follows:
+To use the _VFSReference_ resource, you need to provide the path to the file in the VFS. For example, to reference a file named "index.html" that is stored in the root of the VFS, you can create a _VFSReference_ as follows:
 
 ```json
 {
@@ -111,7 +112,7 @@ To use the VFSReference resource, you need to provide the path to the file in th
 
 ### LiteralReference
 
-The LiteralReference resource is used to reference files that are stored as literals in the code. The LiteralReference resource is defined as follows:
+The _LiteralReference_ resource is used to reference files that are stored as literals in the code. The _LiteralReference_ resource is defined as follows:
 
 ```typescript
 type LiteralReference = {
@@ -121,7 +122,7 @@ type LiteralReference = {
 };
 ```
 
-To use the LiteralReference resource, you need to provide the name of the file and its contents. For example, to reference a file named "index.html" that contains the text "Hello, World!", you can create a LiteralReference as follows:
+To use the _LiteralReference_ resource, you need to provide the name of the file and its contents. For example, to reference a file named "index.html" that contains the text "Hello, World!", you can create a _LiteralReference_ as follows:
 
 ```json
 {
