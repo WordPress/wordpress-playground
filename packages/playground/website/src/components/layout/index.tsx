@@ -13,7 +13,7 @@ import {
 } from '../../lib/redux-store';
 import { addCrashListener, logger } from '@php-wasm/logger';
 import { Blueprint } from '@wp-playground/blueprints';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
@@ -46,6 +46,7 @@ export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.siteManagerIsOpen
 	);
+	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
 	const dispatch = useAppDispatch();
 	const activeSite = useActiveSite()!;
 	if (!activeSite) {
@@ -57,6 +58,7 @@ export function Layout() {
 		<div className={css.layout}>
 			<Modals />
 			<CSSTransition
+				nodeRef={siteManagerWrapperRef}
 				in={siteManagerIsOpen}
 				timeout={500}
 				classNames={{
@@ -67,7 +69,10 @@ export function Layout() {
 				}}
 				unmountOnExit
 			>
-				<div className={css.siteManagerWrapper}>
+				<div
+					ref={siteManagerWrapperRef}
+					className={css.siteManagerWrapper}
+				>
 					<SiteManager />
 				</div>
 			</CSSTransition>

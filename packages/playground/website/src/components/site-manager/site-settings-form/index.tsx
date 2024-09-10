@@ -476,7 +476,6 @@ export default function SiteSettingsForm({
 									// 100px is an arbitrary value that seems to work.
 									// @TODO: Contribute to @wordpress/components to fix this.
 									style={{ minWidth: '100px' }}
-									autoFocus={true}
 									options={SupportedPHPVersionsList.map(
 										(version) => ({
 											label: `PHP ${version}`,
@@ -497,7 +496,7 @@ export default function SiteSettingsForm({
 						<Controller
 							control={control}
 							name="multisite"
-							render={({ field: { onChange, ...rest } }) => (
+							render={({ field: { onChange, ref, ...rest } }) => (
 								<CheckboxControl
 									label="Create a multisite network"
 									onChange={(isChecked) => {
@@ -514,7 +513,7 @@ export default function SiteSettingsForm({
 						<Controller
 							control={control}
 							name="withExtensions"
-							render={({ field: { onChange, ...rest } }) => (
+							render={({ field: { onChange, ref, ...rest } }) => (
 								<CheckboxControl
 									label="Load libxml, openssl, mbstring, iconv, gd"
 									onChange={(isChecked) => {
@@ -532,7 +531,7 @@ export default function SiteSettingsForm({
 						<Controller
 							control={control}
 							name="withNetworking"
-							render={({ field: { onChange, ...rest } }) => (
+							render={({ field: { onChange, ref, ...rest } }) => (
 								<CheckboxControl
 									label="Allow network access"
 									onChange={(isChecked) => {
