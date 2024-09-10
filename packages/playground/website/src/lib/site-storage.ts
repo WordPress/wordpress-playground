@@ -39,27 +39,19 @@ try {
 	// Ignore. OPFS is not supported in this environment.
 }
 
-interface SiteStorage {
-	create(slug: string, metadata: SiteMetadata): Promise<void>;
-	update(slug: string, metadata: SiteMetadata): Promise<void>;
-	delete(slug: string): Promise<void>;
-	list(): Promise<SiteInfo[]>;
-	read(slug: string): Promise<SiteInfo | undefined>;
-}
-
-class OpfsSiteStorage implements SiteStorage {
+class OpfsSiteStorage {
 	constructor(private readonly root: FileSystemDirectoryHandle) {}
 
 	async create(slug: string, metadata: SiteMetadata): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
-		if (await OPFSHelper.childExists(this.root, newSiteDirName)) {
+		if (await opfsChildExists(this.root, newSiteDirName)) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
 
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
 		});
-		await OPFSHelper.writeFile(
+		await opfsWriteFile(
 			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
 			metadataToStoredFormat(slug, metadata)
 		);
@@ -67,11 +59,11 @@ class OpfsSiteStorage implements SiteStorage {
 
 	async update(slug: string, metadata: SiteMetadata): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
-		if (!(await OPFSHelper.childExists(this.root, newSiteDirName))) {
+		if (!(await opfsChildExists(this.root, newSiteDirName))) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
 
-		await OPFSHelper.writeFile(
+		await opfsWriteFile(
 			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
 			metadataToStoredFormat(slug, metadata)
 		);
@@ -115,7 +107,7 @@ class OpfsSiteStorage implements SiteStorage {
 	}
 }
 
-export const siteStorage: SiteStorage | undefined = opfsRoot
+export const siteStorage: OpfsSiteStorage | undefined = opfsRoot
 	? new OpfsSiteStorage(opfsRoot)
 	: undefined;
 
@@ -136,42 +128,43 @@ function storedFormatToMetadata(data: string) {
 	};
 }
 
-class OPFSHelper {
-	static async childExists(handle: FileSystemDirectoryHandle, name: string) {
+async function opfsChildExists(
+	handle: FileSystemDirectoryHandle,
+	name: string
+) {
+	try {
+		await handle.getDirectoryHandle(name);
+		return true;
+	} catch (e) {
 		try {
-			await handle.getDirectoryHandle(name);
+			await handle.getFileHandle(name);
 			return true;
 		} catch (e) {
-			try {
-				await handle.getFileHandle(name);
-				return true;
-			} catch (e) {
-				return false;
-			}
+			return false;
 		}
 	}
+}
 
-	static async writeFile(path: string, content: string) {
-		// Note: Safari appears to require a worker to write OPFS file content,
-		// and that is why we're using a worker here.
-		const worker = new Worker(metadataWorkerUrl, { type: 'module' });
+async function opfsWriteFile(path: string, content: string) {
+	// Note: Safari appears to require a worker to write OPFS file content,
+	// and that is why we're using a worker here.
+	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
 
-		const promiseToWrite = new Promise<void>((resolve, reject) => {
-			worker.onmessage = function (event: MessageEvent) {
-				if (event.data === 'ready') {
-					worker.postMessage({ path, content });
-				} else if (event.data === 'done') {
-					resolve();
-				}
-			};
-			worker.onerror = reject;
-		});
-		const promiseToTimeout = new Promise<void>((resolve, reject) => {
-			setTimeout(() => reject(new Error('timeout')), 5000);
-		});
+	const promiseToWrite = new Promise<void>((resolve, reject) => {
+		worker.onmessage = function (event: MessageEvent) {
+			if (event.data === 'ready') {
+				worker.postMessage({ path, content });
+			} else if (event.data === 'done') {
+				resolve();
+			}
+		};
+		worker.onerror = reject;
+	});
+	const promiseToTimeout = new Promise<void>((resolve, reject) => {
+		setTimeout(() => reject(new Error('timeout')), 5000);
+	});
 
-		return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(
-			() => worker.terminate()
-		);
-	}
+	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
+		worker.terminate()
+	);
 }
