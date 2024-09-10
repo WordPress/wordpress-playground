@@ -323,6 +323,31 @@ export function SiteInfoPanel({
 					</TabPanel>
 				</FlexItem>
 			</Flex>
+
+			<div className={css.mobileStickyFooter}>
+				<Flex direction="row" gap={2} justify="center">
+					<FlexItem style={{ flexGrow: 1 }}>
+						<Button
+							className={css.mobileStickyFooterButton}
+							variant="secondary"
+							disabled={!playground}
+							onClick={() => navigateTo('/wp-admin/')}
+						>
+							WP Admin
+						</Button>
+					</FlexItem>
+					<FlexItem style={{ flexGrow: 1 }}>
+						<Button
+							className={css.mobileStickyFooterButton}
+							variant="primary"
+							disabled={!playground}
+							onClick={() => navigateTo('/')}
+						>
+							Homepage
+						</Button>
+					</FlexItem>
+				</Flex>
+			</div>
 		</section>
 	);
 }

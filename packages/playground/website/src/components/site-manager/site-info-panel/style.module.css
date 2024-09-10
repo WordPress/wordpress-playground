@@ -21,7 +21,7 @@
 
 	& :global(.components-tab-panel__tabs) {
 		--wp-components-color-accent: var(--color-gray-900);
-		border-bottom: 1px solid #ddd;
+		border-bottom: 1px solid var(--color-gray-200);
 	}
 	& :global(.components-tab-panel__tabs-item) {
 		padding-left: var(--padding-size);
@@ -187,4 +187,20 @@
 
 .danger {
 	color: var(--color-alert-red);
+}
+
+.mobile-sticky-footer {
+	width: 100%;
+	margin: 0;
+	position: sticky;
+	bottom: 0;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+	border-top: 1px solid var(--color-gray-200);
+}
+
+.mobile-sticky-footer-button {
+	width: 100%;
+	justify-content: center;
 }

@@ -74,6 +74,7 @@ export function Layout() {
 			<div className={css.siteView}>
 				{siteManagerIsOpen && (
 					<div
+						title="Open site"
 						className={css.siteViewOverlay}
 						onClick={() => {
 							dispatch(setSiteManagerIsOpen(false));

@@ -71,7 +71,8 @@ body {
 	min-width: var(--site-view-min-width);
 	height: 100vh;
 	border: 0px solid var(--site-manager-background-color);
-	transition: border-radius 300ms, border-width 300ms;
+	transition: border-radius 300ms ease, border-width 300ms ease,
+		transform 300ms ease;
 	border-radius: 0;
 	border-width: 0;
 }
@@ -83,6 +84,14 @@ body {
 	.site-view-content {
 		border-radius: var(--site-manager-border-radius);
 	}
+}
+
+.site-manager-wrapper:not(
+		.site-manager-wrapper-exit-active,
+		.site-manager-wrapper-enter-active
+	)
+	+ .site-view:hover {
+	transform: scale(1.01);
 }
 
 .site-manager-wrapper-exit-active + .site-view {
