@@ -29,6 +29,7 @@ body {
 
 .site-manager-wrapper {
 	flex: 0 0 auto;
+	flex-shrink: 0;
 	width: var(--site-manager-width-desktop);
 	@media (max-width: 875px) {
 		min-width: 0;

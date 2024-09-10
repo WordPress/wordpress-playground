@@ -28,17 +28,15 @@
 		padding-right: var(--padding-size);
 	}
 	& :global(.components-tab-panel__tab-content) {
+		display: block;
 		flex-grow: 1;
-		display: flex;
-		height: 100%;
+		overflow: auto;
+		align-self: stretch;
 	}
 }
 
 .tab-contents {
 	width: 100%;
-	height: 100%;
-	flex-grow: 1;
-	display: flex;
 	flex-direction: column;
 	padding-top: var(--padding-size);
 	padding-bottom: var(--padding-size);
@@ -50,17 +48,8 @@
  * a flex container. TODO: find a way to avoid using
  * position: absolute.
  */
-.scroll-pane {
-	position: absolute;
-	display: flex;
-	flex-direction: row;
-	isolation: isolate;
-	width: 100%;
-	height: 100%;
-	top: 0;
-	left: 0;
-	max-height: 100%;
-	overflow: auto;
+.logs-wrapper {
+	display: block;
 }
 
 .site-notice {
@@ -189,18 +178,18 @@
 	color: var(--color-alert-red);
 }
 
-.mobile-sticky-footer {
+.mobile-footer {
+	min-height: 70px !important;
 	width: 100%;
 	margin: 0;
-	position: sticky;
-	bottom: 0;
 	align-items: center;
 	justify-content: center;
 	padding: 16px;
 	border-top: 1px solid var(--color-gray-200);
+	background: #fff;
 }
 
-.mobile-sticky-footer-button {
+.mobile-footer-button {
 	width: 100%;
 	justify-content: center;
 }

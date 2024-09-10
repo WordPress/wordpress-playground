@@ -1,6 +1,7 @@
 .sidebar {
 	height: 100vh;
 	display: flex;
+	flex-shrink: 0;
 	flex-direction: column;
 	--site-manager-text-color: #fff;
 	color: var(--site-manager-text-color);

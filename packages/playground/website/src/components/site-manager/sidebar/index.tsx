@@ -109,9 +109,13 @@ export function Sidebar({
 								onClick={() => onSiteClick(site.slug)}
 								isSelected={isSelected}
 								role="menuitemradio"
+								title={
+									site.metadata.storage === 'none'
+										? 'This is a temporary site. Your changes will be lost when the site is reset.'
+										: ''
+								}
 								icon={
-									site.metadata.storage === 'none' ||
-									!site.metadata.storage ? (
+									site.metadata.storage === 'none' ? (
 										<TemporaryStorageIcon
 											className={
 												css.sidebarItemStorageIcon

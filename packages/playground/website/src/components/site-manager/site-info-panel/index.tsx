@@ -2,7 +2,6 @@ import classNames from 'classnames';
 import css from './style.module.css';
 import { SiteInfo } from '../../../lib/site-storage';
 import { getLogoDataURL, WordPressIcon } from '../icons';
-import { useState } from '@wordpress/element';
 import {
 	Button,
 	Flex,
@@ -13,14 +12,7 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import {
-	moreVertical,
-	external,
-	copy,
-	seen,
-	unseen,
-	chevronLeft,
-} from '@wordpress/icons';
+import { moreVertical, external, copy, chevronLeft } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import {
 	useAppDispatch,
@@ -93,7 +85,11 @@ export function SiteInfoPanel({
 	}
 
 	return (
-		<section className={classNames(className, css.siteInfoPanel)}>
+		<section
+			className={classNames(className, css.siteInfoPanel, {
+				[css.isMobile]: mobileUi,
+			})}
+		>
 			{site.metadata.storage === 'none' ? (
 				<TemporarySiteNotice className={css.siteNotice} />
 			) : null}
@@ -103,7 +99,7 @@ export function SiteInfoPanel({
 				justify="flex-start"
 				expanded={true}
 			>
-				<FlexItem>
+				<FlexItem style={{ flexShrink: 0 }}>
 					<Flex
 						direction="row"
 						gap={4}
@@ -305,11 +301,15 @@ export function SiteInfoPanel({
 									</div>
 								)}
 								{tab.name === 'logs' && (
-									<div className={css.tabContents}>
+									<div
+										className={classNames(
+											css.tabContents,
+											css.padded
+										)}
+									>
 										<div
 											className={classNames(
-												css.scrollPane,
-												css.padded
+												css.logsWrapper
 											)}
 										>
 											<SiteLogs
@@ -322,46 +322,44 @@ export function SiteInfoPanel({
 						)}
 					</TabPanel>
 				</FlexItem>
+				{mobileUi && (
+					<FlexItem className={css.mobileFooter}>
+						<Flex direction="row" gap={2} justify="center">
+							<FlexItem style={{ flexGrow: 1 }}>
+								<Button
+									className={css.mobileFooterButton}
+									variant="secondary"
+									disabled={!playground}
+									onClick={() => navigateTo('/wp-admin/')}
+								>
+									WP Admin
+								</Button>
+							</FlexItem>
+							<FlexItem style={{ flexGrow: 1 }}>
+								<Button
+									className={css.mobileFooterButton}
+									variant="primary"
+									disabled={!playground}
+									onClick={() => navigateTo('/')}
+								>
+									Homepage
+								</Button>
+							</FlexItem>
+						</Flex>
+					</FlexItem>
+				)}
 			</Flex>
-
-			<div className={css.mobileStickyFooter}>
-				<Flex direction="row" gap={2} justify="center">
-					<FlexItem style={{ flexGrow: 1 }}>
-						<Button
-							className={css.mobileStickyFooterButton}
-							variant="secondary"
-							disabled={!playground}
-							onClick={() => navigateTo('/wp-admin/')}
-						>
-							WP Admin
-						</Button>
-					</FlexItem>
-					<FlexItem style={{ flexGrow: 1 }}>
-						<Button
-							className={css.mobileStickyFooterButton}
-							variant="primary"
-							disabled={!playground}
-							onClick={() => navigateTo('/')}
-						>
-							Homepage
-						</Button>
-					</FlexItem>
-				</Flex>
-			</div>
 		</section>
 	);
 }
 
 function SiteSettingsTab({ site }: { site: SiteInfo }) {
-	const [masked, setMasked] = useState(true);
-	// @TODO: Get username and password from the site object
 	const username = 'admin';
 	const password = 'password';
 
 	const offline = useAppSelector((state) => state.offline);
 
-	const { client, opfsMountDescriptor } =
-		usePlaygroundClientInfo(site.slug) || {};
+	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
 
 	return (
 		<>
@@ -467,6 +465,27 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						<SiteInfoRow
 							label="Password"
 							value={
+								<Button
+									variant="link"
+									className={classNames(
+										css.grayLink,
+										css.buttonNoPadding
+									)}
+									icon={() => <Icon size={16} icon={copy} />}
+									iconPosition="right"
+									onClick={() => {
+										navigator.clipboard.writeText(password);
+									}}
+									label="Copy password"
+								>
+									{password}
+								</Button>
+							}
+						/>
+						{/* @TODO Discuss supporting and masking passwords fancier than "password" */}
+						{/* <SiteInfoRow
+							label="Password"
+							value={
 								<Flex
 									gap={0}
 									expanded={true}
@@ -512,24 +531,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 									/>
 								</Flex>
 							}
-						/>
-						<SiteInfoRow
-							label="Admin URL"
-							value={
-								<Button
-									variant="link"
-									onClick={() => {
-										client?.goTo('/wp-admin');
-									}}
-									target="_blank"
-									rel="noopener noreferrer"
-									className={css.buttonNoPadding}
-									label="Go to Admin"
-								>
-									{/*@TODO: site.url*/}/wp-admin{' '}
-								</Button>
-							}
-						/>
+						/> */}
 					</Flex>
 				</FlexItem>
 				<FlexItem>
