@@ -44,9 +44,7 @@ You can also load any plugin from the WordPress plugins directory by setting the
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginZipFile%22:{%22resource%22:%22wordpress.org/plugins%22,%22slug%22:%22gutenberg%22}}]})
 
-:::info
 Blueprints can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
-:::
 
 ### Plugin in a GitHub repository
 
@@ -82,7 +80,7 @@ For example, the following `blueprint.json` installs a plugin from a GitHub repo
 
 ### Plugin code from a gist
 
-By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePlugin`](/blueprints/steps#activatePlugin) steps you can also launch a WP Playground instance with a plugin built on the fly from code stored on a gist:
+By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePlugin`](/blueprints/steps#activatePlugin) steps you can also launch a WP Playground instance with a plugin built on the fly from code stored on [a gist](https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php):
 
 ```json
 {
@@ -163,12 +161,10 @@ From a plugins' folder in your local development environment, you can quickly lo
 
 For example:
 
-````
-
+```bash
 git clone git@github.com:wptrainingteam/devblog-dataviews-plugin.git
 cd devblog-dataviews-plugin
 npx @wp-now/wp-now start
-
 ```
 
 ### See your local changes in a Playground instance and directly create PRs in a GitHub repo with your changes
@@ -183,10 +179,8 @@ Here's a little demo of this workflow in action:
 <iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 <p></p>
 
-:::tip
+:::info
 
 Check [About Playground > Build > Synchronize your playground instance with a local folder and create Github Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 :::
-```
-````
