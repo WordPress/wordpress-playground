@@ -56,7 +56,7 @@ export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
 				'WS->TCP message:',
 				new TextDecoder().decode(e.data as ArrayBuffer)
 			);
-			tcpSource.write(Buffer.from(e.data as ArrayBuffer));
+			tcpSource.write(Buffer.from(e.data as ArrayBuffer) as Uint8Array);
 		});
 		wsTarget.addEventListener('close', () => {
 			log('WebSocket connection closed');
