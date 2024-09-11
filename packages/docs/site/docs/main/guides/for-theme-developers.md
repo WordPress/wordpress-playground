@@ -95,7 +95,7 @@ Through properties and [`steps`](/blueprints/steps) in the blueprint, you can co
 
 :::info
 
-One thing you may want to do to provide a good demo with WordPress Playground is to load default content to better showcase the features of your plugin or theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more
+To provide a good demo of your theme via Playground, you may want to load it with default content that highlights the features of your theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more about this.
 
 :::
 
