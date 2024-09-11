@@ -42,6 +42,8 @@ export type FileNotFoundGetActionCallback = (
 	relativePath: string
 ) => FileNotFoundAction;
 
+export type CookieStrategy = 'internal-store' | 'pass-through';
+
 interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -107,7 +109,7 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration &
 		 *
 		 * Default value is `internal-store`.
 		 */
-		cookieStrategy?: 'internal-store' | 'pass-through';
+		cookieStrategy?: CookieStrategy;
 	};
 
 /**

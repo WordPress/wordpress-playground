@@ -60,6 +60,7 @@ export type {
 } from './load-php-runtime';
 
 export type {
+	CookieStrategy,
 	PHPRequestHandlerConfiguration,
 	RewriteRule,
 } from './php-request-handler';

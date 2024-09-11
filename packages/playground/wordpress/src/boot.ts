@@ -1,4 +1,5 @@
 import {
+	CookieStrategy,
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
@@ -91,6 +92,19 @@ export interface BootOptions {
 	 * given request URI.
 	 */
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
+
+	/**
+	 * - `internal-store`: Persist cookies from reponses in an internal store and
+	 * includen them in following requests. This is a behavior mostly needed when
+	 * using Playground in web.
+	 *
+	 * - `pass-through`: Avoid persisting cookies internally and let them pass
+	 * through the requests and back to the caller from responses. This is the
+	 * common behavior in requests handled by a server.
+	 *
+	 * Default value is `internal-store`.
+	 */
+	cookieStrategy?: CookieStrategy;
 }
 
 /**
@@ -179,6 +193,7 @@ export async function bootWordPress(options: BootOptions) {
 		rewriteRules: wordPressRewriteRules,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
+		cookieStrategy: options.cookieStrategy,
 	});
 
 	const php = await requestHandler.getPrimaryPhp();
