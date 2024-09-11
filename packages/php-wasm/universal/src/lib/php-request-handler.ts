@@ -95,7 +95,20 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration &
 				 */
 				maxPhpInstances?: number;
 		  }
-	);
+	) & {
+		/**
+		 * - `internal-store`: Persist cookies from reponses in an internal store and
+		 * includen them in following requests. This is a behavior mostly needed when
+		 * using Playground in web.
+		 *
+		 * - `pass-through`: Avoid persisting cookies internally and let them pass
+		 * through the requests and back to the caller from responses. This is the
+		 * common behavior in requests handled by a server.
+		 *
+		 * Default value is `internal-store`.
+		 */
+		cookieStrategy?: 'internal-store' | 'pass-through';
+	};
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -159,7 +172,7 @@ export class PHPRequestHandler {
 	#HOST: string;
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
-	#cookieStore: HttpCookieStore;
+	#cookieStore?: HttpCookieStore;
 	rewriteRules: RewriteRule[];
 	processManager: PHPProcessManager;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
@@ -198,7 +211,10 @@ export class PHPRequestHandler {
 				maxPhpInstances: config.maxPhpInstances,
 			});
 		}
-		this.#cookieStore = new HttpCookieStore();
+		const cookieStrategy = config.cookieStrategy ?? 'internal-store';
+		if (cookieStrategy === 'internal-store') {
+			this.#cookieStore = new HttpCookieStore();
+		}
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -492,8 +508,11 @@ export class PHPRequestHandler {
 		const headers: Record<string, string> = {
 			host: this.#HOST,
 			...normalizeHeaders(request.headers || {}),
-			cookie: this.#cookieStore.getCookieRequestHeader(),
 		};
+
+		if (this.#cookieStore) {
+			headers['cookie'] = this.#cookieStore.getCookieRequestHeader();
+		}
 
 		let body = request.body;
 		if (typeof body === 'object' && !(body instanceof Uint8Array)) {
@@ -522,7 +541,7 @@ export class PHPRequestHandler {
 				scriptPath,
 				headers,
 			});
-			this.#cookieStore.rememberCookiesFromResponseHeaders(
+			this.#cookieStore?.rememberCookiesFromResponseHeaders(
 				response.headers
 			);
 			return response;
