@@ -603,6 +603,9 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 								<Button
 									variant="link"
 									className={css.buttonNoPadding}
+									// The published `Button` component type does not accept the
+									// "href" prop even though the actual component does accept one.
+									// @ts-ignore
 									href={`/builder/builder.html#${encodeStringAsBase64(
 										JSON.stringify(
 											// @TODO: Merge with the current runtime configuration
