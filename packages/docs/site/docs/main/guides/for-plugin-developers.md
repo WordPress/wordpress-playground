@@ -18,7 +18,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 ### Plugin in the WordPress themes directory
 
-With WordPress Playground, you can quickly launch a WordPress installation with any plugin available in the [WordPress Plugins Directory](https://wordpress.org/plugins/) installed and activated. Simply pass the `plugin` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) like this: https://playground.wordpress.net/?plugin=gutenberg.
+With WordPress Playground, you can quickly launch a WordPress installation with any plugin available in the [WordPress Plugins Directory](https://wordpress.org/plugins/) installed and activated. All you need to do is to add the `plugin` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) and use the slug of the plugin from the WordPress directory as a value. For example: https://playground.wordpress.net/?plugin=create-block-theme
 
 :::tip
 You can install and activate several plugins via query parameters by repeating the `plugin` parameter for every plugin you want to be installed and activated in the Playground instance. For example: https://playground.wordpress.net/?plugin=gutenberg&plugin=akismet&plugin=wordpress-seo.
@@ -123,11 +123,11 @@ Some useful tools and resources provided by the Playground project to work with 
 
 :::
 
-Through properties and [`steps`](/blueprints/steps) in the Blueprint, you can configure the Playground instance's initial setup, providing your plugins with the content and configuration needed for proper showcasing.
+Through properties and [`steps`](/blueprints/steps) in the Blueprint, you can configure the Playground instance's initial setup, providing your plugins with the content and configuration needed for showcasing your plugin's compelling features and functionality.
 
 :::info
 
-One thing you may want to do to provide a good demo with WordPress Playground is to load default content to better showcase the features of your plugin or theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more
+A great demo with WordPress Playground, might require that you load default content for your plugin and theme, including images and other assets. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more about this.
 
 :::
 
@@ -186,7 +186,11 @@ Here’s an example of a **[plugin that generates Custom Post Types](https://raw
 
 ### Local plugin development and testing with Playground
 
-From a plugins' folder in your local development environment, you can quickly load locally a Playground instance with that plugin loaded and activated. You can do that by launching, in the plugin's directory, the [`wp-now` command](/developers/local-development/wp-now) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
+From a plugins' folder in your local development environment, you can quickly load locally a Playground instance with that plugin loaded and activated.
+
+Use the [`wp-now` command](/developers/local-development/wp-now) from your plugin's root directory using your preferred command line program.
+
+With [Visual Studio Code](https://code.visualstudio.com/) IDE, you can also use the [Visual Studio Code extension](/developers/local-development/vscode-extension) while working in the root directory of your plugin.
 
 For example:
 
