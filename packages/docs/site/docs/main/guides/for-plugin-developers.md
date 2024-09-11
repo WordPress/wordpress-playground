@@ -207,7 +207,8 @@ Here's a little demo of this workflow in action:
 
 <iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 <p></p>
-
+:::note
+This feature is only available for Google Chrome for now. It won't work with other browsers, yet. 
 :::info
 
 Check [About Playground > Build > Synchronize your playground instance with a local folder and create Github Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
