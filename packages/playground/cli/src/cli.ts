@@ -10,7 +10,7 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { logger } from '@php-wasm/logger';
+import { logger, errorLogPath } from '@php-wasm/logger';
 import {
 	Blueprint,
 	compileBlueprint,
@@ -99,6 +99,12 @@ async function run() {
 		})
 		.option('quiet', {
 			describe: 'Do not output logs and progress messages.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('debug', {
+			describe:
+				'Return PHP error log content if an error occurs while building the site.',
 			type: 'boolean',
 			default: false,
 		})
@@ -334,6 +340,19 @@ async function run() {
 					logger.log(`Running the Blueprint...`);
 					await runBlueprintSteps(compiledBlueprint, php);
 					logger.log(`Finished running the blueprint`);
+				} catch (error) {
+					if (!args.debug) {
+						throw error;
+					}
+					const phpLogs = php.readFileAsText(errorLogPath);
+					if (error instanceof Error) {
+						throw new Error(
+							`${error.message}\nPHP Logs:\n${phpLogs}`
+						);
+					}
+					throw new Error(
+						`An unknown error occurred\nPHP Logs:\n${phpLogs}`
+					);
 				} finally {
 					reap();
 				}
