@@ -93,11 +93,11 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance.
 
-### Importing content for your demo
+### Providing content for your demo
 
 One of the things you may want to do to provide a good demo of your theme via Playground is to load default content to better highlight the features of your theme. This default content may include images or other assets.
 
-There are several blueprint steps and strategies you can use to import content in the theme you want to display in the Playground instance:
+There are several blueprint steps and strategies you can use to import content (or generate it) in the theme you want to display in the Playground instance:
 
 #### `importWxr`
 
@@ -197,6 +197,25 @@ With the [`importThemeStarterContent` step](/blueprints/steps#importThemeStarter
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22}},{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwentyone%22},%22options%22:{%22activate%22:true}},{%22step%22:%22importThemeStarterContent%22,%22themeSlug%22:%22twentytwenty%22}]})
 
 You can also publish the starter content of a theme when installing it with the [`installTheme` step](/blueprints/steps#installTheme) by setting to `true` its `importStarterContent` option.
+
+#### `wp-cli`
+
+Another way of generating content for your theme is via the `wp-cli` step that allows you to run [WP-CLI commands](https://developer.wordpress.org/cli/commands/) such as [`wp post generate`](https://developer.wordpress.org/cli/commands/post/generate/):
+
+```json
+{
+	"landingPage": "/wp-admin/edit.php",
+	"login": true,
+	"steps": [
+		{
+			"step": "wp-cli",
+			"command": "wp post generate --count=20 --post_type=post --post_date=1999-01-04"
+		}
+	]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22wp-cli%22,%22command%22:%22wp%20post%20generate%20--count=20%20--post_type=post%20--post_date=1999-01-04%22}]})
 
 ### Other Settings
 
