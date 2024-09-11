@@ -152,7 +152,7 @@ async function run() {
 			await requestHandler.processManager.acquirePHPInstance();
 		try {
 			await php.run({
-				code: `<?php 
+				code: `<?php
 				$zip = new ZipArchive();
 				if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
 					throw new Exception('Failed to create ZIP');
@@ -168,7 +168,7 @@ async function run() {
 					$zip->addFile($file->getPathname(), $file->getPathname());
 				}
 				$zip->close();
-				
+
 			`,
 			});
 			const zip = php.readFileAsBuffer('/tmp/build.zip');
@@ -224,11 +224,11 @@ async function run() {
 			}
 			lastCaption =
 				e.detail.caption || lastCaption || 'Running the Blueprint';
-			process.stdout.write(
+			logger.log(
 				'\r\x1b[K' + `${lastCaption.trim()} – ${e.detail.progress}%`
 			);
 			if (progress100) {
-				process.stdout.write('\n');
+				logger.log('\n');
 			}
 		});
 		return compileBlueprint(blueprint as Blueprint, {
@@ -269,7 +269,7 @@ async function run() {
 						Math.min(100, (100 * e.detail.loaded) / e.detail.total)
 					);
 					if (!args.quiet) {
-						process.stdout.write(
+						logger.log(
 							`\rDownloading WordPress ${percentProgress}%...    `
 						);
 					}
