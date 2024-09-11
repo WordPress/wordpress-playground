@@ -125,6 +125,12 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Through properties and [`steps`](/blueprints/steps) in the Blueprint, you can configure the Playground instance's initial setup, providing your plugins with the content and configuration needed for proper showcasing.
 
+:::info
+
+One thing you may want to do to provide a good demo with WordPress Playground is to load default content to better showcase the features of your plugin or theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more
+
+:::
+
 ### `plugins`
 
 If your plugin has dependencies on other plugins you can use the `plugins` shorthand to install yours along with any other needed plugins.
