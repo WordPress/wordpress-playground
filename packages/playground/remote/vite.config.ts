@@ -18,6 +18,7 @@ const plugins = [
 	dts({
 		entryRoot: 'src',
 		tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+		pathsToAliases: false,
 	}),
 	/**
 	 * Copy the `.htaccess` file to the `dist` directory.

@@ -18,6 +18,7 @@ export default defineConfig({
 		dts({
 			entryRoot: 'src',
 			tsconfigPath: path('tsconfig.lib.json'),
+			pathsToAliases: false,
 		}),
 		{
 			name: 'use-correct-wp-data-file-url-in-vitest-environment',
