@@ -248,12 +248,6 @@ export function SiteInfoPanel({
 												</MenuItem>
 											</MenuGroup>
 											<MenuGroup>
-												{/* 
-													@TODO: Duplicate site feature = Export site + import site using these PHP tools:
-													* https://github.com/adamziel/wxr-normalize/pull/1
-													* https://github.com/adamziel/site-transfer-protocol
-												*/}
-												{/* <MenuItem onClick={onClose}>Duplicate Site</MenuItem> */}
 												<DownloadAsZipMenuItem
 													onClose={onClose}
 												/>
@@ -524,56 +518,6 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 								</Button>
 							}
 						/>
-						{/* @TODO Discuss supporting and masking passwords fancier than "password" */}
-						{/* <SiteInfoRow
-							label="Password"
-							value={
-								<Flex
-									gap={0}
-									expanded={true}
-									align="center"
-									justify="space-between"
-								>
-									<Button
-										variant="link"
-										className={classNames(
-											css.grayLink,
-											css.buttonNoPadding
-										)}
-										icon={() => (
-											<Icon size={16} icon={copy} />
-										)}
-										iconPosition="right"
-										onClick={() => {
-											navigator.clipboard.writeText(
-												password
-											);
-										}}
-										label="Copy password"
-									>
-										{masked ? '••••••••' : 'password'}
-									</Button>
-									<Button
-										variant="link"
-										className={classNames(
-											css.grayLink,
-											css.buttonNoPadding
-										)}
-										icon={() => (
-											<Icon
-												size={18}
-												icon={masked ? seen : unseen}
-											/>
-										)}
-										iconPosition="right"
-										onClick={() => {
-											setMasked(!masked);
-										}}
-										label="Reveal password"
-									/>
-								</Flex>
-							}
-						/> */}
 					</Flex>
 				</FlexItem>
 				<FlexItem>
@@ -608,7 +552,6 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 									// @ts-ignore
 									href={`/builder/builder.html#${encodeStringAsBase64(
 										JSON.stringify(
-											// @TODO: Merge with the current runtime configuration
 											site.metadata
 												.originalBlueprint as any
 										) as string

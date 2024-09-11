@@ -106,7 +106,7 @@ export function persistTemporarySite(
 				}
 			);
 		} finally {
-			// @TODO: Tell the user the operation is complete
+			// @TODO: Create a notification to tell the user the operation is complete
 			dispatch(
 				updateClientInfo({
 					siteSlug,

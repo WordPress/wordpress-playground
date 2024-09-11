@@ -29,17 +29,14 @@ export function Sidebar({
 	className?: string;
 	afterSiteClick?: (slug: string) => void;
 }) {
-	const sitesRaw = useAppSelector(
-		// Sites may be in an arbitrary order, so let's sort them by name
-		// @TODO: Sort by last access date
-		(state) => state.sites.entities
-	);
+	const sitesRaw = useAppSelector((state) => state.sites.entities);
+	// Sort by creation date DESC
 	const sites = useMemo(() => {
 		return sitesRaw
 			? Object.values(sitesRaw).sort(
 					(a, b) =>
-						(a.metadata.whenCreated || 0) -
-						(b.metadata.whenCreated || 0)
+						(b.metadata.whenCreated || 0) -
+						(a.metadata.whenCreated || 0)
 			  )
 			: [];
 	}, [sitesRaw]);

@@ -24,11 +24,6 @@ export function SitePersistButton({
 	const isLocalFsAvailable = useIsLocalFsAvailable(clientInfo?.client);
 	const dispatch = useAppDispatch();
 
-	// @TODO: The parent component should be aware if local FS is unavailable so that it
-	//        can adjust the UI accordingly.
-	// 		  Also, acknowledge Safari doesn't support local FS yet as we cannot pass the directory
-	//        handle to the worker. Perhaps we could work around this by triggering showDirectoryPicker
-	//        from the worker thread.
 	if (!clientInfo?.opfsIsSyncing) {
 		return (
 			<DropdownMenu trigger={children}>

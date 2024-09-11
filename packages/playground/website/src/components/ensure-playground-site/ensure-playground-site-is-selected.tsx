@@ -64,12 +64,13 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 			if (!requestedSiteObject) {
-				// @TODO: We can do better than alert() here.
-				alert('Site not found');
+				// @TODO: Use a notificatoin and ditch the alert().
+				alert(
+					'The requested site was not found. Redirecting to a new temporary site.'
+				);
 				redirectTo(PlaygroundRoute.newTemporarySite());
 				return;
 			}
-			// @TODO: Incorporate any query arg-driven config changes such as ?login=no.
 			dispatch(setActiveSite(requestedSiteSlug));
 		}
 

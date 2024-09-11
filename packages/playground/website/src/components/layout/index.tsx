@@ -51,7 +51,6 @@ export function Layout() {
 	const dispatch = useAppDispatch();
 	const activeSite = useActiveSite()!;
 	if (!activeSite) {
-		// @TODO: Why does this happen for a brief moment when updating a local site?
 		return null;
 	}
 
@@ -99,10 +98,10 @@ export function Layout() {
 }
 
 /**
- * @TODO: Think through a mobile-friendly modal architecture that doesn't
- *        stack modals, allows dismissing. Discuss whether modals should
- *        be declared at the top level, like here, or contextual to where
- *        the "Show modal" button is rendered.
+ * @TODO: Think through a mobile-friendly modal architecture that doesn't stack modals,
+ * allows dismissing, and understands some modals (e.g. fatal error report) might have priority
+ * over other modals (e.g. connect to GitHub). Discuss whether modals should be declared at the
+ * top level, like here, or contextual to where the "Show modal" button is rendered.
  */
 function Modals(blueprint: Blueprint) {
 	const dispatch: PlaygroundDispatch = useAppDispatch();

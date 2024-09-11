@@ -10,9 +10,9 @@ import { SiteMetadata } from '../../site-metadata';
 import { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 
-// TODO: Decide on metadata filename
 const ROOT_PATH = '/sites';
-const SITE_METADATA_FILENAME = 'playground-site-metadata.json';
+// TODO: Decide on metadata filename
+const SITE_METADATA_FILENAME = 'wp-runtime.json';
 
 /**
  * StoredSiteMetadata is the data structure that is written to disk.
@@ -98,6 +98,8 @@ class OpfsSiteStorage {
 		const file = await siteInfoFileHandle.getFile();
 		// TODO: Read metadata file and parse and validate via JSON schema
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
+		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
+		//         to the site files import flow.
 		return storedFormatToMetadata(await file.text());
 	}
 
