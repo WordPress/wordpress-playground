@@ -46,7 +46,7 @@ const sidebars = {
 					items: [
 						'main/guides/wordpress-native-ios-app',
 						// 'main/guides/for-theme-developers',
-						// 'main/guides/for-plugin-developers',
+						'main/guides/for-plugin-developers',
 					],
 				},
 				{
