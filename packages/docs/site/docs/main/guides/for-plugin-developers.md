@@ -198,7 +198,7 @@ npx @wp-now/wp-now start
 
 ### See your local changes in a Playground instance and directly create PRs in a GitHub repo with your changes
 
-With Google Chrome (it only works with this browser, for now) you can synchronize a Playground instance with your local plugin's code and your plugin's GitHub repo. With this connection you can:
+With Google Chrome you can synchronize a Playground instance with your local plugin's code and your plugin's GitHub repo. With this connection you can:
 
 -   See live (in the Playground instance) your local changes
 -   Create PRs in the GitHub repo with your changes
