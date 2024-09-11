@@ -111,7 +111,7 @@ By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePl
 
 ## Setting up a demo for your plugin with Blueprints
 
-When providing a link to a WordPress Playground instance with some plugins activated, you may also want to customize the initial setup for that Playground instance using those plugins. With Playground's [Blueprints](/blueprints/getting-started) you can load, activate, and configure the Playground instance.
+When providing a link to a WordPress Playground instance with some plugins activated, you may also want to customize the initial setup for that Playground instance using those plugins. With Playground's [Blueprints](/blueprints/getting-started) you can load/activate plugins and configure the Playground instance.
 
 :::tip
 
@@ -152,6 +152,29 @@ If your plugin has a settings view or onboarding wizard, you can use the `landin
 ```
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=my-custom-gutenberg-app%22,%22login%22:true,%22plugins%22:[%22https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip%22]})
+
+### `writeFile`
+
+With the `writeFile` step you can create on the fly any plugin file taking the code from a file stored on a GitHub repo or a gist.
+
+Here’s an example of a **[plugin that generates Custom Post Types](https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php)**, placed in the `mu-plugins` folder to ensure the code runs automatically on load:
+
+```json
+{
+	"landingPage": "/wp-admin/",
+	"login": true,
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/books.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php"
+			}
+		}
+	]
+}
+```
 
 ## Plugin Development
 
