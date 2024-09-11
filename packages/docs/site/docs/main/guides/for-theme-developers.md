@@ -93,9 +93,13 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Through properties and [`steps`](/blueprints/steps) in the blueprint, you can configure the initial setup of your theme in the Playground instance.
 
-### Other Settings
+:::info
 
-#### `resetData`
+One thing you may want to do to provide a good demo with WordPress Playground is to load default content to better showcase the features of your plugin or theme. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more
+
+:::
+
+### `resetData`
 
 With the [`resetData`](/blueprints/steps#resetData) step, you can remove the default content of a WordPress installation in order to import your own content.
 
@@ -111,7 +115,7 @@ With the [`resetData`](/blueprints/steps#resetData) step, you can remove the def
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L16)
 
-#### `writeFile`
+### `writeFile`
 
 With the [`writeFile`](/blueprints/steps#resetData) step, you can write data to a file at a specified path. You may want to use this step to write custom PHP code in a PHP file inside the `mu-plugins` folder of the Playground WordPress instance, so the code is executed automatically when the WordPress instance is loaded.
 One of the things you can do through this step is to enable pretty permalinks for your Playground instance:
@@ -130,7 +134,7 @@ One of the things you can do through this step is to enable pretty permalinks fo
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L19)
 
-#### `updateUserMeta`
+### `updateUserMeta`
 
 With the [`updateUserMeta`](/blueprints/steps#updateUserMeta) step, you can update any user metadata. For example, you could update the metadata of the default `admin` user of any WordPress installation:
 
@@ -152,7 +156,7 @@ With the [`updateUserMeta`](/blueprints/steps#updateUserMeta) step, you can upda
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L24)
 
-#### `setSiteOptions`
+### `setSiteOptions`
 
 With the [`setSiteOptions`](/blueprints/steps#setSiteOptions) step, you can set [site options](https://developer.wordpress.org/apis/options/#available-options-by-category) such as the site name, description, or page to use for posts.
 
@@ -177,7 +181,7 @@ With the [`setSiteOptions`](/blueprints/steps#setSiteOptions) step, you can set 
 
 There's also a [`siteOptions`](/blueprints/steps/shorthands#siteoptions) shorthand that can be used instead of the `setSiteOptions` step.
 
-#### `plugins`
+### `plugins`
 
 With the [`plugins`](/blueprints/steps/shorthands#plugins) shorthand you can set a list of plugins you want to be installed and activated with your theme in the Playground instance.
 
@@ -189,7 +193,7 @@ With the [`plugins`](/blueprints/steps/shorthands#plugins) shorthand you can set
 
 You can also use the [`installPlugin`](/blueprints/steps#installPlugin) step to install and activate plugins for your Playground instance but the shorthand way is recommended.
 
-#### `login`
+### `login`
 
 With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch your Playground instance with the admin user logged in.
 
