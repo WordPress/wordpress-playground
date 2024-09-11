@@ -25,7 +25,6 @@ export interface SiteFormData {
 	name: string;
 	phpVersion: SupportedPHPVersion;
 	wpVersion: string;
-	// @TODO:
 	language: string;
 	withExtensions: boolean;
 	withNetworking: boolean;

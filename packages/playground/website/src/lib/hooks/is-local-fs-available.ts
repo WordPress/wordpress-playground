@@ -6,10 +6,6 @@ export type LocalFsAvailability = true | 'not-available' | 'origin-mismatch';
 async function isLocalFsAvailable(
 	playground: PlaygroundClient
 ): Promise<LocalFsAvailability> {
-	console.log(
-		new URL(await playground.absoluteUrl).origin,
-		window.location.origin
-	);
 	if (!(window as any).showDirectoryPicker) {
 		return 'not-available';
 	}

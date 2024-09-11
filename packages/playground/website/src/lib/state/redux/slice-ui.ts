@@ -1,7 +1,16 @@
 import { createSlice, PayloadAction, Middleware } from '@reduxjs/toolkit';
 
+export type SiteError =
+	| 'directory-handle-not-found-in-indexeddb'
+	| 'directory-handle-permission-denied'
+	| 'directory-handle-directory-does-not-exist'
+	| 'directory-handle-unknown-error';
+
 export interface UIState {
-	activeSiteSlug?: string;
+	activeSite?: {
+		slug: string;
+		error?: SiteError;
+	};
 	activeModal: string | null;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -27,7 +36,16 @@ const uiSlice = createSlice({
 	initialState,
 	reducers: {
 		setActiveSite: (state, action: PayloadAction<string | undefined>) => {
-			state.activeSiteSlug = action.payload;
+			state.activeSite = action.payload
+				? {
+						slug: action.payload,
+				  }
+				: undefined;
+		},
+		setActiveSiteError: (state, action: PayloadAction<SiteError>) => {
+			if (state.activeSite) {
+				state.activeSite.error = action.payload;
+			}
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			state.activeModal = action.payload;
@@ -56,7 +74,11 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 		return next(action);
 	};
 
-export const { setActiveModal, setOffline, setSiteManagerOpen } =
-	uiSlice.actions;
+export const {
+	setActiveModal,
+	setActiveSiteError,
+	setOffline,
+	setSiteManagerOpen,
+} = uiSlice.actions;
 
 export default uiSlice.reducer;

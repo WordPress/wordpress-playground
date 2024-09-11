@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
+	SiteError,
 } from './slice-ui';
 import sitesReducer, { selectSiteBySlug, SiteInfo } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
@@ -57,9 +58,14 @@ export function useAppDispatch() {
 export const selectActiveSite = (
 	state: PlaygroundReduxState
 ): SiteInfo | undefined =>
-	state.ui.activeSiteSlug
-		? state.sites.entities[state.ui.activeSiteSlug]
+	state.ui.activeSite?.slug
+		? state.sites.entities[state.ui.activeSite.slug]
 		: undefined;
+
+export const selectActiveSiteError = (
+	state: PlaygroundReduxState
+): SiteError | undefined =>
+	state.ui.activeSite?.slug ? state.ui.activeSite.error : undefined;
 
 export const useActiveSite = () => useAppSelector(selectActiveSite);
 
@@ -79,10 +85,9 @@ export const setActiveSite = (slug: string | undefined) => {
 export const getActiveClientInfo = (
 	state: PlaygroundReduxState
 ): ClientInfo | undefined =>
-	state.ui.activeSiteSlug
-		? state.clients.entities[state.ui.activeSiteSlug]
+	state.ui.activeSite?.slug
+		? state.clients.entities[state.ui.activeSite.slug]
 		: undefined;
-
 // Define RootState type
 export type PlaygroundReduxState = ReturnType<typeof store.getState>;
 

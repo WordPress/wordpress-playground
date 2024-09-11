@@ -13,7 +13,7 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveModal } from './slice-ui';
+import { setActiveModal, setActiveSiteError } from './slice-ui';
 import { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 
@@ -41,21 +41,46 @@ export function bootSiteClient(
 				mountpoint: '/wordpress',
 			} as const;
 		} else if (site.metadata.storage === 'local-fs') {
+			let localDirectoryHandle;
+			try {
+				localDirectoryHandle = await loadDirectoryHandle(site.slug);
+			} catch (e) {
+				logger.error(e);
+				dispatch(
+					setActiveSiteError(
+						'directory-handle-not-found-in-indexeddb'
+					)
+				);
+				return;
+			}
 			mountDescriptor = {
 				device: {
 					type: 'local-fs',
-					handle: await loadDirectoryHandle(site.slug),
+					handle: localDirectoryHandle,
 				},
 				mountpoint: '/wordpress',
 			} as const;
-			// @TODO: Handle errors, e.g. when the local directory was deleted.
 		}
 
 		let isWordPressInstalled = false;
 		if (mountDescriptor) {
-			isWordPressInstalled = await playgroundAvailableInOpfs(
-				await directoryHandleFromMountDevice(mountDescriptor.device)
-			);
+			try {
+				isWordPressInstalled = await playgroundAvailableInOpfs(
+					await directoryHandleFromMountDevice(mountDescriptor.device)
+				);
+			} catch (e) {
+				logger.error(e);
+				if (e instanceof DOMException && e.name === 'NotFoundError') {
+					dispatch(
+						setActiveSiteError(
+							'directory-handle-not-found-in-indexeddb'
+						)
+					);
+					return;
+				}
+				dispatch(setActiveSiteError('directory-handle-unknown-error'));
+				return;
+			}
 		}
 
 		logTrackingEvent('load');
@@ -105,9 +130,6 @@ export function bootSiteClient(
 			return;
 		}
 
-		// @TODO: Keep the client around for some time to enable quick switching between sites.
-		// @TODO: Trash the client if we're staying on the same site slug and only changing the
-		//        runtime configuration such as the PHP version.
 		if (signal.aborted) {
 			return;
 		}
@@ -139,9 +161,7 @@ export function bootSiteClient(
 }
 
 /**
- * Check if the given OPFS directory is a Playground directory.
- *
- * This function is duplicated in @wp-playground/remote package.
+ * Check if the given directory handle directory is a Playground directory.
  *
  * @TODO: Create a shared package like @wp-playground/wordpress for such utilities
  * and bring in the context detection logic from wp-now – only express it in terms of
@@ -153,19 +173,25 @@ export function bootSiteClient(
  *        WordPress installation? Or, if not, perhaps implement a shared file access
  * 		  abstraction that can be used both with the PHP module and OPFS directory handles?
  *
- * @param opfs
+ * @param dirHandle
  */
 export async function playgroundAvailableInOpfs(
-	opfs: FileSystemDirectoryHandle
+	dirHandle: FileSystemDirectoryHandle
 ) {
+	// Run this loop just to trigger an exception if the directory handle is no good.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	for await (const _ of dirHandle.keys()) {
+		break;
+	}
+
 	try {
 		/**
 		 * Assume it's a Playground directory if these files exist:
 		 * - wp-config.php
 		 * - wp-content/database/.ht.sqlite
 		 */
-		await opfs.getFileHandle('wp-config.php', { create: false });
-		const wpContent = await opfs.getDirectoryHandle('wp-content', {
+		await dirHandle.getFileHandle('wp-config.php', { create: false });
+		const wpContent = await dirHandle.getDirectoryHandle('wp-content', {
 			create: false,
 		});
 		const database = await wpContent.getDirectoryHandle('database', {

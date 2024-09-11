@@ -371,6 +371,11 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 	const { opfsMountDescriptor, client } =
 		usePlaygroundClientInfo(site.slug) || {};
 
+	const localDirName =
+		site.metadata?.storage === 'local-fs'
+			? (opfsMountDescriptor as any)?.device?.handle?.name
+			: undefined;
+
 	return (
 		<>
 			{offline ? <OfflineNotice /> : null}
@@ -433,15 +438,10 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 										</FlexItem>
 									) : null}
 
-									{site.metadata.storage === 'local-fs' ? (
+									{site.metadata.storage === 'local-fs' &&
+									localDirName ? (
 										<FlexItem>
-											{' '}
-											(
-											{
-												(opfsMountDescriptor as any)
-													?.device?.handle.name
-											}
-											)
+											{` (${localDirName})`}
 										</FlexItem>
 									) : null}
 								</Flex>

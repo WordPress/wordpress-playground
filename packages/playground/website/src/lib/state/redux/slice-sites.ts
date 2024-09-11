@@ -136,6 +136,7 @@ export function updateSiteMetadata({
 		);
 	};
 }
+
 /**
  * Updates a site in the OPFS and in the redux state.
  *

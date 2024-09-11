@@ -48,7 +48,10 @@ export async function loadDirectoryHandle(siteSlug: string) {
 		handleDataRequest.onsuccess = async function () {
 			// If there's data to retrieve, convert it back to a handle
 			if (!handleDataRequest.result) {
-				reject();
+				reject(
+					'Directory handle not found in IndexedDB for site ' +
+						siteSlug
+				);
 			}
 			resolve(handleDataRequest.result);
 		};
