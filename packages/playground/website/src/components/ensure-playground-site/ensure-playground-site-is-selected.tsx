@@ -50,6 +50,7 @@ export function EnsurePlaygroundSiteIsSelected({
 			(sites) => dispatch(siteListingLoaded(sites)),
 			(error) => {
 				console.error('Error loading sites:', error);
+				dispatch(siteListingLoaded([]));
 			}
 		);
 	}, [dispatch]);

@@ -9,6 +9,7 @@ import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url'
 import { SiteMetadata } from '../../site-metadata';
 import { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -73,9 +74,14 @@ class OpfsSiteStorage {
 		const sites: SiteInfo[] = [];
 		for await (const entry of this.root.values()) {
 			if (entry.kind === 'directory') {
-				const site = await this.readSite(entry.name);
-				if (site) {
-					sites.push(site);
+				try {
+					const site = await this.readSite(entry.name);
+					if (site) {
+						sites.push(site);
+					}
+				} catch (e) {
+					// @TODO: Still return this site's info, just in an error state.
+					logger.error(`Error reading site ${entry.name}:`, e);
 				}
 			}
 		}
@@ -91,7 +97,6 @@ class OpfsSiteStorage {
 		if (!siteDirectory) {
 			return undefined;
 		}
-
 		const siteInfoFileHandle = await siteDirectory.getFileHandle(
 			SITE_METADATA_FILENAME
 		);
