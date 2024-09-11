@@ -209,7 +209,6 @@ async function run() {
 					php: args.php as SupportedPHPVersion,
 					wp: args.wp,
 				},
-				login: args.login,
 			};
 		}
 
@@ -349,6 +348,11 @@ async function run() {
 				process.exit(0);
 			} else {
 				logger.log(`WordPress is running on ${absoluteUrl}`);
+				if (args.login) {
+					logger.log(
+						`➜ You can auto-login to the site using the query parameter "playground-auto-login=true"\n➜ Homepage: ${absoluteUrl}/?playground-auto-login=true\n➜ WP-Admin: ${absoluteUrl}/wp-admin/?playground-auto-login=true`
+					);
+				}
 			}
 		},
 		async handleRequest(request: PHPRequest) {
