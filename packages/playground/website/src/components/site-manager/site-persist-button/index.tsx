@@ -3,11 +3,13 @@ import {
 	DropdownMenu,
 	DropdownMenuItem,
 	DropdownMenuItemLabel,
+	DropdownMenuItemHelpText,
 	// @ts-ignore
 } from '@wordpress/components/build/dropdown-menu-v2/index.js';
 import css from './style.module.css';
 import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary-site';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import { useIsLocalFsAvailable } from '../../../lib/hooks/is-local-fs-available';
 
 export function SitePersistButton({
 	siteSlug,
@@ -19,6 +21,7 @@ export function SitePersistButton({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, siteSlug)
 	);
+	const isLocalFsAvailable = useIsLocalFsAvailable(clientInfo?.client);
 	const dispatch = useAppDispatch();
 
 	// @TODO: The parent component should be aware if local FS is unavailable so that it
@@ -39,6 +42,7 @@ export function SitePersistButton({
 					</DropdownMenuItemLabel>
 				</DropdownMenuItem>
 				<DropdownMenuItem
+					disabled={isLocalFsAvailable !== true}
 					onClick={() =>
 						dispatch(persistTemporarySite(siteSlug, 'local-fs'))
 					}
@@ -46,6 +50,13 @@ export function SitePersistButton({
 					<DropdownMenuItemLabel>
 						Save in a local directory
 					</DropdownMenuItemLabel>
+					{isLocalFsAvailable !== true && (
+						<DropdownMenuItemHelpText>
+							{isLocalFsAvailable === 'not-available'
+								? 'Not available in this browser'
+								: 'Not available on this site'}
+						</DropdownMenuItemHelpText>
+					)}
 				</DropdownMenuItem>
 			</DropdownMenu>
 		);

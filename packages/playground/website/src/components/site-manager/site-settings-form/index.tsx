@@ -545,34 +545,6 @@ export default function SiteSettingsForm({
 						/>
 					)}
 				</VStack>
-				{/* <VStack>
-					<RadioControl
-						label="Storage type"
-						options={[
-							{ label: 'None', value: 'none' },
-							{ label: 'Browser', value: 'browser' },
-							{ label: 'Local FS', value: 'local-fs' },
-						]}
-						{...register('storage', {
-							required: {
-								message: 'Storage type is required',
-								value: true,
-							},
-						})}
-					/>
-					{'not-available' === onSelectLocalDirectory && (
-						<span>
-							<br />
-							Not supported in this browser.
-						</span>
-					)}
-					{'origin-mismatch' === onSelectLocalDirectory && (
-						<span>
-							<br />
-							Not supported on this site.
-						</span>
-					)}
-				</VStack> */}
 
 				<HStack justify="flex-end" spacing={6}>
 					{onCancel && (
@@ -588,21 +560,3 @@ export default function SiteSettingsForm({
 		</form>
 	);
 }
-
-// function useIsSameOriginAsPlayground(playground?: PlaygroundClient) {
-// 	const [isSameOriginAsPlayground, setIsSameOriginAsPlayground] = useState<
-// 		null | boolean
-// 	>(null);
-
-// 	useEffect(() => {
-// 		if (!playground) return;
-// 		(async () => {
-// 			setIsSameOriginAsPlayground(
-// 				new URL(await playground.absoluteUrl).origin ===
-// 					window.location.origin
-// 			);
-// 		})();
-// 	}, [playground]);
-
-// 	return isSameOriginAsPlayground;
-// }
