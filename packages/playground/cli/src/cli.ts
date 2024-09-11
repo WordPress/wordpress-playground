@@ -311,6 +311,7 @@ async function run() {
 						}
 					},
 				},
+				cookieStrategy: 'pass-through',
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
