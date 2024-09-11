@@ -29,7 +29,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 
 	return (
 		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
-			<header>
+			<header aria-label="Error logs list header">
 				<h2>{props.title || 'Error Logs'}</h2>
 				{props.description}
 			</header>

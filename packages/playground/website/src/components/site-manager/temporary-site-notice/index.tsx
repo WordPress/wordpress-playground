@@ -34,7 +34,11 @@ export function TemporarySiteNotice({
 				</FlexItem>
 				<FlexItem>
 					<SitePersistButton siteSlug={site.slug}>
-						<Button variant="primary" disabled={!playground}>
+						<Button
+							variant="primary"
+							disabled={!playground}
+							aria-label="Save site locally"
+						>
 							Save
 						</Button>
 					</SitePersistButton>

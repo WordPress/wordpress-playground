@@ -388,7 +388,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						expanded={true}
 					>
 						<FlexItem>
-							<h3 className={css.sectionTitle}>Site details</h3>
+							<h2 className={css.sectionTitle}>Site details</h2>
 						</FlexItem>
 						<SiteInfoRow
 							label="Site name"

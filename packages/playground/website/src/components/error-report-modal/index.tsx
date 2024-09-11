@@ -158,7 +158,10 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 
 	return (
 		<Modal isOpen={true} onRequestClose={onClose}>
-			<header className={css.errorReportModalHeader}>
+			<header
+				className={css.errorReportModalHeader}
+				aria-label="Error reporting form header"
+			>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>
 			</header>

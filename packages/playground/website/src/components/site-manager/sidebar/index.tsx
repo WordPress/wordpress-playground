@@ -72,14 +72,22 @@ export function Sidebar({
 	};
 
 	return (
-		<NavigableMenu className={classNames(css.sidebar, className)}>
-			<header className={css.sidebarHeader}>
+		// Disable the `role` as Axe accessibility checker complains that a `menu`
+		// role cannot have `div`, `nav`, `footer` and `button` as children.
+		<NavigableMenu
+			className={classNames(css.sidebar, className)}
+			// eslint-disable-next-line jsx-a11y/aria-role
+			role=""
+			aria-orientation={undefined}
+		>
+			<h1 className="sr-only">WordPress Playground</h1>
+			<div className={css.sidebarHeader}>
 				{/* Remove Playground logo because branding isn't finalized. */}
 				{/* <Logo className={css.sidebarLogoButton} /> */}
-			</header>
+			</div>
 			<nav className={classNames(css.sidebarSection, css.sidebarContent)}>
 				<Heading
-					level="6"
+					level="2"
 					className={classNames(
 						css.sidebarLabel,
 						css.sidebarListLabel
@@ -101,7 +109,8 @@ export function Sidebar({
 								})}
 								onClick={() => onSiteClick(site.slug)}
 								isSelected={isSelected}
-								role="menuitemradio"
+								// eslint-disable-next-line jsx-a11y/aria-role
+								role=""
 								title={
 									site.metadata.storage === 'none'
 										? 'This is a temporary site. Your changes will be lost when the site is reset.'
@@ -146,7 +155,7 @@ export function Sidebar({
 			<footer
 				className={classNames(css.sidebarSection, css.sidebarFooter)}
 			>
-				<Heading level="6" className={css.sidebarLabel}>
+				<Heading level="2" className={css.sidebarLabel}>
 					Resources
 				</Heading>
 				<ItemGroup className={css.sidebarList}>
