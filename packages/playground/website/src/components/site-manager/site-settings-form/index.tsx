@@ -192,8 +192,6 @@ export default function SiteSettingsForm({
 										[css.invalidInput]: !!errors.language,
 									})}
 									options={[
-										// @TODO: Actually reload the site when the language changes.
-										//        Right now it doesn't work at least for temporary sites.
 										{ value: 'af', label: 'Afrikaans' },
 										{ value: 'ar', label: 'Arabic' },
 										{
@@ -201,11 +199,6 @@ export default function SiteSettingsForm({
 											label: 'Moroccan Arabic',
 										},
 										{ value: 'as', label: 'Assamese' },
-										{ value: 'az', label: 'Azerbaijani' },
-										{
-											value: 'azb',
-											label: 'South Azerbaijani',
-										},
 										{ value: 'bel', label: 'Belarusian' },
 										{ value: 'bg_BG', label: 'Bulgarian' },
 										{

@@ -7,6 +7,7 @@ import {
 	updateSiteMetadata,
 } from '../../../lib/state/redux/slice-sites';
 import { redirectTo, PlaygroundRoute } from '../../../lib/state/url/router';
+import { randomSiteName } from '../../../lib/state/redux/random-site-name';
 
 export function SiteEditButton({
 	siteSlug,
@@ -142,15 +143,21 @@ function InMemorySiteEditButton({
 	};
 	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
 		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
+		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
 		return {
-			phpVersion: searchParams.php as any,
-			wpVersion: searchParams.wp as any,
-			name: searchParams.name,
-			withNetworking: searchParams.networking === 'yes',
+			// @TODO: Populate with the site name from the original URL params and
+			//        when the site is saved, update it instead of creating a new temp site.
+			name: randomSiteName(),
+			phpVersion: runtimeConf?.preferredVersions?.php as any,
+			wpVersion: runtimeConf?.preferredVersions?.wp as any,
+			withNetworking: runtimeConf?.features?.networking,
 			withExtensions:
-				searchParams['php-extension-bundle'] === 'kitchen-sink',
-			language: searchParams.language,
-			multisite: searchParams.multisite === 'yes',
+				runtimeConf?.phpExtensionBundles?.includes('kitchen-sink'),
+			language: 'language' in searchParams ? searchParams.language : '',
+			multisite:
+				'multisite' in searchParams
+					? searchParams.multisite === 'yes'
+					: false,
 		};
 	}, [siteInfo]);
 

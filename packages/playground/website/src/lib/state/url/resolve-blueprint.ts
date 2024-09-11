@@ -45,7 +45,9 @@ export async function resolveBlueprint(url: URL) {
 			features,
 			plugins: query.getAll('plugin'),
 			landingPage: query.get('url') || undefined,
-			phpExtensionBundles: query.getAll('php-extension-bundle') || [],
+			phpExtensionBundles: query.has('php-extension-bundle')
+				? query.getAll('php-extension-bundle')
+				: ['kitchen-sink'],
 			importSite: query.get('import-site') || undefined,
 			importWxr:
 				query.get('import-wxr') ||
