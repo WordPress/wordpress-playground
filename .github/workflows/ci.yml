@@ -38,7 +38,7 @@ jobs:
             - run: sudo ./node_modules/.bin/cypress install --force
             - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
             # Upload the Cypress screenshots as artifacts if the job fails
-            - uses: actions/upload-artifact@v2
+            - uses: actions/upload-artifact@v4
               if: ${{ failure() }}
               with:
                   name: cypress-screenshots
