@@ -767,12 +767,48 @@ describe('PHPRequestHandler – Loopback call', () => {
 });
 
 describe('PHPRequestHandler – Cookie strategy', () => {
+	it('should persist cookies internally when not defining a strategy', async () => {
+		const handler = new PHPRequestHandler({
+			documentRoot: '/',
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
+			maxPhpInstances: 1,
+		});
+		const php = await handler.getPrimaryPhp();
+
+		php.writeFile(
+			'/set-cookie.php',
+			`<?php setcookie("my-cookie", "where-is-my-cookie", time() + 3600, "/");`
+		);
+		php.writeFile('/get-cookie.php', `<?php echo json_encode($_COOKIE);`);
+
+		// Cookies return in the response
+		let response = await handler.request({
+			url: '/set-cookie.php',
+		});
+		const cookies = response.headers['set-cookie'];
+		expect(cookies).toHaveLength(1);
+		expect(cookies[0]).toMatch(
+			/my-cookie=where-is-my-cookie; expires=.*; Max-Age=3600; path=\//
+		);
+
+		// Cookies are persisted internally in the request handler.
+		// Note that we are not passing cookies in the header of the response.
+		response = await handler.request({
+			url: '/get-cookie.php',
+		});
+		expect(response.text).toEqual(
+			JSON.stringify({ 'my-cookie': 'where-is-my-cookie' })
+		);
+	});
+
 	it('should persist cookies internally with internal-store strategy', async () => {
 		const handler = new PHPRequestHandler({
 			documentRoot: '/',
 			phpFactory: async () =>
 				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 1,
+			cookieStrategy: 'internal-store',
 		});
 		const php = await handler.getPrimaryPhp();
 
