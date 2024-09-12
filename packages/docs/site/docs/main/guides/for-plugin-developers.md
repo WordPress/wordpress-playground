@@ -132,7 +132,7 @@ Through properties and [`steps`](/blueprints/steps) in the Blueprint, you can co
 
 :::info
 
-A great demo with WordPress Playground, might require that you load default content for your plugin and theme, including images and other assets. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more about this.
+A great demo with WordPress Playground might require that you load default content for your plugin and theme, including images and other assets. Check out the [Providing content for your demo](/guides/providing-content-for-your-demo) guide to learn more about this.
 
 :::
 
