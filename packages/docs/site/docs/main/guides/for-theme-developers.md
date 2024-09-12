@@ -1,12 +1,12 @@
 ---
-title: For Theme Developers
+title: Playground for Theme Developers
 slug: /for-theme-developers
 description: WordPress Playground for Theme Developers
 ---
 
 The WordPress Playground is an innovative tool that allows theme developers to build, test, and showcase their themes directly in a browser environment.
 
-This guide will explore **how you can leverage the WordPress Playground to enhance your theme development workflow, create live demos to showcase your WordPress theme to the world, and streamline your theme review process**.
+This guide will show you how to use WordPress Playground to improve your theme development workflow, create live demos to showcase your theme, and simplify the theme review process.
 
 :::info
 
