@@ -320,53 +320,53 @@ async function run() {
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
-			if (wpDetails && !args.mountBeforeInstall) {
-				fs.writeFileSync(
-					preinstalledWpContentPath,
-					await zipDirectory(php, '/wordpress')
-				);
-			}
-
-			if (args.mount) {
-				mountResources(php, args.mount);
-			}
-
-			wordPressReady = true;
-
-			if (compiledBlueprint) {
-				const { php, reap } =
-					await requestHandler.processManager.acquirePHPInstance();
-				try {
-					logger.log(`Running the Blueprint...`);
-					await runBlueprintSteps(compiledBlueprint, php);
-					logger.log(`Finished running the blueprint`);
-				} catch (error) {
-					if (!args.debug) {
-						throw error;
-					}
-					const phpLogs = php.readFileAsText(errorLogPath);
-					if (error instanceof Error) {
-						throw new Error(
-							`${error.message}\nPHP Logs:\n${phpLogs}`
-						);
-					}
-					throw new Error(
-						`An unknown error occurred\nPHP Logs:\n${phpLogs}`
+			try {
+				if (wpDetails && !args.mountBeforeInstall) {
+					fs.writeFileSync(
+						preinstalledWpContentPath,
+						await zipDirectory(php, '/wordpress')
 					);
-				} finally {
-					reap();
 				}
-			}
 
-			if (command === 'build-snapshot') {
-				await zipSite(args.outfile as string);
-				logger.log(`WordPress exported to ${args.outfile}`);
-				process.exit(0);
-			} else if (command === 'run-blueprint') {
-				logger.log(`Blueprint executed`);
-				process.exit(0);
-			} else {
-				logger.log(`WordPress is running on ${absoluteUrl}`);
+				if (args.mount) {
+					mountResources(php, args.mount);
+				}
+
+				wordPressReady = true;
+
+				if (compiledBlueprint) {
+					const { php, reap } =
+						await requestHandler.processManager.acquirePHPInstance();
+					try {
+						logger.log(`Running the Blueprint...`);
+						await runBlueprintSteps(compiledBlueprint, php);
+						logger.log(`Finished running the blueprint`);
+					} finally {
+						reap();
+					}
+				}
+
+				if (command === 'build-snapshot') {
+					await zipSite(args.outfile as string);
+					logger.log(`WordPress exported to ${args.outfile}`);
+					process.exit(0);
+				} else if (command === 'run-blueprint') {
+					logger.log(`Blueprint executed`);
+					process.exit(0);
+				} else {
+					logger.log(`WordPress is running on ${absoluteUrl}`);
+				}
+			} catch (error) {
+				if (!args.debug) {
+					throw error;
+				}
+				const phpLogs = php.readFileAsText(errorLogPath);
+				if (error instanceof Error) {
+					throw new Error(`${error.message}\nPHP Logs:\n${phpLogs}`);
+				}
+				throw new Error(
+					`An unknown error occurred\nPHP Logs:\n${phpLogs}`
+				);
 			}
 		},
 		async handleRequest(request: PHPRequest) {
