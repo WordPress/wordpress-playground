@@ -361,12 +361,8 @@ async function run() {
 					throw error;
 				}
 				const phpLogs = php.readFileAsText(errorLogPath);
-				if (error instanceof Error) {
-					throw new Error(`${error.message}\nPHP Logs:\n${phpLogs}`);
-				}
-				throw new Error(
-					`An unknown error occurred\nPHP Logs:\n${phpLogs}`
-				);
+				const prefix = error instanceof Error ? error.message : `An unknown error occurred`;
+				throw new Error(`${prefix}\nPHP Logs:\n${phpLogs}`);
 			}
 		},
 		async handleRequest(request: PHPRequest) {
