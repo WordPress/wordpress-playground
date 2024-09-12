@@ -1,5 +1,5 @@
 ---
-title: Providing content for your demo
+title: Providing content for your demo with Playground
 slug: /guides/providing-content-for-your-demo
 description: Providing content for your demo with WordPress Playground
 ---
