@@ -82,6 +82,11 @@
             display: flex;
             flex-direction: row;
             gap: 10px;
+            align-items: stretch;
+        }
+
+        .step-container__content > :first-child:last-child {
+            flex-grow: 1;
         }
     `);
 
@@ -124,12 +129,15 @@
 					)
 						.then((response) => response.json())
 						.then((responseData) => {
-							const decodedPlugins = responseData.plugins.map(
-								(plugin) => ({
+							const decodedPlugins = responseData.plugins
+								.sort(
+									(a, b) =>
+										b.active_installs - a.active_installs
+								)
+								.map((plugin) => ({
 									name: decodeHtmlEntities(plugin.name),
 									slug: plugin.slug,
-								})
-							);
+								}));
 							setData(decodedPlugins);
 						})
 						.catch((error) => {
