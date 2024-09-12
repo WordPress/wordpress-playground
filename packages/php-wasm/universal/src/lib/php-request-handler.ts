@@ -42,6 +42,22 @@ export type FileNotFoundGetActionCallback = (
 	relativePath: string
 ) => FileNotFoundAction;
 
+/**
+ * - `internal-store`: Persist cookies from reponses in an internal store and
+ * includes them in following requests. This behavior is useful in the Playground
+ * web app because it allows multiple sites to set cookies on the same domain
+ * without running into conflicts. Each site gets a separate "namespace". The
+ * downside is that all cookies are global and you cannot have two users
+ * simultaneously logged in.
+ *
+ * - `pass-through`: Typical server behavior. All cookies are passed back to the
+ * client via a HTTP response. This behavior is useful when Playground is running
+ * on the backend and can be requested by multiple browsers. This enables each
+ * browser to get its own cookies, which means two users may be simultaneously
+ * logged in to their accounts.
+ *
+ * Default value is `internal-store`.
+ */
 export type CookieStrategy = 'internal-store' | 'pass-through';
 
 interface BaseConfiguration {
@@ -98,17 +114,6 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration &
 				maxPhpInstances?: number;
 		  }
 	) & {
-		/**
-		 * - `internal-store`: Persist cookies from reponses in an internal store and
-		 * includen them in following requests. This is a behavior mostly needed when
-		 * using Playground in web.
-		 *
-		 * - `pass-through`: Avoid persisting cookies internally and let them pass
-		 * through the requests and back to the caller from responses. This is the
-		 * common behavior in requests handled by a server.
-		 *
-		 * Default value is `internal-store`.
-		 */
 		cookieStrategy?: CookieStrategy;
 	};
 

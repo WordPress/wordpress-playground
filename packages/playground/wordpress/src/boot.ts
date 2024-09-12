@@ -93,22 +93,6 @@ export interface BootOptions {
 	 */
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
 
-	/**
-	 * - `internal-store`: Persist cookies from reponses in an internal store and
-	 * includes them in following requests. This behavior is useful in the Playground
-	 * web app because it allows multiple sites to set cookies on the same domain 
-	 * without running into conflicts. Each site gets a separate "namespace". The
-	 * downside is that all cookies are global and you cannot have two users 
-	 * simultaneously logged in.
-	 *
-	 * - `pass-through`: Typical server behavior. All cookies are passed back to the
-	 * client via a HTTP response. This behavior is useful in when Playground is
-	 * running on the backend and can be requested by multiple browsers. This enables
-	 * each browser to get its own cookies, which means two users may be simultaneously 
-	 * logged in to their accounts.
-	 *
-	 * Default value is `internal-store`.
-	 */
 	cookieStrategy?: CookieStrategy;
 }
 
