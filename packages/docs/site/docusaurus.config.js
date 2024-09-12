@@ -5,6 +5,7 @@ const path = require('path');
 const lightCodeTheme = require('prism-react-renderer/themes/github');
 const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const typedoc = require('../../../typedoc.js');
+const redirections = require('./redirections.js');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -54,6 +55,7 @@ const config = {
 						to: '/',
 						from: '/docs/start-here',
 					},
+					...redirections,
 				],
 				createRedirects(existingPath) {
 					if (!existingPath.startsWith('/docs')) {
@@ -198,7 +200,7 @@ const config = {
 			},
 		}),
 };
-
+console.log(JSON.stringify(config, null, 2));
 module.exports = config;
 
 /**
