@@ -22,13 +22,7 @@ import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import {
-	CACHE_FOLDER,
-	fetchSqliteIntegration,
-	fetchWordPress,
-	readAsFile,
-	resolveWPRelease,
-} from './download';
+import { resolveWordPressZip, fetchSqliteIntegration } from './download';
 
 export interface Mount {
 	hostPath: string;
@@ -275,24 +269,14 @@ async function run() {
 					}
 				}) as any);
 
-				wpDetails = await resolveWPRelease(args.wp);
+				wpDetails = await resolveWordPressZip(args.wp, monitor);
 			}
-
-			const preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-			const wordPressZip = !wpDetails
-				? undefined
-				: fs.existsSync(preinstalledWpContentPath)
-				? readAsFile(preinstalledWpContentPath)
-				: fetchWordPress(wpDetails.url, monitor);
 
 			requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(compiledBlueprint.versions.php),
-				wordPressZip,
+				wordPressZip: wpDetails.zipFile,
 				sqliteIntegrationPluginZip: fetchSqliteIntegration(monitor),
 				sapiName: 'cli',
 				createFiles: {
@@ -316,8 +300,8 @@ async function run() {
 			const php = await requestHandler.getPrimaryPhp();
 			if (wpDetails && !args.mountBeforeInstall) {
 				fs.writeFileSync(
-					preinstalledWpContentPath,
-					await zipDirectory(php, '/wordpress')
+					wpDetails.localZipPath,
+					await zipDirectory(php, requestHandler.documentRoot)
 				);
 			}
 
