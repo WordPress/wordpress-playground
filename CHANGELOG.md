@@ -4,11 +4,11 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v0.9.39] (2024-09-09) 
+## [v0.9.39] (2024-09-09)
 
 ### Bug Fixes
 
-- Use the correct imports in the generated .d.ts files. ([#1742](https://github.com/WordPress/wordpress-playground/pull/1742))
+-   Use the correct imports in the generated .d.ts files. ([#1742](https://github.com/WordPress/wordpress-playground/pull/1742))
 
 ### Contributors
 
@@ -16,25 +16,23 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v0.9.38] (2024-09-09) 
+## [v0.9.38] (2024-09-09)
 
 ### Internal
 
-- Fix changelog updates for latest doc structure. ([#1734](https://github.com/WordPress/wordpress-playground/pull/1734))
+-   Fix changelog updates for latest doc structure. ([#1734](https://github.com/WordPress/wordpress-playground/pull/1734))
 
 ### Various
 
-- Add support for handling symlinks in the request handler. ([#1724](https://github.com/WordPress/wordpress-playground/pull/1724))
-- Docs: Playground block in launch section. ([#1722](https://github.com/WordPress/wordpress-playground/pull/1722))
-- documentation - Blueprints - Resources: Highlight installPlugin and installTheme steps and most common resouces for them. ([#1733](https://github.com/WordPress/wordpress-playground/pull/1733))
+-   Add support for handling symlinks in the request handler. ([#1724](https://github.com/WordPress/wordpress-playground/pull/1724))
+-   Docs: Playground block in launch section. ([#1722](https://github.com/WordPress/wordpress-playground/pull/1722))
+-   documentation - Blueprints - Resources: Highlight installPlugin and installTheme steps and most common resouces for them. ([#1733](https://github.com/WordPress/wordpress-playground/pull/1733))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @brandonpayton @jeroenpf @juanmaguitar
-
 
 ## [v0.9.37] (2024-09-05)
 

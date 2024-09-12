@@ -500,10 +500,13 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "curl_easy_perform",\
 "Curl_wait_ms",\
 "Curl_http_connect",\
+"Curl_proxy_connect",\
 "RAND_status",\
 "rand_status",\
+"call_extract_if_dead",\
 "__wrap_select",\
 "Curl_socket_check",\
+"Curl_conncache_foreach",\
 "Curl_is_connected",\
 "multi_runsingle",\
 "curl_multi_perform",\
@@ -538,6 +541,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
+"zif_stream_select",\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
 "php_stream_read_to_str",\
@@ -777,6 +781,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "shutdown_executor",\
 "shutdown_destructors",\
 "stream_resource_regular_dtor",\
+"stream_array_from_fd_set",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_close_rsrc_list",\
