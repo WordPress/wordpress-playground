@@ -1,5 +1,5 @@
 ---
-title: For Plugin Developers
+title: Playground for Plugin Developers
 slug: /guides/for-plugin-developers
 description: WordPress Playground for Plugin Developers
 ---
