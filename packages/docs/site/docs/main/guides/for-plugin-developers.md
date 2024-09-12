@@ -6,7 +6,7 @@ description: WordPress Playground for Plugin Developers
 
 The WordPress Playground is an innovative tool that allows plugin developers to build, test and showcase their plugins directly in a browser environment.
 
-This guide will explore how you can leverage the WordPress Playground to enhance your plugin development workflow, create live demos to showcase your WordPress plugin to the world, and streamline your plugin testing process.
+This guide will show you how to use WordPress Playground to improve your plugin development workflow, create live demos to showcase your plugin, and simplify your plugin testing and review.
 
 :::info
 

@@ -1,12 +1,12 @@
 ---
-title: Providing content for your demo
+title: Providing content for your demo with Playground
 slug: /guides/providing-content-for-your-demo
 description: Providing content for your demo with WordPress Playground
 ---
 
 One of the things you may want to do to provide a good demo with WordPress Playground is to load default content to better highlight the features of your plugin or theme. This default content may include images or other assets.
 
-There are several blueprint steps and strategies you can use to import content (or generate it) in the Playground instance:
+There are several [blueprint steps](/blueprints/steps) and strategies you can use to import content (or generate it) in the Playground instance:
 
 ## `importWxr`
 
