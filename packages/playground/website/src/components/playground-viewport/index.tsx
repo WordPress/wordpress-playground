@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
@@ -12,7 +12,12 @@ import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import { SiteError } from '../../lib/state/redux/slice-ui';
 import { Button } from '@wordpress/components';
-import { removeSite } from '../../lib/state/redux/slice-sites';
+import {
+	removeSite,
+	selectSiteBySlug,
+	selectTemporarySites,
+} from '../../lib/state/redux/slice-sites';
+import classNames from 'classnames';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -34,22 +39,114 @@ export const PlaygroundViewport = ({
 }: PlaygroundViewportProps) => {
 	if (displayMode === 'seamless') {
 		// No need to boot the playground if seamless.
-		return <JustViewport />;
+		return <KeepAliveTemporarySitesViewport />;
 	}
 	return (
 		<BrowserChrome hideToolbar={hideToolbar} className={className}>
-			<JustViewport />
+			<KeepAliveTemporarySitesViewport />
 		</BrowserChrome>
 	);
 };
 
-export const JustViewport = function LoadedViewportComponent() {
-	const iframeRef = useRef<HTMLIFrameElement>(null);
+/**
+ * A multi-viewport component that keeps all rendered temporary sites alive.
+ * Technically, it retains their iframe node in the DOM. When the user switches
+ * to another site, the iframe is hidden but not removed. This way, the state
+ * of each temporary site is preserved as long as the browser tab remains open.
+ *
+ * Persistent sites are not affected by this. They are unmounted and rendered as usual
+ * as there's no risk of data loss
+ */
+export const KeepAliveTemporarySitesViewport = () => {
+	const temporarySites = useAppSelector(selectTemporarySites);
 	const activeSite = useActiveSite()!;
+	const siteSlugsToRender = useMemo(
+		() =>
+			[
+				...temporarySites.filter(
+					(site) => site.slug !== activeSite.slug
+				),
+				activeSite,
+			].map((site) => site.slug),
+		[temporarySites, activeSite]
+	);
+	/**
+	 * ## Critical data loss prevention mechanism
+	 *
+	 * The `slugsSeenSoFar` array is necessary to keep the Playground sites running
+	 * without being implicitly destroyed by React.
+	 *
+	 * ## The problem
+	 *
+	 * When an iframe is moved around in the DOM, its internal state is reset
+	 * and the Playground site is lost. Unfortunately, React liberally moves
+	 * DOM nodes around even when the `key` prop is set.
+	 *
+	 * Imagine we're rendering five site viewports, and a sixth site viewport is
+	 * added at the beginning of the list in the next render.
+	 *
+	 * The only way to preserve the state the existing viewports, is to create a new
+	 * DOM node for the sixth site viewport and insert it before the already existing
+	 * viewports without moving any of the iframes or their parent nodes. Unfortunately,
+	 * that's not what React does.
+	 *
+	 * I don't know exactly which DOM operations React performs, but the existing
+	 * iframes are moved around and the Playground sites inside them are trashed
+	 * in the process.
+	 *
+	 * ## The solution
+	 *
+	 * We never trash, reorder, or remove any DOM nodes.
+	 *
+	 * This append-only list of slugs is used to keep track of all the sites this
+	 * component was ever asked to render. Every site stays in its own div, always
+	 * at the same index in the DOM. Every new site is appended to the end of the list,
+	 * never in the middle. When a site is deleted, we keep the top-level wrapper div
+	 * and only remove the iframe inside it.
+	 *
+	 * This way, React never reassigns which div is which site and never moves our
+	 * precious iframes around.
+	 *
+	 * The cost is that we render more and more divs over time. That's not a problem.
+	 * We're talking about maybe a 100 empty divs in an extreme scenario. That's nothing.
+	 */
+	const [slugsSeenSoFar, setSlugsSeenSoFar] = useState<string[]>([]);
+	useEffect(() => {
+		setSlugsSeenSoFar((prev) => [
+			...prev,
+			...siteSlugsToRender.filter((slug) => !prev.includes(slug)),
+		]);
+	}, [siteSlugsToRender]);
+
+	return (
+		<>
+			{slugsSeenSoFar.map((slug) => (
+				<div
+					key={slug}
+					className={classNames(css.fullSize, {
+						[css.hidden]: slug !== activeSite.slug,
+					})}
+				>
+					{siteSlugsToRender.includes(slug) ? (
+						<JustViewport key={slug} siteSlug={slug} />
+					) : null}
+				</div>
+			))}
+		</>
+	);
+};
+
+export const JustViewport = function JustViewport({
+	siteSlug,
+}: {
+	siteSlug: string;
+}) {
+	const iframeRef = useRef<HTMLIFrameElement>(null);
+	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
 
 	const dispatch = useAppDispatch();
 	const runtimeConfigString = JSON.stringify(
-		activeSite.metadata.runtimeConfiguration
+		site.metadata.runtimeConfiguration
 	);
 	useEffect(() => {
 		const iframe = iframeRef.current;
@@ -59,45 +156,38 @@ export const JustViewport = function LoadedViewportComponent() {
 
 		const abortController = new AbortController();
 		dispatch(
-			bootSiteClient(activeSite.slug, iframe, {
+			bootSiteClient(siteSlug, iframe, {
 				signal: abortController.signal,
 			})
 		);
 
 		return () => {
 			abortController.abort();
-			dispatch(removeClientInfo(activeSite.slug));
+			dispatch(removeClientInfo(siteSlug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeSite.slug, iframeRef, runtimeConfigString]);
+	}, [siteSlug, iframeRef, runtimeConfigString]);
 
 	const error = useAppSelector(selectActiveSiteError);
 
 	if (error) {
 		return (
-			<div className={css.fullSize}>
-				<div className={css.siteError}>
-					<div className={css.siteErrorContent}>
-						<SiteErrorMessage
-							error={error}
-							siteSlug={activeSite.slug}
-						/>
-					</div>
+			<div className={css.siteError}>
+				<div className={css.siteErrorContent}>
+					<SiteErrorMessage error={error} siteSlug={siteSlug} />
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className={css.fullSize}>
-			<iframe
-				id="playground-viewport"
-				key={activeSite.slug}
-				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
-				className={css.fullSize}
-				ref={iframeRef}
-			></iframe>
-		</div>
+		<iframe
+			id="playground-viewport"
+			key={siteSlug}
+			title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
+			className={css.fullSize}
+			ref={iframeRef}
+		/>
 	);
 };
 

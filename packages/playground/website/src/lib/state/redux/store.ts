@@ -1,12 +1,19 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, createSelector } from '@reduxjs/toolkit';
 import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
 	SiteError,
 } from './slice-ui';
-import sitesReducer, { selectSiteBySlug, SiteInfo } from './slice-sites';
+import sitesReducer, {
+	selectSiteBySlug,
+	selectTemporarySites,
+	SiteInfo,
+} from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
-import clientsReducer, { ClientInfo } from './slice-clients';
+import clientsReducer, {
+	ClientInfo,
+	selectAllClientInfo,
+} from './slice-clients';
 import { GetDefaultMiddleware } from '@reduxjs/toolkit/dist/getDefaultMiddleware';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -88,6 +95,17 @@ export const getActiveClientInfo = (
 	state.ui.activeSite?.slug
 		? state.clients.entities[state.ui.activeSite.slug]
 		: undefined;
+
+export const selectBootedTemporarySites = createSelector(
+	selectAllClientInfo,
+	selectTemporarySites,
+	(clientInfo, temporarySites) => {
+		return temporarySites.filter((site) =>
+			clientInfo.some((client) => client.siteSlug === site.slug)
+		);
+	}
+);
+
 // Define RootState type
 export type PlaygroundReduxState = ReturnType<typeof store.getState>;
 

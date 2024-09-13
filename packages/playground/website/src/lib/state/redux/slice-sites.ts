@@ -2,6 +2,7 @@ import {
 	createSlice,
 	createEntityAdapter,
 	PayloadAction,
+	createSelector,
 } from '@reduxjs/toolkit';
 import { SiteMetadata } from '../../site-metadata';
 import {
@@ -219,6 +220,13 @@ export const {
 	selectIds: selectSiteSlugs,
 } = sitesAdapter.getSelectors(
 	(state: { sites: ReturnType<typeof sitesSlice.reducer> }) => state.sites
+);
+
+export const selectTemporarySites = createSelector(
+	[selectAllSites],
+	(sites: SiteInfo[]) => {
+		return sites.filter((site) => site.metadata.storage === 'none');
+	}
 );
 
 export default sitesSlice.reducer;
