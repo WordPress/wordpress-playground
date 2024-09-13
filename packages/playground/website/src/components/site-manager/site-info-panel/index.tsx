@@ -238,6 +238,7 @@ export function SiteInfoPanel({
 												<MenuItem
 													aria-label="Delete this site"
 													className={css.danger}
+													disabled={!playground}
 													onClick={() =>
 														removeSiteAndCloseMenu(
 															onClose
@@ -250,17 +251,23 @@ export function SiteInfoPanel({
 											<MenuGroup>
 												<DownloadAsZipMenuItem
 													onClose={onClose}
+													disabled={!playground}
 												/>
 												<RestoreFromZipMenuItem
 													onClose={onClose}
+													disabled={!playground}
 												/>
 												<GithubImportMenuItem
 													onClose={onClose}
-													disabled={offline}
+													disabled={
+														offline || !playground
+													}
 												/>
 												<GithubExportMenuItem
 													onClose={onClose}
-													disabled={offline}
+													disabled={
+														offline || !playground
+													}
 												/>
 											</MenuGroup>
 											<MenuGroup>

@@ -5,8 +5,8 @@ import ImportForm from '../import-form';
 import Modal from '../modal';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 
-type Props = { onClose: () => void };
-export function RestoreFromZipMenuItem({ onClose }: Props) {
+type Props = { onClose: () => void; disabled: boolean };
+export function RestoreFromZipMenuItem({ onClose, disabled }: Props) {
 	const playground = usePlaygroundClient();
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => {
@@ -31,6 +31,7 @@ export function RestoreFromZipMenuItem({ onClose }: Props) {
 				data-cy="restore-from-zip"
 				aria-label="Download the current playground as a .zip file"
 				onClick={openModal}
+				disabled={disabled}
 			>
 				Restore from .zip
 			</MenuItem>
