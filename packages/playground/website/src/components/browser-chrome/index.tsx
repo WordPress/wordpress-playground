@@ -22,7 +22,7 @@ export default function BrowserChrome({
 	className,
 }: BrowserChromeProps) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
-	const activeSite = useActiveSite()!;
+	const activeSite = useActiveSite();
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;
 	const addressBarClass = classNames(css.addressBarSlot, {

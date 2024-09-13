@@ -77,7 +77,7 @@ function Authenticate({
 	authenticateUrl,
 	mayLoseProgress = undefined,
 }: AuthenticateProps) {
-	const storage = useActiveSite()!.metadata.storage;
+	const storage = useActiveSite()?.metadata?.storage;
 
 	if (mayLoseProgress === undefined) {
 		mayLoseProgress = storage === 'none';

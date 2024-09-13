@@ -18,9 +18,9 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/state/redux/store';
-import { useMemo } from 'react';
 import { SiteCreateButton } from '../site-create-button';
 import { SiteLogo } from '../../../lib/site-metadata';
+import { selectSortedSites } from '../../../lib/state/redux/slice-sites';
 
 export function Sidebar({
 	className,
@@ -29,18 +29,8 @@ export function Sidebar({
 	className?: string;
 	afterSiteClick?: (slug: string) => void;
 }) {
-	const sitesRaw = useAppSelector((state) => state.sites.entities);
-	// Sort by creation date DESC
-	const sites = useMemo(() => {
-		return sitesRaw
-			? Object.values(sitesRaw).sort(
-					(a, b) =>
-						(b.metadata.whenCreated || 0) -
-						(a.metadata.whenCreated || 0)
-			  )
-			: [];
-	}, [sitesRaw]);
-	const activeSite = useActiveSite()!;
+	const sites = useAppSelector(selectSortedSites);
+	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 
 	const onSiteClick = (slug: string) => {
@@ -100,7 +90,7 @@ export function Sidebar({
 						/**
 						 * The `wordpress` site is selected when no site slug is provided.
 						 */
-						const isSelected = site.slug === activeSite.slug;
+						const isSelected = site.slug === activeSite?.slug;
 						return (
 							<MenuItem
 								key={site.slug}

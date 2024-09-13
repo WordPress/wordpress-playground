@@ -83,6 +83,9 @@ export function EnsurePlaygroundSiteIsSelected({
 	const lastSiteInfoRef = useRef<string | undefined>(undefined);
 	useEffect(() => {
 		async function ensureSiteIsSelected() {
+			if (activeSite) {
+				return;
+			}
 			if (!requestedSiteSlug) {
 				// Create a new temporary site using the config passed in the current URL
 				const url = new URL(window.location.href);
@@ -130,11 +133,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, siteListingStatus]);
-
-	if (!activeSite) {
-		return null;
-	}
+	}, [url.href, siteListingStatus]); //, activeSite]);
 
 	return children;
 }

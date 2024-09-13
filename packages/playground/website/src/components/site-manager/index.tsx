@@ -16,7 +16,7 @@ export const SiteManager = forwardRef<
 		className?: string;
 	}
 >(({ className }, ref) => {
-	const activeSite = useActiveSite()!;
+	const activeSite = useActiveSite();
 	const [activeSection, setActiveSection] = useState<'sites' | 'site-info'>(
 		activeSite ? 'site-info' : 'sites'
 	);

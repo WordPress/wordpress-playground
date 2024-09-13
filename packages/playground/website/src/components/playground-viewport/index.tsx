@@ -14,10 +14,12 @@ import { SiteError } from '../../lib/state/redux/slice-ui';
 import { Button } from '@wordpress/components';
 import {
 	removeSite,
+	selectAllSites,
 	selectSiteBySlug,
 	selectTemporarySites,
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
+import { SiteCreateButton } from '../site-manager/site-create-button';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -58,18 +60,19 @@ export const PlaygroundViewport = ({
  * as there's no risk of data loss
  */
 export const KeepAliveTemporarySitesViewport = () => {
+	const allSites = useAppSelector(selectAllSites);
+
 	const temporarySites = useAppSelector(selectTemporarySites);
-	const activeSite = useActiveSite()!;
-	const siteSlugsToRender = useMemo(
-		() =>
-			[
-				...temporarySites.filter(
-					(site) => site.slug !== activeSite.slug
-				),
-				activeSite,
-			].map((site) => site.slug),
-		[temporarySites, activeSite]
-	);
+	const activeSite = useActiveSite();
+	const siteSlugsToRender = useMemo(() => {
+		let sites = temporarySites.filter(
+			(site) => site.slug !== activeSite?.slug
+		);
+		if (activeSite) {
+			sites = [...sites, activeSite];
+		}
+		return sites.map((site) => site.slug);
+	}, [temporarySites, activeSite]);
 	/**
 	 * ## Critical data loss prevention mechanism
 	 *
@@ -118,13 +121,55 @@ export const KeepAliveTemporarySitesViewport = () => {
 		]);
 	}, [siteSlugsToRender]);
 
+	if (!allSites.length) {
+		// @TODO: Use the dedicated design for this
+		// (the one in Figma with white background and pretty fonts.)
+		return (
+			<div className={css.fullSize}>
+				<div className={css.siteError}>
+					<div
+						className={css.siteErrorContent}
+						style={{ textAlign: 'center' }}
+					>
+						<h2>You don't have any sites right now</h2>
+						<SiteCreateButton>
+							{(onClick) => (
+								<Button variant="primary" onClick={onClick}>
+									Add first site
+								</Button>
+							)}
+						</SiteCreateButton>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<>
+			{!activeSite && (
+				// @TODO: Use the dedicated design for this
+				// (the one in Figma with white background and pretty fonts.)
+				<div className={css.fullSize}>
+					<div className={css.siteError}>
+						<div
+							className={css.siteErrorContent}
+							style={{ textAlign: 'center' }}
+						>
+							<h2>No site is selected</h2>
+							<p>
+								Select a site from the site manager to explore
+								Playground.
+							</p>
+						</div>
+					</div>
+				</div>
+			)}
 			{slugsSeenSoFar.map((slug) => (
 				<div
 					key={slug}
 					className={classNames(css.fullSize, {
-						[css.hidden]: slug !== activeSite.slug,
+						[css.hidden]: slug !== activeSite?.slug,
 					})}
 				>
 					{siteSlugsToRender.includes(slug) ? (

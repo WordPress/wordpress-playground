@@ -9,9 +9,9 @@ import {
 	selectActiveSite,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
+	setActiveSite,
 } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
-import { PlaygroundRoute, redirectTo } from '../url/router';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -206,8 +206,13 @@ export function removeSite(slug: string) {
 			await opfsSiteStorage?.delete(siteInfo.slug);
 		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
+
+		// Select the most recently created site
 		if (activeSite?.slug === siteInfo.slug) {
-			redirectTo(PlaygroundRoute.newTemporarySite());
+			const newActiveSite = selectSortedSites(getState())[0];
+			if (newActiveSite) {
+				dispatch(setActiveSite(newActiveSite.slug));
+			}
 		}
 	};
 }
@@ -220,6 +225,15 @@ export const {
 	selectIds: selectSiteSlugs,
 } = sitesAdapter.getSelectors(
 	(state: { sites: ReturnType<typeof sitesSlice.reducer> }) => state.sites
+);
+
+export const selectSortedSites = createSelector(
+	[selectAllSites],
+	(sites: SiteInfo[]) =>
+		sites.sort(
+			(a, b) =>
+				(b.metadata.whenCreated || 0) - (a.metadata.whenCreated || 0)
+		)
 );
 
 export const selectTemporarySites = createSelector(

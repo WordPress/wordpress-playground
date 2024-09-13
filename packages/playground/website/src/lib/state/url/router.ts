@@ -49,22 +49,12 @@ export class PlaygroundRoute {
 		}
 	}
 	static newTemporarySite(
-		config?: {
+		config: {
 			query?: QueryAPIParams;
 			hash?: string;
-		},
+		} = {},
 		baseUrl: string = window.location.href
 	) {
-		if (!config) {
-			return updateUrl(
-				baseUrl,
-				{
-					searchParams: { 'site-slug': undefined },
-					hash: '',
-				},
-				'merge'
-			);
-		}
 		const { query, hash } = config;
 		return updateUrl(
 			baseUrl,

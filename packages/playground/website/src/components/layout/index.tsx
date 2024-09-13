@@ -5,7 +5,6 @@ import { CSSTransition } from 'react-transition-group';
 import {
 	useAppSelector,
 	useAppDispatch,
-	useActiveSite,
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 } from '../../lib/state/redux/store';
@@ -49,10 +48,6 @@ export function Layout() {
 	);
 	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
 	const dispatch = useAppDispatch();
-	const activeSite = useActiveSite()!;
-	if (!activeSite) {
-		return null;
-	}
 
 	return (
 		<div className={css.layout}>
