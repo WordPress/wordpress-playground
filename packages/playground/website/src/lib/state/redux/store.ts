@@ -81,6 +81,11 @@ export const setActiveSite = (slug: string | undefined) => {
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		// Short-circuit if the provided slug already points to the active site.
+		const activeSite = selectActiveSite(getState());
+		if (activeSite?.slug === slug) {
+			return;
+		}
 		dispatch(__internal_uiSlice.actions.setActiveSite(slug));
 		if (slug) {
 			const site = selectSiteBySlug(getState(), slug);

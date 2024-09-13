@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { resolveBlueprintFromURL } from '../../lib/state/url/resolve-blueprint-from-url';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
@@ -13,12 +13,12 @@ import { Blueprint, compileBlueprint } from '@wp-playground/blueprints';
 import { SiteMetadata } from '../../lib/site-metadata';
 import {
 	setActiveSite,
-	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
+import { logger } from '@php-wasm/logger';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -37,7 +37,6 @@ export function EnsurePlaygroundSiteIsSelected({
 		(state) => state.sites.loadingState
 	);
 	const sites = useAppSelector((state) => state.sites.entities);
-	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const url = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
@@ -49,91 +48,72 @@ export function EnsurePlaygroundSiteIsSelected({
 		opfsSiteStorage?.list().then(
 			(sites) => dispatch(siteListingLoaded(sites)),
 			(error) => {
-				console.error('Error loading sites:', error);
+				logger.error('Error loading sites:', error);
 				dispatch(siteListingLoaded([]));
 			}
 		);
 	}, [dispatch]);
 
-	// If the site slug is provided, try to load the site.
 	useEffect(() => {
-		if (siteListingStatus !== 'loaded') {
-			return;
-		}
 		async function ensureSiteIsSelected() {
-			if (!requestedSiteSlug || siteListingStatus !== 'loaded') {
+			// If the site slug is provided, try to load the site.
+			if (requestedSiteSlug) {
+				// Wait until the site listing is loaded
+				if (siteListingStatus !== 'loaded') {
+					return;
+				}
+
+				// If the site does not exist, redirect to a new temporary site.
+				if (!requestedSiteObject) {
+					// @TODO: Notification: 'The requested site was not found. Redirecting to a new temporary site.'
+					logger.log(
+						'The requested site was not found. Redirecting to a new temporary site.'
+					);
+					redirectTo(PlaygroundRoute.newTemporarySite());
+					return;
+				}
+				dispatch(setActiveSite(requestedSiteSlug));
 				return;
 			}
-			if (!requestedSiteObject) {
-				// @TODO: Use a notificatoin and ditch the alert().
-				alert(
-					'The requested site was not found. Redirecting to a new temporary site.'
-				);
-				redirectTo(PlaygroundRoute.newTemporarySite());
+
+			// If the site slug is missing, create a new temporary site.
+			// Lean on the Query API parameters and the Blueprint API to
+			// create the new site.
+			const url = new URL(window.location.href);
+			const blueprint = await resolveBlueprintFromURL(url);
+			const siteNameFromUrl = url.searchParams.get('name')?.trim();
+			const urlParams = {
+				searchParams: Object.fromEntries(url.searchParams.entries()),
+				hash: url.hash,
+			};
+			const newSiteInfo = await createNewSiteInfo({
+				metadata: {
+					name: siteNameFromUrl || undefined,
+					originalBlueprint: blueprint,
+				},
+				originalUrlParams: urlParams,
+			});
+
+			// Check if there's an existing site that matches the requested
+			// specification exactly.
+			const existingSite = Object.values(sites).find(
+				(site) =>
+					JSON.stringify(site.originalUrlParams) ===
+					JSON.stringify(urlParams)
+			);
+			if (existingSite) {
+				dispatch(setActiveSite(existingSite.slug));
 				return;
 			}
-			dispatch(setActiveSite(requestedSiteSlug));
+
+			// Create a new site otherwise
+			await dispatch(addSite(newSiteInfo));
+			dispatch(setActiveSite(newSiteInfo.slug));
 		}
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [requestedSiteSlug, siteListingStatus]);
-
-	// If the site slug is missing, create a new temporary site.
-	const lastSiteInfoRef = useRef<string | undefined>(undefined);
-	useEffect(() => {
-		async function ensureSiteIsSelected() {
-			if (activeSite) {
-				return;
-			}
-			if (!requestedSiteSlug) {
-				// Create a new temporary site using the config passed in the current URL
-				const url = new URL(window.location.href);
-				const blueprint = await resolveBlueprintFromURL(url);
-				const siteNameFromUrl = url.searchParams.get('name')?.trim();
-				const urlParams = {
-					searchParams: Object.fromEntries(
-						url.searchParams.entries()
-					),
-					hash: url.hash,
-				};
-				const newSiteInfo = await createNewSiteInfo({
-					metadata: {
-						name: siteNameFromUrl || undefined,
-						originalBlueprint: blueprint,
-					},
-					originalUrlParams: urlParams,
-				});
-				const comparable = JSON.stringify(newSiteInfo);
-
-				// Short-circuit if the site is already active
-				if (comparable === lastSiteInfoRef.current) {
-					return;
-				}
-				lastSiteInfoRef.current = comparable;
-
-				// Activate an existing site if it already exists
-				const existingSite = Object.values(sites).find(
-					(site) =>
-						JSON.stringify(site.originalUrlParams) ===
-						JSON.stringify(urlParams)
-				);
-				if (existingSite) {
-					dispatch(setActiveSite(existingSite.slug));
-					return;
-				}
-
-				// Create a new site otherwise
-				await dispatch(addSite(newSiteInfo));
-				dispatch(setActiveSite(newSiteInfo.slug));
-			} else {
-				lastSiteInfoRef.current = undefined;
-			}
-		}
-
-		ensureSiteIsSelected();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, siteListingStatus]); //, activeSite]);
+	}, [url.href, requestedSiteSlug, siteListingStatus]);
 
 	return children;
 }
