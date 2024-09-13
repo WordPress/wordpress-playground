@@ -23,26 +23,13 @@ export async function resolveBlueprintFromURL(url: URL) {
 		 */
 		blueprint = parseBlueprint(fragment);
 	} else {
-		// If no blueprint was passed, infer one from the query params.
-		const features: Blueprint['features'] = {};
-		/**
-		 * Networking is disabled by default, so we only need to enable it
-		 * if the query param is explicitly set to "yes".
-		 */
-		if (query.get('networking') === 'yes') {
-			features['networking'] = true;
-		}
 		const importWxrQueryArg =
 			query.get('import-wxr') || query.get('import-content');
 
-		// This Blueprint is intentionally missing a few query args (like login).
+		// This Blueprint is intentionally missing most query args (like login).
 		// They are added below to ensure they're also applied to Blueprints passed
 		// via the hash fragment (#{...}) or via the `blueprint-url` query param.
 		blueprint = {
-			features,
-			phpExtensionBundles: query.has('php-extension-bundle')
-				? (query.getAll('php-extension-bundle') as any)
-				: ['kitchen-sink'],
 			plugins: query.getAll('plugin'),
 			steps: [
 				importWxrQueryArg &&
@@ -61,9 +48,6 @@ export async function resolveBlueprintFromURL(url: URL) {
 							url: query.get('import-site')!,
 						},
 					},
-				query.get('multisite') === 'yes' && {
-					step: 'enableMultisite',
-				},
 				query.get('theme') && {
 					step: 'installTheme',
 					themeZipFile: {
@@ -94,6 +78,28 @@ export async function resolveBlueprintFromURL(url: URL) {
 			query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 	}
 
+	// Features
+	if (query.has('features')) {
+		if (!blueprint.features) {
+			blueprint.features = {};
+		}
+
+		/**
+		 * Networking is disabled by default, so we only need to enable it
+		 * if the query param is explicitly set to "yes".
+		 */
+		if (query.get('networking') === 'yes') {
+			blueprint.features['networking'] = true;
+		}
+	}
+
+	// PHP extension bundle
+	if (query.has('php-extension-bundle')) {
+		blueprint.phpExtensionBundles = query.getAll(
+			'php-extension-bundle'
+		) as any[];
+	}
+
 	// Language
 	if (query.get('language')) {
 		if (
@@ -104,6 +110,19 @@ export async function resolveBlueprintFromURL(url: URL) {
 			blueprint.steps?.push({
 				step: 'setSiteLanguage',
 				language: query.get('language')!,
+			});
+		}
+	}
+
+	// Multisite
+	if (query.get('multisite') === 'yes') {
+		if (
+			!blueprint?.steps?.find(
+				(step) => step && (step as any).step === 'enableMultisite'
+			)
+		) {
+			blueprint.steps?.push({
+				step: 'enableMultisite',
 			});
 		}
 	}

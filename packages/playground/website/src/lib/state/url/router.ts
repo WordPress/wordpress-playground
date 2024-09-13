@@ -1,4 +1,3 @@
-import { Blueprint } from '@wp-playground/blueprints';
 import { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { encodeStringAsBase64 } from '../../base64';
@@ -45,13 +44,14 @@ export class PlaygroundRoute {
 		} else {
 			return updateUrl(baseUrl, {
 				searchParams: { 'site-slug': site.slug },
+				hash: '',
 			});
 		}
 	}
 	static newTemporarySite(
 		config?: {
 			query?: QueryAPIParams;
-			blueprint?: Blueprint;
+			hash?: string;
 		},
 		baseUrl: string = window.location.href
 	) {
@@ -60,19 +60,18 @@ export class PlaygroundRoute {
 				baseUrl,
 				{
 					searchParams: { 'site-slug': undefined },
+					hash: '',
 				},
 				'merge'
 			);
 		}
-		const { query, blueprint } = config;
+		const { query, hash } = config;
 		return updateUrl(
 			baseUrl,
 			{
 				searchParams:
 					(query as Record<string, string | undefined>) || {},
-				hash: blueprint
-					? '#' + encodeStringAsBase64(JSON.stringify(blueprint))
-					: undefined,
+				hash,
 			},
 			'replace'
 		);

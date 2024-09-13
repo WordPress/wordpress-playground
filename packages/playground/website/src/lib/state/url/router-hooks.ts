@@ -29,20 +29,28 @@ export function updateUrl(
 	searchParamsMode: 'replace' | 'merge' = 'replace'
 ) {
 	const currentUrl = new URL(currentLocation);
-	if (urlComponents.searchParams) {
+	if ('searchParams' in urlComponents) {
 		if (searchParamsMode === 'replace') {
 			currentUrl.search = '';
 		}
-		Object.entries(urlComponents.searchParams).forEach(([key, value]) => {
-			if (value === undefined) {
-				currentUrl.searchParams.delete(key);
-			} else {
-				currentUrl.searchParams.set(key, value);
-			}
-		});
+		if (urlComponents.searchParams !== undefined) {
+			Object.entries(urlComponents.searchParams).forEach(
+				([key, value]) => {
+					if (value === undefined) {
+						currentUrl.searchParams.delete(key);
+					} else {
+						currentUrl.searchParams.set(key, value);
+					}
+				}
+			);
+		}
 	}
-	if (urlComponents.hash) {
-		currentUrl.hash = urlComponents.hash;
+	if ('hash' in urlComponents) {
+		if (urlComponents.hash === undefined) {
+			currentUrl.hash = '';
+		} else {
+			currentUrl.hash = urlComponents.hash;
+		}
 	}
 	if (urlComponents.host) {
 		currentUrl.host = urlComponents.host;
@@ -100,6 +108,7 @@ const patchKey = Symbol.for('wouter_v3');
 //
 // See https://stackoverflow.com/a/4585031
 if (
+	typeof window !== 'undefined' &&
 	typeof window.history !== 'undefined' &&
 	typeof window[patchKey as any] === 'undefined'
 ) {
