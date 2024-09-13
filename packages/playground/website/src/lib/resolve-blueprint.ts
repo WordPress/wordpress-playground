@@ -77,5 +77,54 @@ export async function resolveBlueprint() {
 		});
 	}
 
+	if (query.has('core-pr')) {
+		const prNumber = query.get('core-pr');
+		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+	}
+
+	if (query.has('gutenberg-pr')) {
+		const prNumber = query.get('gutenberg-pr');
+		blueprint.steps = blueprint.steps || [];
+		blueprint.steps.unshift(
+			{
+				step: 'mkdir',
+				path: '/tmp/pr',
+			},
+			{
+				step: 'writeFile',
+				path: '/tmp/pr/pr.zip',
+				data: {
+					resource: 'url',
+					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
+					caption: `Downloading Gutenberg PR ${prNumber}`,
+				},
+			},
+			/**
+			 * GitHub CI artifacts are doubly zipped:
+			 *
+			 * pr.zip
+			 *    gutenberg.zip
+			 *       gutenberg.php
+			 *       ... other files ...
+			 *
+			 * This step extracts the inner zip file so that we get
+			 * access directly to gutenberg.zip and can use it to
+			 * install the plugin.
+			 */
+			{
+				step: 'unzip',
+				zipPath: '/tmp/pr/pr.zip',
+				extractToPath: '/tmp/pr',
+			},
+			{
+				step: 'installPlugin',
+				pluginZipFile: {
+					resource: 'vfs',
+					path: '/tmp/pr/gutenberg.zip',
+				},
+			}
+		);
+	}
+
 	return blueprint;
 }
