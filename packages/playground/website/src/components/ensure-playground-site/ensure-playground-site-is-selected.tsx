@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { resolveBlueprint } from '../../lib/state/url/resolve-blueprint';
+import { resolveBlueprintFromURL } from '../../lib/state/url/resolve-blueprint-from-url';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
@@ -86,7 +86,7 @@ export function EnsurePlaygroundSiteIsSelected({
 			if (!requestedSiteSlug) {
 				// Create a new temporary site using the config passed in the current URL
 				const url = new URL(window.location.href);
-				const blueprint = await resolveBlueprint(url);
+				const blueprint = await resolveBlueprintFromURL(url);
 				const siteNameFromUrl = url.searchParams.get('name')?.trim();
 				const urlParams = {
 					searchParams: Object.fromEntries(
@@ -156,7 +156,8 @@ async function createNewSiteInfo(
 
 	const name = providedName || randomSiteName();
 	const blueprint: Blueprint =
-		originalBlueprint ?? (await resolveBlueprint(new URL('https://w.org')));
+		originalBlueprint ??
+		(await resolveBlueprintFromURL(new URL('https://w.org')));
 
 	const compiledBlueprint = compileBlueprint(blueprint);
 
