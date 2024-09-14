@@ -4,4 +4,4 @@
  *
  * @see tests.setupFiles in vite.config.ts
  */
-import '@php-wasm/node-polyfills';
+// import '@php-wasm/node-polyfills';

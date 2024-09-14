@@ -76,5 +76,5 @@
 			]
 		}
 	},
-	"exclude": ["node_modules", "tmp"]
+	"exclude": ["node_modules", "!node_modules/isomorphic-git/**/*", "tmp"]
 }
