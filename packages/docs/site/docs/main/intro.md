@@ -46,9 +46,9 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 Whether you're a developer, a non-technical user, or a contributor, these docs will guide you as you start your learning journey:
 
 -   [Start using WordPress Playground](./quick-start-guide.md) in 5 minutes (and check out the [demo site](https://playground.wordpress.net/))
--   [Get started for developing](../developers/03-build-an-app/01-index.md) with WordPress Playground
+-   [Get started for developing](/developers/03-build-an-app/01-index.md) with WordPress Playground
 -   Use Playground as a zero-setup [local development environment](/developers/local-development/)
--   Read about the [limitations](../developers/24-limitations/01-index.md)
+-   Read about the [limitations](/developers/24-limitations/01-index.md)
 -   [WordCamp Contributor Day](./contributing/contributor-day.md)
 
 :::tip
@@ -64,7 +64,7 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
 -   Review [links and resources](./resources.md)
 -   Choose the right API for your app <APIList />
--   Dive into the [architecture](../developers/23-architecture/01-index.md) and learn how it all works
+-   Dive into the [architecture](/developers/23-architecture/01-index.md) and learn how it all works
 
 ## Get Involved
 
