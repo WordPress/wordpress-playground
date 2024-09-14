@@ -35,13 +35,13 @@ export function SiteCreateButton({
 
 			{isModalOpen && (
 				<Modal
-					title="Add a new site"
+					title="Add a new Playground"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
 						onSubmit={addSite}
 						onCancel={() => setModalOpen(false)}
-						submitButtonText="Create a temporary site"
+						submitButtonText="Create a temporary Playground"
 					/>
 				</Modal>
 			)}

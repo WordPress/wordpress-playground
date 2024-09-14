@@ -88,18 +88,18 @@ export default function SiteSettingsForm({
 							name="name"
 							rules={{
 								required: {
-									message: 'Site name is required',
+									message: 'Playground name is required',
 									value: true,
 								},
 								maxLength: {
-									message: 'Site name is too long',
+									message: 'Playground name is too long',
 									value: 80,
 								},
 							}}
 							render={({ field: { onChange, ...rest } }) => (
 								<InputControl
-									label="Site name"
-									placeholder="Site name"
+									label="Playground name"
+									placeholder="Playground name"
 									help={errors.name?.message}
 									className={classNames(css.addSiteInput, {
 										[css.invalidInput]: !!errors.name,

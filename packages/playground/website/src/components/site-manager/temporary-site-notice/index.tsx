@@ -22,15 +22,15 @@ export function TemporarySiteNotice({
 	return (
 		<Notice
 			className={classNames(css.siteNotice, className)}
-			spokenMessage="This is a temporary site. Your changes will be lost on page refresh."
+			spokenMessage="This is a temporary Playground. Your changes will be lost on page refresh."
 			status="info"
 			isDismissible={isDismissible}
 			onDismiss={() => setIsDismissed(true)}
 		>
 			<Flex direction="row" gap={2} expanded={true}>
 				<FlexItem>
-					<b>This is a temporary site.</b> Your changes will be lost
-					on page refresh.
+					<b>This is a temporary Playground.</b> Your changes will be
+					lost on page refresh.
 				</FlexItem>
 				<FlexItem>
 					<SitePersistButton siteSlug={site.slug}>

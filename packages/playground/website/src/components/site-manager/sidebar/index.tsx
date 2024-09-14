@@ -83,7 +83,7 @@ export function Sidebar({
 						css.sidebarListLabel
 					)}
 				>
-					Your sites
+					Your Playgrounds
 				</Heading>
 				<MenuGroup className={css.sidebarList}>
 					{sites.map((site) => {
@@ -103,7 +103,7 @@ export function Sidebar({
 								role=""
 								title={
 									site.metadata.storage === 'none'
-										? 'This is a temporary site. Your changes will be lost when the site is reset.'
+										? 'This is a temporary Playground. Your changes will be lost on page refresh.'
 										: ''
 								}
 								icon={
@@ -171,7 +171,7 @@ export function Sidebar({
 							className={css.addSiteButtonButton}
 							onClick={onClick}
 						>
-							Add site
+							Add Playground
 						</Button>
 					</div>
 				)}

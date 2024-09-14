@@ -395,12 +395,11 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						expanded={true}
 					>
 						<FlexItem>
-							<h2 className={css.sectionTitle}>Site details</h2>
+							<h2 className={css.sectionTitle}>
+								Playground details
+							</h2>
 						</FlexItem>
-						<SiteInfoRow
-							label="Site name"
-							value={site.metadata.name}
-						/>
+						<SiteInfoRow label="Name" value={site.metadata.name} />
 						<SiteInfoRow
 							label="Storage"
 							value={
@@ -542,9 +541,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 										className={css.buttonNoPadding}
 										onClick={onClick}
 									>
-										{site.metadata.storage === 'none'
-											? 'Edit site settings'
-											: 'Edit runtime configuration'}
+										Edit Playground settings
 									</Button>
 								)}
 							</SiteEditButton>

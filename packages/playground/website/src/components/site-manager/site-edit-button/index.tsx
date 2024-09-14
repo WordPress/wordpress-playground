@@ -89,7 +89,7 @@ function StoredSiteEditButton({
 
 			{isModalOpen && (
 				<Modal
-					title="Edit site settings"
+					title="Edit Playground settings"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
