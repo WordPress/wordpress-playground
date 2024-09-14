@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
-	// @ts-expect-error
 	__experimentalTreeGrid as TreeGrid,
-	// @ts-expect-error
 	__experimentalTreeGridRow as TreeGridRow,
-	// @ts-expect-error
 	__experimentalTreeGridCell as TreeGridCell,
-	// @ts-expect-error
 	__experimentalInputControl as InputControl,
 	Button,
 	SelectControl,
@@ -132,7 +128,7 @@ const NodeRow: React.FC<{
 		updateNodeState(path, { isOpen: !nodeState.isOpen });
 	};
 
-	const handlePathChange = (value: string) => {
+	const handlePathChange = (value: string | undefined) => {
 		updateNodeState(path, { playgroundPath: value });
 	};
 
@@ -246,7 +242,7 @@ const NodeRow: React.FC<{
 							{(parentMapping || nodeState.pathType !== '') && (
 								<InputControl
 									disabled={
-										parentMapping ||
+										!!parentMapping ||
 										(nodeState.pathType?.trim() !== '' &&
 											nodeState.pathType !==
 												'custom-path')
