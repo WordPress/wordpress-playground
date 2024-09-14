@@ -18,16 +18,16 @@ Playground is an online tool to experiment and learn about WordPress. This site 
 
 <p class="docs-hubs">The WordPress Playground documentation is distributed across four separate hubs (subsites):</p>
 
--   👉 [**Documentation**](/wordpress-playground/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
--   [**Blueprints**](/wordpress-playground/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
--   [**Developers**](/wordpress-playground/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
--   [**API Reference**](/wordpress-playground/api) – All the APIs exposed by WordPress Playground
+-   👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
+-   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
+-   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
+-   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
 
 ## Navigating this documentation hub
 
 This docs hub is focused on starting with WordPress Playground and is divided into the following major sections.
 
--   **[Quick Start Guide](./quick-start-guide.md)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
+-   **[Quick Start Guide](./quick-start-guide.md)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version).
 
 -   **[Playground web instance](./web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/
 
@@ -77,6 +77,6 @@ As with all WordPress projects, we want to ensure a welcoming environment for ev
 
 ## License
 
-WordPress Playground is free software released under the terms of the GNU General Public License version 2 or (at your option) any later version. For a complete license, see [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
+WordPress Playground is free software released under the terms of the GNU General Public License version 2 or (at your option) any later version. For a complete license, see [LICENSE.md](https://github.com/WordPress/blob/trunk/LICENSE).
 
 <br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>

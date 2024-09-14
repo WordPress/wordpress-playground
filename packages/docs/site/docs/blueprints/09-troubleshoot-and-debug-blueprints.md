@@ -23,7 +23,7 @@ The editor is under development and the embedded Playground sometimes fails to l
 
 ## Check for the Filesystem and Database
 
-Some blueprint steps (such as [`writeFile`](/wordpress-playground/blueprints/steps#WriteFileStep)) alter the internal Filesystem structure of the Playground instance and some others (such as [`runSql`](/wordpress-playground/blueprints/steps#runSql)) alter the internal WordPress database.
+Some blueprint steps (such as [`writeFile`](/blueprints/steps#WriteFileStep)) alter the internal Filesystem structure of the Playground instance and some others (such as [`runSql`](/blueprints/steps#runSql)) alter the internal WordPress database.
 
 To check the final internal filesytem structure and database (after the blueprint steps have been applied) we can leverage some WordPress plugins that provide a SQL manager and a file explorer such as [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and [`WPide`](https://wordpress.org/plugins/wpide/) (you can see them in action from https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide)
 
@@ -38,7 +38,7 @@ true
 (3) ['hello.php', 'index.php', 'WordPress-Importer-master']
 ```
 
-Full list of methods we can use is available [here](/wordpress-playground/api/client/interface/PlaygroundClient)
+Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
 
 :::
 
