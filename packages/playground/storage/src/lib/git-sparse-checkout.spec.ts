@@ -1,8 +1,8 @@
-import { lsRefs, sparseCheckout } from './git-sparse-checkout';
+import { listRefs, sparseCheckout, listFiles } from './git-sparse-checkout';
 
-describe('lsRefs', () => {
+describe('listRefs', () => {
 	it('should return the latest commit hash for a given ref', async () => {
-		const refs = await lsRefs(
+		const refs = await listRefs(
 			'https://github.com/WordPress/wordpress-playground',
 			'refs/heads/trunk'
 		);
@@ -23,5 +23,17 @@ describe('sparseCheckout', () => {
 			'README.md': expect.any(Uint8Array),
 		});
 		expect(files['README.md'].length).toBeGreaterThan(0);
+	});
+});
+
+describe.only('listFiles', () => {
+	it('should list the files in a git repo', async () => {
+		const files = await listFiles(
+			'https://github.com/WordPress/wordpress-playground.git',
+			'refs/heads/trunk'
+		);
+		expect(files).toHaveProperty(
+			'packages/playground/storage/package.json'
+		);
 	});
 });

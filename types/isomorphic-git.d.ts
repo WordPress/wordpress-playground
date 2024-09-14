@@ -10,11 +10,15 @@ declare module 'isomorphic-git/src/models/GitPktLine.js' {
 declare module 'isomorphic-git/src/models/GitTree.js' {
 	export class GitTree {
 		static from(buffer: Buffer): GitTree;
-		entries(): Array<{
+		type: 'tree' | 'blob';
+		oid: string;
+		format: 'content';
+		object: Array<{
 			mode: string;
 			path: string;
 			oid: string;
 			type?: 'blob' | 'tree';
+			object?: GitTree;
 		}>;
 	}
 }

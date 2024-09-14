@@ -41,7 +41,7 @@ export async function sparseCheckout(
 	fullyQualifiedBranchName: string,
 	filesPaths: string[]
 ) {
-	const refs = await lsRefs(repoUrl, fullyQualifiedBranchName);
+	const refs = await listRefs(repoUrl, fullyQualifiedBranchName);
 	const commitHash = refs[fullyQualifiedBranchName];
 	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
 	const objects = await resolveObjects(treesIdx, commitHash, filesPaths);
@@ -63,6 +63,34 @@ export async function sparseCheckout(
 	return fetchedPaths;
 }
 
+export async function listFiles(
+	repoUrl: string,
+	fullyQualifiedBranchName: string
+) {
+	const refs = await listRefs(repoUrl, fullyQualifiedBranchName);
+	if (!(fullyQualifiedBranchName in refs)) {
+		throw new Error(`Branch ${fullyQualifiedBranchName} not found`);
+	}
+	const commitHash = refs[fullyQualifiedBranchName];
+	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
+	const rootTree = await resolveAllObjects(treesIdx, commitHash);
+	const files: Record<string, string> = {};
+	function recurse(tree: GitTree, prefix = '') {
+		if (!tree?.object) {
+			return;
+		}
+		for (const branch of tree.object) {
+			if (branch.type === 'blob') {
+				files[prefix + branch.path] = branch.oid;
+			} else if (branch.type === 'tree' && branch.object) {
+				recurse(branch as any as GitTree, prefix + branch.path + '/');
+			}
+		}
+	}
+	recurse(rootTree);
+	return files;
+}
+
 /**
  * Retrieves a list of files on matching git branches.
  *
@@ -70,7 +98,7 @@ export async function sparseCheckout(
  * @param fullyQualifiedBranchPrefix The prefix of the branch names to fetch. For example: refs/heads/my-feature-branch
  * @returns A map of branch names to their corresponding commit hashes.
  */
-export async function lsRefs(
+export async function listRefs(
 	repoUrl: string,
 	fullyQualifiedBranchPrefix: string
 ) {
@@ -145,6 +173,30 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 		return result;
 	};
 	return idx;
+}
+
+async function resolveAllObjects(idx: GitPackIndex, commitHash: string) {
+	const commit = await idx.read({
+		oid: commitHash,
+	});
+	readObject(commit);
+
+	const rootItem = await idx.read({ oid: commit.object.tree });
+	const items = [rootItem];
+	while (items.length > 0) {
+		const tree = items.pop();
+		const readItem = await idx.read({ oid: tree.oid });
+		readObject(readItem);
+		tree.object = readItem.object;
+		if (readItem.type === 'tree') {
+			for (const subitem of readItem.object) {
+				if (subitem.type === 'tree') {
+					items.push(subitem);
+				}
+			}
+		}
+	}
+	return rootItem;
 }
 
 async function resolveObjects(
