@@ -2,6 +2,7 @@
 title: Blueprints 101
 description: Entrance to a short course on Blueprints
 hide_table_of_contents: false
+slug: /blueprints/tutorial
 ---
 
 # Blueprints 101 - A crash course
@@ -13,5 +14,5 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
 
 :::tip
-If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](../09-troubleshoot-and-debug-blueprints.md) section for tips and tools to help you solve them.
+If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
 :::

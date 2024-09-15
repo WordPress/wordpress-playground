@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/browser-concepts
+---
+
 # Running PHP apps in the browser with ServiceWorkers and Worker Threads
 
 On a high level, WordPress Playground works in web browsers as follows:
@@ -16,7 +20,7 @@ Visually, it looks like this:
 
 The [`@php-wasm/web`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/web/) is built on top of the following ideas:
 
--   [**Browser tab orchestrates everything**](./09-browser-tab-orchestrates-execution.md) – The browser tab is the main program. Closing or reloading it means destroying the entire execution environment.
--   [**Iframe-based rendering**](./10-browser-iframe-rendering.md) – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab when the user clicks on a link.
--   [**PHP Worker Thread**](./11-browser-php-worker-threads.md) – The PHP server is slow and must run in a web worker, otherwise handling requests freezes the website UI.
--   [**Service Worker routing**](./12-browser-service-workers.md) – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.
+-   [**Browser tab orchestrates everything**](/developers/architecture/browser-tab-orchestrates-execution) – The browser tab is the main program. Closing or reloading it means destroying the entire execution environment.
+-   [**Iframe-based rendering**](/developers/architecture/browser-iframe-rendering) – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab when the user clicks on a link.
+-   [**PHP Worker Thread**](/developers/architecture/browser-php-worker-threads) – The PHP server is slow and must run in a web worker, otherwise handling requests freezes the website UI.
+-   [**Service Worker routing**](/developers/architecture/browser-service-workers) – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.

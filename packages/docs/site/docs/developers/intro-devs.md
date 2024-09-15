@@ -19,12 +19,12 @@ Hi! Welcome to WordPress Playground Developer documentation.
 
 This docs hub is focused on Developers info and is divided into the following major sections:
 
--   [Quick Start Guide for Developers](./03-build-an-app/01-index.md): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
+-   [Quick Start Guide for Developers](/developers/build-your-first-app): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
 
--   [Local Development](./05-local-development/intro.md): Discover the tools provided by Playground to streamline the process of setting up and managing WordPress sites and build your apps.
+-   [Local Development](/developers/local-development): Discover the tools provided by Playground to streamline the process of setting up and managing WordPress sites and build your apps.
 
--   [Playground APIs](./apis): Explore the main APIs exposed by WordPress Playground to interact with the Playground: [Query API](./apis/query-api/), [Blueprints](/blueprints/), [Javascript API](./apis/javascript-api/)
+-   [Playground APIs](/developers/apis): Explore the main APIs exposed by WordPress Playground to interact with the Playground: [Query API](/developers/apis/query-api/), [Blueprints](/blueprints/), [Javascript API](/developers/apis/javascript-api/)
 
--   [Architecture](./23-architecture/01-index.md): The specifics of WordPress Playground's architecture, including its various components and tools.
+-   [Architecture](/developers/architecture): The specifics of WordPress Playground's architecture, including its various components and tools.
 
 -   [Limitations](/developers/limitations/): Learn more about the current limitations of WordPress Playground, which include disabled network connections, temporary data, iframe quirks, PHP function execution requirements, and partial WP-CLI support.

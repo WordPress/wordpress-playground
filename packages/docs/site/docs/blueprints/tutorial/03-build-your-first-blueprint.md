@@ -42,7 +42,7 @@ Here's what it looks like in VS Code:
 
 ## 2. Set the site title to "My first Blueprint"
 
-Blueprints consist of a series of [steps](../steps) that define how to build a WordPress site. Before you write the first step, declare an empty list of steps:
+Blueprints consist of a series of [steps](/blueprints/steps) that define how to build a WordPress site. Before you write the first step, declare an empty list of steps:
 
 ```json
 {
@@ -71,7 +71,7 @@ WordPress stores the site title in the `blogname` option. Add your first step an
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#https://playground.wordpress.net/#eyIkc2NoZW1hIjoiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwic3RlcHMiOlt7InN0ZXAiOiJzZXRTaXRlT3B0aW9ucyIsIm9wdGlvbnMiOnsiYmxvZ25hbWUiOiJNeSBmaXJzdCBCbHVlcHJpbnQifX1dfQ==)
 
-The [`setSiteOptions` step](../steps#SetSiteOptionsStep) specifies the site options in the WordPress database. The `options` object contains the key-value pairs to set. In this case, you changed the value of the `blogname` key to "My first Blueprint". You can read more about all available steps in the [Blueprint Steps API Reference](../steps).
+The [`setSiteOptions` step](/blueprints/steps#SetSiteOptionsStep) specifies the site options in the WordPress database. The `options` object contains the key-value pairs to set. In this case, you changed the value of the `blogname` key to "My first Blueprint". You can read more about all available steps in the [Blueprint Steps API Reference](/blueprints/steps).
 
 ### Shorthands
 
@@ -90,7 +90,7 @@ The shorthand syntax and the step syntax correspond with each other. Every step 
 
 ## 3. Install the _Adventurer_ theme
 
-Adventurer is an open-source theme [available in the WordPress theme directory](https://wordpress.org/themes/adventurer/). Let's install it using the [`installTheme` step](../steps#InstallThemeStep):
+Adventurer is an open-source theme [available in the WordPress theme directory](https://wordpress.org/themes/adventurer/). Let's install it using the [`installTheme` step](/blueprints/steps#InstallThemeStep):
 
 ```json
 {
@@ -135,7 +135,7 @@ Learn more about the supported resources in the [Blueprint Resources API Referen
 
 ## 4. Install the _Hello Dolly_ plugin
 
-A classic WordPress plugin that displays random lyrics from the song "Hello, Dolly!" in the admin dashboard. Let's install it using the [`installPlugin` step](../steps#InstallPluginStep):
+A classic WordPress plugin that displays random lyrics from the song "Hello, Dolly!" in the admin dashboard. Let's install it using the [`installPlugin` step](/blueprints/steps#InstallPluginStep):
 
 ```json
 {
@@ -187,11 +187,11 @@ function my_custom_plugin() {
 add_action('admin_notices', 'my_custom_plugin');
 ```
 
-You can use the [installPlugin](../steps#InstallPluginStep), but that requires creating a ZIP file. Let's start with something different to see if the plugin works:
+You can use the [installPlugin](/blueprints/steps#InstallPluginStep), but that requires creating a ZIP file. Let's start with something different to see if the plugin works:
 
-1. Create a `wp-content/plugins/hello-from-the-dashboard` directory using the [`mkdir` step](../steps#MkdirStep).
-2. Write a `plugin.php` file using the [`writeFile` step](../steps#WriteFileStep).
-3. Activate the plugin using the [`activatePlugin` step](../steps#ActivatePluginStep).
+1. Create a `wp-content/plugins/hello-from-the-dashboard` directory using the [`mkdir` step](/blueprints/steps#MkdirStep).
+2. Write a `plugin.php` file using the [`writeFile` step](/blueprints/steps#WriteFileStep).
+3. Activate the plugin using the [`activatePlugin` step](/blueprints/steps#ActivatePluginStep).
 
 Here's what that looks like in a Blueprint:
 
@@ -217,7 +217,7 @@ Here's what that looks like in a Blueprint:
 }
 ```
 
-The last thing to do is log the user in as an admin. You can do that with a shorthand of the [`login` step](../steps#LoginStep):
+The last thing to do is log the user in as an admin. You can do that with a shorthand of the [`login` step](/blueprints/steps#LoginStep):
 
 ```json
 {
@@ -277,7 +277,7 @@ That's what it looks like when you navigate to the dashboard:
 
 ### Create a plugin and zip it
 
-Encoding PHP files as `JSON` can be useful for quick testing, but it's inconvenient and difficult to read. Instead, create a file with the plugin code, compress it, and use the `ZIP` file as the `resource` in the [`installPlugin` step](../steps#InstallPluginStep) to install it (the path in the `URL` should match the one in your GitHub repository):
+Encoding PHP files as `JSON` can be useful for quick testing, but it's inconvenient and difficult to read. Instead, create a file with the plugin code, compress it, and use the `ZIP` file as the `resource` in the [`installPlugin` step](/blueprints/steps#InstallPluginStep) to install it (the path in the `URL` should match the one in your GitHub repository):
 
 ```json
 {
@@ -360,7 +360,7 @@ foreach ($posts as $post) {
 }
 ```
 
-To run that code during the site setup, use the [`runPHP` step](../steps#RunPHPStep):
+To run that code during the site setup, use the [`runPHP` step](/blueprints/steps#RunPHPStep):
 
 ```json
 {
@@ -377,7 +377,7 @@ To run that code during the site setup, use the [`runPHP` step](../steps#RunPHPS
 
 ### Import the new content
 
-Let's use the [`importWxr` step](../steps#ImportWXRStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Let's use the [`importWxr` step](/blueprints/steps#ImportWXRStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Here's what the final Blueprint looks like:
 

@@ -27,16 +27,16 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 
 This docs hub is focused on Blueprints info and is divided into the following major sections:
 
--   [Getting started with Blueprints](./01-index.md): Quick Start Guide to setting up a WordPress Playground instance using Blueprint JSON files.
+-   [Getting started with Blueprints](/blueprints/getting-started): Quick Start Guide to setting up a WordPress Playground instance using Blueprint JSON files.
 
--   [Tutorial - Blueprints 101](./tutorial/index.md) - Blueprints API crash course. The tutorial will guide you through the complete process of creating a blueprint that loads a theme and plugin (among other things).
+-   [Tutorial - Blueprints 101](/blueprints/tutorial) - Blueprints API crash course. The tutorial will guide you through the complete process of creating a blueprint that loads a theme and plugin (among other things).
 
--   [Blueprint data Format](./03-data-format.md): Blueprint JSON files define your Playground instance with various properties. This section highlights the key properties you need to know.
+-   [Blueprint data Format](/blueprints/data-format): Blueprint JSON files define your Playground instance with various properties. This section highlights the key properties you need to know.
 
--   [Using Blueprints](./02-using-blueprints.md): Learn in this section different ways to use Blueprints.
+-   [Using Blueprints](/blueprints/using-blueprints): Learn in this section different ways to use Blueprints.
 
--   [Steps](./05-steps.md): API Reference of all the available steps that can be set in a blueprint to run tasks such as login, plugin/theme activation, file operations, and more.
+-   [Steps](/blueprints/steps): API Reference of all the available steps that can be set in a blueprint to run tasks such as login, plugin/theme activation, file operations, and more.
 
--   [Examples](./08-examples.md): Compilation of Blueprint examples for various WordPress Playground setups, including installing themes/plugins, running PHP code, enabling features, and loading specific WordPress versions.
+-   [Examples](/blueprints/examples): Compilation of Blueprint examples for various WordPress Playground setups, including installing themes/plugins, running PHP code, enabling features, and loading specific WordPress versions.
 
--   [Troubleshoot and debug Blueprints](./09-troubleshoot-and-debug-blueprints.md): Tips and tools for troubleshooting and debugging Blueprints.
+-   [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug): Tips and tools for troubleshooting and debugging Blueprints.

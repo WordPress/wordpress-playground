@@ -1,5 +1,6 @@
 ---
 title: Troubleshoot and debug
+slug: /blueprints/troubleshoot-and-debug
 ---
 
 # Troubleshoot and debug Blueprints
@@ -58,12 +59,12 @@ The developer tools window allows you to inspect network requests, view console 
 
 ## Log your own error messages
 
-You can `error_log` your own error messages through [`runPHP` step](./steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](../main/web-instance.md#playground-options-menu) or from the browser's console.
+You can `error_log` your own error messages through [`runPHP` step](/blueprints/steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](/web-instance#playground-options-menu) or from the browser's console.
 
 ![Log errors snapshot](./_assets/log-errors.png)
 
 :::info
-When you download your Playground instance as a `zip` through the ["Download as zip" option](../main/web-instance.md#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
+When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
 :::
 
 ## Ask for help
