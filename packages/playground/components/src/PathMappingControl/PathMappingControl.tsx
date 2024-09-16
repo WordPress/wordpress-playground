@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
 	__experimentalTreeGrid as TreeGrid,
 	__experimentalTreeGridRow as TreeGridRow,
@@ -19,7 +19,7 @@ type FileNode = {
 
 type PathMappingFormProps = {
 	files: FileNode[];
-	initialState: MappingNodeStates;
+	initialState?: MappingNodeStates;
 	onMappingChange?: (mapping: PathMapping) => void;
 };
 type PathMapping = Record<string, string>;
@@ -67,27 +67,84 @@ const PathMappingControl: React.FC<PathMappingFormProps> = ({
 			: node.name;
 	};
 
+	const [searchBuffer, setSearchBuffer] = useState('');
+	const searchBufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+		if (event.key.length === 1 && event.key.match(/\S/)) {
+			const newSearchBuffer = searchBuffer + event.key.toLowerCase();
+			setSearchBuffer(newSearchBuffer);
+			// Clear the buffer after 1 second
+			if (searchBufferTimeoutRef.current) {
+				clearTimeout(searchBufferTimeoutRef.current);
+			}
+			searchBufferTimeoutRef.current = setTimeout(() => {
+				setSearchBuffer('');
+			}, 1000);
+
+			if (thisContainerRef.current) {
+				const buttons = Array.from(
+					thisContainerRef.current.querySelectorAll(
+						'.file-node-button'
+					)
+				);
+				const activeElement = document.activeElement;
+				let startIndex = 0;
+				if (
+					activeElement &&
+					buttons.includes(activeElement as HTMLButtonElement)
+				) {
+					startIndex = buttons.indexOf(
+						activeElement as HTMLButtonElement
+					);
+				}
+				for (let i = 0; i < buttons.length; i++) {
+					const index = (startIndex + i) % buttons.length;
+					const button = buttons[index];
+					if (
+						button.textContent
+							?.toLowerCase()
+							.trim()
+							.startsWith(newSearchBuffer)
+					) {
+						(button as HTMLButtonElement).focus();
+						break;
+					}
+				}
+			}
+		} else {
+			// Clear the buffer for any non-letter key press
+			setSearchBuffer('');
+			if (searchBufferTimeoutRef.current) {
+				clearTimeout(searchBufferTimeoutRef.current);
+			}
+		}
+	}
+
+	const thisContainerRef = useRef<HTMLDivElement>(null);
+
 	return (
-		<TreeGrid className="path-mapping-control">
-			<TreeGridRow level={0} positionInSet={0} setSize={1}>
-				<TreeGridCell>{() => <>File/Folder</>}</TreeGridCell>
-				<TreeGridCell>
-					{() => <>Absolute path in Playground</>}
-				</TreeGridCell>
-			</TreeGridRow>
-			{files.map((file, index) => (
-				<NodeRow
-					key={file.name}
-					node={file}
-					level={0}
-					position={index + 1}
-					setSize={files.length}
-					nodeStates={state}
-					updateNodeState={updatePathMapping}
-					generatePath={generatePath}
-				/>
-			))}
-		</TreeGrid>
+		<div onKeyDown={handleKeyDown} ref={thisContainerRef}>
+			<TreeGrid className="path-mapping-control">
+				<TreeGridRow level={0} positionInSet={0} setSize={1}>
+					<TreeGridCell>{() => <>File/Folder</>}</TreeGridCell>
+					<TreeGridCell>
+						{() => <>Absolute path in Playground</>}
+					</TreeGridCell>
+				</TreeGridRow>
+				{files.map((file, index) => (
+					<NodeRow
+						key={file.name}
+						node={file}
+						level={0}
+						position={index + 1}
+						setSize={files.length}
+						nodeStates={state}
+						updateNodeState={updatePathMapping}
+						generatePath={generatePath}
+					/>
+				))}
+			</TreeGrid>
+		</div>
 	);
 };
 

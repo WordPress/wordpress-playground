@@ -63,10 +63,21 @@ export async function sparseCheckout(
 	return fetchedPaths;
 }
 
+export type FileTreeFile = {
+	name: string;
+	type: 'file';
+};
+export type FileTreeFolder = {
+	name: string;
+	type: 'folder';
+	children: FileTree[];
+};
+export type FileTree = FileTreeFile | FileTreeFolder;
+
 export async function listFiles(
 	repoUrl: string,
 	fullyQualifiedBranchName: string
-) {
+): Promise<FileTree[]> {
 	const refs = await listRefs(repoUrl, fullyQualifiedBranchName);
 	if (!(fullyQualifiedBranchName in refs)) {
 		throw new Error(`Branch ${fullyQualifiedBranchName} not found`);
@@ -74,21 +85,31 @@ export async function listFiles(
 	const commitHash = refs[fullyQualifiedBranchName];
 	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
 	const rootTree = await resolveAllObjects(treesIdx, commitHash);
-	const files: Record<string, string> = {};
-	function recurse(tree: GitTree, prefix = '') {
-		if (!tree?.object) {
-			return;
-		}
-		for (const branch of tree.object) {
-			if (branch.type === 'blob') {
-				files[prefix + branch.path] = branch.oid;
-			} else if (branch.type === 'tree' && branch.object) {
-				recurse(branch as any as GitTree, prefix + branch.path + '/');
-			}
-		}
+	if (!rootTree?.object) {
+		return [];
 	}
-	recurse(rootTree);
-	return files;
+
+	return gitTreeToFileTree(rootTree);
+}
+
+function gitTreeToFileTree(tree: GitTree): FileTree[] {
+	return tree.object
+		.map((branch) => {
+			if (branch.type === 'blob') {
+				return {
+					name: branch.path,
+					type: 'file',
+				} as FileTreeFile;
+			} else if (branch.type === 'tree' && branch.object) {
+				return {
+					name: branch.path,
+					type: 'folder',
+					children: gitTreeToFileTree(branch as any as GitTree),
+				} as FileTreeFolder;
+			}
+			return undefined;
+		})
+		.filter((entry) => !!entry?.name) as FileTree[];
 }
 
 /**
