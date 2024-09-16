@@ -1,6 +1,6 @@
 ---
 title: Playground for Theme Developers
-slug: /for-theme-developers
+slug: /guides/for-theme-developers
 description: WordPress Playground for Theme Developers
 ---
 

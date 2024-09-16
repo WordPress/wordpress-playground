@@ -49,6 +49,9 @@
 			"@wp-playground/common": [
 				"packages/playground/common/src/index.ts"
 			],
+			"@wp-playground/components": [
+				"packages/playground/components/src/index.ts"
+			],
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],
