@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/components",
-	"version": "0.9.18",
+	"version": "0.9.40",
 	"exports": {
 		".": {
 			"import": "./index.js",

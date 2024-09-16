@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/util",
-	"version": "0.9.39",
+	"version": "0.9.40",
 	"type": "module",
 	"types": "index.d.ts",
 	"typedoc": {
