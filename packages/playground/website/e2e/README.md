@@ -7,29 +7,29 @@
 Runs the end-to-end tests.
 
 ```bash
-npx playwright test
+npx nx run playground-website:e2e:playwright
 ```
 
 Starts the interactive UI mode.
 
 ```bash
-npx playwright test --ui
+npx nx run playground-website:e2e:playwright --ui
 ```
 
 Runs the tests only on Desktop Chrome.
 
 ```bash
-npx playwright test --project=chromium
+npx nx run playground-website:e2e:playwright --project=chromium
 ```
 
 Runs the tests in a specific file.
 
 ```bash
-npx playwright test example
+npx nx run playground-website:e2e:playwright example
 ```
 
 Runs the tests in debug mode.
 
 ```bash
-  npx playwright test --debug
+npx nx run playground-website:e2e:playwright --debug
 ```

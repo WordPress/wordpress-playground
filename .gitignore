@@ -56,7 +56,6 @@ Thumbs.db
 
 # Playground artifacts
 php.js.bak
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+**/test-results/
+**/playwright-report/
+**/blob-report/
