@@ -66,17 +66,13 @@ export async function resolveBlueprintFromURL(url: URL) {
 	 */
 
 	// PHP and WordPress versions
-	if (query.get('php') || query.get('wp')) {
-		if (!blueprint.preferredVersions) {
-			blueprint.preferredVersions = {} as any;
-		}
-		blueprint.preferredVersions!.php =
-			(query.get('php') as any) ||
-			blueprint.preferredVersions!.php ||
-			'8.0';
-		blueprint.preferredVersions!.wp =
-			query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
+	if (!blueprint.preferredVersions) {
+		blueprint.preferredVersions = {} as any;
 	}
+	blueprint.preferredVersions!.php =
+		(query.get('php') as any) || blueprint.preferredVersions!.php || '8.0';
+	blueprint.preferredVersions!.wp =
+		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 
 	// Features
 	if (query.has('features')) {
