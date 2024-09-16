@@ -278,10 +278,12 @@ async function run() {
 				wpDetails = await resolveWPRelease(args.wp);
 			}
 
-			const preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
+			const preinstalledWpContentPath =
+				wpDetails &&
+				path.join(
+					CACHE_FOLDER,
+					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+				);
 			const wordPressZip = !wpDetails
 				? undefined
 				: fs.existsSync(preinstalledWpContentPath)

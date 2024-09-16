@@ -31,10 +31,16 @@ Some more examples of this workflow:
 
 ![Storage Type Device Snaphsot](../_assets/storage-type-device.png)
 
-With Google Chrome (it only works with this browser, for now) you can synchronize your Playground instance with a local directory, that can be either:
+With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 
 -   And empty directory – to save this Playground and start syncing
 -   An existing directory – to load it here and start syncing
+
+:::info
+
+This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
+
+:::
 
 Regarding changes done on both sides of the connection:
 

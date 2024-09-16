@@ -162,7 +162,7 @@ class PluginDownloader
         }
     }
 
-    protected function gitHubRequest($url, $decode = true, $follow_location = true)
+    public function gitHubRequest($url, $decode = true, $follow_location = true)
     {
         $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36';
         $headers[] = 'Authorization: Bearer ' . $this->githubToken;
@@ -334,21 +334,60 @@ try {
         }
 
         $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
-    } else if ( isset( $_GET['wordpress-branch'] ) ) {
-        $branch = strtolower( $_GET['wordpress-branch'] );
-        if ( $branch === 'trunk' || $branch === 'master' ) {
-            $branch = 'master';
-            // If the brach is of the form x.x append '-branch' to it.
-        } elseif ( preg_match( '/^\d+\.\d+$/', $branch ) ) {
-            $branch .= '-branch';
-        } elseif ( ! preg_match( '/^\d+\.\d+-branch$/', $branch ) ) {
-            throw new ApiException( 'Invalid branch' );
+    } else if ( isset( $_GET['build-ref'] ) ) {
+        $build_ref = strtolower( $_GET['build-ref'] );
+        if ( $build_ref === 'trunk' || $build_ref === 'master' ) {
+            $build_ref = 'master';
+            $prefix = 'refs/heads/';
+            // If the build ref is of the form x.x append '-branch' to it.
+        } elseif ( preg_match( '/^\d+\.\d+$/', $build_ref ) ) {
+            $build_ref .= '-branch';
+            $prefix = 'refs/heads/';
+            // If the build ref is in the form x.x.x, it's a tag.
+        } elseif ( preg_match( '/^\d+\.\d+\.\d+$/', $build_ref ) ) {
+            // Remove trailing .0 if present.
+            if ( substr( $build_ref, -2 ) === '.0' ) {
+                $build_ref = substr( $build_ref, 0, -2 );
+            }
+            $prefix = 'refs/tags/';
+            // If the build ref is in the form [a-f0-9]{7,40} it's a commit hash.
+        } elseif ( preg_match( '/^[a-f0-9]{7,40}$/', $build_ref ) ) {
+            $prefix = '';
+        } elseif ( preg_match( '/^\d+\.\d+-branch$/', $build_ref ) ) {
+            $prefix = 'refs/heads/';
+        } else {
+            throw new ApiException('artifact_not_found');
         }
 
-        $url = "https://codeload.github.com/WordPress/WordPress/zip/refs/heads/{$branch}";
+        /*
+         * URL provided by GitHub by the "Download ZIP" button.
+         *
+         * The URL of the actual zip file is provided by the location header, the
+         * zip file's final URL is known to change occasionally so it's required
+         * to fetch the official URL before streaming the file.
+         */
+        $url = "https://github.com/WordPress/WordPress/archive/{$prefix}{$build_ref}.zip";
 
+        $github_response = $downloader->gitHubRequest( $url, false, false );
+
+        // Get the real zip file's location header from the response.
+        $zipUrl = null;
+        foreach ( $github_response['headers'] as $header_line ) {
+            $header_name = strtolower( substr( $header_line, 0, strpos( $header_line, ':' ) ) );
+            $header_value = trim( substr( $header_line, 1 + strpos( $header_line, ':' ) ) );
+            if ( $header_name === 'location' ) {
+                $zipUrl = $header_value;
+                break;
+            }
+        }
+
+        if ( ! $zipUrl ) {
+            throw new ApiException('artifact_not_found');
+        }
+
+        // Stream the zip file from the real location.
         streamHttpResponse(
-            $url,
+            $zipUrl,
             'GET',
             [],
             file_get_contents('php://input'),

@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 const sourcePath = __dirname + '/../../../../CHANGELOG.md';
-const destinationPath = __dirname + '/../docs/17-changelog.md';
+const destinationPath = __dirname + '/../docs/main/changelog.md';
 
 // Read the source file
 const changelog = fs.readFileSync(sourcePath, 'utf-8');

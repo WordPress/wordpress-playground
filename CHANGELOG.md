@@ -4,6 +4,169 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v0.9.39] (2024-09-09)
+
+### Bug Fixes
+
+-   Use the correct imports in the generated .d.ts files. ([#1742](https://github.com/WordPress/wordpress-playground/pull/1742))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v0.9.38] (2024-09-09)
+
+### Internal
+
+-   Fix changelog updates for latest doc structure. ([#1734](https://github.com/WordPress/wordpress-playground/pull/1734))
+
+### Various
+
+-   Add support for handling symlinks in the request handler. ([#1724](https://github.com/WordPress/wordpress-playground/pull/1724))
+-   Docs: Playground block in launch section. ([#1722](https://github.com/WordPress/wordpress-playground/pull/1722))
+-   documentation - Blueprints - Resources: Highlight installPlugin and installTheme steps and most common resouces for them. ([#1733](https://github.com/WordPress/wordpress-playground/pull/1733))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @jeroenpf @juanmaguitar
+
+## [v0.9.37] (2024-09-05)
+
+### PHP WebAssembly
+
+-   Add more asyncify-listed PHP functions to fix Studio crash. ([#1729](https://github.com/WordPress/wordpress-playground/pull/1729))
+
+### Website
+
+-   Add initial site info view. ([#1701](https://github.com/WordPress/wordpress-playground/pull/1701))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+## [v0.9.36] (2024-09-03)
+
+### Bug Fixes
+
+-   Fix logger test for inconsistent short month. ([#1727](https://github.com/WordPress/wordpress-playground/pull/1727))
+
+### Reliability
+
+-   Avoid errors due to log message formatting. ([#1726](https://github.com/WordPress/wordpress-playground/pull/1726))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+## [v0.9.35] (2024-08-29)
+
+### Enhancements
+
+-   Allow specifying a WordPres/WordPress branch and pulling from GitHub. ([#1705](https://github.com/WordPress/wordpress-playground/pull/1705))
+
+### PHP WebAssembly
+
+-   Fix: Exit http server on php exit. ([#1714](https://github.com/WordPress/wordpress-playground/pull/1714))
+
+### Various
+
+-   Enable networking for WordPress and Gutenberg PR viewers. ([#1715](https://github.com/WordPress/wordpress-playground/pull/1715))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ironprogrammer @kozer @peterwilsoncc
+
+## [v0.9.34] (2024-08-28)
+
+### PHP WebAssembly
+
+-   @php-wasm/node: Publish index.d.ts. ([#1713](https://github.com/WordPress/wordpress-playground/pull/1713))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v0.9.33] (2024-08-28)
+
+### Internal
+
+-   @php-wasm/util: Publish TypeScript types. ([#1711](https://github.com/WordPress/wordpress-playground/pull/1711))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v0.9.32] (2024-08-26)
+
+### Website
+
+-   Make the site switcher work again. ([#1698](https://github.com/WordPress/wordpress-playground/pull/1698))
+-   WebApp Redesign: Interact with sites list via redux. ([#1679](https://github.com/WordPress/wordpress-playground/pull/1679))
+-   deployment: Fix builder redirect. ([#1696](https://github.com/WordPress/wordpress-playground/pull/1696))
+
+### Bug Fixes
+
+-   Docs: Fix typo and replace en dash with hyphen for consistency. ([#1702](https://github.com/WordPress/wordpress-playground/pull/1702))
+-   Fix broken documentation links. ([#1694](https://github.com/WordPress/wordpress-playground/pull/1694))
+-   Remove Playground branding from site list. ([#1700](https://github.com/WordPress/wordpress-playground/pull/1700))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @eliot-akira @mirka
+
+## [v0.9.31] (2024-08-20)
+
+### Enhancements
+
+#### Boot Flow
+
+-   A boot() method to explicitly initialize the PHP worker. ([#1669](https://github.com/WordPress/wordpress-playground/pull/1669))
+
+### Website
+
+-   Fix builder redirect. ([#1693](https://github.com/WordPress/wordpress-playground/pull/1693))
+
+### Internal
+
+-   Avoid GH board automation permissions error. ([#1691](https://github.com/WordPress/wordpress-playground/pull/1691))
+-   Refresh sqlite-database-integration from develop branch. ([#1692](https://github.com/WordPress/wordpress-playground/pull/1692))
+
+### Bug Fixes
+
+#### Boot Flow
+
+-   Fix sqlite-database-integration rename fatal. ([#1695](https://github.com/WordPress/wordpress-playground/pull/1695))
+
+#### Documentation
+
+-   Docs: Fix links to proper pages. ([#1690](https://github.com/WordPress/wordpress-playground/pull/1690))
+
+### Various
+
+-   Documentation structure overhaul. ([#1602](https://github.com/WordPress/wordpress-playground/pull/1602))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @juanmaguitar
+
 ## [v0.9.30] (2024-08-19)
 
 ### Website

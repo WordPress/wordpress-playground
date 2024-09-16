@@ -43,7 +43,6 @@ This menu contains links to some Playground resources and tools:
 
 -   **Reset Site**: - It will wipe out all data and reload the page with a new site.
 -   **Report error**: If you have any issue with WP Playground yoy can report it using the form available from this option. You can help resolve issues with Playground by sharing the error details with development team behind Playground.
--   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
 -   **Download as zip**: It creates a `.zip` with the setup of the Playground instance including any themes or plugins installed. This `.zip` won't include content and database changes.
 -   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
 -   **Import from Github**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
