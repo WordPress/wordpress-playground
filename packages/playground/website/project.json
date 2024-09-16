@@ -148,7 +148,23 @@
 				"commands": [
 					"npx playwright test --config=packages/playground/website/playwright.config.ts"
 				]
-			}
+			},
+			"configurations": {
+				"ci": {
+					"devServerTarget": "playground-website:preview:ci",
+					"baseUrl": "http://localhost/website-server/"
+				}
+			},
+			"dependsOn": ["build"]
+		},
+		"e2e:playwright:dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright.config.ts --ui --debug"
+				]
+			},
+			"dependsOn": ["dev"]
 		}
 	},
 	"tags": ["scope:web-client"]
