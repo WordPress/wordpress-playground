@@ -43,7 +43,13 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
-
+    test-e2e-playwright:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - run: npx nx run playground-website:e2e:playwright
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
