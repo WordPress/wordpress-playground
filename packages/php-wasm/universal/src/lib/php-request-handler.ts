@@ -42,6 +42,24 @@ export type FileNotFoundGetActionCallback = (
 	relativePath: string
 ) => FileNotFoundAction;
 
+/**
+ * - `internal-store`: Persist cookies from reponses in an internal store and
+ * includes them in following requests. This behavior is useful in the Playground
+ * web app because it allows multiple sites to set cookies on the same domain
+ * without running into conflicts. Each site gets a separate "namespace". The
+ * downside is that all cookies are global and you cannot have two users
+ * simultaneously logged in.
+ *
+ * - `pass-through`: Typical server behavior. All cookies are passed back to the
+ * client via a HTTP response. This behavior is useful when Playground is running
+ * on the backend and can be requested by multiple browsers. This enables each
+ * browser to get its own cookies, which means two users may be simultaneously
+ * logged in to their accounts.
+ *
+ * Default value is `internal-store`.
+ */
+export type CookieStrategy = 'internal-store' | 'pass-through';
+
 interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -95,7 +113,9 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration &
 				 */
 				maxPhpInstances?: number;
 		  }
-	);
+	) & {
+		cookieStrategy?: CookieStrategy;
+	};
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -159,7 +179,7 @@ export class PHPRequestHandler {
 	#HOST: string;
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
-	#cookieStore: HttpCookieStore;
+	#cookieStore?: HttpCookieStore;
 	rewriteRules: RewriteRule[];
 	processManager: PHPProcessManager;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
@@ -198,7 +218,10 @@ export class PHPRequestHandler {
 				maxPhpInstances: config.maxPhpInstances,
 			});
 		}
-		this.#cookieStore = new HttpCookieStore();
+		const cookieStrategy = config.cookieStrategy ?? 'internal-store';
+		if (cookieStrategy === 'internal-store') {
+			this.#cookieStore = new HttpCookieStore();
+		}
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -492,8 +515,11 @@ export class PHPRequestHandler {
 		const headers: Record<string, string> = {
 			host: this.#HOST,
 			...normalizeHeaders(request.headers || {}),
-			cookie: this.#cookieStore.getCookieRequestHeader(),
 		};
+
+		if (this.#cookieStore) {
+			headers['cookie'] = this.#cookieStore.getCookieRequestHeader();
+		}
 
 		let body = request.body;
 		if (typeof body === 'object' && !(body instanceof Uint8Array)) {
@@ -522,7 +548,7 @@ export class PHPRequestHandler {
 				scriptPath,
 				headers,
 			});
-			this.#cookieStore.rememberCookiesFromResponseHeaders(
+			this.#cookieStore?.rememberCookiesFromResponseHeaders(
 				response.headers
 			);
 			return response;

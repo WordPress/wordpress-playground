@@ -1,4 +1,5 @@
 import {
+	CookieStrategy,
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
@@ -91,6 +92,8 @@ export interface BootOptions {
 	 * given request URI.
 	 */
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
+
+	cookieStrategy?: CookieStrategy;
 }
 
 /**
@@ -179,6 +182,7 @@ export async function bootWordPress(options: BootOptions) {
 		rewriteRules: wordPressRewriteRules,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
+		cookieStrategy: options.cookieStrategy,
 	});
 
 	const php = await requestHandler.getPrimaryPhp();
