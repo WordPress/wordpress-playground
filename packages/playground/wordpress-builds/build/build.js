@@ -3,7 +3,6 @@ import path, { join } from 'path';
 import { spawn } from 'child_process';
 import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
-import { logger } from '@php-wasm/logger';
 
 const parser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
@@ -81,8 +80,8 @@ if (args.wpVersion === 'nightly') {
 }
 
 if(!versionInfo.url) {
-	logger.log(`WP version ${args.wpVersion} is not supported\n`);
-	logger.log(await parser.getHelp());
+	process.stdout.write(`WP version ${args.wpVersion} is not supported\n`);
+	process.stdout.write(await parser.getHelp());
 	process.exit(1);
 }
 
@@ -103,7 +102,7 @@ try {
 }
 
 if (!args.force && versionInfo.slug !== 'nightly' && versions[versionInfo.slug] === versionInfo.version) {
-	logger.log(
+	process.stdout.write(
 		`The requested version was ${args.wpVersion}, but its latest release (${versionInfo.version}) is already downloaded\n`
 	);
 	process.exit(0);
