@@ -82,6 +82,12 @@ async function run() {
 			type: 'array',
 			string: true,
 		})
+		.option('mountAfterBlueprint', {
+			describe:
+				'Mount a directory to the PHP runtime after the Blueprint has been ran. You can provide --mount-after-blueprint multiple times. Format: /host/path:/vfs/path',
+			type: 'array',
+			string: true,
+		})
 		.option('login', {
 			describe: 'Should log the user in',
 			type: 'boolean',
@@ -339,6 +345,10 @@ async function run() {
 				} finally {
 					reap();
 				}
+			}
+
+			if (args.mountAfterBlueprint) {
+				mountResources(php, args.mountAfterBlueprint);
 			}
 
 			if (command === 'build-snapshot') {
