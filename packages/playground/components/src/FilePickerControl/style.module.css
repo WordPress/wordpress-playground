@@ -1,0 +1,125 @@
+.path-mapping-control {
+	width: 100%;
+
+	tr:nth-child(even) {
+		background-color: #f7f7f7;
+	}
+
+	.file-node-button {
+		display: inline-flex;
+		text-decoration: none;
+		font-family: inherit;
+		font-weight: normal;
+		font-size: 13px;
+		margin: 0;
+		border: 0;
+		cursor: pointer;
+		-webkit-appearance: none;
+		background: none;
+		transition: box-shadow 0.1s linear;
+		height: 30px;
+		align-items: center;
+		box-sizing: border-box;
+		padding: 6px 12px;
+		border-radius: 2px;
+
+		width: 100%;
+		white-space: nowrap;
+		color: var(--wp-components-color-foreground, #1e1e1e);
+		background: transparent;
+		padding: 6px;
+
+		font-family: -apple-system, 'system-ui', 'Segoe UI', Roboto, Oxygen-Sans,
+			Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+		font-size: 13px;
+		font-weight: 400;
+
+		&.selected {
+			background-color: var(--wp-admin-theme-color);
+			color: #fff;
+		}
+	}
+
+	&:hover {
+		color: var(--wp-admin-theme-color);
+	}
+
+	&:focus {
+		outline: 2px solid var(--wp-admin-theme-color);
+	}
+}
+
+.directory-expand-button {
+	color: var(--wp-components-color-foreground, #1e1e1e) !important;
+}
+
+.file-name {
+	margin-left: 10px;
+}
+
+.path-mapping-modal :global(.components-modal__content) {
+	margin-bottom: 80px;
+	padding: 0;
+}
+
+.modal-footer {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	min-height: 80px;
+	padding: 16px 24px;
+	gap: 8px;
+	box-sizing: border-box;
+	border-top: 1px solid #ddd;
+	background: #fff;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	width: 100%;
+}
+
+.selected-path {
+	overflow: auto;
+}
+
+.button-container {
+	width: 100%;
+	flex-shrink: 0;
+}
+
+.button-container :global(.components-button) {
+	width: 100%;
+	text-align: center;
+	justify-content: center;
+}
+
+.path-mapping-button-wrapper {
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 8px;
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+
+	.selected-path {
+		width: 250px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+.loading-container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 24px;
+}
+
+.loading-container :global(.components-spinner) {
+	width: 40px;
+	height: 40px;
+}

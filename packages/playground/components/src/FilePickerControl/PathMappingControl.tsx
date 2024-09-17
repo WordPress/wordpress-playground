@@ -3,13 +3,13 @@ import {
 	__experimentalTreeGrid as TreeGrid,
 	__experimentalTreeGridRow as TreeGridRow,
 	__experimentalTreeGridCell as TreeGridCell,
-	__experimentalInputControl as InputControl,
 	Button,
-	SelectControl,
 } from '@wordpress/components';
 import { Icon, chevronRight, chevronDown } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
-import './style.css';
+import css from './style.module.css';
+import classNames from 'classnames';
+import { folder, file } from '../icons';
 
 type FileNode = {
 	name: string;
@@ -19,47 +19,44 @@ type FileNode = {
 
 type PathMappingFormProps = {
 	files: FileNode[];
-	initialState?: MappingNodeStates;
-	onMappingChange?: (mapping: PathMapping) => void;
-};
-type PathMapping = Record<string, string>;
-type MappingNodeStates = Record<string, MappingNodeState>;
-
-type MappingNodeState = {
-	isOpen?: boolean;
-	pathType?: string;
-	playgroundPath?: string;
+	initialPath?: string;
+	onSelect?: (path: string) => void;
 };
 
-const PathMappingControl: React.FC<PathMappingFormProps> = ({
+type ExpandedNodePaths = Record<string, boolean>;
+
+const FilePickerControl: React.FC<PathMappingFormProps> = ({
 	files,
-	initialState = {},
-	onMappingChange = () => {},
+	initialPath,
+	onSelect = () => {},
 }) => {
-	const [state, setState] = useState<MappingNodeStates>(initialState);
+	const [expanded, setExpanded] = useState<ExpandedNodePaths>(() => {
+		if (!initialPath) {
+			return {};
+		}
+		const expanded: ExpandedNodePaths = {};
+		const pathParts = initialPath.split('/');
+		for (let i = 0; i < pathParts.length; i++) {
+			const pathSoFar = pathParts.slice(0, i + 1).join('/');
+			expanded[pathSoFar] = true;
+		}
+		return expanded;
+	});
+	const [selectedPath, setSelectedPath] = useState<string | null>(() =>
+		initialPath ? initialPath : null
+	);
 
-	const updatePathMapping = (
-		path: string,
-		state: Partial<MappingNodeState>
-	) => {
-		setState((prevState) => ({
+	const expandNode = (path: string, isOpen: boolean) => {
+		setExpanded((prevState) => ({
 			...prevState,
-			[path]: {
-				...prevState[path],
-				...state,
-			},
+			[path]: isOpen,
 		}));
 	};
 
-	useEffect(() => {
-		const pathMapping: PathMapping = {};
-		Object.keys(state).forEach((path) => {
-			if (state[path].playgroundPath) {
-				pathMapping[path] = state[path].playgroundPath!;
-			}
-		});
-		onMappingChange(pathMapping);
-	}, [state]);
+	const selectPath = (path: string) => {
+		setSelectedPath(path);
+		onSelect(path);
+	};
 
 	const generatePath = (node: FileNode, parentPath = ''): string => {
 		return parentPath
@@ -100,6 +97,7 @@ const PathMappingControl: React.FC<PathMappingFormProps> = ({
 				for (let i = 0; i < buttons.length; i++) {
 					const index = (startIndex + i) % buttons.length;
 					const button = buttons[index];
+					console.log('button', button.textContent);
 					if (
 						button.textContent
 							?.toLowerCase()
@@ -122,15 +120,23 @@ const PathMappingControl: React.FC<PathMappingFormProps> = ({
 
 	const thisContainerRef = useRef<HTMLDivElement>(null);
 
+	useEffect(() => {
+		// automatically focus the first button when the files are loaded
+		if (thisContainerRef.current) {
+			const firstButton = initialPath
+				? thisContainerRef.current.querySelector(
+						`[data-path="${initialPath}"]`
+				  )
+				: thisContainerRef.current.querySelector('.file-node-button');
+			if (firstButton) {
+				(firstButton as HTMLButtonElement).focus();
+			}
+		}
+	}, [files.length > 0]);
+
 	return (
 		<div onKeyDown={handleKeyDown} ref={thisContainerRef}>
-			<TreeGrid className="path-mapping-control">
-				<TreeGridRow level={0} positionInSet={0} setSize={1}>
-					<TreeGridCell>{() => <>File/Folder</>}</TreeGridCell>
-					<TreeGridCell>
-						{() => <>Absolute path in Playground</>}
-					</TreeGridCell>
-				</TreeGridRow>
+			<TreeGrid className={css['pathMappingControl']}>
 				{files.map((file, index) => (
 					<NodeRow
 						key={file.name}
@@ -138,8 +144,10 @@ const PathMappingControl: React.FC<PathMappingFormProps> = ({
 						level={0}
 						position={index + 1}
 						setSize={files.length}
-						nodeStates={state}
-						updateNodeState={updatePathMapping}
+						expandedNodePaths={expanded}
+						expandNode={expandNode}
+						selectedNode={selectedPath}
+						selectPath={selectPath}
 						generatePath={generatePath}
 					/>
 				))}
@@ -153,8 +161,10 @@ const NodeRow: React.FC<{
 	level: number;
 	position: number;
 	setSize: number;
-	nodeStates: MappingNodeStates;
-	updateNodeState: (path: string, state: Partial<MappingNodeState>) => void;
+	expandedNodePaths: ExpandedNodePaths;
+	expandNode: (path: string, isOpen: boolean) => void;
+	selectPath: (path: string) => void;
+	selectedNode: string | null;
 	generatePath: (node: FileNode, parentPath?: string) => string;
 	parentPath?: string;
 	parentMapping?: string;
@@ -163,62 +173,21 @@ const NodeRow: React.FC<{
 	level,
 	position,
 	setSize,
-	nodeStates,
-	updateNodeState,
+	expandedNodePaths,
+	expandNode,
+	selectPath,
 	generatePath,
 	parentPath = '',
-	parentMapping = '',
+	selectedNode,
 }) => {
 	const path = generatePath(node, parentPath);
-	const nodeState = nodeStates[path] || {
-		isOpen: false,
-		playgroundPath: '',
-		pathType: '',
-	};
-	const nodeMapping = computeMapping({
-		node,
-		nodeState,
-		parentMapping,
-	});
+	const isExpanded = expandedNodePaths[path];
 
-	const toggleOpen = () => {
-		updateNodeState(path, { isOpen: !nodeState.isOpen });
-	};
-
-	const handlePathChange = (value: string | undefined) => {
-		updateNodeState(path, { playgroundPath: value });
-	};
-
-	const handlePathSelectChange = (pathType: string) => {
-		switch (pathType) {
-			case 'plugin':
-				updateNodeState(path, {
-					pathType,
-					playgroundPath:
-						'/wordpress/wp-content/plugins/' + node.name,
-				});
-				break;
-			case 'theme':
-				updateNodeState(path, {
-					pathType,
-					playgroundPath: '/wordpress/wp-content/themes/' + node.name,
-				});
-				break;
-			case 'wp-content':
-				updateNodeState(path, {
-					pathType,
-					playgroundPath: '/wordpress/wp-content',
-				});
-				break;
-			default:
-				updateNodeState(path, { pathType, playgroundPath: '' });
-				break;
-		}
-	};
+	const toggleOpen = () => expandNode(path, !isExpanded);
 
 	const handleKeyDown = (event: any) => {
 		if (event.key === 'ArrowLeft') {
-			if (nodeState.isOpen) {
+			if (isExpanded) {
 				toggleOpen();
 			} else {
 				if (node.children?.length) {
@@ -232,7 +201,7 @@ const NodeRow: React.FC<{
 			event.preventDefault();
 			event.stopPropagation();
 		} else if (event.key === 'ArrowRight') {
-			if (nodeState.isOpen) {
+			if (isExpanded) {
 				if (node.children?.length) {
 					const firstChildPath = generatePath(node.children[0], path);
 					(
@@ -246,6 +215,8 @@ const NodeRow: React.FC<{
 			}
 			event.preventDefault();
 			event.stopPropagation();
+		} else if (event.key === 'Enter' || event.key === 'Space') {
+			selectPath(path);
 		}
 	};
 	return (
@@ -258,65 +229,27 @@ const NodeRow: React.FC<{
 				<TreeGridCell>
 					{() => (
 						<Button
-							onClick={toggleOpen}
+							onClick={() => {
+								toggleOpen();
+								selectPath(path);
+							}}
 							onKeyDown={handleKeyDown}
-							className="file-node-button"
+							className={classNames(css['fileNodeButton'], {
+								[css['selected']]: selectedNode === path,
+								'file-node-button': true,
+							})}
 							data-path={path}
 						>
 							<FileName
 								node={node}
-								isOpen={
-									node.type === 'folder' && nodeState.isOpen
-								}
+								isOpen={node.type === 'folder' && isExpanded}
 								level={level}
 							/>
 						</Button>
 					)}
 				</TreeGridCell>
-				<TreeGridCell>
-					{() => (
-						<>
-							{!parentMapping && (
-								<SelectControl
-									label="Path"
-									value={nodeState.pathType}
-									onChange={handlePathSelectChange}
-									options={[
-										{ label: 'Select a path', value: '' },
-										{ label: 'Plugin', value: 'plugin' },
-										{ label: 'Theme', value: 'theme' },
-										{
-											label: 'wp-content',
-											value: 'wp-content',
-										},
-										{
-											label: 'Custom path',
-											value: 'custom-path',
-										},
-									]}
-								/>
-							)}
-							{(parentMapping || nodeState.pathType !== '') && (
-								<InputControl
-									disabled={
-										!!parentMapping ||
-										(nodeState.pathType?.trim() !== '' &&
-											nodeState.pathType !==
-												'custom-path')
-									}
-									value={nodeMapping}
-									onChange={handlePathChange}
-									onDrag={function noRefCheck() {}}
-									onDragEnd={function noRefCheck() {}}
-									onDragStart={function noRefCheck() {}}
-									onValidate={function noRefCheck() {}}
-								/>
-							)}
-						</>
-					)}
-				</TreeGridCell>
 			</TreeGridRow>
-			{nodeState.isOpen &&
+			{isExpanded &&
 				node.children &&
 				node.children.map((child, index) => (
 					<NodeRow
@@ -325,34 +258,17 @@ const NodeRow: React.FC<{
 						level={level + 1}
 						position={index + 1}
 						setSize={node.children!.length}
-						nodeStates={nodeStates}
-						updateNodeState={updateNodeState}
+						expandedNodePaths={expandedNodePaths}
+						expandNode={expandNode}
+						selectedNode={selectedNode}
+						selectPath={selectPath}
 						generatePath={generatePath}
 						parentPath={path}
-						parentMapping={nodeMapping}
 					/>
 				))}
 		</>
 	);
 };
-
-function computeMapping({
-	node,
-	nodeState,
-	parentMapping,
-}: {
-	node: FileNode;
-	nodeState: MappingNodeState;
-	parentMapping: string;
-}): string {
-	if (parentMapping) {
-		return `${parentMapping}/${node.name}`.replace(/\/+/g, '/');
-	}
-	if (nodeState.playgroundPath) {
-		return nodeState.playgroundPath;
-	}
-	return '';
-}
 
 const FileName: React.FC<{
 	node: FileNode;
@@ -374,9 +290,10 @@ const FileName: React.FC<{
 			) : (
 				<div style={{ width: 16 }}>&nbsp;</div>
 			)}
-			{node.name}
+			<Icon width={16} icon={node.type === 'folder' ? folder : file} />
+			<span className={css['fileName']}>{node.name}</span>
 		</>
 	);
 };
 
-export default PathMappingControl;
+export default FilePickerControl;

@@ -1,7 +1,10 @@
 import classNames from 'classnames';
 import css from './style.module.css';
 import { SiteInfo } from '../../../lib/site-storage';
-import { getLogoDataURL, WordPressIcon } from '../icons';
+import {
+	getLogoDataURL,
+	WordPressIcon,
+} from '../../../../../components/src/icons';
 import { useState } from '@wordpress/element';
 import {
 	Button,

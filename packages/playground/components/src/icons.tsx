@@ -1,6 +1,7 @@
-import { SiteLogo } from '../../lib/site-storage';
+import React from 'react';
+import { SiteLogo } from '../../website/src/lib/site-storage';
 
-export const Logo = (props?: React.SVGProps<SVGSVGElement>) => {
+export const playgroundLogo = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
 		<svg
 			width="32"
@@ -38,7 +39,7 @@ export const Logo = (props?: React.SVGProps<SVGSVGElement>) => {
 	);
 };
 
-export const TemporaryStorageIcon = (props?: React.SVGProps<SVGSVGElement>) => {
+export const temporaryStorage = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
 		<svg
 			width="16"
@@ -76,7 +77,7 @@ export const WordPressIcon = (props?: React.SVGProps<SVGSVGElement>) => {
 	);
 };
 
-export const FolderIcon = (
+export const folder = (
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		width="15"
@@ -88,12 +89,24 @@ export const FolderIcon = (
 			fillRule="evenodd"
 			clipRule="evenodd"
 			d="M7.59196 3.59524L6.77745 1.96623C6.70755 1.82641 6.56464 1.7381 6.40832 1.7381H1.65079C1.42287 1.7381 1.2381 1.92287 1.2381 2.15079V11.8492C1.2381 12.0771 1.42287 12.2619 1.65079 12.2619H13.2063C13.4343 12.2619 13.619 12.0771 13.619 11.8492V4.00794C13.619 3.78001 13.4343 3.59524 13.2063 3.59524H7.59196ZM8.35714 2.35714L7.88484 1.41254C7.60521 0.853274 7.0336 0.5 6.40832 0.5H1.65079C0.739085 0.5 0 1.23909 0 2.15079V11.8492C0 12.7609 0.739085 13.5 1.65079 13.5H13.2063C14.1181 13.5 14.8571 12.7609 14.8571 11.8492V4.00794C14.8571 3.09623 14.1181 2.35714 13.2063 2.35714H8.35714Z"
-			fill="#949494"
 		/>
 	</svg>
 );
 
-export const ClockIcon = (
+export const file = (
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		width="16"
+		height="16"
+		fill="currentColor"
+		className="bi bi-file-earmark"
+		viewBox="0 0 16 16"
+	>
+		<path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z" />
+	</svg>
+);
+
+export const clock = (
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		width="14"
@@ -110,7 +123,7 @@ export const ClockIcon = (
 	</svg>
 );
 
-export const LayoutIcon = (
+export const layout = (
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		width="14"

@@ -1,5 +1,5 @@
 import React from 'react';
-import PathMappingControlDemo from './PathMappingControl/demo';
+import FilePickerControlDemo from './FilePickerControl/demo';
 
 import { createRoot } from 'react-dom/client';
 
@@ -7,8 +7,8 @@ import { createRoot } from 'react-dom/client';
 
 const components = [
 	{
-		name: 'PathMappingControl',
-		component: PathMappingControlDemo,
+		name: 'GitPathControl',
+		component: FilePickerControlDemo,
 	},
 ];
 

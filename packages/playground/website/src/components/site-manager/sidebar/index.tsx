@@ -10,7 +10,10 @@ import {
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
 } from '@wordpress/components';
-import { TemporaryStorageIcon, WordPressIcon } from '../icons';
+import {
+	temporaryStorage,
+	WordPressIcon,
+} from '../../../../../components/src/icons';
 import { type SiteLogo } from '../../../lib/site-storage';
 import { SiteInfo } from '../../../lib/site-storage';
 import { AddSiteButton } from '../add-site-button';
@@ -92,7 +95,7 @@ export function Sidebar({
 								icon={
 									site.storage === 'temporary' ||
 									!site.storage ? (
-										<TemporaryStorageIcon
+										<temporaryStorage
 											className={
 												css.sidebarItemStorageIcon
 											}
