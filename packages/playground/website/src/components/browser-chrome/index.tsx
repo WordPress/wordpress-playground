@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
-import { close } from '@wordpress/icons';
 import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
 import { Button, Modal } from '@wordpress/components';
