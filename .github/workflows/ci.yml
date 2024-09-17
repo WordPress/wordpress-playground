@@ -51,8 +51,13 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
               run: npx playwright install --with-deps
+            - name: Start preview server
+              run: npx nx run playground-website:preview:ci
+            - name: Set environment variable
+              run: |
+                  echo "BASE_URL=http://127.0.0.1/" >> $GITHUB_ENV
             - name: Run Playwright tests
-              run: npx nx run playground-website:e2e:playwright:ci
+              run: npx playwright test --config=packages/playground/website/playwright.config.ts
             - uses: actions/upload-artifact@v4
               if: failure()
               with:
