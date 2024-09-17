@@ -44,16 +44,11 @@ jobs:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
     test-e2e-playwright:
-        timeout-minutes: 60
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: lts/*
-            - name: Install dependencies
-              run: npm ci
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
               run: npx playwright install --with-deps
             - name: Run Playwright tests
