@@ -142,14 +142,13 @@
 				"baseUrl": "https://playground.test/website-server/"
 			}
 		},
-		"e2e:playwright:dev": {
+		"e2e:playwright": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx playwright test --config=packages/playground/website/playwright.config.ts --ui --debug"
+					"npx playwright test --config=packages/playground/website/playwright.config.ts"
 				]
-			},
-			"dependsOn": ["dev"]
+			}
 		}
 	},
 	"tags": ["scope:web-client"]

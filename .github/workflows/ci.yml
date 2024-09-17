@@ -51,8 +51,6 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
               run: npx playwright install --with-deps
-            - name: Start preview server
-              run: npx nx run playground-website:preview:ci
             - name: Set environment variable
               run: |
                   echo "BASE_URL=http://127.0.0.1/" >> $GITHUB_ENV
@@ -75,7 +73,7 @@ jobs:
     deploy_docs:
         if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit, test-e2e, build]
+        needs: [test-unit, test-e2e, test-e2e-playwright, build]
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
