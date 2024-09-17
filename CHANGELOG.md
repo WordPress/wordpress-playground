@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v0.9.42] (2024-09-17) 
+
+### PHP WebAssembly
+
+- FS: Use the correct rm/rmdir method when moving files between mounts. ([#1770](https://github.com/WordPress/wordpress-playground/pull/1770))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
 ## [v0.9.41] (2024-09-16) 
 
 
