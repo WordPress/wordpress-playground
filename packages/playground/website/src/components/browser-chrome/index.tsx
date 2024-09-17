@@ -4,6 +4,7 @@ import AddressBar from '../address-bar';
 import { close } from '@wordpress/icons';
 import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
+import { Button, Modal } from '@wordpress/components';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -29,24 +30,14 @@ export default function BrowserChrome({
 	});
 	const wrapperClass = classNames(css.wrapper, css.hasFullSizeWindow);
 
-	const [noticeHidden, setNoticeHidden] = useState(
-		document.cookie.includes('hideExperimentalNotice=true')
+	const [isModalOpen, setIsModalOpen] = useState(
+		!document.cookie.includes('hideExperimentalNotice=true')
 	);
 
-	const hideNotice = () => {
+	const hideModal = () => {
+		setIsModalOpen(false);
 		document.cookie = 'hideExperimentalNotice=true';
-		setNoticeHidden(true);
 	};
-	useEffect(() => {
-		const hideNoticeTimeout = setTimeout(hideNotice, 20000);
-		return () => {
-			clearTimeout(hideNoticeTimeout);
-		};
-	}, []);
-
-	const experimentalNoticeClass = classNames(css.experimentalNotice, {
-		[css.isHidden]: noticeHidden,
-	});
 
 	/**
 	 * Temporary feature flag to enable the site manager
@@ -93,12 +84,24 @@ export default function BrowserChrome({
 					<div className={css.toolbarButtons}>{toolbarButtons}</div>
 				</header>
 				<div className={css.content}>{children}</div>
-				<div className={experimentalNoticeClass} onClick={hideNotice}>
-					{close}
-					This is a cool fun experimental WordPress running in your
-					browser :) All your changes are private and gone after a
-					page refresh.
-				</div>
+				{isModalOpen && (
+					<Modal title="Howdy!" onRequestClose={hideModal}>
+						<p>
+							This is a cool and fun experimental WordPress
+							running in your browser.
+						</p>
+						<p>
+							{' '}
+							All your changes are private and gone after a page
+							refresh.
+						</p>
+						<p>
+							<Button variant="primary" onClick={hideModal}>
+								Ok, let's go! 🚀
+							</Button>
+						</p>
+					</Modal>
+				)}
 			</div>
 		</div>
 	);

@@ -6,31 +6,6 @@
   background-attachment: fixed;
 } */
 
-.experimental-notice {
-	display: flex;
-	padding: 10px 22px;
-	background: #fff7cc;
-	font-family: 'Andale mono', Helvetica, Monospace, Arial;
-	font-style: normal;
-	font-weight: 100;
-	font-size: 12px;
-	line-height: 18px;
-	align-items: center;
-	color: #1e1e1e;
-	cursor: pointer;
-}
-
-.experimental-notice svg {
-	margin-right: 10px;
-	width: 20px;
-	min-width: 20px;
-	fill: #e14640;
-}
-
-.experimental-notice.is-hidden {
-	display: none;
-}
-
 body.is-embedded .fake-window-wrapper {
 	padding: 15px;
 }
