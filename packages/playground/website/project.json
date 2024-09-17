@@ -153,8 +153,7 @@
 				"ci": {
 					"commands": [
 						"npx nx run playground-website:preview:ci &",
-						"BASE_URL=http://localhost",
-						"npx playwright test --config=packages/playground/website/playwright.config.ts"
+						"BASE_URL=http://127.0.0.1 npx playwright test --config=packages/playground/website/playwright.config.ts"
 					]
 				}
 			},
