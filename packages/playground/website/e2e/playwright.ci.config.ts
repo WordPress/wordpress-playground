@@ -63,8 +63,8 @@ export default defineConfig({
 	],
 
 	webServer: {
-		command: 'npx nx run playground-website:preview',
+		command: 'npx nx run playground-website:preview:ci',
 		url: 'http://127.0.0.1/',
-		reuseExistingServer: !process.env.CI,
+		reuseExistingServer: false,
 	},
 });

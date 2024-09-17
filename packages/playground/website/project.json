@@ -148,15 +148,16 @@
 				"commands": [
 					"npx playwright test --config=packages/playground/website/e2e/playwright.config.ts"
 				]
-			},
-			"configurations": {
-				"ci": {
-					"commands": [
-						"npx playwright test --config=packages/playground/website/e2e/playwright.ci.config.ts --verbose"
-					],
-					"dependsOn": ["build"]
-				}
 			}
+		},
+		"e2e:playwright:ci": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/e2e/playwright.ci.config.ts"
+				]
+			},
+			"dependsOn": ["build"]
 		}
 	},
 	"tags": ["scope:web-client"]
