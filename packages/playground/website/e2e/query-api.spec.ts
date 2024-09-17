@@ -19,7 +19,7 @@ test('should load PHP 8.0 by default', async ({ page, wordpressPage }) => {
 	await expect(h1).toContainText('PHP Version 8.0');
 });
 
-test.only('should load WordPress latest by default', async ({
+test('should load WordPress latest by default', async ({
 	page,
 	wordpressPage,
 }) => {
@@ -27,7 +27,15 @@ test.only('should load WordPress latest by default', async ({
 
 	const expectedBodyClass =
 		'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
-	console.log(expectedBodyClass);
 	const body = wordpressPage.locator(`body.${expectedBodyClass}`);
+	await expect(body).toContainText('Dashboard');
+});
+
+test('should load WordPress 6.3 when requested', async ({
+	page,
+	wordpressPage,
+}) => {
+	await page.goto('./?wp=6.3&url=/wp-admin');
+	const body = wordpressPage.locator(`body.branch-6-3`);
 	await expect(body).toContainText('Dashboard');
 });
