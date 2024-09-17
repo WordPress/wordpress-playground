@@ -46,18 +46,14 @@ jobs:
     test-e2e-playwright:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
+        # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
-              run: npx playwright install --with-deps
-            - name: Start preview server
-              run: npx nx run playground-website:preview
-            - name: Set environment variable
-              run: |
-                  echo "BASE_URL=http://127.0.0.1:5932/" >> $GITHUB_ENV
+              run: sudo npx playwright install --with-deps
             - name: Run Playwright tests
-              run: npx playwright test --config=packages/playground/website/playwright.config.ts
+              run: sudo npx nx run playground-website:e2e:playwright:ci
             - uses: actions/upload-artifact@v4
               if: failure()
               with:
@@ -75,7 +71,7 @@ jobs:
     deploy_docs:
         if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit, test-e2e, test-e2e-playwright, build]
+        needs: [test-unit, test-e2e, build]
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
