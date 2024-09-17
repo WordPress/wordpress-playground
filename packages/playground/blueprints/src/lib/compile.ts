@@ -86,7 +86,7 @@ export function compileBlueprint(
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	// Deep clone the blueprint to avoid mutating the input
-	blueprint = JSON.parse(JSON.stringify(blueprint));
+	blueprint = structuredClone(blueprint);
 
 	blueprint = {
 		...blueprint,
