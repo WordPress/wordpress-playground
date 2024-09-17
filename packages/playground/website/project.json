@@ -146,18 +146,17 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx playwright test --config=packages/playground/website/playwright.config.ts"
+					"npx playwright test --config=packages/playground/website/e2e/playwright.config.ts"
 				]
 			},
 			"configurations": {
 				"ci": {
 					"commands": [
-						"npx nx run playground-website:preview:ci &",
-						"BASE_URL=http://127.0.0.1 npx playwright test --config=packages/playground/website/playwright.config.ts"
-					]
+						"npx playwright test --config=packages/playground/website/e2e/playwright.ci.config.ts"
+					],
+					"dependsOn": ["build"]
 				}
-			},
-			"dependsOn": ["build"]
+			}
 		}
 	},
 	"tags": ["scope:web-client"]
