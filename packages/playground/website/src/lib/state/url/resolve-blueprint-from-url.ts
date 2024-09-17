@@ -124,7 +124,7 @@ export async function resolveBlueprintFromURL(url: URL) {
 	}
 
 	// Login
-	if (query.get('login') === 'yes') {
+	if (query.get('login') !== 'no') {
 		blueprint.login = true;
 	}
 
