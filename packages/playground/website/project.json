@@ -152,7 +152,7 @@
 			"configurations": {
 				"ci": {
 					"commands": [
-						"npx playwright test --config=packages/playground/website/e2e/playwright.ci.config.ts"
+						"npx playwright test --config=packages/playground/website/e2e/playwright.ci.config.ts --verbose"
 					],
 					"dependsOn": ["build"]
 				}
