@@ -14,7 +14,6 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await page.goto(`/#${encodedBlueprint}`);
 
-	// Use wordpressPage to interact with the WordPress content
-	const bodyText = await wordpressPage.locator('body');
+	const bodyText = wordpressPage.locator('body');
 	await expect(bodyText).toContainText('My Sites');
 });
