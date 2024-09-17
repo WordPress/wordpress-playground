@@ -1,6 +1,6 @@
 import { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { encodeStringAsBase64 } from '../../base64';
+import { decodeBase64ToString } from '../../base64';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -30,7 +30,7 @@ export function parseBlueprint(rawData: string) {
 		try {
 			return JSON.parse(rawData);
 		} catch (e) {
-			return JSON.parse(encodeStringAsBase64(rawData));
+			return JSON.parse(decodeBase64ToString(rawData));
 		}
 	} catch (e) {
 		throw new Error('Invalid blueprint');
