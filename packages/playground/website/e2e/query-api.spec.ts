@@ -39,3 +39,40 @@ test('should load WordPress 6.3 when requested', async ({
 	const body = wordpressPage.locator(`body.branch-6-3`);
 	await expect(body).toContainText('Dashboard');
 });
+
+test('should disable networking when requested', async ({
+	page,
+	wordpressPage,
+}) => {
+	await page.goto('./?networking=no&url=/wp-admin/plugin-install.php');
+	const body = wordpressPage.locator('.notice.error');
+	await expect(body).toContainText(
+		'Network access is an experimental, opt-in feature'
+	);
+});
+
+test('should enable networking when requested', async ({
+	page,
+	wordpressPage,
+}) => {
+	await page.goto('./?networking=yes&url=/wp-admin/plugin-install.php');
+	const body = wordpressPage.locator('body');
+	await expect(body).toContainText('Install Now');
+});
+
+test('should enable networking when requested AND the kitchen sink extension bundle is NOT enabled', async ({
+	page,
+	wordpressPage,
+}) => {
+	await page.goto(
+		'./?networking=yes&php-extension-bundle=light&url=/wp-admin/plugin-install.php'
+	);
+	const body = wordpressPage.locator('body');
+	await expect(body).toContainText('Install Now');
+});
+
+test('should install the specified plugin', async ({ page, wordpressPage }) => {
+	await page.goto('./?plugin=gutenberg&url=/wp-admin/plugins.php');
+	const body = wordpressPage.locator('[data-slug=gutenberg].active');
+	await expect(body).toBeDefined();
+});
