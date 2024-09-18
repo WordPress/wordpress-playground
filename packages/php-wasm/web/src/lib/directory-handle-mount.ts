@@ -218,9 +218,8 @@ export async function copyMemfsToOpfs(
 		outstandingWrites.add(promiseToCreateFile);
 
 		if (outstandingWrites.size >= maxConcurrentWrites) {
-			// @TODO: See if we can continue once we are under the max rather than waiting for all.
-			await Promise.all(outstandingWrites);
-			outstandingWrites.clear();
+			// We should be under max concurrency when any write completes.
+			await Promise.race(outstandingWrites);
 		}
 	}
 
