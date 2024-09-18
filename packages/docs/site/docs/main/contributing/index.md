@@ -32,7 +32,7 @@ Want to help sort through open issues and resolve potential bugs? Here's how:
 
 ## A note on contributing and the GPL license
 
-Playground and the WordPress project are strongly rooted in free and open source software. Specifically, Playground is licenced under GPLv2 (or later) from the [Free Software Foundation](https://www.fsf.org/). You can [read the text of the license here](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
+Playground and the WordPress project are strongly rooted in free and open source software. Specifically, Playground is licenced under GPLv2 (or later) from the [Free Software Foundation](https://www.fsf.org/). You can [read the text of the license here](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
 
 As such, please be aware of the implications your contributions will fall under:
 
