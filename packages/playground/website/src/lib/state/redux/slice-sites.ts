@@ -74,17 +74,6 @@ const sitesSlice = createSlice({
 	},
 });
 
-export function generateUniqueSiteName(defaultName: string, sites: SiteInfo[]) {
-	const baseName = defaultName;
-	let suffix = 1;
-	let uniqueName = baseName;
-	// eslint-disable-next-line no-loop-func
-	while (sites.some((site) => site.metadata.name === uniqueName)) {
-		uniqueName = `${baseName} ${suffix++}`;
-	}
-	return uniqueName;
-}
-
 export const siteListingLoaded = (sites: SiteInfo[]) => {
 	return (
 		dispatch: PlaygroundDispatch,

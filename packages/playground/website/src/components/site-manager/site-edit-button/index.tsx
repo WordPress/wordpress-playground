@@ -138,15 +138,18 @@ function InMemorySiteEditButton({
 				},
 			})
 		);
-		// @TODO: Display a notification "site updated"
+		// @TODO: Display a notification of updated site or forked site
 		setModalOpen(false);
 	};
 	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
 		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
 		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
 		return {
-			// @TODO: Populate with the site name from the original URL params and
-			//        when the site is saved, update it instead of creating a new temp site.
+			// @TODO: Choose one:
+			// - Populate with the site name from the original URL params and
+			//   when the site is saved, update it instead of creating a new temp site.
+			// - Fork existing site and populate with new random name.
+			// - Allow user to choose between Fork and Edit operations
 			name: randomSiteName(),
 			phpVersion: runtimeConf?.preferredVersions?.php as any,
 			wpVersion: runtimeConf?.preferredVersions?.wp as any,

@@ -192,6 +192,10 @@ export default function SiteSettingsForm({
 										[css.invalidInput]: !!errors.language,
 									})}
 									options={[
+										// @TODO: Let's extract this to a
+										// dedicated module and add a test
+										// (or build step) to ensure that
+										// all supported locales are included.
 										{ value: 'af', label: 'Afrikaans' },
 										{ value: 'ar', label: 'Arabic' },
 										{

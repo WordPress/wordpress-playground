@@ -40,7 +40,6 @@ export const PlaygroundViewport = ({
 	className,
 }: PlaygroundViewportProps) => {
 	if (displayMode === 'seamless') {
-		// No need to boot the playground if seamless.
 		return <KeepAliveTemporarySitesViewport />;
 	}
 	return (

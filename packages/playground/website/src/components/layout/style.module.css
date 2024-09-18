@@ -66,7 +66,7 @@ body {
 		 * The `width` property needs to be `auto` to ensure the
 		 * site manager panel expands and shrinks with its content.
 		 * Unfortunately, we can't animate width from `0` to `auto`.
-		 * Therefore, we animate the `max-width` proeprty instead.
+		 * Therefore, we animate the `max-width` property instead.
 		 * We assign a large enough number (1300px) to make sure it won't
 		 * interfere with regular use cases, and give it more time to animate
 		 * so that it hits its `auto` width approximately around the same time

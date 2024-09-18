@@ -35,12 +35,13 @@ import {
 
 acquireOAuthTokenIfNeeded();
 
-const query = new URL(document.location.href).searchParams;
-const displayMode: DisplayMode = supportedDisplayModes.includes(
-	query.get('mode') as any
-)
-	? (query.get('mode') as DisplayMode)
-	: 'browser-full-screen';
+const displayMode = getDisplayModeFromQuery();
+function getDisplayModeFromQuery(): DisplayMode {
+	const query = new URLSearchParams(document.location.search);
+	return supportedDisplayModes.includes(query.get('mode') as any)
+		? (query.get('mode') as DisplayMode)
+		: 'browser-full-screen';
+}
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
