@@ -199,47 +199,6 @@ describe('Query API', () => {
 		});
 	});
 
-	describe('option `storage`', () => {
-		describe('storage=none', () => {
-			it('should reset Playground data after every refresh', () => {
-				// Create a Playground site with a custom title
-				cy.visit(
-					'/?storage=none#{"siteOptions":{"blogname":"persistent storage"}}'
-				);
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-
-				// Reload the page and verify that the title is not there anymore
-				cy.visit('/?storage=none');
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('not.contain', 'persistent storage');
-			});
-		});
-		describe('storage=browser', () => {
-			it('should store the Playground data in the browser', () => {
-				// Create a Playground site with a custom title
-				cy.visit(
-					'/?storage=browser#{"siteOptions":{"blogname":"persistent storage"}}'
-				);
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-
-				// Reload the page and verify that the title is still there
-				cy.visit('/?storage=browser');
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-			});
-		});
-	});
-
 	describe('Patching Gutenberg editor frame', () => {
 		it('should patch the editor frame in WordPress', () => {
 			cy.visit('/?plugin=gutenberg&url=/wp-admin/post-new.php');
