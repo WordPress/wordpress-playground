@@ -3,6 +3,7 @@ import path, { join } from 'path';
 import { spawn } from 'child_process';
 import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
+
 const parser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
 	.options({
@@ -101,7 +102,9 @@ try {
 }
 
 if (!args.force && versionInfo.slug !== 'nightly' && versions[versionInfo.slug] === versionInfo.version) {
-	process.stdout.write(`The requested version was ${args.wpVersion}, but its latest release (${versionInfo.version}) is already downloaded\n`);
+	process.stdout.write(
+		`The requested version was ${args.wpVersion}, but its latest release (${versionInfo.version}) is already downloaded\n`
+	);
 	process.exit(0);
 }
 

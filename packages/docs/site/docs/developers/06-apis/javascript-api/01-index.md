@@ -30,7 +30,7 @@ import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx
 :::info /remote.html is a special URL
 
 `/remote.html` is a special URL that loads the Playground
-API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](./02-index-html-vs-remote-html.md).
+API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html).
 
 :::
 
@@ -38,9 +38,9 @@ API endpoint instead of the demo app with the browser UI. Read more about the di
 
 Now that you have a `client` object, you can use it to control the website inside the iframe. There are three ways to do that:
 
--   [Playground API Client](./03-playground-api-client.md)
--   [Blueprint JSON](./04-blueprint-json-in-api-client.md)
--   [Blueprint functions](./05-blueprint-functions-in-api-client.md)
+-   [Playground API Client](/developers/apis/javascript-api/playground-api-client)
+-   [Blueprint JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
+-   [Blueprint functions](/developers/apis/javascript-api/blueprint-functions-in-api-client)
 
 ## Debugging and testing
 

@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/wasm-php-data-dependencies
+---
+
 # Data dependencies (browser version)
 
 Importing file to PHP by manually calling `writeFile()` would be quite inconvenient. Fortunately, Emscripten provides a "data dependencies" feature.

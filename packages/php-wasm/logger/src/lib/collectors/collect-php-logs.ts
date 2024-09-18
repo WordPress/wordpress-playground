@@ -2,7 +2,7 @@ import type { UniversalPHP, PHPRequestErrorEvent } from '../types';
 import { Logger } from '../logger';
 
 let lastPHPLogLength = 0;
-const errorLogPath = '/wordpress/wp-content/debug.log';
+export const errorLogPath = '/wordpress/wp-content/debug.log';
 
 /**
  * Read the WordPress debug.log file and return its content.

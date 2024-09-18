@@ -173,7 +173,7 @@ Here's a few quickstart guides to get you started:
 
 ## WordCamp Contributor Day
 
-If you're participating in a WordCamp Contributor Day, you can use the following instructions to get started: [WordCamp Contributor Day](https://wordpress.github.io/wordpress-playground/docs/wordcamp-contributor-day/).
+If you're participating in a WordCamp Contributor Day, you can use the following instructions to get started: [WordCamp Contributor Day](https://wordpress.github.io/wordpress-playground/contributing/contributor-day/).
 
 ## Backwards compatibility
 
