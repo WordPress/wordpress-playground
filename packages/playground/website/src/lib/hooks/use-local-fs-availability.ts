@@ -1,9 +1,12 @@
 import { PlaygroundClient } from '@wp-playground/client';
 import { useState, useEffect } from 'react';
 
-export type LocalFsAvailability = true | 'not-available' | 'origin-mismatch';
+export type LocalFsAvailability =
+	| 'available'
+	| 'not-available'
+	| 'origin-mismatch';
 
-async function isLocalFsAvailable(
+async function determineLocalFsAvailability(
 	playground: PlaygroundClient
 ): Promise<LocalFsAvailability> {
 	if (!(window as any).showDirectoryPicker) {
@@ -16,10 +19,10 @@ async function isLocalFsAvailable(
 		return 'origin-mismatch';
 	}
 
-	return true;
+	return 'available';
 }
 
-export function useIsLocalFsAvailable(playground?: PlaygroundClient) {
+export function useLocalFsAvailability(playground?: PlaygroundClient) {
 	const [isAvailable, setIsAvailable] = useState<LocalFsAvailability | null>(
 		null
 	);
@@ -29,7 +32,7 @@ export function useIsLocalFsAvailable(playground?: PlaygroundClient) {
 			if (!playground) {
 				return;
 			}
-			setIsAvailable(await isLocalFsAvailable(playground));
+			setIsAvailable(await determineLocalFsAvailability(playground));
 		}
 		check();
 	}, [playground]);

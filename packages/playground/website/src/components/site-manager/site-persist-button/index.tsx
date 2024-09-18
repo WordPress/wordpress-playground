@@ -9,7 +9,7 @@ import {
 import css from './style.module.css';
 import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary-site';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import { useIsLocalFsAvailable } from '../../../lib/hooks/is-local-fs-available';
+import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
 
 export function SitePersistButton({
 	siteSlug,
@@ -21,7 +21,7 @@ export function SitePersistButton({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, siteSlug)
 	);
-	const isLocalFsAvailable = useIsLocalFsAvailable(clientInfo?.client);
+	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const dispatch = useAppDispatch();
 
 	if (!clientInfo?.opfsIsSyncing) {
@@ -37,7 +37,7 @@ export function SitePersistButton({
 					</DropdownMenuItemLabel>
 				</DropdownMenuItem>
 				<DropdownMenuItem
-					disabled={isLocalFsAvailable !== true}
+					disabled={localFsAvailability !== 'available'}
 					onClick={() =>
 						dispatch(persistTemporarySite(siteSlug, 'local-fs'))
 					}
@@ -45,9 +45,9 @@ export function SitePersistButton({
 					<DropdownMenuItemLabel>
 						Save in a local directory
 					</DropdownMenuItemLabel>
-					{isLocalFsAvailable !== true && (
+					{localFsAvailability !== 'available' && (
 						<DropdownMenuItemHelpText>
-							{isLocalFsAvailable === 'not-available'
+							{localFsAvailability === 'not-available'
 								? 'Not available in this browser'
 								: 'Not available on this site'}
 						</DropdownMenuItemHelpText>
