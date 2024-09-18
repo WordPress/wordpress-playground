@@ -253,18 +253,14 @@ export function GitPathControl({
 
 	return (
 		<>
-			<div
-				className={css['pathMappingButtonWrapper']}
+			<Button
+				variant="secondary"
+				className={css['pathPickerControl']}
 				onClick={openModal}
 			>
-				<Button
-					variant="secondary"
-					className={css['pathMappingButton']}
-				>
-					Browse
-				</Button>
+				<span className={css['pathPickerBrowse']}>Browse</span>
 				<PathPreview path={lastSelectedPath?.path} />
-			</div>
+			</Button>
 			{isOpen && (
 				<Modal
 					title="Select a path "

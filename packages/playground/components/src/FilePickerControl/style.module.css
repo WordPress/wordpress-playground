@@ -95,7 +95,7 @@
 	justify-content: center;
 }
 
-.path-mapping-button-wrapper {
+.path-picker-control {
 	border: 1px solid #ddd;
 	border-radius: 4px;
 	padding: 2px;
@@ -104,6 +104,25 @@
 	width: 230px;
 	gap: 8px;
 	cursor: pointer;
+
+	.path-picker-browse {
+		display: inline-flex;
+		text-decoration: none;
+		font-family: inherit;
+		font-weight: normal;
+		font-size: 13px;
+		margin: 0;
+		border: 0;
+		cursor: pointer;
+		-webkit-appearance: none;
+		background: none;
+		transition: box-shadow 0.1s linear;
+		align-items: center;
+		box-sizing: border-box;
+		padding: 6px 12px;
+		border-radius: 2px;
+		border: 1px solid #ddd;
+	}
 
 	.selected-path {
 		width: 250px;
@@ -114,6 +133,7 @@
 
 	.path-preview {
 		overflow: hidden;
+		color: #000 !important;
 	}
 }
 
