@@ -29,7 +29,7 @@ export function RestoreFromZipMenuItem({ onClose, disabled }: Props) {
 		<>
 			<MenuItem
 				data-cy="restore-from-zip"
-				aria-label="Download the current playground as a .zip file"
+				aria-label="Import a .zip file into the current Playground"
 				onClick={openModal}
 				disabled={disabled}
 			>
