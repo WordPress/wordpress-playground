@@ -36,7 +36,7 @@ const redirections = [
 		to: '/developers/architecture/host-your-own-playground',
 		from: '/architecture/host-your-own-playground',
 	},
-	{ to: '/developers/architecture/index', from: '/architecture/index' },
+	{ to: '/developers/architecture', from: '/architecture/index' },
 	{ to: '/blueprints', from: '/blueprints-api/index' },
 	{ to: '/contributing', from: '/contributing/index' },
 	{ to: '/developers/apis/javascript-api', from: '/javascript-api/index' },
@@ -72,7 +72,7 @@ const redirections = [
 		to: '/developers/architecture/wordpress-database',
 		from: '/architecture/wordpress-database',
 	},
-	{ to: '/blueprints/tutorial/', from: '/blueprints-api/blueprint-101/' },
+	{ to: '/blueprints/tutorial', from: '/blueprints-api/blueprint-101/' },
 	{
 		to: '/blueprints/tutorial/build-your-first-blueprint',
 		from: '/blueprints-api/blueprint-101/build-your-first-blueprint',
@@ -82,7 +82,7 @@ const redirections = [
 		from: '/blueprints-api/blueprint-101/how-to-load-run-blueprints',
 	},
 	{
-		to: '/blueprints/troubleshoot-and-debug-blueprints',
+		to: '/blueprints/troubleshoot-and-debug',
 		from: '/blueprints-api/blueprint-101/troubleshoot-debug-blueprints',
 	},
 	{
@@ -102,7 +102,7 @@ const redirections = [
 		from: '/blueprints-api/steps-shorthands',
 	},
 	{
-		to: '/blueprints/troubleshoot-and-debug-blueprints',
+		to: '/blueprints/troubleshoot-and-debug',
 		from: '/blueprints-api/troubleshoot-and-debug-blueprints',
 	},
 	{

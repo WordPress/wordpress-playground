@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/wordpress
+---
+
 # WordPress support
 
 WordPress, as a PHP application, can run on PHP WebAssembly. However, there are a few caveats.
@@ -12,8 +16,8 @@ Behind the scenes, the official [SQLite Database Integration](https://github.com
 
 ## WordPress in the browser
 
-WordPress Playground ships a [bundled WordPress](./06-wasm-php-data-dependencies.md) that you can use in the browser. It's optimized for size, and the installation wizard is run for you.
+WordPress Playground ships a [bundled WordPress](/developers/architecture/wasm-php-data-dependencies) that you can use in the browser. It's optimized for size, and the installation wizard is run for you.
 
 ## WordPress in Node.js
 
-In Node.js, you'll typically want to [mount WordPress](./05-wasm-php-filesystem.md) from a disk directory.
+In Node.js, you'll typically want to [mount WordPress](/developers/architecture/wasm-php-filesystem) from a disk directory.
