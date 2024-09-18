@@ -188,15 +188,37 @@ export async function copyMemfsToOpfs(
 	}
 	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot);
 
+	// @TODO: Understand why Safari is failing when writing many files concurrently
+	// with createSyncAccessHandle.
+	// Safari doesn't support createWritable as of 2024-09-18,
+	// and we are getting errors in Safari while using createSyncAccessHandle() in parallel.
+	// So for now, we write one file at a time when falling back to createSyncAccessHandle.
+	const writeOneAtATime = !FileSystemFileHandle.prototype.createWritable;
+
 	// Now let's create all the required files in OPFS. This is quite slow
 	// so we report progress.
 	let i = 0;
-	const filesCreated = filesToCreate.map(([opfsDir, memfsPath, entryName]) =>
-		overwriteOpfsFile(opfsDir, entryName, FS, memfsPath).then(() => {
+	const outstandingWrites = [];
+	for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
+		const promiseToCreateFile = overwriteOpfsFile(
+			opfsDir,
+			entryName,
+			FS,
+			memfsPath
+		).then(() => {
 			onProgress?.({ files: ++i, total: filesToCreate.length });
-		})
-	);
-	await Promise.all(filesCreated);
+		});
+
+		if (writeOneAtATime) {
+			await promiseToCreateFile;
+		} else {
+			outstandingWrites.push(promiseToCreateFile);
+		}
+	}
+
+	if (outstandingWrites.length > 0) {
+		await Promise.all(outstandingWrites);
+	}
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {
