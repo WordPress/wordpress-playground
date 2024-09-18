@@ -1,4 +1,4 @@
-import { test, expect } from './wordpress-fixtures';
+import { test, expect } from './playground-fixtures';
 
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -73,6 +73,7 @@ test('should enable networking when requested AND the kitchen sink extension bun
 
 test('should install the specified plugin', async ({ page, wordpressPage }) => {
 	await page.goto('./?plugin=gutenberg&url=/wp-admin/plugins.php');
-	const body = wordpressPage.locator('[data-slug=gutenberg].active');
-	await expect(body).toBeDefined();
+
+	const deactivationLink = wordpressPage.locator('#deactivate-gutenberg');
+	await expect(deactivationLink).toContainText('Deactivate');
 });

@@ -1,4 +1,4 @@
-import { test, expect } from './wordpress-fixtures';
+import { test, expect } from './playground-fixtures';
 import { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../src/lib/base64';
 
