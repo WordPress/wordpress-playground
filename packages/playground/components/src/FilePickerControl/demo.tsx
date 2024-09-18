@@ -253,20 +253,17 @@ export function GitPathControl({
 
 	return (
 		<>
-			<div className={css['pathMappingButtonWrapper']}>
-				<InputControl
-					label="Repository path"
-					value={lastSelectedPath.path}
-					onChange={(value) =>
-						setLastSelectedPath({
-							...lastSelectedPath,
-							path: value as string,
-						})
-					}
-				/>
-				<Button variant="secondary" onClick={openModal}>
+			<div
+				className={css['pathMappingButtonWrapper']}
+				onClick={openModal}
+			>
+				<Button
+					variant="secondary"
+					className={css['pathMappingButton']}
+				>
 					Browse
 				</Button>
+				<PathPreview path={lastSelectedPath?.path} />
 			</div>
 			{isOpen && (
 				<Modal
@@ -292,5 +289,32 @@ export function GitPathControl({
 				</Modal>
 			)}
 		</>
+	);
+}
+
+function PathPreview({ path }: { path: string }) {
+	if (!path) {
+		return (
+			<div className={css['pathPreview']}>
+				<i>Select a path</i>
+			</div>
+		);
+	}
+
+	const segments = path.split('/');
+	let pathPreviewEnd = (segments.length > 2 ? '/' : '') + segments.pop();
+	if (pathPreviewEnd.length > 10) {
+		pathPreviewEnd = pathPreviewEnd.substring(pathPreviewEnd.length - 10);
+	}
+	const pathPreviewStart = path.substring(
+		0,
+		path.length - pathPreviewEnd.length
+	);
+	return (
+		<div
+			className={css['pathPreview']}
+			data-content-start={pathPreviewStart}
+			data-content-end={pathPreviewEnd}
+		></div>
 	);
 }

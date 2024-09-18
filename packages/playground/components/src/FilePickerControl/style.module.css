@@ -98,10 +98,12 @@
 .path-mapping-button-wrapper {
 	border: 1px solid #ddd;
 	border-radius: 4px;
-	padding: 8px;
+	padding: 2px;
 	display: flex;
-	align-items: flex-end;
+	align-items: center;
+	width: 230px;
 	gap: 8px;
+	cursor: pointer;
 
 	.selected-path {
 		width: 250px;
@@ -109,6 +111,14 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+
+	.path-preview {
+		overflow: hidden;
+	}
+}
+
+.path-mapping-button {
+	height: 30px;
 }
 
 .loading-container {
@@ -122,4 +132,27 @@
 .loading-container :global(.components-spinner) {
 	width: 40px;
 	height: 40px;
+}
+
+.path-preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.path-preview::before,
+.path-preview::after {
+	overflow: hidden;
+	white-space: pre;
+}
+
+.path-preview::before {
+	content: attr(data-content-start);
+	text-overflow: ellipsis;
+	flex-grow: 1;
+}
+
+.path-preview::after {
+	content: attr(data-content-end);
+	flex-shrink: 0;
 }
