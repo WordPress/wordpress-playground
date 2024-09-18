@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/browser-php-worker-threads
+---
+
 # PHP Worker Threads
 
 PHP is always ran in a [web worker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) to ensure the PHP runtime doesn't slow down the user interface of the main website.

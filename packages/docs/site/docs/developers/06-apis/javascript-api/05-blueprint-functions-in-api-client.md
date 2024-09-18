@@ -30,4 +30,4 @@ await installPlugin(client, {
 });
 ```
 
-For more information and live examples visit the [Blueprints Steps page](../../../blueprints/05-steps.md).
+For more information and live examples visit the [Blueprints Steps page](/blueprints/steps).
