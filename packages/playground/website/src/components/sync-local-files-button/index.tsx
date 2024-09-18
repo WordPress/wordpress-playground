@@ -23,6 +23,7 @@ export function SyncLocalFilesButton() {
 						mountpoint: docroot,
 						initialSyncDirection: 'opfs-to-memfs',
 					});
+					// @TODO Report error to avoid confusion on silent failure.
 				} finally {
 					setIsSyncing(false);
 				}
