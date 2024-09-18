@@ -141,8 +141,10 @@
 	height: 30px;
 }
 
+.error-container,
 .loading-container {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	gap: 8px;

@@ -17,37 +17,6 @@ import {
 } from '@wordpress/components';
 import css from './style.module.css';
 
-// const mockFileStructure = [
-// 	{
-// 		name: '/',
-// 		type: 'folder' as const,
-// 		children: [
-// 			{
-// 				name: 'Documents',
-// 				type: 'folder' as const,
-// 				children: [
-// 					{ name: 'Resume.pdf', type: 'file' as const },
-// 					{ name: 'CoverLetter.docx', type: 'file' as const },
-// 				],
-// 			},
-// 			{
-// 				name: 'Pictures',
-// 				type: 'folder' as const,
-// 				children: [
-// 					{
-// 						name: 'Vacation',
-// 						type: 'folder' as const,
-// 						children: [
-// 							{ name: 'beach.png', type: 'file' as const },
-// 						],
-// 					},
-// 				],
-// 			},
-// 			{ name: 'todo.txt', type: 'file' as const },
-// 		],
-// 	},
-// ];
-
 export default function GitBrowserDemo() {
 	const [repoUrl, setRepoUrl] = React.useState(
 		'http://127.0.0.1:5263/proxy.php/https://github.com/WordPress/wordpress-playground.git'
@@ -179,9 +148,14 @@ export function GitPathPicker({
 }: GitPathPickerProps) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [files, setFiles] = useState<FileTree[]>([]);
+	const [error, setError] = useState<Error | null>(null);
 	useEffect(() => {
 		listFiles(repoUrl, branch)
 			.then(setFiles)
+			.catch((e) => {
+				setError(e);
+				throw e;
+			})
 			.finally(() => setIsLoading(false));
 	}, [repoUrl, branch]);
 
@@ -199,19 +173,29 @@ export function GitPathPicker({
 		onSelect({ path, descendants: descendantPaths });
 	}
 
+	if (isLoading) {
+		return (
+			<div className={css['loadingContainer']}>
+				<Spinner />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className={css['errorContainer']}>
+				<h2>Error loading git files</h2>
+				<p>{error.message}</p>
+			</div>
+		);
+	}
+
 	return (
-		<>
-			{isLoading && (
-				<div className={css['loadingContainer']}>
-					<Spinner />
-				</div>
-			)}
-			<FilePickerControl
-				files={files}
-				initialPath={selectedPath}
-				onSelect={handleSelect}
-			/>
-		</>
+		<FilePickerControl
+			files={files}
+			initialPath={selectedPath}
+			onSelect={handleSelect}
+		/>
 	);
 }
 
