@@ -73,6 +73,9 @@ export function SiteInfoPanel({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
+	const activeSiteError = useAppSelector(
+		(state) => state.ui.activeSite?.error
+	);
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
 
@@ -238,7 +241,11 @@ export function SiteInfoPanel({
 												<MenuItem
 													aria-label="Delete this site"
 													className={css.danger}
-													disabled={!playground}
+													disabled={
+														// Allow deletion of broken sites with loading errors
+														!playground &&
+														!activeSiteError
+													}
 													onClick={() =>
 														removeSiteAndCloseMenu(
 															onClose

@@ -4,7 +4,9 @@ export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
 	| 'directory-handle-permission-denied'
 	| 'directory-handle-directory-does-not-exist'
-	| 'directory-handle-unknown-error';
+	| 'directory-handle-unknown-error'
+	// @TODO: Improve name?
+	| 'site-boot-failed';
 
 export interface UIState {
 	activeSite?: {
