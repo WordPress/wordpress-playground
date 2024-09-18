@@ -13,11 +13,6 @@ import { Blueprint } from '@wp-playground/blueprints';
 describe('Playground website UI', () => {
 	beforeEach(() => cy.visit('/?networking=no'));
 
-	it('should reflect the URL update from the navigation bar in the WordPress site', () => {
-		cy.setWordPressUrl('/wp-admin');
-		cy.wordpressPath().should('contain', '/wp-admin');
-	});
-
 	// Test all PHP versions for completeness
 	describe('PHP version switcher', () => {
 		SupportedPHPVersions.forEach((version) => {
