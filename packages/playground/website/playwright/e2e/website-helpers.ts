@@ -65,3 +65,17 @@ export const selectWordPressVersion = async (page: Page, version: string) => {
 export const getSiteInfoRowValue = async (page: Page, key: string) => {
 	return await page.locator('.site-info-row-value-' + key).innerText();
 };
+
+export const setNetworkingEnabled = async (page: Page, enabled: boolean) => {
+	const checkbox = page.locator('input[name="withNetworking"]');
+	await expect(checkbox).toBeVisible();
+	if (enabled) {
+		await checkbox.check();
+	} else {
+		await checkbox.uncheck();
+	}
+};
+
+export const hasNetworkingEnabled = async (page: Page) => {
+	return (await getSiteInfoRowValue(page, 'network-access')) === 'Yes';
+};

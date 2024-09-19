@@ -5,11 +5,14 @@ import {
 	expandSiteView,
 	getSiteInfoRowValue,
 	getSiteTitle,
+	hasNetworkingEnabled,
 	openEditSettings,
 	openNewSiteModal,
 	selectPHPVersion,
 	selectWordPressVersion,
+	setNetworkingEnabled,
 } from './website-helpers.ts';
+import { Blueprint } from '@wp-playground/blueprints';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -115,3 +118,58 @@ Object.keys(MinifiedWordPressVersions)
 			).toMatch(version);
 		});
 	});
+
+test('should display networking as inactive by default', async ({ page }) => {
+	await page.goto('./');
+
+	await expect(await hasNetworkingEnabled(page)).toBeFalsy();
+});
+
+test('should display networking as active when networking is enabled', async ({
+	page,
+}) => {
+	await page.goto('./?networking=yes');
+	await expect(await hasNetworkingEnabled(page)).toBeTruthy();
+});
+
+test('should enable networking when requested', async ({ page }) => {
+	await page.goto('./');
+
+	await openEditSettings(page);
+	await setNetworkingEnabled(page, true);
+	await clickSaveInEditSettings(page);
+
+	await expect(await hasNetworkingEnabled(page)).toBeTruthy();
+});
+
+test('should disable networking when requested', async ({ page }) => {
+	await page.goto('./?networking=yes');
+
+	await openEditSettings(page);
+	await setNetworkingEnabled(page, false);
+	await clickSaveInEditSettings(page);
+
+	await expect(await hasNetworkingEnabled(page)).toBeFalsy();
+});
+
+test('should display PHP output even when a fatal error is hit', async ({
+	page,
+	wordpressPage,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/err.php',
+		login: true,
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/err.php',
+				data: "<?php throw new Exception('This is a fatal error'); \n",
+			},
+		],
+	};
+	await page.goto(`./#${JSON.stringify(blueprint)}`);
+
+	await expect(wordpressPage.locator('body')).toContainText(
+		'This is a fatal error'
+	);
+});
