@@ -1,6 +1,7 @@
 ---
 sidebar_position: 8
 title: Examples
+slug: /blueprints/examples
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';

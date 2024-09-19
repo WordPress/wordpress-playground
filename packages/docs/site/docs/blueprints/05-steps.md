@@ -1,5 +1,6 @@
 ---
 sidebar_position: 3
+slug: /blueprints/steps
 ---
 
 # Steps
@@ -22,11 +23,11 @@ Each step is an object that contains a `step` property that specifies the type o
 
 The following step-related topics are addressed on dedicated pages included in this section:
 
--   [Resources References](./04-resources.md) allow you use external files in Blueprints.
+-   [Resources References](/blueprints/steps/resources) allow you use external files in Blueprints.
 
--   Some steps have a shorthand version. Check the [Shorthands](./05-steps-shorthands.md) section for more information about them.
+-   Some steps have a shorthand version. Check the [Shorthands](/blueprints/steps/shorthands) section for more information about them.
 
--   For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](./07-json-api-and-function-api.md) page for further details.
+-   For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](/blueprints/steps/api-consistency) page for further details.
 
 :::tip
 The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!

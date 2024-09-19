@@ -4,7 +4,7 @@ slug: /contributing/documentation
 
 # Documentation contributions
 
-[WordPress Playground's documentation site](../intro.md) is maintained by volunteers like you, who'd love your help.
+[WordPress Playground's documentation site](/) is maintained by volunteers like you, who'd love your help.
 
 All [documentation-related topics](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Documentation) are labeled `documentation`. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 
