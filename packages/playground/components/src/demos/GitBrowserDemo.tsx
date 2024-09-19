@@ -22,7 +22,7 @@ export default function GitBrowserDemo() {
 	const [repoUrl, setRepoUrl] = React.useState(
 		'http://127.0.0.1:5263/proxy.php/https://github.com/WordPress/wordpress-playground.git'
 	);
-	const [branch, setBranch] = React.useState('refs/heads/trunk');
+	const [branch, setBranch] = React.useState('HEAD');
 
 	const [filesPromise, setFilesPromise] = React.useState<Promise<FileTree[]>>(
 		() => Promise.resolve([])
@@ -106,9 +106,17 @@ export default function GitBrowserDemo() {
 					<h2 style={{ marginTop: 0 }}>Path mappings</h2>
 					{pathMappings.map((pathMapping, index) => (
 						<PathMappingRow
-							key={index}
+							key={`${index}`}
+							// @TODO: Fix, haha
+							// key={`${index}-${pathMapping.gitPath}-${pathMapping.wpPath}`}
 							value={pathMapping}
 							files={files}
+							onRemove={() => {
+								const newPathMappings = pathMappings
+									.slice(0, index)
+									.concat(pathMappings.slice(index + 1));
+								setPathMappings(newPathMappings);
+							}}
 							onChange={(value) => {
 								const newPathMappings = [...pathMappings];
 								newPathMappings[index] = value;
@@ -163,10 +171,12 @@ function PathMappingRow({
 	value,
 	files,
 	onChange,
+	onRemove,
 }: {
 	value: PathMapping;
 	files: PromiseState<FileTree[]>;
 	onChange: (value: PathMapping) => void;
+	onRemove: () => void;
 }) {
 	const basePath = '/wordpress';
 	const [selectedPathType, setSelectedPathType] = React.useState<
@@ -268,6 +278,11 @@ function PathMappingRow({
 						onChange={(value) => setCustomPath(value as string)}
 					/>
 				)}
+			</FlexItem>
+			<FlexItem>
+				<Button variant="secondary" onClick={onRemove}>
+					Remove
+				</Button>
 			</FlexItem>
 		</Flex>
 	);
