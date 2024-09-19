@@ -4,6 +4,7 @@ import {
 	__experimentalTreeGridRow as TreeGridRow,
 	__experimentalTreeGridCell as TreeGridCell,
 	Button,
+	Spinner,
 } from '@wordpress/components';
 import { Icon, chevronRight, chevronDown } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
@@ -21,11 +22,15 @@ export type FilePickerControlProps = {
 	files: FileNode[];
 	initialPath?: string;
 	onSelect?: (path: string) => void;
+	isLoading?: boolean;
+	error?: string;
 };
 
 type ExpandedNodePaths = Record<string, boolean>;
 
 const FilePickerTree: React.FC<FilePickerControlProps> = ({
+	isLoading = false,
+	error = undefined,
 	files,
 	initialPath,
 	onSelect = () => {},
@@ -132,6 +137,23 @@ const FilePickerTree: React.FC<FilePickerControlProps> = ({
 			}
 		}
 	}, [files.length > 0]);
+
+	if (isLoading) {
+		return (
+			<div className={css['loadingContainer']}>
+				<Spinner />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className={css['errorContainer']}>
+				<h2>Error loading files</h2>
+				<p>{error}</p>
+			</div>
+		);
+	}
 
 	return (
 		<div onKeyDown={handleKeyDown} ref={thisContainerRef}>

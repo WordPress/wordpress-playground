@@ -2,33 +2,25 @@ import React, { useState } from 'react';
 import { Button, Modal } from '@wordpress/components';
 import { PathPreview } from './PathPreview';
 import css from './style.module.css';
+import type { FileNode } from '../FilePickerTree';
 import FilePickerTree from '../FilePickerTree';
-import type { FileNode, FilePickerControlProps } from '../FilePickerTree';
 
 export function FilePickerControl({
 	value = '',
 	onChange,
-	onOpen = () => {},
-	onClose = () => {},
 	files = [],
-	filePickerTree: FilePickerTreeComponent = FilePickerTree,
+	isLoading = false,
+	error = undefined,
 }: {
 	value?: string;
 	onChange: (selectedPath: string) => void;
-	onOpen?: () => void;
-	onClose?: () => void;
 	files?: FileNode[];
-	filePickerTree?: React.ComponentType<FilePickerControlProps>;
+	isLoading?: boolean;
+	error?: string;
 }) {
 	const [isOpen, setOpen] = useState(false);
-	const openModal = () => {
-		setOpen(true);
-		onOpen();
-	};
-	const closeModal = () => {
-		setOpen(false);
-		onClose();
-	};
+	const openModal = () => setOpen(true);
+	const closeModal = () => setOpen(false);
 
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		value || null
@@ -42,7 +34,7 @@ export function FilePickerControl({
 	return (
 		<>
 			<Button
-				variant="secondary"
+				variant="tertiary"
 				className={css['control']}
 				onClick={openModal}
 			>
@@ -56,10 +48,12 @@ export function FilePickerControl({
 					className={css['modal']}
 				>
 					<form onSubmit={handleSubmit}>
-						<FilePickerTreeComponent
+						<FilePickerTree
 							files={files}
 							initialPath={value}
 							onSelect={setLastSelectedPath}
+							isLoading={isLoading}
+							error={error}
 						/>
 						<div className={css['modalFooter']}>
 							<Button type="submit" variant="primary">
