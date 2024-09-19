@@ -146,7 +146,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx playwright test --config=packages/playground/website/e2e/playwright.config.ts"
+					"npx playwright test --config=packages/playground/website/playwright/playwright.config.ts"
 				]
 			}
 		},
@@ -154,7 +154,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx playwright test --config=packages/playground/website/e2e/playwright.ci.config.ts"
+					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
 				]
 			},
 			"dependsOn": ["build"]
