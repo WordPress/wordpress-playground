@@ -119,6 +119,8 @@ describe('Playground website UI', () => {
  * The actual networking functionality is tested in the Query API tests.
  */
 describe('Website UI – Networking support', () => {
+	cy.setCookie('hideExperimentalNotice', 'true');
+
 	it('should display an unchecked networking checkbox by default', () => {
 		cy.visit('/');
 
