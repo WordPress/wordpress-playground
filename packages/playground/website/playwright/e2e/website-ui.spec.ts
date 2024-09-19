@@ -1,4 +1,4 @@
-import { test, expect } from './playground-fixtures.ts';
+import { test, expect } from '../playground-fixtures.ts';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
