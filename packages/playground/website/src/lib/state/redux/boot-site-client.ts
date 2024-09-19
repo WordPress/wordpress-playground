@@ -126,6 +126,7 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
+			dispatch(setActiveSiteError('site-boot-failed'));
 			dispatch(setActiveModal('error-report'));
 			return;
 		}

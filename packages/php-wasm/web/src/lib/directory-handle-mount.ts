@@ -188,15 +188,44 @@ export async function copyMemfsToOpfs(
 	}
 	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot);
 
+	// @TODO: Understand why Safari is failing when writing many files concurrently
+	// with createSyncAccessHandle.
+	// Safari doesn't support createWritable as of 2024-09-18,
+	// and we are getting errors in Safari while using createSyncAccessHandle() in parallel.
+	// But in testing, Safari's createSyncAccessHandle() only begins to when
+	// writing ~125 files concurrently. So for now, we are limiting Safari to 100 concurrent writes
+	// to hopefully give us a safe margin.
+	// @ts-ignore -- Safari doesn't support createWritable as of 2024-09-18.
+	const maxConcurrentWrites = FileSystemFileHandle.prototype.createWritable
+		? Infinity
+		: 100;
+
 	// Now let's create all the required files in OPFS. This is quite slow
 	// so we report progress.
 	let i = 0;
-	const filesCreated = filesToCreate.map(([opfsDir, memfsPath, entryName]) =>
-		overwriteOpfsFile(opfsDir, entryName, FS, memfsPath).then(() => {
+	const outstandingWrites = new Set<Promise<void>>();
+	for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
+		const promiseToCreateFile = overwriteOpfsFile(
+			opfsDir,
+			entryName,
+			FS,
+			memfsPath
+		).then(() => {
+			outstandingWrites.delete(promiseToCreateFile);
 			onProgress?.({ files: ++i, total: filesToCreate.length });
-		})
-	);
-	await Promise.all(filesCreated);
+		});
+
+		outstandingWrites.add(promiseToCreateFile);
+
+		if (outstandingWrites.size >= maxConcurrentWrites) {
+			// We should be under max concurrency when any write completes.
+			await Promise.race(outstandingWrites);
+		}
+	}
+
+	if (outstandingWrites.size > 0) {
+		await Promise.all(outstandingWrites);
+	}
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {

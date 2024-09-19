@@ -134,7 +134,6 @@ export function persistTemporarySite(
 				},
 			})
 		);
-
 		/**
 		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
 		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
@@ -142,15 +141,10 @@ export function persistTemporarySite(
 		 * respond with another message and these unexpected exchange throws off
 		 * Comlink. We should make Comlink ignore those.
 		 */
-		// redirectTo(PlaygroundRoute.site(selectSiteBySlug(state, siteSlug)));
-
-		redirectTo(
-			PlaygroundRoute.site({
-				slug: siteSlug,
-				metadata: {
-					storage: storageType,
-				},
-			} as any)
-		);
+		// @TODO: ^ Is this fixed now?
+		const updatedState = getState();
+		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
+		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
+		redirectTo(persistentSiteUrl);
 	};
 }
