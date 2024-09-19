@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
 	FileTree,
 	listDescendantFiles,
@@ -11,7 +11,7 @@ import {
 	SelectControl,
 	__experimentalInputControl as InputControl,
 } from '@wordpress/components';
-import { GitFilePickerControl } from '.';
+import { AsyncFilePickerControl } from '../AsyncFilePickerControl';
 
 export default function GitBrowserDemo() {
 	const [repoUrl, setRepoUrl] = React.useState(
@@ -22,14 +22,19 @@ export default function GitBrowserDemo() {
 	const [selectedPathType, setSelectedPathType] = React.useState<
 		'mu-plugin' | 'plugin' | 'theme' | 'custom'
 	>('mu-plugin');
+	
 	const [selectedPath, setSelectedPath] = React.useState('');
 	const [files, setFiles] = React.useState<FileTree[]>([]);
-	React.useEffect(() => {
-		listFiles(repoUrl, branch).then(setFiles);
-	}, []);
 	const filesToCheckout = React.useMemo(() => {
 		return listDescendantFiles(files, selectedPath);
 	}, [files, selectedPath]);
+
+	const loadFiles = useCallback(() => {
+		return listFiles(repoUrl, branch).then(files => {
+			setFiles(files);
+			return files;
+		});
+	}, [repoUrl, branch]);
 
 	const [checkedOutFiles, setCheckedOutFiles] = React.useState<
 		Record<string, string>
@@ -57,11 +62,10 @@ export default function GitBrowserDemo() {
 					value={branch}
 					onChange={(value) => setBranch(value as string)}
 				/>
-				<GitFilePickerControl
-					repoUrl={repoUrl}
-					branch={branch}
+				<AsyncFilePickerControl
 					selectedPath={selectedPath}
-					onSelect={(selection) => setSelectedPath(selection.path)}
+					loadFiles={loadFiles}
+					onSelect={(path) => setSelectedPath(path)}
 				/>
 			</FlexItem>
 			<FlexItem style={{ width: '300px' }}>

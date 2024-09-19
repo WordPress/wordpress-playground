@@ -1,5 +1,5 @@
 import React from 'react';
-import GitFilePickerControlDemo from './GitFilePickerControl/demo';
+import GitBrowserDemo from './GitBrowserDemo';
 
 import { createRoot } from 'react-dom/client';
 
@@ -7,8 +7,8 @@ import { createRoot } from 'react-dom/client';
 
 const components = [
 	{
-		name: 'GitFilePickerControl',
-		component: GitFilePickerControlDemo,
+		name: 'GitBrowserDemo',
+		component: GitBrowserDemo,
 	},
 ];
 

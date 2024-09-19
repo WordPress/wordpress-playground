@@ -1,58 +1,41 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-	FileTree,
-	listDescendantFiles,
-	listFiles,
-} from '@wp-playground/storage';
+import React, { useEffect, useState } from 'react';
+import type { FileTree } from '@wp-playground/storage';
 import { Spinner } from '@wordpress/components';
 import css from './style.module.css';
 import FilePickerTree, { FilePickerControlProps } from '../FilePickerTree';
 import { FilePickerControl } from '../FilePickerControl';
 import { usePromise } from '../hooks/use-promise';
 
-interface GitPathPickerProps {
-	repoUrl: string;
-	branch: string;
+interface AsyncPathPickerProps {
+	loadFiles: () => Promise<FileTree[]>;
 	selectedPath?: string;
-	onSelect: (selection: GitPathSelection) => void;
+	onSelect: (path: string) => void;
 }
 
-interface GitPathSelection {
-	path: string;
-	descendants: string[];
-}
-
-export function GitFilePickerControl({
-	repoUrl,
-	branch,
+export function AsyncFilePickerControl({
+	loadFiles,
 	selectedPath = '',
 	onSelect,
-}: GitPathPickerProps) {
+}: AsyncPathPickerProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	/**
-	 * Only request the list of files from the Git repository when the modal is open.
+	 * Only request the list of files from the Async repository when the modal is open.
 	 */
 	const [filesPromise, setFilesPromise] = useState<{
-		branch?: string;
-		repoUrl?: string;
+		loadFiles?: any;
 		filesPromise: Promise<FileTree[]>;
 	}>(() => ({
 		filesPromise: Promise.resolve([]),
 	}));
 	useEffect(() => {
-		if (
-			isOpen &&
-			(filesPromise?.branch !== branch ||
-				filesPromise?.repoUrl !== repoUrl)
-		) {
+		if (isOpen && loadFiles !== filesPromise?.loadFiles) {
 			setFilesPromise({
-				branch,
-				repoUrl,
-				filesPromise: listFiles(repoUrl, branch),
+				loadFiles,
+				filesPromise: loadFiles(),
 			});
 		}
-	}, [repoUrl, branch, isOpen]);
+	}, [isOpen, loadFiles]);
 
 	const {
 		isLoading,
@@ -60,15 +43,8 @@ export function GitFilePickerControl({
 		data: files,
 	} = usePromise(filesPromise.filesPromise);
 
-	const descendantPaths = useMemo(() => {
-		if (files && selectedPath) {
-			return listDescendantFiles(files, selectedPath);
-		}
-		return [];
-	}, [files, selectedPath]);
-
 	function handleSelect(path: string) {
-		onSelect({ path, descendants: descendantPaths });
+		onSelect(path);
 	}
 
 	return (
@@ -90,7 +66,7 @@ export function GitFilePickerControl({
 				if (error) {
 					return (
 						<div className={css['errorContainer']}>
-							<h2>Error loading git files</h2>
+							<h2>Error loading files</h2>
 							<p>{error?.message}</p>
 						</div>
 					);
