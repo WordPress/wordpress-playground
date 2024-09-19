@@ -29,7 +29,7 @@ export function StartErrorModal() {
 				point out the specific step causing the issue. You can then
 				double-check your blueprint. For more help, you can also{' '}
 				<a
-					href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug-blueprints"
+					href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug/"
 					target="_blank"
 					rel="noreferrer"
 				>
