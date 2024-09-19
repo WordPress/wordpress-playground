@@ -134,7 +134,14 @@ export function persistTemporarySite(
 				},
 			})
 		);
-
+		/**
+		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
+		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
+		 * I suspect the postMessage call we do to the safari worker causes it to
+		 * respond with another message and these unexpected exchange throws off
+		 * Comlink. We should make Comlink ignore those.
+		 */
+		// @TODO: ^ Is this fixed now?
 		const updatedState = getState();
 		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
