@@ -119,9 +119,8 @@ describe('Playground website UI', () => {
  * The actual networking functionality is tested in the Query API tests.
  */
 describe('Website UI – Networking support', () => {
-	cy.setCookie('hideExperimentalNotice', 'true');
-
 	it('should display an unchecked networking checkbox by default', () => {
+		cy.setCookie('hideExperimentalNotice', 'true');
 		cy.visit('/');
 
 		cy.get('button#configurator').click();
@@ -129,6 +128,7 @@ describe('Website UI – Networking support', () => {
 	});
 
 	it('should display a checked networking checkbox when networking is enabled', () => {
+		cy.setCookie('hideExperimentalNotice', 'true');
 		cy.visit('/?networking=yes');
 
 		cy.get('button#configurator').click();
@@ -147,6 +147,7 @@ describe('Website UI – Networking support', () => {
 				},
 			],
 		};
+		cy.setCookie('hideExperimentalNotice', 'true');
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument()
 			.its('body')
@@ -154,6 +155,7 @@ describe('Website UI – Networking support', () => {
 	});
 
 	it('should enable networking when requested', () => {
+		cy.setCookie('hideExperimentalNotice', 'true');
 		cy.visit('/');
 
 		// Update settings in Playground configurator
@@ -170,6 +172,7 @@ describe('Website UI – Networking support', () => {
 	});
 
 	it('should disable networking when requested', () => {
+		cy.setCookie('hideExperimentalNotice', 'true');
 		cy.visit('/?networking=yes');
 
 		// Update settings in Playground configurator
