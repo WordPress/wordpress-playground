@@ -7,7 +7,9 @@ import {
 	openEditSettings,
 	openNewSiteModal,
 	selectPHPVersion,
+	selectWordPressVersion,
 	validatePHPVersion,
+	validateWordPressVersion,
 } from './website-helpers.ts';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
@@ -80,23 +82,31 @@ SupportedPHPVersions.forEach(async (version) => {
 	}) => {
 		await page.goto('./');
 		await openEditSettings(page);
-
 		await selectPHPVersion(page, version);
 
+		// Uncheck the "with extensions" checkbox
 		const phpExtensionCheckbox = page.locator(
 			'.components-checkbox-control__input[name="withExtensions"]'
 		);
 		await expect(phpExtensionCheckbox).toBeVisible();
-		await phpExtensionCheckbox.click();
+		await phpExtensionCheckbox.uncheck();
 
 		await clickSaveInEditSettings(page);
-
 		await validatePHPVersion(page, version);
 	});
 });
 
-Object.keys(MinifiedWordPressVersions).forEach(async (version) => {
-	test(`should switch WordPress version to ${version}`, async ({ page }) => {
-		await page.goto('./');
+Object.keys(MinifiedWordPressVersions)
+	// WordPress beta versions are not supported in the UI
+	.filter((version) => version !== 'bet')
+	.forEach(async (version) => {
+		test(`should switch WordPress version to ${version}`, async ({
+			page,
+		}) => {
+			await page.goto('./');
+			await openEditSettings(page);
+			await selectWordPressVersion(page, version);
+			await clickSaveInEditSettings(page);
+			await validateWordPressVersion(page, version);
+		});
 	});
-});

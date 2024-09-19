@@ -62,3 +62,16 @@ export const validatePHPVersion = async (page: Page, version: string) => {
 		.allTextContents();
 	expect(textContent).toContain(version);
 };
+
+export const selectWordPressVersion = async (page: Page, version: string) => {
+	const wordpressVersionSelect = page.locator('select[name=wpVersion]');
+	await expect(wordpressVersionSelect).toBeVisible();
+	await wordpressVersionSelect.selectOption(version);
+};
+
+export const validateWordPressVersion = async (page: Page, version: string) => {
+	const textContent = await page
+		.locator('div.components-flex-item')
+		.allTextContents();
+	expect(textContent).toContain(version);
+};

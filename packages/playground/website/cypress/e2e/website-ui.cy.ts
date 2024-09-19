@@ -1,45 +1,4 @@
-// We can't import the WordPress versions directly from the remote package
-// because of ESModules vs CommonJS incompatibilities. Let's just import the
-// JSON file directly. @ts-ignore
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 import { Blueprint } from '@wp-playground/blueprints';
-
-describe('Playground website UI', () => {
-	beforeEach(() => cy.visit('/?networking=no'));
-
-	// Test all WordPress versions for completeness
-	describe('WordPress version selector', () => {
-		for (const version in MinifiedWordPressVersions) {
-			if (version === 'beta') {
-				continue;
-			}
-			// @ts-ignore
-			let versionMessage = 'Version ' + version;
-			if (version === 'nightly') {
-				versionMessage = 'You are using a development version';
-			}
-
-			it('should switch WordPress version to ' + version, () => {
-				// Update settings in Playground configurator
-				cy.get('button#configurator').click();
-				cy.get(`select#wp-version option[value="${version}"]`).should(
-					'exist'
-				);
-				cy.get('select#wp-version').select(`${version}`);
-				cy.get('#modal-content button[type=submit]').click();
-				// Wait for the page to finish loading
-				cy.url().should('contain', `&wp=${version}`);
-
-				// Go to phpinfo
-				cy.setWordPressUrl('/wp-admin');
-				cy.wordPressDocument()
-					.find('#footer-upgrade')
-					.should('contain', versionMessage);
-			});
-		}
-	});
-});
 
 /**
  * These tests only check if the modal UI updates the URL correctly.
