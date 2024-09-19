@@ -241,53 +241,6 @@ describe('Query API', () => {
 				.should('not.have.css', 'background-color', undefined);
 		}
 	});
-
-	describe('Site switching', () => {
-		it('should switch between sites', () => {
-			cy.visit(
-				'/?storage=browser#' +
-					JSON.stringify({
-						landingPage: '/',
-						steps: [
-							{
-								step: 'runPHP',
-								code: `<?php require_once 'wordpress/wp-load.php'; update_option('blogname', 'site-slug-test-1' );`,
-							},
-						],
-					})
-			);
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', 'site-slug-test-1');
-
-			cy.visit(
-				'/?site-slug=new&storage=browser#' +
-					JSON.stringify({
-						landingPage: '/',
-						steps: [
-							{
-								step: 'runPHP',
-								code: `<?php  require_once 'wordpress/wp-load.php'; update_option('blogname', 'site-slug-test-2' );`,
-							},
-						],
-					})
-			);
-
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', 'site-slug-test-2');
-
-			cy.visit(
-				'/?storage=browser#' +
-					JSON.stringify({
-						landingPage: '/',
-					})
-			);
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', 'site-slug-test-1');
-		});
-	});
 });
 
 // Let's disable this test in GitHub actions.

@@ -57,3 +57,50 @@ SupportedPHPVersions.forEach(async (version) => {
 		expect(textContent).toContain(`${version} (with extensions)`);
 	});
 });
+
+test('should switch between sites', async ({ page }) => {
+	await page.goto('./');
+
+	const addPlaygroundButton = page.locator('button.components-button', {
+		hasText: 'Add Playground',
+	});
+	await expect(addPlaygroundButton).toBeVisible();
+	await addPlaygroundButton.click();
+
+	const newSiteName = await page
+		.locator('input[placeholder="Playground name"]')
+		.inputValue();
+	const createTempPlaygroundButton = page.locator(
+		'button.components-button',
+		{
+			hasText: 'Create a temporary Playground',
+		}
+	);
+	await expect(createTempPlaygroundButton).toBeVisible();
+	await createTempPlaygroundButton.click();
+
+	const newSiteTitle = await page.locator(
+		'h1[class*="_site-info-header-details-name"]',
+		{
+			hasText: newSiteName,
+		}
+	);
+	await expect(newSiteTitle).toBeVisible();
+
+	const sidebarItem = page.locator(
+		'.components-button[class*="_sidebar-item"]:not([class*="_sidebar-item--selected_"])'
+	);
+	const siteName = await sidebarItem
+		.locator('.components-flex-item[class*="_sidebar-item--site-name"]')
+		.innerText();
+	await sidebarItem.isVisible();
+	await sidebarItem.click();
+
+	const siteTitle = await page.locator(
+		'h1[class*="_site-info-header-details-name"]',
+		{
+			hasText: siteName,
+		}
+	);
+	await expect(siteTitle).toBeVisible();
+});
