@@ -1,4 +1,4 @@
-import { test, expect } from './playground-fixtures';
+import { test, expect } from '../playground-fixtures';
 
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the

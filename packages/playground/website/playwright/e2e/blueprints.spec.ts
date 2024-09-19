@@ -1,6 +1,6 @@
-import { test, expect } from './playground-fixtures';
+import { test, expect } from '../playground-fixtures';
 import { Blueprint } from '@wp-playground/blueprints';
-import { encodeStringAsBase64 } from '../src/lib/base64';
+import { encodeStringAsBase64 } from '../../src/lib/base64';
 
 test('Base64-encoded Blueprints should work', async ({
 	page,
