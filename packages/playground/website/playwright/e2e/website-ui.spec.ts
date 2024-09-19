@@ -3,13 +3,12 @@ import {
 	clickCreateInNewSiteModal,
 	clickSaveInEditSettings,
 	expandSiteView,
+	getSiteInfoRowValue,
 	getSiteTitle,
 	openEditSettings,
 	openNewSiteModal,
 	selectPHPVersion,
 	selectWordPressVersion,
-	validatePHPVersion,
-	validateWordPressVersion,
 } from './website-helpers.ts';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
@@ -74,7 +73,9 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await clickSaveInEditSettings(page);
 
-		await validatePHPVersion(page, `${version} (with extensions)`);
+		expect(await getSiteInfoRowValue(page, 'php-version')).toMatch(
+			`${version} (with extensions)`
+		);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
@@ -92,13 +93,14 @@ SupportedPHPVersions.forEach(async (version) => {
 		await phpExtensionCheckbox.uncheck();
 
 		await clickSaveInEditSettings(page);
-		await validatePHPVersion(page, version);
+
+		expect(await getSiteInfoRowValue(page, 'php-version')).toMatch(version);
 	});
 });
 
 Object.keys(MinifiedWordPressVersions)
 	// WordPress beta versions are not supported in the UI
-	.filter((version) => version !== 'bet')
+	.filter((version) => !['beta', 'default'].includes(version))
 	.forEach(async (version) => {
 		test(`should switch WordPress version to ${version}`, async ({
 			page,
@@ -107,6 +109,9 @@ Object.keys(MinifiedWordPressVersions)
 			await openEditSettings(page);
 			await selectWordPressVersion(page, version);
 			await clickSaveInEditSettings(page);
-			await validateWordPressVersion(page, version);
+
+			expect(
+				await getSiteInfoRowValue(page, 'wordpress-version')
+			).toMatch(version);
 		});
 	});

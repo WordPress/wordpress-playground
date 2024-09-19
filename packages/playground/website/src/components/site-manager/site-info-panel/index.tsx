@@ -38,10 +38,19 @@ function SiteInfoRow({
 	label: string;
 	value: string | JSX.Element;
 }) {
+	const labelClassSufix = label.toLowerCase().replace(/\s+/g, '-');
 	return (
 		<Flex justify="flex-start" expanded={true}>
-			<FlexItem className={css.infoRowLabel}>{label}</FlexItem>
-			<FlexItem className={css.infoRowValue}>{value}</FlexItem>
+			<FlexItem
+				className={`${css.infoRowLabel} site-info-row-label-${labelClassSufix}`}
+			>
+				{label}
+			</FlexItem>
+			<FlexItem
+				className={`${css.infoRowValue} site-info-row-value-${labelClassSufix}`}
+			>
+				{value}
+			</FlexItem>
 		</Flex>
 	);
 }
