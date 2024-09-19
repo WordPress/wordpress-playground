@@ -47,4 +47,4 @@ export const test = base.extend<WordPressFixtures>({
 	},
 });
 
-export { expect } from '@playwright/test';
+export { expect, Page } from '@playwright/test';

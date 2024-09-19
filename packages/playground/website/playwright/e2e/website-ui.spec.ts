@@ -1,4 +1,14 @@
 import { test, expect } from '../playground-fixtures.ts';
+import {
+	clickCreateInNewSiteModal,
+	clickSaveInEditSettings,
+	expandSiteView,
+	getSiteTitle,
+	openEditSettings,
+	openNewSiteModal,
+	selectPHPVersion,
+	validatePHPVersion,
+} from './website-helpers.ts';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -13,9 +23,7 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 }) => {
 	await page.goto('./?url=/wp-admin');
 
-	const openSiteButton = page.locator('div[title="Open site"]');
-	await expect(openSiteButton).toBeVisible();
-	await openSiteButton.click();
+	await expandSiteView(page);
 
 	const inputElement = page.locator('input[value="/wp-admin/"]');
 	await expect(inputElement).toBeVisible();
@@ -25,31 +33,15 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 test('should switch between sites', async ({ page }) => {
 	await page.goto('./');
 
-	const addPlaygroundButton = page.locator('button.components-button', {
-		hasText: 'Add Playground',
-	});
-	await expect(addPlaygroundButton).toBeVisible();
-	await addPlaygroundButton.click();
+	await openNewSiteModal(page);
 
 	const newSiteName = await page
 		.locator('input[placeholder="Playground name"]')
 		.inputValue();
-	const createTempPlaygroundButton = page.locator(
-		'button.components-button',
-		{
-			hasText: 'Create a temporary Playground',
-		}
-	);
-	await expect(createTempPlaygroundButton).toBeVisible();
-	await createTempPlaygroundButton.click();
 
-	const newSiteTitle = await page.locator(
-		'h1[class*="_site-info-header-details-name"]',
-		{
-			hasText: newSiteName,
-		}
-	);
-	await expect(newSiteTitle).toBeVisible();
+	await clickCreateInNewSiteModal(page);
+
+	await expect(await getSiteTitle(page)).toMatch(newSiteName);
 
 	const sidebarItem = page.locator(
 		'.components-button[class*="_sidebar-item"]:not([class*="_sidebar-item--selected_"])'
@@ -60,13 +52,7 @@ test('should switch between sites', async ({ page }) => {
 	await sidebarItem.isVisible();
 	await sidebarItem.click();
 
-	const siteTitle = await page.locator(
-		'h1[class*="_site-info-header-details-name"]',
-		{
-			hasText: siteName,
-		}
-	);
-	await expect(siteTitle).toBeVisible();
+	await expect(await getSiteTitle(page)).toMatch(siteName);
 });
 
 SupportedPHPVersions.forEach(async (version) => {
@@ -80,45 +66,22 @@ SupportedPHPVersions.forEach(async (version) => {
 		}
 		await page.goto(`./`);
 
-		const editSettingsButton = page.locator('button.components-button', {
-			hasText: 'Edit Playground settings',
-		});
-		await expect(editSettingsButton).toBeVisible();
-		await editSettingsButton.click();
+		await openEditSettings(page);
 
-		const phpVersionSelect = page.locator('select[name=phpVersion]');
-		await expect(phpVersionSelect).toBeVisible();
-		await phpVersionSelect.selectOption(version);
+		await selectPHPVersion(page, version);
 
-		const saveSettingsButton = page.locator(
-			'button.components-button.is-primary',
-			{
-				hasText: 'Update',
-			}
-		);
-		await expect(saveSettingsButton).toBeVisible();
-		await saveSettingsButton.click();
+		await clickSaveInEditSettings(page);
 
-		const textContent = await page
-			.locator('div.components-flex-item')
-			.allTextContents();
-		expect(textContent).toContain(`${version} (with extensions)`);
+		await validatePHPVersion(page, `${version} (with extensions)`);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
 		page,
 	}) => {
 		await page.goto('./');
+		await openEditSettings(page);
 
-		const editSettingsButton = page.locator('button.components-button', {
-			hasText: 'Edit Playground settings',
-		});
-		await expect(editSettingsButton).toBeVisible();
-		await editSettingsButton.click();
-
-		const phpVersionSelect = page.locator('select[name=phpVersion]');
-		await expect(phpVersionSelect).toBeVisible();
-		await phpVersionSelect.selectOption(version);
+		await selectPHPVersion(page, version);
 
 		const phpExtensionCheckbox = page.locator(
 			'.components-checkbox-control__input[name="withExtensions"]'
@@ -126,23 +89,13 @@ SupportedPHPVersions.forEach(async (version) => {
 		await expect(phpExtensionCheckbox).toBeVisible();
 		await phpExtensionCheckbox.click();
 
-		const saveSettingsButton = page.locator(
-			'button.components-button.is-primary',
-			{
-				hasText: 'Update',
-			}
-		);
-		await expect(saveSettingsButton).toBeVisible();
-		await saveSettingsButton.click();
+		await clickSaveInEditSettings(page);
 
-		const textContent = await page
-			.locator('div.components-flex-item')
-			.allTextContents();
-		expect(textContent).toContain(`${version}`);
+		await validatePHPVersion(page, version);
 	});
 });
 
-MinifiedWordPressVersions.forEach(async (version) => {
+Object.keys(MinifiedWordPressVersions).forEach(async (version) => {
 	test(`should switch WordPress version to ${version}`, async ({ page }) => {
 		await page.goto('./');
 	});
