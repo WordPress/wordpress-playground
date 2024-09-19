@@ -4,7 +4,6 @@ import AddressBar from '../address-bar';
 import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
 import { Button, Modal } from '@wordpress/components';
-import { createLogger } from 'vite';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
