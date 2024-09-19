@@ -4,6 +4,7 @@ import AddressBar from '../address-bar';
 import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
 import { Button, Modal } from '@wordpress/components';
+import { createLogger } from 'vite';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -29,12 +30,15 @@ export default function BrowserChrome({
 	});
 	const wrapperClass = classNames(css.wrapper, css.hasFullSizeWindow);
 
-	const [isModalOpen, setIsModalOpen] = useState(
-		!document.cookie.includes('hideExperimentalNotice=true')
+	const query = new URL(document.location.href).searchParams;
+
+	const [isModalClosed, setIsModalClosed] = useState(
+		query.get('onboarding') === '0' ||
+			document.cookie.includes('hideExperimentalNotice=true')
 	);
 
 	const hideModal = () => {
-		setIsModalOpen(false);
+		setIsModalClosed(true);
 		document.cookie = 'hideExperimentalNotice=true';
 	};
 
@@ -44,8 +48,8 @@ export default function BrowserChrome({
 	 *
 	 * TODO: Remove this once the site manager supports all storage options.
 	 */
-	const query = new URLSearchParams(window.location.search);
-	const showSiteManager = query.get('storage') === 'browser';
+	const searchQuery = new URLSearchParams(window.location.search);
+	const showSiteManager = searchQuery.get('storage') === 'browser';
 
 	return (
 		<div
@@ -83,7 +87,7 @@ export default function BrowserChrome({
 					<div className={css.toolbarButtons}>{toolbarButtons}</div>
 				</header>
 				<div className={css.content}>{children}</div>
-				{isModalOpen && (
+				{!isModalClosed && (
 					<Modal title="Howdy!" onRequestClose={hideModal}>
 						<p>
 							This is a cool and fun experimental WordPress

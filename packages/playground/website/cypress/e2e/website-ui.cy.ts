@@ -11,7 +11,7 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 import { Blueprint } from '@wp-playground/blueprints';
 
 describe('Playground website UI', () => {
-	beforeEach(() => cy.visit('/?networking=no'));
+	beforeEach(() => cy.visit('/?networking=no&onboarding=0'));
 
 	it('should reflect the URL update from the navigation bar in the WordPress site', () => {
 		cy.setWordPressUrl('/wp-admin');
