@@ -1,4 +1,6 @@
 import type { MountDevice } from '@php-wasm/web';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
 export async function directoryHandleFromMountDevice(
 	device: MountDevice
