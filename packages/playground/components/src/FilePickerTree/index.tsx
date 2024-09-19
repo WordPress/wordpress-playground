@@ -11,13 +11,13 @@ import css from './style.module.css';
 import classNames from 'classnames';
 import { folder, file } from '../icons';
 
-type FileNode = {
+export type FileNode = {
 	name: string;
 	type: 'file' | 'folder';
 	children?: FileNode[];
 };
 
-type PathMappingFormProps = {
+export type FilePickerControlProps = {
 	files: FileNode[];
 	initialPath?: string;
 	onSelect?: (path: string) => void;
@@ -25,7 +25,7 @@ type PathMappingFormProps = {
 
 type ExpandedNodePaths = Record<string, boolean>;
 
-const FilePickerControl: React.FC<PathMappingFormProps> = ({
+const FilePickerTree: React.FC<FilePickerControlProps> = ({
 	files,
 	initialPath,
 	onSelect = () => {},
@@ -97,7 +97,6 @@ const FilePickerControl: React.FC<PathMappingFormProps> = ({
 				for (let i = 0; i < buttons.length; i++) {
 					const index = (startIndex + i) % buttons.length;
 					const button = buttons[index];
-					console.log('button', button.textContent);
 					if (
 						button.textContent
 							?.toLowerCase()
@@ -136,7 +135,7 @@ const FilePickerControl: React.FC<PathMappingFormProps> = ({
 
 	return (
 		<div onKeyDown={handleKeyDown} ref={thisContainerRef}>
-			<TreeGrid className={css['pathMappingControl']}>
+			<TreeGrid className={css['filePickerTree']}>
 				{files.map((file, index) => (
 					<NodeRow
 						key={file.name}
@@ -190,13 +189,11 @@ const NodeRow: React.FC<{
 			if (isExpanded) {
 				toggleOpen();
 			} else {
-				if (node.children?.length) {
-					(
-						document.querySelector(
-							`[data-path="${parentPath}"]`
-						) as HTMLButtonElement
-					)?.focus();
-				}
+				(
+					document.querySelector(
+						`[data-path="${parentPath}"]`
+					) as HTMLButtonElement
+				)?.focus();
 			}
 			event.preventDefault();
 			event.stopPropagation();
@@ -215,8 +212,15 @@ const NodeRow: React.FC<{
 			}
 			event.preventDefault();
 			event.stopPropagation();
-		} else if (event.key === 'Enter' || event.key === 'Space') {
-			selectPath(path);
+		} else if (event.key === 'Space') {
+			expandNode(path, !isExpanded);
+		} else if (event.key === 'Enter') {
+			const form = event.currentTarget?.closest('form');
+			if (form) {
+				setTimeout(() => {
+					form.dispatchEvent(new Event('submit', { bubbles: true }));
+				});
+			}
 		}
 	};
 	return (
@@ -234,6 +238,9 @@ const NodeRow: React.FC<{
 								selectPath(path);
 							}}
 							onKeyDown={handleKeyDown}
+							onFocus={() => {
+								selectPath(path);
+							}}
 							className={classNames(css['fileNodeButton'], {
 								[css['selected']]: selectedNode === path,
 								'file-node-button': true,
@@ -296,4 +303,4 @@ const FileName: React.FC<{
 	);
 };
 
-export default FilePickerControl;
+export default FilePickerTree;
