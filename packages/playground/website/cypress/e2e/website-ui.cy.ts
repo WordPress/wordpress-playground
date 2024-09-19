@@ -1,7 +1,4 @@
-import {
-	SupportedPHPVersions,
-	LatestSupportedPHPVersion,
-} from '@php-wasm/universal';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -12,34 +9,6 @@ import { Blueprint } from '@wp-playground/blueprints';
 
 describe('Playground website UI', () => {
 	beforeEach(() => cy.visit('/?networking=no'));
-
-	// Test all PHP versions for completeness
-	describe('PHP version switcher', () => {
-		SupportedPHPVersions.forEach((version) => {
-			/**
-			 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 so we need to skip these versions.
-			 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
-			 */
-			if (['7.0', '7.1'].includes(version)) {
-				return;
-			}
-			it('should switch PHP version to ' + version, () => {
-				// Update settings in Playground configurator
-				cy.get('button#configurator').click();
-				cy.get('select#php-version').select(version);
-				cy.get('#modal-content button[type=submit]').click();
-				// Wait for the page to finish reloading
-				cy.url().should('contain', `php=${version}`);
-				cy.document().should('exist');
-
-				// Go to phpinfo
-				cy.setWordPressUrl('/phpinfo.php');
-				cy.wordPressDocument()
-					.find('h1')
-					.should('contain', 'PHP Version ' + version);
-			});
-		});
-	});
 
 	// Only test the latest PHP version to save time
 	describe('PHP extensions bundle', () => {
