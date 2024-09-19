@@ -53,7 +53,7 @@ jobs:
             - name: Install Playwright Browsers
               run: sudo npx playwright install --with-deps
             - name: Run Playwright tests
-              run: sudo npx nx run playground-website:e2e:playwright:ci
+              run: sudo CI=true npx nx run playground-website:e2e:playwright:ci
             - uses: actions/upload-artifact@v4
               if: failure()
               with:
