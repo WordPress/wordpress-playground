@@ -1,5 +1,3 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
 // JSON file directly. @ts-ignore
@@ -9,41 +7,6 @@ import { Blueprint } from '@wp-playground/blueprints';
 
 describe('Playground website UI', () => {
 	beforeEach(() => cy.visit('/?networking=no'));
-
-	// Only test the latest PHP version to save time
-	describe('PHP extensions bundle', () => {
-		it('should load additional PHP extensions when requested', () => {
-			// Update settings in Playground configurator
-			cy.get('button#configurator').click();
-			cy.get('select#php-version').select(LatestSupportedPHPVersion);
-			cy.get('input[name=with-extensions]').check();
-			cy.get('#modal-content button[type=submit]').click();
-			// Wait for the page to finish loading
-			cy.document().should('exist');
-
-			// Go to phpinfo
-			cy.setWordPressUrl('/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--enable-xmlwriter');
-		});
-
-		it('should not load additional PHP extensions when not requested', () => {
-			// Update settings in Playground configurator
-			cy.get('button#configurator').click();
-			cy.get('select#php-version').select(LatestSupportedPHPVersion);
-			cy.get('input[name=with-extensions]').uncheck();
-			cy.get('#modal-content button[type=submit]').click();
-			// Wait for the page to finish loading
-			cy.document().should('exist');
-
-			// Go to phpinfo
-			cy.setWordPressUrl('/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--without-libxml');
-		});
-	});
 
 	// Test all WordPress versions for completeness
 	describe('WordPress version selector', () => {

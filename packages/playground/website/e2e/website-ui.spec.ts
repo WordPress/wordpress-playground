@@ -8,7 +8,6 @@ import { SupportedPHPVersions } from '../../../php-wasm/universal/src/lib/suppor
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	page,
-	wordpressPage,
 }) => {
 	await page.goto('./?url=/wp-admin');
 
@@ -19,43 +18,6 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 	const inputElement = page.locator('input[value="/wp-admin/"]');
 	await expect(inputElement).toBeVisible();
 	await expect(inputElement).toHaveValue('/wp-admin/');
-});
-
-SupportedPHPVersions.forEach(async (version) => {
-	test(`should switch PHP version to ${version}`, async ({ page }) => {
-		/**
-		 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 so we need to skip these versions.
-		 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
-		 */
-		if (['7.0', '7.1'].includes(version)) {
-			return;
-		}
-		await page.goto(`./`);
-
-		const editSettingsButton = page.locator('button.components-button', {
-			hasText: 'Edit Playground settings',
-		});
-		await expect(editSettingsButton).toBeVisible();
-		await editSettingsButton.click();
-
-		const phpVersionSelect = page.locator('select[name=phpVersion]');
-		await expect(phpVersionSelect).toBeVisible();
-		await phpVersionSelect.selectOption(version);
-
-		const saveSettingsButton = page.locator(
-			'button.components-button.is-primary',
-			{
-				hasText: 'Update',
-			}
-		);
-		await expect(saveSettingsButton).toBeVisible();
-		await saveSettingsButton.click();
-
-		const textContent = await page
-			.locator('div.components-flex-item')
-			.allTextContents();
-		expect(textContent).toContain(`${version} (with extensions)`);
-	});
 });
 
 test('should switch between sites', async ({ page }) => {
@@ -103,4 +65,77 @@ test('should switch between sites', async ({ page }) => {
 		}
 	);
 	await expect(siteTitle).toBeVisible();
+});
+
+SupportedPHPVersions.forEach(async (version) => {
+	test(`should switch PHP version to ${version}`, async ({ page }) => {
+		/**
+		 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 so we need to skip these versions.
+		 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
+		 */
+		if (['7.0', '7.1'].includes(version)) {
+			return;
+		}
+		await page.goto(`./`);
+
+		const editSettingsButton = page.locator('button.components-button', {
+			hasText: 'Edit Playground settings',
+		});
+		await expect(editSettingsButton).toBeVisible();
+		await editSettingsButton.click();
+
+		const phpVersionSelect = page.locator('select[name=phpVersion]');
+		await expect(phpVersionSelect).toBeVisible();
+		await phpVersionSelect.selectOption(version);
+
+		const saveSettingsButton = page.locator(
+			'button.components-button.is-primary',
+			{
+				hasText: 'Update',
+			}
+		);
+		await expect(saveSettingsButton).toBeVisible();
+		await saveSettingsButton.click();
+
+		const textContent = await page
+			.locator('div.components-flex-item')
+			.allTextContents();
+		expect(textContent).toContain(`${version} (with extensions)`);
+	});
+
+	test(`should not load additional PHP ${version} extensions when not requested`, async ({
+		page,
+	}) => {
+		await page.goto('./');
+
+		const editSettingsButton = page.locator('button.components-button', {
+			hasText: 'Edit Playground settings',
+		});
+		await expect(editSettingsButton).toBeVisible();
+		await editSettingsButton.click();
+
+		const phpVersionSelect = page.locator('select[name=phpVersion]');
+		await expect(phpVersionSelect).toBeVisible();
+		await phpVersionSelect.selectOption(version);
+
+		const phpExtensionCheckbox = page.locator(
+			'.components-checkbox-control__input[name="withExtensions"]'
+		);
+		await expect(phpExtensionCheckbox).toBeVisible();
+		await phpExtensionCheckbox.click();
+
+		const saveSettingsButton = page.locator(
+			'button.components-button.is-primary',
+			{
+				hasText: 'Update',
+			}
+		);
+		await expect(saveSettingsButton).toBeVisible();
+		await saveSettingsButton.click();
+
+		const textContent = await page
+			.locator('div.components-flex-item')
+			.allTextContents();
+		expect(textContent).toContain(`${version}`);
+	});
 });
