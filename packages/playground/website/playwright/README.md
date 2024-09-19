@@ -33,3 +33,14 @@ Runs the tests in debug mode.
 ```bash
 npx nx run playground-website:e2e:playwright --debug
 ```
+
+### Multisite tests
+
+Multisite tests don't work with URLs that include ports.
+To run these tests, set the `PLAYWRIGHT_TEST_BASE_URL` environment variable to the base URL of the website server.
+
+You can use [this guide to set up a local Multisite.](https://wordpress.github.io/wordpress-playground/contributing/code#running-a-local-multisite)
+
+```bash
+ PLAYWRIGHT_TEST_BASE_URL='https://playground.test/website-server/' npx nx run playground-website:e2e:playwright
+```

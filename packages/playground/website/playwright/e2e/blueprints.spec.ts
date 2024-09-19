@@ -39,8 +39,11 @@ test('enableMultisite step should re-activate the plugins', async ({
 	};
 
 	const encodedBlueprint = JSON.stringify(blueprint);
-	await page.goto(`/#${encodedBlueprint}`);
+	await page.goto(`./#${encodedBlueprint}`);
 
-	const deactivationLink = wordpressPage.locator('#deactivate-hello-dolly');
-	await expect(deactivationLink).toContainText('Deactivate');
+	const deactivationLink = wordpressPage.locator(
+		'a[aria-label="Deactivate Hello Dolly"]',
+		{ hasText: 'Deactivate' }
+	);
+	expect(deactivationLink).toBeVisible();
 });
