@@ -17,3 +17,30 @@ test('Base64-encoded Blueprints should work', async ({
 	const bodyText = wordpressPage.locator('body');
 	await expect(bodyText).toContainText('My Sites');
 });
+
+test('enableMultisite step should re-activate the plugins', async ({
+	page,
+	wordpressPage,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/plugins.php',
+		steps: [
+			{ step: 'login' },
+			{
+				step: 'installPlugin',
+				pluginZipFile: {
+					resource: 'wordpress.org/plugins',
+					slug: 'hello-dolly',
+				},
+				options: { activate: true },
+			},
+			{ step: 'enableMultisite' },
+		],
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await page.goto(`/#${encodedBlueprint}`);
+
+	const deactivationLink = wordpressPage.locator('#deactivate-hello-dolly');
+	await expect(deactivationLink).toContainText('Deactivate');
+});
