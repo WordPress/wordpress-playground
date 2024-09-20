@@ -33,7 +33,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es'],
+		locales: ['en', 'es', 'fr'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -42,6 +42,10 @@ const config = {
 			es: {
 				label: 'Español',
 				path: 'es',
+			},
+			fr: {
+				label: 'French',
+				path: 'fr',
 			},
 		},
 	},
@@ -157,10 +161,10 @@ const config = {
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
 					},
-					// {
-					// 	type: 'localeDropdown',
-					// 	position: 'right',
-					// },
+					{
+						type: 'localeDropdown',
+						position: 'right',
+					},
 				],
 			},
 			footer: {
