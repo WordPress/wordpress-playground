@@ -39,14 +39,11 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
-	// Ensure the WordPress directory exists
-	if (!(await playground.isDir('/wordpress/'))) {
-		await playground.mkdir('/wordpress/');
-	}
+	const docroot = await playground.documentRoot;
 
 	// Login as the current user without a password
 	await playground.writeFile(
-		'/wordpress/playground-login.php',
+		`${docroot}/playground-login.php`,
 		`<?php
 		require_once( dirname( __FILE__ ) . '/wp-load.php' );
 		if ( is_user_logged_in() ) {
@@ -66,7 +63,7 @@ export const login: StepHandler<LoginStep> = async (
 	const response = await playground.request({
 		url: '/playground-login.php',
 	});
-	await playground.unlink('/wordpress/playground-login.php');
+	await playground.unlink(`${docroot}/playground-login.php`);
 
 	if (response.httpStatusCode !== 200) {
 		logger.warn('WordPress response was', {
