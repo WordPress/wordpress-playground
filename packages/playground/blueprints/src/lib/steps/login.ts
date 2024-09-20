@@ -1,5 +1,6 @@
 import { StepHandler } from '.';
 import { logger } from '@php-wasm/logger';
+import { phpVar } from '@php-wasm/util';
 
 /**
  * @inheritDoc login
@@ -38,6 +39,11 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
+	// Ensure the WordPress directory exists
+	if (!(await playground.isDir('/wordpress/'))) {
+		await playground.mkdir('/wordpress/');
+	}
+
 	// Login as the current user without a password
 	await playground.writeFile(
 		'/wordpress/playground-login.php',
@@ -47,13 +53,11 @@ export const login: StepHandler<LoginStep> = async (
 			return;
 		}
 
-		$credentials = array(
-			'user_login'    => '${username}',
-			'user_password' => '${password}',
+		$user = wp_signon( array(
+			'user_login'    => ${phpVar(username)},
+			'user_password' => ${phpVar(password)},
 			'remember'      => true
-		);
-
-		$user = wp_signon( $credentials, false );
+		) );
 
 		if ( is_wp_error( $user ) ) {
 			throw new WP_Error( 401, $user->get_error_message() );
