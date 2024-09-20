@@ -37,22 +37,34 @@ export const login: StepHandler<LoginStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
-	// Allow WordPress to set the cookies.
-	await playground.request({
-		url: '/wp-login.php',
-	});
 
+	// Login as the current user without a password
+	await playground.writeFile(
+		'/wordpress/playground-login.php',
+		`<?php
+		require_once( dirname( __FILE__ ) . '/wp-load.php' );
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		$credentials = array(
+			'user_login'    => '${username}',
+			'user_password' => '${password}',
+			'remember'      => true
+		);
+
+		$user = wp_signon( $credentials, false );
+
+		if ( is_wp_error( $user ) ) {
+			throw new WP_Error( 401, $user->get_error_message() );
+		}`
+	);
 	const response = await playground.request({
-		url: '/wp-login.php',
-		method: 'POST',
-		body: {
-			log: username,
-			pwd: password,
-			rememberme: 'forever',
-		},
+		url: '/playground-login.php',
 	});
+	await playground.unlink('/wordpress/playground-login.php');
 
-	if (!response.headers?.['location']?.[0]?.includes('/wp-admin/')) {
+	if (response.httpStatusCode !== 200) {
 		logger.warn('WordPress response was', {
 			response,
 			text: response.text,
