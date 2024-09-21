@@ -48,6 +48,16 @@ export type UrlReference = {
 	/** Optional caption for displaying a progress message */
 	caption?: string;
 };
+export type GitDirectoryReference = {
+	/** Identifies the file resource as a git directory */
+	resource: 'git-directory';
+	/** The URL of the git repository */
+	url: string;
+	/** The branch of the git repository */
+	ref: string;
+	/** The path to the directory in the git repository */
+	path: string;
+};
 
 export type FileReference =
 	| VFSReference
@@ -55,6 +65,9 @@ export type FileReference =
 	| CoreThemeReference
 	| CorePluginReference
 	| UrlReference;
+
+export type DirectoryReference = GitDirectoryReference;
+export type FileTree = {};
 
 export function isFileReference(ref: any): ref is FileReference {
 	return (
@@ -86,7 +99,7 @@ export abstract class Resource {
 	 * @returns A new Resource instance
 	 */
 	static create(
-		ref: FileReference,
+		ref: FileReference | DirectoryReference,
 		{ semaphore, progress }: ResourceOptions
 	): Resource {
 		let resource: Resource;
@@ -105,6 +118,9 @@ export abstract class Resource {
 				break;
 			case 'url':
 				resource = new UrlResource(ref, progress);
+				break;
+			case 'git-directory':
+				resource = new GitDirectoryResource(ref, progress);
 				break;
 			default:
 				throw new Error(`Invalid resource: ${ref}`);
@@ -136,6 +152,7 @@ export abstract class Resource {
 		return false;
 	}
 }
+
 /**
  * A `Resource` that represents a file in the VFS (virtual file system) of the
  * playground.
@@ -312,6 +329,27 @@ export class UrlResource extends FetchResource {
 	/** @inheritDoc */
 	protected override get caption() {
 		return this.resource.caption ?? super.caption;
+	}
+}
+
+/**
+ * A `Resource` that represents a git directory.
+ */
+export class GitDirectoryResource extends Resource {
+	constructor(
+		private resource: GitDirectoryReference,
+		public override progress?: ProgressTracker
+	) {
+		super();
+	}
+
+	async resolve() {
+		const tmpDir = joinPaths(wpContent, randomString());
+	}
+
+	/** @inheritDoc */
+	get name() {
+		return this.resource.path.split('/').pop()!;
 	}
 }
 
