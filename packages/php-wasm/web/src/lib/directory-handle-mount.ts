@@ -249,17 +249,12 @@ async function overwriteOpfsFile(
 	}
 
 	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
-	const writer =
-		opfsFile.createWritable !== undefined
-			? // Google Chrome, Firefox, probably more browsers
-			  await opfsFile.createWritable()
-			: // Safari
-			  await opfsFile.createSyncAccessHandle();
+	const writer = await opfsFile.createSyncAccessHandle();
 	try {
-		await writer.truncate(0);
-		await writer.write(buffer);
+		writer.truncate(0);
+		writer.write(buffer);
 	} finally {
-		await writer.close();
+		writer.close();
 	}
 }
 
