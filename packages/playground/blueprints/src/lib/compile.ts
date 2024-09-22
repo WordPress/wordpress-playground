@@ -10,7 +10,7 @@ import {
 	UniversalPHP,
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
-import { FileReference, isFileReference, Resource } from './resources';
+import { FileReference, isResourceReference, Resource } from './resources';
 import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint, ExtraLibrary } from './blueprint';
@@ -472,7 +472,7 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): { run: CompiledStep; step: S; resources: Array<Resource> } {
+): { run: CompiledStep; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -480,7 +480,7 @@ function compileStep<S extends StepDefinition>(
 	const args: any = {};
 	for (const key of Object.keys(step)) {
 		let value = (step as any)[key];
-		if (isFileReference(value)) {
+		if (isResourceReference(value)) {
 			value = Resource.create(value, {
 				semaphore,
 			});
@@ -528,7 +528,7 @@ function compileStep<S extends StepDefinition>(
  * @returns The resources used by the compiled step
  */
 function getResources<S extends StepDefinition>(args: S) {
-	const result: Resource[] = [];
+	const result: Resource<any>[] = [];
 	for (const argName in args) {
 		const resourceMaybe = (args as any)[argName];
 		if (resourceMaybe instanceof Resource) {

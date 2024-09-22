@@ -1,6 +1,6 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
-import { FileReference, DirectoryReference, FileTree } from '../resources';
+import { FileReference, DirectoryReference, Directory } from '../resources';
 import { ActivatePluginStep } from './activate-plugin';
 import { DefineSiteUrlStep } from './define-site-url';
 import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
@@ -118,7 +118,10 @@ export type StepProgress = {
 	initialCaption?: string;
 };
 
-export type StepHandler<S extends GenericStep<File, FileTree>, Return = any> = (
+export type StepHandler<
+	S extends GenericStep<File, Directory>,
+	Return = any
+> = (
 	/**
 	 * A PHP instance or Playground client.
 	 */

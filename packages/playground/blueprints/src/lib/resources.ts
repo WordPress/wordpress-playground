@@ -2,16 +2,18 @@ import {
 	cloneResponseMonitorProgress,
 	ProgressTracker,
 } from '@php-wasm/progress';
-import { UniversalPHP } from '@php-wasm/universal';
+import { FileTree, UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
 
+export type { FileTree };
 export const ResourceTypes = [
 	'vfs',
 	'literal',
 	'wordpress.org/themes',
 	'wordpress.org/plugins',
 	'url',
+	'git-directory',
 ] as const;
 
 export type VFSReference = {
@@ -67,9 +69,13 @@ export type FileReference =
 	| UrlReference;
 
 export type DirectoryReference = GitDirectoryReference;
-export type FileTree = {};
 
-export function isFileReference(ref: any): ref is FileReference {
+export interface Directory {
+	files: FileTree;
+	name: string;
+}
+
+export function isResourceReference(ref: any): ref is FileReference {
 	return (
 		ref &&
 		typeof ref === 'object' &&
@@ -78,18 +84,33 @@ export function isFileReference(ref: any): ref is FileReference {
 	);
 }
 
-export interface ResourceOptions {
-	/** Optional semaphore to limit concurrent downloads */
-	semaphore?: Semaphore;
-	progress?: ProgressTracker;
-}
-export abstract class Resource {
+export abstract class Resource<T extends File | Directory> {
 	/** Optional progress tracker to monitor progress */
-	public abstract progress?: ProgressTracker;
-	/** A Promise that resolves to the file contents */
-	protected promise?: Promise<File>;
+	protected _progress?: ProgressTracker;
+	get progress() {
+		return this._progress;
+	}
+	set progress(value) {
+		this._progress = value;
+	}
 
+	/** A Promise that resolves to the file contents */
+	protected promise?: Promise<T>;
 	protected playground?: UniversalPHP;
+
+	setPlayground(playground: UniversalPHP) {
+		this.playground = playground;
+	}
+
+	abstract resolve(): Promise<T>;
+
+	/** The name of the referenced file */
+	abstract get name(): string;
+
+	/** Whether this Resource is loaded asynchronously */
+	get isAsync(): boolean {
+		return false;
+	}
 
 	/**
 	 * Creates a new Resource based on the given file reference
@@ -100,9 +121,16 @@ export abstract class Resource {
 	 */
 	static create(
 		ref: FileReference | DirectoryReference,
-		{ semaphore, progress }: ResourceOptions
-	): Resource {
-		let resource: Resource;
+		{
+			semaphore,
+			progress,
+		}: {
+			/** Optional semaphore to limit concurrent downloads */
+			semaphore?: Semaphore;
+			progress?: ProgressTracker;
+		}
+	): Resource<File | Directory> {
+		let resource: Resource<File | Directory>;
 		switch (ref.resource) {
 			case 'vfs':
 				resource = new VFSResource(ref, progress);
@@ -133,23 +161,46 @@ export abstract class Resource {
 
 		return resource;
 	}
+}
 
-	setPlayground(playground: UniversalPHP) {
-		this.playground = playground;
+export abstract class ResourceDecorator<
+	T extends File | Directory
+> extends Resource<T> {
+	constructor(protected resource: Resource<T>) {
+		super();
 	}
 
-	/**
-	 * Resolves the file contents
-	 * @returns The resolved file.
-	 */
-	abstract resolve(): Promise<File>;
+	/** @inheritDoc */
+	override get progress() {
+		return this.resource.progress;
+	}
 
-	/** The name of the referenced file */
-	abstract get name(): string;
+	/** @inheritDoc */
+	override set progress(value) {
+		this.resource.progress = value;
+	}
 
-	/** Whether this Resource is loaded asynchronously */
-	get isAsync(): boolean {
-		return false;
+	/** @inheritDoc */
+	async resolve(): Promise<T> {
+		return this.decorateResolve(this.resource.resolve());
+	}
+
+	/** @inheritDoc */
+	protected abstract decorateResolve(promise: Promise<T>): Promise<T>;
+
+	/** @inheritDoc */
+	get name(): string {
+		return this.resource.name;
+	}
+
+	/** @inheritDoc */
+	override get isAsync(): boolean {
+		return this.resource.isAsync;
+	}
+
+	/** @inheritDoc */
+	override setPlayground(playground: UniversalPHP): void {
+		this.resource.setPlayground(playground);
 	}
 }
 
@@ -157,7 +208,7 @@ export abstract class Resource {
  * A `Resource` that represents a file in the VFS (virtual file system) of the
  * playground.
  */
-export class VFSResource extends Resource {
+export class VFSResource extends Resource<File> {
 	/**
 	 * Creates a new instance of `VFSResource`.
 	 * @param playground The playground client.
@@ -166,7 +217,7 @@ export class VFSResource extends Resource {
 	 */
 	constructor(
 		private resource: VFSReference,
-		public override progress?: ProgressTracker
+		public override _progress?: ProgressTracker
 	) {
 		super();
 	}
@@ -189,7 +240,7 @@ export class VFSResource extends Resource {
 /**
  * A `Resource` that represents a literal file.
  */
-export class LiteralResource extends Resource {
+export class LiteralResource extends Resource<File> {
 	/**
 	 * Creates a new instance of `LiteralResource`.
 	 * @param resource The literal reference.
@@ -197,7 +248,7 @@ export class LiteralResource extends Resource {
 	 */
 	constructor(
 		private resource: LiteralReference,
-		public override progress?: ProgressTracker
+		public override _progress?: ProgressTracker
 	) {
 		super();
 	}
@@ -217,12 +268,12 @@ export class LiteralResource extends Resource {
 /**
  * A base class for `Resource`s that require fetching data from a remote URL.
  */
-export abstract class FetchResource extends Resource {
+export abstract class FetchResource extends Resource<File> {
 	/**
 	 * Creates a new instance of `FetchResource`.
 	 * @param progress The progress tracker.
 	 */
-	constructor(public override progress?: ProgressTracker) {
+	constructor(public override _progress?: ProgressTracker) {
 		super();
 	}
 
@@ -335,21 +386,33 @@ export class UrlResource extends FetchResource {
 /**
  * A `Resource` that represents a git directory.
  */
-export class GitDirectoryResource extends Resource {
+export class GitDirectoryResource extends Resource<Directory> {
 	constructor(
-		private resource: GitDirectoryReference,
-		public override progress?: ProgressTracker
+		private reference: GitDirectoryReference,
+		public override _progress?: ProgressTracker
 	) {
 		super();
 	}
 
 	async resolve() {
-		const tmpDir = joinPaths(wpContent, randomString());
+		// @TODO: Use the actual sparse checkout logic here.
+		return {
+			name: 'hello-world',
+			files: {
+				'README.md': 'Hello, World!',
+				'index.php': `<?php
+/**
+* Plugin Name: Hello World
+* Description: A simple plugin that says hello world.
+*/
+			 	`,
+			},
+		};
 	}
 
 	/** @inheritDoc */
 	get name() {
-		return this.resource.path.split('/').pop()!;
+		return this.reference.path.split('/').pop()!;
 	}
 }
 
@@ -411,55 +474,17 @@ export function toDirectoryZipName(rawInput: string) {
 }
 
 /**
- * A decorator for a resource that adds functionality such as progress tracking
- * and caching.
- */
-export class DecoratedResource<T extends Resource> extends Resource {
-	constructor(private resource: T) {
-		super();
-	}
-
-	/** @inheritDoc */
-	async resolve() {
-		return this.resource.resolve();
-	}
-
-	/** @inheritDoc */
-	override async setPlayground(playground: UniversalPHP) {
-		return this.resource.setPlayground(playground);
-	}
-
-	/** @inheritDoc */
-	get progress() {
-		return this.resource.progress;
-	}
-
-	/** @inheritDoc */
-	set progress(value) {
-		this.resource.progress = value;
-	}
-
-	/** @inheritDoc */
-	get name() {
-		return this.resource.name;
-	}
-
-	/** @inheritDoc */
-	override get isAsync() {
-		return this.resource.isAsync;
-	}
-}
-
-/**
  * A decorator for a resource that adds caching functionality.
  */
-export class CachedResource<T extends Resource> extends DecoratedResource<T> {
-	protected override promise?: Promise<File>;
+export class CachedResource<
+	T extends File | Directory
+> extends ResourceDecorator<T> {
+	protected override promise?: Promise<T>;
 
 	/** @inheritDoc */
-	override async resolve() {
+	override async decorateResolve() {
 		if (!this.promise) {
-			this.promise = super.resolve();
+			this.promise = this.resource.resolve();
 		}
 		return this.promise;
 	}
@@ -470,17 +495,17 @@ export class CachedResource<T extends Resource> extends DecoratedResource<T> {
  * through a semaphore.
  */
 export class SemaphoreResource<
-	T extends Resource
-> extends DecoratedResource<T> {
-	constructor(resource: T, private readonly semaphore: Semaphore) {
+	T extends File | Directory
+> extends ResourceDecorator<T> {
+	constructor(resource: Resource<T>, private readonly semaphore: Semaphore) {
 		super(resource);
 	}
 
 	/** @inheritDoc */
-	override async resolve() {
+	override async decorateResolve() {
 		if (!this.isAsync) {
-			return super.resolve();
+			return this.resource.resolve();
 		}
-		return this.semaphore.run(() => super.resolve());
+		return this.semaphore.run(() => this.resource.resolve());
 	}
 }

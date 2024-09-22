@@ -2,7 +2,7 @@ import { StepHandler } from '.';
 import { InstallAssetOptions, installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
-import { FileTree } from '../resources';
+import { Directory } from '../resources';
 import { joinPaths, randomString } from '@php-wasm/util';
 import { writeFiles } from '@php-wasm/universal';
 
@@ -61,11 +61,11 @@ export interface InstallPluginStep<FileResource, DirectoryResource>
 	 *
 	 * 	    /plugin/index.php
 	 */
-	pluginDirectory: DirectoryResource;
+	pluginDirectory?: DirectoryResource;
 	/**
 	 * The plugin zip file to install.
 	 */
-	pluginZipFile: FileResource;
+	pluginZipFile?: FileResource;
 	/**
 	 * Optional installation options.
 	 */
@@ -87,7 +87,7 @@ export interface InstallPluginOptions {
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
 export const installPlugin: StepHandler<
-	InstallPluginStep<File, FileTree>
+	InstallPluginStep<File, Directory>
 > = async (
 	playground,
 	{ pluginZipFile, pluginDirectory, ifAlreadyInstalled, options = {} },
@@ -96,18 +96,25 @@ export const installPlugin: StepHandler<
 	let assetFolderPath = '';
 	let zipNiceName = '';
 	if (pluginDirectory) {
+		zipNiceName = pluginDirectory.name;
+		progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
+
 		const pluginDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			randomString()
+			pluginDirectory.name + '-' + randomString(10, '')
 		);
-		await writeFiles(playground, pluginDirectoryPath, pluginDirectory, {
-			rmRoot: true,
-		});
+		await writeFiles(
+			playground,
+			pluginDirectoryPath,
+			pluginDirectory.files,
+			{
+				rmRoot: true,
+			}
+		);
 		assetFolderPath = pluginDirectoryPath;
-		zipNiceName = 'Plugin...'; // @TODO: Use human name of plugin
-	} else {
+	} else if (pluginZipFile) {
 		const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
 		zipNiceName = zipNameToHumanName(zipFileName);
 
@@ -119,6 +126,10 @@ export const installPlugin: StepHandler<
 		});
 		assetFolderPath = assetResult.assetFolderPath;
 		zipNiceName = assetResult.assetFolderName;
+	} else {
+		throw new Error(
+			'One of the pluginDirectory or pluginZipFile options must be provided but both were empty.'
+		);
 	}
 
 	// Activate
