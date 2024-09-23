@@ -639,13 +639,16 @@
 							"const": "installPlugin",
 							"description": "The step identifier."
 						},
-						"pluginDirectoryRoot": {
-							"$ref": "#/definitions/DirectoryReference",
-							"description": "The directory containing the plugin files. The plugin file structure must start at the root without nesting.\n\nGood structure:\n\n\t    /index.php\n\nBad structure:\n\n\t    /plugin/index.php"
-						},
-						"pluginZipFile": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The plugin zip file to install."
+						"pluginData": {
+							"anyOf": [
+								{
+									"$ref": "#/definitions/FileReference"
+								},
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								}
+							],
+							"description": "The plugin files to install. It can be either a plugin zip file, or a directory containing all the plugin files at its root."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallPluginOptions",
@@ -680,13 +683,16 @@
 							"const": "installTheme",
 							"description": "The step identifier."
 						},
-						"themeZipFile": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The theme zip file to install."
-						},
-						"themeDirectoryRoot": {
-							"$ref": "#/definitions/DirectoryReference",
-							"description": "The directory containing the plugin files. The plugin file structure must start at the root without nesting.\n\nGood structure:\n\n\t    /index.php\n\nBad structure:\n\n\t    /plugin/index.php"
+						"themeData": {
+							"anyOf": [
+								{
+									"$ref": "#/definitions/FileReference"
+								},
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								}
+							],
+							"description": "The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root."
 						},
 						"options": {
 							"type": "object",
@@ -704,7 +710,7 @@
 							"description": "Optional installation options."
 						}
 					},
-					"required": ["step", "themeZipFile"]
+					"required": ["step", "themeData"]
 				},
 				{
 					"type": "object",

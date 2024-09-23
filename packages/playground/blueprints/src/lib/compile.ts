@@ -91,12 +91,31 @@ export function compileBlueprint(
 			.filter(isStepDefinition)
 			.filter(isStepStillSupported),
 	};
-	// Convert legacy importFile steps to importWxr
 	for (const step of blueprint.steps!) {
-		if (typeof step === 'object' && (step as any).step === 'importFile') {
+		if (!step || typeof step !== 'object') {
+			continue;
+		}
+		// Convert legacy importFile steps to importWxr
+		if ((step as any).step === 'importFile') {
 			(step as any).step = 'importWxr';
 			logger.warn(
 				`The "importFile" step is deprecated. Use "importWxr" instead.`
+			);
+		} else if (
+			(step as any)?.step === 'installPlugin' &&
+			'pluginZipFile' in step
+		) {
+			(step as any).pluginData = (step as any).pluginZipFile;
+			logger.warn(
+				`The "pluginZipFile" option of the "installPlugin" step is deprecated. Use "pluginData" instead.`
+			);
+		} else if (
+			(step as any)?.step === 'installTheme' &&
+			'themeZipFile' in step
+		) {
+			(step as any).themeData = (step as any).themeZipFile;
+			logger.warn(
+				`The "themeZipFile" option of the "installTheme" step is deprecated. Use "themeData" instead.`
 			);
 		}
 	}
@@ -238,7 +257,7 @@ export function compileBlueprint(
 		}
 		blueprint.steps?.splice(importWxrStepIndex, 0, {
 			step: 'installPlugin',
-			pluginZipFile: {
+			pluginData: {
 				resource: 'url',
 				url: 'https://playground.wordpress.net/wordpress-importer.zip',
 				caption: 'Downloading the WordPress Importer plugin',

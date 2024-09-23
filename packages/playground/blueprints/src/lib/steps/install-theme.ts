@@ -16,7 +16,7 @@ import { joinPaths, randomString } from '@php-wasm/util';
  * <code>
  * {
  * 		"step": "installTheme",
- * 		"themeZipFile": {
+ * 		"themeData": {
  * 			"resource": "wordpress.org/themes",
  * 			"slug": "pendant"
  * 		},
@@ -34,22 +34,10 @@ export interface InstallThemeStep<FileResource, DirectoryResource>
 	 */
 	step: 'installTheme';
 	/**
-	 * The theme zip file to install.
+	 * The theme files to install. It can be either a theme zip file, or a
+	 * directory containing all the theme files at its root.
 	 */
-	themeZipFile: FileResource;
-	/**
-	 * The directory containing the plugin files. The plugin
-	 * file structure must start at the root without nesting.
-	 *
-	 * Good structure:
-	 *
-	 * 	    /index.php
-	 *
-	 * Bad structure:
-	 *
-	 * 	    /plugin/index.php
-	 */
-	themeDirectoryRoot?: DirectoryResource;
+	themeData: FileResource | DirectoryResource;
 	/**
 	 * Optional installation options.
 	 */
@@ -83,39 +71,35 @@ export const installTheme: StepHandler<
 	InstallThemeStep<File, Directory>
 > = async (
 	playground,
-	{ themeZipFile, themeDirectoryRoot, ifAlreadyInstalled, options = {} },
+	{ themeData, ifAlreadyInstalled, options = {} },
 	progress
 ) => {
 	let assetFolderName = '';
-	let zipNiceName = '';
-	if (themeDirectoryRoot) {
-		zipNiceName = themeDirectoryRoot.name;
-		progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
+	let assetNiceName = '';
+	if (themeData instanceof File) {
+		// @TODO: Consider validating whether this is a zip file?
+		const zipNiceName = zipNameToHumanName(themeData.name);
+		progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
+		const assetResult = await installAsset(playground, {
+			ifAlreadyInstalled,
+			zipFile: themeData,
+			targetPath: `${await playground.documentRoot}/wp-content/themes`,
+		});
+		assetFolderName = assetResult.assetFolderName;
+	} else {
+		assetNiceName = themeData.name;
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
 
 		const pluginDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			themeDirectoryRoot.name + '-' + randomString(10, '')
+			themeData.name + '-' + randomString(10, '')
 		);
-		await writeFiles(
-			playground,
-			pluginDirectoryPath,
-			themeDirectoryRoot.files,
-			{
-				rmRoot: true,
-			}
-		);
-		assetFolderName = zipNiceName;
-	} else if (themeZipFile) {
-		const zipNiceName = zipNameToHumanName(themeZipFile.name);
-		progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
-		const assetResult = await installAsset(playground, {
-			ifAlreadyInstalled,
-			zipFile: themeZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/themes`,
+		await writeFiles(playground, pluginDirectoryPath, themeData.files, {
+			rmRoot: true,
 		});
-		assetFolderName = assetResult.assetFolderName;
+		assetFolderName = assetNiceName;
 	}
 
 	const activate = 'activate' in options ? options.activate : true;

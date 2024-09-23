@@ -189,12 +189,7 @@ export abstract class ResourceDecorator<
 	}
 
 	/** @inheritDoc */
-	async resolve(): Promise<T> {
-		return this.decorateResolve(this.resource.resolve());
-	}
-
-	/** @inheritDoc */
-	protected abstract decorateResolve(promise: Promise<T>): Promise<T>;
+	abstract override resolve(): Promise<T>;
 
 	/** @inheritDoc */
 	get name(): string {
@@ -513,7 +508,7 @@ export class CachedResource<
 	protected override promise?: Promise<T>;
 
 	/** @inheritDoc */
-	override async decorateResolve() {
+	override async resolve() {
 		if (!this.promise) {
 			this.promise = this.resource.resolve();
 		}
@@ -533,7 +528,7 @@ export class SemaphoreResource<
 	}
 
 	/** @inheritDoc */
-	override async decorateResolve() {
+	override async resolve() {
 		if (!this.isAsync) {
 			return this.resource.resolve();
 		}

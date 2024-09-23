@@ -52,7 +52,7 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 				},
 			options.theme && {
 				step: 'installTheme',
-				themeZipFile: {
+				themeData: {
 					resource: 'wordpress.org/themes',
 					slug: options.theme,
 				},
@@ -60,7 +60,7 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			},
 			...plugins.map<StepDefinition>((plugin) => ({
 				step: 'installPlugin',
-				pluginZipFile: {
+				pluginData: {
 					resource: 'wordpress.org/plugins',
 					slug: plugin,
 				},

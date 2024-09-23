@@ -16,7 +16,7 @@ import { writeFiles } from '@php-wasm/universal';
  * <code>
  * {
  * 	    "step": "installPlugin",
- * 		"pluginZipFile": {
+ * 		"pluginData": {
  * 			"resource": "wordpress.org/plugins",
  * 			"slug": "gutenberg"
  * 		},
@@ -31,7 +31,7 @@ import { writeFiles } from '@php-wasm/universal';
  * <code>
  * {
  * 	    "step": "installPlugin",
- * 		"pluginDirectory": {
+ * 		"pluginData": {
  * 			"resource": "git:directory",
  * 			"url": "https://github.com/wordpress/wordpress-playground.git",
  *          "ref": "HEAD",
@@ -50,22 +50,10 @@ export interface InstallPluginStep<FileResource, DirectoryResource>
 	 */
 	step: 'installPlugin';
 	/**
-	 * The directory containing the plugin files. The plugin
-	 * file structure must start at the root without nesting.
-	 *
-	 * Good structure:
-	 *
-	 * 	    /index.php
-	 *
-	 * Bad structure:
-	 *
-	 * 	    /plugin/index.php
+	 * The plugin files to install. It can be either a plugin zip file, or a
+	 * directory containing all the plugin files at its root.
 	 */
-	pluginDirectoryRoot?: DirectoryResource;
-	/**
-	 * The plugin zip file to install.
-	 */
-	pluginZipFile?: FileResource;
+	pluginData?: FileResource | DirectoryResource;
 	/**
 	 * Optional installation options.
 	 */
@@ -90,46 +78,38 @@ export const installPlugin: StepHandler<
 	InstallPluginStep<File, Directory>
 > = async (
 	playground,
-	{ pluginZipFile, pluginDirectoryRoot, ifAlreadyInstalled, options = {} },
+	{ pluginData, ifAlreadyInstalled, options = {} },
 	progress?
 ) => {
 	let assetFolderPath = '';
-	let zipNiceName = '';
-	if (pluginDirectoryRoot) {
-		zipNiceName = pluginDirectoryRoot.name;
-		progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
+	let assetNiceName = '';
+	if (pluginData instanceof File) {
+		// @TODO: Consider validating whether this is a zip file?
+		const zipFileName = pluginData.name.split('/').pop() || 'plugin.zip';
+		assetNiceName = zipNameToHumanName(zipFileName);
+
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
+		const assetResult = await installAsset(playground, {
+			ifAlreadyInstalled,
+			zipFile: pluginData,
+			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+		});
+		assetFolderPath = assetResult.assetFolderPath;
+		assetNiceName = assetResult.assetFolderName;
+	} else if (pluginData) {
+		assetNiceName = pluginData.name;
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
 
 		const pluginDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			pluginDirectoryRoot.name + '-' + randomString(10, '')
+			pluginData.name + '-' + randomString(10, '')
 		);
-		await writeFiles(
-			playground,
-			pluginDirectoryPath,
-			pluginDirectoryRoot.files,
-			{
-				rmRoot: true,
-			}
-		);
-		assetFolderPath = pluginDirectoryPath;
-	} else if (pluginZipFile) {
-		const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
-		zipNiceName = zipNameToHumanName(zipFileName);
-
-		progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
-		const assetResult = await installAsset(playground, {
-			ifAlreadyInstalled,
-			zipFile: pluginZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
+			rmRoot: true,
 		});
-		assetFolderPath = assetResult.assetFolderPath;
-		zipNiceName = assetResult.assetFolderName;
-	} else {
-		throw new Error(
-			'One of the pluginDirectory or pluginZipFile options must be provided but both were empty.'
-		);
+		assetFolderPath = pluginDirectoryPath;
 	}
 
 	// Activate
@@ -140,7 +120,7 @@ export const installPlugin: StepHandler<
 			playground,
 			{
 				pluginPath: assetFolderPath,
-				pluginName: zipNiceName,
+				pluginName: assetNiceName,
 			},
 			progress
 		);
