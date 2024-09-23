@@ -111,11 +111,11 @@ export function compileBlueprint(
 			);
 		} else if (
 			(step as any)?.step === 'installTheme' &&
-			'themeZipFile' in step
+			'themeData' in step
 		) {
-			(step as any).themeData = (step as any).themeZipFile;
+			(step as any).themeData = (step as any).themeData;
 			logger.warn(
-				`The "themeZipFile" option of the "installTheme" step is deprecated. Use "themeData" instead.`
+				`The "themeData" option of the "installTheme" step is deprecated. Use "themeData" instead.`
 			);
 		}
 	}

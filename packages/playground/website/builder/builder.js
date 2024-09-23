@@ -334,7 +334,8 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 	if (
 		prevKey.length === 3 &&
 		prefix.length >= 3 &&
-		prevKey.join('<') === 'slug<themeZipFile<steps'
+		(prevKey.join('<') === 'slug<themeData<steps' ||
+			prevKey.join('<') === 'slug<themeZipFile<steps')
 	) {
 		const wpParams = new URLSearchParams();
 		wpParams.set('action', 'query_themes');

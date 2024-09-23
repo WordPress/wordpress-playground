@@ -66,10 +66,10 @@ describe('Blueprint step installTheme', () => {
 		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 	});
 
-	it('should install a theme using the deprecated themeZipFile option', async () => {
+	it('should install a theme using the deprecated themeData option', async () => {
 		// @ts-ignore
 		await installTheme(php, {
-			themeZipFile: new File(
+			themeData: new File(
 				[php.readFileAsBuffer(zipFilePath)],
 				zipFileName
 			),
@@ -84,7 +84,7 @@ describe('Blueprint step installTheme', () => {
 	it('should install a theme from a directory resource', async () => {
 		await installTheme(php, {
 			themeData: {
-				name: 'my-theme',
+				name: 'test-theme',
 				files: {
 					'index.php': `/**\n * Theme Name: Test Theme`,
 				},
@@ -94,6 +94,7 @@ describe('Blueprint step installTheme', () => {
 				activate: false,
 			},
 		});
+		expect(php.listFiles(themesPath)).toContain('test-theme');
 		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 	});
 

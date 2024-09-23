@@ -65,7 +65,7 @@ You can still showcase it on Playground by using [JSON Blueprints](/blueprints).
 		},
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "url",
 				"url": "https://your-site.com/your-theme.zip"
 			}

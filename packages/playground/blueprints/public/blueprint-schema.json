@@ -698,7 +698,7 @@
 							],
 							"description": "The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root."
 						},
-						"themeZipFile": {
+						"themeData": {
 							"$ref": "#/definitions/FileReference",
 							"deprecated": ". Use `themeData` instead."
 						},

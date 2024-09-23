@@ -27,7 +27,7 @@ Let's see some cool things you can do with Blueprints.
 		},
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "pendant"
 			}
@@ -98,7 +98,7 @@ blueprint={{
 		},
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "url",
 				"url": "https://your-site.com/your-theme.zip"
 			}

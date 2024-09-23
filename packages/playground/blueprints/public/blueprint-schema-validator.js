@@ -579,7 +579,7 @@ const schema11 = {
 							description:
 								'The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root.',
 						},
-						themeZipFile: {
+						themeData: {
 							$ref: '#/definitions/FileReference',
 							deprecated: '. Use `themeData` instead.',
 						},
@@ -3253,7 +3253,7 @@ const schema22 = {
 					description:
 						'The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root.',
 				},
-				themeZipFile: {
+				themeData: {
 					$ref: '#/definitions/FileReference',
 					deprecated: '. Use `themeData` instead.',
 				},
@@ -11258,7 +11258,7 @@ function validate14(
 													'ifAlreadyInstalled' ||
 												key22 === 'step' ||
 												key22 === 'themeData' ||
-												key22 === 'themeZipFile' ||
+												key22 === 'themeData' ||
 												key22 === 'options'
 											)
 										) {
@@ -11666,22 +11666,22 @@ function validate14(
 													}
 													if (valid36) {
 														if (
-															data.themeZipFile !==
+															data.themeData !==
 															undefined
 														) {
 															const _errs179 =
 																errors;
 															if (
 																!validate12(
-																	data.themeZipFile,
+																	data.themeData,
 																	{
 																		instancePath:
 																			instancePath +
-																			'/themeZipFile',
+																			'/themeData',
 																		parentData:
 																			data,
 																		parentDataProperty:
-																			'themeZipFile',
+																			'themeData',
 																		rootData,
 																	}
 																)

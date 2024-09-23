@@ -5,7 +5,7 @@ import { Directory } from '../resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
-import { joinPaths, randomString } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -102,13 +102,13 @@ export const installTheme: StepHandler<
 		assetNiceName = themeData.name;
 		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
 
-		const pluginDirectoryPath = joinPaths(
+		const themeDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',
-			'plugins',
-			themeData.name + '-' + randomString(10, '')
+			'themes',
+			themeData.name
 		);
-		await writeFiles(playground, pluginDirectoryPath, themeData.files, {
+		await writeFiles(playground, themeDirectoryPath, themeData.files, {
 			rmRoot: true,
 		});
 		assetFolderName = assetNiceName;

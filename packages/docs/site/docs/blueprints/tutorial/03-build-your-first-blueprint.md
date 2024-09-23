@@ -100,7 +100,7 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "adventurer"
 			}
@@ -117,7 +117,7 @@ The site should now look like the screenshot below:
 
 ### Resources
 
-The `themeZipFile` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
+The `themeData` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
 
 -   `url`,
 -   `wordpress.org/themes`,
@@ -145,7 +145,7 @@ A classic WordPress plugin that displays random lyrics from the song "Hello, Dol
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "adventurer"
 			}
@@ -165,7 +165,7 @@ A classic WordPress plugin that displays random lyrics from the song "Hello, Dol
 
 The Hello Dolly plugin is now installed and activated.
 
-Like the `themeZipFile`, the `pluginData` defines a reference to an external file required for the step. The example uses the `wordpress.org/plugins` resource to install the plugin with the matching `slug` from the WordPress plugin directory.
+Like the `themeData`, the `pluginData` defines a reference to an external file required for the step. The example uses the `wordpress.org/plugins` resource to install the plugin with the matching `slug` from the WordPress plugin directory.
 
 ## 5. Install a custom plugin
 
@@ -240,7 +240,7 @@ Here's the complete Blueprint:
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "adventurer"
 			}
@@ -289,7 +289,7 @@ Encoding PHP files as `JSON` can be useful for quick testing, but it's inconveni
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "adventurer"
 			}
@@ -325,7 +325,7 @@ You can shorten that Blueprint even more using the shorthand syntax:
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "adventurer"
 			}
@@ -392,7 +392,7 @@ Here's what the final Blueprint looks like:
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "adventurer"
 			}

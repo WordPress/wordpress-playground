@@ -3,7 +3,7 @@ import { InstallAssetOptions, installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { Directory } from '../resources';
-import { joinPaths, randomString } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import { writeFiles } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 
@@ -118,7 +118,7 @@ export const installPlugin: StepHandler<
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			pluginData.name + '-' + randomString(10, '')
+			pluginData.name
 		);
 		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
 			rmRoot: true,
