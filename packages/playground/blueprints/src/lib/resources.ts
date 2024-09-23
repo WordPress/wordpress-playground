@@ -13,7 +13,7 @@ export const ResourceTypes = [
 	'wordpress.org/themes',
 	'wordpress.org/plugins',
 	'url',
-	'git-directory',
+	'git:directory',
 ] as const;
 
 export type VFSReference = {
@@ -52,7 +52,7 @@ export type UrlReference = {
 };
 export type GitDirectoryReference = {
 	/** Identifies the file resource as a git directory */
-	resource: 'git-directory';
+	resource: 'git:directory';
 	/** The URL of the git repository */
 	url: string;
 	/** The branch of the git repository */
@@ -66,7 +66,7 @@ export interface Directory {
 }
 export type DirectoryLiteralReference = Directory & {
 	/** Identifies the file resource as a git directory */
-	resource: 'directory-literal';
+	resource: 'literal:directory';
 };
 
 export type FileReference =
@@ -152,11 +152,11 @@ export abstract class Resource<T extends File | Directory> {
 			case 'url':
 				resource = new UrlResource(ref, progress);
 				break;
-			case 'git-directory':
+			case 'git:directory':
 				resource = new GitDirectoryResource(ref, progress);
 				break;
-			case 'directory-literal':
-				resource = new DirectoryLiteralResource(ref, progress);
+			case 'literal:directory':
+				resource = new LiteralDirectoryResource(ref, progress);
 				break;
 			default:
 				throw new Error(`Invalid resource: ${ref}`);
@@ -429,7 +429,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 /**
  * A `Resource` that represents a git directory.
  */
-export class DirectoryLiteralResource extends Resource<Directory> {
+export class LiteralDirectoryResource extends Resource<Directory> {
 	constructor(
 		private reference: DirectoryLiteralReference,
 		public override _progress?: ProgressTracker

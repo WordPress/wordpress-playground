@@ -1052,7 +1052,7 @@ const schema11 = {
 			properties: {
 				resource: {
 					type: 'string',
-					const: 'git-directory',
+					const: 'git:directory',
 					description:
 						'Identifies the file resource as a git directory',
 				},
@@ -1079,7 +1079,7 @@ const schema11 = {
 			properties: {
 				resource: {
 					type: 'string',
-					const: 'directory-literal',
+					const: 'literal:directory',
 					description:
 						'Identifies the file resource as a git directory',
 				},
@@ -3716,7 +3716,7 @@ const schema24 = {
 	properties: {
 		resource: {
 			type: 'string',
-			const: 'git-directory',
+			const: 'git:directory',
 			description: 'Identifies the file resource as a git directory',
 		},
 		url: { type: 'string', description: 'The URL of the git repository' },
@@ -3738,7 +3738,7 @@ const schema25 = {
 	properties: {
 		resource: {
 			type: 'string',
-			const: 'directory-literal',
+			const: 'literal:directory',
 			description: 'Identifies the file resource as a git directory',
 		},
 		files: { $ref: '#/definitions/FileTree' },
@@ -3937,14 +3937,14 @@ function validate18(
 							];
 							return false;
 						}
-						if ('directory-literal' !== data0) {
+						if ('literal:directory' !== data0) {
 							validate18.errors = [
 								{
 									instancePath: instancePath + '/resource',
 									schemaPath: '#/properties/resource/const',
 									keyword: 'const',
 									params: {
-										allowedValue: 'directory-literal',
+										allowedValue: 'literal:directory',
 									},
 									message: 'must be equal to constant',
 								},
@@ -4097,13 +4097,13 @@ function validate17(
 							}
 							errors++;
 						}
-						if ('git-directory' !== data0) {
+						if ('git:directory' !== data0) {
 							const err3 = {
 								instancePath: instancePath + '/resource',
 								schemaPath:
 									'#/definitions/GitDirectoryReference/properties/resource/const',
 								keyword: 'const',
-								params: { allowedValue: 'git-directory' },
+								params: { allowedValue: 'git:directory' },
 								message: 'must be equal to constant',
 							};
 							if (vErrors === null) {

@@ -1297,7 +1297,7 @@
 			"properties": {
 				"resource": {
 					"type": "string",
-					"const": "git-directory",
+					"const": "git:directory",
 					"description": "Identifies the file resource as a git directory"
 				},
 				"url": {
@@ -1322,7 +1322,7 @@
 			"properties": {
 				"resource": {
 					"type": "string",
-					"const": "directory-literal",
+					"const": "literal:directory",
 					"description": "Identifies the file resource as a git directory"
 				},
 				"files": {

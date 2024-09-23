@@ -32,7 +32,7 @@ import { writeFiles } from '@php-wasm/universal';
  * {
  * 	    "step": "installPlugin",
  * 		"pluginDirectory": {
- * 			"resource": "git-directory",
+ * 			"resource": "git:directory",
  * 			"url": "https://github.com/wordpress/wordpress-playground.git",
  *          "ref": "HEAD",
  *          "path": "wp-content/plugins/hello-dolly"
