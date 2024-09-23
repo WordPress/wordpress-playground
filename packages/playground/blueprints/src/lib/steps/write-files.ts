@@ -1,4 +1,4 @@
-import { writeFiles } from '@php-wasm/universal';
+import { writeFiles as writeFilesToPhpWasm } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { Directory } from '../resources';
 
@@ -11,13 +11,13 @@ import { Directory } from '../resources';
  * <code>
  * {
  * 		"step": "writeFiles",
- * 		"path": "/wordpress/test.php",
- * 		"data": "<?php echo 'Hello World!'; ?>"
+ * 		"writeToPath": "/wordpress/test.php",
+ * 		"filesTree": "<?php echo 'Hello World!'; ?>"
  * }
  * </code>
  */
 export interface WriteFilesStep<DirectoryResource> {
-	step: 'writeFile';
+	step: 'writeFiles';
 	/** The path of the file to write to */
 	writeToPath: string;
 	/** The data to write */
@@ -27,9 +27,9 @@ export interface WriteFilesStep<DirectoryResource> {
 /**
  * Writes data to a file at the specified path.
  */
-export const writeFile: StepHandler<WriteFilesStep<Directory>> = async (
+export const writeFiles: StepHandler<WriteFilesStep<Directory>> = async (
 	playground,
 	{ writeToPath, filesTree }
 ) => {
-	await writeFiles(playground, writeToPath, filesTree.files);
+	await writeFilesToPhpWasm(playground, writeToPath, filesTree.files);
 };

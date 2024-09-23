@@ -639,7 +639,7 @@
 							"const": "installPlugin",
 							"description": "The step identifier."
 						},
-						"pluginDirectory": {
+						"pluginDirectoryRoot": {
 							"$ref": "#/definitions/DirectoryReference",
 							"description": "The directory containing the plugin files. The plugin file structure must start at the root without nesting.\n\nGood structure:\n\n\t    /index.php\n\nBad structure:\n\n\t    /plugin/index.php"
 						},
@@ -683,6 +683,10 @@
 						"themeZipFile": {
 							"$ref": "#/definitions/FileReference",
 							"description": "The theme zip file to install."
+						},
+						"themeDirectoryRoot": {
+							"$ref": "#/definitions/DirectoryReference",
+							"description": "The directory containing the plugin files. The plugin file structure must start at the root without nesting.\n\nGood structure:\n\n\t    /index.php\n\nBad structure:\n\n\t    /plugin/index.php"
 						},
 						"options": {
 							"type": "object",
@@ -1194,6 +1198,37 @@
 						},
 						"step": {
 							"type": "string",
+							"const": "writeFiles"
+						},
+						"writeToPath": {
+							"type": "string",
+							"description": "The path of the file to write to"
+						},
+						"filesTree": {
+							"$ref": "#/definitions/DirectoryReference",
+							"description": "The data to write"
+						}
+					},
+					"required": ["filesTree", "step", "writeToPath"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
 							"const": "wp-cli",
 							"description": "The step identifier."
 						},
@@ -1248,7 +1283,14 @@
 			]
 		},
 		"DirectoryReference": {
-			"$ref": "#/definitions/GitDirectoryReference"
+			"anyOf": [
+				{
+					"$ref": "#/definitions/GitDirectoryReference"
+				},
+				{
+					"$ref": "#/definitions/DirectoryLiteralReference"
+				}
+			]
 		},
 		"GitDirectoryReference": {
 			"type": "object",
@@ -1273,6 +1315,38 @@
 			},
 			"required": ["resource", "url", "ref", "path"],
 			"additionalProperties": false
+		},
+		"DirectoryLiteralReference": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "directory-literal",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"files": {
+					"$ref": "#/definitions/FileTree"
+				},
+				"name": {
+					"type": "string"
+				}
+			},
+			"required": ["files", "name", "resource"]
+		},
+		"FileTree": {
+			"type": "object",
+			"additionalProperties": {
+				"anyOf": [
+					{
+						"$ref": "#/definitions/FileTree"
+					},
+					{
+						"type": ["object", "string"]
+					}
+				]
+			},
+			"properties": {}
 		},
 		"InstallPluginOptions": {
 			"type": "object",

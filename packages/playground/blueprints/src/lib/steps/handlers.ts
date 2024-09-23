@@ -11,6 +11,7 @@ export { rm } from './rm';
 export { mkdir } from './mkdir';
 export { rmdir } from './rmdir';
 export { writeFile } from './write-file';
+export { writeFiles } from './write-files';
 export { defineSiteUrl } from './define-site-url';
 export { importWxr as importWxr } from './import-wxr';
 export { importThemeStarterContent as importThemeStarterContent } from './import-theme-starter-content';
