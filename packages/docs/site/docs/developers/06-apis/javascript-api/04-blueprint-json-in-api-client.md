@@ -23,7 +23,7 @@ const client = await startPlaygroundWeb({
 			{ step: 'login' },
 			{
 				step: 'installPlugin',
-				pluginZipFile: {
+				pluginData: {
 					resource: 'wordpress.org/plugins',
 					slug: 'gutenberg',
 				},

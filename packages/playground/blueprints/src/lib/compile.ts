@@ -155,7 +155,7 @@ export function compileBlueprint(
 			})
 			.map((resource) => ({
 				step: 'installPlugin',
-				pluginZipFile: resource,
+				pluginData: resource,
 			})) as StepDefinition[];
 		blueprint.steps!.unshift(...steps);
 	}

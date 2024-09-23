@@ -152,7 +152,7 @@ A classic WordPress plugin that displays random lyrics from the song "Hello, Dol
 		},
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "wordpress.org/plugins",
 				"slug": "hello-dolly"
 			}
@@ -165,7 +165,7 @@ A classic WordPress plugin that displays random lyrics from the song "Hello, Dol
 
 The Hello Dolly plugin is now installed and activated.
 
-Like the `themeZipFile`, the `pluginZipFile` defines a reference to an external file required for the step. The example uses the `wordpress.org/plugins` resource to install the plugin with the matching `slug` from the WordPress plugin directory.
+Like the `themeZipFile`, the `pluginData` defines a reference to an external file required for the step. The example uses the `wordpress.org/plugins` resource to install the plugin with the matching `slug` from the WordPress plugin directory.
 
 ## 5. Install a custom plugin
 
@@ -247,7 +247,7 @@ Here's the complete Blueprint:
 		},
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "wordpress.org/plugins",
 				"slug": "hello-dolly"
 			}
@@ -296,14 +296,14 @@ Encoding PHP files as `JSON` can be useful for quick testing, but it's inconveni
 		},
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "wordpress.org/plugins",
 				"slug": "hello-dolly"
 			}
 		},
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "url",
 				"url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
 			}

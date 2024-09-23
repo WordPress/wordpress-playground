@@ -46,7 +46,7 @@ describe('Blueprint step installPlugin – without a root-level folder', () => {
 		const pluginName = 'test-plugin';
 
 		await installPlugin(php, {
-			pluginZipFile: await zipFiles(
+			pluginData: await zipFiles(
 				php,
 				// Note the ZIP filename is different from plugin folder name
 				`${pluginName}-0.0.1.zip`,
@@ -86,7 +86,7 @@ describe('Blueprint step installPlugin', () => {
 
 	it('should install a plugin', async () => {
 		await installPlugin(php, {
-			pluginZipFile: await zipFiles(php, zipFileName, {
+			pluginData: await zipFiles(php, zipFileName, {
 				[`${pluginName}/index.php`]: `/**\n * Plugin Name: Test Plugin`,
 			}),
 			ifAlreadyInstalled: 'overwrite',
@@ -100,7 +100,7 @@ describe('Blueprint step installPlugin', () => {
 	describe('ifAlreadyInstalled option', () => {
 		beforeEach(async () => {
 			await installPlugin(php, {
-				pluginZipFile: await zipFiles(php, zipFileName, {
+				pluginData: await zipFiles(php, zipFileName, {
 					[`${pluginName}/index.php`]: `/**\n * Plugin Name: Test Plugin`,
 				}),
 				ifAlreadyInstalled: 'overwrite',
@@ -113,7 +113,7 @@ describe('Blueprint step installPlugin', () => {
 		it('ifAlreadyInstalled=overwrite should overwrite the plugin if it already exists', async () => {
 			// Install the plugin
 			await installPlugin(php, {
-				pluginZipFile: await zipFiles(php, zipFileName, {
+				pluginData: await zipFiles(php, zipFileName, {
 					[`${pluginName}/index.php`]: `/**\n * Plugin Name: A different Plugin`,
 				}),
 				ifAlreadyInstalled: 'overwrite',
@@ -129,7 +129,7 @@ describe('Blueprint step installPlugin', () => {
 		it('ifAlreadyInstalled=skip should skip the plugin if it already exists', async () => {
 			// Install the plugin
 			await installPlugin(php, {
-				pluginZipFile: await zipFiles(php, zipFileName, {
+				pluginData: await zipFiles(php, zipFileName, {
 					[`${pluginName}/index.php`]: `/**\n * Plugin Name: A different Plugin`,
 				}),
 				ifAlreadyInstalled: 'skip',
@@ -146,7 +146,7 @@ describe('Blueprint step installPlugin', () => {
 			// Install the plugin
 			await expect(
 				installPlugin(php, {
-					pluginZipFile: await zipFiles(php, zipFileName, {
+					pluginData: await zipFiles(php, zipFileName, {
 						[`${pluginName}/index.php`]: `/**\n * Plugin Name: A different Plugin`,
 					}),
 					ifAlreadyInstalled: 'error',

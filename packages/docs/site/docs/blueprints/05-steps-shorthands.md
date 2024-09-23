@@ -43,14 +43,14 @@ Or
 [
 	{
 		"step": "installPlugin",
-		"pluginZipFile": {
+		"pluginData": {
 			"resource": "wordpress.org/plugins",
 			"slug": "hello-dolly"
 		}
 	},
 	{
 		"step": "installPlugin",
-		"pluginZipFile": {
+		"pluginData": {
 			"resource": "url",
 			"url": "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
 		}

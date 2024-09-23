@@ -71,7 +71,7 @@ export interface InstallPluginOptions {
  * Installs a WordPress plugin in the Playground.
  *
  * @param playground The playground client.
- * @param pluginZipFile The plugin zip file.
+ * @param pluginData The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
 export const installPlugin: StepHandler<

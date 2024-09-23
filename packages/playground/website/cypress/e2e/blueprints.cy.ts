@@ -67,7 +67,7 @@ describe('Blueprints', () => {
 				{ step: 'login' },
 				{
 					step: 'installPlugin',
-					pluginZipFile: {
+					pluginData: {
 						resource: 'wordpress.org/plugins',
 						slug: 'hello-dolly',
 					},

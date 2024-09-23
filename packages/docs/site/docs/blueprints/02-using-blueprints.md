@@ -119,7 +119,7 @@ You can also use Blueprints with the JavaScript API using the `startPlaygroundWe
 				},
 				{
 					step: 'installPlugin',
-					pluginZipFile: {
+					pluginData: {
 						resource: 'wordpress.org/plugins',
 						slug: 'friends',
 					},
