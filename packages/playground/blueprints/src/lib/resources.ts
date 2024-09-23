@@ -398,9 +398,9 @@ export class GitDirectoryResource extends Resource<Directory> {
 	}
 
 	async resolve() {
-		// @TODO: Use the actual sparse checkout logic here.
-		//        Rebase this on top of https://github.com/WordPress/wordpress-playground/pull/1764
-		//        once it lands.
+		// @TODO: Use the actual sparse checkout logic here once
+		//        https://github.com/WordPress/wordpress-playground/pull/1764 lands.
+		throw new Error('Not implemented yet');
 		return {
 			name: 'hello-world',
 			files: {
