@@ -84,7 +84,7 @@ export function persistTemporarySite(
 				siteSlug,
 				changes: {
 					opfsMountDescriptor: mountDescriptor,
-					opfsIsSyncing: true,
+					opfsSync: { status: 'syncing' },
 				},
 			})
 		);
@@ -99,23 +99,37 @@ export function persistTemporarySite(
 						updateClientInfo({
 							siteSlug,
 							changes: {
-								opfsSyncProgress: progress,
+								opfsSync: {
+									status: 'syncing',
+									progress,
+								},
 							},
 						})
 					);
 				}
 			);
-		} finally {
+
 			// @TODO: Create a notification to tell the user the operation is complete
 			dispatch(
 				updateClientInfo({
 					siteSlug,
 					changes: {
-						opfsIsSyncing: false,
-						opfsSyncProgress: undefined,
+						opfsSync: undefined,
 					},
 				})
 			);
+		} catch (error) {
+			dispatch(
+				updateClientInfo({
+					siteSlug,
+					changes: {
+						opfsSync: {
+							status: 'error',
+						},
+					},
+				})
+			);
+			throw error;
 		}
 
 		await dispatch(
