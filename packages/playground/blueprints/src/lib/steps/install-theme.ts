@@ -6,6 +6,7 @@ import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
 import { joinPaths, randomString } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc installTheme
@@ -39,6 +40,10 @@ export interface InstallThemeStep<FileResource, DirectoryResource>
 	 */
 	themeData: FileResource | DirectoryResource;
 	/**
+	 * @deprecated. Use `themeData` instead.
+	 */
+	themeZipFile?: FileResource;
+	/**
 	 * Optional installation options.
 	 */
 	options?: {
@@ -71,9 +76,16 @@ export const installTheme: StepHandler<
 	InstallThemeStep<File, Directory>
 > = async (
 	playground,
-	{ themeData, ifAlreadyInstalled, options = {} },
+	{ themeData, themeZipFile, ifAlreadyInstalled, options = {} },
 	progress
 ) => {
+	if (themeZipFile) {
+		themeData = themeZipFile;
+		logger.warn(
+			'The "themeZipFile" option is deprecated. Use "themeData" instead.'
+		);
+	}
+
 	let assetFolderName = '';
 	let assetNiceName = '';
 	if (themeData instanceof File) {

@@ -5,6 +5,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { Directory } from '../resources';
 import { joinPaths, randomString } from '@php-wasm/util';
 import { writeFiles } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc installPlugin
@@ -53,7 +54,13 @@ export interface InstallPluginStep<FileResource, DirectoryResource>
 	 * The plugin files to install. It can be either a plugin zip file, or a
 	 * directory containing all the plugin files at its root.
 	 */
-	pluginData?: FileResource | DirectoryResource;
+	pluginData: FileResource | DirectoryResource;
+
+	/**
+	 * @deprecated. Use `pluginData` instead.
+	 */
+	pluginZipFile?: FileResource;
+
 	/**
 	 * Optional installation options.
 	 */
@@ -78,9 +85,16 @@ export const installPlugin: StepHandler<
 	InstallPluginStep<File, Directory>
 > = async (
 	playground,
-	{ pluginData, ifAlreadyInstalled, options = {} },
+	{ pluginData, pluginZipFile, ifAlreadyInstalled, options = {} },
 	progress?
 ) => {
+	if (pluginZipFile) {
+		pluginData = pluginZipFile;
+		logger.warn(
+			'The "pluginZipFile" option is deprecated. Use "pluginData" instead.'
+		);
+	}
+
 	let assetFolderPath = '';
 	let assetNiceName = '';
 	if (pluginData instanceof File) {
