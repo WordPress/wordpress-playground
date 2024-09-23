@@ -49,7 +49,25 @@ describe('Blueprint step installTheme', () => {
 		php.exit();
 	});
 
+	const expectedThemeIndexPhpPath =
+		'/wordpress/wp-content/themes/test-theme/index.php';
+
 	it('should install a theme', async () => {
+		await installTheme(php, {
+			themeData: new File(
+				[php.readFileAsBuffer(zipFilePath)],
+				zipFileName
+			),
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
+	});
+
+	it('should install a theme using the deprecated themeZipFile option', async () => {
+		// @ts-ignore
 		await installTheme(php, {
 			themeZipFile: new File(
 				[php.readFileAsBuffer(zipFilePath)],
@@ -60,13 +78,29 @@ describe('Blueprint step installTheme', () => {
 				activate: false,
 			},
 		});
-		expect(php.fileExists(zipFilePath)).toBe(true);
+		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
+	});
+
+	it('should install a theme from a directory resource', async () => {
+		await installTheme(php, {
+			themeData: {
+				name: 'my-theme',
+				files: {
+					'index.php': `/**\n * Theme Name: Test Theme`,
+				},
+			},
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+		expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 	});
 
 	describe('ifAlreadyInstalled option', () => {
 		beforeEach(async () => {
 			await installTheme(php, {
-				themeZipFile: new File(
+				themeData: new File(
 					[php.readFileAsBuffer(zipFilePath)],
 					zipFileName
 				),
@@ -79,7 +113,7 @@ describe('Blueprint step installTheme', () => {
 
 		it('ifAlreadyInstalled=ovewrite should overwrite the theme if the theme already exists', async () => {
 			await installTheme(php, {
-				themeZipFile: new File(
+				themeData: new File(
 					[php.readFileAsBuffer(zipFilePath)],
 					zipFileName
 				),
@@ -88,12 +122,12 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
-			expect(php.fileExists(zipFilePath)).toBe(true);
+			expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 		});
 
 		it('ifAlreadyInstalled=skip should skip the theme if the theme already exists', async () => {
 			await installTheme(php, {
-				themeZipFile: new File(
+				themeData: new File(
 					[php.readFileAsBuffer(zipFilePath)],
 					zipFileName
 				),
@@ -102,13 +136,13 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
-			expect(php.fileExists(zipFilePath)).toBe(true);
+			expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 		});
 
 		it('ifAlreadyInstalled=error should throw an error if the theme already exists', async () => {
 			await expect(
 				installTheme(php, {
-					themeZipFile: new File(
+					themeData: new File(
 						[php.readFileAsBuffer(zipFilePath)],
 						zipFileName
 					),

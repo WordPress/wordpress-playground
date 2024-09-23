@@ -97,6 +97,36 @@ describe('Blueprint step installPlugin', () => {
 		expect(php.fileExists(installedPluginPath)).toBe(true);
 	});
 
+	it('should install a plugin using the deprecated pluginZipFile option', async () => {
+		// @ts-ignore
+		await installPlugin(php, {
+			pluginZipFile: await zipFiles(php, zipFileName, {
+				[`${pluginName}/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+			}),
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+		expect(php.fileExists(installedPluginPath)).toBe(true);
+	});
+
+	it('should install a plugin from a directory resource', async () => {
+		await installPlugin(php, {
+			pluginData: {
+				name: pluginName,
+				files: {
+					'index.php': `/**\n * Plugin Name: Test Plugin`,
+				},
+			},
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+		expect(php.fileExists(installedPluginPath)).toBe(true);
+	});
+
 	describe('ifAlreadyInstalled option', () => {
 		beforeEach(async () => {
 			await installPlugin(php, {

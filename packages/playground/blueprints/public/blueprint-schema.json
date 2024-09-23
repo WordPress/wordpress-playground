@@ -650,12 +650,16 @@
 							],
 							"description": "The plugin files to install. It can be either a plugin zip file, or a directory containing all the plugin files at its root."
 						},
+						"pluginZipFile": {
+							"$ref": "#/definitions/FileReference",
+							"deprecated": ". Use `pluginData` instead."
+						},
 						"options": {
 							"$ref": "#/definitions/InstallPluginOptions",
 							"description": "Optional installation options."
 						}
 					},
-					"required": ["step"]
+					"required": ["pluginData", "step"]
 				},
 				{
 					"type": "object",
@@ -693,6 +697,10 @@
 								}
 							],
 							"description": "The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root."
+						},
+						"themeZipFile": {
+							"$ref": "#/definitions/FileReference",
+							"deprecated": ". Use `themeData` instead."
 						},
 						"options": {
 							"type": "object",
