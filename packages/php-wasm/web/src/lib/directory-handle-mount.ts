@@ -205,24 +205,37 @@ export async function copyMemfsToOpfs(
 	const maxConcurrentWrites = 25;
 	const concurrentWrites = new Set();
 
-	for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
-		const promise = overwriteOpfsFile(opfsDir, entryName, FS, memfsPath);
-		concurrentWrites.add(promise);
+	try {
+		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
+			const promise = overwriteOpfsFile(
+				opfsDir,
+				entryName,
+				FS,
+				memfsPath
+			);
+			concurrentWrites.add(promise);
 
-		if (
-			concurrentWrites.size >= maxConcurrentWrites ||
-			numFilesCompleted + concurrentWrites.size === filesToCreate.length
-		) {
-			await Promise.all(concurrentWrites);
-			numFilesCompleted += concurrentWrites.size;
+			if (
+				concurrentWrites.size >= maxConcurrentWrites ||
+				numFilesCompleted + concurrentWrites.size ===
+					filesToCreate.length
+			) {
+				await Promise.all(concurrentWrites);
+				numFilesCompleted += concurrentWrites.size;
 
-			throttledProgressCallback?.({
-				files: numFilesCompleted,
-				total: filesToCreate.length,
-			});
+				throttledProgressCallback?.({
+					files: numFilesCompleted,
+					total: filesToCreate.length,
+				});
 
-			concurrentWrites.clear();
+				concurrentWrites.clear();
+			}
 		}
+	} finally {
+		// Make sure all FS-related activity has completed one way or another
+		// before returning. Otherwise, an error followed by a retry might lead
+		// to a conflict with writes from the earlier attempt.
+		await Promise.allSettled(concurrentWrites);
 	}
 }
 
@@ -250,6 +263,7 @@ async function overwriteOpfsFile(
 	// Using FileSyncAccessHandle for all browsers because it seemed to be
 	// faster (and certainly no slower) than using a WritableStream,
 	// and if we have a single write path in all browsers, that is simpler.
+	// TODO: Confirm this is still the case with Firefox.
 	const writer = await opfsFile.createSyncAccessHandle();
 	try {
 		writer.truncate(0);
