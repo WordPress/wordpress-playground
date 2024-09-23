@@ -21,6 +21,7 @@ import { RunPHPStep } from './run-php';
 import { RunPHPWithOptionsStep } from './run-php-with-options';
 import { RequestStep } from './request';
 import { WriteFileStep } from './write-file';
+import { WriteFilesStep } from './write-files';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
@@ -57,7 +58,7 @@ export type GenericStep<FileResource, DirectoryResource> =
 	| ImportThemeStarterContentStep
 	| ImportWordPressFilesStep<FileResource>
 	| InstallPluginStep<FileResource, DirectoryResource>
-	| InstallThemeStep<FileResource>
+	| InstallThemeStep<FileResource, DirectoryResource>
 	| LoginStep
 	| MkdirStep
 	| MvStep
@@ -73,6 +74,7 @@ export type GenericStep<FileResource, DirectoryResource> =
 	| UnzipStep<FileResource>
 	| UpdateUserMetaStep
 	| WriteFileStep<FileResource>
+	| WriteFilesStep<DirectoryResource>
 	| WPCLIStep
 	| SetSiteLanguageStep;
 
@@ -106,6 +108,7 @@ export type {
 	UnzipStep,
 	UpdateUserMetaStep,
 	WriteFileStep,
+	WriteFilesStep,
 	WPCLIStep,
 	SetSiteLanguageStep,
 };

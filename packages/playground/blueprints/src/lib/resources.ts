@@ -60,6 +60,14 @@ export type GitDirectoryReference = {
 	/** The path to the directory in the git repository */
 	path: string;
 };
+export interface Directory {
+	files: FileTree;
+	name: string;
+}
+export type DirectoryLiteralReference = Directory & {
+	/** Identifies the file resource as a git directory */
+	resource: 'directory-literal';
+};
 
 export type FileReference =
 	| VFSReference
@@ -68,12 +76,9 @@ export type FileReference =
 	| CorePluginReference
 	| UrlReference;
 
-export type DirectoryReference = GitDirectoryReference;
-
-export interface Directory {
-	files: FileTree;
-	name: string;
-}
+export type DirectoryReference =
+	| GitDirectoryReference
+	| DirectoryLiteralReference;
 
 export function isResourceReference(ref: any): ref is FileReference {
 	return (
@@ -149,6 +154,9 @@ export abstract class Resource<T extends File | Directory> {
 				break;
 			case 'git-directory':
 				resource = new GitDirectoryResource(ref, progress);
+				break;
+			case 'directory-literal':
+				resource = new DirectoryLiteralResource(ref, progress);
 				break;
 			default:
 				throw new Error(`Invalid resource: ${ref}`);
@@ -396,6 +404,8 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 	async resolve() {
 		// @TODO: Use the actual sparse checkout logic here.
+		//        Rebase this on top of https://github.com/WordPress/wordpress-playground/pull/1764
+		//        once it lands.
 		return {
 			name: 'hello-world',
 			files: {
@@ -413,6 +423,27 @@ export class GitDirectoryResource extends Resource<Directory> {
 	/** @inheritDoc */
 	get name() {
 		return this.reference.path.split('/').pop()!;
+	}
+}
+
+/**
+ * A `Resource` that represents a git directory.
+ */
+export class DirectoryLiteralResource extends Resource<Directory> {
+	constructor(
+		private reference: DirectoryLiteralReference,
+		public override _progress?: ProgressTracker
+	) {
+		super();
+	}
+
+	async resolve() {
+		return this.reference;
+	}
+
+	/** @inheritDoc */
+	get name() {
+		return this.reference.name;
 	}
 }
 

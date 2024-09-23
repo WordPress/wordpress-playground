@@ -61,7 +61,7 @@ export interface InstallPluginStep<FileResource, DirectoryResource>
 	 *
 	 * 	    /plugin/index.php
 	 */
-	pluginDirectory?: DirectoryResource;
+	pluginDirectoryRoot?: DirectoryResource;
 	/**
 	 * The plugin zip file to install.
 	 */
@@ -90,25 +90,25 @@ export const installPlugin: StepHandler<
 	InstallPluginStep<File, Directory>
 > = async (
 	playground,
-	{ pluginZipFile, pluginDirectory, ifAlreadyInstalled, options = {} },
+	{ pluginZipFile, pluginDirectoryRoot, ifAlreadyInstalled, options = {} },
 	progress?
 ) => {
 	let assetFolderPath = '';
 	let zipNiceName = '';
-	if (pluginDirectory) {
-		zipNiceName = pluginDirectory.name;
+	if (pluginDirectoryRoot) {
+		zipNiceName = pluginDirectoryRoot.name;
 		progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 
 		const pluginDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			pluginDirectory.name + '-' + randomString(10, '')
+			pluginDirectoryRoot.name + '-' + randomString(10, '')
 		);
 		await writeFiles(
 			playground,
 			pluginDirectoryPath,
-			pluginDirectory.files,
+			pluginDirectoryRoot.files,
 			{
 				rmRoot: true,
 			}

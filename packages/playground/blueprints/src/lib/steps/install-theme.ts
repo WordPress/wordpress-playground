@@ -1,8 +1,11 @@
 import { StepHandler } from '.';
 import { InstallAssetOptions, installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
+import { Directory } from '../resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
+import { writeFiles } from '@php-wasm/universal';
+import { joinPaths, randomString } from '@php-wasm/util';
 
 /**
  * @inheritDoc installTheme
@@ -24,7 +27,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * }
  * </code>
  */
-export interface InstallThemeStep<ResourceType>
+export interface InstallThemeStep<FileResource, DirectoryResource>
 	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
@@ -33,7 +36,20 @@ export interface InstallThemeStep<ResourceType>
 	/**
 	 * The theme zip file to install.
 	 */
-	themeZipFile: ResourceType;
+	themeZipFile: FileResource;
+	/**
+	 * The directory containing the plugin files. The plugin
+	 * file structure must start at the root without nesting.
+	 *
+	 * Good structure:
+	 *
+	 * 	    /index.php
+	 *
+	 * Bad structure:
+	 *
+	 * 	    /plugin/index.php
+	 */
+	themeDirectoryRoot?: DirectoryResource;
 	/**
 	 * Optional installation options.
 	 */
@@ -63,19 +79,44 @@ export interface InstallThemeOptions {
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
-export const installTheme: StepHandler<InstallThemeStep<File>> = async (
+export const installTheme: StepHandler<
+	InstallThemeStep<File, Directory>
+> = async (
 	playground,
-	{ themeZipFile, ifAlreadyInstalled, options = {} },
+	{ themeZipFile, themeDirectoryRoot, ifAlreadyInstalled, options = {} },
 	progress
 ) => {
-	const zipNiceName = zipNameToHumanName(themeZipFile.name);
+	let assetFolderName = '';
+	let zipNiceName = '';
+	if (themeDirectoryRoot) {
+		zipNiceName = themeDirectoryRoot.name;
+		progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 
-	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
-	const { assetFolderName } = await installAsset(playground, {
-		ifAlreadyInstalled,
-		zipFile: themeZipFile,
-		targetPath: `${await playground.documentRoot}/wp-content/themes`,
-	});
+		const pluginDirectoryPath = joinPaths(
+			await playground.documentRoot,
+			'wp-content',
+			'plugins',
+			themeDirectoryRoot.name + '-' + randomString(10, '')
+		);
+		await writeFiles(
+			playground,
+			pluginDirectoryPath,
+			themeDirectoryRoot.files,
+			{
+				rmRoot: true,
+			}
+		);
+		assetFolderName = zipNiceName;
+	} else if (themeZipFile) {
+		const zipNiceName = zipNameToHumanName(themeZipFile.name);
+		progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
+		const assetResult = await installAsset(playground, {
+			ifAlreadyInstalled,
+			zipFile: themeZipFile,
+			targetPath: `${await playground.documentRoot}/wp-content/themes`,
+		});
+		assetFolderName = assetResult.assetFolderName;
+	}
 
 	const activate = 'activate' in options ? options.activate : true;
 	if (activate) {
