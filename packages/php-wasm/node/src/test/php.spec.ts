@@ -895,13 +895,45 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					__dirname + '/test-data/mount-contents'
 				)
 			);
-			php.mv('/nodefs/a', '/tmp/a');
+			php.mkdir('/nodefs/tmp-dir-for-mv-test');
 			expect(
-				existsSync(__dirname + '/test-data/mount-contents/a')
+				existsSync(
+					__dirname + '/test-data/mount-contents/tmp-dir-for-mv-test'
+				)
+			).toEqual(true);
+
+			php.writeFile('/nodefs/tmp-dir-for-mv-test/test.txt', 'contents');
+			php.mv('/nodefs/tmp-dir-for-mv-test', '/tmp/tmp-dir-for-mv-test');
+			expect(
+				existsSync(
+					__dirname + '/test-data/mount-contents/tmp-dir-for-mv-test'
+				)
 			).toEqual(false);
-			expect(php.fileExists('/nodefs/a')).toEqual(false);
-			expect(php.fileExists('/tmp/a')).toEqual(true);
-			expect(php.readFileAsText('/tmp/a/b/test.txt')).toEqual('contents');
+			expect(php.fileExists('/nodefs/tmp-dir-for-mv-test')).toEqual(
+				false
+			);
+			expect(php.fileExists('/tmp/tmp-dir-for-mv-test')).toEqual(true);
+			expect(
+				php.readFileAsText('/tmp/tmp-dir-for-mv-test/test.txt')
+			).toEqual('contents');
+		});
+
+		it('mv() from MEMFS to NODEFS should work', () => {
+			php.mkdir('/nodefs');
+			php.mount(
+				'/nodefs',
+				createNodeFsMountHandler(
+					__dirname + '/test-data/mount-contents'
+				)
+			);
+
+			php.writeFile('/nodefs/tmp-file-for-mv-test.txt', 'contents');
+			php.mv('/nodefs/tmp-file-for-mv-test.txt', '/tmp/test.txt');
+			expect(php.fileExists('/nodefs/tmp-file-for-mv-test.txt')).toEqual(
+				false
+			);
+			expect(php.fileExists('/tmp/test.txt')).toEqual(true);
+			expect(php.readFileAsText('/tmp/test.txt')).toEqual('contents');
 		});
 
 		it('mkdir() should create a directory', () => {

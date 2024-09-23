@@ -1,5 +1,6 @@
 ---
 title: Using Blueprints
+slug: /blueprints/using-blueprints
 ---
 
 # Using Blueprints

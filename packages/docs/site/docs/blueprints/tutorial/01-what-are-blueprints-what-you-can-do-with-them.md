@@ -52,7 +52,7 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 -   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
--   [Blueprints examples](../08-examples.md)
--   [Demos and apps built with Blueprints](../../main/resources.md#apps-built-with-wordpress-playground)
+-   [Blueprints examples](/blueprints/examples)
+-   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
 
 :::

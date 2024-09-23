@@ -1,5 +1,6 @@
 ---
 title: Troubleshoot and debug
+slug: /blueprints/troubleshoot-and-debug
 ---
 
 # Troubleshoot and debug Blueprints
@@ -23,13 +24,13 @@ The editor is under development and the embedded Playground sometimes fails to l
 
 ## Check for the Filesystem and Database
 
-Some blueprint steps (such as [`writeFile`](/wordpress-playground/blueprints/steps#WriteFileStep)) alter the internal Filesystem structure of the Playground instance and some others (such as [`runSql`](/wordpress-playground/blueprints/steps#runSql)) alter the internal WordPress database.
+Some blueprint steps (such as [`writeFile`](/blueprints/steps#WriteFileStep)) alter the internal Filesystem structure of the Playground instance and some others (such as [`runSql`](/blueprints/steps#runSql)) alter the internal WordPress database.
 
 To check the final internal filesytem structure and database (after the blueprint steps have been applied) we can leverage some WordPress plugins that provide a SQL manager and a file explorer such as [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and [`WPide`](https://wordpress.org/plugins/wpide/) (you can see them in action from https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide)
 
 :::tip
 
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](../developers/apis/javascript-api/#debugging-and-testing)). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -38,7 +39,7 @@ true
 (3) ['hello.php', 'index.php', 'WordPress-Importer-master']
 ```
 
-Full list of methods we can use is available [here](/wordpress-playground/api/client/interface/PlaygroundClient)
+Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
 
 :::
 
@@ -58,12 +59,12 @@ The developer tools window allows you to inspect network requests, view console 
 
 ## Log your own error messages
 
-You can `error_log` your own error messages through [`runPHP` step](./steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](../main/web-instance.md#playground-options-menu) or from the browser's console.
+You can `error_log` your own error messages through [`runPHP` step](/blueprints/steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](/web-instance#playground-options-menu) or from the browser's console.
 
 ![Log errors snapshot](./_assets/log-errors.png)
 
 :::info
-When you download your Playground instance as a `zip` through the ["Download as zip" option](../main/web-instance.md#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
+When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
 :::
 
 ## Ask for help

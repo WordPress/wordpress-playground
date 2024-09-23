@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/host-your-own-playground
+---
+
 # Host your own Playground
 
 You can host the Playground on your own domain instead of `playground.wordpress.net`.
