@@ -3,7 +3,7 @@ import { StepHandler } from '.';
 import { Directory } from '../resources';
 
 /**
- * @inheritDoc writeFile
+ * @inheritDoc writeFiles
  * @hasRunnableExample
  * @landingPage /test.php
  * @example
@@ -11,8 +11,16 @@ import { Directory } from '../resources';
  * <code>
  * {
  * 		"step": "writeFiles",
- * 		"writeToPath": "/wordpress/test.php",
- * 		"filesTree": "<?php echo 'Hello World!'; ?>"
+ * 		"writeToPath": "/wordpress/wp-content/plugins/my-plugin",
+ * 		"filesTree": {
+ * 			"name": "my-plugin",
+ * 			"files": {
+ * 				"index.php": "<?php echo '<a>Hello World!</a>'; ?>",
+ * 				"public": {
+ * 					"style.css": "a { color: red; }"
+ * 				}
+ * 			}
+ * 		}
  * }
  * </code>
  */
@@ -25,7 +33,8 @@ export interface WriteFilesStep<DirectoryResource> {
 }
 
 /**
- * Writes data to a file at the specified path.
+ * Writes multiple files to a specified directory in the Playground
+ * filesystem.
  */
 export const writeFiles: StepHandler<WriteFilesStep<Directory>> = async (
 	playground,
