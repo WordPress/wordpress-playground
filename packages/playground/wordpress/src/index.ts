@@ -161,6 +161,35 @@ export async function preloadPhpInfoRoute(
 	);
 }
 
+/**
+ * Preload login functionality.
+ * @param php
+ */
+export async function preloadLogin(php: UniversalPHP) {
+	await php.writeFile(
+		'/internal/shared/preload/playground-login.php',
+		`<?php
+		if (!isset($_POST['username'])) {
+			return;
+		}
+
+		require_once( ${phpVar(joinPaths(await php.documentRoot, 'wp-load.php'))} );
+
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+        $user = get_user_by('login', sanitize_text_field($_POST['username']));
+        if (!$user) {
+            return;
+        }
+
+        wp_set_current_user( $user->ID, $user->user_login );
+        wp_set_auth_cookie( $user->ID );
+        do_action( 'wp_login', $user->user_login, $user );
+	`
+	);
+}
 export async function preloadSqliteIntegration(
 	php: UniversalPHP,
 	sqliteZip: File
@@ -336,7 +365,7 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		: '/tmp/unzipped-wordpress';
 
 	// Dive one directory deeper if the zip root does not contain the sample
-	// config file. This is relevant when unzipping a zipped branch from the 
+	// config file. This is relevant when unzipping a zipped branch from the
 	// https://github.com/WordPress/WordPress repository.
 	if (!php.fileExists(joinPaths(wpPath, 'wp-config-sample.php'))) {
 		// Still don't know the directory structure of the zip file.
