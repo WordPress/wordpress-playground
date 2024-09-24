@@ -98,7 +98,7 @@ export async function decodeRemoteZip(
  * @param source
  * @returns
  */
-function streamCentralDirectoryEntries(source: BytesSource) {
+export function streamCentralDirectoryEntries(source: BytesSource) {
 	let centralDirectoryStream: ReadableStream<Uint8Array>;
 
 	return new ReadableStream<CentralDirectoryEntry>({
@@ -129,7 +129,11 @@ export async function streamCentralDirectoryBytes(source: BytesSource) {
 	let centralDirectory: Uint8Array = new Uint8Array();
 
 	let chunkStart = source.length;
+	let attempt = 0;
 	do {
+		if (++attempt > 3) {
+			throw new Error();
+		}
 		chunkStart = Math.max(0, chunkStart - chunkSize);
 		const chunkEnd = Math.min(
 			chunkStart + chunkSize - 1,

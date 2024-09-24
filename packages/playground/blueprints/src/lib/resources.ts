@@ -5,11 +5,14 @@ import {
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
-import { decodeZip, decodeRemoteZip } from '@php-wasm/stream-compression';
-import { streamCentralDirectoryBytes } from 'packages/php-wasm/stream-compression/src/zip';
-import { limitBytes } from 'packages/php-wasm/stream-compression/src/utils/limit-bytes';
+import {
+	readFileEntry,
+	streamCentralDirectoryEntries,
+} from 'packages/php-wasm/stream-compression/src/zip';
 import { skipFirstBytes } from 'packages/php-wasm/stream-compression/src/utils/skip-first-bytes';
-import { skipLastBytes } from 'packages/php-wasm/stream-compression/src/utils/skip-last-bytes';
+import { skipBytesInByobStream } from 'packages/php-wasm/stream-compression/src/utils/skip-bytes-in-byob-stream';
+import { IterableReadableStream } from 'packages/php-wasm/stream-compression/src/utils/iterable-stream-polyfill';
+import { CentralDirectoryEntry } from 'packages/php-wasm/stream-compression/src/zip/types';
 
 export const ResourceTypes = [
 	'vfs',
@@ -385,35 +388,31 @@ export class GitHubArtifactResource extends FetchResource {
 	override async resolve(): Promise<File> {
 		const response = await this.resolveResponse();
 		let responseStream = response.body!;
-		console.log(response);
 		const length = Number(response.headers.get('content-length')!);
-		const filesStreama = await streamCentralDirectoryBytes({
+		const entries = streamCentralDirectoryEntries({
 			length,
-			streamBytes: async (start, end) => {
+			streamBytes: async (start) => {
 				const [left, right] = responseStream.tee();
 				responseStream = left;
-				return right
-					.pipeThrough(skipFirstBytes(start))
-					.pipeThrough(skipLastBytes(end - start, length - start));
+				return right.pipeThrough(skipFirstBytes(start));
 			},
-		});
-		for await (const entry of filesStreama) {
-			console.log({ entry });
-		}
-		return;
+		}) as IterableReadableStream<CentralDirectoryEntry>;
 
-		const filesStream = decodeZip(response.body!);
-		console.log({ filesStream });
-		// @TODO: Monitor the download progress. We can't do that before calling decodeZip() because of
-		// BYOB streams.
-		for await (const file of filesStream) {
-			//, (fileEntry) => new TextDecoder().decode(fileEntry.path).endsWith('.zip')
-			console.log({ file, name: file.name });
-			if (file.name.endsWith('.zip')) {
-				// return file;
+		for await (const centralDirEntry of entries) {
+			const utf8Path = new TextDecoder().decode(centralDirEntry.path);
+			if (utf8Path.endsWith('.zip')) {
+				const fileEntry = await readFileEntry(
+					await skipBytesInByobStream(
+						responseStream,
+						centralDirEntry.firstByteAt
+					),
+					false,
+					centralDirEntry as any
+				);
+				return new File([fileEntry!.bytes], utf8Path);
 			}
 		}
-		console.log('decoded data');
+
 		throw new Error('No .zip file found in the requested GitHub artifact');
 	}
 

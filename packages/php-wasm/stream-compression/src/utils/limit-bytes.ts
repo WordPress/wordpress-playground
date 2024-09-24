@@ -36,5 +36,6 @@ export function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 		cancel() {
 			reader.cancel();
 		},
+		type: 'bytes',
 	});
 }
