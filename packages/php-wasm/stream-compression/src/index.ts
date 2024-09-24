@@ -5,3 +5,4 @@ export { collectFile } from './utils/collect-file';
 export { iteratorToStream } from './utils/iterator-to-stream';
 export { StreamedFile } from './utils/streamed-file';
 export { encodeZip, decodeZip, decodeRemoteZip } from './zip';
+export { ZipDecoder } from './zip/zip-decoder';

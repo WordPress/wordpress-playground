@@ -1,0 +1,433 @@
+import { concatBytes } from '../utils/concat-bytes';
+import { concatUint8Array } from '../utils/concat-uint8-array';
+import {
+	CentralDirectoryEntry,
+	COMPRESSION_DEFLATE,
+	CompressionMethod,
+	FILE_HEADER_SIZE,
+	FileEntry,
+	SIGNATURE_CENTRAL_DIRECTORY,
+	SIGNATURE_CENTRAL_DIRECTORY_END,
+	SIGNATURE_FILE,
+} from './types';
+
+/**
+ * Private and experimental API: Range-based data sources.
+ *
+ * The idea is that if we can read arbitrary byte ranges from
+ * a file, we can retrieve a specific subset of a zip file.
+ */
+type BytesSource = {
+	length: number;
+	streamBytes: (
+		start: number,
+		end: number
+	) => Promise<ReadableStream<Uint8Array>>;
+};
+
+class PortableReadableStreamWrapper {
+	private stream: ReadableStream<Uint8Array>;
+	private reader: ReadableStreamDefaultReader<Uint8Array>;
+	private buffer: Uint8Array;
+	private appendBuffer: Uint8Array;
+	private _read = 0;
+	private _limit: number | undefined;
+
+	constructor(stream: ReadableStream<Uint8Array>) {
+		this.stream = stream;
+		this.reader = stream.getReader();
+		this.buffer = new Uint8Array();
+		this._limit = undefined;
+		this.appendBuffer = new Uint8Array();
+	}
+
+	async read(bytes?: number) {
+		let result = new Uint8Array();
+		if (bytes !== undefined) {
+			while (this.buffer.byteLength < bytes) {
+				await this.reachNextChunk();
+			}
+			result = this.buffer.slice(0, bytes);
+			this.buffer = this.buffer.slice(bytes);
+		} else {
+			await this.reachNextChunk();
+			result = this.buffer;
+			this.buffer = new Uint8Array();
+		}
+
+		if (result.byteLength === 0) {
+			result = this.appendBuffer;
+			this.appendBuffer = new Uint8Array();
+		}
+
+		if (this._limit && this._read + result.byteLength > this._limit) {
+			result = result.slice(0, this._limit - this._read);
+		}
+
+		this._read += result.byteLength;
+		return result;
+	}
+
+	private async reachNextChunk() {
+		const result = await this.reader.read();
+		if (!result?.value) {
+			return;
+		}
+		this.buffer = concatUint8Array(this.buffer, result.value);
+	}
+
+	async tee() {
+		const [left, right] = this.stream.tee();
+		return [
+			new PortableReadableStreamWrapper(left),
+			new PortableReadableStreamWrapper(right),
+		];
+	}
+
+	async skip(bytes: number) {
+		while (this.buffer.byteLength < bytes) {
+			await this.reachNextChunk();
+		}
+		this.buffer = this.buffer.slice(bytes);
+	}
+
+	async limit(bytes: number) {
+		this._limit = bytes + this._read;
+	}
+
+	prepend(bytes: Uint8Array) {
+		this.buffer = concatUint8Array(bytes, this.buffer);
+	}
+
+	append(bytes: Uint8Array) {
+		this.appendBuffer = concatUint8Array(this.appendBuffer, bytes);
+	}
+
+	toReadableStream() {
+		const self = this;
+		return new ReadableStream({
+			async start(controller) {
+				controller.enqueue(await self.read());
+			},
+			async pull(controller) {
+				const chunk = await self.read();
+				if (chunk.byteLength === 0) {
+					controller.close();
+					return;
+				}
+				controller.enqueue(chunk);
+			},
+		});
+	}
+}
+
+const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
+
+export class ZipDecoder {
+	constructor(private bytesSource: BytesSource) {}
+
+	async readFileByCentralDirectoryEntry(
+		centralDirectoryEntry: CentralDirectoryEntry
+	) {
+		const entry = await this.bytesSource.streamBytes(
+			centralDirectoryEntry.firstByteAt,
+			centralDirectoryEntry.lastByteAt
+		);
+		const fileEntry = await this.readFileEntry(
+			new PortableReadableStreamWrapper(entry),
+			false,
+			centralDirectoryEntry as any
+		);
+		return new File(
+			[fileEntry!.bytes],
+			new TextDecoder().decode(centralDirectoryEntry.path)
+		);
+	}
+
+	async *listCentralDirectory() {
+		const stream = new PortableReadableStreamWrapper(
+			await this.streamCentralDirectoryBytes(this.bytesSource)
+		);
+		while (true) {
+			const entry = await this.readCentralDirectoryEntry(stream);
+			if (!entry) {
+				break;
+			}
+			yield entry;
+		}
+	}
+
+	/**
+	 * Reads a file entry from a zip file.
+	 *
+	 * The file entry is structured as follows:
+	 *
+	 * ```
+	 * Offset	Bytes	Description
+	 *   0		4	Local file header signature = 0x04034b50 (PK♥♦ or "PK\3\4")
+	 *   4		2	Version needed to extract (minimum)
+	 *   6		2	General purpose bit flag
+	 *   8		2	Compression method; e.g. none = 0, DEFLATE = 8 (or "\0x08\0x00")
+	 *   10		2	File last modification time
+	 *   12		2	File last modification date
+	 *   14		4	CRC-32 of uncompressed data
+	 *   18		4	Compressed size (or 0xffffffff for ZIP64)
+	 *   22		4	Uncompressed size (or 0xffffffff for ZIP64)
+	 *   26		2	File name length (n)
+	 *   28		2	Extra field length (m)
+	 *   30		n	File name
+	 *   30+n	m	Extra field
+	 * ```
+	 *
+	 * @param stream
+	 * @param skipSignature Do not consume the signature from the stream.
+	 * @returns
+	 */
+	private async readFileEntry(
+		stream: PortableReadableStreamWrapper,
+		skipSignature = false,
+		headerOverrides: Partial<FileEntry> = {}
+	): Promise<FileEntry | null> {
+		if (!skipSignature) {
+			const sigData = new DataView((await stream.read(4))!.buffer);
+			const signature = sigData.getUint32(0, true);
+			if (signature !== SIGNATURE_FILE) {
+				return null;
+			}
+		}
+		const data = new DataView((await stream.read(26))!.buffer);
+		const pathLength = data.getUint16(22, true);
+		const extraLength = data.getUint16(24, true);
+		const entry: Partial<FileEntry> = {
+			signature: SIGNATURE_FILE,
+			version: data.getUint32(0, true),
+			generalPurpose: data.getUint16(2, true),
+			compressionMethod: data.getUint16(4, true) as CompressionMethod,
+			lastModifiedTime: data.getUint16(6, true),
+			lastModifiedDate: data.getUint16(8, true),
+			crc: data.getUint32(10, true),
+			compressedSize: data.getUint32(14, true),
+			uncompressedSize: data.getUint32(18, true),
+			...headerOverrides,
+		};
+
+		entry['path'] = await stream.read(pathLength);
+		entry['isDirectory'] = endsWithSlash(entry.path!);
+		entry['extra'] = await stream.read(extraLength);
+
+		// Make sure we consume the body stream or else
+		// we'll start reading the next file at the wrong
+		// offset.
+		// @TODO: Expose the body stream instead of reading it all
+		//        eagerly. Ensure the next iteration exhausts
+		//        the last body stream before moving on.
+		if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
+			if (true) {
+				stream.limit(entry['compressedSize']!);
+				entry['bytes'] = await stream
+					.toReadableStream()
+					.pipeThrough(new DecompressionStream('deflate-raw'))
+					.pipeThrough(concatBytes(entry['uncompressedSize']))
+					.getReader()
+					.read()
+					.then(({ value }) => value!);
+			} else {
+				/**
+				 * We want to write raw deflate-compressed bytes into our
+				 * final ZIP file. CompressionStream supports "deflate-raw"
+				 * compression, but not on Node.js v18.
+				 *
+				 * As a workaround, we use the "gzip" compression and add
+				 * the header and footer bytes. It works, because "gzip"
+				 * compression is the same as "deflate" compression plus
+				 * the header and the footer.
+				 *
+				 * The header is 10 bytes long:
+				 * - 2 magic bytes: 0x1f, 0x8b
+				 * - 1 compression method: 0x08 (deflate)
+				 * - 1 header flags
+				 * - 4 mtime: 0x00000000 (no timestamp)
+				 * - 1 compression flags
+				 * - 1 OS: 0x03 (Unix)
+				 *
+				 * The footer is 8 bytes long:
+				 * - 4 bytes for CRC32 of the uncompressed data
+				 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
+				 */
+				const header = new Uint8Array(10);
+				header.set([0x1f, 0x8b, 0x08]);
+
+				const footer = new Uint8Array(8);
+				const footerView = new DataView(footer.buffer);
+				footerView.setUint32(0, entry.crc!, true);
+				footerView.setUint32(
+					4,
+					entry.uncompressedSize! % 2 ** 32,
+					true
+				);
+				stream.prepend(header);
+				stream.append(footer);
+				stream.limit(entry['compressedSize']! + 18);
+				entry['bytes'] = await stream
+					.toReadableStream()
+					.pipeThrough(new DecompressionStream('gzip'))
+					.pipeThrough(concatBytes(entry['uncompressedSize']))
+					.getReader()
+					.read()
+					.then(({ value }) => value!);
+			}
+		} else {
+			entry['bytes'] = await stream.read(entry['compressedSize']!);
+		}
+		return entry as FileEntry;
+	}
+
+	/**
+	 * Reads a central directory entry from a zip file.
+	 *
+	 * The central directory entry is structured as follows:
+	 *
+	 * ```
+	 * Offset Bytes Description
+	 *   0		4	Central directory file header signature = 0x02014b50
+	 *   4		2	Version made by
+	 *   6		2	Version needed to extract (minimum)
+	 *   8		2	General purpose bit flag
+	 *   10		2	Compression method
+	 *   12		2	File last modification time
+	 *   14		2	File last modification date
+	 *   16		4	CRC-32 of uncompressed data
+	 *   20		4	Compressed size (or 0xffffffff for ZIP64)
+	 *   24		4	Uncompressed size (or 0xffffffff for ZIP64)
+	 *   28		2	File name length (n)
+	 *   30		2	Extra field length (m)
+	 *   32		2	File comment length (k)
+	 *   34		2	Disk number where file starts (or 0xffff for ZIP64)
+	 *   36		2	Internal file attributes
+	 *   38		4	External file attributes
+	 *   42		4	Relative offset of local file header (or 0xffffffff for ZIP64). This is the number of bytes between the start of the first disk on which the file occurs, and the start of the local file header. This allows software reading the central directory to locate the position of the file inside the ZIP file.
+	 *   46		n	File name
+	 *   46+n	m	Extra field
+	 *   46+n+m	k	File comment
+	 * ```
+	 *
+	 * @param stream
+	 * @param skipSignature
+	 * @returns
+	 */
+	private async readCentralDirectoryEntry(
+		stream: PortableReadableStreamWrapper,
+		skipSignature = false
+	): Promise<CentralDirectoryEntry | null> {
+		if (!skipSignature) {
+			const sigData = new DataView((await stream.read(4))!.buffer);
+			const signature = sigData.getUint32(0, true);
+			if (signature !== SIGNATURE_CENTRAL_DIRECTORY) {
+				return null;
+			}
+		}
+		const data = new DataView((await stream.read(42))!.buffer);
+		const pathLength = data.getUint16(24, true);
+		const extraLength = data.getUint16(26, true);
+		const fileCommentLength = data.getUint16(28, true);
+		const centralDirectory: Partial<CentralDirectoryEntry> = {
+			signature: SIGNATURE_CENTRAL_DIRECTORY,
+			versionCreated: data.getUint16(0, true),
+			versionNeeded: data.getUint16(2, true),
+			generalPurpose: data.getUint16(4, true),
+			compressionMethod: data.getUint16(6, true) as CompressionMethod,
+			lastModifiedTime: data.getUint16(8, true),
+			lastModifiedDate: data.getUint16(10, true),
+			crc: data.getUint32(12, true),
+			compressedSize: data.getUint32(16, true),
+			uncompressedSize: data.getUint32(20, true),
+			diskNumber: data.getUint16(30, true),
+			internalAttributes: data.getUint16(32, true),
+			externalAttributes: data.getUint32(34, true),
+			firstByteAt: data.getUint32(38, true),
+		};
+		centralDirectory['lastByteAt'] =
+			centralDirectory.firstByteAt! +
+			FILE_HEADER_SIZE +
+			pathLength +
+			fileCommentLength +
+			extraLength! +
+			centralDirectory.compressedSize! -
+			1;
+
+		centralDirectory['path'] = await stream.read(pathLength);
+		centralDirectory['isDirectory'] = endsWithSlash(centralDirectory.path!);
+		centralDirectory['extra'] = await stream.read(extraLength);
+		centralDirectory['fileComment'] = await stream.read(fileCommentLength);
+		return centralDirectory as CentralDirectoryEntry;
+	}
+
+	private async streamCentralDirectoryBytes(source: BytesSource) {
+		const chunkSize = CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE;
+		let centralDirectory: Uint8Array = new Uint8Array();
+
+		let chunkStart = source.length;
+		let attempt = 0;
+		do {
+			if (++attempt > 3) {
+				throw new Error();
+			}
+			chunkStart = Math.max(0, chunkStart - chunkSize);
+			const chunkEnd = Math.min(
+				chunkStart + chunkSize - 1,
+				source.length - 1
+			);
+			const stream = new PortableReadableStreamWrapper(
+				await source.streamBytes(chunkStart, chunkEnd)
+			);
+			centralDirectory = await stream.read(chunkSize);
+
+			// Scan the buffer for the signature
+			const view = new DataView(centralDirectory.buffer);
+			for (let i = view.byteLength - 4; i >= 0; i--) {
+				if (
+					view.getUint32(i, true) !== SIGNATURE_CENTRAL_DIRECTORY_END
+				) {
+					continue;
+				}
+
+				// Confirm we have enough data to read the offset and the
+				// length of the central directory.
+				const centralDirectoryLengthAt = i + 12;
+				const centralDirectoryOffsetAt = centralDirectoryLengthAt + 4;
+				if (
+					centralDirectory.byteLength <
+					centralDirectoryOffsetAt + 4
+				) {
+					throw new Error('Central directory not found');
+				}
+
+				// Read where the central directory starts
+				const dirStart = view.getUint32(centralDirectoryOffsetAt, true);
+				if (dirStart < chunkStart) {
+					const stream = new PortableReadableStreamWrapper(
+						await source.streamBytes(dirStart, chunkStart - 1)
+					);
+					// We're missing some bytes, let's grab them
+					const missingBytes = await stream.read(chunkStart - 1);
+					centralDirectory = concatUint8Array(
+						missingBytes!,
+						centralDirectory
+					);
+				} else if (dirStart > chunkStart) {
+					// We've read too many bytes, let's trim them
+					centralDirectory = centralDirectory.slice(
+						dirStart - chunkStart
+					);
+				}
+				return new Blob([centralDirectory]).stream();
+			}
+		} while (chunkStart >= 0);
+
+		throw new Error('Central directory not found');
+	}
+}
+
+function endsWithSlash(path: Uint8Array) {
+	return path[path.byteLength - 1] == '/'.charCodeAt(0);
+}
