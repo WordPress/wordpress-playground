@@ -169,24 +169,27 @@ export async function preloadLogin(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/preload/playground-login.php',
 		`<?php
-		if (!isset($_POST['username'])) {
+		if ( !str_ends_with($_SERVER['REQUEST_URI'], '/playground-login.php') ) {
 			return;
+		}
+		if (!isset($_POST['username'])) {
+			wp_send_json_error('No username provided');
 		}
 
 		require_once( ${phpVar(joinPaths(await php.documentRoot, 'wp-load.php'))} );
-
 		if ( is_user_logged_in() ) {
-			return;
+			wp_send_json_success();
 		}
 
         $user = get_user_by('login', sanitize_text_field($_POST['username']));
         if (!$user) {
-            return;
+            wp_send_json_error('Invalid username');
         }
 
         wp_set_current_user( $user->ID, $user->user_login );
         wp_set_auth_cookie( $user->ID );
         do_action( 'wp_login', $user->user_login, $user );
+		wp_send_json_success();
 	`
 	);
 }

@@ -1,5 +1,6 @@
 import { StepHandler } from '.';
 import { logger } from '@php-wasm/logger';
+import { request } from './request';
 
 /**
  * @inheritDoc login
@@ -43,11 +44,13 @@ export const login: StepHandler<LoginStep> = async (
 		await playground.mkdir('/wordpress/');
 	}
 
-	const response = await playground.request({
-		url: '/playground-login.php',
-		method: 'POST',
-		body: {
-			username,
+	const response = await request(playground, {
+		request: {
+			url: '/playground-login.php',
+			method: 'POST',
+			body: {
+				username,
+			},
 		},
 	});
 
