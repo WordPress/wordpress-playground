@@ -208,6 +208,9 @@
 				},
 				{
 					"$ref": "#/definitions/UrlReference"
+				},
+				{
+					"$ref": "#/definitions/GitHubArtifactReference"
 				}
 			]
 		},
@@ -338,6 +341,49 @@
 				}
 			},
 			"required": ["resource", "url"],
+			"additionalProperties": false
+		},
+		"GitHubArtifactReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "github:artifact",
+					"description": "Identifies the file resource as a GitHub artifact"
+				},
+				"owner": {
+					"type": "string",
+					"description": "The URL of the artifact"
+				},
+				"repo": {
+					"type": "string",
+					"description": "The name of the repository"
+				},
+				"workflow": {
+					"type": "string",
+					"description": "The name of the workflow"
+				},
+				"artifact": {
+					"type": "string",
+					"description": "The name of the artifact"
+				},
+				"pr": {
+					"type": "number",
+					"description": "The pull request number"
+				},
+				"caption": {
+					"type": "string",
+					"description": "Optional caption for displaying a progress message"
+				}
+			},
+			"required": [
+				"resource",
+				"owner",
+				"repo",
+				"workflow",
+				"artifact",
+				"pr"
+			],
 			"additionalProperties": false
 		},
 		"SupportedPHPExtensionBundle": {

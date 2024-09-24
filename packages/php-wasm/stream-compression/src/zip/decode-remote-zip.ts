@@ -124,7 +124,7 @@ function streamCentralDirectoryEntries(source: BytesSource) {
  * @param source
  * @returns
  */
-async function streamCentralDirectoryBytes(source: BytesSource) {
+export async function streamCentralDirectoryBytes(source: BytesSource) {
 	const chunkSize = CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE;
 	let centralDirectory: Uint8Array = new Uint8Array();
 

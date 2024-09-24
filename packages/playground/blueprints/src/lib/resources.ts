@@ -5,6 +5,11 @@ import {
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
+import { decodeZip, decodeRemoteZip } from '@php-wasm/stream-compression';
+import { streamCentralDirectoryBytes } from 'packages/php-wasm/stream-compression/src/zip';
+import { limitBytes } from 'packages/php-wasm/stream-compression/src/utils/limit-bytes';
+import { skipFirstBytes } from 'packages/php-wasm/stream-compression/src/utils/skip-first-bytes';
+import { skipLastBytes } from 'packages/php-wasm/stream-compression/src/utils/skip-last-bytes';
 
 export const ResourceTypes = [
 	'vfs',
@@ -12,6 +17,7 @@ export const ResourceTypes = [
 	'wordpress.org/themes',
 	'wordpress.org/plugins',
 	'url',
+	'github:artifact',
 ] as const;
 
 export type VFSReference = {
@@ -48,13 +54,43 @@ export type UrlReference = {
 	/** Optional caption for displaying a progress message */
 	caption?: string;
 };
+/**
+ * @example
+ * ```
+ * {
+ *   "resource": "github:artifact",
+ *   "owner": "WordPress",
+ *   "repo": "gutenberg",
+ *   "workflow": "Build Gutenberg Plugin Zip",
+ *   "artifact": "gutenberg-plugin",
+ *   "pr": 65590
+ * }
+ * ```
+ */
+export type GitHubArtifactReference = {
+	/** Identifies the file resource as a GitHub artifact */
+	resource: 'github:artifact';
+	/** The URL of the artifact */
+	owner: string;
+	/** The name of the repository */
+	repo: string;
+	/** The name of the workflow */
+	workflow: string;
+	/** The name of the artifact */
+	artifact: string;
+	/** The pull request number */
+	pr: number;
+	/** Optional caption for displaying a progress message */
+	caption?: string;
+};
 
 export type FileReference =
 	| VFSReference
 	| LiteralReference
 	| CoreThemeReference
 	| CorePluginReference
-	| UrlReference;
+	| UrlReference
+	| GitHubArtifactReference;
 
 export function isFileReference(ref: any): ref is FileReference {
 	return (
@@ -105,6 +141,9 @@ export abstract class Resource {
 				break;
 			case 'url':
 				resource = new UrlResource(ref, progress);
+				break;
+			case 'github:artifact':
+				resource = new GitHubArtifactResource(ref, progress);
 				break;
 			default:
 				throw new Error(`Invalid resource: ${ref}`);
@@ -211,21 +250,24 @@ export abstract class FetchResource extends Resource {
 
 	/** @inheritDoc */
 	async resolve() {
+		const response = await this.resolveResponse();
+		// @TODO: Use StreamedFile once the Blueprints resource resolution
+		//        mechanism knows how to deal with streams.
+		return new File([await response.blob()], this.name);
+	}
+
+	protected async resolveResponse() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
 		try {
-			let response = await fetch(url);
+			const response = await fetch(url);
 			if (!response.ok) {
 				throw new Error(`Could not download "${url}"`);
 			}
-			response = await cloneResponseMonitorProgress(
-				response,
-				this.progress?.loadingListener ?? noop
-			);
 			if (response.status !== 200) {
 				throw new Error(`Could not download "${url}"`);
 			}
-			return new File([await response.blob()], this.name);
+			return response;
 		} catch (e) {
 			throw new Error(
 				`Could not download "${url}".
@@ -304,6 +346,15 @@ export class UrlResource extends FetchResource {
 		super(progress);
 	}
 
+	override async resolve(): Promise<File> {
+		const response = cloneResponseMonitorProgress(
+			await this.resolveResponse(),
+			this.progress?.loadingListener ?? noop
+		);
+		const file = await response.blob();
+		return new File([file], this.name);
+	}
+
 	/** @inheritDoc */
 	getURL() {
 		return this.resource.url;
@@ -312,6 +363,78 @@ export class UrlResource extends FetchResource {
 	/** @inheritDoc */
 	protected override get caption() {
 		return this.resource.caption ?? super.caption;
+	}
+}
+
+/**
+ * A `Resource` that represents a file available from a URL.
+ */
+export class GitHubArtifactResource extends FetchResource {
+	/**
+	 * Creates a new instance of `UrlResource`.
+	 * @param resource The URL reference.
+	 * @param progress The progress tracker.
+	 */
+	constructor(
+		private resource: GitHubArtifactReference,
+		progress?: ProgressTracker
+	) {
+		super(progress);
+	}
+
+	override async resolve(): Promise<File> {
+		const response = await this.resolveResponse();
+		let responseStream = response.body!;
+		console.log(response);
+		const length = Number(response.headers.get('content-length')!);
+		const filesStreama = await streamCentralDirectoryBytes({
+			length,
+			streamBytes: async (start, end) => {
+				const [left, right] = responseStream.tee();
+				responseStream = left;
+				return right
+					.pipeThrough(skipFirstBytes(start))
+					.pipeThrough(skipLastBytes(end - start, length - start));
+			},
+		});
+		for await (const entry of filesStreama) {
+			console.log({ entry });
+		}
+		return;
+
+		const filesStream = decodeZip(response.body!);
+		console.log({ filesStream });
+		// @TODO: Monitor the download progress. We can't do that before calling decodeZip() because of
+		// BYOB streams.
+		for await (const file of filesStream) {
+			//, (fileEntry) => new TextDecoder().decode(fileEntry.path).endsWith('.zip')
+			console.log({ file, name: file.name });
+			if (file.name.endsWith('.zip')) {
+				// return file;
+			}
+		}
+		console.log('decoded data');
+		throw new Error('No .zip file found in the requested GitHub artifact');
+	}
+
+	/** @inheritDoc */
+	getURL() {
+		const url = new URL(import.meta.url);
+		url.pathname = '/plugin-proxy.php';
+		url.searchParams.set('org', this.resource.owner);
+		url.searchParams.set('repo', this.resource.repo);
+		url.searchParams.set('workflow', this.resource.workflow);
+		url.searchParams.set('artifact', this.resource.artifact);
+		url.searchParams.set('pr', this.resource.pr.toString());
+		return url.toString();
+	}
+
+	/** @inheritDoc */
+	protected override get caption() {
+		return (
+			this.resource.caption ??
+			`Fetching ${this.resource.owner}/${this.resource.repo} PR #${this.resource.pr}`
+		);
 	}
 }
 
