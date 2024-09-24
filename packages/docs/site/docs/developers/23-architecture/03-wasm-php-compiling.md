@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/wasm-php-compiling
+---
+
 # Compiling PHP
 
 The build pipeline lives in a [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)

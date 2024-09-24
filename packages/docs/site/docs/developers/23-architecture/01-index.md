@@ -1,10 +1,15 @@
+---
+title: Architecture
+slug: /developers/architecture
+---
+
 # Architecture overview
 
 WordPress Playground consists of the following high-level components:
 
--   [WordPress](./15-wordpress.md)
--   [WebAssembly PHP](./02-wasm-php-overview.md)
--   [Browser bindings](./08-browser-concepts.md)
+-   [WordPress](/developers/architecture/wordpress)
+-   [WebAssembly PHP](/developers/architecture/wasm-php-overview)
+-   [Browser bindings](/developers/architecture/browser-concepts)
 -   Node.js bindings via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
 -   [Public API](/developers/apis/)
 

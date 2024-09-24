@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: Blueprint data Format
+slug: /blueprints/data-format
 ---
 
 # Blueprint data format
@@ -109,7 +110,7 @@ You can preload extra libraries into the Playground instance. The following libr
 
 ## Steps
 
-Arguably the most powerful property, `steps` allows you to configure the Playground instance with preinstalled themes, plugins, demo content, and more. The following example logs the user in with a dedicated username and password. It then installs and activates the Gutenberg plugin. [Learn more about steps](./05-steps.md).
+Arguably the most powerful property, `steps` allows you to configure the Playground instance with preinstalled themes, plugins, demo content, and more. The following example logs the user in with a dedicated username and password. It then installs and activates the Gutenberg plugin. [Learn more about steps](/blueprints/steps).
 
 ```js
 {

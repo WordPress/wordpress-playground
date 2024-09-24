@@ -6,6 +6,15 @@ import {
 import { MountDevice, SyncProgress } from '@php-wasm/web';
 import { PlaygroundClient } from '@wp-playground/remote';
 
+export type OpfsSync =
+	| {
+			status: 'syncing';
+			progress?: SyncProgress;
+	  }
+	| {
+			status: 'error';
+	  };
+
 export interface ClientInfo {
 	client: PlaygroundClient;
 	siteSlug: string;
@@ -14,8 +23,7 @@ export interface ClientInfo {
 		device: MountDevice;
 		mountpoint: string;
 	};
-	opfsIsSyncing?: boolean;
-	opfsSyncProgress?: SyncProgress;
+	opfsSync?: OpfsSync;
 }
 
 // Create an entity adapter for ClientInfo

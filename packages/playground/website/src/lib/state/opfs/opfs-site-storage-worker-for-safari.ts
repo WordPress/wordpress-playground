@@ -9,6 +9,7 @@
 onmessage = async function (event: MessageEvent) {
 	const filePath: string = event.data.path;
 	const content: string = event.data.content;
+	const responsePort = event.ports[0];
 
 	const pathParts = filePath.split('/').filter((p) => p.length > 0);
 
@@ -29,10 +30,10 @@ onmessage = async function (event: MessageEvent) {
 	const syncAccessHandle = await fileHandle.createSyncAccessHandle();
 	try {
 		const encodedContent = new TextEncoder().encode(content);
+		syncAccessHandle.truncate(0);
 		syncAccessHandle.write(encodedContent);
-		postMessage('done');
+		responsePort.postMessage('done');
 	} finally {
 		syncAccessHandle.close();
 	}
 };
-postMessage('ready');

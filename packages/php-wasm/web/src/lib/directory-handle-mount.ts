@@ -188,43 +188,54 @@ export async function copyMemfsToOpfs(
 	}
 	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot);
 
-	// @TODO: Understand why Safari is failing when writing many files concurrently
-	// with createSyncAccessHandle.
-	// Safari doesn't support createWritable as of 2024-09-18,
-	// and we are getting errors in Safari while using createSyncAccessHandle() in parallel.
-	// But in testing, Safari's createSyncAccessHandle() only begins to when
-	// writing ~125 files concurrently. So for now, we are limiting Safari to 100 concurrent writes
-	// to hopefully give us a safe margin.
-	// @ts-ignore -- Safari doesn't support createWritable as of 2024-09-18.
-	const maxConcurrentWrites = FileSystemFileHandle.prototype.createWritable
-		? Infinity
-		: 100;
+	// Now let's create all the required files in OPFS. This can be quite slow
+	// so we report progress. Throttle the progress callback to avoid flooding
+	// the main thread with excessive updates.
+	let numFilesCompleted = 0;
+	const throttledProgressCallback = onProgress && throttle(onProgress, 100);
 
-	// Now let's create all the required files in OPFS. This is quite slow
-	// so we report progress.
-	let i = 0;
-	const outstandingWrites = new Set<Promise<void>>();
-	for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
-		const promiseToCreateFile = overwriteOpfsFile(
-			opfsDir,
-			entryName,
-			FS,
-			memfsPath
-		).then(() => {
-			outstandingWrites.delete(promiseToCreateFile);
-			onProgress?.({ files: ++i, total: filesToCreate.length });
-		});
+	// Limit max concurrent writes because Safari may otherwise encounter
+	// an error like "UnknownError: Invalid platform file handle" after opening
+	// a sufficient number of FileSyncAccessHandles (near 128).
+	// 2024-09-21: This limit was chosen based on perceived performance while
+	// testing with Safari, Chrome, and Firefox. It felt like a sweet spot.
+	// Writing one-at-a-time with no concurrency had similar performance
+	// but felt slightly slower. We can revisit and take better measurements
+	// if needed.
+	const maxConcurrentWrites = 25;
+	const concurrentWrites = new Set();
 
-		outstandingWrites.add(promiseToCreateFile);
+	try {
+		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
+			const promise = overwriteOpfsFile(
+				opfsDir,
+				entryName,
+				FS,
+				memfsPath
+			);
+			concurrentWrites.add(promise);
 
-		if (outstandingWrites.size >= maxConcurrentWrites) {
-			// We should be under max concurrency when any write completes.
-			await Promise.race(outstandingWrites);
+			if (
+				concurrentWrites.size >= maxConcurrentWrites ||
+				numFilesCompleted + concurrentWrites.size ===
+					filesToCreate.length
+			) {
+				await Promise.all(concurrentWrites);
+				numFilesCompleted += concurrentWrites.size;
+
+				throttledProgressCallback?.({
+					files: numFilesCompleted,
+					total: filesToCreate.length,
+				});
+
+				concurrentWrites.clear();
+			}
 		}
-	}
-
-	if (outstandingWrites.size > 0) {
-		await Promise.all(outstandingWrites);
+	} finally {
+		// Make sure all FS-related activity has completed one way or another
+		// before returning. Otherwise, an error followed by a retry might lead
+		// to a conflict with writes from the earlier attempt.
+		await Promise.allSettled(concurrentWrites);
 	}
 }
 
@@ -249,17 +260,16 @@ async function overwriteOpfsFile(
 	}
 
 	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
-	const writer =
-		opfsFile.createWritable !== undefined
-			? // Google Chrome, Firefox, probably more browsers
-			  await opfsFile.createWritable()
-			: // Safari
-			  await opfsFile.createSyncAccessHandle();
+	// Using FileSyncAccessHandle for all browsers because it seemed to be
+	// faster (and certainly no slower) than using a WritableStream,
+	// and if we have a single write path in all browsers, that is simpler.
+	// TODO: Confirm this is still the case with Firefox.
+	const writer = await opfsFile.createSyncAccessHandle();
 	try {
-		await writer.truncate(0);
-		await writer.write(buffer);
+		writer.truncate(0);
+		writer.write(buffer);
 	} finally {
-		await writer.close();
+		writer.close();
 	}
 }
 
@@ -419,4 +429,27 @@ async function resolveParent(
 		handle = await handle.getDirectoryHandle(segment, { create: true });
 	}
 	return handle as any;
+}
+
+function throttle<T extends (...args: any[]) => any>(
+	fn: T,
+	debounceMs: number
+): T {
+	let lastCallTime = 0;
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	let pendingArgs: Parameters<T> | undefined;
+
+	return function throttledCallback(...args: Parameters<T>) {
+		pendingArgs = args;
+
+		const timeSinceLastCall = Date.now() - lastCallTime;
+		if (timeoutId === undefined) {
+			const delay = Math.max(0, debounceMs - timeSinceLastCall);
+			timeoutId = setTimeout(() => {
+				timeoutId = undefined;
+				lastCallTime = Date.now();
+				fn(...pendingArgs!);
+			}, delay);
+		}
+	} as T;
 }

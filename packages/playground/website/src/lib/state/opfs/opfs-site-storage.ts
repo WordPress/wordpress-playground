@@ -161,12 +161,18 @@ async function opfsWriteFile(path: string, content: string) {
 	// and that is why we're using a worker here.
 	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
 
+	const channel = new MessageChannel();
 	const promiseToWrite = new Promise<void>((resolve, reject) => {
-		worker.onmessage = function (event: MessageEvent) {
-			if (event.data === 'ready') {
-				worker.postMessage({ path, content });
-			} else if (event.data === 'done') {
+		worker.postMessage({ path, content }, { transfer: [channel.port2] });
+		channel.port1.onmessage = function (event: MessageEvent) {
+			if (event.data === 'done') {
 				resolve();
+			} else {
+				reject(
+					new Error(
+						`Unexpected message from OPFS write worker: ${event.data}`
+					)
+				);
 			}
 		};
 		worker.onerror = reject;

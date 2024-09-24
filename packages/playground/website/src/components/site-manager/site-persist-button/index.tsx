@@ -24,40 +24,50 @@ export function SitePersistButton({
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const dispatch = useAppDispatch();
 
-	if (!clientInfo?.opfsIsSyncing) {
+	if (!clientInfo?.opfsSync || clientInfo.opfsSync?.status === 'error') {
 		return (
-			<DropdownMenu trigger={children}>
-				<DropdownMenuItem
-					onClick={() =>
-						dispatch(persistTemporarySite(siteSlug, 'opfs'))
-					}
-				>
-					<DropdownMenuItemLabel>
-						Save in this browser
-					</DropdownMenuItemLabel>
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					disabled={localFsAvailability !== 'available'}
-					onClick={() =>
-						dispatch(persistTemporarySite(siteSlug, 'local-fs'))
-					}
-				>
-					<DropdownMenuItemLabel>
-						Save in a local directory
-					</DropdownMenuItemLabel>
-					{localFsAvailability !== 'available' && (
-						<DropdownMenuItemHelpText>
-							{localFsAvailability === 'not-available'
-								? 'Not available in this browser'
-								: 'Not available on this site'}
-						</DropdownMenuItemHelpText>
-					)}
-				</DropdownMenuItem>
-			</DropdownMenu>
+			<>
+				<DropdownMenu trigger={children}>
+					<DropdownMenuItem
+						onClick={() =>
+							dispatch(persistTemporarySite(siteSlug, 'opfs'))
+						}
+					>
+						<DropdownMenuItemLabel>
+							Save in this browser
+						</DropdownMenuItemLabel>
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						disabled={localFsAvailability !== 'available'}
+						onClick={() =>
+							dispatch(persistTemporarySite(siteSlug, 'local-fs'))
+						}
+					>
+						<DropdownMenuItemLabel>
+							Save in a local directory
+						</DropdownMenuItemLabel>
+						{localFsAvailability !== 'available' && (
+							<DropdownMenuItemHelpText>
+								{localFsAvailability === 'not-available'
+									? 'Not available in this browser'
+									: 'Not available on this site'}
+							</DropdownMenuItemHelpText>
+						)}
+					</DropdownMenuItem>
+				</DropdownMenu>
+				{clientInfo?.opfsSync?.status === 'error' && (
+					<div className={css.error}>
+						There has been an error. Please try again.
+					</div>
+				)}
+			</>
 		);
 	}
 
-	if (!clientInfo?.opfsSyncProgress) {
+	if (
+		clientInfo?.opfsSync?.status === 'syncing' &&
+		!clientInfo?.opfsSync?.progress
+	) {
 		return (
 			<div className={css.progressInfo}>
 				<div>
@@ -73,14 +83,14 @@ export function SitePersistButton({
 			<div>
 				<progress
 					id="file"
-					max={clientInfo.opfsSyncProgress.total}
-					value={clientInfo.opfsSyncProgress.files}
+					max={clientInfo.opfsSync.progress?.total}
+					value={clientInfo.opfsSync.progress?.files}
 				></progress>
 			</div>
 			<div>
-				{clientInfo.opfsSyncProgress.files}
+				{clientInfo.opfsSync.progress?.files}
 				{' / '}
-				{clientInfo.opfsSyncProgress.total} files saved
+				{clientInfo.opfsSync.progress?.total} files saved
 			</div>
 		</div>
 	);

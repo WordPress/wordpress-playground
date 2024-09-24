@@ -102,7 +102,11 @@ export class FSHelpers {
 
 			if (movingBetweenFilesystems) {
 				FSHelpers.copyRecursive(FS, fromPath, toPath);
-				FSHelpers.rmdir(FS, fromPath, { recursive: true });
+				if (FSHelpers.isDir(FS, fromPath)) {
+					FSHelpers.rmdir(FS, fromPath, { recursive: true });
+				} else {
+					FS.unlink(fromPath);
+				}
 			} else {
 				FS.rename(fromPath, toPath);
 			}

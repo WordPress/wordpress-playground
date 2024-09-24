@@ -3,6 +3,8 @@ import { logToMemory, logToConsole, logs } from './log-handlers';
 
 export { logEventType } from './handlers/log-event';
 
+export { errorLogPath } from './collectors/collect-php-logs';
+
 export type Log = {
 	message: any;
 	severity?: LogSeverity;

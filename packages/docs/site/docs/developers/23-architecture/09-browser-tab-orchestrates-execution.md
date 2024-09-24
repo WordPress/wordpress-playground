@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/browser-tab-orchestrates-execution
+---
+
 # Browser tab orchestrates the execution
 
 The main `index.html` ties the entire application together. It starts all the concurrent processes and displays the PHP responses. The app only lives as long as the main `index.html`.

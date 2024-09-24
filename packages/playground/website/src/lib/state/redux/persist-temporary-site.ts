@@ -35,9 +35,27 @@ export function persistTemporarySite(
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
 		}
+
+		try {
+			const existingSiteInfo = await opfsSiteStorage?.read(siteInfo.slug);
+			if (existingSiteInfo?.metadata.storage === 'none') {
+				// It is likely we are dealing with the remnants of a failed save
+				// of a temporary site to OPFS. Let's clean up an try again.
+				await opfsSiteStorage?.delete(siteInfo.slug);
+			}
+		} catch (error: any) {
+			if (error?.name === 'NotFoundError') {
+				// Do nothing
+			} else {
+				throw error;
+			}
+		}
 		await opfsSiteStorage?.create(siteInfo.slug, {
 			...siteInfo.metadata,
-			storage: storageType,
+			// Start with storage type of 'none' to represent a temporary site
+			// that the site is being saved. This will help us distinguish
+			// between successful and failed saves.
+			storage: 'none',
 		});
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
@@ -84,7 +102,7 @@ export function persistTemporarySite(
 				siteSlug,
 				changes: {
 					opfsMountDescriptor: mountDescriptor,
-					opfsIsSyncing: true,
+					opfsSync: { status: 'syncing' },
 				},
 			})
 		);
@@ -99,23 +117,37 @@ export function persistTemporarySite(
 						updateClientInfo({
 							siteSlug,
 							changes: {
-								opfsSyncProgress: progress,
+								opfsSync: {
+									status: 'syncing',
+									progress,
+								},
 							},
 						})
 					);
 				}
 			);
-		} finally {
+
 			// @TODO: Create a notification to tell the user the operation is complete
 			dispatch(
 				updateClientInfo({
 					siteSlug,
 					changes: {
-						opfsIsSyncing: false,
-						opfsSyncProgress: undefined,
+						opfsSync: undefined,
 					},
 				})
 			);
+		} catch (error) {
+			dispatch(
+				updateClientInfo({
+					siteSlug,
+					changes: {
+						opfsSync: {
+							status: 'error',
+						},
+					},
+				})
+			);
+			throw error;
 		}
 
 		await dispatch(

@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/wasm-php-filesystem
+---
+
 # PHP Filesystem
 
 The PHP module has its own filesystem separate from your computer's filesystem. It is provided by [Emscripten's FS library](https://emscripten.org/docs/api_reference/Filesystem-API.html) and the default APIs is low-level and cumbersome to use. The `PHP` JavaScript class shipped with WordPress Playground wraps it with a more convenient higher-level API.
