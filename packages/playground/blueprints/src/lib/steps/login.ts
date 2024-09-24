@@ -1,4 +1,5 @@
 import { StepHandler } from '.';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 /**
  * @inheritDoc login
@@ -38,4 +39,9 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 	await playground.defineConstant('PLAYGROUND_AUTOLOGIN_USERNAME', username);
+
+	// Make a request to the wp-admin to ensure the user is logged after the blueprint runs.
+	await playground.request({
+		url: '/wp-admin/index.php',
+	});
 };
