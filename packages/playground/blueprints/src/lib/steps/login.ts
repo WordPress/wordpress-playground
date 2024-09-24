@@ -29,9 +29,8 @@ export type LoginStep = {
 
 /**
  * Logs in to Playground.
- * Under the hood, this function sets the `PLAYGROUND_AUTOLOGIN_USERNAME` constant
- * which is used to automatically log in the user in
- * packages/playground/remote/src/lib/playground-mu-plugin/playground-includes/login_step.php
+ * Under the hood, this function creates a file in the WordPress directory
+ * that logs in the user using the WordPress function wp_set_current_user.
  */
 export const login: StepHandler<LoginStep> = async (
 	playground,
