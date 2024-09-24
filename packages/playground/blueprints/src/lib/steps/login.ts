@@ -30,7 +30,7 @@ export type LoginStep = {
 /**
  * Logs in to Playground.
  * Under the hood, this function calls /playground-login.php
- * which is preloaded duri
+ * which is preloaded during boot using auto_prepend_file.
  */
 export const login: StepHandler<LoginStep> = async (
 	playground,
