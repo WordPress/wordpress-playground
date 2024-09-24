@@ -1,4 +1,6 @@
 import { StepHandler } from '.';
+import { phpVar } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc login
@@ -37,10 +39,45 @@ export const login: StepHandler<LoginStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
-	await playground.defineConstant('PLAYGROUND_AUTOLOGIN_USERNAME', username);
 
-	// Make a request to the wp-admin to ensure the user is logged after the blueprint runs.
-	await playground.request({
-		url: '/wp-admin/index.php',
+	// Ensure the WordPress directory exists
+	if (!(await playground.isDir('/wordpress/'))) {
+		await playground.mkdir('/wordpress/');
+	}
+
+	const docroot = await playground.documentRoot;
+
+	// Login as the current user without a password
+	await playground.writeFile(
+		`${docroot}/playground-login.php`,
+		`<?php
+		require_once( dirname( __FILE__ ) . '/wp-load.php' );
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+        $user = get_user_by('login', ${phpVar(username)});
+        if (!$user) {
+            return;
+        }
+
+        wp_set_current_user( $user->ID, $user->user_login );
+        wp_set_auth_cookie( $user->ID );
+        do_action( 'wp_login', $user->user_login, $user );
+		`
+	);
+	const response = await playground.request({
+		url: '/playground-login.php',
 	});
+	await playground.unlink(`${docroot}/playground-login.php`);
+
+	if (response.httpStatusCode !== 200) {
+		logger.warn('WordPress response was', {
+			response,
+			text: response.text,
+		});
+		throw new Error(
+			`Failed to log in as ${username}`
+		);
+	}
 };

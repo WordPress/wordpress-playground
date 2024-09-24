@@ -151,9 +151,4 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	});
 }
 
-// Add auto-login
-add_action('init', function () {
-	require(__DIR__ . '/playground-includes/auto_login.php');
-	auto_login();
-});
 ?>
