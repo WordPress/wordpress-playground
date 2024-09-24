@@ -16,7 +16,7 @@ Behind the scenes, the official [SQLite Database Integration](https://github.com
 
 ## WordPress in the browser
 
-WordPress Playground ships a [bundled WordPress](/developers/architecture/wasm-php-data-dependencies) that you can use in the browser. It's optimized for size, and the installation wizard is run for you.
+You can use any WordPress build in the browser. For convenience and to reduce the data transfer size, WordPress Playground ships a few [minified WordPress releases](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/wordpress-builds) that you can use in the browser.
 
 ## WordPress in Node.js
 

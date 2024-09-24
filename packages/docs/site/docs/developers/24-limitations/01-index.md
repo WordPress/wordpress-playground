@@ -16,7 +16,7 @@ Playground [disables network connections](/blueprints/data-format#features) by d
 
 ### Temporary by design
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the [Query API](/developers/apis/query-api#available-options) or the UI.
+As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button in the UI.
 
 ## When developing with Playground
 

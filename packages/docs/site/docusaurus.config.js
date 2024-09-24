@@ -32,7 +32,22 @@ const config = {
 	// to replace "en" with "zh-Hans".
 	i18n: {
 		defaultLocale: 'en',
-		locales: ['en'],
+		path: 'i18n',
+		locales: ['en', 'es', 'fr'],
+		localeConfigs: {
+			en: {
+				label: 'English',
+				path: 'en',
+			},
+			es: {
+				label: 'Español',
+				path: 'es',
+			},
+			fr: {
+				label: 'French',
+				path: 'fr',
+			},
+		},
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
 	plugins: [
@@ -145,6 +160,10 @@ const config = {
 						position: 'right',
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
+					},
+					{
+						type: 'localeDropdown',
+						position: 'right',
 					},
 				],
 			},

@@ -1,19 +1,17 @@
 import { MenuItem } from '@wordpress/components';
-import { download } from '@wordpress/icons';
 
 import { PlaygroundClient, zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
-import { usePlaygroundContext } from '../../playground-context';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
 
-type Props = { onClose: () => void };
-export function DownloadAsZipMenuItem({ onClose }: Props) {
-	const { playground } = usePlaygroundContext();
+type Props = { onClose: () => void; disabled: boolean };
+export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
+	const playground = usePlaygroundClient();
 	return (
 		<MenuItem
-			icon={download}
-			iconPosition="left"
 			data-cy="download-as-zip"
 			aria-label="Download the current playground as a .zip file"
+			disabled={disabled}
 			onClick={() => {
 				if (!playground) return;
 				startDownload(playground);
