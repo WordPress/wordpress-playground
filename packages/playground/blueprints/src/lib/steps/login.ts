@@ -1,5 +1,4 @@
 import { StepHandler } from '.';
-import { PHPRequestHandler } from '@php-wasm/universal';
 
 /**
  * @inheritDoc login
