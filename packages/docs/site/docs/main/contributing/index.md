@@ -36,7 +36,7 @@ Playground and the WordPress project are strongly rooted in free and open source
 
 As such, please be aware of the implications your contributions will fall under:
 
--   When you contribute, your contributions are licensed under GPL
+-   When you contribute, you agree to license your contributions under the GPLv2 (or later) license
 -   The GPL license has strong copyleft provisions that ensure all derivative works remain open-source and under the same license terms, thereby promoting a collaborative development environment.
 -   The GPL license encourages contributing any changes, bug fixes, or new features back to the original codebase.
 -   The GPL license ensures that the project remains free and open-source, not only in terms of cost but also with respect to the freedom to use, modify, and distribute the software.
