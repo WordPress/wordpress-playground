@@ -1,5 +1,4 @@
 import { StepHandler } from '.';
-import { phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
 /**
