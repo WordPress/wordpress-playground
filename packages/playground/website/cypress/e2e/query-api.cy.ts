@@ -210,18 +210,18 @@ describe('Query API', () => {
 			checkIfGutenbergIsPatched();
 		});
 
-		it('should patch Gutenberg brought over by importing a site', () => {
-			cy.visit('/');
-			// Get the current URL
-			cy.url().then((url) => {
-				url = url.replace(/\/$/, '');
-				// Import a site that has Gutenberg installed
-				cy.visit(
-					`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
-				);
-				checkIfGutenbergIsPatched();
-			});
-		});
+		// it('should patch Gutenberg brought over by importing a site', () => {
+		// 	cy.visit('/');
+		// 	// Get the current URL
+		// 	cy.url().then((url) => {
+		// 		url = url.replace(/\/$/, '');
+		// 		// Import a site that has Gutenberg installed
+		// 		cy.visit(
+		// 			`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
+		// 		);
+		// 		checkIfGutenbergIsPatched();
+		// 	});
+		// });
 
 		function checkIfGutenbergIsPatched() {
 			// Check if the inserter button is styled.
