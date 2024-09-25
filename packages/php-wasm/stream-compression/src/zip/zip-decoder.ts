@@ -12,7 +12,7 @@ import {
 
 interface AbstractStreamView {
 	length: number;
-	slice: (start: number, end?: number) => Promise<ConvenientStreamWrapper>;
+	slice: (start: number, end?: number) => Promise<ActuallyUsefulStream>;
 }
 
 class FetchStreamView implements AbstractStreamView {
@@ -35,7 +35,7 @@ class FetchStreamView implements AbstractStreamView {
 				'Accept-Encoding': 'none',
 			},
 		}).then((response) => response.body!);
-		return new ConvenientStreamWrapper(stream, end - start);
+		return new ActuallyUsefulStream(stream, end - start);
 	}
 }
 
@@ -56,7 +56,7 @@ export class TeeStreamView implements AbstractStreamView {
 		end = end ?? this.length;
 		const [left, right] = this.stream.tee();
 		this.stream = left;
-		const s = new ConvenientStreamWrapper(right, end);
+		const s = new ActuallyUsefulStream(right, end);
 		await s.skip(start);
 		return s;
 	}
@@ -81,9 +81,9 @@ async function fetchContentLength(url: string) {
 		});
 }
 
-export class ConvenientStreamWrapper {
+class ActuallyUsefulStream {
 	static fromBytes(bytes: Uint8Array) {
-		return new ConvenientStreamWrapper(
+		return new ActuallyUsefulStream(
 			new ReadableStream<Uint8Array>({
 				start(controller) {
 					controller.enqueue(bytes);
@@ -94,7 +94,7 @@ export class ConvenientStreamWrapper {
 		);
 	}
 
-	static chain(...streams: ConvenientStreamWrapper[]) {
+	static chain(...streams: ActuallyUsefulStream[]) {
 		const remainingStreams = streams.map((stream) =>
 			stream.streamRemainingBytes()
 		);
@@ -103,7 +103,7 @@ export class ConvenientStreamWrapper {
 			(acc, stream) => acc + stream.length!,
 			0
 		);
-		return new ConvenientStreamWrapper(
+		return new ActuallyUsefulStream(
 			new ReadableStream<Uint8Array>({
 				start() {
 					currentReader = remainingStreams.shift()!.getReader();
@@ -140,16 +140,6 @@ export class ConvenientStreamWrapper {
 		this.buffer = new Uint8Array();
 		this.stream = stream;
 		this.length = length;
-	}
-
-	async addTransform(
-		transform: ReadableWritablePair<Uint8Array, Uint8Array>
-	) {
-		if (this.reader) {
-			this.reader.releaseLock();
-			this.reader = undefined;
-		}
-		this.stream = this.stream.pipeThrough(transform);
 	}
 
 	async skip(skipBytes: number) {
@@ -236,7 +226,7 @@ export class ZipDecoder {
 	}
 
 	async *listCentralDirectory() {
-		const stream = new ConvenientStreamWrapper(
+		const stream = new ActuallyUsefulStream(
 			await this.streamCentralDirectoryBytes(),
 			this.streamView.length
 		);
@@ -314,7 +304,6 @@ export class ZipDecoder {
 		entry['extra'] = await extraStream.read(extraLength);
 
 		const bodyEnd = headerEnd + entry.compressedSize!;
-		const bodyStream = await this.streamView.slice(headerEnd, bodyEnd);
 
 		// Make sure we consume the body stream or else
 		// we'll start reading the next file at the wrong
@@ -323,16 +312,43 @@ export class ZipDecoder {
 		//        eagerly. Ensure the next iteration exhausts
 		//        the last body stream before moving on.
 		if (entry['compressionMethod'] !== COMPRESSION_DEFLATE) {
-			entry['bytes'] = await bodyStream.read(entry['compressedSize']!);
+			entry['bytes'] = await headerStream.read(entry['compressedSize']!);
 			return entry as FileEntry;
 		}
 
-		if (0 && true) {
-			// For runtimes that support deflate-raw
-			await bodyStream.addTransform(
-				new DecompressionStream('deflate-raw')
+		if (true) {
+			const bodyStream = await this.streamView.slice(
+				headerEnd,
+				bodyEnd + 6
 			);
-			entry['bytes'] = await bodyStream.read(entry['uncompressedSize']);
+			const reader = bodyStream
+				.streamRemainingBytes()
+				.pipeThrough(new DecompressionStream('deflate-raw'))
+				.getReader();
+			let results = [];
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) {
+					break;
+				}
+				results.push(value);
+			}
+			console.log('results', results);
+			return;
+			entry['bytes'] = new Uint8Array(results);
+
+			console.log('entry', entry);
+			const d = new ZipDecoder(
+				new TeeStreamView(
+					ActuallyUsefulStream.fromBytes(
+						entry['bytes']
+					).streamRemainingBytes(),
+					entry.bytes!.length
+				)
+			);
+			for await (const e of d.listCentralDirectory()) {
+				console.log('e', e);
+			}
 		} else {
 			/**
 			 * We want to write raw deflate-compressed bytes into our
@@ -364,27 +380,14 @@ export class ZipDecoder {
 			footerView.setUint32(0, entry.crc!, true);
 			footerView.setUint32(4, entry.uncompressedSize! % 2 ** 32, true);
 
-			const stream = ConvenientStreamWrapper.chain(
-				ConvenientStreamWrapper.fromBytes(header),
+			const stream = ActuallyUsefulStream.chain(
+				ActuallyUsefulStream.fromBytes(header),
 				await this.streamView.slice(headerEnd, bodyEnd),
-				ConvenientStreamWrapper.fromBytes(footer)
+				ActuallyUsefulStream.fromBytes(footer)
 			);
 			await stream.addTransform(new DecompressionStream('gzip'));
-			entry['bytes'] = await stream.read(entry['uncompressedSize']!);
-
-			console.log(entry['bytes'].byteLength, entry['uncompressedSize']!);
-			const decoder = new ZipDecoder(
-				new TeeStreamView(
-					ConvenientStreamWrapper.fromBytes(
-						entry['bytes']
-					).streamRemainingBytes(),
-					entry['uncompressedSize']!
-				)
-			);
-			for await (const file of decoder.listCentralDirectory()) {
-				console.log(file);
-				break;
-			}
+			console.log('');
+			entry['bytes'] = await stream.read(stream.length!);
 		}
 
 		return entry as FileEntry;
@@ -423,7 +426,7 @@ export class ZipDecoder {
 	 * @returns
 	 */
 	private async readCentralDirectoryEntry(
-		stream: ConvenientStreamWrapper
+		stream: ActuallyUsefulStream
 	): Promise<CentralDirectoryEntry | null> {
 		const sigData = new DataView((await stream.read(4))!.buffer);
 		const signature = sigData.getUint32(0, true);
