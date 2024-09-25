@@ -108,6 +108,12 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('constants', {
+			describe: 'Define constants to be used in the Blueprint.',
+			type: 'array',
+			string: true,
+			default: [],
+		})
 		.showHelpOnFail(false)
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
@@ -295,7 +301,6 @@ async function run() {
 				: fs.existsSync(preinstalledWpContentPath)
 				? readAsFile(preinstalledWpContentPath)
 				: fetchWordPress(wpDetails.url, monitor);
-
 			requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () =>
@@ -319,6 +324,16 @@ async function run() {
 						}
 					},
 				},
+				constants: args.constants.reduce(
+					(acc: Record<string, string>, curr: string) => {
+						const [key, value] = curr.split('=');
+						if (key && value !== undefined) {
+							acc[key.trim()] = value.trim();
+						}
+						return acc;
+					},
+					{}
+				),
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
