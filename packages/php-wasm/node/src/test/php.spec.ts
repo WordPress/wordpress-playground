@@ -196,6 +196,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(result.text).toEqual('bool(false)\n');
 		});
+		it('DNS_* constants should exist', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(defined('DNS_NS'));
+			`,
+			});
+			expect(result.text).toEqual('bool(true)\n');
+		});
 	});
 
 	describe('popen()', () => {
