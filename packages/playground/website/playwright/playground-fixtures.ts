@@ -13,7 +13,7 @@ export const test = base.extend<WordPressFixtures>({
 		await use(wpPage);
 	},
 	website: async ({ page }, use) => {
-		// Define a function to wait for nested iframes
+		// Wait for WordPress to load
 		async function waitForNestedIframes(page: Page) {
 			await expect(
 				await page
