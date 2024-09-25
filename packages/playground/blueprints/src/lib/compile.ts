@@ -11,7 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
-import { Step, StepDefinition, WriteFileStep } from './steps';
+import { Step, StepDefinition } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint, ExtraLibrary } from './blueprint';
 import { logger } from '@php-wasm/logger';
@@ -180,7 +180,7 @@ export function compileBlueprint(
 		) ?? -1;
 	if (
 		blueprint?.extraLibraries?.includes('wp-cli') ||
-		indexOfStepThatDependsOnWpCli > -1
+		indexOfStepThatDependsOnWpCli === -1
 	) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
@@ -193,24 +193,6 @@ export function compileBlueprint(
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
 		}
-		const wpCliInstallStep: WriteFileStep<FileReference> = {
-			step: 'writeFile',
-			data: {
-				resource: 'url',
-				/**
-				 * Use compression for downloading the wp-cli.phar file.
-				 * The official release, hosted at raw.githubusercontent.com, is ~7MB
-				 * and the transfer is uncompressed. playground.wordpress.net supports
-				 * transfer compression and only transmits ~1.4MB.
-				 *
-				 * @TODO: minify the wp-cli.phar file. It can be as small as 1MB when all the
-				 *        whitespaces and are removed, and even 500KB when libraries
-				 *        like the JavaScript parser or Composer are removed.
-				 */
-				url: 'https://playground.wordpress.net/wp-cli.phar',
-			},
-			path: '/tmp/wp-cli.phar',
-		};
 		/**
 		 * If the blueprint does not have a wp-cli step,
 		 * we can install wp-cli as the last step because other steps don't depend
@@ -219,15 +201,9 @@ export function compileBlueprint(
 		 * If the blueprint has wp-cli steps,
 		 * we need to install wp-cli before running these steps.
 		 */
-		if (indexOfStepThatDependsOnWpCli === -1) {
-			blueprint.steps?.push(wpCliInstallStep);
-		} else {
-			blueprint.steps?.splice(
-				indexOfStepThatDependsOnWpCli,
-				0,
-				wpCliInstallStep
-			);
-		}
+		blueprint.steps?.push({
+			step: 'installWpCli',
+		});
 	}
 
 	/**

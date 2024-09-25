@@ -1,5 +1,6 @@
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
+import { installWpCli } from './install-wp-cli';
 import { setSiteOptions } from './site-data';
 import { wpCLI } from './wp-cli';
 
@@ -29,6 +30,8 @@ export interface EnableMultisiteStep {
 export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	playground
 ) => {
+	await installWpCli(playground, {});
+
 	await defineWpConfigConsts(playground, {
 		consts: {
 			WP_ALLOW_MULTISITE: 1,
@@ -53,6 +56,6 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	});
 
 	await wpCLI(playground, {
-		command: 'wp core multisite-convert',
+		command: `wp core multisite-convert --base="${sitePath}"`,
 	});
 };
