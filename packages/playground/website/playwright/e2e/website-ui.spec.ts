@@ -161,7 +161,7 @@ test('should display PHP output even when a fatal error is hit', async ({
 	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingwebsite: '/err.php',
+		landingPage: '/err.php',
 		login: true,
 		steps: [
 			{

@@ -7,7 +7,7 @@ test('Base64-encoded Blueprints should work', async ({
 	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingwebsite: '/',
+		landingPage: '/',
 		steps: [{ step: 'enableMultisite' }],
 	};
 
@@ -23,7 +23,7 @@ test('enableMultisite step should re-activate the plugins', async ({
 	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingwebsite: '/wp-admin/plugins.php',
+		landingPage: '/wp-admin/plugins.php',
 		steps: [
 			{ step: 'login' },
 			{
