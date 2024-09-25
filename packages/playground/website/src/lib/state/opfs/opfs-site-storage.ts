@@ -6,7 +6,7 @@
  */
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
-import { SiteMetadata } from '../../site-metadata';
+import { createSiteMetadata, SiteMetadata } from '../../site-metadata';
 import { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
@@ -14,6 +14,10 @@ import { logger } from '@php-wasm/logger';
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+
+// Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
+// @TODO: Remove this backcompat code after 2024-12-01.
+export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
 
 /**
  * StoredSiteMetadata is the data structure that is written to disk.
@@ -30,11 +34,13 @@ export interface StoredSiteMetadata extends SiteMetadata {
 	slug: string;
 }
 
-let opfsRoot: FileSystemDirectoryHandle | undefined = undefined;
+let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
-	opfsRoot = await navigator.storage.getDirectory();
+	opfsSitesRoot = await navigator.storage.getDirectory();
 	for (const path of ROOT_PATH.replace(/^\//, '').split('/')) {
-		opfsRoot = await opfsRoot.getDirectoryHandle(path, { create: true });
+		opfsSitesRoot = await opfsSitesRoot.getDirectoryHandle(path, {
+			create: true,
+		});
 	}
 } catch (e) {
 	// Ignore. OPFS is not supported in this environment.
@@ -85,6 +91,65 @@ class OpfsSiteStorage {
 				}
 			}
 		}
+
+		// Read legacy OPFS sites
+		// @TODO: Remove this backcompat code after 2024-12-01.
+		if (new Date(2024, 11).getTime() > Date.now()) {
+			const modernSiteDirs = new Set(
+				sites.map((site) => `site-${site.slug}`)
+			);
+			const opfsRoot = await navigator.storage.getDirectory();
+			for await (const entry of opfsRoot.values()) {
+				if (entry.kind !== 'directory') {
+					continue;
+				}
+
+				const namedLikeLegacySiteDir =
+					entry.name === 'wordpress' ||
+					entry.name.startsWith('site-');
+				if (!namedLikeLegacySiteDir) {
+					continue;
+				}
+
+				const conflictsWithModernSite =
+					(entry.name === 'wordpress' &&
+						modernSiteDirs.has('site-wordpress')) ||
+					modernSiteDirs.has(entry.name);
+				if (conflictsWithModernSite) {
+					continue;
+				}
+
+				const slug =
+					entry.name === 'wordpress'
+						? entry.name
+						: entry.name.replace(/^site-/, '');
+				const name =
+					slug === 'wordpress'
+						? 'WordPress'
+						: entry.name
+								.replace(/^site-/, '')
+								.replace(/(?:^|-)\w/g, (c) => c.toUpperCase())
+								.replaceAll('-', ' ')
+								.replace(/\bwordpress\b/i, 'WordPress');
+
+				// Write modern metadata file for legacy site
+				const newMetadata = await createSiteMetadata({
+					name,
+					storage: 'opfs',
+				});
+				const legacyPath = joinPaths('/', entry.name);
+				await opfsWriteFile(
+					joinPaths(legacyPath, SITE_METADATA_FILENAME),
+					metadataToStoredFormat(slug, newMetadata)
+				);
+				const legacySite = await this.readSiteFromDirHandle(entry);
+				// Relay legacy OPFS path so knowledge of the path is only needed here.
+				(legacySite!.metadata as any)[legacyOpfsPathSymbol] =
+					legacyPath;
+				sites.push(legacySite!);
+			}
+		}
+
 		return sites;
 	}
 
@@ -97,6 +162,12 @@ class OpfsSiteStorage {
 		if (!siteDirectory) {
 			return undefined;
 		}
+		return this.readSiteFromDirHandle(siteDirectory);
+	}
+
+	private async readSiteFromDirHandle(
+		siteDirectory: FileSystemDirectoryHandle
+	) {
 		const siteInfoFileHandle = await siteDirectory.getFileHandle(
 			SITE_METADATA_FILENAME
 		);
@@ -114,8 +185,8 @@ class OpfsSiteStorage {
 	}
 }
 
-export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsRoot
-	? new OpfsSiteStorage(opfsRoot)
+export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
+	? new OpfsSiteStorage(opfsSitesRoot)
 	: undefined;
 
 export function getDirectoryPathForSlug(slug: string) {
@@ -154,6 +225,19 @@ async function opfsChildExists(
 			return false;
 		}
 	}
+}
+
+export async function deleteDirectory(path: string) {
+	let parentDirHandle = await navigator.storage.getDirectory();
+
+	const pathParts = path.split('/').filter((p) => p.length > 0);
+	const targetName = pathParts.pop();
+
+	for (const part of pathParts) {
+		parentDirHandle = await parentDirHandle.getDirectoryHandle(part);
+	}
+
+	await parentDirHandle.removeEntry(targetName!, { recursive: true });
 }
 
 async function opfsWriteFile(path: string, content: string) {

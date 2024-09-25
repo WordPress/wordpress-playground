@@ -9,8 +9,7 @@ import {
 	SiteInfo,
 	selectSiteBySlug,
 } from '../../lib/state/redux/slice-sites';
-import { Blueprint, compileBlueprint } from '@wp-playground/blueprints';
-import { SiteMetadata } from '../../lib/site-metadata';
+import { createSiteMetadata, SiteMetadata } from '../../lib/site-metadata';
 import {
 	setActiveSite,
 	useAppDispatch,
@@ -127,44 +126,19 @@ async function createNewSiteInfo(
 		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
 	}
 ): Promise<SiteInfo> {
-	const {
-		name: providedName,
-		originalBlueprint,
-		...remainingMetadata
-	} = initialInfo.metadata || {};
+	const { name: providedName, ...remainingMetadata } =
+		initialInfo.metadata || {};
 
 	const name = providedName || randomSiteName();
-	const blueprint: Blueprint =
-		originalBlueprint ??
-		(await resolveBlueprintFromURL(new URL('https://w.org')));
-
-	const compiledBlueprint = compileBlueprint(blueprint);
 
 	return {
 		slug: deriveSlugFromSiteName(name),
 
 		...initialInfo,
 
-		metadata: {
+		metadata: await createSiteMetadata({
 			name,
-			id: crypto.randomUUID(),
-			whenCreated: Date.now(),
-			storage: 'none',
-			originalBlueprint: blueprint,
-
 			...remainingMetadata,
-
-			runtimeConfiguration: {
-				preferredVersions: {
-					wp: compiledBlueprint.versions.wp,
-					php: compiledBlueprint.versions.php,
-				},
-				phpExtensionBundles: blueprint.phpExtensionBundles || [
-					'kitchen-sink',
-				],
-				features: compiledBlueprint.features,
-				extraLibraries: compiledBlueprint.extraLibraries,
-			},
-		},
+		}),
 	};
 }

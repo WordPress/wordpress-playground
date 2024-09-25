@@ -7,7 +7,8 @@
  * Playground CLI, Studio, WP-ENV, hosted environment etc.
  */
 
-import { Blueprint } from '@wp-playground/client';
+import { Blueprint, compileBlueprint } from '@wp-playground/blueprints';
+import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
 /**
  * The supported site storage types.
@@ -55,4 +56,43 @@ export interface SiteMetadata {
 		| 'preferredVersions'
 	>;
 	originalBlueprint: Blueprint;
+}
+
+export async function createSiteMetadata(
+	initialMetadata: { name: string } & Partial<
+		Omit<SiteMetadata, 'runtimeConfiguration'>
+	>
+): Promise<SiteMetadata> {
+	const { name, originalBlueprint, ...remainingMetadata } = initialMetadata;
+
+	const blueprint: Blueprint =
+		originalBlueprint ??
+		// TODO: This is a hack because we are just abusing a URL-oriented
+		// function to create a completely default Blueprint. Let's fix this by
+		// making default creation first-class.
+		(await resolveBlueprintFromURL(new URL('https://w.org')));
+
+	const compiledBlueprint = compileBlueprint(blueprint);
+
+	return {
+		name,
+		id: crypto.randomUUID(),
+		whenCreated: Date.now(),
+		storage: 'none',
+		originalBlueprint: blueprint,
+
+		...remainingMetadata,
+
+		runtimeConfiguration: {
+			preferredVersions: {
+				wp: compiledBlueprint.versions.wp,
+				php: compiledBlueprint.versions.php,
+			},
+			phpExtensionBundles: blueprint.phpExtensionBundles || [
+				'kitchen-sink',
+			],
+			features: compiledBlueprint.features,
+			extraLibraries: compiledBlueprint.extraLibraries,
+		},
+	};
 }
