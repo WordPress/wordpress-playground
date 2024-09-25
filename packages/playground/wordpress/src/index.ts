@@ -169,7 +169,7 @@ export async function preloadLogin(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/preload/playground-login.php',
 		`<?php
-		if ( !str_ends_with($_SERVER['REQUEST_URI'], '/playground-login.php') ) {
+		if ( !preg_match('/\\/playground-login\\.php$/', $_SERVER['REQUEST_URI']) ) {
 			return;
 		}
 		if (!isset($_POST['username'])) {
