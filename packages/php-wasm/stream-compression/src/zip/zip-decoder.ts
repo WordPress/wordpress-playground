@@ -1,4 +1,3 @@
-import { concatBytes } from '../utils/concat-bytes';
 import { concatUint8Array } from '../utils/concat-uint8-array';
 import {
 	CentralDirectoryEntry,
@@ -11,99 +10,196 @@ import {
 	SIGNATURE_FILE,
 } from './types';
 
-/**
- * Private and experimental API: Range-based data sources.
- *
- * The idea is that if we can read arbitrary byte ranges from
- * a file, we can retrieve a specific subset of a zip file.
- */
-type BytesSource = {
+interface AbstractStreamView {
 	length: number;
-	streamBytes: (
-		start: number,
-		end: number
-	) => Promise<ReadableStream<Uint8Array>>;
-};
+	slice: (start: number, end?: number) => Promise<ConvenientStreamWrapper>;
+}
 
-class PortableReadableStreamWrapper {
-	private stream: ReadableStream<Uint8Array>;
-	private reader: ReadableStreamDefaultReader<Uint8Array>;
-	private buffer: Uint8Array;
-	private appendBuffer: Uint8Array;
-	private _read = 0;
-	private _limit: number | undefined;
+class FetchStreamView implements AbstractStreamView {
+	static async create(url: string, length?: number) {
+		if (length === undefined) {
+			length = await fetchContentLength(url);
+		}
 
-	constructor(stream: ReadableStream<Uint8Array>) {
-		this.stream = stream;
-		this.reader = stream.getReader();
-		this.buffer = new Uint8Array();
-		this._limit = undefined;
-		this.appendBuffer = new Uint8Array();
+		return new FetchStreamView(url, length);
 	}
 
-	async read(bytes?: number) {
-		let result = new Uint8Array();
-		if (bytes !== undefined) {
-			while (this.buffer.byteLength < bytes) {
-				await this.reachNextChunk();
+	constructor(private url: string, private contentLength: number) {}
+
+	async slice(start: number, end?: number) {
+		end = end ?? this.contentLength;
+		const stream = await fetch(this.url, {
+			headers: {
+				// The Range header is inclusive, so we need to subtract 1
+				Range: `bytes=${start}-${end - 1}`,
+				'Accept-Encoding': 'none',
+			},
+		}).then((response) => response.body!);
+		return new ConvenientStreamWrapper(stream, end - start);
+	}
+}
+
+export class TeeStreamView implements AbstractStreamView {
+	constructor(
+		protected stream: ReadableStream<Uint8Array>,
+		public length: number
+	) {}
+
+	static fromResponse(response: Response, length?: number) {
+		return new TeeStreamView(
+			response.body!,
+			length ?? Number(response.headers.get('content-length'))
+		);
+	}
+
+	async slice(start: number, end?: number) {
+		end = end ?? this.length;
+		const [left, right] = this.stream.tee();
+		this.stream = left;
+		const s = new ConvenientStreamWrapper(right, end);
+		await s.skip(start);
+		return s;
+	}
+}
+
+/**
+ * Fetches the Content-Length header from a remote URL.
+ */
+async function fetchContentLength(url: string) {
+	return await fetch(url, { method: 'HEAD' })
+		.then((response) => response.headers.get('Content-Length'))
+		.then((contentLength) => {
+			if (!contentLength) {
+				throw new Error('Content-Length header is missing');
 			}
-			result = this.buffer.slice(0, bytes);
+
+			const parsedLength = parseInt(contentLength, 10);
+			if (isNaN(parsedLength) || parsedLength < 0) {
+				throw new Error('Content-Length header is invalid');
+			}
+			return parsedLength;
+		});
+}
+
+class ConvenientStreamWrapper {
+	static fromBytes(bytes: Uint8Array) {
+		return new ConvenientStreamWrapper(
+			new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(bytes);
+					controller.close();
+				},
+			}),
+			bytes.length
+		);
+	}
+
+	static chain(...streams: ConvenientStreamWrapper[]) {
+		const remainingStreams = streams.map((stream) =>
+			stream.streamRemainingBytes()
+		);
+		let currentReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+		const totalLength = streams.reduce(
+			(acc, stream) => acc + stream.length!,
+			0
+		);
+		return new ConvenientStreamWrapper(
+			new ReadableStream<Uint8Array>({
+				start() {
+					currentReader = remainingStreams.shift()!.getReader();
+				},
+				async pull(controller) {
+					while (currentReader) {
+						const result = await currentReader.read();
+						if (result?.done) {
+							if (remainingStreams.length) {
+								currentReader = remainingStreams
+									.shift()!
+									.getReader();
+								continue;
+							}
+							currentReader = undefined;
+							controller.close();
+							return;
+						}
+						controller.enqueue(result.value);
+					}
+				},
+			}),
+			totalLength
+		);
+	}
+
+	private reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+	private buffer: Uint8Array;
+	private readBytes = 0;
+	private stream: ReadableStream<Uint8Array>;
+	public length?: number;
+
+	constructor(stream: ReadableStream<Uint8Array>, length: number) {
+		this.buffer = new Uint8Array();
+		this.stream = stream;
+		this.length = length;
+	}
+
+	async addTransform(
+		transform: ReadableWritablePair<Uint8Array, Uint8Array>
+	) {
+		if (this.reader) {
+			this.reader.releaseLock();
+			this.reader = undefined;
+		}
+		this.stream = this.stream.pipeThrough(transform);
+	}
+
+	async skip(skipBytes: number) {
+		let skipped = 0;
+		while (skipped < skipBytes) {
+			const bytesToSkip = Math.min(skipBytes - skipped, 8096);
+			await this.read(bytesToSkip);
+			skipped += bytesToSkip;
+		}
+		this.readBytes -= skipped;
+	}
+
+	async read(bytes = 8096) {
+		if (this.buffer.byteLength >= bytes) {
+			const result = this.buffer.slice(0, bytes);
 			this.buffer = this.buffer.slice(bytes);
-		} else {
-			await this.reachNextChunk();
-			result = this.buffer;
-			this.buffer = new Uint8Array();
+			return result;
 		}
 
-		if (result.byteLength === 0) {
-			result = this.appendBuffer;
-			this.appendBuffer = new Uint8Array();
+		if (!this.reader) {
+			this.reader = this.stream.getReader();
 		}
 
-		if (this._limit && this._read + result.byteLength > this._limit) {
-			result = result.slice(0, this._limit - this._read);
+		let bytesRead = 0;
+		while (this.buffer.byteLength < bytes) {
+			const result = await this.reader.read();
+			if (!result?.value) {
+				break;
+			}
+			bytesRead += result.value.byteLength;
+			this.buffer = concatUint8Array(this.buffer, result.value);
 		}
 
-		this._read += result.byteLength;
+		this.readBytes += bytesRead;
+		if (
+			this.length &&
+			this.readBytes + this.buffer.byteLength > this.length
+		) {
+			const newBufferByteLength =
+				this.length! - (this.readBytes - this.buffer.byteLength);
+			this.buffer = this.buffer.slice(0, newBufferByteLength);
+		}
+
+		const result = this.buffer.slice(0, bytes);
+		this.buffer = this.buffer.slice(bytes);
 		return result;
 	}
 
-	private async reachNextChunk() {
-		const result = await this.reader.read();
-		if (!result?.value) {
-			return;
-		}
-		this.buffer = concatUint8Array(this.buffer, result.value);
-	}
-
-	async tee() {
-		const [left, right] = this.stream.tee();
-		return [
-			new PortableReadableStreamWrapper(left),
-			new PortableReadableStreamWrapper(right),
-		];
-	}
-
-	async skip(bytes: number) {
-		while (this.buffer.byteLength < bytes) {
-			await this.reachNextChunk();
-		}
-		this.buffer = this.buffer.slice(bytes);
-	}
-
-	async limit(bytes: number) {
-		this._limit = bytes + this._read;
-	}
-
-	prepend(bytes: Uint8Array) {
-		this.buffer = concatUint8Array(bytes, this.buffer);
-	}
-
-	append(bytes: Uint8Array) {
-		this.appendBuffer = concatUint8Array(this.appendBuffer, bytes);
-	}
-
-	toReadableStream() {
+	streamRemainingBytes(): ReadableStream<Uint8Array> {
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;
 		return new ReadableStream({
 			async start(controller) {
@@ -124,18 +220,13 @@ class PortableReadableStreamWrapper {
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 
 export class ZipDecoder {
-	constructor(private bytesSource: BytesSource) {}
+	constructor(private streamView: AbstractStreamView) {}
 
 	async readFileByCentralDirectoryEntry(
 		centralDirectoryEntry: CentralDirectoryEntry
 	) {
-		const entry = await this.bytesSource.streamBytes(
-			centralDirectoryEntry.firstByteAt,
-			centralDirectoryEntry.lastByteAt
-		);
 		const fileEntry = await this.readFileEntry(
-			new PortableReadableStreamWrapper(entry),
-			false,
+			centralDirectoryEntry.firstByteAt,
 			centralDirectoryEntry as any
 		);
 		return new File(
@@ -145,8 +236,9 @@ export class ZipDecoder {
 	}
 
 	async *listCentralDirectory() {
-		const stream = new PortableReadableStreamWrapper(
-			await this.streamCentralDirectoryBytes(this.bytesSource)
+		const stream = new ConvenientStreamWrapper(
+			await this.streamCentralDirectoryBytes(),
+			this.streamView.length
 		);
 		while (true) {
 			const entry = await this.readCentralDirectoryEntry(stream);
@@ -184,18 +276,18 @@ export class ZipDecoder {
 	 * @returns
 	 */
 	private async readFileEntry(
-		stream: PortableReadableStreamWrapper,
-		skipSignature = false,
+		start: number,
 		headerOverrides: Partial<FileEntry> = {}
 	): Promise<FileEntry | null> {
-		if (!skipSignature) {
-			const sigData = new DataView((await stream.read(4))!.buffer);
-			const signature = sigData.getUint32(0, true);
-			if (signature !== SIGNATURE_FILE) {
-				return null;
-			}
+		const fixedHeaderEnd = start + 30;
+		const headerStream = await this.streamView.slice(start, fixedHeaderEnd);
+
+		const sigData = new DataView((await headerStream.read(4))!.buffer);
+		const signature = sigData.getUint32(0, true);
+		if (signature !== SIGNATURE_FILE) {
+			return null;
 		}
-		const data = new DataView((await stream.read(26))!.buffer);
+		const data = new DataView((await headerStream.read(26))!.buffer);
 		const pathLength = data.getUint16(22, true);
 		const extraLength = data.getUint16(24, true);
 		const entry: Partial<FileEntry> = {
@@ -211,9 +303,17 @@ export class ZipDecoder {
 			...headerOverrides,
 		};
 
-		entry['path'] = await stream.read(pathLength);
+		const headerEnd = fixedHeaderEnd + extraLength + pathLength;
+		const extraStream = await this.streamView.slice(
+			fixedHeaderEnd,
+			headerEnd
+		);
+		entry['path'] = await extraStream.read(pathLength);
+		entry['pathString'] = new TextDecoder().decode(entry.path!);
 		entry['isDirectory'] = endsWithSlash(entry.path!);
-		entry['extra'] = await stream.read(extraLength);
+		entry['extra'] = await extraStream.read(extraLength);
+
+		const bodyEnd = headerEnd + entry.compressedSize!;
 
 		// Make sure we consume the body stream or else
 		// we'll start reading the next file at the wrong
@@ -221,64 +321,58 @@ export class ZipDecoder {
 		// @TODO: Expose the body stream instead of reading it all
 		//        eagerly. Ensure the next iteration exhausts
 		//        the last body stream before moving on.
-		if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
-			if (true) {
-				stream.limit(entry['compressedSize']!);
-				entry['bytes'] = await stream
-					.toReadableStream()
-					.pipeThrough(new DecompressionStream('deflate-raw'))
-					.pipeThrough(concatBytes(entry['uncompressedSize']))
-					.getReader()
-					.read()
-					.then(({ value }) => value!);
-			} else {
-				/**
-				 * We want to write raw deflate-compressed bytes into our
-				 * final ZIP file. CompressionStream supports "deflate-raw"
-				 * compression, but not on Node.js v18.
-				 *
-				 * As a workaround, we use the "gzip" compression and add
-				 * the header and footer bytes. It works, because "gzip"
-				 * compression is the same as "deflate" compression plus
-				 * the header and the footer.
-				 *
-				 * The header is 10 bytes long:
-				 * - 2 magic bytes: 0x1f, 0x8b
-				 * - 1 compression method: 0x08 (deflate)
-				 * - 1 header flags
-				 * - 4 mtime: 0x00000000 (no timestamp)
-				 * - 1 compression flags
-				 * - 1 OS: 0x03 (Unix)
-				 *
-				 * The footer is 8 bytes long:
-				 * - 4 bytes for CRC32 of the uncompressed data
-				 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
-				 */
-				const header = new Uint8Array(10);
-				header.set([0x1f, 0x8b, 0x08]);
-
-				const footer = new Uint8Array(8);
-				const footerView = new DataView(footer.buffer);
-				footerView.setUint32(0, entry.crc!, true);
-				footerView.setUint32(
-					4,
-					entry.uncompressedSize! % 2 ** 32,
-					true
-				);
-				stream.prepend(header);
-				stream.append(footer);
-				stream.limit(entry['compressedSize']! + 18);
-				entry['bytes'] = await stream
-					.toReadableStream()
-					.pipeThrough(new DecompressionStream('gzip'))
-					.pipeThrough(concatBytes(entry['uncompressedSize']))
-					.getReader()
-					.read()
-					.then(({ value }) => value!);
-			}
-		} else {
-			entry['bytes'] = await stream.read(entry['compressedSize']!);
+		if (entry['compressionMethod'] !== COMPRESSION_DEFLATE) {
+			entry['bytes'] = await headerStream.read(entry['compressedSize']!);
+			return entry as FileEntry;
 		}
+
+		if (0 && true) {
+			// For runtimes that support deflate-raw
+			const bodyStream = await this.streamView.slice(headerEnd, bodyEnd);
+			await bodyStream.addTransform(
+				new DecompressionStream('deflate-raw')
+			);
+			entry['bytes'] = await bodyStream.read(bodyEnd - headerEnd);
+		} else {
+			/**
+			 * We want to write raw deflate-compressed bytes into our
+			 * final ZIP file. CompressionStream supports "deflate-raw"
+			 * compression, but not on Node.js v18.
+			 *
+			 * As a workaround, we use the "gzip" compression and add
+			 * the header and footer bytes. It works, because "gzip"
+			 * compression is the same as "deflate" compression plus
+			 * the header and the footer.
+			 *
+			 * The header is 10 bytes long:
+			 * - 2 magic bytes: 0x1f, 0x8b
+			 * - 1 compression method: 0x08 (deflate)
+			 * - 1 header flags
+			 * - 4 mtime: 0x00000000 (no timestamp)
+			 * - 1 compression flags
+			 * - 1 OS: 0x03 (Unix)
+			 *
+			 * The footer is 8 bytes long:
+			 * - 4 bytes for CRC32 of the uncompressed data
+			 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
+			 */
+			const header = new Uint8Array(10);
+			header.set([0x1f, 0x8b, 0x08]);
+
+			const footer = new Uint8Array(8);
+			const footerView = new DataView(footer.buffer);
+			footerView.setUint32(0, entry.crc!, true);
+			footerView.setUint32(4, entry.uncompressedSize! % 2 ** 32, true);
+
+			const stream = ConvenientStreamWrapper.chain(
+				ConvenientStreamWrapper.fromBytes(header),
+				await this.streamView.slice(headerEnd, bodyEnd),
+				ConvenientStreamWrapper.fromBytes(footer)
+			);
+			await stream.addTransform(new DecompressionStream('gzip'));
+			entry['bytes'] = await stream.read(stream.length!);
+		}
+
 		return entry as FileEntry;
 	}
 
@@ -312,19 +406,15 @@ export class ZipDecoder {
 	 * ```
 	 *
 	 * @param stream
-	 * @param skipSignature
 	 * @returns
 	 */
 	private async readCentralDirectoryEntry(
-		stream: PortableReadableStreamWrapper,
-		skipSignature = false
+		stream: ConvenientStreamWrapper
 	): Promise<CentralDirectoryEntry | null> {
-		if (!skipSignature) {
-			const sigData = new DataView((await stream.read(4))!.buffer);
-			const signature = sigData.getUint32(0, true);
-			if (signature !== SIGNATURE_CENTRAL_DIRECTORY) {
-				return null;
-			}
+		const sigData = new DataView((await stream.read(4))!.buffer);
+		const signature = sigData.getUint32(0, true);
+		if (signature !== SIGNATURE_CENTRAL_DIRECTORY) {
+			return null;
 		}
 		const data = new DataView((await stream.read(42))!.buffer);
 		const pathLength = data.getUint16(24, true);
@@ -362,11 +452,11 @@ export class ZipDecoder {
 		return centralDirectory as CentralDirectoryEntry;
 	}
 
-	private async streamCentralDirectoryBytes(source: BytesSource) {
+	private async streamCentralDirectoryBytes() {
 		const chunkSize = CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE;
 		let centralDirectory: Uint8Array = new Uint8Array();
 
-		let chunkStart = source.length;
+		let chunkStart = this.streamView.length;
 		let attempt = 0;
 		do {
 			if (++attempt > 3) {
@@ -375,12 +465,10 @@ export class ZipDecoder {
 			chunkStart = Math.max(0, chunkStart - chunkSize);
 			const chunkEnd = Math.min(
 				chunkStart + chunkSize - 1,
-				source.length - 1
+				this.streamView.length - 1
 			);
-			const stream = new PortableReadableStreamWrapper(
-				await source.streamBytes(chunkStart, chunkEnd)
-			);
-			centralDirectory = await stream.read(chunkSize);
+			const stream = await this.streamView.slice(chunkStart, chunkEnd);
+			centralDirectory = await stream.read(chunkEnd - chunkStart);
 
 			// Scan the buffer for the signature
 			const view = new DataView(centralDirectory.buffer);
@@ -405,17 +493,14 @@ export class ZipDecoder {
 				// Read where the central directory starts
 				const dirStart = view.getUint32(centralDirectoryOffsetAt, true);
 				if (dirStart < chunkStart) {
-					const stream = new PortableReadableStreamWrapper(
-						await source.streamBytes(dirStart, chunkStart - 1)
+					const stream = await this.streamView.slice(
+						dirStart,
+						chunkStart - 1
 					);
-					// We're missing some bytes, let's grab them
-					const missingBytes = await stream.read(chunkStart - 1);
-					centralDirectory = concatUint8Array(
-						missingBytes!,
-						centralDirectory
+					centralDirectory = await stream.read(
+						chunkStart - 1 - dirStart
 					);
 				} else if (dirStart > chunkStart) {
-					// We've read too many bytes, let's trim them
 					centralDirectory = centralDirectory.slice(
 						dirStart - chunkStart
 					);

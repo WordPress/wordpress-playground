@@ -14,6 +14,7 @@ import { skipBytesInByobStream } from 'packages/php-wasm/stream-compression/src/
 import { IterableReadableStream } from 'packages/php-wasm/stream-compression/src/utils/iterable-stream-polyfill';
 import { CentralDirectoryEntry } from 'packages/php-wasm/stream-compression/src/zip/types';
 import { ZipDecoder } from '@php-wasm/stream-compression';
+import { TeeStreamView } from 'packages/php-wasm/stream-compression/src/zip/zip-decoder';
 
 export const ResourceTypes = [
 	'vfs',
@@ -387,29 +388,42 @@ export class GitHubArtifactResource extends FetchResource {
 	}
 
 	override async resolve(): Promise<File> {
-		const response = await this.resolveResponse();
-		let responseStream = response.body!;
-		const length = Number(response.headers.get('content-length')!);
-		const decoder = new ZipDecoder({
-			length,
-			streamBytes: async (start) => {
-				const [left, right] = responseStream.tee();
-				responseStream = left;
-				return right.pipeThrough(skipFirstBytes(start));
-			},
-		});
+		const response = await fetch('/website-server/pr.zip');
+		const stream = TeeStreamView.fromResponse(response);
+		const decoder = new ZipDecoder(stream);
 
 		for await (const centralDirEntry of decoder.listCentralDirectory()) {
-			const utf8Path = new TextDecoder().decode(centralDirEntry.path);
-			if (utf8Path.endsWith('.zip')) {
-				const file = await decoder.readFileByCentralDirectoryEntry(
-					centralDirEntry
-				);
-				console.log({ file });
-				return file;
-			}
+			const file = await decoder.readFileByCentralDirectoryEntry(
+				centralDirEntry
+			);
+			console.log({ file });
+			return file;
 		}
+
 		throw new Error('No .zip file found in the requested GitHub artifact');
+
+		// const response = await this.resolveResponse();
+		// let responseStream = response.body!;
+		// const length = Number(response.headers.get('content-length')!);
+		// const decoder = new ZipDecoder({
+		// 	length,
+		// 	streamBytes: async (start) => {
+		// 		const [left, right] = responseStream.tee();
+		// 		responseStream = left;
+		// 		return right.pipeThrough(skipFirstBytes(start));
+		// 	},
+		// });
+
+		// for await (const centralDirEntry of decoder.listCentralDirectory()) {
+		// 	const utf8Path = new TextDecoder().decode(centralDirEntry.path);
+		// 	if (utf8Path.endsWith('.zip')) {
+		// 		const file = await decoder.readFileByCentralDirectoryEntry(
+		// 			centralDirEntry
+		// 		);
+		// 		console.log({ file });
+		// 		return file;
+		// 	}
+		// }
 
 		const entries = streamCentralDirectoryEntries({
 			length,
