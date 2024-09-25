@@ -62,6 +62,7 @@ export class OfflineModeCache {
 	}
 
 	private shouldCacheUrl(url: URL) {
+		return false;
 		if (url.href.includes('wordpress-static.zip')) {
 			return true;
 		}

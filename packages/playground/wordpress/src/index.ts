@@ -161,38 +161,6 @@ export async function preloadPhpInfoRoute(
 	);
 }
 
-/**
- * Preload login functionality.
- * @param php
- */
-export async function preloadLogin(php: UniversalPHP) {
-	await php.writeFile(
-		'/internal/shared/preload/playground-login.php',
-		`<?php
-		if ( !preg_match('/\\/playground-login\\.php$/', $_SERVER['REQUEST_URI']) ) {
-			return;
-		}
-		if (!isset($_POST['username'])) {
-			wp_send_json_error('No username provided');
-		}
-
-		require_once( ${phpVar(joinPaths(await php.documentRoot, 'wp-load.php'))} );
-		if ( is_user_logged_in() ) {
-			wp_send_json_success();
-		}
-
-        $user = get_user_by('login', sanitize_text_field($_POST['username']));
-        if (!$user) {
-            wp_send_json_error('Invalid username');
-        }
-
-        wp_set_current_user( $user->ID, $user->user_login );
-        wp_set_auth_cookie( $user->ID );
-        do_action( 'wp_login', $user->user_login, $user );
-		wp_send_json_success();
-	`
-	);
-}
 export async function preloadSqliteIntegration(
 	php: UniversalPHP,
 	sqliteZip: File

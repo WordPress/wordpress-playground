@@ -1,6 +1,4 @@
 import { StepHandler } from '.';
-import { logger } from '@php-wasm/logger';
-import { request } from './request';
 
 /**
  * @inheritDoc login
@@ -29,8 +27,8 @@ export type LoginStep = {
 
 /**
  * Logs in to Playground.
- * Under the hood, this function calls /playground-login.php
- * which is preloaded during boot using auto_prepend_file.
+ * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN` constant.
+ * The `0-playground.php` mu-plugin uses that constant to log in the user on first load.
  */
 export const login: StepHandler<LoginStep> = async (
 	playground,
@@ -39,26 +37,5 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
-	// Ensure the WordPress directory exists
-	if (!(await playground.isDir('/wordpress/'))) {
-		await playground.mkdir('/wordpress/');
-	}
-
-	const response = await request(playground, {
-		request: {
-			url: '/playground-login.php',
-			method: 'POST',
-			body: {
-				username,
-			},
-		},
-	});
-
-	if (response.httpStatusCode !== 200) {
-		logger.warn('WordPress response was', {
-			response,
-			text: response.text,
-		});
-		throw new Error(`Failed to log in as ${username}`);
-	}
+	playground.defineConstant('PLAYGROUND_AUTO_LOGIN', username);
 };

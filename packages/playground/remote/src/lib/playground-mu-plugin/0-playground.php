@@ -151,4 +151,29 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	});
 }
 
+// Autologin
+
+add_action('wp', function () {
+	if ( !defined('PLAYGROUND_AUTO_LOGIN') ) {
+		return;
+	}
+
+	if (isset($_COOKIE['playground_auto_login'])) {
+		return;
+	}
+
+	if ( is_user_logged_in() ) {
+		return;
+	}
+
+	$user = get_user_by('login', PLAYGROUND_AUTO_LOGIN);
+	if (!$user) {
+		return;
+	}
+
+	wp_set_current_user( $user->ID, $user->user_login );
+	wp_set_auth_cookie( $user->ID );
+	do_action( 'wp_login', $user->user_login, $user );
+	setcookie('playground_auto_login', '1');
+});
 ?>

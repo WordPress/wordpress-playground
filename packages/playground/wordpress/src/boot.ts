@@ -18,7 +18,6 @@ import {
 	preloadSqliteIntegration,
 	unzipWordPress,
 	wordPressRewriteRules,
-	preloadLogin,
 } from '.';
 import { joinPaths } from '@php-wasm/util';
 
@@ -142,7 +141,6 @@ export async function bootWordPress(options: BootOptions) {
 				php,
 				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
-			await preloadLogin(php);
 		} else {
 			// Proxy the filesystem for all secondary PHP instances to
 			// the primary one.
