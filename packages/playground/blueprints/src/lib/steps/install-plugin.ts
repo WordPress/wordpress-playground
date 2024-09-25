@@ -44,6 +44,10 @@ export interface InstallPluginOptions {
 	 * Whether to activate the plugin after installing it.
 	 */
 	activate?: boolean;
+	/**
+	 * The name of the folder to install the plugin to. Defaults to guessing from pluginZipFile
+	 */
+	targetSlug?: string;
 }
 
 /**
@@ -60,12 +64,14 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 ) => {
 	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
+	const targetSlug = 'targetSlug' in options ? options.targetSlug : '';
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	const { assetFolderPath } = await installAsset(playground, {
 		ifAlreadyInstalled,
 		zipFile: pluginZipFile,
 		targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+		targetSlug: targetSlug
 	});
 
 	// Activate

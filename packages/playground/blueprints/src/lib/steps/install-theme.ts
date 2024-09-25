@@ -37,16 +37,7 @@ export interface InstallThemeStep<ResourceType>
 	/**
 	 * Optional installation options.
 	 */
-	options?: {
-		/**
-		 * Whether to activate the theme after installing it.
-		 */
-		activate?: boolean;
-		/**
-		 * Whether to import the theme's starter content after installing it.
-		 */
-		importStarterContent?: boolean;
-	};
+	options?: InstallThemeOptions;
 }
 
 export interface InstallThemeOptions {
@@ -54,6 +45,10 @@ export interface InstallThemeOptions {
 	 * Whether to activate the theme after installing it.
 	 */
 	activate?: boolean;
+	/**
+	 * The name of the folder to install the theme to. Defaults to guessing from themeZipFile
+	 */
+	targetSlug?: string;
 }
 
 /**
@@ -69,12 +64,14 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	progress
 ) => {
 	const zipNiceName = zipNameToHumanName(themeZipFile.name);
+	const targetSlug = 'targetSlug' in options ? options.targetSlug : '';
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
 	const { assetFolderName } = await installAsset(playground, {
 		ifAlreadyInstalled,
 		zipFile: themeZipFile,
 		targetPath: `${await playground.documentRoot}/wp-content/themes`,
+		targetSlug: targetSlug
 	});
 
 	const activate = 'activate' in options ? options.activate : true;
