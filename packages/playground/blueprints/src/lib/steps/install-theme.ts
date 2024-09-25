@@ -46,6 +46,10 @@ export interface InstallThemeOptions {
 	 */
 	activate?: boolean;
 	/**
+	 * Whether to import the theme's starter content after installing it.
+	 */
+	importStarterContent?: boolean;
+	/**
 	 * The name of the folder to install the theme to. Defaults to guessing from themeZipFile
 	 */
 	targetSlug?: string;
