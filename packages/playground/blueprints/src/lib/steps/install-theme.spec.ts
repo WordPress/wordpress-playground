@@ -141,7 +141,7 @@ describe('Blueprint step installTheme', () => {
 				ifAlreadyInstalled: 'overwrite',
 				options: {
 					activate: false,
-					targetSlug: '', // Intentionally broken for unit test run via GitHub actions.
+					targetSlug: 'test-expected-theme',
 				},
 			});
 			expect(php.fileExists(`${rootPath}/wp-content/themes/test-expected-theme/`)).toBe(true);

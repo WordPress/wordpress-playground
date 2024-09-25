@@ -167,7 +167,7 @@ describe('Blueprint step installPlugin', () => {
 				ifAlreadyInstalled: 'overwrite',
 				options: {
 					activate: false,
-					targetSlug: '', // Intentionally broken for unit test run via GitHub actions.
+					targetSlug: pluginName,
 				},
 			});
 			expect(php.fileExists(installedPluginPath)).toBe(true);
