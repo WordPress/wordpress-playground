@@ -34,6 +34,12 @@ Runs the tests in debug mode.
 npx nx run playground-website:e2e:playwright --debug
 ```
 
+Open the [Playwright Inspector](https://playwright.dev/docs/debug#picking-locators).
+
+```bash
+npx playwright open https://playground.test/website-server/
+```
+
 ### Multisite tests
 
 Multisite tests don't work with URLs that include ports.
