@@ -120,4 +120,20 @@ describe('Blueprint step installTheme', () => {
 			).rejects.toThrow();
 		});
 	});
+
+	describe('targetSlug option', () => {
+		it('should install a plugin to expected path', async () => {
+			await installTheme(php, {
+				themeZipFile: await zipFiles(php, zipFileName, {
+					[`unexpected-path/index.php`]: `/**\n * Theme Name: Test Theme`,
+				}),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+					tagetSlug: '', // Intentionally broken for unit test run via GitHub actions.
+				},
+			});
+			expect(php.fileExists(zipFilePath)).toBe(true);
+		});
+	});
 });
