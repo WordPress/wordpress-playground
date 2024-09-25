@@ -58,7 +58,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	await playground.writeFile('/tmp/stdout', '');
 	await playground.writeFile('/tmp/stderr', '');
 	await playground.writeFile(
-		'/wordpress/run-cli.php',
+		`${playground.documentRoot}/run-cli.php`,
 		`<?php
 		// Set up the environment to emulate a shell script
 		// call.
@@ -85,7 +85,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	);
 
 	const result = await playground.run({
-		scriptPath: '/wordpress/run-cli.php',
+		scriptPath: `${playground.documentRoot}/run-cli.php`,
 	});
 
 	if (result.errors) {
