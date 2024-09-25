@@ -41,7 +41,9 @@ function SiteInfoRow({
 	return (
 		<Flex justify="flex-start" expanded={true}>
 			<FlexItem className={css.infoRowLabel}>{label}</FlexItem>
-			<FlexItem className={css.infoRowValue}>{value}</FlexItem>
+			<FlexItem className={css.infoRowValue} aria-label={label}>
+				{value}
+			</FlexItem>
 		</Flex>
 	);
 }
@@ -72,9 +74,6 @@ export function SiteInfoPanel({
 	};
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
-	);
-	const activeSiteError = useAppSelector(
-		(state) => state.ui.activeSite?.error
 	);
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
@@ -241,11 +240,7 @@ export function SiteInfoPanel({
 												<MenuItem
 													aria-label="Delete this site"
 													className={css.danger}
-													disabled={
-														// Allow deletion of broken sites with loading errors
-														!playground &&
-														!activeSiteError
-													}
+													disabled={!playground}
 													onClick={() =>
 														removeSiteAndCloseMenu(
 															onClose

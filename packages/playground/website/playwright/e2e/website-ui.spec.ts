@@ -76,7 +76,7 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await clickSaveInEditSettings(website);
 
-		expect(await getSiteInfoRowValue(website, 'php-version')).toMatch(
+		expect(await getSiteInfoRowValue(website, 'PHP version')).toMatch(
 			`${version} (with extensions)`
 		);
 	});
@@ -97,7 +97,7 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await clickSaveInEditSettings(website);
 
-		expect(await getSiteInfoRowValue(website, 'php-version')).toMatch(
+		expect(await getSiteInfoRowValue(website, 'PHP version')).toMatch(
 			version
 		);
 	});
@@ -116,7 +116,7 @@ Object.keys(MinifiedWordPressVersions)
 			await clickSaveInEditSettings(website);
 
 			expect(
-				await getSiteInfoRowValue(website, 'wordpress-version')
+				await getSiteInfoRowValue(website, 'WordPress version')
 			).toMatch(version);
 		});
 	});

@@ -63,7 +63,7 @@ export const selectWordPressVersion = async (page: Page, version: string) => {
 };
 
 export const getSiteInfoRowValue = async (page: Page, key: string) => {
-	return await page.locator('.site-info-row-value-' + key).innerText();
+	return await page.getByLabel(key).innerText();
 };
 
 export const setNetworkingEnabled = async (page: Page, enabled: boolean) => {
@@ -77,5 +77,5 @@ export const setNetworkingEnabled = async (page: Page, enabled: boolean) => {
 };
 
 export const hasNetworkingEnabled = async (page: Page) => {
-	return (await getSiteInfoRowValue(page, 'network-access')) === 'Yes';
+	return (await getSiteInfoRowValue(page, 'Network access')) === 'Yes';
 };
