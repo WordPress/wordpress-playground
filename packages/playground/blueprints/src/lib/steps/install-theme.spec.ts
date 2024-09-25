@@ -1,4 +1,5 @@
 import { PHP } from '@php-wasm/universal';
+import { phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { installTheme } from './install-theme';
 import { PHPRequestHandler } from '@php-wasm/universal';
@@ -122,18 +123,28 @@ describe('Blueprint step installTheme', () => {
 	});
 
 	describe('targetSlug option', () => {
-		it('should install a plugin to expected path', async () => {
+		it('should install a theme to expected path', async () => {
+			// Create a zip with unexpected paths.
+			const unexpectedZipFileName = 'unexpected-test-theme.zip';
+			const unexpectedZipFilePath = `/{$unexpectedZipFileName}`;
+			await php.run({
+				code: `<?php $zip = new ZipArchive();
+							$zip->open(${phpVar(unexpectedZipFilePath)}, ZIPARCHIVE::CREATE);
+							$zip->addFromString("/unexpected-path/index.php","/**\n * Theme Name: Test Theme");
+							$zip->close();`,
+			});
+			const zip = await php.readFileAsBuffer(unexpectedZipFilePath);
+			php.unlink(unexpectedZipFilePath);
+
 			await installTheme(php, {
-				themeZipFile: await zipFiles(php, zipFileName, {
-					[`unexpected-path/index.php`]: `/**\n * Theme Name: Test Theme`,
-				}),
+				themeZipFile: new File([zip], unexpectedZipFileName),
 				ifAlreadyInstalled: 'overwrite',
 				options: {
 					activate: false,
-					tagetSlug: '', // Intentionally broken for unit test run via GitHub actions.
+					targetSlug: '', // Intentionally broken for unit test run via GitHub actions.
 				},
 			});
-			expect(php.fileExists(zipFilePath)).toBe(true);
+			expect(php.fileExists(`${rootPath}/wp-content/themes/test-expected-theme/`)).toBe(true);
 		});
 	});
 });
