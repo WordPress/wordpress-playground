@@ -164,15 +164,24 @@ export function compileBlueprint(
 	/**
 	 * Download WP-CLI. {{{
 	 * Hardcoding this in the compile() function is a temporary solution
-	 * to provide the wpCLI step with the wp-cli.phar file it needs. Eventually,
+	 * to provide steps with the wp-cli.phar file it needs. Eventually,
 	 * each Blueprint step may be able to specify any pre-requisite resources.
 	 * Also, wp-cli should only be downloaded if it's not already present.
+	 *
+	 * The enableMultisite step uses wp-cli to convert the site to a multisite.
+	 * The wp-cli step itself depends on WP-CLI.
 	 */
-	const wpCliStepIndex =
+	const indexOfStepThatDependsOnWpCli =
 		blueprint.steps?.findIndex(
-			(step) => typeof step === 'object' && step?.step === 'wp-cli'
+			(step) =>
+				typeof step === 'object' &&
+				step?.step &&
+				['wp-cli', 'enableMultisite'].includes(step.step)
 		) ?? -1;
-	if (blueprint?.extraLibraries?.includes('wp-cli') || wpCliStepIndex > -1) {
+	if (
+		blueprint?.extraLibraries?.includes('wp-cli') ||
+		indexOfStepThatDependsOnWpCli > -1
+	) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
 				blueprint.phpExtensionBundles.filter(
@@ -210,10 +219,14 @@ export function compileBlueprint(
 		 * If the blueprint has wp-cli steps,
 		 * we need to install wp-cli before running these steps.
 		 */
-		if (wpCliStepIndex === -1) {
+		if (indexOfStepThatDependsOnWpCli === -1) {
 			blueprint.steps?.push(wpCliInstallStep);
 		} else {
-			blueprint.steps?.splice(wpCliStepIndex, 0, wpCliInstallStep);
+			blueprint.steps?.splice(
+				indexOfStepThatDependsOnWpCli,
+				0,
+				wpCliInstallStep
+			);
 		}
 	}
 
