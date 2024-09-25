@@ -81,7 +81,7 @@ async function fetchContentLength(url: string) {
 		});
 }
 
-class ConvenientStreamWrapper {
+export class ConvenientStreamWrapper {
 	static fromBytes(bytes: Uint8Array) {
 		return new ConvenientStreamWrapper(
 			new ReadableStream<Uint8Array>({
@@ -314,6 +314,7 @@ export class ZipDecoder {
 		entry['extra'] = await extraStream.read(extraLength);
 
 		const bodyEnd = headerEnd + entry.compressedSize!;
+		const bodyStream = await this.streamView.slice(headerEnd, bodyEnd);
 
 		// Make sure we consume the body stream or else
 		// we'll start reading the next file at the wrong
@@ -322,17 +323,16 @@ export class ZipDecoder {
 		//        eagerly. Ensure the next iteration exhausts
 		//        the last body stream before moving on.
 		if (entry['compressionMethod'] !== COMPRESSION_DEFLATE) {
-			entry['bytes'] = await headerStream.read(entry['compressedSize']!);
+			entry['bytes'] = await bodyStream.read(entry['compressedSize']!);
 			return entry as FileEntry;
 		}
 
 		if (0 && true) {
 			// For runtimes that support deflate-raw
-			const bodyStream = await this.streamView.slice(headerEnd, bodyEnd);
 			await bodyStream.addTransform(
 				new DecompressionStream('deflate-raw')
 			);
-			entry['bytes'] = await bodyStream.read(bodyEnd - headerEnd);
+			entry['bytes'] = await bodyStream.read(entry['uncompressedSize']);
 		} else {
 			/**
 			 * We want to write raw deflate-compressed bytes into our
@@ -370,7 +370,21 @@ export class ZipDecoder {
 				ConvenientStreamWrapper.fromBytes(footer)
 			);
 			await stream.addTransform(new DecompressionStream('gzip'));
-			entry['bytes'] = await stream.read(stream.length!);
+			entry['bytes'] = await stream.read(entry['uncompressedSize']!);
+
+			console.log(entry['bytes'].byteLength, entry['uncompressedSize']!);
+			const decoder = new ZipDecoder(
+				new TeeStreamView(
+					ConvenientStreamWrapper.fromBytes(
+						entry['bytes']
+					).streamRemainingBytes(),
+					entry['uncompressedSize']!
+				)
+			);
+			for await (const file of decoder.listCentralDirectory()) {
+				console.log(file);
+				break;
+			}
 		}
 
 		return entry as FileEntry;
