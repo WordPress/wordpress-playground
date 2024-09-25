@@ -3,27 +3,27 @@ import { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
 test('Base64-encoded Blueprints should work', async ({
-	page,
-	wordpressPage,
+	website,
+	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingPage: '/',
+		landingwebsite: '/',
 		steps: [{ step: 'enableMultisite' }],
 	};
 
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
-	await page.goto(`/#${encodedBlueprint}`);
+	await website.goto(`/#${encodedBlueprint}`);
 
-	const bodyText = wordpressPage.locator('body');
+	const bodyText = wordpress.locator('body');
 	await expect(bodyText).toContainText('My Sites');
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
-	page,
-	wordpressPage,
+	website,
+	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingPage: '/wp-admin/plugins.php',
+		landingwebsite: '/wp-admin/plugins.php',
 		steps: [
 			{ step: 'login' },
 			{
@@ -39,9 +39,9 @@ test('enableMultisite step should re-activate the plugins', async ({
 	};
 
 	const encodedBlueprint = JSON.stringify(blueprint);
-	await page.goto(`./#${encodedBlueprint}`);
+	await website.goto(`./#${encodedBlueprint}`);
 
-	const deactivationLink = wordpressPage.locator(
+	const deactivationLink = wordpress.locator(
 		'a[aria-label="Deactivate Hello Dolly"]',
 		{ hasText: 'Deactivate' }
 	);

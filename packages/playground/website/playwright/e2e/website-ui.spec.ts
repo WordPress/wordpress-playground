@@ -23,31 +23,31 @@ import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/sup
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
-	page,
+	website,
 }) => {
-	await page.goto('./?url=/wp-admin');
+	await website.goto('./?url=/wp-admin');
 
-	await expandSiteView(page);
+	await expandSiteView(website);
 
-	const inputElement = page.locator('input[value="/wp-admin/"]');
+	const inputElement = website.locator('input[value="/wp-admin/"]');
 	await expect(inputElement).toBeVisible();
 	await expect(inputElement).toHaveValue('/wp-admin/');
 });
 
-test('should switch between sites', async ({ page }) => {
-	await page.goto('./');
+test('should switch between sites', async ({ website }) => {
+	await website.goto('./');
 
-	await openNewSiteModal(page);
+	await openNewSiteModal(website);
 
-	const newSiteName = await page
+	const newSiteName = await website
 		.locator('input[placeholder="Playground name"]')
 		.inputValue();
 
-	await clickCreateInNewSiteModal(page);
+	await clickCreateInNewSiteModal(website);
 
-	await expect(await getSiteTitle(page)).toMatch(newSiteName);
+	await expect(await getSiteTitle(website)).toMatch(newSiteName);
 
-	const sidebarItem = page.locator(
+	const sidebarItem = website.locator(
 		'.components-button[class*="_sidebar-item"]:not([class*="_sidebar-item--selected_"])'
 	);
 	const siteName = await sidebarItem
@@ -56,11 +56,11 @@ test('should switch between sites', async ({ page }) => {
 	await sidebarItem.isVisible();
 	await sidebarItem.click();
 
-	await expect(await getSiteTitle(page)).toMatch(siteName);
+	await expect(await getSiteTitle(website)).toMatch(siteName);
 });
 
 SupportedPHPVersions.forEach(async (version) => {
-	test(`should switch PHP version to ${version}`, async ({ page }) => {
+	test(`should switch PHP version to ${version}`, async ({ website }) => {
 		/**
 		 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 so we need to skip these versions.
 		 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
@@ -68,36 +68,38 @@ SupportedPHPVersions.forEach(async (version) => {
 		if (['7.0', '7.1'].includes(version)) {
 			return;
 		}
-		await page.goto(`./`);
+		await website.goto(`./`);
 
-		await openEditSettings(page);
+		await openEditSettings(website);
 
-		await selectPHPVersion(page, version);
+		await selectPHPVersion(website, version);
 
-		await clickSaveInEditSettings(page);
+		await clickSaveInEditSettings(website);
 
-		expect(await getSiteInfoRowValue(page, 'php-version')).toMatch(
+		expect(await getSiteInfoRowValue(website, 'php-version')).toMatch(
 			`${version} (with extensions)`
 		);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
-		page,
+		website,
 	}) => {
-		await page.goto('./');
-		await openEditSettings(page);
-		await selectPHPVersion(page, version);
+		await website.goto('./');
+		await openEditSettings(website);
+		await selectPHPVersion(website, version);
 
 		// Uncheck the "with extensions" checkbox
-		const phpExtensionCheckbox = page.locator(
+		const phpExtensionCheckbox = website.locator(
 			'.components-checkbox-control__input[name="withExtensions"]'
 		);
 		await expect(phpExtensionCheckbox).toBeVisible();
 		await phpExtensionCheckbox.uncheck();
 
-		await clickSaveInEditSettings(page);
+		await clickSaveInEditSettings(website);
 
-		expect(await getSiteInfoRowValue(page, 'php-version')).toMatch(version);
+		expect(await getSiteInfoRowValue(website, 'php-version')).toMatch(
+			version
+		);
 	});
 });
 
@@ -106,58 +108,60 @@ Object.keys(MinifiedWordPressVersions)
 	.filter((version) => !['beta', 'default'].includes(version))
 	.forEach(async (version) => {
 		test(`should switch WordPress version to ${version}`, async ({
-			page,
+			website,
 		}) => {
-			await page.goto('./');
-			await openEditSettings(page);
-			await selectWordPressVersion(page, version);
-			await clickSaveInEditSettings(page);
+			await website.goto('./');
+			await openEditSettings(website);
+			await selectWordPressVersion(website, version);
+			await clickSaveInEditSettings(website);
 
 			expect(
-				await getSiteInfoRowValue(page, 'wordpress-version')
+				await getSiteInfoRowValue(website, 'wordpress-version')
 			).toMatch(version);
 		});
 	});
 
-test('should display networking as inactive by default', async ({ page }) => {
-	await page.goto('./');
+test('should display networking as inactive by default', async ({
+	website,
+}) => {
+	await website.goto('./');
 
-	await expect(await hasNetworkingEnabled(page)).toBeFalsy();
+	await expect(await hasNetworkingEnabled(website)).toBeFalsy();
 });
 
 test('should display networking as active when networking is enabled', async ({
-	page,
+	website,
 }) => {
-	await page.goto('./?networking=yes');
-	await expect(await hasNetworkingEnabled(page)).toBeTruthy();
+	await website.goto('./?networking=yes');
+	await expect(await hasNetworkingEnabled(website)).toBeTruthy();
 });
 
-test('should enable networking when requested', async ({ page }) => {
-	await page.goto('./');
+test('should enable networking when requested', async ({ website }) => {
+	await website.goto('./');
 
-	await openEditSettings(page);
-	await setNetworkingEnabled(page, true);
-	await clickSaveInEditSettings(page);
+	await openEditSettings(website);
+	await setNetworkingEnabled(website, true);
+	await clickSaveInEditSettings(website);
 
-	await expect(await hasNetworkingEnabled(page)).toBeTruthy();
+	await expect(await hasNetworkingEnabled(website)).toBeTruthy();
 });
 
-test('should disable networking when requested', async ({ page }) => {
-	await page.goto('./?networking=yes');
+test('should disable networking when requested', async ({ website }) => {
+	await website.goto('./?networking=yes');
 
-	await openEditSettings(page);
-	await setNetworkingEnabled(page, false);
-	await clickSaveInEditSettings(page);
+	await openEditSettings(website);
+	await setNetworkingEnabled(website, false);
+	await clickSaveInEditSettings(website);
 
-	await expect(await hasNetworkingEnabled(page)).toBeFalsy();
+	await expect(await hasNetworkingEnabled(website)).toBeFalsy();
 });
 
 test('should display PHP output even when a fatal error is hit', async ({
-	page,
-	wordpressPage,
+	website,
+	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingPage: '/err.php',
+		landingwebsite: '/err.php',
 		login: true,
 		steps: [
 			{
@@ -167,9 +171,9 @@ test('should display PHP output even when a fatal error is hit', async ({
 			},
 		],
 	};
-	await page.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
-	await expect(wordpressPage.locator('body')).toContainText(
+	await expect(wordpress.locator('body')).toContainText(
 		'This is a fatal error'
 	);
 });

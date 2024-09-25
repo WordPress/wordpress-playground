@@ -1,18 +1,18 @@
 import { test as base, Page, expect, FrameLocator } from '@playwright/test';
 
 type WordPressFixtures = {
-	wordpressPage: FrameLocator;
-	page: Page;
+	wordpress: FrameLocator;
+	website: Page;
 };
 
 export const test = base.extend<WordPressFixtures>({
-	wordpressPage: async ({ page }, use) => {
+	wordpress: async ({ page }, use) => {
 		const wpPage = page
 			.frameLocator('#playground-viewport')
 			.frameLocator('#wp');
 		await use(wpPage);
 	},
-	page: async ({ page }, use) => {
+	website: async ({ page }, use) => {
 		// Define a function to wait for nested iframes
 		async function waitForNestedIframes(page: Page) {
 			const timeout = 120000;
