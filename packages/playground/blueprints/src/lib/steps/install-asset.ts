@@ -17,6 +17,10 @@ export interface InstallAssetOptions {
 	 */
 	targetPath: string;
 	/**
+	 * Target slug to install the asset into.
+	 */
+	targetSlug?: string;
+	/**
 	 * What to do if the asset already exists.
 	 */
 	ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
@@ -31,6 +35,7 @@ export async function installAsset(
 		targetPath,
 		zipFile,
 		ifAlreadyInstalled = 'overwrite',
+		targetSlug = ''
 	}: InstallAssetOptions
 ): Promise<{
 	assetFolderPath: string;
@@ -80,6 +85,11 @@ export async function installAsset(
 		} else {
 			tmpAssetPath = tmpUnzippedFilesPath;
 			assetFolderName = assetNameGuess;
+		}
+
+		// If a specific slug was requested be used, use that.
+		if ( targetSlug && targetSlug.length ) {
+			assetFolderName = targetSlug;
 		}
 
 		// Move asset folder to target path
