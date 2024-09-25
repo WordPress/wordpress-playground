@@ -1,6 +1,10 @@
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
-import { getDirectoryPathForSlug } from '../opfs/opfs-site-storage';
+import {
+	getDirectoryPathForSlug,
+	legacyOpfsPathSymbol,
+	deleteDirectory,
+} from '../opfs/opfs-site-storage';
 import {
 	addClientInfo,
 	removeClientInfo,
@@ -36,7 +40,10 @@ export function bootSiteClient(
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					path: getDirectoryPathForSlug(site.slug),
+					// @TODO: Remove backcompat code after 2024-12-01.
+					path: (site.metadata as any)[legacyOpfsPathSymbol]
+						? (site.metadata as any)[legacyOpfsPathSymbol]
+						: getDirectoryPathForSlug(site.slug),
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -124,6 +131,35 @@ export function bootSiteClient(
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 			});
+
+			// @TODO: Remove backcompat code after 2024-12-01.
+			if (
+				(site.metadata as any)[legacyOpfsPathSymbol] &&
+				site.metadata.storage === 'opfs' &&
+				mountDescriptor?.device.type === 'opfs'
+			) {
+				const sourcePath = mountDescriptor.device.path;
+				const targetPath = getDirectoryPathForSlug(site.slug);
+				logger.info(
+					`Migrating legacy OPFS site from ${sourcePath} to ${targetPath}`
+				);
+				// Move the legacy site to the new OPFS sites location.
+				mountDescriptor = {
+					device: {
+						type: 'opfs',
+						path: targetPath,
+					},
+					mountpoint: '/wordpress',
+				} as const;
+				await playground.mountOpfs(
+					{
+						...mountDescriptor,
+						initialSyncDirection: 'memfs-to-opfs',
+					} as const
+					// TODO: show progress indicator?
+				);
+				await deleteDirectory(sourcePath);
+			}
 		} catch (e) {
 			logger.error(e);
 			dispatch(setActiveSiteError('site-boot-failed'));
