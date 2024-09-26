@@ -13,9 +13,7 @@ test('Base64-encoded Blueprints should work', async ({
 
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
-
-	const bodyText = wordpress.locator('body');
-	await expect(bodyText).toContainText('My Sites');
+	await expect(wordpress.locator('body')).toContainText('My Sites');
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
@@ -40,7 +38,6 @@ test('enableMultisite step should re-activate the plugins', async ({
 
 	const encodedBlueprint = JSON.stringify(blueprint);
 	await website.goto(`./#${encodedBlueprint}`);
-
 	expect(wordpress.getByLabel('Deactivate Hello Dolly')).toHaveText(
 		'Deactivate'
 	);

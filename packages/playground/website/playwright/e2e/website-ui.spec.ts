@@ -16,8 +16,9 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 
 	await website.expandSiteView();
 
-	const inputElement = website.page.locator('input[value="/wp-admin/"]');
-	await expect(inputElement).toHaveValue('/wp-admin/');
+	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
+		'/wp-admin/'
+	);
 });
 
 test('should switch between sites', async ({ website }) => {
