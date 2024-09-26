@@ -1,7 +1,5 @@
 <?php
 
-require_once __DIR__ . '/playground-includes/auto_login.php';
-
 /**
  * Add a notice to wp-login.php offering the username and password.
  */
