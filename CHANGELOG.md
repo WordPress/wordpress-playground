@@ -4,7 +4,24 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v0.9.43] (2024-09-23)
+## [v0.9.44] (2024-09-24) 
+
+### Bug Fixes
+
+- Docs: Fix links intro fr. ([#1795](https://github.com/WordPress/wordpress-playground/pull/1795))
+
+### Various
+
+- Add missing functions required to succesfully connect with MySQL DB. ([#1752](https://github.com/WordPress/wordpress-playground/pull/1752))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@jeroenpf @juanmaguitar
+
+
+## [v0.9.43] (2024-09-23) 
 
 ### Documentation
 

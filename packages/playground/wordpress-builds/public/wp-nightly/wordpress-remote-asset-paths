@@ -583,7 +583,6 @@ wp-includes/js/dist/nux.min.js
 wp-includes/js/dist/format-library.js
 wp-includes/js/dist/private-apis.js
 wp-includes/js/dist/compose.js
-wp-includes/js/dist/interactivity.min.js
 wp-includes/js/dist/date.min.js
 wp-includes/js/dist/nux.js
 wp-includes/js/dist/date.js
@@ -603,7 +602,6 @@ wp-includes/js/dist/commands.min.js
 wp-includes/js/dist/plugins.min.js
 wp-includes/js/dist/router.js
 wp-includes/js/dist/fields.min.js
-wp-includes/js/dist/interactivity-router.min.js
 wp-includes/js/dist/blocks.min.js
 wp-includes/js/dist/escape-html.js
 wp-includes/js/dist/media-utils.js
@@ -622,7 +620,6 @@ wp-includes/js/dist/priority-queue.js
 wp-includes/js/dist/priority-queue.min.js
 wp-includes/js/dist/warning.min.js
 wp-includes/js/dist/keyboard-shortcuts.min.js
-wp-includes/js/dist/interactivity.js
 wp-includes/js/dist/components.js
 wp-includes/js/dist/wordcount.min.js
 wp-includes/js/dist/edit-widgets.min.js
@@ -682,6 +679,22 @@ wp-includes/js/dist/editor.js
 wp-includes/js/dist/dom-ready.min.js
 wp-includes/js/dist/is-shallow-equal.js
 wp-includes/js/dist/keycodes.min.js
+wp-includes/js/dist/script-modules/interactivity-router/index.js
+wp-includes/js/dist/script-modules/interactivity-router/index.min.js
+wp-includes/js/dist/script-modules/block-library/image/view.js
+wp-includes/js/dist/script-modules/block-library/image/view.min.js
+wp-includes/js/dist/script-modules/block-library/navigation/view.js
+wp-includes/js/dist/script-modules/block-library/navigation/view.min.js
+wp-includes/js/dist/script-modules/block-library/query/view.js
+wp-includes/js/dist/script-modules/block-library/query/view.min.js
+wp-includes/js/dist/script-modules/block-library/search/view.js
+wp-includes/js/dist/script-modules/block-library/search/view.min.js
+wp-includes/js/dist/script-modules/block-library/file/view.js
+wp-includes/js/dist/script-modules/block-library/file/view.min.js
+wp-includes/js/dist/script-modules/interactivity/index.js
+wp-includes/js/dist/script-modules/interactivity/index.min.js
+wp-includes/js/dist/script-modules/interactivity/debug.min.js
+wp-includes/js/dist/script-modules/interactivity/debug.js
 wp-includes/js/dist/api-fetch.min.js
 wp-includes/js/dist/dom-ready.js
 wp-includes/js/dist/block-serialization-default-parser.js
@@ -729,7 +742,6 @@ wp-includes/js/dist/deprecated.min.js
 wp-includes/js/dist/viewport.min.js
 wp-includes/js/dist/shortcode.min.js
 wp-includes/js/dist/blob.js
-wp-includes/js/dist/interactivity-router.js
 wp-includes/js/dist/fields.js
 wp-includes/js/dist/deprecated.js
 wp-includes/js/dist/patterns.min.js
