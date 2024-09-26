@@ -25,29 +25,21 @@ describe('Blueprint step login', () => {
 	});
 
 	it('should log the user in', async () => {
-		await login(php, {
-			username: 'admin',
-		});
-		const result = await php.run({
-			code: `
-				<?php
-				echo PLAYGROUND_AUTO_LOGIN;
-			`,
-		});
-		expect(result.text).toContain('admin');
-	});
-
-	it('should redirect user to wp-login.php with correct redirect_to', async () => {
 		await login(php, {});
-		const response = await handler.request({
+		const loginResponse = await handler.request({
+			url: '/wp-login.php',
+		});
+		expect(loginResponse.httpStatusCode).toBe(302);
+		expect(loginResponse.headers['location']).toHaveLength(1);
+		const initialRedirectUrl = new URL(
+			loginResponse.headers['location'][0]
+		);
+		expect(initialRedirectUrl.pathname).toBe('/wp-admin/');
+
+		const adminResponse = await handler.request({
 			url: '/wp-admin/',
 		});
-		expect(response.httpStatusCode).toBe(302);
-		expect(response.headers['location']).toHaveLength(1);
-		const initialRedirectUrl = new URL(response.headers['location'][0]);
-		expect(initialRedirectUrl.pathname).toBe('/wp-login.php');
-		expect(initialRedirectUrl.searchParams.get('redirect_to')).toBe(
-			`${handler.absoluteUrl}/wp-admin/`
-		);
+		expect(adminResponse.httpStatusCode).toBe(200);
+		expect(adminResponse.text).toContain('Dashboard');
 	});
 });

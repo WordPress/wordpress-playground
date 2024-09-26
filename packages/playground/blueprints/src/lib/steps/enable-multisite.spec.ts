@@ -6,6 +6,8 @@ import {
 import { enableMultisite } from './enable-multisite';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 describe('Blueprint step enableMultisite', () => {
 	async function doBootWordPress(options: { absoluteUrl: string }) {
@@ -17,6 +19,11 @@ describe('Blueprint step enableMultisite', () => {
 
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			createFiles: {
+				'/tmp/wp-cli.phar': readFileSync(
+					join(__dirname, '../../test/wp-cli.phar')
+				),
+			},
 		});
 		const php = await requestHandler.getPrimaryPhp();
 

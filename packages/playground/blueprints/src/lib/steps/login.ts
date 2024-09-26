@@ -27,7 +27,7 @@ export type LoginStep = {
 
 /**
  * Logs in to Playground.
- * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN` constant.
+ * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN_AS_USER` constant.
  * The `auto_login.php` mu-plugin uses that constant to log in the user on the first load.
  */
 export const login: StepHandler<LoginStep> = async (
@@ -37,5 +37,5 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
-	playground.defineConstant('PLAYGROUND_AUTO_LOGIN', username);
+	playground.defineConstant('PLAYGROUND_AUTO_LOGIN_AS_USER', username);
 };

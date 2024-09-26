@@ -1,7 +1,7 @@
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { setSiteOptions } from './site-data';
-import { installWpCli, wpCLI } from './wp-cli';
+import { assertWpCli, wpCLI } from './wp-cli';
 
 /**
  * @inheritDoc enableMultisite
@@ -16,6 +16,8 @@ import { installWpCli, wpCLI } from './wp-cli';
  */
 export interface EnableMultisiteStep {
 	step: 'enableMultisite';
+	/** wp-cli.phar path */
+	wpCliPath?: string;
 }
 
 /**
@@ -27,9 +29,10 @@ export interface EnableMultisiteStep {
  * @param enableMultisite
  */
 export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
-	playground
+	playground,
+	{ wpCliPath }
 ) => {
-	await installWpCli(playground);
+	await assertWpCli(playground, wpCliPath);
 
 	await defineWpConfigConsts(playground, {
 		consts: {

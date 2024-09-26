@@ -1,7 +1,6 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import { writeFile } from './write-file';
 import { FileReference } from '../resources';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';
@@ -20,24 +19,19 @@ export const defaultWpCliResource: FileReference = {
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
 
-export const installWpCli = async (
+export const assertWpCli = async (
 	playground: UniversalPHP,
 	wpCliPath: string = defaultWpCliPath
 ) => {
-	if (await playground.fileExists(wpCliPath)) {
-		return;
+	if (!(await playground.fileExists(wpCliPath))) {
+		throw new Error(`wp-cli.phar not found at ${wpCliPath}.
+			You can enable wp-cli support by adding "wp-cli" to the list of extra libraries in your blueprint as follows:
+			{
+				"extraLibraries": [ "wp-cli" ]
+			}
+			Read more about it in the documentation.
+			https://wordpress.github.io/wordpress-playground/blueprints/data-format#extra-libraries`);
 	}
-	await writeFile(playground, {
-		data: new File(
-			[
-				await fetch(defaultWpCliResource.url).then((r) =>
-					r.arrayBuffer()
-				),
-			],
-			defaultWpCliResource.url
-		),
-		path: defaultWpCliPath,
-	});
 };
 
 /**
@@ -69,7 +63,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,
 	{ command, wpCliPath = defaultWpCliPath }
 ) => {
-	await installWpCli(playground, wpCliPath);
+	await assertWpCli(playground, wpCliPath);
 
 	let args: string[];
 	if (typeof command === 'string') {
@@ -89,7 +83,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	await playground.writeFile('/tmp/stdout', '');
 	await playground.writeFile('/tmp/stderr', '');
 	await playground.writeFile(
-		`${joinPaths(documentRoot, 'run-cli.php')}`,
+		joinPaths(documentRoot, 'run-cli.php'),
 		`<?php
 		// Set up the environment to emulate a shell script
 		// call.
@@ -116,7 +110,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	);
 
 	const result = await playground.run({
-		scriptPath: `${documentRoot}/run-cli.php`,
+		scriptPath: joinPaths(documentRoot, 'run-cli.php'),
 	});
 
 	if (result.errors) {

@@ -34,8 +34,6 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
-import autoLogin from './playground-mu-plugin/playground-includes/auto_login.php?raw';
-/* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import {
 	PHPResponse,
@@ -314,7 +312,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						'playground-includes': {
 							'wp_http_dummy.php': transportDummy,
 							'wp_http_fetch.php': transportFetch,
-							'auto_login.php': autoLogin,
 						},
 					},
 				},
