@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { MenuItem } from '@wordpress/components';
-import { upload } from '@wordpress/icons';
 
 import ImportForm from '../import-form';
 import Modal from '../modal';
-import { usePlaygroundContext } from '../../playground-context';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
 
-type Props = { onClose: () => void };
-export function RestoreFromZipMenuItem({ onClose }: Props) {
-	const { playground } = usePlaygroundContext();
+type Props = { onClose: () => void; disabled: boolean };
+export function RestoreFromZipMenuItem({ onClose, disabled }: Props) {
+	const playground = usePlaygroundClient();
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => {
 		if (!playground) return;
@@ -29,11 +28,10 @@ export function RestoreFromZipMenuItem({ onClose }: Props) {
 	return (
 		<>
 			<MenuItem
-				icon={upload}
-				iconPosition="left"
 				data-cy="restore-from-zip"
-				aria-label="Download the current playground as a .zip file"
+				aria-label="Import a .zip file into the current Playground"
 				onClick={openModal}
+				disabled={disabled}
 			>
 				Restore from .zip
 			</MenuItem>

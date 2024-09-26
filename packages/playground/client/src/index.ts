@@ -66,7 +66,6 @@ export interface StartPlaygroundOptions {
 	 * @returns
 	 */
 	onBeforeBlueprint?: () => Promise<void>;
-	siteSlug?: string;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
 }

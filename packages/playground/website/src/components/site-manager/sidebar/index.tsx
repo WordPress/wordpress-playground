@@ -9,38 +9,44 @@ import {
 	FlexBlock,
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
+	Button,
 } from '@wordpress/components';
 import { TemporaryStorageIcon, WordPressIcon } from '../icons';
-import { type SiteLogo } from '../../../lib/site-storage';
-import { SiteInfo } from '../../../lib/site-storage';
-import { AddSiteButton } from '../add-site-button';
+import {
+	setActiveSite,
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../../lib/state/redux/store';
+import { SiteCreateButton } from '../site-create-button';
+import { SiteLogo } from '../../../lib/site-metadata';
+import { selectSortedSites } from '../../../lib/state/redux/slice-sites';
 
 export function Sidebar({
 	className,
-	siteSlug,
-	sites,
-	onSiteClick,
-	addSite,
+	afterSiteClick,
 }: {
 	className?: string;
-	siteSlug?: string;
-	sites: SiteInfo[];
-	onSiteClick: (siteSlug: string) => void;
-	addSite: (name: string) => Promise<SiteInfo>;
+	afterSiteClick?: (slug: string) => void;
 }) {
-	// Sites may be in an arbitrary order, so let's sort them by name.
-	sites = sites
-		.concat()
-		.sort((a, b) =>
-			a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-		);
+	const sites = useAppSelector(selectSortedSites);
+	const activeSite = useActiveSite();
+	const dispatch = useAppDispatch();
 
-	const onAddSite = async (name: string) => {
-		const newSiteInfo = await addSite(name);
-		onSiteClick(newSiteInfo.slug);
+	const onSiteClick = (slug: string) => {
+		dispatch(setActiveSite(slug));
+		afterSiteClick?.(slug);
 	};
 
 	const resources = [
+		{
+			label: 'Preview WordPress PR',
+			href: '/wordpress.html',
+		},
+		{
+			label: 'More demos',
+			href: '/demos/index.html',
+		},
 		{
 			label: 'Documentation',
 			href: 'https://wordpress.github.io/wordpress-playground/',
@@ -56,30 +62,35 @@ export function Sidebar({
 	};
 
 	return (
-		<NavigableMenu className={classNames(css.sidebar, className)}>
-			<header className={css.sidebarHeader}>
+		// Disable the `role` as Axe accessibility checker complains that a `menu`
+		// role cannot have `div`, `nav`, `footer` and `button` as children.
+		<NavigableMenu
+			className={classNames(css.sidebar, className)}
+			// eslint-disable-next-line jsx-a11y/aria-role
+			role=""
+			aria-orientation={undefined}
+		>
+			<h1 className="sr-only">WordPress Playground</h1>
+			<div className={css.sidebarHeader}>
 				{/* Remove Playground logo because branding isn't finalized. */}
 				{/* <Logo className={css.sidebarLogoButton} /> */}
-			</header>
+			</div>
 			<nav className={classNames(css.sidebarSection, css.sidebarContent)}>
 				<Heading
-					level="6"
+					level="2"
 					className={classNames(
 						css.sidebarLabel,
 						css.sidebarListLabel
 					)}
 				>
-					Your sites
+					Your Playgrounds
 				</Heading>
 				<MenuGroup className={css.sidebarList}>
 					{sites.map((site) => {
 						/**
 						 * The `wordpress` site is selected when no site slug is provided.
 						 */
-						const isSelected =
-							site.slug === siteSlug ||
-							(siteSlug === undefined &&
-								site.slug === 'wordpress');
+						const isSelected = site.slug === activeSite?.slug;
 						return (
 							<MenuItem
 								key={site.slug}
@@ -88,10 +99,15 @@ export function Sidebar({
 								})}
 								onClick={() => onSiteClick(site.slug)}
 								isSelected={isSelected}
-								role="menuitemradio"
+								// eslint-disable-next-line jsx-a11y/aria-role
+								role=""
+								title={
+									site.metadata.storage === 'none'
+										? 'This is a temporary Playground. Your changes will be lost on page refresh.'
+										: ''
+								}
 								icon={
-									site.storage === 'temporary' ||
-									!site.storage ? (
+									site.metadata.storage === 'none' ? (
 										<TemporaryStorageIcon
 											className={
 												css.sidebarItemStorageIcon
@@ -102,10 +118,12 @@ export function Sidebar({
 								iconPosition="right"
 							>
 								<HStack justify="flex-start" alignment="center">
-									{site.logo ? (
+									{site.metadata.logo ? (
 										<img
-											src={getLogoDataURL(site.logo)}
-											alt={site.name + ' logo'}
+											src={getLogoDataURL(
+												site.metadata.logo
+											)}
+											alt={site.metadata.name + ' logo'}
 											className={css.sidebarItemLogo}
 										/>
 									) : (
@@ -116,7 +134,7 @@ export function Sidebar({
 									<FlexBlock
 										className={css.sidebarItemSiteName}
 									>
-										{site.name}
+										{site.metadata.name}
 									</FlexBlock>
 								</HStack>
 							</MenuItem>
@@ -127,7 +145,7 @@ export function Sidebar({
 			<footer
 				className={classNames(css.sidebarSection, css.sidebarFooter)}
 			>
-				<Heading level="6" className={css.sidebarLabel}>
+				<Heading level="2" className={css.sidebarLabel}>
 					Resources
 				</Heading>
 				<ItemGroup className={css.sidebarList}>
@@ -145,7 +163,19 @@ export function Sidebar({
 					))}
 				</ItemGroup>
 			</footer>
-			<AddSiteButton onAddSite={onAddSite} sites={sites} />
+			<SiteCreateButton>
+				{(onClick) => (
+					<div className={css.addSiteButtonWrapper}>
+						<Button
+							variant="primary"
+							className={css.addSiteButtonButton}
+							onClick={onClick}
+						>
+							Add Playground
+						</Button>
+					</div>
+				)}
+			</SiteCreateButton>
 		</NavigableMenu>
 	);
 }

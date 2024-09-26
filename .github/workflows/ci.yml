@@ -43,7 +43,22 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
-
+    test-e2e-playwright:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        # Run as root to allow node to bind to port 80
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: sudo npx playwright install --with-deps
+            - name: Run Playwright tests
+              run: sudo CI=true npx nx run playground-website:e2e:playwright:ci
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report
+                  path: playwright-report/
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
