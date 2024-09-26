@@ -75,18 +75,16 @@ export async function resolveBlueprintFromURL(url: URL) {
 		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 
 	// Features
-	if (query.has('features')) {
-		if (!blueprint.features) {
-			blueprint.features = {};
-		}
+	if (!blueprint.features) {
+		blueprint.features = {};
+	}
 
-		/**
-		 * Networking is disabled by default, so we only need to enable it
-		 * if the query param is explicitly set to "yes".
-		 */
-		if (query.get('networking') === 'yes') {
-			blueprint.features['networking'] = true;
-		}
+	/**
+	 * Networking is disabled by default, so we only need to enable it
+	 * if the query param is explicitly set to "yes".
+	 */
+	if (query.get('networking') === 'yes') {
+		blueprint.features['networking'] = true;
 	}
 
 	// PHP extension bundle
