@@ -36,7 +36,7 @@ describe('Blueprint step enableMultisite', () => {
 			`,
 		});
 		expect(result.text).toContain('true');
-	}, 30_000);
+	});
 
 	it('should enable a multisite on a scopeless URL', async () => {
 		const { php } = await doBootWordPress({
@@ -51,5 +51,5 @@ describe('Blueprint step enableMultisite', () => {
 			`,
 		});
 		expect(result.text).toContain('true');
-	}, 30_000);
+	});
 });
