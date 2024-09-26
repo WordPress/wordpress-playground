@@ -45,6 +45,7 @@ describe('Blueprints', () => {
 	it('enableMultisite step should enable a multisite', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
+			login: true,
 			steps: [{ step: 'enableMultisite' }],
 		};
 		cy.visit('/#' + JSON.stringify(blueprint));
@@ -54,6 +55,7 @@ describe('Blueprints', () => {
 	it('Base64-encoded Blueprints should work', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
+			login: true,
 			steps: [{ step: 'enableMultisite' }],
 		};
 		cy.visit('/#' + btoa(JSON.stringify(blueprint)));
