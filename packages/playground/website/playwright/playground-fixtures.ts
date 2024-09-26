@@ -15,12 +15,16 @@ export const test = base.extend<WordPressFixtures>({
 	website: async ({ page }, use) => {
 		// Wait for WordPress to load
 		async function waitForNestedIframes(page: Page) {
-			await expect(
-				await page
-					.frameLocator('#playground-viewport')
-					.frameLocator('#wp')
-					.locator('body')
-			).not.toBeEmpty();
+			const outerSelector = '#playground-viewport';
+			await page.waitForSelector(outerSelector);
+			const outerFrame = page.frameLocator(outerSelector);
+			await expect(outerFrame.locator('body')).not.toBeEmpty();
+
+			const innerSelector = '#wp';
+			await outerFrame.locator(innerSelector).waitFor();
+			const innerFrame = outerFrame.frameLocator(innerSelector);
+			await expect(innerFrame.locator('body')).not.toBeEmpty();
+			return innerFrame;
 		}
 
 		// Extend the original page.goto method

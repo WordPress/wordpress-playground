@@ -30,7 +30,6 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 	await expandSiteView(website);
 
 	const inputElement = website.locator('input[value="/wp-admin/"]');
-	await expect(inputElement).toBeVisible();
 	await expect(inputElement).toHaveValue('/wp-admin/');
 });
 
@@ -75,11 +74,9 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await clickSaveInEditSettings(website);
 
-		expect(
-			await (
-				await getSiteInfoRowLocator(website, 'PHP version')
-			).innerText()
-		).toMatch(`${version} (with extensions)`);
+		expect(await getSiteInfoRowLocator(website, 'PHP version')).toHaveText(
+			`${version} (with extensions)`
+		);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
@@ -93,16 +90,13 @@ SupportedPHPVersions.forEach(async (version) => {
 		const phpExtensionCheckbox = website.locator(
 			'.components-checkbox-control__input[name="withExtensions"]'
 		);
-		await expect(phpExtensionCheckbox).toBeVisible();
 		await phpExtensionCheckbox.uncheck();
 
 		await clickSaveInEditSettings(website);
 
-		expect(
-			await (
-				await getSiteInfoRowLocator(website, 'PHP version')
-			).innerText()
-		).toMatch(version);
+		expect(await getSiteInfoRowLocator(website, 'PHP version')).toHaveText(
+			version
+		);
 	});
 });
 
@@ -119,10 +113,8 @@ Object.keys(MinifiedWordPressVersions)
 			await clickSaveInEditSettings(website);
 
 			expect(
-				await(
-					await getSiteInfoRowLocator(website, 'WordPress version')
-				).innerText()
-			).toMatch(version);
+				await getSiteInfoRowLocator(website, 'WordPress version')
+			).toHaveText(version);
 		});
 	});
 
