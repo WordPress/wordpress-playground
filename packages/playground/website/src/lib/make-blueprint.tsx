@@ -40,7 +40,6 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			options.login && {
 				step: 'login',
 				username: 'admin',
-				password: 'password',
 			},
 			options.importWxr &&
 				/^(http(s?)):\/\//i.test(options.importWxr) && {

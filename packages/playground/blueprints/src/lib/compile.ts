@@ -144,7 +144,7 @@ export function compileBlueprint(
 		blueprint.steps!.push({
 			step: 'login',
 			...(blueprint.login === true
-				? { username: 'admin', password: 'password' }
+				? { username: 'admin' }
 				: blueprint.login),
 		});
 	}
