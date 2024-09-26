@@ -65,7 +65,6 @@ describe('Blueprints', () => {
 	it('wp-cli step should create a post', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/post.php',
-			login: true,
 			steps: [
 				{
 					step: 'wp-cli',

@@ -207,9 +207,15 @@ export function compileBlueprint(
 		 * If the blueprint has wp-cli steps,
 		 * we need to install wp-cli before running these steps.
 		 */
-		blueprint.steps?.push({
-			step: 'installWpCli',
-		});
+		if (indexOfStepThatDependsOnWpCli !== -1) {
+			blueprint.steps?.splice(indexOfStepThatDependsOnWpCli, 0, {
+				step: 'installWpCli',
+			});
+		} else {
+			blueprint.steps?.push({
+				step: 'installWpCli',
+			});
+		}
 	}
 
 	/**
