@@ -7,14 +7,13 @@ import { enableMultisite } from './enable-multisite';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
 	async function doBootWordPress(options: { absoluteUrl: string }) {
 		const requestHandler = await bootWordPress({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: options.absoluteUrl,
-			documentRoot: DOCROOT,
+			sapiName: 'cli',
 
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
