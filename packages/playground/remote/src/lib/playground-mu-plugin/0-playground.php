@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/playground-includes/auto_login.php';
+
 /**
  * Add a notice to wp-login.php offering the username and password.
  */
@@ -150,48 +152,3 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return [ 'Dummy' ];
 	});
 }
-add_action('all', function() {
-    // error_log('Current hook: ' . current_filter());
-});
-
-// Autologin
-function auto_login() {
-	if ( !defined('PLAYGROUND_AUTO_LOGIN') ) {
-		return;
-	}
-
-	if (isset($_COOKIE['playground_auto_login'])) {
-		return;
-	}
-	if ( is_user_logged_in() ) {
-		return;
-	}
-
-	$user = get_user_by('login', PLAYGROUND_AUTO_LOGIN);
-	if (!$user) {
-		return;
-	}
-	wp_set_current_user( $user->ID, $user->user_login );
-	wp_set_auth_cookie( $user->ID );
-	do_action( 'wp_login', $user->user_login, $user );
-	setcookie('playground_auto_login', '1');
-}
-add_action('wp', 'auto_login', 1);
-
-/**
- * Redirect to admin page after auto-login.
- *
- * When the user attempts to load /wp-admin/ the default wp action isn't
- * called, so we need to catch the request and redirect to the admin page.
- **/
-add_action('init', function() {
-	if (strpos($_SERVER['REQUEST_URI'], 'wp-login.php') === false) {
-		return;
-    }
-	auto_login();
-	wp_redirect(
-		isset($_GET['redirect_to']) ? $_GET['redirect_to'] : admin_url()
-	);
-	exit;
-});
-?>

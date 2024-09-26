@@ -36,4 +36,18 @@ describe('Blueprint step login', () => {
 		});
 		expect(result.text).toContain('admin');
 	});
+
+	it('should redirect user to wp-login.php with correct redirect_to', async () => {
+		await login(php, {});
+		const response = await handler.request({
+			url: '/wp-admin/',
+		});
+		expect(response.httpStatusCode).toBe(302);
+		expect(response.headers['location']).toHaveLength(1);
+		const initialRedirectUrl = new URL(response.headers['location'][0]);
+		expect(initialRedirectUrl.pathname).toBe('/wp-login.php');
+		expect(initialRedirectUrl.searchParams.get('redirect_to')).toBe(
+			`${handler.absoluteUrl}/wp-admin/`
+		);
+	});
 });
