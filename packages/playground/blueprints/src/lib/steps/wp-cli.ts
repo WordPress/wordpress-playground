@@ -55,10 +55,12 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		throw new Error(`The first argument must be "wp".`);
 	}
 
+	const documentRoot = await playground.documentRoot;
+
 	await playground.writeFile('/tmp/stdout', '');
 	await playground.writeFile('/tmp/stderr', '');
 	await playground.writeFile(
-		`${playground.documentRoot}/run-cli.php`,
+		`${documentRoot}/run-cli.php`,
 		`<?php
 		// Set up the environment to emulate a shell script
 		// call.
@@ -71,7 +73,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		// Set the argv global.
 		$GLOBALS['argv'] = array_merge([
 		  "/tmp/wp-cli.phar",
-		  "--path=/wordpress"
+		  "--path=${documentRoot}"
 		], ${phpVar(args)});
 
 		// Provide stdin, stdout, stderr streams outside of
@@ -85,7 +87,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	);
 
 	const result = await playground.run({
-		scriptPath: `${playground.documentRoot}/run-cli.php`,
+		scriptPath: `${documentRoot}/run-cli.php`,
 	});
 
 	if (result.errors) {
