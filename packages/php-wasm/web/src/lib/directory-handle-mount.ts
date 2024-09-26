@@ -260,16 +260,17 @@ async function overwriteOpfsFile(
 	}
 
 	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
-	// Using FileSyncAccessHandle for all browsers because it seemed to be
-	// faster (and certainly no slower) than using a WritableStream,
-	// and if we have a single write path in all browsers, that is simpler.
-	// TODO: Confirm this is still the case with Firefox.
-	const writer = await opfsFile.createSyncAccessHandle();
+	const writer =
+		opfsFile.createWritable !== undefined
+			? // Google Chrome, Firefox, probably more browsers
+			  await opfsFile.createWritable()
+			: // Safari
+			  await opfsFile.createSyncAccessHandle();
 	try {
-		writer.truncate(0);
-		writer.write(buffer);
+		await writer.truncate(0);
+		await writer.write(buffer);
 	} finally {
-		writer.close();
+		await writer.close();
 	}
 }
 
