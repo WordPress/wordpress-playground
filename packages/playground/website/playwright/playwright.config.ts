@@ -1,16 +1,13 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, PlaywrightTestConfig } from '@playwright/test';
 
 const baseURL =
 	process.env.PLAYWRIGHT_TEST_BASE_URL ||
 	'http://127.0.0.1:5400/website-server/';
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
-export default defineConfig({
+export const playwrightConfig: PlaywrightTestConfig = {
 	testDir: './e2e',
 	/* Run tests in files in parallel */
-	fullyParallel: true,
+	fullyParallel: false,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
 	/* Retry on CI only */
@@ -76,4 +73,9 @@ export default defineConfig({
 		url: 'http://127.0.0.1:5400/website-server/',
 		reuseExistingServer: !process.env.CI,
 	},
-});
+};
+
+/**
+ * See https://playwright.dev/docs/test-configuration.
+ */
+export default defineConfig(playwrightConfig);
