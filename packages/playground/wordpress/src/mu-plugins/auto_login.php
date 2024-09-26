@@ -13,7 +13,7 @@
  * will automatically log the user in on their first visit. The username is
  * the value of the constant.
  * 
- * On subsequent visits, the `playground_auto_login_happened` cookie will be
+ * On subsequent visits, the `playground_auto_login_already_happened` cookie will be
  * detected and the user will not be logged in. This means the "logout" feature
  * will work as expected.
  * 
@@ -21,9 +21,12 @@
  * 
  * Used by the "login" button in various Playground runtimes.
  * 
+ * Only works if the `PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED` constant is defined.
+ * 
  * When the `playground_force_auto_login_as_user` GET parameter is present,
  * this mu-plugin will automatically log in any logged out visitor. This will
  * happen every time they visit, not just on their first visit.
+ * 
  * 
  * ## Context
  * 
@@ -39,22 +42,17 @@
  * Logs the user in on their first visit if the Playground runtime told us to.
  */
 function playground_auto_login() {
-	if ( !defined('PLAYGROUND_AUTO_LOGIN_AS_USER') ) {
+	if ( defined('PLAYGROUND_AUTO_LOGIN_AS_USER') && !isset($_COOKIE['playground_auto_login_already_happened']) ) {
+		$user = get_user_by('login', PLAYGROUND_AUTO_LOGIN_AS_USER);
+	} else if ( defined('PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED') && isset($_GET['playground_force_auto_login_as_user']) ) {
+		$user = get_user_by('login', $_GET['playground_force_auto_login_as_user'] ?? 'admin');
+	} else {
 		return;
 	}
 
 	if ( is_user_logged_in() ) {
 		return;
 	}
-
-	if(isset($_GET['playground_force_auto_login_as_user'])) {
-		$user = get_user_by('login', $_GET['playground_force_auto_login_as_user'] ?? 'admin');
-	} else if(!isset($_COOKIE['playground_auto_login_happened'])) {
-		$user = get_user_by('login', PLAYGROUND_AUTO_LOGIN_AS_USER);
-	} else {
-		return;
-	}
-
 
 	if (!$user) {
 		return;
@@ -63,7 +61,7 @@ function playground_auto_login() {
 	wp_set_current_user( $user->ID, $user->user_login );
 	wp_set_auth_cookie( $user->ID );
 	do_action( 'wp_login', $user->user_login, $user );
-	setcookie('playground_auto_login_happened', '1');
+	setcookie('playground_auto_login_already_happened', '1');
 }
 
 /**
@@ -93,7 +91,7 @@ add_action('init', function() {
  * via autologin.
  */
 add_filter('admin_email_check_interval', function($interval) {
-	if(isset($_COOKIE['playground_auto_login_happened'])) {
+	if(isset($_COOKIE['playground_auto_login_already_happened'])) {
 		return 0;
 	}
 
