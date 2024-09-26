@@ -302,6 +302,17 @@ export class UrlResource extends FetchResource {
 	 */
 	constructor(private resource: UrlReference, progress?: ProgressTracker) {
 		super(progress);
+		if (this.resource.url.startsWith('https://github.com/')) {
+			const match = this.resource.url.match(
+				/^https:\/\/github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/blob\/(?<branch>[^/]+)\/(?<path>.+[^/])$/
+			);
+			if (match?.groups) {
+				this.resource = {
+					...this.resource,
+					url: `https://raw.githubusercontent.com/${match.groups['owner']}/${match.groups['repo']}/${match.groups['branch']}/${match.groups['path']}`,
+				};
+			}
+		}
 	}
 
 	/** @inheritDoc */
