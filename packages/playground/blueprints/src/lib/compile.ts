@@ -186,7 +186,7 @@ export function compileBlueprint(
 		) ?? -1;
 	if (
 		blueprint?.extraLibraries?.includes('wp-cli') ||
-		indexOfStepThatDependsOnWpCli === -1
+		indexOfStepThatDependsOnWpCli !== -1
 	) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
