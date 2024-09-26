@@ -152,3 +152,5 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return [ 'Dummy' ];
 	});
 }
+
+?>

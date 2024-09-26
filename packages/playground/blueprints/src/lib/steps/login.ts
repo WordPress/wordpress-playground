@@ -28,7 +28,7 @@ export type LoginStep = {
 /**
  * Logs in to Playground.
  * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN` constant.
- * The `0-playground.php` mu-plugin uses that constant to log in the user on first load.
+ * The `auto_login.php` mu-plugin uses that constant to log in the user on the first load.
  */
 export const login: StepHandler<LoginStep> = async (
 	playground,

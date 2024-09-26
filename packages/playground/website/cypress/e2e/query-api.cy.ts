@@ -179,7 +179,7 @@ describe('Query API', () => {
 	});
 
 	describe('option `multisite`', () => {
-		it.only('should enable a multisite', () => {
+		it('should enable a multisite', () => {
 			cy.visit('/?multisite=yes');
 			cy.wordPressDocument()
 				.its('body')
