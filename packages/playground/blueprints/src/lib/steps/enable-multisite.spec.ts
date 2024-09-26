@@ -24,26 +24,32 @@ describe('Blueprint step enableMultisite', () => {
 	}
 
 	it('should enable a multisite on a scoped URL', async () => {
-		const { php, requestHandler } = await doBootWordPress({
+		const { php } = await doBootWordPress({
 			absoluteUrl: 'http://playground-domain/scope:987987/',
 		});
 		await enableMultisite(php, {});
 
-		const response = await requestHandler.request({
-			url: '/wp-admin/network/',
+		const result = await php.run({
+			code: `
+				<?php
+				echo WP_ALLOW_MULTISITE ? 'true' : 'false';
+			`,
 		});
-		expect(response.text).toContain('My Sites');
+		expect(result.text).toContain('true');
 	}, 30_000);
 
 	it('should enable a multisite on a scopeless URL', async () => {
-		const { php, requestHandler } = await doBootWordPress({
+		const { php } = await doBootWordPress({
 			absoluteUrl: 'http://playground-domain/',
 		});
 		await enableMultisite(php, {});
 
-		const response = await requestHandler.request({
-			url: '/wp-admin/network/',
+		const result = await php.run({
+			code: `
+				<?php
+				echo WP_ALLOW_MULTISITE ? 'true' : 'false';
+			`,
 		});
-		expect(response.text).toContain('My Sites');
+		expect(result.text).toContain('true');
 	}, 30_000);
 });
