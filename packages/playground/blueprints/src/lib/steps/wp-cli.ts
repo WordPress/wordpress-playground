@@ -20,13 +20,19 @@ export const wpCliResource: FileReference = {
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
 
-export const installWpCli = async (playground: UniversalPHP) => {
+export const installWpCli = async (playground: UniversalPHP, path?: string) => {
+	if (!path) {
+		path = wpCliPath;
+	}
+	if (await playground.fileExists(path)) {
+		return;
+	}
 	await writeFile(playground, {
 		data: new File(
 			[await fetch(wpCliResource.url).then((r) => r.arrayBuffer())],
 			wpCliResource.url
 		),
-		path: wpCliPath,
+		path,
 	});
 };
 
@@ -57,9 +63,9 @@ export interface WPCLIStep {
  */
 export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,
-	{ command, wpCliPath = '/tmp/wp-cli.phar' }
+	{ command, wpCliPath }
 ) => {
-	await installWpCli(playground);
+	await installWpCli(playground, wpCliPath);
 
 	let args: string[];
 	if (typeof command === 'string') {
