@@ -1,11 +1,11 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
-import { phpVar } from '@php-wasm/util';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { writeFile } from './write-file';
 import { FileReference } from '../resources';
 
-export const wpCliPath = '/tmp/wp-cli.phar';
-export const wpCliResource: FileReference = {
+export const defaultWpCliPath = '/tmp/wp-cli.phar';
+export const defaultWpCliResource: FileReference = {
 	resource: 'url',
 	/**
 	 * Use compression for downloading the wp-cli.phar file.
@@ -20,19 +20,23 @@ export const wpCliResource: FileReference = {
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
 
-export const installWpCli = async (playground: UniversalPHP, path?: string) => {
-	if (!path) {
-		path = wpCliPath;
-	}
-	if (await playground.fileExists(path)) {
+export const installWpCli = async (
+	playground: UniversalPHP,
+	wpCliPath: string = defaultWpCliPath
+) => {
+	if (await playground.fileExists(wpCliPath)) {
 		return;
 	}
 	await writeFile(playground, {
 		data: new File(
-			[await fetch(wpCliResource.url).then((r) => r.arrayBuffer())],
-			wpCliResource.url
+			[
+				await fetch(defaultWpCliResource.url).then((r) =>
+					r.arrayBuffer()
+				),
+			],
+			defaultWpCliResource.url
 		),
-		path,
+		path: defaultWpCliPath,
 	});
 };
 
@@ -63,7 +67,7 @@ export interface WPCLIStep {
  */
 export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,
-	{ command, wpCliPath }
+	{ command, wpCliPath = defaultWpCliPath }
 ) => {
 	await installWpCli(playground, wpCliPath);
 
@@ -85,7 +89,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	await playground.writeFile('/tmp/stdout', '');
 	await playground.writeFile('/tmp/stderr', '');
 	await playground.writeFile(
-		`${documentRoot}/run-cli.php`,
+		`${joinPaths(documentRoot, 'run-cli.php')}`,
 		`<?php
 		// Set up the environment to emulate a shell script
 		// call.

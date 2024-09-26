@@ -38,7 +38,7 @@ const keyedStepHandlers = {
  * watching for changes.
  */
 import blueprintValidator from '../../public/blueprint-schema-validator';
-import { wpCliPath, wpCliResource } from './steps/wp-cli';
+import { defaultWpCliPath, defaultWpCliResource } from './steps/wp-cli';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
@@ -202,8 +202,8 @@ export function compileBlueprint(
 		}
 		const wpCliInstallStep: WriteFileStep<FileReference> = {
 			step: 'writeFile',
-			data: wpCliResource,
-			path: wpCliPath,
+			data: defaultWpCliResource,
+			path: defaultWpCliPath,
 		};
 		/**
 		 * If the blueprint does not have a wp-cli step,
