@@ -27,7 +27,6 @@ import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wordpress-files';
 import { ImportThemeStarterContentStep } from './import-theme-starter-content';
 import { ImportWxrStep } from './import-wxr';
-import { InstallWpCliStep } from './install-wp-cli';
 import { EnableMultisiteStep } from './enable-multisite';
 import { WPCLIStep } from './wp-cli';
 import { ResetDataStep } from './reset-data';
@@ -59,7 +58,6 @@ export type GenericStep<Resource> =
 	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
-	| InstallWpCliStep
 	| LoginStep
 	| MkdirStep
 	| MvStep
@@ -92,7 +90,6 @@ export type {
 	InstallPluginOptions,
 	InstallThemeStep,
 	InstallThemeOptions,
-	InstallWpCliStep,
 	LoginStep,
 	MkdirStep,
 	MvStep,

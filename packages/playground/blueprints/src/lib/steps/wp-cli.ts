@@ -1,6 +1,34 @@
-import { PHPResponse } from '@php-wasm/universal';
+import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { phpVar } from '@php-wasm/util';
+import { writeFile } from './write-file';
+import { FileReference } from '../resources';
+
+export const wpCliPath = '/tmp/wp-cli.phar';
+export const wpCliResource: FileReference = {
+	resource: 'url',
+	/**
+	 * Use compression for downloading the wp-cli.phar file.
+	 * The official release, hosted at raw.githubusercontent.com, is ~7MB
+	 * and the transfer is uncompressed. playground.wordpress.net supports
+	 * transfer compression and only transmits ~1.4MB.
+	 *
+	 * @TODO: minify the wp-cli.phar file. It can be as small as 1MB when all the
+	 *        whitespaces and are removed, and even 500KB when libraries
+	 *        like the JavaScript parser or Composer are removed.
+	 */
+	url: 'https://playground.wordpress.net/wp-cli.phar',
+};
+
+export const installWpCli = async (playground: UniversalPHP) => {
+	await writeFile(playground, {
+		data: new File(
+			[await fetch(wpCliResource.url).then((r) => r.arrayBuffer())],
+			wpCliResource.url
+		),
+		path: wpCliPath,
+	});
+};
 
 /**
  * @inheritDoc wpCLI
@@ -31,16 +59,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,
 	{ command, wpCliPath = '/tmp/wp-cli.phar' }
 ) => {
-	if (!(await playground.fileExists(wpCliPath))) {
-		throw new Error(`wp-cli.phar not found at ${wpCliPath}.
-			You can enable wp-cli support by adding "wp-cli" to the list of extra libraries in your blueprint as follows:
-			{
-				"extraLibraries": [ "wp-cli" ]
-			}
-
-			Read more about it in the documentation.
-			https://wordpress.github.io/wordpress-playground/blueprints/data-format#extra-libraries`);
-	}
+	await installWpCli(playground);
 
 	let args: string[];
 	if (typeof command === 'string') {

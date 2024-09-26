@@ -27,4 +27,3 @@ export { defineWpConfigConsts } from './define-wp-config-consts';
 export { zipWpContent } from './zip-wp-content';
 export { wpCLI } from './wp-cli';
 export { setSiteLanguage } from './set-site-language';
-export { installWpCli } from './install-wp-cli';

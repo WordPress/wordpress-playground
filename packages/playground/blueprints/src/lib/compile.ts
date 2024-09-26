@@ -11,7 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
-import { Step, StepDefinition } from './steps';
+import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint, ExtraLibrary } from './blueprint';
 import { logger } from '@php-wasm/logger';
@@ -38,6 +38,7 @@ const keyedStepHandlers = {
  * watching for changes.
  */
 import blueprintValidator from '../../public/blueprint-schema-validator';
+import { wpCliPath, wpCliResource } from './steps/wp-cli';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
@@ -199,6 +200,11 @@ export function compileBlueprint(
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
 		}
+		const wpCliInstallStep: WriteFileStep<FileReference> = {
+			step: 'writeFile',
+			data: wpCliResource,
+			path: wpCliPath,
+		};
 		/**
 		 * If the blueprint does not have a wp-cli step,
 		 * we can install wp-cli as the last step because other steps don't depend
@@ -207,14 +213,14 @@ export function compileBlueprint(
 		 * If the blueprint has wp-cli steps,
 		 * we need to install wp-cli before running these steps.
 		 */
-		if (indexOfStepThatDependsOnWpCli !== -1) {
-			blueprint.steps?.splice(indexOfStepThatDependsOnWpCli, 0, {
-				step: 'installWpCli',
-			});
+		if (indexOfStepThatDependsOnWpCli === -1) {
+			blueprint.steps?.push(wpCliInstallStep);
 		} else {
-			blueprint.steps?.push({
-				step: 'installWpCli',
-			});
+			blueprint.steps?.splice(
+				indexOfStepThatDependsOnWpCli,
+				0,
+				wpCliInstallStep
+			);
 		}
 	}
 

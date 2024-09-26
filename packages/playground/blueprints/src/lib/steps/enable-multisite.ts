@@ -1,8 +1,7 @@
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
-import { installWpCli } from './install-wp-cli';
 import { setSiteOptions } from './site-data';
-import { wpCLI } from './wp-cli';
+import { installWpCli, wpCLI } from './wp-cli';
 
 /**
  * @inheritDoc enableMultisite
@@ -30,7 +29,7 @@ export interface EnableMultisiteStep {
 export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	playground
 ) => {
-	await installWpCli(playground, {});
+	await installWpCli(playground);
 
 	await defineWpConfigConsts(playground, {
 		consts: {

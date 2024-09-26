@@ -716,29 +716,6 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "installWpCli"
-						}
-					},
-					"required": ["step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
 							"const": "login"
 						},
 						"username": {
