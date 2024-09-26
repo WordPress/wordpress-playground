@@ -3,7 +3,7 @@ import {
 	clickCreateInNewSiteModal,
 	clickSaveInEditSettings,
 	expandSiteView,
-	getSiteInfoRowValue,
+	getSiteInfoRowLocator,
 	getSiteTitle,
 	hasNetworkingEnabled,
 	openEditSettings,
@@ -53,10 +53,9 @@ test('should switch between sites', async ({ website }) => {
 	const siteName = await sidebarItem
 		.locator('.components-flex-item[class*="_sidebar-item--site-name"]')
 		.innerText();
-	await sidebarItem.isVisible();
 	await sidebarItem.click();
 
-	await expect(await getSiteTitle(website)).toMatch(siteName);
+	await expect(siteName).toMatch(await getSiteTitle(website));
 });
 
 SupportedPHPVersions.forEach(async (version) => {
@@ -76,9 +75,11 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await clickSaveInEditSettings(website);
 
-		expect(await getSiteInfoRowValue(website, 'PHP version')).toMatch(
-			`${version} (with extensions)`
-		);
+		expect(
+			await (
+				await getSiteInfoRowLocator(website, 'PHP version')
+			).innerText()
+		).toMatch(`${version} (with extensions)`);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
@@ -97,9 +98,11 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await clickSaveInEditSettings(website);
 
-		expect(await getSiteInfoRowValue(website, 'PHP version')).toMatch(
-			version
-		);
+		expect(
+			await (
+				await getSiteInfoRowLocator(website, 'PHP version')
+			).innerText()
+		).toMatch(version);
 	});
 });
 
@@ -116,7 +119,9 @@ Object.keys(MinifiedWordPressVersions)
 			await clickSaveInEditSettings(website);
 
 			expect(
-				await getSiteInfoRowValue(website, 'WordPress version')
+				await(
+					await getSiteInfoRowLocator(website, 'WordPress version')
+				).innerText()
 			).toMatch(version);
 		});
 	});

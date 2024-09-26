@@ -1,4 +1,4 @@
-import { expect, Page } from '../playground-fixtures.ts';
+import { Page } from '../playground-fixtures.ts';
 
 export const expandSiteView = async (page: Page) => {
 	const openSiteButton = page.locator('div[title="Open site"]');
@@ -55,8 +55,8 @@ export const selectWordPressVersion = async (page: Page, version: string) => {
 	await wordpressVersionSelect.selectOption(version);
 };
 
-export const getSiteInfoRowValue = async (page: Page, key: string) => {
-	return await page.getByLabel(key).innerText();
+export const getSiteInfoRowLocator = async (page: Page, key: string) => {
+	return await page.getByLabel(key);
 };
 
 export const setNetworkingEnabled = async (page: Page, enabled: boolean) => {
@@ -69,5 +69,9 @@ export const setNetworkingEnabled = async (page: Page, enabled: boolean) => {
 };
 
 export const hasNetworkingEnabled = async (page: Page) => {
-	return (await getSiteInfoRowValue(page, 'Network access')) === 'Yes';
+	return (
+		(await (
+			await getSiteInfoRowLocator(page, 'Network access')
+		).innerText()) === 'Yes'
+	);
 };
