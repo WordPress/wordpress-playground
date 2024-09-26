@@ -1,8 +1,9 @@
-import { test as base, Page, expect, FrameLocator } from '@playwright/test';
+import { test as base, FrameLocator } from '@playwright/test';
+import { WebsitePage } from './website-page';
 
 type WordPressFixtures = {
 	wordpress: FrameLocator;
-	website: Page;
+	website: WebsitePage;
 };
 
 export const test = base.extend<WordPressFixtures>({
@@ -13,28 +14,7 @@ export const test = base.extend<WordPressFixtures>({
 		await use(wpPage);
 	},
 	website: async ({ page }, use) => {
-		// Wait for WordPress to load
-		async function waitForNestedIframes(page: Page) {
-			const outerSelector = '#playground-viewport';
-			await page.waitForSelector(outerSelector);
-			const outerFrame = page.frameLocator(outerSelector);
-			await expect(outerFrame.locator('body')).not.toBeEmpty();
-
-			const innerSelector = '#wp';
-			await outerFrame.locator(innerSelector).waitFor();
-			const innerFrame = outerFrame.frameLocator(innerSelector);
-			await expect(innerFrame.locator('body')).not.toBeEmpty();
-			return innerFrame;
-		}
-
-		// Extend the original page.goto method
-		const originalGoto = page.goto.bind(page);
-		page.goto = async (url: string, options?: any) => {
-			const response = await originalGoto(url, options);
-			await waitForNestedIframes(page);
-			return response;
-		};
-		await use(page);
+		await use(new WebsitePage(page));
 	},
 });
 

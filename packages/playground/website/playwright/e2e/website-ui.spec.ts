@@ -1,17 +1,4 @@
 import { test, expect } from '../playground-fixtures.ts';
-import {
-	clickCreateInNewSiteModal,
-	clickSaveInEditSettings,
-	expandSiteView,
-	getSiteInfoRowLocator,
-	getSiteTitle,
-	hasNetworkingEnabled,
-	openEditSettings,
-	openNewSiteModal,
-	selectPHPVersion,
-	selectWordPressVersion,
-	setNetworkingEnabled,
-} from './website-helpers.ts';
 import { Blueprint } from '@wp-playground/blueprints';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
@@ -27,26 +14,26 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 }) => {
 	await website.goto('./?url=/wp-admin');
 
-	await expandSiteView(website);
+	await website.expandSiteView();
 
-	const inputElement = website.locator('input[value="/wp-admin/"]');
+	const inputElement = website.page.locator('input[value="/wp-admin/"]');
 	await expect(inputElement).toHaveValue('/wp-admin/');
 });
 
 test('should switch between sites', async ({ website }) => {
 	await website.goto('./');
 
-	await openNewSiteModal(website);
+	await website.openNewSiteModal();
 
-	const newSiteName = await website
+	const newSiteName = await website.page
 		.locator('input[placeholder="Playground name"]')
 		.inputValue();
 
-	await clickCreateInNewSiteModal(website);
+	await website.clickCreateInNewSiteModal();
 
-	await expect(await getSiteTitle(website)).toMatch(newSiteName);
+	await expect(await website.getSiteTitle()).toMatch(newSiteName);
 
-	const sidebarItem = website.locator(
+	const sidebarItem = website.page.locator(
 		'.components-button[class*="_sidebar-item"]:not([class*="_sidebar-item--selected_"])'
 	);
 	const siteName = await sidebarItem
@@ -54,7 +41,7 @@ test('should switch between sites', async ({ website }) => {
 		.innerText();
 	await sidebarItem.click();
 
-	await expect(siteName).toMatch(await getSiteTitle(website));
+	await expect(siteName).toMatch(await website.getSiteTitle());
 });
 
 SupportedPHPVersions.forEach(async (version) => {
@@ -68,13 +55,13 @@ SupportedPHPVersions.forEach(async (version) => {
 		}
 		await website.goto(`./`);
 
-		await openEditSettings(website);
+		await website.openEditSettings();
 
-		await selectPHPVersion(website, version);
+		await website.selectPHPVersion(version);
 
-		await clickSaveInEditSettings(website);
+		await website.clickSaveInEditSettings();
 
-		expect(await getSiteInfoRowLocator(website, 'PHP version')).toHaveText(
+		expect(await website.getSiteInfoRowLocator('PHP version')).toHaveText(
 			`${version} (with extensions)`
 		);
 	});
@@ -83,18 +70,18 @@ SupportedPHPVersions.forEach(async (version) => {
 		website,
 	}) => {
 		await website.goto('./');
-		await openEditSettings(website);
-		await selectPHPVersion(website, version);
+		await website.openEditSettings();
+		await website.selectPHPVersion(version);
 
 		// Uncheck the "with extensions" checkbox
-		const phpExtensionCheckbox = website.locator(
+		const phpExtensionCheckbox = website.page.locator(
 			'.components-checkbox-control__input[name="withExtensions"]'
 		);
 		await phpExtensionCheckbox.uncheck();
 
-		await clickSaveInEditSettings(website);
+		await website.clickSaveInEditSettings();
 
-		expect(await getSiteInfoRowLocator(website, 'PHP version')).toHaveText(
+		expect(await website.getSiteInfoRowLocator('PHP version')).toHaveText(
 			version
 		);
 	});
@@ -108,12 +95,12 @@ Object.keys(MinifiedWordPressVersions)
 			website,
 		}) => {
 			await website.goto('./');
-			await openEditSettings(website);
-			await selectWordPressVersion(website, version);
-			await clickSaveInEditSettings(website);
+			await website.openEditSettings();
+			await website.selectWordPressVersion(version);
+			await website.clickSaveInEditSettings();
 
 			expect(
-				await getSiteInfoRowLocator(website, 'WordPress version')
+				await website.getSiteInfoRowLocator('WordPress version')
 			).toHaveText(version);
 		});
 	});
@@ -123,34 +110,34 @@ test('should display networking as inactive by default', async ({
 }) => {
 	await website.goto('./');
 
-	await expect(await hasNetworkingEnabled(website)).toBeFalsy();
+	await expect(await website.hasNetworkingEnabled()).toBeFalsy();
 });
 
 test('should display networking as active when networking is enabled', async ({
 	website,
 }) => {
 	await website.goto('./?networking=yes');
-	await expect(await hasNetworkingEnabled(website)).toBeTruthy();
+	await expect(await website.hasNetworkingEnabled()).toBeTruthy();
 });
 
 test('should enable networking when requested', async ({ website }) => {
 	await website.goto('./');
 
-	await openEditSettings(website);
-	await setNetworkingEnabled(website, true);
-	await clickSaveInEditSettings(website);
+	await website.openEditSettings();
+	await website.setNetworkingEnabled(true);
+	await website.clickSaveInEditSettings();
 
-	await expect(await hasNetworkingEnabled(website)).toBeTruthy();
+	await expect(await website.hasNetworkingEnabled()).toBeTruthy();
 });
 
 test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?networking=yes');
 
-	await openEditSettings(website);
-	await setNetworkingEnabled(website, false);
-	await clickSaveInEditSettings(website);
+	await website.openEditSettings();
+	await website.setNetworkingEnabled(false);
+	await website.clickSaveInEditSettings();
 
-	await expect(await hasNetworkingEnabled(website)).toBeFalsy();
+	await expect(await website.hasNetworkingEnabled()).toBeFalsy();
 });
 
 test('should display PHP output even when a fatal error is hit', async ({
