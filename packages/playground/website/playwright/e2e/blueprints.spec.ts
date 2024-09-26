@@ -42,3 +42,13 @@ test('enableMultisite step should re-activate the plugins', async ({
 		'Deactivate'
 	);
 });
+
+test('should log the user in', async ({ website, wordpress }) => {
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/',
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
