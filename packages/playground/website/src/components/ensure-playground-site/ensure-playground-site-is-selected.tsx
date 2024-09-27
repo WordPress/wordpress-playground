@@ -57,11 +57,9 @@ export function EnsurePlaygroundSiteIsSelected({
 		async function ensureSiteIsSelected() {
 			// If the site slug is provided, try to load the site.
 			if (requestedSiteSlug) {
-				// Wait until the site listing is loaded
 				if (siteListingStatus !== 'loaded') {
 					return;
 				}
-
 				// If the site does not exist, redirect to a new temporary site.
 				if (!requestedSiteObject) {
 					// @TODO: Notification: 'The requested site was not found. Redirecting to a new temporary site.'
@@ -72,6 +70,14 @@ export function EnsurePlaygroundSiteIsSelected({
 					return;
 				}
 				dispatch(setActiveSite(requestedSiteSlug));
+				return;
+			}
+
+			// Don't create a new temporary site until the site listing settles.
+			// Otherwise, the status change from "loading" to "loaded" would
+			// re-run this entire effect, potentially leading to multiple
+			// sites being created since we couldn't look for duplicates yet.
+			if (!['loaded', 'error'].includes(siteListingStatus)) {
 				return;
 			}
 
