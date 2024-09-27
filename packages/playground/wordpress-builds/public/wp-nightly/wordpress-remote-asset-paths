@@ -691,6 +691,8 @@ wp-includes/js/dist/script-modules/block-library/search/view.js
 wp-includes/js/dist/script-modules/block-library/search/view.min.js
 wp-includes/js/dist/script-modules/block-library/file/view.js
 wp-includes/js/dist/script-modules/block-library/file/view.min.js
+wp-includes/js/dist/script-modules/a11y/index.js
+wp-includes/js/dist/script-modules/a11y/index.min.js
 wp-includes/js/dist/script-modules/interactivity/index.js
 wp-includes/js/dist/script-modules/interactivity/index.min.js
 wp-includes/js/dist/script-modules/interactivity/debug.min.js
