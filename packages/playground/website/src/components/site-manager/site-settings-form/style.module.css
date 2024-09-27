@@ -1,0 +1,11 @@
+.grow-children > * {
+	flex-grow: 1;
+}
+
+.invalid-input :global(.components-input-control__backdrop) {
+	border-color: #e26f56 !important;
+}
+
+.invalid-input :global(.components-base-control__help) {
+	color: #e26f56;
+}

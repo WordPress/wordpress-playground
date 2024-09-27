@@ -7,9 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": [
-				"build:wasm-wordpress-net"
-			]
+			"dependsOn": ["build:wasm-wordpress-net"]
 		},
 		"build:wasm-wordpress-net": {
 			"executor": "nx:run-commands",
@@ -28,10 +26,7 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": [
-				"build:standalone",
-				"^build"
-			]
+			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
 			"executor": "@nx/vite:build",
@@ -146,6 +141,23 @@
 				"headless": false,
 				"baseUrl": "https://playground.test/website-server/"
 			}
+		},
+		"e2e:playwright": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.config.ts"
+				]
+			}
+		},
+		"e2e:playwright:ci": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
+				]
+			},
+			"dependsOn": ["build"]
 		}
 	},
 	"tags": ["scope:web-client"]

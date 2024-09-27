@@ -2,7 +2,8 @@ import { MenuItem } from '@wordpress/components';
 import { details } from '@wordpress/icons';
 
 import { useDispatch } from 'react-redux';
-import { PlaygroundDispatch, setActiveModal } from '../../lib/redux-store';
+import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 
 type Props = { onClose: () => void };
 export function ViewLogs({ onClose }: Props) {

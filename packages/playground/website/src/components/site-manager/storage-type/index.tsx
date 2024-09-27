@@ -1,7 +1,7 @@
-import { SiteStorageType } from '../../../lib/site-storage';
 import { Icon } from '@wordpress/components';
 import { ClockIcon, FolderIcon, LayoutIcon } from '../icons';
 import css from './style.module.css';
+import { SiteStorageType } from '../../../lib/site-metadata';
 
 export function StorageType({ type }: { type: SiteStorageType }) {
 	switch (type) {
@@ -19,7 +19,7 @@ export function StorageType({ type }: { type: SiteStorageType }) {
 					<span>Browser</span>
 				</div>
 			);
-		case 'temporary':
+		case 'none':
 			return (
 				<div className={css.storageType}>
 					<Icon size={16} icon={ClockIcon} />

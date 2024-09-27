@@ -73,6 +73,7 @@ export class OfflineModeCache {
 		if (
 			url.href.startsWith('http://127.0.0.1:5400/') ||
 			url.href.startsWith('http://localhost:5400/') ||
+			url.href.startsWith('https://playground.test/') ||
 			url.pathname.startsWith('/website-server/')
 		) {
 			return false;

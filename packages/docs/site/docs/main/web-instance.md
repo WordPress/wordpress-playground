@@ -25,7 +25,6 @@ From the Playground website there are also available some toolbars to customize 
 
 The options available from the "Customize Playground" window correpond to the following [Query API options](/developers/apis/query-api#available-options):
 
--   `storage`
 -   `php`
 -   `php-extension-bundle`
 -   `networking`
