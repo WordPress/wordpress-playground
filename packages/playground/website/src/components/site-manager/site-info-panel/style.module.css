@@ -7,6 +7,9 @@
 	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
 	border-radius: var(--site-manager-border-radius);
 	overflow: hidden;
+
+	display: flex;
+	flex-direction: column;
 }
 
 .padded {
