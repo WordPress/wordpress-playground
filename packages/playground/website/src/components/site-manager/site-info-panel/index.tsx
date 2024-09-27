@@ -118,7 +118,7 @@ export function SiteInfoPanel({
 						expanded={true}
 						className={css.padded}
 					>
-						<FlexItem style={{ flexShrink: 0 }}>
+						<FlexItem>
 							<Flex direction="row" gap={2}>
 								{mobileUi && (
 									<FlexItem>
