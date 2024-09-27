@@ -30,7 +30,7 @@ describe('Blueprint step enableMultisite', () => {
 		return { php, requestHandler };
 	}
 
-	it('should enable a multisite on a scoped URL', async () => {
+	it('should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a scopeless URL', async () => {
 		const { php } = await doBootWordPress({
 			absoluteUrl: 'http://playground-domain/scope:987987/',
 		});
@@ -53,7 +53,7 @@ describe('Blueprint step enableMultisite', () => {
 		expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
 	});
 
-	it('should enable a multisite on a scopeless URL', async () => {
+	it('should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a unscopeless URL', async () => {
 		const { php } = await doBootWordPress({
 			absoluteUrl: 'http://playground-domain/',
 		});
