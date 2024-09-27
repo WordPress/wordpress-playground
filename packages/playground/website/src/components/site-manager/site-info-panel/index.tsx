@@ -220,7 +220,7 @@ export function SiteInfoPanel({
 															navigateTo('/')
 														}
 													>
-														Open site
+														Homepage
 													</MenuItem>
 													<MenuItem
 														icon={external}
