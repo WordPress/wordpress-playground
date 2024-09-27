@@ -38,6 +38,7 @@ const keyedStepHandlers = {
  * watching for changes.
  */
 import blueprintValidator from '../../public/blueprint-schema-validator';
+import { defaultWpCliPath, defaultWpCliResource } from './steps/wp-cli';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
@@ -85,6 +86,9 @@ export function compileBlueprint(
 		onStepCompleted = () => {},
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
+	// Deep clone the blueprint to avoid mutating the input
+	blueprint = structuredClone(blueprint);
+
 	blueprint = {
 		...blueprint,
 		steps: (blueprint.steps || [])
@@ -144,7 +148,7 @@ export function compileBlueprint(
 		blueprint.steps!.push({
 			step: 'login',
 			...(blueprint.login === true
-				? { username: 'admin', password: 'password' }
+				? { username: 'admin' }
 				: blueprint.login),
 		});
 	}
@@ -158,7 +162,10 @@ export function compileBlueprint(
 	// Default to the "kitchen sink" PHP extensions bundle if no
 	// other bundles are specified.
 	if (blueprint.phpExtensionBundles.length === 0) {
-		blueprint.phpExtensionBundles.push('kitchen-sink');
+		blueprint.phpExtensionBundles = [
+			...blueprint.phpExtensionBundles,
+			'kitchen-sink',
+		];
 	}
 
 	/**
@@ -180,7 +187,7 @@ export function compileBlueprint(
 		) ?? -1;
 	if (
 		blueprint?.extraLibraries?.includes('wp-cli') ||
-		indexOfStepThatDependsOnWpCli > -1
+		indexOfStepThatDependsOnWpCli !== -1
 	) {
 		if (blueprint.phpExtensionBundles.includes('light')) {
 			blueprint.phpExtensionBundles =
@@ -195,21 +202,8 @@ export function compileBlueprint(
 		}
 		const wpCliInstallStep: WriteFileStep<FileReference> = {
 			step: 'writeFile',
-			data: {
-				resource: 'url',
-				/**
-				 * Use compression for downloading the wp-cli.phar file.
-				 * The official release, hosted at raw.githubusercontent.com, is ~7MB
-				 * and the transfer is uncompressed. playground.wordpress.net supports
-				 * transfer compression and only transmits ~1.4MB.
-				 *
-				 * @TODO: minify the wp-cli.phar file. It can be as small as 1MB when all the
-				 *        whitespaces and are removed, and even 500KB when libraries
-				 *        like the JavaScript parser or Composer are removed.
-				 */
-				url: 'https://playground.wordpress.net/wp-cli.phar',
-			},
-			path: '/tmp/wp-cli.phar',
+			data: defaultWpCliResource,
+			path: defaultWpCliPath,
 		};
 		/**
 		 * If the blueprint does not have a wp-cli step,

@@ -1,7 +1,7 @@
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { setSiteOptions } from './site-data';
-import { wpCLI } from './wp-cli';
+import { assertWpCli, wpCLI } from './wp-cli';
 
 /**
  * @inheritDoc enableMultisite
@@ -16,6 +16,8 @@ import { wpCLI } from './wp-cli';
  */
 export interface EnableMultisiteStep {
 	step: 'enableMultisite';
+	/** wp-cli.phar path */
+	wpCliPath?: string;
 }
 
 /**
@@ -27,8 +29,11 @@ export interface EnableMultisiteStep {
  * @param enableMultisite
  */
 export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
-	playground
+	playground,
+	{ wpCliPath }
 ) => {
+	await assertWpCli(playground, wpCliPath);
+
 	await defineWpConfigConsts(playground, {
 		consts: {
 			WP_ALLOW_MULTISITE: 1,
@@ -53,6 +58,6 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	});
 
 	await wpCLI(playground, {
-		command: 'wp core multisite-convert',
+		command: `wp core multisite-convert --base="${sitePath}"`,
 	});
 };

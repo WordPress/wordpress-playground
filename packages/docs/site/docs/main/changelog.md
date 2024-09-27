@@ -9,21 +9,38 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v0.9.44] (2024-09-24) 
+
+### Bug Fixes
+
+- Docs: Fix links intro fr. ([#1795](https://github.com/WordPress/wordpress-playground/pull/1795))
+
+### Various
+
+- Add missing functions required to succesfully connect with MySQL DB. ([#1752](https://github.com/WordPress/wordpress-playground/pull/1752))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@jeroenpf @juanmaguitar
+
+
 ## [v0.9.43] (2024-09-23) 
 
 ### Documentation
 
-- Docs: Better paths for links. ([#1765](https://github.com/WordPress/wordpress-playground/pull/1765))
-- Docs: I18n setup. ([#1766](https://github.com/WordPress/wordpress-playground/pull/1766))
-- Docs: Remove the outdated "data rependencies" page. ([#1785](https://github.com/WordPress/wordpress-playground/pull/1785))
+-   Docs: Better paths for links. ([#1765](https://github.com/WordPress/wordpress-playground/pull/1765))
+-   Docs: I18n setup. ([#1766](https://github.com/WordPress/wordpress-playground/pull/1766))
+-   Docs: Remove the outdated "data rependencies" page. ([#1785](https://github.com/WordPress/wordpress-playground/pull/1785))
 
 ### Website
 
-- Fix troubleshoot-and-debug link. ([#1782](https://github.com/WordPress/wordpress-playground/pull/1782))
+-   Fix troubleshoot-and-debug link. ([#1782](https://github.com/WordPress/wordpress-playground/pull/1782))
 
 ### Various
 
-- Update link for contributor day. ([#1775](https://github.com/WordPress/wordpress-playground/pull/1775))
+-   Update link for contributor day. ([#1775](https://github.com/WordPress/wordpress-playground/pull/1775))
 
 ### Contributors
 
@@ -31,12 +48,11 @@ The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @juanmaguitar @n8finch
 
-
-## [v0.9.42] (2024-09-17) 
+## [v0.9.42] (2024-09-17)
 
 ### PHP WebAssembly
 
-- FS: Use the correct rm/rmdir method when moving files between mounts. ([#1770](https://github.com/WordPress/wordpress-playground/pull/1770))
+-   FS: Use the correct rm/rmdir method when moving files between mounts. ([#1770](https://github.com/WordPress/wordpress-playground/pull/1770))
 
 ### Contributors
 
@@ -44,57 +60,52 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
+## [v0.9.41] (2024-09-16)
 
-## [v0.9.41] (2024-09-16) 
-
-
-
-
-## [v0.9.40] (2024-09-16) 
+## [v0.9.40] (2024-09-16)
 
 ### Enhancements
 
-- Extend allowable resources available via WordPress/WordPress. ([#1721](https://github.com/WordPress/wordpress-playground/pull/1721))
+-   Extend allowable resources available via WordPress/WordPress. ([#1721](https://github.com/WordPress/wordpress-playground/pull/1721))
 
 ### Tools
 
-- Update actions/upload-artifact version to 4. ([#1748](https://github.com/WordPress/wordpress-playground/pull/1748))
+-   Update actions/upload-artifact version to 4. ([#1748](https://github.com/WordPress/wordpress-playground/pull/1748))
 
 ### Documentation
 
-- Docs/Blueprints resources: Grammar and typo fixes. ([#1741](https://github.com/WordPress/wordpress-playground/pull/1741))
+-   Docs/Blueprints resources: Grammar and typo fixes. ([#1741](https://github.com/WordPress/wordpress-playground/pull/1741))
 
 ### PHP WebAssembly
 
-- @php-wasm/universal : Add Phar support in php-wasm. ([#1716](https://github.com/WordPress/wordpress-playground/pull/1716))
+-   @php-wasm/universal : Add Phar support in php-wasm. ([#1716](https://github.com/WordPress/wordpress-playground/pull/1716))
 
 ### Website
 
-- Add the `components` package with PathMappingControl. ([#1608](https://github.com/WordPress/wordpress-playground/pull/1608))
+-   Add the `components` package with PathMappingControl. ([#1608](https://github.com/WordPress/wordpress-playground/pull/1608))
 
 ### Bug Fixes
 
-- Fix CLI --skipWordPressSetup option. ([#1760](https://github.com/WordPress/wordpress-playground/pull/1760))
+-   Fix CLI --skipWordPressSetup option. ([#1760](https://github.com/WordPress/wordpress-playground/pull/1760))
 
 ### Reliability
 
-- Improve Playground CLI logging and fix quiet mode. ([#1751](https://github.com/WordPress/wordpress-playground/pull/1751))
+-   Improve Playground CLI logging and fix quiet mode. ([#1751](https://github.com/WordPress/wordpress-playground/pull/1751))
 
 ### Various
 
-- Docs/Guides: Guides introductions and some minor adjustments. ([#1754](https://github.com/WordPress/wordpress-playground/pull/1754))
-- Docs/Guides: Normalized and fixed guides links. ([#1756](https://github.com/WordPress/wordpress-playground/pull/1756))
-- Docs/Guides: Providing content for your demo. ([#1747](https://github.com/WordPress/wordpress-playground/pull/1747))
-- Docs/Guides: WordPress Playground for plugin developers. ([#1750](https://github.com/WordPress/wordpress-playground/pull/1750))
-- Docs/Guides: WordPress Playground for theme developers. ([#1732](https://github.com/WordPress/wordpress-playground/pull/1732))
-- Docs: Links redirections. ([#1758](https://github.com/WordPress/wordpress-playground/pull/1758))
+-   Docs/Guides: Guides introductions and some minor adjustments. ([#1754](https://github.com/WordPress/wordpress-playground/pull/1754))
+-   Docs/Guides: Normalized and fixed guides links. ([#1756](https://github.com/WordPress/wordpress-playground/pull/1756))
+-   Docs/Guides: Providing content for your demo. ([#1747](https://github.com/WordPress/wordpress-playground/pull/1747))
+-   Docs/Guides: WordPress Playground for plugin developers. ([#1750](https://github.com/WordPress/wordpress-playground/pull/1750))
+-   Docs/Guides: WordPress Playground for theme developers. ([#1732](https://github.com/WordPress/wordpress-playground/pull/1732))
+-   Docs: Links redirections. ([#1758](https://github.com/WordPress/wordpress-playground/pull/1758))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @brandonpayton @juanmaguitar @mho22 @peterwilsoncc
-
 
 ## [v0.9.39] (2024-09-09)
 

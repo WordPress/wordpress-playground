@@ -45,6 +45,7 @@ describe('Blueprints', () => {
 	it('enableMultisite step should enable a multisite', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
+			login: true,
 			steps: [{ step: 'enableMultisite' }],
 		};
 		cy.visit('/#' + JSON.stringify(blueprint));
@@ -54,39 +55,16 @@ describe('Blueprints', () => {
 	it('Base64-encoded Blueprints should work', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
+			login: true,
 			steps: [{ step: 'enableMultisite' }],
 		};
 		cy.visit('/#' + btoa(JSON.stringify(blueprint)));
 		cy.wordPressDocument().its('body').should('contain.text', 'My Sites');
 	});
 
-	it('enableMultisite step should re-activate the plugins', () => {
-		const blueprint: Blueprint = {
-			landingPage: '/wp-admin/plugins.php',
-			steps: [
-				{ step: 'login' },
-				{
-					step: 'installPlugin',
-					pluginZipFile: {
-						resource: 'wordpress.org/plugins',
-						slug: 'hello-dolly',
-					},
-					options: { activate: true },
-				},
-				{ step: 'enableMultisite' },
-			],
-		};
-		cy.visit('/#' + JSON.stringify(blueprint));
-		cy.wordPressDocument()
-			.its('body')
-			.find('[data-slug="hello-dolly"].active')
-			.should('exist');
-	});
-
 	it('wp-cli step should create a post', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/post.php',
-			login: true,
 			steps: [
 				{
 					step: 'wp-cli',

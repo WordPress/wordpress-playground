@@ -3,6 +3,8 @@ import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
 export { getLoadedWordPressVersion } from './version-detect';
+/* @ts-ignore */
+import autoLoginMuPlugin from './mu-plugins/auto_login.php?raw';
 
 export * from './version-detect';
 export * from './rewrite-rules';
@@ -46,6 +48,11 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
             }
         }
     `
+	);
+
+	await php.writeFile(
+		'/internal/shared/mu-plugins/1-auto-login.php',
+		autoLoginMuPlugin
 	);
 
 	await php.writeFile(
