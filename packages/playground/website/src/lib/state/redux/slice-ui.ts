@@ -20,6 +20,8 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
+// @TODO: Centralize these breakpoint sizes.
+const isMobile = window.innerWidth < 875;
 
 const initialState: UIState = {
 	activeModal:
@@ -29,8 +31,11 @@ const initialState: UIState = {
 	offline: !navigator.onLine,
 	// Open site manager for direct playground.wordpress.net visitors,
 	// unless they specifically request seamless mode.
+	// Don't default to the site manager on mobile, as that would mean
+	// seeing something that's not Playground filling your entire screen –
+	// quite a confusing experience.
 	siteManagerIsOpen:
-		query.get('mode') !== 'seamless' && !isEmbeddedInAnIframe,
+		query.get('mode') !== 'seamless' && !isEmbeddedInAnIframe && !isMobile,
 };
 
 const uiSlice = createSlice({
