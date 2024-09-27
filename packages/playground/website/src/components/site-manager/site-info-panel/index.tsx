@@ -108,6 +108,7 @@ export function SiteInfoPanel({
 				gap={1}
 				justify="flex-start"
 				expanded={true}
+				className={css.siteInfoPanelContent}
 			>
 				<FlexItem style={{ flexShrink: 0 }}>
 					<Flex
