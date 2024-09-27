@@ -108,6 +108,7 @@ export function SiteInfoPanel({
 				gap={1}
 				justify="flex-start"
 				expanded={true}
+				className={css.siteInfoPanelContent}
 			>
 				<FlexItem style={{ flexShrink: 0 }}>
 					<Flex
@@ -118,7 +119,7 @@ export function SiteInfoPanel({
 						expanded={true}
 						className={css.padded}
 					>
-						<FlexItem style={{ flexShrink: 0 }}>
+						<FlexItem>
 							<Flex direction="row" gap={2}>
 								{mobileUi && (
 									<FlexItem>
@@ -220,7 +221,7 @@ export function SiteInfoPanel({
 															navigateTo('/')
 														}
 													>
-														Open site
+														Homepage
 													</MenuItem>
 													<MenuItem
 														icon={external}

@@ -151,14 +151,24 @@ export function bootSiteClient(
 					},
 					mountpoint: '/wordpress',
 				} as const;
-				await playground.mountOpfs(
-					{
-						...mountDescriptor,
-						initialSyncDirection: 'memfs-to-opfs',
-					} as const
-					// TODO: show progress indicator?
-				);
-				await deleteDirectory(sourcePath);
+				try {
+					await playground.mountOpfs(
+						{
+							...mountDescriptor,
+							initialSyncDirection: 'memfs-to-opfs',
+						} as const
+						// TODO: show progress indicator?
+					);
+					await deleteDirectory(sourcePath);
+					logger.info(
+						`Completed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
+					);
+				} catch (e) {
+					logger.info(
+						`Failed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
+					);
+					throw e;
+				}
 			}
 		} catch (e) {
 			logger.error(e);
