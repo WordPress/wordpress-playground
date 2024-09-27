@@ -106,7 +106,7 @@ add_action('init', function() {
 	/**
 	 * Check if the request is for the login page.
 	 */
-	if (false === stripos( wp_login_url(), $_SERVER['SCRIPT_NAME'] )) {
+	if (empty($_SERVER['SCRIPT_NAME']) || false === stripos( wp_login_url(), $_SERVER['SCRIPT_NAME'] )) {
 		return;
 	}
 	if (false === get_playground_auto_login_as_user()) {
