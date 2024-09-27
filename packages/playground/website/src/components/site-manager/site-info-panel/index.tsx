@@ -30,6 +30,7 @@ import { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { encodeStringAsBase64 } from '../../../lib/base64';
+import { StartSimilarSiteButton } from '../start-similar-site-button';
 
 function SiteInfoRow({
 	label,
@@ -537,17 +538,31 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						justify="flex-start"
 					>
 						<FlexItem>
-							<SiteEditButton siteSlug={site.slug}>
-								{(onClick) => (
-									<Button
-										variant="tertiary"
-										className={css.buttonNoPadding}
-										onClick={onClick}
-									>
-										Edit Playground settings
-									</Button>
-								)}
-							</SiteEditButton>
+							{site.metadata.storage === 'none' ? (
+								<StartSimilarSiteButton siteSlug={site.slug}>
+									{(onClick) => (
+										<Button
+											variant="tertiary"
+											className={css.buttonNoPadding}
+											onClick={onClick}
+										>
+											Create a similar Playground
+										</Button>
+									)}
+								</StartSimilarSiteButton>
+							) : (
+								<SiteEditButton siteSlug={site.slug}>
+									{(onClick) => (
+										<Button
+											variant="tertiary"
+											className={css.buttonNoPadding}
+											onClick={onClick}
+										>
+											Edit Playground settings
+										</Button>
+									)}
+								</SiteEditButton>
+							)}
 						</FlexItem>
 						{site.metadata.originalBlueprint ? (
 							<FlexItem>
