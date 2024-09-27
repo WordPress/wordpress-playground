@@ -202,7 +202,7 @@ export async function copyMemfsToOpfs(
 	// Writing one-at-a-time with no concurrency had similar performance
 	// but felt slightly slower. We can revisit and take better measurements
 	// if needed.
-	const maxConcurrentWrites = 25;
+	const maxConcurrentWrites = 100;
 	const concurrentWrites = new Set();
 
 	try {
@@ -212,23 +212,23 @@ export async function copyMemfsToOpfs(
 				entryName,
 				FS,
 				memfsPath
-			);
-			concurrentWrites.add(promise);
-
-			if (
-				concurrentWrites.size >= maxConcurrentWrites ||
-				numFilesCompleted + concurrentWrites.size ===
-					filesToCreate.length
-			) {
-				await Promise.all(concurrentWrites);
-				numFilesCompleted += concurrentWrites.size;
+			).then(() => {
+				numFilesCompleted++;
+				concurrentWrites.delete(promise);
 
 				throttledProgressCallback?.({
 					files: numFilesCompleted,
 					total: filesToCreate.length,
 				});
+			});
+			concurrentWrites.add(promise);
 
-				concurrentWrites.clear();
+			if (concurrentWrites.size >= maxConcurrentWrites) {
+				await Promise.race(concurrentWrites);
+				throttledProgressCallback?.({
+					files: numFilesCompleted,
+					total: filesToCreate.length,
+				});
 			}
 		}
 	} finally {
