@@ -36,13 +36,21 @@ describe('Blueprint step enableMultisite', () => {
 		});
 		await enableMultisite(php, {});
 
+		/**
+		 * Relying on HTTP requests for unit tests won't work because of the wp-login redirects.
+		 * Checking for constants will confirm if multisite is enabled.
+		 */
 		const result = await php.run({
 			code: `
 				<?php
-				echo WP_ALLOW_MULTISITE ? 'true' : 'false';
+				echo json_encode([
+					'WP_ALLOW_MULTISITE' => defined('WP_ALLOW_MULTISITE'),
+					'SUBDOMAIN_INSTALL' => defined('SUBDOMAIN_INSTALL'),
+				]);
 			`,
 		});
-		expect(result.text).toContain('true');
+		expect(result.json['WP_ALLOW_MULTISITE']).toEqual(true);
+		expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
 	});
 
 	it('should enable a multisite on a scopeless URL', async () => {
@@ -54,9 +62,13 @@ describe('Blueprint step enableMultisite', () => {
 		const result = await php.run({
 			code: `
 				<?php
-				echo WP_ALLOW_MULTISITE ? 'true' : 'false';
+				echo json_encode([
+					'WP_ALLOW_MULTISITE' => defined('WP_ALLOW_MULTISITE'),
+					'SUBDOMAIN_INSTALL' => defined('SUBDOMAIN_INSTALL'),
+				]);
 			`,
 		});
-		expect(result.text).toContain('true');
+		expect(result.json['WP_ALLOW_MULTISITE']).toEqual(true);
+		expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
 	});
 });
