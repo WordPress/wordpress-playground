@@ -27,18 +27,25 @@ describe('Blueprint step login', () => {
 
 	it('should log the user in', async () => {
 		await login(php, {});
-		const loginResponse = await handler.request({
+		const initialResponse = await handler.request({
 			url: '/wp-admin/',
 		});
-		expect(loginResponse.httpStatusCode).toBe(302);
-		expect(loginResponse.headers['location']).toHaveLength(1);
-		const initialRedirectUrl = new URL(
-			loginResponse.headers['location'][0]
+		expect(initialResponse.httpStatusCode).toBe(302);
+		expect(initialResponse.headers['location']).toHaveLength(1);
+		const loginRedirectUrl = new URL(
+			initialResponse.headers['location'][0]
 		);
-		expect(initialRedirectUrl.pathname).toBe('/wp-admin/');
+		expect(loginRedirectUrl.pathname).toBe('/wp-login.php');
+
+		const loginResponse = await handler.request({
+			url: loginRedirectUrl.toString(),
+		});
+		expect(loginResponse.httpStatusCode).toBe(302);
+		const adminRedirectUrl = new URL(loginResponse.headers['location'][0]);
+		expect(adminRedirectUrl.pathname).toBe('/wp-admin/');
 
 		const adminResponse = await handler.request({
-			url: '/wp-admin/',
+			url: adminRedirectUrl.toString(),
 		});
 		expect(adminResponse.httpStatusCode).toBe(200);
 		expect(adminResponse.text).toContain('Dashboard');
@@ -50,15 +57,10 @@ describe('Blueprint step login', () => {
 				PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true,
 			},
 		});
-		const loginResponse = await handler.request({
-			url: '/wp-admin/?playground_force_auto_login_as_user=admin',
+		const initialResponse = await handler.request({
+			url: '/?playground_force_auto_login_as_user=admin',
 		});
-		expect(loginResponse.httpStatusCode).toBe(302);
-		expect(loginResponse.headers['location']).toHaveLength(1);
-		const initialRedirectUrl = new URL(
-			loginResponse.headers['location'][0]
-		);
-		expect(initialRedirectUrl.pathname).toBe('/wp-admin/');
+		expect(initialResponse.httpStatusCode).toBe(200);
 
 		const adminResponse = await handler.request({
 			url: '/wp-admin/',
