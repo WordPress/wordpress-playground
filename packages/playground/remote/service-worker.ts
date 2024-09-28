@@ -26,6 +26,56 @@ if (!(self as any).document) {
 }
 
 /**
+ * Forces the browser to always use the latest service worker.
+ *
+ * Each service worker build contains a hardcoded `buildVersion` used a cache key
+ * for OfflineModeCache. As long as the previous service worker is used, it will
+ * keep serving a stale version of Playground assets, e.g. `/index.html`, `php.wasm`, etc.
+ *
+ * This is problematic for two reasons:
+ *
+ * 1. Users won't receive critical bugfixes for up to 24 hours after they're released [1].
+ * 2. Users will experience fatal crashes. Assets such as the WebAssembly PHP builds are
+ *    loaded asynchronously using fetch() and import() functions. The specific URLs are
+ *    hardcoded by the bundler at build time, e.g. the worker-thread.js file contains
+ *    a call similar to `import("./assets/php_8_3-2286e20c.js")`. If the browser uses
+ *    a stale version of the worker thread, it will try to import a JavaScript file
+ *    that no longer exists.
+ *
+ * See also: https://github.com/WordPress/wordpress-playground/issues/105
+ *
+ * [1] https://web.dev/articles/service-worker-lifecycle#updates
+ */
+self.addEventListener('install', () => {
+	/**
+	 * Skip over the "waiting" lifecycle state, to ensure that our
+	 * new service worker is activated immediately when we only
+	 * have a single open tab.
+	 */
+	self.clients
+		.matchAll({
+			type: 'window',
+		})
+		.then((windowClients) => {
+			const clientsThatCanBeSafelyRefreshed = windowClients.filter(() => {
+				// @TODO: Only if we're running a version of Playground that
+				//        stores temporary sites in OPFS. Otherwise we'd
+				//        destroy the user's in-memory changes.
+				return true;
+			});
+
+			if (
+				clientsThatCanBeSafelyRefreshed.length === windowClients.length
+			) {
+				clientsThatCanBeSafelyRefreshed.forEach((client) => {
+					client.navigate(client.url);
+				});
+				self.skipWaiting();
+			}
+		});
+});
+
+/**
  * Ensures the very first Playground load is controlled by this service worker.
  *
  * This is necessary because service workers don't control any pages loaded
@@ -47,7 +97,17 @@ if (!(self as any).document) {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
-	event.waitUntil(self.clients.claim());
+	event.waitUntil(
+		Promise.all([
+			self.clients.claim(),
+			offlineCachePromise.then((cache) =>
+				Promise.all([
+					cache.cacheOfflineModeAssetsForCurrentRelease(),
+					cache.purgeEverythingFromPreviousRelease(),
+				])
+			),
+		])
+	);
 });
 
 /**
@@ -91,36 +151,13 @@ self.addEventListener('fetch', (event) => {
 	 * If the asset is not cached, fetch it from the network and cache it.
 	 */
 	event.respondWith(
-		cachePromise.then((cache) => cache.cachedFetch(event.request))
+		offlineCachePromise.then((cache) => cache.cachedFetch(event.request))
 	);
 });
 
 reportServiceWorkerMetrics(self);
 
-const cachePromise = OfflineModeCache.getInstance().then((cache) => {
-	/**
-	 * For offline mode to work we need to cache all required assets.
-	 *
-	 * These assets are listed in the `/assets-required-for-offline-mode.json`
-	 * file and contain JavaScript, CSS, and other assets required to load the
-	 * site without making any network requests.
-	 */
-	cache.cacheOfflineModeAssets();
-
-	/**
-	 * Remove outdated files from the cache.
-	 *
-	 * We cache data based on `buildVersion` which is updated whenever Playground
-	 * is built. So when a new version of Playground is deployed, the service
-	 * worker will remove the old cache and cache the new assets.
-	 *
-	 * If your build version doesn't change while developing locally check
-	 * `buildVersionPlugin` for more details on how it's generated.
-	 */
-	cache.removeOutdatedFiles();
-
-	return cache;
-});
+const offlineCachePromise = OfflineModeCache.getInstance();
 
 initializeServiceWorker({
 	handleRequest(event) {

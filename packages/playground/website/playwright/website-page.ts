@@ -9,7 +9,9 @@ export class WebsitePage {
 			await this.page
 				/* There are multiple viewports possible, so we need to select
 				   the one that is visible. */
-				.frameLocator('.playground-viewport:visible')
+				.frameLocator(
+					'#playground-viewport:visible,.playground-viewport:visible'
+				)
 				.frameLocator('#wp')
 				.locator('body')
 		).not.toBeEmpty();

@@ -23,21 +23,13 @@ export class OfflineModeCache {
 		this.cache = cache;
 	}
 
-	async removeOutdatedFiles() {
-		const keys = await caches.keys();
-		const oldKeys = keys.filter(
-			(key) =>
-				key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
-		);
-		return Promise.all(oldKeys.map((key) => caches.delete(key)));
-	}
-
 	async cachedFetch(request: Request): Promise<Response> {
 		if (!this.shouldCacheUrl(new URL(request.url))) {
 			return await fetch(request);
 		}
 
 		let response = await this.cache.match(request, { ignoreSearch: true });
+		// @TODO: this.cache.match() returns stale data even after the cache has been purged
 		if (!response) {
 			response = await fetch(request);
 			if (response.ok) {
@@ -48,7 +40,14 @@ export class OfflineModeCache {
 		return response;
 	}
 
-	async cacheOfflineModeAssets(): Promise<any> {
+	/**
+	 * For offline mode to work we need to cache all required assets.
+	 *
+	 * These assets are listed in the `/assets-required-for-offline-mode.json`
+	 * file and contain JavaScript, CSS, and other assets required to load the
+	 * site without making any network requests.
+	 */
+	async cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
 		if (!this.shouldCacheUrl(new URL(location.href))) {
 			return;
 		}
@@ -59,6 +58,27 @@ export class OfflineModeCache {
 		);
 		const websiteUrls = await manifestResponse.json();
 		await this.cache.addAll([...websiteUrls, ...['/']]);
+	}
+
+	/**
+	 * Remove outdated files from the cache.
+	 *
+	 * We cache data based on `buildVersion` which is updated whenever Playground
+	 * is built. So when a new version of Playground is deployed, the service
+	 * worker will remove the old cache and cache the new assets.
+	 *
+	 * If your build version doesn't change while developing locally check
+	 * `buildVersionPlugin` for more details on how it's generated.
+	 */
+	async purgeEverythingFromPreviousRelease() {
+		// @TODO: Ensure an older service worker won't ever remove the assets of a newer service worker,
+		//        even if this is accidentally called in the older worker.
+		const keys = await caches.keys();
+		const oldKeys = keys.filter(
+			(key) =>
+				key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
+		);
+		return Promise.all(oldKeys.map((key) => caches.delete(key)));
 	}
 
 	private shouldCacheUrl(url: URL) {
