@@ -38,7 +38,7 @@ test('enableMultisite step should re-activate the plugins', async ({
 
 	const encodedBlueprint = JSON.stringify(blueprint);
 	await website.goto(`./#${encodedBlueprint}`);
-	expect(wordpress.getByLabel('Deactivate Hello Dolly')).toHaveText(
+	await expect(wordpress.getByLabel('Deactivate Hello Dolly')).toHaveText(
 		'Deactivate'
 	);
 });

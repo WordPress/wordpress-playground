@@ -62,9 +62,9 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await website.clickSaveInForkPlaygroundSettings();
 
-		expect(await website.getSiteInfoRowLocator('PHP version')).toHaveText(
-			`${version} (with extensions)`
-		);
+		await expect(
+			await website.getSiteInfoRowLocator('PHP version')
+		).toHaveText(`${version} (with extensions)`);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
@@ -82,9 +82,9 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await website.clickSaveInForkPlaygroundSettings();
 
-		expect(await website.getSiteInfoRowLocator('PHP version')).toHaveText(
-			version
-		);
+		await expect(
+			await website.getSiteInfoRowLocator('PHP version')
+		).toHaveText(version);
 	});
 });
 
@@ -100,7 +100,7 @@ Object.keys(MinifiedWordPressVersions)
 			await website.selectWordPressVersion(version);
 			await website.clickSaveInForkPlaygroundSettings();
 
-			expect(
+			await expect(
 				await website.getSiteInfoRowLocator('WordPress version')
 			).toHaveText(version);
 		});
