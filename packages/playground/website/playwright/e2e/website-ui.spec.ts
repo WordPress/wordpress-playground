@@ -56,11 +56,11 @@ SupportedPHPVersions.forEach(async (version) => {
 		}
 		await website.goto(`./`);
 
-		await website.openEditSettings();
+		await website.openForkPlaygroundSettings();
 
 		await website.selectPHPVersion(version);
 
-		await website.clickSaveInEditSettings();
+		await website.clickSaveInForkPlaygroundSettings();
 
 		expect(await website.getSiteInfoRowLocator('PHP version')).toHaveText(
 			`${version} (with extensions)`
@@ -71,7 +71,7 @@ SupportedPHPVersions.forEach(async (version) => {
 		website,
 	}) => {
 		await website.goto('./');
-		await website.openEditSettings();
+		await website.openForkPlaygroundSettings();
 		await website.selectPHPVersion(version);
 
 		// Uncheck the "with extensions" checkbox
@@ -80,7 +80,7 @@ SupportedPHPVersions.forEach(async (version) => {
 		);
 		await phpExtensionCheckbox.uncheck();
 
-		await website.clickSaveInEditSettings();
+		await website.clickSaveInForkPlaygroundSettings();
 
 		expect(await website.getSiteInfoRowLocator('PHP version')).toHaveText(
 			version
@@ -96,9 +96,9 @@ Object.keys(MinifiedWordPressVersions)
 			website,
 		}) => {
 			await website.goto('./');
-			await website.openEditSettings();
+			await website.openForkPlaygroundSettings();
 			await website.selectWordPressVersion(version);
-			await website.clickSaveInEditSettings();
+			await website.clickSaveInForkPlaygroundSettings();
 
 			expect(
 				await website.getSiteInfoRowLocator('WordPress version')
@@ -124,9 +124,9 @@ test('should display networking as active when networking is enabled', async ({
 test('should enable networking when requested', async ({ website }) => {
 	await website.goto('./');
 
-	await website.openEditSettings();
+	await website.openForkPlaygroundSettings();
 	await website.setNetworkingEnabled(true);
-	await website.clickSaveInEditSettings();
+	await website.clickSaveInForkPlaygroundSettings();
 
 	await expect(await website.hasNetworkingEnabled()).toBeTruthy();
 });
@@ -134,9 +134,9 @@ test('should enable networking when requested', async ({ website }) => {
 test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?networking=yes');
 
-	await website.openEditSettings();
+	await website.openForkPlaygroundSettings();
 	await website.setNetworkingEnabled(false);
-	await website.clickSaveInEditSettings();
+	await website.clickSaveInForkPlaygroundSettings();
 
 	await expect(await website.hasNetworkingEnabled()).toBeFalsy();
 });
