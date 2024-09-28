@@ -4,9 +4,9 @@ export class WebsitePage {
 	constructor(public readonly page: Page) {}
 
 	// Wait for WordPress to load
-	async waitForNestedIframes() {
+	async waitForNestedIframes(page = this.page) {
 		await expect(
-			await this.page
+			page
 				/* There are multiple viewports possible, so we need to select
 				   the one that is visible. */
 				.frameLocator(

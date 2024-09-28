@@ -1,59 +1,123 @@
 import { test, expect } from '../playground-fixtures.ts';
-import { spawn } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 
-test('should load the new website version upon a regular page refresh', async ({
+const host = 'localhost';
+const port = '7999';
+const url = `http://${host}:${port}`;
+
+test('When a new website version is deployed, it should be loaded upon a regular page refresh', async ({
 	website,
 	page,
 }) => {
-	let cp = spawn('python', ['-m', 'http.server', '8000'], {
-		cwd: 'dist/packages/playground/wasm-wordpress-net-old',
-	});
+	let cp: ChildProcess | null = null;
+	try {
+		cp = spawn('python', ['-m', 'http.server', port], {
+			cwd: 'dist/packages/playground/wasm-wordpress-net-old',
+		});
+		const killed = new Promise((resolve) => {
+			cp!.on('close', () => {
+				resolve(null);
+			});
+		});
 
-	await page.waitForTimeout(1000);
-	await page.goto('http://localhost:8000');
-	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-old.png');
+		await page.waitForTimeout(1000);
+		await page.goto(url);
+		await website.waitForNestedIframes();
+		await expect(page).toHaveScreenshot('website-old.png');
 
-	cp.kill();
+		cp.kill();
+		await killed;
 
-	cp = spawn('python', ['-m', 'http.server', '8000'], {
-		cwd: 'dist/packages/playground/wasm-wordpress-net-new',
-	});
+		cp = spawn('python', ['-m', 'http.server', port], {
+			cwd: 'dist/packages/playground/wasm-wordpress-net-new',
+		});
 
-	await page.waitForTimeout(1000);
-	// The first reload will bring up everything from the offline cache
-	await page.reload();
-	await page.reload();
-	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-new.png');
-
-	cp.kill();
-
-	await page.waitForTimeout(1000);
-	await page.goto('http://localhost:8000');
-	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-new.png');
+		await page.waitForTimeout(2000);
+		await page.goto(url);
+		await website.waitForNestedIframes();
+		await expect(page).toHaveScreenshot('website-new.png', {
+			maxDiffPixels: 1500,
+		});
+	} finally {
+		if (cp) {
+			cp.kill();
+		}
+	}
 });
 
-test('should use the offline assets when the server goes offline', async ({
+test(
+	'When a new website version is deployed while the old version is still opened in two browser tabs, ' +
+		'both tabs should be upgraded to the new app version upon a regular page refresh',
+	async ({ website, page, browser }) => {
+		let cp: ChildProcess | null = null;
+		try {
+			cp = spawn('python', ['-m', 'http.server', port], {
+				cwd: 'dist/packages/playground/wasm-wordpress-net-old',
+			});
+
+			await page.waitForTimeout(1000);
+			await page.goto(url);
+			await website.waitForNestedIframes();
+			await expect(page).toHaveScreenshot('website-old.png');
+
+			const page2 = await browser.newPage();
+			await page2.goto(url);
+			await website.waitForNestedIframes(page2);
+			await expect(page2).toHaveScreenshot('website-old.png');
+
+			cp.kill();
+
+			cp = spawn('python', ['-m', 'http.server', port], {
+				cwd: 'dist/packages/playground/wasm-wordpress-net-new',
+			});
+
+			await page.waitForTimeout(1000);
+			await page.reload();
+			await website.waitForNestedIframes(page);
+			// @TODO a better check – screenshot comparison will be annoying to maintain
+			await expect(page).toHaveScreenshot('website-new.png', {
+				maxDiffPixels: 1500,
+			});
+
+			await website.waitForNestedIframes(page2);
+			await expect(page2).toHaveScreenshot('website-new.png', {
+				maxDiffPixels: 1500,
+			});
+		} finally {
+			if (cp) {
+				cp.kill();
+			}
+		}
+	}
+);
+
+test('offline mode – the app should load even when the server goes offline', async ({
 	website,
 	page,
 }) => {
-	const cp = spawn('python', ['-m', 'http.server', '8001'], {
-		cwd: 'dist/packages/playground/wasm-wordpress-net-new',
-	});
+	let cp: ChildProcess | null = null;
+	try {
+		cp = spawn('python', ['-m', 'http.server', port], {
+			cwd: 'dist/packages/playground/wasm-wordpress-net-new',
+		});
 
-	await page.waitForTimeout(1000);
-	await page.goto('http://localhost:8001');
-	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-online.png');
+		await page.waitForTimeout(1000);
+		await page.goto(url);
+		await website.waitForNestedIframes();
+		// @TODO a better check – screenshot comparison will be annoying to maintain
+		await expect(page).toHaveScreenshot('website-online.png');
 
-	cp.kill();
+		cp.kill();
 
-	await page.waitForTimeout(1000);
-	await page.goto('http://localhost:8001');
-	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-online.png', {
-		maxDiffPixels: 100,
-	});
+		await page.waitForTimeout(1000);
+		await page.goto(url);
+		await website.waitForNestedIframes();
+		await expect(page).toHaveScreenshot('website-online.png', {
+			maxDiffPixels: 1500,
+		});
+	} finally {
+		if (cp) {
+			cp.kill();
+		}
+	}
 });

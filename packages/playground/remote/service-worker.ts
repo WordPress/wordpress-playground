@@ -67,9 +67,6 @@ self.addEventListener('install', () => {
 			if (
 				clientsThatCanBeSafelyRefreshed.length === windowClients.length
 			) {
-				clientsThatCanBeSafelyRefreshed.forEach((client) => {
-					client.navigate(client.url);
-				});
 				self.skipWaiting();
 			}
 		});
@@ -98,15 +95,39 @@ self.addEventListener('install', () => {
  */
 self.addEventListener('activate', function (event) {
 	event.waitUntil(
-		Promise.all([
-			self.clients.claim(),
-			offlineCachePromise.then((cache) =>
-				Promise.all([
-					cache.cacheOfflineModeAssetsForCurrentRelease(),
-					cache.purgeEverythingFromPreviousRelease(),
-				])
-			),
-		])
+		(async function doActivate() {
+			const cache = await offlineCachePromise;
+			await self.clients.claim();
+			cache.purgeEverythingFromPreviousRelease();
+			cache.cacheOfflineModeAssetsForCurrentRelease();
+
+			// Reload all clients that were controlled by the previous service worker
+			// so they can load the new version of the app without any stale assets
+			// whatsoever.
+			const windowClients = await self.clients.matchAll({
+				type: 'window',
+				includeUncontrolled: true,
+			});
+			windowClients.forEach((client) => {
+				let url;
+				try {
+					url = new URL(client.url);
+				} catch (e) {
+					// Ignore
+					return;
+				}
+
+				if (
+					url.pathname.startsWith('/remote.html') ||
+					url.pathname.startsWith('/scope:')
+				) {
+					return;
+				}
+				// @TODO: Only clients that were snatched from the previous
+				//        service worker.
+				client.navigate(client.url);
+			});
+		})()
 	);
 });
 
