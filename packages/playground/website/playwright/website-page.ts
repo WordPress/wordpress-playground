@@ -7,7 +7,9 @@ export class WebsitePage {
 	async waitForNestedIframes() {
 		await expect(
 			await this.page
-				.frameLocator('#playground-viewport')
+				/* There are multiple viewports possible, so we need to select
+				   the one that is visible. */
+				.frameLocator('.playground-viewport:visible')
 				.frameLocator('#wp')
 				.locator('body')
 		).not.toBeEmpty();
