@@ -191,10 +191,10 @@ describe('Query API', () => {
 		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
 			cy.visit('/?lazy');
 			cy.get('#lazy-load-initiator').should('exist');
-			cy.get('#playground-viewport').should('not.exist');
+			cy.get('.playground-viewport:visible').should('not.exist');
 
 			cy.get('#lazy-load-initiator').click();
-			cy.get('#playground-viewport').should('exist');
+			cy.get('.playground-viewport:visible').should('exist');
 			cy.wordPressDocument().its('body').should('have.class', 'home');
 		});
 	});

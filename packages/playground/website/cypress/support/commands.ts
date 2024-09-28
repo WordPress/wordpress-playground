@@ -27,13 +27,13 @@ Cypress.Commands.add('setWordPressUrl', (url: string) => {
 });
 
 Cypress.Commands.add('wordPressDocument', () => {
-	cy.get('#playground-viewport').should('exist');
-	cy.get('#playground-viewport')
+	cy.get('.playground-viewport:visible').should('exist');
+	cy.get('.playground-viewport:visible')
 		.its('0.contentDocument')
 		.find('#wp')
 		.should('exist');
 	return cy
-		.get('#playground-viewport')
+		.get('.playground-viewport:visible')
 		.its('0.contentDocument')
 		.find('#wp')
 		.its('0.contentDocument');
@@ -41,7 +41,7 @@ Cypress.Commands.add('wordPressDocument', () => {
 
 Cypress.Commands.add('wordpressPath', () => {
 	return cy
-		.get('#playground-viewport')
+		.get('.playground-viewport:visible')
 		.its('0.contentDocument')
 		.find('#wp')
 		.its('0.contentWindow.location.pathname');
