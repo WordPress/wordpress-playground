@@ -7,7 +7,9 @@ export class WebsitePage {
 	async waitForNestedIframes() {
 		await expect(
 			await this.page
-				.frameLocator('#playground-viewport')
+				/* There are multiple viewports possible, so we need to select
+				   the one that is visible. */
+				.frameLocator('.playground-viewport:visible')
 				.frameLocator('#wp')
 				.locator('body')
 		).not.toBeEmpty();
@@ -50,14 +52,14 @@ export class WebsitePage {
 			.innerText();
 	}
 
-	async openEditSettings() {
+	async openForkPlaygroundSettings() {
 		const editSettingsButton = this.page.locator(
 			'button.components-button',
 			{
-				hasText: 'Edit Playground settings',
+				hasText: 'Create a similar Playground',
 			}
 		);
-		await editSettingsButton.click();
+		await editSettingsButton.click({ timeout: 5000 });
 	}
 
 	async selectPHPVersion(version: string) {
@@ -65,11 +67,11 @@ export class WebsitePage {
 		await phpVersionSelect.selectOption(version);
 	}
 
-	async clickSaveInEditSettings() {
+	async clickSaveInForkPlaygroundSettings() {
 		const saveSettingsButton = this.page.locator(
 			'button.components-button.is-primary',
 			{
-				hasText: 'Update',
+				hasText: 'Create',
 			}
 		);
 		await saveSettingsButton.click();

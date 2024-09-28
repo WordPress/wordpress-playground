@@ -9,7 +9,9 @@ type WordPressFixtures = {
 export const test = base.extend<WordPressFixtures>({
 	wordpress: async ({ page }, use) => {
 		const wpPage = page
-			.frameLocator('#playground-viewport')
+			/* There are multiple viewports possible, so we need to select
+			   the one that is visible. */
+			.frameLocator('.playground-viewport:visible')
 			.frameLocator('#wp');
 		await use(wpPage);
 	},
