@@ -1498,6 +1498,9 @@ int php_wasm_init()
 		php_wasm_sapi_module.php_ini_path_override = phpini_path_override;
 	}
 
+	/* Register the DNS Polyfill symbols */
+	register_dns_polyfill_symbols(0);
+
 	php_sapi_started = 1;
 	php_wasm_sapi_module.additional_functions = additional_functions;
 	if (php_wasm_sapi_module.startup(&php_wasm_sapi_module) == FAILURE)

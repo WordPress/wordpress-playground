@@ -274,7 +274,7 @@ PHP_FUNCTION(dns_get_mx)
 /* }}} */
 
 /* {{{ Polyfill the constants, as PHP won't load them. */
-PHP_MINIT_FUNCTION(dns_polyfill)
+void register_dns_polyfill_symbols(int module_number)
 {
 	REGISTER_LONG_CONSTANT("DNS_A", PHP_DNS_A, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_NS", PHP_DNS_NS, CONST_PERSISTENT);
@@ -291,7 +291,5 @@ PHP_MINIT_FUNCTION(dns_polyfill)
 	REGISTER_LONG_CONSTANT("DNS_A6", PHP_DNS_A6, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_ANY", PHP_DNS_ANY, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_ALL", PHP_DNS_ALL, CONST_PERSISTENT);
-
-	return SUCCESS;
 }
 /* }}} */

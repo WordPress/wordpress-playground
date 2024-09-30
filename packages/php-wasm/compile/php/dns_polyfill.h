@@ -30,4 +30,6 @@ ZEND_END_ARG_INFO()
 
 PHP_FUNCTION(dns_get_mx);
 
+void register_dns_polyfill_symbols(int module_number);
+
 #endif // PHP_WASM_DNS_POLYFILL_H
