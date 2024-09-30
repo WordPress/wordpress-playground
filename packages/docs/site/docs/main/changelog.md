@@ -9,6 +9,41 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v0.9.45] (2024-09-30) 
+
+### Blueprints
+
+- Translate GitHub.com file URLs into CORS-accessible raw.githubusercontent.com. ([#1810](https://github.com/WordPress/wordpress-playground/pull/1810))
+
+### Tools
+
+- [UX] Stored Playgrounds (no more data loss), multiple Playgrounds, UI WebApp Redesign. ([#1731](https://github.com/WordPress/wordpress-playground/pull/1731))
+
+### Documentation
+
+- Docs: Translation i18n messages - JSON files. ([#1807](https://github.com/WordPress/wordpress-playground/pull/1807))
+
+### Website
+
+- Prevent creation of two temporary sites. ([#1817](https://github.com/WordPress/wordpress-playground/pull/1817))
+- Stop address bar from adding trailing slash to query params. ([#1820](https://github.com/WordPress/wordpress-playground/pull/1820))
+
+### Bug Fixes
+
+- Fix broken Playwright tests. ([#1819](https://github.com/WordPress/wordpress-playground/pull/1819))
+
+### Various
+
+- Add Playwright tests for UI redesign changes. ([#1769](https://github.com/WordPress/wordpress-playground/pull/1769))
+- Docs: Contributions to translations. ([#1808](https://github.com/WordPress/wordpress-playground/pull/1808))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @juanmaguitar
+
+
 ## [v0.9.44] (2024-09-24) 
 
 ### Bug Fixes
