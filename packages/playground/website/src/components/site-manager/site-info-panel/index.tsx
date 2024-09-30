@@ -54,12 +54,14 @@ export function SiteInfoPanel({
 	site,
 	removeSite,
 	mobileUi,
+	siteViewHidden,
 	onBackButtonClick,
 }: {
 	className: string;
 	site: SiteInfo;
 	removeSite: (site: SiteInfo) => Promise<void>;
 	mobileUi?: boolean;
+	siteViewHidden?: boolean;
 	onBackButtonClick?: () => void;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -85,10 +87,8 @@ export function SiteInfoPanel({
 		? 'footer'
 		: 'menu';
 	function navigateTo(path: string) {
-		if (mobileUi) {
-			// Collapse the sidebar when opening a site
-			// because otherwise the site view will remain
-			// hidden by the sidebar on small screens.
+		if (siteViewHidden) {
+			// Close the site manager so the site view is visible.
 			dispatch(setSiteManagerOpen(false));
 		}
 
@@ -218,9 +218,10 @@ export function SiteInfoPanel({
 														icon={external}
 														iconPosition="right"
 														aria-label="Go to homepage"
-														onClick={() =>
-															navigateTo('/')
-														}
+														onClick={() => {
+															navigateTo('/');
+															onClose();
+														}}
 													>
 														Homepage
 													</MenuItem>
@@ -228,11 +229,12 @@ export function SiteInfoPanel({
 														icon={external}
 														iconPosition="right"
 														aria-label="Go to WP Admin"
-														onClick={() =>
+														onClick={() => {
 															navigateTo(
 																'/wp-admin/'
-															)
-														}
+															);
+															onClose();
+														}}
 													>
 														WP Admin
 													</MenuItem>
