@@ -50,3 +50,20 @@ You can use [this guide to set up a local Multisite.](https://wordpress.github.i
 ```bash
  PLAYWRIGHT_TEST_BASE_URL='https://playground.test/website-server/' npx nx run playground-website:e2e:playwright
 ```
+
+## Deployment tests
+
+### Setup
+
+Deployment tests require a old and new version of Playground to be built.
+This is done by running the following script:
+
+```bash
+./deploy_test_setup.sh
+```
+
+### Run
+
+```bash
+npx nx run playground-website:e2e:playwright:deployment
+```
