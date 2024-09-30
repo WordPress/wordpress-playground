@@ -14,7 +14,7 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 }) => {
 	await website.goto('./?url=/wp-admin');
 
-	await website.expandSiteView();
+	await website.ensureSiteViewIsExpanded();
 
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
@@ -24,6 +24,7 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 test('should switch between sites', async ({ website }) => {
 	await website.goto('./');
 
+	await website.ensureSiteManagerIsOpen();
 	await website.openNewSiteModal();
 
 	const newSiteName = await website.page
@@ -111,6 +112,8 @@ test('should display networking as inactive by default', async ({
 }) => {
 	await website.goto('./');
 
+	await website.ensureSiteManagerIsOpen();
+
 	await expect(await website.hasNetworkingEnabled()).toBeFalsy();
 });
 
@@ -118,6 +121,7 @@ test('should display networking as active when networking is enabled', async ({
 	website,
 }) => {
 	await website.goto('./?networking=yes');
+	await website.ensureSiteManagerIsOpen();
 	await expect(await website.hasNetworkingEnabled()).toBeTruthy();
 });
 
