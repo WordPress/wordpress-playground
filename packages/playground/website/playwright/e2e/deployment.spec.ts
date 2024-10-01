@@ -1,5 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
-import { spawn } from 'child_process';
+import serveHandler from 'serve-handler';
+import * as http from 'http';
 
 const host = 'localhost';
 const port = 7999;
@@ -11,18 +12,26 @@ type Server = {
 };
 
 const startServer = async (page, path: string): Promise<Server> => {
-	const cp = spawn('python3', ['-m', 'http.server', port.toString()], {
-		cwd: path,
+	const server = http.createServer((req, res) => {
+		return serveHandler(req, res, {
+			public: path,
+		});
 	});
+	type ListeningServer = ReturnType<typeof server.listen>;
+	const listeningServer = await new Promise<ListeningServer>((resolve) => {
+		const result = server.listen({ host, port }, () => resolve(result));
+	});
+
 	await page.waitForTimeout(1000);
 	console.log('Started server', path);
 	return {
 		kill: () => {
-			cp.kill();
-			return new Promise((resolve) => {
-				cp.on('close', () => {
+			return new Promise<void>((resolve) => {
+				listeningServer.close(() => {
 					resolve();
+					console.log('Killed server', path);
 				});
+				listeningServer.closeAllConnections();
 			});
 		},
 	};
