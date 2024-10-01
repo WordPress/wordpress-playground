@@ -69,6 +69,8 @@ jobs:
             fail-fast: false
             matrix:
                 part: ['chromium', 'firefox', 'webkit']
+        env:
+            HOME: /root
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
@@ -81,7 +83,7 @@ jobs:
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.part }} --with-deps
             - name: Run Playwright tests - ${{ matrix.part }}
-              run: sudo CI=true HOME=/root npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+              run: sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
