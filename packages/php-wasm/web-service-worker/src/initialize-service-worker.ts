@@ -64,11 +64,8 @@ async function defaultRequestHandler(event: FetchEvent) {
 			// cookies
 			credentials: 'omit',
 		});
-		// @TODO: Make shared uncachedFetch() function and use that
-		const requestWithoutBrowserCaching = await cloneRequest(request, {
-			cache: 'no-cache',
-		});
-		return fetch(requestWithoutBrowserCaching);
+		// TODO: Is this necessary? Do we really want to bypass browser cache for all requests?
+		return uncachedFetch(request);
 	}
 	return workerResponse;
 }
@@ -220,6 +217,21 @@ export async function cloneRequest(
 		redirect: request.redirect,
 		integrity: request.integrity,
 		...overrides,
+	});
+}
+
+/**
+ * Fetches a resource and avoids stale responses from browser cache.
+ *
+ * @param resource The resource to fetch.
+ * @param init     Optional object containing custom settings.
+ * @returns Promise<Response>
+ */
+// TODO: Consider renaming to `fetchFresh`
+export function uncachedFetch(resource: RequestInfo | URL, init?: RequestInit) {
+	return fetch(resource, {
+		...init,
+		cache: 'no-cache',
 	});
 }
 

@@ -9,6 +9,7 @@ import {
 	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
 	cloneRequest,
+	uncachedFetch,
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
@@ -249,12 +250,8 @@ initializeServiceWorker({
 					// cookies
 					credentials: 'omit',
 				});
-				// @TODO: Make shared uncachedFetch() function and use that
-				const requestWithoutBrowserCaching = await cloneRequest(
-					request,
-					{ cache: 'no-cache' }
-				);
-				return fetch(requestWithoutBrowserCaching).catch((e) => {
+				// TODO: Is this necessary? Do we really want to bypass browser cache for all requests?
+				return uncachedFetch(request).catch((e) => {
 					if (e?.name === 'TypeError') {
 						// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
 						// happen on playground.wordpress.net. Let's add a randomized
@@ -262,7 +259,7 @@ initializeServiceWorker({
 						return new Promise((resolve) => {
 							setTimeout(() => {
 								// @TODO: Make shared uncachedFetch() function and use that
-								resolve(fetch(requestWithoutBrowserCaching));
+								resolve(uncachedFetch(request));
 							}, Math.random() * 1500);
 						}) as Promise<Response>;
 					}

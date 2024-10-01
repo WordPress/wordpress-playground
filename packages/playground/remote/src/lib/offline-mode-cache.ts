@@ -1,5 +1,5 @@
 import { isURLScoped } from '@php-wasm/scopes';
-import { cloneRequest } from '@php-wasm/web-service-worker';
+import { uncachedFetch } from '@php-wasm/web-service-worker';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -32,12 +32,8 @@ export class OfflineModeCache {
 		console.log({ LATEST_CACHE_NAME });
 		let response = await this.cache.match(request, { ignoreSearch: true });
 		// @TODO: this.cache.match() returns stale data even after the cache has been purged
-		// @TODO: Make shared uncachedFetch() function and use that
-		const requestWithoutBrowserCaching = await cloneRequest(request, {
-			cache: 'no-cache',
-		});
 		if (!response) {
-			response = await fetch(requestWithoutBrowserCaching);
+			response = await uncachedFetch(request);
 			if (response.ok) {
 				//@ts-ignore
 				if (self.serviceWorker.state === 'activated') {
