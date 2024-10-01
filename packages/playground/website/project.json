@@ -176,7 +176,8 @@
 					"rm -rf dist/packages/playground/wasm-wordpress-net-new",
 					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-old",
 					"git stash",
-					"git checkout $CURRENT_BRANCH"
+					"git checkout $CURRENT_BRANCH",
+					"npm install"
 				],
 				"parallel": false
 			},
