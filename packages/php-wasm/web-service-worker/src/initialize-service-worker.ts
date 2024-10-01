@@ -64,7 +64,11 @@ async function defaultRequestHandler(event: FetchEvent) {
 			// cookies
 			credentials: 'omit',
 		});
-		return fetch(request);
+		// @TODO: Make shared uncachedFetch() function and use that
+		const requestWithoutBrowserCaching = await cloneRequest(request, {
+			cache: 'no-cache',
+		});
+		return fetch(requestWithoutBrowserCaching);
 	}
 	return workerResponse;
 }

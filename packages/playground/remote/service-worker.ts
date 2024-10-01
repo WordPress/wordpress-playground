@@ -249,14 +249,20 @@ initializeServiceWorker({
 					// cookies
 					credentials: 'omit',
 				});
-				return fetch(request).catch((e) => {
+				// @TODO: Make shared uncachedFetch() function and use that
+				const requestWithoutBrowserCaching = await cloneRequest(
+					request,
+					{ cache: 'no-cache' }
+				);
+				return fetch(requestWithoutBrowserCaching).catch((e) => {
 					if (e?.name === 'TypeError') {
 						// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
 						// happen on playground.wordpress.net. Let's add a randomized
 						// delay and retry once
 						return new Promise((resolve) => {
 							setTimeout(() => {
-								resolve(fetch(request));
+								// @TODO: Make shared uncachedFetch() function and use that
+								resolve(fetch(requestWithoutBrowserCaching));
 							}, Math.random() * 1500);
 						}) as Promise<Response>;
 					}
