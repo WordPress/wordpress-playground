@@ -40,14 +40,14 @@ for (const cachingEnabled of [true, false]) {
 
 		await page.goto(url);
 		await website.waitForNestedIframes();
-		await expect(page).toHaveScreenshot('website-old-chromium-darwin.png', {
+		await expect(page).toHaveScreenshot('website-old.png', {
 			maxDiffPixels,
 		});
 
 		server!.switchToNewVersion();
 		await page.goto(url);
 		await website.waitForNestedIframes();
-		await expect(page).toHaveScreenshot('website-new-chromium-darwin.png', {
+		await expect(page).toHaveScreenshot('website-new.png', {
 			maxDiffPixels,
 		});
 	});
@@ -59,35 +59,29 @@ test(
 	async ({ website, page, browser }) => {
 		await page.goto(url);
 		await website.waitForNestedIframes();
-		await expect(page).toHaveScreenshot('website-old-chromium-darwin.png', {
+		await expect(page).toHaveScreenshot('website-old.png', {
 			maxDiffPixels,
 		});
 
 		const page2 = await browser.newPage();
 		await page2.goto(url);
 		await website.waitForNestedIframes(page2);
-		await expect(page2).toHaveScreenshot(
-			'website-old-chromium-darwin.png',
-			{
-				maxDiffPixels,
-			}
-		);
+		await expect(page2).toHaveScreenshot('website-old.png', {
+			maxDiffPixels,
+		});
 
 		server!.switchToNewVersion();
 		await page.goto(url);
 		await website.waitForNestedIframes(page);
 
-		await expect(page).toHaveScreenshot('website-new-chromium-darwin.png', {
+		await expect(page).toHaveScreenshot('website-new.png', {
 			maxDiffPixels,
 		});
 
 		await website.waitForNestedIframes(page2);
-		await expect(page2).toHaveScreenshot(
-			'website-new-chromium-darwin.png',
-			{
-				maxDiffPixels,
-			}
-		);
+		await expect(page2).toHaveScreenshot('website-new.png', {
+			maxDiffPixels,
+		});
 	}
 );
 
@@ -113,14 +107,14 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 	// @TODO a better check – screenshot comparisons will be annoying to maintain
-	await expect(page).toHaveScreenshot('website-online-chromium-darwin.png', {
+	await expect(page).toHaveScreenshot('website-online.png', {
 		maxDiffPixels,
 	});
 
 	server!.kill();
 	await page.reload();
 	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-online-chromium-darwin.png', {
+	await expect(page).toHaveScreenshot('website-online.png', {
 		maxDiffPixels,
 	});
 });
