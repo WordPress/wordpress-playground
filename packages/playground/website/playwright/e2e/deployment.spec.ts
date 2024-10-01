@@ -9,7 +9,7 @@ const startServer = async () => {
 	const server = spawn(
 		'python',
 		[
-			'server.py',
+			'./packages/playground/website/playwright/e2e/version_switching_server.py',
 			port,
 			'dist/packages/playground/wasm-wordpress-net-old',
 			'dist/packages/playground/wasm-wordpress-net-new',

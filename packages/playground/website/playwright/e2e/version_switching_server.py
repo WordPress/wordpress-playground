@@ -1,3 +1,11 @@
+"""
+This server allows Playwright to test new version deployment. The special
+/switch-to-new-version and /switch-to-old-version URLs are requested in the
+middle of the test to start serving a different version of the app.
+
+See https://github.com/WordPress/wordpress-playground/issues/1821
+See https://github.com/WordPress/wordpress-playground/pull/1822
+"""
 import http.server
 import socketserver
 import os
@@ -70,7 +78,7 @@ def signal_handler(sig, frame):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: python script.py <port> <directory1> <directory2>")
+        print("Usage: python version_switching_server.py <port> <old_version_directory> <new_version_directory>")
         sys.exit(1)
 
     port = int(sys.argv[1])

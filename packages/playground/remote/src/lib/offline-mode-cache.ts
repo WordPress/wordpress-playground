@@ -28,6 +28,7 @@ export class OfflineModeCache {
 			return await fetch(request);
 		}
 
+		console.log({ LATEST_CACHE_NAME });
 		let response = await this.cache.match(request, { ignoreSearch: true });
 		// @TODO: this.cache.match() returns stale data even after the cache has been purged
 		if (!response) {
@@ -57,7 +58,8 @@ export class OfflineModeCache {
 
 		// Get the cache manifest and add all the files to the cache
 		const manifestResponse = await fetch(
-			'/assets-required-for-offline-mode.json'
+			'/assets-required-for-offline-mode.json',
+			{ cache: 'no-store' }
 		);
 		const websiteUrls = await manifestResponse.json();
 		await this.cache.addAll([...websiteUrls, ...['/']]);
