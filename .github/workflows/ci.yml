@@ -43,22 +43,52 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
-    test-e2e-playwright:
+
+    test-e2e-playwright-prepare:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
-        # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
               run: sudo npx playwright install --with-deps
-            - name: Run Playwright tests
-              run: sudo CI=true npx nx run playground-website:e2e:playwright:ci
+            - name: Prepare app deploy and offline mode
+              run: npx nx run playground-website:e2e:playwright:prepare-app-deploy-and-offline-mode
+            - name: Zip dist
+              run: zip -r dist.zip dist
+            - name: Upload dist
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-dist
+                  path: dist.zip
+
+    test-e2e-playwright:
+        runs-on: ubuntu-latest
+        needs: [test-e2e-playwright-prepare]
+        strategy:
+            fail-fast: false
+            matrix:
+                part: ['chromium', 'firefox', 'webkit']
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - name: Download dist
+              uses: actions/download-artifact@v4
+              with:
+                  name: playwright-dist
+            - name: Unzip dist
+              run: unzip dist.zip
+            - name: Install Playwright Browser
+              run: sudo npx playwright install ${{ matrix.part }} --with-deps
+            - name: Run Playwright tests - ${{ matrix.part }}
+              run: sudo CI=true npx nx run playground-website:e2e:playwright:ci --project=${{ matrix.part }}
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-report
+                  name: playwright-report-${{ matrix.part }}
                   path: playwright-report/
+                  if-no-files-found: ignore
+
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
