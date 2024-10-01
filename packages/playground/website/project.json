@@ -163,10 +163,19 @@
 		"e2e:playwright:prepare-app-deploy-and-offline-mode": {
 			"executor": "nx:noop",
 			"dependsOn": [
-				"e2e:playwright:prepare-app-deploy-and-offline-mode:old-version"
+				"e2e:playwright:prepare-app-deploy-and-offline-mode:build-current-version",
+				"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-version"
 			]
 		},
-		"e2e:playwright:prepare-app-deploy-and-offline-mode:old-version": {
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-version": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip"
+				]
+			}
+		},
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:build-old-version": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
@@ -183,12 +192,9 @@
 					"npm install"
 				],
 				"parallel": false
-			},
-			"dependsOn": [
-				"e2e:playwright:prepare-app-deploy-and-offline-mode:current-version"
-			]
+			}
 		},
-		"e2e:playwright:prepare-app-deploy-and-offline-mode:current-version": {
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:build-current-version": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
