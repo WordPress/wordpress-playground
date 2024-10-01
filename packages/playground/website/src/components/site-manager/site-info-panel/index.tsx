@@ -548,7 +548,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 											className={css.buttonNoPadding}
 											onClick={onClick}
 										>
-											Create a similar Playground
+											Edit Playground settings
 										</Button>
 									)}
 								</StartSimilarSiteButton>

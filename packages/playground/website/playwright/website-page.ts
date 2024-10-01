@@ -70,7 +70,7 @@ export class WebsitePage {
 		const editSettingsButton = this.page.locator(
 			'button.components-button',
 			{
-				hasText: 'Create a similar Playground',
+				hasText: 'Edit Playground settings',
 			}
 		);
 		await editSettingsButton.click({ timeout: 5000 });
