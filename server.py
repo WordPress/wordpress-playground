@@ -7,6 +7,8 @@ import sys
 original_dir = os.getcwd()
 http_cache_enabled = True
 
+socketserver.TCPServer.allow_reuse_address = True
+
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     
     def end_headers(self):
@@ -41,6 +43,12 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
                 http_cache_enabled = True
                 self.wfile.write(b"<html><body>HTTP cache enabled</body>")
         else:
+            if "switch-to-new-version" in self.path:
+                os.chdir(original_dir)
+                os.chdir(new_version_directory)
+            elif "switch-to-old-version" in self.path:
+                os.chdir(original_dir)
+                os.chdir(old_version_directory)
             super().do_GET()
 
 def run_server(directory, port):
