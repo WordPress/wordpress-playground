@@ -158,8 +158,7 @@
 					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
 				],
 				"parallel": false
-			},
-			"dependsOn": ["e2e:playwright:prepare-app-deploy-and-offline-mode"]
+			}
 		},
 		"e2e:playwright:prepare-app-deploy-and-offline-mode": {
 			"executor": "nx:noop",
