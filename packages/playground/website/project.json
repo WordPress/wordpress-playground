@@ -175,9 +175,9 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"PLAYGROUND_URL=http://localhost:7993 npx nx run playground-website:build:wasm-wordpress-net",
+					"PLAYGROUND_URL=http://localhost:7999 npx nx run playground-website:build:wasm-wordpress-net",
 					"rm -rf dist/packages/playground/wasm-wordpress-net-old",
-					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-old"
+					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-new"
 				]
 			}
 		},
@@ -185,12 +185,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"export CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)",
 					"git fetch origin v0.9.0 && git checkout v0.9.0",
 					"npm install",
 					"npm run build",
-					"PLAYGROUND_URL=http://localhost:7993 npx nx run playground-website:build:wasm-wordpress-net",
+					"PLAYGROUND_URL=http://localhost:7999 npx nx run playground-website:build:wasm-wordpress-net",
 					"rm -rf dist/packages/playground/wasm-wordpress-net-new",
-					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-new"
+					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-old",
+					"git stash",
+					"git checkout $CURRENT_BRANCH"
 				],
 				"parallel": false
 			}

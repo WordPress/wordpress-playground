@@ -1,50 +1,29 @@
+/* eslint-disable no-loop-func */
+import path from 'path';
 import { test, expect } from '../playground-fixtures.ts';
-import { spawn } from 'child_process';
+import { startVersionSwitchingServer as startServer } from '../version-switching-server.ts';
 
-const port = '7993';
+const port = 7999;
 const url = `http://localhost:${port}`;
 
 const maxDiffPixels = 4000;
-const startServer = async () => {
-	const server = spawn(
-		'python',
-		[
-			'./packages/playground/website/playwright/e2e/version_switching_server.py',
-			port,
-			'dist/packages/playground/wasm-wordpress-net-old',
-			'dist/packages/playground/wasm-wordpress-net-new',
-		],
-		{
-			cwd: __dirname + '/../../../../../',
-		}
-	);
-	server.stderr.on('data', (data) => {
-		console.error(data.toString());
-	});
-	server.on('close', (code) => {
-		console.log(`Server exited with code ${code}`);
-	});
-	await new Promise((resolve, reject) => {
-		setTimeout(() => {
-			resolve(null);
-		}, 1000);
-	});
-	let killed = false;
-	return {
-		kill: () => {
-			if (killed) {
-				return;
-			}
-			killed = true;
-			server.kill();
-		},
-	};
-};
 
-let server: { kill: () => void } | null = null;
+let server: Awaited<ReturnType<typeof startServer>> | null = null;
 
 test.beforeEach(async () => {
-	server = await startServer();
+	server = await startServer({
+		port,
+		oldVersionDirectory: path.join(
+			__dirname,
+			'../../../../../dist/packages/playground/wasm-wordpress-net-old'
+		),
+		newVersionDirectory: path.join(
+			__dirname,
+			'../../../../../dist/packages/playground/wasm-wordpress-net-new'
+		),
+	});
+	server.switchToOldVersion();
+	server.setHttpCacheEnabled(true);
 });
 
 test.afterEach(async () => {
@@ -57,27 +36,15 @@ for (const cachingEnabled of [true, false]) {
 	test(`When a new website version is deployed, it should be loaded upon a regular page refresh (with HTTP caching ${
 		cachingEnabled ? 'enabled' : 'disabled'
 	})`, async ({ website, page }) => {
-		await page.goto(`${url}/switch-to-old-version`);
-		if (cachingEnabled) {
-			await page.goto(`${url}/enable-http-cache`);
-			await expect(page.locator('body').textContent()).resolves.toBe(
-				'HTTP cache enabled'
-			);
-		} else {
-			await page.goto(`${url}/disable-http-cache`);
-			await expect(page.locator('body').textContent()).resolves.toBe(
-				'HTTP cache disabled'
-			);
-		}
+		server!.setHttpCacheEnabled(cachingEnabled);
+
 		await page.goto(url);
 		await website.waitForNestedIframes();
-
 		await expect(page).toHaveScreenshot('website-old-chromium-darwin.png', {
 			maxDiffPixels,
 		});
 
-		await page.goto(`${url}?switch-to-new-version`);
-		await expect(page.locator('body')).toContainText('Your Playgrounds');
+		server!.switchToNewVersion();
 		await page.goto(url);
 		await website.waitForNestedIframes();
 		await expect(page).toHaveScreenshot('website-new-chromium-darwin.png', {
@@ -106,7 +73,8 @@ test(
 			}
 		);
 
-		await page.goto(`${url}?switch-to-new-version`);
+		server!.switchToNewVersion();
+		await page.goto(url);
 		await website.waitForNestedIframes(page);
 
 		await expect(page).toHaveScreenshot('website-new-chromium-darwin.png', {
@@ -127,10 +95,8 @@ test('offline mode – the app should load even when the server goes offline', a
 	website,
 	page,
 }) => {
-	await page.goto(`${url}/switch-to-new-version`);
-	await expect(page.locator('body')).toContainText(
-		'Switched to the new version'
-	);
+	server!.switchToNewVersion();
+
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 	// @TODO a better check – screenshot comparisons will be annoying to maintain
