@@ -161,6 +161,12 @@
 			},
 			"dependsOn": [
 				"build",
+				"e2e:playwright:prepare-app-deploy-and-offline-mode"
+			]
+		},
+		"e2e:playwright:prepare-app-deploy-and-offline-mode": {
+			"executor": "nx:noop",
+			"dependsOn": [
 				"e2e:playwright:prepare-app-deploy-and-offline-mode:old-version"
 			]
 		},

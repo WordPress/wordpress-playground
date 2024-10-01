@@ -59,7 +59,7 @@ Deployment tests require a old and new version of Playground to be built.
 This is done by running the following script:
 
 ```bash
-./deploy_test_setup.sh
+npx nx run playground-website:e2e:playwright:prepare-app-deploy-and-offline-mode
 ```
 
 ### Run
