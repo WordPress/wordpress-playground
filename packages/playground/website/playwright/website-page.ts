@@ -23,9 +23,22 @@ export class WebsitePage {
 		return response;
 	}
 
-	async expandSiteView() {
+	async ensureSiteManagerIsOpen() {
+		const siteManagerHeading = this.page.getByText('Your Playgrounds');
+		if (!(await siteManagerHeading.isVisible({ timeout: 5000 }))) {
+			await this.page.getByLabel('Open Site Manager').click();
+		}
+		expect(await siteManagerHeading.isVisible()).toBeTruthy();
+	}
+
+	async ensureSiteViewIsExpanded() {
 		const openSiteButton = this.page.locator('div[title="Open site"]');
-		await openSiteButton.click();
+		if (await openSiteButton.isVisible({ timeout: 5000 })) {
+			await openSiteButton.click();
+		}
+
+		const siteManagerHeading = this.page.getByText('Your Playgrounds');
+		expect(await siteManagerHeading.isVisible()).toBeFalsy();
 	}
 
 	async openNewSiteModal() {
@@ -55,6 +68,7 @@ export class WebsitePage {
 	}
 
 	async openForkPlaygroundSettings() {
+		await this.ensureSiteManagerIsOpen();
 		const editSettingsButton = this.page.locator(
 			'button.components-button',
 			{
