@@ -185,7 +185,7 @@
 					"npm install",
 					"npm run build",
 					"PLAYGROUND_URL=http://localhost:7999 npx nx run playground-website:build:wasm-wordpress-net",
-					"rm -rf dist/packages/playground/wasm-wordpress-net-old",
+					"rm -rf dist/packages/playground/wasm-wordpress-net-old || true",
 					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-old",
 					"git stash",
 					"git checkout $CURRENT_BRANCH",
@@ -198,7 +198,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"rm -rf dist/packages/playground/wasm-wordpress-net-new",
+					"rm -rf dist/packages/playground/wasm-wordpress-net-new || true",
 					"cp -rf dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-new"
 				]
 			},
