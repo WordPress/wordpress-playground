@@ -1,4 +1,7 @@
-import { Modal } from '@wordpress/components';
+import {
+	Modal,
+	__experimentalConfirmDialog as ConfirmDialog,
+} from '@wordpress/components';
 import { useMemo, useState } from 'react';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
@@ -13,6 +16,9 @@ export function StartSimilarSiteButton({
 	siteSlug: string;
 	children: (onClick: () => void) => React.ReactNode;
 }) {
+	const [confirmDialogSiteFormData, setConfirmDialogSiteFormData] = useState<
+		SiteFormData | false
+	>(false);
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
@@ -63,16 +69,39 @@ export function StartSimilarSiteButton({
 	return (
 		<div>
 			{children(() => setModalOpen(true))}
-
+			<ConfirmDialog
+				isOpen={!!confirmDialogSiteFormData}
+				onConfirm={() =>
+					updateSite(confirmDialogSiteFormData as SiteFormData)
+				}
+				onCancel={() => setConfirmDialogSiteFormData(false)}
+				title="Confirm Playground settings update"
+				confirmButtonText="Reset and update"
+			>
+				<p>
+					By updating Playground settings on a temporary site, <br />
+					you will reset the Playground and lose all changes you made
+					<br />
+					previously.
+				</p>
+				<p>
+					If you want to keep the changes you made previously, <br />
+					you can cancel this dialog, Click Save in Playground details{' '}
+					<br />
+					and update settings after the site is saved.
+				</p>
+			</ConfirmDialog>
 			{isModalOpen && (
 				<Modal
-					title="Create a similar Playground"
+					title="Edit Playground setting"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
-						onSubmit={updateSite}
+						onSubmit={(data: SiteFormData) =>
+							setConfirmDialogSiteFormData(data)
+						}
 						onCancel={() => setModalOpen(false)}
-						submitButtonText="Create"
+						submitButtonText="Update"
 						defaultValues={defaultValues}
 					/>
 				</Modal>
