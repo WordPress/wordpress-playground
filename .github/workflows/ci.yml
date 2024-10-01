@@ -86,7 +86,13 @@ jobs:
               if: ${{ !cancelled() }}
               with:
                   name: playwright-report-${{ matrix.part }}
-                  path: playwright-report/
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-snapshots-${{ matrix.part }}
+                  path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
 
     build:
