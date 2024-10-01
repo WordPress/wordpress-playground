@@ -46,30 +46,35 @@ if (!(self as any).document) {
  *
  * [1] https://web.dev/articles/service-worker-lifecycle#updates
  */
-self.addEventListener('install', () => {
+self.addEventListener('install', (event) => {
 	/**
 	 * Skip over the "waiting" lifecycle state, to ensure that our
 	 * new service worker is activated immediately when we only
 	 * have a single open tab.
 	 */
-	self.clients
-		.matchAll({
-			type: 'window',
-		})
-		.then((windowClients) => {
-			const clientsThatCanBeSafelyRefreshed = windowClients.filter(() => {
-				// @TODO: Only if we're running a version of Playground that
-				//        stores temporary sites in OPFS. Otherwise we'd
-				//        destroy the user's in-memory changes.
-				return true;
-			});
+	event.waitUntil(
+		self.clients
+			.matchAll({
+				type: 'window',
+			})
+			.then((windowClients) => {
+				const clientsThatCanBeSafelyRefreshed = windowClients.filter(
+					() => {
+						// @TODO: Only if we're running a version of Playground that
+						//        stores temporary sites in OPFS. Otherwise we'd
+						//        destroy the user's in-memory changes.
+						return true;
+					}
+				);
 
-			if (
-				clientsThatCanBeSafelyRefreshed.length === windowClients.length
-			) {
-				self.skipWaiting();
-			}
-		});
+				if (
+					clientsThatCanBeSafelyRefreshed.length ===
+					windowClients.length
+				) {
+					self.skipWaiting();
+				}
+			})
+	);
 });
 
 /**
@@ -96,9 +101,9 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', function (event) {
 	event.waitUntil(
 		(async function doActivate() {
-			const cache = await offlineCachePromise;
 			await self.clients.claim();
-			cache.purgeEverythingFromPreviousRelease();
+			const cache = await offlineCachePromise;
+			await cache.purgeEverythingFromPreviousRelease();
 			cache.cacheOfflineModeAssetsForCurrentRelease();
 
 			// Reload all clients that were controlled by the previous service worker
@@ -108,7 +113,8 @@ self.addEventListener('activate', function (event) {
 				type: 'window',
 				includeUncontrolled: true,
 			});
-			windowClients.forEach((client) => {
+
+			windowClients.map((client) => {
 				let url;
 				try {
 					url = new URL(client.url);
@@ -125,7 +131,7 @@ self.addEventListener('activate', function (event) {
 				}
 				// @TODO: Only clients that were snatched from the previous
 				//        service worker.
-				client.navigate(client.url);
+				return client.navigate(client.url);
 			});
 		})()
 	);
@@ -138,6 +144,10 @@ self.addEventListener('activate', function (event) {
  * * Serve the subsequent requests from the cache
  */
 self.addEventListener('fetch', (event) => {
+	if (self.serviceWorker.state !== 'activated') {
+		return;
+	}
+
 	const url = new URL(event.request.url);
 
 	/**

@@ -33,7 +33,10 @@ export class OfflineModeCache {
 		if (!response) {
 			response = await fetch(request);
 			if (response.ok) {
-				await this.cache.put(request, response.clone());
+				//@ts-ignore
+				if (self.serviceWorker.state === 'activated') {
+					await this.cache.put(request, response.clone());
+				}
 			}
 		}
 
