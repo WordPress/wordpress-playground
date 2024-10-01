@@ -1,5 +1,5 @@
 import { isURLScoped } from '@php-wasm/scopes';
-import { uncachedFetch } from '@php-wasm/web-service-worker';
+import { fetchFresh } from '@php-wasm/web-service-worker';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -33,7 +33,7 @@ export class OfflineModeCache {
 		let response = await this.cache.match(request, { ignoreSearch: true });
 		// @TODO: this.cache.match() returns stale data even after the cache has been purged
 		if (!response) {
-			response = await uncachedFetch(request);
+			response = await fetchFresh(request);
 			if (response.ok) {
 				//@ts-ignore
 				if (self.serviceWorker.state === 'activated') {

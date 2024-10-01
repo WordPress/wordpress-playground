@@ -65,7 +65,7 @@ async function defaultRequestHandler(event: FetchEvent) {
 			credentials: 'omit',
 		});
 		// TODO: Is this necessary? Do we really want to bypass browser cache for all requests?
-		return uncachedFetch(request);
+		return fetchFresh(request);
 	}
 	return workerResponse;
 }
@@ -227,8 +227,8 @@ export async function cloneRequest(
  * @param init     Optional object containing custom settings.
  * @returns Promise<Response>
  */
-// TODO: Consider renaming to `fetchFresh`
-export function uncachedFetch(resource: RequestInfo | URL, init?: RequestInit) {
+// TODO: Consider renaming to clarify what kind of cache is being avoided
+export function fetchFresh(resource: RequestInfo | URL, init?: RequestInit) {
 	return fetch(resource, {
 		...init,
 		cache: 'no-cache',
