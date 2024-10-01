@@ -65,7 +65,7 @@ export class WebsitePage {
 			.innerText();
 	}
 
-	async openForkPlaygroundSettings() {
+	async openPlaygroundSettings() {
 		await this.ensureSiteManagerIsOpen();
 		const editSettingsButton = this.page.locator(
 			'button.components-button',
@@ -81,14 +81,24 @@ export class WebsitePage {
 		await phpVersionSelect.selectOption(version);
 	}
 
-	async clickSaveInForkPlaygroundSettings() {
+	async clickSaveInPlaygroundSettings() {
 		const saveSettingsButton = this.page.locator(
 			'button.components-button.is-primary',
 			{
-				hasText: 'Create',
+				hasText: 'Update',
 			}
 		);
 		await saveSettingsButton.click();
+	}
+
+	async confirmPlaygroundSettingsUpdate() {
+		const confirmSettingsUpdateButton = this.page.locator(
+			'button.components-button.is-primary',
+			{
+				hasText: 'Reset and update',
+			}
+		);
+		await confirmSettingsUpdateButton.click();
 	}
 
 	async selectWordPressVersion(version: string) {
