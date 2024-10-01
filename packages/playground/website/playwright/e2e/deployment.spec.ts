@@ -94,7 +94,20 @@ test(
 test('offline mode – the app should load even when the server goes offline', async ({
 	website,
 	page,
+	browserName,
 }) => {
+	test.skip(
+		browserName === 'webkit',
+		`Playwright creates ephemeral browser contexts for each test, which causes the ` +
+			`test to fail in Safari. Tl;dr Safari only allows OPFS access in regular, non-incognito ` +
+			`browser tabs. See https://github.com/microsoft/playwright/issues/18235`
+	);
+	test.skip(
+		browserName === 'firefox',
+		`Playground's offline mode doesn't work in Firefox yet. ` +
+			`See https://github.com/WordPress/wordpress-playground/issues/1645`
+	);
+
 	server!.switchToNewVersion();
 
 	await page.goto(`${url}`);

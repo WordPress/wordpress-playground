@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import http from 'http';
 import express from 'express';
 import path from 'path';
@@ -10,11 +11,11 @@ export async function startVersionSwitchingServer({
 }) {
 	const app = express();
 
-	if (
-		!path.isAbsolute(oldVersionDirectory) ||
-		!path.isAbsolute(newVersionDirectory)
-	) {
-		throw new Error('Error: Directories must be absolute paths.');
+	if (!path.isAbsolute(oldVersionDirectory)) {
+		oldVersionDirectory = path.resolve(oldVersionDirectory);
+	}
+	if (!path.isAbsolute(newVersionDirectory)) {
+		newVersionDirectory = path.resolve(newVersionDirectory);
 	}
 
 	let staticDirectory = oldVersionDirectory;
@@ -71,4 +72,25 @@ export async function startVersionSwitchingServer({
 			process.off('SIGTERM', sigtermHandler);
 		},
 	};
+}
+
+// @ts-ignore
+if (import.meta.url === import.meta.resolve(process.argv[1])) {
+	const [, , oldVersionDir, newVersionDir, port] = process.argv;
+
+	if (!oldVersionDir || !newVersionDir || !port) {
+		console.error(
+			'Usage: node version-switching-server.js <oldVersionDir> <newVersionDir> <port>'
+		);
+		process.exit(1);
+	}
+
+	const server = await startVersionSwitchingServer({
+		oldVersionDirectory: oldVersionDir,
+		newVersionDirectory: newVersionDir,
+		port: parseInt(port, 10),
+	});
+
+	server.switchToNewVersion();
+	console.log('Version switching server started');
 }

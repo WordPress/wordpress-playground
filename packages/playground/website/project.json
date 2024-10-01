@@ -172,7 +172,8 @@
 			"options": {
 				"commands": [
 					"export CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)",
-					"git fetch origin v0.9.0 && git checkout v0.9.0",
+					"git fetch origin v0.9.0",
+					"git checkout origin/v0.9.0",
 					"npm install",
 					"npm run build",
 					"PLAYGROUND_URL=http://localhost:7999 npx nx run playground-website:build:wasm-wordpress-net",
