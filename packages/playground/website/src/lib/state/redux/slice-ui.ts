@@ -23,19 +23,28 @@ const isEmbeddedInAnIframe = window.self !== window.top;
 // @TODO: Centralize these breakpoint sizes.
 const isMobile = window.innerWidth < 875;
 
+const shouldOpenSiteManagerByDefault = false;
+
 const initialState: UIState = {
 	activeModal:
 		query.get('modal') === 'mount-markdown-directory'
 			? 'mount-markdown-directory'
 			: null,
 	offline: !navigator.onLine,
-	// Open site manager for direct playground.wordpress.net visitors,
-	// unless they specifically request seamless mode.
-	// Don't default to the site manager on mobile, as that would mean
-	// seeing something that's not Playground filling your entire screen –
-	// quite a confusing experience.
+	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
+	// even if they seem redundant. We may experiment which toggling the manager
+	// to be open by default or closed by default, and we do not want to lose
+	// specific reasons for the manager to be closed.
 	siteManagerIsOpen:
-		query.get('mode') !== 'seamless' && !isEmbeddedInAnIframe && !isMobile,
+		shouldOpenSiteManagerByDefault &&
+		// The site manager should not be shown at all in seamless mode.
+		query.get('mode') !== 'seamless' &&
+		// We do not expect to render the Playground app UI in an iframe.
+		!isEmbeddedInAnIframe &&
+		// Don't default to the site manager on mobile, as that would mean
+		// seeing something that's not Playground filling your entire screen –
+		// quite a confusing experience.
+		!isMobile,
 };
 
 const uiSlice = createSlice({
