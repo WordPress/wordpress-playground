@@ -80,7 +80,7 @@ function Authenticate({
 	const storage = useActiveSite()?.metadata?.storage;
 
 	if (mayLoseProgress === undefined) {
-		mayLoseProgress = storage === 'none';
+		mayLoseProgress = storage === 'opfs-temporary';
 	}
 	const [exported, setExported] = useState(false);
 	const buttonClass = classNames(css.githubButton, {

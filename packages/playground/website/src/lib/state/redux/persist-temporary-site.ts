@@ -38,7 +38,7 @@ export function persistTemporarySite(
 
 		try {
 			const existingSiteInfo = await opfsSiteStorage?.read(siteInfo.slug);
-			if (existingSiteInfo?.metadata.storage === 'none') {
+			if (existingSiteInfo?.metadata.storage === 'opfs-temporary') {
 				// It is likely we are dealing with the remnants of a failed save
 				// of a temporary site to OPFS. Let's clean up an try again.
 				await opfsSiteStorage?.delete(siteInfo.slug);
@@ -52,10 +52,10 @@ export function persistTemporarySite(
 		}
 		await opfsSiteStorage?.create(siteInfo.slug, {
 			...siteInfo.metadata,
-			// Start with storage type of 'none' to represent a temporary site
+			// Start with storage type of 'opfs-temporary' to represent a temporary site
 			// that the site is being saved. This will help us distinguish
 			// between successful and failed saves.
-			storage: 'none',
+			storage: 'opfs-temporary',
 		});
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;

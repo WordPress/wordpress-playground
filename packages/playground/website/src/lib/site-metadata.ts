@@ -15,11 +15,8 @@ import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url'
  *
  * Is it possible to restrict this to those three values for all Playground runtimes?
  * Or should the runtime be allowed to use custom storage types?
- *
- * NOTE: We are using different storage terms than our query API in order
- * to be more explicit about storage medium in the site metadata format.
  */
-export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
+export const SiteStorageTypes = ['opfs-temporary', 'opfs', 'local-fs'] as const;
 export type SiteStorageType = (typeof SiteStorageTypes)[number];
 
 /**
@@ -39,6 +36,8 @@ export interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
+	// TODO: Don't store this in SiteMetadata.
+	isArchived?: boolean;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
@@ -78,7 +77,7 @@ export async function createSiteMetadata(
 		name,
 		id: crypto.randomUUID(),
 		whenCreated: Date.now(),
-		storage: 'none',
+		storage: 'opfs-temporary',
 		originalBlueprint: blueprint,
 
 		...remainingMetadata,

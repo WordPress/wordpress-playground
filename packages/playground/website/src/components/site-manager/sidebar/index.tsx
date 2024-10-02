@@ -102,12 +102,13 @@ export function Sidebar({
 								// eslint-disable-next-line jsx-a11y/aria-role
 								role=""
 								title={
-									site.metadata.storage === 'none'
-										? 'This is a temporary Playground. Your changes will be lost on page refresh.'
+									site.metadata.storage === 'opfs-temporary'
+										? 'This is a temporary Playground. It will be archived after a page refresh and deleted after 24 hours.'
 										: ''
 								}
 								icon={
-									site.metadata.storage === 'none' ? (
+									site.metadata.storage ===
+									'opfs-temporary' ? (
 										<TemporaryStorageIcon
 											className={
 												css.sidebarItemStorageIcon

@@ -8,6 +8,8 @@ import {
 	deriveSlugFromSiteName,
 	SiteInfo,
 	selectSiteBySlug,
+	deleteOutdatedArchivedSites,
+	archiveAllTemporarySites,
 } from '../../lib/state/redux/slice-sites';
 import { createSiteMetadata, SiteMetadata } from '../../lib/site-metadata';
 import {
@@ -35,13 +37,18 @@ export function EnsurePlaygroundSiteIsSelected({
 	const siteListingStatus = useAppSelector(
 		(state) => state.sites.loadingState
 	);
-	const sites = useAppSelector((state) => state.sites.entities);
 	const dispatch = useAppDispatch();
 	const url = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
+
+	useEffect(() => {
+		dispatch(deleteOutdatedArchivedSites());
+		dispatch(archiveAllTemporarySites());
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	useEffect(() => {
 		opfsSiteStorage?.list().then(
@@ -54,6 +61,28 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
+		async function createNewSiteInfo(
+			initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
+				metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
+			}
+		): Promise<SiteInfo> {
+			const { name: providedName, ...remainingMetadata } =
+				initialInfo.metadata || {};
+
+			const name = providedName || randomSiteName();
+
+			return {
+				slug: deriveSlugFromSiteName(name),
+
+				...initialInfo,
+
+				metadata: await createSiteMetadata({
+					name,
+					...remainingMetadata,
+				}),
+			};
+		}
+
 		async function ensureSiteIsSelected() {
 			// If the site slug is provided, try to load the site.
 			if (requestedSiteSlug) {
@@ -89,31 +118,20 @@ export function EnsurePlaygroundSiteIsSelected({
 			const url = new URL(window.location.href);
 			const blueprint = await resolveBlueprintFromURL(url);
 			const siteNameFromUrl = url.searchParams.get('name')?.trim();
-			const urlParams = {
-				searchParams: Object.fromEntries(url.searchParams.entries()),
-				hash: url.hash,
-			};
 			const newSiteInfo = await createNewSiteInfo({
 				metadata: {
 					name: siteNameFromUrl || undefined,
 					originalBlueprint: blueprint,
+					storage: 'opfs-temporary',
 				},
-				originalUrlParams: urlParams,
+				originalUrlParams: {
+					searchParams: Object.fromEntries(
+						url.searchParams.entries()
+					),
+					hash: url.hash,
+				},
 			});
 
-			// Check if there's an existing site that matches the requested
-			// specification exactly.
-			const existingSite = Object.values(sites).find(
-				(site) =>
-					JSON.stringify(site.originalUrlParams) ===
-					JSON.stringify(urlParams)
-			);
-			if (existingSite) {
-				dispatch(setActiveSite(existingSite.slug));
-				return;
-			}
-
-			// Create a new site otherwise
 			await dispatch(addSite(newSiteInfo));
 			dispatch(setActiveSite(newSiteInfo.slug));
 		}
@@ -129,24 +147,3 @@ export function EnsurePlaygroundSiteIsSelected({
  * The initial information used to create a new site.
  */
 export type InitialSiteInfo = Omit<SiteInfo, 'id' | 'slug' | 'whenCreated'>;
-async function createNewSiteInfo(
-	initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
-		metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
-	}
-): Promise<SiteInfo> {
-	const { name: providedName, ...remainingMetadata } =
-		initialInfo.metadata || {};
-
-	const name = providedName || randomSiteName();
-
-	return {
-		slug: deriveSlugFromSiteName(name),
-
-		...initialInfo,
-
-		metadata: await createSiteMetadata({
-			name,
-			...remainingMetadata,
-		}),
-	};
-}

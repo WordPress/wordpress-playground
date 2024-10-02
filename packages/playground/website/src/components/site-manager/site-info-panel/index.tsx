@@ -101,7 +101,7 @@ export function SiteInfoPanel({
 				[css.isMobile]: mobileUi,
 			})}
 		>
-			{site.metadata.storage === 'none' ? (
+			{site.metadata.storage === 'opfs-temporary' ? (
 				<TemporarySiteNotice className={css.siteNotice} />
 			) : null}
 			<Flex
@@ -421,7 +421,8 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 										/>
 									</FlexItem>
 
-									{site.metadata.storage === 'none' ? (
+									{site.metadata.storage ===
+									'opfs-temporary' ? (
 										<FlexItem
 											style={{
 												display: 'flex',
@@ -540,7 +541,7 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						justify="flex-start"
 					>
 						<FlexItem>
-							{site.metadata.storage === 'none' ? (
+							{site.metadata.storage === 'opfs-temporary' ? (
 								<StartSimilarSiteButton siteSlug={site.slug}>
 									{(onClick) => (
 										<Button

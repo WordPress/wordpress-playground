@@ -98,6 +98,43 @@ export function deriveSlugFromSiteName(name: string) {
 	return name.toLowerCase().replaceAll(' ', '-');
 }
 
+export function archiveAllTemporarySites() {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const temporarySites = selectTemporarySites(getState());
+		for (const site of temporarySites) {
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						isArchived: true,
+					},
+				})
+			);
+		}
+	};
+}
+
+export function deleteOutdatedArchivedSites() {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const archivedSites = selectArchivedSites(getState());
+		const dayAgo = Date.now() - 1000 * 60 * 60 * 24;
+		for (const site of archivedSites) {
+			if (
+				site.metadata.whenCreated &&
+				site.metadata.whenCreated < dayAgo
+			) {
+				await dispatch(removeSite(site.slug));
+			}
+		}
+	};
+}
+
 /**
  * Updates the site metadata in the OPFS and in the redux state.
  */
@@ -151,12 +188,7 @@ export function updateSite({
 			})
 		);
 		const updatedSite = selectSiteBySlug(getState(), slug);
-		if (updatedSite.metadata.storage !== 'none') {
-			await opfsSiteStorage?.update(
-				updatedSite.slug,
-				updatedSite.metadata
-			);
-		}
+		await opfsSiteStorage?.update(updatedSite.slug, updatedSite.metadata);
 	};
 }
 
@@ -171,9 +203,7 @@ export function addSite(siteInfo: SiteInfo) {
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		if (siteInfo.metadata.storage !== 'none') {
-			await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
-		}
+		await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
 		dispatch(sitesSlice.actions.addSite(siteInfo));
 	};
 }
@@ -191,9 +221,7 @@ export function removeSite(slug: string) {
 	) => {
 		const activeSite = selectActiveSite(getState());
 		const siteInfo = selectSiteBySlug(getState(), slug);
-		if (siteInfo.metadata.storage !== 'none') {
-			await opfsSiteStorage?.delete(siteInfo.slug);
-		}
+		await opfsSiteStorage?.delete(siteInfo.slug);
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
@@ -219,16 +247,33 @@ export const {
 export const selectSortedSites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) =>
-		sites.sort(
-			(a, b) =>
-				(b.metadata.whenCreated || 0) - (a.metadata.whenCreated || 0)
-		)
+		sites
+			.filter((site) => !site.metadata.isArchived)
+			.sort(
+				(a, b) =>
+					(b.metadata.whenCreated || 0) -
+					(a.metadata.whenCreated || 0)
+			)
+);
+
+export const selectArchivedSites = createSelector(
+	[selectAllSites],
+	(sites: SiteInfo[]) =>
+		sites
+			.filter((site) => site.metadata.isArchived)
+			.sort(
+				(a, b) =>
+					(b.metadata.whenCreated || 0) -
+					(a.metadata.whenCreated || 0)
+			)
 );
 
 export const selectTemporarySites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) => {
-		return sites.filter((site) => site.metadata.storage === 'none');
+		return sites.filter(
+			(site) => site.metadata.storage === 'opfs-temporary'
+		);
 	}
 );
 
