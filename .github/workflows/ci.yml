@@ -61,7 +61,6 @@ jobs:
               with:
                   name: playwright-dist
                   path: dist.zip
-
     test-e2e-playwright:
         runs-on: ubuntu-latest
         needs: [test-e2e-playwright-prepare]
@@ -81,9 +80,12 @@ jobs:
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.part }} --with-deps
             - name: Run Playwright tests - ${{ matrix.part }}
-              run: sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
-              env:
-                  HOME: /root
+              run: |
+                  if [ "${{ matrix.part }}" = "firefox" ]; then
+                    sudo -E HOME=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  else
+                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  fi
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
