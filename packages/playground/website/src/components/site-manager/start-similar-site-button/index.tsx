@@ -93,7 +93,7 @@ export function StartSimilarSiteButton({
 			</ConfirmDialog>
 			{isModalOpen && (
 				<Modal
-					title="Edit Playground setting"
+					title="Edit Playground settings"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm
