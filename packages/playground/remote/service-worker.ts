@@ -14,8 +14,11 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
-
-import { OfflineModeCache } from './src/lib/offline-mode-cache';
+import {
+	cachedFetch,
+	cacheOfflineModeAssetsForCurrentRelease,
+	purgeEverythingFromPreviousRelease,
+} from './src/lib/offline-mode-cache';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -29,8 +32,8 @@ if (!(self as any).document) {
 /**
  * Forces the browser to always use the latest service worker.
  *
- * Each service worker build contains a hardcoded `buildVersion` used a cache key
- * for OfflineModeCache. As long as the previous service worker is used, it will
+ * Each service worker build contains a hardcoded `buildVersion` used to derive a cache key
+ * for offline-mode-cache. As long as the previous service worker is used, it will
  * keep serving a stale version of Playground assets, e.g. `/index.html`, `php.wasm`, etc.
  *
  * This is problematic for two reasons:
@@ -103,9 +106,8 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(
 		(async function doActivate() {
 			await self.clients.claim();
-			const cache = await offlineCachePromise;
-			await cache.purgeEverythingFromPreviousRelease();
-			cache.cacheOfflineModeAssetsForCurrentRelease();
+			await purgeEverythingFromPreviousRelease();
+			cacheOfflineModeAssetsForCurrentRelease();
 
 			// Reload all clients that were controlled by the previous service worker
 			// so they can load the new version of the app without any stale assets
@@ -182,14 +184,10 @@ self.addEventListener('fetch', (event) => {
 	 * Respond with cached assets if available.
 	 * If the asset is not cached, fetch it from the network and cache it.
 	 */
-	event.respondWith(
-		offlineCachePromise.then((cache) => cache.cachedFetch(event.request))
-	);
+	event.respondWith(cachedFetch(event.request));
 });
 
 reportServiceWorkerMetrics(self);
-
-const offlineCachePromise = OfflineModeCache.getInstance();
 
 initializeServiceWorker({
 	handleRequest(event) {
