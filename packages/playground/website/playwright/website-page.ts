@@ -28,7 +28,7 @@ export class WebsitePage {
 		if (!(await siteManagerHeading.isVisible({ timeout: 5000 }))) {
 			await this.page.getByLabel('Open Site Manager').click();
 		}
-		await expect(siteManagerHeading).not.toBeVisible();
+		await expect(siteManagerHeading).toBeVisible();
 	}
 
 	async ensureSiteViewIsExpanded() {
@@ -111,11 +111,5 @@ export class WebsitePage {
 		} else {
 			await checkbox.uncheck();
 		}
-	}
-
-	async hasNetworkingEnabled() {
-		await expect(
-			this.getSiteInfoRowLocator('Network access')
-		).toContainText('Yes');
 	}
 }

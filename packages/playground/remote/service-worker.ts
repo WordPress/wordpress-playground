@@ -141,37 +141,16 @@ if (!(self as any).document) {
  * [1] https://web.dev/articles/service-worker-lifecycle#updates
  */
 self.addEventListener('install', (event) => {
-	/**
-	 * Skip over the "waiting" lifecycle state, to ensure that our
-	 * new service worker is activated as soon as possible while respecting user data.
-	 */
-	event.waitUntil(
-		self.clients
-			.matchAll({
-				type: 'window',
-			})
-			.then((windowClients) => {
-				const clientsThatCanBeSafelyRefreshed = windowClients.filter(
-					() => {
-						// @TODO: Only if we're running a version of Playground that
-						//        stores temporary sites in OPFS. Otherwise we'd
-						//        destroy the user's in-memory changes.
-						return true;
-					}
-				);
-
-				if (
-					clientsThatCanBeSafelyRefreshed.length ===
-					windowClients.length
-				) {
-					self.skipWaiting();
-				}
-			})
-	);
+	event.waitUntil(self.skipWaiting());
 });
 
 /**
- * Ensures the very first Playground load is controlled by this service worker.
+ * Ensures:
+ *
+ * * The very first Playground load is controlled by this service worker.
+ * * Other browser tabs are upgraded to the latest service worker.
+ *
+ * ## Initial load
  *
  * This is necessary because service workers don't control any pages loaded
  * before they are activated. This includes the page that actually registers
@@ -187,49 +166,60 @@ self.addEventListener('install', (event) => {
  * registration. It shouldn't have unwanted side effects in our case. All these
  * pages would get controlled eventually anyway.
  *
+ * ## Upgrading other browser tabs
+ *
+ * This activation hook upgrades all the Playground browser tabs to the latest
+ * service worker version, and that service worker upgrades them the latest version
+ * of the webapp.
+ *
+ * The moment a new Playground version is deployed, the existing browser tabs
+ * won't be able to load assets from the network. The older Playground version
+ * they're running contains hardcoded URLs to assets that no longer exist on
+ * the server.
+ *
  * See:
  * * The service worker lifecycle https://web.dev/articles/service-worker-lifecycle
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
-	event.waitUntil(
-		(async function doActivate() {
-			await self.clients.claim();
+	async function doActivate() {
+		await self.clients.claim();
 
-			if (shouldCacheUrl(new URL(location.href))) {
-				await purgeEverythingFromPreviousRelease();
-				cacheOfflineModeAssetsForCurrentRelease();
+		if (shouldCacheUrl(new URL(location.href))) {
+			await purgeEverythingFromPreviousRelease();
+			cacheOfflineModeAssetsForCurrentRelease();
+		}
+
+		// Reload all clients that were controlled by the previous service worker
+		// so they can load the new version of the app without any stale assets
+		// whatsoever.
+		const windowClients = await self.clients.matchAll({
+			type: 'window',
+			includeUncontrolled: true,
+		});
+
+		for (const client of windowClients) {
+			let url;
+			try {
+				url = new URL(client.url);
+			} catch (e) {
+				// Ignore
+				return;
 			}
 
-			// Reload all clients that were controlled by the previous service worker
-			// so they can load the new version of the app without any stale assets
-			// whatsoever.
-			const windowClients = await self.clients.matchAll({
-				type: 'window',
-				includeUncontrolled: true,
-			});
+			if (
+				url.pathname.startsWith('/remote.html') ||
+				url.pathname.startsWith('/scope:')
+			) {
+				return;
+			}
 
-			windowClients.map((client) => {
-				let url;
-				try {
-					url = new URL(client.url);
-				} catch (e) {
-					// Ignore
-					return;
-				}
-
-				if (
-					url.pathname.startsWith('/remote.html') ||
-					url.pathname.startsWith('/scope:')
-				) {
-					return;
-				}
-				// @TODO: Only clients that were snatched from the previous
-				//        service worker.
-				return client.navigate(client.url);
-			});
-		})()
-	);
+			// @TODO: Store temporary sites in OPFS to avoid destroying in-memory
+			// changes in tabs that are already open.
+			client.navigate(client.url);
+		}
+	}
+	event.waitUntil(doActivate());
 });
 
 self.addEventListener('fetch', (event) => {
@@ -251,11 +241,6 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	/**
-	 * Don't cache requests to scoped URLs or if the referrer URL is scoped.
-	 *
-	 * These requests are made to the PHP Worker Thread and are not static assets.
-	 */
 	if (isURLScoped(url)) {
 		return event.respondWith(handleScopedRequest(event, getURLScope(url)!));
 	}
@@ -286,11 +271,7 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	/**
-	 * A regular static asset request.
-	 * Respond with cached assets if available.
-	 * If the asset is not cached, fetch it from the network and cache it.
-	 */
+	// Use Cache Only strategy to serve regular static assets.
 	return event.respondWith(cachedFetch(event.request));
 });
 
