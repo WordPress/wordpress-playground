@@ -10,6 +10,7 @@ import css from './style.module.css';
 import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary-site';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
+import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
 
 export function SitePersistButton({
 	siteSlug,
@@ -29,6 +30,7 @@ export function SitePersistButton({
 			<>
 				<DropdownMenu trigger={children}>
 					<DropdownMenuItem
+						disabled={!isOpfsAvailable}
 						onClick={() =>
 							dispatch(persistTemporarySite(siteSlug, 'opfs'))
 						}
@@ -36,6 +38,13 @@ export function SitePersistButton({
 						<DropdownMenuItemLabel>
 							Save in this browser
 						</DropdownMenuItemLabel>
+						{!isOpfsAvailable && (
+							<DropdownMenuItemHelpText>
+								{localFsAvailability === 'not-available'
+									? 'Not available in this browser'
+									: 'Not available on this site'}
+							</DropdownMenuItemHelpText>
+						)}
 					</DropdownMenuItem>
 					<DropdownMenuItem
 						disabled={localFsAvailability !== 'available'}

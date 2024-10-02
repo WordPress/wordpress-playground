@@ -189,6 +189,8 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 	? new OpfsSiteStorage(opfsSitesRoot)
 	: undefined;
 
+export const isOpfsAvailable = !!opfsSiteStorage;
+
 export function getDirectoryPathForSlug(slug: string) {
 	return joinPaths(ROOT_PATH, getDirectoryNameForSlug(slug));
 }
