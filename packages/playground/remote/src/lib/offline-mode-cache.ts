@@ -31,8 +31,7 @@ export async function cachedFetch(request: Request): Promise<Response> {
 			 * from a stale worker has no benefits. It only takes
 			 * up space.
 			 */
-			// @ts-ignore
-			if (self.serviceWorker.state === 'activated') {
+			if (isCurrentServiceWorkerActive()) {
 				await offlineModeCache.put(request, response.clone());
 			}
 		}
@@ -67,7 +66,7 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
 		(url: string) => new Request(url, { cache: 'no-cache' })
 	);
 	const offlineModeCache = await promisedOfflineModeCache;
-	await offlineModeCache.addAll([...websiteRequests, ...['/']]);
+	await offlineModeCache.addAll(websiteRequests);
 }
 
 /**
@@ -156,4 +155,14 @@ function fetchFresh(resource: RequestInfo | URL, init?: RequestInit) {
 		...init,
 		cache: 'no-cache',
 	});
+}
+
+export function isCurrentServiceWorkerActive() {
+	// @ts-ignore
+	// Firefox doesn't support serviceWorker.state
+	if (!('serviceWorker' in self) || !('state' in self.serviceWorker)) {
+		return true;
+	}
+	// @ts-ignore
+	return self.serviceWorker.state === 'activated';
 }

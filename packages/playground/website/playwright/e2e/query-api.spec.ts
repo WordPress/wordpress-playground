@@ -35,7 +35,7 @@ test('should load WordPress 6.3 when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?wp=6.3&url=/wp-admin');
+	await website.goto('./?wp=6.3&url=/wp-admin/');
 	await expect(wordpress.locator(`body.branch-6-3`)).toContainText(
 		'Dashboard'
 	);

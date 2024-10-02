@@ -12,10 +12,18 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
-	await website.goto('./?url=/wp-admin');
-
+	await website.goto('./?url=/wp-admin/');
 	await website.ensureSiteViewIsExpanded();
+	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
+		'/wp-admin/'
+	);
+});
 
+test('should correctly load /wp-admin without the trailing slash', async ({
+	website,
+}) => {
+	await website.goto('./?url=/wp-admin');
+	await website.ensureSiteViewIsExpanded();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
 	);

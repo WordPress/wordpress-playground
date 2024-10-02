@@ -106,6 +106,7 @@ import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 import {
 	cachedFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
+	isCurrentServiceWorkerActive,
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
@@ -223,7 +224,7 @@ self.addEventListener('activate', function (event) {
 });
 
 self.addEventListener('fetch', (event) => {
-	if (self.serviceWorker.state !== 'activated') {
+	if (!isCurrentServiceWorkerActive()) {
 		return;
 	}
 
