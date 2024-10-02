@@ -11,7 +11,9 @@ export const test = base.extend<WordPressFixtures>({
 		const wpPage = page
 			/* There are multiple viewports possible, so we need to select
 			   the one that is visible. */
-			.frameLocator('.playground-viewport:visible')
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
 			.frameLocator('#wp');
 		await use(wpPage);
 	},
