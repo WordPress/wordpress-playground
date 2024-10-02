@@ -1,4 +1,4 @@
-import { cloneRequest, getRequestHeaders } from './initialize-service-worker';
+import { cloneRequest, getRequestHeaders } from './utils';
 
 describe('cloneRequest', () => {
 	it('should clone request headers', async () => {

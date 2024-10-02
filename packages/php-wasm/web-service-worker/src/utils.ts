@@ -4,72 +4,6 @@ declare const self: ServiceWorkerGlobalScope;
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 
-/**
- * Run this function in the service worker to install the required event
- * handlers.
- *
- * @param  config
- */
-export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
-	const { handleRequest = defaultRequestHandler } = config;
-
-	/**
-	 * The main method. It captures the requests and loop them back to the
-	 * Worker Thread using the Loopback request
-	 */
-	self.addEventListener('fetch', (event) => {
-		const url = new URL(event.request.url);
-
-		// Don't handle requests to the service worker script itself.
-		if (url.pathname.startsWith(self.location.pathname)) {
-			return;
-		}
-
-		// Only handle requests from scoped sites.
-		// So – bale out if the request URL is not scoped and the
-		// referrer URL is not scoped.
-		if (!isURLScoped(url)) {
-			let referrerUrl;
-			try {
-				referrerUrl = new URL(event.request.referrer);
-			} catch (e) {
-				return;
-			}
-			if (!isURLScoped(referrerUrl)) {
-				// Let the browser handle uncoped requests as is.
-				return;
-			}
-		}
-		const responsePromise = handleRequest(event);
-		if (responsePromise) {
-			event.respondWith(responsePromise);
-		}
-	});
-}
-
-async function defaultRequestHandler(event: FetchEvent) {
-	event.preventDefault();
-	const url = new URL(event.request.url);
-	const workerResponse = await convertFetchEventToPHPRequest(event);
-	if (
-		workerResponse.status === 404 &&
-		(workerResponse.headers.get('x-backfill-from') === 'remote-host' ||
-			// TODO: Remove this once it become clear we aren't reverting
-			// request routing changes
-			workerResponse.headers.get('x-file-type') === 'static')
-	) {
-		const request = await cloneRequest(event.request, {
-			url,
-			// Omit credentials to avoid causing cache aborts due to presence of
-			// cookies
-			credentials: 'omit',
-		});
-		// TODO: Is this necessary? Do we really want to bypass browser cache for all requests?
-		return fetchFresh(request);
-	}
-	return workerResponse;
-}
-
 export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	let url = new URL(event.request.url);
 
@@ -179,10 +113,6 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 	return requestId;
 }
 
-interface ServiceWorkerConfiguration {
-	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
-}
-
 /**
  * Copy a request with custom overrides.
  *
@@ -217,21 +147,6 @@ export async function cloneRequest(
 		redirect: request.redirect,
 		integrity: request.integrity,
 		...overrides,
-	});
-}
-
-/**
- * Fetches a resource and avoids stale responses from browser cache.
- *
- * @param resource The resource to fetch.
- * @param init     Optional object containing custom settings.
- * @returns Promise<Response>
- */
-// TODO: Consider renaming to clarify what kind of cache is being avoided
-export function fetchFresh(resource: RequestInfo | URL, init?: RequestInit) {
-	return fetch(resource, {
-		...init,
-		cache: 'no-cache',
 	});
 }
 
