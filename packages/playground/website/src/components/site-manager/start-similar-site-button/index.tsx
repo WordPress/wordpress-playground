@@ -1,14 +1,14 @@
-import {
-	Modal,
-	__experimentalConfirmDialog as ConfirmDialog,
-} from '@wordpress/components';
+import { Modal, Button, Flex, FlexItem } from '@wordpress/components';
 import { useMemo, useState } from 'react';
-import { useAppSelector } from '../../../lib/state/redux/store';
+import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
-import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
+import {
+	removeSite,
+	selectSiteBySlug,
+} from '../../../lib/state/redux/slice-sites';
 import { redirectTo, PlaygroundRoute } from '../../../lib/state/url/router';
 import { randomSiteName } from '../../../lib/state/redux/random-site-name';
-
+import css from './style.module.css';
 export function StartSimilarSiteButton({
 	siteSlug,
 	children,
@@ -23,6 +23,7 @@ export function StartSimilarSiteButton({
 		selectSiteBySlug(state, siteSlug)
 	)!;
 	const [isModalOpen, setModalOpen] = useState(false);
+	const dispatch = useAppDispatch();
 	const updateSite = async (data: SiteFormData) => {
 		redirectTo(
 			PlaygroundRoute.newTemporarySite({
@@ -40,19 +41,28 @@ export function StartSimilarSiteButton({
 				},
 			})
 		);
-		// @TODO: Display a notification of updated site or forked site
-		setModalOpen(false);
+		setConfirmDialogSiteFormData(false);
+	};
+	const resetSite = async (data: SiteFormData) => {
+		/**
+		 * Resetting requires site removal
+		 * to free up the site slug for reuse.
+		 */
+		await dispatch(removeSite(siteSlug));
+		await updateSite(data);
+	};
+	const cloneSite = async (data: SiteFormData) => {
+		/**
+		 * Cloning requires a new name
+		 * to not interfere with the original site slug.
+		 */
+		await updateSite({ ...data, name: randomSiteName() });
 	};
 	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
 		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
 		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
 		return {
-			// @TODO: Choose one:
-			// - Populate with the site name from the original URL params and
-			//   when the site is saved, update it instead of creating a new temp site.
-			// - Fork existing site and populate with new random name.
-			// - Allow user to choose between Fork and Edit operations
-			name: randomSiteName(),
+			name: siteInfo.metadata.name,
 			phpVersion: runtimeConf?.preferredVersions?.php as any,
 			wpVersion: runtimeConf?.preferredVersions?.wp as any,
 			withNetworking: runtimeConf?.features?.networking,
@@ -69,28 +79,67 @@ export function StartSimilarSiteButton({
 	return (
 		<div>
 			{children(() => setModalOpen(true))}
-			<ConfirmDialog
-				isOpen={!!confirmDialogSiteFormData}
-				onConfirm={() =>
-					updateSite(confirmDialogSiteFormData as SiteFormData)
-				}
-				onCancel={() => setConfirmDialogSiteFormData(false)}
-				title="Confirm Playground settings update"
-				confirmButtonText="Reset and update"
-			>
-				<p>
-					By updating Playground settings on a temporary site, <br />
-					you will reset the Playground and lose all changes you made
-					<br />
-					previously.
-				</p>
-				<p>
-					If you want to keep the changes you made previously, <br />
-					you can cancel this dialog, Click Save in Playground details{' '}
-					<br />
-					and update settings after the site is saved.
-				</p>
-			</ConfirmDialog>
+			{!!confirmDialogSiteFormData && (
+				<Modal
+					onRequestClose={() => setConfirmDialogSiteFormData(false)}
+					title="Confirm Playground settings update"
+				>
+					<p>
+						By updating Playground settings on a temporary site,{' '}
+						<br />
+						you will reset the Playground and lose all changes you
+						made
+						<br />
+						previously.
+					</p>
+					<p>
+						If you want to keep the changes you made previously,{' '}
+						<br />
+						you can cancel this dialog, Click Save in Playground
+						details <br />
+						and update settings after the site is saved.
+					</p>
+					<Flex direction="column">
+						<FlexItem>
+							<Button
+								variant="primary"
+								className={css.confirmDialogButton}
+								onClick={() =>
+									resetSite(
+										confirmDialogSiteFormData as SiteFormData
+									)
+								}
+							>
+								Update settings and reset content
+							</Button>
+						</FlexItem>
+						<FlexItem>
+							<Button
+								variant="secondary"
+								className={css.confirmDialogButton}
+								onClick={() =>
+									cloneSite(
+										confirmDialogSiteFormData as SiteFormData
+									)
+								}
+							>
+								Update settings and clone site
+							</Button>
+						</FlexItem>
+						<FlexItem>
+							<Button
+								variant="tertiary"
+								className={css.confirmDialogButton}
+								onClick={() =>
+									setConfirmDialogSiteFormData(false)
+								}
+							>
+								Cancel
+							</Button>
+						</FlexItem>
+					</Flex>
+				</Modal>
+			)}
 			{isModalOpen && (
 				<Modal
 					title="Edit Playground settings"
