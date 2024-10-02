@@ -56,7 +56,13 @@ for (const cachingEnabled of [true, false]) {
 test(
 	'When a new website version is deployed while the old version is still opened in two browser tabs, ' +
 		'both tabs should be upgraded to the new app version upon a regular page refresh',
-	async ({ website, page, browser }) => {
+	async ({ website, page, browser, browserName }) => {
+		test.skip(
+			browserName === 'webkit',
+			`Playwright creates separate ephemeral browser contexts for each Safari page, ` +
+				`which means they don't actually share the service worker and the first tab won't` +
+				`be refreshed when the second tab updates its service worker registration.`
+		);
 		await page.goto(url);
 		await website.waitForNestedIframes();
 		await expect(page).toHaveScreenshot('website-old.png', {

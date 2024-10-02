@@ -28,7 +28,7 @@ export class WebsitePage {
 		if (!(await siteManagerHeading.isVisible({ timeout: 5000 }))) {
 			await this.page.getByLabel('Open Site Manager').click();
 		}
-		expect(await siteManagerHeading.isVisible()).toBeTruthy();
+		await expect(siteManagerHeading).not.toBeVisible();
 	}
 
 	async ensureSiteViewIsExpanded() {
@@ -38,7 +38,7 @@ export class WebsitePage {
 		}
 
 		const siteManagerHeading = this.page.getByText('Your Playgrounds');
-		expect(await siteManagerHeading.isVisible()).toBeFalsy();
+		await expect(siteManagerHeading).not.toBeVisible();
 	}
 
 	async openNewSiteModal() {
@@ -100,7 +100,7 @@ export class WebsitePage {
 		await wordpressVersionSelect.selectOption(version);
 	}
 
-	async getSiteInfoRowLocator(key: string): Promise<Locator> {
+	getSiteInfoRowLocator(key: string) {
 		return this.page.getByLabel(key);
 	}
 
@@ -113,10 +113,9 @@ export class WebsitePage {
 		}
 	}
 
-	async hasNetworkingEnabled(): Promise<boolean> {
-		const networkAccessText = await (
-			await this.getSiteInfoRowLocator('Network access')
-		).innerText();
-		return networkAccessText === 'Yes';
+	async hasNetworkingEnabled() {
+		await expect(
+			this.getSiteInfoRowLocator('Network access')
+		).toContainText('Yes');
 	}
 }

@@ -45,9 +45,8 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
 	}
 
 	// Get the cache manifest and add all the files to the cache
-	const manifestResponse = await fetch(
-		'/assets-required-for-offline-mode.json',
-		{ cache: 'no-store' }
+	const manifestResponse = await fetchFresh(
+		'/assets-required-for-offline-mode.json'
 	);
 	const requiredOfflineAssetUrls = await manifestResponse.json();
 	const urlsToCache = ['/', ...requiredOfflineAssetUrls];
