@@ -254,10 +254,10 @@ initializeServiceWorker({
 						// happen on playground.wordpress.net. Let's add a randomized
 						// delay and retry once
 						return new Promise((resolve) => {
-							setTimeout(() => {
-								// @TODO: Make shared uncachedFetch() function and use that
-								resolve(fetchFresh(request));
-							}, Math.random() * 1500);
+							setTimeout(
+								() => resolve(fetchFresh(request)),
+								Math.random() * 1500
+							);
 						}) as Promise<Response>;
 					}
 
