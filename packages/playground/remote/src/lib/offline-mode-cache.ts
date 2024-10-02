@@ -19,7 +19,6 @@ export async function cachedFetch(request: Request): Promise<Response> {
 	let response = await offlineModeCache.match(request, {
 		ignoreSearch: true,
 	});
-	// @TODO: offlineModeCache.match() returns stale data even after the cache has been purged
 	if (!response) {
 		response = await fetchFresh(request);
 		if (response.ok) {
@@ -77,7 +76,16 @@ export async function purgeEverythingFromPreviousRelease() {
 	const oldKeys = keys.filter(
 		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
 	);
-	return Promise.all(oldKeys.map((key) => caches.delete(key)));
+	const promisesToPurgeOldCaches = oldKeys.map(async (oldKey) => {
+		const oldCache = await caches.open(oldKey);
+		await caches.delete(oldKey);
+
+		// We delete individual cached entries so references to the deleted
+		// cache can no longer access stale data.
+		const oldCacheKeys = await oldCache.keys();
+		return Promise.all(oldCacheKeys.map((entry) => oldCache.delete(entry)));
+	});
+	return Promise.all(promisesToPurgeOldCaches);
 }
 
 /**
