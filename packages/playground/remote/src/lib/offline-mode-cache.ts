@@ -19,7 +19,6 @@ export async function cachedFetch(request: Request): Promise<Response> {
 	let response = await offlineModeCache.match(request, {
 		ignoreSearch: true,
 	});
-	// @TODO: offlineModeCache.match() returns stale data even after the cache has been purged
 	if (!response) {
 		response = await fetchFresh(request);
 		if (response.ok) {
