@@ -80,10 +80,10 @@ jobs:
               run: unzip dist.zip
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.part }} --with-deps
-            - name: Set env
-              run: echo "HOME=/root" >> $GITHUB_ENV
             - name: Run Playwright tests - ${{ matrix.part }}
               run: sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+              env:
+                  HOME: /root
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
