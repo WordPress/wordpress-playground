@@ -4413,7 +4413,7 @@ const savePost = (options = {}) => async ({
     });
   }
   const previousRecord = select.getCurrentPost();
-  const edits = {
+  let edits = {
     id: previousRecord.id,
     ...registry.select(external_wp_coreData_namespaceObject.store).getEntityRecordNonTransientEdits('postType', previousRecord.type, previousRecord.id),
     content
@@ -4424,7 +4424,7 @@ const savePost = (options = {}) => async ({
   });
   let error = false;
   try {
-    error = await (0,external_wp_hooks_namespaceObject.applyFilters)('editor.__unstablePreSavePost', Promise.resolve(false), options);
+    edits = await (0,external_wp_hooks_namespaceObject.applyFiltersAsync)('editor.preSavePost', edits, options);
   } catch (err) {
     error = err;
   }
@@ -4438,10 +4438,21 @@ const savePost = (options = {}) => async ({
   if (!error) {
     error = registry.select(external_wp_coreData_namespaceObject.store).getLastEntitySaveError('postType', previousRecord.type, previousRecord.id);
   }
+
+  // Run the hook with legacy unstable name for backward compatibility
   if (!error) {
-    await (0,external_wp_hooks_namespaceObject.applyFilters)('editor.__unstableSavePost', Promise.resolve(), options).catch(err => {
+    try {
+      await (0,external_wp_hooks_namespaceObject.applyFilters)('editor.__unstableSavePost', Promise.resolve(), options);
+    } catch (err) {
       error = err;
-    });
+    }
+  }
+  if (!error) {
+    try {
+      await (0,external_wp_hooks_namespaceObject.doActionAsync)('editor.savePost', options);
+    } catch (err) {
+      error = err;
+    }
   }
   dispatch({
     type: 'REQUEST_POST_UPDATE_FINISH',
@@ -7239,14 +7250,11 @@ function DropdownHeader({
         level: 2,
         size: 13,
         children: title
-      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalSpacer, {}), onClose && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-      // TODO: Switch to `true` (40px size) if possible
-      , {
-        __next40pxDefaultSize: false,
-        className: "dataforms-layouts-panel__dropdown-header-action",
+      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalSpacer, {}), onClose && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
         label: (0,external_wp_i18n_namespaceObject.__)('Close'),
         icon: close_small,
-        onClick: onClose
+        onClick: onClose,
+        size: "small"
       })]
     })
   });
@@ -8741,15 +8749,12 @@ function ControlsWithStoreSubscription(props) {
     isEditingSyncedPattern
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
-      getBlockBindingsSource
-    } = unlock(select(external_wp_blocks_namespaceObject.store));
-    const {
       getCurrentPostType,
       getEditedPostAttribute
     } = select(store_store);
     return {
       // For editing link to the site editor if the theme and user permissions support it.
-      hasPatternOverridesSource: !!getBlockBindingsSource('core/pattern-overrides'),
+      hasPatternOverridesSource: !!(0,external_wp_blocks_namespaceObject.getBlockBindingsSource)('core/pattern-overrides'),
       isEditingSyncedPattern: getCurrentPostType() === pattern_overrides_PATTERN_TYPES.user && getEditedPostAttribute('meta')?.wp_pattern_sync_status !== PATTERN_SYNC_TYPES.unsynced && getEditedPostAttribute('wp_pattern_sync_status') !== PATTERN_SYNC_TYPES.unsynced
     };
   }, []);
@@ -11565,8 +11570,16 @@ function EntitiesSavedStatesExtensible({
       children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.FlexItem, {
         isBlock: true,
         as: external_wp_components_namespaceObject.Button,
+        variant: "secondary",
+        size: "compact",
+        onClick: dismissPanel,
+        children: (0,external_wp_i18n_namespaceObject.__)('Cancel')
+      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.FlexItem, {
+        isBlock: true,
+        as: external_wp_components_namespaceObject.Button,
         ref: saveButtonRef,
         variant: "primary",
+        size: "compact",
         disabled: !saveEnabled,
         accessibleWhenDisabled: true,
         onClick: () => saveDirtyEntities({
@@ -11577,12 +11590,6 @@ function EntitiesSavedStatesExtensible({
         }),
         className: "editor-entities-saved-states__save-button",
         children: saveLabel
-      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.FlexItem, {
-        isBlock: true,
-        as: external_wp_components_namespaceObject.Button,
-        variant: "secondary",
-        onClick: dismissPanel,
-        children: (0,external_wp_i18n_namespaceObject.__)('Cancel')
       })]
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("div", {
       className: "entities-saved-states__text-prompt",
@@ -18782,8 +18789,8 @@ function Image({
       scale: 0
     },
     style: {
-      width: '36px',
-      height: '36px',
+      width: '32px',
+      height: '32px',
       objectFit: 'cover',
       borderRadius: '2px',
       cursor: 'pointer'
@@ -18911,7 +18918,7 @@ function MaybeUploadMediaPanel() {
           }, block.clientId);
         })
       }), isUploading || isAnimating ? /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Spinner, {}) : /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
-        __next40pxDefaultSize: true,
+        size: "compact",
         variant: "primary",
         onClick: uploadImages,
         children: (0,external_wp_i18n_namespaceObject.__)('Upload')
@@ -24565,20 +24572,16 @@ const ExperimentalEditorProvider = with_registry_provider(({
     const postContext = {};
     // If it is a template, try to inherit the post type from the slug.
     if (post.type === 'wp_template') {
-      if (!post.is_custom) {
-        const [kind] = post.slug.split('-');
-        switch (kind) {
-          case 'page':
-            postContext.postType = 'page';
-            break;
-          case 'single':
-            // Infer the post type from the slug.
-            const postTypesSlugs = postTypes?.map(entity => entity.slug) || [];
-            const match = post.slug.match(`^single-(${postTypesSlugs.join('|')})(?:-.+)?$`);
-            if (match) {
-              postContext.postType = match[1];
-            }
-            break;
+      if (post.slug === 'page') {
+        postContext.postType = 'page';
+      } else if (post.slug === 'single') {
+        postContext.postType = 'post';
+      } else if (post.slug.split('-')[0] === 'single') {
+        // If the slug is single-{postType}, infer the post type from the slug.
+        const postTypesSlugs = postTypes?.map(entity => entity.slug) || [];
+        const match = post.slug.match(`^single-(${postTypesSlugs.join('|')})(?:-.+)?$`);
+        if (match) {
+          postContext.postType = match[1];
         }
       }
     } else if (!NON_CONTEXTUAL_POST_TYPES.includes(rootLevelPost.type) || shouldRenderTemplate) {
@@ -25992,6 +25995,7 @@ const tablet = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ext
 
 
 
+
 function PreviewDropdown({
   forceIsAutosaveable,
   disabled
@@ -26030,9 +26034,13 @@ function PreviewDropdown({
   const {
     __unstableSetEditorMode
   } = (0,external_wp_data_namespaceObject.useDispatch)(external_wp_blockEditor_namespaceObject.store);
+  const {
+    resetZoomLevel
+  } = unlock((0,external_wp_data_namespaceObject.useDispatch)(external_wp_blockEditor_namespaceObject.store));
   const handleDevicePreviewChange = newDeviceType => {
     setDeviceType(newDeviceType);
     __unstableSetEditorMode('edit');
+    resetZoomLevel();
   };
   const isMobile = (0,external_wp_compose_namespaceObject.useViewportMatch)('medium', '<');
   if (isMobile) {
@@ -26159,6 +26167,7 @@ const square = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ext
 
 
 
+
 /**
  * Internal dependencies
  */
@@ -26166,9 +26175,11 @@ const square = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ext
 
 const ZoomOutToggle = () => {
   const {
-    isZoomOut
+    isZoomOut,
+    showIconLabels
   } = (0,external_wp_data_namespaceObject.useSelect)(select => ({
-    isZoomOut: unlock(select(external_wp_blockEditor_namespaceObject.store)).isZoomOut()
+    isZoomOut: unlock(select(external_wp_blockEditor_namespaceObject.store)).isZoomOut(),
+    showIconLabels: select(external_wp_preferences_namespaceObject.store).get('core', 'showIconLabels')
   }));
   const {
     resetZoomLevel,
@@ -26188,7 +26199,8 @@ const ZoomOutToggle = () => {
     icon: library_square,
     label: (0,external_wp_i18n_namespaceObject.__)('Toggle Zoom Out'),
     isPressed: isZoomOut,
-    size: "compact"
+    size: "compact",
+    showTooltip: !showIconLabels
   });
 };
 /* harmony default export */ const zoom_out_toggle = (ZoomOutToggle);
@@ -29843,7 +29855,7 @@ const CONTENT = 'content';
 /* harmony default export */ const pattern_overrides = ({
   name: 'core/pattern-overrides',
   getValues({
-    registry,
+    select,
     clientId,
     context,
     bindings
@@ -29851,7 +29863,7 @@ const CONTENT = 'content';
     const patternOverridesContent = context['pattern/overrides'];
     const {
       getBlockAttributes
-    } = registry.select(external_wp_blockEditor_namespaceObject.store);
+    } = select(external_wp_blockEditor_namespaceObject.store);
     const currentBlockAttributes = getBlockAttributes(clientId);
     const overridesValues = {};
     for (const attributeName of Object.keys(bindings)) {
@@ -29869,7 +29881,8 @@ const CONTENT = 'content';
     return overridesValues;
   },
   setValues({
-    registry,
+    select,
+    dispatch,
     clientId,
     bindings
   }) {
@@ -29877,7 +29890,7 @@ const CONTENT = 'content';
       getBlockAttributes,
       getBlockParentsByBlockName,
       getBlocks
-    } = registry.select(external_wp_blockEditor_namespaceObject.store);
+    } = select(external_wp_blockEditor_namespaceObject.store);
     const currentBlockAttributes = getBlockAttributes(clientId);
     const blockName = currentBlockAttributes?.metadata?.name;
     if (!blockName) {
@@ -29898,7 +29911,7 @@ const CONTENT = 'content';
       const syncBlocksWithSameName = blocks => {
         for (const block of blocks) {
           if (block.attributes?.metadata?.name === blockName) {
-            registry.dispatch(external_wp_blockEditor_namespaceObject.store).updateBlockAttributes(block.clientId, attributes);
+            dispatch(external_wp_blockEditor_namespaceObject.store).updateBlockAttributes(block.clientId, attributes);
           }
           syncBlocksWithSameName(block.innerBlocks);
         }
@@ -29907,7 +29920,7 @@ const CONTENT = 'content';
       return;
     }
     const currentBindingValue = getBlockAttributes(patternClientId)?.[CONTENT];
-    registry.dispatch(external_wp_blockEditor_namespaceObject.store).updateBlockAttributes(patternClientId, {
+    dispatch(external_wp_blockEditor_namespaceObject.store).updateBlockAttributes(patternClientId, {
       [CONTENT]: {
         ...currentBindingValue,
         [blockName]: {
@@ -29938,47 +29951,87 @@ const CONTENT = 'content';
  */
 
 
-function getMetadata(registry, context, registeredFields) {
-  let metaFields = {};
-  const type = registry.select(store_store).getCurrentPostType();
+
+/**
+ * Gets a list of post meta fields with their values and labels
+ * to be consumed in the needed callbacks.
+ * If the value is not available based on context, like in templates,
+ * it falls back to the default value, label, or key.
+ *
+ * @param {Object} select  The select function from the data store.
+ * @param {Object} context The context provided.
+ * @return {Object} List of post meta fields with their value and label.
+ *
+ * @example
+ * ```js
+ * {
+ *     field_1_key: {
+ *         label: 'Field 1 Label',
+ *         value: 'Field 1 Value',
+ *     },
+ *     field_2_key: {
+ *         label: 'Field 2 Label',
+ *         value: 'Field 2 Value',
+ *     },
+ *     ...
+ * }
+ * ```
+ */
+function getPostMetaFields(select, context) {
   const {
     getEditedEntityRecord
-  } = registry.select(external_wp_coreData_namespaceObject.store);
+  } = select(external_wp_coreData_namespaceObject.store);
+  const {
+    getRegisteredPostMeta
+  } = unlock(select(external_wp_coreData_namespaceObject.store));
+  let entityMetaValues;
+  // Try to get the current entity meta values.
   if (context?.postType && context?.postId) {
-    metaFields = getEditedEntityRecord('postType', context?.postType, context?.postId).meta;
-  } else if (type === 'wp_template') {
-    // Populate the `metaFields` object with the default values.
-    Object.entries(registeredFields || {}).forEach(([key, props]) => {
-      if (props.default) {
-        metaFields[key] = props.default;
-      }
-    });
+    entityMetaValues = getEditedEntityRecord('postType', context?.postType, context?.postId).meta;
+  }
+  const registeredFields = getRegisteredPostMeta(context?.postType);
+  const metaFields = {};
+  Object.entries(registeredFields || {}).forEach(([key, props]) => {
+    // Don't include footnotes or private fields.
+    if (key !== 'footnotes' && key.charAt(0) !== '_') {
+      var _entityMetaValues$key;
+      metaFields[key] = {
+        label: props.title || key,
+        value: // When using the entity value, an empty string IS a valid value.
+        (_entityMetaValues$key = entityMetaValues?.[key]) !== null && _entityMetaValues$key !== void 0 ? _entityMetaValues$key :
+        // When using the default, an empty string IS NOT a valid value.
+        props.default || undefined
+      };
+    }
+  });
+  if (!Object.keys(metaFields || {}).length) {
+    return null;
   }
   return metaFields;
 }
 /* harmony default export */ const post_meta = ({
   name: 'core/post-meta',
   getValues({
-    registry,
+    select,
     context,
     bindings
   }) {
-    const {
-      getRegisteredPostMeta
-    } = unlock(registry.select(external_wp_coreData_namespaceObject.store));
-    const registeredFields = getRegisteredPostMeta(context?.postType);
-    const metaFields = getMetadata(registry, context, registeredFields);
+    const metaFields = getPostMetaFields(select, context);
     const newValues = {};
     for (const [attributeName, source] of Object.entries(bindings)) {
-      var _ref, _metaFields$metaKey;
+      var _ref;
       // Use the value, the field label, or the field key.
-      const metaKey = source.args.key;
-      newValues[attributeName] = (_ref = (_metaFields$metaKey = metaFields?.[metaKey]) !== null && _metaFields$metaKey !== void 0 ? _metaFields$metaKey : registeredFields?.[metaKey]?.title) !== null && _ref !== void 0 ? _ref : metaKey;
+      const fieldKey = source.args.key;
+      const {
+        value: fieldValue,
+        label: fieldLabel
+      } = metaFields?.[fieldKey] || {};
+      newValues[attributeName] = (_ref = fieldValue !== null && fieldValue !== void 0 ? fieldValue : fieldLabel) !== null && _ref !== void 0 ? _ref : fieldKey;
     }
     return newValues;
   },
   setValues({
-    registry,
+    dispatch,
     context,
     bindings
   }) {
@@ -29989,7 +30042,7 @@ function getMetadata(registry, context, registeredFields) {
     }) => {
       newMeta[args.key] = newValue;
     });
-    registry.dispatch(external_wp_coreData_namespaceObject.store).editEntityRecord('postType', context?.postType, context?.postId, {
+    dispatch(external_wp_coreData_namespaceObject.store).editEntityRecord('postType', context?.postType, context?.postId, {
       meta: newMeta
     });
   },
@@ -30008,10 +30061,8 @@ function getMetadata(registry, context, registeredFields) {
     if (postType === 'wp_template') {
       return false;
     }
-
-    // Check that the custom field is not protected and available in the REST API.
+    const fieldValue = getPostMetaFields(select, context)?.[args.key]?.value;
     // Empty string or `false` could be a valid value, so we need to check if the field value is undefined.
-    const fieldValue = select(external_wp_coreData_namespaceObject.store).getEntityRecord('postType', postType, context?.postId)?.meta?.[args.key];
     if (fieldValue === undefined) {
       return false;
     }
@@ -30033,25 +30084,10 @@ function getMetadata(registry, context, registeredFields) {
     return true;
   },
   getFieldsList({
-    registry,
+    select,
     context
   }) {
-    const {
-      getRegisteredPostMeta
-    } = unlock(registry.select(external_wp_coreData_namespaceObject.store));
-    const registeredFields = getRegisteredPostMeta(context?.postType);
-    const metaFields = getMetadata(registry, context, registeredFields);
-    if (!metaFields || !Object.keys(metaFields).length) {
-      return null;
-    }
-    return Object.fromEntries(Object.entries(metaFields)
-    // Remove footnotes or private keys from the list of fields.
-    .filter(([key]) => key !== 'footnotes' && key.charAt(0) !== '_')
-    // Return object with label and value.
-    .map(([key, value]) => [key, {
-      label: registeredFields?.[key]?.title || key,
-      value
-    }]));
+    return getPostMetaFields(select, context);
   }
 });
 
@@ -30080,11 +30116,8 @@ function getMetadata(registry, context, registeredFields) {
  * ```
  */
 function registerCoreBlockBindingsSources() {
-  const {
-    registerBlockBindingsSource
-  } = unlock(external_wp_blocks_namespaceObject.privateApis);
-  registerBlockBindingsSource(pattern_overrides);
-  registerBlockBindingsSource(post_meta);
+  (0,external_wp_blocks_namespaceObject.registerBlockBindingsSource)(pattern_overrides);
+  (0,external_wp_blocks_namespaceObject.registerBlockBindingsSource)(post_meta);
 }
 
 /**
