@@ -1,15 +1,17 @@
-import { Page, expect, Locator } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 export class WebsitePage {
 	constructor(public readonly page: Page) {}
 
 	// Wait for WordPress to load
-	async waitForNestedIframes() {
+	async waitForNestedIframes(page = this.page) {
 		await expect(
-			await this.page
+			page
 				/* There are multiple viewports possible, so we need to select
 				   the one that is visible. */
-				.frameLocator('.playground-viewport:visible')
+				.frameLocator(
+					'#playground-viewport:visible,.playground-viewport:visible'
+				)
 				.frameLocator('#wp')
 				.locator('body')
 		).not.toBeEmpty();
@@ -26,7 +28,7 @@ export class WebsitePage {
 		if (!(await siteManagerHeading.isVisible({ timeout: 5000 }))) {
 			await this.page.getByLabel('Open Site Manager').click();
 		}
-		expect(await siteManagerHeading.isVisible()).toBeTruthy();
+		await expect(siteManagerHeading).toBeVisible();
 	}
 
 	async ensureSiteViewIsExpanded() {
@@ -36,7 +38,7 @@ export class WebsitePage {
 		}
 
 		const siteManagerHeading = this.page.getByText('Your Playgrounds');
-		expect(await siteManagerHeading.isVisible()).toBeFalsy();
+		await expect(siteManagerHeading).not.toBeVisible();
 	}
 
 	async openNewSiteModal() {
@@ -98,7 +100,7 @@ export class WebsitePage {
 		await wordpressVersionSelect.selectOption(version);
 	}
 
-	async getSiteInfoRowLocator(key: string): Promise<Locator> {
+	getSiteInfoRowLocator(key: string) {
 		return this.page.getByLabel(key);
 	}
 
@@ -109,12 +111,5 @@ export class WebsitePage {
 		} else {
 			await checkbox.uncheck();
 		}
-	}
-
-	async hasNetworkingEnabled(): Promise<boolean> {
-		const networkAccessText = await (
-			await this.getSiteInfoRowLocator('Network access')
-		).innerText();
-		return networkAccessText === 'Yes';
 	}
 }

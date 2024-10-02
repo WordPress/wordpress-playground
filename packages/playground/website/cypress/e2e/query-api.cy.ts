@@ -36,7 +36,7 @@ describe('Query API', () => {
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?wp=6.3&url=/wp-admin');
+			cy.visit('/?wp=6.3&url=/wp-admin/');
 			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
 		});
 	});
