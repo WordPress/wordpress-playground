@@ -13,7 +13,7 @@ export const playwrightConfig: PlaywrightTestConfig = {
 	retries: 0,
 	workers: 3,
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
-	reporter: 'html',
+	reporter: [['html'], ['list', { printSteps: true }]],
 	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
