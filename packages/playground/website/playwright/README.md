@@ -2,6 +2,14 @@
 
 **Note:** We are currently migrating the e2e tests to [Playwright](https://playwright.dev/) from Cypress.
 
+## Install Playwright
+
+You first need to install Playwright to run the tests below:
+
+```bash
+npx playwright install --with-deps
+```
+
 ## Run tests
 
 Runs the end-to-end tests.
