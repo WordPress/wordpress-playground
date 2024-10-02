@@ -83,21 +83,17 @@ export function StartSimilarSiteButton({
 				<Modal
 					onRequestClose={() => setConfirmDialogSiteFormData(false)}
 					title="Confirm Playground settings update"
+					size="medium"
 				>
 					<p>
-						By updating Playground settings on a temporary site,{' '}
-						<br />
-						you will reset the Playground and lose all changes you
-						made
-						<br />
+						Clone will create a new temporary Playground with
+						updated settings and keep the changes you made
 						previously.
 					</p>
 					<p>
-						If you want to keep the changes you made previously,{' '}
-						<br />
-						you can cancel this dialog, Click Save in Playground
-						details <br />
-						and update settings after the site is saved.
+						Resetting will remove the Playground and all changes you
+						made previously and create a new Playground with the
+						updated settings.
 					</p>
 					<Flex direction="column">
 						<FlexItem>
@@ -110,7 +106,7 @@ export function StartSimilarSiteButton({
 									)
 								}
 							>
-								Update settings and reset content
+								Reset site and update settings
 							</Button>
 						</FlexItem>
 						<FlexItem>
@@ -123,7 +119,7 @@ export function StartSimilarSiteButton({
 									)
 								}
 							>
-								Update settings and clone site
+								Clone site with new settings
 							</Button>
 						</FlexItem>
 						<FlexItem>
