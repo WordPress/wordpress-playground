@@ -82,7 +82,7 @@ jobs:
             - name: Run Playwright tests - ${{ matrix.part }}
               run: |
                   if [ "${{ matrix.part }}" = "firefox" ]; then
-                    sudo -E HOME=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
                   else
                     sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
                   fi
