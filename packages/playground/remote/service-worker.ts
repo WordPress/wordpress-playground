@@ -53,8 +53,7 @@ if (!(self as any).document) {
 self.addEventListener('install', (event) => {
 	/**
 	 * Skip over the "waiting" lifecycle state, to ensure that our
-	 * new service worker is activated immediately when we only
-	 * have a single open tab.
+	 * new service worker is activated as soon as possible while respecting user data.
 	 */
 	event.waitUntil(
 		self.clients
