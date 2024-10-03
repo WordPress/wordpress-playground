@@ -40,7 +40,13 @@ export function parseBlueprint(rawData: string) {
 export class PlaygroundRoute {
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
 		if (site.metadata.storage === 'opfs-temporary') {
-			return updateUrl(baseUrl, site.originalUrlParams || {});
+			return updateUrl(baseUrl, {
+				...site.originalUrlParams,
+				searchParams: {
+					...site.originalUrlParams?.searchParams,
+					'temp-slug': site.slug,
+				},
+			});
 		} else {
 			return updateUrl(baseUrl, {
 				searchParams: { 'site-slug': site.slug },

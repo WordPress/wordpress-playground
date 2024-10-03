@@ -38,9 +38,10 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 	const dispatch = useAppDispatch();
 	const url = useCurrentUrl();
-	const requestedSiteSlug = url.searchParams.get('site-slug');
+	const requestedSlug =
+		url.searchParams.get('site-slug') || url.searchParams.get('temp-slug');
 	const requestedSiteObject = useAppSelector((state) =>
-		selectSiteBySlug(state, requestedSiteSlug!)
+		selectSiteBySlug(state, requestedSlug!)
 	);
 
 	useEffect(() => {
@@ -88,7 +89,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		async function ensureSiteIsSelected() {
 			// If the site slug is provided, try to load the site.
-			if (requestedSiteSlug) {
+			if (requestedSlug) {
 				// Wait until the site listing is loaded
 				if (siteListingStatus !== 'loaded') {
 					return;
@@ -103,7 +104,7 @@ export function EnsurePlaygroundSiteIsSelected({
 					redirectTo(PlaygroundRoute.newTemporarySite());
 					return;
 				}
-				dispatch(setActiveSite(requestedSiteSlug));
+				dispatch(setActiveSite(requestedSlug));
 				return;
 			}
 
@@ -141,7 +142,7 @@ export function EnsurePlaygroundSiteIsSelected({
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, requestedSiteSlug, siteListingStatus]);
+	}, [url.href, requestedSlug, siteListingStatus]);
 
 	return children;
 }
