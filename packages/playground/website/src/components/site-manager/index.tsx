@@ -1,14 +1,19 @@
 import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
-import { useAppDispatch, useActiveSite } from '../../lib/state/redux/store';
-import { removeSite } from '../../lib/state/redux/slice-sites';
+import {
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 
 import css from './style.module.css';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
-import { forwardRef, useState } from 'react';
-import { SiteInfo } from '../../lib/state/redux/slice-sites';
+import { forwardRef } from 'react';
+import { removeSite, SiteInfo } from '../../lib/state/redux/slice-sites';
+import { setSiteManagerSection } from '../../lib/state/redux/slice-ui';
+import { ArchivedSitesPanel } from './archived-sites-panel';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
@@ -16,53 +21,54 @@ export const SiteManager = forwardRef<
 		className?: string;
 	}
 >(({ className }, ref) => {
-	const activeSite = useActiveSite();
-	const [activeSection, setActiveSection] = useState<'sites' | 'site-info'>(
-		activeSite ? 'site-info' : 'sites'
-	);
+	const activeSite = useActiveSite()!;
 
+	const fullScreenSections = useMediaQuery('(max-width: 875px)');
+	const activeSiteManagerSection = useAppSelector(
+		(state) => state.ui.siteManagerSection
+	);
 	const dispatch = useAppDispatch();
 
 	const onRemoveSite = async (siteToRemove: SiteInfo) => {
 		await dispatch(removeSite(siteToRemove.slug));
-		setActiveSection('sites');
+		dispatch(setSiteManagerSection('sidebar'));
 	};
 
-	const fullScreenSiteManager = useMediaQuery('(max-width: 1126px)');
-	const fullScreenSections = useMediaQuery('(max-width: 875px)');
-	const sitesList = (
-		<Sidebar
-			className={css.sidebar}
-			afterSiteClick={() => setActiveSection('site-info')}
-		/>
-	);
-	const siteInfoPanel = activeSite && (
-		<SiteInfoPanel
-			key={activeSite.slug}
-			className={css.siteManagerSiteInfo}
-			site={activeSite}
-			removeSite={onRemoveSite}
-			mobileUi={fullScreenSections}
-			siteViewHidden={fullScreenSiteManager}
-			onBackButtonClick={() => {
-				setActiveSection('sites');
-			}}
-		/>
-	);
+	const sidebar = <Sidebar className={css.sidebar} />;
+
+	let activePanel;
+	switch (activeSiteManagerSection) {
+		case 'archived-sites':
+			activePanel = <ArchivedSitesPanel />;
+			break;
+		case 'site-details':
+			activePanel = activeSite ? (
+				<SiteInfoPanel
+					key={activeSite?.slug}
+					className={css.siteManagerSiteInfo}
+					removeSite={onRemoveSite}
+					site={activeSite}
+					mobileUi={fullScreenSections}
+				/>
+			) : null;
+			break;
+		default:
+			activePanel = null;
+			break;
+	}
+
+	if (fullScreenSections) {
+		return (
+			<div className={classNames(css.siteManager, className)} ref={ref}>
+				{activeSiteManagerSection === 'sidebar' ? sidebar : activePanel}
+			</div>
+		);
+	}
+
 	return (
 		<div className={classNames(css.siteManager, className)} ref={ref}>
-			{fullScreenSections ? (
-				activeSection === 'site-info' ? (
-					siteInfoPanel
-				) : (
-					sitesList
-				)
-			) : (
-				<>
-					{sitesList}
-					{siteInfoPanel}
-				</>
-			)}
+			{sidebar}
+			{activePanel}
 		</div>
 	);
 });

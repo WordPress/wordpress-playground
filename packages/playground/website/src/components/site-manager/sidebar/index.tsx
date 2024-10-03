@@ -21,6 +21,7 @@ import {
 import { SiteCreateButton } from '../site-create-button';
 import { SiteLogo } from '../../../lib/site-metadata';
 import { selectUnarchivedSites } from '../../../lib/state/redux/slice-sites';
+import { setSiteManagerSection } from '../../../lib/state/redux/slice-ui';
 
 export function Sidebar({
 	className,
@@ -38,6 +39,9 @@ export function Sidebar({
 		afterSiteClick?.(slug);
 	};
 
+	const activeSiteManagerSection = useAppSelector(
+		(state) => state.ui.siteManagerSection
+	);
 	const resources = [
 		{
 			label: 'Preview WordPress PR',
@@ -141,6 +145,29 @@ export function Sidebar({
 							</MenuItem>
 						);
 					})}
+				</MenuGroup>
+			</nav>
+			<nav className={classNames(css.sidebarSection, css.sidebarContent)}>
+				<MenuGroup className={css.sidebarList}>
+					<MenuItem
+						key="archived-sites"
+						className={classNames(css.sidebarItem, {
+							[css.sidebarItemSelected]:
+								activeSiteManagerSection === 'archived-sites',
+						})}
+						onClick={() =>
+							dispatch(setSiteManagerSection('archived-sites'))
+						}
+						isSelected={
+							activeSiteManagerSection === 'archived-sites'
+						}
+						// eslint-disable-next-line jsx-a11y/aria-role
+						role=""
+					>
+						<FlexBlock className={css.sidebarItemSiteName}>
+							Archived Playgrounds
+						</FlexBlock>
+					</MenuItem>
 				</MenuGroup>
 			</nav>
 			<footer

@@ -170,6 +170,22 @@ export function updateSiteMetadata({
 	};
 }
 
+export function restoreSite(slug: string) {
+	return async (dispatch: PlaygroundDispatch) => {
+		dispatch(
+			updateSiteMetadata({
+				slug,
+				changes: {
+					isArchived: false,
+					// Reset the created date to now to prevent that site from getting immediately
+					// archived and removed.
+					whenCreated: new Date().getTime(),
+				},
+			})
+		);
+	};
+}
+
 /**
  * Updates a site in the OPFS and in the redux state.
  *

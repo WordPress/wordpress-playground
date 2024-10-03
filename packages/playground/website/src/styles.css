@@ -1,6 +1,7 @@
 /* Global styles. Use CSS modules for everything else. */
 
 @import url('../../../../node_modules/@wordpress/components/build-style/style.css');
+@import url('../../../../node_modules/@wordpress/dataviews/build-style/style.css');
 
 * {
 	box-sizing: border-box;

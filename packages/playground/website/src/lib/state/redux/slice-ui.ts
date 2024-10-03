@@ -1,5 +1,11 @@
 import { createSlice, PayloadAction, Middleware } from '@reduxjs/toolkit';
 
+export type SiteManagerSection =
+	| 'sidebar'
+	| 'archived-sites'
+	| 'site-details'
+	| 'blueprints';
+
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
 	| 'directory-handle-permission-denied'
@@ -17,6 +23,7 @@ export interface UIState {
 	offline: boolean;
 	initialSiteResolved: boolean;
 	siteManagerIsOpen: boolean;
+	siteManagerSection: SiteManagerSection;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -47,6 +54,7 @@ const initialState: UIState = {
 		// seeing something that's not Playground filling your entire screen –
 		// quite a confusing experience.
 		!isMobile,
+	siteManagerSection: 'site-details',
 };
 
 const uiSlice = createSlice({
@@ -77,6 +85,12 @@ const uiSlice = createSlice({
 		setInitialSiteResolved: (state, action: PayloadAction<boolean>) => {
 			state.initialSiteResolved = action.payload;
 		},
+		setSiteManagerSection: (
+			state,
+			action: PayloadAction<SiteManagerSection>
+		) => {
+			state.siteManagerSection = action.payload;
+		},
 	},
 });
 
@@ -101,6 +115,7 @@ export const {
 	setOffline,
 	setSiteManagerOpen,
 	setInitialSiteResolved,
+	setSiteManagerSection,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
