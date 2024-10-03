@@ -73,11 +73,9 @@ npm run dev -- --locale es
 
 ## Language Switcher - UI element to change language
 
-When a new language is added
-
 The "Language Switcher" is a UI element provided by docusuarus (the docs engine behind Playground Docs) that allows user to change the language of a specific page.
 
-To give more visibility to a translated version we can display the language switcher by adding the following lines at `docusaurus.config.js`
+To give more visibility to a translated version the language switcher can be displayed by adding the following lines at `docusaurus.config.js`
 
 ```
 
@@ -96,9 +94,9 @@ It's strongly recommended that a specific language is activated in this Dropdown
 
 All languages are available when the i18n setup for a language is done and the correct structure of files is available under `i18n`.
 
-https://wordpress.github.io/wordpress-playground/
-https://wordpress.github.io/wordpress-playground/es/
-https://wordpress.github.io/wordpress-playground/fr/
+-   https://wordpress.github.io/wordpress-playground/
+-   https://wordpress.github.io/wordpress-playground/es/
+-   https://wordpress.github.io/wordpress-playground/fr/
 
 These language versions of the docs should be hidden on the language switcher hidden until there's a fair amount of pages translated for that language. To be more precise, the recommendation is to only make a language publicly available on the Language Switcher when at least the [Documentation](https://wordpress.github.io/wordpress-playground/) section is completely translated for a specific language including the following sections:
 
@@ -109,7 +107,7 @@ These language versions of the docs should be hidden on the language switcher hi
 -   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
 -   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
 
-Even when the language is not available on the language switcher, the work to add translated pages can be done and the translated pages will be publicly available after the merge of PRs with translated files.
+Even if the language switcher doesn't display a specific language, work on adding translated pages can still progress, as the translated pages will become publicly available once the PRs containing the translated files are merged.
 
 Asumming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher
 
@@ -142,22 +140,24 @@ Asumming the `fr` language is the first language with the Documentation hub page
 
 ### Testing the Language Switcher locally
 
-Regarding testing the `localeDropdown` locally, I have found that although is displayed locally it doesn't really work locally as expected as the translated pages are not found. But it seems to work well in production. I have successfully tested from my fork at https://github.com/wordpress-juanmaguitar/wordpress-playground/tree/docs/i18n and doing from the root of the project:
+Regarding testing the `localeDropdown` locally, I have found that although is displayed locally it doesn't really work locally as expected as the translated pages are not found. But it seems to work well in production.
+
+You can test the `localeDropdown` from any fork and doing from the root of the project:
 
 ```
-
 npm run build:docs
 npm run deploy:docs
-
 ```
 
 This generates three versions of the docs in the GitHub Pages of my forked repo:
 
-https://wordpress-juanmaguitar.github.io/wordpress-playground/
-https://wordpress-juanmaguitar.github.io/wordpress-playground/es/
-https://wordpress-juanmaguitar.github.io/wordpress-playground/fr/
+```
+https://<%GH-USER-WITH-FORK%>.github.io/wordpress-playground/
+https://<%GH-USER-WITH-FORK%>.github.io/wordpress-playground/es/
+https://<%GH-USER-WITH-FORK%>.github.io/wordpress-playground/fr/
+```
 
-So, the best way I have found to test the `localeDropdown` feature (so far) in by deploying it to the GitHub Pages of any forked repo.
+So, a possible approach to testing the `localeDropdown` feature is by deploying it to the GitHub Pages of a forked repository.
 
 ## Process to translate one page in a language
 
@@ -166,7 +166,3 @@ The recommended process is to copy and paste the `.md` file from the original pa
 The file under `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current` can be translated and a PR can be created with the new changes.
 
 When the PR is merged the translated version of that page should appear under https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}
-
-```
-
-```
