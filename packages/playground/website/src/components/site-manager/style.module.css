@@ -16,6 +16,7 @@
 .sidebar {
 	width: var(--site-manager-site-list-width);
 	height: 100%;
+	overflow: hidden;
 	@media (max-width: 875px) {
 		width: 100%;
 	}
