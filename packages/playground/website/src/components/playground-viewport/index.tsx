@@ -20,6 +20,7 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteCreateButton } from '../site-manager/site-create-button';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -155,11 +156,21 @@ export const KeepAliveTemporarySitesViewport = () => {
 							className={css.siteErrorContent}
 							style={{ textAlign: 'center' }}
 						>
-							<h2>No site is selected</h2>
+							<h2>No Playground selected</h2>
 							<p>
-								Select a site from the site manager to explore
-								Playground.
+								Select a Playground from the site manager or
+								start a new one.
 							</p>
+							<Button
+								variant="primary"
+								onClick={() => {
+									redirectTo(
+										PlaygroundRoute.newTemporarySite()
+									);
+								}}
+							>
+								Start a new Playground
+							</Button>
 						</div>
 					</div>
 				</div>

@@ -17,7 +17,6 @@ import {
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
-import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -95,13 +94,7 @@ export function EnsurePlaygroundSiteIsSelected({
 					return;
 				}
 
-				// If the site does not exist, redirect to a new temporary site.
 				if (!requestedSiteObject) {
-					// @TODO: Notification: 'The requested site was not found. Redirecting to a new temporary site.'
-					logger.log(
-						'The requested site was not found. Redirecting to a new temporary site.'
-					);
-					redirectTo(PlaygroundRoute.newTemporarySite());
 					return;
 				}
 				dispatch(setActiveSite(requestedSlug));

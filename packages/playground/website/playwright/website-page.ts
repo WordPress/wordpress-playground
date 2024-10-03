@@ -16,10 +16,12 @@ export class WebsitePage {
 				.locator('body')
 		).not.toBeEmpty();
 	}
-	async goto(url: string, options?: any) {
+	async goto(url: string, options?: any, wait = true) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
-		await this.waitForNestedIframes();
+		if (wait) {
+			await this.waitForNestedIframes();
+		}
 		return response;
 	}
 

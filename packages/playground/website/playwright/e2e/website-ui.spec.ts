@@ -177,3 +177,22 @@ test('should display PHP output even when a fatal error is hit', async ({
 		'This is a fatal error'
 	);
 });
+
+test('should display the No Playground selected message if a site is not selected', async ({
+	website,
+}) => {
+	// Load once to ensure a site exists
+	await website.goto('./');
+
+	// Load a non-existent site using the site-slug URL param
+	await website.goto('./?site-slug=doesnt-exist', undefined, false);
+	await expect(website.page.locator('h2')).toContainText(
+		'No Playground selected'
+	);
+
+	// Load a non-existent temporary site using the temp-slug URL param
+	await website.goto('./?temp-slug=doesnt-exist', undefined, false);
+	await expect(website.page.locator('h2')).toContainText(
+		'No Playground selected'
+	);
+});
