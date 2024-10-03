@@ -28,6 +28,7 @@ export const SiteManager = forwardRef<
 		setActiveSection('sites');
 	};
 
+	const fullScreenSiteManager = useMediaQuery('(max-width: 1126px)');
 	const fullScreenSections = useMediaQuery('(max-width: 875px)');
 	const sitesList = (
 		<Sidebar
@@ -42,6 +43,7 @@ export const SiteManager = forwardRef<
 			site={activeSite}
 			removeSite={onRemoveSite}
 			mobileUi={fullScreenSections}
+			siteViewHidden={fullScreenSiteManager}
 			onBackButtonClick={() => {
 				setActiveSection('sites');
 			}}

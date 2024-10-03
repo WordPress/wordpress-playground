@@ -30,6 +30,7 @@ import { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { encodeStringAsBase64 } from '../../../lib/base64';
+import { StartSimilarSiteButton } from '../start-similar-site-button';
 
 function SiteInfoRow({
 	label,
@@ -53,12 +54,14 @@ export function SiteInfoPanel({
 	site,
 	removeSite,
 	mobileUi,
+	siteViewHidden,
 	onBackButtonClick,
 }: {
 	className: string;
 	site: SiteInfo;
 	removeSite: (site: SiteInfo) => Promise<void>;
 	mobileUi?: boolean;
+	siteViewHidden?: boolean;
 	onBackButtonClick?: () => void;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -84,10 +87,8 @@ export function SiteInfoPanel({
 		? 'footer'
 		: 'menu';
 	function navigateTo(path: string) {
-		if (mobileUi) {
-			// Collapse the sidebar when opening a site
-			// because otherwise the site view will remain
-			// hidden by the sidebar on small screens.
+		if (siteViewHidden) {
+			// Close the site manager so the site view is visible.
 			dispatch(setSiteManagerOpen(false));
 		}
 
@@ -217,9 +218,10 @@ export function SiteInfoPanel({
 														icon={external}
 														iconPosition="right"
 														aria-label="Go to homepage"
-														onClick={() =>
-															navigateTo('/')
-														}
+														onClick={() => {
+															navigateTo('/');
+															onClose();
+														}}
 													>
 														Homepage
 													</MenuItem>
@@ -227,11 +229,12 @@ export function SiteInfoPanel({
 														icon={external}
 														iconPosition="right"
 														aria-label="Go to WP Admin"
-														onClick={() =>
+														onClick={() => {
 															navigateTo(
 																'/wp-admin/'
-															)
-														}
+															);
+															onClose();
+														}}
 													>
 														WP Admin
 													</MenuItem>
@@ -537,17 +540,31 @@ function SiteSettingsTab({ site }: { site: SiteInfo }) {
 						justify="flex-start"
 					>
 						<FlexItem>
-							<SiteEditButton siteSlug={site.slug}>
-								{(onClick) => (
-									<Button
-										variant="tertiary"
-										className={css.buttonNoPadding}
-										onClick={onClick}
-									>
-										Edit Playground settings
-									</Button>
-								)}
-							</SiteEditButton>
+							{site.metadata.storage === 'none' ? (
+								<StartSimilarSiteButton siteSlug={site.slug}>
+									{(onClick) => (
+										<Button
+											variant="tertiary"
+											className={css.buttonNoPadding}
+											onClick={onClick}
+										>
+											Create a similar Playground
+										</Button>
+									)}
+								</StartSimilarSiteButton>
+							) : (
+								<SiteEditButton siteSlug={site.slug}>
+									{(onClick) => (
+										<Button
+											variant="tertiary"
+											className={css.buttonNoPadding}
+											onClick={onClick}
+										>
+											Edit Playground settings
+										</Button>
+									)}
+								</SiteEditButton>
+							)}
 						</FlexItem>
 						{site.metadata.originalBlueprint ? (
 							<FlexItem>

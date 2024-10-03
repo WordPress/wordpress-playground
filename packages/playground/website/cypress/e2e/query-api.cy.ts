@@ -36,7 +36,7 @@ describe('Query API', () => {
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?wp=6.3&url=/wp-admin');
+			cy.visit('/?wp=6.3&url=/wp-admin/');
 			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
 		});
 	});
@@ -191,10 +191,10 @@ describe('Query API', () => {
 		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
 			cy.visit('/?lazy');
 			cy.get('#lazy-load-initiator').should('exist');
-			cy.get('#playground-viewport').should('not.exist');
+			cy.get('.playground-viewport').should('not.exist');
 
 			cy.get('#lazy-load-initiator').click();
-			cy.get('#playground-viewport').should('exist');
+			cy.get('.playground-viewport').should('exist');
 			cy.wordPressDocument().its('body').should('have.class', 'home');
 		});
 	});

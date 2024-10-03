@@ -1,13 +1,17 @@
-import { Page, expect, Locator } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 export class WebsitePage {
 	constructor(public readonly page: Page) {}
 
 	// Wait for WordPress to load
-	async waitForNestedIframes() {
+	async waitForNestedIframes(page = this.page) {
 		await expect(
-			await this.page
-				.frameLocator('#playground-viewport')
+			page
+				/* There are multiple viewports possible, so we need to select
+				   the one that is visible. */
+				.frameLocator(
+					'#playground-viewport:visible,.playground-viewport:visible'
+				)
 				.frameLocator('#wp')
 				.locator('body')
 		).not.toBeEmpty();
@@ -19,9 +23,22 @@ export class WebsitePage {
 		return response;
 	}
 
-	async expandSiteView() {
+	async ensureSiteManagerIsOpen() {
+		const siteManagerHeading = this.page.getByText('Your Playgrounds');
+		if (!(await siteManagerHeading.isVisible({ timeout: 5000 }))) {
+			await this.page.getByLabel('Open Site Manager').click();
+		}
+		await expect(siteManagerHeading).toBeVisible();
+	}
+
+	async ensureSiteViewIsExpanded() {
 		const openSiteButton = this.page.locator('div[title="Open site"]');
-		await openSiteButton.click();
+		if (await openSiteButton.isVisible({ timeout: 5000 })) {
+			await openSiteButton.click();
+		}
+
+		const siteManagerHeading = this.page.getByText('Your Playgrounds');
+		await expect(siteManagerHeading).not.toBeVisible();
 	}
 
 	async openNewSiteModal() {
@@ -50,14 +67,15 @@ export class WebsitePage {
 			.innerText();
 	}
 
-	async openEditSettings() {
+	async openForkPlaygroundSettings() {
+		await this.ensureSiteManagerIsOpen();
 		const editSettingsButton = this.page.locator(
 			'button.components-button',
 			{
-				hasText: 'Edit Playground settings',
+				hasText: 'Create a similar Playground',
 			}
 		);
-		await editSettingsButton.click();
+		await editSettingsButton.click({ timeout: 5000 });
 	}
 
 	async selectPHPVersion(version: string) {
@@ -65,11 +83,11 @@ export class WebsitePage {
 		await phpVersionSelect.selectOption(version);
 	}
 
-	async clickSaveInEditSettings() {
+	async clickSaveInForkPlaygroundSettings() {
 		const saveSettingsButton = this.page.locator(
 			'button.components-button.is-primary',
 			{
-				hasText: 'Update',
+				hasText: 'Create',
 			}
 		);
 		await saveSettingsButton.click();
@@ -82,7 +100,7 @@ export class WebsitePage {
 		await wordpressVersionSelect.selectOption(version);
 	}
 
-	async getSiteInfoRowLocator(key: string): Promise<Locator> {
+	getSiteInfoRowLocator(key: string) {
 		return this.page.getByLabel(key);
 	}
 
@@ -93,12 +111,5 @@ export class WebsitePage {
 		} else {
 			await checkbox.uncheck();
 		}
-	}
-
-	async hasNetworkingEnabled(): Promise<boolean> {
-		const networkAccessText = await (
-			await this.getSiteInfoRowLocator('Network access')
-		).innerText();
-		return networkAccessText === 'Yes';
 	}
 }
