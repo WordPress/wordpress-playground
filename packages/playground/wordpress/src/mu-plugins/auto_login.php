@@ -43,7 +43,7 @@
  *
  * @return string|false
  */
-function get_playground_auto_login_as_user() {
+function playground_get_username_for_auto_login() {
 	/**
 	 * Allow users to auto-login as a specific user on their first visit.
 	 *
@@ -70,7 +70,7 @@ function get_playground_auto_login_as_user() {
  * Logs the user in on their first visit if the Playground runtime told us to.
  */
 function playground_auto_login() {
-	$user_name = get_playground_auto_login_as_user();
+	$user_name = playground_get_username_for_auto_login();
 	if ( false === $user_name ) {
 		return;
 	}
@@ -109,7 +109,7 @@ add_action('init', function() {
 	if (!is_login()) {
 		return;
 	}
-	if (false === get_playground_auto_login_as_user()) {
+	if (false === playground_get_username_for_auto_login()) {
 		return;
 	}
 	playground_auto_login();
@@ -124,7 +124,7 @@ add_action('init', function() {
  * via autologin.
  */
 add_filter('admin_email_check_interval', function($interval) {
-	if(false === get_playground_auto_login_as_user()) {
+	if(false === playground_get_username_for_auto_login()) {
 		return 0;
 	}
 

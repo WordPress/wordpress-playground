@@ -9,7 +9,6 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { login } from './login';
-import { I } from 'vitest/dist/types-198fd1d9';
 
 describe('Blueprint step enableMultisite', () => {
 	async function doBootWordPress(options: { absoluteUrl: string }) {
