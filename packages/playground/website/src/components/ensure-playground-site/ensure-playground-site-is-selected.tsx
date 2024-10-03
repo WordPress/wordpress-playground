@@ -49,7 +49,12 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, []);
 
 	useEffect(() => {
-		opfsSiteStorage?.list().then(
+		if (!opfsSiteStorage) {
+			logger.error('Error loading sites: OPFS not available');
+			dispatch(siteListingLoaded([]));
+			return;
+		}
+		opfsSiteStorage.list().then(
 			(sites) => dispatch(siteListingLoaded(sites)),
 			(error) => {
 				logger.error('Error loading sites:', error);

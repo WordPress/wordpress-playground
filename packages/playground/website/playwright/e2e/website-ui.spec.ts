@@ -12,10 +12,18 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
 }) => {
-	await website.goto('./?url=/wp-admin');
-
+	await website.goto('./?url=/wp-admin/');
 	await website.ensureSiteViewIsExpanded();
+	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
+		'/wp-admin/'
+	);
+});
 
+test('should correctly load /wp-admin without the trailing slash', async ({
+	website,
+}) => {
+	await website.goto('./?url=/wp-admin');
+	await website.ensureSiteViewIsExpanded();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
 	);
@@ -56,16 +64,13 @@ SupportedPHPVersions.forEach(async (version) => {
 			return;
 		}
 		await website.goto(`./`);
-
 		await website.openForkPlaygroundSettings();
-
 		await website.selectPHPVersion(version);
-
 		await website.clickSaveInForkPlaygroundSettings();
 
-		await expect(
-			await website.getSiteInfoRowLocator('PHP version')
-		).toHaveText(`${version} (with extensions)`);
+		await expect(website.getSiteInfoRowLocator('PHP version')).toHaveText(
+			`${version} (with extensions)`
+		);
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
@@ -83,9 +88,9 @@ SupportedPHPVersions.forEach(async (version) => {
 
 		await website.clickSaveInForkPlaygroundSettings();
 
-		await expect(
-			await website.getSiteInfoRowLocator('PHP version')
-		).toHaveText(version);
+		await expect(website.getSiteInfoRowLocator('PHP version')).toHaveText(
+			version
+		);
 	});
 });
 
@@ -102,7 +107,7 @@ Object.keys(MinifiedWordPressVersions)
 			await website.clickSaveInForkPlaygroundSettings();
 
 			await expect(
-				await website.getSiteInfoRowLocator('WordPress version')
+				website.getSiteInfoRowLocator('WordPress version')
 			).toHaveText(version);
 		});
 	});
@@ -111,10 +116,10 @@ test('should display networking as inactive by default', async ({
 	website,
 }) => {
 	await website.goto('./');
-
 	await website.ensureSiteManagerIsOpen();
-
-	await expect(await website.hasNetworkingEnabled()).toBeFalsy();
+	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
+		'No'
+	);
 });
 
 test('should display networking as active when networking is enabled', async ({
@@ -122,7 +127,9 @@ test('should display networking as active when networking is enabled', async ({
 }) => {
 	await website.goto('./?networking=yes');
 	await website.ensureSiteManagerIsOpen();
-	await expect(await website.hasNetworkingEnabled()).toBeTruthy();
+	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
+		'Yes'
+	);
 });
 
 test('should enable networking when requested', async ({ website }) => {
@@ -132,7 +139,9 @@ test('should enable networking when requested', async ({ website }) => {
 	await website.setNetworkingEnabled(true);
 	await website.clickSaveInForkPlaygroundSettings();
 
-	await expect(await website.hasNetworkingEnabled()).toBeTruthy();
+	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
+		'Yes'
+	);
 });
 
 test('should disable networking when requested', async ({ website }) => {
@@ -142,7 +151,9 @@ test('should disable networking when requested', async ({ website }) => {
 	await website.setNetworkingEnabled(false);
 	await website.clickSaveInForkPlaygroundSettings();
 
-	await expect(await website.hasNetworkingEnabled()).toBeFalsy();
+	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
+		'No'
+	);
 });
 
 test('should display PHP output even when a fatal error is hit', async ({

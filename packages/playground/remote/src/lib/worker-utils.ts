@@ -3,7 +3,7 @@ import { PHPResponse, PHPProcessManager, PHP } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
-import { OfflineModeCache } from './offline-mode-cache';
+import { hasCachedResponse } from './offline-mode-cache';
 import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
 
 export function spawnHandlerFactory(processManager: PHPProcessManager) {
@@ -223,11 +223,7 @@ export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	if (!staticAssetsUrl) {
 		return false;
 	}
-	const cache = await OfflineModeCache.getInstance();
-	const response = await cache.cache.match(staticAssetsUrl, {
-		ignoreSearch: true,
-	});
-	return !!response;
+	return await hasCachedResponse(staticAssetsUrl);
 }
 
 /**
