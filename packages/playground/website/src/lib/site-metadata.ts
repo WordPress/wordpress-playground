@@ -36,15 +36,11 @@ export interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
-	// TODO: Don't store this in SiteMetadata.
-	isArchived?: boolean;
+
+	whenCreated?: number;
+	whenLastLoaded?: number;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
-	whenCreated?: number;
-	// TODO: Consider keeping timestamps.
-	//       For a user, timestamps might be useful to disambiguate identically-named sites.
-	//       For playground, we might choose to sort by most recently used.
-	//whenLastLoaded: number;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: Pick<

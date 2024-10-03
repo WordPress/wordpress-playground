@@ -8,6 +8,7 @@ import sitesReducer, {
 	selectSiteBySlug,
 	selectTemporarySites,
 	SiteInfo,
+	updateSiteMetadata,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 import clientsReducer, {
@@ -77,7 +78,7 @@ export const selectActiveSiteError = (
 export const useActiveSite = () => useAppSelector(selectActiveSite);
 
 export const setActiveSite = (slug: string | undefined) => {
-	return (
+	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
@@ -90,6 +91,15 @@ export const setActiveSite = (slug: string | undefined) => {
 		if (slug) {
 			const site = selectSiteBySlug(getState(), slug);
 			redirectTo(PlaygroundRoute.site(site));
+
+			await dispatch(
+				updateSiteMetadata({
+					slug,
+					changes: {
+						whenLastLoaded: Date.now(),
+					},
+				})
+			);
 		}
 	};
 };
