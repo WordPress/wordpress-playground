@@ -16,7 +16,7 @@ export type WithAPIState = {
 export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window,
+	remote: Worker | SharedWorker | Window,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
@@ -24,6 +24,8 @@ export function consumeAPI<APIType>(
 	const endpoint =
 		remote instanceof Worker
 			? remote
+			: remote instanceof SharedWorker
+			? remote.port
 			: Comlink.windowEndpoint(remote, context);
 
 	/**
@@ -76,7 +78,8 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 >;
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
-	pipedApi?: PipedAPI
+	pipedApi?: PipedAPI,
+	endpoint?: Comlink.Endpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
@@ -103,12 +106,7 @@ export function exposeAPI<Methods, PipedAPI>(
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
-	Comlink.expose(
-		exposedApi,
-		typeof window !== 'undefined'
-			? Comlink.windowEndpoint(self.parent)
-			: undefined
-	);
+	Comlink.expose(exposedApi, endpoint);
 	return [setReady, setFailed, exposedApi];
 }
 

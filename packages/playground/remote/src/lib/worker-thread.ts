@@ -49,8 +49,21 @@ import {
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 
+console.log('Hello from a shared worker');
+
+const messagePort = await new Promise<MessagePort | Worker>((resolve) => {
+	if ('onconnect' in self) {
+		console.log('onconnect in self');
+		self.onconnect = (port: MessagePort) => {
+			resolve(port);
+		};
+	} else {
+		resolve(self as any as Worker);
+	}
+});
+
 // post message to parent
-self.postMessage('worker-script-started');
+messagePort.postMessage('worker-script-started');
 
 const downloadMonitor = new EmscriptenDownloadMonitor();
 
@@ -423,5 +436,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 }
 
 const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpoint(downloadMonitor)
+	new PlaygroundWorkerEndpoint(downloadMonitor),
+	undefined,
+	messagePort
 );

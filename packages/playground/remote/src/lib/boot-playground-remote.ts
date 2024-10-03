@@ -1,3 +1,4 @@
+import * as Comlink from 'comlink';
 import { MessageListener } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
@@ -25,8 +26,17 @@ const origin = new URL('/', (import.meta || {}).url).origin;
 
 // @ts-ignore
 import moduleWorkerUrl from './worker-thread?worker&url';
+// export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
-export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
+// @ts-ignore
+// import MySharedWorker from './worker-thread?sharedworker&inline';
+// const shared = new MySharedWorker();
+// console.log({shared});
+// shared.port.start();
+// @ts-ignore
+import moduleSharedWorkerUrl from './worker-thread?sharedworker&url';
+export const sharedWorkerUrl: string =
+	new URL(moduleSharedWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
@@ -61,7 +71,11 @@ export async function bootPlaygroundRemote() {
 	await registerServiceWorker(scope, serviceWorkerUrl + '');
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
+		await spawnPHPWorkerThread(
+			moduleWorkerUrl,
+			moduleSharedWorkerUrl,
+			scope
+		)
 	);
 	setPhpInstanceUsedByServiceWorker(phpWorkerApi);
 
@@ -286,7 +300,8 @@ export async function bootPlaygroundRemote() {
 	//        the onDownloadProgress method
 	const [setAPIReady, setAPIError, playground] = exposeAPI(
 		phpRemoteApi,
-		phpWorkerApi
+		phpWorkerApi,
+		Comlink.windowEndpoint(self.parent)
 	);
 
 	/*

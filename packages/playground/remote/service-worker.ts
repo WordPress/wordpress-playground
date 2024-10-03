@@ -104,7 +104,6 @@ import {
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 import {
-	cachedFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
 	isCurrentServiceWorkerActive,
 	purgeEverythingFromPreviousRelease,
@@ -224,6 +223,7 @@ self.addEventListener('activate', function (event) {
 });
 
 self.addEventListener('fetch', (event) => {
+	console.log({ url: event.request.url });
 	if (!isCurrentServiceWorkerActive()) {
 		return;
 	}
@@ -236,9 +236,11 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const isReservedUrl =
+		url.pathname.startsWith('/src') ||
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js');
 	if (isReservedUrl) {
+		return fetch(event.request);
 		return;
 	}
 
@@ -273,7 +275,7 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	// Use Cache Only strategy to serve regular static assets.
-	return event.respondWith(cachedFetch(event.request));
+	// return event.respondWith(cachedFetch(event.request));
 });
 
 /**
