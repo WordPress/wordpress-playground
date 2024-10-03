@@ -49,7 +49,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	const [initialCleanupDone, setInitialCleanupDone] = useState(false);
 
 	useEffect(() => {
-		if (siteListingStatus !== 'loaded') {
+		if (!['loaded', 'error'].includes(siteListingStatus)) {
 			return;
 		}
 		async function cleanup() {
