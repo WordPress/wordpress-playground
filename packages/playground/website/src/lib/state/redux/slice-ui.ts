@@ -15,6 +15,7 @@ export interface UIState {
 	};
 	activeModal: string | null;
 	offline: boolean;
+	initialSiteResolved: boolean;
 	siteManagerIsOpen: boolean;
 }
 
@@ -31,6 +32,7 @@ const initialState: UIState = {
 			? 'mount-markdown-directory'
 			: null,
 	offline: !navigator.onLine,
+	initialSiteResolved: false,
 	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
 	// even if they seem redundant. We may experiment which toggling the manager
 	// to be open by default or closed by default, and we do not want to lose
@@ -72,6 +74,9 @@ const uiSlice = createSlice({
 		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
 		},
+		setInitialSiteResolved: (state, action: PayloadAction<boolean>) => {
+			state.initialSiteResolved = action.payload;
+		},
 	},
 });
 
@@ -95,6 +100,7 @@ export const {
 	setActiveSiteError,
 	setOffline,
 	setSiteManagerOpen,
+	setInitialSiteResolved,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { resolveBlueprintFromURL } from '../../lib/state/url/resolve-blueprint-from-url';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
@@ -7,10 +7,11 @@ import {
 	siteListingLoaded,
 	deriveSlugFromSiteName,
 	SiteInfo,
-	selectSiteBySlug,
-	deleteDormantTemporarySites,
+	deleteDormantArchivedSites,
+	archiveAllTemporarySites,
+	selectUnarchivedSiteBySlug,
 } from '../../lib/state/redux/slice-sites';
-import { createSiteMetadata, SiteMetadata } from '../../lib/site-metadata';
+import { createSiteMetadata } from '../../lib/site-metadata';
 import {
 	setActiveSite,
 	useAppDispatch,
@@ -18,6 +19,7 @@ import {
 } from '../../lib/state/redux/store';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
 import { logger } from '@php-wasm/logger';
+import { setInitialSiteResolved } from '../../lib/state/redux/slice-ui';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -39,14 +41,25 @@ export function EnsurePlaygroundSiteIsSelected({
 	const url = useCurrentUrl();
 	const requestedSlug =
 		url.searchParams.get('site-slug') || url.searchParams.get('temp-slug');
+	const didRequestTemporarySite =
+		requestedSlug === url.searchParams.get('temp-slug');
 	const requestedSiteObject = useAppSelector((state) =>
-		selectSiteBySlug(state, requestedSlug!)
+		selectUnarchivedSiteBySlug(state, requestedSlug!)
 	);
+	const [initialCleanupDone, setInitialCleanupDone] = useState(false);
 
 	useEffect(() => {
-		dispatch(deleteDormantTemporarySites());
+		if (siteListingStatus !== 'loaded') {
+			return;
+		}
+		async function cleanup() {
+			await dispatch(archiveAllTemporarySites());
+			await dispatch(deleteDormantArchivedSites());
+			setInitialCleanupDone(true);
+		}
+		cleanup();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [siteListingStatus]);
 
 	useEffect(() => {
 		if (!opfsSiteStorage) {
@@ -64,29 +77,10 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
-		async function createNewSiteInfo(
-			initialInfo: Partial<Omit<InitialSiteInfo, 'metadata'>> & {
-				metadata?: Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>;
-			}
-		): Promise<SiteInfo> {
-			const { name: providedName, ...remainingMetadata } =
-				initialInfo.metadata || {};
-
-			const name = providedName || randomSiteName();
-
-			return {
-				slug: deriveSlugFromSiteName(name),
-
-				...initialInfo,
-
-				metadata: await createSiteMetadata({
-					name,
-					...remainingMetadata,
-				}),
-			};
-		}
-
 		async function ensureSiteIsSelected() {
+			if (!initialCleanupDone) {
+				return;
+			}
 			// If the site slug is provided, try to load the site.
 			if (requestedSlug) {
 				// Wait until the site listing is loaded
@@ -94,11 +88,14 @@ export function EnsurePlaygroundSiteIsSelected({
 					return;
 				}
 
-				if (!requestedSiteObject) {
+				if (requestedSiteObject) {
+					await dispatch(setActiveSite(requestedSlug));
+					dispatch(setInitialSiteResolved(true));
+					return;
+				} else if (!didRequestTemporarySite) {
+					dispatch(setInitialSiteResolved(true));
 					return;
 				}
-				dispatch(setActiveSite(requestedSlug));
-				return;
 			}
 
 			// Don't create a new temporary site until the site listing settles.
@@ -115,27 +112,31 @@ export function EnsurePlaygroundSiteIsSelected({
 			const url = new URL(window.location.href);
 			const blueprint = await resolveBlueprintFromURL(url);
 			const siteNameFromUrl = url.searchParams.get('name')?.trim();
-			const newSiteInfo = await createNewSiteInfo({
-				metadata: {
-					name: siteNameFromUrl || undefined,
+			const name = siteNameFromUrl || randomSiteName();
+			const newSiteInfo: SiteInfo = {
+				slug: deriveSlugFromSiteName(name),
+				metadata: await createSiteMetadata({
+					name,
+					isArchived: false,
 					originalBlueprint: blueprint,
 					storage: 'opfs-temporary',
-				},
+				}),
 				originalUrlParams: {
 					searchParams: Object.fromEntries(
 						url.searchParams.entries()
 					),
 					hash: url.hash,
 				},
-			});
+			};
 
 			await dispatch(addSite(newSiteInfo));
-			dispatch(setActiveSite(newSiteInfo.slug));
+			await dispatch(setActiveSite(newSiteInfo.slug));
+			dispatch(setInitialSiteResolved(true));
 		}
 
 		ensureSiteIsSelected();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, requestedSlug, siteListingStatus]);
+	}, [url.href, requestedSlug, siteListingStatus, initialCleanupDone]);
 
 	return children;
 }

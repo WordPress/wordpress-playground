@@ -20,7 +20,7 @@ import {
 } from '../../../lib/state/redux/store';
 import { SiteCreateButton } from '../site-create-button';
 import { SiteLogo } from '../../../lib/site-metadata';
-import { selectSortedSites } from '../../../lib/state/redux/slice-sites';
+import { selectUnarchivedSites } from '../../../lib/state/redux/slice-sites';
 
 export function Sidebar({
 	className,
@@ -29,7 +29,7 @@ export function Sidebar({
 	className?: string;
 	afterSiteClick?: (slug: string) => void;
 }) {
-	const sites = useAppSelector(selectSortedSites);
+	const sites = useAppSelector(selectUnarchivedSites);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 

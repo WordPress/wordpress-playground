@@ -336,7 +336,7 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		: '/tmp/unzipped-wordpress';
 
 	// Dive one directory deeper if the zip root does not contain the sample
-	// config file. This is relevant when unzipping a zipped branch from the 
+	// config file. This is relevant when unzipping a zipped branch from the
 	// https://github.com/WordPress/WordPress repository.
 	if (!php.fileExists(joinPaths(wpPath, 'wp-config-sample.php'))) {
 		// Still don't know the directory structure of the zip file.
@@ -393,7 +393,7 @@ function isCleanDirContainingSiteMetadata(path: string, php: PHP) {
 	if (
 		files.length === 1 &&
 		// TODO: use a constant from a site storage package
-		files[0] === 'playground-site-metadata.json'
+		files[0] === 'wp-runtime.json'
 	) {
 		return true;
 	}

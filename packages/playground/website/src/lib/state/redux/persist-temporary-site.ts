@@ -59,7 +59,7 @@ export function persistTemporarySite(
 		});
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
-		if (storageType === 'opfs') {
+		if (['opfs', 'opfs-temporary'].includes(storageType)) {
 			mountDescriptor = {
 				device: {
 					type: 'opfs',

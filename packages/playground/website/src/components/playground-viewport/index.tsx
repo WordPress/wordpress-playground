@@ -66,7 +66,8 @@ export const KeepAliveTemporarySitesViewport = () => {
 	const activeSite = useActiveSite();
 	const siteSlugsToRender = useMemo(() => {
 		let sites = temporarySites.filter(
-			(site) => site.slug !== activeSite?.slug
+			(site) =>
+				!site.metadata.isArchived && site.slug !== activeSite?.slug
 		);
 		if (activeSite) {
 			sites = [...sites, activeSite];
@@ -120,6 +121,14 @@ export const KeepAliveTemporarySitesViewport = () => {
 			...siteSlugsToRender.filter((slug) => !prev.includes(slug)),
 		]);
 	}, [siteSlugsToRender]);
+
+	const initialSiteResolved = useAppSelector(
+		(state) => state.ui.initialSiteResolved
+	);
+
+	if (!initialSiteResolved) {
+		return null;
+	}
 
 	if (!allSites.length) {
 		// @TODO: Use the dedicated design for this

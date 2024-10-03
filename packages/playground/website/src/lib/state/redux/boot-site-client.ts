@@ -36,7 +36,7 @@ export function bootSiteClient(
 		const site = selectSiteBySlug(getState(), siteSlug);
 
 		let mountDescriptor = undefined;
-		if (site.metadata.storage === 'opfs') {
+		if (['opfs', 'opfs-temporary'].includes(site.metadata.storage)) {
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
@@ -135,7 +135,7 @@ export function bootSiteClient(
 			// @TODO: Remove backcompat code after 2024-12-01.
 			if (
 				(site.metadata as any)[legacyOpfsPathSymbol] &&
-				site.metadata.storage === 'opfs' &&
+				['opfs', 'opfs-temporary'].includes(site.metadata.storage) &&
 				mountDescriptor?.device.type === 'opfs'
 			) {
 				const sourcePath = mountDescriptor.device.path;

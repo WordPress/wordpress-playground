@@ -39,6 +39,7 @@ export interface SiteMetadata {
 
 	whenCreated?: number;
 	whenLastLoaded?: number;
+	isArchived?: boolean;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 
@@ -75,6 +76,7 @@ export async function createSiteMetadata(
 		whenCreated: Date.now(),
 		storage: 'opfs-temporary',
 		originalBlueprint: blueprint,
+		isArchived: false,
 
 		...remainingMetadata,
 
