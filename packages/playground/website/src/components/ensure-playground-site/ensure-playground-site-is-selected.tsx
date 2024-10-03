@@ -8,8 +8,7 @@ import {
 	deriveSlugFromSiteName,
 	SiteInfo,
 	selectSiteBySlug,
-	deleteOutdatedArchivedSites,
-	archiveAllTemporarySites,
+	deleteDormantTemporarySites,
 } from '../../lib/state/redux/slice-sites';
 import { createSiteMetadata, SiteMetadata } from '../../lib/site-metadata';
 import {
@@ -45,8 +44,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 
 	useEffect(() => {
-		dispatch(deleteOutdatedArchivedSites());
-		dispatch(archiveAllTemporarySites());
+		dispatch(deleteDormantTemporarySites());
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 

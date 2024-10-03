@@ -98,39 +98,53 @@ export function deriveSlugFromSiteName(name: string) {
 	return name.toLowerCase().replaceAll(' ', '-');
 }
 
-export function archiveAllTemporarySites() {
-	return async (
-		dispatch: PlaygroundDispatch,
-		getState: () => PlaygroundReduxState
-	) => {
-		const temporarySites = selectTemporarySites(getState());
-		for (const site of temporarySites) {
-			await dispatch(
-				updateSiteMetadata({
-					slug: site.slug,
-					changes: {
-						isArchived: true,
-					},
-				})
-			);
-		}
-	};
-}
+// @TODO Delete this if we don't end up using it
+// export function archiveAllTemporarySites() {
+// 	return async (
+// 		dispatch: PlaygroundDispatch,
+// 		getState: () => PlaygroundReduxState
+// 	) => {
+// 		const temporarySites = selectTemporarySites(getState());
+// 		for (const site of temporarySites) {
+// 			await dispatch(
+// 				updateSiteMetadata({
+// 					slug: site.slug,
+// 					changes: {
+// 						isArchived: true,
+// 					},
+// 				})
+// 			);
+// 		}
+// 	};
+// }
 
-export function deleteOutdatedArchivedSites() {
+// @TODO Delete this if we don't end up using it
+// export function deleteOutdatedArchivedSites() {
+// 	return async (
+// 		dispatch: PlaygroundDispatch,
+// 		getState: () => PlaygroundReduxState
+// 	) => {
+// 		const archivedSites = selectArchivedSites(getState());
+// 		const dayAgo = Date.now() - 1000 * 60 * 60 * 24;
+// 		for (const site of archivedSites) {
+// 			if (
+// 				site.metadata.whenCreated &&
+// 				site.metadata.whenCreated < dayAgo
+// 			) {
+// 				await dispatch(removeSite(site.slug));
+// 			}
+// 		}
+// 	};
+// }
+
+export function deleteDormantTemporarySites() {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const archivedSites = selectArchivedSites(getState());
-		const dayAgo = Date.now() - 1000 * 60 * 60 * 24;
-		for (const site of archivedSites) {
-			if (
-				site.metadata.whenCreated &&
-				site.metadata.whenCreated < dayAgo
-			) {
-				await dispatch(removeSite(site.slug));
-			}
+		const dormantTemporarySites = selectDormanTemporarySites(getState());
+		for (const site of dormantTemporarySites) {
+			await dispatch(removeSite(site.slug));
 		}
 	};
 }
@@ -248,7 +262,7 @@ export const selectSortedSites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) =>
 		sites
-			.filter((site) => !site.metadata.isArchived)
+			.filter((site) => !isDormantTemporarySite(site))
 			.sort(
 				(a, b) =>
 					(b.metadata.whenCreated || 0) -
@@ -256,16 +270,19 @@ export const selectSortedSites = createSelector(
 			)
 );
 
-export const selectArchivedSites = createSelector(
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+function isDormantTemporarySite(site: SiteInfo) {
+	const { metadata } = site;
+	return (
+		metadata.storage === 'opfs-temporary' &&
+		(metadata.whenLastLoaded === undefined ||
+			metadata.whenLastLoaded < Date.now() - DAY_IN_MS)
+	);
+}
+
+export const selectDormanTemporarySites = createSelector(
 	[selectAllSites],
-	(sites: SiteInfo[]) =>
-		sites
-			.filter((site) => site.metadata.isArchived)
-			.sort(
-				(a, b) =>
-					(b.metadata.whenCreated || 0) -
-					(a.metadata.whenCreated || 0)
-			)
+	(sites: SiteInfo[]) => sites.filter(isDormantTemporarySite)
 );
 
 export const selectTemporarySites = createSelector(
