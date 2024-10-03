@@ -8,6 +8,8 @@ import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { login } from './login';
+import { I } from 'vitest/dist/types-198fd1d9';
 
 describe('Blueprint step enableMultisite', () => {
 	async function doBootWordPress(options: { absoluteUrl: string }) {
@@ -30,45 +32,50 @@ describe('Blueprint step enableMultisite', () => {
 		return { php, requestHandler };
 	}
 
-	it('should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a scopeless URL', async () => {
-		const { php } = await doBootWordPress({
+	[
+		{
 			absoluteUrl: 'http://playground-domain/scope:987987/',
-		});
-		await enableMultisite(php, {});
-
-		/**
-		 * Relying on HTTP requests for unit tests won't work because of the wp-login redirects.
-		 * Checking for constants will confirm if multisite is enabled.
-		 */
-		const result = await php.run({
-			code: `
-				<?php
-				echo json_encode([
-					'WP_ALLOW_MULTISITE' => defined('WP_ALLOW_MULTISITE'),
-					'SUBDOMAIN_INSTALL' => defined('SUBDOMAIN_INSTALL'),
-				]);
-			`,
-		});
-		expect(result.json['WP_ALLOW_MULTISITE']).toEqual(true);
-		expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
-	});
-
-	it('should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a unscopeless URL', async () => {
-		const { php } = await doBootWordPress({
+			scoped: true,
+		},
+		{
 			absoluteUrl: 'http://playground-domain/',
-		});
-		await enableMultisite(php, {});
+			scoped: false,
+		},
+	].forEach(({ absoluteUrl, scoped }) => {
+		it.only(`should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a ${
+			scoped ? 'scoped' : 'scopeless'
+		} URL`, async () => {
+			const { php, requestHandler } = await doBootWordPress({
+				absoluteUrl,
+			});
+			await enableMultisite(php, {});
 
-		const result = await php.run({
-			code: `
+			/**
+			 * Check if the multisite constants are set.
+			 */
+			const result = await php.run({
+				code: `
 				<?php
 				echo json_encode([
 					'WP_ALLOW_MULTISITE' => defined('WP_ALLOW_MULTISITE'),
 					'SUBDOMAIN_INSTALL' => defined('SUBDOMAIN_INSTALL'),
 				]);
 			`,
+			});
+			expect(result.json['WP_ALLOW_MULTISITE']).toEqual(true);
+			expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
+
+			/**
+			 * Login and confirm that the site is a multisite by confirming
+			 * the admin bar includes the multisite menu.
+			 */
+			await login(php, {});
+			const response = await requestHandler.request({
+				url: '/',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toContain('My Sites');
+			expect(response.text).toContain('Network Admin');
 		});
-		expect(result.json['WP_ALLOW_MULTISITE']).toEqual(true);
-		expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
 	});
 });
