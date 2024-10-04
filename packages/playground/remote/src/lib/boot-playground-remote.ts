@@ -8,6 +8,7 @@ import {
 	setupPostMessageRelay,
 	SyncProgressCallback,
 } from '@php-wasm/web';
+import { buildVersion } from 'virtual:remote-config';
 
 import type {
 	PlaygroundWorkerEndpoint,
@@ -59,6 +60,25 @@ export async function bootPlaygroundRemote() {
 
 	const { startServiceWorkerCommunicationBridge } =
 		await registerServiceWorker(serviceWorkerUrl + '');
+
+	// If the current page is running a different build version than
+	// the service worker, it means the service worker was updated and
+	// we're out of sync. Let's reload the page to upgrade the service worker.
+	try {
+		const swBuildVersionResponse = await fetch(
+			new URL('/build-version', location.href).toString()
+		);
+		const { version: swBuildVersion } = await swBuildVersionResponse.json();
+		console.log({ swBuildVersion, buildVersion });
+		if (swBuildVersion !== buildVersion) {
+			window.location.reload();
+			return;
+		}
+	} catch (e) {
+		// The current page was not yet claimed by a service worker,
+		// reload to get it claimed.
+		window.location.reload();
+	}
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)

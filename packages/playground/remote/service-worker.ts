@@ -111,6 +111,7 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import { buildVersion } from 'virtual:remote-config';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -215,10 +216,6 @@ self.addEventListener('activate', function (event) {
 			) {
 				return;
 			}
-
-			// @TODO: Store temporary sites in OPFS to avoid destroying in-memory
-			// changes in tabs that are already open.
-			client.navigate(client.url);
 		}
 	}
 	event.waitUntil(doActivate());
@@ -233,6 +230,13 @@ self.addEventListener('fetch', (event) => {
 
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
+		return;
+	}
+
+	if (url.pathname === '/build-version') {
+		event.respondWith(
+			new Response(JSON.stringify({ version: buildVersion }))
+		);
 		return;
 	}
 

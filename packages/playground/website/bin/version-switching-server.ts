@@ -1,6 +1,6 @@
 import { startVersionSwitchingServer } from '../playwright/version-switching-server';
 
-const [, , oldVersionDir, newVersionDir, port] = process.argv;
+const [, , oldVersionDir, midVersionDir, newVersionDir, port] = process.argv;
 
 if (!oldVersionDir || !newVersionDir || !port) {
 	console.error(
@@ -12,6 +12,7 @@ if (!oldVersionDir || !newVersionDir || !port) {
 const server = await startVersionSwitchingServer({
 	oldVersionDirectory: oldVersionDir,
 	newVersionDirectory: newVersionDir,
+	midVersionDirectory: midVersionDir,
 	port: parseInt(port, 10),
 });
 
