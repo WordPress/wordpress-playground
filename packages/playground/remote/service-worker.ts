@@ -103,7 +103,6 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
-import { buildVersion } from 'virtual:remote-config';
 
 import {
 	cachedFetch,
@@ -217,10 +216,9 @@ self.addEventListener('activate', function (event) {
 				return;
 			}
 
-			client.postMessage({
-				type: 'new-app-version-released',
-				buildVersion,
-			});
+			// @TODO: Store temporary sites in OPFS to avoid destroying in-memory
+			// changes in tabs that are already open.
+			client.navigate(client.url);
 		}
 	}
 	event.waitUntil(doActivate());
