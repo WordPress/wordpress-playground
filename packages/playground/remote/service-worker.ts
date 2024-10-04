@@ -198,35 +198,6 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	/**
-	 * Always fetch the fresh version of remote.html from the network.
-	 *
-	 * This is the secret sauce that enables seamless upgrades of the
-	 * running Playground clients when a new version is deployed on
-	 * the server.
-	 *
-	 * ## The problem with deployments
-	 *
-	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, the remote.html file we've cached
-	 * for offline usage still holds references to those assets.
-	 *
-	 * If we just loaded the cached remote.html file, the site would crash
-	 * with seemingly random errors.
-	 *
-	 * Instead, we fetch the most recent version of remote.html from the network.
-	 * It references the static assets that are now available on the server and
-	 * should work just fine.
-	 *
-	 * This very simple resolution took multiple iterations to get right. See
-	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
-	 * details.
-	 */
-	if (url.pathname === '/remote.html') {
-		event.respondWith(networkFirstFetch(event.request));
-		return;
-	}
-
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js');
@@ -261,6 +232,35 @@ self.addEventListener('fetch', (event) => {
 		 *
 		 * See service-worker.ts for more details.
 		 */
+		return;
+	}
+
+	/**
+	 * Always fetch the fresh version of remote.html from the network.
+	 *
+	 * This is the secret sauce that enables seamless upgrades of the
+	 * running Playground clients when a new version is deployed on
+	 * the server.
+	 *
+	 * ## The problem with deployments
+	 *
+	 * App deployments remove all the static assets associated with the
+	 * previous app version. Meanwhile, the remote.html file we've cached
+	 * for offline usage still holds references to those assets.
+	 *
+	 * If we just loaded the cached remote.html file, the site would crash
+	 * with seemingly random errors.
+	 *
+	 * Instead, we fetch the most recent version of remote.html from the network.
+	 * It references the static assets that are now available on the server and
+	 * should work just fine.
+	 *
+	 * This very simple resolution took multiple iterations to get right. See
+	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
+	 * details.
+	 */
+	if (url.pathname === '/remote.html') {
+		event.respondWith(networkFirstFetch(event.request));
 		return;
 	}
 
