@@ -103,6 +103,7 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
+
 import {
 	cachedFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
