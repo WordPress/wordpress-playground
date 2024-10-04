@@ -75,6 +75,10 @@ function playground_auto_login() {
 		return;
 	}
 
+	if (wp_doing_ajax() || wp_is_rest_endpoint()) {
+		return;
+	}
+
 	if ( is_user_logged_in() ) {
 		return;
 	}
@@ -93,31 +97,26 @@ function playground_auto_login() {
 
 /**
  * Autologin on load.
+ * This uses the `wp` hook as it's the earliest hook that will allow us to
+ * auto-login
  */
-add_action('wp', 'playground_auto_login', 1);
+// add_action('init', 'playground_auto_login', 1);
 
 /**
- * Redirect to admin page after auto-login.
+ * Autologin users from the wp-login.php page.
  *
- * When the user attempts to load /wp-admin/ the default wp action isn't
- * called, so we need to catch the request and redirect to the admin page.
+ * The `wp` hook isn't triggered on
  **/
 add_action('init', function() {
+	playground_auto_login();
 	/**
 	 * Check if the request is for the login page.
 	 */
-	if (!is_login()) {
-		return;
+	if (is_login() && is_user_logged_in() && isset($_GET['redirect_to'])) {
+		wp_redirect(esc_url($_GET['redirect_to']));
+		exit;
 	}
-	if (false === playground_get_username_for_auto_login()) {
-		return;
-	}
-	playground_auto_login();
-	wp_redirect(
-		isset($_GET['redirect_to']) ? $_GET['redirect_to'] : admin_url()
-	);
-	exit;
-});
+}, 1);
 
 /**
  * Disable the Site Admin Email Verification Screen for any session started

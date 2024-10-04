@@ -27,6 +27,15 @@ describe('Blueprint step login', () => {
 
 	it('should log the user in', async () => {
 		await login(php, {});
+		const response = await handler.request({
+			url: '/',
+		});
+		expect(response.httpStatusCode).toBe(200);
+		expect(response.text).toContain('Edit site');
+	});
+
+	it('should log the user into wp-admin', async () => {
+		await login(php, {});
 		const initialResponse = await handler.request({
 			url: '/wp-admin/',
 		});
