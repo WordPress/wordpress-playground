@@ -115,6 +115,7 @@ export function bootSiteClient(
 			playground = await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
+				scope: site.slug,
 				blueprint,
 				// Intercept the Playground client even if the
 				// Blueprint fails.

@@ -35,13 +35,9 @@ export function setPhpInstanceUsedByServiceWorker(api: Client) {
  * reload the registered worker if the app expects a different version
  * than the currently registered one.
  *
- * @param scope       The numeric value used in the path prefix of the site
- *                    this service worker is meant to serve. E.g. for a prefix
- *                    like `/scope:793/`, the scope would be `793`. See the
- *                    `@php-wasm/scopes` package for more details.
  * @param scriptUrl   The URL of the service worker script.
  */
-export async function registerServiceWorker(scope: string, scriptUrl: string) {
+export async function registerServiceWorker(scriptUrl: string) {
 	const sw = navigator.serviceWorker;
 	if (!sw) {
 		/**
@@ -77,30 +73,44 @@ export async function registerServiceWorker(scope: string, scriptUrl: string) {
 		logger.error('Failed to update service worker.', e);
 	}
 
-	// Proxy the service worker messages to the web worker:
-	navigator.serviceWorker.addEventListener(
-		'message',
-		async function onMessage(event) {
-			/**
-			 * Ignore events meant for other PHP instances to
-			 * avoid handling the same event twice.
-			 *
-			 * This is important because the service worker posts the
-			 * same message to all application instances across all browser tabs.
-			 */
-			if (scope && event.data.scope !== scope) {
-				return;
-			}
+	return {
+		/**
+		 * Establishes the communication bridge between the service worker and the web worker
+		 * where the current site is running.
+		 *
+		 * @param scope The string prefix used in the site URL served by the currently
+		 *              running remote.html. E.g. for a prefix like `/scope:playground/`,
+		 * 			    the scope would be `playground`. See the `@php-wasm/scopes` package
+		 *              for more details.
+		 */
+		startServiceWorkerCommunicationBridge({ scope }: { scope: string }) {
+			// Proxy the service worker messages to the web worker:
+			navigator.serviceWorker.addEventListener(
+				'message',
+				async function onMessage(event) {
+					/**
+					 * Ignore events meant for other PHP instances to
+					 * avoid handling the same event twice.
+					 *
+					 * This is important because the service worker posts the
+					 * same message to all application instances across all browser tabs.
+					 */
+					if (scope && event.data.scope !== scope) {
+						return;
+					}
 
-			// Wait for the PHP API client to be set by bootPlaygroundRemote
-			const phpApi = await phpApiPromise;
+					// Wait for the PHP API client to be set by bootPlaygroundRemote
+					const phpApi = await phpApiPromise;
 
-			const args = event.data.args || [];
-			const method = event.data.method as keyof Client;
-			const result = await (phpApi[method] as Function)(...args);
-			event.source!.postMessage(responseTo(event.data.requestId, result));
-		}
-	);
-
-	sw.startMessages();
+					const args = event.data.args || [];
+					const method = event.data.method as keyof Client;
+					const result = await (phpApi[method] as Function)(...args);
+					event.source!.postMessage(
+						responseTo(event.data.requestId, result)
+					);
+				}
+			);
+			sw.startMessages();
+		},
+	};
 }

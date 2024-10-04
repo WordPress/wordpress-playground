@@ -1,5 +1,5 @@
 /**
- * Scopes are unique strings, like `96253`, used to uniquely brand
+ * Scopes are unique strings, like `my-site`, used to uniquely brand
  * the outgoing HTTP traffic from each browser tab. This helps the
  * main thread distinguish between the relevant and irrelevant
  * messages received from the Service Worker.
@@ -7,7 +7,7 @@
  * Scopes are included in the `PHPRequestHandler.absoluteUrl` as follows:
  *
  * An **unscoped** URL: http://localhost:8778/wp-login.php
- * A **scoped** URL:    http://localhost:8778/scope:96253/wp-login.php
+ * A **scoped** URL:    http://localhost:8778/scope:my-site/wp-login.php
  *
  * For more information, see the README section on scopes.
  */
@@ -17,7 +17,7 @@
  *
  * @example
  * ```js
- * isURLScoped(new URL('http://localhost/scope:96253/index.php'));
+ * isURLScoped(new URL('http://localhost/scope:my-site/index.php'));
  * // true
  *
  * isURLScoped(new URL('http://localhost/index.php'));
@@ -36,7 +36,7 @@ export function isURLScoped(url: URL): boolean {
  *
  * @example
  * ```js
- * getScopeFromURL(new URL('http://localhost/scope:96253/index.php'));
+ * getScopeFromURL(new URL('http://localhost/scope:my-site/index.php'));
  * // '96253'
  *
  * getScopeFromURL(new URL('http://localhost/index.php'));
@@ -58,11 +58,11 @@ export function getURLScope(url: URL): string | null {
  *
  * @example
  * ```js
- * setURLScope(new URL('http://localhost/index.php'), '96253');
- * // URL('http://localhost/scope:96253/index.php')
+ * setURLScope(new URL('http://localhost/index.php'), 'my-site');
+ * // URL('http://localhost/scope:my-site/index.php')
  *
- * setURLScope(new URL('http://localhost/scope:96253/index.php'), '12345');
- * // URL('http://localhost/scope:12345/index.php')
+ * setURLScope(new URL('http://localhost/scope:my-site/index.php'), 'my-site');
+ * // URL('http://localhost/scope:my-site/index.php')
  *
  * setURLScope(new URL('http://localhost/index.php'), null);
  * // URL('http://localhost/index.php')
@@ -96,7 +96,7 @@ export function setURLScope(url: URL | string, scope: string | null): URL {
  *
  * @example
  * ```js
- * removeURLScope(new URL('http://localhost/scope:96253/index.php'));
+ * removeURLScope(new URL('http://localhost/scope:my-site/index.php'));
  * // URL('http://localhost/index.php')
  *
  * removeURLScope(new URL('http://localhost/index.php'));
