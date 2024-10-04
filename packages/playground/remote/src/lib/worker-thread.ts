@@ -21,6 +21,7 @@ import {
 	spawnHandlerFactory,
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
+	looksLikePlaygroundDirectory,
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createMemoizedFetch } from './create-memoized-fetch';
@@ -72,7 +73,7 @@ export type WorkerBootOptions = {
 	scope: string;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
-	shouldInstallWordPress?: boolean;
+	shouldInstallWordPress?: boolean | 'auto';
 };
 
 /** @inheritDoc PHPClient */
@@ -188,6 +189,24 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		try {
+			if (shouldInstallWordPress === 'auto') {
+				// Default to installing WordPress unless we detect
+				// it in one of the mounts.
+				shouldInstallWordPress = true;
+
+				// NOTE: This check is insufficient if a complete WordPress
+				// installation is composed of multiple mounts.
+				for (const mount of mounts) {
+					const dirHandle = await directoryHandleFromMountDevice(
+						mount.device
+					);
+					if (await looksLikePlaygroundDirectory(dirHandle)) {
+						shouldInstallWordPress = false;
+						break;
+					}
+				}
+			}
+
 			// Start downloading WordPress if needed
 			let wordPressRequest = null;
 			if (shouldInstallWordPress) {
