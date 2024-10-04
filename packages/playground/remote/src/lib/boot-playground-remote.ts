@@ -57,8 +57,8 @@ export async function bootPlaygroundRemote() {
 		document.body.prepend(bar.element);
 	}
 
-	const scope = Math.random().toFixed(16);
-	await registerServiceWorker(scope, serviceWorkerUrl + '');
+	const { startServiceWorkerCommunicationBridge } =
+		await registerServiceWorker(serviceWorkerUrl + '');
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
@@ -208,9 +208,9 @@ export async function bootPlaygroundRemote() {
 		},
 
 		async boot(options) {
-			await phpWorkerApi.boot({
-				...options,
-				scope,
+			await phpWorkerApi.boot(options);
+			startServiceWorkerCommunicationBridge({
+				scope: options.scope,
 			});
 
 			try {
