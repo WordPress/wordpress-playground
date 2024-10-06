@@ -35,7 +35,6 @@ export function Sidebar({
 		(site) => site.metadata.storage !== 'none'
 	);
 	const temporarySite = useAppSelector(selectTemporarySite);
-	console.log('temporarySite', temporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 
@@ -89,7 +88,6 @@ export function Sidebar({
 								activeSite?.metadata.storage === 'none',
 						})}
 						onClick={() => {
-							console.log('on click', { temporarySite });
 							if (temporarySite) {
 								onSiteClick(temporarySite.slug);
 								return;
