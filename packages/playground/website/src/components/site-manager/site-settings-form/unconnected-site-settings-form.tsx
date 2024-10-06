@@ -7,10 +7,9 @@ import { Controller, useForm } from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
-import { randomSiteName } from '../../../lib/state/redux/random-site-name';
 
 type ConfigurableFields = Record<
-	keyof SiteFormData & ('name' | 'wpVersion' | 'language' | 'multisite'),
+	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
 	boolean
 >;
 
@@ -23,7 +22,6 @@ export interface SiteSettingsFormProps {
 }
 
 export interface SiteFormData {
-	name: string;
 	phpVersion: SupportedPHPVersion;
 	wpVersion: string;
 	language: string;
@@ -38,14 +36,12 @@ export function UnconnectedSiteSettingsForm({
 	footer,
 	defaultValues = {},
 	enabledFields = {
-		name: true,
 		wpVersion: true,
 		language: true,
 		multisite: true,
 	},
 }: SiteSettingsFormProps) {
 	defaultValues = {
-		name: randomSiteName(),
 		phpVersion: '8.0',
 		wpVersion: 'latest',
 		language: '',

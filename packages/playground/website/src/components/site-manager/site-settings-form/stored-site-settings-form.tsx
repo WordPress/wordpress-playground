@@ -33,7 +33,6 @@ export function StoredSiteSettingsForm({
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
-					name: data.name,
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
 						features: {
@@ -77,7 +76,6 @@ export function StoredSiteSettingsForm({
 			onSubmit={updateSite}
 			defaultValues={defaultValues}
 			enabledFields={{
-				name: true,
 				wpVersion: false,
 				language: false,
 				multisite: false,

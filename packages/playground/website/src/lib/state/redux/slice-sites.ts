@@ -4,7 +4,7 @@ import {
 	PayloadAction,
 	createSelector,
 } from '@reduxjs/toolkit';
-import { SiteMetadata } from '../../site-metadata';
+import { createSiteMetadata, SiteMetadata } from '../../site-metadata';
 import {
 	selectActiveSite,
 	PlaygroundDispatch,
@@ -12,6 +12,7 @@ import {
 	setActiveSite,
 } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import { randomSiteName } from './random-site-name';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -144,6 +145,9 @@ export function updateSite({
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		if ('storage' in changes) {
+			throw new Error('Cannot update storage for a site.');
+		}
 		dispatch(
 			sitesSlice.actions.updateSite({
 				id: slug,
@@ -171,9 +175,12 @@ export function addSite(siteInfo: SiteInfo) {
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		if (siteInfo.metadata.storage !== 'none') {
-			await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
+		if (siteInfo.metadata.storage === 'none') {
+			throw new Error(
+				'Cannot add a temporary site. Use setTemporarySiteSpec instead.'
+			);
 		}
+		await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
 		dispatch(sitesSlice.actions.addSite(siteInfo));
 	};
 }
@@ -191,9 +198,10 @@ export function removeSite(slug: string) {
 	) => {
 		const activeSite = selectActiveSite(getState());
 		const siteInfo = selectSiteBySlug(getState(), slug);
-		if (siteInfo.metadata.storage !== 'none') {
-			await opfsSiteStorage?.delete(siteInfo.slug);
+		if (siteInfo.metadata.storage === 'none') {
+			throw new Error('Cannot remove a temporary site.');
 		}
+		await opfsSiteStorage?.delete(siteInfo.slug);
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
@@ -206,6 +214,45 @@ export function removeSite(slug: string) {
 	};
 }
 
+/**
+ * Creates a new site in the OPFS and in the redux state.
+ *
+ * @param siteInfo The site info to add.
+ * @returns
+ */
+export function setTemporarySiteSpec(
+	siteInfo: Omit<Partial<SiteInfo>, 'metadata'> & {
+		metadata: Partial<SiteMetadata>;
+	}
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const sites = getState().sites.entities;
+
+		// First, delete any existing temporary sites
+		for (const site of Object.values(sites)) {
+			if (site.metadata.storage === 'none') {
+				dispatch(sitesSlice.actions.removeSite(site.slug));
+			}
+		}
+
+		// Then create a new temporary site
+		const siteName = siteInfo.metadata.name || randomSiteName();
+		const newSiteInfo = {
+			...siteInfo,
+			slug: deriveSlugFromSiteName(siteName),
+			metadata: await createSiteMetadata({
+				...siteInfo.metadata,
+				name: siteName,
+				storage: 'none' as const,
+			}),
+		};
+		dispatch(sitesSlice.actions.addSite(newSiteInfo));
+		return newSiteInfo;
+	};
+}
 export const { setLoadingState } = sitesSlice.actions;
 
 export const {
@@ -223,6 +270,13 @@ export const selectSortedSites = createSelector(
 			(a, b) =>
 				(b.metadata.whenCreated || 0) - (a.metadata.whenCreated || 0)
 		)
+);
+
+export const selectTemporarySite = createSelector(
+	[selectAllSites],
+	(sites: SiteInfo[]) => {
+		return sites.find((site) => site.metadata.storage === 'none');
+	}
 );
 
 export const selectTemporarySites = createSelector(

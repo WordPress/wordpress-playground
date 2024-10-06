@@ -20,7 +20,7 @@ import {
 import { SiteLogo } from '../../../lib/site-metadata';
 import {
 	selectSortedSites,
-	selectTemporarySites,
+	selectTemporarySite,
 } from '../../../lib/state/redux/slice-sites';
 import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
 
@@ -34,7 +34,8 @@ export function Sidebar({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
-	const temporarySite = useAppSelector(selectTemporarySites)[0];
+	const temporarySite = useAppSelector(selectTemporarySite);
+	console.log('temporarySite', temporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 
@@ -88,6 +89,7 @@ export function Sidebar({
 								activeSite?.metadata.storage === 'none',
 						})}
 						onClick={() => {
+							console.log('on click', { temporarySite });
 							if (temporarySite) {
 								onSiteClick(temporarySite.slug);
 								return;

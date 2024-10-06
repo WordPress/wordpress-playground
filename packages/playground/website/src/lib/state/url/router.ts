@@ -39,14 +39,10 @@ export function parseBlueprint(rawData: string) {
 
 export class PlaygroundRoute {
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
-		if (site.metadata.storage === 'none') {
-			return updateUrl(baseUrl, site.originalUrlParams || {});
-		} else {
-			return updateUrl(baseUrl, {
-				searchParams: { 'site-slug': site.slug },
-				hash: '',
-			});
-		}
+		return updateUrl(baseUrl, {
+			searchParams: { 'site-slug': site.slug },
+			hash: '',
+		});
 	}
 	static newTemporarySite(
 		config: {
@@ -55,13 +51,19 @@ export class PlaygroundRoute {
 		} = {},
 		baseUrl: string = window.location.href
 	) {
-		const { query, hash } = config;
+		const query =
+			(config.query as Record<string, string | undefined>) || {};
 		return updateUrl(
 			baseUrl,
 			{
-				searchParams:
-					(query as Record<string, string | undefined>) || {},
-				hash,
+				searchParams: {
+					...query,
+					// Ensure a part of the URL is unique so we can still
+					// reload the temporary site even if its configuration
+					// hasn't changed.
+					random: Math.random().toString(36).substring(2, 15),
+				},
+				hash: config.hash,
 			},
 			'replace'
 		);
