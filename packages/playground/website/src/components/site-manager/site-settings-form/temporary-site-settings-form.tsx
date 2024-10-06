@@ -71,7 +71,7 @@ export function TemporarySiteSettingsForm({
 						reset the WordPress site to its initial state.
 					</p>
 					<Button type="submit" variant="primary">
-						Save & Reset Playground
+						Apply Settings & Reset Playground
 					</Button>
 				</VStack>
 			}
