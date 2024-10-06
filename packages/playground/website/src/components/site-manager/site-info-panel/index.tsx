@@ -253,7 +253,6 @@ export function SiteInfoPanel({
 													<MenuItem
 														aria-label="Delete this Playground"
 														className={css.danger}
-														disabled={!playground}
 														onClick={() =>
 															removeSiteAndCloseMenu(
 																onClose
