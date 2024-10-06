@@ -81,7 +81,13 @@ export default function BrowserChrome({
 								</Button>
 							)}
 							renderContent={({ onClose }) => (
-								<div style={{ width: 400, padding: 0 }}>
+								<div
+									style={{
+										width: 400,
+										maxWidth: '100vw',
+										padding: 0,
+									}}
+								>
 									<div
 										className={css.padded}
 										style={{ paddingBottom: 0 }}
