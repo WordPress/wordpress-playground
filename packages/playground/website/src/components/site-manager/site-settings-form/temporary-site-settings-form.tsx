@@ -1,22 +1,25 @@
-import { Modal } from '@wordpress/components';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import css from './style.module.css';
+import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { useAppSelector } from '../../../lib/state/redux/store';
-import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import { redirectTo, PlaygroundRoute } from '../../../lib/state/url/router';
 import { randomSiteName } from '../../../lib/state/redux/random-site-name';
+import {
+	SiteFormData,
+	UnconnectedSiteSettingsForm,
+} from './unconnected-site-settings-form';
 
-export function StartSimilarSiteButton({
+export function TemporarySiteSettingsForm({
 	siteSlug,
-	children,
+	onSubmit,
 }: {
 	siteSlug: string;
-	children: (onClick: () => void) => React.ReactNode;
+	onSubmit?: () => void;
 }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
-	const [isModalOpen, setModalOpen] = useState(false);
 	const updateSite = async (data: SiteFormData) => {
 		redirectTo(
 			PlaygroundRoute.newTemporarySite({
@@ -34,8 +37,8 @@ export function StartSimilarSiteButton({
 				},
 			})
 		);
+		onSubmit?.();
 		// @TODO: Display a notification of updated site or forked site
-		setModalOpen(false);
 	};
 	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
 		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
@@ -61,22 +64,25 @@ export function StartSimilarSiteButton({
 	}, [siteInfo]);
 
 	return (
-		<div>
-			{children(() => setModalOpen(true))}
-
-			{isModalOpen && (
-				<Modal
-					title="Create a similar Playground"
-					onRequestClose={() => setModalOpen(false)}
+		<UnconnectedSiteSettingsForm
+			onSubmit={updateSite}
+			defaultValues={defaultValues}
+			footer={
+				<VStack
+					justify="flex-end"
+					spacing={6}
+					style={{ margin: 0 }}
+					className={`${css.footer} ${css.formSection}`}
 				>
-					<SiteSettingsForm
-						onSubmit={updateSite}
-						onCancel={() => setModalOpen(false)}
-						submitButtonText="Create"
-						defaultValues={defaultValues}
-					/>
-				</Modal>
-			)}
-		</div>
+					<p>
+						<b>Destructive action!</b> Applying these settings will
+						reset the WordPress site to its initial state.
+					</p>
+					<Button type="submit" variant="primary">
+						Save & Reset Playground
+					</Button>
+				</VStack>
+			}
+		/>
 	);
 }

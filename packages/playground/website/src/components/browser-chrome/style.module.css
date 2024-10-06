@@ -77,6 +77,10 @@ body.is-embedded .fake-window-wrapper {
 	pointer-events: none;
 }
 
+.padded {
+	padding: 24px;
+}
+
 @media (max-width: 1100px) {
 	.has-site-manager {
 		.window-controls {

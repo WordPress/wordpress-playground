@@ -12,12 +12,10 @@ import {
 	TabPanel,
 } from '@wordpress/components';
 import { useMediaQuery } from '@wordpress/compose';
-import { moreVertical, external, copy, chevronLeft } from '@wordpress/icons';
+import { moreVertical, external, chevronLeft } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
-import { StorageType } from '../storage-type';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
-import { SiteEditButton } from '../site-edit-button';
 import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
@@ -25,29 +23,12 @@ import { GithubImportMenuItem } from '../../toolbar-buttons/github-import-menu-i
 import { ReportError } from '../../toolbar-buttons/report-error';
 import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
 import { TemporarySiteNotice } from '../temporary-site-notice';
-import { SitePersistButton } from '../site-persist-button';
 import { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { encodeStringAsBase64 } from '../../../lib/base64';
-import { StartSimilarSiteButton } from '../start-similar-site-button';
-
-function SiteInfoRow({
-	label,
-	value,
-}: {
-	label: string;
-	value: string | JSX.Element;
-}) {
-	return (
-		<Flex justify="flex-start" expanded={true}>
-			<FlexItem className={css.infoRowLabel}>{label}</FlexItem>
-			<FlexItem className={css.infoRowValue} aria-label={label}>
-				{value}
-			</FlexItem>
-		</Flex>
-	);
-}
+import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
+import { getRelativeDate } from '../../../lib/get-relative-date';
 
 export function SiteInfoPanel({
 	className,
@@ -94,6 +75,14 @@ export function SiteInfoPanel({
 
 		playground?.goTo(path);
 	}
+	const isTemporary = site.metadata.storage === 'none';
+
+	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
+
+	const localDirName =
+		site.metadata?.storage === 'local-fs'
+			? (opfsMountDescriptor as any)?.device?.handle?.name
+			: undefined;
 
 	return (
 		<section
@@ -101,9 +90,6 @@ export function SiteInfoPanel({
 				[css.isMobile]: mobileUi,
 			})}
 		>
-			{site.metadata.storage === 'none' ? (
-				<TemporarySiteNotice className={css.siteNotice} />
-			) : null}
 			<Flex
 				direction="column"
 				gap={1}
@@ -119,6 +105,7 @@ export function SiteInfoPanel({
 						align="center"
 						expanded={true}
 						className={css.padded}
+						style={{ paddingBottom: 10 }}
 					>
 						<FlexItem>
 							<Flex direction="row" gap={2}>
@@ -164,19 +151,40 @@ export function SiteInfoPanel({
 											css.siteInfoHeaderDetailsName
 										}
 									>
-										{site.metadata.name}
+										{isTemporary
+											? 'Temporary Playground'
+											: site.metadata.name}
 									</h1>
-									<span
-										className={
-											css.siteInfoHeaderDetailsCreatedAt
-										}
-									>
-										{site.metadata.whenCreated
-											? `Created ${new Date(
-													site.metadata.whenCreated
-											  ).toLocaleString()}`
-											: 'Created recently'}
-									</span>
+									{!isTemporary && (
+										<span
+											className={
+												css.siteInfoHeaderDetailsCreatedAt
+											}
+										>
+											{(function () {
+												const createdAgo = site.metadata
+													.whenCreated
+													? getRelativeDate(
+															new Date(
+																site.metadata.whenCreated
+															)
+													  )
+													: '';
+												switch (site.metadata.storage) {
+													case 'local-fs':
+														return (
+															'Saved in a local directory' +
+															(localDirName
+																? ` (${localDirName})`
+																: '') +
+															` ${createdAgo}`
+														);
+													case 'opfs':
+														return `Saved in this browser ${createdAgo}`;
+												}
+											})()}{' '}
+										</span>
+									)}
 								</Flex>
 							</Flex>
 						</FlexItem>
@@ -240,20 +248,22 @@ export function SiteInfoPanel({
 													</MenuItem>
 												</MenuGroup>
 											)}
-											<MenuGroup>
-												<MenuItem
-													aria-label="Delete this site"
-													className={css.danger}
-													disabled={!playground}
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
-													}
-												>
-													Delete
-												</MenuItem>
-											</MenuGroup>
+											{!isTemporary && (
+												<MenuGroup>
+													<MenuItem
+														aria-label="Delete this Playground"
+														className={css.danger}
+														disabled={!playground}
+														onClick={() =>
+															removeSiteAndCloseMenu(
+																onClose
+															)
+														}
+													>
+														Delete
+													</MenuItem>
+												</MenuGroup>
+											)}
 											<MenuGroup>
 												<DownloadAsZipMenuItem
 													onClose={onClose}
@@ -275,6 +285,23 @@ export function SiteInfoPanel({
 														offline || !playground
 													}
 												/>
+												<MenuItem
+													// @ts-ignore
+													href={`/builder/builder.html#${encodeStringAsBase64(
+														JSON.stringify(
+															site.metadata
+																.originalBlueprint as any
+														) as string
+													)}`}
+													target="_blank"
+													rel="noopener noreferrer"
+													icon={external}
+													iconPosition="right"
+													aria-label="View Blueprint"
+													disabled={offline}
+												>
+													View Blueprint
+												</MenuItem>
 											</MenuGroup>
 											<MenuGroup>
 												<ReportError
@@ -308,12 +335,21 @@ export function SiteInfoPanel({
 							<>
 								{tab.name === 'settings' && (
 									<div
-										className={classNames(
-											css.tabContents,
-											css.padded
-										)}
+										className={classNames(css.tabContents)}
 									>
-										<SiteSettingsTab site={site} />
+										{offline ? (
+											<div className={css.padded}>
+												<OfflineNotice />
+											</div>
+										) : null}
+
+										{isTemporary ? (
+											<TemporarySiteNotice
+												className={css.siteNotice}
+											/>
+										) : null}
+
+										<ActiveSiteSettingsForm />
 									</div>
 								)}
 								{tab.name === 'logs' && (
@@ -366,236 +402,5 @@ export function SiteInfoPanel({
 				)}
 			</Flex>
 		</section>
-	);
-}
-
-function SiteSettingsTab({ site }: { site: SiteInfo }) {
-	const username = 'admin';
-	const password = 'password';
-
-	const offline = useAppSelector((state) => state.ui.offline);
-
-	const { opfsMountDescriptor, client } =
-		usePlaygroundClientInfo(site.slug) || {};
-
-	const localDirName =
-		site.metadata?.storage === 'local-fs'
-			? (opfsMountDescriptor as any)?.device?.handle?.name
-			: undefined;
-
-	return (
-		<>
-			{offline ? <OfflineNotice /> : null}
-			<Flex
-				gap={8}
-				direction="column"
-				className={css.maxWidth}
-				justify="flex-start"
-				expanded={true}
-			>
-				<FlexItem>
-					<Flex
-						gap={4}
-						direction="column"
-						className={css.infoTable}
-						expanded={true}
-					>
-						<FlexItem>
-							<h2 className={css.sectionTitle}>
-								Playground details
-							</h2>
-						</FlexItem>
-						<SiteInfoRow label="Name" value={site.metadata.name} />
-						<SiteInfoRow
-							label="Storage"
-							value={
-								<Flex
-									direction="row"
-									gap={4}
-									justify="center"
-									align="center"
-								>
-									<FlexItem>
-										<StorageType
-											type={site.metadata.storage}
-										/>
-									</FlexItem>
-
-									{site.metadata.storage === 'none' ? (
-										<FlexItem
-											style={{
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												alignSelf: 'stretch',
-											}}
-										>
-											<SitePersistButton
-												siteSlug={site.slug}
-											>
-												<Button
-													variant="link"
-													disabled={!client}
-													style={{ marginTop: '1px' }}
-												>
-													Save
-												</Button>
-											</SitePersistButton>
-										</FlexItem>
-									) : null}
-
-									{site.metadata.storage === 'local-fs' &&
-									localDirName ? (
-										<FlexItem>
-											{` (${localDirName})`}
-										</FlexItem>
-									) : null}
-								</Flex>
-							}
-						/>
-						<SiteInfoRow
-							label="WordPress version"
-							value={
-								site.metadata.runtimeConfiguration
-									.preferredVersions.wp
-							}
-						/>
-						<SiteInfoRow
-							label="PHP version"
-							value={`${
-								site.metadata.runtimeConfiguration
-									.preferredVersions.php
-							}${
-								site.metadata.runtimeConfiguration.phpExtensionBundles?.includes(
-									'kitchen-sink'
-								)
-									? ' (with extensions)'
-									: ''
-							}`}
-						/>
-						<SiteInfoRow
-							label="Network access"
-							value={
-								site.metadata.runtimeConfiguration.features
-									?.networking
-									? 'Yes'
-									: 'No'
-							}
-						/>
-					</Flex>
-				</FlexItem>
-
-				<FlexItem>
-					<Flex direction="column" gap={2} expanded={true}>
-						<FlexItem>
-							<h3 className={css.sectionTitle}>WP Admin</h3>
-						</FlexItem>
-						<SiteInfoRow
-							label="Username"
-							value={
-								<Button
-									variant="link"
-									className={classNames(
-										css.grayLink,
-										css.buttonNoPadding
-									)}
-									icon={() => <Icon size={16} icon={copy} />}
-									iconPosition="right"
-									onClick={() => {
-										navigator.clipboard.writeText(username);
-									}}
-									label="Copy username"
-								>
-									{username}
-								</Button>
-							}
-						/>
-						<SiteInfoRow
-							label="Password"
-							value={
-								<Button
-									variant="link"
-									className={classNames(
-										css.grayLink,
-										css.buttonNoPadding
-									)}
-									icon={() => <Icon size={16} icon={copy} />}
-									iconPosition="right"
-									onClick={() => {
-										navigator.clipboard.writeText(password);
-									}}
-									label="Copy password"
-								>
-									{password}
-								</Button>
-							}
-						/>
-					</Flex>
-				</FlexItem>
-				<FlexItem>
-					<Flex
-						direction="row"
-						gap={8}
-						expanded={true}
-						justify="flex-start"
-					>
-						<FlexItem>
-							{site.metadata.storage === 'none' ? (
-								<StartSimilarSiteButton siteSlug={site.slug}>
-									{(onClick) => (
-										<Button
-											variant="tertiary"
-											className={css.buttonNoPadding}
-											onClick={onClick}
-										>
-											Create a similar Playground
-										</Button>
-									)}
-								</StartSimilarSiteButton>
-							) : (
-								<SiteEditButton siteSlug={site.slug}>
-									{(onClick) => (
-										<Button
-											variant="tertiary"
-											className={css.buttonNoPadding}
-											onClick={onClick}
-										>
-											Edit Playground settings
-										</Button>
-									)}
-								</SiteEditButton>
-							)}
-						</FlexItem>
-						{site.metadata.originalBlueprint ? (
-							<FlexItem>
-								<Button
-									variant="link"
-									className={css.buttonNoPadding}
-									// The published `Button` component type does not accept the
-									// "href" prop even though the actual component does accept one.
-									// @ts-ignore
-									href={`/builder/builder.html#${encodeStringAsBase64(
-										JSON.stringify(
-											site.metadata
-												.originalBlueprint as any
-										) as string
-									)}`}
-									target="_blank"
-									rel="noopener noreferrer"
-									icon={() => (
-										<Icon icon={external} size={16} />
-									)}
-									aria-label="Go to Blueprints Builder"
-									iconPosition="right"
-									disabled={offline}
-								>
-									View Blueprint
-								</Button>
-							</FlexItem>
-						) : null}
-					</Flex>
-				</FlexItem>
-			</Flex>
-		</>
 	);
 }

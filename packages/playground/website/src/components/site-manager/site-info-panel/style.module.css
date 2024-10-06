@@ -46,8 +46,6 @@
 .tab-contents {
 	width: 100%;
 	flex-direction: column;
-	padding-top: var(--padding-size);
-	padding-bottom: var(--padding-size);
 	position: relative;
 }
 
@@ -61,7 +59,10 @@
 }
 
 .site-notice {
-	padding: 40px var(--padding-size);
+	padding: var(--padding-size);
+	:global(& .components-notice__content) {
+		margin: 0;
+	}
 }
 
 .section-title {
@@ -166,25 +167,6 @@
 
 	height: 20px;
 	flex: none;
-}
-
-.site-info-section {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	padding: 0px;
-	width: 100%;
-	gap: 16px;
-}
-
-.info-row-label {
-	min-width: 130px;
-	flex-basis: 130px;
-	color: var(--color-gray-600);
-}
-
-.info-row-value {
-	color: var(--color-gray-900);
 }
 
 .max-width {

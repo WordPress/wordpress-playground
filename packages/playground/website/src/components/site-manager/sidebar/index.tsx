@@ -9,18 +9,20 @@ import {
 	FlexBlock,
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
-	Button,
 } from '@wordpress/components';
-import { TemporaryStorageIcon, WordPressIcon } from '../icons';
+import { ClockIcon, WordPressIcon } from '../icons';
 import {
 	setActiveSite,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/state/redux/store';
-import { SiteCreateButton } from '../site-create-button';
 import { SiteLogo } from '../../../lib/site-metadata';
-import { selectSortedSites } from '../../../lib/state/redux/slice-sites';
+import {
+	selectSortedSites,
+	selectTemporarySites,
+} from '../../../lib/state/redux/slice-sites';
+import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
 
 export function Sidebar({
 	className,
@@ -29,7 +31,10 @@ export function Sidebar({
 	className?: string;
 	afterSiteClick?: (slug: string) => void;
 }) {
-	const sites = useAppSelector(selectSortedSites);
+	const storedSites = useAppSelector(selectSortedSites).filter(
+		(site) => site.metadata.storage !== 'none'
+	);
+	const temporarySite = useAppSelector(selectTemporarySites)[0];
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 
@@ -76,71 +81,100 @@ export function Sidebar({
 				{/* <Logo className={css.sidebarLogoButton} /> */}
 			</div>
 			<nav className={classNames(css.sidebarSection, css.sidebarContent)}>
-				<Heading
-					level="2"
-					className={classNames(
-						css.sidebarLabel,
-						css.sidebarListLabel
-					)}
-				>
-					Your Playgrounds
-				</Heading>
 				<MenuGroup className={css.sidebarList}>
-					{sites.map((site) => {
-						/**
-						 * The `wordpress` site is selected when no site slug is provided.
-						 */
-						const isSelected = site.slug === activeSite?.slug;
-						return (
-							<MenuItem
-								key={site.slug}
-								className={classNames(css.sidebarItem, {
-									[css.sidebarItemSelected]: isSelected,
-								})}
-								onClick={() => onSiteClick(site.slug)}
-								isSelected={isSelected}
-								// eslint-disable-next-line jsx-a11y/aria-role
-								role=""
-								title={
-									site.metadata.storage === 'none'
-										? 'This is a temporary Playground. Your changes will be lost on page refresh.'
-										: ''
-								}
-								icon={
-									site.metadata.storage === 'none' ? (
-										<TemporaryStorageIcon
-											className={
-												css.sidebarItemStorageIcon
-											}
-										/>
-									) : undefined
-								}
-								iconPosition="right"
-							>
-								<HStack justify="flex-start" alignment="center">
-									{site.metadata.logo ? (
-										<img
-											src={getLogoDataURL(
-												site.metadata.logo
-											)}
-											alt={site.metadata.name + ' logo'}
-											className={css.sidebarItemLogo}
-										/>
-									) : (
-										<WordPressIcon
-											className={css.sidebarItemLogo}
-										/>
-									)}
-									<FlexBlock
-										className={css.sidebarItemSiteName}
-									>
-										{site.metadata.name}
-									</FlexBlock>
-								</HStack>
-							</MenuItem>
-						);
-					})}
+					<MenuItem
+						className={classNames(css.sidebarItem, {
+							[css.sidebarItemSelected]:
+								activeSite?.metadata.storage === 'none',
+						})}
+						onClick={() => {
+							if (temporarySite) {
+								onSiteClick(temporarySite.slug);
+								return;
+							}
+							redirectTo(PlaygroundRoute.newTemporarySite());
+						}}
+						isSelected={activeSite?.metadata.storage === 'none'}
+						// eslint-disable-next-line jsx-a11y/aria-role
+						role=""
+						title="This is a temporary Playground. Your changes will be lost on page refresh."
+					>
+						<HStack justify="flex-start" alignment="center">
+							<ClockIcon className={css.sidebarItemLogo} />
+							<FlexBlock className={css.sidebarItemSiteName}>
+								Temporary Playground
+							</FlexBlock>
+						</HStack>
+					</MenuItem>
 				</MenuGroup>
+				{storedSites.length > 0 && (
+					<>
+						<Heading
+							level="2"
+							className={classNames(
+								css.sidebarLabel,
+								css.sidebarListLabel
+							)}
+						>
+							Saved Playgrounds
+						</Heading>
+						<MenuGroup className={css.sidebarList}>
+							{storedSites.map((site) => {
+								/**
+								 * The `wordpress` site is selected when no site slug is provided.
+								 */
+								const isSelected =
+									site.slug === activeSite?.slug;
+								return (
+									<MenuItem
+										key={site.slug}
+										className={classNames(css.sidebarItem, {
+											[css.sidebarItemSelected]:
+												isSelected,
+										})}
+										onClick={() => onSiteClick(site.slug)}
+										isSelected={isSelected}
+										// eslint-disable-next-line jsx-a11y/aria-role
+										role=""
+									>
+										<HStack
+											justify="flex-start"
+											alignment="center"
+										>
+											{site.metadata.logo ? (
+												<img
+													src={getLogoDataURL(
+														site.metadata.logo
+													)}
+													alt={
+														site.metadata.name +
+														' logo'
+													}
+													className={
+														css.sidebarItemLogo
+													}
+												/>
+											) : (
+												<WordPressIcon
+													className={
+														css.sidebarItemLogo
+													}
+												/>
+											)}
+											<FlexBlock
+												className={
+													css.sidebarItemSiteName
+												}
+											>
+												{site.metadata.name}
+											</FlexBlock>
+										</HStack>
+									</MenuItem>
+								);
+							})}
+						</MenuGroup>
+					</>
+				)}
 			</nav>
 			<footer
 				className={classNames(css.sidebarSection, css.sidebarFooter)}
@@ -163,19 +197,6 @@ export function Sidebar({
 					))}
 				</ItemGroup>
 			</footer>
-			<SiteCreateButton>
-				{(onClick) => (
-					<div className={css.addSiteButtonWrapper}>
-						<Button
-							variant="primary"
-							className={css.addSiteButtonButton}
-							onClick={onClick}
-						>
-							Add Playground
-						</Button>
-					</div>
-				)}
-			</SiteCreateButton>
 		</NavigableMenu>
 	);
 }
