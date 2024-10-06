@@ -229,6 +229,18 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const currentTemporarySite = selectTemporarySite(getState());
+		if (currentTemporarySite) {
+			// If the current temporary site is the same as the site we're setting,
+			// then we don't need to create a new site.
+			if (
+				JSON.stringify(currentTemporarySite.originalUrlParams) ===
+				JSON.stringify(siteInfo.originalUrlParams)
+			) {
+				return currentTemporarySite;
+			}
+		}
+
 		const sites = getState().sites.entities;
 
 		// First, delete any existing temporary sites

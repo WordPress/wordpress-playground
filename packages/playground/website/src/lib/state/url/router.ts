@@ -39,10 +39,14 @@ export function parseBlueprint(rawData: string) {
 
 export class PlaygroundRoute {
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
-		return updateUrl(baseUrl, {
-			searchParams: { 'site-slug': site.slug },
-			hash: '',
-		});
+		if (site.metadata.storage === 'none') {
+			return updateUrl(baseUrl, site.originalUrlParams || {});
+		} else {
+			return updateUrl(baseUrl, {
+				searchParams: { 'site-slug': site.slug },
+				hash: '',
+			});
+		}
 	}
 	static newTemporarySite(
 		config: {

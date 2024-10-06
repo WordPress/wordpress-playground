@@ -77,7 +77,6 @@ export function EnsurePlaygroundSiteIsSelected({
 					return;
 				}
 
-				console.log('setting active site', requestedSiteSlug);
 				dispatch(setActiveSite(requestedSiteSlug));
 				return;
 			}
@@ -99,10 +98,6 @@ export function EnsurePlaygroundSiteIsSelected({
 						hash: url.hash,
 					},
 				})
-			);
-			console.log(
-				'setting active site to a temporary one',
-				newSiteInfo.slug
 			);
 			dispatch(setActiveSite(newSiteInfo.slug));
 		}
