@@ -28,11 +28,12 @@ jobs:
         concurrency:
             group: check-version-and-run-build
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
                   persist-credentials: false
+                  submodules: true
             - name: 'Install bun'
               run: |
                   curl -fsSL https://bun.sh/install | bash

@@ -73,7 +73,8 @@
 			],
 			"@wp-playground/wordpress-builds": [
 				"packages/playground/wordpress-builds/src/index.ts"
-			]
+			],
+			"isomorphic-git": ["./isomorphic-git/src"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]

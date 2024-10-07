@@ -18,6 +18,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
@@ -26,6 +28,8 @@ jobs:
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
@@ -34,6 +38,8 @@ jobs:
         # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: sudo ./node_modules/.bin/cypress install --force
             - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
@@ -49,6 +55,8 @@ jobs:
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
               run: sudo npx playwright install --with-deps
@@ -70,6 +78,8 @@ jobs:
                 part: ['chromium', 'firefox', 'webkit']
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Download dist
               uses: actions/download-artifact@v4
@@ -104,6 +114,8 @@ jobs:
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=build --parallel=3 --verbose
 
@@ -128,6 +140,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: npm run build:docs
             - uses: actions/upload-pages-artifact@v1

@@ -4,6 +4,13 @@
 	"sourceRoot": "packages/playground/php-cors-proxy",
 	"projectType": "library",
 	"targets": {
+		"start": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["php -S 127.0.0.1:5263"],
+				"cwd": "packages/playground/php-cors-proxy"
+			}
+		},
 		"test": {
 			"executor": "nx:run-commands",
 			"options": {

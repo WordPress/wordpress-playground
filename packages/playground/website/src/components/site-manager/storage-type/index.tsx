@@ -1,5 +1,5 @@
 import { Icon } from '@wordpress/components';
-import { ClockIcon, FolderIcon, LayoutIcon } from '../icons';
+import { ClockIcon, folder, layout } from '@wp-playground/components';
 import css from './style.module.css';
 import { SiteStorageType } from '../../../lib/site-metadata';
 
@@ -8,14 +8,14 @@ export function StorageType({ type }: { type: SiteStorageType }) {
 		case 'local-fs':
 			return (
 				<div className={css.storageType}>
-					<Icon size={16} icon={FolderIcon} />
+					<Icon size={16} icon={folder} />
 					<span>Local</span>
 				</div>
 			);
 		case 'opfs':
 			return (
 				<div className={css.storageType}>
-					<Icon size={16} icon={LayoutIcon} />
+					<Icon size={16} icon={layout} />
 					<span>Browser</span>
 				</div>
 			);

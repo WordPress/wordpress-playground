@@ -10,7 +10,7 @@ import {
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
 } from '@wordpress/components';
-import { ClockIcon, WordPressIcon } from '../icons';
+import { ClockIcon, WordPressIcon } from '@wp-playground/components';
 import {
 	setActiveSite,
 	useActiveSite,
