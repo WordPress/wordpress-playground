@@ -20,6 +20,8 @@ import { getRemoteUrl } from '../../config';
 import { setActiveModal, setActiveSiteError } from './slice-ui';
 import { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
+// @ts-ignore
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -131,6 +133,7 @@ export function bootSiteClient(
 					  ]
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
+				corsProxy: corsProxyUrl,
 			});
 
 			// @TODO: Remove backcompat code after 2024-12-01.

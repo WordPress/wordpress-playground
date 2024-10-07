@@ -4,6 +4,11 @@ import {
 } from '@php-wasm/progress';
 import { FileTree, UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import {
+	listDescendantFiles,
+	listGitFiles,
+	sparseCheckout,
+} from '@wp-playground/storage';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
 
 export type { FileTree };
@@ -129,10 +134,12 @@ export abstract class Resource<T extends File | Directory> {
 		{
 			semaphore,
 			progress,
+			corsProxy,
 		}: {
 			/** Optional semaphore to limit concurrent downloads */
 			semaphore?: Semaphore;
 			progress?: ProgressTracker;
+			corsProxy?: string;
 		}
 	): Resource<File | Directory> {
 		let resource: Resource<File | Directory>;
@@ -153,7 +160,9 @@ export abstract class Resource<T extends File | Directory> {
 				resource = new UrlResource(ref, progress);
 				break;
 			case 'git:directory':
-				resource = new GitDirectoryResource(ref, progress);
+				resource = new GitDirectoryResource(ref, progress, {
+					corsProxy,
+				});
 				break;
 			case 'literal:directory':
 				resource = new LiteralDirectoryResource(ref, progress);
@@ -442,26 +451,34 @@ export class UrlResource extends FetchResource {
 export class GitDirectoryResource extends Resource<Directory> {
 	constructor(
 		private reference: GitDirectoryReference,
-		public override _progress?: ProgressTracker
+		public override _progress?: ProgressTracker,
+		private options?: { corsProxy?: string }
 	) {
 		super();
 	}
 
 	async resolve() {
-		// @TODO: Use the actual sparse checkout logic here once
-		//        https://github.com/WordPress/wordpress-playground/pull/1764 lands.
-		throw new Error('Not implemented yet');
+		const repoUrl = this.options?.corsProxy
+			? `${this.options.corsProxy}/${this.reference.url}`
+			: this.reference.url;
+		const ref = `refs/heads/${this.reference.ref}`;
+		const allFiles = await listGitFiles(repoUrl, ref);
+		const filesToClone = listDescendantFiles(allFiles, this.reference.path);
+		let files = await sparseCheckout(repoUrl, ref, filesToClone);
+		// Remove the path prefix from the cloned file names.
+		files = Object.fromEntries(
+			Object.entries(files).map(([name, contents]) => {
+				name = name.substring(this.reference.path.length);
+				name = name.replace(/^\/+/, '');
+				return [name, contents];
+			})
+		);
 		return {
-			name: 'hello-world',
-			files: {
-				'README.md': 'Hello, World!',
-				'index.php': `<?php
-/**
-* Plugin Name: Hello World
-* Description: A simple plugin that says hello world.
-*/
-			 	`,
-			},
+			name: `${this.reference.ref} (${this.reference.path})`.replaceAll(
+				'/',
+				'-'
+			),
+			files,
 		};
 	}
 

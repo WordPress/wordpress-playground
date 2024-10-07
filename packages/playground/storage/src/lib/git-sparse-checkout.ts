@@ -42,7 +42,7 @@ export async function sparseCheckout(
 	fullyQualifiedBranchName: string,
 	filesPaths: string[]
 ) {
-	const refs = await listRefs(repoUrl, fullyQualifiedBranchName);
+	const refs = await listGitRefs(repoUrl, fullyQualifiedBranchName);
 	const commitHash = refs[fullyQualifiedBranchName];
 	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
 	const objects = await resolveObjects(treesIdx, commitHash, filesPaths);
@@ -84,11 +84,11 @@ export type FileTree = FileTreeFile | FileTreeFolder;
  * @param fullyQualifiedBranchName The full name of the branch to fetch from (e.g., 'refs/heads/main').
  * @returns A list of all files in the repository.
  */
-export async function listFiles(
+export async function listGitFiles(
 	repoUrl: string,
 	fullyQualifiedBranchName: string
 ): Promise<FileTree[]> {
-	const refs = await listRefs(repoUrl, fullyQualifiedBranchName);
+	const refs = await listGitRefs(repoUrl, fullyQualifiedBranchName);
 	if (!(fullyQualifiedBranchName in refs)) {
 		throw new Error(`Branch ${fullyQualifiedBranchName} not found`);
 	}
@@ -131,7 +131,7 @@ function gitTreeToFileTree(tree: GitTree): FileTree[] {
  * @param fullyQualifiedBranchPrefix The prefix of the refs to fetch. For example: refs/heads/my-feature-branch
  * @returns A map of refs to their corresponding commit hashes.
  */
-export async function listRefs(
+export async function listGitRefs(
 	repoUrl: string,
 	fullyQualifiedBranchPrefix: string
 ) {
