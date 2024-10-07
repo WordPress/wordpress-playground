@@ -39,7 +39,7 @@ test.afterEach(async () => {
 for (const cachingEnabled of [true, false]) {
 	test(`When a new website version is deployed, it should be loaded upon a regular page refresh (with HTTP caching ${
 		cachingEnabled ? 'enabled' : 'disabled'
-	})`, async ({ website, page }) => {
+	})`, async ({ website, page, wordpress }) => {
 		server!.setHttpCacheEnabled(cachingEnabled);
 
 		await page.goto(url);
@@ -51,9 +51,10 @@ for (const cachingEnabled of [true, false]) {
 		server!.switchToNewVersion();
 		await page.goto(url);
 		await website.waitForNestedIframes();
-		await expect(page).toHaveScreenshot('website-new.png', {
-			maxDiffPixels,
-		});
+		await expect(
+			website.page.getByLabel('Open Site Manager')
+		).toBeVisible();
+		await expect(wordpress.locator('body')).toContainText('Edit site');
 	});
 }
 
@@ -93,6 +94,7 @@ test(
 
 test('offline mode – the app should load even when the server goes offline', async ({
 	website,
+	wordpress,
 	page,
 	browserName,
 }) => {
@@ -112,15 +114,14 @@ test('offline mode – the app should load even when the server goes offline', a
 
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
-	// @TODO a better check – screenshot comparisons will be annoying to maintain
-	await expect(page).toHaveScreenshot('website-online.png', {
-		maxDiffPixels,
-	});
+
+	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	expect(wordpress.locator('body')).toContainText('Edit site');
 
 	server!.kill();
 	await page.reload();
 	await website.waitForNestedIframes();
-	await expect(page).toHaveScreenshot('website-online.png', {
-		maxDiffPixels,
-	});
+
+	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	expect(wordpress.locator('body')).toContainText('Edit site');
 });
