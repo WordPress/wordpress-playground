@@ -1,13 +1,11 @@
 /// <reference types="vitest" />
-import fs from 'fs';
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig } from 'vite';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
-import path from 'path';
 
 export default defineConfig({
 	base: '/',
@@ -21,75 +19,6 @@ export default defineConfig({
 	},
 
 	plugins: [
-		/**
-		 * A clunky fix for these import errors:
-		 *
-		 * import { compareStrings } from './compareStrings' to work.
-		 *
-		 * Error: Cannot find module '/Users/cloudnik/www/Automattic/core/plugins/playground/node_modules/isomorphic-git/src/utils/compareStrings' imported from /Users/cloudnik/www/Automattic/core/plugins/playground/node_modules/isomorphic-git/src/utils/comparePath.js'
-		 *
-		 * @TODO – fix it globally, ideally remove the special `resolveplugin:` prefix.
-		 * It just works with `bun test FWIW.
-		 */
-		{
-			name: 'resolve-js-imports-when-path-does-not-end-with-js-within-node-modules',
-			enforce: 'pre',
-			resolveId(id, importedFrom) {
-				if (id.startsWith('resolveplugin:')) {
-					id = id.replace('resolveplugin:', '');
-				}
-				if (importedFrom?.startsWith('resolveplugin:')) {
-					importedFrom = importedFrom.replace('resolveplugin:', '');
-				}
-				if (
-					!id.includes('isomorphic-git') &&
-					!importedFrom?.includes('isomorphic-git')
-				) {
-					return;
-				}
-
-				if (id.startsWith('/')) {
-					return {
-						id: 'resolveplugin:' + id,
-					};
-				}
-
-				if (id.startsWith('isomorphic-git/')) {
-					return {
-						id:
-							'resolveplugin:' +
-							path.join(__dirname, `../../../${id}`),
-					};
-				}
-
-				if (!id.startsWith('.')) {
-					return;
-				}
-
-				if (!id.startsWith('/')) {
-					return {
-						id:
-							'resolveplugin:' +
-							path.join(
-								importedFrom ? path.dirname(importedFrom) : '',
-								id
-							),
-					};
-				}
-				return {
-					id: 'resolveplugin:' + id,
-				};
-			},
-			load(id) {
-				if (id.startsWith('resolveplugin:')) {
-					id = id.replace('resolveplugin:', '');
-					if (!fs.existsSync(id) && fs.existsSync(id + '.js')) {
-						id += '.js';
-					}
-					return fs.readFileSync(id, 'utf-8');
-				}
-			},
-		} as Plugin,
 		viteTsConfigPaths({
 			root: '../../../',
 		}),

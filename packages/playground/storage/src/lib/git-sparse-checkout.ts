@@ -327,7 +327,7 @@ function readObject(result: any) {
 			result.object = GitCommit.from(result.object).parse();
 			break;
 		case 'tree':
-			result.object = GitTree.from(result.object).entries();
+			result.object = (GitTree.from(result.object) as any).entries();
 			break;
 		case 'blob':
 			result.object = new Uint8Array(result.object);

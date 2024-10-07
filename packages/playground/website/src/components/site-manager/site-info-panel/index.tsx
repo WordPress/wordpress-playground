@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import css from './style.module.css';
-import { getLogoDataURL, WordPressIcon } from '../icons';
+import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import {
 	Button,
 	Flex,
