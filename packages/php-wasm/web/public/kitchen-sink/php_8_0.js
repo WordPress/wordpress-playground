@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 12404702; 
+export const dependenciesTotalSize = 12405702; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets

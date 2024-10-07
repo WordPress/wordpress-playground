@@ -1,7 +1,7 @@
 :root {
-	--site-manager-site-list-width: 282px;
-	--site-manager-site-info-min-width: 524px;
-	--site-manager-width: calc(
+	--site-manager-site-list-width: 320px;
+	--site-manager-site-info-min-width: 350px;
+	--site-manager-width-desktop: calc(
 		var(--site-manager-site-list-width) +
 			var(--site-manager-site-info-min-width)
 	);
@@ -22,40 +22,58 @@ body {
 	overflow: hidden;
 }
 
-.playground-navigator {
-	height: 100vh;
-	display: flex;
+.site-view {
+	height: 100%;
 }
 
-.sidebar {
-	flex: 0 0 auto;
-	width: var(--site-manager-width);
+.site-manager-wrapper {
+	max-width: 1300px;
+	@media (max-width: 875px) {
+		min-width: 0;
+		width: 100%;
+	}
 }
 
-.sidebar-enter {
+.site-manager-wrapper-enter {
 	opacity: 0;
-	width: 0;
+	max-width: 0;
 }
 
-.sidebar-exit,
-.sidebar-enter-active {
+.site-manager-wrapper-exit,
+.site-manager-wrapper-enter-active {
 	opacity: 1;
 	transform: none;
-	width: var(--site-manager-width);
+	max-width: 1300px;
+	@media (max-width: 875px) {
+		width: 100%;
+	}
 }
 
 /* 
  * Repeated rule to ensure it's more specific than
- * .sidebar-exit
+ * .site-manager-wrapper-exit
  */
-.sidebar-exit-active {
+.site-manager-wrapper-exit-active {
 	opacity: 0;
-	width: 0;
+	max-width: 0;
 }
 
-.sidebar-exit-active,
-.sidebar-enter-active {
-	transition: width 300ms, opacity 300ms;
+.site-manager-wrapper-exit-active,
+.site-manager-wrapper-enter-active {
+	transition: 
+		/* 
+		 * Workaround: Animate max-width to allow `width: auto`
+		 * The `width` property needs to be `auto` to ensure the
+		 * site manager panel expands and shrinks with its content.
+		 * Unfortunately, we can't animate width from `0` to `auto`.
+		 * Therefore, we animate the `max-width` property instead.
+		 * We assign a large enough number (1300px) to make sure it won't
+		 * interfere with regular use cases, and give it more time to animate
+		 * so that it hits its `auto` width approximately around the same time
+		 * as the `opacity` transition finishes.
+		 */ max-width
+			450ms,
+		opacity 300ms;
 }
 
 .site-view {
@@ -64,12 +82,13 @@ body {
 	min-width: var(--site-view-min-width);
 	height: 100vh;
 	border: 0px solid var(--site-manager-background-color);
-	transition: border-radius 300ms, border-width 300ms;
+	transition: border-radius 300ms ease, border-width 300ms ease,
+		transform 300ms ease;
 	border-radius: 0;
 	border-width: 0;
 }
 
-.sidebar + .site-view {
+.site-manager-wrapper + .site-view {
 	position: relative;
 	border-width: var(--site-manager-border-width);
 	border-left-width: 0;
@@ -78,7 +97,15 @@ body {
 	}
 }
 
-.sidebar-exit-active + .site-view {
+.site-manager-wrapper:not(
+		.site-manager-wrapper-exit-active,
+		.site-manager-wrapper-enter-active
+	)
+	+ .site-view:hover {
+	transform: scale(1.01);
+}
+
+.site-manager-wrapper-exit-active + .site-view {
 	border-radius: 0;
 	border-width: 0;
 	.site-view-content {
@@ -89,6 +116,7 @@ body {
 .site-view-content {
 	overflow: hidden;
 	transition: border-radius 300ms;
+	height: 100%;
 }
 
 .site-view-overlay {
@@ -113,12 +141,15 @@ body {
  * on smaller screens and never overflows out of the screen.
  */
 @media (max-width: 1126px) {
-	.sidebar + .site-view {
+	.site-manager-wrapper + .site-view {
 		display: none;
 	}
-	.sidebar,
-	.sidebar-exit,
-	.sidebar-enter-active {
+	.site-manager-wrapper,
+	.site-manager-wrapper-exit,
+	.site-manager-wrapper-enter-active {
 		width: 100%;
+	}
+	.site-manager-wrapper-exit-active + .site-view {
+		display: block;
 	}
 }

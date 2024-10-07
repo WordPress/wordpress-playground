@@ -1,0 +1,42 @@
+{
+	"link.title.Docs": {
+		"message": "Docs",
+		"description": "The title of the footer links column with title=Docs in the footer"
+	},
+	"link.title.Community": {
+		"message": "Community",
+		"description": "The title of the footer links column with title=Community in the footer"
+	},
+	"link.item.label.Documentation": {
+		"message": "Documentation",
+		"description": "The label of footer link with label=Documentation linking to /"
+	},
+	"link.item.label.Blueprints": {
+		"message": "Blueprints",
+		"description": "The label of footer link with label=Blueprints linking to /blueprints"
+	},
+	"link.item.label.Developers": {
+		"message": "Developers",
+		"description": "The label of footer link with label=Developers linking to /developers"
+	},
+	"link.item.label.API Reference": {
+		"message": "API Reference",
+		"description": "The label of footer link with label=API Reference linking to /api"
+	},
+	"link.item.label.GitHub": {
+		"message": "GitHub",
+		"description": "The label of footer link with label=GitHub linking to https://github.com/WordPress/wordpress-playground"
+	},
+	"link.item.label.#meta-playground on Slack": {
+		"message": "#meta-playground on Slack",
+		"description": "The label of footer link with label=#meta-playground on Slack linking to https://make.wordpress.org/chat"
+	},
+	"copyright": {
+		"message": "Copyright © 2024 WordPress Playground, Inc. Built with Docusaurus.",
+		"description": "The footer copyright"
+	},
+	"logo.alt": {
+		"message": "Code Is Poetry",
+		"description": "The alt text of footer logo"
+	}
+}

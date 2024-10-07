@@ -9,13 +9,13 @@ import { TextControl } from '@wordpress/components';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setActiveModal,
-} from '../../lib/redux-store';
+} from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
 
@@ -29,7 +29,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 
 	return (
 		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
-			<header>
+			<header aria-label="Error logs list header">
 				<h2>{props.title || 'Error Logs'}</h2>
 				{props.description}
 			</header>
@@ -55,6 +55,7 @@ export function SiteLogs({ className }: { className?: string }) {
 	}, []);
 
 	function getLogs() {
+		// TODO: Fix log querying/listing to be per site
 		setLogs(logger.getLogs());
 	}
 

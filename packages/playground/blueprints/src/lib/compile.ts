@@ -85,6 +85,9 @@ export function compileBlueprint(
 		onStepCompleted = () => {},
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
+	// Deep clone the blueprint to avoid mutating the input
+	blueprint = structuredClone(blueprint);
+
 	blueprint = {
 		...blueprint,
 		steps: (blueprint.steps || [])
@@ -177,7 +180,10 @@ export function compileBlueprint(
 	// Default to the "kitchen sink" PHP extensions bundle if no
 	// other bundles are specified.
 	if (blueprint.phpExtensionBundles.length === 0) {
-		blueprint.phpExtensionBundles.push('kitchen-sink');
+		blueprint.phpExtensionBundles = [
+			...blueprint.phpExtensionBundles,
+			'kitchen-sink',
+		];
 	}
 
 	/**

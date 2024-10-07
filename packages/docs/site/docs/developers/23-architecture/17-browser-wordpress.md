@@ -5,7 +5,7 @@ The [web bundler Dockerfile](https://github.com/WordPress/wordpress-playground/b
 -   Makes WordPress run on SQLite using the [official drop-in plugin](https://github.com/WordPress/sqlite-database-integration) as MySQL is unsupported in the browser.
 -   Reduces the WordPress website size from about 70MB to about 10MB, or 5MB compressed.
 -   Runs the WordPress installation wizard.
--   Bundles WordPress as a [data dependency](/developers/architecture/wasm-php-data-dependencies)
+-   Bundles WordPress as a minified zip file.
 
 Build a new bundle with `nx bundle-wordpress playground-wordpress-builds --wp-version=<version>`, e.g.:
 

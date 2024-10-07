@@ -6,7 +6,7 @@ slug: /contributing/documentation
 
 [WordPress Playground's documentation site](/) is maintained by volunteers like you, who'd love your help.
 
-All [documentation-related topics](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Documentation) are labeled `documentation`. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
+All documentation-related issues are labeled [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Documentation) or [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Developer%20Documentation) in the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 
 ## How can I contribute?
 
@@ -14,13 +14,18 @@ You can contribute by [opening an issue in the project repository](https://githu
 
 If you feel up to it, write the content in the issue description, and the project contributors will take care of the rest.
 
-### I'm familiar with markdown and GitHub
+### Forking the repo, edit files locally and opening Pull Requests
 
-If you are familiar with markdown, you can propose changes and new documentation pages by submitting a Pull Request.
+If you are familiar with markdown, you can [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the `wordpress-playground` repo and propose changes and new documentation pages by submitting a Pull Request.
 
-The documentation is stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs).
+The process of creating a branch to open new PRs with translated pages on the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository is the same than contributing to other WordPress repositories such as gutenberg:
+https://developer.wordpress.org/block-editor/contributors/code/git-workflow/
 
-## Edit in the browser
+The documentation files (`.md` files) are stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs).
+
+### Edit in the browser
+
+If logged in GitHub, you can also edit existing files (or add new ones) and submit a PR directly from the GitHub UI:
 
 1. Find the page you'd like to edit or the directory of the chapter you'd like to add a new page to.
 2. Click the **Add Files** button to add a new file, or click on an existing file and then click the pencil icon to edit it.

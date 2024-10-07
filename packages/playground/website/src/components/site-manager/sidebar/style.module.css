@@ -1,6 +1,7 @@
 .sidebar {
 	height: 100vh;
 	display: flex;
+	flex-shrink: 0;
 	flex-direction: column;
 	--site-manager-text-color: #fff;
 	color: var(--site-manager-text-color);
@@ -31,7 +32,8 @@
 .sidebar-label {
 	color: #949494 !important;
 	text-transform: uppercase;
-	padding: 0 12px 8px;
+	padding: 8px 12px 8px;
+	font-size: 12px !important;
 }
 
 .sidebar-list {

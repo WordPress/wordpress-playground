@@ -199,9 +199,18 @@ echo json_encode($deactivated_plugins);
 
 	// Reactivate any previously deactivated plugins
 	for (const plugin of deactivatedPlugins) {
-		await activatePlugin(playground, {
-			pluginPath: plugin,
-		});
+		try {
+			await activatePlugin(playground, {
+				pluginPath: plugin,
+			});
+		} catch (error) {
+			/**
+			 * This can happen if the plugin is already active.
+			 * For example, the Hello Dolly plugin exists as hello.php and hello/hello.php.
+			 * The second activation will fail, but that's fine.
+			 */
+			logger.error('Error activating plugin', plugin, error);
+		}
 	}
 };
 

@@ -49,10 +49,6 @@ const redirections = [
 		from: '/architecture/wasm-php-compiling',
 	},
 	{
-		to: '/developers/architecture/wasm-php-data-dependencies',
-		from: '/architecture/wasm-php-data-dependencies',
-	},
-	{
 		to: '/developers/architecture/wasm-php-filesystem',
 		from: '/architecture/wasm-php-filesystem',
 	},

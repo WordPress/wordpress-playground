@@ -373,6 +373,56 @@ export class UrlResource extends FetchResource {
 	 */
 	constructor(private resource: UrlReference, progress?: ProgressTracker) {
 		super(progress);
+		/**
+		 * Translates GitHub URLs into raw.githubusercontent.com URLs.
+		 *
+		 * Example:
+		 * https://github.com/WordPress/wordpress-develop/blob/trunk/src/wp-includes/version.php
+		 *
+		 * Becomes
+		 * https://raw.githubusercontent.com/WordPress/wordpress-develop/trunk/src/wp-includes/version.php
+		 *
+		 * There's virtually a zero chance you actually want to refer to the HTML response served
+		 * by GitHub.com, with the GitHub UI, file preview, etc. in it. Almost certainly, you want
+		 * to download the raw file.
+		 *
+		 * This often confuses Blueprint authors when the GitHub URL they've used in their Blueprint
+		 * does not work. There's plenty of issues in the Playground repository asking specifically
+		 * about that. Well, GitHub.com response is not what they want, and even if it was, GitHub
+		 * does not provide the necessary CORS headers.
+		 *
+		 * While the URL rewriting might confuse advanced developers, they're in a good
+		 * position to figure it out. This feature shouldn't do any harm.
+		 *
+		 * Note the rewriting is implemented in UrlResource, which is used in all Playground
+		 * implementations, e.g. the browser, the CLI, Studio, etc. While most of them don't
+		 * need to worry about CORS, we still want ot make sure the same Blueprints will work
+		 * in all Playground runtimes.
+		 *
+		 * ## Caveats
+		 *
+		 * Directory URLs are not supported. For example, a URL such as
+		 * https://github.com/WordPress/blueprints/tree/trunk/blueprints would be rewritten to
+		 * https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints, which
+		 * yields `404: Not Found`.
+		 *
+		 * There's no way to distinguish between a file and a directory based just on its GitHub.com
+		 * URL. If this starts coming up a lot in Playground issues, let's explore consulting the
+		 * repository contents and rewriting the URL resource as a git directory resource.
+		 *
+		 * @see https://github.com/WordPress/wordpress-playground/pull/1793
+		 */
+		if (this.resource.url.startsWith('https://github.com/')) {
+			const match = this.resource.url.match(
+				/^https:\/\/github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/blob\/(?<branch>[^/]+)\/(?<path>.+[^/])$/
+			);
+			if (match?.groups) {
+				this.resource = {
+					...this.resource,
+					url: `https://raw.githubusercontent.com/${match.groups['owner']}/${match.groups['repo']}/${match.groups['branch']}/${match.groups['path']}`,
+				};
+			}
+		}
 	}
 
 	/** @inheritDoc */

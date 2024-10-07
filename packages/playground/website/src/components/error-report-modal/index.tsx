@@ -6,16 +6,17 @@ import { Button, TextareaControl, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 
 import { Blueprint } from '@wp-playground/blueprints';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	setActiveModal,
-} from '../../lib/redux-store';
+	useAppSelector,
+} from '../../lib/state/redux/store';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 
 export function ErrorReportModal(props: { blueprint: Blueprint }) {
-	const activeModal = useSelector(
-		(state: PlaygroundReduxState) => state.activeModal
+	const activeModal = useAppSelector(
+		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const [loading, setLoading] = useState(false);
@@ -157,7 +158,10 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 
 	return (
 		<Modal isOpen={true} onRequestClose={onClose}>
-			<header className={css.errorReportModalHeader}>
+			<header
+				className={css.errorReportModalHeader}
+				aria-label="Error reporting form header"
+			>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>
 			</header>
