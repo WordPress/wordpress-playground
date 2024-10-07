@@ -4,28 +4,28 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v0.9.46] (2024-10-07) 
+## [v0.9.46] (2024-10-07)
 
 ### Enhancements
 
-- Webapp upgrade protocol: Disable HTTP caching and reload other browser tabs to prevent fatal errors after new deployments. ([#1822](https://github.com/WordPress/wordpress-playground/pull/1822))
+-   Webapp upgrade protocol: Disable HTTP caching and reload other browser tabs to prevent fatal errors after new deployments. ([#1822](https://github.com/WordPress/wordpress-playground/pull/1822))
 
 ### Documentation
 
-- Docs: Disable localeDropdown until more pages are translated. ([#1824](https://github.com/WordPress/wordpress-playground/pull/1824))
-- Docs: Review playground documentation translations page. ([#1826](https://github.com/WordPress/wordpress-playground/pull/1826))
-- Docs: Playground PR previews through GitHub actions. ([#1825](https://github.com/WordPress/wordpress-playground/pull/1825))
+-   Docs: Disable localeDropdown until more pages are translated. ([#1824](https://github.com/WordPress/wordpress-playground/pull/1824))
+-   Docs: Review playground documentation translations page. ([#1826](https://github.com/WordPress/wordpress-playground/pull/1826))
+-   Docs: Playground PR previews through GitHub actions. ([#1825](https://github.com/WordPress/wordpress-playground/pull/1825))
 
 ### Website
 
-- Use site slug as a stable scope. ([#1839](https://github.com/WordPress/wordpress-playground/pull/1839))
-- Close Playground Manager by default. ([#1831](https://github.com/WordPress/wordpress-playground/pull/1831))
-- Fix go-to-site menu items to reveal site view. ([#1833](https://github.com/WordPress/wordpress-playground/pull/1833))
+-   Use site slug as a stable scope. ([#1839](https://github.com/WordPress/wordpress-playground/pull/1839))
+-   Close Playground Manager by default. ([#1831](https://github.com/WordPress/wordpress-playground/pull/1831))
+-   Fix go-to-site menu items to reveal site view. ([#1833](https://github.com/WordPress/wordpress-playground/pull/1833))
 
 ### Various
 
-- Add Install instructions to the Playwright README. ([#1837](https://github.com/WordPress/wordpress-playground/pull/1837))
-- Resolve end-to-end failures. ([#1844](https://github.com/WordPress/wordpress-playground/pull/1844))
+-   Add Install instructions to the Playwright README. ([#1837](https://github.com/WordPress/wordpress-playground/pull/1837))
+-   Resolve end-to-end failures. ([#1844](https://github.com/WordPress/wordpress-playground/pull/1844))
 
 ### Contributors
 
@@ -33,34 +33,33 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @brandonpayton @juanmaguitar
 
-
-## [v0.9.45] (2024-09-30) 
+## [v0.9.45] (2024-09-30)
 
 ### Blueprints
 
-- Translate GitHub.com file URLs into CORS-accessible raw.githubusercontent.com. ([#1810](https://github.com/WordPress/wordpress-playground/pull/1810))
+-   Translate GitHub.com file URLs into CORS-accessible raw.githubusercontent.com. ([#1810](https://github.com/WordPress/wordpress-playground/pull/1810))
 
 ### Tools
 
-- [UX] Stored Playgrounds (no more data loss), multiple Playgrounds, UI WebApp Redesign. ([#1731](https://github.com/WordPress/wordpress-playground/pull/1731))
+-   [UX] Stored Playgrounds (no more data loss), multiple Playgrounds, UI WebApp Redesign. ([#1731](https://github.com/WordPress/wordpress-playground/pull/1731))
 
 ### Documentation
 
-- Docs: Translation i18n messages - JSON files. ([#1807](https://github.com/WordPress/wordpress-playground/pull/1807))
+-   Docs: Translation i18n messages - JSON files. ([#1807](https://github.com/WordPress/wordpress-playground/pull/1807))
 
 ### Website
 
-- Prevent creation of two temporary sites. ([#1817](https://github.com/WordPress/wordpress-playground/pull/1817))
-- Stop address bar from adding trailing slash to query params. ([#1820](https://github.com/WordPress/wordpress-playground/pull/1820))
+-   Prevent creation of two temporary sites. ([#1817](https://github.com/WordPress/wordpress-playground/pull/1817))
+-   Stop address bar from adding trailing slash to query params. ([#1820](https://github.com/WordPress/wordpress-playground/pull/1820))
 
 ### Bug Fixes
 
-- Fix broken Playwright tests. ([#1819](https://github.com/WordPress/wordpress-playground/pull/1819))
+-   Fix broken Playwright tests. ([#1819](https://github.com/WordPress/wordpress-playground/pull/1819))
 
 ### Various
 
-- Add Playwright tests for UI redesign changes. ([#1769](https://github.com/WordPress/wordpress-playground/pull/1769))
-- Docs: Contributions to translations. ([#1808](https://github.com/WordPress/wordpress-playground/pull/1808))
+-   Add Playwright tests for UI redesign changes. ([#1769](https://github.com/WordPress/wordpress-playground/pull/1769))
+-   Docs: Contributions to translations. ([#1808](https://github.com/WordPress/wordpress-playground/pull/1808))
 
 ### Contributors
 
@@ -68,16 +67,15 @@ The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @brandonpayton @juanmaguitar
 
-
-## [v0.9.44] (2024-09-24) 
+## [v0.9.44] (2024-09-24)
 
 ### Bug Fixes
 
-- Docs: Fix links intro fr. ([#1795](https://github.com/WordPress/wordpress-playground/pull/1795))
+-   Docs: Fix links intro fr. ([#1795](https://github.com/WordPress/wordpress-playground/pull/1795))
 
 ### Various
 
-- Add missing functions required to succesfully connect with MySQL DB. ([#1752](https://github.com/WordPress/wordpress-playground/pull/1752))
+-   Add missing functions required to succesfully connect with MySQL DB. ([#1752](https://github.com/WordPress/wordpress-playground/pull/1752))
 
 ### Contributors
 
@@ -85,8 +83,7 @@ The following contributors merged PRs in this release:
 
 @jeroenpf @juanmaguitar
 
-
-## [v0.9.43] (2024-09-23) 
+## [v0.9.43] (2024-09-23)
 
 ### Documentation
 
