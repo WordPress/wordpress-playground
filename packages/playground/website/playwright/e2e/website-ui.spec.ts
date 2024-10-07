@@ -13,7 +13,7 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 	website,
 }) => {
 	await website.goto('./?url=/wp-admin/');
-	await website.ensureSiteViewIsExpanded();
+	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
 	);
@@ -23,7 +23,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	website,
 }) => {
 	await website.goto('./?url=/wp-admin');
-	await website.ensureSiteViewIsExpanded();
+	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
 	);
@@ -33,25 +33,31 @@ test('should switch between sites', async ({ website }) => {
 	await website.goto('./');
 
 	await website.ensureSiteManagerIsOpen();
-	await website.openNewSiteModal();
 
-	const newSiteName = await website.page
-		.locator('input[placeholder="Playground name"]')
-		.inputValue();
-
-	await website.clickCreateInNewSiteModal();
-
-	await expect(await website.getSiteTitle()).toMatch(newSiteName);
-
-	const sidebarItem = website.page.locator(
-		'.components-button[class*="_sidebar-item"]:not([class*="_sidebar-item--selected_"])'
+	await expect(website.page.getByText('Save')).toBeEnabled();
+	await website.page.getByText('Save').click();
+	// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
+	// Playwright logs that something "intercepts pointer events", that's probably related.
+	await website.page.getByText('Save in this browser').waitFor();
+	await website.page.getByText('Save in this browser').click({ force: true });
+	await expect(
+		website.page.locator('[aria-current="page"]')
+	).not.toContainText('Temporary Playground');
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Temporary Playground'
 	);
-	const siteName = await sidebarItem
-		.locator('.components-flex-item[class*="_sidebar-item--site-name"]')
-		.innerText();
-	await sidebarItem.click();
 
-	await expect(siteName).toMatch(await website.getSiteTitle());
+	await website.page
+		.locator('button')
+		.filter({ hasText: 'Temporary Playground' })
+		.click();
+
+	await expect(website.page.locator('[aria-current="page"]')).toContainText(
+		'Temporary Playground'
+	);
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Temporary Playground'
+	);
 });
 
 SupportedPHPVersions.forEach(async (version) => {
@@ -64,33 +70,41 @@ SupportedPHPVersions.forEach(async (version) => {
 			return;
 		}
 		await website.goto(`./`);
-		await website.openForkPlaygroundSettings();
-		await website.selectPHPVersion(version);
-		await website.clickSaveInForkPlaygroundSettings();
+		await website.ensureSiteManagerIsOpen();
+		await website.page.getByLabel('PHP version').selectOption(version);
+		await website.page
+			.getByText('Apply Settings & Reset Playground')
+			.click();
+		await website.ensureSiteManagerIsClosed();
+		await website.ensureSiteManagerIsOpen();
 
-		await expect(website.getSiteInfoRowLocator('PHP version')).toHaveText(
-			`${version} (with extensions)`
+		await expect(website.page.getByLabel('PHP version')).toHaveValue(
+			version
 		);
+		await expect(
+			website.page.getByLabel('Load PHP extensions')
+		).toBeChecked();
 	});
 
 	test(`should not load additional PHP ${version} extensions when not requested`, async ({
 		website,
 	}) => {
 		await website.goto('./');
-		await website.openForkPlaygroundSettings();
-		await website.selectPHPVersion(version);
+		await website.ensureSiteManagerIsOpen();
+		await website.page.getByLabel('PHP version').selectOption(version);
+		await website.page.getByLabel('Load PHP extensions').uncheck();
+		await website.page
+			.getByText('Apply Settings & Reset Playground')
+			.click();
+		await website.ensureSiteManagerIsClosed();
+		await website.ensureSiteManagerIsOpen();
 
-		// Uncheck the "with extensions" checkbox
-		const phpExtensionCheckbox = website.page.locator(
-			'.components-checkbox-control__input[name="withExtensions"]'
-		);
-		await phpExtensionCheckbox.uncheck();
-
-		await website.clickSaveInForkPlaygroundSettings();
-
-		await expect(website.getSiteInfoRowLocator('PHP version')).toHaveText(
+		await expect(website.page.getByLabel('PHP version')).toHaveValue(
 			version
 		);
+		await expect(
+			website.page.getByLabel('Load PHP extensions')
+		).not.toBeChecked();
 	});
 });
 
@@ -102,13 +116,19 @@ Object.keys(MinifiedWordPressVersions)
 			website,
 		}) => {
 			await website.goto('./');
-			await website.openForkPlaygroundSettings();
-			await website.selectWordPressVersion(version);
-			await website.clickSaveInForkPlaygroundSettings();
+			await website.ensureSiteManagerIsOpen();
+			await website.page
+				.getByLabel('WordPress version')
+				.selectOption(version);
+			await website.page
+				.getByText('Apply Settings & Reset Playground')
+				.click();
+			await website.ensureSiteManagerIsClosed();
+			await website.ensureSiteManagerIsOpen();
 
 			await expect(
-				website.getSiteInfoRowLocator('WordPress version')
-			).toHaveText(version);
+				website.page.getByLabel('WordPress version')
+			).toHaveValue(version);
 		});
 	});
 
@@ -117,9 +137,7 @@ test('should display networking as inactive by default', async ({
 }) => {
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
-	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
-		'No'
-	);
+	await expect(website.page.getByLabel('Network access')).not.toBeChecked();
 });
 
 test('should display networking as active when networking is enabled', async ({
@@ -127,33 +145,31 @@ test('should display networking as active when networking is enabled', async ({
 }) => {
 	await website.goto('./?networking=yes');
 	await website.ensureSiteManagerIsOpen();
-	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
-		'Yes'
-	);
+	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
 test('should enable networking when requested', async ({ website }) => {
 	await website.goto('./');
 
-	await website.openForkPlaygroundSettings();
-	await website.setNetworkingEnabled(true);
-	await website.clickSaveInForkPlaygroundSettings();
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByLabel('Network access').check();
+	await website.page.getByText('Apply Settings & Reset Playground').click();
+	await website.ensureSiteManagerIsClosed();
+	await website.ensureSiteManagerIsOpen();
 
-	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
-		'Yes'
-	);
+	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
 test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?networking=yes');
 
-	await website.openForkPlaygroundSettings();
-	await website.setNetworkingEnabled(false);
-	await website.clickSaveInForkPlaygroundSettings();
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByLabel('Network access').uncheck();
+	await website.page.getByText('Apply Settings & Reset Playground').click();
+	await website.ensureSiteManagerIsClosed();
+	await website.ensureSiteManagerIsOpen();
 
-	await expect(website.getSiteInfoRowLocator('Network access')).toContainText(
-		'No'
-	);
+	await expect(website.page.getByLabel('Network access')).not.toBeChecked();
 });
 
 test('should display PHP output even when a fatal error is hit', async ({

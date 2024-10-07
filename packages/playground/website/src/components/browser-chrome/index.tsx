@@ -68,6 +68,7 @@ export default function BrowserChrome({
 							renderToggle={({ isOpen, onToggle }) => (
 								<Button
 									variant="browser-chrome"
+									aria-label="Edit Playground settings"
 									onClick={onToggle}
 									aria-expanded={isOpen}
 									style={{

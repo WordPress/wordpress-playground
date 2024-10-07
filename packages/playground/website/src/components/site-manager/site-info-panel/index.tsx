@@ -130,7 +130,10 @@ export function SiteInfoPanel({
 						</FlexItem>
 						<FlexItem style={{ flexGrow: 1 }}>
 							<Flex direction="column" gap={0.25} expanded={true}>
-								<h1 className={css.siteInfoHeaderDetailsName}>
+								<h1
+									className={css.siteInfoHeaderDetailsName}
+									aria-label="Playground title"
+								>
 									{isTemporary
 										? 'Temporary Playground'
 										: site.metadata.name}

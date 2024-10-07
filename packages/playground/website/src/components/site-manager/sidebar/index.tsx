@@ -70,7 +70,7 @@ export function Sidebar({
 		// Disable the `role` as Axe accessibility checker complains that a `menu`
 		// role cannot have `div`, `nav`, `footer` and `button` as children.
 		<NavigableMenu
-			className={classNames(css.sidebar, className)}
+			className={classNames(css.sidebar, className, 'main-sidebar')}
 			// eslint-disable-next-line jsx-a11y/aria-role
 			role=""
 			aria-orientation={undefined}
@@ -98,6 +98,11 @@ export function Sidebar({
 						// eslint-disable-next-line jsx-a11y/aria-role
 						role=""
 						title="This is a temporary Playground. Your changes will be lost on page refresh."
+						{...(activeSite?.metadata.storage === 'none'
+							? {
+									'aria-current': 'page',
+							  }
+							: {})}
 					>
 						<HStack justify="flex-start" alignment="center">
 							<ClockIcon className={css.sidebarItemLogo} />
@@ -136,6 +141,11 @@ export function Sidebar({
 										isSelected={isSelected}
 										// eslint-disable-next-line jsx-a11y/aria-role
 										role=""
+										{...(isSelected
+											? {
+													'aria-current': 'page',
+											  }
+											: {})}
 									>
 										<HStack
 											justify="flex-start"
