@@ -41,7 +41,7 @@ describe('Blueprint step enableMultisite', () => {
 			scoped: false,
 		},
 	].forEach(({ absoluteUrl, scoped }) => {
-		it.only(`should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a ${
+		it(`should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a ${
 			scoped ? 'scoped' : 'scopeless'
 		} URL`, async () => {
 			const { php, requestHandler } = await doBootWordPress({
