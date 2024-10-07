@@ -75,19 +75,25 @@ test(
 		// The non-reloaded tab should still work. The remote.html iframes
 		// that are already loaded should continue to work, and the newly
 		// loaded remote.html iframes should pull in the latest Playground version.
-		await website.ensureSiteManagerIsOpen();
+		const siteManagerHeading = website.page.locator(
+			'[class*="_site-manager-site-info"]'
+		);
+		if (await siteManagerHeading.isHidden({ timeout: 5000 })) {
+			await website.page.getByLabel('Open Site Manager').click();
+		}
+		await expect(siteManagerHeading).toBeVisible();
 
-		await website.page.getByLabel('PHP version').selectOption('7.4');
-		await website.page.getByLabel('WordPress version').selectOption('6.5');
-		await website.page.getByLabel('Language').selectOption('pl_PL');
+		await website.page.getByText('Add Playground').click();
 
-		await website.page
-			.getByText('Apply Settings & Reset Playground')
-			.click();
+		const modal = website.page.locator('.components-modal__frame');
+		await modal.getByLabel('PHP version').selectOption('7.4');
+		await modal.getByLabel('WordPress version').selectOption('6.5');
+		await modal.getByLabel('Language').selectOption('pl_PL');
+		await website.page.getByText('Create a temporary Playground').click();
+
 		await website.waitForNestedIframes();
 
 		// Confirm we're looking at the Polish site.
-		await website.ensureSiteManagerIsClosed();
 		expect(wordpress.locator('body')).toContainText('Edytuj witrynę');
 	}
 );
