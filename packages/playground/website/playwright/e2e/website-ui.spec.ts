@@ -30,6 +30,11 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 });
 
 test('should switch between sites', async ({ website, browserName }) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
 	await website.goto('./');
 
 	await website.ensureSiteManagerIsOpen();
