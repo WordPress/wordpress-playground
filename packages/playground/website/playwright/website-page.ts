@@ -16,6 +16,7 @@ export class WebsitePage {
 				.locator('body')
 		).not.toBeEmpty();
 	}
+
 	async goto(url: string, options?: any) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);

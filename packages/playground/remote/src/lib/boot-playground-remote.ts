@@ -115,6 +115,19 @@ export async function bootPlaygroundRemote() {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
 			}
+			/**
+			 * Workaround for a Safari bug: navigating to `/wp-admin`
+			 * without the trailing slash causes the browser to hang.
+			 * Chrome and Firefox correctly navigate to `/wp-admin`,
+			 * get a 302 redirect from PHPRequestHandler, and then follow
+			 * it to `/wp-admin/`.
+			 *
+			 * Interestingly, opening pretty permalinks without the trailing slash
+			 * works correctly. For example, `/sample-page` works as expected.
+			 */
+			if (requestedPath === '/wp-admin') {
+				requestedPath = '/wp-admin/';
+			}
 			const newUrl = await playground.pathToInternalUrl(requestedPath);
 			const oldUrl = wpFrame.src;
 
