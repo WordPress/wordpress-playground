@@ -5,7 +5,7 @@ runs:
     steps:
         - name: Fetch trunk
           shell: bash
-          run: git fetch origin trunk --depth=1
+          run: git fetch origin trunk --depth=1 --recurse-submodules
         - uses: actions/setup-node@v4
           with:
               node-version: 18
