@@ -28,6 +28,8 @@ jobs:
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
