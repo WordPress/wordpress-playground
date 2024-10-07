@@ -54,11 +54,11 @@ export default defineConfig({
 					};
 				}
 
-				if (id.startsWith('isomorphic-git')) {
+				if (id.startsWith('isomorphic-git/')) {
 					return {
 						id:
 							'resolveplugin:' +
-							path.join(__dirname, `../../../node_modules/${id}`),
+							path.join(__dirname, `../../../${id}`),
 					};
 				}
 

@@ -51,9 +51,7 @@
 		"test": "node --expose-gc node_modules/nx/bin/nx run-many --all --target=test",
 		"fix-asyncify": "node packages/php-wasm/node/bin/rebuild-while-asyncify-functions-missing.mjs",
 		"typecheck": "nx run-many --all --target=typecheck",
-		"prepare": "husky install",
-		"postinstall": "npm run clone-isomorphic-git",
-		"clone-isomorphic-git": "if [ -d \"node_modules/isomorphic-git\" ]; then echo 'Already cloned'; else git clone https://github.com/isomorphic-git/isomorphic-git.git node_modules/isomorphic-git; cd node_modules/isomorphic-git && git checkout bbcdda7d && cd ../../; fi"
+		"prepare": "husky install"
 	},
 	"private": true,
 	"dependencies": {
