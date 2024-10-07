@@ -3,7 +3,7 @@ import {
 	ProgressTracker,
 } from '@php-wasm/progress';
 import { FileTree, UniversalPHP } from '@php-wasm/universal';
-import { Semaphore } from '@php-wasm/util';
+import { dirname, Semaphore } from '@php-wasm/util';
 import {
 	listDescendantFiles,
 	listGitFiles,
@@ -474,10 +474,11 @@ export class GitDirectoryResource extends Resource<Directory> {
 			})
 		);
 		return {
-			name: `${this.reference.ref} (${this.reference.path})`.replaceAll(
-				'/',
-				'-'
-			),
+			name:
+				dirname(this.reference.path) ||
+				this.reference.url
+					.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
+					.replaceAll(/-+/g, '-'),
 			files,
 		};
 	}
