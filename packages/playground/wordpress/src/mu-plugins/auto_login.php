@@ -75,7 +75,7 @@ function playground_auto_login() {
 		return;
 	}
 
-	if (wp_doing_ajax() || wp_is_rest_endpoint()) {
+	if (wp_doing_ajax() || defined('REST_REQUEST')) {
 		return;
 	}
 
