@@ -6,8 +6,9 @@
  * ## Playground must be upgraded as early as possible after a new release
  *
  * New service workers call .skipWaiting(), immediately claim all the clients
- * that were controlled by the previous service worker, and forcibly refreshes
- * them.
+ * that were controlled by the previous service worker and clears the offline
+ * cache. The claimed clients are not forcibly refreshed. They just continue
+ * running under the new service worker.
  *
  * Why?
  *
@@ -64,6 +65,14 @@
  * fetching the new assets when a new deployment would break the application.
  * This should be very rare, but when it happens we provide an error message asking
  * the user to reload the page.
+ *
+ * #### Caveats
+ *
+ * If the newly deployed remote.html file is incompatible with the previous Playground
+ * client, loading a new site (<iframe src="remote.html">) without refreshing the browser
+ * tab where the old index.html is running won't work. That's not a big deal as the user
+ * will see an error message encouraging them to reload the page and the refresh will load
+ * the new, compatible index.html file.
  *
  * ### Edge Cache on playground.wordpress.net
  *
