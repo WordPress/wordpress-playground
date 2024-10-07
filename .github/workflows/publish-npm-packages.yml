@@ -40,6 +40,7 @@ jobs:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
                   persist-credentials: false
+                  submodules: true
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"
