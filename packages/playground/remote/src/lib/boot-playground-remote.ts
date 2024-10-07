@@ -1,7 +1,5 @@
 import { MessageListener } from '@php-wasm/universal';
 import {
-	registerServiceWorker,
-	setPhpInstanceUsedByServiceWorker,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
@@ -32,6 +30,9 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
+import { logger } from '@php-wasm/logger';
+import { PhpWasmError } from '@php-wasm/util';
+import { responseTo } from '@php-wasm/web-service-worker';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -56,14 +57,44 @@ export async function bootPlaygroundRemote() {
 		bar = new ProgressBar();
 		document.body.prepend(bar.element);
 	}
+	const sw = navigator.serviceWorker;
+	if (!sw) {
+		/**
+		 * Service workers may only run in secure contexts.
+		 * See https://w3c.github.io/webappsec-secure-contexts/
+		 */
+		if (window.isSecureContext) {
+			throw new PhpWasmError(
+				'Service workers are not supported in your browser.'
+			);
+		} else {
+			throw new PhpWasmError(
+				'WordPress Playground uses service workers and may only work on HTTPS and http://localhost/ sites, but the current site is neither.'
+			);
+		}
+	}
 
-	const { startServiceWorkerCommunicationBridge } =
-		await registerServiceWorker(serviceWorkerUrl + '');
+	const registration = await sw.register(serviceWorkerUrl + '', {
+		type: 'module',
+		// Always bypass HTTP cache when fetching the new Service Worker script:
+		updateViaCache: 'none',
+	});
+
+	// Check if there's a new service worker available and, if so, enqueue
+	// the update:
+	try {
+		await registration.update();
+	} catch (e) {
+		// registration.update() throws if it can't reach the server.
+		// We're swallowing the error to keep the app working in offline mode
+		// or when playground.wordpress.net is down. We can be sure we have a
+		// functional service worker at this point because sw.register() succeeded.
+		logger.error('Failed to update service worker.', e);
+	}
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
 	);
-	setPhpInstanceUsedByServiceWorker(phpWorkerApi);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const phpRemoteApi: WebClientMixin = {
@@ -222,9 +253,35 @@ export async function bootPlaygroundRemote() {
 
 		async boot(options) {
 			await phpWorkerApi.boot(options);
-			startServiceWorkerCommunicationBridge({
-				scope: options.scope,
-			});
+
+			// Proxy the service worker messages to the web worker:
+			navigator.serviceWorker.addEventListener(
+				'message',
+				async function onMessage(event) {
+					/**
+					 * Ignore events meant for other PHP instances to
+					 * avoid handling the same event twice.
+					 *
+					 * This is important because the service worker posts the
+					 * same message to all application instances across all browser tabs.
+					 */
+					if (options.scope && event.data.scope !== options.scope) {
+						return;
+					}
+
+					// Wait for the PHP API client to be set by bootPlaygroundRemote
+					const args = event.data.args || [];
+					const method = event.data
+						.method as keyof PlaygroundWorkerEndpoint;
+					const result = await (phpWorkerApi[method] as Function)(
+						...args
+					);
+					event.source!.postMessage(
+						responseTo(event.data.requestId, result)
+					);
+				}
+			);
+			sw.startMessages();
 
 			try {
 				await phpWorkerApi.isReady();

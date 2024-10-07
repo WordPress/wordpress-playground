@@ -9,7 +9,7 @@ const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 // a Service Worker module which does not allow top-level await.
 const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
 
-export async function cachedFetch(request: Request): Promise<Response> {
+export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const offlineModeCache = await promisedOfflineModeCache;
 	let response = await offlineModeCache.match(request, {
 		ignoreSearch: true,
@@ -35,6 +35,36 @@ export async function cachedFetch(request: Request): Promise<Response> {
 				await offlineModeCache.put(request, response.clone());
 			}
 		}
+	}
+
+	return response;
+}
+
+export async function networkFirstFetch(request: Request): Promise<Response> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	const cachedResponse = await offlineModeCache.match(request, {
+		ignoreSearch: true,
+	});
+
+	let response: Response | undefined = undefined;
+	try {
+		response = await fetch(request, {
+			cache: 'no-cache',
+		});
+	} catch (e) {
+		if (cachedResponse) {
+			return cachedResponse;
+		}
+		throw e;
+	}
+
+	if (response.ok) {
+		await offlineModeCache.put(request, response.clone());
+		return response;
+	}
+
+	if (cachedResponse) {
+		return cachedResponse;
 	}
 
 	return response;
@@ -80,8 +110,6 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
  * `buildVersionPlugin` for more details on how it's generated.
  */
 export async function purgeEverythingFromPreviousRelease() {
-	// @TODO: Ensure an older service worker won't ever remove the assets of a newer service worker,
-	//        even if this is accidentally called in the older worker.
 	const keys = await caches.keys();
 	const oldKeys = keys.filter(
 		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME

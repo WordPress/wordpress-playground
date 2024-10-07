@@ -6,8 +6,9 @@
  * ## Playground must be upgraded as early as possible after a new release
  *
  * New service workers call .skipWaiting(), immediately claim all the clients
- * that were controlled by the previous service worker, and forcibly refreshes
- * them.
+ * that were controlled by the previous service worker and clears the offline
+ * cache. The claimed clients are not forcibly refreshed. They just continue
+ * running under the new service worker.
  *
  * Why?
  *
@@ -16,22 +17,12 @@
  * the previous webapp version. Therefore, we can't allow the previous version
  * to run when a new version becomes available.
  *
- * ### Push notifications
- *
- * It would be supremely useful to proactively notify the webapp after a fresh deployment.
- * Playground doesn't do that yet but it likely will in the future.
- *
  * ## Caching strategy
  *
- * Playground relies on the **Cache only** strategy. It loads assets from
- * the network, caches them, and serves them from the cache. The assumption
- * is that all network requests yield the most recent version of the remote file.
+ * Playground uses caching heavily to achieve great loading speeds and provide
+ * an offline mode.
  *
- * This helps us avoid the HTTP cache problem.
- *
- * ### Cache layers
- *
- * We're dealing with the following cache layers:
+ * Caching is a complex beast. Playground deals with the following cache layers:
  *
  * * HTTP cache in the browser
  * * CacheStorage in the service worker
@@ -52,17 +43,34 @@
  *
  * ### CacheStorage in the service worker
  *
- * This servive worker uses a **Cache only** strategy to ensure all the loaded assets
- * come from the same webapp build.
+ * Playground primarily relies on the **Cache first** strategy. This means assets are:
  *
- * The **Cache only** strategy means Playground only loads each assets from
- * the network once, caches it, and serves it from the cache from that point on.
+ * 1. Loaded from the network without using any HTTP caching.
+ * 2. Stored in the CacheStorage.
+ * 3. Served from the CacheStorage on subsequent requests.
  *
- * The only times Playground reaches to the network are:
+ * While this strategy enables fast load times and an offline experience, it also
+ * creates a substantial challenge.
  *
- * * Before the service worker is installed.
- * * When the service worker is being activated.
- * * On CacheStorage cache miss occurs.
+ * When a new Playground version is deployed, all the clients will load an old
+ * version of the `remote.html` file on their next visit. Unfortunately, that old
+ * `remote.html` file contains hardcoded references to assets that may not be
+ * cached and no longer exist in the new webapp build.
+ *
+ * To solve this problem, we use the **Network first** strategy when `remote.html`
+ * is requested. This introduces a small network overhead, but it guarantees loading
+ * the most recent version of `remote.html` and all the referenced assets.
+ *
+ * Similarly, we use the **Network first** strategy for the `/` path. This is
+ * useful in situations where the user didn't visit Playground in a while,
+ * they have a stale version of the `/` route cached, and they open Playground.
+ * If we loaded the cached version, they'd see the old Playground website on their
+ * first visit and then the new Playground website only on their second visit.
+ *
+ * There's still a small window of time between loading the remote.html file and
+ * fetching the new assets when a new deployment would break the application.
+ * This should be very rare, but when it happens we provide an error message asking
+ * the user to reload the page.
  *
  * ### Edge Cache on playground.wordpress.net
  *
@@ -87,7 +95,7 @@
  *
  * * PR that turned off HTTP caching: https://github.com/WordPress/wordpress-playground/pull/1822
  * * Exploring all the cache layers: https://github.com/WordPress/wordpress-playground/issues/1774
- * * Cache only strategy: https://web.dev/articles/offline-cookbook#cache-only
+ * * Cache first strategy: https://web.dev/articles/offline-cookbook#cache-falling-back-to-network
  * * Service worker caching and HTTP caching: https://web.dev/articles/service-worker-caching-and-http-caching
  */
 
@@ -105,7 +113,8 @@ import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import {
-	cachedFetch,
+	cacheFirstFetch,
+	networkFirstFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
 	isCurrentServiceWorkerActive,
 	purgeEverythingFromPreviousRelease,
@@ -168,17 +177,6 @@ self.addEventListener('install', (event) => {
  * registration. It shouldn't have unwanted side effects in our case. All these
  * pages would get controlled eventually anyway.
  *
- * ## Upgrading other browser tabs
- *
- * This activation hook upgrades all the Playground browser tabs to the latest
- * service worker version, and that service worker upgrades them the latest version
- * of the webapp.
- *
- * The moment a new Playground version is deployed, the existing browser tabs
- * won't be able to load assets from the network. The older Playground version
- * they're running contains hardcoded URLs to assets that no longer exist on
- * the server.
- *
  * See:
  * * The service worker lifecycle https://web.dev/articles/service-worker-lifecycle
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
@@ -190,35 +188,6 @@ self.addEventListener('activate', function (event) {
 		if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
 			cacheOfflineModeAssetsForCurrentRelease();
-		}
-
-		// Reload all clients that were controlled by the previous service worker
-		// so they can load the new version of the app without any stale assets
-		// whatsoever.
-		const windowClients = await self.clients.matchAll({
-			type: 'window',
-			includeUncontrolled: true,
-		});
-
-		for (const client of windowClients) {
-			let url;
-			try {
-				url = new URL(client.url);
-			} catch (e) {
-				// Ignore
-				return;
-			}
-
-			if (
-				url.pathname.startsWith('/remote.html') ||
-				url.pathname.startsWith('/scope:')
-			) {
-				return;
-			}
-
-			// @TODO: Store temporary sites in OPFS to avoid destroying in-memory
-			// changes in tabs that are already open.
-			client.navigate(client.url);
 		}
 	}
 	event.waitUntil(doActivate());
@@ -273,8 +242,41 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Use Cache Only strategy to serve regular static assets.
-	return event.respondWith(cachedFetch(event.request));
+	/**
+	 * Always fetch the fresh version of `/remote.html` and `/` from the network.
+	 *
+	 * This is the secret sauce that enables seamless upgrades of the
+	 * running Playground clients when a new version is deployed on
+	 * the server.
+	 *
+	 * ## The problem with deployments
+	 *
+	 * App deployments remove all the static assets associated with the
+	 * previous app version. Meanwhile, the remote.html file we've cached
+	 * for offline usage still holds references to those assets.
+	 *
+	 * If we just loaded the cached remote.html file, the site would crash
+	 * with seemingly random errors.
+	 *
+	 * Instead, we fetch the most recent version of remote.html from the network.
+	 * It references the static assets that are now available on the server and
+	 * should work just fine.
+	 *
+	 * Relatedly, loading the `/` path using the network first strategy ensures
+	 * that the user sees the latest version of the webapp even if they aleady
+	 * have the previous version cached in CacheStorage.
+	 *
+	 * This very simple resolution took multiple iterations to get right. See
+	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
+	 * details.
+	 */
+	if (url.pathname === '/remote.html' || url.pathname === '/') {
+		event.respondWith(networkFirstFetch(event.request));
+		return;
+	}
+
+	// Use cache first strategy to serve regular static assets.
+	return event.respondWith(cacheFirstFetch(event.request));
 });
 
 /**

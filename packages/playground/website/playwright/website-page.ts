@@ -17,6 +17,18 @@ export class WebsitePage {
 		).not.toBeEmpty();
 	}
 
+	wordpress(page = this.page) {
+		return (
+			page
+				/* There are multiple viewports possible, so we need to select
+			   the one that is visible. */
+				.frameLocator(
+					'#playground-viewport:visible,.playground-viewport:visible'
+				)
+				.frameLocator('#wp')
+		);
+	}
+
 	async goto(url: string, options?: any) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
