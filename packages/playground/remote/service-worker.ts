@@ -61,18 +61,16 @@
  * is requested. This introduces a small network overhead, but it guarantees loading
  * the most recent version of `remote.html` and all the referenced assets.
  *
+ * Similarly, we use the **Network first** strategy for the `/` path. This is
+ * useful in situations where the user didn't visit Playground in a while,
+ * they have a stale version of the `/` route cached, and they open Playground.
+ * If we loaded the cached version, they'd see the old Playground website on their
+ * first visit and then the new Playground website only on their second visit.
+ *
  * There's still a small window of time between loading the remote.html file and
  * fetching the new assets when a new deployment would break the application.
  * This should be very rare, but when it happens we provide an error message asking
  * the user to reload the page.
- *
- * #### Caveats
- *
- * If the newly deployed remote.html file is incompatible with the previous Playground
- * client, loading a new site (<iframe src="remote.html">) without refreshing the browser
- * tab where the old index.html is running won't work. That's not a big deal as the user
- * will see an error message encouraging them to reload the page and the refresh will load
- * the new, compatible index.html file.
  *
  * ### Edge Cache on playground.wordpress.net
  *
@@ -245,7 +243,7 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	/**
-	 * Always fetch the fresh version of remote.html from the network.
+	 * Always fetch the fresh version of `/remote.html` and `/` from the network.
 	 *
 	 * This is the secret sauce that enables seamless upgrades of the
 	 * running Playground clients when a new version is deployed on
@@ -263,6 +261,10 @@ self.addEventListener('fetch', (event) => {
 	 * Instead, we fetch the most recent version of remote.html from the network.
 	 * It references the static assets that are now available on the server and
 	 * should work just fine.
+	 *
+	 * Relatedly, loading the `/` path using the network first strategy ensures
+	 * that the user sees the latest version of the webapp even if they aleady
+	 * have the previous version cached in CacheStorage.
 	 *
 	 * This very simple resolution took multiple iterations to get right. See
 	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
