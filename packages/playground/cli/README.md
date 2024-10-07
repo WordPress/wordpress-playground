@@ -3,7 +3,7 @@
 A CLI tool for running WordPress playground locally instead of in the browser:
 
 ```shell
-$ bun packages/playground/cli/src/cli.ts start --wp=6.5
+$ bun packages/playground/cli/src/cli.ts server --wp=6.5
 WordPress is running on http://127.0.0.1:9400
 ```
 
@@ -14,7 +14,7 @@ workflow at https://github.com/adamziel/playground-docs-workflow:
 ```shell
 bun --config=/Users/adam/.bunfig.toml \
     ./packages/playground/cli/src/cli.ts \
-    start \
+    server \
     --mount=./wp-content/plugins/wp-docs-plugin:/wordpress/wp-content/plugins/wp-docs-plugin \
     --mount=./wp-content/html-pages:/wordpress/wp-content/html-pages \
     --mount=./wp-content/uploads:/wordpress/wp-content/uploads \
@@ -46,9 +46,9 @@ so you can always be sure you're starting from a clean slate.
 
 The CLI tool will have the following commands:
 
--   `serve` - start a fresh WordPress playground server.
--   `build` - run a Blueprint and output a .zip file with the resulting WordPress instance.
--   `php` - run the specified PHP file.
+-   `server` - start a fresh WordPress playground server.
+-   `build-snapshot` - run a Blueprint and output a .zip file with the resulting WordPress instance.
+-   `run-blueprint` - run a Blueprint and output errors to the console if they occur.
 
 It will also support:
 

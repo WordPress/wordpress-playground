@@ -1,61 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
-import { close } from '@wordpress/icons';
 import classNames from 'classnames';
 import { OpenSiteManagerButton } from '../open-site-manager-button';
+import {
+	useAppSelector,
+	getActiveClientInfo,
+	useActiveSite,
+} from '../../lib/state/redux/store';
+import { SyncLocalFilesButton } from '../sync-local-files-button';
+import { Dropdown, Icon } from '@wordpress/components';
+import { cog } from '@wordpress/icons';
+import Button from '../button';
+import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
-	toolbarButtons?: Array<React.ReactElement | false | null>;
-	url?: string;
-	showAddressBar?: boolean;
-	onUrlChange?: (url: string) => void;
 	hideToolbar?: boolean;
 	className?: string;
 }
 
 export default function BrowserChrome({
 	children,
-	url,
-	onUrlChange,
-	showAddressBar = true,
-	toolbarButtons,
 	hideToolbar,
 	className,
 }: BrowserChromeProps) {
+	const clientInfo = useAppSelector(getActiveClientInfo);
+	const activeSite = useActiveSite();
+	const showAddressBar = !!clientInfo;
+	const url = clientInfo?.url;
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
 	const wrapperClass = classNames(css.wrapper, css.hasFullSizeWindow);
-
-	const [noticeHidden, setNoticeHidden] = useState(
-		document.cookie.includes('hideExperimentalNotice=true')
-	);
-
-	const hideNotice = () => {
-		document.cookie = 'hideExperimentalNotice=true';
-		setNoticeHidden(true);
-	};
-	useEffect(() => {
-		const hideNoticeTimeout = setTimeout(hideNotice, 20000);
-		return () => {
-			clearTimeout(hideNoticeTimeout);
-		};
-	}, []);
-
-	const experimentalNoticeClass = classNames(css.experimentalNotice, {
-		[css.isHidden]: noticeHidden,
-	});
-
-	/**
-	 * Temporary feature flag to enable the site manager
-	 * while using browser storage.
-	 *
-	 * TODO: Remove this once the site manager supports all storage options.
-	 */
-	const query = new URLSearchParams(window.location.search);
-	const showSiteManager = query.get('storage') === 'browser';
 
 	return (
 		<div
@@ -64,41 +41,71 @@ export default function BrowserChrome({
 		>
 			<div className={`${css.window} browser-chrome-window`}>
 				<header
-					className={`${css.toolbar} ${
-						showSiteManager ? css.hasSiteManager : ''
-					} ${hideToolbar ? css.toolbarHidden : ''}`}
+					className={`
+						${css.toolbar}
+						${hideToolbar ? css.toolbarHidden : ''}
+					`}
 					aria-label="Playground toolbar"
 				>
 					<div className={css.windowControls}>
-						{showSiteManager && <OpenSiteManagerButton />}
-						{!showSiteManager && (
-							<>
-								<div
-									className={`${css.windowControl} ${css.isNeutral}`}
-								></div>
-								<div
-									className={`${css.windowControl} ${css.isNeutral}`}
-								></div>
-								<div
-									className={`${css.windowControl} ${css.isNeutral}`}
-								></div>
-							</>
-						)}
+						<OpenSiteManagerButton />
 					</div>
 
 					<div className={addressBarClass}>
-						<AddressBar url={url} onUpdate={onUrlChange} />
+						<AddressBar
+							url={url}
+							onUpdate={(newUrl) =>
+								clientInfo?.client.goTo(newUrl)
+							}
+						/>
 					</div>
 
-					<div className={css.toolbarButtons}>{toolbarButtons}</div>
+					<div className={css.toolbarButtons}>
+						<Dropdown
+							className="my-container-class-name"
+							contentClassName="my-dropdown-content-classname"
+							popoverProps={{ placement: 'bottom-start' }}
+							renderToggle={({ isOpen, onToggle }) => (
+								<Button
+									variant="browser-chrome"
+									aria-label="Edit Playground settings"
+									onClick={onToggle}
+									aria-expanded={isOpen}
+									style={{
+										padding: '0 10px',
+										fill: '#FFF',
+										alignItems: 'center',
+										display: 'flex',
+									}}
+								>
+									<Icon icon={cog} />
+								</Button>
+							)}
+							renderContent={({ onClose }) => (
+								<div
+									style={{
+										width: 400,
+										maxWidth: '100vw',
+										padding: 0,
+									}}
+								>
+									<div className={css.headerSection}>
+										<h2 style={{ margin: 0 }}>
+											Playground settings
+										</h2>
+									</div>
+									<ActiveSiteSettingsForm
+										onSubmit={onClose}
+									/>
+								</div>
+							)}
+						/>
+						{activeSite?.metadata?.storage === 'local-fs' ? (
+							<SyncLocalFilesButton />
+						) : null}
+					</div>
 				</header>
 				<div className={css.content}>{children}</div>
-				<div className={experimentalNoticeClass} onClick={hideNotice}>
-					{close}
-					This is a cool fun experimental WordPress running in your
-					browser :) All your changes are private and gone after a
-					page refresh.
-				</div>
 			</div>
 		</div>
 	);

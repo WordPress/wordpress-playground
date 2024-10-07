@@ -1,5 +1,4 @@
 import React from 'react';
-import { SiteLogo } from '../../website/src/lib/site-storage';
 
 export const playgroundLogo = (props?: React.SVGProps<SVGSVGElement>) => {
 	return (
@@ -106,13 +105,14 @@ export const file = (
 	</svg>
 );
 
-export const clock = (
+export const ClockIcon = (props?: React.SVGProps<SVGSVGElement>) => (
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
 		width="14"
 		height="14"
 		viewBox="0 0 14 14"
 		fill="none"
+		{...props}
 	>
 		<path
 			fillRule="evenodd"
@@ -140,6 +140,6 @@ export const layout = (
 	</svg>
 );
 
-export function getLogoDataURL(logo: SiteLogo): string {
+export function getLogoDataURL(logo: { mime: string; data: string }): string {
 	return `data:${logo.mime};base64,${logo.data}`;
 }

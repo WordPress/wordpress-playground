@@ -1,3 +1,7 @@
+---
+slug: /developers/architecture/browser-iframe-rendering
+---
+
 # Iframe-based rendering
 
 To avoid page reloads, all the `PHPRequestHandler` responses must be rendered in an iframe. Remember, the entire setup only lives as long as the main `index.html`. We want to avoid reloading the main app at all costs.

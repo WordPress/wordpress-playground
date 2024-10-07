@@ -720,9 +720,10 @@ function ImportForm({
       type: "file",
       onChange: onChangeFile
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+      __next40pxDefaultSize: true,
       type: "submit",
       isBusy: isLoading,
-      __experimentalIsFocusable: true,
+      accessibleWhenDisabled: true,
       disabled: !file || isLoading,
       variant: "secondary",
       className: "list-reusable-blocks-import-form__button",
@@ -757,6 +758,8 @@ function ImportDropdown({
       isOpen,
       onToggle
     }) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+      size: "compact",
+      className: "list-reusable-blocks-import-dropdown__button",
       "aria-expanded": isOpen,
       onClick: onToggle,
       variant: "primary",
@@ -813,8 +816,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.createElement('div');
   container.className = 'list-reusable-blocks__container';
   button.parentNode.insertBefore(container, button);
-  (0,external_wp_element_namespaceObject.createRoot)(container).render( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(import_dropdown, {
-    onUpload: showNotice
+  (0,external_wp_element_namespaceObject.createRoot)(container).render( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_element_namespaceObject.StrictMode, {
+    children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(import_dropdown, {
+      onUpload: showNotice
+    })
   }));
 });
 

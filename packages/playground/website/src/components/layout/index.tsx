@@ -1,81 +1,212 @@
 import css from './style.module.css';
 
-import { SiteView } from '../site-view/site-view';
 import { SiteManager } from '../site-manager';
-import { useRef } from '@wordpress/element';
 import { CSSTransition } from 'react-transition-group';
-import { __experimentalUseNavigator as useNavigator } from '@wordpress/components';
-import { Blueprint, PlaygroundClient } from '@wp-playground/client';
-import { StorageType } from '../../types';
-import { PlaygroundConfiguration } from '../playground-configuration-group/form';
+import {
+	useAppSelector,
+	useAppDispatch,
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+} from '../../lib/state/redux/store';
+import { addCrashListener, logger } from '@php-wasm/logger';
+import { Blueprint } from '@wp-playground/blueprints';
+import { useState, useEffect, useRef } from 'react';
+import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
+import { GithubExportModal } from '../../github/github-export-form';
+import {
+	ExportFormValues,
+	asPullRequestAction,
+} from '../../github/github-export-form/form';
+import { GithubImportModal } from '../../github/github-import-form';
+import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
+import { asContentType } from '../../github/import-from-github';
+import { ErrorReportModal } from '../error-report-modal';
+import { LogModal } from '../log-modal';
+import { StartErrorModal } from '../start-error-modal';
+import {
+	DisplayMode,
+	supportedDisplayModes,
+	PlaygroundViewport,
+} from '../playground-viewport';
+import {
+	setActiveModal,
+	setSiteManagerOpen,
+} from '../../lib/state/redux/slice-ui';
 
-export function Layout({
-	playground,
-	url,
-	iframeRef,
-	blueprint,
-	storage,
-	currentConfiguration,
-	siteSlug,
-	setSiteSlug,
-}: {
-	playground: PlaygroundClient;
-	url: string;
-	iframeRef: React.RefObject<HTMLIFrameElement>;
-	blueprint: Blueprint;
-	storage: StorageType;
-	currentConfiguration: PlaygroundConfiguration;
-	siteSlug: string | undefined;
-	setSiteSlug: (siteSlug?: string) => void;
-}) {
-	const siteViewRef = useRef<HTMLDivElement>(null);
+acquireOAuthTokenIfNeeded();
 
-	const {
-		goTo,
-		location: { path },
-	} = useNavigator();
+const displayMode = getDisplayModeFromQuery();
+function getDisplayModeFromQuery(): DisplayMode {
+	const query = new URLSearchParams(document.location.search);
+	return supportedDisplayModes.includes(query.get('mode') as any)
+		? (query.get('mode') as DisplayMode)
+		: 'browser-full-screen';
+}
+
+export function Layout() {
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.ui.siteManagerIsOpen
+	);
+	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
+	const dispatch = useAppDispatch();
 
 	return (
-		<div className={css.layout}>
-			{/* We could use the <NavigatorScreen /> component here, but it doesn't
-			    seem to play well with CSSTransition. */}
+		<div className={`${css.layout}`}>
+			<Modals />
 			<CSSTransition
-				in={path?.startsWith('/manager')}
+				nodeRef={siteManagerWrapperRef}
+				in={siteManagerIsOpen}
 				timeout={500}
 				classNames={{
-					enter: css.sidebarEnter,
-					enterActive: css.sidebarEnterActive,
-					exit: css.sidebarExit,
-					exitActive: css.sidebarExitActive,
+					enter: css.siteManagerWrapperEnter,
+					enterActive: css.siteManagerWrapperEnterActive,
+					exit: css.siteManagerWrapperExit,
+					exitActive: css.siteManagerWrapperExitActive,
 				}}
 				unmountOnExit
 			>
-				<div className={css.sidebar}>
-					<SiteManager
-						onSiteChange={setSiteSlug}
-						siteViewRef={siteViewRef}
-					/>
+				<div
+					ref={siteManagerWrapperRef}
+					className={css.siteManagerWrapper}
+				>
+					<SiteManager />
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
-				{path?.startsWith('/manager') && (
+				{siteManagerIsOpen && (
 					<div
+						title="Open site"
 						className={css.siteViewOverlay}
-						onClick={() => goTo('/')}
+						onClick={() => {
+							dispatch(setSiteManagerOpen(false));
+						}}
 					/>
 				)}
-				<SiteView
-					siteViewRef={siteViewRef}
-					blueprint={blueprint}
-					currentConfiguration={currentConfiguration}
-					storage={storage}
-					playground={playground}
-					url={url}
-					iframeRef={iframeRef}
-					className={css.siteViewContent}
-					hideToolbar={path?.startsWith('/manager')}
-				/>
+				<div className={css.siteViewContent}>
+					<PlaygroundViewport
+						displayMode={displayMode}
+						hideToolbar={siteManagerIsOpen}
+					/>
+				</div>
 			</div>
 		</div>
+	);
+}
+
+/**
+ * @TODO: Think through a mobile-friendly modal architecture that doesn't stack modals,
+ * allows dismissing, and understands some modals (e.g. fatal error report) might have priority
+ * over other modals (e.g. connect to GitHub). Discuss whether modals should be declared at the
+ * top level, like here, or contextual to where the "Show modal" button is rendered.
+ */
+function Modals(blueprint: Blueprint) {
+	const dispatch: PlaygroundDispatch = useAppDispatch();
+
+	const query = new URL(document.location.href).searchParams;
+
+	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
+	const [githubExportValues, setGithubExportValues] = useState<
+		Partial<ExportFormValues>
+	>(() => {
+		const values: Partial<ExportFormValues> = {};
+		if (query.get('ghexport-repo-url')) {
+			values.repoUrl = query.get('ghexport-repo-url')!;
+		}
+		if (query.get('ghexport-content-type')) {
+			values.contentType = asContentType(
+				query.get('ghexport-content-type')
+			);
+		}
+		if (query.get('ghexport-pr-action')) {
+			values.prAction = asPullRequestAction(
+				query.get('ghexport-pr-action')
+			);
+		}
+		if (query.get('ghexport-pr-number')) {
+			values.prNumber = query.get('ghexport-pr-number')?.toString();
+		}
+		if (query.get('ghexport-playground-root')) {
+			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
+		}
+		if (query.get('ghexport-repo-root')) {
+			values.toPathInRepo = query.get('ghexport-repo-root')!;
+		}
+		if (query.get('ghexport-path')) {
+			values.relativeExportPaths = query.getAll('ghexport-path');
+		}
+		if (query.get('ghexport-commit-message')) {
+			values.commitMessage = query.get('ghexport-commit-message')!;
+		}
+		if (query.get('ghexport-plugin')) {
+			values.plugin = query.get('ghexport-plugin')!;
+		}
+		if (query.get('ghexport-theme')) {
+			values.theme = query.get('ghexport-theme')!;
+		}
+		return values;
+	});
+
+	useEffect(() => {
+		addCrashListener(logger, (e) => {
+			const error = e as CustomEvent;
+			if (error.detail?.source === 'php-wasm') {
+				dispatch(setActiveModal('error-report'));
+			}
+		});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	const currentModal = useAppSelector(
+		(state: PlaygroundReduxState) => state.ui.activeModal
+	);
+
+	if (currentModal === 'log') {
+		return <LogModal />;
+	} else if (currentModal === 'error-report') {
+		return <ErrorReportModal blueprint={blueprint} />;
+	} else if (currentModal === 'start-error') {
+		return <StartErrorModal />;
+	}
+
+	return (
+		<>
+			{query.get('gh-ensure-auth') === 'yes' ? (
+				<GitHubOAuthGuardModal />
+			) : (
+				''
+			)}
+			<GithubImportModal
+				onImported={({
+					url,
+					path,
+					files,
+					pluginOrThemeName,
+					contentType,
+					urlInformation: { owner, repo, type, pr },
+				}) => {
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pr?.toString(),
+						toPathInRepo: path,
+						prAction: pr ? 'update' : 'create',
+						contentType,
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
+					});
+					setGithubExportFiles(files);
+				}}
+			/>
+			<GithubExportModal
+				allowZipExport={
+					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+				}
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
+			/>
+		</>
 	);
 }

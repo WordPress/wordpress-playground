@@ -1,4 +1,6 @@
 import type { MountDevice } from '@php-wasm/web';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
 export async function directoryHandleFromMountDevice(
 	device: MountDevice
@@ -16,7 +18,7 @@ export async function opfsPathToDirectoryHandle(
 	const parts = opfsPath.split('/').filter((p) => p.length > 0);
 	let handle = await navigator.storage.getDirectory();
 	for (const part of parts) {
-		handle = await handle.getDirectoryHandle(part);
+		handle = await handle.getDirectoryHandle(part, { create: true });
 	}
 	return handle;
 }

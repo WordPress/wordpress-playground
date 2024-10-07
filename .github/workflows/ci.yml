@@ -17,7 +17,7 @@ jobs:
         name: 'Lint and typecheck'
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
@@ -25,7 +25,7 @@ jobs:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: ./.github/actions/prepare-playground
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
@@ -33,7 +33,7 @@ jobs:
         needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: ./.github/actions/prepare-playground
             - run: sudo ./node_modules/.bin/cypress install --force
             - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
@@ -44,11 +44,66 @@ jobs:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
 
+    test-e2e-playwright-prepare:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: sudo npx playwright install --with-deps
+            - name: Prepare app deploy and offline mode
+              run: npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Zip dist
+              run: zip -r dist.zip dist
+            - name: Upload dist
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-dist
+                  path: dist.zip
+    test-e2e-playwright:
+        runs-on: ubuntu-latest
+        needs: [test-e2e-playwright-prepare]
+        strategy:
+            fail-fast: false
+            matrix:
+                part: ['chromium', 'firefox', 'webkit']
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/prepare-playground
+            - name: Download dist
+              uses: actions/download-artifact@v4
+              with:
+                  name: playwright-dist
+            - name: Unzip dist
+              run: unzip dist.zip
+            - name: Install Playwright Browser
+              run: sudo npx playwright install ${{ matrix.part }} --with-deps
+            - name: Run Playwright tests - ${{ matrix.part }}
+              run: |
+                  if [ "${{ matrix.part }}" = "firefox" ]; then
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  else
+                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  fi
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report-${{ matrix.part }}
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-snapshots-${{ matrix.part }}
+                  path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
+                  if-no-files-found: ignore
+
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=build --parallel=3 --verbose
 
@@ -72,7 +127,7 @@ jobs:
         # Specify runner + deployment step
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: ./.github/actions/prepare-playground
             - run: npm run build:docs
             - uses: actions/upload-pages-artifact@v1

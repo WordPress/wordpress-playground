@@ -19,12 +19,7 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 	const handleSubmit = useCallback(
 		function (e: React.FormEvent<HTMLFormElement>) {
 			e.preventDefault();
-			let requestedPath = input.current!.value;
-			// Ensure a trailing slash when requesting directory paths
-			const isDirectory = !requestedPath.split('/').pop()!.includes('.');
-			if (isDirectory && !requestedPath.endsWith('/')) {
-				requestedPath += '/';
-			}
+			const requestedPath = input.current!.value;
 			onUpdate?.(requestedPath);
 			input.current!.blur();
 		},
