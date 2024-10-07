@@ -177,6 +177,7 @@ const schema11 = {
 				{ $ref: '#/definitions/CoreThemeReference' },
 				{ $ref: '#/definitions/CorePluginReference' },
 				{ $ref: '#/definitions/UrlReference' },
+				{ $ref: '#/definitions/GitHubArtifactReference' },
 			],
 		},
 		VFSReference: {
@@ -291,6 +292,48 @@ const schema11 = {
 				},
 			},
 			required: ['resource', 'url'],
+			additionalProperties: false,
+		},
+		GitHubArtifactReference: {
+			type: 'object',
+			properties: {
+				resource: {
+					type: 'string',
+					const: 'github:artifact',
+					description:
+						'Identifies the file resource as a GitHub artifact',
+				},
+				owner: {
+					type: 'string',
+					description: 'The URL of the artifact',
+				},
+				repo: {
+					type: 'string',
+					description: 'The name of the repository',
+				},
+				workflow: {
+					type: 'string',
+					description: 'The name of the workflow',
+				},
+				artifact: {
+					type: 'string',
+					description: 'The name of the artifact',
+				},
+				pr: { type: 'number', description: 'The pull request number' },
+				caption: {
+					type: 'string',
+					description:
+						'Optional caption for displaying a progress message',
+				},
+			},
+			required: [
+				'resource',
+				'owner',
+				'repo',
+				'workflow',
+				'artifact',
+				'pr',
+			],
 			additionalProperties: false,
 		},
 		SupportedPHPExtensionBundle: {
@@ -1363,7 +1406,7 @@ const schema13 = {
 	enum: ['8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2', '7.1', '7.0'],
 };
 const schema14 = { type: 'string', const: 'wp-cli' };
-const schema21 = { type: 'string', enum: ['kitchen-sink', 'light'] };
+const schema22 = { type: 'string', enum: ['kitchen-sink', 'light'] };
 const func2 = Object.prototype.hasOwnProperty;
 const schema15 = {
 	anyOf: [
@@ -1372,6 +1415,7 @@ const schema15 = {
 		{ $ref: '#/definitions/CoreThemeReference' },
 		{ $ref: '#/definitions/CorePluginReference' },
 		{ $ref: '#/definitions/UrlReference' },
+		{ $ref: '#/definitions/GitHubArtifactReference' },
 	],
 };
 const schema16 = {
@@ -1482,6 +1526,27 @@ const schema20 = {
 		},
 	},
 	required: ['resource', 'url'],
+	additionalProperties: false,
+};
+const schema21 = {
+	type: 'object',
+	properties: {
+		resource: {
+			type: 'string',
+			const: 'github:artifact',
+			description: 'Identifies the file resource as a GitHub artifact',
+		},
+		owner: { type: 'string', description: 'The URL of the artifact' },
+		repo: { type: 'string', description: 'The name of the repository' },
+		workflow: { type: 'string', description: 'The name of the workflow' },
+		artifact: { type: 'string', description: 'The name of the artifact' },
+		pr: { type: 'number', description: 'The pull request number' },
+		caption: {
+			type: 'string',
+			description: 'Optional caption for displaying a progress message',
+		},
+	},
+	required: ['resource', 'owner', 'repo', 'workflow', 'artifact', 'pr'],
 	additionalProperties: false,
 };
 function validate12(
@@ -2846,12 +2911,413 @@ function validate12(
 					}
 					var _valid0 = _errs55 === errors;
 					valid0 = valid0 || _valid0;
+					if (!valid0) {
+						const _errs65 = errors;
+						const _errs66 = errors;
+						if (errors === _errs66) {
+							if (
+								data &&
+								typeof data == 'object' &&
+								!Array.isArray(data)
+							) {
+								let missing7;
+								if (
+									(data.resource === undefined &&
+										(missing7 = 'resource')) ||
+									(data.owner === undefined &&
+										(missing7 = 'owner')) ||
+									(data.repo === undefined &&
+										(missing7 = 'repo')) ||
+									(data.workflow === undefined &&
+										(missing7 = 'workflow')) ||
+									(data.artifact === undefined &&
+										(missing7 = 'artifact')) ||
+									(data.pr === undefined && (missing7 = 'pr'))
+								) {
+									const err44 = {
+										instancePath,
+										schemaPath:
+											'#/definitions/GitHubArtifactReference/required',
+										keyword: 'required',
+										params: { missingProperty: missing7 },
+										message:
+											"must have required property '" +
+											missing7 +
+											"'",
+									};
+									if (vErrors === null) {
+										vErrors = [err44];
+									} else {
+										vErrors.push(err44);
+									}
+									errors++;
+								} else {
+									const _errs68 = errors;
+									for (const key7 in data) {
+										if (
+											!(
+												key7 === 'resource' ||
+												key7 === 'owner' ||
+												key7 === 'repo' ||
+												key7 === 'workflow' ||
+												key7 === 'artifact' ||
+												key7 === 'pr' ||
+												key7 === 'caption'
+											)
+										) {
+											const err45 = {
+												instancePath,
+												schemaPath:
+													'#/definitions/GitHubArtifactReference/additionalProperties',
+												keyword: 'additionalProperties',
+												params: {
+													additionalProperty: key7,
+												},
+												message:
+													'must NOT have additional properties',
+											};
+											if (vErrors === null) {
+												vErrors = [err45];
+											} else {
+												vErrors.push(err45);
+											}
+											errors++;
+											break;
+										}
+									}
+									if (_errs68 === errors) {
+										if (data.resource !== undefined) {
+											let data19 = data.resource;
+											const _errs69 = errors;
+											if (typeof data19 !== 'string') {
+												const err46 = {
+													instancePath:
+														instancePath +
+														'/resource',
+													schemaPath:
+														'#/definitions/GitHubArtifactReference/properties/resource/type',
+													keyword: 'type',
+													params: { type: 'string' },
+													message: 'must be string',
+												};
+												if (vErrors === null) {
+													vErrors = [err46];
+												} else {
+													vErrors.push(err46);
+												}
+												errors++;
+											}
+											if ('github:artifact' !== data19) {
+												const err47 = {
+													instancePath:
+														instancePath +
+														'/resource',
+													schemaPath:
+														'#/definitions/GitHubArtifactReference/properties/resource/const',
+													keyword: 'const',
+													params: {
+														allowedValue:
+															'github:artifact',
+													},
+													message:
+														'must be equal to constant',
+												};
+												if (vErrors === null) {
+													vErrors = [err47];
+												} else {
+													vErrors.push(err47);
+												}
+												errors++;
+											}
+											var valid16 = _errs69 === errors;
+										} else {
+											var valid16 = true;
+										}
+										if (valid16) {
+											if (data.owner !== undefined) {
+												const _errs71 = errors;
+												if (
+													typeof data.owner !==
+													'string'
+												) {
+													const err48 = {
+														instancePath:
+															instancePath +
+															'/owner',
+														schemaPath:
+															'#/definitions/GitHubArtifactReference/properties/owner/type',
+														keyword: 'type',
+														params: {
+															type: 'string',
+														},
+														message:
+															'must be string',
+													};
+													if (vErrors === null) {
+														vErrors = [err48];
+													} else {
+														vErrors.push(err48);
+													}
+													errors++;
+												}
+												var valid16 =
+													_errs71 === errors;
+											} else {
+												var valid16 = true;
+											}
+											if (valid16) {
+												if (data.repo !== undefined) {
+													const _errs73 = errors;
+													if (
+														typeof data.repo !==
+														'string'
+													) {
+														const err49 = {
+															instancePath:
+																instancePath +
+																'/repo',
+															schemaPath:
+																'#/definitions/GitHubArtifactReference/properties/repo/type',
+															keyword: 'type',
+															params: {
+																type: 'string',
+															},
+															message:
+																'must be string',
+														};
+														if (vErrors === null) {
+															vErrors = [err49];
+														} else {
+															vErrors.push(err49);
+														}
+														errors++;
+													}
+													var valid16 =
+														_errs73 === errors;
+												} else {
+													var valid16 = true;
+												}
+												if (valid16) {
+													if (
+														data.workflow !==
+														undefined
+													) {
+														const _errs75 = errors;
+														if (
+															typeof data.workflow !==
+															'string'
+														) {
+															const err50 = {
+																instancePath:
+																	instancePath +
+																	'/workflow',
+																schemaPath:
+																	'#/definitions/GitHubArtifactReference/properties/workflow/type',
+																keyword: 'type',
+																params: {
+																	type: 'string',
+																},
+																message:
+																	'must be string',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err50,
+																];
+															} else {
+																vErrors.push(
+																	err50
+																);
+															}
+															errors++;
+														}
+														var valid16 =
+															_errs75 === errors;
+													} else {
+														var valid16 = true;
+													}
+													if (valid16) {
+														if (
+															data.artifact !==
+															undefined
+														) {
+															const _errs77 =
+																errors;
+															if (
+																typeof data.artifact !==
+																'string'
+															) {
+																const err51 = {
+																	instancePath:
+																		instancePath +
+																		'/artifact',
+																	schemaPath:
+																		'#/definitions/GitHubArtifactReference/properties/artifact/type',
+																	keyword:
+																		'type',
+																	params: {
+																		type: 'string',
+																	},
+																	message:
+																		'must be string',
+																};
+																if (
+																	vErrors ===
+																	null
+																) {
+																	vErrors = [
+																		err51,
+																	];
+																} else {
+																	vErrors.push(
+																		err51
+																	);
+																}
+																errors++;
+															}
+															var valid16 =
+																_errs77 ===
+																errors;
+														} else {
+															var valid16 = true;
+														}
+														if (valid16) {
+															if (
+																data.pr !==
+																undefined
+															) {
+																let data24 =
+																	data.pr;
+																const _errs79 =
+																	errors;
+																if (
+																	!(
+																		typeof data24 ==
+																			'number' &&
+																		isFinite(
+																			data24
+																		)
+																	)
+																) {
+																	const err52 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/pr',
+																			schemaPath:
+																				'#/definitions/GitHubArtifactReference/properties/pr/type',
+																			keyword:
+																				'type',
+																			params: {
+																				type: 'number',
+																			},
+																			message:
+																				'must be number',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err52,
+																			];
+																	} else {
+																		vErrors.push(
+																			err52
+																		);
+																	}
+																	errors++;
+																}
+																var valid16 =
+																	_errs79 ===
+																	errors;
+															} else {
+																var valid16 = true;
+															}
+															if (valid16) {
+																if (
+																	data.caption !==
+																	undefined
+																) {
+																	const _errs81 =
+																		errors;
+																	if (
+																		typeof data.caption !==
+																		'string'
+																	) {
+																		const err53 =
+																			{
+																				instancePath:
+																					instancePath +
+																					'/caption',
+																				schemaPath:
+																					'#/definitions/GitHubArtifactReference/properties/caption/type',
+																				keyword:
+																					'type',
+																				params: {
+																					type: 'string',
+																				},
+																				message:
+																					'must be string',
+																			};
+																		if (
+																			vErrors ===
+																			null
+																		) {
+																			vErrors =
+																				[
+																					err53,
+																				];
+																		} else {
+																			vErrors.push(
+																				err53
+																			);
+																		}
+																		errors++;
+																	}
+																	var valid16 =
+																		_errs81 ===
+																		errors;
+																} else {
+																	var valid16 = true;
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							} else {
+								const err54 = {
+									instancePath,
+									schemaPath:
+										'#/definitions/GitHubArtifactReference/type',
+									keyword: 'type',
+									params: { type: 'object' },
+									message: 'must be object',
+								};
+								if (vErrors === null) {
+									vErrors = [err54];
+								} else {
+									vErrors.push(err54);
+								}
+								errors++;
+							}
+						}
+						var _valid0 = _errs65 === errors;
+						valid0 = valid0 || _valid0;
+					}
 				}
 			}
 		}
 	}
 	if (!valid0) {
-		const err44 = {
+		const err55 = {
 			instancePath,
 			schemaPath: '#/anyOf',
 			keyword: 'anyOf',
@@ -2859,9 +3325,9 @@ function validate12(
 			message: 'must match a schema in anyOf',
 		};
 		if (vErrors === null) {
-			vErrors = [err44];
+			vErrors = [err55];
 		} else {
-			vErrors.push(err44);
+			vErrors.push(err55);
 		}
 		errors++;
 		validate12.errors = vErrors;
@@ -2879,7 +3345,7 @@ function validate12(
 	validate12.errors = vErrors;
 	return errors === 0;
 }
-const schema22 = {
+const schema23 = {
 	type: 'object',
 	discriminator: { propertyName: 'step' },
 	required: ['step'],
@@ -3562,7 +4028,7 @@ const schema22 = {
 		},
 	],
 };
-const schema23 = {
+const schema24 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -3572,7 +4038,7 @@ const schema23 = {
 	},
 	additionalProperties: false,
 };
-const schema30 = {
+const schema31 = {
 	type: 'object',
 	properties: {
 		adminUsername: { type: 'string' },
@@ -3580,7 +4046,7 @@ const schema30 = {
 	},
 	additionalProperties: false,
 };
-const schema24 = {
+const schema25 = {
 	type: 'object',
 	properties: {
 		method: {
@@ -3677,11 +4143,11 @@ const schema24 = {
 	required: ['url'],
 	additionalProperties: false,
 };
-const schema25 = {
+const schema26 = {
 	type: 'string',
 	enum: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
 };
-const schema26 = { type: 'object', additionalProperties: { type: 'string' } };
+const schema27 = { type: 'object', additionalProperties: { type: 'string' } };
 function validate19(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
@@ -3759,7 +4225,7 @@ function validate19(
 									instancePath: instancePath + '/method',
 									schemaPath: '#/definitions/HTTPMethod/enum',
 									keyword: 'enum',
-									params: { allowedValues: schema25.enum },
+									params: { allowedValues: schema26.enum },
 									message:
 										'must be equal to one of the allowed values',
 								},
@@ -5863,7 +6329,7 @@ function validate19(
 	validate19.errors = vErrors;
 	return errors === 0;
 }
-const schema27 = {
+const schema28 = {
 	type: 'object',
 	properties: {
 		relativeUri: {
@@ -5939,7 +6405,7 @@ function validate21(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			const _errs1 = errors;
 			for (const key0 in data) {
-				if (!func2.call(schema27.properties, key0)) {
+				if (!func2.call(schema28.properties, key0)) {
 					validate21.errors = [
 						{
 							instancePath,
@@ -6049,7 +6515,7 @@ function validate21(
 												'#/definitions/HTTPMethod/enum',
 											keyword: 'enum',
 											params: {
-												allowedValues: schema25.enum,
+												allowedValues: schema26.enum,
 											},
 											message:
 												'must be equal to one of the allowed values',
@@ -8325,7 +8791,7 @@ function validate14(
 																			'enum',
 																		params: {
 																			allowedValues:
-																				schema22
+																				schema23
 																					.oneOf[3]
 																					.properties
 																					.method
@@ -10164,7 +10630,7 @@ function validate14(
 															keyword: 'enum',
 															params: {
 																allowedValues:
-																	schema22
+																	schema23
 																		.oneOf[9]
 																		.properties
 																		.ifAlreadyInstalled
@@ -10656,7 +11122,7 @@ function validate14(
 															keyword: 'enum',
 															params: {
 																allowedValues:
-																	schema22
+																	schema23
 																		.oneOf[10]
 																		.properties
 																		.ifAlreadyInstalled
@@ -18957,7 +19423,7 @@ function validate11(
 																							'enum',
 																						params: {
 																							allowedValues:
-																								schema21.enum,
+																								schema22.enum,
 																						},
 																						message:
 																							'must be equal to one of the allowed values',

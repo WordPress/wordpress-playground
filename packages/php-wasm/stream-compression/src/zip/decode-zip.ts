@@ -33,7 +33,9 @@ import { appendBytes } from '../utils/append-bytes';
  */
 export function decodeZip(
 	stream: ReadableStream<Uint8Array>,
-	predicate?: () => boolean
+	predicate: (
+		dirEntry: CentralDirectoryEntry | FileEntry
+	) => boolean = DEFAULT_PREDICATE
 ) {
 	return streamZippedFileEntries(stream, predicate).pipeThrough(
 		new TransformStream<FileEntry, File>({
@@ -143,6 +145,7 @@ export async function readFileEntry(
 		}
 	}
 	const data = new DataView((await collectBytes(stream, 26))!.buffer);
+	console.log(data);
 	const pathLength = data.getUint16(22, true);
 	const extraLength = data.getUint16(24, true);
 	const entry: Partial<FileEntry> = {
@@ -168,9 +171,15 @@ export async function readFileEntry(
 	//        eagerly. Ensure the next iteration exhausts
 	//        the last body stream before moving on.
 
-	let bodyStream = limitBytes(stream, entry['compressedSize']!);
+	console.log('entry', { entry });
+	console.log('compressedSize', entry['compressedSize']!);
+	let bodyStream = stream; // limitBytes(stream, entry['compressedSize']!);
 
 	if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
+		bodyStream = bodyStream.pipeThrough(
+			new DecompressionStream('deflate-raw')
+		);
+
 		/**
 		 * We want to write raw deflate-compressed bytes into our
 		 * final ZIP file. CompressionStream supports "deflate-raw"
@@ -193,23 +202,25 @@ export async function readFileEntry(
 		 * - 4 bytes for CRC32 of the uncompressed data
 		 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
 		 */
-		const header = new Uint8Array(10);
-		header.set([0x1f, 0x8b, 0x08]);
+		// const header = new Uint8Array(10);
+		// header.set([0x1f, 0x8b, 0x08]);
 
-		const footer = new Uint8Array(8);
-		const footerView = new DataView(footer.buffer);
-		footerView.setUint32(0, entry.crc!, true);
-		footerView.setUint32(4, entry.uncompressedSize! % 2 ** 32, true);
-		bodyStream = bodyStream
-			.pipeThrough(prependBytes(header))
-			.pipeThrough(appendBytes(footer))
-			.pipeThrough(new DecompressionStream('gzip'));
+		// const footer = new Uint8Array(8);
+		// const footerView = new DataView(footer.buffer);
+		// footerView.setUint32(0, entry.crc!, true);
+		// footerView.setUint32(4, entry.uncompressedSize! % 2 ** 32, true);
+		// bodyStream = bodyStream
+		// 	.pipeThrough(prependBytes(header))
+		// 	.pipeThrough(appendBytes(footer))
+		// 	.pipeThrough(new DecompressionStream('gzip'));
 	}
 	entry['bytes'] = await bodyStream
-		.pipeThrough(concatBytes(entry['uncompressedSize']))
+		// .pipeThrough(concatBytes(entry['uncompressedSize']))
 		.getReader()
 		.read()
 		.then(({ value }) => value!);
+	console.log({ entry });
+	console.log(new TextDecoder().decode(entry.path!));
 	return entry as FileEntry;
 }
 
