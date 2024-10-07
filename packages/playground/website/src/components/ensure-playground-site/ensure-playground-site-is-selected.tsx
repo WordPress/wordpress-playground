@@ -44,7 +44,12 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 
 	useEffect(() => {
-		opfsSiteStorage?.list().then(
+		if (!opfsSiteStorage) {
+			logger.error('Error loading sites: OPFS not available');
+			dispatch(siteListingLoaded([]));
+			return;
+		}
+		opfsSiteStorage.list().then(
 			(sites) => dispatch(siteListingLoaded(sites)),
 			(error) => {
 				logger.error('Error loading sites:', error);
@@ -72,6 +77,14 @@ export function EnsurePlaygroundSiteIsSelected({
 					return;
 				}
 				dispatch(setActiveSite(requestedSiteSlug));
+				return;
+			}
+
+			// Don't create a new temporary site until the site listing settles.
+			// Otherwise, the status change from "loading" to "loaded" would
+			// re-run this entire effect, potentially leading to multiple
+			// sites being created since we couldn't look for duplicates yet.
+			if (!['loaded', 'error'].includes(siteListingStatus)) {
 				return;
 			}
 

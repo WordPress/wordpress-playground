@@ -35,7 +35,7 @@ export function SiteCreateButton({
 
 			{isModalOpen && (
 				<Modal
-					title="Add a new Playground"
+					title="Create a new Playground"
 					onRequestClose={() => setModalOpen(false)}
 				>
 					<SiteSettingsForm

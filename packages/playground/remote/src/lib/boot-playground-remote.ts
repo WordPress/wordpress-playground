@@ -57,8 +57,8 @@ export async function bootPlaygroundRemote() {
 		document.body.prepend(bar.element);
 	}
 
-	const scope = Math.random().toFixed(16);
-	await registerServiceWorker(scope, serviceWorkerUrl + '');
+	const { startServiceWorkerCommunicationBridge } =
+		await registerServiceWorker(serviceWorkerUrl + '');
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
@@ -114,6 +114,19 @@ export async function bootPlaygroundRemote() {
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
+			}
+			/**
+			 * Workaround for a Safari bug: navigating to `/wp-admin`
+			 * without the trailing slash causes the browser to hang.
+			 * Chrome and Firefox correctly navigate to `/wp-admin`,
+			 * get a 302 redirect from PHPRequestHandler, and then follow
+			 * it to `/wp-admin/`.
+			 *
+			 * Interestingly, opening pretty permalinks without the trailing slash
+			 * works correctly. For example, `/sample-page` works as expected.
+			 */
+			if (requestedPath === '/wp-admin') {
+				requestedPath = '/wp-admin/';
 			}
 			const newUrl = await playground.pathToInternalUrl(requestedPath);
 			const oldUrl = wpFrame.src;
@@ -208,9 +221,9 @@ export async function bootPlaygroundRemote() {
 		},
 
 		async boot(options) {
-			await phpWorkerApi.boot({
-				...options,
-				scope,
+			await phpWorkerApi.boot(options);
+			startServiceWorkerCommunicationBridge({
+				scope: options.scope,
 			});
 
 			try {

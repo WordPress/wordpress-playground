@@ -8027,10 +8027,8 @@ const SiteHub = (0,external_wp_element_namespaceObject.memo)((0,external_wp_elem
         className: dist_clsx('edit-site-site-hub__view-mode-toggle-container', {
           'has-transparent-background': isTransparent
         }),
-        children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-        // TODO: Switch to `true` (40px size) if possible
-        , {
-          __next40pxDefaultSize: false,
+        children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+          __next40pxDefaultSize: true,
           ref: ref,
           href: dashboardLink,
           label: (0,external_wp_i18n_namespaceObject.__)('Go to the Dashboard'),
@@ -8046,10 +8044,8 @@ const SiteHub = (0,external_wp_element_namespaceObject.memo)((0,external_wp_elem
       }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalHStack, {
         children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
           className: "edit-site-site-hub__title",
-          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.Button
-          // TODO: Switch to `true` (40px size) if possible
-          , {
-            __next40pxDefaultSize: false,
+          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.Button, {
+            __next40pxDefaultSize: true,
             variant: "link",
             href: homeUrl,
             target: "_blank",
@@ -8063,10 +8059,8 @@ const SiteHub = (0,external_wp_element_namespaceObject.memo)((0,external_wp_elem
           spacing: 0,
           expanded: false,
           className: "edit-site-site-hub__actions",
-          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-          // TODO: Switch to `true` (40px size) if possible
-          , {
-            __next40pxDefaultSize: false,
+          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+            __next40pxDefaultSize: true,
             className: "edit-site-site-hub_toggle-command-center",
             icon: library_search,
             onClick: () => openCommandCenter(),
@@ -8111,10 +8105,8 @@ const SiteHubMobile = (0,external_wp_element_namespaceObject.memo)((0,external_w
         className: dist_clsx('edit-site-site-hub__view-mode-toggle-container', {
           'has-transparent-background': isTransparent
         }),
-        children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-        // TODO: Switch to `true` (40px size) if possible
-        , {
-          __next40pxDefaultSize: false,
+        children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+          __next40pxDefaultSize: true,
           ref: ref,
           label: (0,external_wp_i18n_namespaceObject.__)('Go to Site Editor'),
           className: "edit-site-layout__view-mode-toggle",
@@ -8133,10 +8125,8 @@ const SiteHubMobile = (0,external_wp_element_namespaceObject.memo)((0,external_w
       }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalHStack, {
         children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
           className: "edit-site-site-hub__title",
-          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-          // TODO: Switch to `true` (40px size) if possible
-          , {
-            __next40pxDefaultSize: false,
+          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+            __next40pxDefaultSize: true,
             variant: "link",
             href: homeUrl,
             target: "_blank",
@@ -8147,10 +8137,8 @@ const SiteHubMobile = (0,external_wp_element_namespaceObject.memo)((0,external_w
           spacing: 0,
           expanded: false,
           className: "edit-site-site-hub__actions",
-          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-          // TODO: Switch to `true` (40px size) if possible
-          , {
-            __next40pxDefaultSize: false,
+          children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+            __next40pxDefaultSize: true,
             className: "edit-site-site-hub_toggle-command-center",
             icon: library_search,
             onClick: () => openCommandCenter(),
@@ -9189,10 +9177,8 @@ function SavePanel() {
       className: dist_clsx('edit-site-editor__toggle-save-panel', {
         'screen-reader-text': isSaveViewOpen
       }),
-      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-      // TODO: Switch to `true` (40px size) if possible
-      , {
-        __next40pxDefaultSize: false,
+      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+        __next40pxDefaultSize: true,
         variant: "secondary",
         className: "edit-site-editor__toggle-save-panel-button",
         onClick: () => setIsSaveViewOpened(true),
@@ -10428,22 +10414,22 @@ function Icon({
 }
 /* harmony default export */ const build_module_icon = ((0,external_wp_element_namespaceObject.forwardRef)(Icon));
 
-;// CONCATENATED MODULE: ./node_modules/@wordpress/icons/build-module/library/home-button.js
+;// CONCATENATED MODULE: ./node_modules/@wordpress/icons/build-module/library/arrow-up-left.js
 /**
  * WordPress dependencies
  */
 
 
-const homeButton = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_primitives_namespaceObject.SVG, {
+const arrowUpLeft = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_primitives_namespaceObject.SVG, {
+  width: "24",
+  height: "24",
+  fill: "none",
   xmlns: "http://www.w3.org/2000/svg",
-  viewBox: "0 0 24 24",
   children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_primitives_namespaceObject.Path, {
-    fillRule: "evenodd",
-    clipRule: "evenodd",
-    d: "M4.25 7A2.75 2.75 0 0 1 7 4.25h10A2.75 2.75 0 0 1 19.75 7v10A2.75 2.75 0 0 1 17 19.75H7A2.75 2.75 0 0 1 4.25 17V7ZM7 5.75c-.69 0-1.25.56-1.25 1.25v10c0 .69.56 1.25 1.25 1.25h10c.69 0 1.25-.56 1.25-1.25V7c0-.69-.56-1.25-1.25-1.25H7Z"
+    d: "M14 6H6v8h1.5V8.5L17 18l1-1-9.5-9.5H14V6Z"
   })
 });
-/* harmony default export */ const home_button = (homeButton);
+/* harmony default export */ const arrow_up_left = (arrowUpLeft);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/welcome-guide/image.js
 
@@ -12786,6 +12772,338 @@ function TypographyElements() {
 }
 /* harmony default export */ const typography_elements = (TypographyElements);
 
+;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/preview-typography.js
+/**
+ * WordPress dependencies
+ */
+
+
+/**
+ * Internal dependencies
+ */
+
+
+
+const StylesPreviewTypography = ({
+  variation,
+  isFocused,
+  withHoverView
+}) => {
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(PreviewIframe, {
+    label: variation.title,
+    isFocused: isFocused,
+    withHoverView: withHoverView,
+    children: ({
+      ratio,
+      key
+    }) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalHStack, {
+      spacing: 10 * ratio,
+      justify: "center",
+      style: {
+        height: '100%',
+        overflow: 'hidden'
+      },
+      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(PreviewTypography, {
+        variation: variation,
+        fontSize: 85 * ratio
+      })
+    }, key)
+  });
+};
+/* harmony default export */ const preview_typography = (StylesPreviewTypography);
+
+;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/hooks/use-theme-style-variations/use-theme-style-variations-by-property.js
+/* wp:polyfill */
+/**
+ * WordPress dependencies
+ */
+
+
+
+
+
+
+
+/**
+ * Internal dependencies
+ */
+
+const {
+  GlobalStylesContext: use_theme_style_variations_by_property_GlobalStylesContext,
+  areGlobalStyleConfigsEqual
+} = unlock(external_wp_blockEditor_namespaceObject.privateApis);
+const {
+  mergeBaseAndUserConfigs: use_theme_style_variations_by_property_mergeBaseAndUserConfigs
+} = unlock(external_wp_editor_namespaceObject.privateApis);
+
+/**
+ * Removes all instances of properties from an object.
+ *
+ * @param {Object}   object     The object to remove the properties from.
+ * @param {string[]} properties The properties to remove.
+ * @return {Object} The modified object.
+ */
+function removePropertiesFromObject(object, properties) {
+  if (!properties?.length) {
+    return object;
+  }
+  if (typeof object !== 'object' || !object || !Object.keys(object).length) {
+    return object;
+  }
+  for (const key in object) {
+    if (properties.includes(key)) {
+      delete object[key];
+    } else if (typeof object[key] === 'object') {
+      removePropertiesFromObject(object[key], properties);
+    }
+  }
+  return object;
+}
+
+/**
+ * Checks whether a style variation is empty.
+ *
+ * @param {Object} variation          A style variation object.
+ * @param {string} variation.title    The title of the variation.
+ * @param {Object} variation.settings The settings of the variation.
+ * @param {Object} variation.styles   The styles of the variation.
+ * @return {boolean} Whether the variation is empty.
+ */
+function hasThemeVariation({
+  title,
+  settings,
+  styles
+}) {
+  return title === (0,external_wp_i18n_namespaceObject.__)('Default') ||
+  // Always preserve the default variation.
+  Object.keys(settings).length > 0 || Object.keys(styles).length > 0;
+}
+
+/**
+ * Fetches the current theme style variations that contain only the specified properties
+ * and merges them with the user config.
+ *
+ * @param {string[]} properties The properties to filter by.
+ * @return {Object[]|*} The merged object.
+ */
+function useCurrentMergeThemeStyleVariationsWithUserConfig(properties = []) {
+  const {
+    variationsFromTheme
+  } = (0,external_wp_data_namespaceObject.useSelect)(select => {
+    const _variationsFromTheme = select(external_wp_coreData_namespaceObject.store).__experimentalGetCurrentThemeGlobalStylesVariations();
+    return {
+      variationsFromTheme: _variationsFromTheme || []
+    };
+  }, []);
+  const {
+    user: userVariation
+  } = (0,external_wp_element_namespaceObject.useContext)(use_theme_style_variations_by_property_GlobalStylesContext);
+  const propertiesAsString = properties.toString();
+  return (0,external_wp_element_namespaceObject.useMemo)(() => {
+    const clonedUserVariation = structuredClone(userVariation);
+
+    // Get user variation and remove the settings for the given property.
+    const userVariationWithoutProperties = removePropertiesFromObject(clonedUserVariation, properties);
+    userVariationWithoutProperties.title = (0,external_wp_i18n_namespaceObject.__)('Default');
+    const variationsWithPropertiesAndBase = variationsFromTheme.filter(variation => {
+      return isVariationWithProperties(variation, properties);
+    }).map(variation => {
+      return use_theme_style_variations_by_property_mergeBaseAndUserConfigs(userVariationWithoutProperties, variation);
+    });
+    const variationsByProperties = [userVariationWithoutProperties, ...variationsWithPropertiesAndBase];
+
+    /*
+     * Filter out variations with no settings or styles.
+     */
+    return variationsByProperties?.length ? variationsByProperties.filter(hasThemeVariation) : [];
+  }, [propertiesAsString, userVariation, variationsFromTheme]);
+}
+
+/**
+ * Returns a new object, with properties specified in `properties` array.,
+ * maintain the original object tree structure.
+ * The function is recursive, so it will perform a deep search for the given properties.
+ * E.g., the function will return `{ a: { b: { c: { test: 1 } } } }` if the properties are  `[ 'test' ]`.
+ *
+ * @param {Object}   object     The object to filter
+ * @param {string[]} properties The properties to filter by
+ * @return {Object} The merged object.
+ */
+const filterObjectByProperties = (object, properties) => {
+  if (!object || !properties?.length) {
+    return {};
+  }
+  const newObject = {};
+  Object.keys(object).forEach(key => {
+    if (properties.includes(key)) {
+      newObject[key] = object[key];
+    } else if (typeof object[key] === 'object') {
+      const newFilter = filterObjectByProperties(object[key], properties);
+      if (Object.keys(newFilter).length) {
+        newObject[key] = newFilter;
+      }
+    }
+  });
+  return newObject;
+};
+
+/**
+ * Compares a style variation to the same variation filtered by the specified properties.
+ * Returns true if the variation contains only the properties specified.
+ *
+ * @param {Object}   variation  The variation to compare.
+ * @param {string[]} properties The properties to compare.
+ * @return {boolean} Whether the variation contains only the specified properties.
+ */
+function isVariationWithProperties(variation, properties) {
+  const variationWithProperties = filterObjectByProperties(structuredClone(variation), properties);
+  return areGlobalStyleConfigsEqual(variationWithProperties, variation);
+}
+
+;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/variations/variation.js
+/**
+ * External dependencies
+ */
+
+
+/**
+ * WordPress dependencies
+ */
+
+
+
+
+
+
+
+/**
+ * Internal dependencies
+ */
+
+
+
+const {
+  mergeBaseAndUserConfigs: variation_mergeBaseAndUserConfigs
+} = unlock(external_wp_editor_namespaceObject.privateApis);
+const {
+  GlobalStylesContext: variation_GlobalStylesContext,
+  areGlobalStyleConfigsEqual: variation_areGlobalStyleConfigsEqual
+} = unlock(external_wp_blockEditor_namespaceObject.privateApis);
+function Variation({
+  variation,
+  children,
+  isPill,
+  properties,
+  showTooltip
+}) {
+  const [isFocused, setIsFocused] = (0,external_wp_element_namespaceObject.useState)(false);
+  const {
+    base,
+    user,
+    setUserConfig
+  } = (0,external_wp_element_namespaceObject.useContext)(variation_GlobalStylesContext);
+  const context = (0,external_wp_element_namespaceObject.useMemo)(() => {
+    let merged = variation_mergeBaseAndUserConfigs(base, variation);
+    if (properties) {
+      merged = filterObjectByProperties(merged, properties);
+    }
+    return {
+      user: variation,
+      base,
+      merged,
+      setUserConfig: () => {}
+    };
+  }, [variation, base, properties]);
+  const selectVariation = () => setUserConfig(variation);
+  const selectOnEnter = event => {
+    if (event.keyCode === external_wp_keycodes_namespaceObject.ENTER) {
+      event.preventDefault();
+      selectVariation();
+    }
+  };
+  const isActive = (0,external_wp_element_namespaceObject.useMemo)(() => variation_areGlobalStyleConfigsEqual(user, variation), [user, variation]);
+  let label = variation?.title;
+  if (variation?.description) {
+    label = (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %1$s: variation title. %2$s variation description. */
+    (0,external_wp_i18n_namespaceObject.__)('%1$s (%2$s)'), variation?.title, variation?.description);
+  }
+  const content = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
+    className: dist_clsx('edit-site-global-styles-variations_item', {
+      'is-active': isActive
+    }),
+    role: "button",
+    onClick: selectVariation,
+    onKeyDown: selectOnEnter,
+    tabIndex: "0",
+    "aria-label": label,
+    "aria-current": isActive,
+    onFocus: () => setIsFocused(true),
+    onBlur: () => setIsFocused(false),
+    children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
+      className: dist_clsx('edit-site-global-styles-variations_item-preview', {
+        'is-pill': isPill
+      }),
+      children: children(isFocused)
+    })
+  });
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(variation_GlobalStylesContext.Provider, {
+    value: context,
+    children: showTooltip ? /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Tooltip, {
+      text: variation?.title,
+      children: content
+    }) : content
+  });
+}
+
+;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/variations/variations-typography.js
+/**
+ * WordPress dependencies
+ */
+
+
+/**
+ * Internal dependencies
+ */
+
+
+
+
+
+
+function TypographyVariations({
+  title,
+  gap = 2
+}) {
+  const propertiesToFilter = ['typography'];
+  const typographyVariations = useCurrentMergeThemeStyleVariationsWithUserConfig(propertiesToFilter);
+
+  // Return null if there is only one variation (the default).
+  if (typographyVariations?.length <= 1) {
+    return null;
+  }
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
+    spacing: 3,
+    children: [title && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(subtitle, {
+      level: 3,
+      children: title
+    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalGrid, {
+      columns: 3,
+      gap: gap,
+      className: "edit-site-global-styles-style-variations-container",
+      children: typographyVariations.map((variation, index) => {
+        return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(Variation, {
+          variation: variation,
+          properties: propertiesToFilter,
+          showTooltip: true,
+          children: () => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(preview_typography, {
+            variation: variation
+          })
+        }, index);
+      })
+    })]
+  });
+}
+
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/font-sizes/font-sizes-count.js
 /**
  * WordPress dependencies
@@ -13695,245 +14013,6 @@ function FontLibraryProvider({
   });
 }
 /* harmony default export */ const context = (FontLibraryProvider);
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/hooks/use-theme-style-variations/use-theme-style-variations-by-property.js
-/* wp:polyfill */
-/**
- * WordPress dependencies
- */
-
-
-
-
-
-
-
-/**
- * Internal dependencies
- */
-
-const {
-  GlobalStylesContext: use_theme_style_variations_by_property_GlobalStylesContext,
-  areGlobalStyleConfigsEqual
-} = unlock(external_wp_blockEditor_namespaceObject.privateApis);
-const {
-  mergeBaseAndUserConfigs: use_theme_style_variations_by_property_mergeBaseAndUserConfigs
-} = unlock(external_wp_editor_namespaceObject.privateApis);
-
-/**
- * Removes all instances of properties from an object.
- *
- * @param {Object}   object     The object to remove the properties from.
- * @param {string[]} properties The properties to remove.
- * @return {Object} The modified object.
- */
-function removePropertiesFromObject(object, properties) {
-  if (!properties?.length) {
-    return object;
-  }
-  if (typeof object !== 'object' || !object || !Object.keys(object).length) {
-    return object;
-  }
-  for (const key in object) {
-    if (properties.includes(key)) {
-      delete object[key];
-    } else if (typeof object[key] === 'object') {
-      removePropertiesFromObject(object[key], properties);
-    }
-  }
-  return object;
-}
-
-/**
- * Checks whether a style variation is empty.
- *
- * @param {Object} variation          A style variation object.
- * @param {string} variation.title    The title of the variation.
- * @param {Object} variation.settings The settings of the variation.
- * @param {Object} variation.styles   The styles of the variation.
- * @return {boolean} Whether the variation is empty.
- */
-function hasThemeVariation({
-  title,
-  settings,
-  styles
-}) {
-  return title === (0,external_wp_i18n_namespaceObject.__)('Default') ||
-  // Always preserve the default variation.
-  Object.keys(settings).length > 0 || Object.keys(styles).length > 0;
-}
-
-/**
- * Fetches the current theme style variations that contain only the specified properties
- * and merges them with the user config.
- *
- * @param {string[]} properties The properties to filter by.
- * @return {Object[]|*} The merged object.
- */
-function useCurrentMergeThemeStyleVariationsWithUserConfig(properties = []) {
-  const {
-    variationsFromTheme
-  } = (0,external_wp_data_namespaceObject.useSelect)(select => {
-    const _variationsFromTheme = select(external_wp_coreData_namespaceObject.store).__experimentalGetCurrentThemeGlobalStylesVariations();
-    return {
-      variationsFromTheme: _variationsFromTheme || []
-    };
-  }, []);
-  const {
-    user: userVariation
-  } = (0,external_wp_element_namespaceObject.useContext)(use_theme_style_variations_by_property_GlobalStylesContext);
-  const propertiesAsString = properties.toString();
-  return (0,external_wp_element_namespaceObject.useMemo)(() => {
-    const clonedUserVariation = structuredClone(userVariation);
-
-    // Get user variation and remove the settings for the given property.
-    const userVariationWithoutProperties = removePropertiesFromObject(clonedUserVariation, properties);
-    userVariationWithoutProperties.title = (0,external_wp_i18n_namespaceObject.__)('Default');
-    const variationsWithPropertiesAndBase = variationsFromTheme.filter(variation => {
-      return isVariationWithProperties(variation, properties);
-    }).map(variation => {
-      return use_theme_style_variations_by_property_mergeBaseAndUserConfigs(userVariationWithoutProperties, variation);
-    });
-    const variationsByProperties = [userVariationWithoutProperties, ...variationsWithPropertiesAndBase];
-
-    /*
-     * Filter out variations with no settings or styles.
-     */
-    return variationsByProperties?.length ? variationsByProperties.filter(hasThemeVariation) : [];
-  }, [propertiesAsString, userVariation, variationsFromTheme]);
-}
-
-/**
- * Returns a new object, with properties specified in `properties` array.,
- * maintain the original object tree structure.
- * The function is recursive, so it will perform a deep search for the given properties.
- * E.g., the function will return `{ a: { b: { c: { test: 1 } } } }` if the properties are  `[ 'test' ]`.
- *
- * @param {Object}   object     The object to filter
- * @param {string[]} properties The properties to filter by
- * @return {Object} The merged object.
- */
-const filterObjectByProperties = (object, properties) => {
-  if (!object || !properties?.length) {
-    return {};
-  }
-  const newObject = {};
-  Object.keys(object).forEach(key => {
-    if (properties.includes(key)) {
-      newObject[key] = object[key];
-    } else if (typeof object[key] === 'object') {
-      const newFilter = filterObjectByProperties(object[key], properties);
-      if (Object.keys(newFilter).length) {
-        newObject[key] = newFilter;
-      }
-    }
-  });
-  return newObject;
-};
-
-/**
- * Compares a style variation to the same variation filtered by the specified properties.
- * Returns true if the variation contains only the properties specified.
- *
- * @param {Object}   variation  The variation to compare.
- * @param {string[]} properties The properties to compare.
- * @return {boolean} Whether the variation contains only the specified properties.
- */
-function isVariationWithProperties(variation, properties) {
-  const variationWithProperties = filterObjectByProperties(structuredClone(variation), properties);
-  return areGlobalStyleConfigsEqual(variationWithProperties, variation);
-}
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/typeset-button.js
-/**
- * WordPress dependencies
- */
-
-
-
-
-
-
-
-
-
-/**
- * Internal dependencies
- */
-
-
-
-
-
-
-
-
-const {
-  GlobalStylesContext: typeset_button_GlobalStylesContext
-} = unlock(external_wp_blockEditor_namespaceObject.privateApis);
-const {
-  mergeBaseAndUserConfigs: typeset_button_mergeBaseAndUserConfigs
-} = unlock(external_wp_editor_namespaceObject.privateApis);
-function TypesetButton() {
-  const propertiesToFilter = ['typography'];
-  const typographyVariations = useCurrentMergeThemeStyleVariationsWithUserConfig(propertiesToFilter);
-  const hasTypographyVariations = typographyVariations?.length > 1;
-  const {
-    base,
-    user: userConfig
-  } = (0,external_wp_element_namespaceObject.useContext)(typeset_button_GlobalStylesContext);
-  const config = typeset_button_mergeBaseAndUserConfigs(base, userConfig);
-  const allFontFamilies = getFontFamilies(config);
-  const hasFonts = allFontFamilies.filter(font => font !== null).length > 0;
-  const variations = (0,external_wp_data_namespaceObject.useSelect)(select => {
-    return select(external_wp_coreData_namespaceObject.store).__experimentalGetCurrentThemeGlobalStylesVariations();
-  }, []);
-  const userTypographyConfig = filterObjectByProperties(userConfig, 'typography');
-  const title = (0,external_wp_element_namespaceObject.useMemo)(() => {
-    if (Object.keys(userTypographyConfig).length === 0) {
-      return (0,external_wp_i18n_namespaceObject.__)('Default');
-    }
-    const activeVariation = variations?.find(variation => {
-      return JSON.stringify(filterObjectByProperties(variation, 'typography')) === JSON.stringify(userTypographyConfig);
-    });
-    if (activeVariation) {
-      return activeVariation.title;
-    }
-    return allFontFamilies.map(font => font?.name).join(', ');
-  }, [allFontFamilies, userTypographyConfig, variations]);
-  return hasTypographyVariations && hasFonts && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
-    spacing: 2,
-    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalHStack, {
-      justify: "space-between",
-      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(subtitle, {
-        level: 3,
-        children: (0,external_wp_i18n_namespaceObject.__)('Typeset')
-      })
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalItemGroup, {
-      isBordered: true,
-      isSeparated: true,
-      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(NavigationButtonAsItem, {
-        path: "/typography/typeset",
-        "aria-label": (0,external_wp_i18n_namespaceObject.__)('Typeset'),
-        children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalHStack, {
-          direction: "row",
-          children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.FlexItem, {
-            children: title
-          }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(build_module_icon, {
-            icon: (0,external_wp_i18n_namespaceObject.isRTL)() ? chevron_left : chevron_right
-          })]
-        })
-      })
-    })]
-  });
-}
-/* harmony default export */ const typeset_button = (({
-  ...props
-}) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(context, {
-  children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(TypesetButton, {
-    ...props
-  })
-}));
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/font-library-modal/font-demo.js
 /**
@@ -19377,29 +19456,15 @@ function FontFamilies() {
       defaultTabId: modalTabOpen
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
       spacing: 4,
-      children: [themeFonts.length > 0 && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
+      children: [[...themeFonts, ...customFonts].length > 0 && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
         children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(subtitle, {
           level: 3,
-          children: /* translators: Heading for a list of fonts provided by the theme. */
-          (0,external_wp_i18n_namespaceObject._x)('Theme', 'font source')
+          children: (0,external_wp_i18n_namespaceObject.__)('Fonts')
         }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalItemGroup, {
           size: "large",
           isBordered: true,
           isSeparated: true,
           children: themeFonts.map(font => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_family_item, {
-            font: font
-          }, font.slug))
-        })]
-      }), customFonts.length > 0 && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
-        children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(subtitle, {
-          level: 3,
-          children: /* translators: Heading for a list of fonts installed by the user. */
-          (0,external_wp_i18n_namespaceObject._x)('Custom', 'font source')
-        }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalItemGroup, {
-          size: "large",
-          isBordered: true,
-          isSeparated: true,
-          children: customFonts.map(font => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_family_item, {
             font: font
           }, font.slug))
         })]
@@ -19456,236 +19521,19 @@ function ScreenTypography() {
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(header, {
       title: (0,external_wp_i18n_namespaceObject.__)('Typography'),
-      description: (0,external_wp_i18n_namespaceObject.__)('Typography styles and the application of those styles on site elements.')
+      description: (0,external_wp_i18n_namespaceObject.__)('Available fonts, typographic styles, and the application of those styles.')
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
       className: "edit-site-global-styles-screen",
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
         spacing: 7,
-        children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(typeset_button, {}), fontLibraryEnabled && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_families, {}), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(typography_elements, {}), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_sizes_count, {})]
+        children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(TypographyVariations, {
+          title: (0,external_wp_i18n_namespaceObject.__)('Typesets')
+        }), fontLibraryEnabled && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_families, {}), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(typography_elements, {}), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_sizes_count, {})]
       })
     })]
   });
 }
 /* harmony default export */ const screen_typography = (ScreenTypography);
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/preview-typography.js
-/**
- * WordPress dependencies
- */
-
-
-/**
- * Internal dependencies
- */
-
-
-
-const StylesPreviewTypography = ({
-  variation,
-  isFocused,
-  withHoverView
-}) => {
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(PreviewIframe, {
-    label: variation.title,
-    isFocused: isFocused,
-    withHoverView: withHoverView,
-    children: ({
-      ratio,
-      key
-    }) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalHStack, {
-      spacing: 10 * ratio,
-      justify: "center",
-      style: {
-        height: '100%',
-        overflow: 'hidden'
-      },
-      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(PreviewTypography, {
-        variation: variation,
-        fontSize: 85 * ratio
-      })
-    }, key)
-  });
-};
-/* harmony default export */ const preview_typography = (StylesPreviewTypography);
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/variations/variation.js
-/**
- * External dependencies
- */
-
-
-/**
- * WordPress dependencies
- */
-
-
-
-
-
-
-
-/**
- * Internal dependencies
- */
-
-
-
-const {
-  mergeBaseAndUserConfigs: variation_mergeBaseAndUserConfigs
-} = unlock(external_wp_editor_namespaceObject.privateApis);
-const {
-  GlobalStylesContext: variation_GlobalStylesContext,
-  areGlobalStyleConfigsEqual: variation_areGlobalStyleConfigsEqual
-} = unlock(external_wp_blockEditor_namespaceObject.privateApis);
-function Variation({
-  variation,
-  children,
-  isPill,
-  properties,
-  showTooltip
-}) {
-  const [isFocused, setIsFocused] = (0,external_wp_element_namespaceObject.useState)(false);
-  const {
-    base,
-    user,
-    setUserConfig
-  } = (0,external_wp_element_namespaceObject.useContext)(variation_GlobalStylesContext);
-  const context = (0,external_wp_element_namespaceObject.useMemo)(() => {
-    let merged = variation_mergeBaseAndUserConfigs(base, variation);
-    if (properties) {
-      merged = filterObjectByProperties(merged, properties);
-    }
-    return {
-      user: variation,
-      base,
-      merged,
-      setUserConfig: () => {}
-    };
-  }, [variation, base, properties]);
-  const selectVariation = () => setUserConfig(variation);
-  const selectOnEnter = event => {
-    if (event.keyCode === external_wp_keycodes_namespaceObject.ENTER) {
-      event.preventDefault();
-      selectVariation();
-    }
-  };
-  const isActive = (0,external_wp_element_namespaceObject.useMemo)(() => variation_areGlobalStyleConfigsEqual(user, variation), [user, variation]);
-  let label = variation?.title;
-  if (variation?.description) {
-    label = (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %1$s: variation title. %2$s variation description. */
-    (0,external_wp_i18n_namespaceObject.__)('%1$s (%2$s)'), variation?.title, variation?.description);
-  }
-  const content = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
-    className: dist_clsx('edit-site-global-styles-variations_item', {
-      'is-active': isActive
-    }),
-    role: "button",
-    onClick: selectVariation,
-    onKeyDown: selectOnEnter,
-    tabIndex: "0",
-    "aria-label": label,
-    "aria-current": isActive,
-    onFocus: () => setIsFocused(true),
-    onBlur: () => setIsFocused(false),
-    children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
-      className: dist_clsx('edit-site-global-styles-variations_item-preview', {
-        'is-pill': isPill
-      }),
-      children: children(isFocused)
-    })
-  });
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(variation_GlobalStylesContext.Provider, {
-    value: context,
-    children: showTooltip ? /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Tooltip, {
-      text: variation?.title,
-      children: content
-    }) : content
-  });
-}
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/variations/variations-typography.js
-/**
- * WordPress dependencies
- */
-
-
-/**
- * Internal dependencies
- */
-
-
-
-
-
-
-function TypographyVariations({
-  title,
-  gap = 2
-}) {
-  const propertiesToFilter = ['typography'];
-  const typographyVariations = useCurrentMergeThemeStyleVariationsWithUserConfig(propertiesToFilter);
-
-  // Return null if there is only one variation (the default).
-  if (typographyVariations?.length <= 1) {
-    return null;
-  }
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
-    spacing: 3,
-    children: [title && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(subtitle, {
-      level: 3,
-      children: title
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalGrid, {
-      columns: 3,
-      gap: gap,
-      className: "edit-site-global-styles-style-variations-container",
-      children: typographyVariations.map((variation, index) => {
-        return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(Variation, {
-          variation: variation,
-          properties: propertiesToFilter,
-          showTooltip: true,
-          children: () => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(preview_typography, {
-            variation: variation
-          })
-        }, index);
-      })
-    })]
-  });
-}
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/screen-typeset.js
-/**
- * WordPress dependencies
- */
-
-
-
-
-
-/**
- * Internal dependencies
- */
-
-
-
-
-
-
-function ScreenTypeset() {
-  const fontLibraryEnabled = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_editor_namespaceObject.store).getEditorSettings().fontLibraryEnabled, []);
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
-    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(header, {
-      title: (0,external_wp_i18n_namespaceObject.__)('Typesets'),
-      description: (0,external_wp_i18n_namespaceObject.__)('Fonts and typographic styling applied across the site.')
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
-      className: "edit-site-global-styles-screen",
-      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
-        spacing: 7,
-        children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(TypographyVariations, {}), fontLibraryEnabled && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_families, {})]
-      })
-    })]
-  });
-}
-/* harmony default export */ const screen_typeset = (ScreenTypeset);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/global-styles/typography-panel.js
 /**
@@ -20150,7 +19998,6 @@ function FontSize() {
       origin,
       slug
     },
-    goBack,
     goTo
   } = (0,external_wp_components_namespaceObject.__experimentalUseNavigator)();
   const [fontSizes, setFontSizes] = font_size_useGlobalSetting('typography.fontSizes');
@@ -20163,10 +20010,10 @@ function FontSize() {
   const fontSize = sizes.find(size => size.slug === slug);
 
   // Whether the font size is fluid. If not defined, use the global fluid value of the theme.
-  const isFluid = fontSize.fluid !== undefined ? !!fontSize.fluid : !!globalFluid;
+  const isFluid = fontSize?.fluid !== undefined ? !!fontSize.fluid : !!globalFluid;
 
   // Whether custom fluid values are used.
-  const isCustomFluid = typeof fontSize.fluid === 'object';
+  const isCustomFluid = typeof fontSize?.fluid === 'object';
   const handleNameChange = value => {
     updateFontSize('name', value);
   };
@@ -20216,8 +20063,6 @@ function FontSize() {
     });
   };
   const handleRemoveFontSize = () => {
-    // Navigate to the font sizes list.
-    goBack();
     const newFontSizes = sizes.filter(size => size.slug !== slug);
     setFontSizes({
       ...fontSizes,
@@ -20230,6 +20075,20 @@ function FontSize() {
   const toggleRenameDialog = () => {
     setIsRenameDialogOpen(!isRenameDialogOpen);
   };
+
+  // Navigate to the font sizes list if the font size is not available.
+  (0,external_wp_element_namespaceObject.useEffect)(() => {
+    if (!fontSize) {
+      goTo('/typography/font-sizes/', {
+        isBack: true
+      });
+    }
+  }, [fontSize, goTo]);
+
+  // Avoid rendering if the font size is not available.
+  if (!fontSize) {
+    return null;
+  }
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(confirm_delete_font_size_dialog, {
       fontSize: fontSize,
@@ -23477,7 +23336,6 @@ function ScreenRevisions() {
 
 
 
-
 const SLOT_FILL_NAME = 'GlobalStylesMenu';
 const {
   useGlobalStylesReset: ui_useGlobalStylesReset
@@ -23680,19 +23538,6 @@ function GlobalStylesEditorCanvasContainerLink() {
           goTo('/');
         }
         break;
-      default:
-        /*
-         * Example: the user has navigated to "Browse styles" or elsewhere
-         * and changes the editorCanvasContainerView, e.g., closes the style book.
-         * The panel should not be affected.
-         * Exclude revisions panel from this behavior,
-         * as it should close when the editorCanvasContainerView doesn't correspond.
-         */
-        if (path !== '/' && !isRevisionsOpen) {
-          return;
-        }
-        goTo('/');
-        break;
     }
   }, [editorCanvasContainerView, isRevisionsOpen, goTo]);
 }
@@ -23720,9 +23565,6 @@ function GlobalStylesUI() {
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GlobalStylesNavigationScreen, {
       path: "/typography/font-sizes/:origin/:slug",
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_size, {})
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GlobalStylesNavigationScreen, {
-      path: "/typography/typeset",
-      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(screen_typeset, {})
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GlobalStylesNavigationScreen, {
       path: "/typography/text",
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(screen_typography_element, {
@@ -24517,7 +24359,7 @@ function EditSiteEditor({
             }),
             variants: toggleHomeIconVariants,
             children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(build_module_icon, {
-              icon: home_button
+              icon: arrow_up_left
             })
           })]
         })
@@ -33731,47 +33573,6 @@ const DEFAULT_POST_BASE = {
   fields: ['title', 'author', 'status'],
   layout: defaultLayouts[LAYOUT_LIST].layout
 };
-function useDefaultViewsWithItemCounts({
-  postType
-}) {
-  const defaultViews = useDefaultViews({
-    postType
-  });
-  const {
-    records,
-    totalItems
-  } = (0,external_wp_coreData_namespaceObject.useEntityRecords)('postType', postType, {
-    per_page: -1,
-    status: ['any', 'trash']
-  });
-  return (0,external_wp_element_namespaceObject.useMemo)(() => {
-    if (!defaultViews) {
-      return [];
-    }
-
-    // If there are no records, return the default views with no counts.
-    if (!records) {
-      return defaultViews;
-    }
-    const counts = {
-      drafts: records.filter(record => record.status === 'draft').length,
-      future: records.filter(record => record.status === 'future').length,
-      pending: records.filter(record => record.status === 'pending').length,
-      private: records.filter(record => record.status === 'private').length,
-      published: records.filter(record => record.status === 'publish').length,
-      trash: records.filter(record => record.status === 'trash').length
-    };
-
-    // All items excluding trashed items as per the default "all" status query.
-    counts.all = totalItems ? totalItems - counts.trash : 0;
-
-    // Filter out views with > 0 item counts.
-    return defaultViews.map(_view => {
-      _view.count = counts[_view.slug];
-      return _view;
-    });
-  }, [defaultViews, records, totalItems]);
-}
 function useDefaultViews({
   postType
 }) {
@@ -36110,10 +35911,8 @@ function TitleField({
       gap: 0,
       justify: "flex-start",
       className: "edit-site-patterns__pattern-title",
-      children: item.type === PATTERN_TYPES.theme ? title : /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-      // TODO: Switch to `true` (40px size) if possible
-      , {
-        __next40pxDefaultSize: false,
+      children: item.type === PATTERN_TYPES.theme ? title : /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+        __next40pxDefaultSize: true,
         variant: "link",
         onClick: onClick
         // Required for the grid's roving tab index system.
@@ -38585,10 +38384,8 @@ function PageTemplates() {
 
 
 function SidebarButton(props) {
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-  // TODO: Switch to `true` (40px size) if possible
-  , {
-    __next40pxDefaultSize: false,
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+    __next40pxDefaultSize: true,
     ...props,
     className: dist_clsx('edit-site-sidebar-button', props.className)
   });
@@ -40178,8 +39975,7 @@ function DataViewItem({
   icon,
   isActive,
   isCustom,
-  suffix,
-  navigationItemSuffix
+  suffix
 }) {
   const {
     params: {
@@ -40205,7 +40001,6 @@ function DataViewItem({
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(SidebarNavigationItem, {
       icon: iconToUse,
       ...linkInfo,
-      suffix: navigationItemSuffix,
       "aria-current": isActive ? 'true' : undefined,
       children: title
     }), suffix]
@@ -40625,19 +40420,15 @@ function AddNewItemModalContent({
         className: "patterns-create-modal__name-input"
       }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalHStack, {
         justify: "right",
-        children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-        // TODO: Switch to `true` (40px size) if possible
-        , {
-          __next40pxDefaultSize: false,
+        children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+          __next40pxDefaultSize: true,
           variant: "tertiary",
           onClick: () => {
             setIsAdding(false);
           },
           children: (0,external_wp_i18n_namespaceObject.__)('Cancel')
-        }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-        // TODO: Switch to `true` (40px size) if possible
-        , {
-          __next40pxDefaultSize: false,
+        }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+          __next40pxDefaultSize: true,
           variant: "primary",
           type: "submit",
           "aria-disabled": !title || isSaving,
@@ -40908,7 +40699,7 @@ function DataViewsSidebarContent() {
       isCustom = 'false'
     }
   } = sidebar_dataviews_useLocation();
-  const defaultViews = useDefaultViewsWithItemCounts({
+  const defaultViews = useDefaultViews({
     postType
   });
   if (!postType) {
@@ -40922,9 +40713,6 @@ function DataViewsSidebarContent() {
           slug: dataview.slug,
           title: dataview.title,
           icon: dataview.icon,
-          navigationItemSuffix: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
-            children: dataview.count
-          }),
           type: dataview.view.type,
           isActive: !isCustomBoolean && dataview.slug === activeView,
           isCustom: false
@@ -41003,14 +40791,11 @@ function DropdownHeader({
         level: 2,
         size: 13,
         children: title
-      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalSpacer, {}), onClose && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-      // TODO: Switch to `true` (40px size) if possible
-      , {
-        __next40pxDefaultSize: false,
-        className: "dataforms-layouts-panel__dropdown-header-action",
+      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.__experimentalSpacer, {}), onClose && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
         label: (0,external_wp_i18n_namespaceObject.__)('Close'),
         icon: close_small,
-        onClick: onClose
+        onClick: onClose,
+        size: "small"
       })]
     })
   });

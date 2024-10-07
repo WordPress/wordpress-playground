@@ -43,7 +43,7 @@
  *
  * @return string|false
  */
-function get_playground_auto_login_as_user() {
+function playground_get_username_for_auto_login() {
 	/**
 	 * Allow users to auto-login as a specific user on their first visit.
 	 *
@@ -70,8 +70,12 @@ function get_playground_auto_login_as_user() {
  * Logs the user in on their first visit if the Playground runtime told us to.
  */
 function playground_auto_login() {
-	$user_name = get_playground_auto_login_as_user();
+	$user_name = playground_get_username_for_auto_login();
 	if ( false === $user_name ) {
+		return;
+	}
+
+	if (wp_doing_ajax() || defined('REST_REQUEST')) {
 		return;
 	}
 
@@ -93,38 +97,33 @@ function playground_auto_login() {
 
 /**
  * Autologin on load.
+ * This uses the `wp` hook as it's the earliest hook that will allow us to
+ * auto-login
  */
-add_action('wp', 'playground_auto_login', 1);
+// add_action('init', 'playground_auto_login', 1);
 
 /**
- * Redirect to admin page after auto-login.
+ * Autologin users from the wp-login.php page.
  *
- * When the user attempts to load /wp-admin/ the default wp action isn't
- * called, so we need to catch the request and redirect to the admin page.
+ * The `wp` hook isn't triggered on
  **/
 add_action('init', function() {
+	playground_auto_login();
 	/**
 	 * Check if the request is for the login page.
 	 */
-	if (empty($_SERVER['SCRIPT_NAME']) || false === stripos( wp_login_url(), $_SERVER['SCRIPT_NAME'] )) {
-		return;
+	if (is_login() && is_user_logged_in() && isset($_GET['redirect_to'])) {
+		wp_redirect(esc_url($_GET['redirect_to']));
+		exit;
 	}
-	if (false === get_playground_auto_login_as_user()) {
-		return;
-	}
-	playground_auto_login();
-	wp_redirect(
-		isset($_GET['redirect_to']) ? $_GET['redirect_to'] : admin_url()
-	);
-	exit;
-});
+}, 1);
 
 /**
  * Disable the Site Admin Email Verification Screen for any session started
  * via autologin.
  */
 add_filter('admin_email_check_interval', function($interval) {
-	if(false === get_playground_auto_login_as_user()) {
+	if(false === playground_get_username_for_auto_login()) {
 		return 0;
 	}
 

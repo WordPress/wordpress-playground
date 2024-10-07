@@ -68,6 +68,13 @@ export interface StartPlaygroundOptions {
 	onBeforeBlueprint?: () => Promise<void>;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
+	/**
+	 * The string prefix used in the site URL served by the currently
+	 * running remote.html. E.g. for a prefix like `/scope:playground/`,
+	 * the scope would be `playground`. See the `@php-wasm/scopes` package
+	 * for more details.
+	 */
+	scope?: string;
 }
 
 /**
@@ -88,6 +95,7 @@ export async function startPlaygroundWeb({
 	sapiName,
 	onBeforeBlueprint,
 	mounts,
+	scope,
 	shouldInstallWordPress,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
@@ -128,6 +136,7 @@ export async function startPlaygroundWeb({
 	await playground.boot({
 		mounts,
 		sapiName,
+		scope: scope ?? Math.random().toFixed(16),
 		shouldInstallWordPress,
 		phpVersion: compiled.versions.php,
 		wpVersion: compiled.versions.wp,
