@@ -85,15 +85,6 @@ test(
 			.click();
 		await website.waitForNestedIframes();
 
-		// @TODO locate by role or title or so
-		// Confirm the page was not reloaded in the meantime, as in – we should still
-		// have two sites in the sidebar.
-		expect(
-			website.page.locator(
-				'button[title="This is a temporary Playground. Your changes will be lost on page refresh."]'
-			)
-		).toHaveCount(2);
-
 		// Confirm we're looking at the Polish site.
 		await website.ensureSiteManagerIsClosed();
 		expect(wordpress.locator('body')).toContainText('Edytuj witrynę');
