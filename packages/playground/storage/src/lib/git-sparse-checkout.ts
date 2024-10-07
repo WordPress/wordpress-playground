@@ -74,6 +74,15 @@ export type FileTreeFolder = {
 };
 export type FileTree = FileTreeFile | FileTreeFolder;
 
+/**
+ * Lists all files in a git repository.
+ *
+ * See https://git-scm.com/book/en/v2/Git-Internals-Git-Objects for more information.
+ *
+ * @param repoUrl The URL of the git repository.
+ * @param fullyQualifiedBranchName The full name of the branch to fetch from (e.g., 'refs/heads/main').
+ * @returns A list of all files in the repository.
+ */
 export async function listFiles(
 	repoUrl: string,
 	fullyQualifiedBranchName: string
@@ -113,11 +122,13 @@ function gitTreeToFileTree(tree: GitTree): FileTree[] {
 }
 
 /**
- * Retrieves a list of files on matching git branches.
+ * Retrieves a list of refs from a git repository.
+ *
+ * See https://git-scm.com/book/en/v2/Git-Internals-Git-References for more information.
  *
  * @param repoUrl The URL of the git repository. For example: https://github.com/WordPress/gutenberg.git
- * @param fullyQualifiedBranchPrefix The prefix of the branch names to fetch. For example: refs/heads/my-feature-branch
- * @returns A map of branch names to their corresponding commit hashes.
+ * @param fullyQualifiedBranchPrefix The prefix of the refs to fetch. For example: refs/heads/my-feature-branch
+ * @returns A map of refs to their corresponding commit hashes.
  */
 export async function listRefs(
 	repoUrl: string,
