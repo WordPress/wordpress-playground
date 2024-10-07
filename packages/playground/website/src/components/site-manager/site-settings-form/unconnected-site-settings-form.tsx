@@ -17,6 +17,7 @@ export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;
 	header?: React.ReactNode;
 	footer?: React.ReactNode;
+	className?: string;
 	enabledFields?: ConfigurableFields;
 	defaultValues?: Partial<SiteFormData>;
 }
@@ -34,6 +35,7 @@ export function UnconnectedSiteSettingsForm({
 	onSubmit,
 	header,
 	footer,
+	className,
 	defaultValues = {},
 	enabledFields = {
 		wpVersion: true,
@@ -73,7 +75,10 @@ export function UnconnectedSiteSettingsForm({
 	}, [latestWPVersion, setValue, getValues]);
 
 	return (
-		<form onSubmit={handleSubmit(onSubmit)} className="site-settings-form">
+		<form
+			onSubmit={handleSubmit(onSubmit)}
+			className={classNames(className, 'site-settings-form')}
+		>
 			{header}
 			<VStack spacing={3} className={css.formSection}>
 				<Controller

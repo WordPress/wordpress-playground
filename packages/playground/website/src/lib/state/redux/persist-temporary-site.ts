@@ -163,6 +163,9 @@ export function persistTemporarySite(
 				slug: siteSlug,
 				changes: {
 					storage: storageType,
+					// Reset the created date. Mental model: From the perspective of
+					// the storage backend, the site was just created.
+					whenCreated: Date.now(),
 				},
 			})
 		);

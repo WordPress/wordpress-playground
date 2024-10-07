@@ -20,9 +20,12 @@ export function getRelativeDate(inputDate: Date): string {
 	for (const interval of intervals) {
 		const value = Math.floor(diffInSeconds / interval.seconds);
 		if (![1, -1, 0].includes(value)) {
+			if (value < 60 && interval.unit === 'second') {
+				return 'a moment ago';
+			}
 			return formatter.format(value, interval.unit);
 		}
 	}
 
-	return formatter.format(0, 'second');
+	return 'right now';
 }

@@ -11,7 +11,6 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { useMediaQuery } from '@wordpress/compose';
 import { moreVertical, external, chevronLeft } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
@@ -62,11 +61,6 @@ export function SiteInfoPanel({
 	const playground = clientInfo?.client;
 	const dispatch = useAppDispatch();
 
-	const navigationButtonsPlacement = useMediaQuery('(min-width: 1400px)')
-		? 'header'
-		: mobileUi
-		? 'footer'
-		: 'menu';
 	function navigateTo(path: string) {
 		if (siteViewHidden) {
 			// Close the site manager so the site view is visible.
@@ -100,218 +94,186 @@ export function SiteInfoPanel({
 				<FlexItem style={{ flexShrink: 0 }}>
 					<Flex
 						direction="row"
-						gap={4}
+						gap={2}
 						justify="space-between"
 						align="center"
 						expanded={true}
 						className={css.padded}
 						style={{ paddingBottom: 10 }}
 					>
-						<FlexItem>
-							<Flex direction="row" gap={2}>
-								{mobileUi && (
-									<FlexItem>
-										<Button
-											variant="link"
-											label="Back to sites list"
-											icon={() => (
-												<Icon
-													icon={chevronLeft}
-													size={38}
-												/>
-											)}
-											className={css.grayLinkDark}
-											onClick={onBackButtonClick}
-										/>
-									</FlexItem>
-								)}
-								<FlexItem className={css.siteInfoHeaderIcon}>
-									{site.metadata.logo ? (
-										<img
-											src={getLogoDataURL(
-												site.metadata.logo
-											)}
-											alt={site.metadata.name + ' logo'}
-										/>
-									) : (
-										<WordPressIcon
-											className={
-												css.siteInfoHeaderIconDefault
-											}
-										/>
+						{mobileUi && (
+							<FlexItem>
+								<Button
+									variant="link"
+									label="Back to sites list"
+									icon={() => (
+										<Icon icon={chevronLeft} size={38} />
 									)}
-								</FlexItem>
-								<Flex
-									direction="column"
-									gap={0.25}
-									expanded={true}
-								>
-									<h1
+									className={css.grayLinkDark}
+									onClick={onBackButtonClick}
+								/>
+							</FlexItem>
+						)}
+						<FlexItem className={css.siteInfoHeaderIcon}>
+							{site.metadata.logo ? (
+								<img
+									src={getLogoDataURL(site.metadata.logo)}
+									alt={site.metadata.name + ' logo'}
+								/>
+							) : (
+								<WordPressIcon
+									className={css.siteInfoHeaderIconDefault}
+								/>
+							)}
+						</FlexItem>
+						<FlexItem style={{ flexGrow: 1 }}>
+							<Flex direction="column" gap={0.25} expanded={true}>
+								<h1 className={css.siteInfoHeaderDetailsName}>
+									{isTemporary
+										? 'Temporary Playground'
+										: site.metadata.name}
+								</h1>
+								{!isTemporary && (
+									<span
 										className={
-											css.siteInfoHeaderDetailsName
+											css.siteInfoHeaderDetailsCreatedAt
 										}
 									>
-										{isTemporary
-											? 'Temporary Playground'
-											: site.metadata.name}
-									</h1>
-									{!isTemporary && (
-										<span
-											className={
-												css.siteInfoHeaderDetailsCreatedAt
+										{(function () {
+											const createdAgo = site.metadata
+												.whenCreated
+												? getRelativeDate(
+														new Date(
+															// -2 to make sure it's in the past. We want to
+															// avoid accidentally signaling this happened in
+															// the future, e.g. "in 1 seconds"
+															site.metadata
+																.whenCreated - 2
+														)
+												  )
+												: '';
+											switch (site.metadata.storage) {
+												case 'local-fs':
+													return (
+														'Saved in a local directory' +
+														(localDirName
+															? ` (${localDirName})`
+															: '') +
+														` ${createdAgo}`
+													);
+												case 'opfs':
+													return `Saved in this browser ${createdAgo}`;
 											}
-										>
-											{(function () {
-												const createdAgo = site.metadata
-													.whenCreated
-													? getRelativeDate(
-															new Date(
-																site.metadata.whenCreated
-															)
-													  )
-													: '';
-												switch (site.metadata.storage) {
-													case 'local-fs':
-														return (
-															'Saved in a local directory' +
-															(localDirName
-																? ` (${localDirName})`
-																: '') +
-															` ${createdAgo}`
-														);
-													case 'opfs':
-														return `Saved in this browser ${createdAgo}`;
-												}
-											})()}{' '}
-										</span>
-									)}
-								</Flex>
+										})()}{' '}
+									</span>
+								)}
 							</Flex>
 						</FlexItem>
-						<FlexItem style={{ flexShrink: 0 }}>
-							<Flex direction="row" gap={4} align="center">
-								{navigationButtonsPlacement === 'header' && (
-									<>
-										<Button
-											variant="tertiary"
-											disabled={!playground}
-											onClick={() =>
-												navigateTo('/wp-admin/')
-											}
-										>
-											WP Admin
-										</Button>
-										<Button
-											variant="secondary"
-											disabled={!playground}
-											onClick={() => navigateTo('/')}
-										>
-											Homepage
-										</Button>
-									</>
-								)}
-								<DropdownMenu
-									icon={moreVertical}
-									label="Additional actions"
-									popoverProps={{
-										placement: 'bottom-end',
-									}}
+						{mobileUi ? (
+							<FlexItem style={{ flexShrink: 0 }}>
+								<Button
+									variant="primary"
+									disabled={!playground}
+									onClick={() => navigateTo('/')}
 								>
-									{({ onClose }) => (
-										<>
-											{navigationButtonsPlacement ===
-												'menu' && (
-												<MenuGroup>
-													<MenuItem
-														icon={external}
-														iconPosition="right"
-														aria-label="Go to homepage"
-														onClick={() => {
-															navigateTo('/');
-															onClose();
-														}}
-													>
-														Homepage
-													</MenuItem>
-													<MenuItem
-														icon={external}
-														iconPosition="right"
-														aria-label="Go to WP Admin"
-														onClick={() => {
-															navigateTo(
-																'/wp-admin/'
-															);
-															onClose();
-														}}
-													>
-														WP Admin
-													</MenuItem>
-												</MenuGroup>
-											)}
-											{!isTemporary && (
-												<MenuGroup>
-													<MenuItem
-														aria-label="Delete this Playground"
-														className={css.danger}
-														onClick={() =>
-															removeSiteAndCloseMenu(
-																onClose
-															)
-														}
-													>
-														Delete
-													</MenuItem>
-												</MenuGroup>
-											)}
+									Open site
+								</Button>
+							</FlexItem>
+						) : (
+							<>
+								<FlexItem>
+									<Button
+										variant="tertiary"
+										disabled={!playground}
+										onClick={() => navigateTo('/wp-admin/')}
+									>
+										WP Admin
+									</Button>
+								</FlexItem>
+								<FlexItem>
+									<Button
+										variant="secondary"
+										disabled={!playground}
+										onClick={() => navigateTo('/')}
+									>
+										Homepage
+									</Button>
+								</FlexItem>
+							</>
+						)}
+						<FlexItem>
+							<DropdownMenu
+								icon={moreVertical}
+								label="Additional actions"
+								popoverProps={{
+									placement: 'bottom-end',
+								}}
+							>
+								{({ onClose }) => (
+									<>
+										{!isTemporary && (
 											<MenuGroup>
-												<DownloadAsZipMenuItem
-													onClose={onClose}
-													disabled={!playground}
-												/>
-												<RestoreFromZipMenuItem
-													onClose={onClose}
-													disabled={!playground}
-												/>
-												<GithubImportMenuItem
-													onClose={onClose}
-													disabled={
-														offline || !playground
-													}
-												/>
-												<GithubExportMenuItem
-													onClose={onClose}
-													disabled={
-														offline || !playground
-													}
-												/>
 												<MenuItem
-													// @ts-ignore
-													href={`/builder/builder.html#${encodeStringAsBase64(
-														JSON.stringify(
-															site.metadata
-																.originalBlueprint as any
-														) as string
-													)}`}
-													target="_blank"
-													rel="noopener noreferrer"
-													icon={external}
-													iconPosition="right"
-													aria-label="View Blueprint"
-													disabled={offline}
+													aria-label="Delete this Playground"
+													className={css.danger}
+													onClick={() =>
+														removeSiteAndCloseMenu(
+															onClose
+														)
+													}
 												>
-													View Blueprint
+													Delete
 												</MenuItem>
 											</MenuGroup>
-											<MenuGroup>
-												<ReportError
-													onClose={onClose}
-													disabled={offline}
-												/>
-											</MenuGroup>
-										</>
-									)}
-								</DropdownMenu>
-							</Flex>
+										)}
+										<MenuGroup>
+											<DownloadAsZipMenuItem
+												onClose={onClose}
+												disabled={!playground}
+											/>
+											<RestoreFromZipMenuItem
+												onClose={onClose}
+												disabled={!playground}
+											/>
+											<GithubImportMenuItem
+												onClose={onClose}
+												disabled={
+													offline || !playground
+												}
+											/>
+											<GithubExportMenuItem
+												onClose={onClose}
+												disabled={
+													offline || !playground
+												}
+											/>
+											<MenuItem
+												// @ts-ignore
+												href={`/builder/builder.html#${encodeStringAsBase64(
+													JSON.stringify(
+														site.metadata
+															.originalBlueprint as any
+													) as string
+												)}`}
+												target="_blank"
+												rel="noopener noreferrer"
+												icon={external}
+												iconPosition="right"
+												aria-label="View Blueprint"
+												disabled={offline}
+											>
+												View Blueprint
+											</MenuItem>
+										</MenuGroup>
+										<MenuGroup>
+											<ReportError
+												onClose={onClose}
+												disabled={offline}
+											/>
+										</MenuGroup>
+									</>
+								)}
+							</DropdownMenu>
 						</FlexItem>
 					</Flex>
 				</FlexItem>
@@ -373,32 +335,6 @@ export function SiteInfoPanel({
 						)}
 					</TabPanel>
 				</FlexItem>
-				{navigationButtonsPlacement === 'footer' && (
-					<FlexItem className={css.mobileFooter}>
-						<Flex direction="row" gap={2} justify="center">
-							<FlexItem style={{ flexGrow: 1 }}>
-								<Button
-									className={css.mobileFooterButton}
-									variant="secondary"
-									disabled={!playground}
-									onClick={() => navigateTo('/wp-admin/')}
-								>
-									WP Admin
-								</Button>
-							</FlexItem>
-							<FlexItem style={{ flexGrow: 1 }}>
-								<Button
-									className={css.mobileFooterButton}
-									variant="primary"
-									disabled={!playground}
-									onClick={() => navigateTo('/')}
-								>
-									Homepage
-								</Button>
-							</FlexItem>
-						</Flex>
-					</FlexItem>
-				)}
 			</Flex>
 		</section>
 	);

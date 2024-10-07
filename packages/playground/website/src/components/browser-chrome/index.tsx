@@ -88,10 +88,7 @@ export default function BrowserChrome({
 										padding: 0,
 									}}
 								>
-									<div
-										className={css.padded}
-										style={{ paddingBottom: 0 }}
-									>
+									<div className={css.headerSection}>
 										<h2 style={{ margin: 0 }}>
 											Playground settings
 										</h2>

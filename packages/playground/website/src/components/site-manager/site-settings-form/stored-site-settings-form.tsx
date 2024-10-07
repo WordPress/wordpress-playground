@@ -73,6 +73,7 @@ export function StoredSiteSettingsForm({
 
 	return (
 		<UnconnectedSiteSettingsForm
+			className="is-stored-site"
 			onSubmit={updateSite}
 			defaultValues={defaultValues}
 			enabledFields={{

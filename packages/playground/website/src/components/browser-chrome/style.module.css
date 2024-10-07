@@ -2,6 +2,15 @@ body.is-embedded .fake-window-wrapper {
 	padding: 15px;
 }
 
+.header-section {
+	padding: 24px;
+	padding-bottom: 0;
+}
+
+.header-section:has(+ :global(.site-settings-form.is-stored-site)) {
+	padding-bottom: 24px;
+}
+
 .wrapper {
 	height: 100%;
 	transition: padding ease-in-out 0.2s;

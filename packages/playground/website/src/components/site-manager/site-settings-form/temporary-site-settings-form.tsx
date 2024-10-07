@@ -57,6 +57,7 @@ export function TemporarySiteSettingsForm({
 
 	return (
 		<UnconnectedSiteSettingsForm
+			className="is-temporary-site"
 			onSubmit={updateSite}
 			defaultValues={defaultValues}
 			footer={
