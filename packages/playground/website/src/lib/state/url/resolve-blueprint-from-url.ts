@@ -191,7 +191,7 @@ export async function resolveBlueprintFromURL(url: URL) {
 			},
 			{
 				step: 'installPlugin',
-				pluginZipFile: {
+				pluginData: {
 					resource: 'vfs',
 					path: '/tmp/pr/gutenberg.zip',
 				},
