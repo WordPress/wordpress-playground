@@ -43,7 +43,7 @@
  *
  * ### CacheStorage in the service worker
  *
- * Playground primarily relies on the **Cache-first** strategy. This means assets are:
+ * Playground primarily relies on the **Cache first** strategy. This means assets are:
  *
  * 1. Loaded from the network without using any HTTP caching.
  * 2. Stored in the CacheStorage.
@@ -57,7 +57,7 @@
  * `remote.html` file contains hardcoded references to assets that may not be
  * cached and no longer exist in the new webapp build.
  *
- * To solve this problem, we use the **Network only** strategy when `remote.html`
+ * To solve this problem, we use the **Network first** strategy when `remote.html`
  * is requested. This introduces a small network overhead, but it guarantees loading
  * the most recent version of `remote.html` and all the referenced assets.
  *
@@ -273,7 +273,7 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Use cache-first strategy to serve regular static assets.
+	// Use cache first strategy to serve regular static assets.
 	return event.respondWith(cacheFirstFetch(event.request));
 });
 
