@@ -854,7 +854,6 @@ const defaultBlueprint = {
 		{
 			step: 'login',
 			username: 'admin',
-			password: 'password',
 		},
 	],
 };
