@@ -9,7 +9,7 @@ const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 // a Service Worker module which does not allow top-level await.
 const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
 
-export async function cachedFetch(request: Request): Promise<Response> {
+export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const offlineModeCache = await promisedOfflineModeCache;
 	let response = await offlineModeCache.match(request, {
 		ignoreSearch: true,

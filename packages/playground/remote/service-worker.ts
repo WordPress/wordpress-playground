@@ -42,7 +42,7 @@
  *
  * ### CacheStorage in the service worker
  *
- * Playground primarily relies on the **Cache only** strategy. This means assets are:
+ * Playground primarily relies on the **Cache-first** strategy. This means assets are:
  *
  * 1. Loaded from the network without using any HTTP caching.
  * 2. Stored in the CacheStorage.
@@ -54,14 +54,14 @@
  * When a new Playground version is deployed, all the clients will load an old
  * version of the `remote.html` file on their next visit. Unfortunately, that old
  * `remote.html` file contains hardcoded references to assets that may not be
- * cached and are no longer exist in the new webapp build.
+ * cached and no longer exist in the new webapp build.
  *
  * To solve this problem, we use the **Network only** strategy when `remote.html`
  * is requested. This introduces a small network overhead, but it guarantees loading
  * the most recent version of `remote.html` and all the referenced assets.
  *
  * There's still a small window of time between loading the remote.html file and
- * fetching the new assets, when a new deployment would break the application.
+ * fetching the new assets when a new deployment would break the application.
  * This should be very rare, but when it happens we provide an error message asking
  * the user to reload the page.
  *
@@ -88,7 +88,7 @@
  *
  * * PR that turned off HTTP caching: https://github.com/WordPress/wordpress-playground/pull/1822
  * * Exploring all the cache layers: https://github.com/WordPress/wordpress-playground/issues/1774
- * * Cache only strategy: https://web.dev/articles/offline-cookbook#cache-only
+ * * Cache first strategy: https://web.dev/articles/offline-cookbook#cache-falling-back-to-network
  * * Service worker caching and HTTP caching: https://web.dev/articles/service-worker-caching-and-http-caching
  */
 
@@ -106,7 +106,7 @@ import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import {
-	cachedFetch,
+	cacheFirstFetch,
 	networkFirstFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
 	isCurrentServiceWorkerActive,
@@ -264,8 +264,8 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Use Cache Only strategy to serve regular static assets.
-	return event.respondWith(cachedFetch(event.request));
+	// Use cache-first strategy to serve regular static assets.
+	return event.respondWith(cacheFirstFetch(event.request));
 });
 
 /**
