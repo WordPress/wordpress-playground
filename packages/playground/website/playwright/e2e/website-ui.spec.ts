@@ -29,7 +29,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	);
 });
 
-test('should switch between sites', async ({ website }) => {
+test('should switch between sites', async ({ website, browserName }) => {
 	await website.goto('./');
 
 	await website.ensureSiteManagerIsOpen();
@@ -42,7 +42,10 @@ test('should switch between sites', async ({ website }) => {
 	await website.page.getByText('Save in this browser').click({ force: true });
 	await expect(
 		website.page.locator('[aria-current="page"]')
-	).not.toContainText('Temporary Playground');
+	).not.toContainText('Temporary Playground', {
+		// Saving the site takes a while on CI
+		timeout: 90000,
+	});
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
 		'Temporary Playground'
 	);
@@ -61,14 +64,16 @@ test('should switch between sites', async ({ website }) => {
 });
 
 SupportedPHPVersions.forEach(async (version) => {
+	/**
+	 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 and won't load on these versions.
+	 * Therefore, we're skipping the test for these versions.
+	 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
+	 */
+	if (['7.0', '7.1'].includes(version)) {
+		return;
+	}
+
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
-		/**
-		 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 so we need to skip these versions.
-		 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
-		 */
-		if (['7.0', '7.1'].includes(version)) {
-			return;
-		}
 		await website.goto(`./`);
 		await website.ensureSiteManagerIsOpen();
 		await website.page.getByLabel('PHP version').selectOption(version);
