@@ -268,7 +268,7 @@ self.addEventListener('fetch', (event) => {
 	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
 	 * details.
 	 */
-	if (url.pathname === '/remote.html') {
+	if (url.pathname === '/remote.html' || url.pathname === '/') {
 		event.respondWith(networkFirstFetch(event.request));
 		return;
 	}
