@@ -10,7 +10,7 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { logger } from '@php-wasm/logger';
+import { logger, errorLogPath } from '@php-wasm/logger';
 import {
 	Blueprint,
 	compileBlueprint,
@@ -102,6 +102,12 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('debug', {
+			describe:
+				'Return PHP error log content if an error occurs while building the site.',
+			type: 'boolean',
+			default: false,
+		})
 		.showHelpOnFail(false)
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
@@ -152,7 +158,7 @@ async function run() {
 			await requestHandler.processManager.acquirePHPInstance();
 		try {
 			await php.run({
-				code: `<?php 
+				code: `<?php
 				$zip = new ZipArchive();
 				if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
 					throw new Exception('Failed to create ZIP');
@@ -168,7 +174,7 @@ async function run() {
 					$zip->addFile($file->getPathname(), $file->getPathname());
 				}
 				$zip->close();
-				
+
 			`,
 			});
 			const zip = php.readFileAsBuffer('/tmp/build.zip');
@@ -224,11 +230,11 @@ async function run() {
 			}
 			lastCaption =
 				e.detail.caption || lastCaption || 'Running the Blueprint';
-			process.stdout.write(
+			logger.log(
 				'\r\x1b[K' + `${lastCaption.trim()} – ${e.detail.progress}%`
 			);
 			if (progress100) {
-				process.stdout.write('\n');
+				logger.log('\n');
 			}
 		});
 		return compileBlueprint(blueprint as Blueprint, {
@@ -269,7 +275,7 @@ async function run() {
 						Math.min(100, (100 * e.detail.loaded) / e.detail.total)
 					);
 					if (!args.quiet) {
-						process.stdout.write(
+						logger.log(
 							`\rDownloading WordPress ${percentProgress}%...    `
 						);
 					}
@@ -278,10 +284,12 @@ async function run() {
 				wpDetails = await resolveWPRelease(args.wp);
 			}
 
-			const preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
+			const preinstalledWpContentPath =
+				wpDetails &&
+				path.join(
+					CACHE_FOLDER,
+					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+				);
 			const wordPressZip = !wpDetails
 				? undefined
 				: fs.existsSync(preinstalledWpContentPath)
@@ -314,40 +322,48 @@ async function run() {
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
-			if (wpDetails && !args.mountBeforeInstall) {
-				fs.writeFileSync(
-					preinstalledWpContentPath,
-					await zipDirectory(php, '/wordpress')
-				);
-			}
-
-			if (args.mount) {
-				mountResources(php, args.mount);
-			}
-
-			wordPressReady = true;
-
-			if (compiledBlueprint) {
-				const { php, reap } =
-					await requestHandler.processManager.acquirePHPInstance();
-				try {
-					logger.log(`Running the Blueprint...`);
-					await runBlueprintSteps(compiledBlueprint, php);
-					logger.log(`Finished running the blueprint`);
-				} finally {
-					reap();
+			try {
+				if (wpDetails && !args.mountBeforeInstall) {
+					fs.writeFileSync(
+						preinstalledWpContentPath,
+						await zipDirectory(php, '/wordpress')
+					);
 				}
-			}
 
-			if (command === 'build-snapshot') {
-				await zipSite(args.outfile as string);
-				logger.log(`WordPress exported to ${args.outfile}`);
-				process.exit(0);
-			} else if (command === 'run-blueprint') {
-				logger.log(`Blueprint executed`);
-				process.exit(0);
-			} else {
-				logger.log(`WordPress is running on ${absoluteUrl}`);
+				if (args.mount) {
+					mountResources(php, args.mount);
+				}
+
+				wordPressReady = true;
+
+				if (compiledBlueprint) {
+					const { php, reap } =
+						await requestHandler.processManager.acquirePHPInstance();
+					try {
+						logger.log(`Running the Blueprint...`);
+						await runBlueprintSteps(compiledBlueprint, php);
+						logger.log(`Finished running the blueprint`);
+					} finally {
+						reap();
+					}
+				}
+
+				if (command === 'build-snapshot') {
+					await zipSite(args.outfile as string);
+					logger.log(`WordPress exported to ${args.outfile}`);
+					process.exit(0);
+				} else if (command === 'run-blueprint') {
+					logger.log(`Blueprint executed`);
+					process.exit(0);
+				} else {
+					logger.log(`WordPress is running on ${absoluteUrl}`);
+				}
+			} catch (error) {
+				if (!args.debug) {
+					throw error;
+				}
+				const phpLogs = php.readFileAsText(errorLogPath);
+				throw new Error(phpLogs, { cause: error });
 			}
 		},
 		async handleRequest(request: PHPRequest) {

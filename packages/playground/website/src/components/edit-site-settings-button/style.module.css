@@ -1,0 +1,3 @@
+.open-site-manager-button:global(> svg) {
+	margin-top: 4px;
+}

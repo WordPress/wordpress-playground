@@ -13,7 +13,7 @@ Some key features:
 -   **Instant Setup**: Run WordPress with a single click.
 -   **Testing Environment**: Ideal for testing plugins and themes.
 
-Via [Query Params](/developers/apis/query-api/) we can directly load in the Playground instance things such as a specific version of WordPress, a theme, a plugin or a more complex setup via blueprints (check [here](./quick-start-guide.md#try-a-block-a-theme-or-a-plugin) some examples).
+Via [Query Params](/developers/apis/query-api/) we can directly load in the Playground instance things such as a specific version of WordPress, a theme, a plugin or a more complex setup via blueprints (check [here](/quick-start-guide#try-a-block-a-theme-or-a-plugin) some examples).
 
 From the Playground website there are also available some toolbars to customize your playground instance and to provide quick access to some resources and utilities.
 
@@ -25,7 +25,6 @@ From the Playground website there are also available some toolbars to customize 
 
 The options available from the "Customize Playground" window correpond to the following [Query API options](/developers/apis/query-api#available-options):
 
--   `storage`
 -   `php`
 -   `php-extension-bundle`
 -   `networking`
@@ -44,7 +43,6 @@ This menu contains links to some Playground resources and tools:
 
 -   **Reset Site**: - It will wipe out all data and reload the page with a new site.
 -   **Report error**: If you have any issue with WP Playground yoy can report it using the form available from this option. You can help resolve issues with Playground by sharing the error details with development team behind Playground.
--   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
 -   **Download as zip**: It creates a `.zip` with the setup of the Playground instance including any themes or plugins installed. This `.zip` won't include content and database changes.
 -   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
 -   **Import from Github**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
@@ -63,5 +61,5 @@ This menu contains links to some Playground resources and tools:
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
-If you need certain availability, you should [host your own WordPress Playground](../developers/23-architecture/18-host-your-own-playground.md).
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 :::

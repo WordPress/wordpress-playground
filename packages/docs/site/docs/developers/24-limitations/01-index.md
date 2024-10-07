@@ -12,11 +12,11 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Access the Plugins, Themes, Blocks, or Patterns directories
 
-Playground [disables network connections](../../blueprints/03-data-format.md#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](/developers/apis/query-api#available-options) or [Blueprints API](../../blueprints/09-troubleshoot-and-debug-blueprints.md#review-common-gotchas).
+Playground [disables network connections](/blueprints/data-format#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](/developers/apis/query-api#available-options) or [Blueprints API](/blueprints/troubleshoot-and-debug#review-common-gotchas).
 
 ### Temporary by design
 
-As Playground [streams rather than serves](../../main/about/index.md#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](../../main/quick-start-guide.md#save-your-site) before or enable storage in the browser/device via the [Query API](/developers/apis/query-api#available-options) or the UI.
+As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button in the UI.
 
 ## When developing with Playground
 
@@ -27,7 +27,7 @@ Also, JavaScript popups originating in the `iframe` may not always display.
 
 ### Run WordPress PHP functions
 
-Playground supports running PHP code in Blueprints using the [`runPHP` step](../../blueprints/05-steps.md#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+Playground supports running PHP code in Blueprints using the [`runPHP` step](blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
 ```json
 {
@@ -38,4 +38,4 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](.
 
 ### Using WP-CLI
 
-You can execute `wp-cli` commands via the Blueprints [`wp-cli`](../../blueprints/05-steps.md#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
+You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.

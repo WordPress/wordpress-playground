@@ -7,7 +7,7 @@ slug: /developers/local-development
 
 Playground powers offers several development environments designed to streamline the process of setting up and managing WordPress sites.
 
-The easiest way to get WordPress site up and running is to open a [public Playground web instance](../../main/web-instance.md) from https://playground.wordpress.net/ (you could also [host your own WordPress Playground](../23-architecture/18-host-your-own-playground.md)).
+The easiest way to get WordPress site up and running is to open a [public Playground web instance](/web-instance) from https://playground.wordpress.net/ (you could also [host your own WordPress Playground](/developers/architecture/host-your-own-playground)).
 
 Playground provides additional tools to check your code on a local WordPress environment. These tools are designed to enhance the development experience by prioritizing ease of installation and usability:
 

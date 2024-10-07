@@ -16,8 +16,8 @@ Browse [the list of open issues](https://github.com/wordpress/wordpress-playgrou
 
 Be sure to review the following resources before you begin:
 
--   [Coding principles](./coding-standards.md)
--   [Architecture](../../developers/23-architecture/01-index.md)
+-   [Coding principles](/contributing/coding-standards)
+-   [Architecture](/developers/architecture)
 -   [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
 -   [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
 

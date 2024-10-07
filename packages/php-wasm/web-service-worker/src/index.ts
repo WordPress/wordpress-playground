@@ -1,2 +1,2 @@
-export * from './initialize-service-worker';
+export * from './utils';
 export * from './messaging';

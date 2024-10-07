@@ -5,6 +5,7 @@ const path = require('path');
 const lightCodeTheme = require('prism-react-renderer/themes/github');
 const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const typedoc = require('../../../typedoc.js');
+const redirections = require('./redirections.js');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -31,7 +32,22 @@ const config = {
 	// to replace "en" with "zh-Hans".
 	i18n: {
 		defaultLocale: 'en',
-		locales: ['en'],
+		path: 'i18n',
+		locales: ['en', 'es', 'fr'],
+		localeConfigs: {
+			en: {
+				label: 'English',
+				path: 'en',
+			},
+			es: {
+				label: 'Español',
+				path: 'es',
+			},
+			fr: {
+				label: 'French',
+				path: 'fr',
+			},
+		},
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
 	plugins: [
@@ -54,6 +70,7 @@ const config = {
 						to: '/',
 						from: '/docs/start-here',
 					},
+					...redirections,
 				],
 				createRedirects(existingPath) {
 					if (!existingPath.startsWith('/docs')) {
@@ -144,6 +161,10 @@ const config = {
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
 					},
+					// {
+					// 	type: 'localeDropdown',
+					// 	position: 'right',
+					// },
 				],
 			},
 			footer: {

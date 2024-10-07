@@ -6,7 +6,9 @@ runs:
         - name: Fetch trunk
           shell: bash
           run: git fetch origin trunk --depth=1
-        - uses: actions/setup-node@v3
+        - uses: actions/setup-node@v4
+          with:
+              node-version: 18
         - name: Cache node modules
           id: cache-nodemodules
           uses: actions/cache@v2

@@ -500,10 +500,13 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "curl_easy_perform",\
 "Curl_wait_ms",\
 "Curl_http_connect",\
+"Curl_proxy_connect",\
 "RAND_status",\
 "rand_status",\
+"call_extract_if_dead",\
 "__wrap_select",\
 "Curl_socket_check",\
+"Curl_conncache_foreach",\
 "Curl_is_connected",\
 "multi_runsingle",\
 "curl_multi_perform",\
@@ -538,6 +541,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
+"zif_stream_select",\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
 "php_stream_read_to_str",\
@@ -641,6 +645,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "do_cli",\
 "do_cli_server",\
 "execute_ex",\
+"EVP_PKEY_encrypt",\
 "list_entry_destructor",\
 "main",\
 "mysql_handle_begin",\
@@ -653,6 +658,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "mysql_stmt_execute",\
 "mysqli_commit_or_rollback_libmysql",\
 "mysqli_common_connect",\
+"mysqlnd_caching_sha2_handle_server_response",\
 "mysqlnd_com_handshake_run",\
 "mysqlnd_com_init_db_run",\
 "mysqlnd_com_stmt_execute_run",\
@@ -714,6 +720,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "php_fsockopen_stream",\
 "php_getimagesize_from_any",\
 "php_mysqlnd_auth_response_read",\
+"php_mysqlnd_cached_sha2_result_read",\
 "php_mysqlnd_cmd_write",\
 "php_mysqlnd_conn_connect_pub",\
 "php_mysqlnd_conn_data_connect_handshake_pub",\
@@ -744,6 +751,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "php_mysqlnd_rowp_read",\
 "php_mysqlnd_rset_field_read",\
 "php_mysqlnd_rset_header_read",\
+"php_mysqlnd_sha256_pk_request_response_read",\
 "php_mysqlnd_stmt_execute_pub",\
 "php_mysqlnd_stmt_prepare_pub",\
 "php_network_accept_incoming",\
@@ -769,14 +777,17 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "php_stream_xport_crypto_enable",\
 "php_stream_xport_crypto_setup",\
 "php_tcp_sockop_set_option",\
+"pkey_rsa_encrypt",\
 "preg_replace_func_impl",\
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
+"RSA_padding_add_PKCS1_OAEP_mgf1",\
 "user_shutdown_function_call",\
 "shutdown_executor",\
 "shutdown_destructors",\
 "stream_resource_regular_dtor",\
+"stream_array_from_fd_set",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_close_rsrc_list",\

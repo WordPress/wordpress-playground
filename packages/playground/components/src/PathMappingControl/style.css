@@ -1,0 +1,29 @@
+.path-mapping-control {
+	.file-node-button {
+		display: inline-flex;
+		text-decoration: none;
+		font-family: inherit;
+		font-weight: normal;
+		font-size: 13px;
+		margin: 0;
+		border: 0;
+		cursor: pointer;
+		-webkit-appearance: none;
+		background: none;
+		transition: box-shadow 0.1s linear;
+		height: 36px;
+		align-items: center;
+		box-sizing: border-box;
+		padding: 6px 12px;
+		border-radius: 2px;
+
+		width: 100%;
+		white-space: nowrap;
+		color: var(--wp-components-color-foreground, #1e1e1e);
+		background: transparent;
+		padding: 6px;
+	}
+	.directory-expand-button {
+		color: var(--wp-components-color-foreground, #1e1e1e) !important;
+	}
+}

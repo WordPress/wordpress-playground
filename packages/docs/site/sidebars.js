@@ -45,8 +45,9 @@ const sidebars = {
 					},
 					items: [
 						'main/guides/wordpress-native-ios-app',
-						// 'main/guides/for-theme-developers',
-						// 'main/guides/for-plugin-developers',
+						'main/guides/for-plugin-developers',
+						'main/guides/for-theme-developers',
+						'main/guides/providing-content-for-your-demo',
 					],
 				},
 				{
@@ -61,6 +62,7 @@ const sidebars = {
 						'main/contributing/coding-standards',
 						'main/contributing/contributor-day',
 						'main/contributing/documentation',
+						'main/contributing/translations',
 					],
 				},
 				'main/resources',
@@ -175,7 +177,6 @@ const sidebars = {
 						'developers/architecture/wasm-php-compiling',
 						'developers/architecture/wasm-php-javascript-module',
 						'developers/architecture/wasm-php-filesystem',
-						'developers/architecture/wasm-php-data-dependencies',
 						'developers/architecture/wasm-asyncify',
 						'developers/architecture/browser-concepts',
 						'developers/architecture/browser-tab-orchestrates-execution',

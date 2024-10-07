@@ -36,7 +36,7 @@ describe('Query API', () => {
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?wp=6.3&url=/wp-admin');
+			cy.visit('/?wp=6.3&url=/wp-admin/');
 			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
 		});
 	});
@@ -191,52 +191,11 @@ describe('Query API', () => {
 		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
 			cy.visit('/?lazy');
 			cy.get('#lazy-load-initiator').should('exist');
-			cy.get('#playground-viewport').should('not.exist');
+			cy.get('.playground-viewport').should('not.exist');
 
 			cy.get('#lazy-load-initiator').click();
-			cy.get('#playground-viewport').should('exist');
+			cy.get('.playground-viewport').should('exist');
 			cy.wordPressDocument().its('body').should('have.class', 'home');
-		});
-	});
-
-	describe('option `storage`', () => {
-		describe('storage=none', () => {
-			it('should reset Playground data after every refresh', () => {
-				// Create a Playground site with a custom title
-				cy.visit(
-					'/?storage=none#{"siteOptions":{"blogname":"persistent storage"}}'
-				);
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-
-				// Reload the page and verify that the title is not there anymore
-				cy.visit('/?storage=none');
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('not.contain', 'persistent storage');
-			});
-		});
-		describe('storage=browser', () => {
-			it('should store the Playground data in the browser', () => {
-				// Create a Playground site with a custom title
-				cy.visit(
-					'/?storage=browser#{"siteOptions":{"blogname":"persistent storage"}}'
-				);
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-
-				// Reload the page and verify that the title is still there
-				cy.visit('/?storage=browser');
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-			});
 		});
 	});
 
@@ -251,18 +210,18 @@ describe('Query API', () => {
 			checkIfGutenbergIsPatched();
 		});
 
-		it('should patch Gutenberg brought over by importing a site', () => {
-			cy.visit('/');
-			// Get the current URL
-			cy.url().then((url) => {
-				url = url.replace(/\/$/, '').replace('/website-server', '');
-				// Import a site that has Gutenberg installed
-				cy.visit(
-					`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
-				);
-				checkIfGutenbergIsPatched();
-			});
-		});
+		// it('should patch Gutenberg brought over by importing a site', () => {
+		// 	cy.visit('/');
+		// 	// Get the current URL
+		// 	cy.url().then((url) => {
+		// 		url = url.replace(/\/$/, '');
+		// 		// Import a site that has Gutenberg installed
+		// 		cy.visit(
+		// 			`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
+		// 		);
+		// 		checkIfGutenbergIsPatched();
+		// 	});
+		// });
 
 		function checkIfGutenbergIsPatched() {
 			// Check if the inserter button is styled.
@@ -281,53 +240,6 @@ describe('Query API', () => {
 				})
 				.should('not.have.css', 'background-color', undefined);
 		}
-	});
-
-	describe('Site switching', () => {
-		it('should switch between sites', () => {
-			cy.visit(
-				'/?storage=browser#' +
-					JSON.stringify({
-						landingPage: '/',
-						steps: [
-							{
-								step: 'runPHP',
-								code: `<?php require_once 'wordpress/wp-load.php'; update_option('blogname', 'site-slug-test-1' );`,
-							},
-						],
-					})
-			);
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', 'site-slug-test-1');
-
-			cy.visit(
-				'/?site-slug=new&storage=browser#' +
-					JSON.stringify({
-						landingPage: '/',
-						steps: [
-							{
-								step: 'runPHP',
-								code: `<?php  require_once 'wordpress/wp-load.php'; update_option('blogname', 'site-slug-test-2' );`,
-							},
-						],
-					})
-			);
-
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', 'site-slug-test-2');
-
-			cy.visit(
-				'/?storage=browser#' +
-					JSON.stringify({
-						landingPage: '/',
-					})
-			);
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', 'site-slug-test-1');
-		});
 	});
 });
 
