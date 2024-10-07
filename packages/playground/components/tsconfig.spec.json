@@ -4,6 +4,7 @@
 		"outDir": "../../dist/out-tsc",
 		"types": ["vitest/globals", "vitest/importMeta", "vite/client", "node"]
 	},
+	"files": ["../../../node_modules/@nx/react/typings/cssmodule.d.ts"],
 	"include": [
 		"vite.config.ts",
 		"src/**/*.test.ts",
