@@ -6,6 +6,7 @@
  * This file heavily relies on isomorphic-git internals to parse Git data formats
  * such as PACK, trees, deltas, etc.
  */
+import './isomorphic-git.d.ts';
 import { GitPktLine } from 'isomorphic-git/src/models/GitPktLine.js';
 import { GitTree } from 'isomorphic-git/src/models/GitTree.js';
 import { GitAnnotatedTag } from 'isomorphic-git/src/models/GitAnnotatedTag.js';
