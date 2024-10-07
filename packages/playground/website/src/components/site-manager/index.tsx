@@ -9,6 +9,7 @@ import classNames from 'classnames';
 
 import { forwardRef, useState } from 'react';
 import { SiteInfo } from '../../lib/state/redux/slice-sites';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
@@ -33,7 +34,12 @@ export const SiteManager = forwardRef<
 	const sitesList = (
 		<Sidebar
 			className={css.sidebar}
-			afterSiteClick={() => setActiveSection('site-info')}
+			afterSiteClick={() => {
+				if (fullScreenSiteManager) {
+					// Close the site manager so the site view is visible.
+					dispatch(setSiteManagerOpen(false));
+				}
+			}}
 		/>
 	);
 	const siteInfoPanel = activeSite && (

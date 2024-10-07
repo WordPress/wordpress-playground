@@ -67,7 +67,9 @@ export function SiteInfoPanel({
 			dispatch(setSiteManagerOpen(false));
 		}
 
-		playground?.goTo(path);
+		if (playground) {
+			playground.goTo(path);
+		}
 	}
 	const isTemporary = site.metadata.storage === 'none';
 
@@ -169,12 +171,13 @@ export function SiteInfoPanel({
 								)}
 							</Flex>
 						</FlexItem>
-						{mobileUi ? (
+						{siteViewHidden ? (
 							<FlexItem style={{ flexShrink: 0 }}>
 								<Button
 									variant="primary"
-									disabled={!playground}
-									onClick={() => navigateTo('/')}
+									onClick={() => {
+										dispatch(setSiteManagerOpen(false));
+									}}
 								>
 									Open site
 								</Button>
