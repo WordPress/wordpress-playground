@@ -51,7 +51,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 				},
 				{
 					step: 'installPlugin',
-					pluginZipFile: {
+					pluginData: {
 						resource: 'wordpress.org/plugins',
 						slug: 'friends',
 					},

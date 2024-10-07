@@ -1,6 +1,6 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
-import { FileReference } from '../resources';
+import { FileReference, DirectoryReference, Directory } from '../resources';
 import { ActivatePluginStep } from './activate-plugin';
 import { DefineSiteUrlStep } from './define-site-url';
 import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
@@ -21,6 +21,7 @@ import { RunPHPStep } from './run-php';
 import { RunPHPWithOptionsStep } from './run-php-with-options';
 import { RequestStep } from './request';
 import { WriteFileStep } from './write-file';
+import { WriteFilesStep } from './write-files';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
@@ -32,7 +33,7 @@ import { WPCLIStep } from './wp-cli';
 import { ResetDataStep } from './reset-data';
 import { SetSiteLanguageStep } from './set-site-language';
 
-export type Step = GenericStep<FileReference>;
+export type Step = GenericStep<FileReference, DirectoryReference>;
 export type StepDefinition = Step & {
 	progress?: {
 		weight?: number;
@@ -46,18 +47,18 @@ export { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excl
  * If you add a step here, make sure to also
  * add it to the exports below.
  */
-export type GenericStep<Resource> =
+export type GenericStep<FileResource, DirectoryResource> =
 	| ActivatePluginStep
 	| ActivateThemeStep
 	| CpStep
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| EnableMultisiteStep
-	| ImportWxrStep<Resource>
+	| ImportWxrStep<FileResource>
 	| ImportThemeStarterContentStep
-	| ImportWordPressFilesStep<Resource>
-	| InstallPluginStep<Resource>
-	| InstallThemeStep<Resource>
+	| ImportWordPressFilesStep<FileResource>
+	| InstallPluginStep<FileResource, DirectoryResource>
+	| InstallThemeStep<FileResource, DirectoryResource>
 	| LoginStep
 	| MkdirStep
 	| MvStep
@@ -68,11 +69,12 @@ export type GenericStep<Resource> =
 	| RunPHPStep
 	| RunPHPWithOptionsStep
 	| RunWpInstallationWizardStep
-	| RunSqlStep<Resource>
+	| RunSqlStep<FileResource>
 	| SetSiteOptionsStep
-	| UnzipStep<Resource>
+	| UnzipStep<FileResource>
 	| UpdateUserMetaStep
-	| WriteFileStep<Resource>
+	| WriteFileStep<FileResource>
+	| WriteFilesStep<DirectoryResource>
 	| WPCLIStep
 	| SetSiteLanguageStep;
 
@@ -106,6 +108,7 @@ export type {
 	UnzipStep,
 	UpdateUserMetaStep,
 	WriteFileStep,
+	WriteFilesStep,
 	WPCLIStep,
 	SetSiteLanguageStep,
 };
@@ -118,7 +121,10 @@ export type StepProgress = {
 	initialCaption?: string;
 };
 
-export type StepHandler<S extends GenericStep<File>, Return = any> = (
+export type StepHandler<
+	S extends GenericStep<File, Directory>,
+	Return = any
+> = (
 	/**
 	 * A PHP instance or Playground client.
 	 */

@@ -50,7 +50,7 @@ export async function resolveBlueprintFromURL(url: URL) {
 					},
 				query.get('theme') && {
 					step: 'installTheme',
-					themeZipFile: {
+					themeData: {
 						resource: 'wordpress.org/themes',
 						slug: query.get('theme')!,
 					},
@@ -191,7 +191,7 @@ export async function resolveBlueprintFromURL(url: URL) {
 			},
 			{
 				step: 'installPlugin',
-				pluginZipFile: {
+				pluginData: {
 					resource: 'vfs',
 					path: '/tmp/pr/gutenberg.zip',
 				},

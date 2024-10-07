@@ -122,7 +122,7 @@ Arguably the most powerful property, `steps` allows you to configure the Playgro
 		},
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "wordpress.org/plugins",
 				"slug": "gutenberg"
 			}

@@ -33,7 +33,7 @@ test('enableMultisite step should re-activate the plugins', async ({
 			{ step: 'login' },
 			{
 				step: 'installPlugin',
-				pluginZipFile: {
+				pluginData: {
 					resource: 'wordpress.org/plugins',
 					slug: 'hello-dolly',
 				},

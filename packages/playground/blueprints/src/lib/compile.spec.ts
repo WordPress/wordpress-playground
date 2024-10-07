@@ -164,10 +164,9 @@ describe('Blueprints', () => {
 							instancePath: '/steps/0',
 							keyword: 'required',
 							params: {
-								missingProperty: 'themeZipFile',
+								missingProperty: 'themeData',
 							},
-							message:
-								"must have required property 'themeZipFile'",
+							message: "must have required property 'themeData'",
 							schemaPath: expect.any(String),
 						},
 					],
