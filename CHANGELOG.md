@@ -4,6 +4,36 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v0.9.46] (2024-10-07) 
+
+### Enhancements
+
+- Webapp upgrade protocol: Disable HTTP caching and reload other browser tabs to prevent fatal errors after new deployments. ([#1822](https://github.com/WordPress/wordpress-playground/pull/1822))
+
+### Documentation
+
+- Docs: Disable localeDropdown until more pages are translated. ([#1824](https://github.com/WordPress/wordpress-playground/pull/1824))
+- Docs: Review playground documentation translations page. ([#1826](https://github.com/WordPress/wordpress-playground/pull/1826))
+- Docs: Playground PR previews through GitHub actions. ([#1825](https://github.com/WordPress/wordpress-playground/pull/1825))
+
+### Website
+
+- Use site slug as a stable scope. ([#1839](https://github.com/WordPress/wordpress-playground/pull/1839))
+- Close Playground Manager by default. ([#1831](https://github.com/WordPress/wordpress-playground/pull/1831))
+- Fix go-to-site menu items to reveal site view. ([#1833](https://github.com/WordPress/wordpress-playground/pull/1833))
+
+### Various
+
+- Add Install instructions to the Playwright README. ([#1837](https://github.com/WordPress/wordpress-playground/pull/1837))
+- Resolve end-to-end failures. ([#1844](https://github.com/WordPress/wordpress-playground/pull/1844))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @brandonpayton @juanmaguitar
+
+
 ## [v0.9.45] (2024-09-30) 
 
 ### Blueprints
