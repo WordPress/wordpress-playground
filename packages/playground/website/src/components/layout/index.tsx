@@ -51,7 +51,7 @@ export function Layout() {
 	const dispatch = useAppDispatch();
 
 	return (
-		<div className={css.layout}>
+		<div className={`${css.layout}`}>
 			<Modals />
 			<CSSTransition
 				nodeRef={siteManagerWrapperRef}

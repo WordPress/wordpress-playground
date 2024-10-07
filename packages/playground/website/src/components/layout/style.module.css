@@ -149,4 +149,7 @@ body {
 	.site-manager-wrapper-enter-active {
 		width: 100%;
 	}
+	.site-manager-wrapper-exit-active + .site-view {
+		display: block;
+	}
 }

@@ -1,30 +1,38 @@
-import { Modal } from '@wordpress/components';
-import { useMemo, useState } from 'react';
-import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
-import SiteSettingsForm, { SiteFormData } from '../site-settings-form';
+import { useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import css from './style.module.css';
+import {
+	Icon,
+	Button,
+	__experimentalVStack as VStack,
+	__experimentalHStack as HStack,
+} from '@wordpress/components';
+import { info } from '@wordpress/icons';
 import {
 	selectSiteBySlug,
 	updateSiteMetadata,
 } from '../../../lib/state/redux/slice-sites';
+import {
+	SiteFormData,
+	UnconnectedSiteSettingsForm,
+} from './unconnected-site-settings-form';
 
-export function SiteEditButton({
+export function StoredSiteSettingsForm({
 	siteSlug,
-	children,
+	onSubmit,
 }: {
 	siteSlug: string;
-	children: (onClick: () => void) => React.ReactNode;
+	onSubmit?: () => void;
 }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
-	const [isModalOpen, setModalOpen] = useState(false);
 	const dispatch = useAppDispatch();
 	const updateSite = async (data: SiteFormData) => {
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
-					name: data.name,
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
 						features: {
@@ -43,8 +51,8 @@ export function SiteEditButton({
 				},
 			})
 		);
+		onSubmit?.();
 		// @TODO: Display a notification "site updated"
-		setModalOpen(false);
 	};
 
 	const defaultValues = useMemo<Partial<SiteFormData>>(
@@ -64,28 +72,46 @@ export function SiteEditButton({
 	);
 
 	return (
-		<div>
-			{children(() => setModalOpen(true))}
-
-			{isModalOpen && (
-				<Modal
-					title="Edit Playground settings"
-					onRequestClose={() => setModalOpen(false)}
+		<UnconnectedSiteSettingsForm
+			className="is-stored-site"
+			onSubmit={updateSite}
+			defaultValues={defaultValues}
+			enabledFields={{
+				wpVersion: false,
+				language: false,
+				multisite: false,
+			}}
+			header={
+				<HStack
+					as="p"
+					spacing={3}
+					className={`${css.notice} ${css.formSection}`}
+					style={{ margin: 0 }}
+					alignment="center"
+					justify="flex-start"
 				>
-					<SiteSettingsForm
-						onSubmit={updateSite}
-						onCancel={() => setModalOpen(false)}
-						submitButtonText="Update"
-						formFields={{
-							name: true,
-							phpVersion: true,
-							withExtensions: true,
-							withNetworking: true,
-						}}
-						defaultValues={defaultValues}
-					/>
-				</Modal>
-			)}
-		</div>
+					<Icon icon={info} size={16} />
+					<span>
+						Stored Playgrounds have limited configuration options.
+					</span>
+				</HStack>
+			}
+			footer={
+				<VStack
+					justify="flex-end"
+					spacing={6}
+					className={css.formSection}
+					style={{ paddingTop: 0 }}
+				>
+					<Button
+						type="submit"
+						variant="primary"
+						style={{ justifyContent: 'center' }}
+					>
+						Save & Reload
+					</Button>
+				</VStack>
+			}
+		/>
 	);
 }

@@ -19,7 +19,7 @@ import {
 	selectTemporarySites,
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
-import { SiteCreateButton } from '../site-manager/site-create-button';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -130,14 +130,15 @@ export const KeepAliveTemporarySitesViewport = () => {
 						className={css.siteErrorContent}
 						style={{ textAlign: 'center' }}
 					>
-						<h2>You don't have any sites right now</h2>
-						<SiteCreateButton>
-							{(onClick) => (
-								<Button variant="primary" onClick={onClick}>
-									Add first site
-								</Button>
-							)}
-						</SiteCreateButton>
+						<h2>You don't have any Playgrounds right now</h2>
+						<Button
+							variant="primary"
+							onClick={() => {
+								redirectTo(PlaygroundRoute.newTemporarySite());
+							}}
+						>
+							Create a temporary Playground
+						</Button>
 					</div>
 				</div>
 			</div>

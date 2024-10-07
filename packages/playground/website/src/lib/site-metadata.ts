@@ -59,9 +59,9 @@ export interface SiteMetadata {
 }
 
 export async function createSiteMetadata(
-	initialMetadata: { name: string } & Partial<
-		Omit<SiteMetadata, 'runtimeConfiguration'>
-	>
+	initialMetadata: {
+		name: string;
+	} & Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>
 ): Promise<SiteMetadata> {
 	const { name, originalBlueprint, ...remainingMetadata } = initialMetadata;
 
