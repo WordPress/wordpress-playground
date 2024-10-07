@@ -8,8 +8,7 @@
 			"vite/client",
 			"@nx/react/typings/cssmodule.d.ts",
 			"@nx/react/typings/image.d.ts",
-			"@types/wicg-file-system-access",
-			"../../../types/isomorphic-git.d.ts"
+			"@types/wicg-file-system-access"
 		]
 	},
 	"include": ["src/**/*.ts"],

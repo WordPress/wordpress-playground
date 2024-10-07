@@ -8,8 +8,7 @@
 			"vite/client",
 			"node",
 			"@nx/react/typings/cssmodule.d.ts",
-			"@nx/react/typings/image.d.ts",
-			"../../../types/isomorphic-git.d.ts"
+			"@nx/react/typings/image.d.ts"
 		]
 	},
 	"include": [
