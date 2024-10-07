@@ -26,14 +26,37 @@ describe('sparseCheckout', () => {
 	});
 });
 
-describe.only('listFiles', () => {
+describe('listFiles', () => {
 	it('should list the files in a git repo', async () => {
 		const files = await listFiles(
 			'https://github.com/WordPress/wordpress-playground.git',
 			'refs/heads/trunk'
 		);
-		expect(files).toHaveProperty(
-			'packages/playground/storage/package.json'
+		expect(files).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: 'packages',
+					type: 'folder',
+					children: expect.arrayContaining([
+						expect.objectContaining({
+							name: 'playground',
+							type: 'folder',
+							children: expect.arrayContaining([
+								expect.objectContaining({
+									name: 'storage',
+									type: 'folder',
+									children: expect.arrayContaining([
+										expect.objectContaining({
+											name: 'package.json',
+											type: 'file',
+										}),
+									]),
+								}),
+							]),
+						}),
+					]),
+				}),
+			])
 		);
 	});
 });
