@@ -226,6 +226,20 @@ function playground_maybe_redirect( $requested_path ) {
 		);
 	}
 
+	if ( $requested_path === '/release' ) {
+		// Make this redirect relative to `release` in case we implement
+		// subdir staging for the Playground website.
+		$redirect_base_path = substr($requested_path, 0, - strlen('release'));
+		$redirect_location = 
+			$redirect_base_path .
+			'?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/beta-rc/blueprint.json';
+
+		return array(          
+			'location' => $redirect_location,                    
+			'status' => 301
+		);                     
+	} 
+
 	if ( str_ends_with( $requested_path, '/wordpress-browser.html' ) ) {
 		return array(
 			'location' => '/',
