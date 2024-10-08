@@ -126,9 +126,9 @@ export function compileBlueprint(
 			(step as any)?.step === 'installTheme' &&
 			'themeData' in step
 		) {
-			(step as any).themeData = (step as any).themeData;
+			(step as any).themeData = (step as any).themeZipFile;
 			logger.warn(
-				`The "themeData" option of the "installTheme" step is deprecated. Use "themeData" instead.`
+				`The "themeZipFile" option of the "installTheme" step is deprecated. Use "themeData" instead.`
 			);
 		}
 	}
