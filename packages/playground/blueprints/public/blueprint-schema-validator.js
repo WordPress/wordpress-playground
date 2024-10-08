@@ -623,8 +623,8 @@ const schema11 = {
 						},
 						password: {
 							type: 'string',
-							description:
-								"The password to log in with. Defaults to 'password'.",
+							deprecated:
+								'The password field is deprecated and will be removed in a future version.\nOnly the username field is required for user authentication.',
 						},
 					},
 					required: ['step'],
@@ -3296,8 +3296,8 @@ const schema22 = {
 				},
 				password: {
 					type: 'string',
-					description:
-						"The password to log in with. Defaults to 'password'.",
+					deprecated:
+						'The password field is deprecated and will be removed in a future version.\nOnly the username field is required for user authentication.',
 				},
 			},
 			required: ['step'],

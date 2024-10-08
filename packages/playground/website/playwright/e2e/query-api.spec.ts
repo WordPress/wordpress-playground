@@ -75,3 +75,29 @@ test('should install the specified plugin', async ({ website, wordpress }) => {
 		'Deactivate'
 	);
 });
+
+test('should login the user in by default if no login query parameter is provided', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?url=/wp-admin/');
+	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('should login the user in if the login query parameter is set to yes', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?login=yes&url=/wp-admin/');
+	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('should not login the user in if the login query parameter is set to no', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?login=no&url=/wp-admin/');
+	await expect(wordpress.locator('input[type="submit"]')).toContainText(
+		'Log In'
+	);
+});

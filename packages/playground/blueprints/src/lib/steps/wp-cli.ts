@@ -1,6 +1,38 @@
-import { PHPResponse } from '@php-wasm/universal';
+import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
-import { phpVar } from '@php-wasm/util';
+import { joinPaths, phpVar } from '@php-wasm/util';
+import { FileReference } from '../resources';
+
+export const defaultWpCliPath = '/tmp/wp-cli.phar';
+export const defaultWpCliResource: FileReference = {
+	resource: 'url',
+	/**
+	 * Use compression for downloading the wp-cli.phar file.
+	 * The official release, hosted at raw.githubusercontent.com, is ~7MB
+	 * and the transfer is uncompressed. playground.wordpress.net supports
+	 * transfer compression and only transmits ~1.4MB.
+	 *
+	 * @TODO: minify the wp-cli.phar file. It can be as small as 1MB when all the
+	 *        whitespaces and are removed, and even 500KB when libraries
+	 *        like the JavaScript parser or Composer are removed.
+	 */
+	url: 'https://playground.wordpress.net/wp-cli.phar',
+};
+
+export const assertWpCli = async (
+	playground: UniversalPHP,
+	wpCliPath: string = defaultWpCliPath
+) => {
+	if (!(await playground.fileExists(wpCliPath))) {
+		throw new Error(`wp-cli.phar not found at ${wpCliPath}.
+			You can enable wp-cli support by adding "wp-cli" to the list of extra libraries in your blueprint as follows:
+			{
+				"extraLibraries": [ "wp-cli" ]
+			}
+			Read more about it in the documentation.
+			https://wordpress.github.io/wordpress-playground/blueprints/data-format#extra-libraries`);
+	}
+};
 
 /**
  * @inheritDoc wpCLI
@@ -29,18 +61,9 @@ export interface WPCLIStep {
  */
 export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,
-	{ command, wpCliPath = '/tmp/wp-cli.phar' }
+	{ command, wpCliPath = defaultWpCliPath }
 ) => {
-	if (!(await playground.fileExists(wpCliPath))) {
-		throw new Error(`wp-cli.phar not found at ${wpCliPath}.
-			You can enable wp-cli support by adding "wp-cli" to the list of extra libraries in your blueprint as follows:
-			{
-				"extraLibraries": [ "wp-cli" ]
-			}
-
-			Read more about it in the documentation.
-			https://wordpress.github.io/wordpress-playground/blueprints/data-format#extra-libraries`);
-	}
+	await assertWpCli(playground, wpCliPath);
 
 	let args: string[];
 	if (typeof command === 'string') {
@@ -55,10 +78,12 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		throw new Error(`The first argument must be "wp".`);
 	}
 
+	const documentRoot = await playground.documentRoot;
+
 	await playground.writeFile('/tmp/stdout', '');
 	await playground.writeFile('/tmp/stderr', '');
 	await playground.writeFile(
-		'/wordpress/run-cli.php',
+		joinPaths(documentRoot, 'run-cli.php'),
 		`<?php
 		// Set up the environment to emulate a shell script
 		// call.
@@ -71,7 +96,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		// Set the argv global.
 		$GLOBALS['argv'] = array_merge([
 		  "/tmp/wp-cli.phar",
-		  "--path=/wordpress"
+		  "--path=${documentRoot}"
 		], ${phpVar(args)});
 
 		// Provide stdin, stdout, stderr streams outside of
@@ -85,7 +110,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	);
 
 	const result = await playground.run({
-		scriptPath: '/wordpress/run-cli.php',
+		scriptPath: joinPaths(documentRoot, 'run-cli.php'),
 	});
 
 	if (result.errors) {
