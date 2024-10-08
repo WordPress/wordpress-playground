@@ -10,7 +10,7 @@ import {
 	UniversalPHP,
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
-import { FileReference, isFileReference, Resource } from './resources';
+import { FileReference, isResourceReference, Resource } from './resources';
 import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint, ExtraLibrary } from './blueprint';
@@ -95,12 +95,31 @@ export function compileBlueprint(
 			.filter(isStepDefinition)
 			.filter(isStepStillSupported),
 	};
-	// Convert legacy importFile steps to importWxr
 	for (const step of blueprint.steps!) {
-		if (typeof step === 'object' && (step as any).step === 'importFile') {
+		if (!step || typeof step !== 'object') {
+			continue;
+		}
+		// Convert legacy importFile steps to importWxr
+		if ((step as any).step === 'importFile') {
 			(step as any).step = 'importWxr';
 			logger.warn(
 				`The "importFile" step is deprecated. Use "importWxr" instead.`
+			);
+		} else if (
+			(step as any)?.step === 'installPlugin' &&
+			'pluginZipFile' in step
+		) {
+			(step as any).pluginData = (step as any).pluginZipFile;
+			logger.warn(
+				`The "pluginZipFile" option of the "installPlugin" step is deprecated. Use "pluginData" instead.`
+			);
+		} else if (
+			(step as any)?.step === 'installTheme' &&
+			'themeData' in step
+		) {
+			(step as any).themeData = (step as any).themeData;
+			logger.warn(
+				`The "themeData" option of the "installTheme" step is deprecated. Use "themeData" instead.`
 			);
 		}
 	}
@@ -140,7 +159,7 @@ export function compileBlueprint(
 			})
 			.map((resource) => ({
 				step: 'installPlugin',
-				pluginZipFile: resource,
+				pluginData: resource,
 			})) as StepDefinition[];
 		blueprint.steps!.unshift(...steps);
 	}
@@ -245,7 +264,7 @@ export function compileBlueprint(
 		}
 		blueprint.steps?.splice(importWxrStepIndex, 0, {
 			step: 'installPlugin',
-			pluginZipFile: {
+			pluginData: {
 				resource: 'url',
 				url: 'https://playground.wordpress.net/wordpress-importer.zip',
 				caption: 'Downloading the WordPress Importer plugin',
@@ -479,7 +498,7 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): { run: CompiledStep; step: S; resources: Array<Resource> } {
+): { run: CompiledStep; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -487,7 +506,7 @@ function compileStep<S extends StepDefinition>(
 	const args: any = {};
 	for (const key of Object.keys(step)) {
 		let value = (step as any)[key];
-		if (isFileReference(value)) {
+		if (isResourceReference(value)) {
 			value = Resource.create(value, {
 				semaphore,
 			});
@@ -535,7 +554,7 @@ function compileStep<S extends StepDefinition>(
  * @returns The resources used by the compiled step
  */
 function getResources<S extends StepDefinition>(args: S) {
-	const result: Resource[] = [];
+	const result: Resource<any>[] = [];
 	for (const argName in args) {
 		const resourceMaybe = (args as any)[argName];
 		if (resourceMaybe instanceof Resource) {

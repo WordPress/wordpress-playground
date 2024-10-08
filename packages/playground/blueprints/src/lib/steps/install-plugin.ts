@@ -2,6 +2,10 @@ import { StepHandler } from '.';
 import { InstallAssetOptions, installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
+import { Directory } from '../resources';
+import { joinPaths } from '@php-wasm/util';
+import { writeFiles } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc installPlugin
@@ -13,7 +17,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * <code>
  * {
  * 	    "step": "installPlugin",
- * 		"pluginZipFile": {
+ * 		"pluginData": {
  * 			"resource": "wordpress.org/plugins",
  * 			"slug": "gutenberg"
  * 		},
@@ -22,17 +26,41 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * 		}
  * }
  * </code>
+ *
+ * @example
+ *
+ * <code>
+ * {
+ * 	    "step": "installPlugin",
+ * 		"pluginData": {
+ * 			"resource": "git:directory",
+ * 			"url": "https://github.com/wordpress/wordpress-playground.git",
+ *          "ref": "HEAD",
+ *          "path": "wp-content/plugins/hello-dolly"
+ * 		},
+ * 		"options": {
+ * 			"activate": true
+ * 		}
+ * }
+ * </code>
  */
-export interface InstallPluginStep<ResourceType>
+export interface InstallPluginStep<FileResource, DirectoryResource>
 	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
 	 */
 	step: 'installPlugin';
 	/**
-	 * The plugin zip file to install.
+	 * The plugin files to install. It can be either a plugin zip file, or a
+	 * directory containing all the plugin files at its root.
 	 */
-	pluginZipFile: ResourceType;
+	pluginData: FileResource | DirectoryResource;
+
+	/**
+	 * @deprecated. Use `pluginData` instead.
+	 */
+	pluginZipFile?: FileResource;
+
 	/**
 	 * Optional installation options.
 	 */
@@ -50,23 +78,53 @@ export interface InstallPluginOptions {
  * Installs a WordPress plugin in the Playground.
  *
  * @param playground The playground client.
- * @param pluginZipFile The plugin zip file.
+ * @param pluginData The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
-export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
+export const installPlugin: StepHandler<
+	InstallPluginStep<File, Directory>
+> = async (
 	playground,
-	{ pluginZipFile, ifAlreadyInstalled, options = {} },
+	{ pluginData, pluginZipFile, ifAlreadyInstalled, options = {} },
 	progress?
 ) => {
-	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
-	const zipNiceName = zipNameToHumanName(zipFileName);
+	if (pluginZipFile) {
+		pluginData = pluginZipFile;
+		logger.warn(
+			'The "pluginZipFile" option is deprecated. Use "pluginData" instead.'
+		);
+	}
 
-	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
-	const { assetFolderPath } = await installAsset(playground, {
-		ifAlreadyInstalled,
-		zipFile: pluginZipFile,
-		targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-	});
+	let assetFolderPath = '';
+	let assetNiceName = '';
+	if (pluginData instanceof File) {
+		// @TODO: Consider validating whether this is a zip file?
+		const zipFileName = pluginData.name.split('/').pop() || 'plugin.zip';
+		assetNiceName = zipNameToHumanName(zipFileName);
+
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
+		const assetResult = await installAsset(playground, {
+			ifAlreadyInstalled,
+			zipFile: pluginData,
+			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+		});
+		assetFolderPath = assetResult.assetFolderPath;
+		assetNiceName = assetResult.assetFolderName;
+	} else if (pluginData) {
+		assetNiceName = pluginData.name;
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
+
+		const pluginDirectoryPath = joinPaths(
+			await playground.documentRoot,
+			'wp-content',
+			'plugins',
+			pluginData.name
+		);
+		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
+			rmRoot: true,
+		});
+		assetFolderPath = pluginDirectoryPath;
+	}
 
 	// Activate
 	const activate = 'activate' in options ? options.activate : true;
@@ -76,7 +134,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			playground,
 			{
 				pluginPath: assetFolderPath,
-				pluginName: zipNiceName,
+				pluginName: assetNiceName,
 			},
 			progress
 		);

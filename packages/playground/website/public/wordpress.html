@@ -220,7 +220,6 @@
 				login: true,
 				preferredVersions: {
 					php: '7.4',
-					wp: zipArtifactUrl,
 				},
 				features: {
 					networking: true,
@@ -233,6 +232,7 @@
 			if (urlParams.has('mode')) {
 				targetParams.set('mode', urlParams.get('mode'));
 			}
+			targetParams.set('core-pr', prNumber);
 			window.location =
 				'./?' + targetParams.toString() + '#' + encodeURI(encoded);
 		}

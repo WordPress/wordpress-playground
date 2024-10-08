@@ -164,14 +164,15 @@
 			"executor": "nx:noop",
 			"dependsOn": [
 				"e2e:playwright:prepare-app-deploy-and-offline-mode:build-current-version",
-				"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-version"
+				"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-versions"
 			]
 		},
-		"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-version": {
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-versions": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip"
+					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
+					"unzip ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
 				]
 			}
 		},

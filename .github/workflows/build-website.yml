@@ -29,7 +29,9 @@ jobs:
         environment:
             name: playground-wordpress-net-wp-cloud
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: npm run build
             - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net

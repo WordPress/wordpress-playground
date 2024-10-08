@@ -8,6 +8,7 @@ export async function startVersionSwitchingServer({
 	port = 7999,
 	oldVersionDirectory,
 	newVersionDirectory,
+	midVersionDirectory,
 }) {
 	const app = express();
 
@@ -34,8 +35,20 @@ export async function startVersionSwitchingServer({
 	};
 
 	app.use(noCacheMiddleware);
-
 	app.use((req, res, next) => {
+		if (req.method === 'GET' && req.path.startsWith('/switch-versions/')) {
+			const version = req.path.split('/').pop();
+			staticDirectory = path.resolve(
+				version === 'old'
+					? oldVersionDirectory
+					: version === 'mid'
+					? midVersionDirectory
+					: newVersionDirectory
+			);
+			res.send('Version switched');
+			next();
+			return;
+		}
 		express.static(staticDirectory)(req, res, next);
 	});
 
@@ -59,6 +72,9 @@ export async function startVersionSwitchingServer({
 	return {
 		switchToNewVersion: () => {
 			staticDirectory = newVersionDirectory;
+		},
+		switchToMidVersion: () => {
+			staticDirectory = midVersionDirectory;
 		},
 		switchToOldVersion: () => {
 			staticDirectory = oldVersionDirectory;

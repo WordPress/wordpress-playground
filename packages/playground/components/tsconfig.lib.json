@@ -3,8 +3,12 @@
 	"compilerOptions": {
 		"outDir": "../../../dist/out-tsc",
 		"declaration": true,
-		"types": ["node"]
+		"types": [
+			"node",
+			"@nx/react/typings/cssmodule.d.ts"
+		]
 	},
-	"include": ["src/**/*.ts", "src/index.ts"],
+	"files": [],
+	"include": ["src/**/*.ts", "src/**/*.tsx"],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

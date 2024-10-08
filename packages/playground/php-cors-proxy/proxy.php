@@ -72,7 +72,14 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($curlHeaders, ["Host: $host"]))
 // Set options to stream data
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl) {
+$httpcode_sent = false;
+curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl, &$httpcode_sent, $ch) {
+    if(!$httpcode_sent) {
+        // Set the response code from the target server
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        http_response_code($httpCode);
+        $httpcode_sent = true;
+    }
     $len = strlen($header);
     $colonPos = strpos($header, ':');
     $name = strtolower(substr($header, 0, $colonPos));
@@ -105,8 +112,8 @@ curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl
 });
 curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) {
     echo $data;
-    ob_flush();
-    flush();
+    @ob_flush();
+    @flush();
     return strlen($data);
 });
 
@@ -127,10 +134,8 @@ if (!curl_exec($ch)) {
     http_response_code(502);
     echo "Bad Gateway – curl_exec error: " . curl_error($ch);
 } else {
-    // Set the response code from the target server
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    http_response_code($httpCode);
+    @http_response_code($httpCode);
 }
-
 // Close cURL session
 curl_close($ch);

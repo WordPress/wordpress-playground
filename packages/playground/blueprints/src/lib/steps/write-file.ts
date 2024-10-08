@@ -14,12 +14,12 @@ import { StepHandler } from '.';
  * }
  * </code>
  */
-export interface WriteFileStep<ResourceType> {
+export interface WriteFileStep<FileResource> {
 	step: 'writeFile';
 	/** The path of the file to write to */
 	path: string;
 	/** The data to write */
-	data: ResourceType | string | Uint8Array;
+	data: FileResource | string | Uint8Array;
 }
 
 /**

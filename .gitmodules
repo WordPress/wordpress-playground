@@ -1,0 +1,3 @@
+[submodule "isomorphic-git"]
+    path="isomorphic-git"
+    url=git@github.com:adamziel/isomorphic-git.git

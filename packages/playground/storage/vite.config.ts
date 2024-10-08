@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { defineConfig } from 'vite';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -6,7 +7,7 @@ import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
-export default {
+export default defineConfig({
 	base: '/',
 
 	cacheDir: '../../../node_modules/.vite/packages-playground-storage',
@@ -51,4 +52,4 @@ export default {
 		setupFiles: ['./src/vitest-setup-file.ts'],
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 	},
-};
+});
