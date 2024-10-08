@@ -124,7 +124,7 @@ export function compileBlueprint(
 			);
 		} else if (
 			(step as any)?.step === 'installTheme' &&
-			'themeData' in step
+			'themeZipFile' in step
 		) {
 			(step as any).themeData = (step as any).themeZipFile;
 			logger.warn(
