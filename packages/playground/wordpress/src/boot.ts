@@ -283,18 +283,3 @@ export function getFileNotFoundActionForWordPress(
 		uri: '/index.php',
 	};
 }
-
-/**
- * Check if the given directory handle directory is a Playground directory.
- *
- * @param fileExists Function A function that checks if a file exists relative to an assumed directory.
- * @returns Promise<boolean> Whether the directory looks like a Playground directory.
- */
-export async function looksLikePlaygroundDirectory(
-	fileExists: (relativePath: string) => Promise<boolean>
-) {
-	const results = await Promise.all(
-		['wp-config.php', 'wp-content/database/.ht.sqlite'].map(fileExists)
-	);
-	return results.every(Boolean);
-}
