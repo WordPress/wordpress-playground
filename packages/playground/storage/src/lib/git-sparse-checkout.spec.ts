@@ -1,8 +1,12 @@
-import { listRefs, sparseCheckout, listFiles } from './git-sparse-checkout';
+import {
+	listGitRefs,
+	sparseCheckout,
+	listGitFiles,
+} from './git-sparse-checkout';
 
 describe('listRefs', () => {
 	it('should return the latest commit hash for a given ref', async () => {
-		const refs = await listRefs(
+		const refs = await listGitRefs(
 			'https://github.com/WordPress/wordpress-playground',
 			'refs/heads/trunk'
 		);
@@ -26,9 +30,9 @@ describe('sparseCheckout', () => {
 	});
 });
 
-describe('listFiles', () => {
+describe('listGitFiles', () => {
 	it('should list the files in a git repo', async () => {
-		const files = await listFiles(
+		const files = await listGitFiles(
 			'https://github.com/WordPress/wordpress-playground.git',
 			'refs/heads/trunk'
 		);

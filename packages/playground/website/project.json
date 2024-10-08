@@ -50,6 +50,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
