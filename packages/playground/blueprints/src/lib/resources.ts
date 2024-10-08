@@ -461,9 +461,13 @@ export class GitDirectoryResource extends Resource<Directory> {
 		const repoUrl = this.options?.corsProxy
 			? `${this.options.corsProxy}/${this.reference.url}`
 			: this.reference.url;
-		const ref = `refs/heads/${this.reference.ref}`;
+		const ref = ['', 'HEAD'].includes(this.reference.ref)
+			? 'HEAD'
+			: `refs/heads/${this.reference.ref}`;
 		const allFiles = await listGitFiles(repoUrl, ref);
-		const filesToClone = listDescendantFiles(allFiles, this.reference.path);
+
+		const requestedPath = this.reference.path.replace(/^\/+/, '');
+		const filesToClone = listDescendantFiles(allFiles, requestedPath);
 		let files = await sparseCheckout(repoUrl, ref, filesToClone);
 		// Remove the path prefix from the cloned file names.
 		files = Object.fromEntries(
