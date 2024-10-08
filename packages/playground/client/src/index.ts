@@ -71,7 +71,8 @@ export interface StartPlaygroundOptions {
 	 * Whether to install WordPress. Value may be boolean or 'auto'.
 	 * If 'auto', WordPress will be installed if it is not already installed.
 	 */
-	shouldInstallWordPress?: boolean | 'auto';	/**
+	shouldInstallWordPress?: boolean | 'auto';
+	/**
 	 * The string prefix used in the site URL served by the currently
 	 * running remote.html. E.g. for a prefix like `/scope:playground/`,
 	 * the scope would be `playground`. See the `@php-wasm/scopes` package
