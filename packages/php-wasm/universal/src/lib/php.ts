@@ -770,8 +770,8 @@ export class PHP implements Disposable {
 					'wasm_sapi_handle_request',
 					NUMBER,
 					[],
-					[],
-					{ async: true }
+					[]
+					// { async: true }
 				);
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);

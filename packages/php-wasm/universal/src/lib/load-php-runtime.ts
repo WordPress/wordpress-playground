@@ -157,6 +157,7 @@ export async function loadPHPRuntime(
 
 	const id = ++lastRuntimeId;
 
+	PHPRuntime.FS;
 	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
