@@ -10,7 +10,6 @@ interface QueryAPIParams {
 	name?: string;
 	wp?: string;
 	php?: string;
-	'php-extension-bundle'?: 'light' | 'kitchen-sink';
 	language?: string;
 	multisite?: 'yes' | 'no';
 	networking?: 'yes' | 'no';

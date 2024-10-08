@@ -120,13 +120,10 @@ blueprint={{
 	]
 }} />
 
-## Enable PHP extensions and networking
+## Enable networking
 
 <BlueprintExample blueprint={{
 	"landingPage": "/wp-admin/plugin-install.php",
-	"phpExtensionBundles": [
-		"kitchen-sink"
-	],
 	"features": {
 		"networking": true
 	},
@@ -143,9 +140,6 @@ Use the `writeFile` step to add code to a mu-plugin that runs on every request.
 
 <BlueprintExample blueprint={{
 	"landingPage": "/category/uncategorized/",
-	"phpExtensionBundles": [
-		"kitchen-sink"
-	],
 	"features": {
 		"networking": true
 	},

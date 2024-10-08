@@ -50,10 +50,7 @@ export interface SiteMetadata {
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: Pick<
 		Required<Blueprint>,
-		| 'features'
-		| 'extraLibraries'
-		| 'phpExtensionBundles'
-		| 'preferredVersions'
+		'features' | 'extraLibraries' | 'preferredVersions'
 	>;
 	originalBlueprint: Blueprint;
 }
@@ -88,9 +85,6 @@ export async function createSiteMetadata(
 				wp: compiledBlueprint.versions.wp,
 				php: compiledBlueprint.versions.php,
 			},
-			phpExtensionBundles: blueprint.phpExtensionBundles || [
-				'kitchen-sink',
-			],
 			features: compiledBlueprint.features,
 			extraLibraries: compiledBlueprint.extraLibraries,
 		},

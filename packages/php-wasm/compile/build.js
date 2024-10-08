@@ -12,8 +12,8 @@ const argParser = yargs(process.argv.slice(2))
 	.options({
 		PLATFORM: {
 			type: 'string',
-			choices: ['web-light', 'web-kitchen-sink', 'node'],
-			default: 'web-light',
+			choices: ['web', 'node'],
+			default: 'web',
 			description: 'The platform to build for',
 		},
 		DEBUG: {
@@ -121,8 +121,7 @@ const platformDefaults = {
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 	},
-	['web-light']: {},
-	['web-kitchen-sink']: {
+	web: {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',

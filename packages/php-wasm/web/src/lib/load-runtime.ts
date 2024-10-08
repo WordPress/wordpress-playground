@@ -43,10 +43,7 @@ export async function loadWebRuntime(
 	phpVersion: SupportedPHPVersion,
 	options: LoaderOptions = {}
 ) {
-	// Determine which variant to load based on the requested extensions
-	const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
-
-	const phpLoaderModule = await getPHPLoaderModule(phpVersion, variant);
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 	options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 	return await loadPHPRuntime(phpLoaderModule, {
 		...(options.emscriptenOptions || {}),

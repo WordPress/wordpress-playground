@@ -68,7 +68,6 @@ export type WorkerBootOptions = {
 	wpVersion?: string;
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
-	phpExtensions?: string[];
 	scope: string;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
@@ -163,7 +162,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
 		phpVersion = '8.0',
-		phpExtensions = [],
 		sapiName = 'cli',
 		shouldInstallWordPress = true,
 	}: WorkerBootOptions) {
@@ -240,9 +238,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
 					return await loadWebRuntime(phpVersion, {
-						// We don't yet support loading specific PHP extensions one-by-one.
-						// Let's just indicate whether we want to load all of them.
-						loadAllExtensions: phpExtensions.length > 0,
 						emscriptenOptions: {
 							instantiateWasm(imports, receiveInstance) {
 								// Using .then because Emscripten typically returns an empty

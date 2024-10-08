@@ -41,29 +41,6 @@ describe('Query API', () => {
 		});
 	});
 
-	describe('option `php-extension-bundle`', () => {
-		it('should load XMLWriter with the kitchen sink extension bundle', () => {
-			cy.visit('/?php-extension-bundle=kitchen-sink&url=/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--enable-xmlwriter');
-		});
-
-		it('should not load XMLWriter with the light extension bundle', () => {
-			cy.visit('/?php-extension-bundle=light&url=/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--disable-xmlwriter');
-		});
-
-		it('should default to the kitchen sink extension bundle', () => {
-			cy.visit('/?url=/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--enable-xmlwriter');
-		});
-	});
-
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
 			cy.visit('/?url=/wp-admin/plugin-install.php');
@@ -83,19 +60,6 @@ describe('Query API', () => {
 		});
 
 		/**
-		 * @see https://github.com/WordPress/wordpress-playground/pull/1045
-		 * @see https://github.com/WordPress/wordpress-playground/pull/1504
-		 */
-		it('should enable networking when requested AND the kitchen sink extension bundle is NOT enabled', () => {
-			cy.visit(
-				'/?networking=yes&php-extension-bundle=light&url=/wp-admin/plugin-install.php'
-			);
-			cy.wordPressDocument()
-				.find('.plugin-card')
-				.should('have.length.above', 4);
-		});
-
-		/**
 		 * @see https://github.com/WordPress/wordpress-playground/pull/819
 		 * @TODO: Turn this into a unit test once WordPress modules are available
 		 *        for import.
@@ -106,7 +70,6 @@ describe('Query API', () => {
 				features: {
 					networking: true,
 				},
-				phpExtensionBundles: ['light'],
 				steps: [
 					{
 						step: 'writeFile',

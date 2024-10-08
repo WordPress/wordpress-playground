@@ -27,9 +27,6 @@ export function TemporarySiteSettingsForm({
 					php: data.phpVersion,
 					wp: data.wpVersion,
 					networking: data.withNetworking ? 'yes' : 'no',
-					'php-extension-bundle': data.withExtensions
-						? 'kitchen-sink'
-						: 'light',
 					language: data.language,
 					multisite: data.multisite ? 'yes' : 'no',
 				},
@@ -45,8 +42,6 @@ export function TemporarySiteSettingsForm({
 			phpVersion: runtimeConf?.preferredVersions?.php as any,
 			wpVersion: runtimeConf?.preferredVersions?.wp as any,
 			withNetworking: runtimeConf?.features?.networking,
-			withExtensions:
-				runtimeConf?.phpExtensionBundles?.includes('kitchen-sink'),
 			language: 'language' in searchParams ? searchParams.language : '',
 			multisite:
 				'multisite' in searchParams

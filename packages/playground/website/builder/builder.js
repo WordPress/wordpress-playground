@@ -847,7 +847,6 @@ function onLoaded() {
 
 const defaultBlueprint = {
 	landingPage: '/wp-admin/',
-	phpExtensionBundles: ['kitchen-sink'],
 	preferredVersions: {
 		php: '7.4',
 		wp: '5.9',

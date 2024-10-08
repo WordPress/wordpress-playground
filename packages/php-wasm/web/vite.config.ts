@@ -61,7 +61,7 @@ export default defineConfig(({ command }) => {
 						 * and not
 						 * import("php_8_2.js")
 						 *
-						 * The slice(-2) will ensure the 'kitchen-sink' or 'light'
+						 * The slice(-2) will ensure the 'php/`
 						 * portion of the path is preserved.
 						 */
 						return '../' + specifier.split('/').slice(-2).join('/');
