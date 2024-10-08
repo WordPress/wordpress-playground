@@ -15,13 +15,15 @@ import {
 	sqliteDatabaseIntegrationModuleDetails,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
+import {
+	directoryHandleFromMountDevice,
+	fileExistsUnderDirectoryHandle,
+} from '@wp-playground/storage';
 import { randomString } from '@php-wasm/util';
 import {
 	spawnHandlerFactory,
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
-	looksLikePlaygroundDirectory,
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createMemoizedFetch } from './create-memoized-fetch';
@@ -46,6 +48,7 @@ import {
 	bootWordPress,
 	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
+	looksLikePlaygroundDirectory,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
@@ -200,7 +203,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					const dirHandle = await directoryHandleFromMountDevice(
 						mount.device
 					);
-					if (await looksLikePlaygroundDirectory(dirHandle)) {
+					const fileExistsUnderMount = (relativePath: string) =>
+						fileExistsUnderDirectoryHandle(dirHandle, relativePath);
+
+					if (
+						await looksLikePlaygroundDirectory(fileExistsUnderMount)
+					) {
 						shouldInstallWordPress = false;
 						break;
 					}

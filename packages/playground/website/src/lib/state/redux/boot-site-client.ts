@@ -15,10 +15,9 @@ import { Blueprint, StepDefinition } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
-import {
-	PlaygroundClient,
-	looksLikePlaygroundDirectory,
-} from '@wp-playground/remote';
+import { PlaygroundClient } from '@wp-playground/remote';
+import { fileExistsUnderDirectoryHandle } from '@wp-playground/storage';
+import { looksLikePlaygroundDirectory } from '@wp-playground/wordpress';
 import { getRemoteUrl } from '../../config';
 import { setActiveModal, setActiveSiteError } from './slice-ui';
 import { PlaygroundDispatch, PlaygroundReduxState } from './store';
@@ -75,8 +74,15 @@ export function bootSiteClient(
 		let isWordPressInstalled = false;
 		if (mountDescriptor) {
 			try {
+				const mountDirHandle = await directoryHandleFromMountDevice(
+					mountDescriptor.device
+				);
 				isWordPressInstalled = await looksLikePlaygroundDirectory(
-					await directoryHandleFromMountDevice(mountDescriptor.device)
+					(relativePath: string) =>
+						fileExistsUnderDirectoryHandle(
+							mountDirHandle,
+							relativePath
+						)
 				);
 			} catch (e) {
 				logger.error(e);
