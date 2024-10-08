@@ -279,7 +279,6 @@ export class PHP implements Disposable {
 		this.dispatchEvent({
 			type: 'runtime.initialized',
 		});
-		console.log(this.listFiles('/internals'));
 	}
 
 	/** @inheritDoc */

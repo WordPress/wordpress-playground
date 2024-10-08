@@ -17,7 +17,7 @@ export async function getPHPLoaderModule(
 ): Promise<PHPLoaderModule> {
 	if (await jspi()) {
 		switch (version) {
-			case '8.3':
+			// case '8.3':
 			// @ts-ignore
 			// return await import('../../public/php/jspi/php_8_3.js');
 			// case '8.2':
@@ -46,8 +46,7 @@ export async function getPHPLoaderModule(
 			// 	return await import('../../public/php/jspi/php_7_0.js');
 		}
 	} else {
-		switch (
-			version
+		switch (version) {
 			// case '8.3':
 			// 	// @ts-ignore
 			// 	return await import('../../public/php/asyncify/php_8_3.js');
@@ -57,9 +56,9 @@ export async function getPHPLoaderModule(
 			// case '8.1':
 			// 	// @ts-ignore
 			// 	return await import('../../public/php/asyncify/php_8_1.js');
-			// case '8.0':
-			// 	// @ts-ignore
-			// 	return await import('../../public/php/asyncify/php_8_0.js');
+			case '8.0':
+				// 	// @ts-ignore
+				return await import('../../public/php/asyncify/php_8_0.js');
 			// case '7.4':
 			// 	// @ts-ignore
 			// 	return await import('../../public/php/asyncify/php_7_4.js');
@@ -75,7 +74,6 @@ export async function getPHPLoaderModule(
 			// case '7.0':
 			// 	// @ts-ignore
 			// 	return await import('../../public/php/asyncify/php_7_0.js');
-		) {
 		}
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
