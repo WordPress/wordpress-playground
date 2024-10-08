@@ -34,28 +34,46 @@
 				"outputPath": "dist/packages/php-wasm/web"
 			}
 		},
-		"recompile-php": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php"
-				],
-				"parallel": false
-			}
-		},
 		"recompile-php:all": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/php",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/php"
+					"nx run php-wasm-web:recompile-php:jspi",
+					"nx run php-wasm-web:recompile-php:asyncify"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/php/jspi --JSPI=1"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/php/asyncify"
 				],
 				"parallel": false
 			}

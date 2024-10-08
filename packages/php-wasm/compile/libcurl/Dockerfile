@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/dist/root/lib/include /root/lib/include
 COPY ./libz/dist/root/lib/lib /root/lib/lib
@@ -44,27 +46,32 @@ RUN CPPFLAGS="-I/root/lib/include " \
         --disable-threaded-resolver \
         --with-zlib=/root/lib
 
-RUN source /root/emsdk/emsdk_env.sh && \
-EMCC_SKIP="-lc -lz -lcurl -lssl " \
-EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make || true
+RUN if [ "$JSPI" = "1" ]; then \
+    source /root/emsdk/emsdk_env.sh && \
+    EMCC_SKIP="-lc -lz -lcurl -lssl " \
+    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make || true; \
+fi
 
-# RUN cp /root/emsdk/upstream/bin/wasm-ld /root/emsdk/upstream/bin/wasm-ld-original && \
-#     echo $'#!/bin/bash\n\
-# if [[ " $@ " =~ " -o curl " ]]; then \n\
-# echo '' > /root/curl-7.69.1/src/curl; \n\
-# echo '' > /root/curl-7.69.1/curl; \n\
-# fi; \n\
-# /root/emsdk/upstream/bin/wasm-ld-original "$@" || true; \n\
-# exit 0; \n' > /root/emsdk/upstream/bin/wasm-ld && \
-#     chmod a+x /root/emsdk/upstream/bin/wasm-ld
+RUN if [ "$JSPI" != "1" ]; then \
+    cp /root/emsdk/upstream/bin/wasm-ld /root/emsdk/upstream/bin/wasm-ld-original && \
+    echo $'#!/bin/bash\n\
+if [[ " $@ " =~ " -o curl " ]]; then \n\
+echo '' > /root/curl-7.69.1/src/curl; \n\
+echo '' > /root/curl-7.69.1/curl; \n\
+fi; \n\
+/root/emsdk/upstream/bin/wasm-ld-original "$@" || true; \n\
+exit 0; \n' > /root/emsdk/upstream/bin/wasm-ld && \
+    chmod a+x /root/emsdk/upstream/bin/wasm-ld; \
+fi
 
+RUN if [ "$JSPI" != "1" ]; then \
+    source /root/emsdk/emsdk_env.sh && \
+    EMCC_SKIP="-lc -lz -lcurl -lssl " \
+    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make -i || true; \
+fi
 
-# RUN source /root/emsdk/emsdk_env.sh && \
-# EMCC_SKIP="-lc -lz -lcurl -lssl " \
-# EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make -i || true 
-
-# RUN source /root/emsdk/emsdk_env.sh && \
-# EMCC_SKIP="-lc -lz -lcurl -lssl " \
-# EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make install -i || true
-
-# RUN ls -R /root/lib
+RUN if [ "$JSPI" != "1" ]; then \
+    source /root/emsdk/emsdk_env.sh && \
+    EMCC_SKIP="-lc -lz -lcurl -lssl " \
+    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make install -i || true; \
+fi

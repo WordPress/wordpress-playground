@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 # The PHP version to build.
 # This value must point to an existing branch of the
 # https://github.com/php/php-src.git repository when prefixed
@@ -349,7 +351,8 @@ RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
-	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " \
+	JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
@@ -410,6 +413,462 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 		echo -n ' -lwebsocket.js ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
+# Always enable Asyncify since `post_message_to_js()` supports asynchronous handlers:
+	RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
+	# Emscripten supports yielding from sync functions to JavaScript event loop, but all
+	# the synchronous functions doing that must be explicitly listed here. This is an
+	# exhaustive list that was created by compiling PHP with ASYNCIFY, running code that
+	# uses networking, observing the error, and listing the missing functions.
+	#
+	# If you a get an error similar to the one below, you need to add all the function on
+	# the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
+	#
+	# RuntimeError: unreachable
+	# at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
+	# at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
+	# at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
+	#
+	# Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
+	# to get the entire stack.
+	#
+	# -------
+	#
+	# Related: Any errors like Fatal error: Cannot redeclare function ...
+	# are caused by dispatching a PHP request while an execution is paused
+	# due to an async call – it means the same PHP files are loaded before
+	# the previous request, where they're already loaded, is concluded.
+	export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
+"invoke_i",\n\
+"invoke_ii",\n\
+"invoke_iii",\n\
+"invoke_iiii",\n\
+"invoke_iiiii",\n\
+"invoke_iiiiii",\n\
+"invoke_iiiiiii",\n\
+"invoke_iiiiiiii",\n\
+"invoke_iiiiiiiiii",\n\
+"invoke_v",\n\
+"invoke_vi",\n\
+"invoke_vii",\n\
+"invoke_viidii",\n\
+"invoke_viii",\n\
+"invoke_viiii",\n\
+"invoke_viiiii",\n\
+"invoke_viiiiii",\n\
+"invoke_viiiiiii",\n\
+"invoke_viiiiiiiii",\n\
+"js_open_process",\n\
+"js_popen_to_file",\n\
+"js_fd_read",\n\
+"js_module_onMessage",\n\
+"js_waitpid",\n\
+"wasm_poll_socket",\n\
+"wasm_shutdown"]'; \
+	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
+"dynCall_i",\
+"dynCall_ii",\
+"dynCall_iidiiii",\
+"dynCall_iii",\
+"dynCall_iiid",\
+"dynCall_iiii",\
+"dynCall_iiiii",\
+"dynCall_iiiiii",\
+"dynCall_iiiiiii",\
+"dynCall_iiiiiiii",\
+"dynCall_iiiiiiiii",\
+"dynCall_iiiiiiiiii",\
+"dynCall_iiij",\
+"dynCall_iiiji",\
+"dynCall_ji",\
+"dynCall_jii",\
+"dynCall_jiiiji",\
+"dynCall_jiij",\
+"dynCall_jiiji",\
+"dynCall_jiji",\
+"dynCall_jj",\
+"dynCall_v",\
+"dynCall_vi",\
+"dynCall_vii",\
+"dynCall_viidii",\
+"dynCall_viii",\
+"dynCall_viiii",\
+"dynCall_viiiii",\
+"dynCall_viiiiiii",\
+"dynCall_viiiiiiii",'; \
+	export ASYNCIFY_ONLY=$'"rc_dtor_func",\
+"zif_curl_exec",\
+"curl_easy_perform",\
+"Curl_wait_ms",\
+"Curl_http_connect",\
+"RAND_status",\
+"rand_status",\
+"__wrap_select",\
+"Curl_socket_check",\
+"Curl_is_connected",\
+"multi_runsingle",\
+"curl_multi_perform",\
+"easy_transfer",\
+"Curl_poll",\
+"Curl_multi_wait",\
+"curl_multi_poll",\
+"easy_perform",\
+"RAND_poll",\
+"rand_bytes",\
+"RAND_bytes",\
+"SSL_CTX_new",\
+"rand_nopseudo_bytes",\
+"rand_enough",\
+"Curl_ossl_seed",\
+"zif_curl_multi_exec",\
+"zif_curl_multi_select",\
+"ossl_connect_common",\
+"Curl_ossl_connect_nonblocking",\
+"Curl_ssl_connect_nonblocking",\
+"https_connecting",\
+"Curl_readwrite",\
+"zend_generator_iterator_move_forward",\
+"ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
+"zend_generator_resume",\
+"zend_generator_iterator_rewind",\
+"zend_fe_reset_iterator",\
+"ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
+"zend_user_it_get_new_iterator",\
+"ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"__fwritex",\
+"read",\
+"zif_sleep",\
+"zif_stream_get_contents",\
+"_php_stream_fill_read_buffer",\
+"_php_stream_read",\
+"php_stream_read_to_str",\
+"zif_fread",\
+"wasm_read",\
+"php_stdiop_read",\
+"fwrite",\
+"zif_fwrite",\
+"php_stdiop_write",\
+"zif_array_filter",\
+"zend_call_known_instance_method_with_2_params",\
+"zend_fetch_dimension_address_read_R",\
+"_zval_dtor_func_for_ptr",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_fetch_dimension_address_read",\
+"php_if_fopen",\
+"_php_stream_cast",\
+"php_stream_temp_cast",\
+"php_stream_temp_flush",\
+"_php_stream_flush",\
+"php_stream_flush",\
+"_php_stream_write",\
+"php_stream_write",\
+"_php_stream_free",\
+"_php_stream_free_enclosed",\
+"stream_resource_persistent_dtor",\
+"stream_resource_regular_dtor",\
+"zend_std_has_dimension",\
+"zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
+"zend_assign_to_object",\
+"zif_file_put_contents",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CV_HANDLER",\
+"zend_std_call_user_call",\
+"zend_objects_store_del_ref_by_handle_ex",\
+"zend_objects_store_del_ref",\
+"_zval_dtor_func",\
+"_zval_ptr_dtor",\
+"zend_hash_del_key_or_index",\
+"zend_delete_variable",\
+"ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
+"zend_std_unset_dimension",\
+"ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_std_read_dimension",\
+"zend_fetch_dimension_address_read_R_slow",\
+"ZEND_FETCH_DIM_R_SPEC_CV_CONST_HANDLER",\
+"zend_call_method",\
+"zend_assign_to_object_dim",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_std_write_dimension",\
+"zend_isset_dim_slow",\
+"ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_CONST_HANDLER",\
+"zend_std_write_property",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_objects_store_del",\
+"ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_FCALL_SPEC_CONST_HANDLER",\
+"ZEND_DO_FCALL_SPEC_HANDLER",\
+"ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER",\
+"ZEND_DO_FCALL_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_HANDLER",\
+"ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER",\
+"ZEND_FETCH_OBJ_FUNC_ARG_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_TMPVAR_CONST_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_TMPVAR_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
+"cli",\
+"wasm_sleep",\
+"wasm_php_stream_flush",\
+"wasm_php_stream_read",\
+"php_crc32_stream_bulk_update",\
+"phar_parse_zipfile",\
+"get_http_body",\
+"wasm_php_exec",\
+"wasm_sapi_handle_request",\
+"wasm_sapi_request_shutdown",\
+"_call_user_function_ex",\
+"_call_user_function_impl",\
+"_mysqlnd_run_command",\
+"_php_stream_copy_to_mem",\
+"_php_stream_eof",\
+"_php_stream_fill_read_buffer",\
+"_php_stream_free",\
+"_php_stream_get_line",\
+"_php_stream_open_wrapper_ex",\
+"_php_stream_read",\
+"_php_stream_set_option",\
+"_php_stream_write",\
+"_php_stream_xport_create",\
+"do_cli",\
+"do_cli_server",\
+"execute_ex",\
+"list_entry_destructor",\
+"main",\
+"mysql_handle_begin",\
+"mysql_handle_closer",\
+"mysql_handle_commit",\
+"mysql_handle_doer",\
+"mysql_handle_preparer",\
+"mysql_handle_quoter",\
+"mysql_handle_rollback",\
+"mysql_stmt_execute",\
+"mysqli_commit_or_rollback_libmysql",\
+"mysqli_common_connect",\
+"mysqlnd_com_handshake_run",\
+"mysqlnd_com_init_db_run",\
+"mysqlnd_com_stmt_execute_run",\
+"mysqlnd_com_stmt_prepare_run",\
+"mysqlnd_connect",\
+"mysqlnd_connection_connect",\
+"mysqlnd_mysqlnd_command_handshake_pub",\
+"mysqlnd_mysqlnd_command_init_db_pub",\
+"mysqlnd_mysqlnd_command_reap_result_pub",\
+"mysqlnd_mysqlnd_conn_connect_pub",\
+"mysqlnd_mysqlnd_conn_data_connect_handshake_pub",\
+"mysqlnd_mysqlnd_conn_data_connect_pub",\
+"mysqlnd_mysqlnd_conn_data_next_result_pub",\
+"mysqlnd_mysqlnd_conn_data_query_pub",\
+"mysqlnd_mysqlnd_conn_data_reap_query_pub",\
+"mysqlnd_mysqlnd_conn_data_select_db_pub",\
+"mysqlnd_mysqlnd_conn_data_set_charset_pub",\
+"mysqlnd_mysqlnd_conn_data_store_result_pub",\
+"mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
+"mysqlnd_mysqlnd_pfc_receive_pub",\
+"mysqlnd_mysqlnd_pfc_send_pub",\
+"mysqlnd_mysqlnd_protocol_send_command_handle_OK_pub",\
+"mysqlnd_mysqlnd_protocol_send_command_handle_response_pub",\
+"mysqlnd_mysqlnd_protocol_send_command_pub",\
+"mysqlnd_mysqlnd_res_store_result_fetch_data_pub",\
+"mysqlnd_mysqlnd_res_store_result_pub",\
+"mysqlnd_mysqlnd_stmt_execute_pub",\
+"mysqlnd_mysqlnd_stmt_prepare_pub",\
+"mysqlnd_mysqlnd_stmt_send_execute_pub",\
+"mysqlnd_mysqlnd_vio_connect_pub",\
+"mysqlnd_mysqlnd_vio_network_read_pub",\
+"mysqlnd_mysqlnd_vio_network_write_pub",\
+"mysqlnd_mysqlnd_vio_open_tcp_or_unix_pub",\
+"mysqlnd_query_read_result_set_header",\
+"mysqlnd_read_body_name",\
+"mysqlnd_read_buffer",\
+"mysqlnd_read_buffer_is_empty",\
+"mysqlnd_read_header",\
+"mysqlnd_read_header_name",\
+"mysqlnd_read_packet_header_and_body",\
+"mysqlnd_run_authentication",\
+"mysqlnd_stmt_execute",\
+"mysqlnd_stmt_execute_parse_response",\
+"pdo_mysql_handle_factory",\
+"pdo_mysql_stmt_col_meta",\
+"pdo_mysql_stmt_describe",\
+"pdo_mysql_stmt_execute",\
+"pdo_mysql_stmt_execute_prepared",\
+"pdo_mysql_stmt_fetch",\
+"pdo_mysql_stmt_get_col",\
+"phar_file_get_contents",\
+"phar_fopen",\
+"php_call_shutdown_functions",\
+"php_cli_server_do_event_for_each_fd_callback",\
+"php_cli_server_poller_poll",\
+"php_cli_server_recv_event_read_request",\
+"php_exec",\
+"php_execute_script",\
+"php_fsockopen_stream",\
+"php_getimagesize_from_any",\
+"php_mysqlnd_auth_response_read",\
+"php_mysqlnd_cmd_write",\
+"php_mysqlnd_conn_connect_pub",\
+"php_mysqlnd_conn_data_connect_handshake_pub",\
+"php_mysqlnd_conn_data_connect_pub",\
+"php_mysqlnd_conn_data_next_result_pub",\
+"php_mysqlnd_conn_data_query_pub",\
+"php_mysqlnd_conn_data_reap_query_pub",\
+"php_mysqlnd_conn_data_select_db_pub",\
+"php_mysqlnd_conn_data_set_charset_pub",\
+"php_mysqlnd_conn_data_simple_command_pub",\
+"php_mysqlnd_conn_data_simple_command_send_request_pub",\
+"php_mysqlnd_conn_data_store_result_pub",\
+"php_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
+"php_mysqlnd_eof_read",\
+"php_mysqlnd_greet_read",\
+"php_mysqlnd_net_connect_ex_pub",\
+"php_mysqlnd_net_network_read_ex_pub",\
+"php_mysqlnd_net_network_write_ex_pub",\
+"php_mysqlnd_net_open_tcp_or_unix_pub",\
+"php_mysqlnd_net_receive_ex_pub",\
+"php_mysqlnd_net_send_ex_pub",\
+"php_mysqlnd_ok_read",\
+"php_mysqlnd_prepare_read",\
+"php_mysqlnd_res_meta_read_metadata_pub",\
+"php_mysqlnd_res_read_result_metadata_pub",\
+"php_mysqlnd_res_store_result_fetch_data_pub",\
+"php_mysqlnd_res_store_result_pub",\
+"php_mysqlnd_rowp_read",\
+"php_mysqlnd_rset_field_read",\
+"php_mysqlnd_rset_header_read",\
+"php_mysqlnd_stmt_execute_pub",\
+"php_mysqlnd_stmt_prepare_pub",\
+"php_network_accept_incoming",\
+"php_network_connect_socket",\
+"php_network_connect_socket_to_host",\
+"php_openssl_enable_crypto",\
+"php_openssl_sockop_close",\
+"php_openssl_sockop_io",\
+"php_openssl_sockop_read",\
+"php_openssl_sockop_set_option",\
+"php_openssl_sockop_write",\
+"php_pollfd_for",\
+"php_replace_in_subject_func",\
+"php_request_shutdown",\
+"php_sock_stream_wait_for_data",\
+"php_sockop_read",\
+"php_sockop_read_close",\
+"php_sockop_set_option",\
+"php_sockop_write",\
+"php_stream_read_to_str",\
+"php_stream_url_wrap_http",\
+"php_stream_url_wrap_http_ex",\
+"php_stream_xport_crypto_enable",\
+"php_stream_xport_crypto_setup",\
+"php_tcp_sockop_set_option",\
+"preg_replace_func_impl",\
+"readline_shell_run",\
+"reflection_method_invoke",\
+"run_cli",\
+"run_php",\
+"user_shutdown_function_call",\
+"shutdown_executor",\
+"shutdown_destructors",\
+"stream_resource_regular_dtor",\
+"zend_call_function",\
+"zend_call_known_function",\
+"zend_close_rsrc_list",\
+"zend_deactivate",\
+"zend_destroy_rsrc_list",\
+"zend_do_fcall_common_helper_SPEC",\
+"zend_eval_string_ex",\
+"zend_eval_string",\
+"zend_eval_stringl",\
+"zend_execute",\
+"zend_execute_scripts",\
+"zend_error",\
+"zend_error_va_list",\
+"zend_hash_apply",\
+"zend_hash_graceful_reverse_destroy",\
+"zend_internal_type_error",\
+"zend_objects_destroy_object",\
+"zend_objects_store_call_destructors",\
+"zend_parse_parameters",\
+"zend_parse_va_args",\
+"zend_std_call_getter",\
+"zend_std_has_property",\
+"zend_std_read_property",\
+"zif_array_map",\
+"zif_array_reduce",\
+"zif_call_user_func",\
+"zif_json_encode",\
+"zif_call_user_func_array",\
+"zif_fclose",\
+"zif_feof",\
+"zif_file_get_contents",\
+"zif_post_message_to_js",\
+"zif_fopen",\
+"zif_fread",\
+"zif_fsockopen",\
+"zif_getimagesize",\
+"zif_mysqli_begin_transaction",\
+"zif_mysqli_connect",\
+"zif_mysqli_data_seek",\
+"zif_mysqli_errno",\
+"zif_mysqli_error",\
+"zif_mysqli_fetch_fields",\
+"zif_mysqli_fetch_object",\
+"zif_mysqli_fetch_row",\
+"zif_mysqli_get_charset",\
+"zif_mysqli_multi_query",\
+"zif_mysqli_next_result",\
+"zif_mysqli_prepare",\
+"zif_mysqli_query",\
+"zif_mysqli_real_connect",\
+"zif_mysqli_reap_async_query",\
+"zif_mysqli_select_db",\
+"zif_mysqli_set_charset",\
+"zif_mysqli_stmt_execute",\
+"zif_mysqli_stmt_fetch",\
+"zif_preg_replace_callback",\
+"zif_popen",\
+"php_exec_ex",\
+"wasm_popen",\
+"zif_wasm_popen",\
+"zif_system",\
+"zif_exec",\
+"zif_passthru",\
+"zif_shell_exec",\
+"zif_proc_open",\
+"proc_open_rsrc_dtor",\
+"zend_list_close",\
+"zif_proc_close",\
+"zif_stream_socket_client",\
+"zim_PDOStatement_execute",\
+"zim_PDO___construct",\
+"zim_PDO_beginTransaction",\
+"zim_PDO_commit",\
+"zim_PDO_commitTransaction",\
+"zim_PDO_dbh_constructor",\
+"zim_PDO_exec",\
+"zim_PDO_query",\
+"zim_PDO_rollBack",\
+"zim_ReflectionMethod_invoke",\
+"zim_ReflectionMethod_invokeArgs",\
+"zim_ReflectionClass_newInstanceArgs",\
+"zim_reflection_class_newInstanceArgs",\
+"zim_reflection_method_invoke",\
+"zim_reflection_method_invokeArgs"'; \
+	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
+	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
+		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
+	fi; \
+	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
+
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
@@ -417,6 +876,11 @@ ARG WITH_SOURCEMAPS
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
+	if [ "$JSPI" = "1" ]; then \
+		export ASYNCIFY_FLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions -s ASYNCIFY=2 -s ASYNCIFY_EXPORTS='[\"wasm_sleep\", \"wasm_read\",\"emscripten_sleep\",\"wasm_sapi_handle_request\", \"wasm_sapi_request_shutdown\",\"wasm_poll_socket\",\"wrap_select\", \"__wrap_select\",\"select\",\"php_pollfd_for\",\"fflush\",\"wasm_popen\",\"wasm_read\",\"wasm_php_exec\",\"run_cli\"]' -s EXPORTED_RUNTIME_METHODS='[\"ccall\", \"PROXYFS\", \"wasmExports\",\"_free\", \"_malloc\"]'"
+	else \
+		export ASYNCIFY_FLAGS="-s ASYNCIFY=1 $(cat /root/.emcc-php-asyncify-flags) -s EXPORTED_RUNTIME_METHODS='[\"ccall\", \"PROXYFS\", \"wasmExports\"]'"
+	fi; \	
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "UTF8ToString", \n\
 "stringToUTF8", \n\
@@ -461,11 +925,8 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-o /build/output/php.js \
-	-sSUPPORT_LONGJMP=wasm -fwasm-exceptions \
-	-s ASYNCIFY=2 \
-	-s ASYNCIFY_EXPORTS='["wasm_sleep", "wasm_read","emscripten_sleep","wasm_sapi_handle_request", "wasm_sapi_request_shutdown","wasm_poll_socket","wrap_select", "__wrap_select","select","php_pollfd_for","fflush","wasm_popen","wasm_read","wasm_php_exec","run_cli"]' \
+	$ASYNCIFY_FLAGS \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
-	-s EXPORTED_RUNTIME_METHODS='["ccall", "PROXYFS", "wasmExports","_free", "_malloc"]' \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1         \
 	-s ASSERTIONS=0                  \

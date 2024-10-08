@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/dist/root/lib/include /root/lib/include
 COPY ./libz/dist/root/lib/lib /root/lib/lib
@@ -16,8 +18,12 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
-RUN source /root/emsdk/emsdk_env.sh && emmake make install
+RUN source /root/emsdk/emsdk_env.sh && \
+    JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+    EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make
+RUN source /root/emsdk/emsdk_env.sh && \
+    JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+    EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make install
 # @TODO: Do not remove dependencies like this – it's too easy to miss something.
 #        Instead, source them from another directory and end up with a clean build.
 RUN rm -rf /root/lib/lib/pkgconfig /root/lib/lib/libz.a /root/lib/include/zconf.h /root/lib/include/zlib.h

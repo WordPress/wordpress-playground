@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/dist/root/lib/include /root/lib/include
 COPY ./libz/dist/root/lib/lib /root/lib/lib
@@ -16,4 +18,5 @@ RUN set -euxo pipefail && \
     EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
     cp -RL include/openssl /root/lib/include && \
     cp libcrypto.a libssl.a /root/lib/lib && \
-    EMCC_FLAGS=" -sSIDE_MODULE -sSUPPORT_LONGJMP=wasm -fwasm-exceptions" EMCC_SKIP="-lz" emmake make install_sw;
+    JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+    EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" EMCC_SKIP="-lz" emmake make install_sw;

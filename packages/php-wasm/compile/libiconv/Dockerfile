@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/dist/root/lib/include /root/lib/include
 COPY ./libz/dist/root/lib/lib /root/lib/lib
@@ -25,7 +27,8 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
-	EMCC_FLAGS="-fPIC -sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make; \
+	JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+	EMCC_FLAGS="-fPIC $JSPI_FLAGS" emmake make; \
 	emmake make install;
 
 RUN ls -R /root/install
