@@ -51,7 +51,13 @@ extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval,
  * @param {int} exitCodePtr Pointer to the exit code
  * @returns {int} File descriptor of the command output
  */
+#ifdef PLAYGROUND_JSPI
 EM_ASYNC_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t *exit_code_ptr), {
+	const returnCallback = (resolver) => new Promise(resolver);
+#else
+EM_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t *exit_code_ptr), {
+	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+#endif
 	// Parse args
 	if (!command)
 		return 1; // shell is available
@@ -68,7 +74,7 @@ EM_ASYNC_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t
 		console.error('popen($cmd, "w") is not implemented yet');
 	}
 
-	return new Promise(async (wakeUp) => {
+	return returnCallback(async (wakeUp) => {
 		let cp;
 		try {
 			cp = PHPWASM.spawnProcess(cmdstr, []);
@@ -123,12 +129,13 @@ EM_ASYNC_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t
  * @param {int} timeout The timeout in milliseconds
  * @returns {int} 1 if any event was triggered, 0 if the timeout expired
  */
+#ifdef PLAYGROUND_JSPI
 EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
-    if (typeof Asyncify === 'undefined') {
-		// @TODO: Actually run this if we're in JSPI
-        return 0;
-    }
-
+	const returnCallback = (resolver) => new Promise(resolver);
+#else
+EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
+	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+#endif
     const POLLIN = 0x0001; /* There is data to read */
     const POLLPRI = 0x0002; /* There is urgent data to read */
     const POLLOUT = 0x0004; /* Writing now will not block */
@@ -136,7 +143,7 @@ EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeou
     const POLLHUP = 0x0010; /* Hung up */
     const POLLNVAL = 0x0020; /* Invalid request: fd not open */
 
-    return new Promise((wakeUp) => {
+    return returnCallback((wakeUp) => {
         const polls = [];
         if (socketd in PHPWASM.child_proc_by_fd) {
             // This is a child process-related socket.
@@ -247,10 +254,14 @@ EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeou
  * @see https://github.com/WordPress/wordpress-playground/issues/951
  * @see https://github.com/emscripten-core/emscripten/issues/13214
  */
+#ifdef PLAYGROUND_JSPI
 EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
-	// Only run the read operation on a regular call,
-	// never when rewinding the stack.
-	if (typeof Asyncify === 'undefined' || Asyncify.state === Asyncify.State?.Normal) {
+	const returnCallback = (resolver) => new Promise(resolver);
+#else
+EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
+	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+#endif
+	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
 		var returnCode;
 		var stream;
 		let num = 0;
@@ -287,7 +298,7 @@ EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *i
     // the read operation will work synchronously and won't require yielding
     // back to JS. In these cases we don't want to pay the Asyncify overhead,
     // save the stack, yield back to JS, restore the stack etc.
-    return new Promise((wakeUp) => {
+    return returnCallback((wakeUp) => {
         var retries = 0;
         var interval = 50;
         var timeout = 5000;
