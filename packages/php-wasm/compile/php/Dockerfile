@@ -886,7 +886,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sASYNCIFY_EXPORTS='[\"wasm_sleep\",\"wasm_read\",\"emscripten_sleep\",\"wasm_sapi_handle_request\",\"wasm_sapi_request_shutdown\",\"wasm_poll_socket\",\"wrap_select\",\"__wrap_select\",\"select\",\"php_pollfd_for\",\"fflush\",\"wasm_popen\",\"wasm_read\",\"wasm_php_exec\",\"run_cli\"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\",\"PROXYFS\",\"wasmExports\",\"_free\",\"_malloc\"]' "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_free,_malloc "; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS='[\"ccall\",\"PROXYFS\",\"wasmExports\"]' $(cat /root/.emcc-php-asyncify-flags)  "; \
 	fi; \	
@@ -932,9 +932,8 @@ RUN set -euxo pipefail; \
 	-I /root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
 	-lproxyfs.js \
-	$(cat /root/.emcc-php-wasm-flags) \
-	-o /build/output/php.js \
 	$ASYNCIFY_FLAGS \
+	$(cat /root/.emcc-php-wasm-flags) \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1         \

@@ -206,18 +206,6 @@ export class PHP implements Disposable {
 		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}
-		// Polyfill ccall – it's missing in JSPI builds
-		if (!runtime.ccall) {
-			runtime.ccall = function (name: string, args: any[]) {
-				if (!args) {
-					args = [];
-				}
-				if (!(name in runtime)) {
-					name = `_${name}`;
-				}
-				return runtime[name](...args);
-			};
-		}
 		this[__private__dont__use] = runtime;
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
@@ -291,6 +279,7 @@ export class PHP implements Disposable {
 		this.dispatchEvent({
 			type: 'runtime.initialized',
 		});
+		console.log(this.listFiles('/internals'));
 	}
 
 	/** @inheritDoc */
@@ -791,6 +780,8 @@ export class PHP implements Disposable {
 				return resolve(response);
 			});
 		} catch (e) {
+			console.error(e);
+
 			/**
 			 * An exception here means an irrecoverable crash. Let's make
 			 * it very clear to the consumers of this API – every method
