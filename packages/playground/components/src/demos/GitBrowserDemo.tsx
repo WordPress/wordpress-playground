@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import {
 	FileTree,
 	listDescendantFiles,
-	listFiles,
+	listGitFiles,
 	sparseCheckout,
 } from '@wp-playground/storage';
 import {
@@ -28,7 +28,7 @@ export default function GitBrowserDemo() {
 		() => Promise.resolve([])
 	);
 	const loadFiles = () => {
-		const promise = listFiles(repoUrl, branch);
+		const promise = listGitFiles(repoUrl, branch);
 		setFilesPromise(promise);
 	};
 	const files = usePromise(filesPromise);
