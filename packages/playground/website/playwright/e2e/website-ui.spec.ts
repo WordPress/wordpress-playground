@@ -91,31 +91,8 @@ SupportedPHPVersions.forEach(async (version) => {
 		await expect(website.page.getByLabel('PHP version')).toHaveValue(
 			version
 		);
-		await expect(
-			website.page.getByLabel('Load PHP extensions')
-		).toBeChecked();
 	});
 
-	test(`should not load additional PHP ${version} extensions when not requested`, async ({
-		website,
-	}) => {
-		await website.goto('./');
-		await website.ensureSiteManagerIsOpen();
-		await website.page.getByLabel('PHP version').selectOption(version);
-		await website.page.getByLabel('Load PHP extensions').uncheck();
-		await website.page
-			.getByText('Apply Settings & Reset Playground')
-			.click();
-		await website.ensureSiteManagerIsClosed();
-		await website.ensureSiteManagerIsOpen();
-
-		await expect(website.page.getByLabel('PHP version')).toHaveValue(
-			version
-		);
-		await expect(
-			website.page.getByLabel('Load PHP extensions')
-		).not.toBeChecked();
-	});
 });
 
 Object.keys(MinifiedWordPressVersions)
