@@ -10,6 +10,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     cd libxml2 && \
     ./autogen.sh && \
     emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
-    JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
     EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make && \
     emmake make install

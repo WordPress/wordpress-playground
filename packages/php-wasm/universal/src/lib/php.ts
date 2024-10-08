@@ -206,6 +206,18 @@ export class PHP implements Disposable {
 		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}
+		// Polyfill ccall – it's missing in JSPI builds
+		if (!runtime.ccall) {
+			runtime.ccall = function (name: string, args: any[]) {
+				if (!args) {
+					args = [];
+				}
+				if (!(name in runtime)) {
+					name = `_${name}`;
+				}
+				return runtime[name](...args);
+			};
+		}
 		this[__private__dont__use] = runtime;
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
@@ -770,8 +782,8 @@ export class PHP implements Disposable {
 					'wasm_sapi_handle_request',
 					NUMBER,
 					[],
-					[]
-					// { async: true }
+					[],
+					{ async: true }
 				);
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);

@@ -1,6 +1,6 @@
 FROM playground-php-wasm:base
 
-ARG JSPI
+ARG WITH_JSPI="no"
 
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -24,21 +24,32 @@ RUN cd php-src && ./buildconf --force
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
-COPY ./libedit/dist/root/lib /root/lib
-COPY ./libiconv/dist/root/lib /root/lib
-COPY ./libcurl/dist/root/lib /root/lib
-COPY ./libncurses/dist/root/lib /root/lib
-COPY ./libopenssl/dist/root/lib /root/lib
-COPY ./libpng16/dist/root/lib /root/lib
-COPY ./libjpeg/dist/root/lib /root/lib
-COPY ./libwebp/dist/root/lib /root/lib
-COPY ./libsqlite3/dist/root/lib /root/lib
-COPY ./libxml2/dist/root/lib /root/lib
-COPY ./libz/dist/root/lib /root/lib
-COPY ./libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
-COPY ./libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
-COPY ./oniguruma/dist/root/lib /root/lib
+COPY ./libiconv/ /root/builds/libiconv
+COPY ./libcurl/ /root/builds/libcurl
+COPY ./libopenssl/ /root/builds/libopenssl
+COPY ./libpng16/ /root/builds/libpng16
+COPY ./libjpeg/ /root/builds/libjpeg
+COPY ./libwebp/ /root/builds/libwebp
+COPY ./libsqlite3/ /root/builds/libsqlite3
+COPY ./libxml2/ /root/builds/libxml2
+COPY ./libz/ /root/builds/libz
+COPY ./oniguruma/ /root/builds/oniguruma
 
+RUN if [ "$WITH_JSPI" = "yes" ]; then \
+	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
+else \
+	cp -r /root/builds/*/asyncify/dist/root/lib/* /root/lib; \
+fi
+
+COPY ./libzip/ /root/builds-libzip/
+RUN mkdir -p /libs/libzip
+RUN if [ "$WITH_JSPI" = "yes" ]; then \
+	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
+	cp -r /root/builds-libzip/jspi/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
+else \
+	cp -r /root/builds-libzip/asyncify/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
+	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
+fi
 # Build PHP
 
 # The PHP extensions to build:
@@ -351,7 +362,7 @@ RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
-	JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; fi) && \
+	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
@@ -413,31 +424,29 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 		echo -n ' -lwebsocket.js ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
-# Always enable Asyncify since `post_message_to_js()` supports asynchronous handlers:
-	RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
-	# Emscripten supports yielding from sync functions to JavaScript event loop, but all
-	# the synchronous functions doing that must be explicitly listed here. This is an
-	# exhaustive list that was created by compiling PHP with ASYNCIFY, running code that
-	# uses networking, observing the error, and listing the missing functions.
-	#
-	# If you a get an error similar to the one below, you need to add all the function on
-	# the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
-	#
-	# RuntimeError: unreachable
-	# at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
-	# at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
-	# at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
-	#
-	# Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
-	# to get the entire stack.
-	#
-	# -------
-	#
-	# Related: Any errors like Fatal error: Cannot redeclare function ...
-	# are caused by dispatching a PHP request while an execution is paused
-	# due to an async call – it means the same PHP files are loaded before
-	# the previous request, where they're already loaded, is concluded.
-	export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
+# Emscripten supports yielding from sync functions to JavaScript event loop, but all
+# the synchronous functions doing that must be explicitly listed here. This is an
+# exhaustive list that was created by compiling PHP with ASYNCIFY, running code that
+# uses networking, observing the error, and listing the missing functions.
+#
+# If you a get an error similar to the one below, you need to add all the function on
+# the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
+#
+# RuntimeError: unreachable
+# at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
+# at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
+# at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
+#
+# Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
+# to get the entire stack.
+#
+# -------
+#
+# Related: Any errors like Fatal error: Cannot redeclare function ...
+# are caused by dispatching a PHP request while an execution is paused
+# due to an async call – it means the same PHP files are loaded before
+# the previous request, where they're already loaded, is concluded.
+RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_i",\n\
 "invoke_ii",\n\
 "invoke_iii",\n\
@@ -464,7 +473,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "js_waitpid",\n\
 "wasm_poll_socket",\n\
 "wasm_shutdown"]'; \
-	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
+	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
 "dynCall_i",\
 "dynCall_ii",\
@@ -876,10 +885,10 @@ ARG WITH_SOURCEMAPS
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
-	if [ "$JSPI" = "1" ]; then \
-		export ASYNCIFY_FLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions -s ASYNCIFY=2 -s ASYNCIFY_EXPORTS='[\"wasm_sleep\", \"wasm_read\",\"emscripten_sleep\",\"wasm_sapi_handle_request\", \"wasm_sapi_request_shutdown\",\"wasm_poll_socket\",\"wrap_select\", \"__wrap_select\",\"select\",\"php_pollfd_for\",\"fflush\",\"wasm_popen\",\"wasm_read\",\"wasm_php_exec\",\"run_cli\"]' -s EXPORTED_RUNTIME_METHODS='[\"ccall\", \"PROXYFS\", \"wasmExports\",\"_free\", \"_malloc\"]'"
+	if [ "$WITH_JSPI" = "yes" ]; then \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sASYNCIFY_EXPORTS='[\"wasm_sleep\",\"wasm_read\",\"emscripten_sleep\",\"wasm_sapi_handle_request\",\"wasm_sapi_request_shutdown\",\"wasm_poll_socket\",\"wrap_select\",\"__wrap_select\",\"select\",\"php_pollfd_for\",\"fflush\",\"wasm_popen\",\"wasm_read\",\"wasm_php_exec\",\"run_cli\"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\",\"PROXYFS\",\"wasmExports\",\"_free\",\"_malloc\"]' "; \
 	else \
-		export ASYNCIFY_FLAGS="-s ASYNCIFY=1 $(cat /root/.emcc-php-asyncify-flags) -s EXPORTED_RUNTIME_METHODS='[\"ccall\", \"PROXYFS\", \"wasmExports\"]'"
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS='[\"ccall\",\"PROXYFS\",\"wasmExports\"]' $(cat /root/.emcc-php-asyncify-flags)  "; \
 	fi; \	
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "UTF8ToString", \n\
@@ -961,7 +970,6 @@ RUN set -euxo pipefail; \
 # Postprocess the build php.js module:
 COPY ./php/esm-prefix.js /root/esm-prefix.js
 COPY ./php/esm-suffix.js /root/esm-suffix.js
-COPY ./php/patch_php_js.py /root/patch_php_js.py
 RUN set -euxo pipefail; \
 	cp -rfv /build/output/* /root/output/; \
 	# Figure out the target file names and URLs
@@ -977,7 +985,6 @@ RUN set -euxo pipefail; \
 		export EXT_PREFIX=""; \
 		export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
 		export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
-		# python /root/patch_php_js.py /root/output/php.js; \
 	# Make the php.wasm URL configurable via the dependencyFilename loader argument:
 		/root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js; \
 	# Patch a "property undefined" error

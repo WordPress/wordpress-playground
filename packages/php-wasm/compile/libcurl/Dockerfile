@@ -3,10 +3,20 @@ FROM playground-php-wasm:base
 ARG JSPI
 
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ./libz/dist/root/lib/include /root/lib/include
-COPY ./libz/dist/root/lib/lib /root/lib/lib
-COPY ./libopenssl/dist/root/lib/include /root/lib/include
-COPY ./libopenssl/dist/root/lib/lib /root/lib/lib
+COPY ./libz/ /root/libz
+RUN if [ "$JSPI" = "1" ]; then \
+        cp -r /root/libz/jspi/dist/root/lib/* /root/lib; \
+    else \
+        cp -r /root/libz/asyncify/dist/root/lib/* /root/lib; \
+    fi
+
+COPY ./libopenssl/ /root/libopenssl
+RUN if [ "$JSPI" = "1" ]; then \
+        cp -r /root/libopenssl/jspi/dist/root/lib/* /root/lib; \
+    else \
+        cp -r /root/libopenssl/asyncify/dist/root/lib/* /root/lib; \
+    fi
+
 
 ARG CURL_VERSION="curl-7.69.1"
 

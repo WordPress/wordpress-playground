@@ -125,7 +125,7 @@ const platformDefaults = {
 		PHP_VERSION: '8.0.24',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
-		JSPI: 'no',
+		WITH_JSPI: 'no',
 	},
 	web: {
 		WITH_FILEINFO: 'yes',
@@ -224,6 +224,8 @@ await asyncSpawn(
 		getArg('WITH_WS_NETWORKING_PROXY'),
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
+		'--build-arg',
+		getArg('WITH_JSPI'),
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );

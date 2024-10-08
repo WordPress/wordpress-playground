@@ -80,15 +80,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.3 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.2 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.1 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.0 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.4 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.3 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.2 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.1 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.0 --output-dir=packages/php-wasm/node/public/jspi --JSPI=1"
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.3 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.2 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.1 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.0 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.4 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.3 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.2 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.1 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.0 --output-dir=packages/php-wasm/node/public/jspi --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
