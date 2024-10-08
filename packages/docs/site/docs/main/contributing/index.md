@@ -21,7 +21,7 @@ WordPress Playground is an open-source project that welcomes all contributors—
 -   Code contributors should review the [coding principles](/contributing/coding-standards).
 -   You maintain copyright over any contribution you make. By submitting a Pull Request, you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
 
-# Triaging issues
+## Triaging issues
 
 Want to help sort through open issues and resolve potential bugs? Here's how:
 
