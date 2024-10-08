@@ -167,7 +167,8 @@ Here's a few quickstart guides to get you started:
 
 -   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
 -   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
--   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing).
+-   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
+-   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
 -   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
 -   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 
