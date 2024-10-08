@@ -151,6 +151,13 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+
+			// @wp-playground/website doesn't actually use the remote-config virtual
+			// module, @wp-playground/remote package does. @wp-playground/website imports
+			// a few things from @wp-playground/remote and, even though it doesn't
+			// involve the remote-config virtual module, the bundler still needs to know
+			// what to do when it sees `import from "virtual:remote-config"`.
+			buildVersionPlugin('remote-config'),
 		],
 
 		// Configuration for building your library.
