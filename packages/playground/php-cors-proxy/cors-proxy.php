@@ -8,16 +8,8 @@ define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
 
 require_once __DIR__ . '/proxy-functions.php';
 
-// Set CORS headers
-function set_cors_headers() {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: GET, POST, HEAD, OPTIONS");
-    header("Access-Control-Allow-Headers: *");
-}
-
-// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    set_cors_headers();
+    header("Allow: GET, POST, OPTIONS");
     exit;
 }
 
@@ -129,7 +121,6 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
 }
 
 // Execute cURL session
-set_cors_headers();
 if (!curl_exec($ch)) {
     http_response_code(502);
     echo "Bad Gateway – curl_exec error: " . curl_error($ch);
