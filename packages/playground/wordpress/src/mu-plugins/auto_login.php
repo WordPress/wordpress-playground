@@ -96,13 +96,6 @@ function playground_auto_login() {
 }
 
 /**
- * Autologin on load.
- * This uses the `wp` hook as it's the earliest hook that will allow us to
- * auto-login
- */
-// add_action('init', 'playground_auto_login', 1);
-
-/**
  * Autologin users from the wp-login.php page.
  *
  * The `wp` hook isn't triggered on
