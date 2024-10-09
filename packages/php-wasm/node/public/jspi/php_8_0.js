@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 14262285; 
+export const dependenciesTotalSize = 14262385; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -335,6 +335,7 @@ function createWasm() {
   /** @param {WebAssembly.Module=} module*/ function receiveInstance(instance, module) {
     wasmExports = instance.exports;
     wasmExports = Asyncify.instrumentWasmExports(wasmExports);
+    Module["wasmExports"] = wasmExports;
     wasmMemory = wasmExports["memory"];
     updateMemoryViews();
     wasmTable = wasmExports["__indirect_function_table"];
@@ -363,230 +364,218 @@ var tempDouble;
 
 var tempI64;
 
-function __asyncjs__js_popen_to_file(cmd, mode, exit_code_ptr) {
-  return Asyncify.handleAsync(async () => {
-    if (!command) return 1;
-    const cmdstr = UTF8ToString(command);
-    if (!cmdstr.length) return 0;
-    const modestr = UTF8ToString(mode);
-    if (!modestr.length) return 0;
-    if (modestr === "w") {
-      console.error('popen($cmd, "w") is not implemented yet');
-    }
-    return new Promise(async wakeUp => {
-      let cp;
-      try {
-        cp = PHPWASM.spawnProcess(cmdstr, []);
-        if (cp instanceof Promise) {
-          cp = await cp;
-        }
-      } catch (e) {
-        console.error(e);
-        if (e.code === "SPAWN_UNSUPPORTED") {
-          return 1;
-        }
-        throw e;
+function js_popen_to_file(cmd, mode, exit_code_ptr) {
+  const returnCallback = resolver => Asyncify.handleSleep(resolver);
+  if (!command) return 1;
+  const cmdstr = UTF8ToString(command);
+  if (!cmdstr.length) return 0;
+  const modestr = UTF8ToString(mode);
+  if (!modestr.length) return 0;
+  if (modestr === "w") {
+    console.error('popen($cmd, "w") is not implemented yet');
+  }
+  return returnCallback(async wakeUp => {
+    let cp;
+    try {
+      cp = PHPWASM.spawnProcess(cmdstr, []);
+      if (cp instanceof Promise) {
+        cp = await cp;
       }
-      const outByteArrays = [];
-      cp.stdout.on("data", function(data) {
-        outByteArrays.push(data);
-      });
-      const outputPath = "/tmp/popen_output";
-      cp.on("exit", function(exitCode) {
-        const outBytes = new Uint8Array(outByteArrays.reduce((acc, curr) => acc + curr.length, 0));
-        let offset = 0;
-        for (const byteArray of outByteArrays) {
-          outBytes.set(byteArray, offset);
-          offset += byteArray.length;
-        }
-        FS.writeFile(outputPath, outBytes);
-        HEAPU8[exitCodePtr] = exitCode;
-        wakeUp(allocateUTF8OnStack(outputPath));
-      });
+    } catch (e) {
+      console.error(e);
+      if (e.code === "SPAWN_UNSUPPORTED") {
+        return 1;
+      }
+      throw e;
+    }
+    const outByteArrays = [];
+    cp.stdout.on("data", function(data) {
+      outByteArrays.push(data);
+    });
+    const outputPath = "/tmp/popen_output";
+    cp.on("exit", function(exitCode) {
+      const outBytes = new Uint8Array(outByteArrays.reduce((acc, curr) => acc + curr.length, 0));
+      let offset = 0;
+      for (const byteArray of outByteArrays) {
+        outBytes.set(byteArray, offset);
+        offset += byteArray.length;
+      }
+      FS.writeFile(outputPath, outBytes);
+      HEAPU8[exitCodePtr] = exitCode;
+      wakeUp(allocateUTF8OnStack(outputPath));
     });
   });
 }
 
-__asyncjs__js_popen_to_file.sig = "iiii";
+js_popen_to_file.sig = "iiii";
 
-function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
-  return Asyncify.handleAsync(async () => {
-    if (typeof Asyncify === "undefined") {
-      return 0;
-    }
-    const POLLIN = 1;
-    const POLLPRI = 2;
-    const POLLOUT = 4;
-    const POLLERR = 8;
-    const POLLHUP = 16;
-    const POLLNVAL = 32;
-    return new Promise(wakeUp => {
-      const polls = [];
-      if (socketd in PHPWASM.child_proc_by_fd) {
-        const procInfo = PHPWASM.child_proc_by_fd[socketd];
-        if (procInfo.exited) {
-          wakeUp(0);
-          return;
-        }
-        polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
-      } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
-        const sock = getSocketFromFD(socketd);
-        if (!sock) {
-          wakeUp(0);
-          return;
-        }
-        const lookingFor = new Set;
-        if (events & POLLIN || events & POLLPRI) {
-          if (sock.server) {
-            for (const client of sock.pending) {
-              if ((client.recv_queue || []).length > 0) {
-                wakeUp(1);
-                return;
-              }
+function wasm_poll_socket(socketd, events, timeout) {
+  const returnCallback = resolver => Asyncify.handleSleep(resolver);
+  const POLLIN = 1;
+  const POLLPRI = 2;
+  const POLLOUT = 4;
+  const POLLERR = 8;
+  const POLLHUP = 16;
+  const POLLNVAL = 32;
+  return returnCallback(wakeUp => {
+    const polls = [];
+    if (socketd in PHPWASM.child_proc_by_fd) {
+      const procInfo = PHPWASM.child_proc_by_fd[socketd];
+      if (procInfo.exited) {
+        wakeUp(0);
+        return;
+      }
+      polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
+    } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+      const sock = getSocketFromFD(socketd);
+      if (!sock) {
+        wakeUp(0);
+        return;
+      }
+      const lookingFor = new Set;
+      if (events & POLLIN || events & POLLPRI) {
+        if (sock.server) {
+          for (const client of sock.pending) {
+            if ((client.recv_queue || []).length > 0) {
+              wakeUp(1);
+              return;
             }
-          } else if ((sock.recv_queue || []).length > 0) {
-            wakeUp(1);
-            return;
           }
-        }
-        const webSockets = PHPWASM.getAllWebSockets(sock);
-        if (!webSockets.length) {
-          wakeUp(0);
+        } else if ((sock.recv_queue || []).length > 0) {
+          wakeUp(1);
           return;
         }
-        for (const ws of webSockets) {
-          if (events & POLLIN || events & POLLPRI) {
-            polls.push(PHPWASM.awaitData(ws));
-            lookingFor.add("POLLIN");
-          }
-          if (events & POLLOUT) {
-            polls.push(PHPWASM.awaitConnection(ws));
-            lookingFor.add("POLLOUT");
-          }
-          if (events & POLLHUP) {
-            polls.push(PHPWASM.awaitClose(ws));
-            lookingFor.add("POLLHUP");
-          }
-          if (events & POLLERR || events & POLLNVAL) {
-            polls.push(PHPWASM.awaitError(ws));
-            lookingFor.add("POLLERR");
-          }
+      }
+      const webSockets = PHPWASM.getAllWebSockets(sock);
+      if (!webSockets.length) {
+        wakeUp(0);
+        return;
+      }
+      for (const ws of webSockets) {
+        if (events & POLLIN || events & POLLPRI) {
+          polls.push(PHPWASM.awaitData(ws));
+          lookingFor.add("POLLIN");
         }
-      } else {
-        setTimeout(function() {
-          wakeUp(1);
-        }, timeout);
-        return;
+        if (events & POLLOUT) {
+          polls.push(PHPWASM.awaitConnection(ws));
+          lookingFor.add("POLLOUT");
+        }
+        if (events & POLLHUP) {
+          polls.push(PHPWASM.awaitClose(ws));
+          lookingFor.add("POLLHUP");
+        }
+        if (events & POLLERR || events & POLLNVAL) {
+          polls.push(PHPWASM.awaitError(ws));
+          lookingFor.add("POLLERR");
+        }
       }
-      if (polls.length === 0) {
-        console.warn("Unsupported poll event " + events + ", defaulting to setTimeout().");
-        setTimeout(function() {
-          wakeUp(0);
-        }, timeout);
-        return;
+    } else {
+      setTimeout(function() {
+        wakeUp(1);
+      }, timeout);
+      return;
+    }
+    if (polls.length === 0) {
+      console.warn("Unsupported poll event " + events + ", defaulting to setTimeout().");
+      setTimeout(function() {
+        wakeUp(0);
+      }, timeout);
+      return;
+    }
+    const promises = polls.map(([promise]) => promise);
+    const clearPolling = () => polls.forEach(([, clear]) => clear());
+    let awaken = false;
+    let timeoutId;
+    Promise.race(promises).then(function(results) {
+      if (!awaken) {
+        awaken = true;
+        wakeUp(1);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        clearPolling();
       }
-      const promises = polls.map(([promise]) => promise);
-      const clearPolling = () => polls.forEach(([, clear]) => clear());
-      let awaken = false;
-      let timeoutId;
-      Promise.race(promises).then(function(results) {
+    });
+    if (timeout !== -1) {
+      timeoutId = setTimeout(function() {
         if (!awaken) {
           awaken = true;
-          wakeUp(1);
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
+          wakeUp(0);
           clearPolling();
         }
-      });
-      if (timeout !== -1) {
-        timeoutId = setTimeout(function() {
-          if (!awaken) {
-            awaken = true;
-            wakeUp(0);
-            clearPolling();
-          }
-        }, timeout);
-      }
-    });
+      }, timeout);
+    }
   });
 }
 
-__asyncjs__wasm_poll_socket.sig = "iiii";
+wasm_poll_socket.sig = "iiii";
 
-function __asyncjs__js_fd_read(fd, iov, iovcnt, pnum) {
-  return Asyncify.handleAsync(async () => {
-    if (typeof Asyncify === "undefined" || Asyncify.state === Asyncify.State?.Normal) {
-      var returnCode;
-      var stream;
-      let num = 0;
-      try {
-        stream = SYSCALLS.getStreamFromFD(fd);
-        const num = doReadv(stream, iov, iovcnt);
-        HEAPU32[pnum >> 2] = num;
-        return 0;
-      } catch (e) {
-        if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
-          throw e;
-        }
-        if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
-          HEAPU32[pnum >> 2] = 0;
-          return returnCode;
-        }
+function js_fd_read(fd, iov, iovcnt, pnum) {
+  const returnCallback = resolver => Asyncify.handleSleep(resolver);
+  if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
+    var returnCode;
+    var stream;
+    let num = 0;
+    try {
+      stream = SYSCALLS.getStreamFromFD(fd);
+      const num = doReadv(stream, iov, iovcnt);
+      HEAPU32[pnum >> 2] = num;
+      return 0;
+    } catch (e) {
+      if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+        throw e;
+      }
+      if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+        HEAPU32[pnum >> 2] = 0;
+        return returnCode;
       }
     }
-    return new Promise(wakeUp => {
-      var retries = 0;
-      var interval = 50;
-      var timeout = 5e3;
-      var maxRetries = timeout / interval;
-      function poll() {
-        var returnCode;
-        var stream;
-        let num;
-        try {
-          stream = SYSCALLS.getStreamFromFD(fd);
-          num = doReadv(stream, iov, iovcnt);
-          returnCode = 0;
-        } catch (e) {
-          if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
-            console.error(e);
-            throw e;
-          }
-          returnCode = e.errno;
+  }
+  return returnCallback(wakeUp => {
+    var retries = 0;
+    var interval = 50;
+    var timeout = 5e3;
+    var maxRetries = timeout / interval;
+    function poll() {
+      var returnCode;
+      var stream;
+      let num;
+      try {
+        stream = SYSCALLS.getStreamFromFD(fd);
+        num = doReadv(stream, iov, iovcnt);
+        returnCode = 0;
+      } catch (e) {
+        if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+          console.error(e);
+          throw e;
         }
-        const success = returnCode === 0;
-        const failure = (++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream));
-        if (success) {
-          HEAPU32[pnum >> 2] = num;
-          wakeUp(0);
-        } else if (failure) {
-          HEAPU32[pnum >> 2] = 0;
-          wakeUp(returnCode === 6 ? 0 : returnCode);
-        } else {
-          setTimeout(poll, interval);
-        }
+        returnCode = e.errno;
       }
-      poll();
-    });
+      const success = returnCode === 0;
+      const failure = (++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream));
+      if (success) {
+        HEAPU32[pnum >> 2] = num;
+        wakeUp(0);
+      } else if (failure) {
+        HEAPU32[pnum >> 2] = 0;
+        wakeUp(returnCode === 6 ? 0 : returnCode);
+      } else {
+        setTimeout(poll, interval);
+      }
+    }
+    poll();
   });
 }
 
-__asyncjs__js_fd_read.sig = "iiiii";
+js_fd_read.sig = "iiiii";
 
 function __asyncjs__js_module_onMessage(data, response_buffer) {
   return Asyncify.handleAsync(async () => {
     if (Module["onMessage"]) {
       const dataStr = UTF8ToString(data);
-      console.log("onMessage");
       return Module["onMessage"](dataStr).then(response => {
         const responseBytes = typeof response === "string" ? (new TextEncoder).encode(response) : response;
-        console.log("Response", {
-          response: response,
-          responseBytes: responseBytes
-        });
         const responseSize = responseBytes.byteLength;
-        console.log("Response size", responseSize);
         const responsePtr = _malloc(responseSize + 1);
         HEAPU8.set(responseBytes, responsePtr);
         HEAPU8[responsePtr + responseSize] = 0;
@@ -6715,7 +6704,7 @@ var Asyncify = {
     }
   },
   instrumentWasmExports(exports) {
-    var exportPattern = /^(["wasm_sleep",'["wasm_sleep","wasm_read","emscripten_sleep","wasm_sapi_handle_request","wasm_sapi_request_shutdown","wasm_poll_socket","wrap_select","__wrap_select","select","php_pollfd_for","fflush","wasm_popen","wasm_read","wasm_php_exec","run_cli"]|main|__main_argc_argv)$/;
+    var exportPattern = /^(wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|main|__main_argc_argv)$/;
     Asyncify.asyncExports = new Set;
     var ret = {};
     for (let [x, original] of Object.entries(exports)) {
@@ -6750,6 +6739,67 @@ var Asyncify = {
   makeAsyncFunction(original) {
     return WebAssembly.promising(original);
   }
+};
+
+var getCFunc = ident => {
+  var func = Module["_" + ident];
+  return func;
+};
+
+var stackSave = () => _emscripten_stack_get_current();
+
+var stackRestore = val => __emscripten_stack_restore(val);
+
+/**
+     * @param {string|null=} returnType
+     * @param {Array=} argTypes
+     * @param {Arguments|Array=} args
+     * @param {Object=} opts
+     */ var ccall = (ident, returnType, argTypes, args, opts) => {
+  var toC = {
+    "string": str => {
+      var ret = 0;
+      if (str !== null && str !== undefined && str !== 0) {
+        ret = stringToUTF8OnStack(str);
+      }
+      return ret;
+    },
+    "array": arr => {
+      var ret = stackAlloc(arr.length);
+      writeArrayToMemory(arr, ret);
+      return ret;
+    }
+  };
+  function convertReturnValue(ret) {
+    if (returnType === "string") {
+      return UTF8ToString(ret);
+    }
+    if (returnType === "boolean") return Boolean(ret);
+    return ret;
+  }
+  var func = getCFunc(ident);
+  var cArgs = [];
+  var stack = 0;
+  if (args) {
+    for (var i = 0; i < args.length; i++) {
+      var converter = toC[argTypes[i]];
+      if (converter) {
+        if (stack === 0) stack = stackSave();
+        cArgs[i] = converter(args[i]);
+      } else {
+        cArgs[i] = args[i];
+      }
+    }
+  }
+  var ret = func(...cArgs);
+  function onDone(ret) {
+    if (stack !== 0) stackRestore(stack);
+    return convertReturnValue(ret);
+  }
+  var asyncMode = opts?.async;
+  if (asyncMode) return ret.then(onDone);
+  ret = onDone(ret);
+  return ret;
 };
 
 var FS_createPath = FS.createPath;
@@ -6787,10 +6837,7 @@ var wasmImports = {
   /** @export */ SharpYuvGetConversionMatrix: _SharpYuvGetConversionMatrix,
   /** @export */ SharpYuvInit: _SharpYuvInit,
   /** @export */ __assert_fail: ___assert_fail,
-  /** @export */ __asyncjs__js_fd_read: __asyncjs__js_fd_read,
   /** @export */ __asyncjs__js_module_onMessage: __asyncjs__js_module_onMessage,
-  /** @export */ __asyncjs__js_popen_to_file: __asyncjs__js_popen_to_file,
-  /** @export */ __asyncjs__wasm_poll_socket: __asyncjs__wasm_poll_socket,
   /** @export */ __call_sighandler: ___call_sighandler,
   /** @export */ __syscall_accept4: ___syscall_accept4,
   /** @export */ __syscall_bind: ___syscall_bind,
@@ -6862,7 +6909,9 @@ var wasmImports = {
   /** @export */ getprotobyname: _getprotobyname,
   /** @export */ getprotobynumber: _getprotobynumber,
   /** @export */ js_create_input_device: _js_create_input_device,
+  /** @export */ js_fd_read: js_fd_read,
   /** @export */ js_open_process: _js_open_process,
+  /** @export */ js_popen_to_file: js_popen_to_file,
   /** @export */ js_process_status: _js_process_status,
   /** @export */ js_waitpid: _js_waitpid,
   /** @export */ proc_exit: _proc_exit,
@@ -6870,6 +6919,7 @@ var wasmImports = {
   /** @export */ strftime_l: _strftime_l,
   /** @export */ strptime: _strptime,
   /** @export */ wasm_close: _wasm_close,
+  /** @export */ wasm_poll_socket: wasm_poll_socket,
   /** @export */ wasm_setsockopt: _wasm_setsockopt,
   /** @export */ wasm_shutdown: _wasm_shutdown
 };
@@ -6950,11 +7000,19 @@ var ___trap = () => (___trap = wasmExports["__trap"])();
 
 var __emscripten_tempret_set = a0 => (__emscripten_tempret_set = wasmExports["_emscripten_tempret_set"])(a0);
 
+var __emscripten_stack_restore = a0 => (__emscripten_stack_restore = wasmExports["_emscripten_stack_restore"])(a0);
+
 var __emscripten_stack_alloc = a0 => (__emscripten_stack_alloc = wasmExports["_emscripten_stack_alloc"])(a0);
+
+var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports["emscripten_stack_get_current"])();
 
 Module["addRunDependency"] = addRunDependency;
 
 Module["removeRunDependency"] = removeRunDependency;
+
+Module["wasmExports"] = wasmExports;
+
+Module["ccall"] = ccall;
 
 Module["FS_createPreloadedFile"] = FS_createPreloadedFile;
 
@@ -6967,6 +7025,8 @@ Module["FS_createDevice"] = FS_createDevice;
 Module["FS_createDataFile"] = FS_createDataFile;
 
 Module["FS_createLazyFile"] = FS_createLazyFile;
+
+Module["PROXYFS"] = PROXYFS;
 
 var calledRun;
 
