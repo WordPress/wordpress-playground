@@ -9,6 +9,11 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.0.1] (2024-10-09) 
+
+
+
+
 ## [v1.0.0] (2024-10-09) 
 
 ### Blueprints
