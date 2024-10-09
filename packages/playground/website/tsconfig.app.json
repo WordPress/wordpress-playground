@@ -30,6 +30,7 @@
 		"demos/terminal.ts",
 		"demos/terminal-component.tsx",
 		"demos/php-blueprints.ts",
-		"./cypress.config.ts"
+		"./cypress.config.ts",
+		"../components/src/icons.tsx"
 	]
 }

@@ -35,11 +35,12 @@ jobs:
             NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
                   persist-credentials: false
+                  submodules: true
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"

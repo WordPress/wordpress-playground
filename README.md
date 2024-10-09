@@ -51,7 +51,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 				},
 				{
 					step: 'installPlugin',
-					pluginZipFile: {
+					pluginData: {
 						resource: 'wordpress.org/plugins',
 						slug: 'friends',
 					},
@@ -84,7 +84,7 @@ The vanilla `git clone` command will take ages. Here's a faster alternative that
 only pull the latest revision of the trunk branch:
 
 ```
-git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1 --recurse-submodules git@github.com:WordPress/wordpress-playground.git
 ```
 
 ## Running WordPress Playground locally
@@ -92,7 +92,7 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 You also can run WordPress Playground locally as follows:
 
 ```bash
-git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1 --recurse-submodules git@github.com:WordPress/wordpress-playground.git
 cd wordpress-playground
 npm install
 npm run dev
@@ -167,7 +167,8 @@ Here's a few quickstart guides to get you started:
 
 -   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
 -   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
--   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing).
+-   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
+-   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
 -   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
 -   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 

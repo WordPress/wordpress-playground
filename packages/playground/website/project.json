@@ -7,9 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": [
-				"build:wasm-wordpress-net"
-			]
+			"dependsOn": ["build:wasm-wordpress-net"]
 		},
 		"build:wasm-wordpress-net": {
 			"executor": "nx:run-commands",
@@ -28,10 +26,7 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": [
-				"build:standalone",
-				"^build"
-			]
+			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
 			"executor": "@nx/vite:build",
@@ -55,6 +50,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
@@ -146,6 +142,70 @@
 				"headless": false,
 				"baseUrl": "https://playground.test/website-server/"
 			}
+		},
+		"e2e:playwright": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.config.ts"
+				],
+				"parallel": false
+			}
+		},
+		"e2e:playwright:ci": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
+				],
+				"parallel": false
+			}
+		},
+		"e2e:playwright:prepare-app-deploy-and-offline-mode": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"e2e:playwright:prepare-app-deploy-and-offline-mode:build-current-version",
+				"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-versions"
+			]
+		},
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:unzip-old-versions": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
+					"unzip ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
+				]
+			}
+		},
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:build-old-version": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"export CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)",
+					"git fetch origin tag v0.9.0 --no-tags",
+					"git checkout tags/v0.9.0 -b v0.9.0",
+					"npm install",
+					"npm run build",
+					"PLAYGROUND_URL=http://localhost:7999 npx nx run playground-website:build:wasm-wordpress-net",
+					"rm -rf dist/packages/playground/wasm-wordpress-net-old || true",
+					"mv dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-old",
+					"git stash",
+					"git checkout $CURRENT_BRANCH",
+					"npm install"
+				],
+				"parallel": false
+			}
+		},
+		"e2e:playwright:prepare-app-deploy-and-offline-mode:build-current-version": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"rm -rf dist/packages/playground/wasm-wordpress-net-new || true",
+					"cp -rf dist/packages/playground/wasm-wordpress-net dist/packages/playground/wasm-wordpress-net-new"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build"]
 		}
 	},
 	"tags": ["scope:web-client"]

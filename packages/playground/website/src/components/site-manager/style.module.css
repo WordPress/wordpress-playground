@@ -16,10 +16,14 @@
 .sidebar {
 	width: var(--site-manager-site-list-width);
 	height: 100%;
+	@media (max-width: 875px) {
+		width: 100%;
+	}
 }
 
 .site-manager-site-info {
-	min-width: var(--site-manager-site-list-width);
+	min-width: var(--site-manager-site-info-min-width);
 	height: 100%;
+	flex-shrink: 1;
 	flex-grow: 1;
 }

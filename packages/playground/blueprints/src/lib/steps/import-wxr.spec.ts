@@ -42,7 +42,7 @@ describe('Blueprint step importWxr', () => {
 		);
 		const pluginZipFile = new File([pluginZipData], 'plugin.zip');
 		await installPlugin(php, {
-			pluginZipFile,
+			pluginData: pluginZipFile,
 		});
 	});
 

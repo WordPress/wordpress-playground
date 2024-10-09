@@ -11,3 +11,4 @@ packages/php-wasm/node/src/test/__test*
 *.timestamp-1678999213403.mjs
 .local
 .vscode
+playwright-report

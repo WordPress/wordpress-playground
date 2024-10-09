@@ -62,6 +62,7 @@ const sidebars = {
 						'main/contributing/coding-standards',
 						'main/contributing/contributor-day',
 						'main/contributing/documentation',
+						'main/contributing/translations',
 					],
 				},
 				'main/resources',

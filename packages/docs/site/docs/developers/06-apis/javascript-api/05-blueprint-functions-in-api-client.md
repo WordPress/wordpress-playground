@@ -26,7 +26,7 @@ await installPlugin(client, {
 	// Resources can only be used with JSON Blueprints.
 	// If you use functions, you must provide the resolved
 	// file.
-	pluginZipFile: await fetch(pluginUrl),
+	pluginData: await fetch(pluginUrl),
 });
 ```
 

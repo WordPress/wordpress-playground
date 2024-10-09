@@ -3,7 +3,7 @@ import { PHPResponse, PHPProcessManager, PHP } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
-import { OfflineModeCache } from './offline-mode-cache';
+import { hasCachedResponse } from './offline-mode-cache';
 import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
 
 export function spawnHandlerFactory(processManager: PHPProcessManager) {
@@ -131,17 +131,17 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
  * a list is shipped with every minified build in a file called `wordpress-remote-asset-paths`.
  *
  * For example, when `/wp-includes/css/dist/block-library/common.min.css` isn't found
- * in the Playground filesystem, the service worker looks for it in `/wordpress/wordpress-remote-asset-paths`
- * and finds it there. This means it's available on the remote server, so the service
- * worker fetches it from an URL like:
+ * in the Playground filesystem, the service worker looks for it in
+ * `/wordpress/wordpress-remote-asset-paths`and finds it there. This means it's available on the
+ * remote server, so the service worker fetches it from an URL like:
  *
  * https://playground.wordpress.net/wp-6.5/wp-includes/css/dist/block-library/common.min.css
  *
  * ## Assets backfilling
  *
- * Running Playground offline isn't possible without shipping all the static assets into the browser.
- * Downloading every CSS and JS file one request at a time would be slow to run and tedious to maintain.
- * This is where this function comes in!
+ * Running Playground offline isn't possible without shipping all the static assets into the
+ * browser. Downloading every CSS and JS file one request at a time would be slow to run and
+ * tedious to maintain. This is where this function comes in!
  *
  * It downloads a zip archive containing all the static files removed from the currently running
  * minified build, and unzips them in the Playground filesystem. Once it finishes, the WordPress
@@ -162,13 +162,15 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
  *
  * ### Downloading assets during backfill
  *
- * Each WordPress release has a corresponding static assets directory on the Playground.WordPress.net server.
- * The file is downloaded from the server and unzipped into the WordPress document root.
+ * Each WordPress release has a corresponding static assets directory on the
+ * Playground.WordPress.net server. The file is downloaded from the server and unzipped into the
+ * WordPress document root.
  *
  * ### Skipping existing files during unzipping
  *
  * If any of the files already exist, they are skipped and not overwritten.
- * By skipping existing files, we ensure that the backfill process doesn't overwrite any user changes.
+ * By skipping existing files, we ensure that the backfill process doesn't overwrite any user
+ * changes.
  */
 export async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	if (!php.requestHandler) {
@@ -223,11 +225,7 @@ export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	if (!staticAssetsUrl) {
 		return false;
 	}
-	const cache = await OfflineModeCache.getInstance();
-	const response = await cache.cache.match(staticAssetsUrl, {
-		ignoreSearch: true,
-	});
-	return !!response;
+	return await hasCachedResponse(staticAssetsUrl);
 }
 
 /**

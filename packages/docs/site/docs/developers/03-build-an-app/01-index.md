@@ -58,21 +58,21 @@ You can still showcase it on Playground by using [JSON Blueprints](/blueprints).
 	"steps": [
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "url",
 				"url": "https://your-site.com/your-plugin.zip"
 			}
 		},
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "url",
 				"url": "https://your-site.com/your-theme.zip"
 			}
 		},
 		{
 			"step": "importWxr",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "url",
 				"url": "https://your-site.com/starter-content.wxr"
 			}
@@ -100,7 +100,7 @@ Those zip bundles aren't any different from regular WordPress Plugins, which mea
 	"steps": [
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "url",
 				"url": "https://your-site.com/pull-request-1234.zip"
 			}
@@ -146,7 +146,7 @@ blueprint={{
 		},
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "vfs",
 				"path": "/wordpress/pr/gutenberg.zip"
 			}

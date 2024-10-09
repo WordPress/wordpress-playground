@@ -23,11 +23,12 @@ jobs:
         concurrency:
             group: check-version-and-run-build
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
                   persist-credentials: false
+                  submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: 'Refresh the SQLite bundle'
               shell: bash

@@ -1,5 +1,4 @@
 import { StepHandler } from '.';
-import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc login
@@ -10,7 +9,6 @@ import { logger } from '@php-wasm/logger';
  * {
  * 	    "step": "login",
  * 		"username": "admin",
- * 		"password": "password"
  * }
  * </code>
  */
@@ -21,44 +19,25 @@ export type LoginStep = {
 	 */
 	username?: string;
 	/**
-	 * The password to log in with. Defaults to 'password'.
+	 * @deprecated The password field is deprecated and will be removed in a future version.
+	 * Only the username field is required for user authentication.
 	 */
 	password?: string;
 };
 
 /**
  * Logs in to Playground.
- * Under the hood, this function submits the [`wp-login.php`](https://developer.wordpress.org/reference/files/wp-login.php/) [form](https://developer.wordpress.org/reference/functions/wp_login_form/)
- * just like a user would.
+ * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN_AS_USER` constant.
+ * The `auto_login.php` mu-plugin uses that constant to log in the user on the first load.
+ * This step depends on the `@wp-playground/wordpress` package because
+ * the plugin is located in and loaded automatically by the `@wp-playground/wordpress` package.
  */
 export const login: StepHandler<LoginStep> = async (
 	playground,
-	{ username = 'admin', password = 'password' } = {},
+	{ username = 'admin' } = {},
 	progress
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
-	// Allow WordPress to set the cookies.
-	await playground.request({
-		url: '/wp-login.php',
-	});
 
-	const response = await playground.request({
-		url: '/wp-login.php',
-		method: 'POST',
-		body: {
-			log: username,
-			pwd: password,
-			rememberme: 'forever',
-		},
-	});
-
-	if (!response.headers?.['location']?.[0]?.includes('/wp-admin/')) {
-		logger.warn('WordPress response was', {
-			response,
-			text: response.text,
-		});
-		throw new Error(
-			`Failed to log in as ${username} with password ${password}`
-		);
-	}
+	playground.defineConstant('PLAYGROUND_AUTO_LOGIN_AS_USER', username);
 };

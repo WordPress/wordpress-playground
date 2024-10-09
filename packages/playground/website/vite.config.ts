@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import type { Plugin, ViteDevServer } from 'vite';
+import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
@@ -21,8 +21,9 @@ import { join } from 'node:path';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 import { addManifestJson } from '../../vite-extensions/vite-manifest';
+import virtualModule from '../../vite-extensions/vite-virtual-module';
 
-const proxy = {
+const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
 		target: 'https://playground.wordpress.net',
 		changeOrigin: true,
@@ -77,6 +78,15 @@ export default defineConfig(({ command, mode }) => {
 			}),
 			ignoreWasmImports(),
 			buildVersionPlugin('website-config'),
+			virtualModule({
+				name: 'cors-proxy-url',
+				content: `
+				export const corsProxyUrl = '${
+					mode === 'production'
+						? '/cors-proxy.php'
+						: 'http://127.0.0.1:5263/cors-proxy.php'
+				}';`,
+			}),
 			// GitHub OAuth flow
 			{
 				name: 'configure-server',

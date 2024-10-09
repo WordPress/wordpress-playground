@@ -188,15 +188,55 @@ export async function copyMemfsToOpfs(
 	}
 	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot);
 
-	// Now let's create all the required files in OPFS. This is quite slow
-	// so we report progress.
-	let i = 0;
-	const filesCreated = filesToCreate.map(([opfsDir, memfsPath, entryName]) =>
-		overwriteOpfsFile(opfsDir, entryName, FS, memfsPath).then(() => {
-			onProgress?.({ files: ++i, total: filesToCreate.length });
-		})
-	);
-	await Promise.all(filesCreated);
+	// Now let's create all the required files in OPFS. This can be quite slow
+	// so we report progress. Throttle the progress callback to avoid flooding
+	// the main thread with excessive updates.
+	let numFilesCompleted = 0;
+	const throttledProgressCallback = onProgress && throttle(onProgress, 100);
+
+	// Limit max concurrent writes because Safari may otherwise encounter
+	// an error like "UnknownError: Invalid platform file handle" after opening
+	// a sufficient number of FileSyncAccessHandles (near 128).
+	// 2024-09-21: This limit was chosen based on perceived performance while
+	// testing with Safari, Chrome, and Firefox. It felt like a sweet spot.
+	// Writing one-at-a-time with no concurrency had similar performance
+	// but felt slightly slower. We can revisit and take better measurements
+	// if needed.
+	const maxConcurrentWrites = 100;
+	const concurrentWrites = new Set();
+
+	try {
+		for (const [opfsDir, memfsPath, entryName] of filesToCreate) {
+			const promise = overwriteOpfsFile(
+				opfsDir,
+				entryName,
+				FS,
+				memfsPath
+			).then(() => {
+				numFilesCompleted++;
+				concurrentWrites.delete(promise);
+
+				throttledProgressCallback?.({
+					files: numFilesCompleted,
+					total: filesToCreate.length,
+				});
+			});
+			concurrentWrites.add(promise);
+
+			if (concurrentWrites.size >= maxConcurrentWrites) {
+				await Promise.race(concurrentWrites);
+				throttledProgressCallback?.({
+					files: numFilesCompleted,
+					total: filesToCreate.length,
+				});
+			}
+		}
+	} finally {
+		// Make sure all FS-related activity has completed one way or another
+		// before returning. Otherwise, an error followed by a retry might lead
+		// to a conflict with writes from the earlier attempt.
+		await Promise.allSettled(concurrentWrites);
+	}
 }
 
 function isMemfsDir(FS: Emscripten.RootFS, path: string) {
@@ -390,4 +430,27 @@ async function resolveParent(
 		handle = await handle.getDirectoryHandle(segment, { create: true });
 	}
 	return handle as any;
+}
+
+function throttle<T extends (...args: any[]) => any>(
+	fn: T,
+	debounceMs: number
+): T {
+	let lastCallTime = 0;
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	let pendingArgs: Parameters<T> | undefined;
+
+	return function throttledCallback(...args: Parameters<T>) {
+		pendingArgs = args;
+
+		const timeSinceLastCall = Date.now() - lastCallTime;
+		if (timeoutId === undefined) {
+			const delay = Math.max(0, debounceMs - timeSinceLastCall);
+			timeoutId = setTimeout(() => {
+				timeoutId = undefined;
+				lastCallTime = Date.now();
+				fn(...pendingArgs!);
+			}, delay);
+		}
+	} as T;
 }

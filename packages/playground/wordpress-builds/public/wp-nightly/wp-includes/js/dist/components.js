@@ -4609,9 +4609,15 @@ var IEKMDIUY_CompositeGroup = forwardRef2(function CompositeGroup2(props) {
 
 
 const CompositeGroup = (0,external_wp_element_namespaceObject.forwardRef)(function CompositeGroup(props, ref) {
+  var _props$store;
   const context = context_useCompositeContext();
+
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer. The `store` prop is documented, but its type is
+  // obfuscated to discourage its use outside of the component's internals.
+  const store = (_props$store = props.store) !== null && _props$store !== void 0 ? _props$store : context.store;
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(IEKMDIUY_CompositeGroup, {
-    store: context.store,
+    store: store,
     ...props,
     ref: ref
   });
@@ -4688,116 +4694,19 @@ var Y2MAXF6C_CompositeGroupLabel = forwardRef2(function CompositeGroupLabel2(pro
 
 
 const CompositeGroupLabel = (0,external_wp_element_namespaceObject.forwardRef)(function CompositeGroupLabel(props, ref) {
+  var _props$store;
   const context = context_useCompositeContext();
+
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer. The `store` prop is documented, but its type is
+  // obfuscated to discourage its use outside of the component's internals.
+  const store = (_props$store = props.store) !== null && _props$store !== void 0 ? _props$store : context.store;
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(Y2MAXF6C_CompositeGroupLabel, {
-    store: context.store,
+    store: store,
     ...props,
     ref: ref
   });
 });
-
-;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/__chunks/OBZMLI6J.js
-"use client";
-
-
-
-
-
-// src/composite/composite-hover.tsx
-
-
-
-
-var OBZMLI6J_TagName = "div";
-function getMouseDestination(event) {
-  const relatedTarget = event.relatedTarget;
-  if ((relatedTarget == null ? void 0 : relatedTarget.nodeType) === Node.ELEMENT_NODE) {
-    return relatedTarget;
-  }
-  return null;
-}
-function hoveringInside(event) {
-  const nextElement = getMouseDestination(event);
-  if (!nextElement) return false;
-  return contains(event.currentTarget, nextElement);
-}
-var symbol = Symbol("composite-hover");
-function movingToAnotherItem(event) {
-  let dest = getMouseDestination(event);
-  if (!dest) return false;
-  do {
-    if (PBFD2E7P_hasOwnProperty(dest, symbol) && dest[symbol]) return true;
-    dest = dest.parentElement;
-  } while (dest);
-  return false;
-}
-var useCompositeHover = createHook(
-  function useCompositeHover2(_a) {
-    var _b = _a, {
-      store,
-      focusOnHover = true,
-      blurOnHoverEnd = !!focusOnHover
-    } = _b, props = __objRest(_b, [
-      "store",
-      "focusOnHover",
-      "blurOnHoverEnd"
-    ]);
-    const context = useCompositeContext();
-    store = store || context;
-    invariant(
-      store,
-       false && 0
-    );
-    const isMouseMoving = useIsMouseMoving();
-    const onMouseMoveProp = props.onMouseMove;
-    const focusOnHoverProp = useBooleanEvent(focusOnHover);
-    const onMouseMove = useEvent((event) => {
-      onMouseMoveProp == null ? void 0 : onMouseMoveProp(event);
-      if (event.defaultPrevented) return;
-      if (!isMouseMoving()) return;
-      if (!focusOnHoverProp(event)) return;
-      if (!hasFocusWithin(event.currentTarget)) {
-        const baseElement = store == null ? void 0 : store.getState().baseElement;
-        if (baseElement && !hasFocus(baseElement)) {
-          baseElement.focus();
-        }
-      }
-      store == null ? void 0 : store.setActiveId(event.currentTarget.id);
-    });
-    const onMouseLeaveProp = props.onMouseLeave;
-    const blurOnHoverEndProp = useBooleanEvent(blurOnHoverEnd);
-    const onMouseLeave = useEvent((event) => {
-      var _a2;
-      onMouseLeaveProp == null ? void 0 : onMouseLeaveProp(event);
-      if (event.defaultPrevented) return;
-      if (!isMouseMoving()) return;
-      if (hoveringInside(event)) return;
-      if (movingToAnotherItem(event)) return;
-      if (!focusOnHoverProp(event)) return;
-      if (!blurOnHoverEndProp(event)) return;
-      store == null ? void 0 : store.setActiveId(null);
-      (_a2 = store == null ? void 0 : store.getState().baseElement) == null ? void 0 : _a2.focus();
-    });
-    const ref = (0,external_React_.useCallback)((element) => {
-      if (!element) return;
-      element[symbol] = true;
-    }, []);
-    props = _3YLGPPWQ_spreadProps(_3YLGPPWQ_spreadValues({}, props), {
-      ref: useMergeRefs(ref, props.ref),
-      onMouseMove,
-      onMouseLeave
-    });
-    return removeUndefinedValues(props);
-  }
-);
-var OBZMLI6J_CompositeHover = memo2(
-  forwardRef2(function CompositeHover2(props) {
-    const htmlProps = useCompositeHover(props);
-    return HKOOKEDE_createElement(OBZMLI6J_TagName, htmlProps);
-  })
-);
-
-
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/components/build-module/composite/hover.js
 /**
@@ -4817,9 +4726,15 @@ var OBZMLI6J_CompositeHover = memo2(
 
 
 const CompositeHover = (0,external_wp_element_namespaceObject.forwardRef)(function CompositeHover(props, ref) {
+  var _props$store;
   const context = context_useCompositeContext();
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(OBZMLI6J_CompositeHover, {
-    store: context.store,
+
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer. The `store` prop is documented, but its type is
+  // obfuscated to discourage its use outside of the component's internals.
+  const store = (_props$store = props.store) !== null && _props$store !== void 0 ? _props$store : context.store;
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(IEKMDIUY_CompositeGroup, {
+    store: store,
     ...props,
     ref: ref
   });
@@ -4900,7 +4815,7 @@ function isNativeClick(event) {
   }
   return false;
 }
-var HGP5L2ST_symbol = Symbol("command");
+var symbol = Symbol("command");
 var useCommand = createHook(
   function useCommand2(_a) {
     var _b = _a, { clickOnEnter = true, clickOnSpace = true } = _b, props = __objRest(_b, ["clickOnEnter", "clickOnSpace"]);
@@ -4917,7 +4832,7 @@ var useCommand = createHook(
     const [active, setActive] = (0,external_React_.useState)(false);
     const activeRef = (0,external_React_.useRef)(false);
     const disabled = disabledFromProps(props);
-    const [isDuplicate, metadataProps] = useMetadataProps(props, HGP5L2ST_symbol, true);
+    const [isDuplicate, metadataProps] = useMetadataProps(props, symbol, true);
     const onKeyDownProp = props.onKeyDown;
     const onKeyDown = useEvent((event) => {
       onKeyDownProp == null ? void 0 : onKeyDownProp(event);
@@ -5320,9 +5235,24 @@ var _7QKWW6TW_CompositeItem = memo2(
 
 
 const CompositeItem = (0,external_wp_element_namespaceObject.forwardRef)(function CompositeItem(props, ref) {
+  var _props$store;
   const context = context_useCompositeContext();
+
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer. The `store` prop is documented, but its type is
+  // obfuscated to discourage its use outside of the component's internals.
+  const store = (_props$store = props.store) !== null && _props$store !== void 0 ? _props$store : context.store;
+
+  // If the active item is not connected, Composite may end up in a state
+  // where none of the items are tabbable. In this case, we force all items to
+  // be tabbable, so that as soon as an item received focus, it becomes active
+  // and Composite goes back to working as expected.
+  const tabbable = useStoreState(store, state => {
+    return state?.activeId !== null && !store?.item(state?.activeId)?.element?.isConnected;
+  });
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(_7QKWW6TW_CompositeItem, {
-    store: context.store,
+    store: store,
+    tabbable: tabbable,
     ...props,
     ref: ref
   });
@@ -5399,117 +5329,19 @@ var _6BE7QOX5_CompositeRow = forwardRef2(function CompositeRow2(props) {
 
 
 const CompositeRow = (0,external_wp_element_namespaceObject.forwardRef)(function CompositeRow(props, ref) {
+  var _props$store;
   const context = context_useCompositeContext();
+
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer. The `store` prop is documented, but its type is
+  // obfuscated to discourage its use outside of the component's internals.
+  const store = (_props$store = props.store) !== null && _props$store !== void 0 ? _props$store : context.store;
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(_6BE7QOX5_CompositeRow, {
-    store: context.store,
+    store: store,
     ...props,
     ref: ref
   });
 });
-
-;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/__chunks/DS36B3MQ.js
-"use client";
-
-
-
-
-
-
-// src/composite/composite-typeahead.tsx
-
-
-
-
-var DS36B3MQ_TagName = "div";
-var chars = "";
-function clearChars() {
-  chars = "";
-}
-function isValidTypeaheadEvent(event) {
-  const target = event.target;
-  if (target && isTextField(target)) return false;
-  if (event.key === " " && chars.length) return true;
-  return event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey && /^[\p{Letter}\p{Number}]$/u.test(event.key);
-}
-function isSelfTargetOrItem(event, items) {
-  if (isSelfTarget(event)) return true;
-  const target = event.target;
-  if (!target) return false;
-  const isItem = items.some((item) => item.element === target);
-  return isItem;
-}
-function DS36B3MQ_getEnabledItems(items) {
-  return items.filter((item) => !item.disabled);
-}
-function itemTextStartsWith(item, text) {
-  var _a;
-  const itemText = ((_a = item.element) == null ? void 0 : _a.textContent) || item.children || // The composite item object itself doesn't include a value property, but
-  // other components like Select do. Since CompositeTypeahead is a generic
-  // component that can be used with those as well, we also consider the value
-  // property as a fallback for the typeahead text content.
-  "value" in item && item.value;
-  if (!itemText) return false;
-  return normalizeString(itemText).trim().toLowerCase().startsWith(text.toLowerCase());
-}
-function getSameInitialItems(items, char, activeId) {
-  if (!activeId) return items;
-  const activeItem = items.find((item) => item.id === activeId);
-  if (!activeItem) return items;
-  if (!itemTextStartsWith(activeItem, char)) return items;
-  if (chars !== char && itemTextStartsWith(activeItem, chars)) return items;
-  chars = char;
-  return _5VQZOHHZ_flipItems(
-    items.filter((item) => itemTextStartsWith(item, chars)),
-    activeId
-  ).filter((item) => item.id !== activeId);
-}
-var useCompositeTypeahead = createHook(function useCompositeTypeahead2(_a) {
-  var _b = _a, { store, typeahead = true } = _b, props = __objRest(_b, ["store", "typeahead"]);
-  const context = useCompositeContext();
-  store = store || context;
-  invariant(
-    store,
-     false && 0
-  );
-  const onKeyDownCaptureProp = props.onKeyDownCapture;
-  const cleanupTimeoutRef = (0,external_React_.useRef)(0);
-  const onKeyDownCapture = useEvent((event) => {
-    onKeyDownCaptureProp == null ? void 0 : onKeyDownCaptureProp(event);
-    if (event.defaultPrevented) return;
-    if (!typeahead) return;
-    if (!store) return;
-    const { renderedItems, items, activeId } = store.getState();
-    if (!isValidTypeaheadEvent(event)) return clearChars();
-    let enabledItems = DS36B3MQ_getEnabledItems(
-      renderedItems.length ? renderedItems : items
-    );
-    if (!isSelfTargetOrItem(event, enabledItems)) return clearChars();
-    event.preventDefault();
-    window.clearTimeout(cleanupTimeoutRef.current);
-    cleanupTimeoutRef.current = window.setTimeout(() => {
-      chars = "";
-    }, 500);
-    const char = event.key.toLowerCase();
-    chars += char;
-    enabledItems = getSameInitialItems(enabledItems, char, activeId);
-    const item = enabledItems.find((item2) => itemTextStartsWith(item2, chars));
-    if (item) {
-      store.move(item.id);
-    } else {
-      clearChars();
-    }
-  });
-  props = _3YLGPPWQ_spreadProps(_3YLGPPWQ_spreadValues({}, props), {
-    onKeyDownCapture
-  });
-  return removeUndefinedValues(props);
-});
-var DS36B3MQ_CompositeTypeahead = forwardRef2(function CompositeTypeahead2(props) {
-  const htmlProps = useCompositeTypeahead(props);
-  return HKOOKEDE_createElement(DS36B3MQ_TagName, htmlProps);
-});
-
-
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/components/build-module/composite/typeahead.js
 /**
@@ -5529,9 +5361,15 @@ var DS36B3MQ_CompositeTypeahead = forwardRef2(function CompositeTypeahead2(props
 
 
 const CompositeTypeahead = (0,external_wp_element_namespaceObject.forwardRef)(function CompositeTypeahead(props, ref) {
+  var _props$store;
   const context = context_useCompositeContext();
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(DS36B3MQ_CompositeTypeahead, {
-    store: context.store,
+
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer. The `store` prop is documented, but its type is
+  // obfuscated to discourage its use outside of the component's internals.
+  const store = (_props$store = props.store) !== null && _props$store !== void 0 ? _props$store : context.store;
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(_6BE7QOX5_CompositeRow, {
+    store: store,
     ...props,
     ref: ref
   });
@@ -5603,7 +5441,10 @@ const Composite = Object.assign((0,external_wp_element_namespaceObject.forwardRe
   // Rest props
   ...props
 }, ref) {
-  const store = useCompositeStore({
+  // @ts-expect-error The store prop is undocumented and only used by the
+  // legacy compat layer.
+  const storeProp = props.store;
+  const internalStore = useCompositeStore({
     activeId,
     defaultActiveId,
     setActiveId,
@@ -5614,6 +5455,7 @@ const Composite = Object.assign((0,external_wp_element_namespaceObject.forwardRe
     orientation,
     rtl
   });
+  const store = storeProp !== null && storeProp !== void 0 ? storeProp : internalStore;
   const contextValue = (0,external_wp_element_namespaceObject.useMemo)(() => ({
     store
   }), [store]);
@@ -35720,6 +35562,7 @@ function useComputeControlledOrUncontrolledValue(valueProp) {
 
 
 
+
 /**
  * Internal dependencies
  */
@@ -35757,7 +35600,8 @@ function UnforwardedToggleGroupControlAsRadioGroup({
   const radio = useRadioStore({
     defaultValue,
     value,
-    setValue: wrappedOnChangeProp
+    setValue: wrappedOnChangeProp,
+    rtl: (0,external_wp_i18n_namespaceObject.isRTL)()
   });
   const selectedValue = useStoreState(radio, 'value');
   const setValue = radio.setValue;
@@ -48461,6 +48305,110 @@ var SelectArrow = forwardRef2(function SelectArrow2(props) {
 
 
 
+;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/__chunks/DS36B3MQ.js
+"use client";
+
+
+
+
+
+
+// src/composite/composite-typeahead.tsx
+
+
+
+
+var DS36B3MQ_TagName = "div";
+var chars = "";
+function clearChars() {
+  chars = "";
+}
+function isValidTypeaheadEvent(event) {
+  const target = event.target;
+  if (target && isTextField(target)) return false;
+  if (event.key === " " && chars.length) return true;
+  return event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey && /^[\p{Letter}\p{Number}]$/u.test(event.key);
+}
+function isSelfTargetOrItem(event, items) {
+  if (isSelfTarget(event)) return true;
+  const target = event.target;
+  if (!target) return false;
+  const isItem = items.some((item) => item.element === target);
+  return isItem;
+}
+function DS36B3MQ_getEnabledItems(items) {
+  return items.filter((item) => !item.disabled);
+}
+function itemTextStartsWith(item, text) {
+  var _a;
+  const itemText = ((_a = item.element) == null ? void 0 : _a.textContent) || item.children || // The composite item object itself doesn't include a value property, but
+  // other components like Select do. Since CompositeTypeahead is a generic
+  // component that can be used with those as well, we also consider the value
+  // property as a fallback for the typeahead text content.
+  "value" in item && item.value;
+  if (!itemText) return false;
+  return normalizeString(itemText).trim().toLowerCase().startsWith(text.toLowerCase());
+}
+function getSameInitialItems(items, char, activeId) {
+  if (!activeId) return items;
+  const activeItem = items.find((item) => item.id === activeId);
+  if (!activeItem) return items;
+  if (!itemTextStartsWith(activeItem, char)) return items;
+  if (chars !== char && itemTextStartsWith(activeItem, chars)) return items;
+  chars = char;
+  return _5VQZOHHZ_flipItems(
+    items.filter((item) => itemTextStartsWith(item, chars)),
+    activeId
+  ).filter((item) => item.id !== activeId);
+}
+var useCompositeTypeahead = createHook(function useCompositeTypeahead2(_a) {
+  var _b = _a, { store, typeahead = true } = _b, props = __objRest(_b, ["store", "typeahead"]);
+  const context = useCompositeContext();
+  store = store || context;
+  invariant(
+    store,
+     false && 0
+  );
+  const onKeyDownCaptureProp = props.onKeyDownCapture;
+  const cleanupTimeoutRef = (0,external_React_.useRef)(0);
+  const onKeyDownCapture = useEvent((event) => {
+    onKeyDownCaptureProp == null ? void 0 : onKeyDownCaptureProp(event);
+    if (event.defaultPrevented) return;
+    if (!typeahead) return;
+    if (!store) return;
+    const { renderedItems, items, activeId } = store.getState();
+    if (!isValidTypeaheadEvent(event)) return clearChars();
+    let enabledItems = DS36B3MQ_getEnabledItems(
+      renderedItems.length ? renderedItems : items
+    );
+    if (!isSelfTargetOrItem(event, enabledItems)) return clearChars();
+    event.preventDefault();
+    window.clearTimeout(cleanupTimeoutRef.current);
+    cleanupTimeoutRef.current = window.setTimeout(() => {
+      chars = "";
+    }, 500);
+    const char = event.key.toLowerCase();
+    chars += char;
+    enabledItems = getSameInitialItems(enabledItems, char, activeId);
+    const item = enabledItems.find((item2) => itemTextStartsWith(item2, chars));
+    if (item) {
+      store.move(item.id);
+    } else {
+      clearChars();
+    }
+  });
+  props = _3YLGPPWQ_spreadProps(_3YLGPPWQ_spreadValues({}, props), {
+    onKeyDownCapture
+  });
+  return removeUndefinedValues(props);
+});
+var DS36B3MQ_CompositeTypeahead = forwardRef2(function CompositeTypeahead2(props) {
+  const htmlProps = useCompositeTypeahead(props);
+  return HKOOKEDE_createElement(DS36B3MQ_TagName, htmlProps);
+});
+
+
+
 ;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/select/select.js
 "use client";
 
@@ -48893,6 +48841,109 @@ var SelectPopover = createDialogComponent(
   }),
   useSelectProviderContext
 );
+
+
+;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/__chunks/OBZMLI6J.js
+"use client";
+
+
+
+
+
+// src/composite/composite-hover.tsx
+
+
+
+
+var OBZMLI6J_TagName = "div";
+function getMouseDestination(event) {
+  const relatedTarget = event.relatedTarget;
+  if ((relatedTarget == null ? void 0 : relatedTarget.nodeType) === Node.ELEMENT_NODE) {
+    return relatedTarget;
+  }
+  return null;
+}
+function hoveringInside(event) {
+  const nextElement = getMouseDestination(event);
+  if (!nextElement) return false;
+  return contains(event.currentTarget, nextElement);
+}
+var OBZMLI6J_symbol = Symbol("composite-hover");
+function movingToAnotherItem(event) {
+  let dest = getMouseDestination(event);
+  if (!dest) return false;
+  do {
+    if (PBFD2E7P_hasOwnProperty(dest, OBZMLI6J_symbol) && dest[OBZMLI6J_symbol]) return true;
+    dest = dest.parentElement;
+  } while (dest);
+  return false;
+}
+var useCompositeHover = createHook(
+  function useCompositeHover2(_a) {
+    var _b = _a, {
+      store,
+      focusOnHover = true,
+      blurOnHoverEnd = !!focusOnHover
+    } = _b, props = __objRest(_b, [
+      "store",
+      "focusOnHover",
+      "blurOnHoverEnd"
+    ]);
+    const context = useCompositeContext();
+    store = store || context;
+    invariant(
+      store,
+       false && 0
+    );
+    const isMouseMoving = useIsMouseMoving();
+    const onMouseMoveProp = props.onMouseMove;
+    const focusOnHoverProp = useBooleanEvent(focusOnHover);
+    const onMouseMove = useEvent((event) => {
+      onMouseMoveProp == null ? void 0 : onMouseMoveProp(event);
+      if (event.defaultPrevented) return;
+      if (!isMouseMoving()) return;
+      if (!focusOnHoverProp(event)) return;
+      if (!hasFocusWithin(event.currentTarget)) {
+        const baseElement = store == null ? void 0 : store.getState().baseElement;
+        if (baseElement && !hasFocus(baseElement)) {
+          baseElement.focus();
+        }
+      }
+      store == null ? void 0 : store.setActiveId(event.currentTarget.id);
+    });
+    const onMouseLeaveProp = props.onMouseLeave;
+    const blurOnHoverEndProp = useBooleanEvent(blurOnHoverEnd);
+    const onMouseLeave = useEvent((event) => {
+      var _a2;
+      onMouseLeaveProp == null ? void 0 : onMouseLeaveProp(event);
+      if (event.defaultPrevented) return;
+      if (!isMouseMoving()) return;
+      if (hoveringInside(event)) return;
+      if (movingToAnotherItem(event)) return;
+      if (!focusOnHoverProp(event)) return;
+      if (!blurOnHoverEndProp(event)) return;
+      store == null ? void 0 : store.setActiveId(null);
+      (_a2 = store == null ? void 0 : store.getState().baseElement) == null ? void 0 : _a2.focus();
+    });
+    const ref = (0,external_React_.useCallback)((element) => {
+      if (!element) return;
+      element[OBZMLI6J_symbol] = true;
+    }, []);
+    props = _3YLGPPWQ_spreadProps(_3YLGPPWQ_spreadValues({}, props), {
+      ref: useMergeRefs(ref, props.ref),
+      onMouseMove,
+      onMouseLeave
+    });
+    return removeUndefinedValues(props);
+  }
+);
+var OBZMLI6J_CompositeHover = memo2(
+  forwardRef2(function CompositeHover2(props) {
+    const htmlProps = useCompositeHover(props);
+    return HKOOKEDE_createElement(OBZMLI6J_TagName, htmlProps);
+  })
+);
+
 
 
 ;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/select/select-item.js
@@ -54133,7 +54184,8 @@ function DatePicker({
           viewPreviousMonth();
           setFocusable(subMonths(focusable, 1));
           onMonthPreviewed?.(format(subMonths(viewing, 1), TIMEZONELESS_FORMAT));
-        }
+        },
+        size: "compact"
       }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(NavigatorHeading, {
         level: 3,
         children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("strong", {
@@ -54147,7 +54199,8 @@ function DatePicker({
           viewNextMonth();
           setFocusable(addMonths(focusable, 1));
           onMonthPreviewed?.(format(addMonths(viewing, 1), TIMEZONELESS_FORMAT));
-        }
+        },
+        size: "compact"
       })]
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(Calendar, {
       onFocus: () => setIsFocusWithinCalendar(true),
@@ -58283,6 +58336,7 @@ function Guide({
           className: "components-guide__finish-button",
           variant: "primary",
           onClick: onFinish,
+          __next40pxDefaultSize: true,
           children: finishButtonText
         })]
       })]
@@ -60246,8 +60300,7 @@ function lexer(str) {
 function dist_es2015_parse(str, options) {
     if (options === void 0) { options = {}; }
     var tokens = lexer(str);
-    var _a = options.prefixes, prefixes = _a === void 0 ? "./" : _a;
-    var defaultPattern = "[^".concat(escapeString(options.delimiter || "/#?"), "]+?");
+    var _a = options.prefixes, prefixes = _a === void 0 ? "./" : _a, _b = options.delimiter, delimiter = _b === void 0 ? "/#?" : _b;
     var result = [];
     var key = 0;
     var i = 0;
@@ -60271,6 +60324,24 @@ function dist_es2015_parse(str, options) {
         }
         return result;
     };
+    var isSafe = function (value) {
+        for (var _i = 0, delimiter_1 = delimiter; _i < delimiter_1.length; _i++) {
+            var char = delimiter_1[_i];
+            if (value.indexOf(char) > -1)
+                return true;
+        }
+        return false;
+    };
+    var safePattern = function (prefix) {
+        var prev = result[result.length - 1];
+        var prevText = prefix || (prev && typeof prev === "string" ? prev : "");
+        if (prev && !prevText) {
+            throw new TypeError("Must have text between two parameters, missing text after \"".concat(prev.name, "\""));
+        }
+        if (!prevText || isSafe(prevText))
+            return "[^".concat(escapeString(delimiter), "]+?");
+        return "(?:(?!".concat(escapeString(prevText), ")[^").concat(escapeString(delimiter), "])+?");
+    };
     while (i < tokens.length) {
         var char = tryConsume("CHAR");
         var name = tryConsume("NAME");
@@ -60289,7 +60360,7 @@ function dist_es2015_parse(str, options) {
                 name: name || key++,
                 prefix: prefix,
                 suffix: "",
-                pattern: pattern || defaultPattern,
+                pattern: pattern || safePattern(prefix),
                 modifier: tryConsume("MODIFIER") || "",
             });
             continue;
@@ -60312,7 +60383,7 @@ function dist_es2015_parse(str, options) {
             mustConsume("CLOSE");
             result.push({
                 name: name_1 || (pattern_1 ? key++ : ""),
-                pattern: name_1 && !pattern_1 ? defaultPattern : pattern_1,
+                pattern: name_1 && !pattern_1 ? safePattern(prefix) : pattern_1,
                 prefix: prefix,
                 suffix: suffix,
                 modifier: tryConsume("MODIFIER") || "",
@@ -60505,11 +60576,9 @@ function tokensToRegexp(tokens, keys, options) {
                 }
                 else {
                     if (token.modifier === "+" || token.modifier === "*") {
-                        route += "((?:".concat(token.pattern, ")").concat(token.modifier, ")");
+                        throw new TypeError("Can not repeat \"".concat(token.name, "\" without a prefix and suffix"));
                     }
-                    else {
-                        route += "(".concat(token.pattern, ")").concat(token.modifier);
-                    }
+                    route += "(".concat(token.pattern, ")").concat(token.modifier);
                 }
             }
             else {
@@ -60706,8 +60775,7 @@ function goTo(state, path, options = {}) {
     focusSelectors
   } = state;
   const currentLocation = {
-    ...state.currentLocation,
-    isInitial: false
+    ...state.currentLocation
   };
   const {
     // Default assignments
@@ -60752,6 +60820,7 @@ function goTo(state, path, options = {}) {
   return {
     currentLocation: {
       ...restOptions,
+      isInitial: false,
       path,
       isBack,
       hasRestoredFocus: false,
@@ -60767,8 +60836,7 @@ function goToParent(state, options = {}) {
     focusSelectors
   } = state;
   const currentLocation = {
-    ...state.currentLocation,
-    isInitial: false
+    ...state.currentLocation
   };
   const currentPath = currentLocation.path;
   if (currentPath === undefined) {
@@ -66746,20 +66814,27 @@ const ConnectedToolsPanelHeader = contextConnect(component_ToolsPanelHeader, 'To
 
 
 const DEFAULT_COLUMNS = 2;
+function emptyMenuItems() {
+  return {
+    default: {},
+    optional: {}
+  };
+}
+function emptyState() {
+  return {
+    panelItems: [],
+    menuItemOrder: [],
+    menuItems: emptyMenuItems()
+  };
+}
 const generateMenuItems = ({
   panelItems,
   shouldReset,
   currentMenuItems,
   menuItemOrder
 }) => {
-  const newMenuItems = {
-    default: {},
-    optional: {}
-  };
-  const menuItems = {
-    default: {},
-    optional: {}
-  };
+  const newMenuItems = emptyMenuItems();
+  const menuItems = emptyMenuItems();
   panelItems.forEach(({
     hasValue,
     isShownByDefault,
@@ -66798,7 +66873,128 @@ const generateMenuItems = ({
   });
   return menuItems;
 };
-const isMenuItemTypeEmpty = obj => obj && Object.keys(obj).length === 0;
+function panelItemsReducer(panelItems, action) {
+  switch (action.type) {
+    case 'REGISTER_PANEL':
+      {
+        const newItems = [...panelItems];
+        // If an item with this label has already been registered, remove it
+        // first. This can happen when an item is moved between the default
+        // and optional groups.
+        const existingIndex = newItems.findIndex(oldItem => oldItem.label === action.item.label);
+        if (existingIndex !== -1) {
+          newItems.splice(existingIndex, 1);
+        }
+        newItems.push(action.item);
+        return newItems;
+      }
+    case 'UNREGISTER_PANEL':
+      {
+        const index = panelItems.findIndex(item => item.label === action.label);
+        if (index !== -1) {
+          const newItems = [...panelItems];
+          newItems.splice(index, 1);
+          return newItems;
+        }
+        return panelItems;
+      }
+    default:
+      return panelItems;
+  }
+}
+function menuItemOrderReducer(menuItemOrder, action) {
+  switch (action.type) {
+    case 'REGISTER_PANEL':
+      {
+        // Track the initial order of item registration. This is used for
+        // maintaining menu item order later.
+        if (menuItemOrder.includes(action.item.label)) {
+          return menuItemOrder;
+        }
+        return [...menuItemOrder, action.item.label];
+      }
+    default:
+      return menuItemOrder;
+  }
+}
+function menuItemsReducer(state, action) {
+  switch (action.type) {
+    case 'REGISTER_PANEL':
+    case 'UNREGISTER_PANEL':
+      // generate new menu items from original `menuItems` and updated `panelItems` and `menuItemOrder`
+      return generateMenuItems({
+        currentMenuItems: state.menuItems,
+        panelItems: state.panelItems,
+        menuItemOrder: state.menuItemOrder,
+        shouldReset: false
+      });
+    case 'RESET_ALL':
+      return generateMenuItems({
+        panelItems: state.panelItems,
+        menuItemOrder: state.menuItemOrder,
+        shouldReset: true
+      });
+    case 'UPDATE_VALUE':
+      {
+        const oldValue = state.menuItems[action.group][action.label];
+        if (action.value === oldValue) {
+          return state.menuItems;
+        }
+        return {
+          ...state.menuItems,
+          [action.group]: {
+            ...state.menuItems[action.group],
+            [action.label]: action.value
+          }
+        };
+      }
+    case 'TOGGLE_VALUE':
+      {
+        const currentItem = state.panelItems.find(item => item.label === action.label);
+        if (!currentItem) {
+          return state.menuItems;
+        }
+        const menuGroup = currentItem.isShownByDefault ? 'default' : 'optional';
+        const newMenuItems = {
+          ...state.menuItems,
+          [menuGroup]: {
+            ...state.menuItems[menuGroup],
+            [action.label]: !state.menuItems[menuGroup][action.label]
+          }
+        };
+        return newMenuItems;
+      }
+    default:
+      return state.menuItems;
+  }
+}
+function panelReducer(state, action) {
+  const panelItems = panelItemsReducer(state.panelItems, action);
+  const menuItemOrder = menuItemOrderReducer(state.menuItemOrder, action);
+  // `menuItemsReducer` is a bit unusual because it generates new state from original `menuItems`
+  // and the updated `panelItems` and `menuItemOrder`.
+  const menuItems = menuItemsReducer({
+    panelItems,
+    menuItemOrder,
+    menuItems: state.menuItems
+  }, action);
+  return {
+    panelItems,
+    menuItemOrder,
+    menuItems
+  };
+}
+function resetAllFiltersReducer(filters, action) {
+  switch (action.type) {
+    case 'REGISTER':
+      return [...filters, action.filter];
+    case 'UNREGISTER':
+      return filters.filter(f => f !== action.filter);
+    default:
+      return filters;
+  }
+}
+const isMenuItemTypeEmpty = obj => Object.keys(obj).length === 0;
 function useToolsPanel(props) {
   const {
     className,
@@ -66825,32 +67021,18 @@ function useToolsPanel(props) {
   }, [wasResetting]);
 
   // Allow panel items to register themselves.
-  const [panelItems, setPanelItems] = (0,external_wp_element_namespaceObject.useState)([]);
-  const [menuItemOrder, setMenuItemOrder] = (0,external_wp_element_namespaceObject.useState)([]);
-  const [resetAllFilters, setResetAllFilters] = (0,external_wp_element_namespaceObject.useState)([]);
+  const [{
+    panelItems,
+    menuItems
+  }, panelDispatch] = (0,external_wp_element_namespaceObject.useReducer)(panelReducer, undefined, emptyState);
+  const [resetAllFilters, dispatchResetAllFilters] = (0,external_wp_element_namespaceObject.useReducer)(resetAllFiltersReducer, []);
   const registerPanelItem = (0,external_wp_element_namespaceObject.useCallback)(item => {
     // Add item to panel items.
-    setPanelItems(items => {
-      const newItems = [...items];
-      // If an item with this label has already been registered, remove it
-      // first. This can happen when an item is moved between the default
-      // and optional groups.
-      const existingIndex = newItems.findIndex(oldItem => oldItem.label === item.label);
-      if (existingIndex !== -1) {
-        newItems.splice(existingIndex, 1);
-      }
-      return [...newItems, item];
+    panelDispatch({
+      type: 'REGISTER_PANEL',
+      item
     });
-
-    // Track the initial order of item registration. This is used for
-    // maintaining menu item order later.
-    setMenuItemOrder(items => {
-      if (items.includes(item.label)) {
-        return items;
-      }
-      return [...items, item.label];
-    });
-  }, [setPanelItems, setMenuItemOrder]);
+  }, []);
 
   // Panels need to deregister on unmount to avoid orphans in menu state.
   // This is an issue when panel items are being injected via SlotFills.
@@ -66859,96 +67041,58 @@ function useToolsPanel(props) {
     // controls, e.g. both panels have a "padding" control, the
     // deregistration of the first panel doesn't occur until after the
     // registration of the next.
-    setPanelItems(items => {
-      const newItems = [...items];
-      const index = newItems.findIndex(item => item.label === label);
-      if (index !== -1) {
-        newItems.splice(index, 1);
-      }
-      return newItems;
+    panelDispatch({
+      type: 'UNREGISTER_PANEL',
+      label
     });
-  }, [setPanelItems]);
-  const registerResetAllFilter = (0,external_wp_element_namespaceObject.useCallback)(newFilter => {
-    setResetAllFilters(filters => {
-      return [...filters, newFilter];
+  }, []);
+  const registerResetAllFilter = (0,external_wp_element_namespaceObject.useCallback)(filter => {
+    dispatchResetAllFilters({
+      type: 'REGISTER',
+      filter
     });
-  }, [setResetAllFilters]);
-  const deregisterResetAllFilter = (0,external_wp_element_namespaceObject.useCallback)(filterToRemove => {
-    setResetAllFilters(filters => {
-      return filters.filter(filter => filter !== filterToRemove);
+  }, []);
+  const deregisterResetAllFilter = (0,external_wp_element_namespaceObject.useCallback)(filter => {
+    dispatchResetAllFilters({
+      type: 'UNREGISTER',
+      filter
     });
-  }, [setResetAllFilters]);
-
-  // Manage and share display state of menu items representing child controls.
-  const [menuItems, setMenuItems] = (0,external_wp_element_namespaceObject.useState)({
-    default: {},
-    optional: {}
-  });
-
-  // Setup menuItems state as panel items register themselves.
-  (0,external_wp_element_namespaceObject.useEffect)(() => {
-    setMenuItems(prevState => {
-      const items = generateMenuItems({
-        panelItems,
-        shouldReset: false,
-        currentMenuItems: prevState,
-        menuItemOrder
-      });
-      return items;
-    });
-  }, [panelItems, setMenuItems, menuItemOrder]);
+  }, []);
 
   // Updates the status of the panel’s menu items. For default items the
   // value represents whether it differs from the default and for optional
   // items whether the item is shown.
   const flagItemCustomization = (0,external_wp_element_namespaceObject.useCallback)((value, label, group = 'default') => {
-    setMenuItems(items => {
-      const newState = {
-        ...items,
-        [group]: {
-          ...items[group],
-          [label]: value
-        }
-      };
-      return newState;
+    panelDispatch({
+      type: 'UPDATE_VALUE',
+      group,
+      label,
+      value
     });
-  }, [setMenuItems]);
+  }, []);
 
   // Whether all optional menu items are hidden or not must be tracked
   // in order to later determine if the panel display is empty and handle
   // conditional display of a plus icon to indicate the presence of further
   // menu items.
-  const [areAllOptionalControlsHidden, setAreAllOptionalControlsHidden] = (0,external_wp_element_namespaceObject.useState)(false);
-  (0,external_wp_element_namespaceObject.useEffect)(() => {
-    if (isMenuItemTypeEmpty(menuItems?.default) && !isMenuItemTypeEmpty(menuItems?.optional)) {
-      const allControlsHidden = !Object.entries(menuItems.optional).some(([, isSelected]) => isSelected);
-      setAreAllOptionalControlsHidden(allControlsHidden);
-    }
-  }, [menuItems, setAreAllOptionalControlsHidden]);
+  const areAllOptionalControlsHidden = (0,external_wp_element_namespaceObject.useMemo)(() => {
+    return isMenuItemTypeEmpty(menuItems.default) && !isMenuItemTypeEmpty(menuItems.optional) && Object.values(menuItems.optional).every(isSelected => !isSelected);
+  }, [menuItems]);
   const cx = useCx();
   const classes = (0,external_wp_element_namespaceObject.useMemo)(() => {
     const wrapperStyle = hasInnerWrapper && ToolsPanelWithInnerWrapper(DEFAULT_COLUMNS);
-    const emptyStyle = isMenuItemTypeEmpty(menuItems?.default) && areAllOptionalControlsHidden && ToolsPanelHiddenInnerWrapper;
+    const emptyStyle = areAllOptionalControlsHidden && ToolsPanelHiddenInnerWrapper;
     return cx(ToolsPanel(DEFAULT_COLUMNS), wrapperStyle, emptyStyle, className);
-  }, [areAllOptionalControlsHidden, className, cx, hasInnerWrapper, menuItems]);
+  }, [areAllOptionalControlsHidden, className, cx, hasInnerWrapper]);
 
   // Toggle the checked state of a menu item which is then used to determine
   // display of the item within the panel.
   const toggleItem = (0,external_wp_element_namespaceObject.useCallback)(label => {
-    const currentItem = panelItems.find(item => item.label === label);
-    if (!currentItem) {
-      return;
-    }
-    const menuGroup = currentItem.isShownByDefault ? 'default' : 'optional';
-    const newMenuItems = {
-      ...menuItems,
-      [menuGroup]: {
-        ...menuItems[menuGroup],
-        [label]: !menuItems[menuGroup][label]
-      }
-    };
-    setMenuItems(newMenuItems);
-  }, [menuItems, panelItems, setMenuItems]);
+    panelDispatch({
+      type: 'TOGGLE_VALUE',
+      label
+    });
+  }, []);
 
   // Resets display of children and executes resetAll callback if available.
   const resetAllItems = (0,external_wp_element_namespaceObject.useCallback)(() => {
@@ -66958,30 +67102,28 @@ function useToolsPanel(props) {
     }
 
     // Turn off display of all non-default items.
-    const resetMenuItems = generateMenuItems({
-      panelItems,
-      menuItemOrder,
-      shouldReset: true
+    panelDispatch({
+      type: 'RESET_ALL'
     });
-    setMenuItems(resetMenuItems);
-  }, [panelItems, resetAllFilters, resetAll, setMenuItems, menuItemOrder]);
+  }, [resetAllFilters, resetAll]);
 
   // Assist ItemGroup styling when there are potentially hidden placeholder
   // items by identifying first & last items that are toggled on for display.
   const getFirstVisibleItemLabel = items => {
     const optionalItems = menuItems.optional || {};
-    const firstItem = items.find(item => item.isShownByDefault || !!optionalItems[item.label]);
+    const firstItem = items.find(item => item.isShownByDefault || optionalItems[item.label]);
     return firstItem?.label;
   };
   const firstDisplayedItem = getFirstVisibleItemLabel(panelItems);
   const lastDisplayedItem = getFirstVisibleItemLabel([...panelItems].reverse());
+  const hasMenuItems = panelItems.length > 0;
   const panelContext = (0,external_wp_element_namespaceObject.useMemo)(() => ({
     areAllOptionalControlsHidden,
     deregisterPanelItem,
     deregisterResetAllFilter,
     firstDisplayedItem,
     flagItemCustomization,
-    hasMenuItems: !!panelItems.length,
+    hasMenuItems,
     isResetting: isResettingRef.current,
     lastDisplayedItem,
     menuItems,
@@ -66991,7 +67133,7 @@ function useToolsPanel(props) {
     shouldRenderPlaceholderItems,
     __experimentalFirstVisibleItemClass,
     __experimentalLastVisibleItemClass
-  }), [areAllOptionalControlsHidden, deregisterPanelItem, deregisterResetAllFilter, firstDisplayedItem, flagItemCustomization, lastDisplayedItem, menuItems, panelId, panelItems, registerResetAllFilter, registerPanelItem, shouldRenderPlaceholderItems, __experimentalFirstVisibleItemClass, __experimentalLastVisibleItemClass]);
+  }), [areAllOptionalControlsHidden, deregisterPanelItem, deregisterResetAllFilter, firstDisplayedItem, flagItemCustomization, lastDisplayedItem, menuItems, panelId, hasMenuItems, registerResetAllFilter, registerPanelItem, shouldRenderPlaceholderItems, __experimentalFirstVisibleItemClass, __experimentalLastVisibleItemClass]);
   return {
     ...otherProps,
     headingLevel,

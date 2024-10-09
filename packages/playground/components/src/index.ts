@@ -1,3 +1,1 @@
-import PathMappingControlDemo from './PathMappingControl';
-
-export { PathMappingControlDemo };
+export * from './icons';

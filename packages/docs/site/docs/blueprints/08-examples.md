@@ -20,14 +20,14 @@ Let's see some cool things you can do with Blueprints.
 	"steps": [
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "wordpress.org/plugins",
 				"slug": "coblocks"
 			}
 		},
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "pendant"
 			}
@@ -91,14 +91,14 @@ blueprint={{
 	"steps": [
 		{
 			"step": "installPlugin",
-			"pluginZipFile": {
+			"pluginData": {
 				"resource": "url",
 				"url": "https://your-site.com/your-plugin.zip"
 			}
 		},
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "url",
 				"url": "https://your-site.com/your-theme.zip"
 			}
@@ -173,7 +173,7 @@ Use the `writeFile` step to add code to a mu-plugin that runs on every request.
     },
     {
       "step": "installPlugin",
-      "pluginZipFile": {
+      "pluginData": {
         "resource": "wordpress.org/plugins",
         "slug": "interactive-code-block"
       }

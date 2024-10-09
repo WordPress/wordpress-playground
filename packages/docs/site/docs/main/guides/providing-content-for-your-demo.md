@@ -80,14 +80,14 @@ With the [`importThemeStarterContent` step](/blueprints/steps#importThemeStarter
 "steps": [
     {
       "step": "installTheme",
-      "themeZipFile": {
+      "themeData": {
         "resource": "wordpress.org/themes",
         "slug": "twentytwenty"
       }
     },
     {
       "step": "installTheme",
-      "themeZipFile": {
+      "themeData": {
         "resource": "wordpress.org/themes",
         "slug": "twentytwentyone"
       },
@@ -103,7 +103,7 @@ With the [`importThemeStarterContent` step](/blueprints/steps#importThemeStarter
 
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22}},{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwentyone%22},%22options%22:{%22activate%22:true}},{%22step%22:%22importThemeStarterContent%22,%22themeSlug%22:%22twentytwenty%22}]})
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22}},{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwentyone%22},%22options%22:{%22activate%22:true}},{%22step%22:%22importThemeStarterContent%22,%22themeSlug%22:%22twentytwenty%22}]})
 
 You can also publish the starter content of a theme when installing it with the [`installTheme` step](/blueprints/steps#installTheme) by setting to `true` its `importStarterContent` option:
 
@@ -112,7 +112,7 @@ You can also publish the starter content of a theme when installing it with the 
 	"steps": [
 		{
 			"step": "installTheme",
-			"themeZipFile": {
+			"themeData": {
 				"resource": "wordpress.org/themes",
 				"slug": "twentytwenty"
 			},
@@ -125,7 +125,7 @@ You can also publish the starter content of a theme when installing it with the 
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeZipFile%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22},%22options%22:{%22activate%22:true,%22importStarterContent%22:true}}]})
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22},%22options%22:{%22activate%22:true,%22importStarterContent%22:true}}]})
 
 ## `wp-cli`
 

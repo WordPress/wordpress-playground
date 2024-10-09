@@ -47,7 +47,7 @@ display={`{
     },
     {
       "step": "installPlugin",
-      "pluginZipFile": {
+      "pluginData": {
         "resource": "wordpress.org/plugins",
         "slug": "friends"
       }
@@ -65,7 +65,7 @@ blueprint={{
             },
             {
             step: 'installPlugin',
-                pluginZipFile: {
+                pluginData: {
                     resource: 'wordpress.org/plugins',
                     slug: 'friends',
                 },
