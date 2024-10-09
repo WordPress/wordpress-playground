@@ -183,9 +183,21 @@ export async function bootWordPress(options: BootOptions) {
 
 	const php = await requestHandler.getPrimaryPhp();
 	console.log(await php.mkdir('/wordpress'));
-	console.log(await php.listFiles('/'));
-	console.log((await php.run({ code: '<?php echo "Hello, World!";' })).bytes);
-	throw new Error('Waa');
+	// console.log(await php.listFiles('/'));
+	console.log(
+		(await php.run({ code: '<?php print_r(glob("/internal/shared/*"));' }))
+			.text
+	);
+
+	console.log((await php.run({ code: '<?php echo "Hello, World!";' })).text);
+	// console.log((await php.run({ code: '<?php print_r(glob("/wordpress/*"));' })).text);
+	console.log(
+		(await php.run({ code: '<?php print_r(glob("/internal/*"));' })).text
+	);
+	console.log(
+		(await php.run({ code: '<?php print_r(glob("/internal/*"));' })).text
+	);
+	console.log((await php.run({ code: '<?php echo "Hello, World!";' })).text);
 
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);

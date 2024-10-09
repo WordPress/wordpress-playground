@@ -443,29 +443,6 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl)
 	return bufl;
 }
 
-/**
- * Shims read(2) functionallity.
- * Enables reading from blocking pipes. By default, Emscripten
- * will throw an EWOULDBLOCK error when trying to read from a
- * blocking pipe. This function overrides that behavior and
- * instead waits for the pipe to become readable.
- *
- * @see https://github.com/WordPress/wordpress-playground/issues/951
- * @see https://github.com/emscripten-core/emscripten/issues/13214
- */
-EMSCRIPTEN_KEEPALIVE ssize_t wasm_read(int fd, void *buf, size_t count)
-{
-	struct __wasi_iovec_t iov = {
-		.buf = buf,
-		.buf_len = count};
-	size_t num;
-	if (__wasi_syscall_ret(js_fd_read(fd, &iov, 1, &num)))
-	{
-		return -1;
-	}
-	return num;
-}
-
 /*
  * If type==0, only last line of output is returned (exec)
  * If type==1, all lines will be printed and last lined returned (system)
@@ -588,31 +565,6 @@ err:
 
 int wasm_socket_has_data(php_socket_t fd);
 
-/* hybrid select(2)/poll(2) for a single descriptor.
- * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
- * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
- */
-EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
-{
-	php_pollfd p;
-	int n;
-
-	p.fd = fd;
-	p.events = events;
-	p.revents = 0;
-
-	// must yield back to JS event loop to get the network response:
-	wasm_poll_socket(fd, events, php_tvtoto(timeouttv));
-
-	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
-
-	if (n > 0)
-	{
-		return p.revents;
-	}
-
-	return n;
-}
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
 ZEND_ARG_INFO(0, data)
@@ -1736,6 +1688,17 @@ int php_wasm_init()
 
 	backend_t opfs = wasmfs_create_opfs_backend();
 	err = wasmfs_create_directory("/internal", 0777, opfs);
+
+	backend_t opfs2 = wasmfs_create_opfs_backend();
+	err = wasmfs_create_directory("/internal2", 0777, opfs2);
+
+	FILE *file = fopen("/internal2/hi.txt", "w");
+	if (file != NULL) {
+		fprintf(file, "Hello World");
+		fclose(file);
+	} else {
+		fprintf(stderr, "Error creating file in /internal2/hi.txt\n");
+	}
 
 	wasm_server_context = malloc(sizeof(wasm_server_context_t));
 	wasm_init_server_context();

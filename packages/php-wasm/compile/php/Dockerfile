@@ -930,7 +930,6 @@ RUN set -euxo pipefail; \
 "_wasm_set_phpini_path", \n\
 "_wasm_add_SERVER_entry", \n\
 "_wasm_add_ENV_entry", \n\
-"_wasm_read", \n\
 "_wasm_free", \n\
 "_wasm_sapi_handle_request", \n\
 "_wasm_sapi_request_shutdown", \n\

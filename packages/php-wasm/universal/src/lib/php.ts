@@ -406,11 +406,11 @@ export class PHP implements Disposable {
 			if (!this.#webSapiInitialized) {
 				await this.#initWebRuntime();
 				this.#webSapiInitialized = true;
-				this.mkdir('/internal');
-				this.mkdir('/internal/shared');
-				this.mkdir('/internal/shared/preload');
+				await this.mkdir('/internal');
+				await this.mkdir('/internal/shared');
+				await this.mkdir('/internal/shared/preload');
 			}
-			console.log(this.listFiles('/'));
+			console.log(await this.listFiles('/internal'));
 			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
 				throw new Error(
 					`The script path "${request.scriptPath}" does not exist.`
@@ -432,7 +432,7 @@ export class PHP implements Disposable {
 				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (typeof request.code === 'string') {
-				this.writeFile('/internal/eval.php', request.code);
+				await this.writeFile('/internal/eval.php', request.code);
 				this.#setScriptPath('/internal/eval.php');
 			} else if (typeof request.scriptPath === 'string') {
 				this.#setScriptPath(request.scriptPath || '');
@@ -535,14 +535,6 @@ export class PHP implements Disposable {
 		httpStatusCode: number;
 	} {
 		const headersFilePath = '/internal/headers.json';
-		setTimeout(() => {
-			console.log('Waa');
-			console.log(this.listFiles('/'));
-			console.log(this.listFiles('/internal'));
-			console.log(this.listFiles('/wordpress'));
-			console.log(this.listFiles('/opfs'));
-		}, 1000);
-		console.log('Woo');
 		if (!this.fileExists(headersFilePath)) {
 			return { headers: {}, httpStatusCode: 200 };
 			throw new Error(
