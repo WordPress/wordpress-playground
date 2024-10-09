@@ -375,7 +375,6 @@ int wasm_pclose_ret = -1;
 EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buffer), {
 	if (Module['onMessage']) {
 		const dataStr = UTF8ToString(data);
-		console.log("onMessage");
 
 		return Module['onMessage'](dataStr)
 			.then((response) => {
@@ -384,10 +383,8 @@ EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buff
 						? new TextEncoder().encode(response)
 						: response;
 
-				console.log("Response", { response, responseBytes });
 				// Copy the response bytes to heap
 				const responseSize = responseBytes.byteLength;
-				console.log("Response size", responseSize);
 				const responsePtr = _malloc(responseSize + 1);
 				HEAPU8.set(responseBytes, responsePtr);
 				HEAPU8[responsePtr + responseSize] = 0;
