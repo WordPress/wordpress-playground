@@ -137,7 +137,7 @@ jobs:
     deploy_docs:
         if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit-asyncify, test-unit-jspi, test-e2e, build]
+        needs: [test-unit-asyncify, test-e2e, build]
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
