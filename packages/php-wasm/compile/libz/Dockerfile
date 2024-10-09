@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 COPY ./libz/zlib-src /root/zlib
 RUN chmod a+x /root/zlib/configure
 RUN source /root/emsdk/emsdk_env.sh && \
@@ -7,5 +9,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure --prefix=/root/lib && \
     # emmake make fails, but only after it builds the library files.
     # Let's just ignore the errors and proceed with the built libraries.
-    (EMCC_FLAGS="-sSIDE_MODULE" emmake make || true) && \
-    EMCC_FLAGS="-sSIDE_MODULE" emmake make install
+    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+    (EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make || true) && \
+    EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make install
