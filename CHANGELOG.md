@@ -29,7 +29,6 @@ format.
 
 ### PHP WebAssembly
 
-- [PHP] Use JSPI when available, fall back to Asyncify. ([#1867](https://github.com/WordPress/wordpress-playground/pull/1867))
 - Refreshless website deployments – load remote.html using the network-first strategy. ([#1849](https://github.com/WordPress/wordpress-playground/pull/1849))
 - JSPI: Pass all unit tests, remove stale PHP builds. ([#1876](https://github.com/WordPress/wordpress-playground/pull/1876))
 - [Remote] Remove the "light" PHP.wasm bundle and only ship the "kitchen-sink" build. ([#1861](https://github.com/WordPress/wordpress-playground/pull/1861))
