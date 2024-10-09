@@ -187,4 +187,20 @@ describe('Blueprint step installPlugin', () => {
 			).rejects.toThrowError();
 		});
 	});
+
+	describe('targetFolderName option', () => {
+		it('should install a plugin to expected path', async () => {
+			await installPlugin(php, {
+				pluginZipFile: await zipFiles(php, zipFileName, {
+					[`unexpected-path/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+				}),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+					targetFolderName: pluginName,
+				},
+			});
+			expect(php.fileExists(installedPluginPath)).toBe(true);
+		});
+	});
 });

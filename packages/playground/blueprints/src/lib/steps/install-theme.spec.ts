@@ -1,4 +1,5 @@
 import { PHP } from '@php-wasm/universal';
+import { phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { installTheme } from './install-theme';
 import { PHPRequestHandler } from '@php-wasm/universal';
@@ -153,6 +154,32 @@ describe('Blueprint step installTheme', () => {
 					},
 				})
 			).rejects.toThrow();
+		});
+	});
+
+	describe('targetFolderName option', () => {
+		it('should install a theme to expected path', async () => {
+			// Create a zip with unexpected paths.
+			const unexpectedZipFileName = 'unexpected-test-theme.zip';
+			const unexpectedZipFilePath = `/{$unexpectedZipFileName}`;
+			await php.run({
+				code: `<?php $zip = new ZipArchive();
+							$zip->open(${phpVar(unexpectedZipFilePath)}, ZIPARCHIVE::CREATE);
+							$zip->addFromString("/unexpected-path/index.php","/**\n * Theme Name: Test Theme");
+							$zip->close();`,
+			});
+			const zip = await php.readFileAsBuffer(unexpectedZipFilePath);
+			php.unlink(unexpectedZipFilePath);
+
+			await installTheme(php, {
+				themeZipFile: new File([zip], unexpectedZipFileName),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+					targetFolderName: 'test-expected-theme',
+				},
+			});
+			expect(php.fileExists(`${rootPath}/wp-content/themes/test-expected-theme/`)).toBe(true);
 		});
 	});
 });
