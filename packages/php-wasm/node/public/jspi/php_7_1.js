@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_1_30/php_7_1.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 13321755; 
+export const dependenciesTotalSize = 13321769; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6947,6 +6947,8 @@ var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = () => (_wa
 
 var _php_wasm_init = Module["_php_wasm_init"] = () => (_php_wasm_init = Module["_php_wasm_init"] = wasmExports["php_wasm_init"])();
 
+var _wasm_free = Module["_wasm_free"] = a0 => (_wasm_free = Module["_wasm_free"] = wasmExports["wasm_free"])(a0);
+
 var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports["__funcs_on_exit"])();
 
 var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports["emscripten_builtin_memalign"])(a0, a1);
@@ -7088,7 +7090,7 @@ PHPLoader['removeRunDependency'] = function (...args) {
  * Therefore, we export them here.
  */
 PHPLoader['malloc'] = _malloc;
-PHPLoader['free'] = () => { console.warn("free isn't exported by the latest Emscripten anymore"); }
+PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 return PHPLoader;
 

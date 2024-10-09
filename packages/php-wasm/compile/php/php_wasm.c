@@ -1846,3 +1846,15 @@ int php_wasm_init()
 	}
 	return SUCCESS;
 }
+
+/*
+ * Function: wasm_free
+ * ----------------------------
+ *   Frees a pointer. Emscripten does not export the `free` function when using
+ *   JSPI, so we need to define our own.
+ *
+ *   @see https://man7.org/linux/man-pages/man3/free.3.html
+ */
+void wasm_free(void *_Nullable ptr) {
+	free(ptr);
+}

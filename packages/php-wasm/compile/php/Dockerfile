@@ -927,7 +927,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export ASYNCIFY_FLAGS=" -dPLAYGROUND_JSPI -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_free,_malloc "; \
+		export ASYNCIFY_FLAGS=" -dPLAYGROUND_JSPI -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 	fi; \	
@@ -945,6 +945,7 @@ RUN set -euxo pipefail; \
 "_wasm_add_SERVER_entry", \n\
 "_wasm_add_ENV_entry", \n\
 "_wasm_read", \n\
+"_wasm_free", \n\
 "_wasm_sapi_handle_request", \n\
 "_wasm_sapi_request_shutdown", \n\
 "_wasm_set_content_length", \n\

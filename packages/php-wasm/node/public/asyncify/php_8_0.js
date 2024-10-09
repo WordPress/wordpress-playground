@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 14465024; 
+export const dependenciesTotalSize = 14465052; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -7121,69 +7121,71 @@ var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = () => (_wa
 
 var _php_wasm_init = Module["_php_wasm_init"] = () => (_php_wasm_init = Module["_php_wasm_init"] = wasmExports["Kb"])();
 
-var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports["Lb"])();
+var _wasm_free = Module["_wasm_free"] = a0 => (_wasm_free = Module["_wasm_free"] = wasmExports["Lb"])(a0);
 
-var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports["Mb"])(a0, a1);
+var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports["Mb"])();
 
-var __emscripten_timeout = (a0, a1) => (__emscripten_timeout = wasmExports["Nb"])(a0, a1);
+var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports["Nb"])(a0, a1);
 
-var _setThrew = (a0, a1) => (_setThrew = wasmExports["Ob"])(a0, a1);
+var __emscripten_timeout = (a0, a1) => (__emscripten_timeout = wasmExports["Ob"])(a0, a1);
 
-var __emscripten_tempret_set = a0 => (__emscripten_tempret_set = wasmExports["Pb"])(a0);
+var _setThrew = (a0, a1) => (_setThrew = wasmExports["Pb"])(a0, a1);
 
-var __emscripten_stack_restore = a0 => (__emscripten_stack_restore = wasmExports["Qb"])(a0);
+var __emscripten_tempret_set = a0 => (__emscripten_tempret_set = wasmExports["Qb"])(a0);
 
-var __emscripten_stack_alloc = a0 => (__emscripten_stack_alloc = wasmExports["Rb"])(a0);
+var __emscripten_stack_restore = a0 => (__emscripten_stack_restore = wasmExports["Rb"])(a0);
 
-var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports["Sb"])();
+var __emscripten_stack_alloc = a0 => (__emscripten_stack_alloc = wasmExports["Sb"])(a0);
 
-var dynCall_iiii = Module["dynCall_iiii"] = (a0, a1, a2, a3) => (dynCall_iiii = Module["dynCall_iiii"] = wasmExports["Tb"])(a0, a1, a2, a3);
+var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports["Tb"])();
 
-var dynCall_ii = Module["dynCall_ii"] = (a0, a1) => (dynCall_ii = Module["dynCall_ii"] = wasmExports["Ub"])(a0, a1);
+var dynCall_iiii = Module["dynCall_iiii"] = (a0, a1, a2, a3) => (dynCall_iiii = Module["dynCall_iiii"] = wasmExports["Ub"])(a0, a1, a2, a3);
 
-var dynCall_vi = Module["dynCall_vi"] = (a0, a1) => (dynCall_vi = Module["dynCall_vi"] = wasmExports["Vb"])(a0, a1);
+var dynCall_ii = Module["dynCall_ii"] = (a0, a1) => (dynCall_ii = Module["dynCall_ii"] = wasmExports["Vb"])(a0, a1);
 
-var dynCall_vii = Module["dynCall_vii"] = (a0, a1, a2) => (dynCall_vii = Module["dynCall_vii"] = wasmExports["Wb"])(a0, a1, a2);
+var dynCall_vi = Module["dynCall_vi"] = (a0, a1) => (dynCall_vi = Module["dynCall_vi"] = wasmExports["Wb"])(a0, a1);
 
-var dynCall_viiiii = Module["dynCall_viiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_viiiii = Module["dynCall_viiiii"] = wasmExports["Xb"])(a0, a1, a2, a3, a4, a5);
+var dynCall_vii = Module["dynCall_vii"] = (a0, a1, a2) => (dynCall_vii = Module["dynCall_vii"] = wasmExports["Xb"])(a0, a1, a2);
 
-var dynCall_iii = Module["dynCall_iii"] = (a0, a1, a2) => (dynCall_iii = Module["dynCall_iii"] = wasmExports["Yb"])(a0, a1, a2);
+var dynCall_viiiii = Module["dynCall_viiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_viiiii = Module["dynCall_viiiii"] = wasmExports["Yb"])(a0, a1, a2, a3, a4, a5);
 
-var dynCall_iiiii = Module["dynCall_iiiii"] = (a0, a1, a2, a3, a4) => (dynCall_iiiii = Module["dynCall_iiiii"] = wasmExports["Zb"])(a0, a1, a2, a3, a4);
+var dynCall_iii = Module["dynCall_iii"] = (a0, a1, a2) => (dynCall_iii = Module["dynCall_iii"] = wasmExports["Zb"])(a0, a1, a2);
 
-var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = wasmExports["_b"])(a0, a1, a2, a3, a4, a5, a6);
+var dynCall_iiiii = Module["dynCall_iiiii"] = (a0, a1, a2, a3, a4) => (dynCall_iiiii = Module["dynCall_iiiii"] = wasmExports["_b"])(a0, a1, a2, a3, a4);
 
-var dynCall_iiiiii = Module["dynCall_iiiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiiii = Module["dynCall_iiiiii"] = wasmExports["$b"])(a0, a1, a2, a3, a4, a5);
+var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = wasmExports["$b"])(a0, a1, a2, a3, a4, a5, a6);
 
-var dynCall_i = Module["dynCall_i"] = a0 => (dynCall_i = Module["dynCall_i"] = wasmExports["ac"])(a0);
+var dynCall_iiiiii = Module["dynCall_iiiiii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiiii = Module["dynCall_iiiiii"] = wasmExports["ac"])(a0, a1, a2, a3, a4, a5);
 
-var dynCall_viii = Module["dynCall_viii"] = (a0, a1, a2, a3) => (dynCall_viii = Module["dynCall_viii"] = wasmExports["bc"])(a0, a1, a2, a3);
+var dynCall_i = Module["dynCall_i"] = a0 => (dynCall_i = Module["dynCall_i"] = wasmExports["bc"])(a0);
 
-var dynCall_viiii = Module["dynCall_viiii"] = (a0, a1, a2, a3, a4) => (dynCall_viiii = Module["dynCall_viiii"] = wasmExports["cc"])(a0, a1, a2, a3, a4);
+var dynCall_viii = Module["dynCall_viii"] = (a0, a1, a2, a3) => (dynCall_viii = Module["dynCall_viii"] = wasmExports["cc"])(a0, a1, a2, a3);
 
-var dynCall_v = Module["dynCall_v"] = a0 => (dynCall_v = Module["dynCall_v"] = wasmExports["dc"])(a0);
+var dynCall_viiii = Module["dynCall_viiii"] = (a0, a1, a2, a3, a4) => (dynCall_viiii = Module["dynCall_viiii"] = wasmExports["dc"])(a0, a1, a2, a3, a4);
 
-var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = wasmExports["ec"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+var dynCall_v = Module["dynCall_v"] = a0 => (dynCall_v = Module["dynCall_v"] = wasmExports["ec"])(a0);
 
-var dynCall_viiiiiii = Module["dynCall_viiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7) => (dynCall_viiiiiii = Module["dynCall_viiiiiii"] = wasmExports["fc"])(a0, a1, a2, a3, a4, a5, a6, a7);
+var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = wasmExports["fc"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 
-var dynCall_viiiiii = Module["dynCall_viiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_viiiiii = Module["dynCall_viiiiii"] = wasmExports["gc"])(a0, a1, a2, a3, a4, a5, a6);
+var dynCall_viiiiiii = Module["dynCall_viiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7) => (dynCall_viiiiiii = Module["dynCall_viiiiiii"] = wasmExports["gc"])(a0, a1, a2, a3, a4, a5, a6, a7);
 
-var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7) => (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = wasmExports["hc"])(a0, a1, a2, a3, a4, a5, a6, a7);
+var dynCall_viiiiii = Module["dynCall_viiiiii"] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_viiiiii = Module["dynCall_viiiiii"] = wasmExports["hc"])(a0, a1, a2, a3, a4, a5, a6);
 
-var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = wasmExports["ic"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7) => (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = wasmExports["ic"])(a0, a1, a2, a3, a4, a5, a6, a7);
 
-var dynCall_jii = Module["dynCall_jii"] = (a0, a1, a2) => (dynCall_jii = Module["dynCall_jii"] = wasmExports["jc"])(a0, a1, a2);
+var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = wasmExports["jc"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 
-var dynCall_viidii = Module["dynCall_viidii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_viidii = Module["dynCall_viidii"] = wasmExports["kc"])(a0, a1, a2, a3, a4, a5);
+var dynCall_jii = Module["dynCall_jii"] = (a0, a1, a2) => (dynCall_jii = Module["dynCall_jii"] = wasmExports["kc"])(a0, a1, a2);
 
-var _asyncify_start_unwind = a0 => (_asyncify_start_unwind = wasmExports["lc"])(a0);
+var dynCall_viidii = Module["dynCall_viidii"] = (a0, a1, a2, a3, a4, a5) => (dynCall_viidii = Module["dynCall_viidii"] = wasmExports["lc"])(a0, a1, a2, a3, a4, a5);
 
-var _asyncify_stop_unwind = () => (_asyncify_stop_unwind = wasmExports["mc"])();
+var _asyncify_start_unwind = a0 => (_asyncify_start_unwind = wasmExports["mc"])(a0);
 
-var _asyncify_start_rewind = a0 => (_asyncify_start_rewind = wasmExports["nc"])(a0);
+var _asyncify_stop_unwind = () => (_asyncify_stop_unwind = wasmExports["nc"])();
 
-var _asyncify_stop_rewind = () => (_asyncify_stop_rewind = wasmExports["oc"])();
+var _asyncify_start_rewind = a0 => (_asyncify_start_rewind = wasmExports["oc"])(a0);
+
+var _asyncify_stop_rewind = () => (_asyncify_stop_rewind = wasmExports["pc"])();
 
 function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
   var sp = stackSave();
@@ -7528,7 +7530,7 @@ PHPLoader['removeRunDependency'] = function (...args) {
  * Therefore, we export them here.
  */
 PHPLoader['malloc'] = _malloc;
-PHPLoader['free'] = () => { console.warn("free isn't exported by the latest Emscripten anymore"); }
+PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 return PHPLoader;
 

@@ -38,13 +38,22 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"nx run php-wasm-web:recompile-php:jspi",
-					"nx run php-wasm-web:recompile-php:asyncify"
+					"nx run php-wasm-web:recompile-php:jspi:all",
+					"nx run php-wasm-web:recompile-php:asyncify:all"
 				],
 				"parallel": false
 			}
 		},
 		"recompile-php:jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:jspi:all": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
@@ -62,6 +71,15 @@
 			}
 		},
 		"recompile-php:asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/asyncify"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:asyncify:all": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
