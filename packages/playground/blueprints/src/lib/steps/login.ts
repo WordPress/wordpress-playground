@@ -28,7 +28,7 @@ export type LoginStep = {
 /**
  * Logs in to Playground.
  * Under the hood, this function sets the `PLAYGROUND_AUTO_LOGIN_AS_USER` constant.
- * The `auto_login.php` mu-plugin uses that constant to log in the user on the first load.
+ * The `0-auto-login.php` mu-plugin uses that constant to log in the user on the first load.
  * This step depends on the `@wp-playground/wordpress` package because
  * the plugin is located in and loaded automatically by the `@wp-playground/wordpress` package.
  */
