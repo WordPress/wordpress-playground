@@ -27,7 +27,6 @@ const LibraryExample = {
 			// auto_prepend_file php.ini directive.
 			FS.mkdir('/internal/shared/preload');
 
-
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
@@ -491,6 +490,9 @@ const LibraryExample = {
 				// Let's listen to anything it outputs and pass it to the child process.
 				PHPWASM.input_devices[ProcInfo.stdinFd].onData(function (data) {
 					if (!data) return;
+					if (typeof data === 'number') {
+						data = new Uint8Array([data]);
+					}
 					const dataStr = new TextDecoder('utf-8').decode(data);
 					cp.stdin.write(dataStr);
 				});
@@ -635,8 +637,7 @@ const LibraryExample = {
 		}
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
-	}
-	
+	},
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');

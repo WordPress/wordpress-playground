@@ -27,6 +27,9 @@
 #include "proc_open.h"
 #include "dns_polyfill.h"
 
+// Created by Dockerfile:
+#include "php_wasm_asyncify.h"
+
 unsigned int wasm_sleep(unsigned int time)
 {
 	emscripten_sleep(time * 1000); // emscripten_sleep takes time in milliseconds

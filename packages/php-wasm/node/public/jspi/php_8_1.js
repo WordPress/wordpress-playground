@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 14271294; 
+export const dependenciesTotalSize = 14271326; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -364,210 +364,216 @@ var tempDouble;
 
 var tempI64;
 
-function js_popen_to_file(command, mode, exitCodePtr) {
-  const returnCallback = resolver => Asyncify.handleSleep(resolver);
-  if (!command) return 1;
-  const cmdstr = UTF8ToString(command);
-  if (!cmdstr.length) return 0;
-  const modestr = UTF8ToString(mode);
-  if (!modestr.length) return 0;
-  if (modestr === "w") {
-    console.error('popen($cmd, "w") is not implemented yet');
-  }
-  return returnCallback(async wakeUp => {
-    let cp;
-    try {
-      cp = PHPWASM.spawnProcess(cmdstr, []);
-      if (cp instanceof Promise) {
-        cp = await cp;
-      }
-    } catch (e) {
-      console.error(e);
-      if (e.code === "SPAWN_UNSUPPORTED") {
-        return 1;
-      }
-      throw e;
+function __asyncjs__js_popen_to_file(command, mode, exitCodePtr) {
+  return Asyncify.handleAsync(async () => {
+    const returnCallback = resolver => new Promise(resolver);
+    if (!command) return 1;
+    const cmdstr = UTF8ToString(command);
+    if (!cmdstr.length) return 0;
+    const modestr = UTF8ToString(mode);
+    if (!modestr.length) return 0;
+    if (modestr === "w") {
+      console.error('popen($cmd, "w") is not implemented yet');
     }
-    const outByteArrays = [];
-    cp.stdout.on("data", function(data) {
-      outByteArrays.push(data);
-    });
-    const outputPath = "/tmp/popen_output";
-    cp.on("exit", function(exitCode) {
-      const outBytes = new Uint8Array(outByteArrays.reduce((acc, curr) => acc + curr.length, 0));
-      let offset = 0;
-      for (const byteArray of outByteArrays) {
-        outBytes.set(byteArray, offset);
-        offset += byteArray.length;
-      }
-      FS.writeFile(outputPath, outBytes);
-      HEAPU8[exitCodePtr] = exitCode;
-      wakeUp(allocateUTF8OnStack(outputPath));
-    });
-  });
-}
-
-js_popen_to_file.sig = "iiii";
-
-function wasm_poll_socket(socketd, events, timeout) {
-  const returnCallback = resolver => Asyncify.handleSleep(resolver);
-  const POLLIN = 1;
-  const POLLPRI = 2;
-  const POLLOUT = 4;
-  const POLLERR = 8;
-  const POLLHUP = 16;
-  const POLLNVAL = 32;
-  return returnCallback(wakeUp => {
-    const polls = [];
-    if (socketd in PHPWASM.child_proc_by_fd) {
-      const procInfo = PHPWASM.child_proc_by_fd[socketd];
-      if (procInfo.exited) {
-        wakeUp(0);
-        return;
-      }
-      polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
-    } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
-      const sock = getSocketFromFD(socketd);
-      if (!sock) {
-        wakeUp(0);
-        return;
-      }
-      const lookingFor = new Set;
-      if (events & POLLIN || events & POLLPRI) {
-        if (sock.server) {
-          for (const client of sock.pending) {
-            if ((client.recv_queue || []).length > 0) {
-              wakeUp(1);
-              return;
-            }
-          }
-        } else if ((sock.recv_queue || []).length > 0) {
-          wakeUp(1);
-          return;
+    return returnCallback(async wakeUp => {
+      let cp;
+      try {
+        cp = PHPWASM.spawnProcess(cmdstr, []);
+        if (cp instanceof Promise) {
+          cp = await cp;
         }
-      }
-      const webSockets = PHPWASM.getAllWebSockets(sock);
-      if (!webSockets.length) {
-        wakeUp(0);
-        return;
-      }
-      for (const ws of webSockets) {
-        if (events & POLLIN || events & POLLPRI) {
-          polls.push(PHPWASM.awaitData(ws));
-          lookingFor.add("POLLIN");
+      } catch (e) {
+        console.error(e);
+        if (e.code === "SPAWN_UNSUPPORTED") {
+          return 1;
         }
-        if (events & POLLOUT) {
-          polls.push(PHPWASM.awaitConnection(ws));
-          lookingFor.add("POLLOUT");
-        }
-        if (events & POLLHUP) {
-          polls.push(PHPWASM.awaitClose(ws));
-          lookingFor.add("POLLHUP");
-        }
-        if (events & POLLERR || events & POLLNVAL) {
-          polls.push(PHPWASM.awaitError(ws));
-          lookingFor.add("POLLERR");
-        }
-      }
-    } else {
-      setTimeout(function() {
-        wakeUp(1);
-      }, timeout);
-      return;
-    }
-    if (polls.length === 0) {
-      console.warn("Unsupported poll event " + events + ", defaulting to setTimeout().");
-      setTimeout(function() {
-        wakeUp(0);
-      }, timeout);
-      return;
-    }
-    const promises = polls.map(([promise]) => promise);
-    const clearPolling = () => polls.forEach(([, clear]) => clear());
-    let awaken = false;
-    let timeoutId;
-    Promise.race(promises).then(function(results) {
-      if (!awaken) {
-        awaken = true;
-        wakeUp(1);
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        clearPolling();
-      }
-    });
-    if (timeout !== -1) {
-      timeoutId = setTimeout(function() {
-        if (!awaken) {
-          awaken = true;
-          wakeUp(0);
-          clearPolling();
-        }
-      }, timeout);
-    }
-  });
-}
-
-wasm_poll_socket.sig = "iiii";
-
-function js_fd_read(fd, iov, iovcnt, pnum) {
-  const returnCallback = resolver => Asyncify.handleSleep(resolver);
-  if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
-    var returnCode;
-    var stream;
-    let num = 0;
-    try {
-      stream = SYSCALLS.getStreamFromFD(fd);
-      const num = doReadv(stream, iov, iovcnt);
-      HEAPU32[pnum >> 2] = num;
-      return 0;
-    } catch (e) {
-      if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
         throw e;
       }
-      if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
-        HEAPU32[pnum >> 2] = 0;
-        return returnCode;
-      }
-    }
-  }
-  return returnCallback(wakeUp => {
-    var retries = 0;
-    var interval = 50;
-    var timeout = 5e3;
-    var maxRetries = timeout / interval;
-    function poll() {
-      var returnCode;
-      var stream;
-      let num;
-      try {
-        stream = SYSCALLS.getStreamFromFD(fd);
-        num = doReadv(stream, iov, iovcnt);
-        returnCode = 0;
-      } catch (e) {
-        if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
-          console.error(e);
-          throw e;
+      const outByteArrays = [];
+      cp.stdout.on("data", function(data) {
+        outByteArrays.push(data);
+      });
+      const outputPath = "/tmp/popen_output";
+      cp.on("exit", function(exitCode) {
+        const outBytes = new Uint8Array(outByteArrays.reduce((acc, curr) => acc + curr.length, 0));
+        let offset = 0;
+        for (const byteArray of outByteArrays) {
+          outBytes.set(byteArray, offset);
+          offset += byteArray.length;
         }
-        returnCode = e.errno;
-      }
-      const success = returnCode === 0;
-      const failure = (++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream));
-      if (success) {
-        HEAPU32[pnum >> 2] = num;
-        wakeUp(0);
-      } else if (failure) {
-        HEAPU32[pnum >> 2] = 0;
-        wakeUp(returnCode === 6 ? 0 : returnCode);
-      } else {
-        setTimeout(poll, interval);
-      }
-    }
-    poll();
+        FS.writeFile(outputPath, outBytes);
+        HEAPU8[exitCodePtr] = exitCode;
+        wakeUp(allocateUTF8OnStack(outputPath));
+      });
+    });
   });
 }
 
-js_fd_read.sig = "iiiii";
+__asyncjs__js_popen_to_file.sig = "iiii";
+
+function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
+  return Asyncify.handleAsync(async () => {
+    const returnCallback = resolver => new Promise(resolver);
+    const POLLIN = 1;
+    const POLLPRI = 2;
+    const POLLOUT = 4;
+    const POLLERR = 8;
+    const POLLHUP = 16;
+    const POLLNVAL = 32;
+    return returnCallback(wakeUp => {
+      const polls = [];
+      if (socketd in PHPWASM.child_proc_by_fd) {
+        const procInfo = PHPWASM.child_proc_by_fd[socketd];
+        if (procInfo.exited) {
+          wakeUp(0);
+          return;
+        }
+        polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
+      } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+        const sock = getSocketFromFD(socketd);
+        if (!sock) {
+          wakeUp(0);
+          return;
+        }
+        const lookingFor = new Set;
+        if (events & POLLIN || events & POLLPRI) {
+          if (sock.server) {
+            for (const client of sock.pending) {
+              if ((client.recv_queue || []).length > 0) {
+                wakeUp(1);
+                return;
+              }
+            }
+          } else if ((sock.recv_queue || []).length > 0) {
+            wakeUp(1);
+            return;
+          }
+        }
+        const webSockets = PHPWASM.getAllWebSockets(sock);
+        if (!webSockets.length) {
+          wakeUp(0);
+          return;
+        }
+        for (const ws of webSockets) {
+          if (events & POLLIN || events & POLLPRI) {
+            polls.push(PHPWASM.awaitData(ws));
+            lookingFor.add("POLLIN");
+          }
+          if (events & POLLOUT) {
+            polls.push(PHPWASM.awaitConnection(ws));
+            lookingFor.add("POLLOUT");
+          }
+          if (events & POLLHUP) {
+            polls.push(PHPWASM.awaitClose(ws));
+            lookingFor.add("POLLHUP");
+          }
+          if (events & POLLERR || events & POLLNVAL) {
+            polls.push(PHPWASM.awaitError(ws));
+            lookingFor.add("POLLERR");
+          }
+        }
+      } else {
+        setTimeout(function() {
+          wakeUp(1);
+        }, timeout);
+        return;
+      }
+      if (polls.length === 0) {
+        console.warn("Unsupported poll event " + events + ", defaulting to setTimeout().");
+        setTimeout(function() {
+          wakeUp(0);
+        }, timeout);
+        return;
+      }
+      const promises = polls.map(([promise]) => promise);
+      const clearPolling = () => polls.forEach(([, clear]) => clear());
+      let awaken = false;
+      let timeoutId;
+      Promise.race(promises).then(function(results) {
+        if (!awaken) {
+          awaken = true;
+          wakeUp(1);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          clearPolling();
+        }
+      });
+      if (timeout !== -1) {
+        timeoutId = setTimeout(function() {
+          if (!awaken) {
+            awaken = true;
+            wakeUp(0);
+            clearPolling();
+          }
+        }, timeout);
+      }
+    });
+  });
+}
+
+__asyncjs__wasm_poll_socket.sig = "iiii";
+
+function __asyncjs__js_fd_read(fd, iov, iovcnt, pnum) {
+  return Asyncify.handleAsync(async () => {
+    const returnCallback = resolver => new Promise(resolver);
+    if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
+      var returnCode;
+      var stream;
+      let num = 0;
+      try {
+        stream = SYSCALLS.getStreamFromFD(fd);
+        const num = doReadv(stream, iov, iovcnt);
+        HEAPU32[pnum >> 2] = num;
+        return 0;
+      } catch (e) {
+        if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+          throw e;
+        }
+        if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+          HEAPU32[pnum >> 2] = 0;
+          return returnCode;
+        }
+      }
+    }
+    return returnCallback(wakeUp => {
+      var retries = 0;
+      var interval = 50;
+      var timeout = 5e3;
+      var maxRetries = timeout / interval;
+      function poll() {
+        var returnCode;
+        var stream;
+        let num;
+        try {
+          stream = SYSCALLS.getStreamFromFD(fd);
+          num = doReadv(stream, iov, iovcnt);
+          returnCode = 0;
+        } catch (e) {
+          if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+            console.error(e);
+            throw e;
+          }
+          returnCode = e.errno;
+        }
+        const success = returnCode === 0;
+        const failure = (++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream));
+        if (success) {
+          HEAPU32[pnum >> 2] = num;
+          wakeUp(0);
+        } else if (failure) {
+          HEAPU32[pnum >> 2] = 0;
+          wakeUp(returnCode === 6 ? 0 : returnCode);
+        } else {
+          setTimeout(poll, interval);
+        }
+      }
+      poll();
+    });
+  });
+}
+
+__asyncjs__js_fd_read.sig = "iiiii";
 
 function __asyncjs__js_module_onMessage(data, response_buffer) {
   return Asyncify.handleAsync(async () => {
@@ -6180,6 +6186,9 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     if (ProcInfo.stdinIsDevice) {
       PHPWASM.input_devices[ProcInfo.stdinFd].onData(function(data) {
         if (!data) return;
+        if (typeof data === "number") {
+          data = new Uint8Array([ data ]);
+        }
         const dataStr = new TextDecoder("utf-8").decode(data);
         cp.stdin.write(dataStr);
       });
@@ -6736,7 +6745,7 @@ function _wasm_shutdown(socketd, how) {
 
 var Asyncify = {
   instrumentWasmImports(imports) {
-    var importPattern = /^(invoke_.*|__asyncjs__.*)$/;
+    var importPattern = /^(js_open_process|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|invoke_.*|__asyncjs__.*)$/;
     for (let [x, original] of Object.entries(imports)) {
       if (typeof original == "function") {
         let isAsyncifyImport = original.isAsync || importPattern.test(x);
@@ -6880,7 +6889,10 @@ var wasmImports = {
   /** @export */ SharpYuvGetConversionMatrix: _SharpYuvGetConversionMatrix,
   /** @export */ SharpYuvInit: _SharpYuvInit,
   /** @export */ __assert_fail: ___assert_fail,
+  /** @export */ __asyncjs__js_fd_read: __asyncjs__js_fd_read,
   /** @export */ __asyncjs__js_module_onMessage: __asyncjs__js_module_onMessage,
+  /** @export */ __asyncjs__js_popen_to_file: __asyncjs__js_popen_to_file,
+  /** @export */ __asyncjs__wasm_poll_socket: __asyncjs__wasm_poll_socket,
   /** @export */ __call_sighandler: ___call_sighandler,
   /** @export */ __syscall_accept4: ___syscall_accept4,
   /** @export */ __syscall_bind: ___syscall_bind,
@@ -6954,9 +6966,7 @@ var wasmImports = {
   /** @export */ getprotobyname: _getprotobyname,
   /** @export */ getprotobynumber: _getprotobynumber,
   /** @export */ js_create_input_device: _js_create_input_device,
-  /** @export */ js_fd_read: js_fd_read,
   /** @export */ js_open_process: _js_open_process,
-  /** @export */ js_popen_to_file: js_popen_to_file,
   /** @export */ js_process_status: _js_process_status,
   /** @export */ js_waitpid: _js_waitpid,
   /** @export */ makecontext: _makecontext,
@@ -6966,7 +6976,6 @@ var wasmImports = {
   /** @export */ strptime: _strptime,
   /** @export */ swapcontext: _swapcontext,
   /** @export */ wasm_close: _wasm_close,
-  /** @export */ wasm_poll_socket: wasm_poll_socket,
   /** @export */ wasm_setsockopt: _wasm_setsockopt,
   /** @export */ wasm_shutdown: _wasm_shutdown
 };

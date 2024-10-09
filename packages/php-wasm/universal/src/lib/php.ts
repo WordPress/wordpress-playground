@@ -779,8 +779,6 @@ export class PHP implements Disposable {
 				return resolve(response);
 			});
 		} catch (e) {
-			console.error(e);
-
 			/**
 			 * An exception here means an irrecoverable crash. Let's make
 			 * it very clear to the consumers of this API – every method
