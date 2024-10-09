@@ -26,7 +26,6 @@ export interface SiteFormData {
 	phpVersion: SupportedPHPVersion;
 	wpVersion: string;
 	language: string;
-	withExtensions: boolean;
 	withNetworking: boolean;
 	multisite: boolean;
 }
@@ -47,7 +46,6 @@ export function UnconnectedSiteSettingsForm({
 		phpVersion: '8.0',
 		wpVersion: 'latest',
 		language: '',
-		withExtensions: true,
 		withNetworking: true,
 		multisite: false,
 		...defaultValues,
@@ -468,23 +466,6 @@ export function UnconnectedSiteSettingsForm({
 							onChange={(isChecked) => {
 								setValue('multisite', isChecked);
 							}}
-							{...rest}
-							value={rest.value ? 'true' : 'false'}
-							checked={rest.value}
-						/>
-					)}
-				/>
-
-				<Controller
-					control={control}
-					name="withExtensions"
-					render={({ field: { onChange, ref, ...rest } }) => (
-						<CheckboxControl
-							label="Load PHP extensions"
-							onChange={(isChecked) => {
-								setValue('withExtensions', isChecked);
-							}}
-							help="~6MB (libxml, openssl, mbstring, iconv, gd)"
 							{...rest}
 							value={rest.value ? 'true' : 'false'}
 							checked={rest.value}

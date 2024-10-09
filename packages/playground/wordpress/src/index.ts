@@ -207,17 +207,6 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			}
 			set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
 				/**
-				 * We're forced to use this deprecated hook to ensure SSL operations work without
-				 * the kitchen-sink bundled. See https://github.com/WordPress/wordpress-playground/pull/1504
-				 * for more context.
-				 */
-				if (
-					strpos($message, "Hook http_api_transports is deprecated") !== false ||
-					strpos($message, "Hook http_api_transports is <strong>deprecated</strong>") !== false
-				) {
-					return;
-				}
-				/**
 				 * This is a temporary workaround to hide the 32bit integer warnings that
 				 * appear when using various time related function, such as strtotime and mktime.
 				 * Examples of the warnings that are displayed:

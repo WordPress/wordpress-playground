@@ -121,9 +121,7 @@ export async function startPlaygroundWeb({
 
 	// Set a default blueprint if none is provided.
 	if (!blueprint) {
-		blueprint = {
-			phpExtensionBundles: ['kitchen-sink'],
-		};
+		blueprint = {};
 	}
 
 	const compiled = compileBlueprint(blueprint, {
@@ -154,7 +152,6 @@ export async function startPlaygroundWeb({
 		shouldInstallWordPress,
 		phpVersion: compiled.versions.php,
 		wpVersion: compiled.versions.wp,
-		phpExtensions: compiled.phpExtensions,
 		withNetworking: compiled.features.networking,
 	});
 	await playground.isReady();

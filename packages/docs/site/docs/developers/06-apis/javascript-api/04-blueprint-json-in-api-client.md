@@ -17,8 +17,6 @@ const client = await startPlaygroundWeb({
 			wp: '6.3',
 			php: '8.0',
 		},
-		// Optional: downloads additional PHP extensions like DOMDocument, mbstring, etc.
-		extensionBundles: ['kitchen-sink'],
 		steps: [
 			{ step: 'login' },
 			{

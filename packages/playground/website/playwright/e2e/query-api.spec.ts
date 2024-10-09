@@ -59,16 +59,6 @@ test('should enable networking when requested', async ({
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
-test('should enable networking when requested AND the kitchen sink extension bundle is NOT enabled', async ({
-	website,
-	wordpress,
-}) => {
-	await website.goto(
-		'./?networking=yes&php-extension-bundle=light&url=/wp-admin/plugin-install.php'
-	);
-	await expect(wordpress.locator('body')).toContainText('Install Now');
-});
-
 test('should install the specified plugin', async ({ website, wordpress }) => {
 	await website.goto('./?plugin=gutenberg&url=/wp-admin/plugins.php');
 	await expect(wordpress.locator('#deactivate-gutenberg')).toContainText(
