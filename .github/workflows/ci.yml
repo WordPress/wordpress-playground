@@ -32,20 +32,18 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
-    # JSPI doesn't seem to be supported in Node.js 22
-    # It used to work, see https://github.com/WordPress/wordpress-playground/pull/1339.
-    # These days, though, running our JSPI builds throws the following error: TypeError: WebAssembly.Suspending is not a constructor
-    # test-unit-jspi:
-    #     runs-on: ubuntu-latest
-    #     needs: [lint-and-typecheck]
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #           with:
-    #               node-version: 22
-    #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
+    test-unit-jspi:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  # @TODO: Switch to the production version once it's released
+                  node-version: 23.0.0-nightly2024100909d10b50dc
+            - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]

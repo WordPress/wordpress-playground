@@ -1392,7 +1392,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		/**
 		 * Issue https://github.com/WordPress/wordpress-playground/issues/169
 		 */
-		it('Should work with long POST body', () => {
+		it('Should work with long POST body', async () => {
 			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
 			const body = new Uint8Array(
 				readFileSync(
@@ -1402,8 +1402,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			);
 			// 0x4000 is SAPI_POST_BLOCK_SIZE
 			expect(body.length).toBeGreaterThan(0x4000);
-			expect(async () => {
-				await php.run({
+			await expect(
+				php.run({
 					code: 'echo "A";',
 					relativeUri: '/test.php?a=b',
 					body,
@@ -1411,8 +1411,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					headers: {
 						'Content-Type': 'application/x-www-form-urlencoded',
 					},
-				});
-			}).not.toThrowError();
+				})
+			).resolves.not.toThrow();
 		});
 
 		it('Should run a script when no code snippet is provided', async () => {
