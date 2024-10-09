@@ -404,9 +404,13 @@ export class PHP implements Disposable {
 		let heapBodyPointer;
 		try {
 			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
+				await this.#initWebRuntime();
 				this.#webSapiInitialized = true;
+				this.mkdir('/internal');
+				this.mkdir('/internal/shared');
+				this.mkdir('/internal/shared/preload');
 			}
+			console.log(this.listFiles('/'));
 			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
 				throw new Error(
 					`The script path "${request.scriptPath}" does not exist.`
@@ -522,8 +526,8 @@ export class PHP implements Disposable {
 		return $_SERVER;
 	}
 
-	#initWebRuntime() {
-		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
+	async #initWebRuntime() {
+		await this[__private__dont__use].ccall('php_wasm_init', null, [], []);
 	}
 
 	#getResponseHeaders(): {
@@ -531,7 +535,16 @@ export class PHP implements Disposable {
 		httpStatusCode: number;
 	} {
 		const headersFilePath = '/internal/headers.json';
+		setTimeout(() => {
+			console.log('Waa');
+			console.log(this.listFiles('/'));
+			console.log(this.listFiles('/internal'));
+			console.log(this.listFiles('/wordpress'));
+			console.log(this.listFiles('/opfs'));
+		}, 1000);
+		console.log('Woo');
 		if (!this.fileExists(headersFilePath)) {
+			return { headers: {}, httpStatusCode: 200 };
 			throw new Error(
 				'SAPI Error: Could not find response headers file.'
 			);
