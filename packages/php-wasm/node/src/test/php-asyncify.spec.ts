@@ -251,7 +251,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 						`Asyncify crash! The following missing functions were just auto-added to the ASYNCIFY_ONLY list in the Dockerfile: \n ` +
 							missingCandidates.join(', ') +
 							`\nYou now need to rebuild PHP and re-run this test: \n` +
-							`  npm run recompile:php:node:8.0\n` +
+							`  npm run recompile:php:node:asyncify:8.0\n` +
 							`  node --stack-trace-limit=100 ./node_modules/.bin/nx test php-wasm-node --test-name-pattern='asyncify'\n`
 					);
 				}

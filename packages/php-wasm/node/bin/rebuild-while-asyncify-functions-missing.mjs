@@ -42,7 +42,7 @@ for (const PHP_VERSION of PHP_VERSIONS) {
 		}
 
 		console.log(`Dockerfile changed, recompiling PHP...`);
-		spawnSync('npm', ['run', `recompile:php:node:${PHP_VERSION}`]);
+		spawnSync('npm', ['run', `recompile:php:node:asyncify:${PHP_VERSION}`]);
 	}
 }
 
