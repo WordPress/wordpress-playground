@@ -17,9 +17,9 @@ export interface InstallAssetOptions {
 	 */
 	targetPath: string;
 	/**
-	 * Target slug to install the asset into.
+	 * Target folder name to install the asset into.
 	 */
-	targetSlug?: string;
+	targetFolderName?: string;
 	/**
 	 * What to do if the asset already exists.
 	 */
@@ -35,7 +35,7 @@ export async function installAsset(
 		targetPath,
 		zipFile,
 		ifAlreadyInstalled = 'overwrite',
-		targetSlug = ''
+		targetFolderName = ''
 	}: InstallAssetOptions
 ): Promise<{
 	assetFolderPath: string;
@@ -88,8 +88,8 @@ export async function installAsset(
 		}
 
 		// If a specific slug was requested be used, use that.
-		if ( targetSlug && targetSlug.length ) {
-			assetFolderName = targetSlug;
+		if ( targetFolderName && targetFolderName.length ) {
+			assetFolderName = targetFolderName;
 		}
 
 		// Move asset folder to target path

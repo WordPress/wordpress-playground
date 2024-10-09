@@ -157,7 +157,7 @@ describe('Blueprint step installTheme', () => {
 		});
 	});
 
-	describe('targetSlug option', () => {
+	describe('targetFolderName option', () => {
 		it('should install a theme to expected path', async () => {
 			// Create a zip with unexpected paths.
 			const unexpectedZipFileName = 'unexpected-test-theme.zip';
@@ -176,7 +176,7 @@ describe('Blueprint step installTheme', () => {
 				ifAlreadyInstalled: 'overwrite',
 				options: {
 					activate: false,
-					targetSlug: 'test-expected-theme',
+					targetFolderName: 'test-expected-theme',
 				},
 			});
 			expect(php.fileExists(`${rootPath}/wp-content/themes/test-expected-theme/`)).toBe(true);

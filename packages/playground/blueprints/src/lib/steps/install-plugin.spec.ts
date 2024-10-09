@@ -188,7 +188,7 @@ describe('Blueprint step installPlugin', () => {
 		});
 	});
 
-	describe('targetSlug option', () => {
+	describe('targetFolderName option', () => {
 		it('should install a plugin to expected path', async () => {
 			await installPlugin(php, {
 				pluginZipFile: await zipFiles(php, zipFileName, {
@@ -197,7 +197,7 @@ describe('Blueprint step installPlugin', () => {
 				ifAlreadyInstalled: 'overwrite',
 				options: {
 					activate: false,
-					targetSlug: pluginName,
+					targetFolderName: pluginName,
 				},
 			});
 			expect(php.fileExists(installedPluginPath)).toBe(true);

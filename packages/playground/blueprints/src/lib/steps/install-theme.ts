@@ -59,9 +59,9 @@ export interface InstallThemeOptions {
 	 */
 	importStarterContent?: boolean;
 	/**
-	 * The name of the folder to install the theme to. Defaults to guessing from themeZipFile
+	 * The name of the folder to install the theme to. Defaults to guessing from themeData
 	 */
-	targetSlug?: string;
+	targetFolderName?: string;
 }
 
 /**
@@ -85,25 +85,25 @@ export const installTheme: StepHandler<
 		);
 	}
 
-  const targetSlug = 'targetSlug' in options ? options.targetSlug : '';
+	const targetFolderName = 'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderName = '';
 	let assetNiceName = '';
 	if (themeData instanceof File) {
 		// @TODO: Consider validating whether this is a zip file?
-    const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
-    assetNiceName = zipNameToHumanName(zipFileName);
+		const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
+		assetNiceName = zipNameToHumanName(zipFileName);
 
 		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
 		const assetResult = await installAsset(playground, {
 			ifAlreadyInstalled,
 			zipFile: themeData,
 			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-      targetSlug: targetSlug
+			targetFolderName: targetFolderName
 		});
 		assetFolderName = assetResult.assetFolderName;
 	} else {
 		assetNiceName = themeData.name;
-    assetFolderName = targetSlug || assetNiceName;
+		assetFolderName = targetFolderName || assetNiceName;
 
 		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
 		const themeDirectoryPath = joinPaths(

@@ -73,9 +73,9 @@ export interface InstallPluginOptions {
 	 */
 	activate?: boolean;
 	/**
-	 * The name of the folder to install the plugin to. Defaults to guessing from pluginZipFile
+	 * The name of the folder to install the plugin to. Defaults to guessing from pluginData
 	 */
-	targetSlug?: string;
+	targetFolderName?: string;
 }
 
 /**
@@ -99,20 +99,20 @@ export const installPlugin: StepHandler<
 		);
 	}
 
-  const targetSlug = 'targetSlug' in options ? options.targetSlug : '';
+	const targetFolderName = 'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderPath = '';
 	let assetNiceName = '';
 	if (pluginData instanceof File) {
 		// @TODO: Consider validating whether this is a zip file?
-    const zipFileName = pluginData.name.split('/').pop() || 'plugin.zip';
-    assetNiceName = zipNameToHumanName(zipFileName);
+		const zipFileName = pluginData.name.split('/').pop() || 'plugin.zip';
+		assetNiceName = zipNameToHumanName(zipFileName);
 
 		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
 		const assetResult = await installAsset(playground, {
 			ifAlreadyInstalled,
 			zipFile: pluginData,
 			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-      targetSlug: targetSlug
+			targetFolderName: targetFolderName
 		});
 		assetFolderPath = assetResult.assetFolderPath;
 		assetNiceName = assetResult.assetFolderName;
@@ -124,7 +124,7 @@ export const installPlugin: StepHandler<
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			targetSlug || pluginData.name
+			targetFolderName || pluginData.name
 		);
 		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
 			rmRoot: true,
