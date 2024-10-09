@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 14693202; 
+export const dependenciesTotalSize = 14693201; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6685,7 +6685,7 @@ function _wasm_shutdown(socketd, how) {
 
 var Asyncify = {
   instrumentWasmImports(imports) {
-    var importPattern = /^(invoke_.*|__asyncjs__.*)$/;
+    var importPattern = /^(js_open_process|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|invoke_.*|__asyncjs__.*)$/;
     for (let [x, original] of Object.entries(imports)) {
       if (typeof original == "function") {
         let isAsyncifyImport = original.isAsync || importPattern.test(x);

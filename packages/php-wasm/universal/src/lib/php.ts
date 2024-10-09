@@ -476,7 +476,7 @@ export class PHP implements Disposable {
 			throw e;
 		} finally {
 			try {
-				if (heapBodyPointer && this[__private__dont__use]) {
+				if (heapBodyPointer) {
 					this[__private__dont__use].free(heapBodyPointer);
 				}
 			} finally {

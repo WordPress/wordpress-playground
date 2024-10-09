@@ -6664,7 +6664,7 @@ function _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen)
 
 var Asyncify = {
   instrumentWasmImports(imports) {
-    var importPattern = /^(invoke_.*|__asyncjs__.*)$/;
+    var importPattern = /^(js_open_process|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|invoke_.*|__asyncjs__.*)$/;
     for (let [x, original] of Object.entries(imports)) {
       if (typeof original == "function") {
         let isAsyncifyImport = original.isAsync || importPattern.test(x);
