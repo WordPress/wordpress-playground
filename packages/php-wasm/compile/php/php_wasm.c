@@ -52,10 +52,10 @@ extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval,
  * @returns {int} File descriptor of the command output
  */
 #ifdef PLAYGROUND_JSPI
-EM_ASYNC_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t *exit_code_ptr), {
+EM_ASYNC_JS(char*, js_popen_to_file, (const char *command, const char *mode, uint8_t *exitCodePtr), {
 	const returnCallback = (resolver) => new Promise(resolver);
 #else
-EM_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t *exit_code_ptr), {
+EM_JS(char*, js_popen_to_file, (const char *command, const char *mode, uint8_t *exitCodePtr), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
 	// Parse args

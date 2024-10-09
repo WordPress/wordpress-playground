@@ -359,7 +359,7 @@ var tempDouble;
 
 var tempI64;
 
-function js_popen_to_file(cmd, mode, exit_code_ptr) {
+function js_popen_to_file(command, mode, exitCodePtr) {
   const returnCallback = resolver => Asyncify.handleSleep(resolver);
   if (!command) return 1;
   const cmdstr = UTF8ToString(command);
