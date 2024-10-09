@@ -31,7 +31,12 @@ export const playwrightConfig: PlaywrightTestConfig = {
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] },
+			use: {
+				...devices['Desktop Chrome'],
+				launchOptions: {
+					args: ['--js-flags=--enable-experimental-webassembly-jspi'],
+				},
+			},
 		},
 
 		{
