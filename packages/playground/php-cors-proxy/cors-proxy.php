@@ -8,6 +8,11 @@ define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
 
 require_once __DIR__ . '/proxy-functions.php';
 
+$config_file = __DIR__ . '/cors-proxy-config.php';
+if (file_exists($config_file)) {
+    require_once $config_file;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("Allow: GET, POST, OPTIONS");
     exit;
@@ -23,6 +28,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== 'POST
 if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
     http_response_code(413);
     echo "Request Entity Too Large";
+    exit;
+}
+
+if (function_exists('playground_cors_proxy_maybe_rate_limit')) {
+    playground_cors_proxy_maybe_rate_limit();
+} else if (
+    !defined('PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT') ||
+    !PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT
+) {
+    http_response_code(503);
+    echo "Server needs to configure rate-limiting.";
     exit;
 }
 
