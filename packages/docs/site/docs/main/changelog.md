@@ -9,6 +9,19 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.0.2] (2024-10-09) 
+
+### PHP WebAssembly
+
+- PHP.wasm: Load correct php.wasm paths in the built Node.js packages. ([#1877](https://github.com/WordPress/wordpress-playground/pull/1877))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
 ## [v1.0.1] (2024-10-09) 
 
 
