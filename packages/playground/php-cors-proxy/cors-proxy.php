@@ -31,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['CONTENT_LENGTH'] >= MAX_RE
     exit;
 }
 
+// @TODO: Consider redirecting to the target URL if presented with a non-browser user agent.
+
 if (function_exists('playground_cors_proxy_maybe_rate_limit')) {
     playground_cors_proxy_maybe_rate_limit();
 } else if (
@@ -75,7 +77,22 @@ $curlHeaders = filter_headers_strings(
         'Host'
     ]
 );
-curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($curlHeaders, ["Host: $host"]));
+curl_setopt(
+    $ch,
+    CURLOPT_HTTPHEADER,
+    array_merge(
+        $curlHeaders,
+        [
+            "Host: $host",
+            // @TODO: Consider relaying client IP with the following reasoning:
+            // Let's not take full credit for the proxied request.
+            // This is a CORS proxy, not an IP anonymizer. 
+            // NOTE: We cannot do this reliably based on X-Forwarded-For unless
+            // we trust the reverse proxy, so it cannot be done unconditionally
+            // in this script because we do not control where others deploy it.
+        ],
+    )
+);
 
 // Set options to stream data
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
