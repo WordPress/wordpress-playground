@@ -32,13 +32,14 @@ export default function BrowserChrome({
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
-	const wrapperClass = classNames(css.wrapper, css.hasFullSizeWindow, className);
+	const wrapperClass = classNames(
+		css.wrapper,
+		css.hasFullSizeWindow,
+		className
+	);
 
 	return (
-		<div
-			className={wrapperClass}
-			data-cy="simulated-browser"
-		>
+		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
 				<header
 					className={`
