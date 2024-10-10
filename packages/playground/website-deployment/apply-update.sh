@@ -19,7 +19,8 @@ echo Copy supporting files for WP Cloud
 cp -r ~/website-deployment/__wp__ ~/website-update/
 cp ~/website-deployment/custom-redirects-lib.php ~/website-update/
 cp ~/website-deployment/custom-redirects.php ~/website-update/
-cp ~/website-deployment/cors-proxy-config.php ~/website-update/
+# @TODO: Enable this once we're deploying the CORS proxy
+#cp ~/website-deployment/cors-proxy-config.php ~/website-update/
 
 # Generate mime-types.php from mime-types.json in case the PHP can be opcached
 echo Generating mime-types.php
@@ -102,6 +103,8 @@ curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATO
         && echo "Edge cache purged" \
         || (>&2 echo "Failed to purge edge cache" && false)
 
-echo Applying latest CORS proxy rate-limiting schema
-cat ~/website-deployment/cors-proxy-rate-limiting-table.sql | mysql --database="$DB_NAME"
+# @TODO: Enable this once we're deploying the CORS proxy
+# echo Applying latest CORS proxy rate-limiting schema
+# cat ~/website-deployment/cors-proxy-rate-limiting-table.sql | mysql --database="$DB_NAME"
+
 echo Done!
