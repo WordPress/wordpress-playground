@@ -8,6 +8,8 @@ class PlaygroundCorsProxyTokenBucketConfig {
 }
 
 function playground_cors_proxy_get_token_bucket_config($remote_proxy_type) {
+	// @TODO: Support custom HTTP header to select test bucket config.
+
 	// NOTE: 2024-10-09: These are just guesses for reasonable bucket configs.
 	// They are not based on any real-world data. Please adjust them as needed.
 	switch ($remote_proxy_type) {
@@ -64,12 +66,12 @@ class PlaygroundCorsProxyTokenBucket {
 		}
 
 		$cleanup_query = <<<'SQL'
-			DELETE FROM cors_proxy_token_bucket
+			DELETE FROM cors_proxy_rate_limiting
 				WHERE updated_at < DATE_SUB(NOW(), INTERVAL 1 DAY)
 			SQL;
 		if (mysqli_query($this->dbh, $cleanup_query) === false) {
 			error_log(
-				'Failed to clean up token bucket: ' .
+				'Failed to clean up old token buckets: ' .
 				mysqli_error($this->dbh)
 			);
 			return false;
@@ -87,7 +89,7 @@ class PlaygroundCorsProxyTokenBucket {
 		}
 
 		$token_query = <<<'SQL'
-			INSERT INTO cors_proxy_token_bucket (remote_addr, capacity, tokens)
+			INSERT INTO cors_proxy_rate_limiting (remote_addr, capacity, tokens)
 				SELECT
 					? as remote_addr,
 					? AS capacity,
