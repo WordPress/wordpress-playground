@@ -179,7 +179,7 @@ export function SiteInfoPanel({
 								)}
 							</Flex>
 						</FlexItem>
-						{siteViewHidden ? (
+						{mobileUi ? (
 							<FlexItem style={{ flexShrink: 0 }}>
 								<Button
 									variant="primary"
