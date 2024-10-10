@@ -73,6 +73,10 @@ export function Sidebar({
 		return `data:${logo.mime};base64,${logo.data}`;
 	};
 
+	const isTemporarySiteSelected =
+		activeSite?.metadata.storage === 'none' &&
+		['sidebar', 'site-details'].includes(activeSiteManagerSection);
+
 	return (
 		// Disable the `role` as Axe accessibility checker complains that a `menu`
 		// role cannot have `div`, `nav`, `footer` and `button` as children.
@@ -91,8 +95,7 @@ export function Sidebar({
 				<MenuGroup className={css.sidebarList}>
 					<MenuItem
 						className={classNames(css.sidebarItem, {
-							[css.sidebarItemSelected]:
-								activeSite?.metadata.storage === 'none',
+							[css.sidebarItemSelected]: isTemporarySiteSelected,
 						})}
 						onClick={() => {
 							if (temporarySite) {
@@ -101,7 +104,7 @@ export function Sidebar({
 							}
 							redirectTo(PlaygroundRoute.newTemporarySite());
 						}}
-						isSelected={activeSite?.metadata.storage === 'none'}
+						isSelected={isTemporarySiteSelected}
 						// eslint-disable-next-line jsx-a11y/aria-role
 						role=""
 						title="This is a temporary Playground. Your changes will be lost on page refresh."
