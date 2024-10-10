@@ -9,13 +9,6 @@
 	overflow: hidden;
 	flex-grow: 1;
 
-	&.is-mobile {
-		:global(.dataviews-view-list .dataviews-view-list__item) {
-			padding-left: 0;
-			padding-right: 0;
-		}
-	}
-
 	&:not(.is-mobile) {
 		width: 500px;
 	}

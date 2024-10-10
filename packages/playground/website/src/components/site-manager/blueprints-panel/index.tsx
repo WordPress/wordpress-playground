@@ -18,7 +18,10 @@ import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
 import { joinPaths } from '@php-wasm/util';
 import useFetch from '../../../lib/hooks/use-fetch';
 import { useAppDispatch } from '../../../lib/state/redux/store';
-import { setSiteManagerSection } from '../../../lib/state/redux/slice-ui';
+import {
+	setSiteManagerOpen,
+	setSiteManagerSection,
+} from '../../../lib/state/redux/slice-ui';
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -63,6 +66,7 @@ export function BlueprintsPanel({
 	}
 
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
+		dispatch(setSiteManagerOpen(false));
 		redirectTo(
 			PlaygroundRoute.newTemporarySite({
 				query: {
