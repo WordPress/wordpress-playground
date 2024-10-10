@@ -8,6 +8,7 @@ export type SiteError =
 	// @TODO: Improve name?
 	| 'site-boot-failed';
 
+export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 export interface UIState {
 	activeSite?: {
 		slug: string;
@@ -16,6 +17,7 @@ export interface UIState {
 	activeModal: string | null;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
+	siteManagerSection: SiteManagerSection;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -45,6 +47,7 @@ const initialState: UIState = {
 		// seeing something that's not Playground filling your entire screen –
 		// quite a confusing experience.
 		!isMobile,
+	siteManagerSection: 'site-details',
 };
 
 const uiSlice = createSlice({
@@ -72,6 +75,12 @@ const uiSlice = createSlice({
 		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
 		},
+		setSiteManagerSection: (
+			state,
+			action: PayloadAction<SiteManagerSection>
+		) => {
+			state.siteManagerSection = action.payload;
+		},
 	},
 });
 
@@ -95,6 +104,7 @@ export const {
 	setActiveSiteError,
 	setOffline,
 	setSiteManagerOpen,
+	setSiteManagerSection,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

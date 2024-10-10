@@ -1,5 +1,5 @@
 .sidebar {
-	height: 100vh;
+	height: 100dvh;
 	display: flex;
 	flex-shrink: 0;
 	flex-direction: column;

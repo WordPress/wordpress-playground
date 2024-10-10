@@ -229,6 +229,42 @@ self.addEventListener('fetch', (event) => {
 		);
 	}
 
+	/**
+	 * A proxy that enables offline caching of cross-origin requests.
+	 *
+	 * For example, the following request fetching the list of all the Blueprints
+	 * from the Blueprints directory:
+	 *
+	 * https://playground.wordpress.net/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
+	 *
+	 * would be proxied to:
+	 *
+	 * https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
+	 *
+	 * And the response would be cached for when Playground is running in the
+	 * offline mode.
+	 */
+	if (url.pathname.startsWith('/proxy/')) {
+		const segments = url.pathname.split('/');
+		const command = segments[2];
+		switch (command) {
+			case 'network-first-fetch': {
+				const proxiedUrl =
+					url.pathname.substring(
+						'/proxy/'.length + command.length + 1
+					) +
+					(url?.search ? '?' + url.search : '') +
+					(url?.hash ? '#' + url.hash : '');
+				const requestWithTargetUrl = cloneRequest(event.request, {
+					url: proxiedUrl,
+				});
+				return event.respondWith(
+					requestWithTargetUrl.then(networkFirstFetch)
+				);
+			}
+		}
+	}
+
 	if (!shouldCacheUrl(new URL(event.request.url))) {
 		/**
 		 * It's safe to use the regular `fetch` function here.
