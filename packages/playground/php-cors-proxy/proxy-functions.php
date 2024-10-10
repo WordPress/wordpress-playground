@@ -50,6 +50,8 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
 
     $host = $parsedUrl['host'];
 
+    // @TODO: Reject requests to this host.
+
     // Ensure the hostname does not resolve to a private IP
     $resolved_ips = $resolve_function($host);
     if ($resolved_ips === false) {
