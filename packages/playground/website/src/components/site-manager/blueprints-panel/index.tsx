@@ -36,10 +36,6 @@ export function BlueprintsPanel({
 	mobileUi?: boolean;
 }) {
 	// @TODO: memoize across component loads.
-	// @TODO: store in the local cache for offline mode support. Consider implementing
-	//        something like `locallyCachedFetch` that would work similarly to the service
-	//        worker plumbing we have, that is fetch the data from the network when we're online,
-	//        and fetch from the cache when we're offline.
 	const { data, isLoading, isError } = useFetch<
 		Record<string, BlueprintsIndexEntry>
 	>(
@@ -202,7 +198,10 @@ export function BlueprintsPanel({
 						{isLoading ? (
 							<Spinner />
 						) : isError ? (
-							<p>Error – TODO explain the details</p>
+							<p>
+								Could not load the Blueprints from the gallery.
+								Try again later.
+							</p>
 						) : (
 							<DataViews<BlueprintsIndexEntry>
 								data={indexEntries as BlueprintsIndexEntry[]}
