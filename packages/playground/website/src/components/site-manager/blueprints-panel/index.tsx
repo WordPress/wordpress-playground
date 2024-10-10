@@ -15,7 +15,6 @@ import type { Field, View } from '@wordpress/dataviews';
 import classNames from 'classnames';
 import { useState } from 'react';
 import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
-import { joinPaths } from '@php-wasm/util';
 import useFetch from '../../../lib/hooks/use-fetch';
 import { useAppDispatch } from '../../../lib/state/redux/store';
 import {
@@ -71,10 +70,12 @@ export function BlueprintsPanel({
 			PlaygroundRoute.newTemporarySite({
 				query: {
 					name: 'Blueprint preview',
-					'blueprint-url': joinPaths(
-						'https://raw.githubusercontent.com/WordPress/blueprints/trunk/',
-						blueprintPath
-					),
+					// Explicitly do not use joinPaths() here as it normalizes the input and
+					// rewrites https:// as https:/
+					'blueprint-url': `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${blueprintPath.replace(
+						/^\//,
+						''
+					)}`,
 				},
 			})
 		);
@@ -197,41 +198,54 @@ export function BlueprintsPanel({
 						</p>
 					</FlexItem>
 				</FlexItem>
-				<FlexItem style={{ alignSelf: 'stretch', overflowY: 'scroll' }}>
-					<div style={{ paddingTop: 0 }}>
-						{isLoading ? (
-							<Spinner />
-						) : isError ? (
-							<p>
-								Could not load the Blueprints from the gallery.
-								Try again later.
-							</p>
-						) : (
-							<DataViews<BlueprintsIndexEntry>
-								data={indexEntries as BlueprintsIndexEntry[]}
-								view={view}
-								onChangeView={setView}
-								onChangeSelection={(newSelection) => {
-									if (newSelection?.length) {
-										previewBlueprint(newSelection[0]);
-									}
-								}}
-								search={true}
-								isLoading={isLoading}
-								fields={fields}
-								header={null}
-								getItemId={(item) => item?.path}
-								paginationInfo={{
-									totalItems: indexEntries.length,
-									totalPages: 1,
-								}}
-								defaultLayouts={{
-									list: {},
-								}}
-							/>
-						)}
-					</div>
-				</FlexItem>
+				{isLoading ? (
+					<FlexItem
+						style={{
+							alignSelf: 'stretch',
+							display: 'flex',
+							justifyContent: 'center',
+							alignItems: 'center',
+						}}
+					>
+						<Spinner style={{ width: 32, height: 32 }} />
+					</FlexItem>
+				) : isError ? (
+					<FlexItem
+						style={{ alignSelf: 'stretch', overflowY: 'scroll' }}
+					>
+						<p>
+							Could not load the Blueprints from the gallery. Try
+							again later.
+						</p>
+					</FlexItem>
+				) : (
+					<FlexItem
+						style={{ alignSelf: 'stretch', overflowY: 'scroll' }}
+					>
+						<DataViews<BlueprintsIndexEntry>
+							data={indexEntries as BlueprintsIndexEntry[]}
+							view={view}
+							onChangeView={setView}
+							onChangeSelection={(newSelection) => {
+								if (newSelection?.length) {
+									previewBlueprint(newSelection[0]);
+								}
+							}}
+							search={true}
+							isLoading={isLoading}
+							fields={fields}
+							header={null}
+							getItemId={(item) => item?.path}
+							paginationInfo={{
+								totalItems: indexEntries.length,
+								totalPages: 1,
+							}}
+							defaultLayouts={{
+								list: {},
+							}}
+						/>
+					</FlexItem>
+				)}
 			</Flex>
 		</section>
 	);
