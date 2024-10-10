@@ -17,7 +17,6 @@ import { useState } from 'react';
 import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
 import { joinPaths } from '@php-wasm/util';
 import useFetch from '../../../lib/hooks/use-fetch';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../../lib/state/redux/store';
 import { setSiteManagerSection } from '../../../lib/state/redux/slice-ui';
 
