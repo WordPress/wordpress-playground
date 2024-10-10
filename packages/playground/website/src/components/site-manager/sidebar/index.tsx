@@ -7,9 +7,12 @@ import {
 	MenuItem,
 	__experimentalHStack as HStack,
 	FlexBlock,
+	Icon,
 	__experimentalItemGroup as ItemGroup,
 	__experimentalItem as Item,
+	Flex,
 } from '@wordpress/components';
+import { page } from '@wordpress/icons';
 import { ClockIcon, WordPressIcon } from '@wp-playground/components';
 import {
 	setActiveSite,
@@ -23,6 +26,7 @@ import {
 	selectTemporarySite,
 } from '../../../lib/state/redux/slice-sites';
 import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
+import { setSiteManagerSection } from '../../../lib/state/redux/slice-ui';
 
 export function Sidebar({
 	className,
@@ -37,9 +41,12 @@ export function Sidebar({
 	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-
+	const activeSiteManagerSection = useAppSelector(
+		(state) => state.ui.siteManagerSection
+	);
 	const onSiteClick = (slug: string) => {
 		dispatch(setActiveSite(slug));
+		dispatch(setSiteManagerSection('site-details'));
 		afterSiteClick?.(slug);
 	};
 
@@ -105,9 +112,45 @@ export function Sidebar({
 							: {})}
 					>
 						<HStack justify="flex-start" alignment="center">
-							<ClockIcon className={css.sidebarItemLogo} />
+							<Flex
+								style={{
+									width: 24,
+								}}
+								align="center"
+								justify="center"
+							>
+								<ClockIcon className={css.sidebarItemLogo} />
+							</Flex>
 							<FlexBlock className={css.sidebarItemSiteName}>
 								Temporary Playground
+							</FlexBlock>
+						</HStack>
+					</MenuItem>
+					<MenuItem
+						className={classNames(css.sidebarItem, {
+							[css.sidebarItemSelected]:
+								activeSiteManagerSection === 'blueprints',
+						})}
+						onClick={() =>
+							dispatch(setSiteManagerSection('blueprints'))
+						}
+						isSelected={activeSiteManagerSection === 'blueprints'}
+					>
+						<HStack justify="flex-start" alignment="center">
+							<Flex
+								style={{
+									width: 24,
+								}}
+								align="center"
+								justify="center"
+							>
+								<Icon
+									icon={page}
+									className={css.sidebarItemLogo}
+								/>
+							</Flex>
+							<FlexBlock className={css.sidebarItemSiteName}>
+								Blueprints Gallery
 							</FlexBlock>
 						</HStack>
 					</MenuItem>
@@ -151,26 +194,34 @@ export function Sidebar({
 											justify="flex-start"
 											alignment="center"
 										>
-											{site.metadata.logo ? (
-												<img
-													src={getLogoDataURL(
-														site.metadata.logo
-													)}
-													alt={
-														site.metadata.name +
-														' logo'
-													}
-													className={
-														css.sidebarItemLogo
-													}
-												/>
-											) : (
-												<WordPressIcon
-													className={
-														css.sidebarItemLogo
-													}
-												/>
-											)}
+											<Flex
+												style={{
+													width: 24,
+												}}
+												align="center"
+												justify="center"
+											>
+												{site.metadata.logo ? (
+													<img
+														src={getLogoDataURL(
+															site.metadata.logo
+														)}
+														alt={
+															site.metadata.name +
+															' logo'
+														}
+														className={
+															css.sidebarItemLogo
+														}
+													/>
+												) : (
+													<WordPressIcon
+														className={
+															css.sidebarItemLogo
+														}
+													/>
+												)}
+											</Flex>
 											<FlexBlock
 												className={
 													css.sidebarItemSiteName
