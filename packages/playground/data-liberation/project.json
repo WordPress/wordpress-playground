@@ -3,5 +3,25 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/data-liberation",
 	"projectType": "library",
-	"targets": {}
+	"targets": {
+		"test": {
+			"executor": "nx:run-commands",
+			"options": {
+				"cwd": "packages/playground/data-liberation",
+				"commands": ["phpunit -c ./phpunit.xml"],
+				"parallel": false
+			}
+		},
+		"test:watch": {
+			"executor": "nx:run-commands",
+			"options": {
+				"cwd": "packages/playground/data-liberation",
+				"commands": [
+					"phpunit -c ./phpunit.xml",
+					"fswatch -o ./**/*.php | xargs -n1 -I{} phpunit -c ./phpunit.xml"
+				],
+				"parallel": false
+			}
+		}
+	}
 }
