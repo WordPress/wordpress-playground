@@ -2,6 +2,7 @@ import React from 'react';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
 import classNames from 'classnames';
+import { useMediaQuery } from '@wordpress/compose';
 import {
 	useAppSelector,
 	getActiveClientInfo,
