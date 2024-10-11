@@ -2,17 +2,19 @@ import React from 'react';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
 import classNames from 'classnames';
-import { OpenSiteManagerButton } from '../open-site-manager-button';
 import {
 	useAppSelector,
 	getActiveClientInfo,
 	useActiveSite,
+	useAppDispatch,
 } from '../../lib/state/redux/store';
 import { SyncLocalFilesButton } from '../sync-local-files-button';
 import { Dropdown, Icon } from '@wordpress/components';
 import { cog } from '@wordpress/icons';
 import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
+import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
+import { SiteManagerIcon } from '@wp-playground/components';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -29,6 +31,7 @@ export default function BrowserChrome({
 	const activeSite = useActiveSite();
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;
+	const dispatch = useAppDispatch();
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
@@ -49,7 +52,16 @@ export default function BrowserChrome({
 					aria-label="Playground toolbar"
 				>
 					<div className={css.windowControls}>
-						<OpenSiteManagerButton />
+						<Button
+							variant="browser-chrome"
+							aria-label="Open Site Manager"
+							className={css.openSiteManagerButton}
+							onClick={() => {
+								dispatch(setSiteManagerOpen(true));
+							}}
+						>
+							<SiteManagerIcon />
+						</Button>
 					</div>
 
 					<div className={addressBarClass}>
