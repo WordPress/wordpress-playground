@@ -1,0 +1,15 @@
+{
+	"name": "playground-data-liberation",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/data-liberation",
+	"projectType": "library",
+	"targets": {
+		"test": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["bash test.sh"],
+				"cwd": "packages/playground/data-liberation"
+			}
+		}
+	}
+}
