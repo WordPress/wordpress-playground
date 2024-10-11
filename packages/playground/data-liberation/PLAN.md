@@ -29,6 +29,13 @@ Here's a few codebases we'll need to review and bring into this project:
 -   Streaming PHP parsers: https://github.com/WordPress/blueprints-library/tree/trunk/src/WordPress
 -   Zip64 support (in JS ZIP parser): https://github.com/WordPress/wordpress-playground/pull/1799
 -   Local Zip file reader in PHP (seeks to central directory, seeks back as needed): https://github.com/adamziel/wxr-normalize/blob/rewrite-remote-xml/zip-stream-reader-local.php
+-   Blocky formats – Markdown <-> Block markup WordPress plugin: https://github.com/dmsnell/blocky-formats
+-   Sandbox Site plugin that exports and imports WordPress to/from a zip file: https://github.com/WordPress/playground-tools/tree/trunk/packages/playground
+-   WordPress + Playground CLI setup to import, convert, and exporting data: https://github.com/adamziel/playground-content-converters
+-   Markdown -> Playground workflow _and WordPress plugins_: https://github.com/adamziel/playground-docs-workflow
+-   _Edit Visually_ browser extension for bringing data in and out of Playground: https://github.com/WordPress/playground-tools/pull/298
+-   _Try WordPress_ browser extension that imports existing WordPress and non-WordPress sites to Playground: https://github.com/WordPress/try-wordpress/
+-   Humanmade WXR importer designed by @rmccue: https://github.com/humanmade/WordPress-Importer
 
 ### Related resources
 
