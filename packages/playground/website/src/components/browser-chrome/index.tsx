@@ -2,6 +2,7 @@ import React from 'react';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
 import classNames from 'classnames';
+import { useMediaQuery } from '@wordpress/compose';
 import {
 	useAppSelector,
 	getActiveClientInfo,
@@ -9,7 +10,7 @@ import {
 	useAppDispatch,
 } from '../../lib/state/redux/store';
 import { SyncLocalFilesButton } from '../sync-local-files-button';
-import { Dropdown, Icon } from '@wordpress/components';
+import { Dropdown, Icon, Modal } from '@wordpress/components';
 import { cog } from '@wordpress/icons';
 import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
@@ -40,6 +41,10 @@ export default function BrowserChrome({
 		css.hasFullSizeWindow,
 		className
 	);
+	const isMobileUi = useMediaQuery('(max-width: 875px)');
+	const [isModalOpen, setIsModalOpen] = React.useState(false);
+	const onToggle = () => setIsModalOpen(!isModalOpen);
+	const closeModal = () => setIsModalOpen(false);
 
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
@@ -74,16 +79,13 @@ export default function BrowserChrome({
 					</div>
 
 					<div className={css.toolbarButtons}>
-						<Dropdown
-							className="my-container-class-name"
-							contentClassName="my-dropdown-content-classname"
-							popoverProps={{ placement: 'bottom-start' }}
-							renderToggle={({ isOpen, onToggle }) => (
+						{isMobileUi ? (
+							<>
 								<Button
 									variant="browser-chrome"
 									aria-label="Edit Playground settings"
 									onClick={onToggle}
-									aria-expanded={isOpen}
+									aria-expanded={isModalOpen}
 									style={{
 										padding: '0 10px',
 										fill: '#FFF',
@@ -93,26 +95,59 @@ export default function BrowserChrome({
 								>
 									<Icon icon={cog} />
 								</Button>
-							)}
-							renderContent={({ onClose }) => (
-								<div
-									style={{
-										width: 400,
-										maxWidth: '100vw',
-										padding: 0,
-									}}
-								>
-									<div className={css.headerSection}>
-										<h2 style={{ margin: 0 }}>
-											Playground settings
-										</h2>
+								{isModalOpen && (
+									<Modal
+										isFullScreen={true}
+										title="Playground settings"
+										onRequestClose={closeModal}
+									>
+										<ActiveSiteSettingsForm
+											onSubmit={closeModal}
+										/>
+									</Modal>
+								)}
+							</>
+						) : (
+							<Dropdown
+								className="my-container-class-name"
+								contentClassName="my-dropdown-content-classname"
+								popoverProps={{ placement: 'bottom-start' }}
+								renderToggle={({ isOpen, onToggle }) => (
+									<Button
+										variant="browser-chrome"
+										aria-label="Edit Playground settings"
+										onClick={onToggle}
+										aria-expanded={isOpen}
+										style={{
+											padding: '0 10px',
+											fill: '#FFF',
+											alignItems: 'center',
+											display: 'flex',
+										}}
+									>
+										<Icon icon={cog} />
+									</Button>
+								)}
+								renderContent={({ onClose }) => (
+									<div
+										style={{
+											width: 400,
+											maxWidth: '100vw',
+											padding: 0,
+										}}
+									>
+										<div className={css.headerSection}>
+											<h2 style={{ margin: 0 }}>
+												Playground settings
+											</h2>
+										</div>
+										<ActiveSiteSettingsForm
+											onSubmit={onClose}
+										/>
 									</div>
-									<ActiveSiteSettingsForm
-										onSubmit={onClose}
-									/>
-								</div>
-							)}
-						/>
+								)}
+							/>
+						)}
 						{activeSite?.metadata?.storage === 'local-fs' ? (
 							<SyncLocalFilesButton />
 						) : null}
