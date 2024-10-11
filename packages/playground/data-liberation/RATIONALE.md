@@ -1,7 +1,6 @@
 ## Data Liberation
 
-This project aims to help the Data Liberation project and unlock powerful new
-use cases for WordPress.
+The Data Liberation project aims to unlock powerful new use cases for WordPress.
 
 ### Wait, a PHP project inside a TypeScript monorepo?
 
