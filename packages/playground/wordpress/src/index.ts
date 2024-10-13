@@ -109,7 +109,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * playground_force_auto_login_as_user GET parameter.
 			 */
 			if ( defined('PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED') && isset($_GET['playground_force_auto_login_as_user']) ) {
-				return esc_attr($_GET['playground_force_auto_login_as_user']);
+				return $_GET['playground_force_auto_login_as_user'];
 			}
 			return false;
 		}
@@ -148,7 +148,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * Check if the request is for the login page.
 			 */
 			if (is_login() && is_user_logged_in() && isset($_GET['redirect_to'])) {
-				wp_redirect(esc_url($_GET['redirect_to']));
+				wp_redirect($_GET['redirect_to']);
 				exit;
 			}
 		}, 1);
