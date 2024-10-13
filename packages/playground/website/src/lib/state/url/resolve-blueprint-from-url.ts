@@ -121,6 +121,14 @@ export async function resolveBlueprintFromURL(url: URL) {
 
 	// Landing page
 	if (query.get('url')) {
+		/**
+		 * If the provided url has multiple query arguments, only the first one
+		 * is picked up as the url argument of the Playground website.
+		 *
+		 * @TODO This is standard browser behavior, but we should consider changing it
+		 * in the future to pick up all query arguments of the url if
+		 * they aren't valid Playground website query arguments.
+		 */
 		blueprint.landingPage = query.get('url')!;
 	}
 
