@@ -1,0 +1,20 @@
+{
+	"name": "wordpress/data-liberation",
+	"autoload": {
+		"psr-4": {
+			"Wordpress\\DataLiberation\\": "src/"
+		},
+		"classmap": [
+			"vendor/blueprints-library/src/WordPress/"
+		]
+	},
+	"authors": [
+		{
+			"name": "WordPress Contributors",
+			"email": "contributors@wordpress.org"
+		}
+	],
+	"require": {
+		"rowbot/url": "^4.0"
+	}
+}

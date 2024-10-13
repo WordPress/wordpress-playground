@@ -148,7 +148,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * Check if the request is for the login page.
 			 */
 			if (is_login() && is_user_logged_in() && isset($_GET['redirect_to'])) {
-				wp_redirect(esc_url($_GET['redirect_to']));
+				wp_redirect($_GET['redirect_to']);
 				exit;
 			}
 		}, 1);

@@ -1,0 +1,388 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "7fa6fae533612bbbb80e5910bb8bdbb2",
+    "packages": [
+        {
+            "name": "brick/math",
+            "version": "0.9.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/brick/math.git",
+                "reference": "ca57d18f028f84f777b2168cd1911b0dee2343ae"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/brick/math/zipball/ca57d18f028f84f777b2168cd1911b0dee2343ae",
+                "reference": "ca57d18f028f84f777b2168cd1911b0dee2343ae",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^2.2",
+                "phpunit/phpunit": "^7.5.15 || ^8.5 || ^9.0",
+                "vimeo/psalm": "4.9.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Brick\\Math\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Arbitrary-precision arithmetic library",
+            "keywords": [
+                "Arbitrary-precision",
+                "BigInteger",
+                "BigRational",
+                "arithmetic",
+                "bigdecimal",
+                "bignum",
+                "brick",
+                "math"
+            ],
+            "support": {
+                "issues": "https://github.com/brick/math/issues",
+                "source": "https://github.com/brick/math/tree/0.9.3"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/BenMorel",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/brick/math",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2021-08-15T20:50:18+00:00"
+        },
+        {
+            "name": "psr/log",
+            "version": "3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/log.git",
+                "reference": "fe5ea303b0887d5caefd3d431c3e61ad47037001"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/log/zipball/fe5ea303b0887d5caefd3d431c3e61ad47037001",
+                "reference": "fe5ea303b0887d5caefd3d431c3e61ad47037001",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Log\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for logging libraries",
+            "homepage": "https://github.com/php-fig/log",
+            "keywords": [
+                "log",
+                "psr",
+                "psr-3"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/log/tree/3.0.0"
+            },
+            "time": "2021-07-14T16:46:02+00:00"
+        },
+        {
+            "name": "rowbot/idna",
+            "version": "0.1.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/TRowbotham/idna.git",
+                "reference": "02d94e4caa435547d2027086c57c69d34e6ed4fa"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/TRowbotham/idna/zipball/02d94e4caa435547d2027086c57c69d34e6ed4fa",
+                "reference": "02d94e4caa435547d2027086c57c69d34e6ed4fa",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1",
+                "rowbot/punycode": "^1.0",
+                "symfony/polyfill-intl-normalizer": "^1.18"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^6.5 || ^7.0",
+                "phpstan/phpstan": "^1.2",
+                "phpstan/phpstan-deprecation-rules": "^1.0",
+                "phpstan/phpstan-strict-rules": "^1.0",
+                "phpunit/phpunit": "^7.0 || ^8.0 || ^9.0",
+                "squizlabs/php_codesniffer": "^3.5.1",
+                "symfony/cache": "^4.3 || ^5.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Rowbot\\Idna\\": "src/",
+                    "Rowbot\\Idna\\Resource\\": "resources/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Trevor Rowbotham"
+                }
+            ],
+            "description": "An implementation of UTS#46 Unicode IDNA Compatibility Processing.",
+            "keywords": [
+                "idn",
+                "idna",
+                "international domain names",
+                "iri",
+                "tr46",
+                "unicode",
+                "uts46"
+            ],
+            "support": {
+                "issues": "https://github.com/TRowbotham/idna/issues",
+                "source": "https://github.com/TRowbotham/idna/tree/0.1.5"
+            },
+            "time": "2022-01-10T19:51:24+00:00"
+        },
+        {
+            "name": "rowbot/punycode",
+            "version": "1.0.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/TRowbotham/punycode.git",
+                "reference": "ec116e99cb089a25d45147813d61bfa2deb29328"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/TRowbotham/punycode/zipball/ec116e99cb089a25d45147813d61bfa2deb29328",
+                "reference": "ec116e99cb089a25d45147813d61bfa2deb29328",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "require-dev": {
+                "ext-mbstring": "*",
+                "phpstan/phpstan": "^1.2",
+                "phpstan/phpstan-deprecation-rules": "^1.0",
+                "phpstan/phpstan-strict-rules": "^1.0",
+                "phpunit/phpunit": "^7.0 || ^8.0 || ^9.0",
+                "squizlabs/php_codesniffer": "^3.5.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Rowbot\\Punycode\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Trevor Rowbotham",
+                    "homepage": "https://trowbotham.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A Bootstring encoding of Unicode for Internationalized Domain Names in Applications (IDNA).",
+            "keywords": [
+                "punycode",
+                "rfc-3492",
+                "rfc3492"
+            ],
+            "support": {
+                "issues": "https://github.com/TRowbotham/punycode/issues",
+                "source": "https://github.com/TRowbotham/punycode/tree/1.0.4"
+            },
+            "time": "2024-05-03T00:56:10+00:00"
+        },
+        {
+            "name": "rowbot/url",
+            "version": "4.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/TRowbotham/URL-Parser.git",
+                "reference": "b81e4b4f55ba4fdefaaedebf22d5a060080809f4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/TRowbotham/URL-Parser/zipball/b81e4b4f55ba4fdefaaedebf22d5a060080809f4",
+                "reference": "b81e4b4f55ba4fdefaaedebf22d5a060080809f4",
+                "shasum": ""
+            },
+            "require": {
+                "brick/math": "^0.8.13 || ^0.9",
+                "ext-mbstring": "*",
+                "php": ">=8.1",
+                "psr/log": "^3.0",
+                "rowbot/idna": "^0.1.5"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^7.0",
+                "phpstan/phpstan": "^1.9",
+                "phpstan/phpstan-deprecation-rules": "^1.0",
+                "phpstan/phpstan-strict-rules": "^1.0",
+                "phpunit/phpunit": "^10.0 || ^11.0",
+                "slevomat/coding-standard": "^8.0",
+                "squizlabs/php_codesniffer": "^3.7.1",
+                "symfony/cache": "^5.0 || ^6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Rowbot\\URL\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Trevor Rowbotham",
+                    "homepage": "https://trowbotham.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A WHATWG URL spec compliant URL parser for working with URLs and their query strings.",
+            "keywords": [
+                "WHATWG",
+                "query-string",
+                "querystring",
+                "uri",
+                "url",
+                "url-parser",
+                "url-parsing"
+            ],
+            "support": {
+                "issues": "https://github.com/TRowbotham/URL-Parser/issues",
+                "source": "https://github.com/TRowbotham/URL-Parser/tree/4.0.0"
+            },
+            "time": "2024-06-21T01:00:47+00:00"
+        },
+        {
+            "name": "symfony/polyfill-intl-normalizer",
+            "version": "v1.30.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
+                "reference": "a95281b0be0d9ab48050ebd988b967875cdb9fdb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/a95281b0be0d9ab48050ebd988b967875cdb9fdb",
+                "reference": "a95281b0be0d9ab48050ebd988b967875cdb9fdb",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "suggest": {
+                "ext-intl": "For best performance"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "name": "symfony/polyfill",
+                    "url": "https://github.com/symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Intl\\Normalizer\\": ""
+                },
+                "classmap": [
+                    "Resources/stubs"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill for intl's Normalizer class and related functions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "intl",
+                "normalizer",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.30.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2024-05-31T15:07:36+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
+}
