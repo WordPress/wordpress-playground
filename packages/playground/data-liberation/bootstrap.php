@@ -1,20 +1,20 @@
 <?php
 
-require_once __DIR__ . "/src/wordpress/class-wp-html-token.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-span.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-text-replacement.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-decoder.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-attribute-token.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-token.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-span.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-text-replacement.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-decoder.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-attribute-token.php";
 
-require_once __DIR__ . "/src/wordpress/class-wp-html-decoder.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-tag-processor.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-open-elements.php";
-require_once __DIR__ . "/src/wordpress/class-wp-token-map.php";
-require_once __DIR__ . "/src/wordpress/html5-named-character-references.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-active-formatting-elements.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-processor-state.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-unsupported-exception.php";
-require_once __DIR__ . "/src/wordpress/class-wp-html-processor.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-decoder.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-tag-processor.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-open-elements.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-token-map.php";
+require_once __DIR__ . "/src/wordpress-core/html5-named-character-references.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-active-formatting-elements.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-processor-state.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-unsupported-exception.php";
+require_once __DIR__ . "/src/wordpress-core/class-wp-html-processor.php";
 
 require_once __DIR__ . '/src/WP_Block_Markup_Processor.php';
 require_once __DIR__ . '/src/WP_Block_Markup_Url_Processor.php';
