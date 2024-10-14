@@ -94,9 +94,9 @@ class PlaygroundCorsProxyTokenBucket {
 			WITH
 				config AS (
 				SELECT
-						? AS remote_addr,
+					? AS remote_addr,
 					? AS capacity,
-						? AS fill_rate_per_minute
+					? AS fill_rate_per_minute
 				),
 				bucket AS (
 					SELECT 
