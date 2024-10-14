@@ -23,35 +23,37 @@ import { ReportError } from '../../toolbar-buttons/report-error';
 import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
 import { TemporarySiteNotice } from '../temporary-site-notice';
 import { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
+import {
+	setSiteManagerOpen,
+	setSiteManagerSection,
+} from '../../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
+import { removeSite } from '../../../lib/state/redux/slice-sites';
 
 export function SiteInfoPanel({
 	className,
 	site,
-	removeSite,
 	mobileUi,
 	siteViewHidden,
-	onBackButtonClick,
 }: {
 	className: string;
 	site: SiteInfo;
-	removeSite: (site: SiteInfo) => Promise<void>;
 	mobileUi?: boolean;
 	siteViewHidden?: boolean;
-	onBackButtonClick?: () => void;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
+	const dispatch = useAppDispatch();
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
 			`Are you sure you want to delete the site '${site.metadata.name}'?`
 		);
 		if (proceed) {
-			await removeSite(site);
+			await dispatch(removeSite(site.slug));
+			dispatch(setSiteManagerSection('sidebar'));
 			onClose();
 		}
 	};
@@ -59,7 +61,6 @@ export function SiteInfoPanel({
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
 	const playground = clientInfo?.client;
-	const dispatch = useAppDispatch();
 
 	function navigateTo(path: string) {
 		if (siteViewHidden) {
@@ -104,7 +105,7 @@ export function SiteInfoPanel({
 						style={{ paddingBottom: 10 }}
 					>
 						{mobileUi && (
-							<FlexItem>
+							<FlexItem style={{ marginLeft: -20 }}>
 								<Button
 									variant="link"
 									label="Back to sites list"
@@ -112,7 +113,11 @@ export function SiteInfoPanel({
 										<Icon icon={chevronLeft} size={38} />
 									)}
 									className={css.grayLinkDark}
-									onClick={onBackButtonClick}
+									onClick={() => {
+										dispatch(
+											setSiteManagerSection('sidebar')
+										);
+									}}
 								/>
 							</FlexItem>
 						)}
@@ -174,7 +179,7 @@ export function SiteInfoPanel({
 								)}
 							</Flex>
 						</FlexItem>
-						{siteViewHidden ? (
+						{mobileUi ? (
 							<FlexItem style={{ flexShrink: 0 }}>
 								<Button
 									variant="primary"

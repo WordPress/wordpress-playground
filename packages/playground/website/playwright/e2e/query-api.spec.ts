@@ -91,3 +91,15 @@ test('should not login the user in if the login query parameter is set to no', a
 		'Log In'
 	);
 });
+
+['/wp-admin/', '/wp-admin/post.php?post=1&action=edit'].forEach((path) => {
+	test(`should correctly redirect encoded wp-admin url to ${path}`, async ({
+		website,
+		wordpress,
+	}) => {
+		await website.goto(`./?url=${encodeURIComponent(path)}`);
+		expect(
+			await wordpress.locator('body').evaluate((body) => body.baseURI)
+		).toContain(path);
+	});
+});
