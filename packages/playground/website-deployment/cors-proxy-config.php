@@ -1,10 +1,5 @@
 <?php
 
-define('DB_HOST', '127.0.0.1');
-define('DB_USER', 'cors-proxy-test');
-define('DB_PASSWORD', 'password');
-define('DB_NAME', 'cors_proxy_test');
-
 class PlaygroundCorsProxyTokenBucketConfig {
 	public function __construct(
 		public int $capacity,
