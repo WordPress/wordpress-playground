@@ -1,5 +1,10 @@
 <?php
 
+define('DB_HOST', '127.0.0.1');
+define('DB_USER', 'cors-proxy-test');
+define('DB_PASSWORD', 'password');
+define('DB_NAME', 'cors_proxy_test');
+
 class PlaygroundCorsProxyTokenBucketConfig {
 	public function __construct(
 		public int $capacity,
@@ -30,9 +35,13 @@ function playground_cors_proxy_get_token_bucket_config($remote_proxy_type) {
 				fill_rate_per_minute: 0,
 			);
 		default:
+			// NOTE: 2024-10-14: Initially, let's make the default rate limit
+			// the same as the limit for proxy IPs because some working on
+			// Playground are typically proxied and may not otherwise notice
+			// a problem with the default rate limit.
 			return new PlaygroundCorsProxyTokenBucketConfig(
 				capacity: 1000,
-				fill_rate_per_minute: 50,
+				fill_rate_per_minute: 100,
 			);
 	}
 }
