@@ -89,28 +89,32 @@ class PlaygroundCorsProxyTokenBucket {
 		}
 
 		$token_query = <<<'SQL'
-			INSERT INTO cors_proxy_rate_limiting (remote_addr, capacity, tokens)
+			INSERT INTO cors_proxy_rate_limiting (remote_addr, capacity, fill_rate_per_minute, tokens)
 				SELECT
 					? as remote_addr,
 					? AS capacity,
-					capacity - 1 AS tokens,
-					? AS fill_rate_per_minute
-				WHERE capacity > 0
+					? AS fill_rate_per_minute,
+					GREATEST(0, ? - 1) AS tokens
 				ON DUPLICATE KEY UPDATE
 					capacity = VALUES(capacity),
-					tokens = MIN(
+					fill_rate_per_minute = VALUES(fill_rate_per_minute),
+					tokens = GREATEST(
+						1,
+						LEAST(
 						VALUES(capacity),
 						tokens + VALUES(fill_rate_per_minute) * TIMESTAMPDIFF(MINUTE, updated_at, NOW())
+						)
 					) - 1
 			SQL;
 		
 		$token_statement = mysqli_prepare($this->dbh, $token_query);
 		mysqli_stmt_bind_param(
 			$token_statement,
-			'sii',
+			'siii',
 			$ipv6_remote_ip,
 			$bucket_config->capacity,
-			$bucket_config->fill_rate_per_minute
+			$bucket_config->fill_rate_per_minute,
+			$bucket_config->capacity,
 		);
 
 		if (
