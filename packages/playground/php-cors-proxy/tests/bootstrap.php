@@ -1,3 +1,3 @@
 <?php
 
-require_once __DIR__ . '/../proxy-functions.php';
+require_once __DIR__ . '/../cors-proxy-functions.php';

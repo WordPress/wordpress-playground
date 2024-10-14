@@ -6,7 +6,7 @@ ini_set('display_errors', 1);
 define('MAX_REQUEST_SIZE', 1 * 1024 * 1024); // 1MB
 define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
 
-require_once __DIR__ . '/proxy-functions.php';
+require_once __DIR__ . '/cors-proxy-functions.php';
 
 $config_file = __DIR__ . '/cors-proxy-config.php';
 if (file_exists($config_file)) {
