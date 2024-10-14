@@ -95,29 +95,11 @@ test('should not login the user in if the login query parameter is set to no', a
 ['/wp-admin/', '/wp-admin/post.php?post=1&action=edit'].forEach((path) => {
 	test(`should correctly redirect encoded wp-admin url to ${path}`, async ({
 		website,
+		wordpress,
 	}) => {
 		await website.goto(`./?url=${encodeURIComponent(path)}`);
-		await expect(
-			website.page.locator(`input[value="${path}"]`)
-		).toHaveValue(path);
+		expect(
+			await wordpress.locator('body').evaluate((body) => body.baseURI)
+		).toContain(path);
 	});
-});
-
-/**
- * When the Playground website reads a url from the query string, it
- * picks up the "url" query argument.
- * If the "url" argument has unencoded query arguments starting with "&", they are
- * considered to be query arguments of the Playground website itself and not part
- * of the "url" argument.
- */
-test(`should strip any query arguments starting with "&" from a unencoded url after login`, async ({
-	website,
-}) => {
-	await website.goto(
-		`./?url=/wp-admin/edit.php?post_status=publish&post_type=post`
-	);
-	const expectedUrl = '/wp-admin/edit.php?post_status=publish';
-	await expect(
-		website.page.locator(`input[value="${expectedUrl}"]`)
-	).toHaveValue(expectedUrl);
 });

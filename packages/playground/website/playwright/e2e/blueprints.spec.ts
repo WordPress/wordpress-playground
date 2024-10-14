@@ -187,6 +187,8 @@ test('should login the user in if a login step is provided', async ({
 		};
 		const encodedBlueprint = JSON.stringify(blueprint);
 		await website.goto(`./#${encodedBlueprint}`);
-		await expect(wordpress.locator('body')).toContainText('Dashboard');
+		expect(
+			await wordpress.locator('body').evaluate((body) => body.baseURI)
+		).toContain(path);
 	});
 });
