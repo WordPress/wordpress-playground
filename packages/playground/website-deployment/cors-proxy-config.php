@@ -90,7 +90,12 @@ class PlaygroundCorsProxyTokenBucket {
 		}
 
 		$token_query = <<<'SQL'
-			INSERT INTO cors_proxy_rate_limiting (remote_addr, capacity, fill_rate_per_minute, tokens)
+			INSERT INTO cors_proxy_rate_limiting (
+				remote_addr,
+				capacity,
+				fill_rate_per_minute,
+				tokens
+			)
 			WITH
 				config AS (
 					SELECT
@@ -106,7 +111,11 @@ class PlaygroundCorsProxyTokenBucket {
 						-- Ensure we don't exceed the capacity.
 						LEAST(
 							config.capacity,
-							tokens + FLOOR(config.fill_rate_per_minute * TIMESTAMPDIFF(SECOND, updated_at, NOW()) / 60)
+							tokens + FLOOR(
+								config.fill_rate_per_minute
+								* TIMESTAMPDIFF(SECOND, updated_at, NOW())
+								/ 60
+							)
 						) AS available_tokens
 					FROM cors_proxy_rate_limiting INNER JOIN config USING (remote_addr)
 				)
@@ -126,6 +135,7 @@ class PlaygroundCorsProxyTokenBucket {
 				tokens = VALUES(tokens),
 				-- Force a row update by updating the timestamp when we've consumed a token,
 				-- unless the number of available tokens remains at zero.
+				-- @TODO Set last updated to use the time of the last possible token. Otherwise, the aggregate error may be noticeable.
 				updated_at = IF(
 					bucket.available_tokens = 0 AND bucket.previous_tokens = 0,
 					bucket.previous_updated_at,
