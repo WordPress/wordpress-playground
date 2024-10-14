@@ -325,7 +325,7 @@ function rewrite_relative_redirect(
     $proxy_absolute_url
 ) {
     $target_hostname = parse_url($request_url, PHP_URL_HOST);
-    if (parse_url($redirect_location, PHP_URL_HOST) === false) {
+    if (!parse_url($redirect_location, PHP_URL_HOST)) {
         $redirect_path = parse_url($redirect_location, PHP_URL_PATH);
         if ($redirect_path && $redirect_path[0] !== '/') {
             $request_path = parse_url($request_url, PHP_URL_PATH);
@@ -336,7 +336,7 @@ function rewrite_relative_redirect(
         $redirect_location = $target_hostname . $redirect_location;
     }
 
-    if (parse_url($redirect_location, PHP_URL_SCHEME) === false) {
+    if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
         $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
         $redirect_location = "$target_scheme://$redirect_location";
     }   
