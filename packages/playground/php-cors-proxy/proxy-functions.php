@@ -50,6 +50,8 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
 
     $host = $parsedUrl['host'];
 
+    // @TODO: Reject requests to this host.
+
     // Ensure the hostname does not resolve to a private IP
     $resolved_ips = $resolve_function($host);
     if ($resolved_ips === false) {
@@ -322,14 +324,26 @@ function rewrite_relative_redirect(
     $redirect_location,
     $proxy_absolute_url
 ) {
-    $is_redirect_relative = parse_url($redirect_location, PHP_URL_SCHEME) === null;
-    if($is_redirect_relative) {
-        $target_scheme = parse_url($request_url, PHP_URL_SCHEME);
-        $target_hostname = parse_url($request_url, PHP_URL_HOST);
-        $redirect_location = $target_scheme . '://' . $target_hostname . $redirect_location;
+    $target_hostname = parse_url($request_url, PHP_URL_HOST);
+    if (!parse_url($redirect_location, PHP_URL_HOST)) {
+        $redirect_path = parse_url($redirect_location, PHP_URL_PATH);
+        if ($redirect_path && $redirect_path[0] !== '/') {
+            $request_path = parse_url($request_url, PHP_URL_PATH);
+            $request_path_parent = dirname($request_path);
+            $redirect_location = $request_path_parent . '/' . $redirect_path;
+        }
+       
+        $redirect_location = $target_hostname . $redirect_location;
     }
-    if ($proxy_absolute_url[strlen($proxy_absolute_url) - 1] !== '/') {
-        $proxy_absolute_url .= '/';
+
+    if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
+        $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
+        $redirect_location = "$target_scheme://$redirect_location";
+    }   
+
+    $last_char = $proxy_absolute_url[strlen($proxy_absolute_url) - 1];
+    if ($last_char !== '/' && $last_char !== '?') {
+        $proxy_absolute_url .= '?';
     }
     return $proxy_absolute_url . $redirect_location;
 }
