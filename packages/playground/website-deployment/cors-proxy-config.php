@@ -82,6 +82,7 @@ class PlaygroundCorsProxyTokenBucket {
 			return false;
 		}
 
+		// @TODO: Handle IPv6 addresses in a way that cannot lead to storage exhaustion.
 		$ipv6_remote_ip = $remote_ip;
 		if (filter_var($remote_ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
 			// Convert IPv4 to IPv6 mapped address for storage
@@ -113,17 +114,16 @@ class PlaygroundCorsProxyTokenBucket {
 				config.remote_addr,
 				config.capacity,
 				config.fill_rate_per_minute,
-				-- Stay within bounds when capacity is zero.
-				GREATEST(0, config.capacity - 1) AS tokens
+				-- Make sure we stay within bounds. 
+				GREATEST(
+					0,
+					COALESCE(bucket.available_tokens, config.capacity) - 1
+				) AS tokens
 			FROM config LEFT OUTER JOIN bucket USING (remote_addr)
 			ON DUPLICATE KEY UPDATE
-				capacity = config.capacity,
-				fill_rate_per_minute = config.fill_rate_per_minute,
-				-- Stay within bounds when no tokens are available.
-				tokens = GREATEST(
-					0,
-					bucket.available_tokens - 1
-				),
+				capacity = VALUES(capacity),
+				fill_rate_per_minute = VALUES(fill_rate_per_minute),
+				tokens = VALUES(tokens),
 				-- Force a row update by updating the timestamp when we've consumed a token,
 				-- unless the number of available tokens remains at zero.
 				updated_at = IF(
