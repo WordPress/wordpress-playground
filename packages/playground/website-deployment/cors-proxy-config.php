@@ -90,31 +90,56 @@ class PlaygroundCorsProxyTokenBucket {
 
 		$token_query = <<<'SQL'
 			INSERT INTO cors_proxy_rate_limiting (remote_addr, capacity, fill_rate_per_minute, tokens)
+			WITH
+				config AS (
 				SELECT
-					? as remote_addr,
+						? AS remote_addr,
 					? AS capacity,
-					? AS fill_rate_per_minute,
-					GREATEST(0, ? - 1) AS tokens
-				ON DUPLICATE KEY UPDATE
-					capacity = VALUES(capacity),
-					fill_rate_per_minute = VALUES(fill_rate_per_minute),
-					tokens = GREATEST(
-						1,
+						? AS fill_rate_per_minute
+				),
+				bucket AS (
+					SELECT 
+						remote_addr,
+						tokens AS previous_tokens,
+						updated_at AS previous_updated_at,
+						-- Ensure we don't exceed the capacity.
 						LEAST(
-						VALUES(capacity),
-						tokens + VALUES(fill_rate_per_minute) * TIMESTAMPDIFF(MINUTE, updated_at, NOW())
-						)
-					) - 1
+							config.capacity,
+							tokens + FLOOR(config.fill_rate_per_minute * TIMESTAMPDIFF(SECOND, updated_at, NOW()) / 60)
+						) AS available_tokens
+					FROM cors_proxy_rate_limiting INNER JOIN config USING (remote_addr)
+				)
+			SELECT
+				config.remote_addr,
+				config.capacity,
+				config.fill_rate_per_minute,
+				-- Stay within bounds when capacity is zero.
+				GREATEST(0, config.capacity - 1) AS tokens
+			FROM config LEFT OUTER JOIN bucket USING (remote_addr)
+			ON DUPLICATE KEY UPDATE
+				capacity = config.capacity,
+				fill_rate_per_minute = config.fill_rate_per_minute,
+				-- Stay within bounds when no tokens are available.
+				tokens = GREATEST(
+					0,
+					bucket.available_tokens - 1
+				),
+				-- Force a row update by updating the timestamp when we've consumed a token,
+				-- unless the number of available tokens remains at zero.
+				updated_at = IF(
+					bucket.available_tokens = 0 AND bucket.previous_tokens = 0,
+					bucket.previous_updated_at,
+					NOW()
+				)
 			SQL;
 		
 		$token_statement = mysqli_prepare($this->dbh, $token_query);
 		mysqli_stmt_bind_param(
 			$token_statement,
-			'siii',
+			'sii',
 			$ipv6_remote_ip,
 			$bucket_config->capacity,
-			$bucket_config->fill_rate_per_minute,
-			$bucket_config->capacity,
+			$bucket_config->fill_rate_per_minute
 		);
 
 		if (
