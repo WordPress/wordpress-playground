@@ -93,10 +93,10 @@ class PlaygroundCorsProxyTokenBucket {
 			INSERT INTO cors_proxy_rate_limiting (remote_addr, capacity, fill_rate_per_minute, tokens)
 			WITH
 				config AS (
-				SELECT
-					? AS remote_addr,
-					? AS capacity,
-					? AS fill_rate_per_minute
+					SELECT
+						? AS remote_addr,
+						? AS capacity,
+						? AS fill_rate_per_minute
 				),
 				bucket AS (
 					SELECT 
