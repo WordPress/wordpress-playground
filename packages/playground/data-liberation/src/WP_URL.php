@@ -1,5 +1,4 @@
 <?php
-
 use Rowbot\URL\URL;
 
 /**
@@ -9,11 +8,11 @@ use Rowbot\URL\URL;
  */
 class WP_URL {
 
-	static public function parse($url, $base=null) {
-		return URL::parse($url, $base) ?? false;
+	public static function parse( $url, $base = null ) {
+		return URL::parse( $url, $base ) ?? false;
 	}
 
-	/*
+	/**
 	 * Prepends a protocol to any matched URL without the double slash.
 	 *
 	 * Imagine we have a base URL of `https://example.com` and a text like `Visit myblog.com`.
@@ -23,8 +22,8 @@ class WP_URL {
 	 * To get `https://myblog.com`, we need to prepend a protocol and turn that candidate into
 	 * `https://myblog.com` before parsing.
 	 */
-	static public function ensure_protocol($raw_url, $protocol='https') {
-		if ( ! self::has_double_slash($raw_url) ) {
+	public static function ensure_protocol( $raw_url, $protocol = 'https' ) {
+		if ( ! self::has_double_slash( $raw_url ) ) {
 			$raw_url = $protocol . '://' . $raw_url;
 		}
 		return $raw_url;
@@ -33,7 +32,7 @@ class WP_URL {
 	/**
 	 * This method only considers http and https protocols.
 	 */
-	static public function has_double_slash($raw_url) {
+	public static function has_double_slash( $raw_url ) {
 		return (
 			(
 				// Protocol-relative URLs.
@@ -62,5 +61,4 @@ class WP_URL {
 			)
 		);
 	}
-
 }

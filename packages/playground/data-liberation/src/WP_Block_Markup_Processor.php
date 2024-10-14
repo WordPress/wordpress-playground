@@ -68,8 +68,7 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 	}
 
 	/**
-	 * @param  mixed  $new_content
-	 *
+	 * @param  mixed $new_value
 	 * @return bool
 	 */
 	public function set_modifiable_text( $new_value ) {
@@ -167,23 +166,25 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 		}
 
 		$text = parent::get_modifiable_text();
-		// Try to parse as a block. The block parser won't cut it because
-		// while it can parse blocks, it has no semantics for rewriting the
-		// block markup. Let's do our best here:
-		$at = strspn( $text, ' \t\f\r\n' ); // Whitespace
+		/**
+		 * Try to parse as a block. The block parser won't cut it because
+		 * while it can parse blocks, it has no semantics for rewriting the
+		 * block markup. Let's do our best here:
+		 */
+		$at = strspn( $text, ' \t\f\r\n' ); // Whitespace.
 
 		if ( $at >= strlen( $text ) ) {
 			// This is an empty comment. Not a block.
 			return true;
 		}
 
-		// Blocks closers start with the solidus character (`/`)
+		// Blocks closers start with the solidus character (`/`).
 		if ( '/' === $text[ $at ] ) {
 			$this->block_closer = true;
-			++ $at;
+			++$at;
 		}
 
-		// Blocks start with wp:
+		// Blocks start with wp.
 		if ( ! (
 			$at + 3 < strlen( $text ) &&
 			$text[ $at ] === 'w' &&
@@ -195,19 +196,19 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 
 		$name_starts_at = $at;
 
-		// Skip wp:
+		// Skip wp.
 		$at += 3;
 
-		// Parse the actual block name after wp:
+		// Parse the actual block name after wp.
 		$name_length = strspn( $text, 'abcdefghijklmnopqrstuwxvyzABCDEFGHIJKLMNOPRQSTUWXVYZ0123456789_-', $at );
 		if ( $name_length === 0 ) {
 			// This wasn't a block after all, just a regular comment.
 			return true;
 		}
 		$name = substr( $text, $name_starts_at, $name_length + 3 );
-		$at   += $name_length;
+		$at  += $name_length;
 
-		// Skip the whitespace that follows the block name
+		// Skip the whitespace that follows the block name.
 		$at += strspn( $text, ' \t\f\r\n', $at );
 		if ( $at >= strlen( $text ) ) {
 			// It's a block without attributes.
@@ -252,6 +253,7 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 			/**
 			 * Correct the invalid text indices moved by WP_HTML_Tag_Processor when
 			 * updating the modifiable text.
+			 *
 			 * @TODO: Fix that directly in the WP_HTML_Tag_Processor.
 			 */
 			$this->accessible_text_length->setValue( $this, $new_text_length );
@@ -384,5 +386,4 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 
 		return true;
 	}
-
 }

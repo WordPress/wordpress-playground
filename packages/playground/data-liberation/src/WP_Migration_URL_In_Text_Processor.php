@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Finds string fragments that look like URLs and allow replacing them.
  * This is the first, "thick" sieve that yields "URL candidates" that must be
@@ -55,7 +54,6 @@
  * > Visit the WordPress plugins directory (https://w.org/plug(in)s
  *
  * Would yield `https://w.org/plug(in)s`.
- *
  */
 class WP_Migration_URL_In_Text_Processor {
 
@@ -91,6 +89,7 @@ class WP_Migration_URL_In_Text_Processor {
 
 	/**
 	 * @see WP_HTML_Tag_Processor
+	 * @var string[]
 	 */
 	private $lexical_updates = array();
 
@@ -101,7 +100,7 @@ class WP_Migration_URL_In_Text_Processor {
 	 * If set to false, the matching will be more lenient, allowing for potential false positives.
 	 */
 	private $strict = false;
-	static private $public_suffix_list;
+	private static $public_suffix_list;
 
 
 	public function __construct( $text, $base_url = null ) {
@@ -116,7 +115,7 @@ class WP_Migration_URL_In_Text_Processor {
 		$prefix = $this->strict ? '^' : '';
 		$suffix = $this->strict ? '$' : '';
 
-		// Source: https://github.com/vstelmakh/url-highlight/blob/master/src/Matcher/Matcher.php
+		// Source: https://github.com/vstelmakh/url-highlight/blob/master/src/Matcher/Matcher.php.
 		$this->regex = '/' . $prefix . '
             (?:                                                      # scheme
                 (?<scheme>https?:)?                                  # Only consider http and https
@@ -182,7 +181,7 @@ class WP_Migration_URL_In_Text_Processor {
 			/**
 			 * Thick sieve – eagerly match things that look like URLs but turn out to not be URLs in the end.
 			 */
-			$matches = [];
+			$matches = array();
 			$found   = preg_match( $this->regex, $this->text, $matches, PREG_OFFSET_CAPTURE, $this->bytes_already_parsed );
 			if ( 1 !== $found ) {
 				return false;
@@ -315,7 +314,7 @@ class WP_Migration_URL_In_Text_Processor {
 				$this->url_starts_at = strlen( $output_buffer );
 				$this->url_length    = strlen( $diff->text );
 			}
-			$output_buffer        .= $diff->text;
+			$output_buffer       .= $diff->text;
 			$bytes_already_copied = $diff->start + $diff->length;
 		}
 
@@ -333,7 +332,7 @@ class WP_Migration_URL_In_Text_Processor {
 	 * Characters that are forbidden in the host part of a URL.
 	 * See https://url.spec.whatwg.org/#host-miscellaneous.
 	 */
-	private const FORBIDDEN_HOST_BYTES = "\x00\x09\x0a\x0d\x20\x23\x2f\x3a\x3c\x3e\x3f\x40\x5b\x5c\x5d\x5e\x7c";
+	private const FORBIDDEN_HOST_BYTES   = "\x00\x09\x0a\x0d\x20\x23\x2f\x3a\x3c\x3e\x3f\x40\x5b\x5c\x5d\x5e\x7c";
 	private const FORBIDDEN_DOMAIN_BYTES = "\x00\x09\x0a\x0d\x20\x23\x25\x2f\x3a\x3c\x3e\x3f\x40\x5b\x5c\x5d\x5e\x7c\x7f";
 	/**
 	 * Unlike RFC 3986, the WHATWG URL specification does not the domain part of
@@ -354,20 +353,21 @@ class WP_Migration_URL_In_Text_Processor {
 	 * * Be forced to ditch this approach entirely and find a way to plug
 	 *   in a proper WHATWG-compliant URL parser into the task of finding
 	 *   URLs in text. This may or may not be possible/viable.
+	 *
 	 * @wip
 	 */
 	private function experimental_next_url_without_regexs() {
 		$at = $this->bytes_already_parsed;
 
-		// Find the next dot in the text
+		// Find the next dot in the text.
 		$dot_at = strpos( $this->text, '.', $at );
 
-		// If there's no dot, assume there's no URL
+		// If there's no dot, assume there's no URL.
 		if ( false === $dot_at ) {
 			return false;
 		}
 
-		// The shortest tld is 2 characters long
+		// The shortest tld is 2 characters long.
 		if ( $dot_at + 2 >= strlen( $this->text ) ) {
 			return false;
 		}
@@ -393,7 +393,7 @@ class WP_Migration_URL_In_Text_Processor {
 
 		$host_starts_at = $dot_at - $host_bytes_before_dot;
 
-		// Capture the protocol, if any
+		// Capture the protocol, if any.
 		$has_double_slash = false;
 		if ( $host_starts_at > 2 ) {
 			if ( '/' === $this->text[ $host_starts_at - 1 ] && '/' === $this->text[ $host_starts_at - 2 ] ) {
@@ -403,6 +403,7 @@ class WP_Migration_URL_In_Text_Processor {
 
 		/**
 		 * Look for http or https at the beginning of the URL.
+		 *
 		 * @TODO: Ensure the character before http or https is a word boundary.
 		 */
 		$has_protocol = false;
@@ -426,10 +427,7 @@ class WP_Migration_URL_In_Text_Processor {
 			$has_protocol = true;
 		}
 
-		// Move the pointer to the end of the host
+		// Move the pointer to the end of the host.
 		$at = $dot_at + $host_bytes_after_dot;
 	}
-
-
 }
-

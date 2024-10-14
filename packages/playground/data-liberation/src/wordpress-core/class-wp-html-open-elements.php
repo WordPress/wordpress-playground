@@ -213,7 +213,7 @@ class WP_HTML_Open_Elements {
 	public function has_element_in_table_scope( $tag_name ) {
 		throw new WP_HTML_Unsupported_Exception( 'Cannot process elements depending on table scope.' );
 
-		return false; // The linter requires this unreachable code until the function is implemented and can return.
+		// return false; // The linter requires this unreachable code until the function is implemented and can return.
 	}
 
 	/**

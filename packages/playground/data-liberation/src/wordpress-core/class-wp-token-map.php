@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Class for efficiently looking up and mapping string keys to string values, with limits.
  *
@@ -520,10 +519,10 @@ class WP_Token_Map {
 	 *
 	 * @since 6.6.0
 	 *
-	 * @param string  $text                       String in which to search for a lookup key.
-	 * @param int     $offset                     Optional. How many bytes into the string where the lookup key ought to start. Default 0.
-	 * @param ?int    &$matched_token_byte_length Optional. Holds byte-length of found token matched, otherwise not set. Default null.
-	 * @param string  $case_sensitivity           Optional. Pass 'ascii-case-insensitive' to ignore ASCII case when matching. Default 'case-sensitive'.
+	 * @param string $text                       String in which to search for a lookup key.
+	 * @param int    $offset                     Optional. How many bytes into the string where the lookup key ought to start. Default 0.
+	 * @param ?int   &$matched_token_byte_length Optional. Holds byte-length of found token matched, otherwise not set. Default null.
+	 * @param string $case_sensitivity           Optional. Pass 'ascii-case-insensitive' to ignore ASCII case when matching. Default 'case-sensitive'.
 	 * @return string|null Mapped value of lookup key if found, otherwise `null`.
 	 */
 	public function read_token( $text, $offset = 0, &$matched_token_byte_length = null, $case_sensitivity = 'case-sensitive' ) {

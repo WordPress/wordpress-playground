@@ -42,8 +42,8 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 	public function next_token() {
 		$this->get_updated_html();
 
-		$this->raw_url    = null;
-		$this->parsed_url = null;
+		$this->raw_url                     = null;
+		$this->parsed_url                  = null;
 		$this->inspected_url_attribute_idx = - 1;
 		$this->url_in_text_processor       = null;
 		// Do not reset url_in_text_node_updated – it's reset in get_updated_html() which
@@ -115,7 +115,7 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 			return false;
 		}
 
-		while ( ++ $this->inspected_url_attribute_idx < count( self::URL_ATTRIBUTES[ $tag ] ) ) {
+		while ( ++$this->inspected_url_attribute_idx < count( self::URL_ATTRIBUTES[ $tag ] ) ) {
 			$attr = self::URL_ATTRIBUTES[ $tag ][ $this->inspected_url_attribute_idx ];
 			if ( false === $attr ) {
 				return false;
@@ -221,51 +221,50 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 	 *
 	 * See https://html.spec.whatwg.org/multipage/indices.html#attributes-1.
 	 * See https://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value.
-	 *
 	 */
-	public const URL_ATTRIBUTES = [
-		'A'          => [ 'href' ],
-		'APPLET'     => [ 'codebase', 'archive' ],
-		'AREA'       => [ 'href' ],
-		'AUDIO'      => [ 'src' ],
-		'BASE'       => [ 'href' ],
-		'BLOCKQUOTE' => [ 'cite' ],
-		'BODY'       => [ 'background' ],
-		'BUTTON'     => [ 'formaction' ],
-		'COMMAND'    => [ 'icon' ],
-		'DEL'        => [ 'cite' ],
-		'EMBED'      => [ 'src' ],
-		'FORM'       => [ 'action' ],
-		'FRAME'      => [ 'longdesc', 'src' ],
-		'HEAD'       => [ 'profile' ],
-		'HTML'       => [ 'manifest' ],
-		'IFRAME'     => [ 'longdesc', 'src' ],
+	public const URL_ATTRIBUTES = array(
+		'A'          => array( 'href' ),
+		'APPLET'     => array( 'codebase', 'archive' ),
+		'AREA'       => array( 'href' ),
+		'AUDIO'      => array( 'src' ),
+		'BASE'       => array( 'href' ),
+		'BLOCKQUOTE' => array( 'cite' ),
+		'BODY'       => array( 'background' ),
+		'BUTTON'     => array( 'formaction' ),
+		'COMMAND'    => array( 'icon' ),
+		'DEL'        => array( 'cite' ),
+		'EMBED'      => array( 'src' ),
+		'FORM'       => array( 'action' ),
+		'FRAME'      => array( 'longdesc', 'src' ),
+		'HEAD'       => array( 'profile' ),
+		'HTML'       => array( 'manifest' ),
+		'IFRAME'     => array( 'longdesc', 'src' ),
 		// SVG <image> element
-		'IMAGE'      => [ 'href' ],
-		'IMG'        => [ 'longdesc', 'src', 'usemap', 'lowsrc', 'highsrc' ],
-		'INPUT'      => [ 'src', 'usemap', 'formaction' ],
-		'INS'        => [ 'cite' ],
-		'LINK'       => [ 'href' ],
-		'OBJECT'     => [ 'classid', 'codebase', 'data', 'usemap' ],
-		'Q'          => [ 'cite' ],
-		'SCRIPT'     => [ 'src' ],
-		'SOURCE'     => [ 'src' ],
-		'TRACK'      => [ 'src' ],
-		'VIDEO'      => [ 'poster', 'src' ],
-	];
+		'IMAGE'      => array( 'href' ),
+		'IMG'        => array( 'longdesc', 'src', 'usemap', 'lowsrc', 'highsrc' ),
+		'INPUT'      => array( 'src', 'usemap', 'formaction' ),
+		'INS'        => array( 'cite' ),
+		'LINK'       => array( 'href' ),
+		'OBJECT'     => array( 'classid', 'codebase', 'data', 'usemap' ),
+		'Q'          => array( 'cite' ),
+		'SCRIPT'     => array( 'src' ),
+		'SOURCE'     => array( 'src' ),
+		'TRACK'      => array( 'src' ),
+		'VIDEO'      => array( 'poster', 'src' ),
+	);
 
 	/**
 	 * @TODO: Either explicitly support these attributes, or explicitly drop support for
 	 *        handling their subsyntax. A generic URL matcher might be good enough.
 	 */
-	public const URL_ATTRIBUTES_WITH_SUBSYNTAX = [
-		'*'      => [ 'style' ], // background(), background-image()
-		'APPLET' => [ 'archive' ],
-		'IMG'    => [ 'srcset' ],
-		'META'   => [ 'content' ],
-		'SOURCE' => [ 'srcset' ],
-		'OBJECT' => [ 'archive' ],
-	];
+	public const URL_ATTRIBUTES_WITH_SUBSYNTAX = array(
+		'*'      => array( 'style' ), // background(), background-image()
+		'APPLET' => array( 'archive' ),
+		'IMG'    => array( 'srcset' ),
+		'META'   => array( 'content' ),
+		'SOURCE' => array( 'srcset' ),
+		'OBJECT' => array( 'archive' ),
+	);
 
 	/**
 	 * Also <style> and <script> tag content can contain URLs.
@@ -278,9 +277,8 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 	 * @TODO: Either explicitly support these tags, or explicitly drop support for
 	 *         handling their subsyntax. A generic URL matcher might be good enough.
 	 */
-	public const URL_CONTAINING_TAGS_WITH_SUBSYNTAX = [
+	public const URL_CONTAINING_TAGS_WITH_SUBSYNTAX = array(
 		'STYLE',
 		'SCRIPT',
-	];
-
+	);
 }
