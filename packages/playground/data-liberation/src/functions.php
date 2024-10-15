@@ -124,28 +124,3 @@ function iterate_urls( $p, $current_site_url ) {
 	}
 	return $p->get_updated_html();
 }
-
-function wp_list_urls_in_block_markup( $options ) {
-	$block_markup = $options['block_markup'];
-	$base_url     = $options['base_url'] ?? 'https://playground.internal';
-	$p            = new WP_Block_Markup_Url_Processor( $block_markup, $base_url );
-	while ( $p->next_url() ) {
-		// Skip empty relative URLs.
-		if ( ! trim( $p->get_raw_url() ) ) {
-			continue;
-		}
-		echo '* ';
-		switch ( $p->get_token_type() ) {
-			case '#tag':
-				echo 'In <' . $p->get_tag() . '> tag attribute "' . $p->get_inspected_attribute_name() . '": ';
-				break;
-			case '#block-comment':
-				echo 'In a ' . $p->get_block_name() . ' block attribute "' . $p->get_block_attribute_key() . '": ';
-				break;
-			case '#text':
-				echo 'In #text: ';
-				break;
-		}
-		echo $p->get_raw_url() . "\n";
-	}
-}

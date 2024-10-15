@@ -57,12 +57,11 @@ switch ( $command ) {
 		if (!is_dir('./assets')) {
 			mkdir('./assets/', 0777, true);
 		}
-		$result = wp_migrate_post_content_urls( array(
+		$result = wp_rewrite_urls( array(
 			'block_markup' => $block_markup,
 			'base_url' => $base_url,
 			'current-site-url' => $options['current-site-url'],
 			'new-site-url' => $options['new-site-url'],
-			'local-assets-path' => './assets/'
 		) );
 		if(!is_string($result)) {
 			echo "Error! \n";
@@ -71,4 +70,29 @@ switch ( $command ) {
 		}
 		echo $result;
 		break;
+}
+
+function wp_list_urls_in_block_markup( $options ) {
+	$block_markup = $options['block_markup'];
+	$base_url     = $options['base_url'] ?? 'https://playground.internal';
+	$p            = new WP_Block_Markup_Url_Processor( $block_markup, $base_url );
+	while ( $p->next_url() ) {
+		// Skip empty relative URLs.
+		if ( ! trim( $p->get_raw_url() ) ) {
+			continue;
+		}
+		echo '* ';
+		switch ( $p->get_token_type() ) {
+			case '#tag':
+				echo 'In <' . $p->get_tag() . '> tag attribute "' . $p->get_inspected_attribute_name() . '": ';
+				break;
+			case '#block-comment':
+				echo 'In a ' . $p->get_block_name() . ' block attribute "' . $p->get_block_attribute_key() . '": ';
+				break;
+			case '#text':
+				echo 'In #text: ';
+				break;
+		}
+		echo $p->get_raw_url() . "\n";
+	}
 }
