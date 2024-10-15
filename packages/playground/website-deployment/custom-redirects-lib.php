@@ -133,9 +133,11 @@ function playground_handle_request() {
 		: false;
 
 	require_once __DIR__ . '/mime-types.php';
-	$content_type = $mime_types[ $extension ] ?? $mime_types['_default'];
-	$log( "Setting Content-Type to '$content_type'" );
-	header( "Content-Type: $content_type" );
+	if ( isset( $mime_types[ $extension ] ) ) {
+		$content_type = $mime_types[ $extension ];
+		$log( "Setting Content-Type to '$content_type'" );
+		header( "Content-Type: $content_type" );
+	}
 
 	$custom_response_headers = playground_get_custom_response_headers( $requested_path );
 	if ( ! empty( $custom_response_headers ) ) {
