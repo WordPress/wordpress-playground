@@ -22,7 +22,7 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 		$this->base_url = $base_url;
 	}
 
-	public function get_updated_html() {
+	public function get_updated_html(): string {
 		if ( $this->url_in_text_node_updated ) {
 			$this->set_modifiable_text( $this->url_in_text_processor->get_updated_text() );
 			$this->url_in_text_node_updated = false;
@@ -39,7 +39,7 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 		return $this->parsed_url;
 	}
 
-	public function next_token() {
+	public function next_token(): bool {
 		$this->get_updated_html();
 
 		$this->raw_url                     = null;
@@ -93,11 +93,11 @@ class WP_Block_Markup_Url_Processor extends WP_Block_Markup_Processor {
 			 * to filter out such false positives e.g. by checking the domain against
 			 * a list of accepted domains, or the TLD against a list of public suffixes.
 			 */
-			$this->url_in_text_processor = new WP_Migration_URL_In_Text_Processor( $this->get_modifiable_text(), $this->base_url );
+			$this->url_in_text_processor = new WP_URL_In_Text_Processor( $this->get_modifiable_text(), $this->base_url );
 		}
 
 		while ( $this->url_in_text_processor->next_url() ) {
-			$this->raw_url    = $this->url_in_text_processor->get_raw_url();
+			$this->raw_url    = WP_URL::ensure_protocol($this->url_in_text_processor->get_raw_url());
 			$this->parsed_url = $this->url_in_text_processor->get_parsed_url();
 
 			return true;

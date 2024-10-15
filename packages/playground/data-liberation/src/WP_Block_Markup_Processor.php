@@ -17,8 +17,6 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 	protected $block_attributes;
 	private $block_attributes_updated;
 	private $block_closer;
-	private $modifiable_text;
-	private $modifiable_text_updated;
 
 	/**
 	 * @var \RecursiveIteratorIterator
@@ -45,7 +43,7 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 	}
 
 
-	public function get_token_type() {
+	public function get_token_type(): ?string {
 		switch ( $this->parser_state ) {
 			case self::STATE_COMMENT:
 				if ( null !== $this->block_name ) {
@@ -57,69 +55,6 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 			default:
 				return parent::get_token_type();
 		}
-	}
-
-	public function get_modifiable_text() {
-		if ( null === $this->modifiable_text ) {
-			$this->modifiable_text = parent::get_modifiable_text();
-		}
-
-		return $this->modifiable_text;
-	}
-
-	/**
-	 * @param  mixed $new_value
-	 * @return bool
-	 */
-	public function set_modifiable_text( $new_value ) {
-		switch ( parent::get_token_type() ) {
-			case '#text':
-				break;
-
-			case '#comment':
-			case '#cdata-section':
-				if (
-					parent::get_token_type() === '#comment' && (
-						strpos( $new_value, '-->' ) !== false ||
-						strpos( $new_value, '--!>' ) !== false
-					)
-				) {
-					_doing_it_wrong(
-						__METHOD__,
-						__( 'Cannot set a comment closer as a text of an HTML comment.' ),
-						'WP_VERSION'
-					);
-
-					return false;
-				}
-				if (
-					$this->get_token_type() === '#cdata-section' &&
-					strpos( $new_value, '>' ) !== false
-				) {
-					_doing_it_wrong(
-						__METHOD__,
-						__( 'Cannot set a CDATA closer as text of an HTML CDATA-lookalike section.' ),
-						'WP_VERSION'
-					);
-
-					return false;
-				}
-
-				break;
-			default:
-				_doing_it_wrong(
-					__METHOD__,
-					__( 'Cannot set text content on a non-text node.' ),
-					'WP_VERSION'
-				);
-
-				return false;
-		}
-
-		$this->modifiable_text_updated = true;
-		$this->modifiable_text         = $new_value;
-
-		return true;
 	}
 
 	/**
@@ -147,15 +82,13 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 		return $this->block_name !== null && $this->block_closer === true;
 	}
 
-	public function next_token() {
+	public function next_token(): bool {
 		$this->get_updated_html();
 
 		$this->block_name               = null;
 		$this->block_attributes         = null;
 		$this->block_closer             = false;
 		$this->block_attributes_updated = false;
-		$this->modifiable_text          = null;
-		$this->modifiable_text_updated  = false;
 
 		if ( parent::next_token() === false ) {
 			return false;
@@ -242,25 +175,9 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 		return true;
 	}
 
-	public function get_updated_html() {
+	public function get_updated_html(): string {
 		$this->block_attribute_updates_to_modifiable_text_updates();
-		$new_text_length = $this->modifiable_text_updates_to_lexical_updates();
-		$text_starts_at  = $this->accessible_text_starts_at->getValue( $this );
-
-		$updated_html = parent::get_updated_html();
-
-		if ( false !== $new_text_length ) {
-			/**
-			 * Correct the invalid text indices moved by WP_HTML_Tag_Processor when
-			 * updating the modifiable text.
-			 *
-			 * @TODO: Fix that directly in the WP_HTML_Tag_Processor.
-			 */
-			$this->accessible_text_length->setValue( $this, $new_text_length );
-			$this->accessible_text_starts_at->setValue( $this, $text_starts_at );
-		}
-
-		return $updated_html;
+		return parent::get_updated_html();
 	}
 
 	private function block_attribute_updates_to_modifiable_text_updates() {
@@ -282,49 +199,6 @@ class WP_Block_Markup_Processor extends WP_HTML_Tag_Processor {
 		);
 
 		return true;
-	}
-
-	private function modifiable_text_updates_to_lexical_updates() {
-		/**
-		 * Applies modifiable text updates, if any.
-		 *
-		 * Don't do this at home :-) Changes access to private properties of the
-		 * WP_HTML_Tag_Processor class to enable changing the text content of a
-		 * node.
-		 */
-		if ( ! $this->modifiable_text_updated ) {
-			return false;
-		}
-
-		$new_value = $this->get_modifiable_text();
-		switch ( parent::get_token_type() ) {
-			case '#text':
-				$lexical_updates_now   = $this->accessible_lexical_updates->getValue( $this );
-				$lexical_updates_now[] = new WP_HTML_Text_Replacement(
-					$this->accessible_text_starts_at->getValue( $this ),
-					$this->accessible_text_length->getValue( $this ),
-					htmlspecialchars( $new_value, ENT_XML1, 'UTF-8' )
-				);
-				$this->accessible_lexical_updates->setValue( $this, $lexical_updates_now );
-				break;
-
-			case '#comment':
-			case '#cdata-section':
-				$lexical_updates_now   = $this->accessible_lexical_updates->getValue( $this );
-				$lexical_updates_now[] = new WP_HTML_Text_Replacement(
-					$this->accessible_text_starts_at->getValue( $this ),
-					$this->accessible_text_length->getValue( $this ),
-					$new_value
-				);
-				$this->accessible_lexical_updates->setValue( $this, $lexical_updates_now );
-				break;
-
-			default:
-				return false;
-		}
-		$this->modifiable_text_updated = false;
-
-		return strlen( $new_value );
 	}
 
 	public function next_block_attribute() {

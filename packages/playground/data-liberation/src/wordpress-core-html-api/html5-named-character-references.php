@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Auto-generated class for looking up HTML named character references.
  *

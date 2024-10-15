@@ -25,28 +25,49 @@ function wp_rewrite_urls( $options ) {
 		$options['base_url'] = $options['current-site-url'];
 	}
 
-	$string_new_site_url     = $options['new-site-url'];
-	$parsed_new_site_url     = WP_URL::parse( $string_new_site_url );
-	$parsed_current_site_url = WP_URL::parse( $options['current-site-url'] );
+	$current_site_url = WP_URL::parse( $options['current-site-url'] );
+	if($current_site_url->pathname[strlen($current_site_url->pathname) - 1] === '/') {
+		$current_site_url->pathname = substr($current_site_url->pathname, 0, strlen($current_site_url->pathname) - 1);
+	}
+
+	$new_site_url     = WP_URL::parse( $options['new-site-url'] );
+	if($new_site_url->pathname[strlen($new_site_url->pathname) - 1] === '/') {
+		$new_site_url->pathname = substr($new_site_url->pathname, 0, strlen($new_site_url->pathname) - 1);
+	}	
 
 	$p         = new WP_Block_Markup_Url_Processor( $options['block_markup'], $options['base_url'] );
 	$generator = iterate_urls( $p, $options['current-site-url'] );
 	foreach ( $generator as $p ) {
+		$raw_url = $p->get_raw_url();
+		$is_relative = (
+			! str_starts_with($raw_url, 'http://') && 
+			! str_starts_with($raw_url, 'https://')
+		);
+		
 		$parsed_matched_url = $p->get_parsed_url();
-		// Let's rewrite the URL.
-		$parsed_matched_url->protocol = $parsed_new_site_url->protocol;
-		$parsed_matched_url->hostname = $parsed_new_site_url->hostname;
+		$parsed_matched_url->protocol = $new_site_url->protocol;
+		$parsed_matched_url->hostname = $new_site_url->hostname;
 		$decoded_matched_pathname     = urldecode( $parsed_matched_url->pathname );
 
-		// Short-circuit for empty pathnames.
-		if ( '/' !== $parsed_current_site_url->pathname ) {
-			$parsed_matched_url->pathname =
-				$parsed_new_site_url->pathname .
-				substr(
-					$decoded_matched_pathname,
-					// @TODO: Why is + 1 needed to avoid a double slash in the pathname?
-					strlen( urldecode( $parsed_current_site_url->pathname ) ) + 1
-				);
+		// Update the pathname if needed.
+		if ( '/' !== $current_site_url->pathname ) {
+			$direct_match = (
+				$current_site_url->pathname === $decoded_matched_pathname ||
+				$current_site_url->pathname . '/' === $decoded_matched_pathname
+			);
+
+			if ( $direct_match ) {
+				// Use new-site-url exactly as provided in the arguments
+				$parsed_matched_url->pathname = $options['new-site-url'];
+			} else {
+				// The matched URL starts with $current_site_name->pathname.
+				$parsed_matched_url->pathname =
+					$new_site_url->pathname .
+					substr(
+						$decoded_matched_pathname,
+						strlen( urldecode( $current_site_url->pathname ) )
+					);
+			}
 		}
 
 		/*
@@ -66,7 +87,18 @@ function wp_rewrite_urls( $options ) {
 			$new_raw_url = rtrim( $new_raw_url, '/' );
 		}
 		if ( $new_raw_url ) {
-			$p->set_raw_url( $new_raw_url );
+			if($is_relative) {
+				$new_relative_url = $parsed_matched_url->pathname;
+				if($parsed_matched_url->search !== '') {
+					$new_relative_url .= $parsed_matched_url->search;
+				}
+				if($parsed_matched_url->hash !== '') {
+					$new_relative_url .= $parsed_matched_url->hash;
+				}
+				$p->set_raw_url( $new_relative_url );
+			} else {
+				$p->set_raw_url( $new_raw_url );
+			}
 		}
 	}
 	return $p->get_updated_html();
@@ -78,13 +110,24 @@ function wp_rewrite_urls( $options ) {
  */
 function iterate_urls( $p, $current_site_url ) {
 	$parsed_current_site_url       = WP_URL::parse( $current_site_url );
-	$decoded_current_site_pathname = urldecode( $parsed_current_site_url->pathname );
+	$current_pathname_no_trailing_slash = urldecode( $parsed_current_site_url->pathname );
+	if($current_pathname_no_trailing_slash[strlen($current_pathname_no_trailing_slash) - 1] === '/') {
+		$current_pathname_no_trailing_slash = substr($current_pathname_no_trailing_slash, 0, strlen($current_pathname_no_trailing_slash) - 1);
+	}
+	$current_pathname_with_trailing_slash = $current_pathname_no_trailing_slash . '/';
 
 	while ( $p->next_url() ) {
 		$parsed_matched_url = $p->get_parsed_url();
 		if ( $parsed_matched_url->hostname === $parsed_current_site_url->hostname ) {
-			$decoded_matched_pathname = urldecode( $parsed_matched_url->pathname );
-			$pathname_matches         = str_starts_with( $decoded_matched_pathname, $decoded_current_site_pathname );
+			$matched_pathname_decoded = urldecode( $parsed_matched_url->pathname );
+			$pathname_matches =
+				// Direct match
+				$matched_pathname_decoded === $current_pathname_no_trailing_slash ||
+				$matched_pathname_decoded === $current_pathname_with_trailing_slash ||
+				// Pathname is a "child" of the old site pathname
+				// e.g. old site pathname and found pathname = /blog/article.
+				str_starts_with($matched_pathname_decoded, $current_pathname_with_trailing_slash)
+			;
 			if ( ! $pathname_matches ) {
 				continue;
 			}

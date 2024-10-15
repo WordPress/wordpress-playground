@@ -55,7 +55,7 @@
  *
  * Would yield `https://w.org/plug(in)s`.
  */
-class WP_Migration_URL_In_Text_Processor {
+class WP_URL_In_Text_Processor {
 
 	private $text;
 	private $url_starts_at;

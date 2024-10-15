@@ -2,14 +2,14 @@
 
 use PHPUnit\Framework\TestCase;
 
-class WPMigrationURLInTextProcessorTests extends TestCase {
+class WPURLInTextProcessorTests extends TestCase {
 
 	/**
 	 *
 	 * @dataProvider provider_test_finds_next_url_when_base_url_is_used
 	 */
 	public function test_finds_next_url_when_base_url_is_used( $url, $parsed_href, $text, $which_url = 1 ) {
-		$p = new WP_Migration_URL_In_Text_Processor( $text, 'https://w.org' );
+		$p = new WP_URL_In_Text_Processor.php( $text, 'https://w.org' );
 		for ( $i = 0; $i < $which_url; $i ++ ) {
 			$this->assertTrue( $p->next_url(), 'Failed to find the URL in the text.' );
 		}
@@ -77,13 +77,13 @@ class WPMigrationURLInTextProcessorTests extends TestCase {
 	}
 
 	public function test_set_url_returns_true_on_success() {
-		$p = new WP_Migration_URL_In_Text_Processor( 'Have you seen https://wordpress.org?' );
+		$p = new WP_URL_In_Text_Processor.php( 'Have you seen https://wordpress.org?' );
 		$p->next_url();
 		$this->assertTrue( $p->set_raw_url( 'https://w.org' ), 'Failed to set the URL in the text.' );
 	}
 
 	public function test_set_url_returns_false_on_failure() {
-		$p = new WP_Migration_URL_In_Text_Processor( 'Have you seen WordPress?' );
+		$p = new WP_URL_In_Text_Processor.php( 'Have you seen WordPress?' );
 		$p->next_url();
 		$this->assertFalse( $p->set_raw_url( 'https://w.org' ), 'set_url returned true when no URL was matched.' );
 	}
@@ -93,7 +93,7 @@ class WPMigrationURLInTextProcessorTests extends TestCase {
 	 * @dataProvider provider_test_set_url_data
 	 */
 	public function test_set_url_replaces_the_url( $text, $new_url, $expected_text ) {
-		$p = new WP_Migration_URL_In_Text_Processor( $text );
+		$p = new WP_URL_In_Text_Processor.php( $text );
 		$p->next_url();
 		$p->set_raw_url( $new_url );
 		$this->assertEquals(
@@ -129,7 +129,7 @@ class WPMigrationURLInTextProcessorTests extends TestCase {
 	}
 
 	public function test_set_url_can_be_called_twice() {
-		$p = new WP_Migration_URL_In_Text_Processor( 'Have you seen https://wordpress.org (or w.org)?' );
+		$p = new WP_URL_In_Text_Processor.php( 'Have you seen https://wordpress.org (or w.org)?' );
 		$p->next_url();
 		$p->set_raw_url( 'https://developer.wordpress.org' );
 		$p->get_updated_text();
@@ -147,7 +147,7 @@ class WPMigrationURLInTextProcessorTests extends TestCase {
 	}
 
 	public function test_set_url_can_be_called_twice_before_moving_on() {
-		$p = new WP_Migration_URL_In_Text_Processor( 'Have you seen https://wordpress.org (or w.org)?', 'https://w.org' );
+		$p = new WP_URL_In_Text_Processor.php( 'Have you seen https://wordpress.org (or w.org)?', 'https://w.org' );
 		$p->next_url();
 		$p->set_raw_url( 'https://wikipedia.org' );
 		$p->get_updated_text();
