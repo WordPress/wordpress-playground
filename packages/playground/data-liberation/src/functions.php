@@ -34,9 +34,9 @@ function wp_rewrite_urls( $options ) {
 		$new_site_url->pathname = substr( $new_site_url->pathname, 0, strlen( $new_site_url->pathname ) - 1 );
 	}
 
-	$p         = new WP_Block_Markup_Url_Processor( $options['block_markup'], $options['base_url'] );
-	while($p->next_url()) {
-		if(!url_matches($p->get_parsed_url(), $current_site_url_string)) {
+	$p = new WP_Block_Markup_Url_Processor( $options['block_markup'], $options['base_url'] );
+	while ( $p->next_url() ) {
+		if ( ! url_matches( $p->get_parsed_url(), $current_site_url_string ) ) {
 			continue;
 		}
 		$raw_url     = $p->get_raw_url();
@@ -101,20 +101,20 @@ function wp_rewrite_urls( $options ) {
  * @param string $current_site_url_no_trailing_slash The current site URL to compare against.
  * @return bool Whether the URL matches the current site URL.
  */
-function url_matches(URL $subject, string $current_site_url_no_trailing_slash) {
-	$parsed_current_site_url = WP_URL::parse($current_site_url_no_trailing_slash);
-	$current_pathname_no_trailing_slash = rtrim(urldecode($parsed_current_site_url->pathname), '/');
+function url_matches( URL $subject, string $current_site_url_no_trailing_slash ) {
+	$parsed_current_site_url            = WP_URL::parse( $current_site_url_no_trailing_slash );
+	$current_pathname_no_trailing_slash = rtrim( urldecode( $parsed_current_site_url->pathname ), '/' );
 
-	if ($subject->hostname !== $parsed_current_site_url->hostname) {
+	if ( $subject->hostname !== $parsed_current_site_url->hostname ) {
 		return false;
 	}
 
-	$matched_pathname_decoded = urldecode($subject->pathname);
+	$matched_pathname_decoded = urldecode( $subject->pathname );
 	return (
 		// Direct match
 		$matched_pathname_decoded === $current_pathname_no_trailing_slash ||
 		$matched_pathname_decoded === $current_pathname_no_trailing_slash . '/' ||
 		// Path prefix
-		str_starts_with($matched_pathname_decoded, $current_pathname_no_trailing_slash . '/')
+		str_starts_with( $matched_pathname_decoded, $current_pathname_no_trailing_slash . '/' )
 	);
 }
