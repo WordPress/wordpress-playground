@@ -80,7 +80,7 @@ export interface StartPlaygroundOptions {
 	 *
 	 * For example, if corsProxy is set to "https://cors.wordpress.net/proxy.php",
 	 * then the CORS requests to https://github.com/WordPress/wordpress-playground.git would actually
-	 * be made to https://cors.wordpress.net/proxy.php/https://github.com/WordPress/wordpress-playground.git.
+	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/wordpress-playground.git.
 	 *
 	 * The Blueprints library will arbitrarily choose which requests to proxy. If you need
 	 * to proxy every single request, do not use this option. Instead, you should preprocess
