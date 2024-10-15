@@ -4169,7 +4169,7 @@ class WP_HTML_Tag_Processor {
 		 *                 ↑  │ back up by the length of the tag name plus the opening <
 		 *                 └←─┘ back up by strlen("em") + 1 ==> 3
 		 */
-		if ($this->get_token_type() === '#tag') {
+		if ( $this->get_token_type() === '#tag' ) {
 			$this->bytes_already_parsed = $before_current_tag;
 		}
 		$this->base_class_next_token();
