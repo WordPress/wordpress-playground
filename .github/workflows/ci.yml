@@ -46,8 +46,8 @@ jobs:
                   ignore-cache: 'yes'
                   composer-options: '--optimize-autoloader'
                   working-directory: 'packages/playground/data-liberation'
-            - run: npx nx run data-liberation:lint:php
-            - run: npx nx run data-liberation:test:phpunit
+            - run: npx nx run playground-data-liberation:lint:php
+            - run: npx nx run playground-data-liberation:test:phpunit
     test-unit-asyncify:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
