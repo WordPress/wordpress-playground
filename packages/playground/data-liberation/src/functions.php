@@ -1,4 +1,5 @@
 <?php
+use Rowbot\URL\URL;
 
 /**
  * Migrate URLs in post content. See WPRewriteUrlsTests for
@@ -26,6 +27,7 @@ function wp_rewrite_urls( $options ) {
 	if ( $current_site_url->pathname[ strlen( $current_site_url->pathname ) - 1 ] === '/' ) {
 		$current_site_url->pathname = substr( $current_site_url->pathname, 0, strlen( $current_site_url->pathname ) - 1 );
 	}
+	$current_site_url_string = $current_site_url->toString();
 
 	$new_site_url = WP_URL::parse( $options['new-site-url'] );
 	if ( $new_site_url->pathname[ strlen( $new_site_url->pathname ) - 1 ] === '/' ) {
@@ -33,8 +35,10 @@ function wp_rewrite_urls( $options ) {
 	}
 
 	$p         = new WP_Block_Markup_Url_Processor( $options['block_markup'], $options['base_url'] );
-	$generator = iterate_urls( $p, $options['current-site-url'] );
-	foreach ( $generator as $p ) {
+	while($p->next_url()) {
+		if(!url_matches($p->get_parsed_url(), $current_site_url_string)) {
+			continue;
+		}
 		$raw_url     = $p->get_raw_url();
 		$is_relative = (
 			! str_starts_with( $raw_url, 'http://' ) &&
@@ -90,37 +94,27 @@ function wp_rewrite_urls( $options ) {
 	}
 	return $p->get_updated_html();
 }
-
 /**
+ * Check if a given URL matches the current site URL.
  *
- * @return Generator
+ * @param URL $subject The URL to check.
+ * @param string $current_site_url_no_trailing_slash The current site URL to compare against.
+ * @return bool Whether the URL matches the current site URL.
  */
-function iterate_urls( $p, $current_site_url ) {
-	$parsed_current_site_url            = WP_URL::parse( $current_site_url );
-	$current_pathname_no_trailing_slash = urldecode( $parsed_current_site_url->pathname );
-	if ( $current_pathname_no_trailing_slash[ strlen( $current_pathname_no_trailing_slash ) - 1 ] === '/' ) {
-		$current_pathname_no_trailing_slash = substr( $current_pathname_no_trailing_slash, 0, strlen( $current_pathname_no_trailing_slash ) - 1 );
-	}
-	$current_pathname_with_trailing_slash = $current_pathname_no_trailing_slash . '/';
+function url_matches(URL $subject, string $current_site_url_no_trailing_slash) {
+	$parsed_current_site_url = WP_URL::parse($current_site_url_no_trailing_slash);
+	$current_pathname_no_trailing_slash = rtrim(urldecode($parsed_current_site_url->pathname), '/');
 
-	while ( $p->next_url() ) {
-		$parsed_matched_url = $p->get_parsed_url();
-		if ( $parsed_matched_url->hostname === $parsed_current_site_url->hostname ) {
-			$matched_pathname_decoded = urldecode( $parsed_matched_url->pathname );
-			$pathname_matches         =
-				// Direct match
-				$matched_pathname_decoded === $current_pathname_no_trailing_slash ||
-				$matched_pathname_decoded === $current_pathname_with_trailing_slash ||
-				// Pathname is a "child" of the old site pathname
-				// e.g. old site pathname and found pathname = /blog/article.
-				str_starts_with( $matched_pathname_decoded, $current_pathname_with_trailing_slash );
-			if ( ! $pathname_matches ) {
-				continue;
-			}
-
-			// It's a match!
-			yield $p;
-		}
+	if ($subject->hostname !== $parsed_current_site_url->hostname) {
+		return false;
 	}
-	return $p->get_updated_html();
+
+	$matched_pathname_decoded = urldecode($subject->pathname);
+	return (
+		// Direct match
+		$matched_pathname_decoded === $current_pathname_no_trailing_slash ||
+		$matched_pathname_decoded === $current_pathname_no_trailing_slash . '/' ||
+		// Path prefix
+		str_starts_with($matched_pathname_decoded, $current_pathname_no_trailing_slash . '/')
+	);
 }
