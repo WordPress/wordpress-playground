@@ -30,6 +30,10 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   submodules: true
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+            - run: npm install -g nx
             - name: Set up PHP
               uses: shivammathur/setup-php@v2
               with:
@@ -42,7 +46,7 @@ jobs:
                   ignore-cache: 'yes'
                   composer-options: '--optimize-autoloader'
                   working-directory: 'packages/playground/data-liberation'
-            - run: npx nx run data-liberation:lint
+            - run: npx nx run data-liberation:lint:php
             - run: npx nx run data-liberation:test:phpunit
     test-unit-asyncify:
         runs-on: ubuntu-latest

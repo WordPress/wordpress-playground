@@ -12,7 +12,7 @@
 				"parallel": false
 			}
 		},
-		"lint": {
+		"lint:php": {
 			"executor": "nx:run-commands",
 			"options": {
 				"cwd": "packages/playground/data-liberation",
@@ -20,7 +20,7 @@
 				"parallel": false
 			}
 		},
-		"lint:fix": {
+		"lint:php:fix": {
 			"executor": "nx:run-commands",
 			"options": {
 				"cwd": "packages/playground/data-liberation",
