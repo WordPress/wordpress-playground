@@ -103,6 +103,12 @@ curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl
         // Set the response code from the target server
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         http_response_code($httpCode);
+        if (
+            defined('PLAYGROUND_CORS_PROXY_SUPPLY_ACCESS_CONTROL_ALLOW_ORIGIN') && 
+            PLAYGROUND_CORS_PROXY_SUPPLY_ACCESS_CONTROL_ALLOW_ORIGIN
+        ) {
+            header('Access-Control-Allow-Origin: *');
+        }
         $httpcode_sent = true;
     }
     $len = strlen($header);

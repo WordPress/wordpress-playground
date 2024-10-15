@@ -78,7 +78,7 @@ export interface StartPlaygroundOptions {
 	/**
 	 * Proxy URL to use for cross-origin requests.
 	 *
-	 * For example, if corsProxy is set to "https://cors.wordpress.net/proxy.php",
+	 * For example, if corsProxyUrl is set to "https://cors.wordpress.net/proxy.php",
 	 * then the CORS requests to https://github.com/WordPress/wordpress-playground.git would actually
 	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/wordpress-playground.git.
 	 *
@@ -86,7 +86,7 @@ export interface StartPlaygroundOptions {
 	 * to proxy every single request, do not use this option. Instead, you should preprocess
 	 * your Blueprint to replace all cross-origin URLs with the proxy URL.
 	 */
-	corsProxy?: string;
+	corsProxyUrl?: string;
 }
 
 /**
@@ -108,7 +108,7 @@ export async function startPlaygroundWeb({
 	onBeforeBlueprint,
 	mounts,
 	scope,
-	corsProxy,
+	corsProxyUrl,
 	shouldInstallWordPress,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
@@ -127,7 +127,7 @@ export async function startPlaygroundWeb({
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
-		corsProxy,
+		corsProxyUrl,
 	});
 
 	await new Promise((resolve) => {
@@ -153,6 +153,7 @@ export async function startPlaygroundWeb({
 		phpVersion: compiled.versions.php,
 		wpVersion: compiled.versions.wp,
 		withNetworking: compiled.features.networking,
+		corsProxyUrl,
 	});
 	await playground.isReady();
 	downloadPHPandWP.finish();

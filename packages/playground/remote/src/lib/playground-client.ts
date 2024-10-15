@@ -11,6 +11,9 @@ import type {
 	WorkerBootOptions,
 } from './worker-thread';
 
+export interface WebClientBootOptions extends WorkerBootOptions {
+	corsProxyUrl?: string;
+}
 export interface WebClientMixin extends ProgressReceiver {
 	/**
 	 * Sets the progress bar options.
@@ -68,7 +71,7 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	unmountOpfs(mountpoint: string): Promise<void>;
 
-	boot(options: WorkerBootOptions): Promise<void>;
+	boot(options: WebClientBootOptions): Promise<void>;
 }
 
 /**
