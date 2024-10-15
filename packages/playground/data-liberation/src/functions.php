@@ -48,23 +48,13 @@ function wp_rewrite_urls( $options ) {
 
 		// Update the pathname if needed.
 		if ( '/' !== $current_site_url->pathname ) {
-			$direct_match = (
-				$current_site_url->pathname === $decoded_matched_pathname ||
-				$current_site_url->pathname . '/' === $decoded_matched_pathname
-			);
-
-			if ( $direct_match ) {
-				// Use new-site-url exactly as provided in the arguments
-				$parsed_matched_url->pathname = $options['new-site-url'];
-			} else {
-				// The matched URL starts with $current_site_name->pathname.
-				$parsed_matched_url->pathname =
-					$new_site_url->pathname .
-					substr(
-						$decoded_matched_pathname,
-						strlen( urldecode( $current_site_url->pathname ) )
-					);
-			}
+			// The matched URL starts with $current_site_name->pathname.
+			$parsed_matched_url->pathname =
+				$new_site_url->pathname .
+				substr(
+					$decoded_matched_pathname,
+					strlen( urldecode( $current_site_url->pathname ) )
+				);
 		}
 
 		/*
