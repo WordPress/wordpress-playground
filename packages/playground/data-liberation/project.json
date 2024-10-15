@@ -16,7 +16,9 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"cwd": "packages/playground/data-liberation",
-				"commands": ["./vendor/bin/phpcs --standard=./phpcs.xml -s ./"],
+				"commands": [
+					"./vendor/bin/phpcs --standard=./phpcs.xml -s ./src"
+				],
 				"parallel": false
 			}
 		},
@@ -24,7 +26,9 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"cwd": "packages/playground/data-liberation",
-				"commands": ["./vendor/bin/phpcbf --standard=./phpcs.xml ./"],
+				"commands": [
+					"./vendor/bin/phpcbf --standard=./phpcs.xml ./src"
+				],
 				"parallel": false
 			}
 		},
