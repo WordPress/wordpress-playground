@@ -84,7 +84,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 		steps: [
 			{
 				step: 'writeFile',
-				path: '/index.php',
+				path: '/wordpress/index.php',
 				data: "<?php echo getenv('E2E_TEST_CONSTANT');",
 			},
 		],
