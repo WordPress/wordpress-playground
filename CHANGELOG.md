@@ -4,6 +4,109 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.0.3] (2024-10-14) 
+
+### Enhancements
+
+- Website: Remove unused React components. ([#1887](https://github.com/WordPress/wordpress-playground/pull/1887))
+
+### Tools
+
+
+#### Blueprints Builder
+
+- Blueprints sidebar section for single-click Playground presets. ([#1759](https://github.com/WordPress/wordpress-playground/pull/1759))
+
+### Website
+
+- Replace 100vh with 100dvh to fix an "unscrollable" state on mobile devices. ([#1883](https://github.com/WordPress/wordpress-playground/pull/1883))
+- Use modal for Site settings form on mobile – mobile Safari l…. ([#1885](https://github.com/WordPress/wordpress-playground/pull/1885))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v1.0.2] (2024-10-09) 
+
+### PHP WebAssembly
+
+- PHP.wasm: Load correct php.wasm paths in the built Node.js packages. ([#1877](https://github.com/WordPress/wordpress-playground/pull/1877))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v1.0.1] (2024-10-09) 
+
+
+
+
+## [v1.0.0] (2024-10-09) 
+
+### Blueprints
+
+- Directory Resources. ([#1793](https://github.com/WordPress/wordpress-playground/pull/1793))
+- Login step – handle passwordless autologin via a PHP mu-plugin. ([#1856](https://github.com/WordPress/wordpress-playground/pull/1856))
+
+### Tools
+
+
+#### Blueprints
+
+- GitDirectoryResource. ([#1858](https://github.com/WordPress/wordpress-playground/pull/1858))
+- GitDirectoryResource: Accept "/", "", "." as root paths. ([#1860](https://github.com/WordPress/wordpress-playground/pull/1860))
+
+#### GitHub integration
+
+- Native git support: LsRefs(), sparseCheckout(), GitPathControl. ([#1764](https://github.com/WordPress/wordpress-playground/pull/1764))
+
+#### Website
+
+- Add core-pr and gutenberg-pr Query API parameters. ([#1761](https://github.com/WordPress/wordpress-playground/pull/1761))
+
+### PHP WebAssembly
+
+- Refreshless website deployments – load remote.html using the network-first strategy. ([#1849](https://github.com/WordPress/wordpress-playground/pull/1849))
+- JSPI: Pass all unit tests, remove stale PHP builds. ([#1876](https://github.com/WordPress/wordpress-playground/pull/1876))
+- [Remote] Remove the "light" PHP.wasm bundle and only ship the "kitchen-sink" build. ([#1861](https://github.com/WordPress/wordpress-playground/pull/1861))
+
+### Website
+
+- Restore the single-click "Edit Settings" flow. ([#1854](https://github.com/WordPress/wordpress-playground/pull/1854))
+- Restrict CORS proxy to requests from Playground website origin. ([#1865](https://github.com/WordPress/wordpress-playground/pull/1865))
+
+#### Documentation
+
+- Add /release redirect to WP beta/RC blueprint. ([#1866](https://github.com/WordPress/wordpress-playground/pull/1866))
+
+### Internal
+
+- Make isomorphic-git submodule use https, not ssh. ([#1863](https://github.com/WordPress/wordpress-playground/pull/1863))
+
+### Bug Fixes
+
+- [CLI] Fix `isWordPressInstalled()` in CLI by inlining the auto_login.php in index.ts instead of using import ?raw. ([#1869](https://github.com/WordPress/wordpress-playground/pull/1869))
+
+### Various
+
+- Add documentation around the GPL license and implications for contribution. ([#1776](https://github.com/WordPress/wordpress-playground/pull/1776))
+- Allow installing Plugins/Themes into an arbitrary folder. ([#1803](https://github.com/WordPress/wordpress-playground/pull/1803))
+- Improve documentation. ([#1862](https://github.com/WordPress/wordpress-playground/pull/1862))
+- [Website] Fix "undefined" as className. ([#1870](https://github.com/WordPress/wordpress-playground/pull/1870))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ajotka @bgrgicak @brandonpayton @dd32 @n8finch
+
+
 ## [v0.9.46] (2024-10-07)
 
 ### Enhancements

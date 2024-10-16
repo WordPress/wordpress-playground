@@ -1,8 +1,14 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ./libz/dist/root/lib/include /root/lib/include
-COPY ./libz/dist/root/lib/lib /root/lib/lib
+COPY ./libz/ /root/libz
+RUN if [ "$JSPI" = "1" ]; then \
+        cp -r /root/libz/jspi/dist/root/lib/* /root/lib; \
+    else \
+        cp -r /root/libz/asyncify/dist/root/lib/* /root/lib; \
+    fi
 
 RUN set -euxo pipefail; \
 	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
@@ -25,7 +31,8 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
-	EMCC_FLAGS="-fPIC" emmake make; \
+	export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+	EMCC_FLAGS="-fPIC $JSPI_FLAGS" emmake make; \
 	emmake make install;
 
 RUN ls -R /root/install

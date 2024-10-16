@@ -2,14 +2,10 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
 import {
 	LatestSupportedPHPVersion,
-	SupportedPHPExtension,
-	SupportedPHPExtensionsList,
-	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
 } from '@php-wasm/universal';
-import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isResourceReference, Resource } from './resources';
 import { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
@@ -48,8 +44,6 @@ export interface CompiledBlueprint {
 		php: SupportedPHPVersion;
 		wp: string;
 	};
-	/** The requested PHP extensions to load */
-	phpExtensions: SupportedPHPExtension[];
 	features: {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;
@@ -73,7 +67,7 @@ export interface CompileBlueprintOptions {
 	 *
 	 * For example, if corsProxy is set to "https://cors.wordpress.net/proxy.php",
 	 * then the CORS requests to https://github.com/WordPress/gutenberg.git would actually
-	 * be made to https://cors.wordpress.net/proxy.php/https://github.com/WordPress/gutenberg.git.
+	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/gutenberg.git.
 	 */
 	corsProxy?: string;
 }
@@ -180,21 +174,6 @@ export function compileBlueprint(
 				: blueprint.login),
 		});
 	}
-	if (!blueprint.phpExtensionBundles) {
-		blueprint.phpExtensionBundles = [];
-	}
-
-	if (!blueprint.phpExtensionBundles) {
-		blueprint.phpExtensionBundles = [];
-	}
-	// Default to the "kitchen sink" PHP extensions bundle if no
-	// other bundles are specified.
-	if (blueprint.phpExtensionBundles.length === 0) {
-		blueprint.phpExtensionBundles = [
-			...blueprint.phpExtensionBundles,
-			'kitchen-sink',
-		];
-	}
 
 	/**
 	 * Download WP-CLI. {{{
@@ -217,17 +196,6 @@ export function compileBlueprint(
 		blueprint?.extraLibraries?.includes('wp-cli') ||
 		indexOfStepThatDependsOnWpCli !== -1
 	) {
-		if (blueprint.phpExtensionBundles.includes('light')) {
-			blueprint.phpExtensionBundles =
-				blueprint.phpExtensionBundles.filter(
-					(bundle) => bundle !== 'light'
-				);
-			logger.warn(
-				`WP-CLI is used in your Blueprint, and it requires the iconv and mbstring PHP extensions. ` +
-					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
-					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
-			);
-		}
 		const wpCliInstallStep: WriteFileStep<FileReference> = {
 			step: 'writeFile',
 			data: defaultWpCliResource,
@@ -260,17 +228,6 @@ export function compileBlueprint(
 		(step) => typeof step === 'object' && step?.step === 'importWxr'
 	);
 	if (importWxrStepIndex !== undefined && importWxrStepIndex > -1) {
-		if (blueprint.phpExtensionBundles.includes('light')) {
-			blueprint.phpExtensionBundles =
-				blueprint.phpExtensionBundles.filter(
-					(bundle) => bundle !== 'light'
-				);
-			logger.warn(
-				`The importWxr step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
-					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
-					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
-			);
-		}
 		blueprint.steps?.splice(importWxrStepIndex, 0, {
 			step: 'installPlugin',
 			pluginData: {
@@ -316,10 +273,6 @@ export function compileBlueprint(
 			),
 			wp: blueprint.preferredVersions?.wp || 'latest',
 		},
-		phpExtensions: compilePHPExtensions(
-			[],
-			blueprint.phpExtensionBundles || []
-		),
 		features: {
 			// Disable networking by default
 			networking: blueprint.features?.networking ?? false,
@@ -426,31 +379,6 @@ function compileVersion<T>(
 		return value as T;
 	}
 	return latest as T;
-}
-
-/**
- * Compiles a list of requested PHP extensions provided as strings
- * into a valid list of supported PHP extensions.
- *
- * @param requestedExtensions The extensions to compile
- * @returns The compiled extensions
- */
-function compilePHPExtensions(
-	requestedExtensions: string[],
-	requestedBundles: string[]
-): SupportedPHPExtension[] {
-	const extensions = SupportedPHPExtensionsList.filter((extension) =>
-		requestedExtensions.includes(extension)
-	) as SupportedPHPExtension[];
-	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
-		bundle in SupportedPHPExtensionBundles
-			? SupportedPHPExtensionBundles[
-					bundle as SupportedPHPExtensionBundle
-			  ]
-			: []
-	) as SupportedPHPExtension[];
-	// Deduplicate
-	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
 
 /**

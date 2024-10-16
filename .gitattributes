@@ -5,8 +5,7 @@ packages/php-wasm/compile/*/dist linguist-vendored
 packages/php-wasm/compile/libz/zlib-src linguist-vendored
 packages/php-wasm/node/public/ linguist-generated=true
 packages/php-wasm/node/src/test/test-data/ linguist-generated=true
-packages/php-wasm/web/public/kitchen-sink/ linguist-generated=true  -diff
-packages/php-wasm/web/public/light/ linguist-generated=true -diff
+packages/php-wasm/web/public/php/ linguist-generated=true  -diff
 packages/playground/sync/src/test/wp-* linguist-generated=true
 packages/playground/remote/public/wp-* linguist-generated=true -diff
 packages/playground/remote/src/wordpress linguist-generated=true -diff

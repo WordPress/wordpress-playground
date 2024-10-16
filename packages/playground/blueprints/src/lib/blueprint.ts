@@ -1,7 +1,4 @@
-import {
-	SupportedPHPExtensionBundle,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
+import { SupportedPHPVersion } from '@php-wasm/universal';
 import { StepDefinition } from './steps';
 import { FileReference } from './resources';
 
@@ -99,9 +96,9 @@ export interface Blueprint {
 		  };
 
 	/**
-	 * The PHP extensions to use.
+	 * @deprecated No longer used. Feel free to remove it from your Blueprint.
 	 */
-	phpExtensionBundles?: SupportedPHPExtensionBundle[];
+	phpExtensionBundles?: any;
 	/**
 	 * The steps to run after every other operation in this Blueprint was
 	 * executed.

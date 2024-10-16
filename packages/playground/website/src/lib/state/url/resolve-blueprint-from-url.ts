@@ -87,13 +87,6 @@ export async function resolveBlueprintFromURL(url: URL) {
 		blueprint.features['networking'] = true;
 	}
 
-	// PHP extension bundle
-	if (query.has('php-extension-bundle')) {
-		blueprint.phpExtensionBundles = query.getAll(
-			'php-extension-bundle'
-		) as any[];
-	}
-
 	// Language
 	if (query.get('language')) {
 		if (

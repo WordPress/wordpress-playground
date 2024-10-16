@@ -1,0 +1,7 @@
+{
+	"name": "playground-data-liberation",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/data-liberation",
+	"projectType": "library",
+	"targets": {}
+}

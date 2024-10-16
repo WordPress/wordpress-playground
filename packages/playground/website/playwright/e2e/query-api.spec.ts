@@ -59,16 +59,6 @@ test('should enable networking when requested', async ({
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
-test('should enable networking when requested AND the kitchen sink extension bundle is NOT enabled', async ({
-	website,
-	wordpress,
-}) => {
-	await website.goto(
-		'./?networking=yes&php-extension-bundle=light&url=/wp-admin/plugin-install.php'
-	);
-	await expect(wordpress.locator('body')).toContainText('Install Now');
-});
-
 test('should install the specified plugin', async ({ website, wordpress }) => {
 	await website.goto('./?plugin=gutenberg&url=/wp-admin/plugins.php');
 	await expect(wordpress.locator('#deactivate-gutenberg')).toContainText(
@@ -100,4 +90,16 @@ test('should not login the user in if the login query parameter is set to no', a
 	await expect(wordpress.locator('input[type="submit"]')).toContainText(
 		'Log In'
 	);
+});
+
+['/wp-admin/', '/wp-admin/post.php?post=1&action=edit'].forEach((path) => {
+	test(`should correctly redirect encoded wp-admin url to ${path}`, async ({
+		website,
+		wordpress,
+	}) => {
+		await website.goto(`./?url=${encodeURIComponent(path)}`);
+		expect(
+			await wordpress.locator('body').evaluate((body) => body.baseURI)
+		).toContain(path);
+	});
 });

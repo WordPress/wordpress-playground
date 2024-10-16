@@ -16,7 +16,7 @@ import { logger } from '@php-wasm/logger';
  *
  * <code>
  * {
- * 	    "step": "installPlugin",
+ * 		"step": "installPlugin",
  * 		"pluginData": {
  * 			"resource": "wordpress.org/plugins",
  * 			"slug": "gutenberg"
@@ -31,12 +31,12 @@ import { logger } from '@php-wasm/logger';
  *
  * <code>
  * {
- * 	    "step": "installPlugin",
+ * 		"step": "installPlugin",
  * 		"pluginData": {
  * 			"resource": "git:directory",
  * 			"url": "https://github.com/wordpress/wordpress-playground.git",
- *          "ref": "HEAD",
- *          "path": "wp-content/plugins/hello-dolly"
+ * 				"ref": "HEAD",
+ * 				"path": "wp-content/plugins/hello-dolly"
  * 		},
  * 		"options": {
  * 			"activate": true
@@ -72,6 +72,10 @@ export interface InstallPluginOptions {
 	 * Whether to activate the plugin after installing it.
 	 */
 	activate?: boolean;
+	/**
+	 * The name of the folder to install the plugin to. Defaults to guessing from pluginData
+	 */
+	targetFolderName?: string;
 }
 
 /**
@@ -95,6 +99,7 @@ export const installPlugin: StepHandler<
 		);
 	}
 
+	const targetFolderName = 'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderPath = '';
 	let assetNiceName = '';
 	if (pluginData instanceof File) {
@@ -107,6 +112,7 @@ export const installPlugin: StepHandler<
 			ifAlreadyInstalled,
 			zipFile: pluginData,
 			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+			targetFolderName: targetFolderName
 		});
 		assetFolderPath = assetResult.assetFolderPath;
 		assetNiceName = assetResult.assetFolderName;
@@ -118,7 +124,7 @@ export const installPlugin: StepHandler<
 			await playground.documentRoot,
 			'wp-content',
 			'plugins',
-			pluginData.name
+			targetFolderName || pluginData.name
 		);
 		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
 			rmRoot: true,

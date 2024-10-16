@@ -39,9 +39,6 @@ export function StoredSiteSettingsForm({
 							...siteInfo.metadata.runtimeConfiguration.features,
 							networking: data.withNetworking,
 						},
-						phpExtensionBundles: data.withExtensions
-							? ['kitchen-sink']
-							: ['light'],
 						preferredVersions: {
 							...siteInfo.metadata.runtimeConfiguration
 								.preferredVersions,
@@ -61,10 +58,6 @@ export function StoredSiteSettingsForm({
 			// @TODO: Handle an unsupported PHP version coming up here
 			phpVersion: siteInfo.metadata.runtimeConfiguration.preferredVersions
 				.php as any,
-			withExtensions:
-				siteInfo.metadata.runtimeConfiguration.phpExtensionBundles.includes(
-					'kitchen-sink'
-				),
 			withNetworking:
 				!!siteInfo.metadata.runtimeConfiguration.features.networking,
 		}),

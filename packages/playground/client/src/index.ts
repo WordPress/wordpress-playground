@@ -80,7 +80,7 @@ export interface StartPlaygroundOptions {
 	 *
 	 * For example, if corsProxy is set to "https://cors.wordpress.net/proxy.php",
 	 * then the CORS requests to https://github.com/WordPress/wordpress-playground.git would actually
-	 * be made to https://cors.wordpress.net/proxy.php/https://github.com/WordPress/wordpress-playground.git.
+	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/wordpress-playground.git.
 	 *
 	 * The Blueprints library will arbitrarily choose which requests to proxy. If you need
 	 * to proxy every single request, do not use this option. Instead, you should preprocess
@@ -121,9 +121,7 @@ export async function startPlaygroundWeb({
 
 	// Set a default blueprint if none is provided.
 	if (!blueprint) {
-		blueprint = {
-			phpExtensionBundles: ['kitchen-sink'],
-		};
+		blueprint = {};
 	}
 
 	const compiled = compileBlueprint(blueprint, {
@@ -154,7 +152,6 @@ export async function startPlaygroundWeb({
 		shouldInstallWordPress,
 		phpVersion: compiled.versions.php,
 		wpVersion: compiled.versions.wp,
-		phpExtensions: compiled.phpExtensions,
 		withNetworking: compiled.features.networking,
 	});
 	await playground.isReady();

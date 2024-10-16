@@ -1,5 +1,7 @@
 FROM playground-php-wasm:base
 
+ARG JSPI
+
 RUN mkdir -p /root/lib/include /root/lib/lib
 
 RUN git clone https://github.com/kkos/oniguruma.git
@@ -13,7 +15,8 @@ RUN cd oniguruma && \
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \
-        EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make;
+        export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+        EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make;
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \

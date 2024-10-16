@@ -138,11 +138,7 @@
 					"description": "User to log in as. If true, logs the user in as admin/password."
 				},
 				"phpExtensionBundles": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/SupportedPHPExtensionBundle"
-					},
-					"description": "The PHP extensions to use."
+					"deprecated": "No longer used. Feel free to remove it from your Blueprint."
 				},
 				"steps": {
 					"type": "array",
@@ -340,10 +336,6 @@
 			"required": ["resource", "url"],
 			"additionalProperties": false
 		},
-		"SupportedPHPExtensionBundle": {
-			"type": "string",
-			"enum": ["kitchen-sink", "light"]
-		},
 		"StepDefinition": {
 			"type": "object",
 			"discriminator": {
@@ -523,6 +515,10 @@
 						"step": {
 							"type": "string",
 							"const": "enableMultisite"
+						},
+						"wpCliPath": {
+							"type": "string",
+							"description": "wp-cli.phar path"
 						}
 					},
 					"required": ["step"]
@@ -698,7 +694,7 @@
 							],
 							"description": "The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root."
 						},
-						"themeData": {
+						"themeZipFile": {
 							"$ref": "#/definitions/FileReference",
 							"deprecated": ". Use `themeData` instead."
 						},

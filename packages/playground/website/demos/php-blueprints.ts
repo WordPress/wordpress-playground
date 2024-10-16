@@ -19,8 +19,6 @@ const playground = await startPlaygroundWeb({
 		},
 		// landingPage: '/wp-content/index.php',
 		landingPage: '/',
-		// Required for the PHP library to run:
-		phpExtensionBundles: ['kitchen-sink'],
 	},
 });
 

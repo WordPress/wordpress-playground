@@ -12,9 +12,14 @@ const argParser = yargs(process.argv.slice(2))
 	.options({
 		PLATFORM: {
 			type: 'string',
-			choices: ['web-light', 'web-kitchen-sink', 'node'],
-			default: 'web-light',
+			choices: ['web', 'node'],
+			default: 'web',
 			description: 'The platform to build for',
+		},
+		JSPI: {
+			type: 'boolean',
+			default: false,
+			description: 'Build with JSPI support',
 		},
 		DEBUG: {
 			type: 'boolean',
@@ -120,9 +125,9 @@ const platformDefaults = {
 		PHP_VERSION: '8.0.24',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
+		WITH_JSPI: 'no',
 	},
-	['web-light']: {},
-	['web-kitchen-sink']: {
+	web: {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
@@ -219,6 +224,8 @@ await asyncSpawn(
 		getArg('WITH_WS_NETWORKING_PROXY'),
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
+		'--build-arg',
+		getArg('WITH_JSPI'),
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );

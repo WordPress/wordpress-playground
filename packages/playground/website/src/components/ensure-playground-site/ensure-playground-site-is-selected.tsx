@@ -14,6 +14,7 @@ import {
 } from '../../lib/state/redux/store';
 import { redirectTo } from '../../lib/state/url/router';
 import { logger } from '@php-wasm/logger';
+import { Blueprint } from '@wp-playground/blueprints';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -85,11 +86,17 @@ export function EnsurePlaygroundSiteIsSelected({
 			// Lean on the Query API parameters and the Blueprint API to
 			// create the new site.
 			const url = new URL(window.location.href);
+			let blueprint: Blueprint | undefined = undefined;
+			try {
+				blueprint = await resolveBlueprintFromURL(url);
+			} catch (e) {
+				logger.error('Error resolving blueprint:', e);
+			}
 			// Create a new site otherwise
 			const newSiteInfo = await dispatch(
 				setTemporarySiteSpec({
 					metadata: {
-						originalBlueprint: await resolveBlueprintFromURL(url),
+						originalBlueprint: blueprint,
 					},
 					originalUrlParams: {
 						searchParams: Object.fromEntries(

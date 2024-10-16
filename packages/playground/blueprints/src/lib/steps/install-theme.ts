@@ -46,16 +46,7 @@ export interface InstallThemeStep<FileResource, DirectoryResource>
 	/**
 	 * Optional installation options.
 	 */
-	options?: {
-		/**
-		 * Whether to activate the theme after installing it.
-		 */
-		activate?: boolean;
-		/**
-		 * Whether to import the theme's starter content after installing it.
-		 */
-		importStarterContent?: boolean;
-	};
+	options?: InstallThemeOptions;
 }
 
 export interface InstallThemeOptions {
@@ -63,6 +54,14 @@ export interface InstallThemeOptions {
 	 * Whether to activate the theme after installing it.
 	 */
 	activate?: boolean;
+	/**
+	 * Whether to import the theme's starter content after installing it.
+	 */
+	importStarterContent?: boolean;
+	/**
+	 * The name of the folder to install the theme to. Defaults to guessing from themeData
+	 */
+	targetFolderName?: string;
 }
 
 /**
@@ -86,32 +85,36 @@ export const installTheme: StepHandler<
 		);
 	}
 
+	const targetFolderName = 'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderName = '';
 	let assetNiceName = '';
 	if (themeData instanceof File) {
 		// @TODO: Consider validating whether this is a zip file?
-		const zipNiceName = zipNameToHumanName(themeData.name);
-		progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
+		const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
+		assetNiceName = zipNameToHumanName(zipFileName);
+
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
 		const assetResult = await installAsset(playground, {
 			ifAlreadyInstalled,
 			zipFile: themeData,
 			targetPath: `${await playground.documentRoot}/wp-content/themes`,
+			targetFolderName: targetFolderName
 		});
 		assetFolderName = assetResult.assetFolderName;
 	} else {
 		assetNiceName = themeData.name;
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
+		assetFolderName = targetFolderName || assetNiceName;
 
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
 		const themeDirectoryPath = joinPaths(
 			await playground.documentRoot,
 			'wp-content',
 			'themes',
-			themeData.name
+			assetFolderName
 		);
 		await writeFiles(playground, themeDirectoryPath, themeData.files, {
 			rmRoot: true,
 		});
-		assetFolderName = assetNiceName;
 	}
 
 	const activate = 'activate' in options ? options.activate : true;

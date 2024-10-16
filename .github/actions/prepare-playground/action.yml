@@ -1,5 +1,12 @@
 name: Clone the repository, install dependencies, and configures nx variables
 
+inputs:
+    node-version:
+        type: string
+        required: true
+        description: 'Node.js version to use'
+        default: '18'
+
 runs:
     using: 'composite'
     steps:
@@ -8,7 +15,7 @@ runs:
           run: git fetch origin trunk --depth=1 --recurse-submodules
         - uses: actions/setup-node@v4
           with:
-              node-version: 18
+              node-version: ${{ inputs.node-version }}
         - name: Cache node modules
           id: cache-nodemodules
           uses: actions/cache@v2
