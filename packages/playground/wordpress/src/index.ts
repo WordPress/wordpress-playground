@@ -218,6 +218,18 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 					return;
 				}
 				/**
+				 * Networking support in Playground registers a http_api_transports filter.
+				 *
+				 * This filter is deprecated, and no longer actively used, but is needed for wp_http_supports().
+				 * @see https://core.trac.wordpress.org/ticket/37708
+				 */
+				if (
+					strpos($message, "http_api_transports") !== false &&
+					strpos($message, "since version 6.4.0 with no alternative available") !== false
+				) {
+					return;
+				}
+				/**
 				 * Playground defines some constants upfront, and some of them may be redefined
 				 * in wp-config.php. For example, SITE_URL or WP_DEBUG. This is expected and
 				 * we want Playground constants to take priority without showing warnings like:
