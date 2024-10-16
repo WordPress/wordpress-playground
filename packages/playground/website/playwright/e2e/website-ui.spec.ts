@@ -8,7 +8,6 @@ import { Blueprint } from '@wp-playground/blueprints';
 import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
-import exp from 'constants';
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
