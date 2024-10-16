@@ -131,10 +131,22 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			if (!$user) {
 				return;
 			}
+			/**
+			 * This approach is described in a comment on
+			 * https://developer.wordpress.org/reference/functions/wp_set_current_user/
+			 */
 			wp_set_current_user( $user->ID, $user->user_login );
 			wp_set_auth_cookie( $user->ID );
 			do_action( 'wp_login', $user->user_login, $user );
 			setcookie('playground_auto_login_already_happened', '1');
+
+			/**
+			 * Reload page to ensure the user is logged in correctly.
+			 * WordPress uses cookies to determine if the user is logged in,
+			 * so we need to reload the page to ensure the cookies are set.
+			 */
+			wp_redirect($_SERVER['REQUEST_URI']);
+			exit;
 		}
 
 		/**
@@ -142,16 +154,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		 *
 		 * The wp hook isn't triggered on
 		 **/
-		add_action('init', function() {
-			playground_auto_login();
-			/**
-			 * Check if the request is for the login page.
-			 */
-			if (is_login() && is_user_logged_in() && !empty($_GET['redirect_to'])) {
-				wp_redirect($_GET['redirect_to']);
-				exit;
-			}
-		}, 1);
+		add_action('init', playground_auto_login, 1);
 
 		/**
 		 * Disable the Site Admin Email Verification Screen for any session started
