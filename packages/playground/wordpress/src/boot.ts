@@ -20,6 +20,7 @@ import {
 	wordPressRewriteRules,
 } from '.';
 import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
