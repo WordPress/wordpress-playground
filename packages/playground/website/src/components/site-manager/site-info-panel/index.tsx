@@ -28,6 +28,7 @@ import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clien
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
+import { ImportFormProvider } from '../../import-form/context';
 
 export function SiteInfoPanel({
 	className,
@@ -208,78 +209,80 @@ export function SiteInfoPanel({
 							</>
 						)}
 						<FlexItem>
-							<DropdownMenu
-								icon={moreVertical}
-								label="Additional actions"
-								popoverProps={{
-									placement: 'bottom-end',
-								}}
-							>
-								{({ onClose }) => (
-									<>
-										{!isTemporary && (
+							<ImportFormProvider>
+								<DropdownMenu
+									icon={moreVertical}
+									label="Additional actions"
+									popoverProps={{
+										placement: 'bottom-end',
+									}}
+								>
+									{({ onClose }) => (
+										<>
+											{!isTemporary && (
+												<MenuGroup>
+													<MenuItem
+														aria-label="Delete this Playground"
+														className={css.danger}
+														onClick={() =>
+															removeSiteAndCloseMenu(
+																onClose
+															)
+														}
+													>
+														Delete
+													</MenuItem>
+												</MenuGroup>
+											)}
 											<MenuGroup>
-												<MenuItem
-													aria-label="Delete this Playground"
-													className={css.danger}
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
+												<DownloadAsZipMenuItem
+													onClose={onClose}
+													disabled={!playground}
+												/>
+												<RestoreFromZipMenuItem
+													onClose={onClose}
+													disabled={!playground}
+												/>
+												<GithubImportMenuItem
+													onClose={onClose}
+													disabled={
+														offline || !playground
 													}
+												/>
+												<GithubExportMenuItem
+													onClose={onClose}
+													disabled={
+														offline || !playground
+													}
+												/>
+												<MenuItem
+													// @ts-ignore
+													href={`/builder/builder.html#${encodeStringAsBase64(
+														JSON.stringify(
+															site.metadata
+																.originalBlueprint as any
+														) as string
+													)}`}
+													target="_blank"
+													rel="noopener noreferrer"
+													icon={external}
+													iconPosition="right"
+													aria-label="View Blueprint"
+													disabled={offline}
 												>
-													Delete
+													View Blueprint
 												</MenuItem>
 											</MenuGroup>
-										)}
-										<MenuGroup>
-											<DownloadAsZipMenuItem
-												onClose={onClose}
-												disabled={!playground}
-											/>
-											<RestoreFromZipMenuItem
-												onClose={onClose}
-												disabled={!playground}
-											/>
-											<GithubImportMenuItem
-												onClose={onClose}
-												disabled={
-													offline || !playground
-												}
-											/>
-											<GithubExportMenuItem
-												onClose={onClose}
-												disabled={
-													offline || !playground
-												}
-											/>
-											<MenuItem
-												// @ts-ignore
-												href={`/builder/builder.html#${encodeStringAsBase64(
-													JSON.stringify(
-														site.metadata
-															.originalBlueprint as any
-													) as string
-												)}`}
-												target="_blank"
-												rel="noopener noreferrer"
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
-										</MenuGroup>
-										<MenuGroup>
-											<ReportError
-												onClose={onClose}
-												disabled={offline}
-											/>
-										</MenuGroup>
-									</>
-								)}
-							</DropdownMenu>
+											<MenuGroup>
+												<ReportError
+													onClose={onClose}
+													disabled={offline}
+												/>
+											</MenuGroup>
+										</>
+									)}
+								</DropdownMenu>
+							</ImportFormProvider>
 						</FlexItem>
 					</Flex>
 				</FlexItem>
