@@ -154,7 +154,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		 *
 		 * The wp hook isn't triggered on
 		 **/
-		add_action('init', playground_auto_login, 1);
+		add_action('init', 'playground_auto_login', 1);
 
 		/**
 		 * Disable the Site Admin Email Verification Screen for any session started
