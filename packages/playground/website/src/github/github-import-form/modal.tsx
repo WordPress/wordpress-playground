@@ -3,7 +3,7 @@ import Modal, { defaultStyles } from '../../components/modal';
 import GitHubImportForm, { GitHubImportFormProps } from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { addURLState, removeURLState } from '../utils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
@@ -30,6 +30,9 @@ export function GithubImportModal({ defaultOpen, onImported }: GithubImportModal
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
 	const [isOpen, toggleOpen] = useState(defaultOpen || isGitHubModalOpen.value);
+	useEffect(() => {
+		toggleOpen(defaultOpen || isGitHubModalOpen.value);
+	}, [defaultOpen, isGitHubModalOpen.value]);
 	const handleOnClose = () => {
 		toggleOpen(false);
 		closeModal();

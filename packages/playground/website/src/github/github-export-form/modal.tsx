@@ -6,8 +6,9 @@ import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { addURLState, removeURLState } from '../utils';
 import { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { isGitHubModalOpen } from '../github-import-form';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubExportModalOpen = signal(
@@ -42,6 +43,9 @@ export function GithubExportModal({
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
 	const [isOpen, toggleOpen] = useState(defaultOpen || isGitHubExportModalOpen.value);
+	useEffect(() => {
+		toggleOpen(defaultOpen || isGitHubExportModalOpen.value);
+	}, [defaultOpen, isGitHubExportModalOpen.value]);
 	const handleOnClose = () => {
 		toggleOpen(false);
 		closeModal();

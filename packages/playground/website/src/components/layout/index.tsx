@@ -166,42 +166,6 @@ function Modals(blueprint: Blueprint) {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
-	} else if (currentModal === 'github-import-modal') {
-		return <GithubImportModal
-			defaultOpen={true}
-			onImported={({
-							 url,
-							 path,
-							 files,
-							 pluginOrThemeName,
-							 contentType,
-							 urlInformation: { owner, repo, type, pr },
-						 }) => {
-				setGithubExportValues({
-					repoUrl: url,
-					prNumber: pr?.toString(),
-					toPathInRepo: path,
-					prAction: pr ? 'update' : 'create',
-					contentType,
-					plugin: pluginOrThemeName,
-					theme: pluginOrThemeName,
-				});
-				setGithubExportFiles(files);
-			}}
-		/>;
-	} else if (currentModal === 'github-export-modal') {
-		return <GithubExportModal
-			defaultOpen={true}
-			allowZipExport={
-				(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
-			}
-			initialValues={githubExportValues}
-			initialFilesBeforeChanges={githubExportFiles}
-			onExported={(prUrl, formValues) => {
-				setGithubExportValues(formValues);
-				setGithubExportFiles(undefined);
-			}}
-		/>
 	}
 
 	return (
@@ -211,6 +175,42 @@ function Modals(blueprint: Blueprint) {
 			) : (
 				''
 			)}
+
+			<GithubImportModal
+				defaultOpen={(currentModal === 'github-import-modal')}
+				onImported={({
+								 url,
+								 path,
+								 files,
+								 pluginOrThemeName,
+								 contentType,
+								 urlInformation: { owner, repo, type, pr },
+							 }) => {
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pr?.toString(),
+						toPathInRepo: path,
+						prAction: pr ? 'update' : 'create',
+						contentType,
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
+					});
+					setGithubExportFiles(files);
+				}}
+			/>
+
+			<GithubExportModal
+				defaultOpen={(currentModal === 'github-export-modal')}
+				allowZipExport={
+					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+				}
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
+			/>
 		</>
 	);
 }
