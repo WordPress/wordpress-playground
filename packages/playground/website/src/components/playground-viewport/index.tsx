@@ -8,7 +8,10 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import {
+	removeClientInfo,
+	selectClientBySiteSlug,
+} from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import { SiteError } from '../../lib/state/redux/slice-ui';
 import { Button, Spinner } from '@wordpress/components';
@@ -230,6 +233,31 @@ export const JustViewport = function JustViewport({
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [siteSlug, iframeRef, runtimeConfigString]);
+
+	const client = useAppSelector((state) =>
+		selectClientBySiteSlug(state, siteSlug)
+	);
+	useEffect(() => {
+		if (!client) {
+			return;
+		}
+		const url = new URL(window.location.href);
+		const landingPage = url.searchParams.get('url') || '/';
+		client.goTo(landingPage).catch((e) => {
+			/*
+			 * PHP exposes no goTo method.
+			 * We can't use `goto` in playground here,
+			 * because it may be a Comlink proxy object
+			 * with no such method.
+			 */
+			console.error(e);
+		});
+		if (site.metadata.storage !== 'none') {
+			console.log({ client }, url.searchParams.get('url') || '/');
+			url.searchParams.delete('url');
+			redirectTo(url.toString());
+		}
+	}, [!client]);
 
 	const error = useAppSelector(selectActiveSiteError);
 
