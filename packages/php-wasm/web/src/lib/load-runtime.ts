@@ -5,6 +5,7 @@ import {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
+import * as tls from './tls-proxy';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -17,27 +18,27 @@ export interface LoaderOptions {
  * Fake a websocket connection to prevent errors in the web app
  * from cascading and breaking the Playground.
  */
-const fakeWebsocket = () => {
-	return {
-		websocket: {
-			decorator: (WebSocketConstructor: any) => {
-				return class FakeWebsocketConstructor extends WebSocketConstructor {
-					constructor() {
-						try {
-							super();
-						} catch (e) {
-							// pass
-						}
-					}
+// const fakeWebsocket = () => {
+// 	return {
+// 		websocket: {
+// 			decorator: (WebSocketConstructor: any) => {
+// 				return class FakeWebsocketConstructor extends WebSocketConstructor {
+// 					constructor() {
+// 						try {
+// 							super();
+// 						} catch (e) {
+// 							// pass
+// 						}
+// 					}
 
-					send() {
-						return null;
-					}
-				};
-			},
-		},
-	};
-};
+// 					send() {
+// 						return null;
+// 					}
+// 				};
+// 			},
+// 		},
+// 	};
+// };
 
 export async function loadWebRuntime(
 	phpVersion: SupportedPHPVersion,
@@ -47,6 +48,6 @@ export async function loadWebRuntime(
 	options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 	return await loadPHPRuntime(phpLoaderModule, {
 		...(options.emscriptenOptions || {}),
-		...fakeWebsocket(),
+		...tls.fetchingWebsocket(options.emscriptenOptions!['websocket']),
 	});
 }
