@@ -242,7 +242,10 @@ export const JustViewport = function JustViewport({
 			return;
 		}
 		const url = new URL(window.location.href);
-		const landingPage = url.searchParams.get('url') || '/';
+		const landingPage =
+			url.searchParams.get('url') ||
+			site.metadata?.originalBlueprint?.landingPage ||
+			'/';
 		client.goTo(landingPage).catch((e) => {
 			/*
 			 * PHP exposes no goTo method.
@@ -250,13 +253,13 @@ export const JustViewport = function JustViewport({
 			 * because it may be a Comlink proxy object
 			 * with no such method.
 			 */
-			console.error(e);
 		});
 		if (site.metadata.storage !== 'none') {
-			console.log({ client }, url.searchParams.get('url') || '/');
 			url.searchParams.delete('url');
 			redirectTo(url.toString());
 		}
+		// Only ever re-run this effect once – when the client becomes available.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!client]);
 
 	const error = useAppSelector(selectActiveSiteError);
