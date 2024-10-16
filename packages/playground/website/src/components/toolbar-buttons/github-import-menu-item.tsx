@@ -9,7 +9,6 @@ interface Props {
 }
 export function GithubImportMenuItem({ onClose, disabled }: Props) {
 	const dispatch: PlaygroundDispatch = useDispatch();
-
 	return (
 		<MenuItem
 			aria-label="Import WordPress theme, plugin, or wp-content directory from a GitHub repository."

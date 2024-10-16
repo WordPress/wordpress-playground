@@ -189,6 +189,19 @@ function Modals(blueprint: Blueprint) {
 				setGithubExportFiles(files);
 			}}
 		/>;
+	} else if (currentModal === 'github-export-modal') {
+		return <GithubExportModal
+			defaultOpen={true}
+			allowZipExport={
+				(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+			}
+			initialValues={githubExportValues}
+			initialFilesBeforeChanges={githubExportFiles}
+			onExported={(prUrl, formValues) => {
+				setGithubExportValues(formValues);
+				setGithubExportFiles(undefined);
+			}}
+		/>
 	}
 
 	return (
@@ -198,18 +211,6 @@ function Modals(blueprint: Blueprint) {
 			) : (
 				''
 			)}
-
-			<GithubExportModal
-				allowZipExport={
-					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
-				}
-				initialValues={githubExportValues}
-				initialFilesBeforeChanges={githubExportFiles}
-				onExported={(prUrl, formValues) => {
-					setGithubExportValues(formValues);
-					setGithubExportFiles(undefined);
-				}}
-			/>
 		</>
 	);
 }

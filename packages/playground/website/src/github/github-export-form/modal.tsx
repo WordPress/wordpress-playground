@@ -4,6 +4,10 @@ import Modal, { defaultStyles } from '../../components/modal';
 import GitHubExportForm, { GitHubExportFormProps } from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { addURLState, removeURLState } from '../utils';
+import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { useDispatch } from 'react-redux';
+import { useState } from 'react';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubExportModalOpen = signal(
@@ -11,6 +15,7 @@ export const isGitHubExportModalOpen = signal(
 );
 
 interface GithubExportModalProps {
+	defaultOpen?: boolean;
 	allowZipExport: GitHubExportFormProps['allowZipExport'];
 	onExported?: GitHubExportFormProps['onExported'];
 	initialFilesBeforeChanges?: GitHubExportFormProps['initialFilesBeforeChanges'];
@@ -28,23 +33,31 @@ export function openModal() {
 	addURLState('github-export');
 }
 export function GithubExportModal({
+    defaultOpen,
 	onExported,
 	allowZipExport,
 	initialValues,
 	initialFilesBeforeChanges,
 }: GithubExportModalProps) {
+	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
+	const [isOpen, toggleOpen] = useState(defaultOpen || isGitHubExportModalOpen.value);
+	const handleOnClose = () => {
+		toggleOpen(false);
+		closeModal();
+		dispatch(setActiveModal(null));
+	}
 	return (
 		<Modal
 			style={{
 				...defaultStyles,
 				content: { ...defaultStyles.content, width: 600 },
 			}}
-			isOpen={isGitHubExportModalOpen.value}
-			onRequestClose={closeModal}
+			isOpen={isOpen}
+			onRequestClose={handleOnClose}
 		>
 			<GitHubExportForm
-				onClose={closeModal}
+				onClose={handleOnClose}
 				onExported={onExported}
 				playground={playground!}
 				initialValues={initialValues}

@@ -30,13 +30,11 @@ export function GithubImportModal({ defaultOpen, onImported }: GithubImportModal
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
 	const [isOpen, toggleOpen] = useState(defaultOpen || isGitHubModalOpen.value);
-
 	const handleOnClose = () => {
 		toggleOpen(false);
 		closeModal();
 		dispatch(setActiveModal(null));
 	}
-
 	return (
 		<Modal
 			style={{
