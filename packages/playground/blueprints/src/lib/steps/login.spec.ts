@@ -66,13 +66,17 @@ describe('Blueprint step login', () => {
 		expect(response.text).toContain('Dashboard');
 	});
 
-	it('should have set cookies after login', async () => {
+	it('should set WordPress login cookie after login', async () => {
 		await login(php, {});
 		await php.writeFile(
 			'/wordpress/nonce-test.php',
 			`<?php
 				require_once '/wordpress/wp-load.php';
-				echo count($_COOKIE) > 0 ? '1' : '0';
+				if (!empty($_COOKIE)) {
+					echo array_filter(array_keys($_COOKIE), function($key) {
+						return strpos($key, 'wordpress_logged_in_') === 0;
+					}) ? '1' : '0';
+				}
 			`
 		);
 		const response = await requestFollowRedirects({
