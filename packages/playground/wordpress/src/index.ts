@@ -148,7 +148,6 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			wp_redirect($_SERVER['REQUEST_URI']);
 			exit;
 		}
-
 		/**
 		 * Autologin users from the wp-login.php page.
 		 *

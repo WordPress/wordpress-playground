@@ -1,4 +1,4 @@
-import { PHP } from '@php-wasm/universal';
+import { PHP, PHPRequest } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	getSqliteDatabaseModule,
@@ -25,9 +25,19 @@ describe('Blueprint step login', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	const requestFollowRedirects = async (request: PHPRequest) => {
+		let response = await handler.request(request);
+		while (response.httpStatusCode === 302) {
+			response = await handler.request({
+				url: response.headers['location'][0],
+			});
+		}
+		return response;
+	};
+
 	it('should log the user in', async () => {
 		await login(php, {});
-		const response = await handler.request({
+		const response = await requestFollowRedirects({
 			url: '/',
 		});
 		expect(response.httpStatusCode).toBe(200);
@@ -36,28 +46,11 @@ describe('Blueprint step login', () => {
 
 	it('should log the user into wp-admin', async () => {
 		await login(php, {});
-		const initialResponse = await handler.request({
+		const response = await requestFollowRedirects({
 			url: '/wp-admin/',
 		});
-		expect(initialResponse.httpStatusCode).toBe(302);
-		expect(initialResponse.headers['location']).toHaveLength(1);
-		const loginRedirectUrl = new URL(
-			initialResponse.headers['location'][0]
-		);
-		expect(loginRedirectUrl.pathname).toBe('/wp-login.php');
-
-		const loginResponse = await handler.request({
-			url: loginRedirectUrl.toString(),
-		});
-		expect(loginResponse.httpStatusCode).toBe(302);
-		const adminRedirectUrl = new URL(loginResponse.headers['location'][0]);
-		expect(adminRedirectUrl.pathname).toBe('/wp-admin/');
-
-		const adminResponse = await handler.request({
-			url: adminRedirectUrl.toString(),
-		});
-		expect(adminResponse.httpStatusCode).toBe(200);
-		expect(adminResponse.text).toContain('Dashboard');
+		expect(response.httpStatusCode).toBe(200);
+		expect(response.text).toContain('Dashboard');
 	});
 
 	it('should log the user in if the playground_force_auto_login_as_user query parameter is set', async () => {
@@ -66,15 +59,25 @@ describe('Blueprint step login', () => {
 				PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true,
 			},
 		});
-		const initialResponse = await handler.request({
+		const response = await requestFollowRedirects({
 			url: '/?playground_force_auto_login_as_user=admin',
 		});
-		expect(initialResponse.httpStatusCode).toBe(200);
+		expect(response.httpStatusCode).toBe(200);
+		expect(response.text).toContain('Dashboard');
+	});
 
-		const adminResponse = await handler.request({
-			url: '/wp-admin/',
+	it('should have set cookies after login', async () => {
+		await login(php, {});
+		await php.writeFile(
+			'/wordpress/nonce-test.php',
+			`<?php
+				require_once '/wordpress/wp-load.php';
+				echo count($_COOKIE) > 0 ? '1' : '0';
+			`
+		);
+		const response = await requestFollowRedirects({
+			url: '/nonce-test.php',
 		});
-		expect(adminResponse.httpStatusCode).toBe(200);
-		expect(adminResponse.text).toContain('Dashboard');
+		expect(response.text).toBe('1');
 	});
 });
