@@ -80,12 +80,13 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 
 	// Start a site with a specific PHP constant.
 	const blueprint: Blueprint = {
+		landingPage: '/index.php',
 		constants: { E2E_TEST_CONSTANT: 'E2E_TEST_VALUE' },
 		steps: [
 			{
 				step: 'writeFile',
 				path: '/wordpress/index.php',
-				data: "<?php echo getenv('E2E_TEST_CONSTANT');",
+				data: '<?php echo E2E_TEST_CONSTANT;',
 			},
 		],
 	};
