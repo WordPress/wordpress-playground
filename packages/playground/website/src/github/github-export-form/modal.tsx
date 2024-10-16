@@ -8,7 +8,6 @@ import { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { isGitHubModalOpen } from '../github-import-form';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubExportModalOpen = signal(
