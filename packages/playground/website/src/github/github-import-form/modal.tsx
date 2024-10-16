@@ -2,49 +2,60 @@ import { signal } from '@preact/signals-react';
 import Modal, { defaultStyles } from '../../components/modal';
 import GitHubImportForm, { GitHubImportFormProps } from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { addURLState, removeURLState } from '../utils';
+import { useState } from 'react';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { useDispatch } from 'react-redux';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubModalOpen = signal(query.get('state') === 'github-import');
 
 interface GithubImportModalProps {
+	defaultOpen?: boolean;
 	onImported?: GitHubImportFormProps['onImported'];
 }
 export function closeModal() {
 	isGitHubModalOpen.value = false;
 	// Remove ?state=github-import from the URL.
-	const url = new URL(window.location.href);
-	url.searchParams.delete('state');
-	window.history.replaceState({}, '', url.href);
+	removeURLState();
 }
 export function openModal() {
 	isGitHubModalOpen.value = true;
 	// Add a ?state=github-import to the URL so that the user can refresh the page
 	// and still see the modal.
-	const url = new URL(window.location.href);
-	url.searchParams.set('state', 'github-import');
-	window.history.replaceState({}, '', url.href);
+	addURLState('github-import');
 }
-export function GithubImportModal({ onImported }: GithubImportModalProps) {
+export function GithubImportModal({ defaultOpen, onImported }: GithubImportModalProps) {
+	const dispatch: PlaygroundDispatch = useDispatch();
 	const playground = usePlaygroundClient();
+	const [isOpen, toggleOpen] = useState(defaultOpen || isGitHubModalOpen.value);
+
+	const handleOnClose = () => {
+		toggleOpen(false);
+		closeModal();
+		dispatch(setActiveModal(null));
+	}
+
 	return (
 		<Modal
 			style={{
 				...defaultStyles,
 				content: { ...defaultStyles.content, width: 600 },
 			}}
-			isOpen={isGitHubModalOpen.value}
-			onRequestClose={closeModal}
+			isOpen={isOpen}
+			onRequestClose={handleOnClose}
 		>
 			<GitHubImportForm
 				playground={playground!}
-				onClose={closeModal}
+				onClose={handleOnClose}
 				onImported={(details) => {
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
 					alert(
 						'Import finished! Your Playground site has been updated.'
 					);
-					closeModal();
+					handleOnClose();
 					onImported?.(details);
 				}}
 			/>

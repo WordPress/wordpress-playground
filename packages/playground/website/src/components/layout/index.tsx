@@ -166,6 +166,29 @@ function Modals(blueprint: Blueprint) {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
+	} else if (currentModal === 'github-import-modal') {
+		return <GithubImportModal
+			defaultOpen={true}
+			onImported={({
+							 url,
+							 path,
+							 files,
+							 pluginOrThemeName,
+							 contentType,
+							 urlInformation: { owner, repo, type, pr },
+						 }) => {
+				setGithubExportValues({
+					repoUrl: url,
+					prNumber: pr?.toString(),
+					toPathInRepo: path,
+					prAction: pr ? 'update' : 'create',
+					contentType,
+					plugin: pluginOrThemeName,
+					theme: pluginOrThemeName,
+				});
+				setGithubExportFiles(files);
+			}}
+		/>;
 	}
 
 	return (
@@ -175,27 +198,7 @@ function Modals(blueprint: Blueprint) {
 			) : (
 				''
 			)}
-			<GithubImportModal
-				onImported={({
-					url,
-					path,
-					files,
-					pluginOrThemeName,
-					contentType,
-					urlInformation: { owner, repo, type, pr },
-				}) => {
-					setGithubExportValues({
-						repoUrl: url,
-						prNumber: pr?.toString(),
-						toPathInRepo: path,
-						prAction: pr ? 'update' : 'create',
-						contentType,
-						plugin: pluginOrThemeName,
-						theme: pluginOrThemeName,
-					});
-					setGithubExportFiles(files);
-				}}
-			/>
+
 			<GithubExportModal
 				allowZipExport={
 					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'

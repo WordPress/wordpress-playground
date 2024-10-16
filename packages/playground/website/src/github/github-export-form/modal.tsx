@@ -3,6 +3,7 @@ import { signal } from '@preact/signals-react';
 import Modal, { defaultStyles } from '../../components/modal';
 import GitHubExportForm, { GitHubExportFormProps } from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { addURLState, removeURLState } from '../utils';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubExportModalOpen = signal(
@@ -18,17 +19,13 @@ interface GithubExportModalProps {
 export function closeModal() {
 	isGitHubExportModalOpen.value = false;
 	// Remove ?state=github-export from the URL.
-	const url = new URL(window.location.href);
-	url.searchParams.delete('state');
-	window.history.replaceState({}, '', url.href);
+	removeURLState();
 }
 export function openModal() {
 	isGitHubExportModalOpen.value = true;
 	// Add a ?state=github-export to the URL so that the user can refresh the page
 	// and still see the modal.
-	const url = new URL(window.location.href);
-	url.searchParams.set('state', 'github-export');
-	window.history.replaceState({}, '', url.href);
+	addURLState('github-export');
 }
 export function GithubExportModal({
 	onExported,
