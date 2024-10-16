@@ -8,6 +8,7 @@ import { Blueprint } from '@wp-playground/blueprints';
 import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+import exp from 'constants';
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
@@ -92,7 +93,6 @@ SupportedPHPVersions.forEach(async (version) => {
 			version
 		);
 	});
-
 });
 
 Object.keys(MinifiedWordPressVersions)
@@ -179,4 +179,28 @@ test('should display PHP output even when a fatal error is hit', async ({
 	await expect(wordpress.locator('body')).toContainText(
 		'This is a fatal error'
 	);
+});
+
+test('should keep query arguments when updating settings', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?url=/wp-admin/&php=8.0&wp=6.6');
+
+	expect(website.page.url()).toContain('?url=%2Fwp-admin%2F&php=8.0&wp=6.6');
+	expect(
+		await wordpress.locator('body').evaluate((body) => body.baseURI)
+	).toMatch('/wp-admin/');
+
+	await website.ensureSiteManagerIsOpen();
+	await website.page.getByLabel('Network access').check();
+	await website.page.getByText('Apply Settings & Reset Playground').click();
+	await website.waitForNestedIframes();
+
+	expect(website.page.url()).toMatch(
+		'?url=%2Fwp-admin%2F&php=8.0&wp=6.6&networking=yes'
+	);
+	expect(
+		await wordpress.locator('body').evaluate((body) => body.baseURI)
+	).toMatch('/wp-admin/');
 });
