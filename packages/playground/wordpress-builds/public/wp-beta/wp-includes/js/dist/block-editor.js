@@ -38155,27 +38155,24 @@ function useNavModeExit(clientId) {
 
 /**
  * Allows Zoom Out mode to be exited by double clicking in the selected block.
- *
- * @param {string} clientId Block client ID.
  */
-function useZoomOutModeExit({
-  editorMode
-}) {
+function useZoomOutModeExit() {
   const {
     getSettings,
-    isZoomOut
+    isZoomOut,
+    __unstableGetEditorMode
   } = unlock((0,external_wp_data_namespaceObject.useSelect)(store));
   const {
     __unstableSetEditorMode,
     resetZoomLevel
   } = unlock((0,external_wp_data_namespaceObject.useDispatch)(store));
   return (0,external_wp_compose_namespaceObject.useRefEffect)(node => {
-    // In "compose" mode.
-    const composeMode = editorMode === 'zoom-out' && isZoomOut();
-    if (!composeMode) {
-      return;
-    }
     function onDoubleClick(event) {
+      // In "compose" mode.
+      const composeMode = __unstableGetEditorMode() === 'zoom-out' && isZoomOut();
+      if (!composeMode) {
+        return;
+      }
       if (!event.defaultPrevented) {
         event.preventDefault();
         const {
@@ -38192,7 +38189,7 @@ function useZoomOutModeExit({
     return () => {
       node.removeEventListener('dblclick', onDoubleClick);
     };
-  }, [editorMode, getSettings, __unstableSetEditorMode]);
+  }, [getSettings, __unstableSetEditorMode, __unstableGetEditorMode, isZoomOut, resetZoomLevel]);
 }
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/block-list/use-block-props/use-intersection-observer.js
@@ -38652,7 +38649,6 @@ function use_block_props_useBlockProps(props = {}, {
     name,
     blockApiVersion,
     blockTitle,
-    editorMode,
     isSelected,
     isSubtreeDisabled,
     hasOverlay,
@@ -38682,9 +38678,7 @@ function use_block_props_useBlockProps(props = {}, {
   }), useBlockRefProvider(clientId), useFocusHandler(clientId), useEventHandlers({
     clientId,
     isSelected
-  }), useNavModeExit(clientId), useZoomOutModeExit({
-    editorMode
-  }), useIsHovered({
+  }), useNavModeExit(clientId), useZoomOutModeExit(), useIsHovered({
     clientId
   }), useIntersectionObserver(), use_moving_animation({
     triggerAnimationOnChange: index,
@@ -39309,7 +39303,6 @@ function BlockListBlockProvider(props) {
       mayDisplayParentControls: _hasBlockSupport(getBlockName(clientId), '__experimentalExposeControlsToChildren', false) && hasSelectedInnerBlock(clientId),
       blockApiVersion: blockType?.apiVersion || 1,
       blockTitle: match?.title || blockType?.title,
-      editorMode,
       isSubtreeDisabled: blockEditingMode === 'disabled' && isBlockSubtreeDisabled(clientId),
       hasOverlay: __unstableHasActiveBlockOverlayActive(clientId) && !isDragging(),
       initialPosition: _isSelected && (editorMode === 'edit' || editorMode === 'zoom-out') // Don't recalculate the initialPosition when toggling in/out of zoom-out mode
@@ -39343,7 +39336,6 @@ function BlockListBlockProvider(props) {
     themeSupportsLayout,
     isTemporarilyEditingAsBlocks,
     blockEditingMode,
-    editorMode,
     mayDisplayControls,
     mayDisplayParentControls,
     index,
@@ -39397,7 +39389,6 @@ function BlockListBlockProvider(props) {
     hasOverlay,
     initialPosition,
     blockEditingMode,
-    editorMode,
     isHighlighted,
     isMultiSelected,
     isPartiallySelected,
@@ -44272,7 +44263,12 @@ function Iframe({
     }
     iframeDocument.documentElement.classList.add('is-zoomed-out');
     const maxWidth = 750;
-    iframeDocument.documentElement.style.setProperty('--wp-block-editor-iframe-zoom-out-scale', scale === 'default' ? Math.min(containerWidth, maxWidth) / prevContainerWidthRef.current : scale);
+    // This scaling calculation has to happen within the JS because CSS calc() can
+    // only divide and multiply by a unitless value. I.e. calc( 100px / 2 ) is valid
+    // but calc( 100px / 2px ) is not.
+    iframeDocument.documentElement.style.setProperty('--wp-block-editor-iframe-zoom-out-scale', scale === 'default' ? (Math.min(containerWidth, maxWidth) - parseInt(frameSize) * 2) / prevContainerWidthRef.current : scale);
+
+    // frameSize has to be a px value for the scaling and frame size to be computed correctly.
     iframeDocument.documentElement.style.setProperty('--wp-block-editor-iframe-zoom-out-frame-size', typeof frameSize === 'number' ? `${frameSize}px` : frameSize);
     iframeDocument.documentElement.style.setProperty('--wp-block-editor-iframe-zoom-out-content-height', `${contentHeight}px`);
     iframeDocument.documentElement.style.setProperty('--wp-block-editor-iframe-zoom-out-inner-height', `${iframeWindowInnerHeight}px`);
@@ -48646,6 +48642,52 @@ function TabbedSidebar({
 }
 /* harmony default export */ const tabbed_sidebar = ((0,external_wp_element_namespaceObject.forwardRef)(TabbedSidebar));
 
+;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/hooks/use-zoom-out.js
+/**
+ * WordPress dependencies
+ */
+
+
+
+/**
+ * Internal dependencies
+ */
+
+
+
+/**
+ * A hook used to set the zoomed out view, invoking the hook sets the mode.
+ *
+ * @param {boolean} zoomOut If we should zoom out or not.
+ */
+function useZoomOut(zoomOut = true) {
+  const {
+    setZoomLevel
+  } = unlock((0,external_wp_data_namespaceObject.useDispatch)(store));
+  const {
+    isZoomOut
+  } = unlock((0,external_wp_data_namespaceObject.useSelect)(store));
+  const originalIsZoomOutRef = (0,external_wp_element_namespaceObject.useRef)(null);
+  (0,external_wp_element_namespaceObject.useEffect)(() => {
+    // Only set this on mount so we know what to return to when we unmount.
+    if (!originalIsZoomOutRef.current) {
+      originalIsZoomOutRef.current = isZoomOut();
+    }
+
+    // The effect opens the zoom-out view if we want it open and the canvas is not currently zoomed-out.
+    if (zoomOut && isZoomOut() === false) {
+      setZoomLevel(50);
+    } else if (!zoomOut && isZoomOut() && originalIsZoomOutRef.current !== isZoomOut()) {
+      setZoomLevel(originalIsZoomOutRef.current ? 50 : 100);
+    }
+    return () => {
+      if (isZoomOut() && isZoomOut() !== originalIsZoomOutRef.current) {
+        setZoomLevel(originalIsZoomOutRef.current ? 50 : 100);
+      }
+    };
+  }, [isZoomOut, setZoomLevel, zoomOut]);
+}
+
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/inserter/menu.js
 /**
  * External dependencies
@@ -48664,6 +48706,7 @@ function TabbedSidebar({
 /**
  * Internal dependencies
  */
+
 
 
 
@@ -48708,6 +48751,8 @@ function InserterMenu({
     }
   }
   const [selectedTab, setSelectedTab] = (0,external_wp_element_namespaceObject.useState)(getInitialTab());
+  const shouldUseZoomOut = selectedTab === 'patterns' || selectedTab === 'media';
+  useZoomOut(shouldUseZoomOut);
   const [destinationRootClientId, onInsertBlocks, onToggleInsertionPoint] = use_insertion_point({
     rootClientId,
     clientId,
@@ -50257,13 +50302,51 @@ function ChildLayoutControlsPure({
     allowSizingOnChildren = false,
     isManualPlacement
   } = parentLayout;
-  const rootClientId = (0,external_wp_data_namespaceObject.useSelect)(select => {
-    return select(store).getBlockRootClientId(clientId);
+  if (parentLayoutType !== 'grid') {
+    return null;
+  }
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GridTools, {
+    clientId: clientId,
+    style: style,
+    setAttributes: setAttributes,
+    allowSizingOnChildren: allowSizingOnChildren,
+    isManualPlacement: isManualPlacement,
+    parentLayout: parentLayout
+  });
+}
+function GridTools({
+  clientId,
+  style,
+  setAttributes,
+  allowSizingOnChildren,
+  isManualPlacement,
+  parentLayout
+}) {
+  const {
+    rootClientId,
+    isVisible
+  } = (0,external_wp_data_namespaceObject.useSelect)(select => {
+    const {
+      getBlockRootClientId,
+      getBlockEditingMode,
+      getTemplateLock
+    } = select(store);
+    const _rootClientId = getBlockRootClientId(clientId);
+    if (getTemplateLock(_rootClientId) || getBlockEditingMode(_rootClientId) !== 'default') {
+      return {
+        rootClientId: _rootClientId,
+        isVisible: false
+      };
+    }
+    return {
+      rootClientId: _rootClientId,
+      isVisible: true
+    };
   }, [clientId]);
 
   // Use useState() instead of useRef() so that GridItemResizer updates when ref is set.
   const [resizerBounds, setResizerBounds] = (0,external_wp_element_namespaceObject.useState)();
-  if (parentLayoutType !== 'grid') {
+  if (!isVisible) {
     return null;
   }
   function updateLayout(layout) {
@@ -50623,6 +50706,8 @@ function isObjectEmpty(object) {
  * - `updateBlockBindings`: Updates the value of the bindings connected to block attributes. It can be used to remove a specific binding by setting the value to `undefined`.
  * - `removeAllBlockBindings`: Removes the bindings property of the `metadata` attribute.
  *
+ * @param {?string} clientId Optional block client ID. If not set, it will use the current block client ID from the context.
+ *
  * @return {?WPBlockBindingsUtils} Object containing the block bindings utils.
  *
  * @example
@@ -50653,10 +50738,11 @@ function isObjectEmpty(object) {
  * removeAllBlockBindings();
  * ```
  */
-function useBlockBindingsUtils() {
+function useBlockBindingsUtils(clientId) {
   const {
-    clientId
+    clientId: contextClientId
   } = useBlockEditContext();
+  const blockClientId = clientId || contextClientId;
   const {
     updateBlockAttributes
   } = (0,external_wp_data_namespaceObject.useDispatch)(store);
@@ -50699,7 +50785,7 @@ function useBlockBindingsUtils() {
         bindings: currentBindings,
         ...metadata
       } = {}
-    } = getBlockAttributes(clientId);
+    } = getBlockAttributes(blockClientId);
     const newBindings = {
       ...currentBindings
     };
@@ -50717,7 +50803,7 @@ function useBlockBindingsUtils() {
     if (isObjectEmpty(newMetadata.bindings)) {
       delete newMetadata.bindings;
     }
-    updateBlockAttributes(clientId, {
+    updateBlockAttributes(blockClientId, {
       metadata: isObjectEmpty(newMetadata) ? undefined : newMetadata
     });
   };
@@ -50739,8 +50825,8 @@ function useBlockBindingsUtils() {
         bindings,
         ...metadata
       } = {}
-    } = getBlockAttributes(clientId);
-    updateBlockAttributes(clientId, {
+    } = getBlockAttributes(blockClientId);
+    updateBlockAttributes(blockClientId, {
       metadata: isObjectEmpty(metadata) ? undefined : metadata
     });
   };
@@ -51285,27 +51371,29 @@ function placeBlock(occupiedRects, gridColumnCount, blockColumnSpan, blockRowSpa
 function GridLayoutSync(props) {
   useGridLayoutSync(props);
 }
-function GridTools({
+function grid_visualizer_GridTools({
   clientId,
   layout
 }) {
-  const {
-    isSelected,
-    isDragging
-  } = (0,external_wp_data_namespaceObject.useSelect)(select => {
+  const isVisible = (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
       isBlockSelected,
-      isDraggingBlocks
+      isDraggingBlocks,
+      getTemplateLock,
+      getBlockEditingMode
     } = select(store);
-    return {
-      isSelected: isBlockSelected(clientId),
-      isDragging: isDraggingBlocks()
-    };
-  });
+
+    // These calls are purposely ordered from least expensive to most expensive.
+    // Hides the visualizer in cases where the user is not or cannot interact with it.
+    if (!isDraggingBlocks() && !isBlockSelected(clientId) || getTemplateLock(clientId) || getBlockEditingMode(clientId) !== 'default') {
+      return false;
+    }
+    return true;
+  }, [clientId]);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GridLayoutSync, {
       clientId: clientId
-    }), (isSelected || isDragging) && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GridVisualizer, {
+    }), isVisible && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GridVisualizer, {
       clientId: clientId,
       parentLayout: layout
     })]
@@ -51318,7 +51406,7 @@ const addGridVisualizerToBlockEdit = (0,external_wp_compose_namespaceObject.crea
     }, "edit");
   }
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
-    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(GridTools, {
+    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(grid_visualizer_GridTools, {
       clientId: props.clientId,
       layout: props.attributes.layout
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(BlockEdit, {
@@ -51631,52 +51719,6 @@ function useCachedTruthy(value) {
     }
   }, [value]);
   return cachedValue;
-}
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/hooks/use-zoom-out.js
-/**
- * WordPress dependencies
- */
-
-
-
-/**
- * Internal dependencies
- */
-
-
-
-/**
- * A hook used to set the zoomed out view, invoking the hook sets the mode.
- *
- * @param {boolean} zoomOut If we should zoom out or not.
- */
-function useZoomOut(zoomOut = true) {
-  const {
-    setZoomLevel
-  } = unlock((0,external_wp_data_namespaceObject.useDispatch)(store));
-  const {
-    isZoomOut
-  } = unlock((0,external_wp_data_namespaceObject.useSelect)(store));
-  const originalIsZoomOutRef = (0,external_wp_element_namespaceObject.useRef)(null);
-  (0,external_wp_element_namespaceObject.useEffect)(() => {
-    // Only set this on mount so we know what to return to when we unmount.
-    if (!originalIsZoomOutRef.current) {
-      originalIsZoomOutRef.current = isZoomOut();
-    }
-
-    // The effect opens the zoom-out view if we want it open and the canvas is not currently zoomed-out.
-    if (zoomOut && isZoomOut() === false) {
-      setZoomLevel(50);
-    } else if (!zoomOut && isZoomOut() && originalIsZoomOutRef.current !== isZoomOut()) {
-      setZoomLevel(originalIsZoomOutRef.current ? 50 : 100);
-    }
-    return () => {
-      if (isZoomOut() && isZoomOut() !== originalIsZoomOutRef.current) {
-        setZoomLevel(originalIsZoomOutRef.current ? 50 : 100);
-      }
-    };
-  }, [isZoomOut, setZoomLevel, zoomOut]);
 }
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/hooks/index.js
@@ -64209,7 +64251,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global Reflect, Promise, SuppressedError, Symbol */
+/* global Reflect, Promise, SuppressedError, Symbol, Iterator */
 
 var extendStatics = function(d, b) {
   extendStatics = Object.setPrototypeOf ||
@@ -64320,8 +64362,8 @@ function __awaiter(thisArg, _arguments, P, generator) {
 }
 
 function __generator(thisArg, body) {
-  var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-  return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+  var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+  return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
   function verb(n) { return function (v) { return step([n, v]); }; }
   function step(op) {
       if (f) throw new TypeError("Generator is already executing.");
@@ -64425,8 +64467,9 @@ function __await(v) {
 function __asyncGenerator(thisArg, _arguments, generator) {
   if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
   var g = generator.apply(thisArg, _arguments || []), i, q = [];
-  return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-  function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+  return i = Object.create((typeof AsyncIterator === "function" ? AsyncIterator : Object).prototype), verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;
+  function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }
+  function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }
   function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
   function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
   function fulfill(value) { resume("next", value); }
@@ -64492,16 +64535,18 @@ function __classPrivateFieldIn(state, receiver) {
 function __addDisposableResource(env, value, async) {
   if (value !== null && value !== void 0) {
     if (typeof value !== "object" && typeof value !== "function") throw new TypeError("Object expected.");
-    var dispose;
+    var dispose, inner;
     if (async) {
-        if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
-        dispose = value[Symbol.asyncDispose];
+      if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+      dispose = value[Symbol.asyncDispose];
     }
     if (dispose === void 0) {
-        if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
-        dispose = value[Symbol.dispose];
+      if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+      dispose = value[Symbol.dispose];
+      if (async) inner = dispose;
     }
     if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+    if (inner) dispose = function() { try { inner.call(this); } catch (e) { return Promise.reject(e); } };
     env.stack.push({ value: value, dispose: dispose, async: async });
   }
   else if (async) {
@@ -64520,17 +64565,22 @@ function __disposeResources(env) {
     env.error = env.hasError ? new _SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
     env.hasError = true;
   }
+  var r, s = 0;
   function next() {
-    while (env.stack.length) {
-      var rec = env.stack.pop();
+    while (r = env.stack.pop()) {
       try {
-        var result = rec.dispose && rec.dispose.call(rec.value);
-        if (rec.async) return Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+        if (!r.async && s === 1) return s = 0, env.stack.push(r), Promise.resolve().then(next);
+        if (r.dispose) {
+          var result = r.dispose.call(r.value);
+          if (r.async) return s |= 2, Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+        }
+        else s |= 1;
       }
       catch (e) {
-          fail(e);
+        fail(e);
       }
     }
+    if (s === 1) return env.hasError ? Promise.reject(env.error) : Promise.resolve();
     if (env.hasError) throw env.error;
   }
   return next();
@@ -68611,6 +68661,7 @@ const selectIcon = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)
 function ToolSelector(props, ref) {
   const mode = (0,external_wp_data_namespaceObject.useSelect)(select => select(store).__unstableGetEditorMode(), []);
   const {
+    resetZoomLevel,
     __unstableSetEditorMode
   } = unlock((0,external_wp_data_namespaceObject.useDispatch)(store));
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Dropdown, {
@@ -68637,7 +68688,10 @@ function ToolSelector(props, ref) {
         "aria-label": (0,external_wp_i18n_namespaceObject.__)('Tools'),
         children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.MenuItemsChoice, {
           value: mode === 'navigation' ? 'navigation' : 'edit',
-          onSelect: __unstableSetEditorMode,
+          onSelect: newMode => {
+            resetZoomLevel();
+            __unstableSetEditorMode(newMode);
+          },
           choices: [{
             value: 'edit',
             label: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
@@ -69155,10 +69209,9 @@ function useResizeCanvas(deviceType) {
     }
     return deviceWidth < actualWidth ? deviceWidth : actualWidth;
   };
-  const marginValue = () => window.innerHeight < 800 ? 36 : 64;
   const contentInlineStyles = device => {
     const height = device === 'Mobile' ? '768px' : '1024px';
-    const marginVertical = marginValue() + 'px';
+    const marginVertical = '40px';
     const marginHorizontal = 'auto';
     switch (device) {
       case 'Tablet':
@@ -71643,7 +71696,7 @@ function extends_extends() {
   };
   return extends_extends.apply(this, arguments);
 }
-;// CONCATENATED MODULE: ./node_modules/@emotion/styled/node_modules/@emotion/memoize/dist/emotion-memoize.esm.js
+;// CONCATENATED MODULE: ./node_modules/@emotion/memoize/dist/emotion-memoize.esm.js
 function memoize(fn) {
   var cache = Object.create(null);
   return function (arg) {
@@ -73204,17 +73257,6 @@ var unitlessKeys = {
 
 /* harmony default export */ const emotion_unitless_esm = (unitlessKeys);
 
-;// CONCATENATED MODULE: ./node_modules/@emotion/serialize/node_modules/@emotion/memoize/dist/emotion-memoize.esm.js
-function emotion_memoize_esm_memoize(fn) {
-  var cache = Object.create(null);
-  return function (arg) {
-    if (cache[arg] === undefined) cache[arg] = fn(arg);
-    return cache[arg];
-  };
-}
-
-
-
 ;// CONCATENATED MODULE: ./node_modules/@emotion/serialize/dist/emotion-serialize.browser.esm.js
 
 
@@ -73233,7 +73275,7 @@ var isProcessableValue = function isProcessableValue(value) {
   return value != null && typeof value !== 'boolean';
 };
 
-var processStyleName = /* #__PURE__ */emotion_memoize_esm_memoize(function (styleName) {
+var processStyleName = /* #__PURE__ */memoize(function (styleName) {
   return isCustomProperty(styleName) ? styleName : styleName.replace(hyphenateRegex, '-$&').toLowerCase();
 });
 
@@ -74312,6 +74354,7 @@ function ResolutionTool({
 
 
 
+
 /**
  * Private @wordpress/block-editor APIs.
  */
@@ -74342,6 +74385,7 @@ lock(privateApis, {
   TextAlignmentControl: TextAlignmentControl,
   usesContextKey: usesContextKey,
   useFlashEditableBlocks: useFlashEditableBlocks,
+  useZoomOutModeExit: useZoomOutModeExit,
   globalStylesDataKey: globalStylesDataKey,
   globalStylesLinksDataKey: globalStylesLinksDataKey,
   selectBlockPatternsKey: selectBlockPatternsKey,
