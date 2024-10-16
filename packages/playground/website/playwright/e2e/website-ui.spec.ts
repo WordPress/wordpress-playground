@@ -117,9 +117,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 
 	// Switch back to the stored site and confirm the PHP constant is still present.
 	await website.page
+		.getByLabel('Saved Playgrounds')
 		.locator('button')
-		.filter({ hasNotText: 'Temporary Playground' })
-		.first()
+		.last()
 		.click();
 
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
