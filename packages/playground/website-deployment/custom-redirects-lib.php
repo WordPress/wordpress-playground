@@ -271,6 +271,8 @@ function playground_maybe_set_environment( $requested_path ) {
 	}
 
 	if ( str_ends_with( $requested_path, 'logger.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
 		$secrets = new Atomic_Persistent_Data;
 		if ( isset(
 			$secrets->LOGGER_SLACK_CHANNEL,
@@ -286,6 +288,8 @@ function playground_maybe_set_environment( $requested_path ) {
 	}
 
 	if ( str_ends_with( $requested_path, 'plugin-proxy.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
 		$secrets = new Atomic_Persistent_Data;
 		if ( isset( $secrets->GITHUB_TOKEN ) ) {
 			putenv( "GITHUB_TOKEN={$secrets->GITHUB_TOKEN}" );
@@ -297,6 +301,8 @@ function playground_maybe_set_environment( $requested_path ) {
 	}
 
 	if ( str_ends_with( $requested_path, 'oauth.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
 		$secrets = new Atomic_Persistent_Data;
 		if ( isset(
 			$secrets->GITHUB_APP_CLIENT_ID,
