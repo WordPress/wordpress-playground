@@ -332,28 +332,11 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
 	fi;
 
-# Rename the original php_pollfd_for() implementation so that we can link our own version.
-RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
-
-RUN echo 'extern ssize_t wasm_read(int fd, void *buf, size_t count);' >> /root/php-src/main/php.h;
-RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams/plain_wrapper.c
-
 # Provide a custom implementation of the php_exec() function that handles spawning
 # the process inside exec(), passthru(), system(), etc.
 # We effectively remove the php_exec() implementation from the build by renaming it
 # to an unused identifier "php_exec_old", and then we mark php_exec as extern.
 RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; int php_exec_old\1/g' /root/php-src/ext/standard/exec.c
-
-# Provide a custom implementation of the VCWD_POPEN() function that handles spawning
-# the process inside PHP_FUNCTION(popen).
-RUN /root/replace.sh 's/#define VCWD_POPEN.+/#define VCWD_POPEN(command, type) wasm_popen(command,type)/g' /root/php-src/Zend/zend_virtual_cwd.h
-RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/php-src/Zend/zend_virtual_cwd.h
-
-# Provide a custom implementation of the shutdown() function.
-RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
-RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
-RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h;
-RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h;
 
 # Don't ship PHP_FUNCTION(proc_open) with the PHP build
 # so that we can ship a patched version with php_wasm.c
@@ -363,7 +346,7 @@ RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
+	EMCC_FLAGS=" -sSIDE_MODULE -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
@@ -927,7 +910,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
+		export ASYNCIFY_FLAGS=" -sWASMFS -DWASMFS_SETUP -lopfs.js -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,wasmExports,_malloc "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
@@ -939,6 +922,7 @@ RUN set -euxo pipefail; \
 "lengthBytesUTF8", \n\
 "FS", \n\
 "___wrap_select", \n\
+"_emscripten_stack_get_current", \n\
 "_wasm_set_sapi_name", \n\
 "_php_wasm_init", \n\
 "_emscripten_sleep", \n\
@@ -946,7 +930,6 @@ RUN set -euxo pipefail; \
 "_wasm_set_phpini_path", \n\
 "_wasm_add_SERVER_entry", \n\
 "_wasm_add_ENV_entry", \n\
-"_wasm_read", \n\
 "_wasm_free", \n\
 "_wasm_sapi_handle_request", \n\
 "_wasm_sapi_request_shutdown", \n\
@@ -975,7 +958,6 @@ RUN set -euxo pipefail; \
 	-I TSRM/ \
 	-I /root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
-	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
@@ -1034,21 +1016,21 @@ RUN set -euxo pipefail; \
 		# Emscripten produces an if that checks a stream.stream_ops.poll property. However,
 		# stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
 		# tolerate a null stream.stream_ops value.
-		/root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
+		# /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
 	# Make Emscripten websockets configurable
 		# Emscripten makes the Websocket proxy connect to a fixed URL.
 		# This assumes the traffic is always forwarded to the same target.
 		# However, we want to support arbitrary targets, so we need to
 		# replace the hardcoded websocket target URL with a dynamic callback.
-		/root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
-			/root/output/php.js; \
+		# /root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
+		# 	/root/output/php.js; \
 		# Enable custom WebSocket constructors to support socket options.
-		/root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-		if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-			/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
-		fi; \
-		fi; \
+		# /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
+		# if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+		# if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+		# 	/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+		# fi; \
+		# fi; \
 	# Add MSG_PEEK flag support in recvfrom
 		#
 		# Emscripten ignores the flags argument to ___syscall_recvfrom.
@@ -1060,11 +1042,11 @@ RUN set -euxo pipefail; \
 		# reading the remaining "TTP/1.1 200 OK" and not recognizing it as a valid
 		# status line.
 		# We need to patch the syscall to support the MSG_PEEK flag.
-		if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-			/root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js; \
-			/root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js; \
-			/root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
-		fi ; \
+		# if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+		# 	/root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js; \
+		# 	/root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js; \
+		# 	/root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
+		# fi ; \
 	# Replace the hardcoded ENVIRONMENT variable with a dynamic computation
 		#
 		# The JavaScript code of the web loader and web worker loader is identical,

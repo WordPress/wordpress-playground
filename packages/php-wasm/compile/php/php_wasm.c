@@ -29,6 +29,7 @@
 
 // Created by Dockerfile:
 #include "php_wasm_asyncify.h"
+#include <emscripten/wasmfs.h>
 
 unsigned int wasm_sleep(unsigned int time)
 {
@@ -117,7 +118,6 @@ EM_JS(char*, js_popen_to_file, (const char *command, const char *mode, uint8_t *
 		});
 	});
 });
-
 
 /**
  * Shims poll(2) functionallity for asynchronous websockets:
@@ -247,112 +247,7 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
     });
 });
 
-/**
- * Shims read(2) functionallity.
- * Enables reading from blocking pipes. By default, Emscripten
- * will throw an EWOULDBLOCK error when trying to read from a
- * blocking pipe. This function overrides that behavior and
- * instead waits for the pipe to become readable.
- *
- * @see https://github.com/WordPress/wordpress-playground/issues/951
- * @see https://github.com/emscripten-core/emscripten/issues/13214
- */
-#ifdef PLAYGROUND_JSPI
-EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
-	const returnCallback = (resolver) => new Promise(resolver);
-#else
-EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
-	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
-#endif
-	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
-		var returnCode;
-		var stream;
-		let num = 0;
-		try
-		{
-			stream = SYSCALLS.getStreamFromFD(fd);
-			const num = doReadv(stream, iov, iovcnt);
-			HEAPU32[pnum >> 2] = num;
-			return 0;
-		}
-		catch (e)
-		{
-			// Rethrow any unexpected non-filesystem errors.
-			if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
-			{
-				throw e;
-			}
-			// Only return synchronously if this isn't an asynchronous pipe.
-			// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
-			// We also need to distinguish between a process pipe and a file pipe, otherwise
-			// reading from an empty file would block until the timeout.
-			if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd))
-			{
-				// On failure, yield 0 bytes read to indicate EOF.
-				HEAPU32[pnum >> 2] = 0;
-				return returnCode
-			}
-		}
-	}
 
-    // At this point we know we have to poll.
-    // You might wonder why we duplicate the code here instead of always using
-    // Asyncify.handleSleep(). The reason is performance. Most of the time,
-    // the read operation will work synchronously and won't require yielding
-    // back to JS. In these cases we don't want to pay the Asyncify overhead,
-    // save the stack, yield back to JS, restore the stack etc.
-    return returnCallback((wakeUp) => {
-        var retries = 0;
-        var interval = 50;
-        var timeout = 5000;
-        // We poll for data and give up after a timeout.
-        // We can't simply rely on PHP timeout here because we don't want
-        // to, say, block the entire PHPUnit test suite without any visible
-        // feedback.
-        var maxRetries = timeout / interval;
-        function poll() {
-            var returnCode;
-            var stream;
-            let num;
-            try {
-                stream = SYSCALLS.getStreamFromFD(fd);
-                num = doReadv(stream, iov, iovcnt);
-                returnCode = 0;
-            } catch (e) {
-                if (
-                    typeof FS == 'undefined' ||
-                    !(e.name === 'ErrnoError')
-                ) {
-                    console.error(e);
-                    throw e;
-                }
-                returnCode = e.errno;
-            }
-
-            const success = returnCode === 0;
-            const failure = (
-                ++retries > maxRetries ||
-                !(fd in PHPWASM.child_proc_by_fd) ||
-                PHPWASM.child_proc_by_fd[fd]?.exited ||
-                FS.isClosed(stream)
-            );
-
-            if (success) {
-                HEAPU32[pnum >> 2] = num;
-                wakeUp(0);
-            } else if (failure) {
-                // On failure, yield 0 bytes read to indicate EOF.
-                HEAPU32[pnum >> 2] = 0;
-                // If the failure is due to a timeout, return 0 to indicate that we
-                // reached EOF. Otherwise, propagate the error code.
-                wakeUp(returnCode === 6 ? 0 : returnCode);
-            } else {
-                setTimeout(poll, interval);
-            }
-        }
-        poll();
-    })
-});
 extern int __wasi_syscall_ret(__wasi_errno_t code);
 
 // Exit code of the last exited child process call.
@@ -548,29 +443,6 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl)
 	return bufl;
 }
 
-/**
- * Shims read(2) functionallity.
- * Enables reading from blocking pipes. By default, Emscripten
- * will throw an EWOULDBLOCK error when trying to read from a
- * blocking pipe. This function overrides that behavior and
- * instead waits for the pipe to become readable.
- *
- * @see https://github.com/WordPress/wordpress-playground/issues/951
- * @see https://github.com/emscripten-core/emscripten/issues/13214
- */
-EMSCRIPTEN_KEEPALIVE ssize_t wasm_read(int fd, void *buf, size_t count)
-{
-	struct __wasi_iovec_t iov = {
-		.buf = buf,
-		.buf_len = count};
-	size_t num;
-	if (__wasi_syscall_ret(js_fd_read(fd, &iov, 1, &num)))
-	{
-		return -1;
-	}
-	return num;
-}
-
 /*
  * If type==0, only last line of output is returned (exec)
  * If type==1, all lines will be printed and last lined returned (system)
@@ -693,31 +565,6 @@ err:
 
 int wasm_socket_has_data(php_socket_t fd);
 
-/* hybrid select(2)/poll(2) for a single descriptor.
- * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
- * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
- */
-EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
-{
-	php_pollfd p;
-	int n;
-
-	p.fd = fd;
-	p.events = events;
-	p.revents = 0;
-
-	// must yield back to JS event loop to get the network response:
-	wasm_poll_socket(fd, events, php_tvtoto(timeouttv));
-
-	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
-
-	if (n > 0)
-	{
-		return p.revents;
-	}
-
-	return n;
-}
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
 ZEND_ARG_INFO(0, data)
@@ -1825,6 +1672,34 @@ static void wasm_sapi_log_message(char *message TSRMLS_DC)
  */
 int php_wasm_init()
 {
+	int err;
+	// backend_t memory = wasmfs_create_memory_backend();
+	// The /internal directory is required by the C module. It's where the
+	// stdout, stderr, and headers information are written for the JavaScript
+	// code to read later on.
+	// err = wasmfs_create_directory("/internal", 0777, memory);
+	// err = wasmfs_create_directory("/wordpress", 0777, memory);
+	// The files from the shared directory are shared between all the
+	// PHP processes managed by PHPProcessManager.
+	// FS.mkdir('/internal/shared');
+	// The files from the preload directory are preloaded using the
+	// auto_prepend_file php.ini directive.
+	// FS.mkdir('/internal/shared/preload');
+
+	backend_t opfs = wasmfs_create_opfs_backend();
+	err = wasmfs_create_directory("/internal", 0777, opfs);
+
+	backend_t opfs2 = wasmfs_create_opfs_backend();
+	err = wasmfs_create_directory("/internal2", 0777, opfs2);
+
+	FILE *file = fopen("/internal2/hi.txt", "w");
+	if (file != NULL) {
+		fprintf(file, "Hello World");
+		fclose(file);
+	} else {
+		fprintf(stderr, "Error creating file in /internal2/hi.txt\n");
+	}
+
 	wasm_server_context = malloc(sizeof(wasm_server_context_t));
 	wasm_init_server_context();
 
