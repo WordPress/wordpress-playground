@@ -175,15 +175,17 @@ function Modals(blueprint: Blueprint) {
 			) : (
 				''
 			)}
+
 			<GithubImportModal
+				defaultOpen={(currentModal === 'github-import-modal')}
 				onImported={({
-					url,
-					path,
-					files,
-					pluginOrThemeName,
-					contentType,
-					urlInformation: { owner, repo, type, pr },
-				}) => {
+								 url,
+								 path,
+								 files,
+								 pluginOrThemeName,
+								 contentType,
+								 urlInformation: { owner, repo, type, pr },
+							 }) => {
 					setGithubExportValues({
 						repoUrl: url,
 						prNumber: pr?.toString(),
@@ -196,7 +198,9 @@ function Modals(blueprint: Blueprint) {
 					setGithubExportFiles(files);
 				}}
 			/>
+
 			<GithubExportModal
+				defaultOpen={(currentModal === 'github-export-modal')}
 				allowZipExport={
 					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
 				}
