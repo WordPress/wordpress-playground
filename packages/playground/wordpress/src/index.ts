@@ -144,9 +144,14 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * Reload page to ensure the user is logged in correctly.
 			 * WordPress uses cookies to determine if the user is logged in,
 			 * so we need to reload the page to ensure the cookies are set.
+			 *
+			 * The redirect should only run if the current PHP request is
+			 * a HTTP request. If it's a PHP run, there is nothing to reload.
 			 */
-			wp_redirect($_SERVER['REQUEST_URI']);
-			exit;
+			if (!empty($_SERVER['REQUEST_URI'])) {
+				wp_redirect($_SERVER['REQUEST_URI']);
+				exit;
+			}
 		}
 		/**
 		 * Autologin users from the wp-login.php page.
