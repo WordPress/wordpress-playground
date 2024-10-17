@@ -166,14 +166,6 @@ export function compileBlueprint(
 			})) as StepDefinition[];
 		blueprint.steps!.unshift(...steps);
 	}
-	if (blueprint.login) {
-		blueprint.steps!.push({
-			step: 'login',
-			...(blueprint.login === true
-				? { username: 'admin' }
-				: blueprint.login),
-		});
-	}
 
 	/**
 	 * Download WP-CLI. {{{
@@ -235,6 +227,31 @@ export function compileBlueprint(
 				url: 'https://playground.wordpress.net/wordpress-importer.zip',
 				caption: 'Downloading the WordPress Importer plugin',
 			},
+		});
+	}
+
+	/**
+	 * We need to move the login step to the end of the blueprint
+	 * to ensure all other steps can run without unexpected redirects.
+	 *
+	 * Autologin forces a reload on the first page load to correctly set cookies.
+	 * This can interfere with some steps that need to make requests to Playground,
+	 * because during the request they would run into a unexpected redirect.
+	 *
+	 * For more details on how autologin works, check the source code of the login step
+	 * in: packages/playground/wordpress/src/index.ts.
+	 */
+	const indexOfLoginStep = blueprint.steps?.findIndex(
+		(step) => typeof step === 'object' && step?.step === 'login'
+	);
+	if (indexOfLoginStep !== undefined && indexOfLoginStep > -1) {
+		blueprint.steps!.push(blueprint.steps!.splice(indexOfLoginStep, 1)[0]);
+	} else if (blueprint.login) {
+		blueprint.steps!.push({
+			step: 'login',
+			...(blueprint.login === true
+				? { username: 'admin' }
+				: blueprint.login),
 		});
 	}
 
