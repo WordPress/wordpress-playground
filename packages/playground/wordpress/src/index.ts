@@ -117,6 +117,21 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		 * Logs the user in on their first visit if the Playground runtime told us to.
 		 */
 		function playground_auto_login() {
+			/**
+			 * The redirect should only run if the current PHP request is
+			 * a HTTP request. If it's a PHP CLI run, we can't login the user
+			 * because logins require cookies which aren't available in the CLI.
+			 *
+			 * Currently all Playground requests use the "cli" SAPI name
+			 * to ensure support for WP-CLI, so the best way to distinguish
+			 * between a CLI run and an HTTP request is by checking if the
+			 * $_SERVER['REQUEST_URI'] global is set.
+			 *
+			 * If $_SERVER['REQUEST_URI'] is not set, we assume it's a CLI run.
+			 */
+			if (empty($_SERVER['REQUEST_URI'])) {
+				return;
+			}
 			$user_name = playground_get_username_for_auto_login();
 			if ( false === $user_name ) {
 				return;
@@ -144,14 +159,9 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * Reload page to ensure the user is logged in correctly.
 			 * WordPress uses cookies to determine if the user is logged in,
 			 * so we need to reload the page to ensure the cookies are set.
-			 *
-			 * The redirect should only run if the current PHP request is
-			 * a HTTP request. If it's a PHP run, there is nothing to reload.
 			 */
-			if (!empty($_SERVER['REQUEST_URI'])) {
-				wp_redirect($_SERVER['REQUEST_URI']);
-				exit;
-			}
+			wp_redirect($_SERVER['REQUEST_URI']);
+			exit;
 		}
 		/**
 		 * Autologin users from the wp-login.php page.
