@@ -19,7 +19,7 @@ describe('handleRequest', () => {
 				url: 'https://playground.wordpress.net/',
 				headers: { 'Content-type': 'text/html' },
 			},
-			fetchMock as any
+			{ fetchFn: fetchMock as any }
 		);
 		expect(new TextDecoder().decode(response)).toBe(
 			`HTTP/1.1 200 OK\r\ncontent-type: text/html\r\n\r\nHello, world!`
@@ -43,7 +43,7 @@ describe('handleRequest', () => {
 				url: 'https://playground.wordpress.net/',
 				headers: { 'Content-type': 'text/html' },
 			},
-			fetchMock as any
+			{ fetchFn: fetchMock as any }
 		);
 		expect(new TextDecoder().decode(response)).toBe(
 			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`

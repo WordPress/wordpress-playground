@@ -292,7 +292,9 @@ export async function bootPlaygroundRemote() {
 				);
 
 				if (options.withNetworking) {
-					await setupFetchNetworkTransport(phpWorkerApi);
+					await setupFetchNetworkTransport(phpWorkerApi, {
+						corsProxyUrl: options.corsProxyUrl,
+					});
 				}
 
 				setAPIReady();

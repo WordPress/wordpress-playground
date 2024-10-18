@@ -133,7 +133,7 @@ export function bootSiteClient(
 					  ]
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
-				corsProxy: corsProxyUrl,
+				corsProxyUrl,
 			});
 
 			// @TODO: Remove backcompat code after 2024-12-01.

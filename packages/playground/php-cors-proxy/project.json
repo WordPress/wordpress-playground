@@ -7,7 +7,9 @@
 		"start": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["php -S 127.0.0.1:5263"],
+				"commands": [
+					"php -dauto_prepend_file=cors-proxy-dev-setup.php -S 127.0.0.1:5263"
+				],
 				"cwd": "packages/playground/php-cors-proxy"
 			}
 		},

@@ -134,12 +134,12 @@ export abstract class Resource<T extends File | Directory> {
 		{
 			semaphore,
 			progress,
-			corsProxy,
+			corsProxyUrl,
 		}: {
 			/** Optional semaphore to limit concurrent downloads */
 			semaphore?: Semaphore;
 			progress?: ProgressTracker;
-			corsProxy?: string;
+			corsProxyUrl?: string;
 		}
 	): Resource<File | Directory> {
 		let resource: Resource<File | Directory>;
@@ -161,7 +161,7 @@ export abstract class Resource<T extends File | Directory> {
 				break;
 			case 'git:directory':
 				resource = new GitDirectoryResource(ref, progress, {
-					corsProxy,
+					corsProxyUrl,
 				});
 				break;
 			case 'literal:directory':
@@ -452,14 +452,14 @@ export class GitDirectoryResource extends Resource<Directory> {
 	constructor(
 		private reference: GitDirectoryReference,
 		public override _progress?: ProgressTracker,
-		private options?: { corsProxy?: string }
+		private options?: { corsProxyUrl?: string }
 	) {
 		super();
 	}
 
 	async resolve() {
-		const repoUrl = this.options?.corsProxy
-			? `${this.options.corsProxy}?${this.reference.url}`
+		const repoUrl = this.options?.corsProxyUrl
+			? `${this.options.corsProxyUrl}?${this.reference.url}`
 			: this.reference.url;
 		const ref = ['', 'HEAD'].includes(this.reference.ref)
 			? 'HEAD'
