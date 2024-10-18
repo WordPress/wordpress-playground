@@ -12,11 +12,15 @@ describe('appendBytes', () => {
 
 		const reader = stream.getReader();
 		const result1 = await reader.read();
-		expect(result1.value).toEqual(new Uint8Array([1, 2, 3]));
+		expect(Array.from(result1.value!)).toEqual(
+			Array.from(new Uint8Array([1, 2, 3]))
+		);
 		expect(result1.done).toBe(false);
 
 		const result2 = await reader.read();
-		expect(result2.value).toEqual(new Uint8Array([4, 5]));
+		expect(Array.from(result2.value!)).toEqual(
+			Array.from(new Uint8Array([4, 5]))
+		);
 		expect(result2.done).toBe(false);
 
 		const result3 = await reader.read();

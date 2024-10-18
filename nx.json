@@ -1,14 +1,6 @@
 {
 	"$schema": "./node_modules/nx/schemas/nx-schema.json",
 	"npmScope": "wp-playground",
-	"tasksRunnerOptions": {
-		"default": {
-			"runner": "nx/tasks-runners/default",
-			"options": {
-				"cacheableOperations": ["build", "lint", "test", "e2e"]
-			}
-		}
-	},
 	"pluginsConfig": {
 		"@nx/js": {
 			"analyzeSourceFiles": true

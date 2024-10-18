@@ -80,7 +80,7 @@
 			"dependsOn": ["build:json"]
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/docs/site/**/*.ts"]
