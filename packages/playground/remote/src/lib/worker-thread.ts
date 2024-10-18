@@ -238,49 +238,42 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const { certificate, keyPair } =
-				await CertificateGenerator.generateCertificate({
-					subject: {
-						commonName: 'Playground',
-						organizationName: 'Playground',
-						countryName: 'US',
-						localityName: 'San Francisco',
-						stateOrProvinceName: 'California',
-						streetAddress: '123 Main St',
-						postalCode: '94105',
-						emailAddress: 'info@example.com',
-						organizationalUnitName: 'Playground',
-						title: 'Playground',
-						description: 'Playground',
-						businessCategory: 'Playground',
-					},
-					basicConstraints: {
-						ca: true,
-					},
-					keyUsage: {
-						digitalSignature: true,
-						keyCertSign: true,
-					},
-					nsCertType: {
-						client: true,
-						server: true,
-						email: true,
-						objsign: true,
-						sslCA: true,
-						emailCA: true,
-						objCA: true,
-					},
-					subjectAltNames: {
-						dnsNames: ['downloads.wordpress.org'],
-					},
-				});
-			const caPair = {
-				ca: certificate,
-				caKey: keyPair,
-				caPem: certificateToPEM(certificate),
-				caKeyPem: await privateKeyToPEM(keyPair.privateKey),
-			};
-			console.log({ caPair });
+			const CAroot = await CertificateGenerator.generateCertificate({
+				subject: {
+					commonName: 'Playground CA',
+					organizationName: 'Playground CA',
+					countryName: 'US',
+				},
+				basicConstraints: {
+					ca: true,
+				},
+				keyUsage: {
+					keyCertSign: true,
+					digitalSignature: true,
+					nonRepudiation: true,
+					keyEncipherment: true,
+					dataEncipherment: true,
+				},
+				extKeyUsage: {
+					serverAuth: true,
+					clientAuth: true,
+					codeSigning: true,
+					emailProtection: true,
+					timeStamping: true,
+				},
+				nsCertType: {
+					client: true,
+					server: true,
+					email: true,
+					objsign: true,
+					sslCA: true,
+					emailCA: true,
+					objCA: true,
+				},
+				subjectAltNames: {
+					dnsNames: ['*'],
+				},
+			});
 			const requestHandler = await bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
@@ -288,7 +281,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					return await loadWebRuntime(phpVersion, {
 						emscriptenOptions: {
 							websocket: {
-								caPair,
+								CAroot,
 							},
 							instantiateWasm(imports, receiveInstance) {
 								// Using .then because Emscripten typically returns an empty
@@ -357,7 +350,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					'openssl.cafile': '/internal/ca-bundle.crt',
 				},
 				createFiles: {
-					'/internal/ca-bundle.crt': caPair.caPem,
+					'/internal/ca-bundle.crt': certificateToPEM(
+						CAroot.certificate
+					),
 					'/internal/shared/mu-plugins': {
 						'1-playground-web.php': playgroundWebMuPlugin,
 						'playground-includes': {

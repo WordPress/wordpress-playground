@@ -3,15 +3,14 @@
  * https://www.iana.org/go/rfc8446
  */
 
-import { decodeASN1 } from './asn_1';
-
 export interface CertificateAuthorities {
 	certificate_authorities: Uint8Array[];
 }
 
 export class CertificateAuthoritiesExtension {
 	static decode(data: Uint8Array): CertificateAuthorities {
-		return { certificate_authorities: decodeASN1(data) } as any;
+		// decodeASN1(data)
+		return { certificate_authorities: [] } as any;
 	}
 
 	static encode(data: CertificateAuthorities): Uint8Array {

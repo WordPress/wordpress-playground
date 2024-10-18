@@ -1,5 +1,6 @@
 import { EmscriptenOptions } from '@php-wasm/universal';
 import { TLS_1_2_Server } from './tls';
+import { CertificateGenerator } from './tls/asn_1';
 
 export function httpRequestToFetch(
 	host: string,
@@ -121,12 +122,59 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 			subprotocol: 'binary',
 			decorator: (original) => {
 				console.log('Decorator!', { original, phpModuleArgs });
-				const caPair: {
-					ca: Uint8Array;
-					caKey: CryptoKeyPair;
-					caPem: string;
-					caKeyPem: string;
-				} = phpModuleArgs['caPair'];
+				const CAroot = phpModuleArgs['CAroot'];
+
+				async function startTLS(ws: any) {
+					const host = ws.host;
+					const siteCert =
+						await CertificateGenerator.generateCertificate(
+							{
+								subject: {
+									commonName: 'Playground Site',
+									organizationName: 'Playground Site',
+									countryName: 'US',
+								},
+								keyUsage: {
+									digitalSignature: true,
+								},
+								nsCertType: {
+									server: true,
+								},
+								subjectAltNames: {
+									dnsNames: [host],
+								},
+							},
+							CAroot.keyPair.privateKey
+						);
+					console.log(
+						'CAroot.keyPair.privateKey',
+						CAroot.keyPair.privateKey
+					);
+
+					ws.sslServer = new TLS_1_2_Server(
+						CAroot.keyPair.privateKey,
+						[
+							// siteCert.certificate,
+							CAroot.certificate,
+						],
+						(data: Uint8Array) => {
+							console.log('Server -> Client: ', data);
+							ws.binaryType = 'arraybuffer';
+							ws.emit('message', { data });
+						}
+					);
+					ws.readyState = ws.OPEN;
+					ws.emit('open');
+					ws.sslServer.handleTLSHandshake().then(
+						() => {
+							console.log('TLS Handshake successful');
+						},
+						(e: Error) => {
+							console.log('TLS Handshake failed');
+							console.error(e);
+						}
+					);
+				}
 
 				return class FetchWebsocketConstructor {
 					CONNECTING = 0;
@@ -152,27 +200,7 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 							10
 						);
 
-						const ws = this;
-						this.sslServer = new TLS_1_2_Server(
-							caPair.caKey.privateKey,
-							caPair.ca,
-							(data: Uint8Array) => {
-								console.log('Server -> Client: ', data);
-								ws.binaryType = 'arraybuffer';
-								ws.emit('message', { data });
-							}
-						);
-						ws.readyState = ws.OPEN;
-						ws.emit('open');
-						this.sslServer.handleTLSHandshake().then(
-							() => {
-								console.log('TLS Handshake successful');
-							},
-							(e: Error) => {
-								console.log('TLS Handshake failed');
-								console.error(e);
-							}
-						);
+						startTLS(this);
 					}
 
 					on(eventName: string, callback: (e: any) => void) {

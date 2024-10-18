@@ -119,13 +119,13 @@ const oids = {
 	'1.3.6.1.5.5.7.3.8': 'timeStamping',
 } as const;
 
-function oidByName(name: OIDName): OID {
+function oidByName(requestedName: OIDName): OID {
 	for (const [oid, name] of Object.entries(oids)) {
-		if (name === name) {
+		if (name === requestedName) {
 			return oid as OID;
 		}
 	}
-	throw new Error(`OID not found for name: ${name}`);
+	throw new Error(`OID not found for name: ${requestedName}`);
 }
 
 function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
@@ -315,6 +315,14 @@ export interface KeyUsage {
 	decipherOnly?: boolean;
 }
 
+export interface ExtKeyUsage {
+	serverAuth?: boolean;
+	clientAuth?: boolean;
+	codeSigning?: boolean;
+	emailProtection?: boolean;
+	timeStamping?: boolean;
+}
+
 export interface NSCertType {
 	client?: boolean;
 	server?: boolean;
@@ -326,8 +334,8 @@ export interface NSCertType {
 }
 
 export interface SubjectAltNames {
-	dnsNames: string[];
-	ipAddresses: string[];
+	dnsNames?: string[];
+	ipAddresses?: string[];
 }
 
 export interface TBSCertificateDescription {
@@ -339,6 +347,7 @@ export interface TBSCertificateDescription {
 	subject: CertificateIssuer;
 	basicConstraints?: BasicConstraints;
 	keyUsage?: KeyUsage;
+	extKeyUsage?: ExtKeyUsage;
 	subjectAltNames?: SubjectAltNames;
 	nsCertType?: NSCertType;
 }
@@ -349,7 +358,10 @@ export type SigningRequest = {
 };
 
 export class CertificateGenerator {
-	static async generateCertificate(description: TBSCertificateDescription) {
+	static async generateCertificate(
+		description: TBSCertificateDescription,
+		issuerPrivateKey?: CryptoKey
+	) {
 		const keyPair = await crypto.subtle.generateKey(
 			{
 				name: 'RSASSA-PKCS1-v1_5',
@@ -364,7 +376,10 @@ export class CertificateGenerator {
 			description,
 			keyPair.publicKey
 		);
-		const certificate = await this.sign(signingRequest, keyPair.privateKey);
+		const certificate = await this.sign(
+			signingRequest,
+			issuerPrivateKey ?? keyPair.privateKey
+		);
 		return {
 			keyPair,
 			certificate,
@@ -406,6 +421,9 @@ export class CertificateGenerator {
 		}
 		if (description.keyUsage) {
 			extensions.push(this.keyUsage(description.keyUsage));
+		}
+		if (description.extKeyUsage) {
+			// extensions.push(this.extKeyUsage(description.extKeyUsage));
 		}
 		if (description.subjectAltNames) {
 			extensions.push(this.subjectAltName(description.subjectAltNames));
@@ -552,6 +570,25 @@ export class CertificateGenerator {
 		]);
 	}
 
+	private static extKeyUsage(extKeyUsage: ExtKeyUsage = {}) {
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('extKeyUsage')),
+			ASN1Encoder.boolean(true), // Critical
+			ASN1Encoder.octetString(
+				ASN1Encoder.sequence(
+					Object.entries(extKeyUsage).map(([oidName, value]) => {
+						if (value) {
+							return ASN1Encoder.objectIdentifier(
+								oidByName(oidName as OIDName)
+							);
+						}
+						return ASN1Encoder.null();
+					})
+				)
+			),
+		]);
+	}
+
 	private static nsCertType(nsCertType: NSCertType) {
 		const bits = new Uint8Array([0x00]);
 		if (nsCertType.client) {
@@ -582,14 +619,16 @@ export class CertificateGenerator {
 	}
 
 	private static subjectAltName(altNames: SubjectAltNames) {
-		const generalNames = altNames.dnsNames.map((name) => {
-			const dnsName = ASN1Encoder.ia5String(name); // IA5String encoding
-			return ASN1Encoder.contextSpecific(2, dnsName); // [2] dNSName
-		});
-		const ipAddresses = altNames.ipAddresses.map((ip) => {
-			const ipAddress = ASN1Encoder.ia5String(ip); // IA5String encoding
-			return ASN1Encoder.contextSpecific(7, ipAddress); // [7] iPAddress
-		});
+		const generalNames =
+			altNames.dnsNames?.map((name) => {
+				const dnsName = ASN1Encoder.ia5String(name); // IA5String encoding
+				return ASN1Encoder.contextSpecific(2, dnsName); // [2] dNSName
+			}) || [];
+		const ipAddresses =
+			altNames.ipAddresses?.map((ip) => {
+				const ipAddress = ASN1Encoder.ia5String(ip); // IA5String encoding
+				return ASN1Encoder.contextSpecific(7, ipAddress); // [7] iPAddress
+			}) || [];
 		const sanExtensionValue = ASN1Encoder.octetString(
 			ASN1Encoder.sequence([...generalNames, ...ipAddresses])
 		);

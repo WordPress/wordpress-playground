@@ -4,6 +4,8 @@
  * http://localhost:5400/website-server/#%7B%22landingPage%22:%22/network-test.php%22,%22preferredVersions%22:%7B%22php%22:%228.0%22,%22wp%22:%22latest%22%7D,%22phpExtensionBundles%22:%5B%22kitchen-sink%22%5D,%22steps%22:%5B%7B%22step%22:%22writeFile%22,%22path%22:%22/wordpress/network-test.php%22,%22data%22:%22%3C?php%20echo%20'Hello-dolly.zip%20downloaded%20from%20https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip%20has%20this%20many%20bytes:%20';%20var_dump(strlen(file_get_contents('https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip')));%22%7D%5D%7D
  */
 import { ServerNameExtension } from './tls/0_server_name';
+import { CipherSuites } from './tls/cipher-suites';
+import { CipherSuitesNames } from './tls/cipher-suites';
 import { ParsedExtension, parseHelloExtensions } from './tls/extensions';
 
 /**
@@ -13,7 +15,7 @@ import { ParsedExtension, parseHelloExtensions } from './tls/extensions';
  */
 export class TLS_1_2_Server {
 	privateKey: CryptoKey;
-	certificateDER: ArrayBuffer;
+	certificatesDER: Uint8Array[];
 	receivedBuffer: Uint8Array = new Uint8Array();
 	sendBytesToClient: (data: Uint8Array) => void;
 	serverRandom: Uint8Array;
@@ -38,11 +40,11 @@ export class TLS_1_2_Server {
 
 	constructor(
 		privateKey: CryptoKey,
-		certificateDER: ArrayBuffer,
+		certificatesDER: Uint8Array[],
 		sendBytesToClient: (data: Uint8Array) => void
 	) {
 		this.privateKey = privateKey;
-		this.certificateDER = certificateDER;
+		this.certificatesDER = certificatesDER;
 		this.sendBytesToClient = sendBytesToClient;
 		this.serverRandom = crypto.getRandomValues(new Uint8Array(32));
 	}
@@ -74,6 +76,11 @@ export class TLS_1_2_Server {
 		if (clientHelloRecord.msg_type !== HandshakeType.ClientHello) {
 			throw new Error('Expected ClientHello message');
 		}
+		if (!clientHelloRecord.body.cipher_suites.length) {
+			throw new Error(
+				'Client did not propose any supported cipher suites.'
+			);
+		}
 		handshakeMessages.push(clientHelloRecord.raw);
 
 		// Step 2: Send ServerHello
@@ -83,19 +90,25 @@ export class TLS_1_2_Server {
 		this.writeTLSRecord(ContentType.Handshake, serverHello);
 
 		// // Step 3: Send Certificate
-		const certificateMessage = this.certificateMessage(this.certificateDER);
+		const certificateMessage = this.certificateMessage(
+			this.certificatesDER
+		);
 		handshakeMessages.push(certificateMessage);
 		this.writeTLSRecord(ContentType.Handshake, certificateMessage);
 
 		// Step 4: Send ServerHelloDone
-		const serverHelloDone = new Uint8Array([0x0e, 0x00, 0x00, 0x00]);
+		const serverHelloDone = new Uint8Array([
+			HandshakeType.ServerHelloDone,
+			0x00,
+			0x00,
+			0x00,
+		]);
 		handshakeMessages.push(serverHelloDone);
 		this.writeTLSRecord(ContentType.Handshake, serverHelloDone);
 
 		// // Step 5: Receive ClientKeyExchange
-		const clientKeyExchangeRecord = await this.readNextMessage<
-			HandshakeMessage<ClientKeyExchange>
-		>(ContentType.Handshake);
+		const clientKeyExchangeRecord =
+			await this.readHandshakeMessage<ClientKeyExchange>();
 		if (
 			clientKeyExchangeRecord.msg_type !== HandshakeType.ClientKeyExchange
 		) {
@@ -103,9 +116,10 @@ export class TLS_1_2_Server {
 		}
 		handshakeMessages.push(clientKeyExchangeRecord.raw);
 
-		// // Decrypt PreMasterSecret and derive masterSecret...
+		console.log('this.privateKey', this.privateKey);
+		// Decrypt PreMasterSecret and derive masterSecret...
 		const preMasterSecret = await crypto.subtle.decrypt(
-			{ name: 'RSAES-PKCS1-v1_5' },
+			{ name: 'AES-GCM', iv: serverRandom },
 			this.privateKey,
 			clientKeyExchangeRecord.body.exchange_keys
 		);
@@ -366,7 +380,9 @@ export class TLS_1_2_Server {
 				buff.session_id = reader.readUint8Array(sessionIdLength);
 
 				const cipherSuitesLength = reader.readUint16();
-				buff.cipher_suites = reader.readUint8Array(cipherSuitesLength);
+				buff.cipher_suites = parseCipherSuites(
+					reader.readUint8Array(cipherSuitesLength).buffer
+				);
 
 				const compressionMethodsLength = reader.readUint8();
 				buff.compression_methods = reader.readUint8Array(
@@ -385,16 +401,6 @@ export class TLS_1_2_Server {
 					raw: message,
 				} as HandshakeMessage<T>;
 			}
-			case HandshakeType.ServerHello:
-				body = {
-					server_version: bodyBytes.slice(0, 2),
-					random: bodyBytes.slice(2, 34),
-					session_id: bodyBytes.slice(34, 35),
-					cipher_suite: bodyBytes.slice(35, 37),
-					compression_method: bodyBytes[37],
-					extensions: bodyBytes.slice(38),
-				} as ServerHello;
-				break;
 			case HandshakeType.Certificate:
 				body = {
 					certificate_list: [bodyBytes.slice(0, bodyBytes.length)],
@@ -559,7 +565,11 @@ export class TLS_1_2_Server {
 			clientHello.session_id,
 
 			// CipherSuite: TLS_RSA_WITH_AES_128_CBC_SHA,
-			new Uint8Array([0x00, 0x2f]),
+			// new Uint8Array([0x00, 0x2f]),
+			new Uint8Array([
+				(CipherSuites.TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 >> 8) & 0xff,
+				CipherSuites.TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 & 0xff,
+			]),
 
 			// Compression method: No compression
 			new Uint8Array([0x00]),
@@ -582,30 +592,32 @@ export class TLS_1_2_Server {
 		return concatUint8Arrays([header, body]);
 	}
 
-	// Function to build Certificate message
-	private certificateMessage(certificateDER: ArrayBuffer): Uint8Array {
-		const handshakeType = HandshakeType.Certificate;
-		const certData = new Uint8Array(certificateDER);
+	private certificateMessage(certificates: Uint8Array[]): Uint8Array {
+		const certsBytesLength = certificates.reduce(
+			(acc, cert) => acc + cert.length,
+			0
+		);
+		const certsWithHeadersLength =
+			certsBytesLength + 3 * certificates.length;
 
-		const certLength = certData.length;
-		const certificatesLength = certLength + 3;
-		const bodyLength = certificatesLength + 3;
+		const body = new Uint8Array(certsWithHeadersLength + 3);
+		body[0] = (certsWithHeadersLength >> 16) & 0xff;
+		body[1] = (certsWithHeadersLength >> 8) & 0xff;
+		body[2] = certsWithHeadersLength & 0xff;
 
-		const body = new Uint8Array(bodyLength);
-		// Total length of certificates
-		body[0] = (certificatesLength >> 16) & 0xff;
-		body[1] = (certificatesLength >> 8) & 0xff;
-		body[2] = certificatesLength & 0xff;
-		// Length of this certificate
-		body[3] = (certLength >> 16) & 0xff;
-		body[4] = (certLength >> 8) & 0xff;
-		body[5] = certLength & 0xff;
-		// Certificate data
-		body.set(certData, 6);
+		let offset = 3;
+		for (const cert of certificates) {
+			body[offset] = (cert.length >> 16) & 0xff;
+			body[offset + 1] = (cert.length >> 8) & 0xff;
+			body[offset + 2] = cert.length & 0xff;
+			offset += 3;
+			body.set(cert, offset);
+			offset += cert.length;
+		}
 
 		const length = body.length;
 		const header = new Uint8Array([
-			handshakeType,
+			HandshakeType.Certificate,
 			(length >> 16) & 0xff,
 			(length >> 8) & 0xff,
 			length & 0xff,
@@ -831,6 +843,47 @@ export class ArrayBufferReader {
 	isFinished() {
 		return this.offset >= this.buffer.byteLength;
 	}
+}
+
+/**
+ * Parses the cipher suites from the server hello message.
+ *
+ * The cipher suites are encoded as a list of 2-byte values.
+ *
+ * Binary layout:
+ *
+ * +----------------------------+
+ * | Cipher Suites Length       |  2 bytes
+ * +----------------------------+
+ * | Cipher Suite 1             |  2 bytes
+ * +----------------------------+
+ * | Cipher Suite 2             |  2 bytes
+ * +----------------------------+
+ * | ...                        |
+ * +----------------------------+
+ * | Cipher Suite n             |  2 bytes
+ * +----------------------------+
+ *
+ *
+ * The full list of supported cipher suites values is available at:
+ *
+ * https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4
+ */
+function parseCipherSuites(buffer: ArrayBuffer): string[] {
+	const reader = new ArrayBufferReader(buffer);
+	// Skip the length of the cipher suites
+	reader.readUint16();
+
+	const cipherSuites = [];
+	while (!reader.isFinished()) {
+		const suite = reader.readUint16();
+		if (suite in CipherSuitesNames) {
+			cipherSuites.push(CipherSuitesNames[suite]);
+		} else {
+			console.log('cipherSuite', suite);
+		}
+	}
+	return cipherSuites;
 }
 
 function arraysEqual(a: Uint8Array, b: Uint8Array): boolean {
@@ -1096,7 +1149,7 @@ interface ClientHello {
 	client_version: Uint8Array; // 2 bytes
 	random: Random; // 32 bytes
 	session_id: SessionId;
-	cipher_suites: Uint8Array;
+	cipher_suites: string[];
 	compression_methods: Uint8Array;
 	extensions: ParsedExtension[];
 }
