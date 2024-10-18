@@ -68,7 +68,9 @@ export const SiteManager = forwardRef<
 	if (fullScreenSections) {
 		return (
 			<div className={classNames(css.siteManager, className)} ref={ref}>
-				{activeSiteManagerSection === 'sidebar' ? sidebar : activePanel}
+				{activeSiteManagerSection === 'sidebar' || !activePanel
+					? sidebar
+					: activePanel}
 			</div>
 		);
 	}

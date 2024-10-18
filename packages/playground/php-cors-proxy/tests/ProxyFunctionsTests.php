@@ -50,7 +50,7 @@ class ProxyFunctionsTests extends TestCase
                 'https://w.org/hosting',
                 '/hosting/',
                 'https://cors.playground.wordpress.net/proxy.php',
-                'https://cors.playground.wordpress.net/proxy.php/https://w.org/hosting/'
+                'https://cors.playground.wordpress.net/proxy.php?https://w.org/hosting/'
             ],
             'Relative redirect when the proxy URL has a trailing slash itself' => [
                 'https://w.org/hosting',
@@ -62,13 +62,13 @@ class ProxyFunctionsTests extends TestCase
                 'https://w.org/hosting',
                 '/hosting/?utm_source=wporg',
                 'https://cors.playground.wordpress.net/proxy.php',
-                'https://cors.playground.wordpress.net/proxy.php/https://w.org/hosting/?utm_source=wporg'
+                'https://cors.playground.wordpress.net/proxy.php?https://w.org/hosting/?utm_source=wporg'
             ],
             'Absolute redirect with query params involved' => [
                 'https://w.org/hosting',
                 'https://w.net/hosting/?utm_source=wporg',
                 'https://cors.playground.wordpress.net/proxy.php',
-                'https://cors.playground.wordpress.net/proxy.php/https://w.net/hosting/?utm_source=wporg'
+                'https://cors.playground.wordpress.net/proxy.php?https://w.net/hosting/?utm_source=wporg'
             ],
         ];
     }

@@ -176,3 +176,41 @@ test('should login the user in if a login step is provided', async ({
 	await website.goto(`./#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
+
+['/wp-admin/', '/wp-admin/post.php?post=1&action=edit'].forEach((path) => {
+	test(`should correctly redirect encoded wp-admin url to ${path}`, async ({
+		website,
+		wordpress,
+	}) => {
+		const blueprint: Blueprint = {
+			landingPage: path,
+		};
+		const encodedBlueprint = JSON.stringify(blueprint);
+		await website.goto(`./#${encodedBlueprint}`);
+		expect(
+			await wordpress.locator('body').evaluate((body) => body.baseURI)
+		).toContain(path);
+	});
+});
+
+test('should correctly redirect to a multisite wp-admin url', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/example/wp-admin/options-general.php',
+		steps: [
+			{
+				step: 'enableMultisite',
+			},
+			{
+				step: 'wp-cli',
+				command: 'wp site create --slug=example',
+			},
+		],
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('General Settings');
+});

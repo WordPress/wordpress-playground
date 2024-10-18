@@ -109,7 +109,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * playground_force_auto_login_as_user GET parameter.
 			 */
 			if ( defined('PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED') && isset($_GET['playground_force_auto_login_as_user']) ) {
-				return esc_attr($_GET['playground_force_auto_login_as_user']);
+				return $_GET['playground_force_auto_login_as_user'];
 			}
 			return false;
 		}
@@ -147,8 +147,8 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			/**
 			 * Check if the request is for the login page.
 			 */
-			if (is_login() && is_user_logged_in() && isset($_GET['redirect_to'])) {
-				wp_redirect(esc_url($_GET['redirect_to']));
+			if (is_login() && is_user_logged_in() && !empty($_GET['redirect_to'])) {
+				wp_redirect($_GET['redirect_to']);
 				exit;
 			}
 		}, 1);
@@ -215,6 +215,18 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 				 * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
 				 */
 				if (strpos($message, "fit in a PHP integer") !== false) {
+					return;
+				}
+				/**
+				 * Networking support in Playground registers a http_api_transports filter.
+				 *
+				 * This filter is deprecated, and no longer actively used, but is needed for wp_http_supports().
+				 * @see https://core.trac.wordpress.org/ticket/37708
+				 */
+				if (
+					strpos($message, "http_api_transports") !== false &&
+					strpos($message, "since version 6.4.0 with no alternative available") !== false
+				) {
 					return;
 				}
 				/**

@@ -142,7 +142,7 @@ export function BlueprintsPanel({
 							style={{ paddingBottom: 10 }}
 						>
 							{mobileUi && (
-								<FlexItem>
+								<FlexItem style={{ marginLeft: -17 }}>
 									<Button
 										variant="link"
 										label="Back to sites list"

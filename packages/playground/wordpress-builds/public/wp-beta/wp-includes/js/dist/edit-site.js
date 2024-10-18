@@ -7701,8 +7701,6 @@ const external_wp_plugins_namespaceObject = window["wp"]["plugins"];
 const external_wp_router_namespaceObject = window["wp"]["router"];
 ;// CONCATENATED MODULE: ./node_modules/clsx/dist/clsx.mjs
 function clsx_r(e){var t,f,n="";if("string"==typeof e||"number"==typeof e)n+=e;else if("object"==typeof e)if(Array.isArray(e)){var o=e.length;for(t=0;t<o;t++)e[t]&&(f=clsx_r(e[t]))&&(n&&(n+=" "),n+=f)}else for(f in e)e[f]&&(n&&(n+=" "),n+=f);return n}function clsx(){for(var e,t,f=0,n="",o=arguments.length;f<o;f++)(e=arguments[f])&&(t=clsx_r(e))&&(n&&(n+=" "),n+=t);return n}/* harmony default export */ const dist_clsx = (clsx);
-;// CONCATENATED MODULE: external ["wp","keyboardShortcuts"]
-const external_wp_keyboardShortcuts_namespaceObject = window["wp"]["keyboardShortcuts"];
 ;// CONCATENATED MODULE: external ["wp","commands"]
 const external_wp_commands_namespaceObject = window["wp"]["commands"];
 ;// CONCATENATED MODULE: external ["wp","coreCommands"]
@@ -8427,6 +8425,8 @@ function ResizableFrame({
 }
 /* harmony default export */ const resizable_frame = (ResizableFrame);
 
+;// CONCATENATED MODULE: external ["wp","keyboardShortcuts"]
+const external_wp_keyboardShortcuts_namespaceObject = window["wp"]["keyboardShortcuts"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/edit-site/build-module/components/keyboard-shortcuts/register.js
 /**
  * WordPress dependencies
@@ -9276,7 +9276,6 @@ function useSyncCanvasModeWithURL() {
 
 
 
-
 /**
  * Internal dependencies
  */
@@ -9314,26 +9313,16 @@ function Layout({
   const isMobileViewport = (0,external_wp_compose_namespaceObject.useViewportMatch)('medium', '<');
   const toggleRef = (0,external_wp_element_namespaceObject.useRef)();
   const {
-    canvasMode,
-    previousShortcut,
-    nextShortcut
+    canvasMode
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
-    const {
-      getAllShortcutKeyCombinations
-    } = select(external_wp_keyboardShortcuts_namespaceObject.store);
     const {
       getCanvasMode
     } = unlock(select(store));
     return {
-      canvasMode: getCanvasMode(),
-      previousShortcut: getAllShortcutKeyCombinations('core/editor/previous-region'),
-      nextShortcut: getAllShortcutKeyCombinations('core/editor/next-region')
+      canvasMode: getCanvasMode()
     };
   }, []);
-  const navigateRegionsProps = (0,external_wp_components_namespaceObject.__unstableUseNavigateRegions)({
-    previous: previousShortcut,
-    next: nextShortcut
-  });
+  const navigateRegionsProps = (0,external_wp_components_namespaceObject.__unstableUseNavigateRegions)();
   const disableMotion = (0,external_wp_compose_namespaceObject.useReducedMotion)();
   const [canvasResizer, canvasSize] = (0,external_wp_compose_namespaceObject.useResizeObserver)();
   const isEditorLoading = useIsSiteEditorLoading();
@@ -19434,6 +19423,19 @@ function FontFamilyItem({
 const {
   useGlobalSetting: font_families_useGlobalSetting
 } = unlock(external_wp_blockEditor_namespaceObject.privateApis);
+
+/**
+ * Maps the fonts with the source, if available.
+ *
+ * @param {Array}  fonts  The fonts to map.
+ * @param {string} source The source of the fonts.
+ * @return {Array} The mapped fonts.
+ */
+function mapFontsWithSource(fonts, source) {
+  return fonts ? fonts.map(f => setUIValuesNeeded(f, {
+    source
+  })) : [];
+}
 function FontFamilies() {
   const {
     baseCustomFonts,
@@ -19442,13 +19444,10 @@ function FontFamilies() {
   } = (0,external_wp_element_namespaceObject.useContext)(FontLibraryContext);
   const [fontFamilies] = font_families_useGlobalSetting('typography.fontFamilies');
   const [baseFontFamilies] = font_families_useGlobalSetting('typography.fontFamilies', undefined, 'base');
-  const themeFonts = fontFamilies?.theme ? fontFamilies.theme.map(f => setUIValuesNeeded(f, {
-    source: 'theme'
-  })).sort((a, b) => a.name.localeCompare(b.name)) : [];
-  const customFonts = fontFamilies?.custom ? fontFamilies.custom.map(f => setUIValuesNeeded(f, {
-    source: 'custom'
-  })).sort((a, b) => a.name.localeCompare(b.name)) : [];
-  const hasFonts = 0 < customFonts.length || 0 < themeFonts.length;
+  const themeFonts = mapFontsWithSource(fontFamilies?.theme, 'theme');
+  const customFonts = mapFontsWithSource(fontFamilies?.custom, 'custom');
+  const activeFonts = [...themeFonts, ...customFonts].sort((a, b) => a.name.localeCompare(b.name));
+  const hasFonts = 0 < activeFonts.length;
   const hasInstalledFonts = hasFonts || baseFontFamilies?.theme?.length > 0 || baseCustomFonts?.length > 0;
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: [!!modalTabOpen && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_library_modal, {
@@ -19456,7 +19455,7 @@ function FontFamilies() {
       defaultTabId: modalTabOpen
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.__experimentalVStack, {
       spacing: 4,
-      children: [[...themeFonts, ...customFonts].length > 0 && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
+      children: [activeFonts.length > 0 && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
         children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(subtitle, {
           level: 3,
           children: (0,external_wp_i18n_namespaceObject.__)('Fonts')
@@ -19464,7 +19463,7 @@ function FontFamilies() {
           size: "large",
           isBordered: true,
           isSeparated: true,
-          children: themeFonts.map(font => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_family_item, {
+          children: activeFonts.map(font => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(font_family_item, {
             font: font
           }, font.slug))
         })]
@@ -21358,13 +21357,27 @@ const presetShadowMenuItems = [{
 }];
 function ShadowsEditPanel() {
   const {
+    goBack,
     params: {
       category,
       slug
-    },
-    goTo
+    }
   } = (0,external_wp_components_namespaceObject.__experimentalUseNavigator)();
   const [shadows, setShadows] = shadows_edit_panel_useGlobalSetting(`shadow.presets.${category}`);
+  (0,external_wp_element_namespaceObject.useEffect)(() => {
+    const hasCurrentShadow = shadows?.some(shadow => shadow.slug === slug);
+    // If the shadow being edited doesn't exist anymore in the global styles setting, navigate back
+    // to prevent the user from editing a non-existent shadow entry.
+    // This can happen, for example:
+    // - when the user deletes the shadow
+    // - when the user resets the styles while editing a custom shadow
+    //
+    // The check on the slug is necessary to prevent a double back navigation when the user triggers
+    // a backward navigation by interacting with the screen's UI.
+    if (!!slug && !hasCurrentShadow) {
+      goBack();
+    }
+  }, [shadows, slug, goBack]);
   const [baseShadows] = shadows_edit_panel_useGlobalSetting(`shadow.presets.${category}`, undefined, 'base');
   const [selectedShadow, setSelectedShadow] = (0,external_wp_element_namespaceObject.useState)(() => (shadows || []).find(shadow => shadow.slug === slug));
   const baseSelectedShadow = (0,external_wp_element_namespaceObject.useMemo)(() => (baseShadows || []).find(b => b.slug === slug), [baseShadows, slug]);
@@ -21394,9 +21407,7 @@ function ShadowsEditPanel() {
     }
   };
   const handleShadowDelete = () => {
-    const updatedShadows = shadows.filter(s => s.slug !== slug);
-    setShadows(updatedShadows);
-    goTo(`/shadows`);
+    setShadows(shadows.filter(s => s.slug !== slug));
   };
   const handleShadowRename = newName => {
     if (!newName) {
@@ -22027,6 +22038,8 @@ function SidebarNavigationScreenGlobalStylesContent() {
 
 
 
+
+
 /**
  * Internal dependencies
  */
@@ -22036,9 +22049,14 @@ function SidebarNavigationScreenGlobalStylesContent() {
 
 
 function ScreenStyleVariations() {
-  // Move to zoom out mode when this component is mounted
-  // and back to the previous mode when unmounted.
+  // Style Variations should only be previewed in with
+  // - a "zoomed out" editor
+  // - "Desktop" device preview
+  const {
+    setDeviceType
+  } = (0,external_wp_data_namespaceObject.useDispatch)(external_wp_editor_namespaceObject.store);
   (0,external_wp_blockEditor_namespaceObject.useZoomOut)();
+  setDeviceType('desktop');
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(header, {
       title: (0,external_wp_i18n_namespaceObject.__)('Browse styles'),
@@ -24311,7 +24329,6 @@ function EditSiteEditor({
         'show-icon-labels': showIconLabels
       }),
       styles: styles,
-      enableRegionNavigation: false,
       customSaveButton: _isPreviewingTheme && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(SaveButton, {
         size: "compact"
       }),
@@ -36095,6 +36112,7 @@ function DataviewsPatterns() {
   const categoryId = categoryIdFromURL || PATTERN_DEFAULT_CATEGORY;
   const [view, setView] = (0,external_wp_element_namespaceObject.useState)(DEFAULT_VIEW);
   const previousCategoryId = (0,external_wp_compose_namespaceObject.usePrevious)(categoryId);
+  const previousPostType = (0,external_wp_compose_namespaceObject.usePrevious)(type);
   const viewSyncStatus = view.filters?.find(({
     field
   }) => field === 'sync-status')?.value;
@@ -36138,13 +36156,13 @@ function DataviewsPatterns() {
 
   // Reset the page number when the category changes.
   (0,external_wp_element_namespaceObject.useEffect)(() => {
-    if (previousCategoryId !== categoryId) {
+    if (previousCategoryId !== categoryId || previousPostType !== type) {
       setView(prevView => ({
         ...prevView,
         page: 1
       }));
     }
-  }, [categoryId, previousCategoryId]);
+  }, [categoryId, previousCategoryId, previousPostType, type]);
   const {
     data,
     paginationInfo
@@ -37176,7 +37194,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global Reflect, Promise, SuppressedError, Symbol */
+/* global Reflect, Promise, SuppressedError, Symbol, Iterator */
 
 var extendStatics = function(d, b) {
   extendStatics = Object.setPrototypeOf ||
@@ -37287,8 +37305,8 @@ function __awaiter(thisArg, _arguments, P, generator) {
 }
 
 function __generator(thisArg, body) {
-  var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-  return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+  var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+  return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
   function verb(n) { return function (v) { return step([n, v]); }; }
   function step(op) {
       if (f) throw new TypeError("Generator is already executing.");
@@ -37392,8 +37410,9 @@ function __await(v) {
 function __asyncGenerator(thisArg, _arguments, generator) {
   if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
   var g = generator.apply(thisArg, _arguments || []), i, q = [];
-  return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-  function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+  return i = Object.create((typeof AsyncIterator === "function" ? AsyncIterator : Object).prototype), verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;
+  function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }
+  function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }
   function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
   function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
   function fulfill(value) { resume("next", value); }
@@ -37459,16 +37478,18 @@ function __classPrivateFieldIn(state, receiver) {
 function __addDisposableResource(env, value, async) {
   if (value !== null && value !== void 0) {
     if (typeof value !== "object" && typeof value !== "function") throw new TypeError("Object expected.");
-    var dispose;
+    var dispose, inner;
     if (async) {
-        if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
-        dispose = value[Symbol.asyncDispose];
+      if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+      dispose = value[Symbol.asyncDispose];
     }
     if (dispose === void 0) {
-        if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
-        dispose = value[Symbol.dispose];
+      if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+      dispose = value[Symbol.dispose];
+      if (async) inner = dispose;
     }
     if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+    if (inner) dispose = function() { try { inner.call(this); } catch (e) { return Promise.reject(e); } };
     env.stack.push({ value: value, dispose: dispose, async: async });
   }
   else if (async) {
@@ -37487,17 +37508,22 @@ function __disposeResources(env) {
     env.error = env.hasError ? new _SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
     env.hasError = true;
   }
+  var r, s = 0;
   function next() {
-    while (env.stack.length) {
-      var rec = env.stack.pop();
+    while (r = env.stack.pop()) {
       try {
-        var result = rec.dispose && rec.dispose.call(rec.value);
-        if (rec.async) return Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+        if (!r.async && s === 1) return s = 0, env.stack.push(r), Promise.resolve().then(next);
+        if (r.dispose) {
+          var result = r.dispose.call(r.value);
+          if (r.async) return s |= 2, Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+        }
+        else s |= 1;
       }
       catch (e) {
-          fail(e);
+        fail(e);
       }
     }
+    if (s === 1) return env.hasError ? Promise.reject(env.error) : Promise.resolve();
     if (env.hasError) throw env.error;
   }
   return next();

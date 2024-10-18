@@ -105,7 +105,7 @@ export function SiteInfoPanel({
 						style={{ paddingBottom: 10 }}
 					>
 						{mobileUi && (
-							<FlexItem>
+							<FlexItem style={{ marginLeft: -20 }}>
 								<Button
 									variant="link"
 									label="Back to sites list"
