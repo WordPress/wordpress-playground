@@ -144,49 +144,6 @@ function bufferToUint8Array(buffer: ArrayBuffer): Uint8Array {
 	return new Uint8Array(buffer);
 }
 
-export const enum ASN1Tag {
-	Boolean = 1,
-	Integer = 2,
-	BitString = 3,
-	OctetString = 4,
-	Null = 5,
-	ObjectIdentifier = 6,
-	ObjectDescriptor = 7,
-	External = 8,
-	Real = 9,
-	Enumerated = 10,
-	EmbeddedPdv = 11,
-	Utf8String = 12,
-	RelativeObjectIdentifier = 13,
-	Time = 14,
-	Sequence = 16,
-	Set = 17,
-	NumericString = 18,
-	PrintableString = 19,
-	TeletexString = 20,
-	VideotexString = 21,
-	IA5String = 22,
-	UTCTime = 23,
-	GeneralizedTime = 24,
-	GraphicString = 25,
-	VisibleString = 26,
-	GeneralString = 27,
-	UniversalString = 28,
-	CharacterString = 29,
-	BmpString = 30,
-	Date = 31,
-	TimeOfDay = 32,
-	DateTime = 33,
-	Duration = 34,
-}
-
-export const enum DER {
-	True = 0xff,
-	False = 0x00,
-}
-
-import { ASN1UniversalType, BERElement } from 'asn1-ts';
-
 class ASN1Encoder {
 	// Helper functions for ASN.1 DER encoding
 	static length_(length: number): Uint8Array {
@@ -229,7 +186,7 @@ class ASN1Encoder {
 			extendedNumber.set(number, 1);
 			number = extendedNumber;
 		}
-		return ASN1Encoder.ASN1(ASN1Tag.Integer, number);
+		return ASN1Encoder.ASN1(0x02, number); // INTEGER tag
 	}
 
 	static bitString(data: Uint8Array): Uint8Array {
@@ -237,23 +194,15 @@ class ASN1Encoder {
 		const combined = new Uint8Array(unusedBits.length + data.length);
 		combined.set(unusedBits);
 		combined.set(data, unusedBits.length);
-		return ASN1Encoder.ASN1(ASN1Tag.BitString, combined);
+		return ASN1Encoder.ASN1(0x03, combined); // BIT STRING tag
 	}
 
 	static octetString(data: Uint8Array): Uint8Array {
-		const e = new BERElement();
-		e.tagNumber = ASN1UniversalType.octetString;
-		e.octetString = data;
-		console.log('Octet string', [
-			concatUint8Arrays(e.toBuffers()),
-			ASN1Encoder.ASN1(ASN1Tag.OctetString, data),
-		]);
-		// return concatUint8Arrays(e.toBuffers());
-		return ASN1Encoder.ASN1(ASN1Tag.OctetString, data);
+		return ASN1Encoder.ASN1(0x04, data); // OCTET STRING tag
 	}
 
 	static null(): Uint8Array {
-		return ASN1Encoder.ASN1(ASN1Tag.Null, new Uint8Array(0));
+		return ASN1Encoder.ASN1(0x05, new Uint8Array(0)); // NULL tag
 	}
 
 	static objectIdentifier(oid: string): Uint8Array {
@@ -272,33 +221,30 @@ class ASN1Encoder {
 			}
 			encodedParts.push(...bytes);
 		}
-		return ASN1Encoder.ASN1(
-			ASN1Tag.ObjectIdentifier,
-			new Uint8Array(encodedParts)
-		); // OBJECT IDENTIFIER tag
+		return ASN1Encoder.ASN1(0x06, new Uint8Array(encodedParts)); // OBJECT IDENTIFIER tag
 	}
 
 	static utf8String(str: string): Uint8Array {
 		const utf8Bytes = new TextEncoder().encode(str);
-		return ASN1Encoder.ASN1(ASN1Tag.Utf8String, utf8Bytes);
+		return ASN1Encoder.ASN1(0x0c, utf8Bytes); // UTF8String tag
 	}
 
 	static printableString(str: string): Uint8Array {
 		const utf8Bytes = new TextEncoder().encode(str);
-		return ASN1Encoder.ASN1(ASN1Tag.PrintableString, utf8Bytes);
+		return ASN1Encoder.ASN1(0x13, utf8Bytes); // PrintableString tag
 	}
 
 	static sequence(items: Uint8Array[]): Uint8Array {
-		return ASN1Encoder.ASN1(ASN1Tag.Sequence, concatUint8Arrays(items));
+		return ASN1Encoder.ASN1(0x30, concatUint8Arrays(items)); // SEQUENCE tag
 	}
 
 	static set(items: Uint8Array[]): Uint8Array {
-		return ASN1Encoder.ASN1(ASN1Tag.Set, concatUint8Arrays(items));
+		return ASN1Encoder.ASN1(0x31, concatUint8Arrays(items)); // SET tag
 	}
 
 	static ia5String(str: string): Uint8Array {
 		const utf8Bytes = new TextEncoder().encode(str);
-		return ASN1Encoder.ASN1(ASN1Tag.IA5String, utf8Bytes);
+		return ASN1Encoder.ASN1(0x16, utf8Bytes); // IA5String tag
 	}
 
 	static contextSpecific(
@@ -311,172 +257,22 @@ class ASN1Encoder {
 	}
 
 	static boolean(value: boolean): Uint8Array {
-		return ASN1Encoder.ASN1(
-			ASN1Tag.Boolean,
-			new Uint8Array([value ? 0xff : 0x00])
-		);
-		const e = new BERElement();
-		e.tagNumber = ASN1UniversalType.boolean;
-		e.boolean = value;
-		return concatUint8Arrays(e.toBuffers());
+		return ASN1Encoder.ASN1(0x01, new Uint8Array([value ? 0xff : 0x00])); // BOOLEAN tag
 	}
 }
 
-interface ASN1Object {
-	tag: ASN1Tag;
-	value: any;
-}
-
-class ASN1Decoder {
-	private data: Uint8Array;
-	private offset: number;
-
-	constructor(data: Uint8Array) {
-		this.data = data;
-		this.offset = 0;
+export class ASN1Decoder {
+	static decode(data: Uint8Array): any {
+		const view = new DataView(data.buffer);
+		const tag = view.getUint8(0);
+		const length = view.getUint16(1);
+		const value = data.slice(3, 3 + length);
+		return {
+			tag,
+			length,
+			value,
+		};
 	}
-
-	decode(): ASN1Object {
-		const tag = this.decodeTag();
-		const length = this.decodeLength();
-		const value = this.decodeValue(tag, length);
-		return { tag, value };
-	}
-
-	private decodeTag(): ASN1Tag {
-		return this.data[this.offset++] as ASN1Tag;
-	}
-
-	private decodeLength(): number {
-		let length = this.data[this.offset++];
-		if (length & 0x80) {
-			const bytesCount = length & 0x7f;
-			length = 0;
-			for (let i = 0; i < bytesCount; i++) {
-				length = (length << 8) | this.data[this.offset++];
-			}
-		}
-		return length;
-	}
-
-	private decodeValue(tag: ASN1Tag, length: number): any {
-		const end = this.offset + length;
-		let value: any;
-
-		switch (tag) {
-			case ASN1Tag.Boolean:
-				value = this.data[this.offset] !== 0;
-				break;
-			case ASN1Tag.Integer:
-				value = this.decodeInteger(length);
-				break;
-			case ASN1Tag.BitString:
-				value = this.decodeBitString(length);
-				break;
-			case ASN1Tag.OctetString:
-				value = this.data.slice(this.offset, end);
-				break;
-			case ASN1Tag.Null:
-				value = null;
-				break;
-			case ASN1Tag.ObjectIdentifier:
-				value = this.decodeOID(length);
-				break;
-			case ASN1Tag.Utf8String:
-			case ASN1Tag.PrintableString:
-			case ASN1Tag.IA5String:
-			case ASN1Tag.VisibleString:
-				value = new TextDecoder().decode(
-					this.data.slice(this.offset, end)
-				);
-				break;
-			case ASN1Tag.UTCTime:
-			case ASN1Tag.GeneralizedTime:
-				value = this.decodeTime(tag, length);
-				break;
-			case ASN1Tag.Sequence:
-			case ASN1Tag.Set:
-				value = this.decodeSequence(end);
-				break;
-			default:
-				value = this.data.slice(this.offset, end);
-		}
-
-		this.offset = end;
-		return value;
-	}
-
-	private decodeInteger(length: number): number {
-		let value = 0;
-		for (let i = 0; i < length; i++) {
-			value = (value << 8) | this.data[this.offset + i];
-		}
-		return value;
-	}
-
-	private decodeBitString(length: number): string {
-		const unusedBits = this.data[this.offset];
-		let bitString = '';
-		for (let i = 1; i < length; i++) {
-			bitString += this.data[this.offset + i]
-				.toString(2)
-				.padStart(8, '0');
-		}
-		return bitString.slice(0, -unusedBits);
-	}
-
-	private decodeOID(length: number): string {
-		const end = this.offset + length;
-		const values: number[] = [];
-		values.push(Math.floor(this.data[this.offset] / 40));
-		values.push(this.data[this.offset] % 40);
-		this.offset++;
-
-		while (this.offset < end) {
-			let value = 0;
-			while (this.data[this.offset] & 0x80) {
-				value = (value << 7) | (this.data[this.offset++] & 0x7f);
-			}
-			value = (value << 7) | this.data[this.offset++];
-			values.push(value);
-		}
-
-		return values.join('.');
-	}
-
-	private decodeTime(tag: ASN1Tag, length: number): Date {
-		const timeStr = new TextDecoder().decode(
-			this.data.slice(this.offset, this.offset + length)
-		);
-		if (tag === ASN1Tag.UTCTime) {
-			return new Date(
-				timeStr.replace(
-					/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z$/,
-					'20$1-$2-$3T$4:$5:$6Z'
-				)
-			);
-		} else {
-			return new Date(
-				timeStr.replace(
-					/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z$/,
-					'$1-$2-$3T$4:$5:$6Z'
-				)
-			);
-		}
-	}
-
-	private decodeSequence(end: number): ASN1Object[] {
-		const sequence: ASN1Object[] = [];
-		while (this.offset < end) {
-			sequence.push(this.decode());
-		}
-		return sequence;
-	}
-}
-
-export function decodeASN1(data: Uint8Array): ASN1Object {
-	const decoder = new ASN1Decoder(data);
-	return decoder.decode();
 }
 
 export interface CertificateIssuer {
@@ -530,8 +326,8 @@ export interface NSCertType {
 }
 
 export interface SubjectAltNames {
-	dnsNames?: string[];
-	ipAddresses?: string[];
+	dnsNames: string[];
+	ipAddresses: string[];
 }
 
 export interface TBSCertificateDescription {
@@ -685,13 +481,13 @@ export class CertificateGenerator {
 	private static validity(validity?: Validity) {
 		return ASN1Encoder.sequence([
 			ASN1Encoder.ASN1(
-				ASN1Tag.UTCTime,
+				0x17,
 				new TextEncoder().encode(
 					formatDateASN1(validity?.notBefore ?? new Date())
 				)
 			),
 			ASN1Encoder.ASN1(
-				ASN1Tag.UTCTime,
+				0x17,
 				new TextEncoder().encode(
 					formatDateASN1(
 						validity?.notAfter ?? addYears(new Date(), 10)
@@ -706,10 +502,7 @@ export class CertificateGenerator {
 		pathLenConstraint = undefined,
 	}: BasicConstraints) {
 		const sequence = [
-			ASN1Encoder.ASN1(
-				ASN1Tag.Boolean,
-				new Uint8Array([ca ? DER.True : DER.False])
-			),
+			ASN1Encoder.ASN1(0x01, new Uint8Array([ca ? 0xff : 0x00])),
 		];
 		if (pathLenConstraint !== undefined) {
 			sequence.push(
@@ -789,16 +582,14 @@ export class CertificateGenerator {
 	}
 
 	private static subjectAltName(altNames: SubjectAltNames) {
-		const generalNames =
-			altNames.dnsNames?.map((name) => {
-				const dnsName = ASN1Encoder.ia5String(name); // IA5String encoding
-				return ASN1Encoder.contextSpecific(2, dnsName); // [2] dNSName
-			}) || [];
-		const ipAddresses =
-			altNames.ipAddresses?.map((ip) => {
-				const ipAddress = ASN1Encoder.ia5String(ip); // IA5String encoding
-				return ASN1Encoder.contextSpecific(7, ipAddress); // [7] iPAddress
-			}) || [];
+		const generalNames = altNames.dnsNames.map((name) => {
+			const dnsName = ASN1Encoder.ia5String(name); // IA5String encoding
+			return ASN1Encoder.contextSpecific(2, dnsName); // [2] dNSName
+		});
+		const ipAddresses = altNames.ipAddresses.map((ip) => {
+			const ipAddress = ASN1Encoder.ia5String(ip); // IA5String encoding
+			return ASN1Encoder.contextSpecific(7, ipAddress); // [7] iPAddress
+		});
 		const sanExtensionValue = ASN1Encoder.octetString(
 			ASN1Encoder.sequence([...generalNames, ...ipAddresses])
 		);
