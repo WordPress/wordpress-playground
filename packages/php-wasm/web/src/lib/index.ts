@@ -14,3 +14,5 @@ export type {
 	SyncProgress,
 	SyncProgressCallback,
 } from './directory-handle-mount';
+
+export * from './tls/asn_1';

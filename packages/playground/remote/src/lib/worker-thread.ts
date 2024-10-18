@@ -48,6 +48,11 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
+import {
+	CertificateGenerator,
+	certificateToPEM,
+	privateKeyToPEM,
+} from '@php-wasm/web';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -233,7 +238,49 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const caPair = await generateCaPem();
+			const { certificate, keyPair } =
+				await CertificateGenerator.generateCertificate({
+					subject: {
+						commonName: 'Playground',
+						organizationName: 'Playground',
+						countryName: 'US',
+						localityName: 'San Francisco',
+						stateOrProvinceName: 'California',
+						streetAddress: '123 Main St',
+						postalCode: '94105',
+						emailAddress: 'info@example.com',
+						organizationalUnitName: 'Playground',
+						title: 'Playground',
+						description: 'Playground',
+						businessCategory: 'Playground',
+					},
+					basicConstraints: {
+						ca: true,
+					},
+					keyUsage: {
+						digitalSignature: true,
+						keyCertSign: true,
+					},
+					nsCertType: {
+						client: true,
+						server: true,
+						email: true,
+						objsign: true,
+						sslCA: true,
+						emailCA: true,
+						objCA: true,
+					},
+					subjectAltNames: {
+						dnsNames: ['downloads.wordpress.org'],
+					},
+				});
+			const caPair = {
+				ca: certificate,
+				caKey: keyPair,
+				caPem: certificateToPEM(certificate),
+				caKeyPem: await privateKeyToPEM(keyPair.privateKey),
+			};
+			console.log({ caPair });
 			const requestHandler = await bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
@@ -424,99 +471,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	async replayFSJournal(events: FilesystemOperation[]) {
 		return replayFSJournal(this.__internal_getPHP()!, events);
 	}
-}
-
-/**
- * Generate a CA.pem certificate pair dynamically in the browser with no dependencies
- * using just the Browser-native crypto API.
- */
-async function generateCaPem() {
-	const certInfo = {
-		serialNumber: '1',
-		validity: {
-			notBefore: new Date(),
-			notAfter: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-		},
-		subject: {
-			commonName: 'Root CA',
-		},
-		issuer: {
-			commonName: 'Root CA',
-		},
-		extensions: {
-			basicConstraints: {
-				critical: true,
-				cA: true,
-			},
-			keyUsage: {
-				digitalSignature: true,
-				keyCertSign: true,
-			},
-		},
-	};
-
-	const encoder = new TextEncoder();
-	const decoder = new TextDecoder();
-
-	const caKey = await crypto.subtle.generateKey(
-		{
-			name: 'RSASSA-PKCS1-v1_5',
-			modulusLength: 2048,
-			publicExponent: new Uint8Array([1, 0, 1]),
-			hash: 'SHA-256',
-		},
-		true,
-		['sign', 'verify']
-	);
-
-	// Create a simple ASN.1 structure for the certificate
-	const tbs = encoder.encode(
-		JSON.stringify({
-			version: 3,
-			serialNumber: certInfo.serialNumber,
-			issuer: certInfo.issuer,
-			subject: certInfo.subject,
-			validity: {
-				notBefore: certInfo.validity.notBefore.toISOString(),
-				notAfter: certInfo.validity.notAfter.toISOString(),
-			},
-			extensions: certInfo.extensions,
-		})
-	);
-
-	const signature = await crypto.subtle.sign(
-		{
-			name: 'RSASSA-PKCS1-v1_5',
-		},
-		caKey.privateKey,
-		tbs
-	);
-
-	// Combine TBS and signature into a simple certificate structure
-	const cert = encoder.encode(
-		JSON.stringify({
-			tbsCertificate: decoder.decode(tbs),
-			signatureAlgorithm: 'sha256WithRSAEncryption',
-			signatureValue: btoa(
-				String.fromCharCode(...new Uint8Array(signature))
-			),
-		})
-	);
-
-	const caPem = `-----BEGIN CERTIFICATE-----\n${btoa(
-		decoder.decode(cert)
-	)}\n-----END CERTIFICATE-----`;
-	const caKeyPem = await exportKeyToPem(caKey.privateKey);
-
-	return { ca: cert, caKey, caPem, caKeyPem };
-}
-
-async function exportKeyToPem(key) {
-	const exported = await crypto.subtle.exportKey('pkcs8', key);
-	const exportedAsBase64 = btoa(
-		String.fromCharCode(...new Uint8Array(exported))
-	);
-	return `-----BEGIN PRIVATE KEY-----\n${exportedAsBase64}\n-----END PRIVATE KEY-----`;
 }
 
 const [setApiReady, setAPIError] = exposeAPI(
