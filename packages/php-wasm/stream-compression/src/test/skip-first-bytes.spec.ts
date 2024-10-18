@@ -12,7 +12,9 @@ describe('skipFirstBytes', () => {
 
 		const reader = stream.getReader();
 		const result1 = await reader.read();
-		expect(result1.value).toEqual(new Uint8Array([4, 5]));
+		expect(Array.from(result1.value!)).toEqual(
+			Array.from(new Uint8Array([4, 5]))
+		);
 		expect(result1.done).toBe(false);
 
 		const result2 = await reader.read();
@@ -32,7 +34,9 @@ describe('skipFirstBytes', () => {
 
 		const reader = stream.getReader();
 		const result1 = await reader.read();
-		expect(result1.value).toEqual(new Uint8Array([5, 6]));
+		expect(Array.from(result1.value!)).toEqual(
+			Array.from(new Uint8Array([5, 6]))
+		);
 		expect(result1.done).toBe(false);
 
 		const result2 = await reader.read();

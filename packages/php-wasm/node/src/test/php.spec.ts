@@ -823,7 +823,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		it('readFileAsBuffer() should read a file as buffer', () => {
 			php.writeFile(testFilePath, 'Hello World!');
 			expect(php.readFileAsBuffer(testFilePath)).toEqual(
-				new TextEncoder().encode('Hello World!')
+				new Uint8Array(new TextEncoder().encode('Hello World!'))
 			);
 		});
 
@@ -1272,7 +1272,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				bytes: new TextEncoder().encode('Hello world!'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello world!')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -1283,7 +1283,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				bytes: new TextEncoder().encode('Hello world!\nI am PHP'),
+				bytes: new Uint8Array(
+					new TextEncoder().encode('Hello world!\nI am PHP')
+				),
 				errors: '',
 				exitCode: 0,
 			});
@@ -1306,7 +1308,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				bytes: new TextEncoder().encode('Hello world!'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello world!')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -1316,7 +1318,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				bytes: new TextEncoder().encode('Ehlo world!'),
+				bytes: new Uint8Array(new TextEncoder().encode('Ehlo world!')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -1326,10 +1328,11 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			$stdErr = fopen('php://stderr', 'w');
 			fwrite($stdErr, "Hello from stderr!");
 			`;
+
 			expect(await php.run({ code })).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				bytes: new TextEncoder().encode(''),
+				bytes: new Uint8Array(new TextEncoder().encode('')),
 				errors: 'Hello from stderr!',
 				exitCode: 0,
 			});

@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+import tsconfigPaths from 'vite-tsconfig-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -73,7 +73,7 @@ export default defineConfig(({ command, mode }) => {
 			react({
 				jsxRuntime: 'automatic',
 			}),
-			viteTsConfigPaths({
+			tsconfigPaths({
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
@@ -209,9 +209,6 @@ export default defineConfig(({ command, mode }) => {
 
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			environment: 'jsdom',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		},

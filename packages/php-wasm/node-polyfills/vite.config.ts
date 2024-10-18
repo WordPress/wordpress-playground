@@ -45,9 +45,6 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment:
 			'Run this task with either "node" or "jsdom" configuration, e.g. nx run php-wasm-node-polyfills:test:node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

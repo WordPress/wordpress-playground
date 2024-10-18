@@ -80,7 +80,7 @@ describe.each(configsForRequestTests)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				bytes: new TextEncoder().encode('Hello World'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello World')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -101,7 +101,9 @@ describe.each(configsForRequestTests)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				bytes: new TextEncoder().encode('Some PHP file in a folder.'),
+				bytes: new Uint8Array(
+					new TextEncoder().encode('Some PHP file in a folder.')
+				),
 				errors: '',
 				exitCode: 0,
 			});
@@ -121,7 +123,7 @@ describe.each(configsForRequestTests)(
 					'cache-control': ['public, max-age=0'],
 					'content-length': ['11'],
 				},
-				bytes: new TextEncoder().encode('Hello World'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello World')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -144,7 +146,7 @@ describe.each(configsForRequestTests)(
 					'cache-control': ['public, max-age=0'],
 					'content-length': ['11'],
 				},
-				bytes: new TextEncoder().encode('Hello World'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello World')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -164,7 +166,7 @@ describe.each(configsForRequestTests)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				bytes: new TextEncoder().encode('Hello World'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello World')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -202,7 +204,7 @@ describe.each(configsForRequestTests)(
 					headers: {
 						'x-backfill-from': ['remote-host'],
 					},
-					bytes: expect.any(Uint8Array),
+					bytes: new TextEncoder().encode('404 File not found'),
 					errors: '',
 					exitCode: 0,
 				});
@@ -245,10 +247,12 @@ describe.each(configsForRequestTests)(
 				expect(response).toEqual({
 					httpStatusCode: 200,
 					headers: expect.any(Object),
-					bytes: new TextEncoder().encode(
-						'expected fallback to PHP content:' +
-							`${expectedRequestUri}:` +
-							`${scriptPath}`
+					bytes: new Uint8Array(
+						new TextEncoder().encode(
+							'expected fallback to PHP content:' +
+								`${expectedRequestUri}:` +
+								`${scriptPath}`
+						)
 					),
 					errors: '',
 					exitCode: 0,
@@ -277,8 +281,10 @@ describe.each(configsForRequestTests)(
 				expect(response).toEqual({
 					httpStatusCode: 200,
 					headers: expect.any(Object),
-					bytes: new TextEncoder().encode(
-						'expected fallback to static content'
+					bytes: new Uint8Array(
+						new TextEncoder().encode(
+							'expected fallback to static content'
+						)
 					),
 					errors: '',
 					exitCode: 0,
@@ -292,7 +298,7 @@ describe.each(configsForRequestTests)(
 				expect(response).toEqual({
 					httpStatusCode: 404,
 					headers: expect.any(Object),
-					bytes: expect.any(Uint8Array),
+					bytes: new TextEncoder().encode('Not Found'),
 					errors: '',
 					exitCode: 0,
 				});
@@ -392,7 +398,7 @@ describe.each(configsForRequestTests)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				bytes: new TextEncoder().encode('Hello World'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello World')),
 				errors: '',
 				exitCode: 0,
 			});
@@ -412,7 +418,7 @@ describe.each(configsForRequestTests)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				bytes: new TextEncoder().encode('Hello World!'),
+				bytes: new Uint8Array(new TextEncoder().encode('Hello World!')),
 				errors: '',
 				exitCode: 0,
 			});
