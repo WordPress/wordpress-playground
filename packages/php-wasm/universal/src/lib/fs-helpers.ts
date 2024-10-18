@@ -63,7 +63,7 @@ export class FSHelpers {
 		path: string,
 		data: string | Uint8Array
 	) {
-		FS.writeFile(path, data);
+		return FS.writeFile(path, data);
 	}
 
 	/**
@@ -159,12 +159,12 @@ export class FSHelpers {
 	 * @returns The list of files and directories in the given directory.
 	 */
 	@rethrowFileSystemError('Could not list files in "{path}"')
-	static listFiles(
+	static async listFiles(
 		FS: Emscripten.RootFS,
 		path: string,
 		options: ListFilesOptions = { prependPath: false }
-	): string[] {
-		if (!FSHelpers.fileExists(FS, path)) {
+	): Promise<string[]> {
+		if (!(await FSHelpers.fileExists(FS, path))) {
 			return [];
 		}
 		try {
@@ -190,8 +190,8 @@ export class FSHelpers {
 	 * @returns True if the path is a directory, false otherwise.
 	 */
 	@rethrowFileSystemError('Could not stat "{path}"')
-	static isDir(FS: Emscripten.RootFS, path: string): boolean {
-		if (!FSHelpers.fileExists(FS, path)) {
+	static async isDir(FS: Emscripten.RootFS, path: string): boolean {
+		if (!(await FSHelpers.fileExists(FS, path))) {
 			return false;
 		}
 		return FS.isDir(FS.lookupPath(path, { follow: true }).node.mode);
@@ -205,8 +205,8 @@ export class FSHelpers {
 	 * @returns True if the path is a file, false otherwise.
 	 */
 	@rethrowFileSystemError('Could not stat "{path}"')
-	static isFile(FS: Emscripten.RootFS, path: string): boolean {
-		if (!FSHelpers.fileExists(FS, path)) {
+	static async isFile(FS: Emscripten.RootFS, path: string): Promise<boolean> {
+		if (!(await FSHelpers.fileExists(FS, path))) {
 			return false;
 		}
 		return FS.isFile(FS.lookupPath(path, { follow: true }).node.mode);
@@ -269,9 +269,12 @@ export class FSHelpers {
 	 * @returns True if the file exists, false otherwise.
 	 */
 	@rethrowFileSystemError('Could not stat "{path}"')
-	static fileExists(FS: Emscripten.RootFS, path: string): boolean {
+	static async fileExists(
+		FS: Emscripten.RootFS,
+		path: string
+	): Promise<boolean> {
 		try {
-			FS.lookupPath(path);
+			await FS.lookupPath(path);
 			return true;
 		} catch (e) {
 			return false;
@@ -288,7 +291,7 @@ export class FSHelpers {
 	 */
 	@rethrowFileSystemError('Could not create directory "{path}"')
 	static mkdir(FS: Emscripten.RootFS, path: string) {
-		FS.mkdirTree(path);
+		return FS.mkdirTree(path);
 	}
 
 	@rethrowFileSystemError('Could not copy files from "{path}"')
