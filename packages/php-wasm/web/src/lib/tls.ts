@@ -4,9 +4,12 @@
  * http://localhost:5400/website-server/#%7B%22landingPage%22:%22/network-test.php%22,%22preferredVersions%22:%7B%22php%22:%228.0%22,%22wp%22:%22latest%22%7D,%22phpExtensionBundles%22:%5B%22kitchen-sink%22%5D,%22steps%22:%5B%7B%22step%22:%22writeFile%22,%22path%22:%22/wordpress/network-test.php%22,%22data%22:%22%3C?php%20echo%20'Hello-dolly.zip%20downloaded%20from%20https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip%20has%20this%20many%20bytes:%20';%20var_dump(strlen(file_get_contents('https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip')));%22%7D%5D%7D
  */
 import { ServerNameExtension } from './tls/0_server_name';
-import { CipherSuites } from './tls/cipher-suites';
 import { CipherSuitesNames } from './tls/cipher-suites';
+import { CipherSuites } from './tls/cipher-suites';
+import { SupportedGroupsExtension } from './tls/10_supported_groups';
+import { ECPointFormatsExtension } from './tls/11_ec_point_formats';
 import { ParsedExtension, parseHelloExtensions } from './tls/extensions';
+import { flipObject } from './tls/utils';
 
 /**
  * Implements TLS 1.2 server-side handshake.
@@ -18,7 +21,6 @@ export class TLS_1_2_Server {
 	certificatesDER: Uint8Array[];
 	receivedBuffer: Uint8Array = new Uint8Array();
 	sendBytesToClient: (data: Uint8Array) => void;
-	serverRandom: Uint8Array;
 
 	securityParameters: SecurityParameters = {
 		entity: ConnectionEnd.Server,
@@ -35,7 +37,7 @@ export class TLS_1_2_Server {
 		compression_algorithm: CompressionMethod.Null,
 		master_secret: new Uint8Array(48),
 		client_random: new Uint8Array(32),
-		server_random: new Uint8Array(32),
+		server_random: crypto.getRandomValues(new Uint8Array(32)),
 	};
 
 	constructor(
@@ -46,7 +48,6 @@ export class TLS_1_2_Server {
 		this.privateKey = privateKey;
 		this.certificatesDER = certificatesDER;
 		this.sendBytesToClient = sendBytesToClient;
-		this.serverRandom = crypto.getRandomValues(new Uint8Array(32));
 	}
 
 	receiveBytesFromClient(data: Uint8Array) {
@@ -71,11 +72,9 @@ export class TLS_1_2_Server {
 	 */
 	async handleTLSHandshake(): Promise<void> {
 		const handshakeMessages: Uint8Array[] = [];
-		const clientHelloRecord =
-			await this.readHandshakeMessage<ClientHello>();
-		if (clientHelloRecord.msg_type !== HandshakeType.ClientHello) {
-			throw new Error('Expected ClientHello message');
-		}
+		const clientHelloRecord = await this.readHandshakeMessage(
+			HandshakeType.ClientHello
+		);
 		if (!clientHelloRecord.body.cipher_suites.length) {
 			throw new Error(
 				'Client did not propose any supported cipher suites.'
@@ -84,17 +83,34 @@ export class TLS_1_2_Server {
 		handshakeMessages.push(clientHelloRecord.raw);
 
 		// Step 2: Send ServerHello
-		const serverRandom = crypto.getRandomValues(new Uint8Array(32));
 		const serverHello = this.serverHelloMessage(clientHelloRecord.body);
 		handshakeMessages.push(serverHello);
-		this.writeTLSRecord(ContentType.Handshake, serverHello);
+		this.writeTLSRecord(ContentTypes.Handshake, serverHello);
 
-		// // Step 3: Send Certificate
+		// Step 3: Send Certificate
 		const certificateMessage = this.certificateMessage(
 			this.certificatesDER
 		);
 		handshakeMessages.push(certificateMessage);
-		this.writeTLSRecord(ContentType.Handshake, certificateMessage);
+		this.writeTLSRecord(ContentTypes.Handshake, certificateMessage);
+
+		// Step 4: Send ServerKeyExchange
+		// const ecdheKeyPair = await crypto.subtle.generateKey(
+		// 	{
+		// 		name: 'ECDH',
+		// 		namedCurve: 'P-256', // Use secp256r1 curve
+		// 	},
+		// 	true, // Extractable
+		// 	['deriveKey', 'deriveBits'] // Key usage
+		// );
+		// const serverKeyExchange = await generateECDHEServerKeyExchange(
+		// 	clientHelloRecord.body.random,
+		// 	serverRandom,
+		// 	ecdheKeyPair,
+		// 	this.privateKey
+		// );
+		// handshakeMessages.push(serverKeyExchange);
+		// this.writeTLSRecord(ContentTypes.Handshake, serverKeyExchange);
 
 		// Step 4: Send ServerHelloDone
 		const serverHelloDone = new Uint8Array([
@@ -104,69 +120,65 @@ export class TLS_1_2_Server {
 			0x00,
 		]);
 		handshakeMessages.push(serverHelloDone);
-		this.writeTLSRecord(ContentType.Handshake, serverHelloDone);
+		this.writeTLSRecord(ContentTypes.Handshake, serverHelloDone);
 
 		// // Step 5: Receive ClientKeyExchange
-		const clientKeyExchangeRecord =
-			await this.readHandshakeMessage<ClientKeyExchange>();
-		if (
-			clientKeyExchangeRecord.msg_type !== HandshakeType.ClientKeyExchange
-		) {
-			throw new Error('Expected ClientKeyExchange message');
-		}
+		const clientKeyExchangeRecord = await this.readHandshakeMessage(
+			HandshakeType.ClientKeyExchange
+		);
 		handshakeMessages.push(clientKeyExchangeRecord.raw);
 
-		console.log('this.privateKey', this.privateKey);
+		// console.log('this.privateKey', this.privateKey);
 		// Decrypt PreMasterSecret and derive masterSecret...
-		const preMasterSecret = await crypto.subtle.decrypt(
-			{ name: 'AES-GCM', iv: serverRandom },
-			this.privateKey,
-			clientKeyExchangeRecord.body.exchange_keys
-		);
-		const preMasterSecretBytes = new Uint8Array(preMasterSecret);
+		// const preMasterSecret = await crypto.subtle.decrypt(
+		// 	{ name: 'AES-GCM', iv: serverRandom },
+		// 	this.privateKey,
+		// 	clientKeyExchangeRecord.body.exchange_keys
+		// );
+		// const preMasterSecretBytes = new Uint8Array(preMasterSecret);
 
-		const masterSecret = await this.PRF(
-			preMasterSecretBytes,
-			'master secret',
-			concatUint8Arrays([clientHelloRecord.body.random, serverRandom]),
-			48
-		);
+		// const masterSecret = await this.PRF(
+		// 	preMasterSecretBytes,
+		// 	'master secret',
+		// 	concatUint8Arrays([clientHelloRecord.body.random, serverRandom]),
+		// 	48
+		// );
 
 		// // Generate Key Material...
-		const keyBlockLength = 128; // Total length of key material
-		const keyBlock = await this.PRF(
-			masterSecret,
-			'key expansion',
-			concatUint8Arrays([serverRandom, clientHelloRecord.body.random]),
-			keyBlockLength
-		);
+		// const keyBlockLength = 128; // Total length of key material
+		// const keyBlock = await this.PRF(
+		// 	masterSecret,
+		// 	'key expansion',
+		// 	concatUint8Arrays([serverRandom, clientHelloRecord.body.random]),
+		// 	keyBlockLength
+		// );
 
 		// Partition the key block
-		let offset = 0;
+		// let offset = 0;
 
-		const clientMACKey = keyBlock.slice(offset, offset + 32); // 32 bytes
-		offset += 32;
+		// const clientMACKey = keyBlock.slice(offset, offset + 32); // 32 bytes
+		// offset += 32;
 
-		const serverMACKey = keyBlock.slice(offset, offset + 32); // 32 bytes
-		offset += 32;
+		// const serverMACKey = keyBlock.slice(offset, offset + 32); // 32 bytes
+		// offset += 32;
 
-		const clientWriteKey = keyBlock.slice(offset, offset + 16); // 16 bytes
-		offset += 16;
+		// const clientWriteKey = keyBlock.slice(offset, offset + 16); // 16 bytes
+		// offset += 16;
 
-		const serverWriteKey = keyBlock.slice(offset, offset + 16); // 16 bytes
+		// const serverWriteKey = keyBlock.slice(offset, offset + 16); // 16 bytes
 
-		// // Step 6: Receive ChangeCipherSpec
-		const changeCipherSpecRecord =
-			await this.readNextMessage<ChangeCipherSpecMessage>(
-				ContentType.ChangeCipherSpec
-			);
+		// // // Step 6: Receive ChangeCipherSpec
+		// const changeCipherSpecRecord =
+		// 	await this.readNextMessage<ChangeCipherSpecMessage>(
+		// 		ContentType.ChangeCipherSpec
+		// 	);
 
-		// Step 7: Receive and Decrypt Client Finished
-		const clientFinishedRecord = await this.readNextMessage<
-			HandshakeMessage<Finished>
-		>(ContentType.Handshake);
+		// // Step 7: Receive and Decrypt Client Finished
+		// const clientFinishedRecord = await this.readNextMessage<
+		// 	HandshakeMessage<Finished>
+		// >(ContentType.Handshake);
 
-		console.log({ clientFinishedRecord });
+		// console.log({ clientFinishedRecord });
 
 		// Decrypt client's Finished message...
 		// const decryptedClientFinished = await this.decryptTLSRecord(
@@ -231,10 +243,22 @@ export class TLS_1_2_Server {
 
 	awaitingTLSMessages: Array<TLSMessage> = [];
 
-	async readHandshakeMessage<BodyType extends HandshakeMessageBody>() {
-		return await this.readNextMessage<HandshakeMessage<BodyType>>(
-			ContentType.Handshake
+	async readHandshakeMessage(
+		messageType: HandshakeType.ClientHello
+	): Promise<HandshakeMessage<ClientHello>>;
+	async readHandshakeMessage(
+		messageType: HandshakeType.ClientKeyExchange
+	): Promise<HandshakeMessage<ClientKeyExchange>>;
+	async readHandshakeMessage(
+		messageType: HandshakeType.ClientHello | HandshakeType.ClientKeyExchange
+	): Promise<HandshakeMessage<any>> {
+		const message = await this.readNextMessage<HandshakeMessage<any>>(
+			ContentTypes.Handshake
 		);
+		if (message.msg_type !== messageType) {
+			throw new Error(`Expected ${messageType} message`);
+		}
+		return message;
 	}
 
 	async readNextMessage<Message extends TLSMessage>(
@@ -255,19 +279,19 @@ export class TLS_1_2_Server {
 				continue;
 			}
 			switch (record.type) {
-				case ContentType.Handshake: {
+				case ContentTypes.Handshake: {
 					const plaintext = record as TLSPlaintext;
 					this.awaitingTLSMessages.push(
 						this.parseHandshakeMessage(plaintext.fragment)
 					);
 					break;
 				}
-				case ContentType.Alert: {
+				case ContentTypes.Alert: {
 					const alert = record as TLSPlaintext;
 					this.awaitingTLSMessages.push({
-						type: record.type,
-						level: alert.fragment[0],
-						description: alert.fragment[1],
+						type: ContentTypeNames[record.type],
+						level: AlertLevelNames[alert.fragment[0]],
+						description: AlertDescriptionNames[alert.fragment[1]],
 					});
 					break;
 				}
@@ -282,7 +306,7 @@ export class TLS_1_2_Server {
 	bufferedRecords: Partial<Record<ContentType, Uint8Array>> = {};
 	async processTLSRecord(record: TLSRecord): Promise<boolean> {
 		switch (record.type) {
-			case ContentType.Handshake: {
+			case ContentTypes.Handshake: {
 				const plaintext = record as TLSPlaintext;
 				const message = concatUint8Arrays([
 					this.bufferedRecords[record.type] || new Uint8Array(),
@@ -299,7 +323,7 @@ export class TLS_1_2_Server {
 				}
 				return true;
 			}
-			case ContentType.Alert: {
+			case ContentTypes.Alert: {
 				const plaintext = record as TLSPlaintext;
 				const message = concatUint8Arrays([
 					this.bufferedRecords[record.type] || new Uint8Array(),
@@ -371,10 +395,12 @@ export class TLS_1_2_Server {
 
 				const buff: Partial<ClientHello> = {
 					client_version: reader.readUint8Array(2),
-					random: {
-						gmtUnixTime: reader.readUint32(),
-						randomBytes: reader.readUint8Array(28),
-					},
+					/**
+					 * Technically this consists of a GMT timestamp
+					 * and 28 random bytes, but we don't need to
+					 * parse this further.
+					 */
+					random: reader.readUint8Array(32),
 				};
 				const sessionIdLength = reader.readUint8();
 				buff.session_id = reader.readUint8Array(sessionIdLength);
@@ -394,7 +420,7 @@ export class TLS_1_2_Server {
 					reader.readUint8Array(extensionsLength)
 				);
 				return {
-					type: ContentType.Handshake,
+					type: ContentTypes.Handshake,
 					msg_type,
 					length,
 					body: buff as T,
@@ -448,7 +474,7 @@ export class TLS_1_2_Server {
 				throw new Error('Invalid handshake type');
 		}
 		return {
-			type: ContentType.Handshake,
+			type: ContentTypes.Handshake,
 			msg_type,
 			length,
 			body: body as T,
@@ -467,9 +493,9 @@ export class TLS_1_2_Server {
 		const length = (header[3] << 8) | header[4];
 
 		switch (type) {
-			case ContentType.Alert:
-			case ContentType.Handshake:
-			case ContentType.ChangeCipherSpec:
+			case ContentTypes.Alert:
+			case ContentTypes.Handshake:
+			case ContentTypes.ChangeCipherSpec:
 				return {
 					type,
 					version,
@@ -536,39 +562,42 @@ export class TLS_1_2_Server {
 		this.sendBytesToClient(record);
 	}
 
-	// Function to build ServerHello message
 	private serverHelloMessage(clientHello: ClientHello): Uint8Array {
-		const extensionsParts: Uint8Array[] = [];
-		for (const extension of clientHello.extensions) {
-			switch (extension['type']) {
-				case 'server_name':
-					/**
-					 * The server SHALL include an extension of type "server_name" in the
-					 * (extended) server hello.  The "extension_data" field of this extension
-					 * SHALL be empty.
-					 *
-					 * Source: dfile:///Users/cloudnik/Library/Application%20Support/Dash/User%20Contributed/RFCs/RFCs.docset/Contents/Resources/Documents/rfc6066.html#section-3
-					 */
-					ServerNameExtension.encode();
-					break;
-			}
-		}
+		const extensionsParts: Uint8Array[] = clientHello.extensions
+			.map((extension) => {
+				switch (extension['type']) {
+					case 'server_name':
+						/**
+						 * The server SHALL include an extension of type "server_name" in the
+						 * (extended) server hello.  The "extension_data" field of this extension
+						 * SHALL be empty.
+						 *
+						 * Source: dfile:///Users/cloudnik/Library/Application%20Support/Dash/User%20Contributed/RFCs/RFCs.docset/Contents/Resources/Documents/rfc6066.html#section-3
+						 */
+						return ServerNameExtension.encode();
+					// case 'supported_groups':
+					// 	return SupportedGroupsExtension.encode('secp256r1');
+					// case 'ec_point_formats':
+					// 	return ECPointFormatsExtension.encode('uncompressed');
+				}
+				return undefined;
+			})
+			.filter((x): x is Uint8Array => x !== undefined);
 		const extensions = concatUint8Arrays(extensionsParts);
 
 		const bodyParts: Uint8Array[] = [
 			// Version field – 0x03, 0x03 means TLS 1.2
 			new Uint8Array([0x03, 0x03]),
 
-			this.serverRandom,
+			this.securityParameters.server_random,
 
 			new Uint8Array([clientHello.session_id.length]),
 			clientHello.session_id,
 
-			// CipherSuite: TLS_RSA_WITH_AES_128_CBC_SHA,
-			// new Uint8Array([0x00, 0x2f]),
 			new Uint8Array([
-				(CipherSuites.TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 >> 8) & 0xff,
-				CipherSuites.TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 & 0xff,
+				(CipherSuites.TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256 >> 8) &
+					0xff,
+				CipherSuites.TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256 & 0xff,
 			]),
 
 			// Compression method: No compression
@@ -590,6 +619,23 @@ export class TLS_1_2_Server {
 		]);
 
 		return concatUint8Arrays([header, body]);
+	}
+
+	async deriveSharedSecret(serverPrivateKey, clientPublicKey) {
+		const sharedSecret = await crypto.subtle.deriveKey(
+			{
+				name: 'ECDH',
+				public: clientPublicKey, // Client's public key
+			},
+			serverPrivateKey, // Server's private key
+			{
+				name: 'AES-GCM', // Derive AES key for encryption
+				length: 256, // 256-bit key
+			},
+			true, // Extractable
+			['encrypt', 'decrypt']
+		);
+		return sharedSecret;
 	}
 
 	private certificateMessage(certificates: Uint8Array[]): Uint8Array {
@@ -845,6 +891,40 @@ export class ArrayBufferReader {
 	}
 }
 
+export class ArrayBufferWriter {
+	buffer: ArrayBuffer;
+	view: DataView;
+	uint8Array: Uint8Array;
+
+	private offset = 0;
+
+	constructor(length: number) {
+		this.buffer = new ArrayBuffer(length);
+		this.uint8Array = new Uint8Array(this.buffer);
+		this.view = new DataView(this.buffer);
+	}
+
+	writeUint8(value: number) {
+		this.view.setUint8(this.offset, value);
+		this.offset += 1;
+	}
+
+	writeUint16(value: number) {
+		this.view.setUint16(this.offset, value);
+		this.offset += 2;
+	}
+
+	writeUint32(value: number) {
+		this.view.setUint32(this.offset, value);
+		this.offset += 4;
+	}
+
+	writeUint8Array(value: Uint8Array) {
+		this.uint8Array.set(value, this.offset);
+		this.offset += value.length;
+	}
+}
+
 /**
  * Parses the cipher suites from the server hello message.
  *
@@ -884,6 +964,102 @@ function parseCipherSuites(buffer: ArrayBuffer): string[] {
 		}
 	}
 	return cipherSuites;
+}
+
+/*
++-----------------------------------+
+|    ServerKeyExchange Message      |
++-----------------------------------+
+| Type (1 byte)                     |
++-----------------------------------+
+| Length (3 bytes)                  |
++-----------------------------------+
+| Curve Type (1 byte)               |
++-----------------------------------+
+| Named Curve (2 bytes)             |
++-----------------------------------+
+| EC Point Format (1 byte)          |
++-----------------------------------+
+| Public Key Length (1 byte)        |
++-----------------------------------+
+| Public Key (variable)             |
++-----------------------------------+
+| Signature Algorithm (2 bytes)     |
++-----------------------------------+
+| Signature Length (2 bytes)        |
++-----------------------------------+
+| Signature (variable)              |
++-----------------------------------+
+* @arg ecdheKeyPair - The ECDH P-256 key pair to use for the key exchange.
+*/
+async function generateECDHEServerKeyExchange(
+	clientRandom: Uint8Array, // 32 bytes from ClientHello
+	serverRandom: Uint8Array, // 32 bytes from ServerHello
+	ecdheKeyPair: CryptoKeyPair,
+	rsaPrivateKey: CryptoKey // RSA private key for signing
+): Promise<Uint8Array> {
+	// Step 2: Export the ECDHE public key (raw format)
+	const ecdhePublicKey = await crypto.subtle.exportKey(
+		'raw',
+		ecdheKeyPair.publicKey
+	);
+
+	// Step 3: Prepare the key exchange parameters
+	const curveType = new Uint8Array([ECCurveTypes.NamedCurve]);
+	const curveName = new Uint8Array([
+		ECNamedCurves.secp256r1 << 8,
+		ECNamedCurves.secp256r1,
+	]);
+	console.log({ curveName });
+	const publicKeyLength = new Uint8Array([ecdhePublicKey.byteLength]); // Length of the public key (65 bytes for P-256)
+	const publicKey = new Uint8Array(ecdhePublicKey); // 65 bytes (04 followed by x and y coordinates)
+
+	// Step 4: Concatenate clientRandom, serverRandom, and publicKey for signing
+	const dataToSign = new Uint8Array([
+		...clientRandom,
+		...serverRandom,
+		...curveType,
+		...curveName,
+		...publicKey,
+	]);
+
+	// Step 5: Sign the concatenated data using RSA private key and SHA-256
+	const signature = await crypto.subtle.sign(
+		{
+			name: 'RSASSA-PKCS1-v1_5',
+			hash: { name: 'SHA-256' },
+		},
+		rsaPrivateKey, // Server's RSA private key
+		dataToSign
+	);
+
+	const signatureBytes = new Uint8Array(signature);
+	const signatureLength = new Uint8Array([
+		(signatureBytes.length >> 8) & 0xff,
+		signatureBytes.length & 0xff,
+	]); // 2-byte length field for signature
+
+	// Step 6: Construct the complete Server Key Exchange message
+	const messageBody = new Uint8Array([
+		...curveType, // Curve type (named curve)
+		...curveName, // Curve name (secp256r1)
+		ECPointFormats.ansiX962_compressed_prime, // EC point format (uncompressed)
+		...publicKeyLength, // Length of public key (65 bytes for P-256)
+		...publicKey, // Public key (65 bytes, uncompressed format)
+		...signatureLength, // Signature length (2 bytes)
+		...signatureBytes, // RSA signature
+	]);
+
+	const length = messageBody.length;
+
+	return new Uint8Array([
+		HandshakeType.ServerKeyExchange,
+		// Body length is encoded using 3 bytes:
+		(length >> 16) & 0xff,
+		(length >> 8) & 0xff,
+		length & 0xff,
+		...messageBody,
+	]);
 }
 
 function arraysEqual(a: Uint8Array, b: Uint8Array): boolean {
@@ -972,12 +1148,15 @@ const enum CompressionMethod {
  * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.1
  */
 
-const enum ContentType {
-	ChangeCipherSpec = 20,
-	Alert = 21,
-	Handshake = 22,
-	ApplicationData = 23,
-}
+const ContentTypes = {
+	ChangeCipherSpec: 20,
+	Alert: 21,
+	Handshake: 22,
+	ApplicationData: 23,
+} as const;
+type ContentType = (typeof ContentTypes)[keyof typeof ContentTypes];
+
+const ContentTypeNames = flipObject(ContentTypes);
 
 type FragmentType =
 	| GenericStreamCipher
@@ -1051,46 +1230,51 @@ type TLSMessage =
 // | ApplicationDataMessage;
 
 interface AlertMessage {
-	type: ContentType.Alert;
+	type: typeof ContentTypes.Alert;
 	level: AlertLevel;
 	description: AlertDescription;
 }
 
-const enum AlertLevel {
-	Warning = 1,
-	Fatal = 2,
-}
+const AlertLevels = {
+	Warning: 1,
+	Fatal: 2,
+} as const;
+type AlertLevel = (typeof AlertLevels)[keyof typeof AlertLevels];
+const AlertLevelNames = flipObject(AlertLevels);
 
-const enum AlertDescription {
-	CloseNotify = 0,
-	UnexpectedMessage = 10,
-	BadRecordMac = 20,
-	DecryptionFailed = 21,
-	RecordOverflow = 22,
-	DecompressionFailure = 30,
-	HandshakeFailure = 40,
-	NoCertificate = 41,
-	BadCertificate = 42,
-	UnsupportedCertificate = 43,
-	CertificateRevoked = 44,
-	CertificateExpired = 45,
-	CertificateUnknown = 46,
-	IllegalParameter = 47,
-	UnknownCa = 48,
-	AccessDenied = 49,
-	DecodeError = 50,
-	DecryptError = 51,
-	ExportRestriction = 60,
-	ProtocolVersion = 70,
-	InsufficientSecurity = 71,
-	InternalError = 80,
-	UserCanceled = 90,
-	NoRenegotiation = 100,
-	UnsupportedExtension = 110,
-}
+const AlertDescriptions = {
+	CloseNotify: 0,
+	UnexpectedMessage: 10,
+	BadRecordMac: 20,
+	DecryptionFailed: 21,
+	RecordOverflow: 22,
+	DecompressionFailure: 30,
+	HandshakeFailure: 40,
+	NoCertificate: 41,
+	BadCertificate: 42,
+	UnsupportedCertificate: 43,
+	CertificateRevoked: 44,
+	CertificateExpired: 45,
+	CertificateUnknown: 46,
+	IllegalParameter: 47,
+	UnknownCa: 48,
+	AccessDenied: 49,
+	DecodeError: 50,
+	DecryptError: 51,
+	ExportRestriction: 60,
+	ProtocolVersion: 70,
+	InsufficientSecurity: 71,
+	InternalError: 80,
+	UserCanceled: 90,
+	NoRenegotiation: 100,
+	UnsupportedExtension: 110,
+} as const;
+type AlertDescription =
+	(typeof AlertDescriptions)[keyof typeof AlertDescriptions];
+const AlertDescriptionNames = flipObject(AlertDescriptions);
 
 interface ChangeCipherSpecMessage {
-	type: ContentType.ChangeCipherSpec;
+	type: typeof ContentTypes.ChangeCipherSpec;
 	body: Uint8Array;
 }
 
@@ -1120,7 +1304,7 @@ type HandshakeMessageBody =
 	| Finished;
 
 interface HandshakeMessage<Body extends HandshakeMessageBody> {
-	type: ContentType.Handshake;
+	type: typeof ContentTypes.Handshake;
 	msg_type: HandshakeType; // 1 byte
 	length: number; // 2 bytes
 	// Custom property to hold the raw body of the message
@@ -1135,19 +1319,9 @@ interface HelloRequest {} // Empty for TLS 1.2
  * 1 byte
  */
 type SessionId = Uint8Array;
-type Random = {
-	/**
-	 * 4 bytes
-	 */
-	gmtUnixTime: Number;
-	/**
-	 * 28 bytes
-	 */
-	randomBytes: Uint8Array;
-};
 interface ClientHello {
 	client_version: Uint8Array; // 2 bytes
-	random: Random; // 32 bytes
+	random: Uint8Array; // 32 bytes
 	session_id: SessionId;
 	cipher_suites: string[];
 	compression_methods: Uint8Array;
@@ -1171,6 +1345,74 @@ interface ServerKeyExchange {
 	params: Uint8Array;
 	signed_params: Uint8Array;
 }
+
+type ServerKeyExchangeParams =
+	| {
+			algorithm: 'ec_dh';
+			ecdhKeyPair: CryptoKeyPair;
+	  }
+	| never;
+
+/**
+ * Signature algorithms from
+ * https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.1.4.1
+ */
+const SignatureAlgorithms = {
+	anonymous: 0,
+	rsa: 1,
+	dsa: 2,
+	ecc: 3,
+	ecdsa: 4,
+};
+
+/**
+ * Hash algorithms from
+ * https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.1.4.1
+ */
+const HashAlgorithms = {
+	none: 0,
+	md5: 1,
+	sha1: 2,
+	sha256: 3,
+	sha384: 4,
+	sha512: 5,
+};
+
+const ECCurveTypes = {
+	ExplicitPrime: 1,
+	NamedCurve: 2,
+};
+
+/**
+ * Named elliptic curves from
+ * https://datatracker.ietf.org/doc/html/rfc4492#section-5.1.1
+ */
+const ECNamedCurves = {
+	sect163k1: 1,
+	sect163r1: 2,
+	sect163r2: 3,
+	sect193r1: 4,
+	sect193r2: 5,
+	sect233k1: 6,
+	sect233r1: 7,
+	sect239k1: 8,
+	sect283k1: 9,
+	sect283r1: 10,
+	sect409k1: 11,
+	sect409r1: 12,
+	secp256k1: 22,
+	secp256r1: 23,
+	secp384r1: 24,
+	secp521r1: 25,
+	arbitrary_explicit_prime_curves: 0xff01,
+	arbitrary_explicit_char2_curves: 0xff02,
+};
+
+const ECPointFormats = {
+	uncompressed: 0,
+	ansiX962_compressed_prime: 1,
+	ansiX962_compressed_char2: 2,
+};
 
 interface CertificateRequest {
 	certificate_types: Uint8Array;

@@ -1,6 +1,14 @@
 import { ArrayBufferReader } from '../tls';
 import { ServerNameExtension, ServerNameList } from './0_server_name';
 import {
+	ParsedSupportedGroups,
+	SupportedGroupsExtension,
+} from './10_supported_groups';
+import {
+	ParsedECPointFormats,
+	ECPointFormatsExtension,
+} from './11_ec_point_formats';
+import {
 	SignatureAlgorithms,
 	SignatureAlgorithmsExtension,
 } from './13_signature_algorithms';
@@ -16,6 +24,8 @@ export const TLSExtensionsHandlers = {
 	padding: PaddingExtension,
 	server_name: ServerNameExtension,
 	signature_algorithms: SignatureAlgorithmsExtension,
+	supported_groups: SupportedGroupsExtension,
+	ec_point_formats: ECPointFormatsExtension,
 } as const;
 
 export type SupportedTLSExtension = keyof typeof TLSExtensionsHandlers;
@@ -39,6 +49,16 @@ export type ParsedExtension =
 	| {
 			type: 'signature_algorithms';
 			data: SignatureAlgorithms;
+			raw: Uint8Array;
+	  }
+	| {
+			type: 'ec_point_formats';
+			data: ParsedECPointFormats;
+			raw: Uint8Array;
+	  }
+	| {
+			type: 'supported_groups';
+			data: ParsedSupportedGroups;
 			raw: Uint8Array;
 	  };
 
