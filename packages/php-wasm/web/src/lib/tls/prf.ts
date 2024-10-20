@@ -135,6 +135,9 @@ async function buffersEqual(
 	return true;
 }
 
+// Test PRF using test vectors from RFC 6070:
+// https://www.ietf.org/rfc/rfc6070.txt
+//
 // (async () => {
 // 	const secret = new Uint8Array([
 // 		0x9b, 0xbe, 0x43, 0x6b, 0xa9, 0x40, 0xf0, 0x17, 0xb1, 0x76, 0x52, 0x84,
