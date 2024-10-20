@@ -170,6 +170,25 @@ export class TLS_1_2_Server {
 				{
 					name: 'AES-GCM',
 					iv: iv,
+					additionalData: new Uint8Array([
+						// Sequence number
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						// Content type
+						ContentTypes.Handshake,
+						// Protocol version
+						0x03,
+						0x03,
+						// Length
+						...as2Bytes(clientFinished.fragment.length - 8 - 16),
+					]),
+					tagLength: 128,
 				},
 				this.sessionKeys.clientWriteKey,
 				clientFinished.fragment.slice(8)
