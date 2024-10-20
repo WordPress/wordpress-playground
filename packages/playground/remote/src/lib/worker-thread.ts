@@ -240,7 +240,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			const knownRemoteAssetPaths = new Set<string>();
 			const CAroot = await CertificateGenerator.generateCertificate({
 				subject: {
-					commonName: 'Playground CA',
+					commonName: 'downloads.wordpress.org',
 					organizationName: 'Playground CA',
 					countryName: 'US',
 				},

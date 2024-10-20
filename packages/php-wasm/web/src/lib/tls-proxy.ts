@@ -1,8 +1,8 @@
 import { EmscriptenOptions } from '@php-wasm/universal';
-import { TLS_1_2_Server } from './tls';
+import { ContentTypes, TLS_1_2_Server } from './tls';
 import { CertificateGenerator } from './tls/asn_1';
 
-export function httpRequestToFetch(
+export async function httpRequestToFetch(
 	host: string,
 	port: number,
 	httpRequest: string,
@@ -41,66 +41,37 @@ export function httpRequestToFetch(
 	const url = new URL(path, protocol + '://' + hostname).toString();
 	console.log({ httpRequest, method, url });
 
-	return fetch(url, {
+	const response = await fetch(url, {
 		method,
 		headers,
-	})
-		.then((response) => {
-			console.log('====> Got fetch() response!', response);
-			const reader = response.body?.getReader();
-			if (reader) {
-				const responseHeader = new TextEncoder().encode(
-					`HTTP/1.1 ${response.status} ${response.statusText}\r\n${[
-						...response.headers,
-					]
-						.map(([name, value]) => `${name}: ${value}`)
-						.join('\r\n')}\r\n\r\n`
-				);
+	});
 
-				// @TODO: calling onData() and waiting for more reader chunks
-				//        passes the control back to PHP.wasm and never yields
-				//        the control back to JavaScript. It's likely a polling
-				//        issue, or perhaps something specific to a Symfony HTTP
-				//        client. Either way, PHP blocks the thread and the
-				//        read().then() callback is never called.
-				//        We should find a way to yield the control back to
-				//        JavaScript after each onData() call.
-				//
-				//        One clue is PHP runs out of memory when onData() blocks
-				//        the event loop. Then it fails with a regular PHP fatal error
-				//        message. Perhaps there's an infinite loop somewhere that
-				//        fails to correctly poll and increases the memory usage indefinitely.
-				const buffer = [responseHeader.buffer];
-				const read = () => {
-					console.log('Attempt to read the response stream');
-					reader
-						.read()
-						.then(({ done, value }) => {
-							// console.log("got some data", value);
-							if (done) {
-								// @TODO let's stream the chunks as they
-								//       arrive without buffering them
-								for (const chunk of buffer) {
-									onData(chunk);
-								}
-								onDone();
-								return;
-							}
-							buffer.push(value.buffer);
-							read();
-						})
-						.catch((e) => {
-							console.error(e);
-						});
-				};
-				read();
-			}
-		})
-		.catch((e) => {
-			console.log('Could not fetch ', url);
-			console.error(e);
-			throw e;
-		});
+	console.log('====> Got fetch() response!', response);
+	const reader = response.body?.getReader();
+
+	if (!reader) {
+		throw new Error('No reader');
+	}
+
+	const responseHeader = new TextEncoder().encode(
+		`HTTP/1.1 ${response.status} ${response.statusText}\r\n${[
+			...response.headers,
+		]
+			.map(([name, value]) => `${name}: ${value}`)
+			.join('\r\n')}\r\n\r\n`
+	);
+
+	onData(responseHeader.buffer);
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		await new Promise((resolve) => setTimeout(resolve, 1));
+		onData(value.buffer);
+	}
+	// If there's any sleep() between onData() and onDone(), JavaScript
+	// will yield the control back to PHP.wasm where a blocking loop will
+	// block the event loop and never get to onDone().
+	onDone();
 }
 
 /**
@@ -156,24 +127,52 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 						[
 							// siteCert.certificate,
 							CAroot.certificate,
-						],
-						(data: Uint8Array) => {
-							console.log('Server -> Client: ', data);
+						]
+					);
+					ws.sslServer.addEventListener(
+						'pass-tls-bytes-to-client',
+						(e: CustomEvent) => {
+							console.log('Server -> Client: ', e.detail);
 							ws.binaryType = 'arraybuffer';
-							ws.emit('message', { data });
+							ws.emit('message', { data: e.detail });
 						}
 					);
+					ws.sslServer.addEventListener(
+						'decrypted-bytes-from-client',
+						(e: CustomEvent) => {
+							console.log('data', e.detail);
+							console.log(
+								'data',
+								new TextDecoder().decode(e.detail)
+							);
+
+							httpRequestToFetch(
+								ws.host,
+								ws.port,
+								new TextDecoder().decode(e.detail),
+								async (data) => {
+									console.log(
+										'Got response',
+										new TextDecoder().decode(data)
+									);
+									await ws.sslServer.writeTLSRecord(
+										ContentTypes.ApplicationData,
+										new Uint8Array(data)
+									);
+								},
+								() => {
+									console.log('Closing the connection');
+									ws.close();
+									ws.sslServer.close();
+								}
+							);
+							console.log('fetch() sent');
+						}
+					);
+
 					ws.readyState = ws.OPEN;
 					ws.emit('open');
-					ws.sslServer.handleTLSHandshake().then(
-						() => {
-							console.log('TLS Handshake successful');
-						},
-						(e: Error) => {
-							console.log('TLS Handshake failed');
-							console.error(e);
-						}
-					);
+					await ws.sslServer.start();
 				}
 
 				return class FetchWebsocketConstructor {
@@ -289,14 +288,6 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 							}
 							if (this.isPlaintext) {
 								this.close();
-								// httpRequestToFetch(
-								// 	this.host,
-								// 	this.port,
-								// 	new TextDecoder().decode(data),
-								// 	(data) => this.emit('message', { data }),
-								// 	() => this.close()
-								// );
-								// console.log('fetch() sent');
 								return;
 							} else {
 								// If it's a HTTPS request, we'll pretend to be the server

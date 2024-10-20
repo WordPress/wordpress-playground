@@ -16,17 +16,19 @@ import {
 	SignatureAlgorithmsExtension,
 } from './tls/13_signature_algorithms';
 import { stringToArrayBuffer, tls12Prf } from './tls/prf';
+import { Semaphore } from '@php-wasm/util';
+
+class TLSConnectionClosed extends Error {}
 
 /**
  * Implements TLS 1.2 server-side handshake.
  *
  * See https://datatracker.ietf.org/doc/html/rfc5246.
  */
-export class TLS_1_2_Server {
+export class TLS_1_2_Server extends EventTarget {
 	privateKey: CryptoKey;
 	certificatesDER: Uint8Array[];
 	receivedBuffer: Uint8Array = new Uint8Array();
-	sendBytesToClient: (data: Uint8Array) => void;
 	handshakeMessages: Uint8Array[] = [];
 
 	securityParameters: SecurityParameters = {
@@ -50,30 +52,35 @@ export class TLS_1_2_Server {
 	private clientPublicKey: CryptoKey | undefined;
 	private ecdheKeyPair: CryptoKeyPair | undefined;
 	private sessionKeys: SessionKeys | undefined;
+	private closed = false;
+	private encryptSemaphore = new Semaphore({ concurrency: 1 });
+	private decryptSemaphore = new Semaphore({ concurrency: 1 });
 
-	constructor(
-		privateKey: CryptoKey,
-		certificatesDER: Uint8Array[],
-		sendBytesToClient: (data: Uint8Array) => void
-	) {
+	constructor(privateKey: CryptoKey, certificatesDER: Uint8Array[]) {
+		super();
 		this.privateKey = privateKey;
 		this.certificatesDER = certificatesDER;
-		this.sendBytesToClient = sendBytesToClient;
+	}
+
+	sendBytesToClient(data: Uint8Array) {
+		this.dispatchEvent(
+			new CustomEvent('pass-tls-bytes-to-client', {
+				detail: data,
+			})
+		);
 	}
 
 	receiveBytesFromClient(data: Uint8Array) {
 		this.receivedBuffer = concatUint8Arrays([this.receivedBuffer, data]);
 	}
 
-	async readBytes(length: number) {
-		console.log('Server pulling bytes', length);
-		while (this.receivedBuffer.length < length) {
-			// Patience is the key...
-			await new Promise((resolve) => setTimeout(resolve, 100));
-		}
-		const requestedBytes = this.receivedBuffer.slice(0, length);
-		this.receivedBuffer = this.receivedBuffer.slice(length);
-		return requestedBytes;
+	async start() {
+		await this.handleTLSHandshake();
+		this.startEmitingApplicationData();
+	}
+
+	close() {
+		this.closed = true;
 	}
 
 	/**
@@ -140,10 +147,7 @@ export class TLS_1_2_Server {
 
 		await this.readNextMessage(ContentTypes.ChangeCipherSpec);
 		this.sessionKeys = await this.deriveSessionKeys();
-		const clientFinished = await this.readHandshakeMessage(
-			HandshakeType.Finished
-		);
-		console.log('==== clientFinished', clientFinished);
+		await this.readHandshakeMessage(HandshakeType.Finished);
 		// We're not actually verifying the hash provided by client
 		// as we're not concerned with the client's identity.
 
@@ -155,6 +159,27 @@ export class TLS_1_2_Server {
 			ContentTypes.Handshake,
 			await this.createFinishedMessage()
 		);
+	}
+
+	async startEmitingApplicationData() {
+		try {
+			while (true) {
+				const appData = await this.readNextMessage(
+					ContentTypes.ApplicationData
+				);
+				this.dispatchEvent(
+					new CustomEvent('decrypted-bytes-from-client', {
+						detail: appData.body,
+					})
+				);
+			}
+		} catch (e) {
+			if (e instanceof TLSConnectionClosed) {
+				// Connection closed, no more application data to emit.
+				return;
+			}
+			throw e;
+		}
 	}
 
 	/**
@@ -181,7 +206,6 @@ export class TLS_1_2_Server {
 			'SHA-256',
 			concatUint8Arrays(this.handshakeMessages)
 		);
-		console.log('this.handshakeMessages', [...this.handshakeMessages]);
 
 		// Step 2: Compute the verify_data using the PRF
 		const verifyData = new Uint8Array(
@@ -217,15 +241,25 @@ export class TLS_1_2_Server {
 			| HandshakeType.ClientKeyExchange
 			| HandshakeType.Finished
 	): Promise<HandshakeMessage<any>> {
-		const message = await this.readNextMessage<HandshakeMessage<any>>(
-			ContentTypes.Handshake
-		);
+		const message = await this.readNextMessage(ContentTypes.Handshake);
 		if (message.msg_type !== messageType) {
 			throw new Error(`Expected ${messageType} message`);
 		}
 		return message;
 	}
 
+	async readNextMessage(
+		requestedType: (typeof ContentTypes)['Handshake']
+	): Promise<HandshakeMessage<any>>;
+	async readNextMessage(
+		requestedType: (typeof ContentTypes)['ApplicationData']
+	): Promise<ApplicationDataMessage>;
+	async readNextMessage(
+		requestedType: (typeof ContentTypes)['Alert']
+	): Promise<AlertMessage>;
+	async readNextMessage(
+		requestedType: (typeof ContentTypes)['ChangeCipherSpec']
+	): Promise<ChangeCipherSpecMessage>;
 	async readNextMessage<Message extends TLSMessage>(
 		requestedType: ContentType
 	): Promise<Message> {
@@ -267,34 +301,50 @@ export class TLS_1_2_Server {
 				continue;
 			}
 			this.awaitingTLSRecords.push(record);
-			console.log('NEW TLS RECORD', record);
 		}
+	}
+
+	async readBytes(length: number) {
+		while (this.receivedBuffer.length < length) {
+			// Patience is the key...
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			if (this.closed) {
+				throw new TLSConnectionClosed();
+			}
+		}
+		const requestedBytes = this.receivedBuffer.slice(0, length);
+		this.receivedBuffer = this.receivedBuffer.slice(length);
+		return requestedBytes;
 	}
 
 	async parseTLSRecord(record: TLSRecord): Promise<TLSMessage> {
 		if (this.sessionKeys && record.type !== ContentTypes.ChangeCipherSpec) {
-			console.log('==== decrypting', record.fragment);
 			record.fragment = await this.decryptData(
 				record.type,
 				record.fragment as Uint8Array
 			);
 		}
-		const plaintext = record as TLSPlaintext;
 		switch (record.type) {
 			case ContentTypes.Handshake: {
-				return this.parseClientHandshakeMessage(plaintext.fragment);
+				return this.parseClientHandshakeMessage(record.fragment);
 			}
 			case ContentTypes.Alert: {
 				return {
 					type: record.type,
-					level: AlertLevelNames[plaintext.fragment[0]],
-					description: AlertDescriptionNames[plaintext.fragment[1]],
+					level: AlertLevelNames[record.fragment[0]],
+					description: AlertDescriptionNames[record.fragment[1]],
 				};
 			}
 			case ContentTypes.ChangeCipherSpec: {
 				return {
 					type: record.type,
 					body: {} as any,
+				};
+			}
+			case ContentTypes.ApplicationData: {
+				return {
+					type: record.type,
+					body: record.fragment,
 				};
 			}
 			default:
@@ -308,34 +358,40 @@ export class TLS_1_2_Server {
 		contentType: number,
 		payload: Uint8Array
 	): Promise<Uint8Array> {
-		const iv = new Uint8Array([
-			...this.sessionKeys!.clientIV,
-			...payload.slice(0, 8),
-		]);
+		const release = await this.decryptSemaphore.acquire();
+		try {
+			const iv = new Uint8Array([
+				...this.sessionKeys!.clientIV,
+				...payload.slice(0, 8),
+			]);
 
-		const decrypted = await crypto.subtle.decrypt(
-			{
-				name: 'AES-GCM',
-				iv: iv,
-				additionalData: new Uint8Array([
-					// Sequence number
-					...as8Bytes(this.receivedRecordSequenceNumber),
-					// Content type
-					contentType,
-					// Protocol version
-					0x03,
-					0x03,
-					// Length without IV and tag
-					...as2Bytes(payload.length - 8 - 16),
-				]),
-				tagLength: 128,
-			},
-			this.sessionKeys!.clientWriteKey,
-			payload.slice(8)
-		);
-		++this.receivedRecordSequenceNumber;
+			console.log('decrypting', payload);
+			const decrypted = await crypto.subtle.decrypt(
+				{
+					name: 'AES-GCM',
+					iv: iv,
+					additionalData: new Uint8Array([
+						// Sequence number
+						...as8Bytes(this.receivedRecordSequenceNumber),
+						// Content type
+						contentType,
+						// Protocol version
+						0x03,
+						0x03,
+						// Length without IV and tag
+						...as2Bytes(payload.length - 8 - 16),
+					]),
+					tagLength: 128,
+				},
+				this.sessionKeys!.clientWriteKey,
+				payload.slice(8)
+			);
+			++this.receivedRecordSequenceNumber;
 
-		return new Uint8Array(decrypted);
+			return new Uint8Array(decrypted);
+		} finally {
+			release();
+		}
 	}
 
 	private async encryptData(
@@ -370,16 +426,12 @@ export class TLS_1_2_Server {
 			this.sessionKeys!.serverWriteKey,
 			payload
 		);
-		console.log({ additionalData });
 		++this.sentRecordSequenceNumber;
-		console.log('payload.length', payload.length);
 
 		const encrypted = concatUint8Arrays([
 			explicitIV,
 			new Uint8Array(ciphertextWithTag),
 		]);
-
-		console.log('==== encrypted', encrypted);
 
 		return encrypted;
 	}
@@ -388,10 +440,9 @@ export class TLS_1_2_Server {
 	async processTLSRecord(record: TLSRecord): Promise<boolean> {
 		switch (record.type) {
 			case ContentTypes.Handshake: {
-				const plaintext = record as TLSPlaintext;
 				const message = concatUint8Arrays([
 					this.bufferedRecords[record.type] || new Uint8Array(),
-					plaintext.fragment,
+					record.fragment,
 				]);
 				this.bufferedRecords[record.type] = message;
 				// We don't have the message header yet, let's wait for more data.
@@ -405,10 +456,9 @@ export class TLS_1_2_Server {
 				return true;
 			}
 			case ContentTypes.Alert: {
-				const plaintext = record as TLSPlaintext;
 				const message = concatUint8Arrays([
 					this.bufferedRecords[record.type] || new Uint8Array(),
-					plaintext.fragment,
+					record.fragment,
 				]);
 				if (message.length < 2) {
 					return false;
@@ -416,6 +466,9 @@ export class TLS_1_2_Server {
 				return true;
 			}
 			case ContentTypes.ChangeCipherSpec: {
+				return true;
+			}
+			case ContentTypes.ApplicationData: {
 				return true;
 			}
 			default:
@@ -426,7 +479,7 @@ export class TLS_1_2_Server {
 	parseClientHandshakeMessage<T extends HandshakeMessageBody>(
 		message: Uint8Array
 	): HandshakeMessage<T> {
-		let msg_type = message[0];
+		const msg_type = message[0];
 		const length = (message[1] << 16) | (message[2] << 8) | message[3];
 		const bodyBytes = message.slice(4);
 		const reader = new ArrayBufferReader(bodyBytes.buffer);
@@ -578,9 +631,11 @@ export class TLS_1_2_Server {
 		if (contentType === ContentTypes.Handshake) {
 			this.handshakeMessages.push(payload);
 		}
+		console.log('writeTLSRecord.pre-encryption', payload);
 		if (this.sessionKeys && contentType !== ContentTypes.ChangeCipherSpec) {
 			payload = await this.encryptData(contentType, payload);
 		}
+		console.log('writeTLSRecord.post-encryption', payload);
 
 		const version = [0x03, 0x03]; // TLS 1.2
 		const length = payload.length;
@@ -1059,18 +1114,6 @@ async function generateECDHEServerKeyExchange(
 	]);
 }
 
-function arraysEqual(a: Uint8Array, b: Uint8Array): boolean {
-	if (a.length !== b.length) {
-		return false;
-	}
-	for (let i = 0; i < a.length; i++) {
-		if (a[i] !== b[i]) {
-			return false;
-		}
-	}
-	return true;
-}
-
 function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 	let totalLength = 0;
 	arrays.forEach((arr) => {
@@ -1144,11 +1187,6 @@ const enum CompressionMethod {
  * from the TLS 1.2 RFC.
  * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.1
  */
-
-type FragmentType =
-	| GenericStreamCipher
-	| GenericBlockCipher
-	| GenericAEADCipher;
 type CipherFragmentPair =
 	| { cipherType: CipherType.Stream; fragment: GenericStreamCipher }
 	| { cipherType: CipherType.Block; fragment: GenericBlockCipher }
@@ -1197,8 +1235,8 @@ interface GenericAEADCipher {
 type TLSMessage =
 	| AlertMessage
 	| HandshakeMessage<any>
-	| ChangeCipherSpecMessage;
-// | ApplicationDataMessage;
+	| ChangeCipherSpecMessage
+	| ApplicationDataMessage;
 
 interface AlertMessage {
 	type: typeof ContentTypes.Alert;
@@ -1249,15 +1287,18 @@ interface ChangeCipherSpecMessage {
 	body: Uint8Array;
 }
 
-const ContentTypes = {
+interface ApplicationDataMessage {
+	type: typeof ContentTypes.ApplicationData;
+	body: Uint8Array;
+}
+
+export const ContentTypes = {
 	ChangeCipherSpec: 20,
 	Alert: 21,
 	Handshake: 22,
 	ApplicationData: 23,
 } as const;
 type ContentType = (typeof ContentTypes)[keyof typeof ContentTypes];
-
-const ContentTypeNames = flipObject(ContentTypes);
 
 const enum HandshakeType {
 	HelloRequest = 0,
@@ -1414,26 +1455,11 @@ function as3Bytes(value: number): Uint8Array {
 	]);
 }
 
-function as4Bytes(value: number): Uint8Array {
-	return new Uint8Array([
-		(value >> 24) & 0xff,
-		(value >> 16) & 0xff,
-		(value >> 8) & 0xff,
-		value & 0xff,
-	]);
-}
-
 function as8Bytes(value: number): Uint8Array {
-	return new Uint8Array([
-		(value >> 56) & 0xff,
-		(value >> 48) & 0xff,
-		(value >> 40) & 0xff,
-		(value >> 32) & 0xff,
-		(value >> 24) & 0xff,
-		(value >> 16) & 0xff,
-		(value >> 8) & 0xff,
-		value & 0xff,
-	]);
+	const buffer = new ArrayBuffer(8);
+	const view = new DataView(buffer);
+	view.setBigUint64(0, BigInt(value), false); // false for big-endian
+	return new Uint8Array(buffer);
 }
 
 type SessionKeys = {
