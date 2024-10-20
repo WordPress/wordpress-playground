@@ -15,9 +15,7 @@ import {
 	SignatureAlgorithms,
 	SignatureAlgorithmsExtension,
 } from './tls/13_signature_algorithms';
-
-const LABEL_MASTER_SECRET = new TextEncoder().encode('master secret');
-const LABEL_KEY_EXPANSION = new TextEncoder().encode('key expansion');
+import { stringToArrayBuffer, tls12Prf } from './tls/prf';
 
 /**
  * Implements TLS 1.2 server-side handshake.
@@ -49,6 +47,7 @@ export class TLS_1_2_Server {
 		server_random: crypto.getRandomValues(new Uint8Array(32)),
 	};
 
+	private clientPublicKey: CryptoKey | undefined;
 	private ecdheKeyPair: CryptoKeyPair | undefined;
 	private sessionKeys: SessionKeys | undefined;
 	private encryptionActive = false;
@@ -128,11 +127,11 @@ export class TLS_1_2_Server {
 		]);
 		this.writeTLSRecord(ContentTypes.Handshake, serverHelloDone);
 
-		// // Step 5: Receive ClientKeyExchange
+		// Step 5: Receive ClientKeyExchange
 		const clientKeyExchangeRecord = await this.readHandshakeMessage(
 			HandshakeType.ClientKeyExchange
 		);
-		const clientPublicKey = await crypto.subtle.importKey(
+		this.clientPublicKey = await crypto.subtle.importKey(
 			'raw',
 			clientKeyExchangeRecord.body.exchange_keys,
 			{ name: 'ECDH', namedCurve: 'P-256' },
@@ -140,40 +139,53 @@ export class TLS_1_2_Server {
 			[]
 		);
 
+		await this.readNextMessage(ContentTypes.ChangeCipherSpec);
+		this.sessionKeys = await this.deriveSessionKeys();
+
 		// Step 6: Receive ClientFinished
-		const changeCipherSpec = await this.readNextMessage(
-			ContentTypes.ChangeCipherSpec
-		);
 
-		this.encryptionActive = true;
-		const preMasterSecret = await this.derivePreMasterSecret(
-			this.ecdheKeyPair.privateKey,
-			clientPublicKey
-		);
-		this.sessionKeys = await this.deriveSessionKeys(preMasterSecret);
-
+		console.log({ SessionKeys: this.sessionKeys });
 		// const preMasterSecret = await computePreMasterSecret(
 		// 	this.ecdheKeyPair.privateKey,
 		// 	clientPublicKey
 		// );
-		const masterSecret = await computeMasterSecret(
-			preMasterSecret,
-			clientHelloRecord.body.random,
-			this.securityParameters.server_random
-		);
+		// this.securityParameters.master_secret = await computeMasterSecret(
+		// 	preMasterSecret,
+		// 	this.securityParameters.client_random,
+		// 	this.securityParameters.server_random
+		// );
 
-		const clientFinished = await this.readNextMessage(
+		const clientFinished = await this.readNextTLSRecord(
 			ContentTypes.Handshake
 		);
-		await verifyClientFinished(
-			masterSecret,
-			concatUint8Arrays(this.handshakeMessages),
-			clientFinished.body.verify_data,
-			this.securityParameters.client_random,
-			this.securityParameters.server_random
-		);
+		console.log({ clientFinished });
+		const iv = new Uint8Array([
+			...this.sessionKeys.clientIV,
+			...clientFinished.fragment.slice(0, 8),
+		]);
 
-		console.log({ preMasterSecret, masterSecret });
+		let clientVerifyData;
+		try {
+			clientVerifyData = await crypto.subtle.decrypt(
+				{
+					name: 'AES-GCM',
+					iv: iv,
+				},
+				this.sessionKeys.clientWriteKey,
+				clientFinished.fragment.slice(8)
+			);
+		} catch (e) {
+			console.error('Decryption failed:', e);
+			return false;
+		}
+
+		console.log({ clientVerifyData });
+
+		this.encryptionActive = true;
+
+		console.log({
+			masterSecret: this.securityParameters.master_secret,
+		});
 		return;
 
 		// console.log('=============> Session keys', this.sessionKeys, {
@@ -290,8 +302,6 @@ export class TLS_1_2_Server {
 		]);
 	}
 
-	awaitingTLSMessages: Array<TLSMessage> = [];
-
 	async readHandshakeMessage(
 		messageType: HandshakeType.ClientHello
 	): Promise<HandshakeMessage<ClientHello>>;
@@ -320,55 +330,71 @@ export class TLS_1_2_Server {
 	async readNextMessage<Message extends TLSMessage>(
 		requestedType: ContentType
 	): Promise<Message> {
+		const record = await this.readNextTLSRecord(requestedType);
+		return (await this.parseTLSRecord(record)) as Message;
+	}
+
+	awaitingTLSRecords: Array<TLSRecord> = [];
+	async readNextTLSRecord(requestedType: ContentType): Promise<TLSRecord> {
 		while (true) {
-			for (let i = 0; i < this.awaitingTLSMessages.length; i++) {
-				const message = this.awaitingTLSMessages[i];
-				if (message.type === requestedType) {
-					const message = this.awaitingTLSMessages[i];
-					this.awaitingTLSMessages.splice(i, 1);
-					return message as Message;
+			for (let i = 0; i < this.awaitingTLSRecords.length; i++) {
+				const record = this.awaitingTLSRecords[i];
+				if (record.type === requestedType) {
+					const record = this.awaitingTLSRecords[i];
+					this.awaitingTLSRecords.splice(i, 1);
+					return record;
 				}
 			}
-			const record = await this.readTLSRecord();
+
+			// Read the TLS record header (5 bytes)
+			const header = await this.readBytes(5);
+			const length = (header[3] << 8) | header[4];
+			const record = {
+				type: header[0],
+				version: {
+					major: header[1],
+					minor: header[2],
+				},
+				length,
+				fragment: await this.readBytes(length),
+			} as TLSRecord;
+
 			const gotCompleteRecord = await this.processTLSRecord(record);
 			if (!gotCompleteRecord) {
 				continue;
 			}
-			if (this.encryptionActive) {
-				record.fragment = await this.decryptData(
-					record.fragment as Uint8Array
-				);
-			}
-			switch (record.type) {
-				case ContentTypes.Handshake: {
-					const plaintext = record as TLSPlaintext;
-					this.awaitingTLSMessages.push(
-						this.parseClientHandshakeMessage(plaintext.fragment)
-					);
-					break;
-				}
-				case ContentTypes.Alert: {
-					const alert = record as TLSPlaintext;
-					this.awaitingTLSMessages.push({
-						type: record.type,
-						level: AlertLevelNames[alert.fragment[0]],
-						description: AlertDescriptionNames[alert.fragment[1]],
-					});
-					break;
-				}
-				case ContentTypes.ChangeCipherSpec: {
-					this.awaitingTLSMessages.push({
-						type: record.type,
-						body: {} as any,
-						raw: record.fragment as Uint8Array,
-					});
-					break;
-				}
-			}
-			console.log(
-				'NEW TLS MESSAGE',
-				this.awaitingTLSMessages[this.awaitingTLSMessages.length - 1]
+			this.awaitingTLSRecords.push(record);
+			console.log('NEW TLS RECORD', record);
+		}
+	}
+
+	async parseTLSRecord(record: TLSRecord): Promise<TLSMessage> {
+		if (this.encryptionActive) {
+			record.fragment = await this.decryptData(
+				record.fragment as Uint8Array
 			);
+		}
+		const plaintext = record as TLSPlaintext;
+		switch (record.type) {
+			case ContentTypes.Handshake: {
+				return this.parseClientHandshakeMessage(plaintext.fragment);
+			}
+			case ContentTypes.Alert: {
+				return {
+					type: record.type,
+					level: AlertLevelNames[plaintext.fragment[0]],
+					description: AlertDescriptionNames[plaintext.fragment[1]],
+				};
+			}
+			case ContentTypes.ChangeCipherSpec: {
+				return {
+					type: record.type,
+					body: {} as any,
+					raw: record.fragment as Uint8Array,
+				};
+			}
+			default:
+				throw new Error(`Unsupported record type ${record.type}`);
 		}
 	}
 
@@ -525,52 +551,6 @@ export class TLS_1_2_Server {
 		};
 	}
 
-	async readTLSRecord(): Promise<TLSRecord> {
-		// Read the TLS record header (5 bytes)
-		const header = await this.readBytes(5);
-		const type = header[0];
-		const version = {
-			major: header[1],
-			minor: header[2],
-		};
-		const length = (header[3] << 8) | header[4];
-
-		let record: TLSPlaintext | undefined = undefined;
-		switch (type) {
-			case ContentTypes.Alert:
-			case ContentTypes.Handshake:
-			case ContentTypes.ChangeCipherSpec: {
-				record = {
-					type,
-					version,
-					length,
-					fragment: this.encryptionActive
-						? await this.readTLSCipherFragment(CipherType.AEAD, 12)
-						: await this.readBytes(length),
-				} as TLSPlaintext;
-				break;
-			}
-			// case ContentType.ApplicationData:
-			// 	return {
-			// 		type,
-			// 		version,
-			// 		length,
-			// 		fragment: await this.readTLSCipherFragment(
-			// 			this.securityParameters.cipher_type,
-			// 			length
-			// 		),
-			// 	};
-			default:
-				throw new Error(`Unsupported record type ${type}`);
-		}
-		if (!this.encryptionActive && type === ContentTypes.ChangeCipherSpec) {
-			this.encryptionActive = true;
-		} else if (this.encryptionActive) {
-			// record.fragment = await this.decryptData(record.fragment);
-		}
-		return record;
-	}
-
 	async readTLSCipherFragment<T extends CipherFragmentPair>(
 		cipherType: T['cipherType'],
 		length: number
@@ -708,21 +688,6 @@ export class TLS_1_2_Server {
 		]);
 	}
 
-	async derivePreMasterSecret(
-		serverPrivateKey: CryptoKey, // Server's ECDHE private key
-		clientPublicKey: CryptoKey // Client's ECDHE public key (received from the client)
-	): Promise<ArrayBuffer> {
-		// Step 1: Derive the shared secret using ECDH (this is the pre-master secret)
-		return await crypto.subtle.deriveBits(
-			{
-				name: 'ECDH',
-				public: clientPublicKey, // Client's ECDHE public key
-			},
-			serverPrivateKey, // Server's ECDHE private key
-			256 // Length of the derived secret (256 bits for P-256)
-		);
-	}
-
 	// HMAC-based PRF function using SHA-256
 	async tlsPrf(
 		secret: ArrayBuffer,
@@ -761,51 +726,45 @@ export class TLS_1_2_Server {
 		return result;
 	}
 
-	// Derive the master secret from the pre-master secret
-	async deriveMasterSecret(
-		preMasterSecret: ArrayBuffer,
-		clientRandom: Uint8Array,
-		serverRandom: Uint8Array
-	): Promise<Uint8Array> {
-		const seed = concatUint8Arrays([clientRandom, serverRandom]);
-		return await this.tlsPrf(
-			preMasterSecret,
-			LABEL_MASTER_SECRET,
-			seed,
-			48
-		); // Master secret is 48 bytes
-	}
+	// Full key derivation function
+	async deriveSessionKeys(): Promise<SessionKeys> {
+		const preMasterSecret = await crypto.subtle.deriveBits(
+			{
+				name: 'ECDH',
+				public: this.clientPublicKey!, // Client's ECDHE public key
+			},
+			this.ecdheKeyPair!.privateKey, // Server's ECDHE private key
+			256 // Length of the derived secret (256 bits for P-256)
+		);
+		this.securityParameters.master_secret = new Uint8Array(
+			await tls12Prf(
+				preMasterSecret,
+				stringToArrayBuffer('master secret'),
+				concatUint8Arrays([
+					this.securityParameters.client_random,
+					this.securityParameters.server_random,
+				]),
+				48
+			)
+		);
+		console.log(this.securityParameters.master_secret);
 
-	// Derive the keying material from the master secret
-	async deriveKeyingMaterial(
-		masterSecret: Uint8Array,
-		clientRandom: Uint8Array,
-		serverRandom: Uint8Array,
-		keyLength: number,
-		ivLength: number
-	): Promise<SessionKeys> {
-		const seed = concatUint8Arrays([serverRandom, clientRandom]);
-		const totalLength = 2 * keyLength + 2 * ivLength; // Client key, server key, client IV, server IV
-		const keyBlock = await this.tlsPrf(
-			masterSecret.buffer,
-			LABEL_KEY_EXPANSION,
-			seed,
-			totalLength
+		const keyBlock = await tls12Prf(
+			this.securityParameters.master_secret,
+			stringToArrayBuffer('key expansion'),
+			concatUint8Arrays([
+				this.securityParameters.server_random,
+				this.securityParameters.client_random,
+			]),
+			// Client key, server key, client IV, server IV
+			16 + 16 + 4 + 4
 		);
 
-		// Extract the keys and IVs from the key block
-		let offset = 0;
-
-		const clientWriteKey = keyBlock.slice(offset, offset + keyLength);
-		offset += keyLength;
-
-		const serverWriteKey = keyBlock.slice(offset, offset + keyLength);
-		offset += keyLength;
-
-		const clientIV = keyBlock.slice(offset, offset + ivLength);
-		offset += ivLength;
-
-		const serverIV = keyBlock.slice(offset, offset + ivLength);
+		const reader = new ArrayBufferReader(keyBlock);
+		const clientWriteKey = reader.readUint8Array(16);
+		const serverWriteKey = reader.readUint8Array(16);
+		const clientIV = reader.readUint8Array(4);
+		const serverIV = reader.readUint8Array(4);
 
 		return {
 			clientWriteKey: await crypto.subtle.importKey(
@@ -825,24 +784,6 @@ export class TLS_1_2_Server {
 			clientIV,
 			serverIV,
 		};
-	}
-
-	// Full key derivation function
-	async deriveSessionKeys(
-		preMasterSecret: ArrayBuffer
-	): Promise<SessionKeys> {
-		this.securityParameters.master_secret = await this.deriveMasterSecret(
-			preMasterSecret,
-			this.securityParameters.client_random,
-			this.securityParameters.server_random
-		);
-		return await this.deriveKeyingMaterial(
-			this.securityParameters.master_secret,
-			this.securityParameters.client_random,
-			this.securityParameters.server_random,
-			32,
-			12
-		); // 32 bytes for AES-256 keys, 12 bytes for GCM IV
 	}
 
 	private certificateMessage(certificates: Uint8Array[]): Uint8Array {
@@ -883,16 +824,21 @@ export class TLS_1_2_Server {
 		const iv = encryptedMessage.slice(0, 12); // Extract the IV (first 12 bytes)
 		const ciphertext = encryptedMessage.slice(12); // The rest is the ciphertext
 
-		const decryptedData = await crypto.subtle.decrypt(
-			{
-				name: 'AES-GCM',
-				iv: iv, // Initialization vector (extracted from the message)
-			},
-			this.sessionKeys!.clientWriteKey, // Use the client write key to decrypt data
-			ciphertext
-		);
+		try {
+			const decryptedData = await crypto.subtle.decrypt(
+				{
+					name: 'AES-GCM',
+					iv: iv, // Initialization vector (extracted from the message)
+				},
+				this.sessionKeys!.clientWriteKey, // Use the client write key to decrypt data
+				ciphertext
+			);
 
-		return new Uint8Array(decryptedData); // Return the decrypted data
+			return new Uint8Array(decryptedData); // Return the decrypted data
+		} catch (e) {
+			console.error('Error decrypting data', e);
+			throw e;
+		}
 	}
 }
 
@@ -1269,28 +1215,12 @@ type CipherFragmentPair =
 	| { cipherType: CipherType.Block; fragment: GenericBlockCipher }
 	| { cipherType: CipherType.AEAD; fragment: GenericAEADCipher };
 
-interface TLSCiphertext<T extends FragmentType> {
-	type: ContentType; // 1 byte
-	version: ProtocolVersion; // 2 bytes
-	length: number; // 2 bytes
-	fragment: T; // variable length
-}
-
-interface TLSPlaintext {
+interface TLSRecord {
 	type: ContentType; // 1 byte
 	version: ProtocolVersion; // 2 bytes
 	length: number; // 2 bytes
 	fragment: Uint8Array; // variable length
 }
-
-interface TLSCompressed {
-	type: ContentType;
-	version: ProtocolVersion;
-	length: number;
-	fragment: Uint8Array;
-}
-
-type TLSRecord = TLSPlaintext | TLSCiphertext<FragmentType> | TLSCompressed;
 
 interface ProtocolVersion {
 	major: number;
@@ -1596,30 +1526,13 @@ async function computePreMasterSecret(
 	return await subtle.exportKey('raw', key);
 }
 
-// Step 1: Compute the master secret from the pre-master secret and random values.
-async function computeMasterSecret(
-	preMasterSecret: ArrayBuffer,
-	clientRandom: ArrayBuffer,
-	serverRandom: ArrayBuffer
-): Promise<ArrayBuffer> {
-	const label = 'master secret';
-	const seedBuffer = new Uint8Array(
-		clientRandom.byteLength + serverRandom.byteLength
-	);
-	seedBuffer.set(new Uint8Array(clientRandom), 0);
-	seedBuffer.set(new Uint8Array(serverRandom), clientRandom.byteLength);
-
-	// Derive master secret using PRF
-	return await prf(preMasterSecret, label, seedBuffer, 48); // Master secret is 48 bytes long
-}
-
 // PRF (Pseudo-Random Function) implementation
 async function prf(
 	secret: ArrayBuffer,
 	label: string,
 	seed: ArrayBuffer,
 	outputLength: number
-): Promise<ArrayBuffer> {
+): Promise<Uint8Array> {
 	// Convert label to ArrayBuffer
 	const labelBuffer = new TextEncoder().encode(label);
 	const seedBuffer = new Uint8Array(labelBuffer.byteLength + seed.byteLength);
@@ -1637,7 +1550,7 @@ async function prf(
 
 	const hmac = await subtle.sign('HMAC', key, seedBuffer);
 
-	return hmac.slice(0, outputLength);
+	return new Uint8Array(hmac.slice(0, outputLength));
 }
 
 // Helper function to compare two ArrayBuffers for equality using crypto.subtle.digest
