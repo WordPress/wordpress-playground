@@ -29,6 +29,7 @@ export class TLS_1_2_Server {
 	certificatesDER: Uint8Array[];
 	receivedBuffer: Uint8Array = new Uint8Array();
 	sendBytesToClient: (data: Uint8Array) => void;
+	handshakeMessages: Uint8Array[] = [];
 
 	securityParameters: SecurityParameters = {
 		entity: ConnectionEnd.Server,
@@ -83,7 +84,6 @@ export class TLS_1_2_Server {
 	 * https://datatracker.ietf.org/doc/html/rfc5246#section-7.4
 	 */
 	async handleTLSHandshake(): Promise<void> {
-		const handshakeMessages: Uint8Array[] = [];
 		const clientHelloRecord = await this.readHandshakeMessage(
 			HandshakeType.ClientHello
 		);
@@ -93,18 +93,15 @@ export class TLS_1_2_Server {
 			);
 		}
 		this.securityParameters.client_random = clientHelloRecord.body.random;
-		handshakeMessages.push(clientHelloRecord.raw);
 
 		// Step 2: Send ServerHello
 		const serverHello = this.serverHelloMessage(clientHelloRecord.body);
-		handshakeMessages.push(serverHello);
 		this.writeTLSRecord(ContentTypes.Handshake, serverHello);
 
 		// Step 3: Send Certificate
 		const certificateMessage = this.certificateMessage(
 			this.certificatesDER
 		);
-		handshakeMessages.push(certificateMessage);
 		this.writeTLSRecord(ContentTypes.Handshake, certificateMessage);
 
 		// Step 4: Send ServerKeyExchange
@@ -122,7 +119,6 @@ export class TLS_1_2_Server {
 			this.ecdheKeyPair,
 			this.privateKey
 		);
-		handshakeMessages.push(serverKeyExchange);
 		this.writeTLSRecord(ContentTypes.Handshake, serverKeyExchange);
 
 		// Step 4: Send ServerHelloDone
@@ -130,14 +126,12 @@ export class TLS_1_2_Server {
 			HandshakeType.ServerHelloDone,
 			...as3Bytes(0),
 		]);
-		handshakeMessages.push(serverHelloDone);
 		this.writeTLSRecord(ContentTypes.Handshake, serverHelloDone);
 
 		// // Step 5: Receive ClientKeyExchange
 		const clientKeyExchangeRecord = await this.readHandshakeMessage(
 			HandshakeType.ClientKeyExchange
 		);
-		handshakeMessages.push(clientKeyExchangeRecord.raw);
 		const clientPublicKey = await crypto.subtle.importKey(
 			'raw',
 			clientKeyExchangeRecord.body.exchange_keys,
@@ -150,7 +144,6 @@ export class TLS_1_2_Server {
 		const changeCipherSpec = await this.readNextMessage(
 			ContentTypes.ChangeCipherSpec
 		);
-		handshakeMessages.push(changeCipherSpec.raw);
 
 		this.encryptionActive = true;
 		const preMasterSecret = await this.derivePreMasterSecret(
@@ -174,7 +167,7 @@ export class TLS_1_2_Server {
 		);
 		await verifyClientFinished(
 			masterSecret,
-			concatUint8Arrays(handshakeMessages),
+			concatUint8Arrays(this.handshakeMessages),
 			clientFinished.body.verify_data,
 			this.securityParameters.client_random,
 			this.securityParameters.server_random
@@ -320,6 +313,7 @@ export class TLS_1_2_Server {
 		if (message.msg_type !== messageType) {
 			throw new Error(`Expected ${messageType} message`);
 		}
+		this.handshakeMessages.push(message.raw);
 		return message;
 	}
 
