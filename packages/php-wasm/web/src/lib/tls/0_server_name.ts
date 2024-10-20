@@ -3,6 +3,7 @@
  * https://www.rfc-editor.org/rfc/rfc6066.html
  */
 
+import { ArrayBufferWriter } from '../tls';
 import { ExtensionTypes } from './extensions-types';
 import { flipObject } from './utils';
 
@@ -61,6 +62,17 @@ export class ServerNameExtension {
 		return { server_name_list: serverNameList };
 	}
 
+	/**
+	 * Encode the server_name extension
+	 *
+	 * +------------------------------------+
+	 * | Extension Type (server_name) [2B]  |
+	 * | 0x00 0x00                          |
+	 * +------------------------------------+
+	 * | Extension Length             [2B]  |
+	 * | 0x00 0x00                          |
+	 * +------------------------------------+
+	 */
 	static encode(serverNames?: ServerNameList) {
 		if (serverNames?.server_name_list.length) {
 			throw new Error(
@@ -69,11 +81,10 @@ export class ServerNameExtension {
 			);
 		}
 
-		return new Uint8Array([
-			ExtensionTypes.server_name,
-			// Zero body length encoded using two bytes
-			0,
-			0,
-		]);
+		const writer = new ArrayBufferWriter(4);
+		writer.writeUint16(ExtensionTypes.server_name);
+		// Zero body length encoded using two bytes
+		writer.writeUint16(0);
+		return writer.uint8Array;
 	}
 }

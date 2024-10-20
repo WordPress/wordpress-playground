@@ -268,7 +268,7 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 					onopen(data: any) {}
 
 					send(data: ArrayBuffer) {
-						console.log('Client -> Server: ', data);
+						console.log('Client -> Server: ', new Uint8Array(data));
 						try {
 							if (this.isPlaintext === null) {
 								// If it's a HTTP request, we can just fetch it

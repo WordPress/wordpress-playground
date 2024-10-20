@@ -51,9 +51,24 @@ export class ECPointFormatsExtension {
 		return formats;
 	}
 
+	/**
+	 * Encode the ec_point_formats extension
+	 *
+	 * +--------------------------------------------------+
+	 * | Extension Type (ec_point_formats)         [2B]   |
+	 * | 0x00 0x0B                                        |
+	 * +--------------------------------------------------+
+	 * | Body Length                               [2B]   |
+	 * +--------------------------------------------------+
+	 * | EC Point Format Length                    [1B]   |
+	 * +--------------------------------------------------+
+	 * | EC Point Format                           [1B]   |
+	 * +--------------------------------------------------+
+	 */
 	static encode(format: ECPointFormat): Uint8Array {
-		const writer = new ArrayBufferWriter(4);
+		const writer = new ArrayBufferWriter(6);
 		writer.writeUint16(ExtensionTypes.ec_point_formats);
+		writer.writeUint16(2); // Body length
 		writer.writeUint8(1); // EC Point Formats Length
 		writer.writeUint8(ECPointFormats[format]);
 		return writer.uint8Array;
