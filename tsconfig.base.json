@@ -74,7 +74,8 @@
 			"@wp-playground/wordpress-builds": [
 				"packages/playground/wordpress-builds/src/index.ts"
 			],
-			"isomorphic-git": ["./isomorphic-git/src"]
+			"isomorphic-git": ["./isomorphic-git/src"],
+			"rollup/parseAst": ["./node_modules/rollup/dist/parseAst"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]
