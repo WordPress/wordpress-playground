@@ -97,38 +97,48 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 
 				async function startTLS(ws: any) {
 					const host = ws.host;
+					const publicKeyBuffer = await crypto.subtle.exportKey(
+						'spki',
+						CAroot.keyPair.publicKey
+					);
+					const publicKeyArray = new Uint8Array(publicKeyBuffer);
+					const sha1 = await crypto.subtle.digest(
+						'SHA-1',
+						publicKeyArray
+					);
+					const sha1Array = new Uint8Array(sha1);
+					const sha1Hex = Array.from(sha1Array)
+						.map((b) => b.toString(16).padStart(2, '0'))
+						.join('');
+					console.log('SHA-1 of CAroot public key:', sha1Hex);
 					const siteCert =
 						await CertificateGenerator.generateCertificate(
 							{
 								subject: {
-									commonName: 'Playground Site',
+									commonName: host,
 									organizationName: 'Playground Site',
 									countryName: 'US',
 								},
-								keyUsage: {
-									digitalSignature: true,
+								issuer: {
+									commonName: 'PlaygroundCA',
+									organizationName: 'PlaygroundCA',
+									countryName: 'US',
 								},
-								nsCertType: {
-									server: true,
-								},
-								subjectAltNames: {
-									dnsNames: [host],
-								},
-							},
-							CAroot.keyPair.privateKey
+								// authorityKeyIdentifier: {
+								// 	keyIdentifier: sha1Array,
+								// },
+							}
+							// CAroot.keyPair.privateKey
 						);
-					console.log(
-						'CAroot.keyPair.privateKey',
-						CAroot.keyPair.privateKey
-					);
 
 					ws.sslServer = new TLS_1_2_Server(
-						CAroot.keyPair.privateKey,
-						[
-							// siteCert.certificate,
-							CAroot.certificate,
-						]
+						siteCert.keyPair.privateKey,
+						[siteCert.certificate]
 					);
+					// ws.sslServer = new TLS_1_2_Server(
+					// 	CAroot.keyPair.privateKey,
+					// 	[CAroot.certificate]
+					// );
 					ws.sslServer.addEventListener(
 						'pass-tls-bytes-to-client',
 						(e: CustomEvent) => {

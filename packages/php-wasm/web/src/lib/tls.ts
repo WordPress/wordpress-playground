@@ -16,7 +16,6 @@ import {
 	SignatureAlgorithmsExtension,
 } from './tls/13_signature_algorithms';
 import { stringToArrayBuffer, tls12Prf } from './tls/prf';
-import { Semaphore } from '@php-wasm/util';
 
 class TLSConnectionClosed extends Error {}
 
@@ -53,8 +52,6 @@ export class TLS_1_2_Server extends EventTarget {
 	private ecdheKeyPair: CryptoKeyPair | undefined;
 	private sessionKeys: SessionKeys | undefined;
 	private closed = false;
-	private encryptSemaphore = new Semaphore({ concurrency: 1 });
-	private decryptSemaphore = new Semaphore({ concurrency: 1 });
 
 	constructor(privateKey: CryptoKey, certificatesDER: Uint8Array[]) {
 		super();
@@ -104,9 +101,7 @@ export class TLS_1_2_Server extends EventTarget {
 		await this.writeTLSRecord(ContentTypes.Handshake, serverHello);
 
 		// Step 3: Send Certificate
-		const certificateMessage = this.certificateMessage(
-			this.certificatesDER
-		);
+		const certificateMessage = this.certificateMessage();
 		await this.writeTLSRecord(ContentTypes.Handshake, certificateMessage);
 
 		// Step 4: Send ServerKeyExchange
@@ -125,6 +120,7 @@ export class TLS_1_2_Server extends EventTarget {
 			this.privateKey
 		);
 		await this.writeTLSRecord(ContentTypes.Handshake, serverKeyExchange);
+		console.log('serverKeyExchange', serverKeyExchange);
 
 		// Step 4: Send ServerHelloDone
 		const serverHelloDone = new Uint8Array([
@@ -132,11 +128,13 @@ export class TLS_1_2_Server extends EventTarget {
 			...as3Bytes(0),
 		]);
 		await this.writeTLSRecord(ContentTypes.Handshake, serverHelloDone);
+		console.log('serverHelloDone', serverHelloDone);
 
 		// Step 5: Receive ClientKeyExchange
 		const clientKeyExchangeRecord = await this.readHandshakeMessage(
 			HandshakeType.ClientKeyExchange
 		);
+		console.log('clientKeyExchangeRecord', clientKeyExchangeRecord);
 		this.clientPublicKey = await crypto.subtle.importKey(
 			'raw',
 			clientKeyExchangeRecord.body.exchange_keys,
@@ -146,8 +144,10 @@ export class TLS_1_2_Server extends EventTarget {
 		);
 
 		await this.readNextMessage(ContentTypes.ChangeCipherSpec);
+		console.log('changeCipherSpec');
 		this.sessionKeys = await this.deriveSessionKeys();
 		await this.readHandshakeMessage(HandshakeType.Finished);
+		console.log('finished');
 		// We're not actually verifying the hash provided by client
 		// as we're not concerned with the client's identity.
 
@@ -268,6 +268,7 @@ export class TLS_1_2_Server extends EventTarget {
 		if (message.type === ContentTypes.Handshake) {
 			this.handshakeMessages.push(record.fragment);
 		}
+		console.log('message', message);
 		return message;
 	}
 
@@ -276,8 +277,14 @@ export class TLS_1_2_Server extends EventTarget {
 		while (true) {
 			for (let i = 0; i < this.awaitingTLSRecords.length; i++) {
 				const record = this.awaitingTLSRecords[i];
+				if (record.type === ContentTypes.Alert) {
+					throw new Error(
+						`Alert message received: ${
+							AlertLevelNames[record.fragment[0]]
+						} ${AlertDescriptionNames[record.fragment[1]]}`
+					);
+				}
 				if (record.type === requestedType) {
-					const record = this.awaitingTLSRecords[i];
 					this.awaitingTLSRecords.splice(i, 1);
 					return record;
 				}
@@ -358,40 +365,35 @@ export class TLS_1_2_Server extends EventTarget {
 		contentType: number,
 		payload: Uint8Array
 	): Promise<Uint8Array> {
-		const release = await this.decryptSemaphore.acquire();
-		try {
-			const iv = new Uint8Array([
-				...this.sessionKeys!.clientIV,
-				...payload.slice(0, 8),
-			]);
+		const iv = new Uint8Array([
+			...this.sessionKeys!.clientIV,
+			...payload.slice(0, 8),
+		]);
 
-			console.log('decrypting', payload);
-			const decrypted = await crypto.subtle.decrypt(
-				{
-					name: 'AES-GCM',
-					iv: iv,
-					additionalData: new Uint8Array([
-						// Sequence number
-						...as8Bytes(this.receivedRecordSequenceNumber),
-						// Content type
-						contentType,
-						// Protocol version
-						0x03,
-						0x03,
-						// Length without IV and tag
-						...as2Bytes(payload.length - 8 - 16),
-					]),
-					tagLength: 128,
-				},
-				this.sessionKeys!.clientWriteKey,
-				payload.slice(8)
-			);
-			++this.receivedRecordSequenceNumber;
+		console.log('decrypting', payload);
+		const decrypted = await crypto.subtle.decrypt(
+			{
+				name: 'AES-GCM',
+				iv: iv,
+				additionalData: new Uint8Array([
+					// Sequence number
+					...as8Bytes(this.receivedRecordSequenceNumber),
+					// Content type
+					contentType,
+					// Protocol version
+					0x03,
+					0x03,
+					// Length without IV and tag
+					...as2Bytes(payload.length - 8 - 16),
+				]),
+				tagLength: 128,
+			},
+			this.sessionKeys!.clientWriteKey,
+			payload.slice(8)
+		);
+		++this.receivedRecordSequenceNumber;
 
-			return new Uint8Array(decrypted);
-		} finally {
-			release();
-		}
+		return new Uint8Array(decrypted);
 	}
 
 	private async encryptData(
@@ -631,11 +633,9 @@ export class TLS_1_2_Server extends EventTarget {
 		if (contentType === ContentTypes.Handshake) {
 			this.handshakeMessages.push(payload);
 		}
-		console.log('writeTLSRecord.pre-encryption', payload);
 		if (this.sessionKeys && contentType !== ContentTypes.ChangeCipherSpec) {
 			payload = await this.encryptData(contentType, payload);
 		}
-		console.log('writeTLSRecord.post-encryption', payload);
 
 		const version = [0x03, 0x03]; // TLS 1.2
 		const length = payload.length;
@@ -801,38 +801,23 @@ export class TLS_1_2_Server extends EventTarget {
 		};
 	}
 
-	private certificateMessage(certificates: Uint8Array[]): Uint8Array {
-		const certsBytesLength = certificates.reduce(
-			(acc, cert) => acc + cert.length,
-			0
-		);
-		const certsWithHeadersLength =
-			certsBytesLength + 3 * certificates.length;
-
-		const body = new Uint8Array(certsWithHeadersLength + 3);
-		body[0] = (certsWithHeadersLength >> 16) & 0xff;
-		body[1] = (certsWithHeadersLength >> 8) & 0xff;
-		body[2] = certsWithHeadersLength & 0xff;
-
-		let offset = 3;
-		for (const cert of certificates) {
-			body[offset] = (cert.length >> 16) & 0xff;
-			body[offset + 1] = (cert.length >> 8) & 0xff;
-			body[offset + 2] = cert.length & 0xff;
-			offset += 3;
-			body.set(cert, offset);
-			offset += cert.length;
-		}
-
-		const length = body.length;
-		const header = new Uint8Array([
-			HandshakeType.Certificate,
-			(length >> 16) & 0xff,
-			(length >> 8) & 0xff,
-			length & 0xff,
+	private certificateMessage(): Uint8Array {
+		const certsBody = new Uint8Array([
+			...this.certificatesDER.flatMap((cert) => [
+				...as3Bytes(cert.byteLength),
+				...cert,
+			]),
 		]);
-
-		return concatUint8Arrays([header, body]);
+		const body = new Uint8Array([
+			...as3Bytes(certsBody.byteLength),
+			...certsBody,
+		]);
+		console.log({ certsBody });
+		return new Uint8Array([
+			HandshakeType.Certificate,
+			...as3Bytes(body.length),
+			...body,
+		]);
 	}
 }
 

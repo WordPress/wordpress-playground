@@ -140,9 +140,39 @@ function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 	return result;
 }
 
-function bufferToUint8Array(buffer: ArrayBuffer): Uint8Array {
-	return new Uint8Array(buffer);
-}
+export const ASN1Tags = {
+	EOC: 0,
+	Boolean: 1,
+	Integer: 2,
+	BitString: 3,
+	OctetString: 4,
+	Null: 5,
+	OID: 6,
+	ObjectDescriptor: 7,
+	External: 8,
+	Real: 9, // float
+	Enumeration: 10,
+	PDV: 11,
+	Utf8String: 12,
+	RelativeOID: 13,
+	Sequence: 16,
+	Set: 17,
+	NumericString: 18,
+	PrintableString: 19,
+	T61String: 20,
+	VideotexString: 21,
+	IA5String: 22,
+	UTCTime: 23,
+	GeneralizedTime: 24,
+	GraphicString: 25,
+	VisibleString: 26,
+	GeneralString: 28,
+	UniversalString: 29,
+	CharacterString: 30,
+	BMPString: 31,
+	Constructor: 32,
+	Context: 128,
+};
 
 class ASN1Encoder {
 	// Helper functions for ASN.1 DER encoding
@@ -341,7 +371,7 @@ export interface SubjectAltNames {
 export interface TBSCertificateDescription {
 	version?: number;
 	serialNumber?: Uint8Array;
-	signature?: OIDName;
+	signatureAlgorithm?: OIDName;
 	issuer?: CertificateIssuer;
 	validity?: Validity;
 	subject: CertificateIssuer;
@@ -350,60 +380,80 @@ export interface TBSCertificateDescription {
 	extKeyUsage?: ExtKeyUsage;
 	subjectAltNames?: SubjectAltNames;
 	nsCertType?: NSCertType;
+	authorityKeyIdentifier?: AuthorityKeyIdentifier;
+	subjectKeyIdentifier?: SubjectKeyIdentifier;
 }
+export type TBSCertificate = Uint8Array;
 
-export type SigningRequest = {
-	tbsCertificate: Uint8Array;
-	tbsSignature: Uint8Array;
+export type AuthorityKeyIdentifier = {
+	keyIdentifier: Uint8Array | boolean;
+	issuerName?: string;
+	serialNumber?: Uint8Array;
 };
 
+export type SubjectKeyIdentifier = {
+	keyIdentifier: Uint8Array | boolean;
+	issuerName?: string;
+	serialNumber?: Uint8Array;
+};
+
+function uint8ArrayToHexString(arr: Uint8Array) {
+	let hexString = '';
+	for (let i = 0; i < arr.length; i++) {
+		const hex = arr[i].toString(16).padStart(2, '0');
+		hexString += hex;
+	}
+	return hexString;
+}
 export class CertificateGenerator {
 	static async generateCertificate(
 		description: TBSCertificateDescription,
-		issuerPrivateKey?: CryptoKey
+		issuerKeyPair?: CryptoKeyPair
 	) {
 		const keyPair = await crypto.subtle.generateKey(
 			{
 				name: 'RSASSA-PKCS1-v1_5',
+				hash: 'SHA-256',
 				modulusLength: 2048,
 				publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
-				hash: { name: 'SHA-256' },
 			},
 			true, // extractable
 			['sign', 'verify']
 		);
-		const signingRequest = await this.signingRequest(
+		const tbsCertificate = await this.signingRequest(
 			description,
-			keyPair.publicKey
+			keyPair.publicKey,
+			issuerKeyPair?.publicKey ?? keyPair.publicKey
 		);
 		const certificate = await this.sign(
-			signingRequest,
-			issuerPrivateKey ?? keyPair.privateKey
+			tbsCertificate,
+			issuerKeyPair?.privateKey ?? keyPair.privateKey
 		);
 		return {
 			keyPair,
+			tbsCertificate,
 			certificate,
 		};
 	}
 
 	static async sign(
-		signingRequest: SigningRequest,
+		tbsCertificate: TBSCertificate,
 		privateKey: CryptoKey
 	): Promise<Uint8Array> {
 		// Step 3: Sign the TBSCertificate
 		const signature = await crypto.subtle.sign(
 			{
 				name: 'RSASSA-PKCS1-v1_5',
+				// hash: 'SHA-256',
 			},
 			privateKey,
-			signingRequest.tbsCertificate.buffer
+			tbsCertificate.buffer
 		);
 
 		// Step 4: Build the final Certificate sequence
 		const certificate = ASN1Encoder.sequence([
-			signingRequest.tbsCertificate,
-			signingRequest.tbsSignature,
-			// Signature value:
+			new Uint8Array(tbsCertificate.buffer),
+			this.signatureAlgorithm('sha256WithRSAEncryption'),
 			ASN1Encoder.bitString(new Uint8Array(signature)),
 		]);
 		return certificate;
@@ -411,14 +461,10 @@ export class CertificateGenerator {
 
 	static async signingRequest(
 		description: TBSCertificateDescription,
-		subjectPublicKey: CryptoKey
-	): Promise<SigningRequest> {
+		subjectPublicKey: CryptoKey,
+		issuerPublicKey: CryptoKey
+	): Promise<TBSCertificate> {
 		const extensions: Uint8Array[] = [];
-		if (description.basicConstraints) {
-			extensions.push(
-				this.basicConstraints(description.basicConstraints)
-			);
-		}
 		if (description.keyUsage) {
 			extensions.push(this.keyUsage(description.keyUsage));
 		}
@@ -428,28 +474,62 @@ export class CertificateGenerator {
 		if (description.subjectAltNames) {
 			extensions.push(this.subjectAltName(description.subjectAltNames));
 		}
-		if (description.nsCertType) {
-			extensions.push(this.nsCertType(description.nsCertType));
+		// if (description.nsCertType) {
+		// 	extensions.push(this.nsCertType(description.nsCertType));
+		// }
+		if (description.basicConstraints) {
+			extensions.push(
+				this.basicConstraints(description.basicConstraints)
+			);
 		}
-		const tbsSignature = this.signature(description.signature);
+		if (description.subjectKeyIdentifier) {
+			const subjectKeyHash = await crypto.subtle.digest(
+				'SHA-1',
+				await crypto.subtle.exportKey('spki', subjectPublicKey)
+			);
+			const sk = {
+				...description.subjectKeyIdentifier,
+			};
+			if (description.subjectKeyIdentifier.keyIdentifier === true) {
+				sk.keyIdentifier = new Uint8Array(subjectKeyHash).slice(0, 20);
+			}
+			extensions.push(this.subjectKeyIdentifier(sk));
+		}
+		if (description.authorityKeyIdentifier) {
+			const aki = {
+				...description.authorityKeyIdentifier,
+			};
+			if (description.authorityKeyIdentifier.keyIdentifier === true) {
+				// console.log(
+				// 	'authorityKeyIdentifier',
+				// 	description.authorityKeyIdentifier
+				// );
+				const issuerPublicKeyBuffer = await crypto.subtle.exportKey(
+					'spki',
+					issuerPublicKey
+				);
+				const authorityKeyHash = await crypto.subtle.digest(
+					'SHA-256',
+					issuerPublicKeyBuffer
+				);
+				aki.keyIdentifier = new Uint8Array(authorityKeyHash).slice(
+					0,
+					18
+				);
+			}
+			extensions.push(this.authorityKeyIdentifier(aki));
+		}
 		const tbsCertificate = ASN1Encoder.sequence([
 			this.version(description.version),
 			this.serialNumber(description.serialNumber),
-			this.signature(description.signature),
-			this.issuer(description.subject),
+			this.signatureAlgorithm(description.signatureAlgorithm),
+			this.distinguishedName(description.issuer ?? description.subject),
 			this.validity(description.validity),
-			this.issuer(description.issuer ?? description.subject),
-			this.subjectPublicKeyInfo(
-				bufferToUint8Array(
-					await crypto.subtle.exportKey('spki', subjectPublicKey)
-				)
-			),
+			this.distinguishedName(description.subject),
+			await this.subjectPublicKeyInfo(subjectPublicKey),
 			this.extensions(extensions),
 		]);
-		return {
-			tbsCertificate,
-			tbsSignature,
-		};
+		return tbsCertificate;
 	}
 
 	private static version(version = 0x02) {
@@ -461,39 +541,46 @@ export class CertificateGenerator {
 	}
 
 	private static serialNumber(
-		serialNumber = crypto.getRandomValues(new Uint8Array(16))
+		serialNumber = crypto.getRandomValues(new Uint8Array(19))
 	) {
 		return ASN1Encoder.integer(serialNumber);
 	}
 
-	private static signature(oidName: OIDName = 'sha256WithRSAEncryption') {
+	private static signatureAlgorithm(
+		algorithm: OIDName = 'sha256WithRSAEncryption'
+	) {
 		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName(oidName)),
+			ASN1Encoder.objectIdentifier(oidByName(algorithm)),
 			ASN1Encoder.null(),
 		]);
 	}
 
-	private static subjectPublicKeyInfo(publicKey: Uint8Array) {
-		return publicKey;
+	private static async subjectPublicKeyInfo(publicKey: CryptoKey) {
+		// ExportKey already returns data in ASN.1 DER format, we don't
+		// need to wrap it in a sequence agin.
+		return new Uint8Array(await crypto.subtle.exportKey('spki', publicKey));
 	}
 
 	private static extensions(extensions: Uint8Array[]) {
 		return ASN1Encoder.ASN1(0xa3, ASN1Encoder.sequence(extensions));
 	}
 
-	private static issuer(issuerInfo: CertificateIssuer) {
-		return ASN1Encoder.sequence(
-			Object.entries(issuerInfo).map(([oidName, value]) =>
-				ASN1Encoder.set([
-					ASN1Encoder.sequence([
-						ASN1Encoder.objectIdentifier(
-							oidByName(oidName as OIDName)
-						),
-						ASN1Encoder.printableString(value),
-					]),
-				])
-			)
-		);
+	private static distinguishedName(nameInfo: CertificateIssuer) {
+		const values = [];
+		for (const [oidName, value] of Object.entries(nameInfo)) {
+			const entry = [
+				ASN1Encoder.objectIdentifier(oidByName(oidName as OIDName)),
+			];
+			switch (oidName) {
+				case 'countryName':
+					entry.push(ASN1Encoder.printableString(value));
+					break;
+				default:
+					entry.push(ASN1Encoder.utf8String(value));
+			}
+			values.push(ASN1Encoder.set([ASN1Encoder.sequence(entry)]));
+		}
+		return ASN1Encoder.sequence(values);
 	}
 
 	private static validity(validity?: Validity) {
@@ -519,9 +606,7 @@ export class CertificateGenerator {
 		ca = true,
 		pathLenConstraint = undefined,
 	}: BasicConstraints) {
-		const sequence = [
-			ASN1Encoder.ASN1(0x01, new Uint8Array([ca ? 0xff : 0x00])),
-		];
+		const sequence = [ASN1Encoder.boolean(ca)];
 		if (pathLenConstraint !== undefined) {
 			sequence.push(
 				ASN1Encoder.integer(new Uint8Array([pathLenConstraint]))
@@ -529,7 +614,7 @@ export class CertificateGenerator {
 		}
 		return ASN1Encoder.sequence([
 			ASN1Encoder.objectIdentifier(oidByName('basicConstraints')),
-			ASN1Encoder.boolean(true), // Critical
+			// ASN1Encoder.boolean(true), // Critical
 			ASN1Encoder.octetString(ASN1Encoder.sequence(sequence)),
 		]);
 	}
@@ -636,6 +721,86 @@ export class CertificateGenerator {
 			ASN1Encoder.objectIdentifier(oidByName('subjectAltName')),
 			ASN1Encoder.boolean(true),
 			sanExtensionValue,
+		]);
+	}
+
+	private static subjectKeyIdentifier(
+		subjectKeyIdentifier: SubjectKeyIdentifier
+	) {
+		const { keyIdentifier, issuerName, serialNumber } =
+			subjectKeyIdentifier;
+		const values = [
+			ASN1Encoder.contextSpecific(
+				0,
+				ASN1Encoder.octetString(keyIdentifier)
+				// true
+			),
+		];
+		// console.log(
+		// 	'key identifier: ' +
+		// 		ASN1Encoder.octetString(keyIdentifier).map((v) =>
+		// 			v.toString(16)
+		// 		)
+		// );
+		// if (issuerName) {
+		// 	values.push(
+		// 		ASN1Encoder.contextSpecific(
+		// 			1,
+		// 			new TextEncoder().encode(issuerName),
+		// 			true
+		// 		)
+		// 	);
+		// }
+		// if (serialNumber) {
+		// 	values.push(ASN1Encoder.contextSpecific(2, serialNumber, true));
+		// }
+
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('subjectKeyIdentifier')),
+			// ASN1Encoder.boolean(true), // Critical
+			// ASN1Encoder.octetString(ASN1Encoder.sequence(values)),
+			ASN1Encoder.octetString(ASN1Encoder.octetString(keyIdentifier)),
+			// new Uint8Array([
+			// 	0x04, 0x16,
+			// 	0x04, 0x14, 0xA9, 0x6A, 0xE2, 0x13, 0x67, 0xE1,
+			// 	0x78, 0x8C, 0x95, 0x8E, 0x9D, 0xCA, 0x11, 0x0C,
+			// 	0xF9, 0x10, 0x68, 0x04, 0x03, 0xB3,
+			// ])
+		]);
+	}
+
+	private static authorityKeyIdentifier(
+		authorityKeyIdentifier: AuthorityKeyIdentifier
+	) {
+		const { keyIdentifier, issuerName, serialNumber } =
+			authorityKeyIdentifier;
+		const values = [
+			ASN1Encoder.contextSpecific(
+				0,
+				ASN1Encoder.octetString(keyIdentifier),
+				true
+			),
+		];
+		if (issuerName) {
+			values.push(
+				ASN1Encoder.contextSpecific(
+					1,
+					ASN1Encoder.octetString(
+						new TextEncoder().encode(issuerName)
+					),
+					true
+				)
+			);
+		}
+		if (serialNumber) {
+			values.push(ASN1Encoder.contextSpecific(2, serialNumber, true));
+		}
+
+		const authorityKeyIdentifierValue = ASN1Encoder.sequence(values);
+
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('authorityKeyIdentifier')),
+			ASN1Encoder.octetString(authorityKeyIdentifierValue),
 		]);
 	}
 }

@@ -13,14 +13,9 @@ import {
 	SignatureAlgorithmsExtension,
 } from './13_signature_algorithms';
 import { Padding, PaddingExtension } from './21_padding';
-import {
-	CertificateAuthorities,
-	CertificateAuthoritiesExtension,
-} from './47_certificate_authorities';
 import { ExtensionNames } from './extensions-types';
 
 export const TLSExtensionsHandlers = {
-	certificate_authorities: CertificateAuthoritiesExtension,
 	padding: PaddingExtension,
 	server_name: ServerNameExtension,
 	signature_algorithms: SignatureAlgorithmsExtension,
@@ -31,11 +26,6 @@ export const TLSExtensionsHandlers = {
 export type SupportedTLSExtension = keyof typeof TLSExtensionsHandlers;
 
 export type ParsedExtension =
-	| {
-			type: 'certificate_authorities';
-			data: CertificateAuthorities;
-			raw: Uint8Array;
-	  }
 	| {
 			type: 'padding';
 			data: Padding;
