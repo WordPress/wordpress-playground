@@ -802,17 +802,16 @@ export class TLS_1_2_Server extends EventTarget {
 	}
 
 	private certificateMessage(): Uint8Array {
-		const certsBody = new Uint8Array([
-			...this.certificatesDER.flatMap((cert) => [
-				...as3Bytes(cert.byteLength),
-				...cert,
-			]),
-		]);
+		const certsBodies: Uint8Array[] = [];
+		for (const cert of this.certificatesDER) {
+			certsBodies.push(as3Bytes(cert.byteLength));
+			certsBodies.push(cert);
+		}
+		const certsBody = concatUint8Arrays(certsBodies);
 		const body = new Uint8Array([
 			...as3Bytes(certsBody.byteLength),
 			...certsBody,
 		]);
-		console.log({ certsBody });
 		return new Uint8Array([
 			HandshakeType.Certificate,
 			...as3Bytes(body.length),
@@ -1065,7 +1064,7 @@ async function generateECDHEServerKeyExchange(
 	const signature = await crypto.subtle.sign(
 		{
 			name: 'RSASSA-PKCS1-v1_5',
-			hash: { name: 'SHA-256' },
+			hash: 'SHA-256',
 		},
 		rsaPrivateKey, // Server's RSA private key
 		dataToSign

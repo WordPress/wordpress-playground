@@ -240,36 +240,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			const knownRemoteAssetPaths = new Set<string>();
 			const CAroot = await CertificateGenerator.generateCertificate({
 				subject: {
-					commonName: 'PlaygroundCA',
-					organizationName: 'PlaygroundCA',
+					commonName: 'WordPressPlaygroundCA',
+					organizationName: 'WordPressPlaygroundCA',
 					countryName: 'US',
 				},
 				basicConstraints: {
 					ca: true,
 				},
-				// keyUsage: {
-				// 	keyCertSign: true,
-				// 	digitalSignature: true,
-				// 	nonRepudiation: true,
-				// 	keyEncipherment: true,
-				// 	dataEncipherment: true,
-				// },
-				// extKeyUsage: {
-				// 	serverAuth: true,
-				// 	clientAuth: true,
-				// 	codeSigning: true,
-				// 	emailProtection: true,
-				// 	timeStamping: true,
-				// },
-				// nsCertType: {
-				// 	client: true,
-				// 	server: true,
-				// 	email: true,
-				// 	objsign: true,
-				// 	sslCA: true,
-				// 	emailCA: true,
-				// 	objCA: true,
-				// },
 			});
 			const requestHandler = await bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),

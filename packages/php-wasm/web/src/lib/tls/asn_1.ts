@@ -397,14 +397,12 @@ export type SubjectKeyIdentifier = {
 	serialNumber?: Uint8Array;
 };
 
-function uint8ArrayToHexString(arr: Uint8Array) {
-	let hexString = '';
-	for (let i = 0; i < arr.length; i++) {
-		const hex = arr[i].toString(16).padStart(2, '0');
-		hexString += hex;
-	}
-	return hexString;
-}
+export type GeneratedCertificate = {
+	keyPair: CryptoKeyPair;
+	tbsCertificate: TBSCertificate;
+	certificate: Uint8Array;
+};
+
 export class CertificateGenerator {
 	static async generateCertificate(
 		description: TBSCertificateDescription,
@@ -444,7 +442,7 @@ export class CertificateGenerator {
 		const signature = await crypto.subtle.sign(
 			{
 				name: 'RSASSA-PKCS1-v1_5',
-				// hash: 'SHA-256',
+				hash: 'SHA-256',
 			},
 			privateKey,
 			tbsCertificate.buffer
@@ -465,13 +463,13 @@ export class CertificateGenerator {
 		issuerPublicKey: CryptoKey
 	): Promise<TBSCertificate> {
 		const extensions: Uint8Array[] = [];
-		if (description.keyUsage) {
+		if (0 && description.keyUsage) {
 			extensions.push(this.keyUsage(description.keyUsage));
 		}
-		if (description.extKeyUsage) {
-			// extensions.push(this.extKeyUsage(description.extKeyUsage));
+		if (0 && description.extKeyUsage) {
+			extensions.push(this.extKeyUsage(description.extKeyUsage));
 		}
-		if (description.subjectAltNames) {
+		if (0 && description.subjectAltNames) {
 			extensions.push(this.subjectAltName(description.subjectAltNames));
 		}
 		// if (description.nsCertType) {
@@ -482,7 +480,7 @@ export class CertificateGenerator {
 				this.basicConstraints(description.basicConstraints)
 			);
 		}
-		if (description.subjectKeyIdentifier) {
+		if (0 && description.subjectKeyIdentifier) {
 			const subjectKeyHash = await crypto.subtle.digest(
 				'SHA-1',
 				await crypto.subtle.exportKey('spki', subjectPublicKey)
@@ -495,7 +493,7 @@ export class CertificateGenerator {
 			}
 			extensions.push(this.subjectKeyIdentifier(sk));
 		}
-		if (description.authorityKeyIdentifier) {
+		if (0 && description.authorityKeyIdentifier) {
 			const aki = {
 				...description.authorityKeyIdentifier,
 			};
@@ -541,7 +539,8 @@ export class CertificateGenerator {
 	}
 
 	private static serialNumber(
-		serialNumber = crypto.getRandomValues(new Uint8Array(19))
+		serialNumber = crypto.getRandomValues(new Uint8Array(2))
+		// serialNumber = crypto.getRandomValues(new Uint8Array(19))
 	) {
 		return ASN1Encoder.integer(serialNumber);
 	}

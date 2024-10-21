@@ -1,6 +1,6 @@
 import { EmscriptenOptions } from '@php-wasm/universal';
 import { ContentTypes, TLS_1_2_Server } from './tls';
-import { CertificateGenerator } from './tls/asn_1';
+import { CertificateGenerator, GeneratedCertificate } from './tls/asn_1';
 
 export async function httpRequestToFetch(
 	host: string,
@@ -93,7 +93,7 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 			subprotocol: 'binary',
 			decorator: (original) => {
 				console.log('Decorator!', { original, phpModuleArgs });
-				const CAroot = phpModuleArgs['CAroot'];
+				const CAroot = phpModuleArgs['CAroot'] as GeneratedCertificate;
 
 				async function startTLS(ws: any) {
 					const host = ws.host;
@@ -116,29 +116,22 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 							{
 								subject: {
 									commonName: host,
-									organizationName: 'Playground Site',
-									countryName: 'US',
+									organizationName: 'abc',
+									countryName: 'PL',
 								},
 								issuer: {
-									commonName: 'PlaygroundCA',
-									organizationName: 'PlaygroundCA',
+									commonName: 'WordPressPlaygroundCA',
+									organizationName: 'WordPressPlaygroundCA',
 									countryName: 'US',
 								},
-								// authorityKeyIdentifier: {
-								// 	keyIdentifier: sha1Array,
-								// },
-							}
-							// CAroot.keyPair.privateKey
+							},
+							CAroot.keyPair
 						);
 
 					ws.sslServer = new TLS_1_2_Server(
 						siteCert.keyPair.privateKey,
-						[siteCert.certificate]
+						[siteCert.certificate, CAroot.certificate]
 					);
-					// ws.sslServer = new TLS_1_2_Server(
-					// 	CAroot.keyPair.privateKey,
-					// 	[CAroot.certificate]
-					// );
 					ws.sslServer.addEventListener(
 						'pass-tls-bytes-to-client',
 						(e: CustomEvent) => {
