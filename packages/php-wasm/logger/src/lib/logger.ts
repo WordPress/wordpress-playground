@@ -1,5 +1,5 @@
 import { logEvent } from './handlers/log-event';
-import { logToMemory, logToConsole, logs } from './log-handlers';
+import { logToMemory, logToConsole, logs, LogHandler } from './log-handlers';
 
 export { logEventType } from './handlers/log-event';
 
@@ -31,7 +31,7 @@ export class Logger extends EventTarget {
 	// constructor
 	constructor(
 		// Log handlers
-		private readonly handlers: Function[] = []
+		private readonly handlers: LogHandler[] = []
 	) {
 		super();
 	}

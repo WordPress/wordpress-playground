@@ -171,10 +171,7 @@ export function updateSite({
  * @returns
  */
 export function addSite(siteInfo: SiteInfo) {
-	return async (
-		dispatch: PlaygroundDispatch,
-		getState: () => PlaygroundReduxState
-	) => {
+	return async (dispatch: PlaygroundDispatch) => {
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error(
 				'Cannot add a temporary site. Use setTemporarySiteSpec instead.'

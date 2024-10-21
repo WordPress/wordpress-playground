@@ -273,9 +273,9 @@ export async function bootPlaygroundRemote() {
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
+					const result = await (
+						phpWorkerApi[method] as (...args: any[]) => any
+					)(...args);
 					event.source!.postMessage(
 						responseTo(event.data.requestId, result)
 					);

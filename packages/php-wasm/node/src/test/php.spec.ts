@@ -482,7 +482,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					stdin: {
 						write: () => {},
 					},
-					on: (evt: string, callback: Function) => {
+					on: (evt: string, callback: () => void) => {
 						if (evt === 'spawn') {
 							callback();
 						}
@@ -644,7 +644,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 						stdin: {
 							write: () => {},
 						},
-						on: (evt: string, callback: Function) => {
+						on: (evt: string, callback: () => void) => {
 							if (evt === 'spawn') {
 								callback();
 							}

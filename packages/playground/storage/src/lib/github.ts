@@ -415,7 +415,7 @@ export async function deleteFile(
 			mode: '100644',
 			sha: null,
 		};
-	} catch (error) {
+	} catch (e) {
 		// Pass
 		return undefined;
 	} finally {

@@ -443,6 +443,7 @@ export function UnconnectedSiteSettingsForm({
 				<Controller
 					control={control}
 					name="withNetworking"
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars
 					render={({ field: { onChange, ref, ...rest } }) => (
 						<CheckboxControl
 							label="Allow network access"
@@ -460,6 +461,7 @@ export function UnconnectedSiteSettingsForm({
 					control={control}
 					name="multisite"
 					disabled={!enabledFields.multisite}
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars
 					render={({ field: { onChange, ref, ...rest } }) => (
 						<CheckboxControl
 							label="Create a multisite network"

@@ -57,7 +57,10 @@ export async function setupPlaygroundSync(
 		transport.sendChanges(flushedChanges);
 	};
 
-	const loopAfterInterval = async (f: Function, ms: number) => {
+	const loopAfterInterval = async (
+		f: (...args: any[]) => any,
+		ms: number
+	) => {
 		await f();
 		setTimeout(loopAfterInterval, ms, f, ms);
 	};

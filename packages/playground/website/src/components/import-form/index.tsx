@@ -16,7 +16,6 @@ interface ImportFormProps {
 export default function ImportForm({
 	playground,
 	onImported,
-	onClose,
 }: ImportFormProps) {
 	const form = useRef<any>();
 	const fileInputRef = useRef<any>();

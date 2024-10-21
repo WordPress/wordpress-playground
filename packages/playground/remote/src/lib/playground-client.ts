@@ -72,10 +72,11 @@ export interface WebClientMixin extends ProgressReceiver {
 }
 
 /**
- * The Playground Client interface.
+ * The Playground Client type.
  */
-export interface PlaygroundClient
-	extends RemoteAPI<PlaygroundWorkerEndpoint & WebClientMixin> {}
+export type PlaygroundClient = RemoteAPI<
+	PlaygroundWorkerEndpoint & WebClientMixin
+>;
 
 /*
  * Assert that PlaygroundClient is a superset of UniversalPHP.

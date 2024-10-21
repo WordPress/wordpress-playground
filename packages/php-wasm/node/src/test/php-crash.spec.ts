@@ -96,7 +96,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				);
 			}
 
-			expect(global.gc && global.gc).to.exist;
+			expect(global.gc).toBeDefined();
 
 			let refCount = 0;
 
@@ -130,11 +130,15 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				instances.clear();
 
 				await delay(10);
-				global.gc && global.gc();
+				if (global.gc) {
+					global.gc();
+				}
 			}
 
 			await delay(100);
-			global.gc && global.gc();
+			if (global.gc) {
+				global.gc();
+			}
 
 			expect(refCount).lessThanOrEqual(10);
 		}, 500_000);

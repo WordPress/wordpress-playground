@@ -84,7 +84,7 @@ const getPrevKeys = (editor, { column, row }) => {
 	return path;
 };
 
-const getLastOfType = (editor, type, { column, row }, skip = 0) => {
+const getLastOfType = (editor, type, { row }, skip = 0) => {
 	const content = editor.getValue();
 	const lines = content.split('\n');
 
@@ -131,7 +131,7 @@ const getLastOfType = (editor, type, { column, row }, skip = 0) => {
 	return null;
 };
 
-const getPrevSiblings = (editor, { column, row }) => {
+const getPrevSiblings = (editor, { row }) => {
 	const content = editor.getValue();
 	const lines = content.split('\n');
 
@@ -199,13 +199,7 @@ const getStepSubProperties = async (stepType, resType, property) => {
 		.pop();
 };
 
-const completeStepSubProperty = async (
-	stepType,
-	resType,
-	property,
-	subKey,
-	prefix
-) => {
+const completeStepSubProperty = async (stepType, resType, property, subKey) => {
 	if (!resType && !subKey) {
 		return ['resource'];
 	}
@@ -497,7 +491,7 @@ const showError = (error) => {
 	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${error}</body>`;
 	errorTag.setAttribute('srcdoc', errDoc);
 };
-const clearError = (error) => {
+const clearError = () => {
 	if (!errorTag) {
 		errorTag = document.getElementById('error-output');
 	}
@@ -564,7 +558,7 @@ const runBlueprint = async (editor) => {
 	}
 };
 
-const loadFromHash = (editor) => {
+const loadFromHash = () => {
 	const hash = decodeURI(window.location.hash.substr(1));
 	try {
 		let json = '';
@@ -815,7 +809,7 @@ function onLoaded() {
 	const openMethod = () => {
 		const input = document.createElement('input');
 		input.setAttribute('type', 'file');
-		input.addEventListener('change', (event) => {
+		input.addEventListener('change', () => {
 			[...input.files].forEach((f) => {
 				const reader = new FileReader();
 				reader.addEventListener('load', () => {

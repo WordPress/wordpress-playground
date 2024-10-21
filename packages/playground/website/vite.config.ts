@@ -18,9 +18,13 @@ import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { addManifestJson } from '../../vite-extensions/vite-manifest';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 
 const proxy: CommonServerOptions['proxy'] = {
@@ -32,7 +36,7 @@ const proxy: CommonServerOptions['proxy'] = {
 };
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(({ mode }) => {
 	return {
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
