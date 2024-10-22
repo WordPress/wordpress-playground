@@ -113,6 +113,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			}
 			return false;
 		}
+
 		/**
 		 * Logs the user in on their first visit if the Playground runtime told us to.
 		 */
@@ -159,8 +160,17 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * Reload page to ensure the user is logged in correctly.
 			 * WordPress uses cookies to determine if the user is logged in,
 			 * so we need to reload the page to ensure the cookies are set.
+			 *
+			 * Both WordPress home url and REQUEST_URI include the site scope
+			 * subdirectory.
+			 * To prevent the redirect from including two scopes, we need to
+			 * remove the scope from the REQUEST_URI.
 			 */
-			wp_redirect($_SERVER['REQUEST_URI']);
+			$parts = explode('/', $_SERVER['REQUEST_URI']);
+			$unscoped_url = '/' . implode('/', array_slice($parts, 2));
+			wp_redirect(
+				home_url($unscoped_url)
+			);
 			exit;
 		}
 		/**
