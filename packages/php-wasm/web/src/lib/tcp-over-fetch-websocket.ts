@@ -8,8 +8,8 @@ export type TCPOverFetchOptions = {
 };
 
 /**
- * Websocket that buffers the received bytes and translates them into
- * a fetch() call.
+ * Sets up a WebSocket that analyzes the received bytes and, if they look like
+ * TLS or HTTP, handles the network transmission using fetch().
  */
 export const tcpOverFetchWebsocket = (tcpOptions: TCPOverFetchOptions) => {
 	return {
@@ -333,6 +333,9 @@ function guessProtocol(port: number, data: Uint8Array) {
 }
 
 class RawBytesFetch {
+	/**
+	 * Streams a HTTP response including the status line and headers.
+	 */
 	static fetchRawResponseBytes(request: Request) {
 		const stream = new TransformStream({
 			async start(controller) {
@@ -355,6 +358,10 @@ class RawBytesFetch {
 		return new TextEncoder().encode(string);
 	}
 
+	/**
+	 * Parses a raw, streamed HTTP request into a Request object
+	 * with known headers and a readable body stream.
+	 */
 	static async parseHttpRequest(
 		requestBytesStream: ReadableStream<Uint8Array>,
 		host: string,
