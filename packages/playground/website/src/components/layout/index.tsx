@@ -32,6 +32,7 @@ import {
 	setActiveModal,
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
+import { PreviewPRModal } from '../../github/preview-pr/modal';
 
 acquireOAuthTokenIfNeeded();
 
@@ -170,6 +171,8 @@ function Modals(blueprint: Blueprint) {
 
 	return (
 		<>
+			<PreviewPRModal />
+
 			{query.get('gh-ensure-auth') === 'yes' ? (
 				<GitHubOAuthGuardModal />
 			) : (

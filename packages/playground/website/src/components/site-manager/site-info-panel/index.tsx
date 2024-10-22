@@ -32,6 +32,8 @@ import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
+import { WordPressPRMenuItem } from '../../toolbar-buttons/wordpress-pr-menu-item';
+import { GutenbergPRMenuItem } from '../../toolbar-buttons/gutenberg-pr-menu-item';
 
 export function SiteInfoPanel({
 	className,
@@ -246,6 +248,8 @@ export function SiteInfoPanel({
 												onClose={onClose}
 												disabled={!playground}
 											/>
+										</MenuGroup>
+										<MenuGroup>
 											<GithubImportMenuItem
 												onClose={onClose}
 												disabled={
@@ -258,6 +262,20 @@ export function SiteInfoPanel({
 													offline || !playground
 												}
 											/>
+											<WordPressPRMenuItem
+												onClose={onClose}
+												disabled={
+													offline || !playground
+												}
+											/>
+											<GutenbergPRMenuItem
+												onClose={onClose}
+												disabled={
+													offline || !playground
+												}
+											/>
+										</MenuGroup>
+										<MenuGroup>
 											<MenuItem
 												// @ts-ignore
 												href={`/builder/builder.html#${encodeStringAsBase64(

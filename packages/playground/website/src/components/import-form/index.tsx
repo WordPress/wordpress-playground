@@ -47,7 +47,7 @@ export default function ImportForm({
 
 	return (
 		<form id="import-playground-form" ref={form} onSubmit={handleSubmit}>
-			<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
+			<h2 style={{ marginTop: 0, textAlign: 'center' }}>
 				Import Playground
 			</h2>
 			<p className={css.modalText}>
