@@ -124,10 +124,7 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 						CAroot.keyPair
 					);
 
-					ws.sslServer = new TLS_1_2_Connection(
-						siteCert.keyPair.privateKey,
-						[siteCert.certificate, CAroot.certificate]
-					);
+					ws.sslServer = new TLS_1_2_Connection();
 					ws.sslServer.addEventListener(
 						'pass-tls-bytes-to-client',
 						(e: CustomEvent) => {
@@ -171,7 +168,10 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 
 					ws.readyState = ws.OPEN;
 					ws.emit('open');
-					await ws.sslServer.TLSHandshake();
+					await ws.sslServer.TLSHandshake(
+						siteCert.keyPair.privateKey,
+						[siteCert.certificate, CAroot.certificate]
+					);
 					ws.sslServer.startEmitingApplicationData();
 				}
 

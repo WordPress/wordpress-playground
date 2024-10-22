@@ -7,49 +7,6 @@
 import { ParsedExtension } from '../extensions/parse-extensions';
 import { flipObject } from '../utils';
 
-export type SecurityParameters = {
-	entity: ConnectionEnd;
-	prf_algorithm: PRFAlgorithm;
-	bulk_cipher_algorithm: BulkCipherAlgorithm;
-	cipher_type: CipherType;
-	enc_key_length: number;
-	block_length: number;
-	fixed_iv_length: number;
-	record_iv_length: number;
-	mac_algorithm: MACAlgorithm;
-	mac_length: number;
-	mac_key_length: number;
-	compression_algorithm: CompressionMethod;
-	master_secret: Uint8Array; // 48 bytes
-	client_random: Uint8Array; // 32 bytes
-	server_random: Uint8Array; // 32 bytes
-};
-
-export const enum ConnectionEnd {
-	Client = 0,
-	Server = 1,
-}
-
-export const enum PRFAlgorithm {
-	SHA256 = 0,
-}
-
-export const enum BulkCipherAlgorithm {
-	Null = 0,
-	AES = 1,
-}
-
-export const enum CipherType {
-	Stream = 0,
-	Block = 1,
-	AEAD = 2,
-}
-
-export const enum MACAlgorithm {
-	Null = 0,
-	HMACSHA256 = 1,
-}
-
 export const enum CompressionMethod {
 	Null = 0,
 	Deflate = 1,
@@ -60,10 +17,6 @@ export const enum CompressionMethod {
  * from the TLS 1.2 RFC.
  * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.1
  */
-export type CipherFragmentPair =
-	| { cipherType: CipherType.Stream; fragment: GenericStreamCipher }
-	| { cipherType: CipherType.Block; fragment: GenericBlockCipher }
-	| { cipherType: CipherType.AEAD; fragment: GenericAEADCipher };
 
 export interface TLSRecord {
 	type: ContentType; // 1 byte
@@ -315,6 +268,7 @@ export interface Finished {
 }
 
 export type SessionKeys = {
+	masterSecret: Uint8Array;
 	clientWriteKey: CryptoKey;
 	serverWriteKey: CryptoKey;
 	clientIV: Uint8Array;
