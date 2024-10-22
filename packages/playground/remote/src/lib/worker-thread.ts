@@ -338,19 +338,6 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
 
-			await primaryPhp.writeFile(
-				'/wordpress/nonce-test.php',
-				`<?php
-					require_once '/wordpress/wp-load.php';
-					error_log(print_r($_COOKIE, true));
-					if (!empty($_COOKIE)) {
-						echo array_filter(array_keys($_COOKIE), function($key) {
-							return strpos($key, 'wordpress_logged_in_') === 0;
-						}) ? '1' : '0';
-					}
-				`
-			);
-
 			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
 			// from browser storage is the default version when it is actually something else.
 			// Assuming an incorrect WP version would break remote asset retrieval for minified
