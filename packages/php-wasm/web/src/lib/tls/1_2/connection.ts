@@ -58,6 +58,25 @@ const generalEcdheKeyPair = crypto.subtle.generateKey(
 	['deriveKey', 'deriveBits'] // Key usage
 );
 
+function chunkStream(chunkSize: number) {
+	let buffer: Uint8Array = new Uint8Array();
+	return new TransformStream({
+		transform(chunk, controller) {
+			buffer = concatUint8Arrays([buffer, chunk]);
+			while (buffer.length >= chunkSize) {
+				controller.enqueue(buffer.slice(0, chunkSize));
+				buffer = buffer.slice(chunkSize);
+			}
+		},
+		flush(controller) {
+			if (buffer.length) {
+				controller.enqueue(buffer);
+				buffer = new Uint8Array();
+			}
+		},
+	});
+}
+
 /**
  * Implements a server-side TLS 1.2 connection handler.
  *
@@ -73,7 +92,7 @@ const generalEcdheKeyPair = crypto.subtle.generateKey(
  *
  * See https://datatracker.ietf.org/doc/html/rfc5246.
  */
-export class TLS_1_2_Connection extends EventTarget {
+export class TLS_1_2_Connection {
 	/**
 	 * Sequence number of the last received TLS  record.
 	 *
@@ -131,48 +150,81 @@ export class TLS_1_2_Connection extends EventTarget {
 	 */
 	private handshakeMessages: Uint8Array[] = [];
 
-	close() {
+	/**
+	 * Maximum chunk size supported by the cipher suite used
+	 * in this TLS implementation.
+	 */
+	private MAX_CHUNK_SIZE = 1024 * 16;
+
+	clientEnd = {
+		// We don't need to chunk the encrypted data.
+		// OpenSSL already done that for us.
+		upstream: new TransformStream<Uint8Array, Uint8Array>(),
+		downstream: new TransformStream<Uint8Array, Uint8Array>(),
+	};
+
+	private clientDownstreamWriter =
+		this.clientEnd.downstream.writable.getWriter();
+	private clientUpstreamReader = this.clientEnd.upstream.readable.getReader();
+
+	serverEnd = {
+		upstream: new TransformStream<Uint8Array, Uint8Array>(),
+		// Chunk the data before encrypting it. This will
+		// spread some messages across multiple records, but
+		// TLS supports it so that's fine.
+		downstream: chunkStream(this.MAX_CHUNK_SIZE),
+	};
+
+	private serverUpstreamWriter = this.serverEnd.upstream.writable.getWriter();
+
+	constructor() {
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		const tlsConnection = this;
+		this.serverEnd.downstream.readable.pipeTo(
+			new WritableStream({
+				async write(chunk) {
+					await tlsConnection.writeTLSRecord(
+						ContentTypes.ApplicationData,
+						chunk
+					);
+				},
+				close() {
+					tlsConnection.close();
+				},
+			})
+		);
+	}
+
+	async close() {
+		if (this.closed) {
+			return;
+		}
 		this.closed = true;
-	}
-
-	startEmitingApplicationData() {
-		this.pollForIncomingData();
-	}
-
-	async sendDataToClient(unencryptedData: Uint8Array) {
-		await this.writeTLSRecord(
-			ContentTypes.ApplicationData,
-			unencryptedData
-		);
-	}
-
-	onClientBytes(data: Uint8Array) {
-		this.receivedBytesBuffer = concatUint8Arrays([
-			this.receivedBytesBuffer,
-			data,
-		]);
-	}
-
-	override addEventListener(
-		type: string,
-		callback: (e: CustomEvent) => any | null,
-		options?: boolean | AddEventListenerOptions | undefined
-	): void;
-	override addEventListener(
-		type: string,
-		callback: EventListenerOrEventListenerObject | null,
-		options?: boolean | AddEventListenerOptions | undefined
-	): void;
-	override addEventListener(
-		type: unknown,
-		callback: unknown,
-		options?: unknown
-	): void {
-		super.addEventListener(
-			type as string,
-			callback as EventListenerOrEventListenerObject | null,
-			options as boolean | AddEventListenerOptions | undefined
-		);
+		try {
+			await this.clientDownstreamWriter.close();
+		} catch (e) {
+			// Ignore
+		}
+		try {
+			await this.clientUpstreamReader.cancel();
+		} catch (e) {
+			// Ignore
+		}
+		try {
+			await this.serverUpstreamWriter.close();
+		} catch (e) {
+			// Ignore
+		}
+		try {
+			await this.clientEnd.upstream.readable.cancel();
+		} catch (e) {
+			// Ignore
+		}
+		try {
+			await this.clientEnd.downstream.writable.close();
+		} catch (e) {
+			// Ignore
+		}
 	}
 
 	/**
@@ -264,6 +316,8 @@ export class TLS_1_2_Connection extends EventTarget {
 		);
 		// Clean up the handshake messages as they are no longer needed.
 		this.handshakeMessages = [];
+
+		this.pollForIncomingData();
 	}
 
 	// Full key derivation function
@@ -384,7 +438,6 @@ export class TLS_1_2_Connection extends EventTarget {
 		if (record.type === ContentTypes.Handshake) {
 			this.handshakeMessages.push(record.fragment);
 		}
-		logger.debug('message', message);
 		return message;
 	}
 
@@ -437,11 +490,21 @@ export class TLS_1_2_Connection extends EventTarget {
 
 	private async pollBytes(length: number) {
 		while (this.receivedBytesBuffer.length < length) {
+			const { value, done } = await this.clientUpstreamReader.read();
+			if (done) {
+				await this.close();
+				throw new TLSConnectionClosed('TLS connection closed');
+			}
+			this.receivedBytesBuffer = concatUint8Arrays([
+				this.receivedBytesBuffer,
+				value,
+			]);
+			if (this.receivedBytesBuffer.length >= length) {
+				break;
+			}
+
 			// Patience is the key...
 			await new Promise((resolve) => setTimeout(resolve, 100));
-			if (this.closed) {
-				throw new TLSConnectionClosed();
-			}
 		}
 		const requestedBytes = this.receivedBytesBuffer.slice(0, length);
 		this.receivedBytesBuffer = this.receivedBytesBuffer.slice(length);
@@ -456,7 +519,6 @@ export class TLS_1_2_Connection extends EventTarget {
 		const explicitIV = payload.slice(0, 8);
 		const iv = new Uint8Array([...implicitIV, ...explicitIV]);
 
-		logger.debug('decrypting', payload);
 		const decrypted = await crypto.subtle.decrypt(
 			{
 				name: 'AES-GCM',
@@ -521,11 +583,7 @@ export class TLS_1_2_Connection extends EventTarget {
 				const appData = await this.readNextMessage(
 					ContentTypes.ApplicationData
 				);
-				this.dispatchEvent(
-					new CustomEvent('decrypted-bytes-from-client', {
-						detail: appData.body,
-					})
-				);
+				this.serverUpstreamWriter.write(appData.body);
 			}
 		} catch (e) {
 			if (e instanceof TLSConnectionClosed) {
@@ -558,7 +616,7 @@ export class TLS_1_2_Connection extends EventTarget {
 		header[4] = length & 0xff;
 
 		const record = concatUint8Arrays([header, payload]);
-		this.sendBytesToClient(record);
+		this.clientDownstreamWriter.write(record);
 	}
 
 	private async encryptData(
@@ -594,14 +652,6 @@ export class TLS_1_2_Connection extends EventTarget {
 		]);
 
 		return encrypted;
-	}
-
-	private sendBytesToClient(data: Uint8Array) {
-		this.dispatchEvent(
-			new CustomEvent('pass-tls-bytes-to-client', {
-				detail: data,
-			})
-		);
 	}
 }
 

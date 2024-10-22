@@ -5,7 +5,10 @@ import {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
-import { TCPOverFetchOptions, tcpOverFetchWebsocket } from './tcp-over-fetch';
+import {
+	TCPOverFetchOptions,
+	tcpOverFetchWebsocket,
+} from './tcp-over-fetch-websocket';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
