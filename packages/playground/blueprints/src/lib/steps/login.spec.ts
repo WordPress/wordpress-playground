@@ -67,7 +67,7 @@ describe('Blueprint step login', () => {
 		expect(response.text).toContain('Dashboard');
 	});
 
-	it.only('should set WordPress login cookie after login', async () => {
+	it('should set WordPress login cookie after login', async () => {
 		await login(php, {});
 		await php.writeFile(
 			'/wordpress/nonce-test.php',
