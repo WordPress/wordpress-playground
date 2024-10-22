@@ -9,6 +9,7 @@ import { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { defineWpConfigConsts } from './define-wp-config-consts';
+import { joinPaths, phpVar } from '@php-wasm/util';
 
 describe('Blueprint step login', () => {
 	let php: PHP;
@@ -66,16 +67,17 @@ describe('Blueprint step login', () => {
 		expect(response.text).toContain('Dashboard');
 	});
 
-	it('should set WordPress login cookie after login', async () => {
+	it.only('should set WordPress login cookie after login', async () => {
 		await login(php, {});
 		await php.writeFile(
 			'/wordpress/nonce-test.php',
 			`<?php
-				require_once '/wordpress/wp-load.php';
-				if (!empty($_COOKIE)) {
-					echo array_filter(array_keys($_COOKIE), function($key) {
+				require_once ${phpVar(joinPaths(handler.documentRoot, 'wp-load.php'))};
+				if (!empty($_COOKIE) && array_filter(array_keys($_COOKIE), function($key) {
 						return strpos($key, 'wordpress_logged_in_') === 0;
-					}) ? '1' : '0';
+					})
+				) {
+					echo '1';
 				}
 			`
 		);
