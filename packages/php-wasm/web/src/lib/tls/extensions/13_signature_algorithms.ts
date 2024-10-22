@@ -6,6 +6,7 @@
 import { ArrayBufferReader, ArrayBufferWriter } from '../utils';
 import { ExtensionTypes } from './types';
 import { flipObject } from '../utils';
+import { logger } from '@php-wasm/logger';
 
 /**
  * A list of supported signature algorithms,
@@ -75,11 +76,11 @@ export class SignatureAlgorithmsExtension {
 			const hash = reader.readUint8();
 			const algorithm = reader.readUint8();
 			if (!SignatureAlgorithmsNames[algorithm]) {
-				console.warn(`Unknown signature algorithm: ${algorithm}`);
+				logger.warn(`Unknown signature algorithm: ${algorithm}`);
 				continue;
 			}
 			if (!HashAlgorithmsNames[hash]) {
-				console.warn(`Unknown hash algorithm: ${hash}`);
+				logger.warn(`Unknown hash algorithm: ${hash}`);
 				continue;
 			}
 			parsedAlgorithms.push({
@@ -87,7 +88,6 @@ export class SignatureAlgorithmsExtension {
 				hash: HashAlgorithmsNames[hash],
 			});
 		}
-		console.log({ parsedAlgorithms });
 		return parsedAlgorithms;
 	}
 
