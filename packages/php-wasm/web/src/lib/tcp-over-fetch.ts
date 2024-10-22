@@ -283,12 +283,30 @@ export async function httpRequestToFetch(
 		throw new Error('No reader');
 	}
 
+	// Sleep to let PHP.wasm process the data it already received.
+	// @TODO: Explain the exact reason why it's needed.
+	await new Promise((resolve) => setTimeout(resolve, 1));
 	onData(new TextEncoder().encode(responseHeaderToString(response)));
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
+
+	let buffer = new Uint8Array(0);
+	let readerDone = false;
+	// 16K. 32K is too much for the cipher suite used by TLS_1_2_Connection.
+	const CHUNK_SIZE = 1024 * 16;
+	while (!readerDone || buffer.length) {
+		if (!readerDone) {
+			const { done, value } = await reader.read();
+			if (value) {
+				buffer = new Uint8Array([...buffer, ...value]);
+			}
+			if (done) {
+				readerDone = true;
+				continue;
+			}
+		}
+		// Sleep to let PHP.wasm process the data it already received.
 		await new Promise((resolve) => setTimeout(resolve, 1));
-		onData(value.buffer);
+		onData(buffer.slice(0, CHUNK_SIZE));
+		buffer = buffer.slice(CHUNK_SIZE);
 	}
 	// If there's any sleep() between onData() and onDone(), JavaScript
 	// will yield the control back to PHP.wasm where a blocking loop will
