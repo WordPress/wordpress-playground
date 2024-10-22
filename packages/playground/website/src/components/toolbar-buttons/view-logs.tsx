@@ -4,7 +4,7 @@ import { details } from '@wordpress/icons';
 import { useDispatch } from 'react-redux';
 import { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { modal_slug } from '../layout';
+import { modalSlugs } from '../layout';
 
 type Props = { onClose: () => void };
 export function ViewLogs({ onClose }: Props) {
@@ -16,7 +16,7 @@ export function ViewLogs({ onClose }: Props) {
 			data-cy="view-logs"
 			aria-label="View logs"
 			onClick={() => {
-				dispatch(setActiveModal(modal_slug.LOG));
+				dispatch(setActiveModal(modalSlugs.LOG));
 				onClose();
 			}}
 		>

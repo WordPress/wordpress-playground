@@ -36,7 +36,7 @@ import { ImportFormModal } from '../import-form/modal';
 
 acquireOAuthTokenIfNeeded();
 
-export const modal_slug = {
+export const modalSlugs = {
 	LOG: 'log',
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
@@ -158,7 +158,7 @@ function Modals(blueprint: Blueprint) {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
-				dispatch(setActiveModal(modal_slug.ERROR_REPORT));
+				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 			}
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,13 +168,13 @@ function Modals(blueprint: Blueprint) {
 		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 
-	if (currentModal === modal_slug.LOG) {
+	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;
-	} else if (currentModal === modal_slug.ERROR_REPORT) {
+	} else if (currentModal === modalSlugs.ERROR_REPORT) {
 		return <ErrorReportModal blueprint={blueprint} />;
-	} else if (currentModal === modal_slug.START_ERROR) {
+	} else if (currentModal === modalSlugs.START_ERROR) {
 		return <StartErrorModal />;
-	} else if (currentModal === modal_slug.IMPORT_FORM) {
+	} else if (currentModal === modalSlugs.IMPORT_FORM) {
 		return <ImportFormModal />;
 	}
 

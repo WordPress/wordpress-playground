@@ -2,7 +2,7 @@ import { MenuItem } from '@wordpress/components';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
-import { modal_slug } from '../layout';
+import { modalSlugs } from '../layout';
 
 type Props = { onClose: () => void; disabled: boolean };
 export function RestoreFromZipMenuItem({ onClose, disabled }: Props) {
@@ -13,7 +13,7 @@ export function RestoreFromZipMenuItem({ onClose, disabled }: Props) {
 			data-cy="restore-from-zip"
 			aria-label="Import a .zip file into the current Playground"
 			onClick={() => {
-				dispatch(setActiveModal(modal_slug.IMPORT_FORM));
+				dispatch(setActiveModal(modalSlugs.IMPORT_FORM));
 				if (typeof onClose === 'function') {
 					onClose();
 				}
