@@ -20,17 +20,12 @@ describe('hmacSha256', () => {
 		// Compute HMAC
 		const hmacResult = await hmacSha256(hmacKey, data);
 		const hmacHex = arrayBufferToHex(hmacResult);
-		console.log(`Computed HMAC: ${hmacHex}`);
 
 		// Expected HMAC
 		const expectedHmac =
 			'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7';
 
-		if (hmacHex.toLowerCase() === expectedHmac.toLowerCase()) {
-			console.log('HMAC implementation is correct.');
-		} else {
-			console.error('HMAC implementation is incorrect.');
-		}
+		expect(hmacHex).toEqual(expectedHmac);
 	});
 });
 

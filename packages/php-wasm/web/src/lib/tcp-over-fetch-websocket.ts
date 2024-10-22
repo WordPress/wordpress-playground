@@ -64,31 +64,31 @@ class TCPOverFetchWebsocket {
 		this.binaryType = 'arraybuffer';
 
 		this.clientDownstream.readable.pipeTo(
-			new WritableStream(
-				/**
-				 * Workaround a PHP.wasm issue – if the WebSocket is
-				 * closed asynchronously after the last chunk is received,
-				 * the PHP.wasm runtime enters an infinite polling loop.
-				 *
-				 * The root cause of the problem is unclear at the time
-				 * of writing this comment.
-				 *
-				 * The workaround is to call this.close() without yielding
-				 * to the event loop after receiving the last data chunk.
-				 */
-				synchronouslyClosedSink({
-					write: (chunk) => {
-						/**
-						 * Emscripten expects the message event to be emitted
-						 * so let's emit it.
-						 */
-						this.emit('message', { data: chunk });
-					},
-					close: () => {
-						this.close();
-					},
-				})
-			)
+			new WritableStream({
+				write: (chunk) => {
+					/**
+					 * Emscripten expects the message event to be emitted
+					 * so let's emit it.
+					 */
+					this.emit('message', { data: chunk });
+				},
+				close: () => {
+					/**
+					 * Workaround a PHP.wasm issue – if the WebSocket is
+					 * closed asynchronously after the last chunk is received,
+					 * the PHP.wasm runtime enters an infinite polling loop.
+					 *
+					 * The root cause of the problem is unclear at the time
+					 * of writing this comment. There's a chance it's a regular
+					 * POSIX behavior.
+					 *
+					 * Either way, sending an empty data chunk before closing
+					 * the WebSocket resolves the problem.
+					 */
+					this.emit('message', { data: new Uint8Array(0) });
+					this.close();
+				},
+			})
 		);
 		this.readyState = this.OPEN;
 		this.emit('open');
@@ -253,38 +253,6 @@ class TCPOverFetchWebsocket {
 		this.emit('close');
 		this.readyState = this.CLOSED;
 	}
-}
-
-/**
- * Calls the underlying sink's close method synchronously after the last
- * chunk is received. This assumes that the upstream source is closed
- * synchronously once the last chunk is received.
- *
- * This is a workaround for a PHP.wasm issue – if the WebSocket is closed
- * asynchronously after the last chunk is received, the PHP.wasm runtime
- * enters an infinite polling loop.
- */
-function synchronouslyClosedSink<T>(underlyingSink: UnderlyingSink<T>) {
-	const chunks: T[] = [];
-	let shouldClose = false;
-	return {
-		...underlyingSink,
-		write: (chunk: T, controller: WritableStreamDefaultController) => {
-			chunks.unshift(chunk);
-			setTimeout(() => {
-				while (chunks.length > 0) {
-					const emittedChunk = chunks.pop()!;
-					underlyingSink.write?.(emittedChunk, controller);
-				}
-				if (shouldClose) {
-					underlyingSink.close?.();
-				}
-			}, 5); // 0 is enough, but using 5 for good measure
-		},
-		close: () => {
-			shouldClose = true;
-		},
-	};
 }
 
 const HTTP_METHODS = [
