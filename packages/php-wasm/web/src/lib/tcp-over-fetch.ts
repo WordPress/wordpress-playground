@@ -10,7 +10,7 @@ export type TCPOverFetchOptions = {
  * Websocket that buffers the received bytes and translates them into
  * a fetch() call.
  */
-export const tcpOverFetchWebsocket = (options: TCPOverFetchOptions) => {
+export const tcpOverFetchWebsocket = (tcpOptions: TCPOverFetchOptions) => {
 	return {
 		websocket: {
 			url: (_: any, host: string, port: string) => {
@@ -22,10 +22,9 @@ export const tcpOverFetchWebsocket = (options: TCPOverFetchOptions) => {
 			},
 			subprotocol: 'binary',
 			decorator: () => {
-				const CAroot = options.CAroot;
 				return class SpecificTLSToFetchWebsocket extends TLSToFetchWebsocket {
-					constructor(url: string, options: string[]) {
-						super(url, options, CAroot, startTLS);
+					constructor(url: string, wsOptions: string[]) {
+						super(url, wsOptions, tcpOptions.CAroot, startTLS);
 					}
 				};
 			},
