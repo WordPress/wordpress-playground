@@ -1,4 +1,5 @@
-import { ArrayBufferReader } from '../tls';
+import { logger } from '@php-wasm/logger';
+import { ArrayBufferReader } from '../utils';
 import { ServerNameExtension, ServerNameList } from './0_server_name';
 import {
 	ParsedSupportedGroups,
@@ -13,7 +14,7 @@ import {
 	SignatureAlgorithmsExtension,
 } from './13_signature_algorithms';
 import { Padding, PaddingExtension } from './21_padding';
-import { ExtensionNames } from './extensions-types';
+import { ExtensionNames } from './types';
 
 export const TLSExtensionsHandlers = {
 	padding: PaddingExtension,
@@ -52,43 +53,43 @@ export type ParsedExtension =
 			raw: Uint8Array;
 	  };
 
-/*
-The extensions in a ClientHello message are encoded as follows:
-
-struct {
-    ExtensionType extension_type;
-    opaque extension_data<0..2^16-1>;
-} Extension;
-
-The overall extensions structure is:
-
-Extension extensions<0..2^16-1>;
-
-This means:
-	•	There's a 2-byte length field for the entire extensions block.
-	•	Followed by zero or more individual extensions.
-
-## Binary Data Layout
-
-+-----------------------------+
-| Extension 1 Type (2 bytes)  |
-+-----------------------------+
-| Extension 1 Length (2 bytes)|
-+-----------------------------+
-| Extension 1 Data (variable) |
-+-----------------------------+
-| Extension 2 Type (2 bytes)  |
-+-----------------------------+
-| Extension 2 Length (2 bytes)|
-+-----------------------------+
-| Extension 2 Data (variable) |
-+-----------------------------+
-| ... (more extensions)       |
-+-----------------------------+
-
- * 
- * @param data 
- * @returns 
+/**
+ * The extensions in a ClientHello message are encoded as follows:
+ *
+ * struct {
+ *     ExtensionType extension_type;
+ *     opaque extension_data<0..2^16-1>;
+ * } Extension;
+ *
+ * The overall extensions structure is:
+ *
+ * Extension extensions<0..2^16-1>;
+ *
+ * This means:
+ * •	There's a 2-byte length field for the entire extensions block.
+ * •	Followed by zero or more individual extensions.
+ *
+ * Binary Data Layout
+ *
+ * +-----------------------------+
+ * | Extension 1 Type (2 bytes)  |
+ * +-----------------------------+
+ * | Extension 1 Length (2 bytes)|
+ * +-----------------------------+
+ * | Extension 1 Data (variable) |
+ * +-----------------------------+
+ * | Extension 2 Type (2 bytes)  |
+ * +-----------------------------+
+ * | Extension 2 Length (2 bytes)|
+ * +-----------------------------+
+ * | Extension 2 Data (variable) |
+ * +-----------------------------+
+ * | ... (more extensions)       |
+ * +-----------------------------+
+ *
+ *
+ * @param data
+ * @returns
  */
 export function parseHelloExtensions(data: Uint8Array) {
 	const reader = new ArrayBufferReader(data.buffer);
@@ -103,7 +104,7 @@ export function parseHelloExtensions(data: Uint8Array) {
 
 		if (!(extensionTypeName in TLSExtensionsHandlers)) {
 			// throw new Error(`Unsupported extension type: ${extensionType}`);
-			console.warn(
+			logger.warn(
 				`Unsupported extension: ${extensionTypeName}(${extensionType})`
 			);
 			continue;
@@ -115,7 +116,7 @@ export function parseHelloExtensions(data: Uint8Array) {
 			];
 		parsed.push({
 			type: extensionTypeName,
-			data: handler.decode(extensionBytes),
+			data: handler.decode(extensionBytes) as any,
 			raw: data.slice(initialOffset, initialOffset + 4 + extensionLength),
 		});
 	}

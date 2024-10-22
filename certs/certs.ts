@@ -1,9 +1,9 @@
 import {
-	CertificateGenerator,
+	generateCertificate,
 	certificateToPEM,
-} from '../packages/php-wasm/web/src/lib/tls/asn_1';
+} from '../packages/php-wasm/web/src/lib/tls/certificates';
 
-const CAroot = await CertificateGenerator.generateCertificate({
+const CAroot = await generateCertificate({
 	subject: {
 		countryName: 'US',
 		organizationName: 'Playground CA',
@@ -17,7 +17,7 @@ const CAroot = await CertificateGenerator.generateCertificate({
 	// },
 });
 
-const SiteCert = await CertificateGenerator.generateCertificate(
+const SiteCert = await generateCertificate(
 	{
 		subject: {
 			commonName: 'playground-site',

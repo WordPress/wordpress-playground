@@ -3,9 +3,9 @@
  * https://www.rfc-editor.org/rfc/rfc4492#section-5.1.2
  */
 
-import { ArrayBufferReader, ArrayBufferWriter } from '../tls';
-import { ExtensionTypes } from './extensions-types';
-import { flipObject } from './utils';
+import { ArrayBufferReader, ArrayBufferWriter } from '../utils';
+import { ExtensionTypes } from './types';
+import { flipObject } from '../utils';
 
 export const ECPointFormats = {
 	uncompressed: 0,

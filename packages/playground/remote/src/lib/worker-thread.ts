@@ -48,11 +48,7 @@ import {
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
-import {
-	CertificateGenerator,
-	certificateToPEM,
-	privateKeyToPEM,
-} from '@php-wasm/web';
+import { generateCertificate, certificateToPEM } from '@php-wasm/web';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -238,7 +234,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const CAroot = await CertificateGenerator.generateCertificate({
+			const CAroot = await generateCertificate({
 				subject: {
 					commonName: 'WordPressPlaygroundCA',
 					organizationName: 'WordPressPlaygroundCA',

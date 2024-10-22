@@ -1,6 +1,7 @@
 import { EmscriptenOptions } from '@php-wasm/universal';
-import { ContentTypes, TLS_1_2_Server } from './tls';
-import { CertificateGenerator, GeneratedCertificate } from './tls/asn_1';
+import { TLS_1_2_Connection } from './tls/1_2/connection';
+import { ContentTypes } from './tls/1_2/types';
+import { generateCertificate, GeneratedCertificate } from './tls/certificates';
 
 export async function httpRequestToFetch(
 	host: string,
@@ -111,24 +112,19 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 						.map((b) => b.toString(16).padStart(2, '0'))
 						.join('');
 					console.log('SHA-1 of CAroot public key:', sha1Hex);
-					const siteCert =
-						await CertificateGenerator.generateCertificate(
-							{
-								subject: {
-									commonName: host,
-									organizationName: 'abc',
-									countryName: 'PL',
-								},
-								issuer: {
-									commonName: 'WordPressPlaygroundCA',
-									organizationName: 'WordPressPlaygroundCA',
-									countryName: 'US',
-								},
+					const siteCert = await generateCertificate(
+						{
+							subject: {
+								commonName: host,
+								organizationName: 'abc',
+								countryName: 'PL',
 							},
-							CAroot.keyPair
-						);
+							issuer: CAroot.tbsDescription.subject,
+						},
+						CAroot.keyPair
+					);
 
-					ws.sslServer = new TLS_1_2_Server(
+					ws.sslServer = new TLS_1_2_Connection(
 						siteCert.keyPair.privateKey,
 						[siteCert.certificate, CAroot.certificate]
 					);
@@ -318,160 +314,3 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 		},
 	};
 };
-
-function uint8ArrayToBinaryString(bytes: Uint8Array) {
-	const binary = [];
-	const len = bytes.byteLength;
-	for (let i = 0; i < len; i++) {
-		binary.push(String.fromCharCode(bytes[i]));
-	}
-	return binary.join('');
-}
-
-// async function setupForgeServer(ws: any) {
-// 	console.log('setupForgeServer');
-// 	try {
-// 		ws.sslServer = forge.tls.createConnection({
-// 			server: true,
-// 			caStore: forge.pki.createCaStore([forgeCert]),
-// 			sessionCache: {},
-// 			// supported cipher suites in order of preference
-// 			cipherSuites: [
-// 				forge.tls.CipherSuites
-// 					.TLS_RSA_WITH_AES_128_CBC_SHA,
-// 				forge.tls.CipherSuites
-// 					.TLS_RSA_WITH_AES_256_CBC_SHA,
-// 			],
-// 			// require a client-side certificate if you want
-// 			verifyClient: false,
-// 			verify: function (
-// 				connection,
-// 				verified,
-// 				depth,
-// 				certs
-// 			) {
-// 				console.log('Verify ', {
-// 					verified,
-// 					depth,
-// 					certs,
-// 				});
-// 				return true;
-// 				if (depth === 0) {
-// 					var cn =
-// 						certs[0].subject.getField('CN').value;
-// 					if (cn !== 'the-client') {
-// 						verified = {
-// 							alert: forge.tls.Alert.Description
-// 								.bad_certificate,
-// 							message:
-// 								'Certificate common name does not match expected client.',
-// 						};
-// 					}
-// 				}
-// 				return verified;
-// 			},
-// 			connected: function (connection) {
-// 				console.log(
-// 					'Sending an encrypted message back to the client!'
-// 				);
-// 				// send message to client
-
-// 				console.log({ connection });
-
-// 				// connection.prepare(forge.util.encodeUtf8(
-// 				// 	`HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!`
-// 				// ));
-
-// 				/* NOTE: experimental, start heartbeat retransmission timer
-// 				myHeartbeatTimer = setInterval(function() {
-// 				  connection.prepareHeartbeatRequest(forge.util.createBuffer('1234'));
-// 				}, 5*60*1000);*/
-// 			},
-// 			getCertificate: function (connection, hint) {
-// 				console.log('====> getCertificate');
-// 				// return certificate;
-// 				// This should return Pem, I think
-// 				return caPair.caPem;
-// 				// return forgeCert;
-// 			},
-// 			getPrivateKey: function (connection, cert) {
-// 				console.log('====> getPrivateKey');
-// 				// return privateKey;
-// 				// This should return Pem, I think
-// 				return caPair.caKeyPem;
-// 				// return forgePrivateKey;
-// 			},
-// 			tlsDataReady: function (connection) {
-// 				console.log('TLS data ready to be sent');
-// 				console.log({ connection });
-// 				const byteString =
-// 					connection.tlsData.getBytes();
-// 				const byteArray = new Uint8Array(
-// 					byteString.length
-// 				);
-// 				for (let i = 0; i < byteString.length; i++) {
-// 					byteArray[i] = byteString.charCodeAt(i);
-// 				}
-// 				// TLS data (encrypted) is ready to be sent to the client
-// 				ws.emit('message', { data: byteArray });
-// 				// if you were communicating with the client above you'd do:
-// 				// client.process(connection.tlsData.getBytes());
-// 			},
-// 			dataReady: function (connection) {
-// 				// clear data from the client is ready
-// 				const receivedData = forge.util.decodeUtf8(
-// 					connection.data.getBytes()
-// 				);
-// 				if (receivedData === '') {
-// 					return;
-// 				}
-// 				console.log(
-// 					'Clear data received: ' + receivedData
-// 				);
-
-// 				// @TODO: stream data from multiple dataReady calls in case the
-// 				//        client, say, uploads a large file
-// 				setTimeout(() => {
-// 					httpRequestToFetch(
-// 						ws.host,
-// 						ws.port,
-// 						receivedData,
-// 						(data) =>
-// 							connection.prepare(
-// 								uint8ArrayToBinaryString(
-// 									new Uint8Array(data)
-// 								)
-// 							),
-// 						() => connection.close()
-// 					);
-// 				});
-// 				console.log({ connection });
-
-// 				// close connection
-// 				// connection.close();
-// 			},
-// 			/* NOTE: experimental
-// 			heartbeatReceived: function(connection, payload) {
-// 			  // restart retransmission timer, look at payload
-// 			  clearInterval(myHeartbeatTimer);
-// 			  myHeartbeatTimer = setInterval(function() {
-// 				connection.prepareHeartbeatRequest(forge.util.createBuffer('1234'));
-// 			  }, 5*60*1000);
-// 			  payload.getBytes();
-// 			},*/
-// 			closed: function (connection) {
-// 				console.log('disconnected');
-// 			},
-// 			error: function (connection, error) {
-// 				console.log(connection);
-// 				console.log('uh oh', error);
-// 			},
-// 		});
-// 	} catch (e) {
-// 		console.error(e);
-// 	}
-// 	setTimeout(() => {
-// 		ws.readyState = ws.OPEN;
-// 		ws.emit('open');
-// 	});
-// }

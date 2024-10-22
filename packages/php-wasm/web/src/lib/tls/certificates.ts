@@ -1,3 +1,25 @@
+import { concatUint8Arrays } from './utils';
+
+export function generateCertificate(
+	description: TBSCertificateDescription,
+	issuerKeyPair?: CryptoKeyPair
+): Promise<GeneratedCertificate> {
+	return CertificateGenerator.generateCertificate(description, issuerKeyPair);
+}
+
+export function certificateToPEM(certificate: Uint8Array): string {
+	return `-----BEGIN CERTIFICATE-----\n${formatPEM(
+		encodeUint8ArrayAsBase64(certificate.buffer)
+	)}\n-----END CERTIFICATE-----`;
+}
+
+export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
+	const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
+	return `-----BEGIN PRIVATE KEY-----\n${formatPEM(
+		encodeUint8ArrayAsBase64(pkcs8)
+	)}\n-----END PRIVATE KEY-----`;
+}
+
 const oids = {
 	// Algorithm OIDs
 	'1.2.840.113549.1.1.1': 'rsaEncryption',
@@ -128,19 +150,8 @@ function oidByName(requestedName: OIDName): OID {
 	throw new Error(`OID not found for name: ${requestedName}`);
 }
 
-function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-	let totalLength = 0;
-	arrays.forEach((a) => (totalLength += a.length));
-	const result = new Uint8Array(totalLength);
-	let offset = 0;
-	arrays.forEach((a) => {
-		result.set(a, offset);
-		offset += a.length;
-	});
-	return result;
-}
-
-export const ASN1Tags = {
+const constructedBit = 0b00100000;
+const ASN1Tags = {
 	EOC: 0,
 	Boolean: 1,
 	Integer: 2,
@@ -155,8 +166,8 @@ export const ASN1Tags = {
 	PDV: 11,
 	Utf8String: 12,
 	RelativeOID: 13,
-	Sequence: 16,
-	Set: 17,
+	Sequence: 16 | constructedBit,
+	Set: 17 | constructedBit,
 	NumericString: 18,
 	PrintableString: 19,
 	T61String: 20,
@@ -216,7 +227,7 @@ class ASN1Encoder {
 			extendedNumber.set(number, 1);
 			number = extendedNumber;
 		}
-		return ASN1Encoder.ASN1(0x02, number); // INTEGER tag
+		return ASN1Encoder.ASN1(ASN1Tags.Integer, number);
 	}
 
 	static bitString(data: Uint8Array): Uint8Array {
@@ -224,15 +235,15 @@ class ASN1Encoder {
 		const combined = new Uint8Array(unusedBits.length + data.length);
 		combined.set(unusedBits);
 		combined.set(data, unusedBits.length);
-		return ASN1Encoder.ASN1(0x03, combined); // BIT STRING tag
+		return ASN1Encoder.ASN1(ASN1Tags.BitString, combined);
 	}
 
 	static octetString(data: Uint8Array): Uint8Array {
-		return ASN1Encoder.ASN1(0x04, data); // OCTET STRING tag
+		return ASN1Encoder.ASN1(ASN1Tags.OctetString, data);
 	}
 
 	static null(): Uint8Array {
-		return ASN1Encoder.ASN1(0x05, new Uint8Array(0)); // NULL tag
+		return ASN1Encoder.ASN1(ASN1Tags.Null, new Uint8Array(0));
 	}
 
 	static objectIdentifier(oid: string): Uint8Array {
@@ -251,30 +262,30 @@ class ASN1Encoder {
 			}
 			encodedParts.push(...bytes);
 		}
-		return ASN1Encoder.ASN1(0x06, new Uint8Array(encodedParts)); // OBJECT IDENTIFIER tag
+		return ASN1Encoder.ASN1(ASN1Tags.OID, new Uint8Array(encodedParts));
 	}
 
 	static utf8String(str: string): Uint8Array {
 		const utf8Bytes = new TextEncoder().encode(str);
-		return ASN1Encoder.ASN1(0x0c, utf8Bytes); // UTF8String tag
+		return ASN1Encoder.ASN1(ASN1Tags.Utf8String, utf8Bytes);
 	}
 
 	static printableString(str: string): Uint8Array {
 		const utf8Bytes = new TextEncoder().encode(str);
-		return ASN1Encoder.ASN1(0x13, utf8Bytes); // PrintableString tag
+		return ASN1Encoder.ASN1(ASN1Tags.PrintableString, utf8Bytes);
 	}
 
 	static sequence(items: Uint8Array[]): Uint8Array {
-		return ASN1Encoder.ASN1(0x30, concatUint8Arrays(items)); // SEQUENCE tag
+		return ASN1Encoder.ASN1(ASN1Tags.Sequence, concatUint8Arrays(items));
 	}
 
 	static set(items: Uint8Array[]): Uint8Array {
-		return ASN1Encoder.ASN1(0x31, concatUint8Arrays(items)); // SET tag
+		return ASN1Encoder.ASN1(ASN1Tags.Set, concatUint8Arrays(items));
 	}
 
 	static ia5String(str: string): Uint8Array {
 		const utf8Bytes = new TextEncoder().encode(str);
-		return ASN1Encoder.ASN1(0x16, utf8Bytes); // IA5String tag
+		return ASN1Encoder.ASN1(ASN1Tags.IA5String, utf8Bytes);
 	}
 
 	static contextSpecific(
@@ -287,25 +298,14 @@ class ASN1Encoder {
 	}
 
 	static boolean(value: boolean): Uint8Array {
-		return ASN1Encoder.ASN1(0x01, new Uint8Array([value ? 0xff : 0x00])); // BOOLEAN tag
+		return ASN1Encoder.ASN1(
+			ASN1Tags.Boolean,
+			new Uint8Array([value ? 0xff : 0x00])
+		);
 	}
 }
 
-export class ASN1Decoder {
-	static decode(data: Uint8Array): any {
-		const view = new DataView(data.buffer);
-		const tag = view.getUint8(0);
-		const length = view.getUint16(1);
-		const value = data.slice(3, 3 + length);
-		return {
-			tag,
-			length,
-			value,
-		};
-	}
-}
-
-export interface CertificateIssuer {
+export interface DistinguishedName {
 	countryName?: string;
 	organizationName?: string;
 	commonName?: string;
@@ -372,40 +372,27 @@ export interface TBSCertificateDescription {
 	version?: number;
 	serialNumber?: Uint8Array;
 	signatureAlgorithm?: OIDName;
-	issuer?: CertificateIssuer;
+	issuer?: DistinguishedName;
 	validity?: Validity;
-	subject: CertificateIssuer;
+	subject: DistinguishedName;
 	basicConstraints?: BasicConstraints;
 	keyUsage?: KeyUsage;
 	extKeyUsage?: ExtKeyUsage;
 	subjectAltNames?: SubjectAltNames;
 	nsCertType?: NSCertType;
-	authorityKeyIdentifier?: AuthorityKeyIdentifier;
-	subjectKeyIdentifier?: SubjectKeyIdentifier;
 }
 export type TBSCertificate = Uint8Array;
 
-export type AuthorityKeyIdentifier = {
-	keyIdentifier: Uint8Array | boolean;
-	issuerName?: string;
-	serialNumber?: Uint8Array;
-};
-
-export type SubjectKeyIdentifier = {
-	keyIdentifier: Uint8Array | boolean;
-	issuerName?: string;
-	serialNumber?: Uint8Array;
-};
-
 export type GeneratedCertificate = {
 	keyPair: CryptoKeyPair;
-	tbsCertificate: TBSCertificate;
 	certificate: Uint8Array;
+	tbsDescription: TBSCertificateDescription;
+	tbsCertificate: TBSCertificate;
 };
 
-export class CertificateGenerator {
+class CertificateGenerator {
 	static async generateCertificate(
-		description: TBSCertificateDescription,
+		tbsDescription: TBSCertificateDescription,
 		issuerKeyPair?: CryptoKeyPair
 	) {
 		const keyPair = await crypto.subtle.generateKey(
@@ -419,9 +406,8 @@ export class CertificateGenerator {
 			['sign', 'verify']
 		);
 		const tbsCertificate = await this.signingRequest(
-			description,
-			keyPair.publicKey,
-			issuerKeyPair?.publicKey ?? keyPair.publicKey
+			tbsDescription,
+			keyPair.publicKey
 		);
 		const certificate = await this.sign(
 			tbsCertificate,
@@ -429,8 +415,9 @@ export class CertificateGenerator {
 		);
 		return {
 			keyPair,
-			tbsCertificate,
 			certificate,
+			tbsCertificate,
+			tbsDescription,
 		};
 	}
 
@@ -459,65 +446,27 @@ export class CertificateGenerator {
 
 	static async signingRequest(
 		description: TBSCertificateDescription,
-		subjectPublicKey: CryptoKey,
-		issuerPublicKey: CryptoKey
+		subjectPublicKey: CryptoKey
 	): Promise<TBSCertificate> {
 		const extensions: Uint8Array[] = [];
-		if (0 && description.keyUsage) {
+		if (description.keyUsage) {
 			extensions.push(this.keyUsage(description.keyUsage));
 		}
-		if (0 && description.extKeyUsage) {
+		if (description.extKeyUsage) {
 			extensions.push(this.extKeyUsage(description.extKeyUsage));
 		}
-		if (0 && description.subjectAltNames) {
+		if (description.subjectAltNames) {
 			extensions.push(this.subjectAltName(description.subjectAltNames));
 		}
-		// if (description.nsCertType) {
-		// 	extensions.push(this.nsCertType(description.nsCertType));
-		// }
+		if (description.nsCertType) {
+			extensions.push(this.nsCertType(description.nsCertType));
+		}
 		if (description.basicConstraints) {
 			extensions.push(
 				this.basicConstraints(description.basicConstraints)
 			);
 		}
-		if (0 && description.subjectKeyIdentifier) {
-			const subjectKeyHash = await crypto.subtle.digest(
-				'SHA-1',
-				await crypto.subtle.exportKey('spki', subjectPublicKey)
-			);
-			const sk = {
-				...description.subjectKeyIdentifier,
-			};
-			if (description.subjectKeyIdentifier.keyIdentifier === true) {
-				sk.keyIdentifier = new Uint8Array(subjectKeyHash).slice(0, 20);
-			}
-			extensions.push(this.subjectKeyIdentifier(sk));
-		}
-		if (0 && description.authorityKeyIdentifier) {
-			const aki = {
-				...description.authorityKeyIdentifier,
-			};
-			if (description.authorityKeyIdentifier.keyIdentifier === true) {
-				// console.log(
-				// 	'authorityKeyIdentifier',
-				// 	description.authorityKeyIdentifier
-				// );
-				const issuerPublicKeyBuffer = await crypto.subtle.exportKey(
-					'spki',
-					issuerPublicKey
-				);
-				const authorityKeyHash = await crypto.subtle.digest(
-					'SHA-256',
-					issuerPublicKeyBuffer
-				);
-				aki.keyIdentifier = new Uint8Array(authorityKeyHash).slice(
-					0,
-					18
-				);
-			}
-			extensions.push(this.authorityKeyIdentifier(aki));
-		}
-		const tbsCertificate = ASN1Encoder.sequence([
+		return ASN1Encoder.sequence([
 			this.version(description.version),
 			this.serialNumber(description.serialNumber),
 			this.signatureAlgorithm(description.signatureAlgorithm),
@@ -527,7 +476,6 @@ export class CertificateGenerator {
 			await this.subjectPublicKeyInfo(subjectPublicKey),
 			this.extensions(extensions),
 		]);
-		return tbsCertificate;
 	}
 
 	private static version(version = 0x02) {
@@ -539,8 +487,7 @@ export class CertificateGenerator {
 	}
 
 	private static serialNumber(
-		serialNumber = crypto.getRandomValues(new Uint8Array(2))
-		// serialNumber = crypto.getRandomValues(new Uint8Array(19))
+		serialNumber = crypto.getRandomValues(new Uint8Array(4))
 	) {
 		return ASN1Encoder.integer(serialNumber);
 	}
@@ -564,7 +511,7 @@ export class CertificateGenerator {
 		return ASN1Encoder.ASN1(0xa3, ASN1Encoder.sequence(extensions));
 	}
 
-	private static distinguishedName(nameInfo: CertificateIssuer) {
+	private static distinguishedName(nameInfo: DistinguishedName) {
 		const values = [];
 		for (const [oidName, value] of Object.entries(nameInfo)) {
 			const entry = [
@@ -585,13 +532,13 @@ export class CertificateGenerator {
 	private static validity(validity?: Validity) {
 		return ASN1Encoder.sequence([
 			ASN1Encoder.ASN1(
-				0x17,
+				ASN1Tags.UTCTime,
 				new TextEncoder().encode(
 					formatDateASN1(validity?.notBefore ?? new Date())
 				)
 			),
 			ASN1Encoder.ASN1(
-				0x17,
+				ASN1Tags.UTCTime,
 				new TextEncoder().encode(
 					formatDateASN1(
 						validity?.notAfter ?? addYears(new Date(), 10)
@@ -613,7 +560,6 @@ export class CertificateGenerator {
 		}
 		return ASN1Encoder.sequence([
 			ASN1Encoder.objectIdentifier(oidByName('basicConstraints')),
-			// ASN1Encoder.boolean(true), // Critical
 			ASN1Encoder.octetString(ASN1Encoder.sequence(sequence)),
 		]);
 	}
@@ -705,13 +651,13 @@ export class CertificateGenerator {
 	private static subjectAltName(altNames: SubjectAltNames) {
 		const generalNames =
 			altNames.dnsNames?.map((name) => {
-				const dnsName = ASN1Encoder.ia5String(name); // IA5String encoding
-				return ASN1Encoder.contextSpecific(2, dnsName); // [2] dNSName
+				const dnsName = ASN1Encoder.ia5String(name);
+				return ASN1Encoder.contextSpecific(2, dnsName);
 			}) || [];
 		const ipAddresses =
 			altNames.ipAddresses?.map((ip) => {
-				const ipAddress = ASN1Encoder.ia5String(ip); // IA5String encoding
-				return ASN1Encoder.contextSpecific(7, ipAddress); // [7] iPAddress
+				const ipAddress = ASN1Encoder.ia5String(ip);
+				return ASN1Encoder.contextSpecific(7, ipAddress);
 			}) || [];
 		const sanExtensionValue = ASN1Encoder.octetString(
 			ASN1Encoder.sequence([...generalNames, ...ipAddresses])
@@ -722,112 +668,11 @@ export class CertificateGenerator {
 			sanExtensionValue,
 		]);
 	}
-
-	private static subjectKeyIdentifier(
-		subjectKeyIdentifier: SubjectKeyIdentifier
-	) {
-		const { keyIdentifier, issuerName, serialNumber } =
-			subjectKeyIdentifier;
-		const values = [
-			ASN1Encoder.contextSpecific(
-				0,
-				ASN1Encoder.octetString(keyIdentifier)
-				// true
-			),
-		];
-		// console.log(
-		// 	'key identifier: ' +
-		// 		ASN1Encoder.octetString(keyIdentifier).map((v) =>
-		// 			v.toString(16)
-		// 		)
-		// );
-		// if (issuerName) {
-		// 	values.push(
-		// 		ASN1Encoder.contextSpecific(
-		// 			1,
-		// 			new TextEncoder().encode(issuerName),
-		// 			true
-		// 		)
-		// 	);
-		// }
-		// if (serialNumber) {
-		// 	values.push(ASN1Encoder.contextSpecific(2, serialNumber, true));
-		// }
-
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('subjectKeyIdentifier')),
-			// ASN1Encoder.boolean(true), // Critical
-			// ASN1Encoder.octetString(ASN1Encoder.sequence(values)),
-			ASN1Encoder.octetString(ASN1Encoder.octetString(keyIdentifier)),
-			// new Uint8Array([
-			// 	0x04, 0x16,
-			// 	0x04, 0x14, 0xA9, 0x6A, 0xE2, 0x13, 0x67, 0xE1,
-			// 	0x78, 0x8C, 0x95, 0x8E, 0x9D, 0xCA, 0x11, 0x0C,
-			// 	0xF9, 0x10, 0x68, 0x04, 0x03, 0xB3,
-			// ])
-		]);
-	}
-
-	private static authorityKeyIdentifier(
-		authorityKeyIdentifier: AuthorityKeyIdentifier
-	) {
-		const { keyIdentifier, issuerName, serialNumber } =
-			authorityKeyIdentifier;
-		const values = [
-			ASN1Encoder.contextSpecific(
-				0,
-				ASN1Encoder.octetString(keyIdentifier),
-				true
-			),
-		];
-		if (issuerName) {
-			values.push(
-				ASN1Encoder.contextSpecific(
-					1,
-					ASN1Encoder.octetString(
-						new TextEncoder().encode(issuerName)
-					),
-					true
-				)
-			);
-		}
-		if (serialNumber) {
-			values.push(ASN1Encoder.contextSpecific(2, serialNumber, true));
-		}
-
-		const authorityKeyIdentifierValue = ASN1Encoder.sequence(values);
-
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('authorityKeyIdentifier')),
-			ASN1Encoder.octetString(authorityKeyIdentifierValue),
-		]);
-	}
-}
-
-export function certificateToPEM(certificate: Uint8Array): string {
-	const certificateBase64 = bufferToBase64(certificate.buffer);
-	return `-----BEGIN CERTIFICATE-----\n${formatPEM(
-		certificateBase64
-	)}\n-----END CERTIFICATE-----`;
-}
-
-export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
-	const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
-	const pkcs8B64 = bufferToBase64(pkcs8);
-	const pkcs8PEM = `-----BEGIN PRIVATE KEY-----\n${formatPEM(
-		pkcs8B64
-	)}\n-----END PRIVATE KEY-----`;
-	return pkcs8PEM;
 }
 
 // Helper functions
-function bufferToBase64(buffer: ArrayBuffer): string {
-	const bytes = new Uint8Array(buffer);
-	let binary = '';
-	for (let i = 0; i < bytes.byteLength; i++) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return btoa(binary);
+function encodeUint8ArrayAsBase64(bytes: ArrayBuffer) {
+	return btoa(String.fromCodePoint(...new Uint8Array(bytes)));
 }
 
 function formatPEM(pemString: string): string {

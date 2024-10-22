@@ -3,9 +3,9 @@
  * https://www.rfc-editor.org/rfc/rfc6066.html
  */
 
-import { ArrayBufferReader, ArrayBufferWriter } from '../tls';
-import { ExtensionTypes } from './extensions-types';
-import { flipObject } from './utils';
+import { ArrayBufferReader, ArrayBufferWriter } from '../utils';
+import { ExtensionTypes } from './types';
+import { flipObject } from '../utils';
 
 /**
  * A list of supported signature algorithms,

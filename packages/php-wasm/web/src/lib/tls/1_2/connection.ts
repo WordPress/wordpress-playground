@@ -1,30 +1,61 @@
-/**
- * To test:
- *
- * http://localhost:5400/website-server/#%7B%22landingPage%22:%22/network-test.php%22,%22preferredVersions%22:%7B%22php%22:%228.0%22,%22wp%22:%22latest%22%7D,%22phpExtensionBundles%22:%5B%22kitchen-sink%22%5D,%22steps%22:%5B%7B%22step%22:%22writeFile%22,%22path%22:%22/wordpress/network-test.php%22,%22data%22:%22%3C?php%20echo%20'Hello-dolly.zip%20downloaded%20from%20https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip%20has%20this%20many%20bytes:%20';%20var_dump(strlen(file_get_contents('https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip')));%22%7D%5D%7D
- */
-import { ServerNameExtension } from './tls/0_server_name';
-import { CipherSuitesNames } from './tls/cipher-suites';
-import { CipherSuites } from './tls/cipher-suites';
-import { SupportedGroupsExtension } from './tls/10_supported_groups';
-import { ECPointFormatsExtension } from './tls/11_ec_point_formats';
-import { ParsedExtension, parseHelloExtensions } from './tls/extensions';
-import { flipObject } from './tls/utils';
+import { ServerNameExtension } from '../extensions/0_server_name';
+import { CipherSuitesNames } from '../cipher-suites';
+import { CipherSuites } from '../cipher-suites';
+import { SupportedGroupsExtension } from '../extensions/10_supported_groups';
+import { ECPointFormatsExtension } from '../extensions/11_ec_point_formats';
+import { parseHelloExtensions } from '../extensions/extensions';
+import {
+	ArrayBufferReader,
+	as2Bytes,
+	as3Bytes,
+	as8Bytes,
+	concatUint8Arrays,
+} from '../utils';
 import {
 	HashAlgorithms,
 	SignatureAlgorithms,
 	SignatureAlgorithmsExtension,
-} from './tls/13_signature_algorithms';
-import { stringToArrayBuffer, tls12Prf } from './tls/prf';
+} from '../extensions/13_signature_algorithms';
+import { stringToArrayBuffer, tls12Prf } from '../prf';
+import {
+	SecurityParameters,
+	ConnectionEnd,
+	PRFAlgorithm,
+	BulkCipherAlgorithm,
+	CipherType,
+	MACAlgorithm,
+	CompressionMethod,
+	SessionKeys,
+	HandshakeType,
+	ContentTypes,
+	HandshakeMessage,
+	ClientHello,
+	ClientKeyExchange,
+	Finished,
+	ApplicationDataMessage,
+	AlertMessage,
+	ChangeCipherSpecMessage,
+	TLSMessage,
+	ContentType,
+	TLSRecord,
+	AlertLevelNames,
+	AlertDescriptionNames,
+	HandshakeMessageBody,
+	HelloRequest,
+	CipherFragmentPair,
+	ECCurveTypes,
+	ECNamedCurves,
+} from './types';
 
 class TLSConnectionClosed extends Error {}
+const TLS_Version_1_2 = new Uint8Array([0x03, 0x03]);
 
 /**
  * Implements TLS 1.2 server-side handshake.
  *
  * See https://datatracker.ietf.org/doc/html/rfc5246.
  */
-export class TLS_1_2_Server extends EventTarget {
+export class TLS_1_2_Connection extends EventTarget {
 	privateKey: CryptoKey;
 	certificatesDER: Uint8Array[];
 	receivedBuffer: Uint8Array = new Uint8Array();
@@ -820,73 +851,6 @@ export class TLS_1_2_Server extends EventTarget {
 	}
 }
 
-export class ArrayBufferReader {
-	private view: DataView;
-	offset = 0;
-	constructor(private buffer: ArrayBuffer) {
-		this.view = new DataView(buffer);
-	}
-
-	readUint8(): number {
-		const value = this.view.getUint8(this.offset);
-		this.offset += 1;
-		return value;
-	}
-	readUint16(): number {
-		const value = this.view.getUint16(this.offset);
-		this.offset += 2;
-		return value;
-	}
-	readUint32(): number {
-		const value = this.view.getUint32(this.offset);
-		this.offset += 4;
-		return value;
-	}
-	readUint8Array(length: number): Uint8Array {
-		const value = this.buffer.slice(this.offset, this.offset + length);
-		this.offset += length;
-		return new Uint8Array(value);
-	}
-
-	isFinished() {
-		return this.offset >= this.buffer.byteLength;
-	}
-}
-
-export class ArrayBufferWriter {
-	buffer: ArrayBuffer;
-	view: DataView;
-	uint8Array: Uint8Array;
-
-	private offset = 0;
-
-	constructor(length: number) {
-		this.buffer = new ArrayBuffer(length);
-		this.uint8Array = new Uint8Array(this.buffer);
-		this.view = new DataView(this.buffer);
-	}
-
-	writeUint8(value: number) {
-		this.view.setUint8(this.offset, value);
-		this.offset += 1;
-	}
-
-	writeUint16(value: number) {
-		this.view.setUint16(this.offset, value);
-		this.offset += 2;
-	}
-
-	writeUint32(value: number) {
-		this.view.setUint32(this.offset, value);
-		this.offset += 4;
-	}
-
-	writeUint8Array(value: Uint8Array) {
-		this.uint8Array.set(value, this.offset);
-		this.offset += value.length;
-	}
-}
-
 /**
  * Parses the cipher suites from the server hello message.
  *
@@ -919,11 +883,11 @@ function parseCipherSuites(buffer: ArrayBuffer): string[] {
 	const cipherSuites = [];
 	while (!reader.isFinished()) {
 		const suite = reader.readUint16();
-		if (suite in CipherSuitesNames) {
-			cipherSuites.push(CipherSuitesNames[suite]);
-		} else {
-			console.log('cipherSuite', suite);
+		if (!(suite in CipherSuitesNames)) {
+			console.warn(`Unsupported cipher suite: ${suite}`);
+			continue;
 		}
+		cipherSuites.push(CipherSuitesNames[suite]);
 	}
 	return cipherSuites;
 }
@@ -1097,358 +1061,3 @@ async function generateECDHEServerKeyExchange(
 		...body,
 	]);
 }
-
-function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-	let totalLength = 0;
-	arrays.forEach((arr) => {
-		totalLength += arr.length;
-	});
-	const result = new Uint8Array(totalLength);
-	let offset = 0;
-	arrays.forEach((arr) => {
-		result.set(arr, offset);
-		offset += arr.length;
-	});
-	return result;
-}
-
-/**
- * TLS 1.2 Record layer types defined after the structs
- * from the TLS 1.2 RFC.
- * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2
- */
-
-type SecurityParameters = {
-	entity: ConnectionEnd;
-	prf_algorithm: PRFAlgorithm;
-	bulk_cipher_algorithm: BulkCipherAlgorithm;
-	cipher_type: CipherType;
-	enc_key_length: number;
-	block_length: number;
-	fixed_iv_length: number;
-	record_iv_length: number;
-	mac_algorithm: MACAlgorithm;
-	mac_length: number;
-	mac_key_length: number;
-	compression_algorithm: CompressionMethod;
-	master_secret: Uint8Array; // 48 bytes
-	client_random: Uint8Array; // 32 bytes
-	server_random: Uint8Array; // 32 bytes
-};
-
-const enum ConnectionEnd {
-	Client = 0,
-	Server = 1,
-}
-
-const enum PRFAlgorithm {
-	SHA256 = 0,
-}
-
-const enum BulkCipherAlgorithm {
-	Null = 0,
-	AES = 1,
-}
-
-const enum CipherType {
-	Stream = 0,
-	Block = 1,
-	AEAD = 2,
-}
-
-const enum MACAlgorithm {
-	Null = 0,
-	HMACSHA256 = 1,
-}
-
-const enum CompressionMethod {
-	Null = 0,
-	Deflate = 1,
-}
-
-/**
- * TLS 1.2 Record layer types defined after the structs
- * from the TLS 1.2 RFC.
- * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.1
- */
-type CipherFragmentPair =
-	| { cipherType: CipherType.Stream; fragment: GenericStreamCipher }
-	| { cipherType: CipherType.Block; fragment: GenericBlockCipher }
-	| { cipherType: CipherType.AEAD; fragment: GenericAEADCipher };
-
-interface TLSRecord {
-	type: ContentType; // 1 byte
-	version: ProtocolVersion; // 2 bytes
-	length: number; // 2 bytes
-	fragment: Uint8Array; // variable length
-}
-
-interface ProtocolVersion {
-	major: number;
-	minor: number;
-}
-
-interface GenericStreamCipher {
-	content: Uint8Array;
-	MAC: Uint8Array;
-}
-
-interface GenericBlockCipher {
-	IV: Uint8Array;
-	block_ciphered: BlockCiphered;
-}
-
-interface BlockCiphered {
-	content: Uint8Array;
-	MAC: Uint8Array;
-	padding: Uint8Array;
-	padding_length: number;
-}
-
-interface GenericAEADCipher {
-	nonce_explicit: Uint8Array;
-	aead_encrypted: Uint8Array;
-}
-
-/**
- * TLS 1.2 Handshake types defined after the structs
- * from the TLS 1.2 RFC.
- * https://datatracker.ietf.org/doc/html/rfc5246#section-7.4
- */
-
-type TLSMessage =
-	| AlertMessage
-	| HandshakeMessage<any>
-	| ChangeCipherSpecMessage
-	| ApplicationDataMessage;
-
-interface AlertMessage {
-	type: typeof ContentTypes.Alert;
-	level: AlertLevel;
-	description: AlertDescription;
-}
-
-const AlertLevels = {
-	Warning: 1,
-	Fatal: 2,
-} as const;
-type AlertLevel = (typeof AlertLevels)[keyof typeof AlertLevels];
-const AlertLevelNames = flipObject(AlertLevels);
-
-const AlertDescriptions = {
-	CloseNotify: 0,
-	UnexpectedMessage: 10,
-	BadRecordMac: 20,
-	DecryptionFailed: 21,
-	RecordOverflow: 22,
-	DecompressionFailure: 30,
-	HandshakeFailure: 40,
-	NoCertificate: 41,
-	BadCertificate: 42,
-	UnsupportedCertificate: 43,
-	CertificateRevoked: 44,
-	CertificateExpired: 45,
-	CertificateUnknown: 46,
-	IllegalParameter: 47,
-	UnknownCa: 48,
-	AccessDenied: 49,
-	DecodeError: 50,
-	DecryptError: 51,
-	ExportRestriction: 60,
-	ProtocolVersion: 70,
-	InsufficientSecurity: 71,
-	InternalError: 80,
-	UserCanceled: 90,
-	NoRenegotiation: 100,
-	UnsupportedExtension: 110,
-} as const;
-type AlertDescription =
-	(typeof AlertDescriptions)[keyof typeof AlertDescriptions];
-const AlertDescriptionNames = flipObject(AlertDescriptions);
-
-interface ChangeCipherSpecMessage {
-	type: typeof ContentTypes.ChangeCipherSpec;
-	body: Uint8Array;
-}
-
-interface ApplicationDataMessage {
-	type: typeof ContentTypes.ApplicationData;
-	body: Uint8Array;
-}
-
-export const ContentTypes = {
-	ChangeCipherSpec: 20,
-	Alert: 21,
-	Handshake: 22,
-	ApplicationData: 23,
-} as const;
-type ContentType = (typeof ContentTypes)[keyof typeof ContentTypes];
-
-const enum HandshakeType {
-	HelloRequest = 0,
-	ClientHello = 1,
-	ServerHello = 2,
-	Certificate = 11,
-	ServerKeyExchange = 12,
-	CertificateRequest = 13,
-	ServerHelloDone = 14,
-	CertificateVerify = 15,
-	ClientKeyExchange = 16,
-
-	Finished = 20,
-}
-
-type HandshakeMessageBody =
-	| HelloRequest
-	| ClientHello
-	| ServerHello
-	| Certificate
-	| ServerKeyExchange
-	| CertificateRequest
-	| ServerHelloDone
-	| CertificateVerify
-	| ClientKeyExchange
-	| Finished;
-
-interface HandshakeMessage<Body extends HandshakeMessageBody> {
-	type: typeof ContentTypes.Handshake;
-	msg_type: HandshakeType; // 1 byte
-	length: number; // 2 bytes
-	// Custom property to hold the raw body of the message
-	body: Body;
-}
-
-// Specific Handshake Message Types
-interface HelloRequest {} // Empty for TLS 1.2
-
-/**
- * 1 byte
- */
-type SessionId = Uint8Array;
-interface ClientHello {
-	client_version: Uint8Array; // 2 bytes
-	random: Uint8Array; // 32 bytes
-	session_id: SessionId;
-	cipher_suites: string[];
-	compression_methods: Uint8Array;
-	extensions: ParsedExtension[];
-}
-
-interface ServerHello {
-	server_version: Uint8Array; // 2 bytes
-	random: Uint8Array; // 32 bytes
-	session_id: Uint8Array;
-	cipher_suite: Uint8Array; // 2 bytes
-	compression_method: number;
-	extensions?: Uint8Array;
-}
-
-interface Certificate {
-	certificate_list: Uint8Array[];
-}
-
-interface ServerKeyExchange {
-	params: Uint8Array;
-	signed_params: Uint8Array;
-}
-
-/**
- * ECCurveType from
- * https://datatracker.ietf.org/doc/html/rfc4492#section-5.4
- */
-const ECCurveTypes = {
-	/**
-	 * Indicates the elliptic curve domain parameters are
-	 * conveyed verbosely, and the underlying finite field is a prime
-	 * field.
-	 */
-	ExplicitPrime: 1,
-	/**
-	 * Indicates the elliptic curve domain parameters are
-	 * conveyed verbosely, and the underlying finite field is a
-	 * characteristic-2 field.
-	 */
-	ExplicitChar2: 2,
-	/**
-	 * Indicates that a named curve is used.  This option
-	 * SHOULD be used when applicable.
-	 */
-	NamedCurve: 3,
-	/**
-	 * Values 248 through 255 are reserved for private use.
-	 */
-};
-
-/**
- * Named elliptic curves from
- * https://datatracker.ietf.org/doc/html/rfc4492#section-5.1.1
- */
-const ECNamedCurves = {
-	sect163k1: 1,
-	sect163r1: 2,
-	sect163r2: 3,
-	sect193r1: 4,
-	sect193r2: 5,
-	sect233k1: 6,
-	sect233r1: 7,
-	sect239k1: 8,
-	sect283k1: 9,
-	sect283r1: 10,
-	sect409k1: 11,
-	sect409r1: 12,
-	secp256k1: 22,
-	secp256r1: 23,
-	secp384r1: 24,
-	secp521r1: 25,
-	arbitrary_explicit_prime_curves: 0xff01,
-	arbitrary_explicit_char2_curves: 0xff02,
-};
-
-interface CertificateRequest {
-	certificate_types: Uint8Array;
-	supported_signature_algorithms: Uint8Array;
-	certificate_authorities: Uint8Array;
-}
-
-interface ServerHelloDone {} // Empty for TLS 1.2
-
-interface CertificateVerify {
-	algorithm: Uint8Array;
-	signature: Uint8Array;
-}
-
-interface ClientKeyExchange {
-	exchange_keys: Uint8Array;
-}
-
-interface Finished {
-	verify_data: Uint8Array;
-}
-
-const TLS_Version_1_2 = new Uint8Array([0x03, 0x03]);
-
-function as2Bytes(value: number): Uint8Array {
-	return new Uint8Array([(value >> 8) & 0xff, value & 0xff]);
-}
-
-function as3Bytes(value: number): Uint8Array {
-	return new Uint8Array([
-		(value >> 16) & 0xff,
-		(value >> 8) & 0xff,
-		value & 0xff,
-	]);
-}
-
-function as8Bytes(value: number): Uint8Array {
-	const buffer = new ArrayBuffer(8);
-	const view = new DataView(buffer);
-	view.setBigUint64(0, BigInt(value), false); // false for big-endian
-	return new Uint8Array(buffer);
-}
-
-type SessionKeys = {
-	clientWriteKey: CryptoKey;
-	serverWriteKey: CryptoKey;
-	clientIV: Uint8Array;
-	serverIV: Uint8Array;
-};

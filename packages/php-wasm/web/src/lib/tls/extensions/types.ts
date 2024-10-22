@@ -58,7 +58,7 @@ export const ExtensionTypes = {
 	connection_id: 54,
 } as const;
 
-import { flipObject } from './utils';
+import { flipObject } from '../utils';
 
 export type ExtensionType = keyof typeof ExtensionTypes;
 

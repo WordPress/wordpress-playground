@@ -3,9 +3,9 @@
  * https://www.rfc-editor.org/rfc/rfc6066.html
  */
 
-import { ArrayBufferWriter } from '../tls';
-import { ExtensionTypes } from './extensions-types';
-import { flipObject } from './utils';
+import { ArrayBufferWriter } from '../utils';
+import { ExtensionTypes } from './types';
+import { flipObject } from '../utils';
 
 export interface ServerNameList {
 	server_name_list: ServerName[];
