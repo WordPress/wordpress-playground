@@ -14,6 +14,10 @@ export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 	return result;
 }
 
+export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
+	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b))).buffer;
+}
+
 export function as2Bytes(value: number): Uint8Array {
 	return new Uint8Array([(value >> 8) & 0xff, value & 0xff]);
 }

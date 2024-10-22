@@ -20,6 +20,286 @@ export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
 	)}\n-----END PRIVATE KEY-----`;
 }
 
+class CertificateGenerator {
+	static async generateCertificate(
+		tbsDescription: TBSCertificateDescription,
+		issuerKeyPair?: CryptoKeyPair
+	) {
+		const subjectKeyPair = await crypto.subtle.generateKey(
+			{
+				name: 'RSASSA-PKCS1-v1_5',
+				hash: 'SHA-256',
+				modulusLength: 2048,
+				publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+			},
+			true, // extractable
+			['sign', 'verify']
+		);
+		const tbsCertificate = await this.signingRequest(
+			tbsDescription,
+			subjectKeyPair.publicKey
+		);
+		const certificate = await this.sign(
+			tbsCertificate,
+			issuerKeyPair?.privateKey ?? subjectKeyPair.privateKey
+		);
+		return {
+			keyPair: subjectKeyPair,
+			certificate,
+			tbsCertificate,
+			tbsDescription,
+		};
+	}
+
+	static async sign(
+		tbsCertificate: TBSCertificate,
+		privateKey: CryptoKey
+	): Promise<Uint8Array> {
+		// Step 3: Sign the TBSCertificate
+		const signature = await crypto.subtle.sign(
+			{
+				name: 'RSASSA-PKCS1-v1_5',
+				hash: 'SHA-256',
+			},
+			privateKey,
+			tbsCertificate.buffer
+		);
+
+		// Step 4: Build the final Certificate sequence
+		const certificate = ASN1Encoder.sequence([
+			new Uint8Array(tbsCertificate.buffer),
+			this.signatureAlgorithm('sha256WithRSAEncryption'),
+			ASN1Encoder.bitString(new Uint8Array(signature)),
+		]);
+		return certificate;
+	}
+
+	static async signingRequest(
+		description: TBSCertificateDescription,
+		subjectPublicKey: CryptoKey
+	): Promise<TBSCertificate> {
+		const extensions: Uint8Array[] = [];
+		if (description.keyUsage) {
+			extensions.push(this.keyUsage(description.keyUsage));
+		}
+		if (description.extKeyUsage) {
+			extensions.push(this.extKeyUsage(description.extKeyUsage));
+		}
+		if (description.subjectAltNames) {
+			extensions.push(this.subjectAltName(description.subjectAltNames));
+		}
+		if (description.nsCertType) {
+			extensions.push(this.nsCertType(description.nsCertType));
+		}
+		if (description.basicConstraints) {
+			extensions.push(
+				this.basicConstraints(description.basicConstraints)
+			);
+		}
+		return ASN1Encoder.sequence([
+			this.version(description.version),
+			this.serialNumber(description.serialNumber),
+			this.signatureAlgorithm(description.signatureAlgorithm),
+			this.distinguishedName(description.issuer ?? description.subject),
+			this.validity(description.validity),
+			this.distinguishedName(description.subject),
+			await this.subjectPublicKeyInfo(subjectPublicKey),
+			this.extensions(extensions),
+		]);
+	}
+
+	private static version(version = 0x02) {
+		// [0] EXPLICIT Version: 2 (v3)
+		return ASN1Encoder.ASN1(
+			0xa0,
+			ASN1Encoder.integer(new Uint8Array([version]))
+		);
+	}
+
+	private static serialNumber(
+		serialNumber = crypto.getRandomValues(new Uint8Array(4))
+	) {
+		return ASN1Encoder.integer(serialNumber);
+	}
+
+	private static signatureAlgorithm(
+		algorithm: OIDName = 'sha256WithRSAEncryption'
+	) {
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName(algorithm)),
+			ASN1Encoder.null(),
+		]);
+	}
+
+	private static async subjectPublicKeyInfo(publicKey: CryptoKey) {
+		// ExportKey already returns data in ASN.1 DER format, we don't
+		// need to wrap it in a sequence agin.
+		return new Uint8Array(await crypto.subtle.exportKey('spki', publicKey));
+	}
+
+	private static extensions(extensions: Uint8Array[]) {
+		return ASN1Encoder.ASN1(0xa3, ASN1Encoder.sequence(extensions));
+	}
+
+	private static distinguishedName(nameInfo: DistinguishedName) {
+		const values = [];
+		for (const [oidName, value] of Object.entries(nameInfo)) {
+			const entry = [
+				ASN1Encoder.objectIdentifier(oidByName(oidName as OIDName)),
+			];
+			switch (oidName) {
+				case 'countryName':
+					entry.push(ASN1Encoder.printableString(value));
+					break;
+				default:
+					entry.push(ASN1Encoder.utf8String(value));
+			}
+			values.push(ASN1Encoder.set([ASN1Encoder.sequence(entry)]));
+		}
+		return ASN1Encoder.sequence(values);
+	}
+
+	private static validity(validity?: Validity) {
+		return ASN1Encoder.sequence([
+			ASN1Encoder.ASN1(
+				ASN1Tags.UTCTime,
+				new TextEncoder().encode(
+					formatDateASN1(validity?.notBefore ?? new Date())
+				)
+			),
+			ASN1Encoder.ASN1(
+				ASN1Tags.UTCTime,
+				new TextEncoder().encode(
+					formatDateASN1(
+						validity?.notAfter ?? addYears(new Date(), 10)
+					)
+				)
+			),
+		]);
+	}
+
+	private static basicConstraints({
+		ca = true,
+		pathLenConstraint = undefined,
+	}: BasicConstraints) {
+		const sequence = [ASN1Encoder.boolean(ca)];
+		if (pathLenConstraint !== undefined) {
+			sequence.push(
+				ASN1Encoder.integer(new Uint8Array([pathLenConstraint]))
+			);
+		}
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('basicConstraints')),
+			ASN1Encoder.octetString(ASN1Encoder.sequence(sequence)),
+		]);
+	}
+
+	private static keyUsage(keyUsage?: KeyUsage) {
+		const keyUsageBits = new Uint8Array([0b00000000]);
+		if (keyUsage?.digitalSignature) {
+			keyUsageBits[0] |= 0b00000001;
+		}
+		if (keyUsage?.nonRepudiation) {
+			keyUsageBits[0] |= 0b00000010;
+		}
+		if (keyUsage?.keyEncipherment) {
+			keyUsageBits[0] |= 0b00000100;
+		}
+		if (keyUsage?.dataEncipherment) {
+			keyUsageBits[0] |= 0b00001000;
+		}
+		if (keyUsage?.keyAgreement) {
+			keyUsageBits[0] |= 0b00010000;
+		}
+		if (keyUsage?.keyCertSign) {
+			keyUsageBits[0] |= 0b00100000;
+		}
+		if (keyUsage?.cRLSign) {
+			keyUsageBits[0] |= 0b01000000;
+		}
+		if (keyUsage?.encipherOnly) {
+			keyUsageBits[0] |= 0b10000000;
+		}
+		if (keyUsage?.decipherOnly) {
+			keyUsageBits[0] |= 0b01000000;
+		}
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('keyUsage')),
+			ASN1Encoder.boolean(true), // Critical
+			ASN1Encoder.octetString(ASN1Encoder.bitString(keyUsageBits)),
+		]);
+	}
+
+	private static extKeyUsage(extKeyUsage: ExtKeyUsage = {}) {
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('extKeyUsage')),
+			ASN1Encoder.boolean(true), // Critical
+			ASN1Encoder.octetString(
+				ASN1Encoder.sequence(
+					Object.entries(extKeyUsage).map(([oidName, value]) => {
+						if (value) {
+							return ASN1Encoder.objectIdentifier(
+								oidByName(oidName as OIDName)
+							);
+						}
+						return ASN1Encoder.null();
+					})
+				)
+			),
+		]);
+	}
+
+	private static nsCertType(nsCertType: NSCertType) {
+		const bits = new Uint8Array([0x00]);
+		if (nsCertType.client) {
+			bits[0] |= 0x01;
+		}
+		if (nsCertType.server) {
+			bits[0] |= 0x02;
+		}
+		if (nsCertType.email) {
+			bits[0] |= 0x04;
+		}
+		if (nsCertType.objsign) {
+			bits[0] |= 0x08;
+		}
+		if (nsCertType.sslCA) {
+			bits[0] |= 0x10;
+		}
+		if (nsCertType.emailCA) {
+			bits[0] |= 0x20;
+		}
+		if (nsCertType.objCA) {
+			bits[0] |= 0x40;
+		}
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('nsCertType')),
+			ASN1Encoder.octetString(bits),
+		]);
+	}
+
+	private static subjectAltName(altNames: SubjectAltNames) {
+		const generalNames =
+			altNames.dnsNames?.map((name) => {
+				const dnsName = ASN1Encoder.ia5String(name);
+				return ASN1Encoder.contextSpecific(2, dnsName);
+			}) || [];
+		const ipAddresses =
+			altNames.ipAddresses?.map((ip) => {
+				const ipAddress = ASN1Encoder.ia5String(ip);
+				return ASN1Encoder.contextSpecific(7, ipAddress);
+			}) || [];
+		const sanExtensionValue = ASN1Encoder.octetString(
+			ASN1Encoder.sequence([...generalNames, ...ipAddresses])
+		);
+		return ASN1Encoder.sequence([
+			ASN1Encoder.objectIdentifier(oidByName('subjectAltName')),
+			ASN1Encoder.boolean(true),
+			sanExtensionValue,
+		]);
+	}
+}
+
 const oids = {
 	// Algorithm OIDs
 	'1.2.840.113549.1.1.1': 'rsaEncryption',
@@ -389,286 +669,6 @@ export type GeneratedCertificate = {
 	tbsDescription: TBSCertificateDescription;
 	tbsCertificate: TBSCertificate;
 };
-
-class CertificateGenerator {
-	static async generateCertificate(
-		tbsDescription: TBSCertificateDescription,
-		issuerKeyPair?: CryptoKeyPair
-	) {
-		const keyPair = await crypto.subtle.generateKey(
-			{
-				name: 'RSASSA-PKCS1-v1_5',
-				hash: 'SHA-256',
-				modulusLength: 2048,
-				publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
-			},
-			true, // extractable
-			['sign', 'verify']
-		);
-		const tbsCertificate = await this.signingRequest(
-			tbsDescription,
-			keyPair.publicKey
-		);
-		const certificate = await this.sign(
-			tbsCertificate,
-			issuerKeyPair?.privateKey ?? keyPair.privateKey
-		);
-		return {
-			keyPair,
-			certificate,
-			tbsCertificate,
-			tbsDescription,
-		};
-	}
-
-	static async sign(
-		tbsCertificate: TBSCertificate,
-		privateKey: CryptoKey
-	): Promise<Uint8Array> {
-		// Step 3: Sign the TBSCertificate
-		const signature = await crypto.subtle.sign(
-			{
-				name: 'RSASSA-PKCS1-v1_5',
-				hash: 'SHA-256',
-			},
-			privateKey,
-			tbsCertificate.buffer
-		);
-
-		// Step 4: Build the final Certificate sequence
-		const certificate = ASN1Encoder.sequence([
-			new Uint8Array(tbsCertificate.buffer),
-			this.signatureAlgorithm('sha256WithRSAEncryption'),
-			ASN1Encoder.bitString(new Uint8Array(signature)),
-		]);
-		return certificate;
-	}
-
-	static async signingRequest(
-		description: TBSCertificateDescription,
-		subjectPublicKey: CryptoKey
-	): Promise<TBSCertificate> {
-		const extensions: Uint8Array[] = [];
-		if (description.keyUsage) {
-			extensions.push(this.keyUsage(description.keyUsage));
-		}
-		if (description.extKeyUsage) {
-			extensions.push(this.extKeyUsage(description.extKeyUsage));
-		}
-		if (description.subjectAltNames) {
-			extensions.push(this.subjectAltName(description.subjectAltNames));
-		}
-		if (description.nsCertType) {
-			extensions.push(this.nsCertType(description.nsCertType));
-		}
-		if (description.basicConstraints) {
-			extensions.push(
-				this.basicConstraints(description.basicConstraints)
-			);
-		}
-		return ASN1Encoder.sequence([
-			this.version(description.version),
-			this.serialNumber(description.serialNumber),
-			this.signatureAlgorithm(description.signatureAlgorithm),
-			this.distinguishedName(description.issuer ?? description.subject),
-			this.validity(description.validity),
-			this.distinguishedName(description.subject),
-			await this.subjectPublicKeyInfo(subjectPublicKey),
-			this.extensions(extensions),
-		]);
-	}
-
-	private static version(version = 0x02) {
-		// [0] EXPLICIT Version: 2 (v3)
-		return ASN1Encoder.ASN1(
-			0xa0,
-			ASN1Encoder.integer(new Uint8Array([version]))
-		);
-	}
-
-	private static serialNumber(
-		serialNumber = crypto.getRandomValues(new Uint8Array(4))
-	) {
-		return ASN1Encoder.integer(serialNumber);
-	}
-
-	private static signatureAlgorithm(
-		algorithm: OIDName = 'sha256WithRSAEncryption'
-	) {
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName(algorithm)),
-			ASN1Encoder.null(),
-		]);
-	}
-
-	private static async subjectPublicKeyInfo(publicKey: CryptoKey) {
-		// ExportKey already returns data in ASN.1 DER format, we don't
-		// need to wrap it in a sequence agin.
-		return new Uint8Array(await crypto.subtle.exportKey('spki', publicKey));
-	}
-
-	private static extensions(extensions: Uint8Array[]) {
-		return ASN1Encoder.ASN1(0xa3, ASN1Encoder.sequence(extensions));
-	}
-
-	private static distinguishedName(nameInfo: DistinguishedName) {
-		const values = [];
-		for (const [oidName, value] of Object.entries(nameInfo)) {
-			const entry = [
-				ASN1Encoder.objectIdentifier(oidByName(oidName as OIDName)),
-			];
-			switch (oidName) {
-				case 'countryName':
-					entry.push(ASN1Encoder.printableString(value));
-					break;
-				default:
-					entry.push(ASN1Encoder.utf8String(value));
-			}
-			values.push(ASN1Encoder.set([ASN1Encoder.sequence(entry)]));
-		}
-		return ASN1Encoder.sequence(values);
-	}
-
-	private static validity(validity?: Validity) {
-		return ASN1Encoder.sequence([
-			ASN1Encoder.ASN1(
-				ASN1Tags.UTCTime,
-				new TextEncoder().encode(
-					formatDateASN1(validity?.notBefore ?? new Date())
-				)
-			),
-			ASN1Encoder.ASN1(
-				ASN1Tags.UTCTime,
-				new TextEncoder().encode(
-					formatDateASN1(
-						validity?.notAfter ?? addYears(new Date(), 10)
-					)
-				)
-			),
-		]);
-	}
-
-	private static basicConstraints({
-		ca = true,
-		pathLenConstraint = undefined,
-	}: BasicConstraints) {
-		const sequence = [ASN1Encoder.boolean(ca)];
-		if (pathLenConstraint !== undefined) {
-			sequence.push(
-				ASN1Encoder.integer(new Uint8Array([pathLenConstraint]))
-			);
-		}
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('basicConstraints')),
-			ASN1Encoder.octetString(ASN1Encoder.sequence(sequence)),
-		]);
-	}
-
-	private static keyUsage(keyUsage?: KeyUsage) {
-		const keyUsageBits = new Uint8Array([0b00000000]);
-		if (keyUsage?.digitalSignature) {
-			keyUsageBits[0] |= 0b00000001;
-		}
-		if (keyUsage?.nonRepudiation) {
-			keyUsageBits[0] |= 0b00000010;
-		}
-		if (keyUsage?.keyEncipherment) {
-			keyUsageBits[0] |= 0b00000100;
-		}
-		if (keyUsage?.dataEncipherment) {
-			keyUsageBits[0] |= 0b00001000;
-		}
-		if (keyUsage?.keyAgreement) {
-			keyUsageBits[0] |= 0b00010000;
-		}
-		if (keyUsage?.keyCertSign) {
-			keyUsageBits[0] |= 0b00100000;
-		}
-		if (keyUsage?.cRLSign) {
-			keyUsageBits[0] |= 0b01000000;
-		}
-		if (keyUsage?.encipherOnly) {
-			keyUsageBits[0] |= 0b10000000;
-		}
-		if (keyUsage?.decipherOnly) {
-			keyUsageBits[0] |= 0b01000000;
-		}
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('keyUsage')),
-			ASN1Encoder.boolean(true), // Critical
-			ASN1Encoder.octetString(ASN1Encoder.bitString(keyUsageBits)),
-		]);
-	}
-
-	private static extKeyUsage(extKeyUsage: ExtKeyUsage = {}) {
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('extKeyUsage')),
-			ASN1Encoder.boolean(true), // Critical
-			ASN1Encoder.octetString(
-				ASN1Encoder.sequence(
-					Object.entries(extKeyUsage).map(([oidName, value]) => {
-						if (value) {
-							return ASN1Encoder.objectIdentifier(
-								oidByName(oidName as OIDName)
-							);
-						}
-						return ASN1Encoder.null();
-					})
-				)
-			),
-		]);
-	}
-
-	private static nsCertType(nsCertType: NSCertType) {
-		const bits = new Uint8Array([0x00]);
-		if (nsCertType.client) {
-			bits[0] |= 0x01;
-		}
-		if (nsCertType.server) {
-			bits[0] |= 0x02;
-		}
-		if (nsCertType.email) {
-			bits[0] |= 0x04;
-		}
-		if (nsCertType.objsign) {
-			bits[0] |= 0x08;
-		}
-		if (nsCertType.sslCA) {
-			bits[0] |= 0x10;
-		}
-		if (nsCertType.emailCA) {
-			bits[0] |= 0x20;
-		}
-		if (nsCertType.objCA) {
-			bits[0] |= 0x40;
-		}
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('nsCertType')),
-			ASN1Encoder.octetString(bits),
-		]);
-	}
-
-	private static subjectAltName(altNames: SubjectAltNames) {
-		const generalNames =
-			altNames.dnsNames?.map((name) => {
-				const dnsName = ASN1Encoder.ia5String(name);
-				return ASN1Encoder.contextSpecific(2, dnsName);
-			}) || [];
-		const ipAddresses =
-			altNames.ipAddresses?.map((ip) => {
-				const ipAddress = ASN1Encoder.ia5String(ip);
-				return ASN1Encoder.contextSpecific(7, ipAddress);
-			}) || [];
-		const sanExtensionValue = ASN1Encoder.octetString(
-			ASN1Encoder.sequence([...generalNames, ...ipAddresses])
-		);
-		return ASN1Encoder.sequence([
-			ASN1Encoder.objectIdentifier(oidByName('subjectAltName')),
-			ASN1Encoder.boolean(true),
-			sanExtensionValue,
-		]);
-	}
-}
 
 // Helper functions
 function encodeUint8ArrayAsBase64(bytes: ArrayBuffer) {

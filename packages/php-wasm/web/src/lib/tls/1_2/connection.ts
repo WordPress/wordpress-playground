@@ -16,7 +16,7 @@ import {
 	SignatureAlgorithms,
 	SignatureAlgorithmsExtension,
 } from '../extensions/13_signature_algorithms';
-import { stringToArrayBuffer, tls12Prf } from '../prf';
+import { tls12Prf } from './prf';
 import {
 	CompressionMethod,
 	SessionKeys,
@@ -60,6 +60,10 @@ const generalEcdheKeyPair = crypto.subtle.generateKey(
 
 /**
  * Implements a server-side TLS 1.2 connection handler.
+ *
+ * It uses the AES Galois Counter Mode (GCM) because it
+ * could be implemented with window.crypto.subtle.
+ * See https://datatracker.ietf.org/doc/html/rfc5288
  *
  * **WARNING** DO NOT USE THIS CODE ON AN ACTUAL SERVER.
  *
@@ -135,18 +139,39 @@ export class TLS_1_2_Connection extends EventTarget {
 		this.pollForIncomingData();
 	}
 
-	receiveBytesFromClient(data: Uint8Array) {
+	async sendDataToClient(unencryptedData: Uint8Array) {
+		await this.writeTLSRecord(
+			ContentTypes.ApplicationData,
+			unencryptedData
+		);
+	}
+
+	onClientBytes(data: Uint8Array) {
 		this.receivedBytesBuffer = concatUint8Arrays([
 			this.receivedBytesBuffer,
 			data,
 		]);
 	}
 
-	private sendBytesToClient(data: Uint8Array) {
-		this.dispatchEvent(
-			new CustomEvent('pass-tls-bytes-to-client', {
-				detail: data,
-			})
+	override addEventListener(
+		type: string,
+		callback: (e: CustomEvent) => any | null,
+		options?: boolean | AddEventListenerOptions | undefined
+	): void;
+	override addEventListener(
+		type: string,
+		callback: EventListenerOrEventListenerObject | null,
+		options?: boolean | AddEventListenerOptions | undefined
+	): void;
+	override addEventListener(
+		type: unknown,
+		callback: unknown,
+		options?: unknown
+	): void {
+		super.addEventListener(
+			type as string,
+			callback as EventListenerOrEventListenerObject | null,
+			options as boolean | AddEventListenerOptions | undefined
 		);
 	}
 
@@ -239,6 +264,71 @@ export class TLS_1_2_Connection extends EventTarget {
 		);
 		// Clean up the handshake messages as they are no longer needed.
 		this.handshakeMessages = [];
+	}
+
+	// Full key derivation function
+	private async deriveSessionKeys({
+		clientRandom,
+		serverRandom,
+		serverPrivateKey,
+		clientPublicKey,
+	}: {
+		clientRandom: Uint8Array;
+		serverRandom: Uint8Array;
+		serverPrivateKey: CryptoKey;
+		clientPublicKey: CryptoKey;
+	}): Promise<SessionKeys> {
+		const preMasterSecret = await crypto.subtle.deriveBits(
+			{
+				name: 'ECDH',
+				public: clientPublicKey,
+			},
+			serverPrivateKey,
+			256 // Length of the derived secret (256 bits for P-256)
+		);
+
+		const masterSecret = new Uint8Array(
+			await tls12Prf(
+				preMasterSecret,
+				new TextEncoder().encode('master secret'),
+				concatUint8Arrays([clientRandom, serverRandom]),
+				48
+			)
+		);
+
+		const keyBlock = await tls12Prf(
+			masterSecret,
+			new TextEncoder().encode('key expansion'),
+			concatUint8Arrays([serverRandom, clientRandom]),
+			// Client key, server key, client IV, server IV
+			16 + 16 + 4 + 4
+		);
+
+		const reader = new ArrayBufferReader(keyBlock);
+		const clientWriteKey = reader.readUint8Array(16);
+		const serverWriteKey = reader.readUint8Array(16);
+		const clientIV = reader.readUint8Array(4);
+		const serverIV = reader.readUint8Array(4);
+
+		return {
+			masterSecret,
+			clientWriteKey: await crypto.subtle.importKey(
+				'raw',
+				clientWriteKey,
+				{ name: 'AES-GCM' },
+				false,
+				['encrypt', 'decrypt']
+			),
+			serverWriteKey: await crypto.subtle.importKey(
+				'raw',
+				serverWriteKey,
+				{ name: 'AES-GCM' },
+				false,
+				['encrypt', 'decrypt']
+			),
+			clientIV,
+			serverIV,
+		};
 	}
 
 	private async readNextHandshakeMessage(
@@ -389,41 +479,6 @@ export class TLS_1_2_Connection extends EventTarget {
 		return new Uint8Array(decrypted);
 	}
 
-	private async encryptData(
-		contentType: number,
-		payload: Uint8Array
-	): Promise<Uint8Array> {
-		const implicitIV = this.sessionKeys!.serverIV;
-		const explicitIV = crypto.getRandomValues(new Uint8Array(8));
-		const iv = new Uint8Array([...implicitIV, ...explicitIV]);
-
-		const additionalData = new Uint8Array([
-			...as8Bytes(this.sentRecordSequenceNumber),
-			contentType,
-			...TLS_Version_1_2,
-			// Payload length without IV and tag
-			...as2Bytes(payload.length),
-		]);
-		const ciphertextWithTag = await crypto.subtle.encrypt(
-			{
-				name: 'AES-GCM',
-				iv,
-				additionalData,
-				tagLength: 128,
-			},
-			this.sessionKeys!.serverWriteKey,
-			payload
-		);
-		++this.sentRecordSequenceNumber;
-
-		const encrypted = concatUint8Arrays([
-			explicitIV,
-			new Uint8Array(ciphertextWithTag),
-		]);
-
-		return encrypted;
-	}
-
 	private async accumulateUntilMessageIsComplete(
 		record: TLSRecord
 	): Promise<false | Uint8Array> {
@@ -460,6 +515,27 @@ export class TLS_1_2_Connection extends EventTarget {
 		return message;
 	}
 
+	private async pollForIncomingData() {
+		try {
+			while (true) {
+				const appData = await this.readNextMessage(
+					ContentTypes.ApplicationData
+				);
+				this.dispatchEvent(
+					new CustomEvent('decrypted-bytes-from-client', {
+						detail: appData.body,
+					})
+				);
+			}
+		} catch (e) {
+			if (e instanceof TLSConnectionClosed) {
+				// Connection closed, no more application data to emit.
+				return;
+			}
+			throw e;
+		}
+	}
+
 	// Function to write a TLS record
 	private async writeTLSRecord(
 		contentType: number,
@@ -485,90 +561,47 @@ export class TLS_1_2_Connection extends EventTarget {
 		this.sendBytesToClient(record);
 	}
 
-	private async pollForIncomingData() {
-		try {
-			while (true) {
-				const appData = await this.readNextMessage(
-					ContentTypes.ApplicationData
-				);
-				this.dispatchEvent(
-					new CustomEvent('decrypted-bytes-from-client', {
-						detail: appData.body,
-					})
-				);
-			}
-		} catch (e) {
-			if (e instanceof TLSConnectionClosed) {
-				// Connection closed, no more application data to emit.
-				return;
-			}
-			throw e;
-		}
+	private async encryptData(
+		contentType: number,
+		payload: Uint8Array
+	): Promise<Uint8Array> {
+		const implicitIV = this.sessionKeys!.serverIV;
+		const explicitIV = crypto.getRandomValues(new Uint8Array(8));
+		const iv = new Uint8Array([...implicitIV, ...explicitIV]);
+
+		const additionalData = new Uint8Array([
+			...as8Bytes(this.sentRecordSequenceNumber),
+			contentType,
+			...TLS_Version_1_2,
+			// Payload length without IV and tag
+			...as2Bytes(payload.length),
+		]);
+		const ciphertextWithTag = await crypto.subtle.encrypt(
+			{
+				name: 'AES-GCM',
+				iv,
+				additionalData,
+				tagLength: 128,
+			},
+			this.sessionKeys!.serverWriteKey,
+			payload
+		);
+		++this.sentRecordSequenceNumber;
+
+		const encrypted = concatUint8Arrays([
+			explicitIV,
+			new Uint8Array(ciphertextWithTag),
+		]);
+
+		return encrypted;
 	}
 
-	// Full key derivation function
-	private async deriveSessionKeys({
-		clientRandom,
-		serverRandom,
-		serverPrivateKey,
-		clientPublicKey,
-	}: {
-		clientRandom: Uint8Array;
-		serverRandom: Uint8Array;
-		serverPrivateKey: CryptoKey;
-		clientPublicKey: CryptoKey;
-	}): Promise<SessionKeys> {
-		const preMasterSecret = await crypto.subtle.deriveBits(
-			{
-				name: 'ECDH',
-				public: clientPublicKey,
-			},
-			serverPrivateKey,
-			256 // Length of the derived secret (256 bits for P-256)
+	private sendBytesToClient(data: Uint8Array) {
+		this.dispatchEvent(
+			new CustomEvent('pass-tls-bytes-to-client', {
+				detail: data,
+			})
 		);
-
-		const masterSecret = new Uint8Array(
-			await tls12Prf(
-				preMasterSecret,
-				stringToArrayBuffer('master secret'),
-				concatUint8Arrays([clientRandom, serverRandom]),
-				48
-			)
-		);
-
-		const keyBlock = await tls12Prf(
-			masterSecret,
-			stringToArrayBuffer('key expansion'),
-			concatUint8Arrays([serverRandom, clientRandom]),
-			// Client key, server key, client IV, server IV
-			16 + 16 + 4 + 4
-		);
-
-		const reader = new ArrayBufferReader(keyBlock);
-		const clientWriteKey = reader.readUint8Array(16);
-		const serverWriteKey = reader.readUint8Array(16);
-		const clientIV = reader.readUint8Array(4);
-		const serverIV = reader.readUint8Array(4);
-
-		return {
-			masterSecret,
-			clientWriteKey: await crypto.subtle.importKey(
-				'raw',
-				clientWriteKey,
-				{ name: 'AES-GCM' },
-				false,
-				['encrypt', 'decrypt']
-			),
-			serverWriteKey: await crypto.subtle.importKey(
-				'raw',
-				serverWriteKey,
-				{ name: 'AES-GCM' },
-				false,
-				['encrypt', 'decrypt']
-			),
-			clientIV,
-			serverIV,
-		};
 	}
 }
 
@@ -1057,7 +1090,7 @@ class MessageEncoder {
 		const verifyData = new Uint8Array(
 			await tls12Prf(
 				masterSecret,
-				stringToArrayBuffer('server finished'),
+				new TextEncoder().encode('server finished'),
 				handshakeHash,
 				// verify_data length. TLS 1.2 specifies 12 bytes for verify_data
 				12

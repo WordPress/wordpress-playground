@@ -5,7 +5,7 @@ import {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
-import * as tls from './tls-proxy';
+import * as tls from './tcp-over-fetch';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -48,6 +48,6 @@ export async function loadWebRuntime(
 	options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 	return await loadPHPRuntime(phpLoaderModule, {
 		...(options.emscriptenOptions || {}),
-		...tls.fetchingWebsocket(options.emscriptenOptions!['websocket']),
+		...tls.tcpOverFetchWebsocket(options.emscriptenOptions!['websocket']),
 	});
 }

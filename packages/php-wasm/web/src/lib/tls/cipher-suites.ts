@@ -1,5 +1,10 @@
 import { flipObject } from './utils';
 
+/**
+ * TLS1 cipher suites sourced from OpenSSL:
+ *
+ * https://github.com/openssl/openssl/blob/36254fda37fe169e136079404a3c32aeea35cbd4/include/openssl/tls1.h#L371
+ */
 export const CipherSuites = {
 	TLS1_CK_PSK_WITH_RC4_128_SHA: 0x008a,
 	TLS1_CK_PSK_WITH_3DES_EDE_CBC_SHA: 0x008b,
