@@ -109,7 +109,7 @@ class PlaygroundCorsProxyTokenBucket {
 						? AS fill_rate_per_minute
 				),
 				bucket AS (
-					SELECT 
+					SELECT
 						remote_addr,
 						tokens AS previous_tokens,
 						updated_at AS previous_updated_at,
@@ -128,7 +128,7 @@ class PlaygroundCorsProxyTokenBucket {
 				config.remote_addr,
 				config.capacity,
 				config.fill_rate_per_minute,
-				-- Make sure we stay within bounds. 
+				-- Make sure we stay within bounds.
 				GREATEST(
 					0,
 					COALESCE(bucket.available_tokens, config.capacity) - 1
@@ -147,7 +147,7 @@ class PlaygroundCorsProxyTokenBucket {
 					NOW()
 				)
 			SQL;
-		
+
 		$token_statement = mysqli_prepare($this->dbh, $token_query);
 		mysqli_stmt_bind_param(
 			$token_statement,
@@ -163,7 +163,7 @@ class PlaygroundCorsProxyTokenBucket {
 		) {
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -185,7 +185,7 @@ function playground_cors_proxy_maybe_rate_limit() {
 		error_log('Invalid IP address: ' . var_export($remote_ip, true));
 		return false;
 	}
-	
+
 	$token_bucket = new PlaygroundCorsProxyTokenBucket();
 	try {
 		if (!$token_bucket->obtain_token($remote_ip, $bucket_config)) {
@@ -201,7 +201,7 @@ function playground_cors_proxy_maybe_rate_limit() {
 /**
  * Converts the IP address to a key used for rate limiting.
  * It groups addresses into buckets of size /64.
- * 
+ *
  * @return string The encoded IPv6 address or null if the input is not a valid IP address.
  */
 function playground_ip_to_a_64_subnet(string $ip_v4_or_v6): string {
@@ -209,7 +209,7 @@ function playground_ip_to_a_64_subnet(string $ip_v4_or_v6): string {
 	if (filter_var($ip_v4_or_v6, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
 		/**
 		 * Convert IPv4 to IPv6 mapped address for storage.
-		 * Do not group these addresses into buckets since 
+		 * Do not group these addresses into buckets since
 		 * the number of IPv4 addresses is less than the number
 		 * of IPv6 addresses.
 		 */
@@ -221,6 +221,14 @@ function playground_ip_to_a_64_subnet(string $ip_v4_or_v6): string {
 		 * address for rate limiting. This way, a person with an entire
 		 * /64 subnet cannot get more than their fair share of the
 		 * tokens.
+		 *
+		 * NOTE: This measure may be a bit heavy-handed to start with,
+		 * but we will not know until we are actually seeing requests
+		 * from IPv6 requests in the wild. If individual users are
+		 * experiencing too much rate-limiting, we can consider
+		 * limiting individual addresses first and only addressing
+		 * entire blocks once an IPv6 block has a number of IPs
+		 * that are hitting rate limits.
 		 */
 		$ipv6_block = playground_get_ipv6_block($ipv6_remote_ip, 64);
 		if ($ipv6_block === null) {
