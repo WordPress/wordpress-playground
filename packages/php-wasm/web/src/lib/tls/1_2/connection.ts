@@ -58,33 +58,17 @@ const generalEcdheKeyPair = crypto.subtle.generateKey(
 	['deriveKey', 'deriveBits'] // Key usage
 );
 
-function chunkStream(chunkSize: number) {
-	let buffer: Uint8Array = new Uint8Array();
-	return new TransformStream({
-		transform(chunk, controller) {
-			buffer = concatUint8Arrays([buffer, chunk]);
-			while (buffer.length >= chunkSize) {
-				controller.enqueue(buffer.slice(0, chunkSize));
-				buffer = buffer.slice(chunkSize);
-			}
-		},
-		flush(controller) {
-			if (buffer.length) {
-				controller.enqueue(buffer);
-				buffer = new Uint8Array();
-			}
-		},
-	});
-}
-
 /**
- * Implements a server-side TLS 1.2 connection handler.
+ * Implements a server-side TLS 1.2 connection handler
+ * for use with WebAssembly modules running in the browser.
+ *
+ * **WARNING** NEVER USE THIS CODE AS A SERVER-SIDE TLS HANDLER.
  *
  * It uses the AES Galois Counter Mode (GCM) because it
  * could be implemented with window.crypto.subtle.
  * See https://datatracker.ietf.org/doc/html/rfc5288
  *
- * **WARNING** DO NOT USE THIS CODE ON AN ACTUAL SERVER.
+ * **WARNING** NEVER USE THIS CODE AS A SERVER-SIDE TLS HANDLER.
  *
  * This code is not secure. It is a minimal subset required
  * to decrypt the TLS traffic from a PHP-wasm worker. Yes,
@@ -156,6 +140,11 @@ export class TLS_1_2_Connection {
 	 */
 	private MAX_CHUNK_SIZE = 1024 * 16;
 
+	/**
+	 * The client end of the TLS connection.
+	 * This is where the WASM module can write and read the
+	 * encrypted data.
+	 */
 	clientEnd = {
 		// We don't need to chunk the encrypted data.
 		// OpenSSL already done that for us.
@@ -167,11 +156,21 @@ export class TLS_1_2_Connection {
 		this.clientEnd.downstream.writable.getWriter();
 	private clientUpstreamReader = this.clientEnd.upstream.readable.getReader();
 
+	/**
+	 * The server end of the TLS connection.
+	 * This is where the JavaScript handler can write and read the
+	 * unencrypted data.
+	 */
 	serverEnd = {
 		upstream: new TransformStream<Uint8Array, Uint8Array>(),
-		// Chunk the data before encrypting it. This will
-		// spread some messages across multiple records, but
-		// TLS supports it so that's fine.
+		/**
+		 * Chunk the data before encrypting it. The
+		 * TLS1_CK_DHE_PSK_WITH_AES_256_CBC_SHA cipher suite
+		 * only supports up to 16KB of data per record.
+		 *
+		 * This will spread some messages across multiple records,
+		 * but TLS supports it so that's fine.
+		 */
 		downstream: chunkStream(this.MAX_CHUNK_SIZE),
 	};
 
@@ -180,6 +179,8 @@ export class TLS_1_2_Connection {
 	constructor() {
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const tlsConnection = this;
+		// Whenever the "server handler" produces data, encrypt it
+		// and send it back to the client.
 		this.serverEnd.downstream.readable.pipeTo(
 			new WritableStream({
 				async write(chunk) {
@@ -195,6 +196,10 @@ export class TLS_1_2_Connection {
 		);
 	}
 
+	/**
+	 * Marks this connections as closed and closes all the associated
+	 * streams.
+	 */
 	async close() {
 		if (this.closed) {
 			return;
@@ -317,10 +322,13 @@ export class TLS_1_2_Connection {
 		// Clean up the handshake messages as they are no longer needed.
 		this.handshakeMessages = [];
 
-		this.pollForIncomingData();
+		this.pollForClientMessages();
 	}
 
-	// Full key derivation function
+	/**
+	 * Derives the session keys from the random values and the
+	 * pre-master secret – as per RFC 5246.
+	 */
 	private async deriveSessionKeys({
 		clientRandom,
 		serverRandom,
@@ -488,6 +496,10 @@ export class TLS_1_2_Connection {
 		}
 	}
 
+	/**
+	 * Returns the requested number of bytes from the client.
+	 * Waits for the bytes to arrive if necessary.
+	 */
 	private async pollBytes(length: number) {
 		while (this.receivedBytesBuffer.length < length) {
 			const { value, done } = await this.clientUpstreamReader.read();
@@ -511,11 +523,39 @@ export class TLS_1_2_Connection {
 		return requestedBytes;
 	}
 
+	/**
+	 * Listens for all incoming messages and passes them to the
+	 * server handler.
+	 */
+	private async pollForClientMessages() {
+		try {
+			while (true) {
+				const appData = await this.readNextMessage(
+					ContentTypes.ApplicationData
+				);
+				this.serverUpstreamWriter.write(appData.body);
+			}
+		} catch (e) {
+			if (e instanceof TLSConnectionClosed) {
+				// Connection closed, no more application data to emit.
+				return;
+			}
+			throw e;
+		}
+	}
+
+	/**
+	 * Decrypts data in a TLS 1.2-compliant manner using
+	 * the AES-GCM algorithm.
+	 */
 	private async decryptData(
 		contentType: number,
 		payload: Uint8Array
 	): Promise<Uint8Array> {
 		const implicitIV = this.sessionKeys!.clientIV;
+		// Part of the IV is randomly generated for each record
+		// and prepended in its unencrypted form before the
+		// ciphertext.
 		const explicitIV = payload.slice(0, 8);
 		const iv = new Uint8Array([...implicitIV, ...explicitIV]);
 
@@ -577,24 +617,13 @@ export class TLS_1_2_Connection {
 		return message;
 	}
 
-	private async pollForIncomingData() {
-		try {
-			while (true) {
-				const appData = await this.readNextMessage(
-					ContentTypes.ApplicationData
-				);
-				this.serverUpstreamWriter.write(appData.body);
-			}
-		} catch (e) {
-			if (e instanceof TLSConnectionClosed) {
-				// Connection closed, no more application data to emit.
-				return;
-			}
-			throw e;
-		}
-	}
-
-	// Function to write a TLS record
+	/**
+	 * Passes a TLS record to the client.
+	 *
+	 * Accepts unencrypted data and ensures it gets encrypted
+	 * if needed before sending it to the client. The encryption
+	 * only kicks in after the handshake is complete.
+	 */
 	private async writeTLSRecord(
 		contentType: number,
 		payload: Uint8Array
@@ -619,11 +648,18 @@ export class TLS_1_2_Connection {
 		this.clientDownstreamWriter.write(record);
 	}
 
+	/**
+	 * Encrypts data in a TLS 1.2-compliant manner using
+	 * the AES-GCM algorithm.
+	 */
 	private async encryptData(
 		contentType: number,
 		payload: Uint8Array
 	): Promise<Uint8Array> {
 		const implicitIV = this.sessionKeys!.serverIV;
+		// Part of the IV is randomly generated for each record
+		// and prepended in its unencrypted form before the
+		// ciphertext.
 		const explicitIV = crypto.getRandomValues(new Uint8Array(8));
 		const iv = new Uint8Array([...implicitIV, ...explicitIV]);
 
@@ -867,6 +903,21 @@ class TLSDecoder {
 			verify_data: data,
 		};
 	}
+}
+
+/**
+ * Creates a stream that emits chunks not larger than
+ * the specified size.
+ */
+function chunkStream(chunkSize: number) {
+	return new TransformStream({
+		transform(chunk, controller) {
+			while (chunk.length > 0) {
+				controller.enqueue(chunk.slice(0, chunkSize));
+				chunk = chunk.slice(chunkSize);
+			}
+		},
+	});
 }
 
 class MessageEncoder {

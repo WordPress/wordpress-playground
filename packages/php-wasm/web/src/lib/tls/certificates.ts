@@ -1,5 +1,12 @@
 import { concatUint8Arrays } from './utils';
 
+/**
+ * Generates an X.509 certificate from the given description.
+ *
+ * If the issuer key pair is provided, the certificate will be signed
+ * using the provided issuer's private key. Otherwise, the certificate
+ * will be self-signed.
+ */
 export function generateCertificate(
 	description: TBSCertificateDescription,
 	issuerKeyPair?: CryptoKeyPair
@@ -19,6 +26,15 @@ export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
 		encodeUint8ArrayAsBase64(pkcs8)
 	)}\n-----END PRIVATE KEY-----`;
 }
+
+/**
+ * Generates an X.509 certificate from the given description.
+ * The code below is underdocumented. See the links below for more details:
+ *
+ * * https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/
+ * * https://dev.to/wayofthepie/structure-of-an-ssl-x-509-certificate-16b
+ * * https://www.oss.com/asn1/resources/asn1-made-simple/asn1-quick-reference/asn1-tags.html
+ */
 
 class CertificateGenerator {
 	static async generateCertificate(
@@ -300,6 +316,11 @@ class CertificateGenerator {
 	}
 }
 
+/**
+ * OIDs used in X.509 certificates.
+ *
+ * Source: https://oidref.com/
+ */
 const oids = {
 	// Algorithm OIDs
 	'1.2.840.113549.1.1.1': 'rsaEncryption',

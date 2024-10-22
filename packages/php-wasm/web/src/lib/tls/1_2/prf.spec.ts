@@ -9,7 +9,7 @@ describe('hmacSha256', () => {
 		const data = hexStringToArrayBuffer(dataHex);
 
 		// Import the key
-		const hmacKey = await crypto.subtle.importKey(
+		const hmacKey = await globalThis.crypto.subtle.importKey(
 			'raw',
 			key,
 			{ name: 'HMAC', hash: { name: 'SHA-256' } },

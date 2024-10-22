@@ -1,5 +1,10 @@
 import { concatArrayBuffers } from '../utils';
 
+/**
+ * Implements the TLS 1.2 PRF using HMAC-SHA256.
+ *
+ * See https://datatracker.ietf.org/doc/html/rfc5246#section-5
+ */
 export async function tls12Prf(
 	secret: ArrayBuffer,
 	label: ArrayBuffer,
