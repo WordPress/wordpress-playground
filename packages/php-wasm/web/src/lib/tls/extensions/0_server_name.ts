@@ -73,7 +73,7 @@ export class ServerNameExtension {
 	 * | 0x00 0x00                          |
 	 * +------------------------------------+
 	 */
-	static encodeFromClient(serverNames?: ServerNameList) {
+	static encodeForClient(serverNames?: ServerNameList) {
 		if (serverNames?.server_name_list.length) {
 			throw new Error(
 				'Encoding non-empty lists for ClientHello is not supported yet. ' +

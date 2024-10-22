@@ -975,7 +975,7 @@ class MessageEncoder {
 						 *
 						 * Source: dfile:///Users/cloudnik/Library/Application%20Support/Dash/User%20Contributed/RFCs/RFCs.docset/Contents/Resources/Documents/rfc6066.html#section-3
 						 */
-						return ServerNameExtension.encodeFromClient();
+						return ServerNameExtension.encodeForClient();
 					case 'supported_groups':
 						return SupportedGroupsExtension.encodeForClient(
 							'secp256r1'
