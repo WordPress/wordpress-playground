@@ -250,7 +250,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					let wasmUrl = '';
 					return await loadWebRuntime(phpVersion, {
 						emscriptenOptions: {
-							websocket: {
+							tlsOverFetch: {
 								CAroot,
 							},
 							instantiateWasm(imports, receiveInstance) {

@@ -1,18 +1,18 @@
-import { EmscriptenOptions } from '@php-wasm/universal';
 import { TLS_1_2_Connection } from './tls/1_2/connection';
 import { generateCertificate, GeneratedCertificate } from './tls/certificates';
 import { logger } from '@php-wasm/logger';
+
+type TCPOverFetchOptions = {
+	CAroot: GeneratedCertificate;
+};
 
 /**
  * Websocket that buffers the received bytes and translates them into
  * a fetch() call.
  */
-export const tcpOverFetchWebsocket = (
-	phpModuleArgs: EmscriptenOptions = {}
-) => {
+export const tcpOverFetchWebsocket = (options: TCPOverFetchOptions) => {
 	return {
 		websocket: {
-			...(phpModuleArgs['websocket'] || {}),
 			url: (_: any, host: string, port: string) => {
 				const query = new URLSearchParams({
 					host,
@@ -22,7 +22,7 @@ export const tcpOverFetchWebsocket = (
 			},
 			subprotocol: 'binary',
 			decorator: () => {
-				const CAroot = phpModuleArgs['CAroot'] as GeneratedCertificate;
+				const CAroot = options.CAroot;
 				return class SpecificTLSToFetchWebsocket extends TLSToFetchWebsocket {
 					constructor(url: string, options: string[]) {
 						super(url, options, CAroot, startTLS);
@@ -104,7 +104,7 @@ class TLSToFetchWebsocket {
 		this.startTLSConnection(CAroot);
 	}
 
-	private async startTLSConnection(CAroot: GeneratedCertificate) {
+	async startTLSConnection(CAroot: GeneratedCertificate) {
 		this.readyState = this.OPEN;
 		this.emit('open');
 
