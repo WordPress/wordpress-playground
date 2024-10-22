@@ -192,3 +192,25 @@ test('should login the user in if a login step is provided', async ({
 		).toContain(path);
 	});
 });
+
+test('should correctly redirect to a multisite wp-admin url', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/example/wp-admin/options-general.php',
+		steps: [
+			{
+				step: 'enableMultisite',
+			},
+			{
+				step: 'wp-cli',
+				command: 'wp site create --slug=example',
+			},
+		],
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('General Settings');
+});
