@@ -22,6 +22,7 @@ import { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { modal_slug } from '../../../components/layout';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -177,7 +178,7 @@ export function bootSiteClient(
 		} catch (e) {
 			logger.error(e);
 			dispatch(setActiveSiteError('site-boot-failed'));
-			dispatch(setActiveModal('error-report'));
+			dispatch(setActiveModal(modal_slug.ERROR_REPORT));
 			return;
 		}
 

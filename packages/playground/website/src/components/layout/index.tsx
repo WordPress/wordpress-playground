@@ -32,8 +32,16 @@ import {
 	setActiveModal,
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
+import { ImportFormModal } from '../import-form/modal';
 
 acquireOAuthTokenIfNeeded();
+
+export const modal_slug = {
+	LOG: 'log',
+	ERROR_REPORT: 'error-report',
+	START_ERROR: 'start-error',
+	IMPORT_FORM: 'import-form'
+}
 
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
@@ -150,7 +158,7 @@ function Modals(blueprint: Blueprint) {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
-				dispatch(setActiveModal('error-report'));
+				dispatch(setActiveModal(modal_slug.ERROR_REPORT));
 			}
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,12 +168,14 @@ function Modals(blueprint: Blueprint) {
 		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 
-	if (currentModal === 'log') {
+	if (currentModal === modal_slug.LOG) {
 		return <LogModal />;
-	} else if (currentModal === 'error-report') {
+	} else if (currentModal === modal_slug.ERROR_REPORT) {
 		return <ErrorReportModal blueprint={blueprint} />;
-	} else if (currentModal === 'start-error') {
+	} else if (currentModal === modal_slug.START_ERROR) {
 		return <StartErrorModal />;
+	} else if (currentModal === modal_slug.IMPORT_FORM) {
+		return <ImportFormModal />;
 	}
 
 	return (

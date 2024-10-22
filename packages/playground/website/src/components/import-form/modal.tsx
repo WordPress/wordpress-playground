@@ -1,23 +1,16 @@
-import React, { createContext, useContext, useState } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import ImportForm from './index';
 import Modal from '../modal';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { useDispatch } from 'react-redux';
 
-const ImportFormContext = createContext({ openModal: () => {}, closeModal: () => {} });
-
-interface ImportFormProviderProps {
-	children?: React.ReactNode;
-}
-
-const ImportFormProvider = ({ children }: ImportFormProviderProps) => {
+export const ImportFormModal = () => {
 	const playground = usePlaygroundClient();
-	const [isOpen, setOpen] = useState(false);
-	const openModal = () => {
-		if (!playground) return;
-		setOpen(true);
-	};
+	const dispatch: PlaygroundDispatch = useDispatch();
+
 	const closeModal = () => {
-		setOpen(false);
+		dispatch(setActiveModal(null));
 	};
 	function handleImported() {
 		// eslint-disable-next-line no-alert
@@ -29,11 +22,8 @@ const ImportFormProvider = ({ children }: ImportFormProviderProps) => {
 	}
 
 	return (
-		<ImportFormContext.Provider value={{ openModal, closeModal }}>
-			{children}
-
 			<Modal
-				isOpen={isOpen}
+				isOpen={!!playground}
 				contentLabel='This is a dialog window which overlays the main content of the
 				page. The modal begins with a heading 2 called "Import
 				Playground". Pressing the Close Import Window will close
@@ -46,12 +36,5 @@ const ImportFormProvider = ({ children }: ImportFormProviderProps) => {
 					onImported={handleImported}
 				/>
 			</Modal>
-		</ImportFormContext.Provider>
 	);
 };
-
-const useImportForm = () => {
-	return useContext(ImportFormContext);
-};
-
-export { ImportFormProvider, useImportForm };
