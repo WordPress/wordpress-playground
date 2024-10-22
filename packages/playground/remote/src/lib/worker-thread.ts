@@ -1,4 +1,6 @@
 import {
+	GeneratedCertificate,
+	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
 	createDirectoryHandleMountHandler,
@@ -164,6 +166,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		wpVersion = LatestMinifiedWordPressVersion,
 		phpVersion = '8.0',
 		sapiName = 'cli',
+		withNetworking = false,
 		shouldInstallWordPress = true,
 	}: WorkerBootOptions) {
 		if (this.booted) {
@@ -234,25 +237,30 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
-			const CAroot = await generateCertificate({
-				subject: {
-					commonName: 'WordPressPlaygroundCA',
-					organizationName: 'WordPressPlaygroundCA',
-					countryName: 'US',
-				},
-				basicConstraints: {
-					ca: true,
-				},
-			});
+			let CAroot: false | GeneratedCertificate = false;
+			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
+			if (withNetworking) {
+				CAroot = await generateCertificate({
+					subject: {
+						commonName: 'WordPressPlaygroundCA',
+						organizationName: 'WordPressPlaygroundCA',
+						countryName: 'US',
+					},
+					basicConstraints: {
+						ca: true,
+					},
+				});
+				tcpOverFetch = {
+					CAroot,
+				};
+			}
 			const requestHandler = await bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
 					return await loadWebRuntime(phpVersion, {
+						tcpOverFetch,
 						emscriptenOptions: {
-							tlsOverFetch: {
-								CAroot,
-							},
 							instantiateWasm(imports, receiveInstance) {
 								// Using .then because Emscripten typically returns an empty
 								// object here and not a promise.
@@ -320,9 +328,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					'openssl.cafile': '/internal/ca-bundle.crt',
 				},
 				createFiles: {
-					'/internal/ca-bundle.crt': certificateToPEM(
-						CAroot.certificate
-					),
+					'/internal/ca-bundle.crt': CAroot
+						? certificateToPEM(CAroot.certificate)
+						: '',
 					'/internal/shared/mu-plugins': {
 						'1-playground-web.php': playgroundWebMuPlugin,
 						'playground-includes': {

@@ -2,7 +2,7 @@ import { TLS_1_2_Connection } from './tls/1_2/connection';
 import { generateCertificate, GeneratedCertificate } from './tls/certificates';
 import { logger } from '@php-wasm/logger';
 
-type TCPOverFetchOptions = {
+export type TCPOverFetchOptions = {
 	CAroot: GeneratedCertificate;
 };
 

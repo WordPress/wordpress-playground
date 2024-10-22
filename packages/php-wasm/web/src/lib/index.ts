@@ -16,3 +16,4 @@ export type {
 } from './directory-handle-mount';
 
 export * from './tls/certificates';
+export type { TCPOverFetchOptions } from './tcp-over-fetch';
