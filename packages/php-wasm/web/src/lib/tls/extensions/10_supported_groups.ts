@@ -1,6 +1,7 @@
 /**
- * TLS server_name extension
- * https://www.rfc-editor.org/rfc/rfc6066.html
+ * TLS supported_groups extension
+ * https://www.iana.org/go/rfc7919
+ * https://www.iana.org/go/rfc8422
  */
 
 import { ArrayBufferReader, ArrayBufferWriter } from '../utils';
@@ -21,24 +22,21 @@ export type ParsedSupportedGroups = (keyof typeof SupportedGroups)[];
 
 export class SupportedGroupsExtension {
 	/**
-    +--------------------------------------------------+
-    | Extension Type (supported_groups)         [2B]   |
-    | 0x00 0x0A                                        |
-    +--------------------------------------------------+
-    | Extension Length                          [2B]   |
-    +--------------------------------------------------+
-    | Supported Groups List Length              [2B]   |
-    +--------------------------------------------------+
-    | Supported Group 1                         [2B]   |
-    +--------------------------------------------------+
-    | Supported Group 2                         [2B]   |
-    +--------------------------------------------------+
-    | ...                                              |
-    +--------------------------------------------------+
-    | Supported Group n                         [2B]   |
-    +--------------------------------------------------+
-     */
-	static decode(data: Uint8Array): ParsedSupportedGroups {
+	 * +--------------------------------------------------+
+	 * | Payload Length                            [2B]   |
+	 * +--------------------------------------------------+
+	 * | Supported Groups List Length              [2B]   |
+	 * +--------------------------------------------------+
+	 * | Supported Group 1                         [2B]   |
+	 * +--------------------------------------------------+
+	 * | Supported Group 2                         [2B]   |
+	 * +--------------------------------------------------+
+	 * | ...                                              |
+	 * +--------------------------------------------------+
+	 * | Supported Group n                         [2B]   |
+	 * +--------------------------------------------------+
+	 */
+	static decodeFromClient(data: Uint8Array): ParsedSupportedGroups {
 		const reader = new ArrayBufferReader(data.buffer);
 		// Skip the length field
 		reader.readUint16();
@@ -54,16 +52,16 @@ export class SupportedGroupsExtension {
 	}
 
 	/**
-    +--------------------------------------------------+
-    | Extension Type (supported_groups)         [2B]   |
-    | 0x00 0x0A                                        |
-    +--------------------------------------------------+
-    | Extension Length                          [2B]   |
-    +--------------------------------------------------+
-    | Selected Group                            [2B]   |
-    +--------------------------------------------------+
-     */
-	static encode(group: SupportedGroup): Uint8Array {
+	 * +--------------------------------------------------+
+	 * | Extension Type (supported_groups)         [2B]   |
+	 * | 0x00 0x0A                                        |
+	 * +--------------------------------------------------+
+	 * | Extension Length                          [2B]   |
+	 * +--------------------------------------------------+
+	 * | Selected Group                            [2B]   |
+	 * +--------------------------------------------------+
+	 */
+	static encodeForClient(group: SupportedGroup): Uint8Array {
 		const writer = new ArrayBufferWriter(6);
 		writer.writeUint16(ExtensionTypes.supported_groups);
 		writer.writeUint16(2);

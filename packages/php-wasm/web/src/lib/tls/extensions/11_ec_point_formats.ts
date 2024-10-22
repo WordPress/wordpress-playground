@@ -20,24 +20,21 @@ export type ParsedECPointFormats = (keyof typeof ECPointFormats)[];
 
 export class ECPointFormatsExtension {
 	/**
-    +--------------------------------------------------+
-    | Extension Type (ec_point_formats)         [2B]   |
-    | 0x00 0x0B                                        |
-    +--------------------------------------------------+
-    | Extension Length                          [2B]   |
-    +--------------------------------------------------+
-    | EC Point Formats Length                   [1B]   |
-    +--------------------------------------------------+
-    | EC Point Format 1                         [1B]   |
-    +--------------------------------------------------+
-    | EC Point Format 2                         [1B]   |
-    +--------------------------------------------------+
-    | ...                                              |
-    +--------------------------------------------------+
-    | EC Point Format n                         [1B]   |
-    +--------------------------------------------------+
-     */
-	static decode(data: Uint8Array): ParsedECPointFormats {
+	 * +--------------------------------------------------+
+	 * | Payload Length                            [2B]   |
+	 * +--------------------------------------------------+
+	 * | EC Point Formats Length                   [1B]   |
+	 * +--------------------------------------------------+
+	 * | EC Point Format 1                         [1B]   |
+	 * +--------------------------------------------------+
+	 * | EC Point Format 2                         [1B]   |
+	 * +--------------------------------------------------+
+	 * | ...                                              |
+	 * +--------------------------------------------------+
+	 * | EC Point Format n                         [1B]   |
+	 * +--------------------------------------------------+
+	 */
+	static decodeFromClient(data: Uint8Array): ParsedECPointFormats {
 		const reader = new ArrayBufferReader(data.buffer);
 		// Read the EC Point Formats Length
 		const length = reader.readUint8();
@@ -65,7 +62,7 @@ export class ECPointFormatsExtension {
 	 * | EC Point Format                           [1B]   |
 	 * +--------------------------------------------------+
 	 */
-	static encode(format: ECPointFormat): Uint8Array {
+	static encodeForClient(format: ECPointFormat): Uint8Array {
 		const writer = new ArrayBufferWriter(6);
 		writer.writeUint16(ExtensionTypes.ec_point_formats);
 		writer.writeUint16(2); // Body length

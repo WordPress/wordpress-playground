@@ -47,15 +47,16 @@ export type ParsedSignatureAlgorithm = {
 	algorithm: SignatureAlgorithm;
 };
 
+/**
+ * Handles the signature algorithms extension as defined in
+ * https://www.rfc-editor.org/rfc/rfc8446.html#page-41
+ */
 export class SignatureAlgorithmsExtension {
 	/**
-	 * Decode the signature algorithms extension as defined in
-	 * https://www.rfc-editor.org/rfc/rfc8446.html#page-41
-	 *
 	 * Binary layout:
 	 *
 	 * +------------------------------------+
-	 * | Signature Algorithms Length [2B]   |
+	 * | Payload Length              [2B]   |
 	 * +------------------------------------+
 	 * | Hash Algorithm 1            [1B]   |
 	 * | Signature Algorithm 1       [1B]   |
@@ -66,7 +67,7 @@ export class SignatureAlgorithmsExtension {
 	 * | ...                                |
 	 * +------------------------------------+
 	 */
-	static decode(data: Uint8Array): ParsedSignatureAlgorithm[] {
+	static decodeFromClient(data: Uint8Array): ParsedSignatureAlgorithm[] {
 		const reader = new ArrayBufferReader(data.buffer);
 		reader.readUint16(); // Skip algorithms length
 		const parsedAlgorithms: ParsedSignatureAlgorithm[] = [];
@@ -91,17 +92,17 @@ export class SignatureAlgorithmsExtension {
 	}
 
 	/**
-	+--------------------------------------------------+
-	| Extension Type (signature_algorithms)     [2B]   |
-	| 0x00 0x0D                                        |
-	+--------------------------------------------------+
-	| Body Length                               [2B]   |
-	+--------------------------------------------------+
-	| Hash Algorithm                            [1B]   |
-	| Signature Algorithm                       [1B]   |
-	+--------------------------------------------------+
-		*/
-	static encode(
+	 * +--------------------------------------------------+
+	 * | Extension Type (signature_algorithms)     [2B]   |
+	 * | 0x00 0x0D                                        |
+	 * +--------------------------------------------------+
+	 * | Body Length                               [2B]   |
+	 * +--------------------------------------------------+
+	 * | Hash Algorithm                            [1B]   |
+	 * | Signature Algorithm                       [1B]   |
+	 * +--------------------------------------------------+
+	 */
+	static encodeforClient(
 		hash: HashAlgorithm,
 		algorithm: SignatureAlgorithm
 	): Uint8Array {
@@ -110,7 +111,6 @@ export class SignatureAlgorithmsExtension {
 		writer.writeUint16(2);
 		writer.writeUint8(HashAlgorithms[hash]);
 		writer.writeUint8(SignatureAlgorithms[algorithm]);
-		console.log(writer.uint8Array);
 		return writer.uint8Array;
 	}
 }

@@ -26,7 +26,7 @@ export type ServerNameType =
 export const ServerNameNames = flipObject(ServerNameTypes);
 
 export class ServerNameExtension {
-	static decode(data: Uint8Array): ServerNameList {
+	static decodeFromClient(data: Uint8Array): ServerNameList {
 		const view = new DataView(data.buffer);
 		let offset = 0;
 
@@ -73,7 +73,7 @@ export class ServerNameExtension {
 	 * | 0x00 0x00                          |
 	 * +------------------------------------+
 	 */
-	static encode(serverNames?: ServerNameList) {
+	static encodeFromClient(serverNames?: ServerNameList) {
 		if (serverNames?.server_name_list.length) {
 			throw new Error(
 				'Encoding non-empty lists for ClientHello is not supported yet. ' +

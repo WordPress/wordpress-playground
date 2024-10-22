@@ -1,3 +1,8 @@
+/**
+ * Glue for the implemented TLS extensions
+ * For the full list of TLS extensions, see
+ * https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
+s */
 import { logger } from '@php-wasm/logger';
 import { ArrayBufferReader } from '../utils';
 import { ServerNameExtension, ServerNameList } from './0_server_name';
@@ -13,11 +18,9 @@ import {
 	SignatureAlgorithms,
 	SignatureAlgorithmsExtension,
 } from './13_signature_algorithms';
-import { Padding, PaddingExtension } from './21_padding';
 import { ExtensionNames } from './types';
 
 export const TLSExtensionsHandlers = {
-	padding: PaddingExtension,
 	server_name: ServerNameExtension,
 	signature_algorithms: SignatureAlgorithmsExtension,
 	supported_groups: SupportedGroupsExtension,
@@ -27,11 +30,6 @@ export const TLSExtensionsHandlers = {
 export type SupportedTLSExtension = keyof typeof TLSExtensionsHandlers;
 
 export type ParsedExtension =
-	| {
-			type: 'padding';
-			data: Padding;
-			raw: Uint8Array;
-	  }
 	| {
 			type: 'server_name';
 			data: ServerNameList;
@@ -87,11 +85,10 @@ export type ParsedExtension =
  * | ... (more extensions)       |
  * +-----------------------------+
  *
- *
  * @param data
  * @returns
  */
-export function parseHelloExtensions(data: Uint8Array) {
+export function parseClientHelloExtensions(data: Uint8Array) {
 	const reader = new ArrayBufferReader(data.buffer);
 
 	const parsed: ParsedExtension[] = [];
@@ -116,7 +113,7 @@ export function parseHelloExtensions(data: Uint8Array) {
 			];
 		parsed.push({
 			type: extensionTypeName,
-			data: handler.decode(extensionBytes) as any,
+			data: handler.decodeFromClient(extensionBytes) as any,
 			raw: data.slice(initialOffset, initialOffset + 4 + extensionLength),
 		});
 	}

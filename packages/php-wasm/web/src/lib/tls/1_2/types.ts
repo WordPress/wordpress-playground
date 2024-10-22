@@ -4,7 +4,7 @@
  * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2
  */
 
-import { ParsedExtension } from '../extensions/extensions';
+import { ParsedExtension } from '../extensions/parse-extensions';
 import { flipObject } from '../utils';
 
 export type SecurityParameters = {

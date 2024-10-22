@@ -171,7 +171,8 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 
 					ws.readyState = ws.OPEN;
 					ws.emit('open');
-					await ws.sslServer.start();
+					await ws.sslServer.TLSHandshake();
+					ws.sslServer.startEmitingApplicationData();
 				}
 
 				return class FetchWebsocketConstructor {
