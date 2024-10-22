@@ -1,6 +1,6 @@
 /**
- * TLS server_name extension
- * https://www.rfc-editor.org/rfc/rfc6066.html
+ * TLS signature_algorithms extension
+ * https://www.rfc-editor.org/rfc/rfc8446.html#page-41
  */
 
 import { ArrayBufferReader, ArrayBufferWriter } from '../utils';
