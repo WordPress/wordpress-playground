@@ -4,6 +4,65 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.0.4] (2024-10-21) 
+
+### Enhancements
+
+- Support CORS proxy rate-limiting. ([#1879](https://github.com/WordPress/wordpress-playground/pull/1879))
+
+### Blueprints
+
+- Allow multisites to load wp-admin pages with the landingPage attribute. ([#1913](https://github.com/WordPress/wordpress-playground/pull/1913))
+
+### Tools
+
+
+#### GitHub integration
+
+- Blueprints: Use `?` instead of `/` to CORS Proxy URLs. ([#1899](https://github.com/WordPress/wordpress-playground/pull/1899))
+
+#### Import/Export
+
+- Kickoff Data Liberation: Let's Build WordPress-first Data Migration Tools. ([#1888](https://github.com/WordPress/wordpress-playground/pull/1888))
+
+### Experiments
+
+
+#### File Synchronization
+
+- [Remote] Preserve PHP constants when saving a temporary site. ([#1911](https://github.com/WordPress/wordpress-playground/pull/1911))
+
+### Website
+
+- Do not display "You have no Playgrounds" message before loading the site. ([#1912](https://github.com/WordPress/wordpress-playground/pull/1912))
+- Fix build error that only appeared during deployment. ([#1896](https://github.com/WordPress/wordpress-playground/pull/1896))
+- Fix use of secrets on WP Cloud site. ([#1909](https://github.com/WordPress/wordpress-playground/pull/1909))
+- Maintain Query API parameters on temporary Playground settings update. ([#1910](https://github.com/WordPress/wordpress-playground/pull/1910))
+- Stop adding all CORS proxy files to website build. ([#1895](https://github.com/WordPress/wordpress-playground/pull/1895))
+- Stop responding with default MIME type. ([#1897](https://github.com/WordPress/wordpress-playground/pull/1897))
+- Stop short-circuiting web host PHP execution. ([#1898](https://github.com/WordPress/wordpress-playground/pull/1898))
+- Fix progress reporting during Playground load. ([#1915](https://github.com/WordPress/wordpress-playground/pull/1915))
+- Include CORS proxy with website builds. ([#1880](https://github.com/WordPress/wordpress-playground/pull/1880))
+- [Blueprints] Stop escaping landingPage URLs when loading WP Admin. ([#1891](https://github.com/WordPress/wordpress-playground/pull/1891))
+
+### Bug Fixes
+
+
+#### Boot Flow
+
+- Prefer pretty permalinks like WP install does. ([#1832](https://github.com/WordPress/wordpress-playground/pull/1832))
+
+### Various
+
+- Improve self-host documentation. ([#1884](https://github.com/WordPress/wordpress-playground/pull/1884))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @bgrgicak @brandonpayton
+
+
 ## [v1.0.3] (2024-10-14) 
 
 ### Enhancements
