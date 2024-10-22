@@ -2,6 +2,7 @@ import { MenuItem } from '@wordpress/components';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
+import { modalSlugs } from '../layout';
 
 interface Props {
 	onClose: () => void;
@@ -14,7 +15,7 @@ export function GithubImportMenuItem({ onClose, disabled }: Props) {
 			aria-label="Import WordPress theme, plugin, or wp-content directory from a GitHub repository."
 			disabled={disabled}
 			onClick={() => {
-				dispatch(setActiveModal('github-import-modal'));
+				dispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
 				onClose();
 			}}
 		>
