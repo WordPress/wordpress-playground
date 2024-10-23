@@ -50,10 +50,10 @@ describe('generateCertificate', () => {
 
 		// Verify the certificate
 		const certInfo = execSync(
-			`openssl x509 -in ${caCertPath} -text -noout`
+			`openssl x509 -in ${caCertPath} -text -noout | grep Subject`
 		).toString();
-		expect(certInfo).toContain(
-			'Subject: C=US, O=Playground CA, CN=playground-CA.com'
+		expect(certInfo).toMatch(
+			/Subject:\s*C\s*=\s*US, O\s*=\s*Playground CA, CN\s*=\s*playground-CA\.com/
 		);
 		expect(certInfo).toMatch(/X509v3 Basic Constraints:\s*\n\s*CA:TRUE/);
 	});
@@ -104,14 +104,18 @@ describe('generateCertificate', () => {
 
 		// Verify the site certificate
 		const certInfo = execSync(
-			`openssl x509 -in ${siteCertPath} -text -noout`
+			`openssl x509 -in ${siteCertPath} -text -noout | grep Subject`
 		).toString();
 
 		expect(certInfo).toMatch(
 			/Subject:\s*C=US, O=Playground Site, CN=playground-site/
 		);
-		expect(certInfo).toMatch(
-			/Issuer:\s*C=US, O=Playground CA, CN=playground-CA.com/
+
+		const certInfo2 = execSync(
+			`openssl x509 -in ${siteCertPath} -text -noout | grep Issuer`
+		).toString();
+		expect(certInfo2).toMatch(
+			/Issuer:\s*C\s*=\s*US, O\s*=\s*Playground CA, CN\s*=\s*playground-CA\.com/
 		);
 
 		// Verify the certificate chain
