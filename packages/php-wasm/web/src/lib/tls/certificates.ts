@@ -6,6 +6,14 @@ import { concatUint8Arrays } from './utils';
  * If the issuer key pair is provided, the certificate will be signed
  * using the provided issuer's private key. Otherwise, the certificate
  * will be self-signed.
+ *
+ * The code below is underdocumented. The following links may provide
+ * more clarity about X.509, ASN.1, DER, PEM, and other data formats
+ * this module encodes:
+ *
+ * * https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/
+ * * https://dev.to/wayofthepie/structure-of-an-ssl-x-509-certificate-16b
+ * * https://www.oss.com/asn1/resources/asn1-made-simple/asn1-quick-reference/asn1-tags.html
  */
 export function generateCertificate(
 	description: TBSCertificateDescription,
@@ -26,15 +34,6 @@ export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
 		encodeUint8ArrayAsBase64(pkcs8)
 	)}\n-----END PRIVATE KEY-----`;
 }
-
-/**
- * Generates an X.509 certificate from the given description.
- * The code below is underdocumented. See the links below for more details:
- *
- * * https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/
- * * https://dev.to/wayofthepie/structure-of-an-ssl-x-509-certificate-16b
- * * https://www.oss.com/asn1/resources/asn1-made-simple/asn1-quick-reference/asn1-tags.html
- */
 
 class CertificateGenerator {
 	static async generateCertificate(

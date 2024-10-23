@@ -1,3 +1,43 @@
+/**
+ * This is the secret sauce that enables HTTPS requests from PHP
+ * via file_get_contents(), curl, and all other networking mechanisms.
+ *
+ * This is effectively a MITM attack on the PHP instance. The code
+ * in this module decrypts the outbound traffic, runs the request
+ * using fetch(), and then provides an encrypted response. From
+ * PHP's perspective, it is indistinguishable from a direct connection
+ * to the right server.
+ *
+ * ## How does it work?
+ *
+ * Emscripten can be configured to stream all network traffic through a
+ * WebSocket. `@php-wasm/node` and `wp-now` use that to access the internet
+ * via a local WebSocket->TCP proxy, but the in-browser version of WordPress
+ * Playground exposes no such proxy.
+ *
+ * This module implements a "fake" WebSocket class. Instead of starting a `ws://`
+ * connection, it translates the raw HTTP/HTTPS bytes into a `fetch()` call.
+ *
+ * In case of HTTP, the raw request bytes are parsed into a Request object with
+ * a body stream and passes it to `fetch()`. Then, as the response status, headers,
+ * and the body arrive, they're stream-encoded as raw response bytes and exposed as
+ * incoming WebSocket data.
+ *
+ * In case of HTTPS, we the raw bytes are first piped through a custom TCPConnection
+ * class as follows:
+ *
+ * 1. We generate a self-signed CA certificate and tell PHP to trust it using the
+ *    `openssl.cafile` PHP.ini option
+ * 2. We create a domain-specific child certificate and sign it with the CA private key.
+ * 3. We start accepting raw encrypted bytes, process them as structured TLS records,
+ *    and perform the TLS handshake.
+ * 4. Encrypted tunnel is established
+ *   * TLSConnection decrypts the encrypted outbound data sent by PHP
+ *   * TLSConnection encrypts the unencrypted inbound data fed back to PHP
+ *
+ * From there, the plaintext data is treated by the same HTTP<->fetch() machinery as
+ * described in the previous paragraph.
+ */
 import { TLS_1_2_Connection } from './tls/1_2/connection';
 import { generateCertificate, GeneratedCertificate } from './tls/certificates';
 import { concatUint8Arrays } from './tls/utils';

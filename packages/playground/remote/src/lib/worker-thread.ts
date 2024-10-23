@@ -240,6 +240,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			let CAroot: false | GeneratedCertificate = false;
 			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
 			if (withNetworking) {
+				/**
+				 * Generate a self-signed CA certificate and tell PHP to trust it.
+				 * This enables rewriting raw encrypted bytes emitted by PHP
+				 * during HTTPS connections into fetch() calls.
+				 *
+				 * See https://github.com/WordPress/wordpress-playground/pull/1926.
+				 */
 				CAroot = await generateCertificate({
 					subject: {
 						commonName: 'WordPressPlaygroundCA',

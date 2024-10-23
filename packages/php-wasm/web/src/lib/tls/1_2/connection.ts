@@ -58,14 +58,18 @@ const generalEcdheKeyPair = crypto.subtle.generateKey(
 );
 
 /**
- * Implements a server-side TLS 1.2 connection handler
- * for use with WebAssembly modules running in the browser.
+ * This isomorphic class implements the server end of
+ * the client <-> server TLS 1.2 connection. It has two ends:
  *
- * **WARNING** NEVER USE THIS CODE AS A SERVER-SIDE TLS HANDLER.
+ * * Client end, that emits and accepts TLS encrypted data.
+ * * Server end, that emits and accepts unencrypted data.
  *
- * It uses the AES Galois Counter Mode (GCM) because it
- * could be implemented with window.crypto.subtle.
- * See https://datatracker.ietf.org/doc/html/rfc5288
+ * The API consumer is responsible for connecting both ends
+ * to the appropriate handlers.
+ *
+ * See https://datatracker.ietf.org/doc/html/rfc5246.
+ *
+ * ## Warning
  *
  * **WARNING** NEVER USE THIS CODE AS A SERVER-SIDE TLS HANDLER.
  *
@@ -73,7 +77,45 @@ const generalEcdheKeyPair = crypto.subtle.generateKey(
  * to decrypt the TLS traffic from a PHP-wasm worker. Yes,
  * it can speak TLS. No, it won't protect your data.
  *
- * See https://datatracker.ietf.org/doc/html/rfc5246.
+ * ## Rationale
+ *
+ * This is useful for running PHP.wasm in web browsers.
+ * Function calls such as `file_get_contents("https://w.org")`
+ * emit encrypted TLS traffic. With this class, you
+ * can decrypt it, serve the requested data, and encrypt
+ * the response before passing it back to the PHP.wasm
+ * module.
+ *
+ * ## Implementation details
+ *
+ * TLS_1_2_Connection implements the minimal subset of TLS 1.2
+ * required to exchange encrypted data with PHP.wasm:
+ *
+ * * TLS Handshake
+ * * All TLS 1.2 record types, including messages spanning multiple
+ *   records and empty records.
+ * * Encryption and decryption of application data.
+ * * Auto-chunking long data blobs before encrypting them to
+ *   respect the AES-GCM record size limit.
+ *
+ * The logic is based on numerous RFCs:
+ *
+ * * RFC 5246: The TLS Protocol Version 1.2
+ * * RFC 8446: TLS 1.3
+ * * RFC 6066: TLS Extensions
+ * * RFC 4492: Elliptic Curve Cryptography (ECC) Cipher Suites for TLS
+ * * RFC 5288: AES Galois Counter Mode (GCM) Cipher Suites for TLS
+ * * RFC 6070: PKCS #5: Password-Based Key Derivation Function 2 (PBKDF2) Test Vectors
+ *
+ * ... and a few others.
+ *
+ * ## Limitations
+ *
+ * * Multiple ChangeCipherSpec messages are not supported.
+ * * Only uncompressed mode (compression method 0) is supported.
+ * * Only the TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256 cipher suite is
+ *   supported, primarily because `crypto.subtle` supports AES-GCM.
+ *   For AES-GCM details, see https://datatracker.ietf.org/doc/html/rfc5288.
  */
 export class TLS_1_2_Connection {
 	/**
@@ -164,7 +206,7 @@ export class TLS_1_2_Connection {
 		upstream: new TransformStream<Uint8Array, Uint8Array>(),
 		/**
 		 * Chunk the data before encrypting it. The
-		 * TLS1_CK_DHE_PSK_WITH_AES_256_CBC_SHA cipher suite
+		 * TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256 cipher suite
 		 * only supports up to 16KB of data per record.
 		 *
 		 * This will spread some messages across multiple records,
