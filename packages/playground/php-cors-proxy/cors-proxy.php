@@ -86,7 +86,7 @@ curl_setopt(
             "Host: $host",
             // @TODO: Consider relaying client IP with the following reasoning:
             // Let's not take full credit for the proxied request.
-            // This is a CORS proxy, not an IP anonymizer. 
+            // This is a CORS proxy, not an IP anonymizer.
             // NOTE: We cannot do this reliably based on X-Forwarded-For unless
             // we trust the reverse proxy, so it cannot be done unconditionally
             // in this script because we do not control where others deploy it.
@@ -122,13 +122,13 @@ curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl
         // Adjust the redirection URL to go back to the proxy script
         $locationUrl = trim(substr($header, 9));
         $newLocation = rewrite_relative_redirect(
-            $targetUrl, 
-            $locationUrl, 
+            $targetUrl,
+            $locationUrl,
             CURRENT_SCRIPT_URI
         );
         header('Location: ' . $newLocation, true);
     } else if (
-        stripos($header, 'Set-Cookie:') !== 0 && 
+        stripos($header, 'Set-Cookie:') !== 0 &&
         stripos($header, 'Authorization:') !== 0 &&
         stripos($header, 'Cache-Control:') !== 0
     ) {
@@ -163,6 +163,7 @@ if (!curl_exec($ch)) {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         @http_response_code($httpCode);
     }
+    // For now, let's clearly avoid the possibility of stale, cached responses.
     @header('Cache-Control: no-cache');
 }
 // Close cURL session
