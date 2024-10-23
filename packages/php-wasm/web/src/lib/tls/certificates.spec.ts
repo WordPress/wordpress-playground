@@ -1,141 +1,231 @@
+import { generateCertificate, certificateToPEM } from './certificates';
+import { execSync } from 'child_process';
+import { writeFileSync, mkdirSync, rmdirSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 describe('generateCertificate', () => {
-	it('should generate the expected certificates', async () => {
-		// TODO
-		expect(true).toBe(true);
+	let tempDir: string;
+	let caKeyPath: string;
+	let caCertPath: string;
+	let siteKeyPath: string;
+	let siteCertPath: string;
+
+	beforeAll(() => {
+		tempDir = join(tmpdir(), 'cert-test');
+		try {
+			mkdirSync(tempDir);
+		} catch (error) {
+			// Ignore error if directory already exists
+		}
+		caKeyPath = join(tempDir, 'ca_key.pem');
+		caCertPath = join(tempDir, 'ca_cert.crt');
+		siteKeyPath = join(tempDir, 'site_key.pem');
+		siteCertPath = join(tempDir, 'site_cert.crt');
+	});
+
+	afterAll(() => {
+		rmdirSync(tempDir, { recursive: true });
+	});
+
+	it('should generate a valid CA certificate', async () => {
+		const CAroot = await generateCertificate({
+			subject: {
+				countryName: 'US',
+				organizationName: 'Playground CA',
+				commonName: 'playground-CA.com',
+			},
+			basicConstraints: {
+				ca: true,
+			},
+		});
+
+		const caCertPEM = certificateToPEM(CAroot.certificate);
+		writeFileSync(caCertPath, caCertPEM);
+		const caKey = await crypto.subtle.exportKey(
+			'pkcs8',
+			CAroot.keyPair.privateKey
+		);
+		writeFileSync(caKeyPath, new Uint8Array(caKey));
+
+		// Verify the certificate
+		const certInfo = execSync(
+			`openssl x509 -in ${caCertPath} -text -noout`
+		).toString();
+		expect(certInfo).toContain(
+			'Subject: C=US, O=Playground CA, CN=playground-CA.com'
+		);
+		expect(certInfo).toMatch(/X509v3 Basic Constraints:\s*\n\s*CA:TRUE/);
+	});
+
+	it('should generate a valid site certificate signed by the CA', async () => {
+		const CAroot = await generateCertificate({
+			subject: {
+				countryName: 'US',
+				organizationName: 'Playground CA',
+				commonName: 'playground-CA.com',
+			},
+			basicConstraints: {
+				ca: true,
+			},
+		});
+
+		const SiteCert = await generateCertificate(
+			{
+				subject: {
+					countryName: 'US',
+					organizationName: 'Playground Site',
+					commonName: 'playground-site',
+				},
+				issuer: {
+					countryName: 'US',
+					organizationName: 'Playground CA',
+					commonName: 'playground-CA.com',
+				},
+			},
+			CAroot.keyPair
+		);
+
+		const caCertPEM = certificateToPEM(CAroot.certificate);
+		writeFileSync(caCertPath, caCertPEM);
+		const caKey = await crypto.subtle.exportKey(
+			'pkcs8',
+			CAroot.keyPair.privateKey
+		);
+		writeFileSync(caKeyPath, new Uint8Array(caKey));
+
+		const siteCertPEM = certificateToPEM(SiteCert.certificate);
+		writeFileSync(siteCertPath, siteCertPEM);
+		const siteKey = await crypto.subtle.exportKey(
+			'pkcs8',
+			SiteCert.keyPair.privateKey
+		);
+		writeFileSync(siteKeyPath, new Uint8Array(siteKey));
+
+		// Verify the site certificate
+		const certInfo = execSync(
+			`openssl x509 -in ${siteCertPath} -text -noout`
+		).toString();
+
+		expect(certInfo).toMatch(
+			/Subject:\s*C=US, O=Playground Site, CN=playground-site/
+		);
+		expect(certInfo).toMatch(
+			/Issuer:\s*C=US, O=Playground CA, CN=playground-CA.com/
+		);
+
+		// Verify the certificate chain
+		const verifyResult = execSync(
+			`openssl verify -CAfile ${caCertPath} ${siteCertPath}`
+		).toString();
+		expect(verifyResult).toContain(': OK');
+	});
+
+	it('should generate certificates with matching key moduli', async () => {
+		const CAroot = await generateCertificate({
+			subject: {
+				countryName: 'US',
+				organizationName: 'Playground CA',
+				commonName: 'playground-CA.com',
+			},
+			basicConstraints: {
+				ca: true,
+			},
+		});
+
+		const caCertPEM = certificateToPEM(CAroot.certificate);
+		writeFileSync(caCertPath, caCertPEM);
+		const caKey = await crypto.subtle.exportKey(
+			'pkcs8',
+			CAroot.keyPair.privateKey
+		);
+		writeFileSync(caKeyPath, new Uint8Array(caKey));
+
+		const caCertModulus = execSync(
+			`openssl x509 -noout -modulus -in ${caCertPath} | openssl sha1`
+		).toString();
+		const caKeyModulus = execSync(
+			`openssl rsa -noout -modulus -in ${caKeyPath} | openssl sha1`
+		).toString();
+
+		expect(caCertModulus).toBe(caKeyModulus);
+	});
+
+	it('should generate certificates that can be used for encryption and decryption', async () => {
+		const SiteCert = await generateCertificate({
+			subject: {
+				commonName: 'playground-site',
+				organizationName: 'Playground Site',
+				countryName: 'US',
+			},
+		});
+
+		const siteCertPEM = certificateToPEM(SiteCert.certificate);
+		writeFileSync(siteCertPath, siteCertPEM);
+		const siteKey = await crypto.subtle.exportKey(
+			'pkcs8',
+			SiteCert.keyPair.privateKey
+		);
+		writeFileSync(siteKeyPath, new Uint8Array(siteKey));
+
+		const testMessage = 'Hello, World';
+		const testFilePath = join(tempDir, 'test.txt');
+		const cipherPath = join(tempDir, 'cipher.txt');
+		const decryptedPath = join(tempDir, 'decrypted.txt');
+		const pubKeyPath = join(tempDir, 'site_cert.pub.pem');
+
+		writeFileSync(testFilePath, testMessage);
+
+		execSync(
+			`openssl x509 -in ${siteCertPath} -noout -pubkey > ${pubKeyPath}`
+		);
+		execSync(
+			`openssl pkeyutl -encrypt -in ${testFilePath} -pubin -inkey ${pubKeyPath} -out ${cipherPath}`
+		);
+		execSync(
+			`openssl pkeyutl -decrypt -inkey ${siteKeyPath} -in ${cipherPath} -out ${decryptedPath}`
+		);
+
+		const decryptedMessage = execSync(`cat ${decryptedPath}`)
+			.toString()
+			.trim();
+		expect(decryptedMessage).toBe(testMessage);
+	});
+
+	it('should generate certificates that can be used for signing and verification', async () => {
+		const SiteCert = await generateCertificate({
+			subject: {
+				commonName: 'playground-site',
+				organizationName: 'Playground Site',
+				countryName: 'US',
+			},
+		});
+
+		const siteCertPEM = certificateToPEM(SiteCert.certificate);
+		writeFileSync(siteCertPath, siteCertPEM);
+		const siteKey = await crypto.subtle.exportKey(
+			'pkcs8',
+			SiteCert.keyPair.privateKey
+		);
+		writeFileSync(siteKeyPath, new Uint8Array(siteKey));
+
+		const testMessage = 'Hello, World';
+		const testFilePath = join(tempDir, 'test.txt');
+		const signaturePath = join(tempDir, 'test.sig');
+		const pubKeyPath = join(tempDir, 'site_cert.pub.pem');
+
+		writeFileSync(testFilePath, testMessage);
+
+		execSync(
+			`openssl x509 -in ${siteCertPath} -noout -pubkey > ${pubKeyPath}`
+		);
+		execSync(
+			`openssl dgst -sha256 -sign ${siteKeyPath} -out ${signaturePath} ${testFilePath}`
+		);
+
+		const verifyResult = execSync(
+			`openssl dgst -sha256 -verify ${pubKeyPath} -signature ${signaturePath} ${testFilePath}`
+		).toString();
+		expect(verifyResult.trim()).toBe('Verified OK');
 	});
 });
-
-/*
-Use this to generate the certificates:
-
-const CAroot = await generateCertificate({
-	subject: {
-		countryName: 'US',
-		organizationName: 'Playground CA',
-		commonName: 'playground-CA.com-bun',
-	},
-	basicConstraints: {
-		ca: true,
-	},
-});
-
-const SiteCert = await generateCertificate(
-	{
-		subject: {
-			commonName: 'playground-site',
-			organizationName: 'Playground Site',
-			countryName: 'US',
-		},
-		issuer: {
-			countryName: 'US',
-			organizationName: 'Playground CA',
-			commonName: 'playground-CA.com-bun',
-		},
-	},
-	CAroot.keyPair
-);
-
-function uint8ArrayToHexString(arr: Uint8Array) {
-	let hexString = '';
-	for (let i = 0; i < arr.length; i++) {
-		const hex = arr[i].toString(16).padStart(2, '0');
-		hexString += hex;
-	}
-	return hexString;
-}
-
-import { writeFileSync } from 'fs';
-
-const caCertPEM = certificateToPEM(CAroot.certificate);
-const siteCertPEM = certificateToPEM(SiteCert.certificate);
-
-writeFileSync('ca_cert.crt', caCertPEM);
-writeFileSync(
-	'ca_key.pem',
-	await crypto.subtle.exportKey('pkcs8', CAroot.keyPair.privateKey)
-);
-writeFileSync('ca_cert_tbs.bin', CAroot.tbsCertificate);
-const sha256 = new Uint8Array(
-	await crypto.subtle.digest('SHA-256', CAroot.tbsCertificate)
-);
-writeFileSync('ca_cert_tbs.bin.sha256', new Uint8Array(sha256));
-console.log('ca_cert_tbs.bin.sha256', uint8ArrayToHexString(sha256));
-
-writeFileSync('ca_cert.bin', CAroot.certificate);
-writeFileSync('site_cert.crt', siteCertPEM);
-writeFileSync(
-	'site_key.pem',
-	await crypto.subtle.exportKey('pkcs8', SiteCert.keyPair.privateKey)
-);
-*/
-
-/*
-Use these to test the generated certificates:
-
-# === BEST COMMAND TO DUMP THE CERT INFO ===
-openssl x509 -in ca_cert.crt -text -noout
-openssl x509 -in site_cert.crt -text -noout
-
-# === MODULUS HASHES ===
-# Both hashes should be the same
-openssl x509 -noout -modulus -in ca_cert.crt | openssl sha1
-openssl rsa -noout -modulus -in ca_key.pem | openssl sha1
-
-openssl x509 -noout -modulus -in site_cert.crt | openssl sha1
-openssl rsa -noout -modulus -in site_key.pem | openssl sha1
-
-# === DEBUG CA CERT ===
-# Extract the certificate's TBS (To Be Signed) portion:
-openssl asn1parse -in ca_cert.crt -strparse 4 -out ca_cert_tbs.bin.actual -noout
-# Dump the contents in a human readable format
-openssl asn1parse -in ca_cert_tbs.bin.actual -inform der -i
-# Compare the actual TBS data with the expected TBS data – there should be no differences
-ksdiff \
-    <(openssl asn1parse -in ca_cert_tbs.bin.actual -inform der -i) \
-    <(openssl asn1parse -in ca_cert_tbs.bin -inform der -i)
-# Compute the SHA256 hash of the TBS data – there should be no differences
-openssl dgst -sha256 -binary ca_cert_tbs.bin.actual | tee ca_cert_tbs.sha256.actual | hexdump
-cat ca_cert_tbs.bin.sha256 | hexdump
-
-# === Compare the signatures ===
-# Extract the raw signatures from created certificate
-openssl x509\
-     -in ca_cert.crt -text -noout -certopt ca_default -certopt no_validity \
-     -certopt no_serial -certopt no_subject -certopt no_extensions \
-     -certopt no_signame | grep -v 'Signature' | tr -d '[:space:]:' | tee ca_cert_sig.actual.hex
-# Compute the hash signature
-cat ca_cert_tbs.sha256.actual | openssl dgst -sha256 -sign ca_key.pem -binary | hexdump
-# Compute the TBS certificate signature
-cat ca_cert_tbs.bin | openssl dgst -sha256 -sign ca_key.pem -binary | hexdump
-
-# Compare the signatures visually
-# Verify the signature using the openssl verify command
-openssl verify -CAfile ca_cert.crt site_cert.crt
-
-# === DEBUG KEYS ===
-# Verify keys integrity
-openssl rsa -in ca_key.pem -check -noout
-openssl rsa -in site_key.pem -check -noout
-
-# Confirm the modulus is the same between the key and the certificate
-openssl x509 -noout -modulus -in ca_cert.crt | openssl sha1
-openssl rsa -noout -modulus -in ca_key.pem | openssl sha1
-
-openssl x509 -noout -modulus -in site_cert.crt | openssl sha1
-openssl rsa -noout -modulus -in site_key.pem | openssl sha1
-
-# Perform Encryption with Public Key from certificate and Decryption with Private Key
-# 0. create a test file
-echo "Hello, World" > test.txt
-# 1. get public key from certificate
-openssl x509 -in site_cert.crt -noout -pubkey > site_cert.pub.pem
-# 2. encrypt with public key
-openssl pkeyutl -encrypt -in test.txt -pubin -inkey site_cert.pub.pem -out cipher.txt
-# 3. decrypt with private key
-openssl pkeyutl -decrypt -inkey site_key.pem -in cipher.txt -out decrypted.txt
-cat decrypted.txt
-
-# Perform signature integrity check
-openssl dgst -sha256 -sign site_key.pem -out test.sig test.txt
-openssl dgst -sha256 -verify site_cert.pub.pem -signature test.sig test.txt
-*/
