@@ -99,7 +99,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 $httpcode_sent = false;
 curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl, &$httpcode_sent, $ch) {
-    if(!$httpcode_sent) {
+    if (!$httpcode_sent) {
         // Set the response code from the target server
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         http_response_code($httpCode);
@@ -129,7 +129,8 @@ curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use($targetUrl
         header('Location: ' . $newLocation, true);
     } else if (
         stripos($header, 'Set-Cookie:') !== 0 && 
-        stripos($header, 'Authorization:') !== 0
+        stripos($header, 'Authorization:') !== 0 &&
+        stripos($header, 'Cache-Control:') !== 0
     ) {
         header($header, false);
     }
@@ -158,8 +159,11 @@ if (!curl_exec($ch)) {
     http_response_code(502);
     echo "Bad Gateway – curl_exec error: " . curl_error($ch);
 } else {
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    @http_response_code($httpCode);
+    if (!$httpcode_sent) {
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        @http_response_code($httpCode);
+    }
+    @header('Cache-Control: no-cache');
 }
 // Close cURL session
 curl_close($ch);
