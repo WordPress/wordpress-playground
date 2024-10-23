@@ -182,7 +182,7 @@ function Modals(blueprint: Blueprint) {
 					files,
 					pluginOrThemeName,
 					contentType,
-					urlInformation: { owner, repo, type, pr },
+					urlInformation: { pr },
 				}) => {
 					setGithubExportValues({
 						repoUrl: url,

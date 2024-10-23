@@ -15,9 +15,11 @@ export const test = base.extend<WordPressFixtures>({
 				'#playground-viewport:visible,.playground-viewport:visible'
 			)
 			.frameLocator('#wp');
+		// eslint-disable-next-line react-hooks/rules-of-hooks
 		await use(wpPage);
 	},
 	website: async ({ page }, use) => {
+		// eslint-disable-next-line react-hooks/rules-of-hooks
 		await use(new WebsitePage(page));
 	},
 });

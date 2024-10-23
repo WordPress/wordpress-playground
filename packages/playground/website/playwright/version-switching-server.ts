@@ -52,7 +52,7 @@ export async function startVersionSwitchingServer({
 		express.static(staticDirectory)(req, res, next);
 	});
 
-	const server = await new Promise<http.Server>((resolve, reject) => {
+	const server = await new Promise<http.Server>((resolve) => {
 		const _server = app.listen(port, () => {
 			resolve(_server!);
 		});

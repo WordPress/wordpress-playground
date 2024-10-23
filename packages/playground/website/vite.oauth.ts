@@ -7,7 +7,7 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 export const oAuthMiddleware = async (
 	req: IncomingMessage,
 	res: ServerResponse,
-	next: Function
+	next: (...args: any[]) => any
 ) => {
 	if (!req.url?.startsWith('/oauth.php')) {
 		next();

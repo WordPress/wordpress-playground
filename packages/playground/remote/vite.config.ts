@@ -8,6 +8,7 @@ import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
@@ -71,7 +72,7 @@ export default defineConfig({
 
 	worker: {
 		format: 'es',
-		plugins,
+		plugins: () => plugins,
 		rollupOptions: {
 			output: {
 				// Ensure the service worker always has the same name
@@ -101,9 +102,6 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'jsdom',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 	},

@@ -138,7 +138,7 @@ export function journalFSEvents(
 		 * We could use a Proxy object here if the Emscripten JavaScript module
 		 * did not use hard-coded references to the FS object.
 		 */
-		const originalFunctions: Record<string, Function> = {};
+		const originalFunctions: Record<string, (...args: any[]) => any> = {};
 		for (const [name] of Object.entries(FSHooks)) {
 			originalFunctions[name] = FS[name];
 		}

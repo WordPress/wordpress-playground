@@ -30,7 +30,7 @@ describe('File.stream() method', () => {
 		const reader = stream.getReader();
 
 		const firstRead = await reader.read();
-		expect(firstRead.value).toEqual(inputBytes);
+		expect(Array.from(firstRead.value!)).toEqual(Array.from(inputBytes));
 		expect(firstRead.done).toBe(false);
 
 		const secondRead = await reader.read();

@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+import tsconfigPaths from 'vite-tsconfig-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -18,9 +18,13 @@ import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { addManifestJson } from '../../vite-extensions/vite-manifest';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 
 const proxy: CommonServerOptions['proxy'] = {
@@ -32,7 +36,7 @@ const proxy: CommonServerOptions['proxy'] = {
 };
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(({ mode }) => {
 	return {
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
@@ -73,7 +77,7 @@ export default defineConfig(({ command, mode }) => {
 			react({
 				jsxRuntime: 'automatic',
 			}),
-			viteTsConfigPaths({
+			tsconfigPaths({
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
@@ -209,9 +213,6 @@ export default defineConfig(({ command, mode }) => {
 
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			environment: 'jsdom',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		},

@@ -130,9 +130,11 @@ function setupTransferHandlers() {
 		},
 		deserialize: (obj) => obj,
 	});
+
 	Comlink.transferHandlers.set('FUNCTION', {
-		canHandle: (obj: unknown): obj is Function => typeof obj === 'function',
-		serialize(obj: Function) {
+		canHandle: (obj: unknown): obj is (...args: any[]) => any =>
+			typeof obj === 'function',
+		serialize(obj: (...args: any[]) => any) {
 			const { port1, port2 } = new MessageChannel();
 			Comlink.expose(obj, port1);
 			return [port2, [port2]];

@@ -9,8 +9,9 @@ export interface WriteFilesOptions {
 	rmRoot?: boolean;
 }
 
-export interface FileTree
-	extends Record<string, Uint8Array | string | FileTree> {}
+export interface FileTree {
+	[key: string]: Uint8Array | string | FileTree;
+}
 
 /**
  * Writes multiple files to a specified directory in the Playground
