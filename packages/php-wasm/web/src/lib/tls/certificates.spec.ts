@@ -49,13 +49,18 @@ describe('generateCertificate', () => {
 		writeFileSync(caKeyPath, new Uint8Array(caKey));
 
 		// Verify the certificate
-		const certInfo = execSync(
+		const certInfo1 = execSync(
 			`openssl x509 -in ${caCertPath} -text -noout | grep Subject`
 		).toString();
-		expect(certInfo).toMatch(
+		expect(certInfo1).toMatch(
 			/Subject:\s*C\s*=\s*US, O\s*=\s*Playground CA, CN\s*=\s*playground-CA\.com/
 		);
-		expect(certInfo).toMatch(/X509v3 Basic Constraints:\s*\n\s*CA:TRUE/);
+		const certInfo2 = execSync(
+			`openssl x509 -in ${caCertPath} -text -noout`
+		).toString();
+		expect(certInfo2).toMatch(
+			/X509v3 Basic Constraints:\s*\n\s*CA:\s*TRUE/
+		);
 	});
 
 	it('should generate a valid site certificate signed by the CA', async () => {
@@ -108,7 +113,7 @@ describe('generateCertificate', () => {
 		).toString();
 
 		expect(certInfo).toMatch(
-			/Subject:\s*C=US, O=Playground Site, CN=playground-site/
+			/Subject:\s*C\s*=\s*US, O\s*=\s*Playground Site, CN\s*=\s*playground-site/
 		);
 
 		const certInfo2 = execSync(
