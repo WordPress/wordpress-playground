@@ -621,7 +621,7 @@ export class TLS_1_2_Connection {
 			case ContentTypes.ApplicationData:
 				break;
 			default:
-				throw new Error(`Unsupported record type ${record.type}`);
+				throw new Error(`TLS: Unsupported record type ${record.type}`);
 		}
 		delete this.partialTLSMessages[record.type];
 		return message;
@@ -720,7 +720,7 @@ class TLSDecoder {
 				return TLSDecoder.applicationData(accumulatedPayload);
 			}
 			default:
-				throw new Error(`Fatal: Unsupported TLS record type ${type}`);
+				throw new Error(`TLS: Unsupported TLS record type ${type}`);
 		}
 	}
 
@@ -756,7 +756,7 @@ class TLSDecoder {
 		while (!reader.isFinished()) {
 			const suite = reader.readUint16();
 			if (!(suite in CipherSuitesNames)) {
-				logger.warn(`Unsupported cipher suite: ${suite}`);
+				logger.debug(`TLS: Unsupported cipher suite: ${suite}`);
 				continue;
 			}
 			cipherSuites.push(CipherSuitesNames[suite]);

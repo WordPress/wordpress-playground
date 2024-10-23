@@ -100,9 +100,8 @@ export function parseClientHelloExtensions(data: Uint8Array) {
 		const extensionBytes = reader.readUint8Array(extensionLength);
 
 		if (!(extensionTypeName in TLSExtensionsHandlers)) {
-			// throw new Error(`Unsupported extension type: ${extensionType}`);
-			logger.warn(
-				`Unsupported extension: ${extensionTypeName}(${extensionType})`
+			logger.debug(
+				`TLS: Unsupported extension: ${extensionTypeName}(${extensionType})`
 			);
 			continue;
 		}
