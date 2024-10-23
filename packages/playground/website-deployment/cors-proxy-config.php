@@ -256,7 +256,7 @@ function playground_get_ipv6_block(string $ipv6_remote_ip, int $block_size=64): 
 	if($block_size % 8 !== 0) {
 		// We're using a naive substr-based approach that reasons about
 		// groups of 8 bits (characters) and not separately about each bit.
-		// This approach can only support block sizes that are multiplies
+		// This approach can only support block sizes that are multiples
 		// of 8.
 		throw new Exception('Block size must be a multiple of 8.');
 	}
