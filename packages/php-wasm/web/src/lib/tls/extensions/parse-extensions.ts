@@ -1,9 +1,7 @@
 /**
  * Glue for the implemented TLS extensions
  * For the full list of TLS extensions, see
- * https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
-s */
-import { logger } from '@php-wasm/logger';
+ * https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml */
 import { ArrayBufferReader } from '../utils';
 import { ServerNameExtension, ServerNameList } from './0_server_name';
 import {
@@ -100,9 +98,6 @@ export function parseClientHelloExtensions(data: Uint8Array) {
 		const extensionBytes = reader.readUint8Array(extensionLength);
 
 		if (!(extensionTypeName in TLSExtensionsHandlers)) {
-			logger.debug(
-				`TLS: Unsupported extension: ${extensionTypeName}(${extensionType})`
-			);
 			continue;
 		}
 

@@ -756,7 +756,6 @@ class TLSDecoder {
 		while (!reader.isFinished()) {
 			const suite = reader.readUint16();
 			if (!(suite in CipherSuitesNames)) {
-				logger.debug(`TLS: Unsupported cipher suite: ${suite}`);
 				continue;
 			}
 			cipherSuites.push(CipherSuitesNames[suite]);
