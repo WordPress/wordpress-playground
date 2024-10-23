@@ -39,7 +39,6 @@ import {
 	ECCurveTypes,
 	ECNamedCurves,
 } from './types';
-import { logger } from '@php-wasm/logger';
 
 class TLSConnectionClosed extends Error {}
 const TLS_Version_1_2 = new Uint8Array([0x03, 0x03]);
