@@ -65,11 +65,11 @@ export interface CompileBlueprintOptions {
 	/**
 	 * Proxy URL to use for cross-origin requests.
 	 *
-	 * For example, if corsProxy is set to "https://cors.wordpress.net/proxy.php",
+	 * For example, if corsProxyUrl is set to "https://cors.wordpress.net/proxy.php",
 	 * then the CORS requests to https://github.com/WordPress/gutenberg.git would actually
 	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/gutenberg.git.
 	 */
-	corsProxy?: string;
+	corsProxyUrl?: string;
 }
 
 /**
@@ -86,7 +86,7 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		corsProxy,
+		corsProxyUrl,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	// Deep clone the blueprint to avoid mutating the input
@@ -260,7 +260,7 @@ export function compileBlueprint(
 			semaphore,
 			rootProgressTracker: progress,
 			totalProgressWeight,
-			corsProxy,
+			corsProxyUrl,
 		})
 	);
 
@@ -422,9 +422,9 @@ interface CompileStepArgsOptions {
 	/**
 	 * Proxy URL to use for cross-origin requests.
 	 *
-	 * @see CompileBlueprintOptions.corsProxy
+	 * @see CompileBlueprintOptions.corsProxyUrl
 	 */
-	corsProxy?: string;
+	corsProxyUrl?: string;
 }
 
 /**
@@ -441,7 +441,7 @@ function compileStep<S extends StepDefinition>(
 		semaphore,
 		rootProgressTracker,
 		totalProgressWeight,
-		corsProxy,
+		corsProxyUrl,
 	}: CompileStepArgsOptions
 ): { run: CompiledStep; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
@@ -454,7 +454,7 @@ function compileStep<S extends StepDefinition>(
 		if (isResourceReference(value)) {
 			value = Resource.create(value, {
 				semaphore,
-				corsProxy,
+				corsProxyUrl,
 			});
 		}
 		args[key] = value;

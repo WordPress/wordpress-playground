@@ -19,7 +19,10 @@ export interface RequestMessage {
  *
  * @param playground the Playground instance to set up with network support.
  */
-export async function setupFetchNetworkTransport(playground: UniversalPHP) {
+export async function setupFetchNetworkTransport(
+	playground: UniversalPHP,
+	{ corsProxyUrl }: { corsProxyUrl?: string }
+) {
 	await defineWpConfigConsts(playground, {
 		consts: {
 			USE_FETCH_FOR_REQUESTS: true,
@@ -58,24 +61,31 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 			data.headers['x-request-issuer'] = 'php';
 		}
 
-		return handleRequest(data);
+		return handleRequest(data, {
+			corsProxyUrl,
+		});
 	});
 }
 
-export async function handleRequest(data: RequestData, fetchFn = fetch) {
+export async function handleRequest(
+	data: RequestData,
+	options: { corsProxyUrl?: string; fetchFn?: typeof fetch }
+) {
+	const { corsProxyUrl, fetchFn = fetch } = options;
 	const hostname = new URL(data.url).hostname;
-	const fetchUrl = ['w.org', 's.w.org'].includes(hostname)
+	const isWdotOrg = ['w.org', 's.w.org'].includes(hostname);
+	const fetchUrl = isWdotOrg
 		? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
 		: data.url;
 
+	const fetchMethod = data.method || 'GET';
+	const fetchHeaders = data.headers || {};
+	if (fetchMethod == 'POST') {
+		fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+	}
+
 	let response;
 	try {
-		const fetchMethod = data.method || 'GET';
-		const fetchHeaders = data.headers || {};
-		if (fetchMethod == 'POST') {
-			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-		}
-
 		response = await fetchFn(fetchUrl, {
 			method: fetchMethod,
 			headers: fetchHeaders,
@@ -83,9 +93,23 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 			credentials: 'omit',
 		});
 	} catch (e) {
-		return new TextEncoder().encode(
-			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
-		);
+		if (isWdotOrg || !corsProxyUrl) {
+			return new TextEncoder().encode(
+				`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
+			);
+		}
+		try {
+			response = await fetchFn(`${corsProxyUrl}?${fetchUrl}`, {
+				method: fetchMethod,
+				headers: fetchHeaders,
+				body: data.data,
+				credentials: 'omit',
+			});
+		} catch (e) {
+			return new TextEncoder().encode(
+				`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
+			);
+		}
 	}
 	const responseHeaders: string[] = [];
 	response.headers.forEach((value, key) => {
