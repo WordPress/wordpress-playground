@@ -16,17 +16,6 @@ const LibraryExample = {
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
 		init: function () {
-			// The /internal directory is required by the C module. It's where the
-			// stdout, stderr, and headers information are written for the JavaScript
-			// code to read later on.
-			FS.mkdir('/internal');
-			// The files from the shared directory are shared between all the
-			// PHP processes managed by PHPProcessManager.
-			FS.mkdir('/internal/shared');
-			// The files from the preload directory are preloaded using the
-			// auto_prepend_file php.ini directive.
-			FS.mkdir('/internal/shared/preload');
-
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
