@@ -25,7 +25,9 @@ export const tcpOverFetchWebsocket = (tcpOptions: TCPOverFetchOptions) => {
 			decorator: () => {
 				return class extends TCPOverFetchWebsocket {
 					constructor(url: string, wsOptions: string[]) {
-						super(url, wsOptions, tcpOptions.CAroot);
+						super(url, wsOptions, {
+							CAroot: tcpOptions.CAroot,
+						});
 					}
 				};
 			},
@@ -33,7 +35,19 @@ export const tcpOverFetchWebsocket = (tcpOptions: TCPOverFetchOptions) => {
 	};
 };
 
-class TCPOverFetchWebsocket {
+export interface TCPOverFetchWebsocketOptions {
+	CAroot?: GeneratedCertificate;
+	/**
+	 * If true, the WebSocket will emit 'message' events with the received bytes
+	 * and the 'close' event when the WebSocket is closed.
+	 *
+	 * If false, the consumer will be responsible for reading the bytes from the
+	 * clientDownstream stream and tracking the closure of that stream.
+	 */
+	outputType?: 'messages' | 'stream';
+}
+
+export class TCPOverFetchWebsocket {
 	CONNECTING = 0;
 	OPEN = 1;
 	CLOSING = 2;
@@ -46,6 +60,7 @@ class TCPOverFetchWebsocket {
 	host = '';
 	port = 0;
 	listeners = new Map<string, any>();
+	CAroot?: GeneratedCertificate;
 
 	clientUpstream = new TransformStream();
 	clientUpstreamWriter = this.clientUpstream.writable.getWriter();
@@ -56,40 +71,43 @@ class TCPOverFetchWebsocket {
 	constructor(
 		public url: string,
 		public options: string[],
-		public CAroot: GeneratedCertificate
+		{ CAroot, outputType = 'messages' }: TCPOverFetchWebsocketOptions = {}
 	) {
 		const wsUrl = new URL(url);
 		this.host = wsUrl.searchParams.get('host')!;
 		this.port = parseInt(wsUrl.searchParams.get('port')!, 10);
 		this.binaryType = 'arraybuffer';
 
-		this.clientDownstream.readable.pipeTo(
-			new WritableStream({
-				write: (chunk) => {
-					/**
-					 * Emscripten expects the message event to be emitted
-					 * so let's emit it.
-					 */
-					this.emit('message', { data: chunk });
-				},
-				close: () => {
-					/**
-					 * Workaround a PHP.wasm issue – if the WebSocket is
-					 * closed asynchronously after the last chunk is received,
-					 * the PHP.wasm runtime enters an infinite polling loop.
-					 *
-					 * The root cause of the problem is unclear at the time
-					 * of writing this comment. There's a chance it's a regular
-					 * POSIX behavior.
-					 *
-					 * Either way, sending an empty data chunk before closing
-					 * the WebSocket resolves the problem.
-					 */
-					this.emit('message', { data: new Uint8Array(0) });
-					this.close();
-				},
-			})
-		);
+		this.CAroot = CAroot;
+		if (outputType === 'messages') {
+			this.clientDownstream.readable
+				.pipeTo(
+					new WritableStream({
+						write: (chunk) => {
+							/**
+							 * Emscripten expects the message event to be emitted
+							 * so let's emit it.
+							 */
+							this.emit('message', { data: chunk });
+						},
+						abort: () => {
+							// We don't know what went wrong and the browser
+							// won't tell us much either, so let's just pretend
+							// the server is unreachable.
+							this.emit('error', new Error('ECONNREFUSED'));
+							this.close();
+						},
+						close: () => {
+							this.close();
+						},
+					})
+				)
+				.catch(() => {
+					// Ignore failures arising from stream errors.
+					// This class communicates problems to the caller
+					// via the 'error' event.
+				});
+		}
 		this.readyState = this.OPEN;
 		this.emit('open');
 	}
@@ -137,7 +155,7 @@ class TCPOverFetchWebsocket {
 		const listeners = this.listeners.get(eventName);
 		if (listeners) {
 			for (const listener of listeners) {
-				listener(eventName, data);
+				listener(data);
 			}
 		}
 	}
@@ -182,8 +200,9 @@ class TCPOverFetchWebsocket {
 				// let's wait for more.
 				return;
 			case 'other':
+				this.emit('error', new Error('Unsupported protocol'));
 				this.close();
-				throw new Error('Unsupported protocol');
+				break;
 			case 'tls':
 				this.fetchOverTLS();
 				this.fetchInitiated = true;
@@ -196,6 +215,12 @@ class TCPOverFetchWebsocket {
 	}
 
 	async fetchOverTLS() {
+		if (!this.CAroot) {
+			throw new Error(
+				'TLS protocol is only supported when the TCPOverFetchWebsocket is ' +
+					'instantiated with a CAroot'
+			);
+		}
 		const siteCert = await generateCertificate(
 			{
 				subject: {
@@ -212,14 +237,22 @@ class TCPOverFetchWebsocket {
 
 		// Connect this WebSocket's client end to the TLS connection.
 		// Forward the encrypted bytes from the WebSocket to the TLS connection.
-		this.clientUpstream.readable.pipeTo(
-			tlsConnection.clientEnd.upstream.writable
-		);
+		this.clientUpstream.readable
+			.pipeTo(tlsConnection.clientEnd.upstream.writable)
+			.catch(() => {
+				// Ignore failures arising from pipeTo() errors.
+				// The caller will observe the clientEnd.downstream.writable stream
+				// erroring out.
+			});
 
 		// Forward the decrypted bytes from the TLS connection to this WebSocket.
-		tlsConnection.clientEnd.downstream.readable.pipeTo(
-			this.clientDownstream.writable
-		);
+		tlsConnection.clientEnd.downstream.readable
+			.pipeTo(this.clientDownstream.writable)
+			.catch(() => {
+				// Ignore failures arising from pipeTo() errors.
+				// The caller will observe the clientEnd.downstream.writable stream
+				// erroring out.
+			});
 
 		// Perform the TLS handshake
 		await tlsConnection.TLSHandshake(siteCert.keyPair.privateKey, [
@@ -228,27 +261,59 @@ class TCPOverFetchWebsocket {
 		]);
 
 		// Connect the TLS server end to the fetch() request
-		await RawBytesFetch.fetchRawResponseBytes(
-			await RawBytesFetch.parseHttpRequest(
-				tlsConnection.serverEnd.upstream.readable,
-				this.host,
-				'https'
-			)
-		).pipeTo(tlsConnection.serverEnd.downstream.writable);
+		const request = await RawBytesFetch.parseHttpRequest(
+			tlsConnection.serverEnd.upstream.readable,
+			this.host,
+			'https'
+		);
+		try {
+			await RawBytesFetch.fetchRawResponseBytes(request).pipeTo(
+				tlsConnection.serverEnd.downstream.writable
+			);
+		} catch (e) {
+			// Ignore errors from fetch()
+			// They are handled in the constructor
+			// via this.clientDownstream.readable.pipeTo()
+			// and if we let the failures they would be logged
+			// as an unhandled promise rejection.
+		}
 	}
 
 	async fetchOverHTTP() {
 		// Connect this WebSocket's client end to the fetch() request
-		await RawBytesFetch.fetchRawResponseBytes(
-			await RawBytesFetch.parseHttpRequest(
-				this.clientUpstream.readable,
-				this.host,
-				'http'
-			)
-		).pipeTo(this.clientDownstream.writable);
+		const request = await RawBytesFetch.parseHttpRequest(
+			this.clientUpstream.readable,
+			this.host,
+			'http'
+		);
+		try {
+			await RawBytesFetch.fetchRawResponseBytes(request).pipeTo(
+				this.clientDownstream.writable
+			);
+		} catch (e) {
+			// Ignore errors from fetch()
+			// They are handled in the constructor
+			// via this.clientDownstream.readable.pipeTo()
+			// and if we let the failures they would be logged
+			// as an unhandled promise rejection.
+		}
 	}
 
 	close() {
+		/**
+		 * Workaround a PHP.wasm issue – if the WebSocket is
+		 * closed asynchronously after the last chunk is received,
+		 * the PHP.wasm runtime enters an infinite polling loop.
+		 *
+		 * The root cause of the problem is unclear at the time
+		 * of writing this comment. There's a chance it's a regular
+		 * POSIX behavior.
+		 *
+		 * Either way, sending an empty data chunk before closing
+		 * the WebSocket resolves the problem.
+		 */
+		this.emit('message', { data: new Uint8Array(0) });
+
 		this.readyState = this.CLOSING;
 		this.emit('close');
 		this.readyState = this.CLOSED;
@@ -305,14 +370,40 @@ class RawBytesFetch {
 	 * Streams a HTTP response including the status line and headers.
 	 */
 	static fetchRawResponseBytes(request: Request) {
-		const stream = new TransformStream({
+		// This initially used a TransformStream and piped the response
+		// body to the writable side of the TransformStream.
+		//
+		// Unfortunately, the first response body chunk was not correctly
+		// enqueued so we switched to a customReadableStream.
+		return new ReadableStream({
 			async start(controller) {
-				const response = await fetch(request);
-				controller.enqueue(RawBytesFetch.headersAsBytes(response));
-				response.body?.pipeTo(stream.writable);
+				let response: Response;
+				try {
+					response = await fetch(request);
+					controller.enqueue(RawBytesFetch.headersAsBytes(response));
+				} catch (error) {
+					controller.error(error);
+					return;
+				}
+
+				const reader = response.body?.getReader();
+				if (!reader) {
+					controller.close();
+					return;
+				}
+
+				while (true) {
+					const { done, value } = await reader.read();
+					if (value) {
+						controller.enqueue(value);
+					}
+					if (done) {
+						controller.close();
+						return;
+					}
+				}
 			},
 		});
-		return stream.readable;
 	}
 
 	private static headersAsBytes(response: Response) {
@@ -337,11 +428,13 @@ class RawBytesFetch {
 	) {
 		let inputBuffer: Uint8Array = new Uint8Array(0);
 
+		let requestDataExhausted = false;
 		let headersEndIndex = -1;
 		const requestBytesReader = requestBytesStream.getReader();
 		while (headersEndIndex === -1) {
 			const { done, value } = await requestBytesReader.read();
 			if (done) {
+				requestDataExhausted = true;
 				break;
 			}
 			inputBuffer = concatUint8Arrays([inputBuffer, value]);
@@ -362,16 +455,30 @@ class RawBytesFetch {
 		const bodyBytes = inputBuffer.slice(
 			headersEndIndex + 4 /* Skip \r\n\r\n */
 		);
-		let outboundBodyStream = undefined;
+		let outboundBodyStream: ReadableStream<Uint8Array> | undefined;
 		if (parsedHeaders.method !== 'GET') {
-			outboundBodyStream = new TransformStream();
-			if (bodyBytes.length > 0) {
-				const outboundBodyWriter =
-					outboundBodyStream.writable.getWriter();
-				await outboundBodyWriter.write(bodyBytes);
-				outboundBodyWriter.releaseLock();
-			}
-			requestBytesStream.pipeTo(outboundBodyStream.writable);
+			const requestBytesReader = requestBytesStream.getReader();
+			outboundBodyStream = new ReadableStream<Uint8Array>({
+				async start(controller) {
+					if (bodyBytes.length > 0) {
+						controller.enqueue(bodyBytes);
+					}
+					if (requestDataExhausted) {
+						controller.close();
+					}
+				},
+				async pull(controller) {
+					const { done, value } = await requestBytesReader.read();
+
+					if (value) {
+						controller.enqueue(value);
+					}
+					if (done) {
+						controller.close();
+						return;
+					}
+				},
+			});
 		}
 
 		/**
@@ -402,7 +509,11 @@ class RawBytesFetch {
 		return new Request(url.toString(), {
 			method: parsedHeaders.method,
 			headers: parsedHeaders.headers,
-			body: outboundBodyStream?.readable,
+			body: outboundBodyStream,
+			// In Node.js, duplex: 'half' is required when
+			// the body stream is provided.
+			// @ts-expect-error
+			duplex: 'half',
 		});
 	}
 

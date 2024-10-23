@@ -181,19 +181,29 @@ export class TLS_1_2_Connection {
 		const tlsConnection = this;
 		// Whenever the "server handler" produces data, encrypt it
 		// and send it back to the client.
-		this.serverEnd.downstream.readable.pipeTo(
-			new WritableStream({
-				async write(chunk) {
-					await tlsConnection.writeTLSRecord(
-						ContentTypes.ApplicationData,
-						chunk
-					);
-				},
-				close() {
-					tlsConnection.close();
-				},
-			})
-		);
+		this.serverEnd.downstream.readable
+			.pipeTo(
+				new WritableStream({
+					async write(chunk) {
+						await tlsConnection.writeTLSRecord(
+							ContentTypes.ApplicationData,
+							chunk
+						);
+					},
+					async abort(e) {
+						tlsConnection.clientDownstreamWriter.releaseLock();
+						tlsConnection.clientEnd.downstream.writable.abort(e);
+						tlsConnection.close();
+					},
+					close() {
+						tlsConnection.close();
+					},
+				})
+			)
+			.catch(() => {
+				// Ignore failures arising from stream errors. The caller
+				// should react to the readable stream erroring out.
+			});
 	}
 
 	/**
