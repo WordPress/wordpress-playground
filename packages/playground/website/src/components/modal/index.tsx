@@ -1,9 +1,11 @@
 import ReactModal from 'react-modal';
 import css from './style.module.css';
+import { Flex } from '@wordpress/components';
 
 ReactModal.setAppElement('#root');
 
 interface ModalProps extends ReactModal.Props {
+	header?: string;
 	styles?: ReactModal.Styles;
 }
 export const defaultStyles: ReactModal.Styles = {
@@ -35,7 +37,8 @@ export default function Modal(props: ModalProps) {
 	};
 	return (
 		<ReactModal style={styles} {...props}>
-			<div className={css.modalInner} id="modal-content">
+			<Flex className={css.modalHeader} align={'center'} id="modal-content">
+				{ props.header && <h2 tabIndex={0}>{props.header}</h2> }
 				<button
 					id="import-close-modal--btn"
 					onClick={props.onRequestClose}
@@ -54,6 +57,8 @@ export default function Modal(props: ModalProps) {
 						<path d="M13 11.8l6.1-6.3-1-1-6.1 6.2-6.1-6.2-1 1 6.1 6.3-6.5 6.7 1 1 6.5-6.6 6.5 6.6 1-1z"></path>
 					</svg>
 				</button>
+			</Flex>
+			<div className={css.modalInner}>
 				{props.children}
 			</div>
 		</ReactModal>

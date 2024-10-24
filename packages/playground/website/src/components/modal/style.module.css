@@ -11,13 +11,16 @@
 
 .btn-close {
 	position: absolute;
-	top: -8px;
-	right: -13px;
+	right: -12px;
+}
+
+.modal-header {
+	position: relative;
+	padding-bottom: 15px;
 }
 
 .modal-inner {
 	position: relative;
-	padding: 15px;
 	text-align: left;
 	max-height: 90vh;
 }
