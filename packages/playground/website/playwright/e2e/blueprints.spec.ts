@@ -170,6 +170,7 @@ test('HTTPS requests via curl_exec() should work', async ({
 		],
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	// The length must be 13061 bytes, otherwise something is wrong.
 	await expect(wordpress.locator('body')).toContainText('int(13061)');
 });
 
@@ -283,7 +284,7 @@ test('HTTPS requests via file_get_contents() should fail when networking is disa
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(wordpress.locator('body')).toContainText(
-		'Failed to open stream: Host is unreachable'
+		'https:// wrapper is disabled in the server configuration'
 	);
 });
 
