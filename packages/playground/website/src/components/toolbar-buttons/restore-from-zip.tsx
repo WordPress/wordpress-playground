@@ -18,10 +18,6 @@ export function RestoreFromZipMenuItem({ onClose, disabled }: Props) {
 		onClose();
 	};
 	function handleImported() {
-		// eslint-disable-next-line no-alert
-		alert(
-			'File imported! This Playground instance has been updated. Refreshing now.'
-		);
 		closeModal();
 		playground!.goTo('/');
 	}

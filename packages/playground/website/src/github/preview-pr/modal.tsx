@@ -16,9 +16,9 @@ export function PreviewPRModal() {
 	};
 	function handleImported() {
 		// eslint-disable-next-line no-alert
-		alert(
-			'File imported! This Playground instance has been updated. Refreshing now.'
-		);
+		// alert(
+		// 	'File imported! This Playground instance has been updated. Refreshing now.'
+		// );
 		closeModal();
 		playground!.goTo('/');
 	}
@@ -37,6 +37,7 @@ export function PreviewPRModal() {
 					playground={playground!}
 					onClose={closeModal}
 					onImported={handleImported}
+					target={'wordpress'}
 				/>
 			</Modal>
 		</>
