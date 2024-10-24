@@ -35,6 +35,15 @@ import {
 
 acquireOAuthTokenIfNeeded();
 
+export const modalSlugs = {
+	LOG: 'log',
+	ERROR_REPORT: 'error-report',
+	START_ERROR: 'start-error',
+	IMPORT_FORM: 'import-form',
+	GITHUB_IMPORT: 'github-import-modal',
+	GITHUB_EXPORT: 'github-export-modal'
+}
+
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
 	const query = new URLSearchParams(document.location.search);
@@ -166,6 +175,40 @@ function Modals(blueprint: Blueprint) {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
+	} else if (currentModal === modalSlugs.GITHUB_IMPORT) {
+		return <GithubImportModal
+			onImported={({
+				 url,
+				 path,
+				 files,
+				 pluginOrThemeName,
+				 contentType,
+				 urlInformation: { owner, repo, type, pr },
+			 }) => {
+				setGithubExportValues({
+					repoUrl: url,
+					prNumber: pr?.toString(),
+					toPathInRepo: path,
+					prAction: pr ? 'update' : 'create',
+					contentType,
+					plugin: pluginOrThemeName,
+					theme: pluginOrThemeName,
+				});
+				setGithubExportFiles(files);
+			}}
+		/>;
+	} else if (currentModal === modalSlugs.GITHUB_EXPORT) {
+		return <GithubExportModal
+			allowZipExport={
+				(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
+			}
+			initialValues={githubExportValues}
+			initialFilesBeforeChanges={githubExportFiles}
+			onExported={(prUrl, formValues) => {
+				setGithubExportValues(formValues);
+				setGithubExportFiles(undefined);
+			}}
+		/>;
 	}
 
 	return (
@@ -175,38 +218,6 @@ function Modals(blueprint: Blueprint) {
 			) : (
 				''
 			)}
-			<GithubImportModal
-				onImported={({
-					url,
-					path,
-					files,
-					pluginOrThemeName,
-					contentType,
-					urlInformation: { owner, repo, type, pr },
-				}) => {
-					setGithubExportValues({
-						repoUrl: url,
-						prNumber: pr?.toString(),
-						toPathInRepo: path,
-						prAction: pr ? 'update' : 'create',
-						contentType,
-						plugin: pluginOrThemeName,
-						theme: pluginOrThemeName,
-					});
-					setGithubExportFiles(files);
-				}}
-			/>
-			<GithubExportModal
-				allowZipExport={
-					(query.get('ghexport-allow-include-zip') ?? 'yes') === 'yes'
-				}
-				initialValues={githubExportValues}
-				initialFilesBeforeChanges={githubExportFiles}
-				onExported={(prUrl, formValues) => {
-					setGithubExportValues(formValues);
-					setGithubExportFiles(undefined);
-				}}
-			/>
 		</>
 	);
 }
