@@ -167,12 +167,14 @@ function Modals(blueprint: Blueprint) {
 		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === 'start-error') {
 		return <StartErrorModal />;
+	} else if (currentModal === 'preview-pr-wordpress') {
+		return <PreviewPRModal target={'wordpress'} />;
+	} else if (currentModal === 'preview-pr-gutenberg') {
+		return <PreviewPRModal target={'gutenberg'} />;
 	}
 
 	return (
 		<>
-			<PreviewPRModal />
-
 			{query.get('gh-ensure-auth') === 'yes' ? (
 				<GitHubOAuthGuardModal />
 			) : (

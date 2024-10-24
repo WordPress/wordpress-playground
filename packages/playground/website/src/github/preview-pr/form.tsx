@@ -1,6 +1,6 @@
 import React from 'react';
-import { useRef, useState } from 'react';
-import { PlaygroundClient, importWordPressFiles } from '@wp-playground/client';
+import { useState } from 'react';
+import { PlaygroundClient } from '@wp-playground/client';
 import { Button, Flex, Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
@@ -26,11 +26,11 @@ export const targetParams = {
 	'gutenberg': {
 		repo: 'gutenberg',
 		workflow: 'Build%20Gutenberg%20Plugin%20Zip',
-		artifact: 'gutenberg-plugin-'
+		artifact: 'gutenberg-plugin'
 	}
 }
 
-export function PreviewPRForm({
+export default function PreviewPRForm({
 	playground,
 	onImported,
 	onClose,
@@ -81,7 +81,7 @@ export function PreviewPRForm({
 
 		// Verify that the PR exists and that GitHub CI finished building it
 		// @ts-ignore
-		const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}-${prNumber}&pr=${prNumber}`;
+		const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${target === 'wordpress' ? '-' + prNumber : ''}&pr=${prNumber}`;
 		// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 		const response = await fetch(zipArtifactUrl + '&verify_only=true');
 		if (response.status !== 200) {
@@ -184,7 +184,6 @@ export function PreviewPRForm({
 	}
 
 	// TODO:
-	// - open playground with PR
 	// - detect `pr=` from queryString
 
 	return (
@@ -225,5 +224,3 @@ export function PreviewPRForm({
 		</div>
 	);
 }
-
-export default {targetParams, PreviewPRForm};
