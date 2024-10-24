@@ -135,6 +135,7 @@ const platformDefaults = {
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
 		WITH_OPENSSL: 'yes',
+		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 	node: {
 		WITH_CURL: 'yes',
