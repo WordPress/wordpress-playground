@@ -36,7 +36,7 @@ export default function PreviewPRForm({
 	const dispatch: PlaygroundDispatch = useDispatch();
 	const [value, setValue] = useState<string>('');
 	const [submitting, setSubmitting] = useState<boolean>(false);
-	const [error, setError] = useState<string>('');
+	const [errorMsg, setError] = useState<string>('');
 
 	async function handleSubmit(e: React.MouseEvent<HTMLButtonElement>) {
 		e.preventDefault();
@@ -46,7 +46,6 @@ export default function PreviewPRForm({
 		}
 
 		await previewPr(value);
-		onImported();
 	}
 
 	function renderRetryIn(retryIn: number) {
@@ -129,6 +128,7 @@ export default function PreviewPRForm({
 				setError(`The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`);
 				// https://github.com/WordPress/wordpress-playground/issues/new
 			}
+
 			setSubmitting(false);
 
 			return;
@@ -191,6 +191,8 @@ export default function PreviewPRForm({
 			// @ts-ignore
 			window.location =
 				localhost + './?gutenberg-pr=' + prNumber + '#' + encodeURI(encoded);
+
+			onImported();
 		}
 	}
 
@@ -209,7 +211,7 @@ export default function PreviewPRForm({
 						setValue(e);
 					}}
 				/>
-				{error ? <div>{error}</div> : null}
+				{errorMsg && <div>{errorMsg}</div>}
 			</div>
 			<Flex
 				justify={'end'}
