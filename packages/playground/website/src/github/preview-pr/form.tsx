@@ -1,6 +1,5 @@
 import React from 'react';
 import { useState } from 'react';
-import { PlaygroundClient } from '@wp-playground/client';
 import { Button, Flex, Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
@@ -9,7 +8,6 @@ import { useDispatch } from 'react-redux';
 import { PlaygroundDispatch } from '../../lib/state/redux/store';
 
 interface PreviewPRFormProps {
-	playground: PlaygroundClient;
 	onImported: () => void;
 	onClose: () => void;
 	target: 'wordpress' | 'gutenberg';
@@ -31,7 +29,6 @@ export const targetParams = {
 }
 
 export default function PreviewPRForm({
-	playground,
 	onImported,
 	onClose,
 	target = 'wordpress'
@@ -41,7 +38,7 @@ export default function PreviewPRForm({
 	const [submitting, setSubmitting] = useState<boolean>(false);
 	const [error, setError] = useState<string>('');
 
-	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+	async function handleSubmit(e: React.MouseEvent<HTMLButtonElement>) {
 		e.preventDefault();
 
 		if (!value) {
@@ -49,7 +46,6 @@ export default function PreviewPRForm({
 		}
 
 		await previewPr(value);
-
 		onImported();
 	}
 
@@ -59,12 +55,13 @@ export default function PreviewPRForm({
 		}...`);
 	}
 
-	async function previewPr(prNumber: string) {
+	async function previewPr(prValue: string) {
 		let cleanupRetry = () => {};
 		if (cleanupRetry) {
 			cleanupRetry();
 		}
 
+		let prNumber: string = prValue;
 		setSubmitting(true);
 
 		// Extract number from a GitHub URL
@@ -76,12 +73,13 @@ export default function PreviewPRForm({
 				.toLowerCase()
 				.includes('github.com/wordpress/gutenberg/pull')
 		) {
+			// @ts-ignore
 			prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
 		}
 
 		// Verify that the PR exists and that GitHub CI finished building it
 		// @ts-ignore
-		const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${target === 'wordpress' ? '-' + prNumber : ''}&pr=${prNumber}`;
+		const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${target === 'wordpress' ? prNumber : ''}&pr=${prNumber}`;
 		// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 		const response = await fetch(zipArtifactUrl + '&verify_only=true');
 		if (response.status !== 200) {
@@ -93,7 +91,7 @@ export default function PreviewPRForm({
 				}
 			} catch (e) {
 				logger.error(e);
-				// TODO: change error type
+				// TODO: Is it right error here?
 				dispatch(setActiveSiteError('site-boot-failed'));
 				return;
 			}
@@ -148,43 +146,53 @@ export default function PreviewPRForm({
 			features: {
 				networking: true,
 			},
+			steps: []
 		};
 		const encoded = JSON.stringify(blueprint);
+		let localhost = null;
+		const isLocalhost =
+			window.location.hostname === 'localhost' ||
+			window.location.hostname === '127.0.0.1';
+		if (isLocalhost) {
+			localhost = /website-server/;
+		}
 
-		// [wordpress] Passthrough the mode query parameter if it exists
-		// const targetParams = new URLSearchParams();
-		// if (urlParams.has('mode')) {
-		// 	targetParams.set('mode', urlParams.get('mode'));
-		// }
-		// targetParams.set('core-pr', prNumber);
-		// window.location =
-		// 	'./?' + targetParams.toString() + '#' + encodeURI(encoded);
+		if (target === 'wordpress') {
+			// [wordpress] Passthrough the mode query parameter if it exists
+			const targetParams = new URLSearchParams();
+			if (urlParams.has('mode')) {
+				targetParams.set('mode', urlParams.get('mode') as string);
+			}
+			targetParams.set('core-pr', prNumber);
+			// @ts-ignore
+			window.location =
+				localhost + './?' + targetParams.toString() + '#' + encodeURI(encoded);
+		} else if (target === 'gutenberg') {
+			// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
+			const urlParams = new URLSearchParams(window.location.search);
+			try {
+				const importSite = new URL(urlParams.get('import-site') as string);
+				if (importSite) {
+					// Add it as the first step in the blueprint
+					// @ts-ignore
+					blueprint.steps.unshift({
+						step: 'importWordPressFiles',
+						wordPressFilesZip: {
+							resource: 'url',
+							url: importSite.origin + importSite.pathname,
+						},
+					});
+				}
+			} catch {
+				logger.error('Invalid import-site URL');
+			}
 
-		// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
-		// 			const urlParams = new URLSearchParams(window.location.search);
-		// 			try {
-		// 				const importSite = new URL(urlParams.get('import-site'));
-		// 				if (importSite) {
-		// 					// Add it as the first step in the blueprint
-		// 					blueprint.steps.unshift({
-		// 						step: 'importWordPressFiles',
-		// 						wordPressFilesZip: {
-		// 							resource: 'url',
-		// 							url: importSite.origin + importSite.pathname,
-		// 						},
-		// 					});
-		// 				}
-		// 			} catch {
-		// 				console.error('Invalid import-site URL');
-		// 			}
-		//
-		// 			const encoded = JSON.stringify(blueprint);
-		// 			window.location =
-		// 				'./?gutenberg-pr=' + prNumber + '#' + encodeURI(encoded);
+			const encoded = JSON.stringify(blueprint);
+			// @ts-ignore
+			window.location =
+				localhost + './?gutenberg-pr=' + prNumber + '#' + encodeURI(encoded);
+		}
 	}
-
-	// TODO:
-	// - detect `pr=` from queryString
 
 	return (
 		<div>

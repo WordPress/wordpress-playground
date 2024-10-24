@@ -36,6 +36,15 @@ import { PreviewPRModal } from '../../github/preview-pr/modal';
 
 acquireOAuthTokenIfNeeded();
 
+export const modalSlugs = {
+	LOG: 'log',
+	ERROR_REPORT: 'error-report',
+	START_ERROR: 'start-error',
+	IMPORT_FORM: 'import-form',
+	PREVIEW_PR_WP: 'preview-pr-wordpress',
+	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
+}
+
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
 	const query = new URLSearchParams(document.location.search);
@@ -151,7 +160,7 @@ function Modals(blueprint: Blueprint) {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
-				dispatch(setActiveModal('error-report'));
+				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 			}
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,15 +170,15 @@ function Modals(blueprint: Blueprint) {
 		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 
-	if (currentModal === 'log') {
+	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;
-	} else if (currentModal === 'error-report') {
+	} else if (currentModal === modalSlugs.ERROR_REPORT) {
 		return <ErrorReportModal blueprint={blueprint} />;
-	} else if (currentModal === 'start-error') {
+	} else if (currentModal === modalSlugs.START_ERROR) {
 		return <StartErrorModal />;
-	} else if (currentModal === 'preview-pr-wordpress') {
+	} else if (currentModal === modalSlugs.PREVIEW_PR_WP) {
 		return <PreviewPRModal target={'wordpress'} />;
-	} else if (currentModal === 'preview-pr-gutenberg') {
+	} else if (currentModal === modalSlugs.PREVIEW_PR_GUTENBERG) {
 		return <PreviewPRModal target={'gutenberg'} />;
 	}
 
