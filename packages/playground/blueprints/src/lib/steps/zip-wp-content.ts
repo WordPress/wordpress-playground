@@ -106,7 +106,8 @@ function zipDir($root, $output, $options = array())
                         $directory_path = $entry . '/';
                         array_push($directories, $directory_path);
                     } else if (is_file($entry)) {
-                        $zip->addFile($entry, substr($entry, strlen($zip_root)));
+                        // ensure compliance with zip spec by only using relative paths for files
+                        $zip->addFile($entry, ltrim(substr($entry, strlen($zip_root)), '/'));
                     }
                 }
                 closedir($handle);
