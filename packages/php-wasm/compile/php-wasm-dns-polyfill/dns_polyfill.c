@@ -3,6 +3,7 @@
 #include "php_network.h"
 #include "zend_API.h"
 #include "dns_polyfill.h"
+#include "ext/standard/info.h"
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -108,60 +109,10 @@ extern void __res_ndestroy(res_state statp);
 #define MAXRESOURCERECORDS	64
 #endif /* MAXRESOURCERECORDS */
 
-#ifndef PHP_DNS_A
-#define PHP_DNS_A      0x00000001
-#endif
-#ifndef PHP_DNS_NS
-#define PHP_DNS_NS     0x00000002
-#endif
-#ifndef PHP_DNS_CNAME
-#define PHP_DNS_CNAME  0x00000010
-#endif
-#ifndef PHP_DNS_SOA
-#define PHP_DNS_SOA    0x00000020
-#endif
-#ifndef PHP_DNS_PTR
-#define PHP_DNS_PTR 0x00000800
-#endif
-#ifndef PHP_DNS_HINFO
-#define PHP_DNS_HINFO 0x00001000
-#endif
-#if !defined(PHP_WIN32) && !defined(PHP_DNS_CAA)
-#define PHP_DNS_CAA 0x00002000
-#endif
-#ifndef PHP_DNS_MX
-#define PHP_DNS_MX     0x00004000
-#endif
-#ifndef PHP_DNS_TXT
-#define PHP_DNS_TXT    0x00008000
-#endif
-#ifndef PHP_DNS_A6
-#define PHP_DNS_A6     0x01000000
-#endif
-#ifndef PHP_DNS_SRV
-#define PHP_DNS_SRV    0x02000000
-#endif
-#ifndef PHP_DNS_NAPTR
-#define PHP_DNS_NAPTR  0x04000000
-#endif
-#ifndef PHP_DNS_AAAA
-#define PHP_DNS_AAAA   0x08000000
-#endif
-#ifndef PHP_DNS_ANY
-#define PHP_DNS_ANY    0x10000000
-#endif
-#ifndef PHP_DNS_NUM_TYPES
-#define PHP_DNS_NUM_TYPES	13	/* Number of DNS Types Supported by PHP currently */
-#endif
-#ifndef PHP_DNS_ALL
-#define PHP_DNS_ALL   (PHP_DNS_A|PHP_DNS_NS|PHP_DNS_CNAME|PHP_DNS_SOA|PHP_DNS_PTR|PHP_DNS_HINFO|PHP_DNS_CAA|PHP_DNS_MX|PHP_DNS_TXT|PHP_DNS_A6|PHP_DNS_SRV|PHP_DNS_NAPTR|PHP_DNS_AAAA)
-#endif
 typedef union {
 	HEADER qb1;
 	uint8_t qb2[65536];
 } querybuf;
-
-#define arginfo_checkdnsrr arginfo_dns_check_record
 
 PHP_FUNCTION(dns_check_record)
 {
@@ -232,8 +183,6 @@ PHP_FUNCTION(dns_get_record)
 
 /* {{{ Get MX records corresponding to a given Internet host name */
 
-#define arginfo_getmxrr arginfo_dns_get_mx
-
 PHP_FUNCTION(dns_get_mx)
 {
 	char *hostname;
@@ -270,4 +219,63 @@ PHP_FUNCTION(dns_get_mx)
 
     RETURN_FALSE;
 }
+/* }}} */
+
+/* {{{ PHP_MINFO_FUNCTION */
+PHP_MINFO_FUNCTION(dns_polyfill)
+{
+	php_info_print_table_start();
+	php_info_print_table_row(2, "dns_polyfill support", "enabled");
+	php_info_print_table_end();
+}
+/* }}} */
+
+PHP_MINIT_FUNCTION(dns_polyfill)
+{
+	REGISTER_LONG_CONSTANT("DNS_A", PHP_DNS_A, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_NS", PHP_DNS_NS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_CNAME", PHP_DNS_CNAME, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_SOA", PHP_DNS_SOA, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_PTR", PHP_DNS_PTR, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_HINFO", PHP_DNS_HINFO, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_CAA", PHP_DNS_CAA, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_MX", PHP_DNS_MX, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_TXT", PHP_DNS_TXT, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_SRV", PHP_DNS_SRV, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_NAPTR", PHP_DNS_NAPTR, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_AAAA", PHP_DNS_AAAA, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_A6", PHP_DNS_A6, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_ANY", PHP_DNS_ANY, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_ALL", PHP_DNS_ALL, CONST_CS | CONST_PERSISTENT);
+
+	return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(dns_polyfill)
+{
+	return SUCCESS;
+}
+
+/* {{{ dns_polyfill_functions[] */
+const zend_function_entry dns_polyfill_functions[] = {
+	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
+		ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
+			ZEND_FE(dns_check_record, arginfo_dns_check_record)
+				ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
+					ZEND_FE(dns_get_record, arginfo_dns_get_record)
+						ZEND_FE_END};
+/* }}} */
+
+/* {{{ dns_polyfill_module_entry */
+zend_module_entry dns_polyfill_module_entry = {
+	STANDARD_MODULE_HEADER,
+	"dns_polyfill",				 /* Extension name */
+	dns_polyfill_functions,		 /* zend_function_entry */
+	PHP_MINIT(dns_polyfill),	 /* PHP_MINIT - Module initialization */
+	PHP_MSHUTDOWN(dns_polyfill), /* PHP_MSHUTDOWN - Module shutdown */
+	NULL,						 /* PHP_RINIT - Request initialization */
+	NULL,						 /* PHP_RSHUTDOWN - Request shutdown */
+	PHP_MINFO(dns_polyfill),	 /* PHP_MINFO - Module info */
+	PHP_DNS_POLYFILL_VERSION,	 /* Version */
+	STANDARD_MODULE_PROPERTIES};
 /* }}} */

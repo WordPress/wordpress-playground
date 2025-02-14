@@ -172,6 +172,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(result.text).toEqual('bool(false)\n');
 		});
+		it('checkdnsrr should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(checkdnsrr('w.org', 2));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
 		it('dns_get_record should exist and be possible to run', async () => {
 			const result = await php.run({
 				code: `<?php
@@ -195,6 +203,47 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(result.text).toEqual('bool(false)\n');
+		});
+	});
+
+	describe('dns constants', () => {
+		it('DNS_* constants should exist', async () => {
+			const result = await php.run({
+				code: `<?php echo json_encode(array(
+					'DNS_A' => DNS_A,
+					'DNS_NS' => DNS_NS,
+					'DNS_CNAME' => DNS_CNAME,
+					'DNS_SOA' => DNS_SOA,
+					'DNS_PTR' => DNS_PTR,
+					'DNS_HINFO' => DNS_HINFO,
+					'DNS_CAA' => DNS_CAA,
+					'DNS_MX' => DNS_MX,
+					'DNS_TXT' => DNS_TXT,
+					'DNS_SRV' => DNS_SRV,
+					'DNS_NAPTR' => DNS_NAPTR,
+					'DNS_AAAA' => DNS_AAAA,
+					'DNS_A6' => DNS_A6,
+					'DNS_ANY' => DNS_ANY,
+					'DNS_ALL' => DNS_ALL,
+				));`,
+			});
+			expect(result.json).toEqual({
+				DNS_A: 1,
+				DNS_NS: 2,
+				DNS_CNAME: 16,
+				DNS_SOA: 32,
+				DNS_PTR: 2048,
+				DNS_HINFO: 4096,
+				DNS_CAA: 8192,
+				DNS_MX: 16384,
+				DNS_TXT: 32768,
+				DNS_SRV: 33554432,
+				DNS_NAPTR: 67108864,
+				DNS_AAAA: 134217728,
+				DNS_A6: 16777216,
+				DNS_ANY: 268435456,
+				DNS_ALL: 251721779,
+			});
 		});
 	});
 

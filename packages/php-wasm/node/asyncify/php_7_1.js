@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_1_30/php_7_1.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 13924343;
+export const dependenciesTotalSize = 13925109;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js

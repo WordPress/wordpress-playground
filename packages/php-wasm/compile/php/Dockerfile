@@ -19,6 +19,9 @@ RUN git clone https://github.com/php/php-src.git php-src \
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
+# Polyfill for dns functions
+COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
@@ -333,6 +336,7 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 	--enable-ctype     \
 	--enable-tokenizer \
 	--enable-wasm_memory_storage \
+	--enable-dns_polyfill \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
@@ -391,8 +395,6 @@ RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
-COPY ./php/dns_polyfill.c /root/
-COPY ./php/dns_polyfill.h /root/
 COPY ./php/proc_open* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
@@ -964,7 +966,7 @@ RUN set -euxo pipefail; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
-	fi; \	
+	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "UTF8ToString", \n\
 "stringToUTF8", \n\
@@ -1024,7 +1026,6 @@ RUN set -euxo pipefail; \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
-		/root/dns_polyfill.c \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
@@ -1123,7 +1124,7 @@ RUN set -euxo pipefail; \
 		# In case of WordPress Playground, the worker in which the PHP
 		# runs will typically exit after the PHP program finishes, so
 		# we don't have to worry about memory leaks.
-		/root/replace-across-lines.sh 's/(class\s+ExitStatus\s*\{\s*name\s*=\s*"ExitStatus";\s*constructor\(\s*status\s*\)\s*\{\s*this\.message\s*=\s*`Program terminated with exit\(\$\{status\}\)`;\s*this.status\s*=\s*status;?\s*\}\s*\})/$1\nExitStatus = class PHPExitStatus extends Error {\nconstructor(status) {\n		super(status);\n		this.name = "ExitStatus";\n		this.message = "Program terminated with exit(" + status + ")";\n		this.status = status;\n	}\n};/' /root/output/php.js; \ 
+		/root/replace-across-lines.sh 's/(class\s+ExitStatus\s*\{\s*name\s*=\s*"ExitStatus";\s*constructor\(\s*status\s*\)\s*\{\s*this\.message\s*=\s*`Program terminated with exit\(\$\{status\}\)`;\s*this.status\s*=\s*status;?\s*\}\s*\})/$1\nExitStatus = class PHPExitStatus extends Error {\nconstructor(status) {\n		super(status);\n		this.name = "ExitStatus";\n		this.message = "Program terminated with exit(" + status + ")";\n		this.status = status;\n	}\n};/' /root/output/php.js; \
 	# Restore quit handling to Emscripten
 		# Quit callback customization was removed from Emscripten by:
 		# https://github.com/emscripten-core/emscripten/pull/22371

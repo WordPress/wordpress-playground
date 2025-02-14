@@ -25,7 +25,6 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 #include "proc_open.h"
-#include "dns_polyfill.h"
 
 // Created by Dockerfile:
 #include "php_wasm_asyncify.h"
@@ -790,18 +789,11 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 extern int wasm_shutdown(int sockfd, int how);
 extern int wasm_close(int sockfd);
 
-
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
-	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
-	ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
-	ZEND_FE(dns_check_record, arginfo_dns_check_record)
-	ZEND_FE(dns_get_record, arginfo_dns_get_record)
-	PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-	PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
-};
+		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
+			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
 
 typedef struct wasm_cli_arg
 {
@@ -845,13 +837,7 @@ int run_cli()
 #else
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
-	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
-	ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
-	ZEND_FE(dns_check_record, arginfo_dns_check_record)
-	ZEND_FE(dns_get_record, arginfo_dns_get_record)
-	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
-};
+		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
 #endif
 
 #if !defined(TSRMLS_DC)
