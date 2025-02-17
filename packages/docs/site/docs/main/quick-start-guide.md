@@ -1,93 +1,96 @@
 ---
-title: Quick Start Guide
+title: Guide de démarrage rapide
 slug: /quick-start-guide
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
 
-# Start using WordPress Playground in 5 minutes
+# Commencez à utiliser WordPress Playground en 5 minutes
 
-WordPress Playground can help you with any of the following:
+WordPress Playground peut vous aider dans les domaines suivants :
 
 import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
-This page will guide you through each of these. Oh, and if you're a visual learner – here's a video:
+Cette page vous guidera à travers chacun des éléments suivants. Oh, et si vous préferrez l’apprentissage visuel, voici une vidéo (en anglais) :
 
 <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video"></iframe>
 
-## Start a new WordPress site
+## Commencez un nouveau site WordPress
 
-Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
+Chaque fois que vous visitez la [démo officielle sur playground.wordpress.net](https://playground.wordpress.net/), vous obtenez un nouveau site WordPress.
 
-You can then create pages, upload plugins, themes, import your own site, and do most things you would do on a regular WordPress.
+Vous pouvez alors créer des pages, télécharger des extensions, des thèmes, importer votre propre site, et faire la plupart des choses que vous feriez sur un site WordPress de base.
 
-It's that easy to start!
+C'est aussi simple que cela de commencer !
 
-The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page!
+L'ensemble du site se trouve dans votre navigateur et est récupéré lorsque vous fermez l'onglet. Vous voulez recommencer ? Il suffit de rafraîchir la page !
 
-:::info WordPress Playground is private
+:::info WordPress Playground est privé
 
-Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
+Tout ce que vous construisez reste dans votre navigateur et n'est **pas** envoyé nul part. Une fois que vous avez terminé, vous pouvez exporter votre site sous forme de fichier zip. Ou rafraîchissez simplement la page et recommencez !
 
 :::
 
-## Try a block, a theme, or a plugin
+## Essayer un bloc, un thème, ou une extension
 
-You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
+Vous pouvez téléverser n'importe quel extension ou thème dans [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
 
-To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL:
+Pour économiser quelques clics, vous pouvez préinstaller des extensions ou des thèmes depuis le répertoire des extensions de WordPress en ajoutant un paramètre `plugin` ou `theme` à l'URL. Par exemple, pour installer l’extension coblocks, vous pouvez utiliser cette URL :
 
 https://playground.wordpress.net/?plugin=coblocks
 
-Or this URL to preinstall the `pendant` theme:
+Ou cette URL pour préinstaller le thème `pendant` :
 
 https://playground.wordpress.net/?theme=pendant
 
-You can also mix and match these parameters and even add multiple plugins:
+Vous pouvez également combiner ces paramètres et même ajouter plusieurs extensions :
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 <ThisIsQueryApi />
 
-:::info Plugin directory doesn't work in WordPress Playground
+:::info Le répertoire des extensions ne fonctionne pas dans WordPress Playground
 
-Plugins must be installed manually because your WordPress site doesn't send any data to the internet. You won't be able to navigate the WordPress plugin directory inside `/wp-admin/`. The Query API method may seem to contradict that, but behind the scenes it uses the same plugin upload form as you would.
+Les extensions doivent être installés manuellement car votre site WordPress n'envoie pas de données sur internet. Vous ne pourrez pas naviguer dans le répertoire des extensions de WordPress à l'intérieur de `/wp-admin/`. La méthode Query API peut sembler contredire cela, mais en réalité elle utilise la même extension de formulaire de téléchargement que vous.
+:::
 
 :::
 
-## Save your site
+## Sauvegardez votre site
 
-To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
+Pour conserver votre site WordPress Playground plus longtemps qu'une seule session de navigation, vous pouvez l'exporter sous la forme d'un fichier zip.
 
-Use the "Export" button in the top bar:
+Utilisez le bouton « Exporter » dans la barre supérieure :
 
-![Export button](@site/static/img/export-button.png)
+![Bouton Exporter](@site/static/img/export-button.png)
 
-The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
+Le fichier exporté contient le site complet que vous avez construit. Vous pouvez l'héberger sur n'importe quel serveur compatible avec PHP et SQLite. Tous les fichiers du cœur de WordPress, les extensions, les thèmes et tout ce que vous avez ajouté à votre site s'y trouvent.
 
-The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
+Le fichier de base de données SQLite est également inclus dans l'export, vous le trouverez `wp-content/database/.ht.sqlite`. Gardez à l'esprit que les fichiers commençant par un point sont cachés par défaut sur la plupart des systèmes d'exploitation, vous devrez donc peut-être activer l'option « Afficher les fichiers cachés » dans votre gestionnaire de fichiers.
 
-## Restore a saved site
 
-You can restore the site you saved by using the import button in WordPress Playground:
 
-![Import button](@site/static/img/import-button.png)
+## Restaurer un site sauvegardé
 
-## Use a specific WordPress or PHP version
+Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton « Importer » dans WordPress Playground :
 
-The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):
+![Bouton Importer](@site/static/img/import-button.png)
 
-![WordPress Version switcher](@site/static/img/wp-version-switcher.png)
+## Utiliser une version spécifique de WordPress ou de PHP
 
-:::info Test your plugin or theme
+Le moyen le plus simple est d'utiliser le sélecteur de version sur [le site officiel de démonstration](https://playground.wordpress.net/) :
 
-Compatibility testing with so many WordPres and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
+![Sélecteur de version de WordPress](@site/static/img/wp-version-switcher.png)
+
+:::info Testez votre plugin ou votre thème
+
+Les tests de compatibilité avec tant de versions de WordPress et de PHP ont toujours été compliqués. WordPress Playground rend ce processus sans effort - utilisez-le à votre avantage !
 
 :::
 
-You can also use the `wp` and `php` query parameters to open Playground with the right versions already loaded:
+Vous pouvez également utiliser les paramètres de requête `wp` et `php` pour ouvrir le Playground avec les bonnes versions déjà chargées :
 
 -   https://playground.wordpress.net/?wp=6.5
 -   https://playground.wordpress.net/?php=7.4
@@ -95,22 +98,23 @@ You can also use the `wp` and `php` query parameters to open Playground with the
 
 <ThisIsQueryApi />
 
-:::info Major versions only
+:::info Versions majeures uniquement
 
-You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
+Vous pouvez spécifier des versions majeures comme `wp=6.2` ou `php=8.1` et attendre la version la plus récente dans cette ligne. Vous ne pouvez cependant pas demander des versions mineures plus anciennes, donc ni `wp=6.1.2` ni `php=7.4.9` ne fonctionneront.
 
 :::
 
-## Import a WXR file
+## Importer un fichier WXR
 
-You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
+You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php). Vous pouvez importer un fichier d'exportation WordPress en téléversant un fichier WXR dans [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
 
-You can also use [JSON Blueprints](/blueprints). See [getting started with Blueprints](/blueprints/getting-started) to learn more.
+Vous pouvez également utiliser [JSON Blueprints](/blueprints). Pour en savoir plus, voir [Démarrer avec Blueprints](/blueprints/getting-started).
 
-This is different from the import feature described above. The import feature exports the entire site, including the database. This import feature imports a WXR file into an existing site.
+Cette fonction est différente de la fonction d'importation décrite ci-dessus. La fonction d'importation exporte l'ensemble du site, y compris la base de données. Cette fonction d'importation permet d'importer un fichier WXR dans un site existant.
 
-## Build apps with WordPress Playground
+## Créer des applications avec WordPress Playground
 
-WordPress Playground is programmable which means you can build WordPress apps, setup plugin demos, and even use it as a zero-setup local development environment.
+WordPress Playground est programmable, ce qui signifie que vous pouvez créer des applications WordPress, mettre en place des démonstrations d’extensions et même l'utiliser comme un environnement de développement local sans installation.
 
-To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
+
+Pour en savoir plus sur le développement avec WordPress Playground, consultez la section [démarrage rapide de développement](/developers/build-your-first-app).T
