@@ -224,23 +224,41 @@ async function run() {
 		tracker.addEventListener('progress', (e: any) => {
 			if (progress100) {
 				return;
-			} else if (e.detail.progress === 100) {
-				progress100 = true;
 			}
+
+			progress100 = e.detail.progress === 100;
+
 			lastCaption =
 				e.detail.caption || lastCaption || 'Running the Blueprint';
-			process.stdout.clearLine(0);
-			process.stdout.cursorTo(0);
-			process.stdout.write(
-				'\r\x1b[K' + `${lastCaption.trim()} – ${e.detail.progress}%`
+			writeProgressUpdate(
+				process.stdout,
+				`${lastCaption.trim()} – ${e.detail.progress}%`,
+				progress100
 			);
-			if (progress100) {
-				process.stdout.write('\n');
-			}
 		});
 		return compileBlueprint(blueprint as Blueprint, {
 			progress: tracker,
 		});
+	}
+
+	function writeProgressUpdate(
+		writeStream: NodeJS.WriteStream,
+		text: string,
+		finalUpdate: boolean
+	) {
+		if (writeStream.isTTY) {
+			// Overwrite previous progress updates in place for a quieter UX.
+			writeStream.cursorTo(0);
+			writeStream.write(text);
+			writeStream.clearLine(1);
+
+			if (finalUpdate) {
+				writeStream.write('\n');
+			}
+		} else {
+			// Fall back to writing one line per progress update
+			writeStream.write(`${text}\n`);
+		}
 	}
 
 	const command = args._[0] as string;
@@ -263,26 +281,35 @@ async function run() {
 
 			logger.log(`Setting up WordPress ${args.wp}`);
 			let wpDetails: any = undefined;
+			// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
+			// about that class anymore.
 			const monitor = new EmscriptenDownloadMonitor();
 			if (!args.skipWordPressSetup) {
-				// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
-				// about that class anymore.
-				monitor.addEventListener('progress', ((
-					e: CustomEvent<ProgressEvent & { finished: boolean }>
-				) => {
-					// @TODO Every progres bar will want percentages. The
-					//       download monitor should just provide that.
-					const percentProgress = Math.round(
-						Math.min(100, (100 * e.detail.loaded) / e.detail.total)
-					);
-					if (!args.quiet) {
-						process.stdout.clearLine(0);
-						process.stdout.cursorTo(0);
-						process.stdout.write(
-							`Downloading WordPress ${percentProgress}%...`
+				if (!args.quiet) {
+					let completedProgress = false;
+					monitor.addEventListener('progress', ((
+						e: CustomEvent<ProgressEvent & { finished: boolean }>
+					) => {
+						if (completedProgress) {
+							return;
+						}
+
+						// @TODO Every progress bar will want percentages. The
+						//       download monitor should just provide that.
+						const percentProgress = Math.round(
+							Math.min(
+								100,
+								(100 * e.detail.loaded) / e.detail.total
+							)
 						);
-					}
-				}) as any);
+						completedProgress = e.detail.loaded === e.detail.total;
+						writeProgressUpdate(
+							process.stdout,
+							`Downloading WordPress ${percentProgress}%...`,
+							completedProgress
+						);
+					}) as any);
+				}
 
 				wpDetails = await resolveWordPressRelease(args.wp);
 			}

@@ -32,7 +32,8 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun --watch ./packages/playground/cli/src/cli.ts"
+				"command": "bun --watch ./packages/playground/cli/src/cli.ts",
+				"tty": true
 			}
 		},
 		"start": {
