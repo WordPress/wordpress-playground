@@ -220,36 +220,47 @@ async function run() {
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
-		let progress100 = false;
+		let progressReached100 = false;
 		tracker.addEventListener('progress', (e: any) => {
-			if (progress100) {
+			if (progressReached100) {
 				return;
 			}
+			progressReached100 = e.detail.progress === 100;
 
-			progress100 = e.detail.progress === 100;
-
+			// Use floor() so we don't report 100% until truly there.
+			const progressInteger = Math.floor(e.detail.progress);
 			lastCaption =
 				e.detail.caption || lastCaption || 'Running the Blueprint';
-			writeProgressUpdate(
-				process.stdout,
-				`${lastCaption.trim()} – ${e.detail.progress}%`,
-				progress100
-			);
+			const message = `${lastCaption.trim()} – ${progressInteger}%`;
+			if (!args.quiet) {
+				writeProgressUpdate(
+					process.stdout,
+					message,
+					progressReached100
+				);
+			}
 		});
 		return compileBlueprint(blueprint as Blueprint, {
 			progress: tracker,
 		});
 	}
 
+	let lastProgressMessage = '';
 	function writeProgressUpdate(
 		writeStream: NodeJS.WriteStream,
-		text: string,
+		message: string,
 		finalUpdate: boolean
 	) {
+		if (message === lastProgressMessage) {
+			// Avoid repeating the same message
+			return;
+		}
+		lastProgressMessage = message;
+
 		if (writeStream.isTTY) {
-			// Overwrite previous progress updates in place for a quieter UX.
+			// Overwrite previous progress updates in-place for a quieter UX.
 			writeStream.cursorTo(0);
-			writeStream.write(text);
+			writeStream.write(message);
 			writeStream.clearLine(1);
 
 			if (finalUpdate) {
@@ -257,7 +268,7 @@ async function run() {
 			}
 		} else {
 			// Fall back to writing one line per progress update
-			writeStream.write(`${text}\n`);
+			writeStream.write(`${message}\n`);
 		}
 	}
 
@@ -285,31 +296,31 @@ async function run() {
 			// about that class anymore.
 			const monitor = new EmscriptenDownloadMonitor();
 			if (!args.skipWordPressSetup) {
-				if (!args.quiet) {
-					let completedProgress = false;
-					monitor.addEventListener('progress', ((
-						e: CustomEvent<ProgressEvent & { finished: boolean }>
-					) => {
-						if (completedProgress) {
-							return;
-						}
+				let progressReached100 = false;
+				monitor.addEventListener('progress', ((
+					e: CustomEvent<ProgressEvent & { finished: boolean }>
+				) => {
+					if (progressReached100) {
+						return;
+					}
 
-						// @TODO Every progress bar will want percentages. The
-						//       download monitor should just provide that.
-						const percentProgress = Math.round(
-							Math.min(
-								100,
-								(100 * e.detail.loaded) / e.detail.total
-							)
-						);
-						completedProgress = e.detail.loaded === e.detail.total;
+					// @TODO Every progress bar will want percentages. The
+					//       download monitor should just provide that.
+					const { loaded, total } = e.detail;
+					// Use floor() so we don't report 100% until truly there.
+					const percentProgress = Math.floor(
+						Math.min(100, (100 * loaded) / total)
+					);
+					progressReached100 = percentProgress === 100;
+
+					if (!args.quiet) {
 						writeProgressUpdate(
 							process.stdout,
 							`Downloading WordPress ${percentProgress}%...`,
-							completedProgress
+							progressReached100
 						);
-					}) as any);
-				}
+					}
+				}) as any);
 
 				wpDetails = await resolveWordPressRelease(args.wp);
 			}
