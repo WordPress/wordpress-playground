@@ -18,17 +18,21 @@ Playground [disables network connections](/blueprints/data-format#features) by d
 
 As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Site Manager" menu on the top left of the site.
 
-<details>  
-  <summary>Click for a screenshot</summary>    
-  <div>    
-	 <img width="406" alt="Open Site Manager" src="https://github.com/user-attachments/assets/f66e4116-069c-4764-9305-3cec03eb72d5" />
-  </div>
-	<br>
-	<div>
-<img width="408" alt="Save Button" src="https://github.com/user-attachments/assets/a677fbff-2346-4579-9543-56e33e8e42b9" />
+<blockquote>
+<figure>
+<figcaption><i>The open site manager button:</i></figcaption>
 
-  </div>    
-</details>
+![Open Site Manager](@site/static/img/open-site-manager.png)
+
+</figure>
+
+<figure>
+<figcaption><i>The save button:</i></figcaption>
+
+![Save Button](@site/static/img/save-button.png)
+
+</figure>
+</blockquote>
 
 ## When developing with Playground
 
