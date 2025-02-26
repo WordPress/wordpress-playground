@@ -15,9 +15,9 @@
 					"cp packages/playground/components/README.md dist/packages/playground/components"
 				]
 			},
-			"dependsOn": ["build:package-json"]
+			"dependsOn": ["build:vite"]
 		},
-		"build:package-json": {
+		"build:vite": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",

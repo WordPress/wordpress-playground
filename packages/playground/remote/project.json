@@ -15,9 +15,9 @@
 					"cp packages/playground/remote/README.md dist/packages/playground/remote"
 				]
 			},
-			"dependsOn": ["build:package-json"]
+			"dependsOn": ["build:vite"]
 		},
-		"build:package-json": {
+		"build:vite": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {

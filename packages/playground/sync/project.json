@@ -16,9 +16,9 @@
 					"cp packages/playground/sync/README.md dist/packages/playground/sync"
 				]
 			},
-			"dependsOn": ["build:package-json"]
+			"dependsOn": ["build:vite"]
 		},
-		"build:package-json": {
+		"build:vite": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
