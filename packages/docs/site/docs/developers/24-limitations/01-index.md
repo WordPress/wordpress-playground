@@ -16,13 +16,13 @@ Playground [disables network connections](/blueprints/data-format#features) by d
 
 ### Temporary by design
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Site Manager" menu on the top left of the site.
+As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Playground Manager" menu on the top left of the site.
 
 <blockquote>
 <figure>
-<figcaption><i>The open site manager button:</i></figcaption>
+<figcaption><i>The open Playground Manager button:</i></figcaption>
 
-![Open Site Manager](@site/static/img/open-site-manager.png)
+![Open Playground Manager](@site/static/img/open-site-manager.png)
 
 </figure>
 
