@@ -190,7 +190,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: npm run build:docs
-            - uses: actions/upload-pages-artifact@v1
+            - uses: actions/upload-pages-artifact@v3
               with: { path: dist/docs/build }
             - name: Deploy to GitHub Pages
               id: deployment
