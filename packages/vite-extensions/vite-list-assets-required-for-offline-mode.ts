@@ -17,6 +17,10 @@ const patternsToNotCache = [
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',
 	/**
+	 * Source maps are not required to run the site and can be quite large.
+	 */
+	/\.js\.map$/,
+	/**
 	 * WordPress assets removed from the minified builds, for example:
 	 *
 	 *      /wp-6.2/wp-content/themes/twentytwentyone/style.css
