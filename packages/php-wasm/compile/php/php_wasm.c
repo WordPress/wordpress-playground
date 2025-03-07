@@ -1851,3 +1851,14 @@ int php_wasm_init()
 void wasm_free(void *_Nullable ptr) {
 	free(ptr);
 }
+
+/*
+ * Function: wasm_set_errno
+ * ----------------------------
+ *   Sets errno global.
+ *
+ *   Used to relay errno from JS to WASM.
+ */
+EMSCRIPTEN_KEEPALIVE void wasm_set_errno(int value) {
+	errno = value;
+}

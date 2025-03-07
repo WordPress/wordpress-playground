@@ -1000,6 +1000,7 @@ export ASYNCIFY_ONLY=$'\
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./php/phpwasm-emscripten-library-fcntl-for-node.js /root/phpwasm-emscripten-library-fcntl-for-node.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 RUN set -euxo pipefail; \
@@ -1044,8 +1045,13 @@ RUN set -euxo pipefail; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
+	PLATFORM_SPECIFIC_ARGS=''; \
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-fcntl-for-node.js"; \
+	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
+	$PLATFORM_SPECIFIC_ARGS \
 	-I .  \
 	-I ext   \
 	-I ext/json   \
@@ -1182,6 +1188,8 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			echo "import { flockSync, constants as fsExtConstants } from 'fs-ext'; " >> /root/output/php-module.js; \
+			echo "import { constants as nodeConstants } from 'constants'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
