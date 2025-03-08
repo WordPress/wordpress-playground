@@ -102,6 +102,10 @@ A browser should open and take you to your very own client-side WordPress at [ht
 
 Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfile` require a full rebuild.
 
+## Self-hosting WordPress Playground
+
+When self-hosting WordPress Playground, you may want to customize certain aspects like analytics tracking. See the [configuration documentation](packages/playground/website/CONFIGURATION.md) for details on available options and how to apply them.
+
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
 And here's a few more interesting CLI commands you can run in this repo:
