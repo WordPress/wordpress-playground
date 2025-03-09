@@ -25,7 +25,14 @@ To disable Google Analytics completely, set the value to an empty string:
 VITE_GOOGLE_ANALYTICS_ID=
 ```
 
-The Google Analytics script is conditionally included during the build process based on whether this environment variable has a value. This means no tracking script is included in the final HTML when the variable is empty, improving privacy and performance for self-hosted instances that don't require analytics.
+The Google Analytics script is automatically injected into the `<head>` section of all HTML pages during the build process. If the environment variable is not set or is empty, no analytics code will be included in the final HTML output, improving privacy and performance for self-hosted instances that don't require tracking.
+
+This configuration applies to:
+
+-   The main application (`index.html`)
+-   The WordPress PR previewer (`public/wordpress.html`)
+-   The Gutenberg PR previewer (`public/gutenberg.html`)
+-   All demo and builder HTML files
 
 ## How to Configure Your Self-Hosted Instance
 
@@ -45,5 +52,20 @@ VITE_GOOGLE_ANALYTICS_ID=G-MYANALYTICS123
 The environment variables are applied at build time. Make sure your custom `.env.local` file is in place before running:
 
 ```bash
+# Standard build
 npm run build:website
+
+# Verbose build with analytics logging
+npm run build:website -- --verbose
 ```
+
+## Technical Implementation
+
+The analytics integration uses a custom Vite plugin that inserts the Google Analytics script at the end of the `<head>` section in all HTML files during the build process. This approach:
+
+1. Keeps analytics configuration separate from the code
+2. Ensures no analytics code is included in the HTML when disabled
+3. Requires no placeholder comments in the HTML source files
+4. Provides a clean way to customize analytics for self-hosted instances
+5. Maintains clean indentation and formatting in the output HTML
+6. Operates silently by default (logs can be enabled with `--verbose`)

@@ -22,6 +22,7 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 import { addManifestJson } from '../../vite-extensions/vite-manifest';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
+import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -39,6 +40,9 @@ export default defineConfig(({ command, mode }) => {
 			: mode === 'production'
 			? 'https://wordpress-playground-cors-proxy.net/?'
 			: 'http://127.0.0.1:5263/cors-proxy.php?';
+
+	// Check for verbose mode
+	const isVerbose = process.argv.includes('--verbose');
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -77,6 +81,7 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			analyticsInjectionPlugin({ verbose: isVerbose }),
 			react({
 				jsxRuntime: 'automatic',
 			}),
