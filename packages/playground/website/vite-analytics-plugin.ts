@@ -76,7 +76,7 @@ export function analyticsInjectionPlugin(
 
 					try {
 						// Read file
-						let content = readFileSync(outputPath, 'utf8');
+						const content = readFileSync(outputPath, 'utf8');
 
 						// Check if the file already has analytics (to avoid duplicate injection)
 						if (
