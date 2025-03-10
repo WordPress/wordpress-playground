@@ -24,110 +24,50 @@ const LibraryForNode = {
 
 		const em_EBADF = {{{ cDefs.EBADF }}};
 		const em_EINVAL = {{{ cDefs.EINVAL }}};
+		const em_EAGAIN = {{{ cDefs.EINVAL }}};
 
-		const LOCK_SH_NB = fsExtConstants.LOCK_SH | fsExtConstants.LOCK_NB;
-		const LOCK_EX_NB = fsExtConstants.LOCK_EX | fsExtConstants.LOCK_NB;
-		const LOCK_UN_NB = fsExtConstants.LOCK_EX | fsExtConstants.LOCK_NB;
-
-		function canLock(fd, lockType) {
-			var shouldUnlock = false;
-			try {
-				fsExt.flockSync(fd, lockType);
-				shouldUnlock = true;
-				return [true, 0];
-			} catch (e) {
-				var maybeErrNo;
-				switch (e) {
-					// Note: on most platforms (maybe all we care about),
-					// EAGAIN and EWOULDBLOCK are equivalent,
-					// but there is no harm in checking them both explicitly.
-					case nodeConstants.EAGAIN:
-					case nodeConstants.EWOULDBLOCK:
-						// Nothing went wrong.
-						// These are expected when failing to obtain a lock.
-						maybeErrNo = 0;
-						break;
-					case nodeConstants.EBADF:
-						maybeErrNo = em_EBADF;
-						break;
-					default:
-						// We have to map errno's from flock() to those
-						// expected from fcntl(), and there does not appear
-						// to be a 1:1 mapping. Let's default to an
-						// "invalid operation" error when in doubt.
-						maybeErrNo = em_EINVAL;
-						break;
-				}
-				return [false, maybeErrNo]
-			} finally {
-				if (shouldUnlock) {
-					fsExt.flockSync(fd, LOCK_UN_NB);
-				}
-			}
-		}
-		function canWriteLock(fd) {
-			return canLock(fd, LOCK_EX_NB)
-		}
-		function canReadLock(fd) {
-			return canLock(fd, LOCK_SH_NB)
-		}
+		const emFcntlToNodeFlockType = {
+			[em_F_RDLCK]: 'shnb', // shared and non-blocking
+			[em_F_WRLCK]: 'exnb', // exclusive and non-blocking
+			[em_F_UNLCK]: 'un',   // unlock
+		};
 
 		switch (cmd) {
-			// TODO: Explain the weirdness of the GETLK output param
 			case {{{ cDefs.F_GETLK }}}: {
-				var typeOffset = {{{ C_STRUCTS.flock.l_type }}};
-				var typeToCheck =
-					{{{ makeGetValue('arg', 'typeOffset', 'i16') }}};
-				var responseLockType = em_F_UNLCK;
-				var responseErrNo;
-				try {
-					if (typeToCheck === em_F_RDLCK) {
-						const [canLock, errno] = canReadLock(fd);
-						if (errno) {
-							// TODO: Set global errno
-							return -1;
-						}
-						responseLockType = canLock ? em_F_UNLCK : em_F_WRLCK;
-					} else if (
-						typeToCheck === em_F_WRLCK ||
-						typeToCheck === em_F_UNLCK
-					) {
-						let [canLock, errno] = canWriteLock(fd);
-						if (errno) {
-							// TODO: Set global errno
-							return -1;
-						}
-						if (canLock) {
-							// We can write lock, so there are no other locks.
-							responseLockType = em_F_UNLCK;
-						} else {
-							// We cannot obtain a write lock.
-							// This may be due to a write lock or a shared lock.
-							// If we can obtain a shared lock,
-							// then there is currently no write lock.
-
-							// TODO
-						}
-					} else {
-						throw new Error(`Invalid lock type: ${typeToCheck}`);
-					}
-
-					// TODO: Set field of flock struct
-					return 0;
-				} catch (e) {
-					// TODO: errno = em_EINVAL;
-					return -1;
-				}
+				// TODO: Accurately represent locks obtained by this thread via F_SETLK
+				var arg = syscallGetVarargP();
+				var offset = {{{ C_STRUCTS.flock.l_type }}};
+				// Always report that a file is unlocked.
+				// TODO: Explain why both technically and philosophically
+				{{{ makeSetValue('arg', 'offset', cDefs.F_UNLCK, 'i16') }}};
+				return 0;
 			}
 			case {{{ cDefs.F_SETLK }}}:
 			case {{{ cDefs.F_SETLKW }}}:
-				// TODO: Actually set lock
 				var arg = syscallGetVarargP();
 				var offset = {{{ C_STRUCTS.flock.l_type }}};
-				// We're always unlocked.
-				var type = {{{ makeGetValue('arg', 'offset', 'i16') }}};
-				fcntlSync(fd, )
-				return 0; // Pretend that the locking is successful.
+				var fcntlType = {{{ makeGetValue('arg', 'offset', 'i16') }}};
+				var flockType = emFcntlToNodeFlockType[fcntlType];
+				if (flockType === undefined) {
+					wasm_set_errno(em_EINVAL);
+					return -1;
+				}
+				try {
+					flockSync(fd, flockType);
+					return 0;
+				} catch (e) {
+					let em_errno;
+					if (e.code === 'EBADF') {
+						em_errno = em_EBADF;
+					} else if (e.code === 'EAGAIN' || e.code === 'EWOULDBLOCK') {
+						// EAGAIN and EWOULDBLOCK are almost always equivalent
+						em_errno = em_EAGAIN;
+					} else {
+						em_errno = em_EINVAL; 
+					}
+					wasm_set_errno(em_errno);
+					return -1;
+				}
 			default:
 				return _default__syscall_fcntl64(fd, cmd, varargs);
 		}

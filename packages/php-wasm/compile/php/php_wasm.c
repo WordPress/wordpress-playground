@@ -1860,5 +1860,8 @@ void wasm_free(void *_Nullable ptr) {
  *   Used to relay errno from JS to WASM.
  */
 EMSCRIPTEN_KEEPALIVE void wasm_set_errno(int value) {
+	// NOTE: If we have to call this frequently, it might be too slow,
+	// so we might want to expose errno's address and set/get via DataView
+	// as Emscripten used to do.
 	errno = value;
 }
