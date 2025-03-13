@@ -13,6 +13,7 @@
 #include <zend_ini.h>
 #include "ext/standard/php_standard.h"
 #include <emscripten.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -36,6 +37,16 @@ unsigned int wasm_sleep(unsigned int time)
 }
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
+
+extern int default__syscall_fcntl64(int fd, int cmd, ...);
+int __syscall_fcntl64(int fd, int cmd, ...) {
+	va_list args;
+
+	va_start(args, cmd);
+	int result = default__syscall_fcntl64(fd, cmd, args);
+	va_end(args); 
+	return result;
+}
 
 /**
  * Shims popen(3) functionallity:

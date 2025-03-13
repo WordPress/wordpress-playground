@@ -543,7 +543,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "wasm_poll_socket",\n\
 "_wasm_poll_socket",\n\
 "_asyncjs__wasm_poll_socket",\n\
-"wasm_shutdown",\n\
+"default__syscall_fcntl64",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
@@ -1188,8 +1188,8 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "import { flockSync, constants as fsExtConstants } from 'fs-ext'; " >> /root/output/php-module.js; \
-			echo "import { constants as nodeConstants } from 'constants'; " >> /root/output/php-module.js; \
+			#echo "import { flockSync, constants as fsExtConstants } from 'fs-ext'; " >> /root/output/php-module.js; \
+			#echo "import { constants as nodeConstants } from 'constants'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
