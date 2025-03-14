@@ -13,7 +13,6 @@
 #include <zend_ini.h>
 #include "ext/standard/php_standard.h"
 #include <emscripten.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
