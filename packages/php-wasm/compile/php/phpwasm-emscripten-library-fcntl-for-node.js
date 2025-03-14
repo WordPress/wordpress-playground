@@ -8,16 +8,22 @@
 'use strict';
 
 const LibraryForNode = {
-	default__syscall_fcntl64: LibraryManager.library.__syscall_fcntl64,
+	// Place the builtin fcntl64 implementation in an object so it is left
+	// intact even if the function is not referenced by C/C++ code.
+	// Ref: https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#javascript-limits-in-library-files
+	// TODO: Would "builtin" be better than "default"?
+	$default_fcntl64__deps: LibraryManager.library.__syscall_fcntl64__deps,
+	$default_fcntl64: {
+		fn: LibraryManager.library.__syscall_fcntl64,
+	},
+
+	__syscall_fcntl64__deps: ['$default_fcntl64'],
+	__syscall_fcntl64(fd, cmd, varargs) {
+		// Return Promise to demonstrate this function is being treated as async.
+		return Promise.resolve(default_fcntl64.fn(fd, cmd, varargs));
+	}
 };
 
-// Carry over decorators used by the built-in implementation
-// https://github.com/emscripten-core/emscripten/blob/002962761ca7e370aed80680b61e5237b53510c0/src/utility.mjs#L202-L219
-for (const [key, value] of Object.entries(LibraryManager.library)) {
-	if (key.startsWith('__syscall_fcntl64__') && isDecorator(key)) {
-		LibraryForNode[`default${key}`] = value;
-	}
-}
-
-autoAddDeps(LibraryForNode, 'default__syscall_fcntl64');
+autoAddDeps(LibraryForNode, '$default_fcntl64');
+autoAddDeps(LibraryForNode, '__syscall_fcntl64');
 mergeInto(LibraryManager.library, LibraryForNode);

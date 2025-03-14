@@ -38,16 +38,6 @@ unsigned int wasm_sleep(unsigned int time)
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
-extern int default__syscall_fcntl64(int fd, int cmd, ...);
-int __syscall_fcntl64(int fd, int cmd, ...) {
-	va_list args;
-
-	va_start(args, cmd);
-	int result = default__syscall_fcntl64(fd, cmd, args);
-	va_end(args); 
-	return result;
-}
-
 /**
  * Shims popen(3) functionallity:
  * https://man7.org/linux/man-pages/man3/popen.3.html

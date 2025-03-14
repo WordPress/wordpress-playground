@@ -532,6 +532,9 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "js_popen_to_file",\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
+"__syscall_fcntl64",\n\
+"___syscall_fcntl64",\n\
+"_asyncjs____syscall_fcntl64",\n\
 "js_fd_read",\n\
 "_js_fd_read",\n\
 "js_module_onMessage",\n\
@@ -543,7 +546,6 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "wasm_poll_socket",\n\
 "_wasm_poll_socket",\n\
 "_asyncjs__wasm_poll_socket",\n\
-"default__syscall_fcntl64",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
