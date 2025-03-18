@@ -9,6 +9,119 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.0.29] (2025-03-11)
+
+### Various
+
+-   Blueprint bundles.
+-   CORS Proxy: fetch() with credentials: "include".
+-   Exif support for PHP-wasm.
+-   Remove Data Liberation PHP modules.
+-   Stop suppressing 64bit integer PHP warnings as 64bit longs are now suppoted.
+-   [Blueprints] setSiteLanguage fetch translation package URL from WP.org.
+-   [Website] Drop the static &lt;link rel="manifest"&gt; tag and generate one in JavaScript instead.
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak
+
+## [v1.0.28] (2025-03-05)
+
+### Various
+
+-   64bit integer support, drop PHP 7.0 and 7.1 support.
+-   FS Journal: Handle renaming OPFS files via delete + create (instead of file.move()).
+-   GitHub: Cache node_modules per arch to avoid nx error.
+-   Merge from public Playground repo.
+-   OPFS site creation: Use the same "is this directory a site?" check as the site list.
+-   Stop adding source maps to offline assets list.
+-   Support mobile access to private Playground instance.
+-   TLS->HTTP Proxy: Support outbound request body.
+-   TLS: Only use the server_name extension during server hello.
+-   Website: Blueprints as PWAs with a dynamic manifest.json file.
+-   Website: Preserve the `mode` query arg when opening OPFS site.
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton
+
+## [v1.0.27] (2025-02-25)
+
+### Bug Fixes
+
+-   Fix php-wasm build error for WITH_SOURCEMAPS=yes.
+-   Fix php-wasm source map base.
+-   Fix private website deployment workflow.
+-   Fix up private website deployment workflow after initial commit.
+
+### Various
+
+-   Add WITH_DEBUG option for building php-wasm with DWARF debug info.
+-   Add `janjakes` to GitHub workflows actors.
+-   Add a dedicated workflow for deploying private playground.
+-   Add remote data blocks to the allowlist.
+-   Allow ashfame to run self-hosted package release workflow.
+-   Allow deploying custom supported domains for CORS proxy.
+-   CORS proxy: Make allowed origins configurable.
+-   Make further fixes for unreliable end-to-end tests.
+-   Move DNS polyfills to a PHP extension and add missing constants.
+-   New playground CLI function interface.
+-   Replace some hardcoded refs to playground.wordpress.net web app.
+-   Restore safety condition for CORS proxy deployment workflow.
+-   Revert "Add the launch browser flag to CLI".
+-   Revert "Support file URL resources in command line environment".
+-   Schedule private deployment and use private environment.
+-   Stop assuming CLI stdout is a TTY write stream.
+-   Store WordPress site cookies in the browser instead of a custom Cookie Store.
+-   Support file URL resources in command line environment.
+-   Switch to relative paths in app manifest.
+-   Switch to runner with more CPU and RAM.
+-   Treat zip files as zip files regardless of file name.
+-   Try more Playwright workers since we have a runner with more resources.
+-   Update private Playground instance to use dedicated CORS proxy.
+-   Use rsync instead of scp in website deploy workflow.
+-   Use specified SQLite version also for PHP < 7.4.
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @ingeniumed @JanJakes @zaerl
+
+## [v1.0.26] (2025-02-04)
+
+### Bug Fixes
+
+-   Fix workflow for deploying self-hosted packages.
+
+### Various
+
+-   Add the launch browser flag to CLI.
+-   [Fix] Zip spec compliance for exported backup file.
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @brandonpayton @zaerl
+
+## [v1.0.25] (2025-02-04)
+
+### Various
+
+-   Add missing node external to Playground CLI.
+-   Add self-hosted package publishing.
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
 ## [v1.0.24] (2025-02-03)
 
 ## [v1.0.23] (2025-01-27)
