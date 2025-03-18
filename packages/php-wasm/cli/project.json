@@ -29,6 +29,13 @@
 				}
 			}
 		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun --watch ./packages/php-wasm/cli/src/main.ts",
+				"tty": true
+			}
+		},
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {
