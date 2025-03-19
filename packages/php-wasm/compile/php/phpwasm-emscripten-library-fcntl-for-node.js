@@ -19,8 +19,107 @@ const LibraryForNode = {
 
 	__syscall_fcntl64__deps: ['$default_fcntl64'],
 	__syscall_fcntl64(fd, cmd, varargs) {
-		// Return Promise to demonstrate this function is being treated as async.
-		return Promise.resolve(default_fcntl64.fn(fd, cmd, varargs));
+		// From:
+		// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
+		const F_RDLCK = 0;
+		const F_WRLCK = 1;
+		const F_UNLCK = 2;
+		const lockStateToFcntl = {
+			shared: F_RDLCK,
+			exclusive: F_WRLCK,
+			unlocked: F_UNLCK,
+		};
+		const fcntlToLockState = {
+			[F_RDLCK]: 'shared',
+			[F_WRLCK]: 'exclusive',
+			[F_UNLCK]: 'unlocked',
+		};
+
+		const pid = PHPLoader.runtimeId;
+		switch (cmd) {
+			case {{{cDefs.F_GETLK}}}: {
+				console.log('F_GETLK');
+				let filePath;
+				try {
+					filePath = FS.readlink(`/proc/self/fd/${fd}`);
+					console.log('filePath:', filePath);
+				} catch (error) {
+					console.log('unable to resolve file path from fd');
+					_wasm_set_errno(ERRNO_CODES.EBADF);
+					return -1;
+				}
+
+				var arg = syscallGetVarargP();
+				var offset = {{{ C_STRUCTS.flock.l_type }}};
+				const requestedFcntlLockType = HEAP16[(((arg) + (offset)) >> 1)];
+				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
+
+				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
+				// TODO: try/catch
+				return PHPLoader.fileLockManager.getConflictingLock(
+					filePath,
+					requestedLockType,
+					pid
+				).then(
+					(conflictingLockType) => {
+						const resultingFcntLockType = lockStateToFcntl[lockState];
+						// TODO: Understand why the shift
+						HEAP16[(((arg) + (offset)) >> 1)] = fcntlLockState;
+						return 0;
+					},
+					// TODO: handle error
+				);
+			}
+			case {{{cDefs.F_SETLK}}}: {
+				console.log('F_SETLK');
+
+				let filePath;
+				try {
+					filePath = FS.readlink(`/proc/self/fd/${fd}`);
+					console.log('filePath:', filePath);
+				} catch (error) {
+					console.log('unable to resolve file path from fd');
+					_wasm_set_errno(ERRNO_CODES.EBADF);
+					return -1;
+				}
+
+				var arg = syscallGetVarargP();
+				var offset = {{{ C_STRUCTS.flock.l_type }}};
+				// TODO: Understand why the shift by 1
+				const requestedFcntlLockType = HEAP16[(((arg) + (offset)) >> 1)];
+				console.log('requestedFcntlLockType:', requestedFcntlLockType);
+				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
+				// TODO: Handle undefined lock type
+				console.log(`requestedLockType: ${requestedLockType}`)
+
+				if (requestedLockType === 'unlocked') {
+					// TODO: What if you can't unlock because you don't have a lock?
+					// TODO: Handle error
+					return PHPLoader.fileLockManager.unlockFile(filePath, pid).then(() => 0);
+				} else {
+					// TODO: Handle error
+					return PHPLoader.fileLockManager.lockFile(
+						filePath,
+						requestedLockType,
+						pid
+					).then(
+						(succeeded) => {
+							console.log(`succeeded? ${succeeded}`);
+							if (succeeded) {
+								return 0;
+							} else {
+								_wasm_set_errno(ERRNO_CODES.EAGAIN)
+								return -1;
+							}
+						}
+					);
+				}
+			}
+			// TODO: Implement waiting for lock
+			//case {{{cDefs.F_SETLKW}}}:
+			default:
+				return default_fcntl64.fn(fd, cmd, varargs);
+		}
 	}
 };
 

@@ -131,6 +131,8 @@ export async function loadPHPRuntime(
 ): Promise<number> {
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
+	const runtimeId = ++lastRuntimeId;
+
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
 			rejectPHP(reason);
@@ -151,14 +153,14 @@ export async function loadPHPRuntime(
 			}
 			resolvePHP();
 		},
+		// TODO: Explain why
+		runtimeId,
 	});
 
 	await phpReady;
 
-	const id = ++lastRuntimeId;
-
 	PHPRuntime.FS;
-	PHPRuntime.id = id;
+	PHPRuntime.id = runtimeId;
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
@@ -166,13 +168,13 @@ export async function loadPHPRuntime(
 			PHPRuntime.outboundNetworkProxyServer.close();
 			PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
 		}
-		loadedRuntimes.delete(id);
+		loadedRuntimes.delete(runtimeId);
 		return PHPRuntime.originalExit(code);
 	};
 
-	PHPRuntime[RuntimeId] = id;
-	loadedRuntimes.set(id, PHPRuntime);
-	return id;
+	PHPRuntime[RuntimeId] = runtimeId;
+	loadedRuntimes.set(runtimeId, PHPRuntime);
+	return runtimeId;
 }
 
 export type RuntimeType = 'NODE' | 'WEB' | 'WORKER';
@@ -229,6 +231,25 @@ export type DataModule = {
 	default: (phpRuntime: PHPRuntime) => void;
 };
 
+// TODO: Improve name. Might be better to use "Type" instead of "State"
+export type FileLockState = 'unlocked' | 'shared' | 'exclusive';
+// NOTE: This API is async because we intend to use it across worker boundaries.
+export type FileLockManager = {
+	lockFile: (
+		path: string,
+		type: 'shared' | 'exclusive',
+		pid: number
+	) => Promise<boolean>;
+	unlockFile: (path: string, pid: number) => Promise<void>;
+	// TODO: Improve name
+	// TODO: Consider just returning null instead of 'unlocked'
+	getConflictingLock: (
+		path: string,
+		desiredLockState: FileLockState,
+		pid: number
+	) => Promise<FileLockState>;
+};
+
 export type EmscriptenOptions = {
 	onAbort?: (message: string) => void;
 	/**
@@ -255,6 +276,8 @@ export type EmscriptenOptions = {
 			module: WebAssembly.Module
 		) => void
 	) => void;
+
+	fileLockManager?: FileLockManager;
 } & Record<string, any>;
 
 export type EmscriptenMessageListener = (type: string, data: string) => void;
