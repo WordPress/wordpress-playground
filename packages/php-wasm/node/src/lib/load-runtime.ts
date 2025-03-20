@@ -78,8 +78,6 @@ class FileLockManagerForNode implements FileLockManager {
 					}
 				}
 				return;
-			default:
-				throw new Error(`Unknown file lock type: '${lock.type}'`);
 		}
 	}
 
