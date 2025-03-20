@@ -19,6 +19,9 @@ const LibraryForNode = {
 
 	__syscall_fcntl64__deps: ['$default_fcntl64'],
 	__syscall_fcntl64(fd, cmd, varargs) {
+		// Necessary to use varargs accessor
+		SYSCALLS.varargs = varargs;
+
 		// From:
 		// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
 		const F_RDLCK = 0;
