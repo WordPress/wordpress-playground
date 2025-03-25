@@ -7,6 +7,7 @@ const dirname = __dirname;
 
 export default async function runExecutor(options: BuiltScriptExecutorSchema) {
 	const args = [
+		...(options.nodeArg || []),
 		'--loader',
 		join(dirname, 'loader.mjs'),
 		options.scriptPath,
