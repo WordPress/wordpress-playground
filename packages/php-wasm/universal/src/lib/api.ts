@@ -1,5 +1,7 @@
-import { PHPResponse, PHPResponseData } from '@php-wasm/universal';
+import { PHPResponse, PHPResponseData } from './php-response';
 import * as Comlink from 'comlink';
+import nodeAdapter  from 'comlink/dist/umd/node-adapter';
+import type { Worker as NodeWorker } from 'worker_threads';
 
 export type WithAPIState = {
 	/**
@@ -16,15 +18,19 @@ export type WithAPIState = {
 export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window,
-	context: undefined | EventTarget = undefined
+	remote: Worker | Window | NodeWorker,
+	context: undefined | EventTarget = undefined,
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
-	const endpoint =
-		remote instanceof Worker
-			? remote
-			: Comlink.windowEndpoint(remote, context);
+	let endpoint;
+	if (remote instanceof Window) {
+		endpoint = Comlink.windowEndpoint(remote, context);
+	} else if (remote instanceof Worker) {
+		endpoint = remote;
+	} else {
+		endpoint = nodeAdapter(remote);
+	}
 
 	/**
 	 * This shouldn't be necessary, but Comlink doesn't seem to

@@ -78,3 +78,6 @@ export {
 
 export { isExitCodeZero } from './is-exit-code-zero';
 export { proxyFileSystem } from './proxy-file-system';
+
+export * from './api';
+export type { WithAPIState as WithIsReady } from './api';
