@@ -7,11 +7,6 @@ import { runCLI, RunCLIArgs } from './run-cli';
 import { resolveBlueprint } from './resolve-blueprint';
 import { ReportableError } from './reportable-error';
 
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
-
 async function run() {
 	/**
 	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
