@@ -1,7 +1,6 @@
 import { PHPResponse, PHPResponseData } from './php-response';
 import * as Comlink from 'comlink';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
-import { PostMessageWithOrigin } from 'comlink/dist/esm/protocol';
 import type { Worker as NodeWorker } from 'worker_threads';
 
 export type WithAPIState = {
