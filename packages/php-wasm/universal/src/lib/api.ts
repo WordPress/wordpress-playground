@@ -1,6 +1,7 @@
 import { PHPResponse, PHPResponseData } from './php-response';
 import * as Comlink from 'comlink';
-import nodeAdapter  from 'comlink/dist/umd/node-adapter';
+import nodeEndpoint from 'comlink/dist/esm/node-adapter';
+import { PostMessageWithOrigin } from 'comlink/dist/esm/protocol';
 import type { Worker as NodeWorker } from 'worker_threads';
 
 export type WithAPIState = {
@@ -19,17 +20,19 @@ export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
 
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeWorker,
-	context: undefined | EventTarget = undefined,
+	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
 	let endpoint;
-	if (remote instanceof Window) {
-		endpoint = Comlink.windowEndpoint(remote, context);
-	} else if (remote instanceof Worker) {
-		endpoint = remote;
+	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
+	if (appearsToBeNodeEnvironment) {
+		endpoint = nodeEndpoint(remote as NodeWorker);
 	} else {
-		endpoint = nodeAdapter(remote);
+		endpoint =
+			remote instanceof Worker
+				? remote
+				: Comlink.windowEndpoint(remote as Window, context);
 	}
 
 	/**
