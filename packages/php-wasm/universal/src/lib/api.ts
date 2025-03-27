@@ -1,8 +1,8 @@
+import { Endpoint } from 'comlink';
 import { PHPResponse, PHPResponseData } from './php-response';
 import * as Comlink from 'comlink';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
-import type { Worker as NodeWorker } from 'worker_threads';
 
 export type WithAPIState = {
 	/**
@@ -27,7 +27,7 @@ export function consumeAPI<APIType>(
 	let endpoint;
 	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
 	if (appearsToBeNodeEnvironment) {
-		endpoint = nodeEndpoint(remote as NodeWorker);
+		endpoint = nodeEndpoint(remote as NodeEndpoint);
 	} else {
 		endpoint =
 			remote instanceof Worker
@@ -85,7 +85,8 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 >;
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
-	pipedApi?: PipedAPI
+	pipedApi?: PipedAPI,
+	endpoint?: Endpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
@@ -112,12 +113,15 @@ export function exposeAPI<Methods, PipedAPI>(
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
-	Comlink.expose(
-		exposedApi,
-		typeof window !== 'undefined'
-			? Comlink.windowEndpoint(self.parent)
-			: undefined
-	);
+	if (endpoint === undefined) {
+		endpoint =
+			typeof window !== 'undefined'
+				? Comlink.windowEndpoint(self.parent)
+				: undefined;
+	}
+
+	Comlink.expose(exposedApi, endpoint);
+
 	return [setReady, setFailed, exposedApi];
 }
 
