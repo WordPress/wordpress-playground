@@ -19,8 +19,8 @@ export { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 export {
 	consumeAPI,
 	exposeAPI,
-	RemoteAPI,
-	PublicAPI,
+	type RemoteAPI,
+	type PublicAPI,
 	type WithAPIState,
 	type WithIsReady,
 } from '@php-wasm/universal';
