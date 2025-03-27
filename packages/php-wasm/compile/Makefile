@@ -237,29 +237,17 @@ libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
 
 libxdiff_asyncify: libxdiff/asyncify/dist/root/lib/lib/libxdiff.a
 libxdiff/asyncify/dist/root/lib/lib/libxdiff.a: base-image
-	mkdir -p ./libxdiff/asyncify/dist/root/lib/lib
-	mkdir -p ./libxdiff/asyncify/dist/root/lib/include
+	mkdir -p ./libxdiff/asyncify/dist/root/lib
 	docker build -f ./libxdiff/Dockerfile -t playground-php-wasm:libxdiff .
-	CONTAINER_ID=$$(docker create playground-php-wasm:libxdiff) && \
-		docker cp $$CONTAINER_ID:/root/lib/lib/. ./libxdiff/asyncify/dist/root/lib/lib/ && \
-		docker cp $$CONTAINER_ID:/root/lib/include/. ./libxdiff/asyncify/dist/root/lib/include/ && \
-		docker rm $$CONTAINER_ID
-	# Verify the library exists
-	test -f ./libxdiff/asyncify/dist/root/lib/lib/libxdiff.a || { echo "ERROR: libxdiff.a not found!"; exit 1; }
-	test -f ./libxdiff/asyncify/dist/root/lib/include/xdiff.h || { echo "ERROR: xdiff.h not found!"; exit 1; }
+	docker cp $$(docker create playground-php-wasm:libxdiff):/root/lib/lib ./libxdiff/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxdiff):/root/lib/include ./libxdiff/asyncify/dist/root/lib
 
 libxdiff_jspi: libxdiff/jspi/dist/root/lib/lib/libxdiff.a
 libxdiff/jspi/dist/root/lib/lib/libxdiff.a: base-image
-	mkdir -p ./libxdiff/jspi/dist/root/lib/lib
-	mkdir -p ./libxdiff/jspi/dist/root/lib/include
+	mkdir -p ./libxdiff/jspi/dist/root/lib
 	docker build -f ./libxdiff/Dockerfile -t playground-php-wasm:libxdiff . --build-arg JSPI=1
-	CONTAINER_ID=$$(docker create playground-php-wasm:libxdiff) && \
-		docker cp $$CONTAINER_ID:/root/lib/lib/. ./libxdiff/jspi/dist/root/lib/lib/ && \
-		docker cp $$CONTAINER_ID:/root/lib/include/. ./libxdiff/jspi/dist/root/lib/include/ && \
-		docker rm $$CONTAINER_ID
-	# Verify the library exists
-	test -f ./libxdiff/jspi/dist/root/lib/lib/libxdiff.a || { echo "ERROR: libxdiff.a not found!"; exit 1; }
-	test -f ./libxdiff/jspi/dist/root/lib/include/xdiff.h || { echo "ERROR: xdiff.h not found!"; exit 1; }
+	docker cp $$(docker create playground-php-wasm:libxdiff):/root/lib/lib ./libxdiff/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxdiff):/root/lib/include ./libxdiff/jspi/dist/root/lib
 
 all: all_jspi all_asyncify
 all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libxdiff_jspi
@@ -269,9 +257,9 @@ clean:
 	rm -rf ./libz/jspi/dist
 	rm -rf ./libz/asyncify/dist
 	rm -rf ./libzip/jspi/dist
+	rm -rf ./libzip/asyncify/dist
 	rm -rf ./libxdiff/jspi/dist
 	rm -rf ./libxdiff/asyncify/dist
-	rm -rf ./libzip/asyncify/dist
 	rm -rf ./libpng16/jspi/dist
 	rm -rf ./libpng16/asyncify/dist
 	rm -rf ./libjpeg/jspi/dist

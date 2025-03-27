@@ -5,8 +5,8 @@ FROM ubuntu:noble as emscripten
 
 SHELL ["/bin/bash", "-c"]
 
-ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
-ENV TIMER="(which pv > /dev/null && pv --name '${@}' || cat)"
+ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
+ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 
 WORKDIR /root
 RUN mkdir lib
