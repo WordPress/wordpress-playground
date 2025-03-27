@@ -157,6 +157,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 		}
 	}
 
+	// TODO: Fix the secondary boot setup. Request routing does not seem to be properly set up
+	// because there are 404s for static files.
 	async bootSecondaryWorker({
 		absoluteUrl,
 		mountsBeforeWpInstall,
