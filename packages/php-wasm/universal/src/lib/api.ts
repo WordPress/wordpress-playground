@@ -1,6 +1,7 @@
 import { PHPResponse, PHPResponseData } from './php-response';
 import * as Comlink from 'comlink';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
+import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
 import type { Worker as NodeWorker } from 'worker_threads';
 
 export type WithAPIState = {
@@ -18,7 +19,7 @@ export type WithAPIState = {
 export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeWorker,
+	remote: Worker | Window | NodeEndpoint,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
