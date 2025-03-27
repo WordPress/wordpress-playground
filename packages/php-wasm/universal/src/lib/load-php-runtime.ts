@@ -3,7 +3,8 @@ import { IncomingMessage, Server, ServerResponse } from 'http';
 
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
-let lastRuntimeId = 0;
+
+let lastRuntimeIndex = 0;
 
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.
@@ -127,11 +128,15 @@ let lastRuntimeId = 0;
 
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
-	phpModuleArgs: EmscriptenOptions = {}
+	phpModuleArgs: EmscriptenOptions = {
+		runtimeIdBase: 0,
+	}
 ): Promise<number> {
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
-	const runtimeId = ++lastRuntimeId;
+	const { runtimeIdBase = 0 } = phpModuleArgs;
+	++lastRuntimeIndex;
+	const runtimeId = runtimeIdBase + lastRuntimeIndex;
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
@@ -231,25 +236,6 @@ export type DataModule = {
 	default: (phpRuntime: PHPRuntime) => void;
 };
 
-// TODO: Improve name. Might be better to use "Type" instead of "State"
-export type FileLockState = 'unlocked' | 'shared' | 'exclusive';
-// NOTE: This API is async because we intend to use it across worker boundaries.
-export type FileLockManager = {
-	lockFile: (
-		path: string,
-		type: 'shared' | 'exclusive',
-		pid: number
-	) => Promise<boolean>;
-	unlockFile: (path: string, pid: number) => Promise<void>;
-	// TODO: Improve name
-	// TODO: Consider just returning null instead of 'unlocked'
-	getConflictingLock: (
-		path: string,
-		desiredLockState: FileLockState,
-		pid: number
-	) => Promise<FileLockState>;
-};
-
 export type EmscriptenOptions = {
 	onAbort?: (message: string) => void;
 	/**
@@ -277,7 +263,10 @@ export type EmscriptenOptions = {
 		) => void
 	) => void;
 
-	fileLockManager?: FileLockManager;
+	// Used to divide runtime IDs into unique ranges per worker.
+	// TODO: Consider also passing upper bound of ID range
+	// TODO: Improve name?
+	runtimeIdBase?: number;
 } & Record<string, any>;
 
 export type EmscriptenMessageListener = (type: string, data: string) => void;

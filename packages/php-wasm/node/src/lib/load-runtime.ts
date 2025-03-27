@@ -13,6 +13,25 @@ export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 }
 
+// TODO: Improve name. Might be better to use "Type" instead of "State"
+export type FileLockState = 'unlocked' | 'shared' | 'exclusive';
+// NOTE: This API is async because we intend to use it across worker boundaries.
+export type FileLockManager = {
+	lockFile: (
+		path: string,
+		type: 'shared' | 'exclusive',
+		pid: number
+	) => Promise<boolean>;
+	unlockFile: (path: string, pid: number) => Promise<void>;
+	// TODO: Improve name
+	// TODO: Consider just returning null instead of 'unlocked'
+	getConflictingLock: (
+		path: string,
+		desiredLockState: FileLockState,
+		pid: number
+	) => Promise<FileLockState>;
+};
+
 type ExclusiveLock = {
 	type: 'exclusive';
 	pid: number;
@@ -21,7 +40,9 @@ type SharedLock = {
 	type: 'shared';
 	pids: Set<number>;
 };
-class FileLockManagerForNode implements FileLockManager {
+
+// TODO: Place in separate module
+export class FileLockManagerForNode implements FileLockManager {
 	locks: Map<string, SharedLock | ExclusiveLock>;
 
 	constructor() {
@@ -110,6 +131,12 @@ class FileLockManagerForNode implements FileLockManager {
 	}
 }
 
+type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	emscriptenOptions?: EmscriptenOptions & {
+		fileLockManager?: FileLockManager;
+	};
+};
+
 /**
  * Does what load() does, but synchronously returns
  * an object with the PHP instance and a promise that
@@ -119,7 +146,7 @@ class FileLockManagerForNode implements FileLockManager {
  */
 export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: PHPLoaderOptions = {}
+	options: PHPLoaderOptionsForNode = {}
 ) {
 	const emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -131,8 +158,6 @@ export async function loadNodeRuntime(
 			throw error;
 		},
 		...(options.emscriptenOptions || {}),
-
-		fileLockManager: new FileLockManagerForNode(),
 	};
 	return await loadPHPRuntime(
 		await getPHPLoaderModule(phpVersion),
