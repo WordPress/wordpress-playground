@@ -31,6 +31,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with fileinfo support',
 		},
+		WITH_XDIFF: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with xdiff support',
+		},
 		WITH_LIBXML: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -141,6 +146,7 @@ const platformDefaults = {
 		WITH_MBREGEX: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
+		WITH_XDIFF: 'yes',
 	},
 	web: {},
 	node: {
@@ -178,6 +184,22 @@ const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
+
+// Build libxdiff if needed
+if (getArg('WITH_XDIFF') === 'WITH_XDIFF=yes') {
+	console.log('Building libxdiff...');
+	if (getArg('WITH_JSPI') === 'WITH_JSPI=yes') {
+		await asyncSpawn('make', ['libxdiff_jspi'], {
+			cwd: sourceDir,
+			stdio: 'inherit',
+		});
+	} else {
+		await asyncSpawn('make', ['libxdiff_asyncify'], {
+			cwd: sourceDir,
+			stdio: 'inherit',
+		});
+	}
+}
 
 await asyncSpawn(
 	'docker',
@@ -222,6 +244,8 @@ await asyncSpawn(
 		getArg('WITH_MYSQL'),
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
+		'--build-arg',
+		getArg('WITH_XDIFF'),
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 		'--build-arg',

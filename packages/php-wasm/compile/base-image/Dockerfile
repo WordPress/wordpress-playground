@@ -1,12 +1,12 @@
 # Originally forked from https://github.com/seanmorris/php-wasm
-# ubuntu:lunar supports amd64 and arm64 (Apple Silicon) while
+# ubuntu:noble supports amd64 and arm64 (Apple Silicon) while
 # emscripten/emsdk:3.1.24 supports amd64 only.
-FROM ubuntu:lunar as emscripten
+FROM ubuntu:noble as emscripten
 
 SHELL ["/bin/bash", "-c"]
 
-ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
-ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
+ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
+ENV TIMER="(which pv > /dev/null && pv --name '${@}' || cat)"
 
 WORKDIR /root
 RUN mkdir lib
@@ -36,16 +36,16 @@ RUN set -euxo pipefail;\
 # Install Emscripten from the repository. We'd use the official
 # Docker image, but there is no arm64 image available which makes
 # the build take forever on Apple Silicon.
-# 
+#
 # ---- IMPORTANT ----
 # When upgrading the Emscripten version, you will need to rebuild all the WebAssembly libraries
 # shipped in this repository before you can rebuild PHP itself. The entire build, including every
 # linked lib, must be produced by the same Emscripten version – otherwise you'll run into undefined
 # behaviors and indeterministic failures like we did in these two PRs:
-# 
+#
 # * https://github.com/WordPress/wordpress-playground/pull/1471
 # * https://github.com/WordPress/wordpress-playground/pull/1339
-# 
+#
 # WASM libraries to rebuild live here:
 # https://github.com/WordPress/wordpress-playground/tree/67d916b5eccfe78e26e9c953598cc1a81f316931/packages/php-wasm/compile
 RUN ln -s /usr/bin/python3 /usr/bin/python

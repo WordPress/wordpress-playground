@@ -78,6 +78,7 @@ ARG WITH_OPENSSL
 ARG WITH_ICONV
 ARG WITH_SOURCEMAPS
 ARG WITH_WS_NETWORKING_PROXY
+ARG WITH_XDIFF
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
@@ -250,6 +251,39 @@ Description: libcurl.\
 Requires:\
 Libs: -L${libdir} -lcurl\
 Cflags: -I${includedir}' > /root/lib/lib/pkgconfig/libcurl.pc; \
+	fi;
+
+# Copy libxdiff files if needed
+COPY ./libxdiff/ /root/builds/libxdiff
+
+# Add xdiff if needed
+RUN if [ "$WITH_XDIFF" = "yes" ]; \
+	then \
+		echo "Configuring xdiff support..."; \
+		# Copy libxdiff files based on JSPI mode
+		if [ "$WITH_JSPI" = "yes" ]; then \
+			cp -rv /root/builds/libxdiff/jspi/dist/root/lib/* /root/lib || { echo "ERROR: Failed to copy libxdiff JSPI files"; exit 1; }; \
+		else \
+			cp -rv /root/builds/libxdiff/asyncify/dist/root/lib/* /root/lib || { echo "ERROR: Failed to copy libxdiff asyncify files"; exit 1; }; \
+		fi; \
+		echo -n ' --with-xdiff ' >> /root/.php-configure-flags; \
+		echo -n ' -I /root/lib -I /root/lib/include ' >> /root/.emcc-php-wasm-flags; \
+		echo -n ' /root/lib/lib/libxdiff.a ' >> /root/.emcc-php-wasm-sources; \
+		# Verify the library exists and is accessible
+		test -f /root/lib/lib/libxdiff.a || { echo "ERROR: libxdiff.a not found in /root/lib/lib/"; exit 1; }; \
+		echo "Verifying libxdiff installation:"; \
+		echo "1. Library file:"; \
+		ls -la /root/lib/lib/libxdiff.a; \
+		echo "2. Include files:"; \
+		ls -la /root/lib/include/xdiff.h || { echo "ERROR: xdiff.h header not found"; exit 1; }; \
+		echo "3. Build directories:"; \
+		echo "Contents of /root/builds/libxdiff:"; \
+		ls -la /root/builds/libxdiff || echo "Note: Source directory not present (expected)"; \
+		echo "Contents of /root/lib/lib:"; \
+		ls -la /root/lib/lib; \
+		echo "xdiff configuration completed successfully"; \
+	else \
+		echo "Skipping xdiff support"; \
 	fi;
 
 # Add mbstring if needed
@@ -964,7 +998,7 @@ RUN set -euxo pipefail; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
-	fi; \	
+	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "UTF8ToString", \n\
 "stringToUTF8", \n\
