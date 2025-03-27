@@ -49,8 +49,6 @@ export type {
 	PHPRuntime,
 	PHPRuntimeId,
 	RuntimeType,
-	FileLockManager,
-	FileLockState,
 } from './load-php-runtime';
 
 export type {
