@@ -2,9 +2,14 @@ import {
 	PHP,
 	PHPWorker,
 	SupportedPHPVersion,
+	consumeAPI,
 	exposeAPI,
 } from '@php-wasm/universal';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import {
+	createNodeFsMountHandler,
+	loadNodeRuntime,
+	FileLockManager,
+} from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { zipDirectory } from '@wp-playground/common';
 import { parentPort } from 'worker_threads';
@@ -27,6 +32,7 @@ export type WorkerBootOptions = {
 	shouldInstallWordPress: boolean;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
+	runtimeIdBase: number;
 };
 
 function mountResources(php: PHP, mounts: Mount[]) {
@@ -62,11 +68,15 @@ export class PlaygroundCliWorker extends PHPWorker {
 		phpVersion = '8.0',
 		wordPressZip,
 		sqliteIntegrationPluginZip,
+		runtimeIdBase,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
 		this.booted = true;
+
+		const fileLockManager = consumeAPI<FileLockManager>(parentPort!);
+		await fileLockManager.isConnected();
 
 		try {
 			const constants: Record<string, string | number | boolean | null> =
@@ -80,7 +90,12 @@ export class PlaygroundCliWorker extends PHPWorker {
 			const requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () => {
-					return await loadNodeRuntime(phpVersion);
+					return await loadNodeRuntime(phpVersion, {
+						emscriptenOptions: {
+							fileLockManager,
+							runtimeIdBase,
+						},
+					});
 				},
 				wordPressZip:
 					wordPressZip !== undefined
@@ -129,7 +144,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 // post message to parent
 parentPort!.postMessage('worker-script-started');
 
+const workerParentEndpoint = nodeEndpoint(parentPort!);
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
-	nodeEndpoint(parentPort!)
+	workerParentEndpoint
 );

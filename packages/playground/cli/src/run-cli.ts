@@ -2,6 +2,7 @@ import { errorLogPath, logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import {
 	consumeAPI,
+	exposeAPI,
 	PHPRequest,
 	PHPResponse,
 	RemoteAPI,
@@ -28,7 +29,8 @@ import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { Worker } from 'worker_threads';
 import { PlaygroundCliWorker, Mount } from './worker-thread';
-
+import { FileLockManagerForNode } from '@php-wasm/node';
+import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
@@ -216,6 +218,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
+			const lockManager = new FileLockManagerForNode();
 
 			// TODO
 			try {
@@ -278,6 +281,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				const workerPath = fileURLToPath(workerUrl);
 				const worker = await spawnPHPWorkerThread(workerPath);
 
+				// TODO: Is it necessary to worry about setting API ready?
+				exposeAPI(lockManager, undefined, nodeEndpoint(worker));
+
 				console.log('consumeAPI');
 				playground = consumeAPI<PlaygroundCliWorker>(worker);
 				await playground.isConnected();
@@ -299,7 +305,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				);
 				console.log('sqlite zip is here');
 
-				await playground.test();
 				await playground.boot({
 					phpVersion: args.php,
 					wpVersion: args.wp,
@@ -310,6 +315,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					wordPressZip: await wordPressZip!.arrayBuffer(),
 					sqliteIntegrationPluginZip:
 						await sqliteIntegrationPluginZip!.arrayBuffer(),
+					// TODO: Set different bases per worker
+					runtimeIdBase: 0,
 				});
 				console.log('booted', playground);
 
