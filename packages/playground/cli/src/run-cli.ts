@@ -54,6 +54,8 @@ export interface RunCLIServer {
 
 // TODO: Restore this to a Promise for RunCLIServer?
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+	let loadBalancer: LoadBalancer;
+	// TODO: Consider direct reference to primary playground. Does this make sense?
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
 	/**
@@ -277,19 +279,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					  );
 				wordPressZip?.arrayBuffer();
 
-				const workerUrl = new URL('worker-thread.js', import.meta.url);
-				const workerPath = fileURLToPath(workerUrl);
-				const worker = await spawnPHPWorkerThread(workerPath);
-
-				// TODO: Is it necessary to worry about setting API ready?
-				exposeAPI(lockManager, undefined, nodeEndpoint(worker));
-
-				console.log('consumeAPI');
-				playground = consumeAPI<PlaygroundCliWorker>(worker);
-				await playground.isConnected();
-				console.log('consumeAPI isConnected');
-
-				// TODO: Add progress tracking
 				const mountsBeforeWpInstall = parseMounts(
 					args.mountBeforeInstall
 				);
@@ -305,6 +294,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				);
 				console.log('sqlite zip is here');
 
+				const workerUrl = new URL('worker-thread.js', import.meta.url);
+				const workerPath = fileURLToPath(workerUrl);
+
+				const primaryWorker = await spawnPHPWorkerThread(workerPath);
+				console.log('consumeAPI');
+				playground = consumeAPI<PlaygroundCliWorker>(primaryWorker);
+				await playground.isConnected();
+				console.log('consumeAPI isConnected');
+
+				// TODO: Add progress tracking
+
+				// TODO: Is it necessary to worry about setting API ready?
+				exposeAPI(lockManager, undefined, nodeEndpoint(primaryWorker));
 				await playground.boot({
 					phpVersion: args.php,
 					wpVersion: args.wp,
@@ -318,9 +320,41 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					// TODO: Set different bases per worker
 					runtimeIdBase: 0,
 				});
-				console.log('booted', playground);
+				console.log('booted primary worker', playground);
 
 				await playground.isReady();
+
+				// Create secondary workers
+				const secondaryWorkers = [];
+				const totalWorkers = 8;
+				const workerRuntimeIdSpace = Math.floor(
+					Number.MAX_SAFE_INTEGER / totalWorkers
+				);
+				for (let i = 1; i < 8; i++) {
+					const worker = await spawnPHPWorkerThread(workerPath);
+					const secondaryPlayground =
+						consumeAPI<PlaygroundCliWorker>(worker);
+					await secondaryPlayground.isConnected();
+					exposeAPI(lockManager, undefined, nodeEndpoint(worker));
+
+					// TODO: Better name for this method
+					// TODO: Parallelize booting and waiting for secondary workers to be ready
+					await secondaryPlayground.bootSecondaryWorker({
+						phpVersion: args.php,
+						absoluteUrl,
+						mountsBeforeWpInstall,
+						mountsAfterWpInstall,
+						// TODO: Explain why
+						runtimeIdBase: i * workerRuntimeIdSpace,
+					});
+					await secondaryPlayground.isReady();
+					secondaryWorkers.push(secondaryPlayground);
+				}
+
+				// Add all workers to the array that will be used to create the load balancer
+				const allWorkers = [playground, ...secondaryWorkers];
+				loadBalancer = new LoadBalancer(allWorkers);
+
 				wordPressReady = true;
 
 				if (compiledBlueprint) {
@@ -359,7 +393,49 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					'WordPress is not ready yet'
 				);
 			}
-			return await playground.request(request);
+			return await loadBalancer.handleRequest(request);
 		},
 	});
+}
+
+type WorkerLoad = {
+	worker: RemoteAPI<PlaygroundCliWorker>;
+	activeRequests: Set<Promise<PHPResponse>>;
+};
+class LoadBalancer {
+	workerLoads: WorkerLoad[] = [];
+
+	constructor(workers: RemoteAPI<PlaygroundCliWorker>[]) {
+		this.workerLoads = workers.map((worker) => ({
+			worker,
+			activeRequests: new Set(),
+		}));
+	}
+
+	async handleRequest(request: PHPRequest) {
+		let smallestWorkerLoad = this.workerLoads[0];
+		let smallestWorkerLoadIndex = 0;
+
+		// TODO: Is there any way for us to track CPU load so we could avoid
+		//       picking a worker that is under heavy load despite few requests?
+		for (let i = 1; i < this.workerLoads.length; i++) {
+			const workerLoad = this.workerLoads[i];
+			if (
+				workerLoad.activeRequests.size <
+				smallestWorkerLoad.activeRequests.size
+			) {
+				smallestWorkerLoad = workerLoad;
+				smallestWorkerLoadIndex = i;
+			}
+		}
+
+		// TODO: Remove this after testing
+		logger.log(`selected worker ${smallestWorkerLoadIndex}`);
+
+		const promiseForResponse = smallestWorkerLoad.worker.request(request);
+		smallestWorkerLoad.activeRequests.add(promiseForResponse);
+		return promiseForResponse.finally(() => {
+			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
+		});
+	}
 }
