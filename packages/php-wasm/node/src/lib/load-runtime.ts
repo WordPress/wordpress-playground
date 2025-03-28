@@ -2,8 +2,6 @@ import {
 	SupportedPHPVersion,
 	loadPHPRuntime,
 	EmscriptenOptions,
-	FileLockManager,
-	FileLockState,
 } from '@php-wasm/universal';
 
 import { getPHPLoaderModule } from '.';
