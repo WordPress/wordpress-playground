@@ -29,7 +29,11 @@ import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { Worker } from 'worker_threads';
 import { PlaygroundCliWorker, Mount } from './worker-thread';
-import { FileLockManagerForNode } from '@php-wasm/node';
+import {
+	FileLockManager,
+	FileLockManagerForNode,
+	FileLockState,
+} from '@php-wasm/node';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -314,7 +318,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					absoluteUrl,
 					mountsBeforeWpInstall,
 					mountsAfterWpInstall,
-					shouldInstallWordPress: !args.skipWordPressSetup,
 					wordPressZip:
 						wordPressZip && (await wordPressZip!.arrayBuffer()),
 					sqliteIntegrationPluginZip:
@@ -341,11 +344,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 					// TODO: Better name for this method
 					// TODO: Parallelize booting and waiting for secondary workers to be ready
-					await secondaryPlayground.bootSecondaryWorker({
+					await secondaryPlayground.boot({
 						phpVersion: args.php,
 						absoluteUrl,
 						mountsBeforeWpInstall,
 						mountsAfterWpInstall,
+						sqliteIntegrationPluginZip:
+							await sqliteIntegrationPluginZip!.arrayBuffer(),
+						dataSqlPath:
+							'/wordpress/wp-content/database/.ht.sqlite',
 						// TODO: Explain why
 						runtimeIdBase: i * workerRuntimeIdSpace,
 					});
