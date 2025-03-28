@@ -187,6 +187,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// There is no way to know when the worker script has started
 			// executing, so we use a message to signal that.
 			function onStartup(event: string) {
+				// TODO: Use 'online' event instead because it doesn't require participation of the worker script
+				// https://nodejs.org/api/worker_threads.html#event-online
 				if (event === 'worker-script-started') {
 					resolve(worker);
 					worker.removeListener('message', onStartup);
@@ -419,6 +421,8 @@ class LoadBalancer {
 
 		// TODO: Is there any way for us to track CPU load so we could avoid
 		//       picking a worker that is under heavy load despite few requests?
+		// Possibly this: https://nodejs.org/api/worker_threads.html#workerperformance
+		// Though we probably don't need to worry about it.
 		for (let i = 1; i < this.workerLoads.length; i++) {
 			const workerLoad = this.workerLoads[i];
 			if (
