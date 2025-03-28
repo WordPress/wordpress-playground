@@ -277,7 +277,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							`${wpDetails.version}.zip`,
 							monitor
 					  );
-				wordPressZip?.arrayBuffer();
 
 				const mountsBeforeWpInstall = parseMounts(
 					args.mountBeforeInstall
@@ -314,7 +313,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					mountsBeforeWpInstall,
 					mountsAfterWpInstall,
 					shouldInstallWordPress: !args.skipWordPressSetup,
-					wordPressZip: await wordPressZip!.arrayBuffer(),
+					wordPressZip:
+						wordPressZip && (await wordPressZip!.arrayBuffer()),
 					sqliteIntegrationPluginZip:
 						await sqliteIntegrationPluginZip!.arrayBuffer(),
 					// TODO: Set different bases per worker
@@ -351,9 +351,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					secondaryWorkers.push(secondaryPlayground);
 				}
 
-				// Add all workers to the array that will be used to create the load balancer
-				const allWorkers = [playground, ...secondaryWorkers];
-				loadBalancer = new LoadBalancer(allWorkers);
+				loadBalancer = new LoadBalancer([
+					playground,
+					...secondaryWorkers,
+				]);
 
 				wordPressReady = true;
 
