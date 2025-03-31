@@ -38,9 +38,16 @@ const LibraryForNode = {
 			[F_UNLCK]: 'unlocked',
 		};
 
+		// TODO: Document Emscripten replacement
+		const emscripten_F_GETLK = Number('{{{cDefs.F_GETLK}}}');
+		const emscripten_F_SETLK = Number('{{{cDefs.F_SETLK}}}');
+		const emscripten_flock_l_type_offset =
+			Number('{{{ C_STRUCTS.flock.l_type }}}');
+
+		// TODO: Rename this to something describing: php-wasm-pid
 		const pid = PHPLoader.runtimeId;
 		switch (cmd) {
-			case {{{cDefs.F_GETLK}}}: {
+			case emscripten_F_GETLK: {
 				console.log('F_GETLK');
 				let filePath;
 				try {
@@ -52,9 +59,9 @@ const LibraryForNode = {
 					return -1;
 				}
 
-				var arg = syscallGetVarargP();
-				var offset = {{{ C_STRUCTS.flock.l_type }}};
-				const requestedFcntlLockType = HEAP16[(((arg) + (offset)) >> 1)];
+				const flockStructAddress = syscallGetVarargP();
+				const requestedFcntlLockType =
+					HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)];
 				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
 
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
@@ -65,16 +72,18 @@ const LibraryForNode = {
 					pid
 				).then(
 					(conflictingLockType) => {
-						const resultingFcntLockType = lockStateToFcntl[lockState];
+						const fcntlLockState = lockStateToFcntl[conflictingLockType];
 						// TODO: Understand why the shift
-						HEAP16[(((arg) + (offset)) >> 1)] = fcntlLockState;
+						HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)] = fcntlLockState;
 						return 0;
 					},
 					// TODO: handle error
 				);
 			}
-			case {{{cDefs.F_SETLK}}}: {
+			case emscripten_F_SETLK: {
 				console.log('F_SETLK');
+				// TODO: Is this necessary? Remove it after testing.
+				_wasm_fsync(fd);
 
 				let filePath;
 				try {
@@ -86,10 +95,10 @@ const LibraryForNode = {
 					return -1;
 				}
 
-				var arg = syscallGetVarargP();
-				var offset = {{{ C_STRUCTS.flock.l_type }}};
+				var flockStructAddr = syscallGetVarargP();
 				// TODO: Understand why the shift by 1
-				const requestedFcntlLockType = HEAP16[(((arg) + (offset)) >> 1)];
+				const requestedFcntlLockType =
+					HEAP16[(((flockStructAddr) + (emscripten_flock_l_type_offset)) >> 1)];
 				console.log('requestedFcntlLockType:', requestedFcntlLockType);
 				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
 				// TODO: Handle undefined lock type
@@ -107,7 +116,6 @@ const LibraryForNode = {
 						pid
 					).then(
 						(succeeded) => {
-							console.log(`succeeded? ${succeeded}`);
 							if (succeeded) {
 								return 0;
 							} else {
