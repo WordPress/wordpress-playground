@@ -49,7 +49,13 @@ export class FileLockManagerForNode implements FileLockManager {
 
 	async lockFile(path: string, type: 'shared' | 'exclusive', pid: number) {
 		const existingLock = this.locks.get(path);
-		if (existingLock === undefined) {
+		if (
+			existingLock === undefined ||
+			(existingLock.type === 'exclusive' && existingLock.pid === pid) ||
+			(existingLock.type === 'shared' &&
+				existingLock.pids.has(pid) &&
+				existingLock.pids.size === 1)
+		) {
 			this.locks.set(
 				path,
 				type === 'shared'
