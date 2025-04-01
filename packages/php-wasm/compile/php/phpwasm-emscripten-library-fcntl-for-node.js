@@ -41,6 +41,7 @@ const LibraryForNode = {
 		// TODO: Document Emscripten replacement
 		const emscripten_F_GETLK = Number('{{{cDefs.F_GETLK}}}');
 		const emscripten_F_SETLK = Number('{{{cDefs.F_SETLK}}}');
+		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
 		const emscripten_flock_l_type_offset =
 			Number('{{{ C_STRUCTS.flock.l_type }}}');
 
@@ -82,8 +83,6 @@ const LibraryForNode = {
 			}
 			case emscripten_F_SETLK: {
 				console.log('F_SETLK');
-				// TODO: Is this necessary? Remove it after testing.
-				_wasm_fsync(fd);
 
 				let filePath;
 				try {
@@ -127,7 +126,9 @@ const LibraryForNode = {
 				}
 			}
 			// TODO: Implement waiting for lock
-			//case {{{cDefs.F_SETLKW}}}:
+			case emscripten_F_SETLKW: {
+				throw new Error('F_SETLKW is not implemented');
+			}
 			default:
 				return default_fcntl64.fn(fd, cmd, varargs);
 		}
