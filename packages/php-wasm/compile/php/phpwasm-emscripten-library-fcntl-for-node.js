@@ -38,12 +38,47 @@ const LibraryForNode = {
 			[F_UNLCK]: 'unlocked',
 		};
 
-		// TODO: Document Emscripten replacement
+		// These constants are replaced by Emscripten during the build process
 		const emscripten_F_GETLK = Number('{{{cDefs.F_GETLK}}}');
 		const emscripten_F_SETLK = Number('{{{cDefs.F_SETLK}}}');
 		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
-		const emscripten_flock_l_type_offset =
-			Number('{{{ C_STRUCTS.flock.l_type }}}');
+
+		// TODO: Consider patching Emscripten to provide these offsets or add an access to php_wasm.c
+		const emscripten_flock_l_type_offset = 0;
+		const emscripten_flock_l_whence_offset = 2;
+		const emscripten_flock_l_start_offset = 8;
+		const emscripten_flock_l_len_offset = 16;
+		const emscripten_flock_l_pid_offset = 24;
+
+		function readFlockStruct(flockStructAddress) {
+			return {
+				// Shift right by N to divide by 2^N and get addresses for the correct word size
+				l_type: HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)],
+				l_whence: HEAP16[(((flockStructAddress) + (emscripten_flock_l_whence_offset)) >> 1)],
+				l_start: HEAP64[(((flockStructAddress) + (emscripten_flock_l_start_offset)) >> 3)],
+				l_len: HEAP64[(((flockStructAddress) + (emscripten_flock_l_len_offset)) >> 3)],
+				l_pid: HEAP32[(((flockStructAddress) + (emscripten_flock_l_pid_offset)) >> 2)]
+			};
+		}
+
+		function updateFlockStruct(flockStructAddress, fields) {
+			if (fields.l_type !== undefined) {
+				// Shift right by N to divide by 2^N and get addresses for the correct word size
+				HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)] = fields.l_type;
+			}
+			if (fields.l_whence !== undefined) {
+				HEAP16[(((flockStructAddress) + (emscripten_flock_l_whence_offset)) >> 1)] = fields.l_whence;
+			}
+			if (fields.l_start !== undefined) {
+				HEAP64[(((flockStructAddress) + (emscripten_flock_l_start_offset)) >> 3)] = fields.l_start;
+			}
+			if (fields.l_len !== undefined) {
+				HEAP64[(((flockStructAddress) + (emscripten_flock_l_len_offset)) >> 3)] = fields.l_len;
+			}
+			if (fields.l_pid !== undefined) {
+				HEAP32[(((flockStructAddress) + (emscripten_flock_l_pid_offset)) >> 2)] = fields.l_pid;
+			}
+		}
 
 		// TODO: Rename this to something describing: php-wasm-pid
 		const pid = PHPLoader.runtimeId;
@@ -61,9 +96,17 @@ const LibraryForNode = {
 				}
 
 				const flockStructAddress = syscallGetVarargP();
-				const requestedFcntlLockType =
-					HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)];
-				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
+				const flockStruct = readFlockStruct(flockStructAddress);
+				const requestedLockType = fcntlToLockState[flockStruct.l_type];
+				console.log('flock values:', {
+					flockStructAddress,
+					fcntlLockType,
+					requestedLockType,
+					fcntlLockWhence,
+					fcntlLockStart,
+					fcntlLockLen,
+					fcntlLockPid,
+				});
 
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
@@ -73,8 +116,9 @@ const LibraryForNode = {
 					pid
 				).then(
 					(conflictingLockType) => {
+						// TODO: Implement this for all fields
 						const fcntlLockState = lockStateToFcntl[conflictingLockType];
-						// TODO: Understand why the shift
+						// Shift right by 1 to div to divide by 2 and get the 16-bit word address
 						HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)] = fcntlLockState;
 						return 0;
 					},
@@ -95,13 +139,26 @@ const LibraryForNode = {
 				}
 
 				var flockStructAddr = syscallGetVarargP();
-				// TODO: Understand why the shift by 1
-				const requestedFcntlLockType =
-					HEAP16[(((flockStructAddr) + (emscripten_flock_l_type_offset)) >> 1)];
-				console.log('requestedFcntlLockType:', requestedFcntlLockType);
+				const requestedFcntlLockType = HEAP16[(((flockStructAddr) + (emscripten_flock_l_type_offset)) >> 1)];
+				const requestedFcntlLockWhence = HEAP16[(((flockStructAddr) + (emscripten_flock_l_whence_offset)) >> 1)];
+				const requestedFcntlLockStart = HEAP64[(((flockStructAddr) + (emscripten_flock_l_start_offset)) >> 3)];
+				const requestedFcntlLockLen = HEAP64[(((flockStructAddr) + (emscripten_flock_l_len_offset)) >> 3)];
+				const requestedFcntlLockPid = HEAP32[(((flockStructAddr) + (emscripten_flock_l_pid_offset)) >> 2)];
 				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
-				// TODO: Handle undefined lock type
-				console.log(`requestedLockType: ${requestedLockType}`)
+				let rawBytes = '0x';
+				for (let i = 0; i < 32; i++) {
+					rawBytes += HEAPU8[flockStructAddr + i].toString(16).padStart(2, '0');
+				}
+
+				console.log('flock values:', {
+					flockStructAddr: `0x${flockStructAddr.toString(16).padStart(8, '0')}`,
+					fcntlLockType: `0x${requestedFcntlLockType.toString(16).padStart(4, '0')}`,
+					lockType: requestedLockType,
+					fcntlLockWhence: `0x${requestedFcntlLockWhence.toString(16).padStart(4, '0')}`,
+					fcntlLockStart: `0x${requestedFcntlLockStart.toString(16).padStart(16, '0')}`, 
+					fcntlLockLen: `0x${requestedFcntlLockLen.toString(16).padStart(16, '0')}`,
+					rawBytes,
+				});
 
 				if (requestedLockType === 'unlocked') {
 					// TODO: What if you can't unlock because you don't have a lock?
@@ -109,6 +166,7 @@ const LibraryForNode = {
 					return PHPLoader.fileLockManager.unlockFile(filePath, pid).then(() => 0);
 				} else {
 					// TODO: Handle error
+					// TODO: Implement this for all flock fields
 					return PHPLoader.fileLockManager.lockFile(
 						filePath,
 						requestedLockType,
