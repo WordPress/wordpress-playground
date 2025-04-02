@@ -952,6 +952,7 @@ wp-includes/js/tinymce/themes/inlite/theme.min.js
 wp-includes/js/tinymce/tinymce.min.js
 wp-includes/js/tinymce/skins/wordpress/wp-content.css
 wp-includes/js/tinymce/skins/wordpress/images/more.png
+wp-includes/js/tinymce/skins/wordpress/images/script.svg
 wp-includes/js/tinymce/skins/wordpress/images/playlist-audio.png
 wp-includes/js/tinymce/skins/wordpress/images/gallery.png
 wp-includes/js/tinymce/skins/wordpress/images/dashicon-no.png
@@ -959,6 +960,7 @@ wp-includes/js/tinymce/skins/wordpress/images/embedded.png
 wp-includes/js/tinymce/skins/wordpress/images/pagebreak.png
 wp-includes/js/tinymce/skins/wordpress/images/pagebreak-2x.png
 wp-includes/js/tinymce/skins/wordpress/images/video.png
+wp-includes/js/tinymce/skins/wordpress/images/style.svg
 wp-includes/js/tinymce/skins/wordpress/images/dashicon-edit.png
 wp-includes/js/tinymce/skins/wordpress/images/gallery-2x.png
 wp-includes/js/tinymce/skins/wordpress/images/audio.png

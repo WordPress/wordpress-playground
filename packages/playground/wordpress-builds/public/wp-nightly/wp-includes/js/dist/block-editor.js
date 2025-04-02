@@ -23576,17 +23576,16 @@ const LinkControlSearchInput = (0,external_wp_element_namespaceObject.forwardRef
       }, suggestion);
     }
   };
-  const inputLabel = placeholder !== null && placeholder !== void 0 ? placeholder : (0,external_wp_i18n_namespaceObject.__)('Search or type URL');
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("div", {
     className: "block-editor-link-control__search-input-container",
     children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(url_input, {
       disableSuggestions: currentLink?.url === value,
-      label: inputLabel,
+      label: (0,external_wp_i18n_namespaceObject.__)('Link'),
       hideLabelFromVision: hideLabelFromVision,
       className: className,
       value: value,
       onChange: onInputChange,
-      placeholder: inputLabel,
+      placeholder: placeholder !== null && placeholder !== void 0 ? placeholder : (0,external_wp_i18n_namespaceObject.__)('Search or type URL'),
       __experimentalRenderSuggestions: showSuggestions ? handleRenderSuggestions : null,
       __experimentalFetchLinkSuggestions: searchHandler,
       __experimentalHandleURLSuggestions: true,
@@ -32813,7 +32812,7 @@ const scrollContainerCache = new WeakMap();
  * @param {Object} contentRef
  */
 function usePopoverScroll(contentRef) {
-  return (0,external_wp_compose_namespaceObject.useRefEffect)(node => {
+  const effect = (0,external_wp_compose_namespaceObject.useRefEffect)(node => {
     function onWheel(event) {
       const {
         deltaX,
@@ -32837,6 +32836,7 @@ function usePopoverScroll(contentRef) {
       node.removeEventListener('wheel', onWheel, options);
     };
   }, [contentRef]);
+  return contentRef ? effect : null;
 }
 /* harmony default export */ const use_popover_scroll = (usePopoverScroll);
 
@@ -41026,12 +41026,15 @@ function down(event) {
   } = event;
   const {
     ownerDocument,
-    isContentEditable
+    isContentEditable,
+    tagName
   } = target;
+  const isInputOrTextArea = ['INPUT', 'TEXTAREA'].includes(tagName);
   const nodes = nodesByDocument.get(ownerDocument);
-  if (isContentEditable) {
-    // Whenever an editable element is clicked, check which draggable
-    // blocks contain this element, and temporarily disable draggability.
+  if (isContentEditable || isInputOrTextArea) {
+    // Whenever an editable element or an input or textarea is clicked,
+    // check which draggable blocks contain this element, and temporarily
+    // disable draggability.
     for (const node of nodes) {
       if (node.getAttribute('draggable') === 'true' && node.contains(target)) {
         node.removeAttribute('draggable');
@@ -41039,8 +41042,8 @@ function down(event) {
       }
     }
   } else {
-    // Whenever a non-editable element is clicked, re-enable draggability
-    // for any blocks that were previously disabled.
+    // Whenever a non-editable element or an input or textarea is clicked,
+    // re-enable draggability for any blocks that were previously disabled.
     for (const node of nodes) {
       restore(node);
     }
@@ -41048,11 +41051,11 @@ function down(event) {
 }
 
 /**
- * In Firefox, the `draggable` and `contenteditable` attributes don't play well
- * together. When `contenteditable` is within a `draggable` element, selection
- * doesn't get set in the right place. The only solution is to temporarily
- * remove the `draggable` attribute clicking inside `contenteditable` elements.
- *
+ * In Firefox, the `draggable` and `contenteditable` or `input` or `textarea`
+ * elements don't play well together. When these elements are within a
+ * `draggable` element, selection doesn't get set in the right place. The only
+ * solution is to temporarily remove the `draggable` attribute clicking inside
+ * these elements.
  * @return {Function} Cleanup function.
  */
 function useFirefoxDraggableCompatibility() {
@@ -44817,7 +44820,7 @@ function useMultiSelection() {
 
 
 function useTabNav() {
-  const container = (0,external_wp_element_namespaceObject.useRef)();
+  const containerRef = /** @type {typeof useRef<HTMLElement>} */(0,external_wp_element_namespaceObject.useRef)();
   const focusCaptureBeforeRef = (0,external_wp_element_namespaceObject.useRef)();
   const focusCaptureAfterRef = (0,external_wp_element_namespaceObject.useRef)();
   const {
@@ -44837,19 +44840,19 @@ function useTabNav() {
   // capturing on the focus capture elements.
   const noCaptureRef = (0,external_wp_element_namespaceObject.useRef)();
   function onFocusCapture(event) {
-    const canvasElement = container.current.ownerDocument === event.target.ownerDocument ? container.current : container.current.ownerDocument.defaultView.frameElement;
+    const canvasElement = containerRef.current.ownerDocument === event.target.ownerDocument ? containerRef.current : containerRef.current.ownerDocument.defaultView.frameElement;
 
     // Do not capture incoming focus if set by us in WritingFlow.
     if (noCaptureRef.current) {
       noCaptureRef.current = null;
     } else if (hasMultiSelection()) {
-      container.current.focus();
+      containerRef.current.focus();
     } else if (getSelectedBlockClientId()) {
       if (getLastFocus()?.current) {
         getLastFocus().current.focus();
       } else {
         // Handles when the last focus has not been set yet, or has been cleared by new blocks being added via the inserter.
-        container.current.querySelector(`[data-block="${getSelectedBlockClientId()}"]`).focus();
+        containerRef.current.querySelector(`[data-block="${getSelectedBlockClientId()}"]`).focus();
       }
     }
     // In "compose" mode without a selected ID, we want to place focus on the section root when tabbing to the canvas.
@@ -44859,11 +44862,11 @@ function useTabNav() {
 
       // If we have section within the section root, focus the first one.
       if (sectionBlocks.length) {
-        container.current.querySelector(`[data-block="${sectionBlocks[0]}"]`).focus();
+        containerRef.current.querySelector(`[data-block="${sectionBlocks[0]}"]`).focus();
       }
       // If we don't have any section blocks, focus the section root.
       else if (sectionRootClientId) {
-        container.current.querySelector(`[data-block="${sectionRootClientId}"]`).focus();
+        containerRef.current.querySelector(`[data-block="${sectionRootClientId}"]`).focus();
       } else {
         // If we don't have any section root, focus the canvas.
         canvasElement.focus();
@@ -44872,7 +44875,7 @@ function useTabNav() {
       const isBefore =
       // eslint-disable-next-line no-bitwise
       event.target.compareDocumentPosition(canvasElement) & event.target.DOCUMENT_POSITION_FOLLOWING;
-      const tabbables = external_wp_dom_namespaceObject.focus.tabbable.find(container.current);
+      const tabbables = external_wp_dom_namespaceObject.focus.tabbable.find(containerRef.current);
       if (tabbables.length) {
         const next = isBefore ? tabbables[0] : tabbables[tabbables.length - 1];
         next.focus();
@@ -44904,19 +44907,26 @@ function useTabNav() {
       if (event.keyCode !== external_wp_keycodes_namespaceObject.TAB) {
         return;
       }
-      if (!hasMultiSelection() && !getSelectedBlockClientId()) {
+      if (
+      // Bails in case the focus capture elements aren’t present. They
+      // may be omitted to avoid silent tab stops in preview mode.
+      // See: https://github.com/WordPress/gutenberg/pull/59317
+      !focusCaptureAfterRef.current || !focusCaptureBeforeRef.current) {
         return;
       }
-      const isShift = event.shiftKey;
+      const {
+        target,
+        shiftKey: isShift
+      } = event;
       const direction = isShift ? 'findPrevious' : 'findNext';
-      const nextTabbable = external_wp_dom_namespaceObject.focus.tabbable[direction](event.target);
+      const nextTabbable = external_wp_dom_namespaceObject.focus.tabbable[direction](target);
 
       // We want to constrain the tabbing to the block and its child blocks.
       // If the preceding form element is within a different block,
       // such as two sibling image blocks in the placeholder state,
       // we want shift + tab from the first form element to move to the image
       // block toolbar and not the previous image block's form element.
-      const currentBlock = event.target.closest('[data-block]');
+      const currentBlock = target.closest('[data-block]');
       const isElementPartOfSelectedBlock = currentBlock && nextTabbable && (isInSameBlock(currentBlock, nextTabbable) || isInsideRootBlock(currentBlock, nextTabbable));
 
       // Allow tabbing from the block wrapper to a form element,
@@ -44953,7 +44963,7 @@ function useTabNav() {
 
       // If focus disappears due to there being no blocks, move focus to
       // the writing flow wrapper.
-      if (!event.relatedTarget && ownerDocument.activeElement === ownerDocument.body && getBlockCount() === 0) {
+      if (!event.relatedTarget && event.target.hasAttribute('data-block') && ownerDocument.activeElement === ownerDocument.body && getBlockCount() === 0) {
         node.focus();
       }
     }
@@ -44973,7 +44983,7 @@ function useTabNav() {
       if (event.target?.getAttribute('role') === 'region') {
         return;
       }
-      if (container.current === event.target) {
+      if (containerRef.current === event.target) {
         return;
       }
       const isShift = event.shiftKey;
@@ -45002,7 +45012,7 @@ function useTabNav() {
       node.removeEventListener('focusout', onFocusOut);
     };
   }, []);
-  const mergedRefs = (0,external_wp_compose_namespaceObject.useMergeRefs)([container, ref]);
+  const mergedRefs = (0,external_wp_compose_namespaceObject.useMergeRefs)([containerRef, ref]);
   return [before, mergedRefs, after];
 }
 
@@ -49976,6 +49986,9 @@ function PatternList({
         return true;
       }
       if (selectedCategory === myPatternsCategory.name && pattern.type === INSERTER_PATTERN_TYPES.user) {
+        return true;
+      }
+      if (selectedCategory === starterPatternsCategory.name && pattern.blockTypes?.includes('core/post-content')) {
         return true;
       }
       if (selectedCategory === 'uncategorized') {

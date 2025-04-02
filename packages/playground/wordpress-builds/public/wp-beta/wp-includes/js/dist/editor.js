@@ -4071,9 +4071,9 @@ const getBlockListSettings = getBlockEditorSelector('getBlockListSettings');
 const __experimentalGetDefaultTemplateTypes = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => () => {
   external_wp_deprecated_default()("select('core/editor').__experimentalGetDefaultTemplateTypes", {
     since: '6.8',
-    alternative: "select('core/core-data').getEntityRecord( 'root', '__unstableBase' )?.default_template_types"
+    alternative: "select('core/core-data').getCurrentTheme()?.default_template_types"
   });
-  return select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_types;
+  return select(external_wp_coreData_namespaceObject.store).getCurrentTheme()?.default_template_types;
 });
 
 /**
@@ -4086,9 +4086,9 @@ const __experimentalGetDefaultTemplateTypes = (0,external_wp_data_namespaceObjec
 const __experimentalGetDefaultTemplatePartAreas = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => (0,external_wp_data_namespaceObject.createSelector)(() => {
   external_wp_deprecated_default()("select('core/editor').__experimentalGetDefaultTemplatePartAreas", {
     since: '6.8',
-    alternative: "select('core/core-data').getEntityRecord( 'root', '__unstableBase' )?.default_template_part_areas"
+    alternative: "select('core/core-data').getCurrentTheme()?.default_template_part_areas"
   });
-  const areas = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_part_areas || [];
+  const areas = select(external_wp_coreData_namespaceObject.store).getCurrentTheme()?.default_template_part_areas || [];
   return areas.map(item => {
     return {
       ...item,
@@ -4110,7 +4110,7 @@ const __experimentalGetDefaultTemplateType = (0,external_wp_data_namespaceObject
   external_wp_deprecated_default()("select('core/editor').__experimentalGetDefaultTemplateType", {
     since: '6.8'
   });
-  const templateTypes = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_types;
+  const templateTypes = select(external_wp_coreData_namespaceObject.store).getCurrentTheme()?.default_template_types;
   if (!templateTypes) {
     return selectors_EMPTY_OBJECT;
   }
@@ -4132,8 +4132,9 @@ const __experimentalGetTemplateInfo = (0,external_wp_data_namespaceObject.create
   if (!template) {
     return selectors_EMPTY_OBJECT;
   }
-  const templateTypes = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_types || [];
-  const templateAreas = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_part_areas || [];
+  const currentTheme = select(external_wp_coreData_namespaceObject.store).getCurrentTheme();
+  const templateTypes = currentTheme?.default_template_types || [];
+  const templateAreas = currentTheme?.default_template_part_areas || [];
   return getTemplateInfo({
     template,
     templateAreas,
@@ -6199,7 +6200,7 @@ function CreateTemplatePartModalContents({
   const [area, setArea] = (0,external_wp_element_namespaceObject.useState)(defaultArea);
   const [isSubmitting, setIsSubmitting] = (0,external_wp_element_namespaceObject.useState)(false);
   const instanceId = (0,external_wp_compose_namespaceObject.useInstanceId)(CreateTemplatePartModal);
-  const defaultTemplatePartAreas = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_part_areas, []);
+  const defaultTemplatePartAreas = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_coreData_namespaceObject.store).getCurrentTheme()?.default_template_part_areas, []);
   async function createTemplatePart() {
     if (!title || isSubmitting) {
       return;
@@ -7711,7 +7712,7 @@ const reorderPage = {
 /* harmony default export */ const reorder_page = (reorderPage);
 
 ;// ./node_modules/client-zip/index.js
-"stream"in Blob.prototype||Object.defineProperty(Blob.prototype,"stream",{value(){return new Response(this).body}}),"setBigUint64"in DataView.prototype||Object.defineProperty(DataView.prototype,"setBigUint64",{value(e,n,t){const i=Number(0xffffffffn&n),r=Number(n>>32n);this.setUint32(e+(t?0:4),i,t),this.setUint32(e+(t?4:0),r,t)}});var e=e=>new DataView(new ArrayBuffer(e)),n=e=>new Uint8Array(e.buffer||e),t=e=>(new TextEncoder).encode(String(e)),i=e=>Math.min(4294967295,Number(e)),r=e=>Math.min(65535,Number(e));function f(e,i){if(void 0===i||i instanceof Date||(i=new Date(i)),e instanceof File)return{isFile:1,t:i||new Date(e.lastModified),i:e.stream()};if(e instanceof Response)return{isFile:1,t:i||new Date(e.headers.get("Last-Modified")||Date.now()),i:e.body};if(void 0===i)i=new Date;else if(isNaN(i))throw new Error("Invalid modification date.");if(void 0===e)return{isFile:0,t:i};if("string"==typeof e)return{isFile:1,t:i,i:t(e)};if(e instanceof Blob)return{isFile:1,t:i,i:e.stream()};if(e instanceof Uint8Array||e instanceof ReadableStream)return{isFile:1,t:i,i:e};if(e instanceof ArrayBuffer||ArrayBuffer.isView(e))return{isFile:1,t:i,i:n(e)};if(Symbol.asyncIterator in e)return{isFile:1,t:i,i:o(e[Symbol.asyncIterator]())};throw new TypeError("Unsupported input format.")}function o(e,n=e){return new ReadableStream({async pull(n){let t=0;for(;n.desiredSize>t;){const i=await e.next();if(!i.value){n.close();break}{const e=a(i.value);n.enqueue(e),t+=e.byteLength}}},cancel(e){n.throw?.(e)}})}function a(e){return"string"==typeof e?t(e):e instanceof Uint8Array?e:n(e)}function s(e,i,r){let[f,o]=function(e){return e?e instanceof Uint8Array?[e,1]:ArrayBuffer.isView(e)||e instanceof ArrayBuffer?[n(e),1]:[t(e),0]:[void 0,0]}(i);if(e instanceof File)return{o:d(f||t(e.name)),u:BigInt(e.size),l:o};if(e instanceof Response){const n=e.headers.get("content-disposition"),i=n&&n.match(/;\s*filename\*?\s*=\s*(?:UTF-\d+''|)["']?([^;"'\r\n]*)["']?(?:;|$)/i),a=i&&i[1]||e.url&&new URL(e.url).pathname.split("/").findLast(Boolean),s=a&&decodeURIComponent(a),u=r||+e.headers.get("content-length");return{o:d(f||t(s)),u:BigInt(u),l:o}}return f=d(f,void 0!==e||void 0!==r),"string"==typeof e?{o:f,u:BigInt(t(e).length),l:o}:e instanceof Blob?{o:f,u:BigInt(e.size),l:o}:e instanceof ArrayBuffer||ArrayBuffer.isView(e)?{o:f,u:BigInt(e.byteLength),l:o}:{o:f,u:u(e,r),l:o}}function u(e,n){return n>-1?BigInt(n):e?void 0:0n}function d(e,n=1){if(!e||e.every((c=>47===c)))throw new Error("The file must have a name.");if(n)for(;47===e[e.length-1];)e=e.subarray(0,-1);else 47!==e[e.length-1]&&(e=new Uint8Array([...e,47]));return e}var l=new Uint32Array(256);for(let e=0;e<256;++e){let n=e;for(let e=0;e<8;++e)n=n>>>1^(1&n&&3988292384);l[e]=n}function y(e,n=0){n^=-1;for(var t=0,i=e.length;t<i;t++)n=n>>>8^l[255&n^e[t]];return(-1^n)>>>0}function w(e,n,t=0){const i=e.getSeconds()>>1|e.getMinutes()<<5|e.getHours()<<11,r=e.getDate()|e.getMonth()+1<<5|e.getFullYear()-1980<<9;n.setUint16(t,i,1),n.setUint16(t+2,r,1)}function B({o:e,l:n},t){return 8*(!n||(t??function(e){try{b.decode(e)}catch{return 0}return 1}(e)))}var b=new TextDecoder("utf8",{fatal:1});function p(t,i=0){const r=e(30);return r.setUint32(0,1347093252),r.setUint32(4,754976768|i),w(t.t,r,10),r.setUint16(26,t.o.length,1),n(r)}async function*g(e){let{i:n}=e;if("then"in n&&(n=await n),n instanceof Uint8Array)yield n,e.m=y(n,0),e.u=BigInt(n.length);else{e.u=0n;const t=n.getReader();for(;;){const{value:n,done:i}=await t.read();if(i)break;e.m=y(n,e.m),e.u+=BigInt(n.length),yield n}}}function I(t,r){const f=e(16+(r?8:0));return f.setUint32(0,1347094280),f.setUint32(4,t.isFile?t.m:0,1),r?(f.setBigUint64(8,t.u,1),f.setBigUint64(16,t.u,1)):(f.setUint32(8,i(t.u),1),f.setUint32(12,i(t.u),1)),n(f)}function v(t,r,f=0,o=0){const a=e(46);return a.setUint32(0,1347092738),a.setUint32(4,755182848),a.setUint16(8,2048|f),w(t.t,a,12),a.setUint32(16,t.isFile?t.m:0,1),a.setUint32(20,i(t.u),1),a.setUint32(24,i(t.u),1),a.setUint16(28,t.o.length,1),a.setUint16(30,o,1),a.setUint16(40,t.isFile?33204:16893,1),a.setUint32(42,i(r),1),n(a)}function h(t,i,r){const f=e(r);return f.setUint16(0,1,1),f.setUint16(2,r-4,1),16&r&&(f.setBigUint64(4,t.u,1),f.setBigUint64(12,t.u,1)),f.setBigUint64(r-8,i,1),n(f)}function D(e){return e instanceof File||e instanceof Response?[[e],[e]]:[[e.input,e.name,e.size],[e.input,e.lastModified]]}var S=e=>function(e){let n=BigInt(22),t=0n,i=0;for(const r of e){if(!r.o)throw new Error("Every file must have a non-empty name.");if(void 0===r.u)throw new Error(`Missing size for file "${(new TextDecoder).decode(r.o)}".`);const e=r.u>=0xffffffffn,f=t>=0xffffffffn;t+=BigInt(46+r.o.length+(e&&8))+r.u,n+=BigInt(r.o.length+46+(12*f|28*e)),i||(i=e)}return(i||t>=0xffffffffn)&&(n+=BigInt(76)),n+t}(function*(e){for(const n of e)yield s(...D(n)[0])}(e));function A(e,n={}){const t={"Content-Type":"application/zip","Content-Disposition":"attachment"};return("bigint"==typeof n.length||Number.isInteger(n.length))&&n.length>0&&(t["Content-Length"]=String(n.length)),n.metadata&&(t["Content-Length"]=String(S(n.metadata))),new Response(N(e,n),{headers:t})}function N(t,a={}){const u=function(e){const n=e[Symbol.iterator in e?Symbol.iterator:Symbol.asyncIterator]();return{async next(){const e=await n.next();if(e.done)return e;const[t,i]=D(e.value);return{done:0,value:Object.assign(f(...i),s(...t))}},throw:n.throw?.bind(n),[Symbol.asyncIterator](){return this}}}(t);return o(async function*(t,f){const o=[];let a=0n,s=0n,u=0;for await(const e of t){const n=B(e,f.buffersAreUTF8);yield p(e,n),yield new Uint8Array(e.o),e.isFile&&(yield*g(e));const t=e.u>=0xffffffffn,i=12*(a>=0xffffffffn)|28*t;yield I(e,t),o.push(v(e,a,n,i)),o.push(e.o),i&&o.push(h(e,a,i)),t&&(a+=8n),s++,a+=BigInt(46+e.o.length)+e.u,u||(u=t)}let d=0n;for(const e of o)yield e,d+=BigInt(e.length);if(u||a>=0xffffffffn){const t=e(76);t.setUint32(0,1347094022),t.setBigUint64(4,BigInt(44),1),t.setUint32(12,755182848),t.setBigUint64(24,s,1),t.setBigUint64(32,s,1),t.setBigUint64(40,d,1),t.setBigUint64(48,a,1),t.setUint32(56,1347094023),t.setBigUint64(64,a+d,1),t.setUint32(72,1,1),yield n(t)}const l=e(22);l.setUint32(0,1347093766),l.setUint16(8,r(s),1),l.setUint16(10,r(s),1),l.setUint32(12,i(d),1),l.setUint32(16,i(a),1),yield n(l)}(u,a),u)}
+"stream"in Blob.prototype||Object.defineProperty(Blob.prototype,"stream",{value(){return new Response(this).body}}),"setBigUint64"in DataView.prototype||Object.defineProperty(DataView.prototype,"setBigUint64",{value(e,n,t){const i=Number(0xffffffffn&n),r=Number(n>>32n);this.setUint32(e+(t?0:4),i,t),this.setUint32(e+(t?4:0),r,t)}});var e=e=>new DataView(new ArrayBuffer(e)),n=e=>new Uint8Array(e.buffer||e),t=e=>(new TextEncoder).encode(String(e)),i=e=>Math.min(4294967295,Number(e)),r=e=>Math.min(65535,Number(e));function o(e,i,r){void 0===i||i instanceof Date||(i=new Date(i));const o=void 0!==e;if(r||(r=o?436:509),e instanceof File)return{isFile:o,t:i||new Date(e.lastModified),bytes:e.stream(),mode:r};if(e instanceof Response)return{isFile:o,t:i||new Date(e.headers.get("Last-Modified")||Date.now()),bytes:e.body,mode:r};if(void 0===i)i=new Date;else if(isNaN(i))throw new Error("Invalid modification date.");if(!o)return{isFile:o,t:i,mode:r};if("string"==typeof e)return{isFile:o,t:i,bytes:t(e),mode:r};if(e instanceof Blob)return{isFile:o,t:i,bytes:e.stream(),mode:r};if(e instanceof Uint8Array||e instanceof ReadableStream)return{isFile:o,t:i,bytes:e,mode:r};if(e instanceof ArrayBuffer||ArrayBuffer.isView(e))return{isFile:o,t:i,bytes:n(e),mode:r};if(Symbol.asyncIterator in e)return{isFile:o,t:i,bytes:f(e[Symbol.asyncIterator]()),mode:r};throw new TypeError("Unsupported input format.")}function f(e,n=e){return new ReadableStream({async pull(n){let t=0;for(;n.desiredSize>t;){const i=await e.next();if(!i.value){n.close();break}{const e=a(i.value);n.enqueue(e),t+=e.byteLength}}},cancel(e){n.throw?.(e)}})}function a(e){return"string"==typeof e?t(e):e instanceof Uint8Array?e:n(e)}function s(e,i,r){let[o,f]=function(e){return e?e instanceof Uint8Array?[e,1]:ArrayBuffer.isView(e)||e instanceof ArrayBuffer?[n(e),1]:[t(e),0]:[void 0,0]}(i);if(e instanceof File)return{i:d(o||t(e.name)),o:BigInt(e.size),u:f};if(e instanceof Response){const n=e.headers.get("content-disposition"),i=n&&n.match(/;\s*filename\*?\s*=\s*(?:UTF-\d+''|)["']?([^;"'\r\n]*)["']?(?:;|$)/i),a=i&&i[1]||e.url&&new URL(e.url).pathname.split("/").findLast(Boolean),s=a&&decodeURIComponent(a),u=r||+e.headers.get("content-length");return{i:d(o||t(s)),o:BigInt(u),u:f}}return o=d(o,void 0!==e||void 0!==r),"string"==typeof e?{i:o,o:BigInt(t(e).length),u:f}:e instanceof Blob?{i:o,o:BigInt(e.size),u:f}:e instanceof ArrayBuffer||ArrayBuffer.isView(e)?{i:o,o:BigInt(e.byteLength),u:f}:{i:o,o:u(e,r),u:f}}function u(e,n){return n>-1?BigInt(n):e?void 0:0n}function d(e,n=1){if(!e||e.every((c=>47===c)))throw new Error("The file must have a name.");if(n)for(;47===e[e.length-1];)e=e.subarray(0,-1);else 47!==e[e.length-1]&&(e=new Uint8Array([...e,47]));return e}var l=new Uint32Array(256);for(let e=0;e<256;++e){let n=e;for(let e=0;e<8;++e)n=n>>>1^(1&n&&3988292384);l[e]=n}function y(e,n=0){n=~n;for(var t=0,i=e.length;t<i;t++)n=n>>>8^l[255&n^e[t]];return~n>>>0}function w(e,n,t=0){const i=e.getSeconds()>>1|e.getMinutes()<<5|e.getHours()<<11,r=e.getDate()|e.getMonth()+1<<5|e.getFullYear()-1980<<9;n.setUint16(t,i,1),n.setUint16(t+2,r,1)}function B({i:e,u:n},t){return 8*(!n||(t??function(e){try{b.decode(e)}catch{return 0}return 1}(e)))}var b=new TextDecoder("utf8",{fatal:1});function p(t,i=0){const r=e(30);return r.setUint32(0,1347093252),r.setUint32(4,754976768|i),w(t.t,r,10),r.setUint16(26,t.i.length,1),n(r)}async function*g(e){let{bytes:n}=e;if("then"in n&&(n=await n),n instanceof Uint8Array)yield n,e.l=y(n,0),e.o=BigInt(n.length);else{e.o=0n;const t=n.getReader();for(;;){const{value:n,done:i}=await t.read();if(i)break;e.l=y(n,e.l),e.o+=BigInt(n.length),yield n}}}function I(t,r){const o=e(16+(r?8:0));return o.setUint32(0,1347094280),o.setUint32(4,t.isFile?t.l:0,1),r?(o.setBigUint64(8,t.o,1),o.setBigUint64(16,t.o,1)):(o.setUint32(8,i(t.o),1),o.setUint32(12,i(t.o),1)),n(o)}function v(t,r,o=0,f=0){const a=e(46);return a.setUint32(0,1347092738),a.setUint32(4,755182848),a.setUint16(8,2048|o),w(t.t,a,12),a.setUint32(16,t.isFile?t.l:0,1),a.setUint32(20,i(t.o),1),a.setUint32(24,i(t.o),1),a.setUint16(28,t.i.length,1),a.setUint16(30,f,1),a.setUint16(40,t.mode|(t.isFile?32768:16384),1),a.setUint32(42,i(r),1),n(a)}function h(t,i,r){const o=e(r);return o.setUint16(0,1,1),o.setUint16(2,r-4,1),16&r&&(o.setBigUint64(4,t.o,1),o.setBigUint64(12,t.o,1)),o.setBigUint64(r-8,i,1),n(o)}function D(e){return e instanceof File||e instanceof Response?[[e],[e]]:[[e.input,e.name,e.size],[e.input,e.lastModified,e.mode]]}var S=e=>function(e){let n=BigInt(22),t=0n,i=0;for(const r of e){if(!r.i)throw new Error("Every file must have a non-empty name.");if(void 0===r.o)throw new Error(`Missing size for file "${(new TextDecoder).decode(r.i)}".`);const e=r.o>=0xffffffffn,o=t>=0xffffffffn;t+=BigInt(46+r.i.length+(e&&8))+r.o,n+=BigInt(r.i.length+46+(12*o|28*e)),i||(i=e)}return(i||t>=0xffffffffn)&&(n+=BigInt(76)),n+t}(function*(e){for(const n of e)yield s(...D(n)[0])}(e));function A(e,n={}){const t={"Content-Type":"application/zip","Content-Disposition":"attachment"};return("bigint"==typeof n.length||Number.isInteger(n.length))&&n.length>0&&(t["Content-Length"]=String(n.length)),n.metadata&&(t["Content-Length"]=String(S(n.metadata))),new Response(N(e,n),{headers:t})}function N(t,a={}){const u=function(e){const n=e[Symbol.iterator in e?Symbol.iterator:Symbol.asyncIterator]();return{async next(){const e=await n.next();if(e.done)return e;const[t,i]=D(e.value);return{done:0,value:Object.assign(o(...i),s(...t))}},throw:n.throw?.bind(n),[Symbol.asyncIterator](){return this}}}(t);return f(async function*(t,o){const f=[];let a=0n,s=0n,u=0;for await(const e of t){const n=B(e,o.buffersAreUTF8);yield p(e,n),yield new Uint8Array(e.i),e.isFile&&(yield*g(e));const t=e.o>=0xffffffffn,i=12*(a>=0xffffffffn)|28*t;yield I(e,t),f.push(v(e,a,n,i)),f.push(e.i),i&&f.push(h(e,a,i)),t&&(a+=8n),s++,a+=BigInt(46+e.i.length)+e.o,u||(u=t)}let d=0n;for(const e of f)yield e,d+=BigInt(e.length);if(u||a>=0xffffffffn){const t=e(76);t.setUint32(0,1347094022),t.setBigUint64(4,BigInt(44),1),t.setUint32(12,755182848),t.setBigUint64(24,s,1),t.setBigUint64(32,s,1),t.setBigUint64(40,d,1),t.setBigUint64(48,a,1),t.setUint32(56,1347094023),t.setBigUint64(64,a+d,1),t.setUint32(72,1,1),yield n(t)}const l=e(22);l.setUint32(0,1347093766),l.setUint16(8,r(s),1),l.setUint16(10,r(s),1),l.setUint32(12,i(d),1),l.setUint32(16,i(a),1),yield n(l)}(u,a),u)}
 ;// external ["wp","blob"]
 const external_wp_blob_namespaceObject = window["wp"]["blob"];
 ;// ./node_modules/@wordpress/icons/build-module/library/download.js
@@ -13617,6 +13618,7 @@ function BlockRemovalWarnings() {
  */
 
 
+
 function useStartPatterns() {
   // A pattern is a start pattern if it includes 'core/post-content' in its blockTypes,
   // and it has no postTypes declared and the current post type is page or if
@@ -13751,7 +13753,7 @@ function StartPageOptions() {
     const choosePatternModalEnabled = select(external_wp_preferences_namespaceObject.store).get('core', 'enableChoosePatternModal');
     return {
       postId: getCurrentPostId(),
-      enabled: choosePatternModalEnabled && 'page' === getCurrentPostType()
+      enabled: choosePatternModalEnabled && TEMPLATE_POST_TYPE !== getCurrentPostType()
     };
   }, []);
 
@@ -14831,6 +14833,7 @@ const ExperimentalEditorProvider = with_registry_provider(({
     const {
       getEntitiesConfig
     } = select(external_wp_coreData_namespaceObject.store);
+    const _mode = getRenderingMode();
     const _defaultMode = getDefaultRenderingMode(post.type);
     /**
      * To avoid content "flash", wait until rendering mode has been resolved.
@@ -14839,12 +14842,14 @@ const ExperimentalEditorProvider = with_registry_provider(({
      * - Wait for template to be resolved if the default mode is 'template-locked'.
      * - Wait for default mode to be resolved otherwise.
      */
-    const hasResolvedMode = _defaultMode === 'template-locked' ? hasTemplate : _defaultMode !== undefined;
+    const hasResolvedDefaultMode = _defaultMode === 'template-locked' ? hasTemplate : _defaultMode !== undefined;
+    // Wait until the default mode is retrieved and start rendering canvas.
+    const isRenderingModeReady = _defaultMode !== undefined;
     return {
       editorSettings: getEditorSettings(),
-      isReady: __unstableIsEditorReady() && hasResolvedMode,
-      mode: getRenderingMode(),
-      defaultMode: _defaultMode,
+      isReady: __unstableIsEditorReady(),
+      mode: isRenderingModeReady ? _mode : undefined,
+      defaultMode: hasResolvedDefaultMode ? _defaultMode : undefined,
       selection: getEditorSelection(),
       postTypeEntities: post.type === 'wp_template' ? getEntitiesConfig('postType') : null
     };
@@ -15698,7 +15703,7 @@ const CARD_ICONS = {
 const getPostIcon = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => (state, postType, options) => {
   {
     if (postType === 'wp_template_part' || postType === 'wp_template') {
-      const templateAreas = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')?.default_template_part_areas || [];
+      const templateAreas = select(external_wp_coreData_namespaceObject.store).getCurrentTheme()?.default_template_part_areas || [];
       const areaData = templateAreas.find(item => options.area === item.area);
       if (areaData?.icon) {
         return getTemplatePartIcon(areaData.icon);
@@ -16390,7 +16395,7 @@ function DocumentBar(props) {
     onNavigateToPreviousEntityRecord,
     isTemplatePreview
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
-    var _select$getEntityReco;
+    var _getCurrentTheme;
     const {
       getCurrentPostType,
       getCurrentPostId,
@@ -16400,6 +16405,7 @@ function DocumentBar(props) {
     const {
       getEditedEntityRecord,
       getPostType,
+      getCurrentTheme,
       isResolving: isResolvingSelector
     } = select(external_wp_coreData_namespaceObject.store);
     const _postType = getCurrentPostType();
@@ -16407,7 +16413,7 @@ function DocumentBar(props) {
     const _document = getEditedEntityRecord('postType', _postType, _postId);
     const {
       default_template_types: templateTypes = []
-    } = (_select$getEntityReco = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')) !== null && _select$getEntityReco !== void 0 ? _select$getEntityReco : {};
+    } = (_getCurrentTheme = getCurrentTheme()) !== null && _getCurrentTheme !== void 0 ? _getCurrentTheme : {};
     const _templateInfo = getTemplateInfo({
       templateTypes,
       template: _document
@@ -16530,29 +16536,41 @@ const external_wp_richText_namespaceObject = window["wp"]["richText"];
 const TableOfContentsItem = ({
   children,
   isValid,
+  isDisabled,
   level,
   href,
   onSelect
-}) => /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("li", {
-  className: dist_clsx('document-outline__item', `is-${level.toLowerCase()}`, {
-    'is-invalid': !isValid
-  }),
-  children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("a", {
-    href: href,
-    className: "document-outline__button",
-    onClick: onSelect,
-    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
-      className: "document-outline__emdash",
-      "aria-hidden": "true"
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("strong", {
-      className: "document-outline__level",
-      children: level
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
-      className: "document-outline__item-content",
-      children: children
-    })]
-  })
-});
+}) => {
+  function handleClick(event) {
+    if (isDisabled) {
+      event.preventDefault();
+      return;
+    }
+    onSelect();
+  }
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("li", {
+    className: dist_clsx('document-outline__item', `is-${level.toLowerCase()}`, {
+      'is-invalid': !isValid,
+      'is-disabled': isDisabled
+    }),
+    children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("a", {
+      href: href,
+      className: "document-outline__button",
+      "aria-disabled": isDisabled,
+      onClick: handleClick,
+      children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
+        className: "document-outline__emdash",
+        "aria-hidden": "true"
+      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("strong", {
+        className: "document-outline__level",
+        children: level
+      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
+        className: "document-outline__item-content",
+        children: children
+      })]
+    })
+  });
+};
 /* harmony default export */ const document_outline_item = (TableOfContentsItem);
 
 ;// ./node_modules/@wordpress/editor/build-module/components/document-outline/index.js
@@ -16730,6 +16748,23 @@ function DocumentOutline({
     // all compulations should happen in `computeOutlineHeadings`.
     return clientIds.map(id => getBlock(id));
   });
+  const contentBlocks = (0,external_wp_data_namespaceObject.useSelect)(select => {
+    // When rendering in `post-only` mode all blocks are considered content blocks.
+    if (select(store_store).getRenderingMode() === 'post-only') {
+      return undefined;
+    }
+    const {
+      getBlocksByName,
+      getClientIdsOfDescendants
+    } = select(external_wp_blockEditor_namespaceObject.store);
+    const [postContentClientId] = getBlocksByName('core/post-content');
+
+    // Do nothing if there's no post content block.
+    if (!postContentClientId) {
+      return undefined;
+    }
+    return getClientIdsOfDescendants(postContentClientId);
+  }, []);
   const prevHeadingLevelRef = (0,external_wp_element_namespaceObject.useRef)(1);
   const headings = (0,external_wp_element_namespaceObject.useMemo)(() => computeOutlineHeadings(blocks), [blocks]);
   if (headings.length < 1) {
@@ -16749,6 +16784,9 @@ function DocumentOutline({
     [heading.level]: (acc[heading.level] || 0) + 1
   }), {});
   const hasMultipleH1 = countByLevel[1] > 1;
+  function isContentBlock(clientId) {
+    return Array.isArray(contentBlocks) ? contentBlocks.includes(clientId) : true;
+  }
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
     className: "document-outline",
     children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("ul", {
@@ -16768,7 +16806,7 @@ function DocumentOutline({
         return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(document_outline_item, {
           level: `H${item.level}`,
           isValid: isValid,
-          isDisabled: hasOutlineItemsDisabled,
+          isDisabled: hasOutlineItemsDisabled || !isContentBlock(item.clientId),
           href: `#block-${item.clientId}`,
           onSelect: () => {
             selectBlock(item.clientId);
@@ -17253,7 +17291,7 @@ function EntityRecordItem({
     entityRecordTitle,
     hasPostMetaChanges
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
-    var _select$getEntityReco;
+    var _select$getCurrentThe;
     if ('postType' !== kind || 'wp_template' !== name) {
       return {
         entityRecordTitle: title,
@@ -17263,7 +17301,7 @@ function EntityRecordItem({
     const template = select(external_wp_coreData_namespaceObject.store).getEditedEntityRecord(kind, name, key);
     const {
       default_template_types: templateTypes = []
-    } = (_select$getEntityReco = select(external_wp_coreData_namespaceObject.store).getEntityRecord('root', '__unstableBase')) !== null && _select$getEntityReco !== void 0 ? _select$getEntityReco : {};
+    } = (_select$getCurrentThe = select(external_wp_coreData_namespaceObject.store).getCurrentTheme()) !== null && _select$getCurrentThe !== void 0 ? _select$getCurrentThe : {};
     return {
       entityRecordTitle: getTemplateInfo({
         template,
@@ -32328,7 +32366,7 @@ function PostCardPanel({
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
       getEditedEntityRecord,
-      getEntityRecord,
+      getCurrentTheme,
       getPostType
     } = select(external_wp_coreData_namespaceObject.store);
     const {
@@ -32337,10 +32375,10 @@ function PostCardPanel({
     let _title = '';
     const _record = getEditedEntityRecord('postType', postType, postIds[0]);
     if (postIds.length === 1) {
-      var _getEntityRecord;
+      var _getCurrentTheme;
       const {
         default_template_types: templateTypes = []
-      } = (_getEntityRecord = getEntityRecord('root', '__unstableBase')) !== null && _getEntityRecord !== void 0 ? _getEntityRecord : {};
+      } = (_getCurrentTheme = getCurrentTheme()) !== null && _getCurrentTheme !== void 0 ? _getCurrentTheme : {};
       const _templateInfo = [TEMPLATE_POST_TYPE, TEMPLATE_PART_POST_TYPE].includes(postType) ? getTemplateInfo({
         template: _record,
         templateTypes
