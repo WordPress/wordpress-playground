@@ -27,6 +27,7 @@ const LibraryForNode = {
 		const F_RDLCK = 0;
 		const F_WRLCK = 1;
 		const F_UNLCK = 2;
+
 		const lockStateToFcntl = {
 			shared: F_RDLCK,
 			exclusive: F_WRLCK,
@@ -78,6 +79,36 @@ const LibraryForNode = {
 			if (fields.l_pid !== undefined) {
 				HEAP32[(((flockStructAddress) + (emscripten_flock_l_pid_offset)) >> 2)] = fields.l_pid;
 			}
+		}
+
+		function getBaseAddress(fd, whence, startOffset) {
+			let baseAddress;
+			switch (whence) {
+				case SEEK_SET:
+					baseAddress = 0;
+					break;
+				case SEEK_CUR:
+					baseAddress = FS.lseek(fd, 0, whence) + startOffset;
+					break;
+				case SEEK_END:
+					baseAddress = _wasm_get_end_offset(fd);
+					break;
+				default:
+					// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
+					throw new Error(`Invalid whence value: ${whence}`);
+			}
+
+			if (baseAddress == -1) {
+				// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
+				throw new Error('Failed to get end offset of file descriptor');
+			}
+			
+			const resolvedOffset = baseAddress + startOffset;
+			if (resolvedOffset < 0) {
+				// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
+				throw new Error('Resolved offset is negative');
+			}
+			return resolvedOffset;
 		}
 
 		// TODO: Rename this to something describing: php-wasm-pid

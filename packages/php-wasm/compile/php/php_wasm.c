@@ -1865,3 +1865,25 @@ EMSCRIPTEN_KEEPALIVE void wasm_set_errno(int value) {
 	// as Emscripten used to do.
 	errno = value;
 }
+
+/*
+ * Function: wasm_get_end_offset
+ * ----------------------------
+ *   Returns the end offset of the file descriptor.
+ * 
+ *   Useful to determine the base address when file locking
+ *   with flock.l_whence == SEEK_END.
+ */
+EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
+	struct stat;
+	int result = fstat(fd, &stat);
+	if (result == -1) {
+		return -1;
+	}
+	off_t eof_offset = (off_t)stat.st_size;
+	if (eof_offset < 0) {
+		// Guard against overflow, which we do not expect
+		return -1;
+	}
+	return eof_offset;
+}
