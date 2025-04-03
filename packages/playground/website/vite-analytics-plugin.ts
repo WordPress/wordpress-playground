@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { Plugin } from 'vite';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

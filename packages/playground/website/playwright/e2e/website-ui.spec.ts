@@ -262,3 +262,16 @@ test('should keep query arguments when updating settings', async ({
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
 });
+
+test('should not load GTM code when VITE_GOOGLE_ANALYTICS_ID is missing', async ({
+	website,
+}) => {
+	await website.goto('./');
+
+	// By default, the VITE_GOOGLE_ANALYTICS_ID is not set, so GTM should not be loaded
+	// Check if GTM script is not present in the head
+	const gtmScript = await website.page
+		.locator('script[src*="googletagmanager.com"]')
+		.count();
+	expect(gtmScript).toBe(0);
+});
