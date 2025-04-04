@@ -29,11 +29,7 @@ import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { Worker } from 'worker_threads';
 import { PlaygroundCliWorker, Mount } from './worker-thread';
-import {
-	FileLockManager,
-	FileLockManagerForNode,
-	FileLockState,
-} from '@php-wasm/node';
+import { FcntlFileLockManagerForNode } from '@php-wasm/node';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -226,7 +222,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			const lockManager = new FileLockManagerForNode();
+			const fcntlLockManager = new FcntlFileLockManagerForNode();
 
 			// TODO
 			try {
@@ -311,7 +307,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				// TODO: Add progress tracking
 
 				// TODO: Is it necessary to worry about setting API ready?
-				exposeAPI(lockManager, undefined, nodeEndpoint(primaryWorker));
+				exposeAPI(
+					fcntlLockManager,
+					undefined,
+					nodeEndpoint(primaryWorker)
+				);
 				await playground.boot({
 					phpVersion: args.php,
 					wpVersion: args.wp,
@@ -329,6 +329,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				await playground.isReady();
 
+				// TODO: Make multiple workers conditional on mounting of realy /wordpress directory
+
 				// Create secondary workers
 				const secondaryWorkers = [];
 				const totalWorkers = 8;
@@ -340,10 +342,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					const secondaryPlayground =
 						consumeAPI<PlaygroundCliWorker>(worker);
 					await secondaryPlayground.isConnected();
-					exposeAPI(lockManager, undefined, nodeEndpoint(worker));
+					exposeAPI(
+						fcntlLockManager,
+						undefined,
+						nodeEndpoint(worker)
+					);
 
-					// TODO: Better name for this method
 					// TODO: Parallelize booting and waiting for secondary workers to be ready
+					// TODO: Fix auto-login
 					await secondaryPlayground.boot({
 						phpVersion: args.php,
 						absoluteUrl,

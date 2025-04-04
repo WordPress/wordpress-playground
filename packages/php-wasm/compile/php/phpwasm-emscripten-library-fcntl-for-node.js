@@ -43,6 +43,7 @@ const LibraryForNode = {
 		const emscripten_F_GETLK = Number('{{{cDefs.F_GETLK}}}');
 		const emscripten_F_SETLK = Number('{{{cDefs.F_SETLK}}}');
 		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
+		const emscripten_SEEK_SET = Number('{{{cDefs.SEEK_SET}}}');
 
 		// TODO: Consider patching Emscripten to provide these offsets or add an access to php_wasm.c
 		const emscripten_flock_l_type_offset = 0;
@@ -84,13 +85,13 @@ const LibraryForNode = {
 		function getBaseAddress(fd, whence, startOffset) {
 			let baseAddress;
 			switch (whence) {
-				case SEEK_SET:
-					baseAddress = 0;
+				case emscripten_SEEK_SET:
+					baseAddress = 0n;
 					break;
-				case SEEK_CUR:
-					baseAddress = FS.lseek(fd, 0, whence) + startOffset;
+				case emscripten_SEEK_CUR:
+					baseAddress = FS.lseek(fd, 0, whence);
 					break;
-				case SEEK_END:
+				case emscripten_SEEK_END:
 					baseAddress = _wasm_get_end_offset(fd);
 					break;
 				default:
@@ -126,96 +127,131 @@ const LibraryForNode = {
 					return -1;
 				}
 
-				const flockStructAddress = syscallGetVarargP();
-				const flockStruct = readFlockStruct(flockStructAddress);
+				const flockStructAddr = syscallGetVarargP();
+				const flockStruct = readFlockStruct(flockStructAddr);
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
 				console.log('flock values:', {
-					flockStructAddress,
-					fcntlLockType,
-					requestedLockType,
-					fcntlLockWhence,
-					fcntlLockStart,
-					fcntlLockLen,
-					fcntlLockPid,
+					flockStructAddr: `0x${flockStructAddr.toString(16)}`,
+					fcntlLockType: `0x${flockStruct.l_type.toString(16)}`,
+					lockType: requestedLockType,
+					fcntlLockWhence: `0x${flockStruct.l_whence.toString(16)}`,
+					fcntlLockStart: `0x${flockStruct.l_start.toString(16)}`, 
+					fcntlLockLen: `0x${requestedFcntlLockLen.toString(10)}`,
+					rawBytes,
 				});
+
+				const absoluteStartOffset = getBaseAddress(fd, flockStruct.l_whence, flockStruct.l_start);
 
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
 				return PHPLoader.fileLockManager.getConflictingLock(
 					filePath,
-					requestedLockType,
-					pid
+					{
+						type: requestedLockType,
+						start: absoluteStartOffset,
+						end: absoluteStartOffset + flockStruct.l_len,
+						pid,
+					}
 				).then(
-					(conflictingLockType) => {
-						// TODO: Implement this for all fields
-						const fcntlLockState = lockStateToFcntl[conflictingLockType];
-						// Shift right by 1 to div to divide by 2 and get the 16-bit word address
-						HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)] = fcntlLockState;
+					(conflictingLock) => {
+						if (conflictingLock === undefined) {
+							updateFlockStruct(flockStructAddr, {
+								l_type: F_UNLCK,
+							});
+							return 0;
+						}
+
+						const fcntlLockState = lockStateToFcntl[conflictingLock.type];
+						updateFlockStruct(flockStructAddr, {
+							l_type: fcntlLockState,
+							l_whence: emscripten_SEEK_SET,
+							l_start: conflictingLock.start,
+							l_len: conflictingLock.end - conflictingLock.start,
+							l_pid: conflictingLock.pid,
+						});
 						return 0;
 					},
 					// TODO: handle error
+					// TODO: Implement these error codes
+					// EBADF
+					// The filedes argument is invalid.
+					// EINVAL
+					// Either the lockp argument doesn’t specify valid lock information, or the file associated with filedes doesn’t support locks. 
 				);
 			}
 			case emscripten_F_SETLK: {
-				console.log('F_SETLK');
-
 				let filePath;
 				try {
 					filePath = FS.readlink(`/proc/self/fd/${fd}`);
-					console.log('filePath:', filePath);
 				} catch (error) {
+					// TODO: Import and use logger.warn here
 					console.log('unable to resolve file path from fd');
 					_wasm_set_errno(ERRNO_CODES.EBADF);
 					return -1;
 				}
 
 				var flockStructAddr = syscallGetVarargP();
-				const requestedFcntlLockType = HEAP16[(((flockStructAddr) + (emscripten_flock_l_type_offset)) >> 1)];
-				const requestedFcntlLockWhence = HEAP16[(((flockStructAddr) + (emscripten_flock_l_whence_offset)) >> 1)];
-				const requestedFcntlLockStart = HEAP64[(((flockStructAddr) + (emscripten_flock_l_start_offset)) >> 3)];
-				const requestedFcntlLockLen = HEAP64[(((flockStructAddr) + (emscripten_flock_l_len_offset)) >> 3)];
-				const requestedFcntlLockPid = HEAP32[(((flockStructAddr) + (emscripten_flock_l_pid_offset)) >> 2)];
-				const requestedLockType = fcntlToLockState[requestedFcntlLockType];
-				let rawBytes = '0x';
-				for (let i = 0; i < 32; i++) {
-					rawBytes += HEAPU8[flockStructAddr + i].toString(16).padStart(2, '0');
-				}
+				const flockStruct = readFlockStruct(flockStructAddr);
+				const absoluteStartOffset = getBaseAddress(
+					fd,
+					flockStruct.l_whence,
+					flockStruct.l_start
+				);
+				const requestedLockType = fcntlToLockState[flockStruct.l_type];
 
-				console.log('flock values:', {
-					flockStructAddr: `0x${flockStructAddr.toString(16).padStart(8, '0')}`,
-					fcntlLockType: `0x${requestedFcntlLockType.toString(16).padStart(4, '0')}`,
-					lockType: requestedLockType,
-					fcntlLockWhence: `0x${requestedFcntlLockWhence.toString(16).padStart(4, '0')}`,
-					fcntlLockStart: `0x${requestedFcntlLockStart.toString(16).padStart(16, '0')}`, 
-					fcntlLockLen: `0x${requestedFcntlLockLen.toString(16).padStart(16, '0')}`,
-					rawBytes,
-				});
+				// TODO: Implement these error codes
+				// EAGAIN
+				// EBADF
+				// 	Either: the filedes argument is invalid; you requested a read lock but the filedes is not open for read access; or, you requested a write lock but the filedes is not open for write access.
+				// EINVAL
+				
+				const lockRange = {
+					type: requestedLockType,
+					start: absoluteStartOffset,
+					end: absoluteStartOffset + flockStruct.l_len,
+					pid,
+				};
 
-				if (requestedLockType === 'unlocked') {
+				if (lockRange.type === 'unlocked') {
 					// TODO: What if you can't unlock because you don't have a lock?
 					// TODO: Handle error
-					return PHPLoader.fileLockManager.unlockFile(filePath, pid).then(() => 0);
+					const rangeToUnlock = {
+						start: absoluteStartOffset,
+						end: absoluteStartOffset + flockStruct.l_len,
+						pid,
+					};
+					return PHPLoader.fileLockManager.unlockFile(
+						filePath,
+						rangeToUnlock,
+					).then(() => {
+						return 0;
+					});
 				} else {
 					// TODO: Handle error
 					// TODO: Implement this for all flock fields
+					const rangeToLock = {
+						type: requestedLockType,
+						start: absoluteStartOffset,
+						end: absoluteStartOffset + flockStruct.l_len,
+						pid,
+					};
 					return PHPLoader.fileLockManager.lockFile(
 						filePath,
-						requestedLockType,
-						pid
-					).then(
-						(succeeded) => {
-							if (succeeded) {
-								return 0;
-							} else {
-								_wasm_set_errno(ERRNO_CODES.EAGAIN)
-								return -1;
-							}
+						rangeToLock,
+					).then((succeeded) => {
+						if (succeeded) {
+							return 0;
+						} else {
+							_wasm_set_errno(ERRNO_CODES.EAGAIN)
+							return -1;
 						}
-					);
+					});
 				}
 			}
 			// TODO: Implement waiting for lock
 			case emscripten_F_SETLKW: {
+				// NOTE: I don't think this is used by Playground.
+				// Let's throw an error to discover if it is used.
 				throw new Error('F_SETLKW is not implemented');
 			}
 			default:

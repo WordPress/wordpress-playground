@@ -1875,12 +1875,12 @@ EMSCRIPTEN_KEEPALIVE void wasm_set_errno(int value) {
  *   with flock.l_whence == SEEK_END.
  */
 EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
-	struct stat;
-	int result = fstat(fd, &stat);
+	struct stat s;
+	int result = fstat(fd, &s);
 	if (result == -1) {
 		return -1;
 	}
-	off_t eof_offset = (off_t)stat.st_size;
+	off_t eof_offset = (off_t)s.st_size;
 	if (eof_offset < 0) {
 		// Guard against overflow, which we do not expect
 		return -1;

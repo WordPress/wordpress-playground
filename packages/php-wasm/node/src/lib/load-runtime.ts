@@ -6,138 +6,15 @@ import {
 
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking.js';
+import { FcntlFileLockManager } from './fcntl-file-locking';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 }
 
-// TODO: Improve name. Might be better to use "Type" instead of "State"
-export type FileLockState = 'unlocked' | 'shared' | 'exclusive';
-// NOTE: This API is async because we intend to use it across worker boundaries.
-export type FileLockManager = {
-	lockFile: (
-		path: string,
-		type: 'shared' | 'exclusive',
-		pid: number
-	) => Promise<boolean>;
-	unlockFile: (path: string, pid: number) => Promise<void>;
-	// TODO: Improve name
-	// TODO: Consider just returning null instead of 'unlocked'
-	getConflictingLock: (
-		path: string,
-		desiredLockState: FileLockState,
-		pid: number
-	) => Promise<FileLockState>;
-};
-
-type ExclusiveLock = {
-	type: 'exclusive';
-	pid: number;
-};
-type SharedLock = {
-	type: 'shared';
-	pids: Set<number>;
-};
-
-// TODO: Place in separate module
-export class FileLockManagerForNode implements FileLockManager {
-	locks: Map<string, SharedLock | ExclusiveLock>;
-
-	constructor() {
-		this.locks = new Map();
-	}
-
-	async lockFile(path: string, type: 'shared' | 'exclusive', pid: number) {
-		const existingLock = this.locks.get(path);
-		if (
-			existingLock === undefined ||
-			(existingLock.type === 'exclusive' && existingLock.pid === pid) ||
-			(existingLock.type === 'shared' &&
-				existingLock.pids.has(pid) &&
-				existingLock.pids.size === 1)
-		) {
-			this.locks.set(
-				path,
-				type === 'shared'
-					? { type: 'shared', pids: new Set([pid]) }
-					: { type: 'exclusive', pid: pid }
-			);
-			return true;
-		}
-
-		if (type === 'shared') {
-			if (existingLock.type === 'shared') {
-				existingLock.pids.add(pid);
-				return true;
-			}
-			return false;
-		}
-
-		if (type === 'exclusive') {
-			if (existingLock.type === 'exclusive' && existingLock.pid === pid) {
-				return true;
-			}
-			return false;
-		}
-
-		throw new Error(`Failed to handle lockFile(${path}, ${type}) request`);
-	}
-
-	async unlockFile(path: string, pid: number) {
-		const lock = this.locks.get(path);
-		if (!lock) {
-			return;
-		}
-
-		switch (lock.type) {
-			case 'exclusive':
-				if (lock.pid === pid) {
-					this.locks.delete(path);
-				}
-				return;
-			case 'shared':
-				if (lock.pids.has(pid)) {
-					lock.pids.delete(pid);
-					if (lock.pids.size === 0) {
-						this.locks.delete(path);
-					}
-				}
-				return;
-		}
-	}
-
-	async getConflictingLock(
-		path: string,
-		desiredLockState: FileLockState,
-		pid: number
-	): Promise<FileLockState> {
-		const existingLock = this.locks.get(path);
-		if (!existingLock) {
-			return 'unlocked';
-		}
-
-		const lockIsSolelyOwnedByThisPid =
-			(existingLock.type === 'exclusive' && existingLock.pid === pid) ||
-			(existingLock.type === 'shared' &&
-				existingLock.pids.size === 1 &&
-				existingLock.pids.has(pid));
-		if (lockIsSolelyOwnedByThisPid) {
-			return 'unlocked';
-		}
-
-		if (desiredLockState === 'shared' && existingLock.type === 'shared') {
-			// Shared locks do not conflict with each other
-			return 'unlocked';
-		} else {
-			// Exclusive locks conflict with both shared and exclusive locks
-			return existingLock.type;
-		}
-	}
-}
-
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	emscriptenOptions?: EmscriptenOptions & {
-		fileLockManager?: FileLockManager;
+		fileLockManager?: FcntlFileLockManager;
 	};
 };
 
