@@ -448,7 +448,9 @@ class LoadBalancer {
 		}
 
 		// TODO: Remove this after testing
-		logger.log(`selected worker ${smallestWorkerLoadIndex}`);
+		logger.log(
+			`selected worker ${smallestWorkerLoadIndex} for ${request.url}`
+		);
 
 		const promiseForResponse = smallestWorkerLoad.worker.request(request);
 		smallestWorkerLoad.activeRequests.add(promiseForResponse);
