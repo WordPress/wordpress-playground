@@ -197,6 +197,8 @@ const LibraryForNode = {
 					flockStruct.l_whence,
 					flockStruct.l_start
 				);
+				// TODO: Consider handling errors when fd access mode (read or write) does not match requested lock type
+				// If we want to check fd access flags, we can use fcntl() with F_GETFL command
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
 
 				// TODO: Implement these error codes
