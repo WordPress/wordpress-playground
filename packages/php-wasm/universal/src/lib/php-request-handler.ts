@@ -219,6 +219,14 @@ export class PHPRequestHandler {
 			});
 		}
 
+		/**
+		 * By default, config.cookieStore is undefined, so we use the
+		 * HttpCookieStore implementation, otherwise we use the one
+		 * provided in the config.
+		 *
+		 * By explicitly checking for `undefined` we allow the user to pass
+		 * `null` as config.cookieStore and disable the cookie store.
+		 */
 		this.#cookieStore =
 			config.cookieStore === undefined
 				? new HttpCookieStore()

@@ -52,14 +52,13 @@ async function downloadTo(
 	writer.close();
 	if (!writer.closed) {
 		await new Promise((resolve, reject) => {
-			writer.on('finish', (err: any) => {
-				if (err) {
-					fs.removeSync(tmpPath);
-					reject(err);
-				} else {
-					fs.renameSync(tmpPath, localPath);
-					resolve(null);
-				}
+			writer.on('finish', () => {
+				fs.renameSync(tmpPath, localPath);
+				resolve(null);
+			});
+			writer.on('error', (err: any) => {
+				fs.removeSync(tmpPath);
+				reject(err);
 			});
 		});
 	}

@@ -12,7 +12,12 @@ export interface CacheEntry {
  *
  * @param originalFetch The fetch function to memoize. Defaults to the global fetch.
  */
-export function createMemoizedFetch(originalFetch = fetch) {
+export function createMemoizedFetch(
+	originalFetch: (
+		input: RequestInfo | URL,
+		init?: RequestInit
+	) => Promise<Response> = fetch
+) {
 	const fetches: Record<string, CacheEntry> = {};
 
 	return async function memoizedFetch(url: string, options?: RequestInit) {

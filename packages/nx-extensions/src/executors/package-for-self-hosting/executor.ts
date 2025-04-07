@@ -121,7 +121,7 @@ export default async function packageForSelfHostingExecutor(
 		pack.pipe(zlib.createGzip())
 			.pipe(tarballWriteStream)
 			.on('error', reject)
-			.on('finish', resolve);
+			.on('finish', () => resolve(null));
 	});
 
 	return { success: true };

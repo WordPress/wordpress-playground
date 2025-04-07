@@ -690,11 +690,7 @@ function getEntry(issue: IssuesListForRepoResponseItem): string | undefined {
 		return undefined;
 	}
 
-	if (isUrlForPublicPlaygroundRepo(issue.html_url)) {
-		// We can link to the PR in the public Playground repo.
-		title = formatTitleWithLinkToPR(title, issue.number, issue.html_url);
-	}
-
+	title = formatTitleWithLinkToPR(title, issue.number, issue.html_url);
 	return `- ${title}`;
 }
 
@@ -713,17 +709,6 @@ function formatTitleWithLinkToPR(
 	url: string
 ): string {
 	return `${title} ([#${number}](${url}))`;
-}
-
-/**
- * Answers whether a URL is for the public Playground repo on GitHub.
- *
- * @param {string} url The URL
- *
- * @return Whether or not the URL is for the public Playground repo on GitHub.
- */
-function isUrlForPublicPlaygroundRepo(url: string) {
-	return url.startsWith('https://github.com/WordPress/wordpress-playground/');
 }
 
 /**
@@ -980,13 +965,11 @@ function getContributorPropsMarkdownList(
 	return ftcPRs.reduce((markdownList, pr) => {
 		let title = getNormalizedTitle(pr.title, pr) || '';
 
-		if (isUrlForPublicPlaygroundRepo(pr.pull_request.html_url)) {
-			title = formatTitleWithLinkToPR(
-				title,
-				pr.number,
-				pr.pull_request.html_url
-			);
-		}
+		title = formatTitleWithLinkToPR(
+			title,
+			pr.number,
+			pr.pull_request.html_url
+		);
 
 		markdownList += '- ' + '@' + pr.user.login + ': ' + title + '\n';
 		return markdownList;

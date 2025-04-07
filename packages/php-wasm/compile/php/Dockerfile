@@ -1070,15 +1070,16 @@ RUN set -euxo pipefail; \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
+	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
-	-s ALLOW_MEMORY_GROWTH=1         \
-	-s ASSERTIONS=0                  \
-	-s ERROR_ON_UNDEFINED_SYMBOLS=1  \
-	-s NODEJS_CATCH_EXIT=0           \
-	-s NODEJS_CATCH_REJECTION=0      \
-	-s INVOKE_RUN=0                  \
+	-s ALLOW_MEMORY_GROWTH=1 \
+	-s ASSERTIONS=0 \
+	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
+	-s NODEJS_CATCH_EXIT=0 \
+	-s NODEJS_CATCH_REJECTION=0 \
+	-s INVOKE_RUN=0 \
 	-o /build/output/php.js \
-	-s EXIT_RUNTIME=1                \
+	-s EXIT_RUNTIME=1 \
 	-Wl,--wrap=select \
 		/root/lib/libphp.a \
 		/root/proc_open.c \

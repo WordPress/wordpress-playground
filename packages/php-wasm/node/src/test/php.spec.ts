@@ -8,9 +8,18 @@ import {
 	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
+import {
+	existsSync,
+	rmSync,
+	readFileSync,
+	mkdirSync,
+	writeFileSync,
+	statfsSync,
+	mkdtempSync,
+} from 'fs';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { tmpdir } from 'os';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -2140,6 +2149,50 @@ bar1
 			expect(response.errors).toBe('');
 			// TODO: we could improve this by providing an image with a valid thumbnail
 			expect(response.text).toBe('bool(false)\n');
+		});
+	});
+	describe('Disk space', () => {
+		it('should return the correct total disk space', async () => {
+			const response = await php.run({
+				code: `<?php echo disk_total_space('/');`,
+			});
+			const expectedStatfs = statfsSync('/');
+			const expectedTotalDiskSpace =
+				expectedStatfs.blocks * expectedStatfs.bsize;
+			expect(response.text).toBe(expectedTotalDiskSpace.toString());
+		});
+
+		it('should return the correct free disk space', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode(disk_free_space('/'));`,
+			});
+			const expectedStatfs = statfsSync('/');
+			const expectedFreeDiskSpace =
+				expectedStatfs.bavail * expectedStatfs.bsize;
+			expect(response.text).toBe(expectedFreeDiskSpace.toString());
+		});
+
+		it('should return a hardcoded value from MEMFS for a file created in MEMFS', async () => {
+			php.writeFile('/test.txt', new Uint8Array(1024));
+			const response = await php.run({
+				code: `<?php echo json_encode(disk_total_space('/test.txt'));`,
+			});
+			expect(response.text).toBe('4096000000');
+		});
+
+		it('should return the correct total disk space when passing a subdirectory', async () => {
+			const tempDir = mkdtempSync(joinPaths(tmpdir(), 'php-wasm-test-'));
+			const filePath = joinPaths(tempDir, 'test.txt');
+			writeFileSync(filePath, new Uint8Array(1024));
+			php.mount('/tmp', createNodeFsMountHandler(tempDir));
+
+			const response = await php.run({
+				code: `<?php echo json_encode(disk_total_space('/tmp'));`,
+			});
+			const expectedStatfs = statfsSync('/');
+			const expectedTotalDiskSpace =
+				expectedStatfs.blocks * expectedStatfs.bsize;
+			expect(response.text).toBe(expectedTotalDiskSpace.toString());
 		});
 	});
 });

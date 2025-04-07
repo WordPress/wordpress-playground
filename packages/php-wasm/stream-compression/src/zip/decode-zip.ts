@@ -174,7 +174,7 @@ export async function readFileEntry(
 		/**
 		 * We want to write raw deflate-compressed bytes into our
 		 * final ZIP file. CompressionStream supports "deflate-raw"
-		 * compression, but not on Node.js v18.
+		 * compression, but not on Node.js v20, it's available since v21.2.0.
 		 *
 		 * As a workaround, we use the "gzip" compression and add
 		 * the header and footer bytes. It works, because "gzip"

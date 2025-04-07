@@ -75,6 +75,12 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('skipSqliteSetup', {
+			describe:
+				'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
+			type: 'boolean',
+			default: false,
+		})
 		.option('quiet', {
 			describe: 'Do not output logs and progress messages.',
 			type: 'boolean',

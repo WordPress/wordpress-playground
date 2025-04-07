@@ -43,6 +43,7 @@ export interface RunCLIArgs {
 	port?: number;
 	quiet?: boolean;
 	skipWordPressSetup?: boolean;
+	skipSqliteSetup?: boolean;
 	wp?: string;
 }
 
@@ -224,7 +225,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
 			const fcntlLockManager = new FcntlFileLockManagerForNode();
 
-			// TODO
 			try {
 				logger.log(`Setting up WordPress ${args.wp}`);
 				let wpDetails: any = undefined;
@@ -290,9 +290,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					mountsAfterWpInstall
 				);
 
-				const sqliteIntegrationPluginZip = await fetchSqliteIntegration(
-					monitor
-				);
+				const sqliteIntegrationPluginZip = args.skipSqliteSetup
+					? undefined
+					: await fetchSqliteIntegration(monitor);
 				console.log('sqlite zip is here');
 
 				const workerUrl = new URL('worker-thread.js', import.meta.url);
@@ -313,8 +313,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					nodeEndpoint(primaryWorker)
 				);
 				await playground.boot({
-					phpVersion: args.php,
-					wpVersion: args.wp,
+					phpVersion: compiledBlueprint.versions.php,
+					wpVersion: compiledBlueprint.versions.wp,
 					absoluteUrl,
 					mountsBeforeWpInstall,
 					mountsAfterWpInstall,
@@ -351,7 +351,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					// TODO: Parallelize booting and waiting for secondary workers to be ready
 					// TODO: Fix auto-login
 					await secondaryPlayground.boot({
-						phpVersion: args.php,
+						phpVersion: compiledBlueprint.versions.php,
 						absoluteUrl,
 						mountsBeforeWpInstall,
 						mountsAfterWpInstall,

@@ -134,7 +134,7 @@
 		"@types/ajv": "1.0.0",
 		"@types/file-saver": "^2.0.5",
 		"@types/jest": "^29.4.0",
-		"@types/node": "18.14.2",
+		"@types/node": "20.9.0",
 		"@types/react": "18.3.3",
 		"@types/react-dom": "18.3.0",
 		"@types/react-modal": "3.16.3",
@@ -224,7 +224,7 @@
 		"packages/playground/*"
 	],
 	"engines": {
-		"node": ">=16.15.1",
-		"npm": ">=8.11.0"
+		"node": ">=20.9.0",
+		"npm": ">=10.1.0"
 	}
 }

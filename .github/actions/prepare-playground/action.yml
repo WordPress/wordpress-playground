@@ -5,7 +5,7 @@ inputs:
         type: string
         required: true
         description: 'Node.js version to use'
-        default: '18'
+        default: '20'
 
 runs:
     using: 'composite'

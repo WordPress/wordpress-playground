@@ -6,5 +6,6 @@ export default {
 	test: {
 		...config.test,
 		environment: 'jsdom',
+		setupFiles: ['../../../vitest.setup.ts'],
 	},
 };
