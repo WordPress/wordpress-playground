@@ -57,11 +57,9 @@ fi
 COPY ./libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
-	cp -r /root/builds-libopenssl/jspi/dist/1.1.0h/root/lib /libs/libopenssl/1.1.0h; \
-	cp -r /root/builds-libopenssl/jspi/dist/1.1.1/root/lib /libs/libopenssl/1.1.1; \
+	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
 else \
-	cp -r /root/builds-libopenssl/asyncify/dist/1.1.0h/root/lib /libs/libopenssl/1.1.0h; \
-	cp -r /root/builds-libopenssl/asyncify/dist/1.1.1/root/lib /libs/libopenssl/1.1.1; \
+	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
 fi
 
 # Build PHP
@@ -202,11 +200,7 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 # Add openssl if needed
 RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 	then \
-		if [[ "${PHP_VERSION:0:1}" -lt "8" || ("${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -lt "4") ]]; then \
-			cp -r /libs/libopenssl/1.1.0h/* /root/lib; \
-		else \
-			cp -r /libs/libopenssl/1.1.1/* /root/lib; \
-		fi; \
+		cp -r /libs/libopenssl/* /root/lib; \
 		echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
 	fi;
