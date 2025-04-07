@@ -40,7 +40,7 @@ export interface InstallThemeStep<FileResource, DirectoryResource>
 	 */
 	themeData: FileResource | DirectoryResource;
 	/**
-	 * @deprecated. Use `themeData` instead.
+	 * @deprecated. Use 'themeData' instead.
 	 */
 	themeZipFile?: FileResource;
 	/**
@@ -85,7 +85,8 @@ export const installTheme: StepHandler<
 		);
 	}
 
-	const targetFolderName = 'targetFolderName' in options ? options.targetFolderName : '';
+	const targetFolderName =
+		'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderName = '';
 	let assetNiceName = '';
 	if (themeData instanceof File) {
@@ -98,7 +99,7 @@ export const installTheme: StepHandler<
 			ifAlreadyInstalled,
 			zipFile: themeData,
 			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-			targetFolderName: targetFolderName
+			targetFolderName: targetFolderName,
 		});
 		assetFolderName = assetResult.assetFolderName;
 	} else {
