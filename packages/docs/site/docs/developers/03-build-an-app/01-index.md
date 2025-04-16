@@ -49,6 +49,13 @@ You can install plugins and themes from the WordPress directory with only URL pa
 
 ## Showcase any plugin or theme
 
+Looking for plugins or themes to try?
+
+Browse the official directories to discover plugin and theme slugs:
+
+-   [WordPress Plugin Directory](https://wordpress.org/plugins/)
+-   [WordPress Theme Directory](https://wordpress.org/themes/)
+
 What if your plugin is not in the WordPress directory?
 
 You can still showcase it on Playground by using [JSON Blueprints](/blueprints). For example, this Blueprint would download and install a plugin and a theme from your website and also import some starter content:

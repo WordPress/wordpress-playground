@@ -37,6 +37,13 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
 
+If you're not sure which plugin or theme to use, you can explore the official directories here:
+
+-   [WordPress Plugin Directory](https://wordpress.org/plugins/)
+-   [WordPress Theme Directory](https://wordpress.org/themes/)
+
+Use the plugin or theme slug from the URL to preinstall them via Playground.
+
 To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL:
 
 https://playground.wordpress.net/?plugin=coblocks
