@@ -61,6 +61,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with mbregex support',
 		},
+		WITH_INTL: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with intl support',
+		},
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -139,6 +144,7 @@ const platformDefaults = {
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
+		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
@@ -204,6 +210,8 @@ await asyncSpawn(
 		getArg('WITH_MBSTRING'),
 		'--build-arg',
 		getArg('WITH_MBREGEX'),
+		'--build-arg',
+		getArg('WITH_INTL'),
 		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',

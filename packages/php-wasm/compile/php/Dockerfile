@@ -19,6 +19,13 @@ RUN git clone https://github.com/php/php-src.git php-src \
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
+
+# Work around to add ICU FLAGS to intl below 7.2 to inject -fPIC.
+RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "2" ]]; then \
+		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
+	fi;
+
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
@@ -34,6 +41,7 @@ COPY ./libsqlite3/ /root/builds/libsqlite3
 COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
+COPY ./libintl/ /root/builds/libintl
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
@@ -78,6 +86,7 @@ ARG WITH_OPENSSL
 ARG WITH_ICONV
 ARG WITH_SOURCEMAPS
 ARG WITH_WS_NETWORKING_PROXY
+ARG WITH_INTL
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
@@ -86,7 +95,8 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.emcc-php-wasm-sources && \
 	touch /root/.emcc-php-wasm-flags && \
-	touch /root/.EXPORTED_FUNCTIONS
+	touch /root/.EXPORTED_FUNCTIONS && \
+	touch /root/.env.js
 
 # Grab Bison 2.7 patch in case we need it
 COPY ./bison2.7/bison27.patch /root/bison27.patch
@@ -258,6 +268,28 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 	else echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
 	fi;
 
+# # Add intl if needed
+RUN if [ "$WITH_INTL" = "yes" ]; \
+	then \
+		if [ "${PHP_VERSION:0:1}" -eq "8" ] || [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+			echo -n ' --enable-intl ' >> /root/.php-configure-flags; \
+			echo -n ' -licuuc -licudata -licui18n -licuio --preload-file /root/lib/data@/internal/shared/preload ' >> /root/.emcc-php-wasm-flags; \
+			echo " Module.preRun = Module.preRun || []; Module.preRun = typeof Module.preRun == 'function' ? [ Module.preRun ] : Module.preRun; Module.preRun.push(() => ENV.ICU_DATA = ENV.ICU_DATA || '/internal/shared/preload'); " >> /root/.env.js; \
+
+			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+				/root/replace.sh 's/UBool operator/bool operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.h; \
+				/root/replace.sh 's/UBool CodePointBreakIterator::operator/bool CodePointBreakIterator::operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp; \
+				/root/replace.sh 's/ getArg/ phpGetArg/g; s/::getArg/::phpGetArg/g; s/ getMessage/ phpGetMessage/g; s/::getMessage/::phpGetMessage/g' /root/php-src/ext/intl/msgformat/msgformat_helpers.cpp; \
+			fi; \
+
+			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "2" ]]; then \
+				files=( /root/php-src/ext/intl/collator/collator_sort.c /root/php-src/ext/intl/normalizer/normalizer_normalize.c /root/php-src/ext/intl/dateformat/dateformat_attr.c /root/php-src/ext/intl/timezone/timezone_class.cpp /root/php-src/ext/intl/timezone/timezone_methods.cpp /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp ); \
+				for file in "${files[@]}"; do /root/replace.sh 's/\bFALSE\b/false/g; s/\bTRUE\b/true/g' "$file"; done; \
+			fi; \
+		fi; \
+	fi;
+
+
 # Add mbregex if needed
 # PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
 RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
@@ -294,6 +326,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
+ICU_CFLAGS="-fPIC -I/root/lib/include" \
+ICU_LIBS="-L/root/lib/lib" \
 CURL_CFLAGS="-I/root/lib/include" \
 WEBP_LIBS="-L/root/lib/lib" \
 WEBP_CFLAGS="-I/root/lib/include" \
@@ -351,6 +385,11 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
 	fi;
 
+# PHP <= 7.1 has to disable ZEND_BROKEN_SPRINTF in order to enable intl.
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "1" ]]; then \
+		/root/replace.sh 's/define ZEND_BROKEN_SPRINTF 1/define ZEND_BROKEN_SPRINTF 0/g' /root/php-src/main/php_config.h; \
+	fi;
+
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
 
@@ -371,8 +410,37 @@ RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
-RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h;
-RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h;
+
+# Provide custom implementation fo the shutdown() function.
+# These are used by intl ( which links C++ code ) and need C linkage.
+RUN cat >> /root/php-src/main/php_config.h <<EOF
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int wasm_shutdown(int fd, int how);
+extern int wasm_close(int fd);
+
+#ifdef __cplusplus
+}
+#endif
+EOF
+
+# This is used by intl ( which links C++ code ) and need C linkage. Needed in PHP < 7.4.
+RUN sed -i '/^extern char \*\*environ;/d' /root/php-src/main/php.h \
+ && cat <<EOF >> /root/php-src/main/php.h
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern char **environ;
+
+#ifdef __cplusplus
+}
+#endif
+EOF
+
+
 
 # Don't ship PHP_FUNCTION(proc_open) with the PHP build
 # so that we can ship a patched version with php_wasm.c
@@ -384,7 +452,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
+	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -licuuc -licudata -licui18n -licuio -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a" \
 	emmake make -j1
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -964,7 +1032,7 @@ RUN set -euxo pipefail; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
-	fi; \	
+	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "UTF8ToString", \n\
 "stringToUTF8", \n\
@@ -998,6 +1066,7 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
+	--pre-js /root/.env.js \
 	--js-library /root/phpwasm-emscripten-library.js \
 	-I .  \
 	-I ext   \
@@ -1060,6 +1129,7 @@ RUN set -euxo pipefail; \
 		export EXT_PREFIX=""; \
 		export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
 		export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
+		export PHP_DATA_FILENAME="php.data"; \
 	# Make the php.wasm URL configurable via the dependencyFilename loader argument:
 		/root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js; \
 	# Patch a "property undefined" error
@@ -1110,13 +1180,25 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+	# Replace the hardcodede PHP_DATA_FILENAME variable with a dynamic computation
+		if [ -f "/root/output/$PHP_DATA_FILENAME" ] && [ "$WITH_INTL" = "yes" ]; then \
+			/root/replace.sh "s/REMOTE_PACKAGE_BASE\s*=\s*\"$PHP_DATA_FILENAME\"/REMOTE_PACKAGE_BASE=phpDataUrl/g" /root/output/php.js; \
+		fi; \
 	# Turn the php.js file into an ES module
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+
+			if [ -f "/root/output/$PHP_DATA_FILENAME" ] && [ "$WITH_INTL" = "yes" ]; then \
+				echo "const phpDataUrl = __dirname + '/$PHP_DATA_FILENAME'; " >> /root/output/php-module.js; \
+			fi; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+
+			if [ -f "/root/output/$PHP_DATA_FILENAME" ] && [ "$WITH_INTL" = "yes" ]; then \
+				echo "import phpDataUrl from './$PHP_DATA_FILENAME?url'; " >> /root/output/php-module.js; \
+ 			fi; \
 		fi; \
 		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
