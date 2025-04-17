@@ -46,9 +46,6 @@ jobs:
                   FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
               run: |
                   PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
-                  # This appears to be necessary because we encountered the build output being owned by root,
-                  # and there are some subdirectories that the runner user cannot access.
-                  sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public/wp-6.8
             - name: Check for uncommitted changes
               id: changes
               run: |
@@ -62,6 +59,9 @@ jobs:
             - name: Push rebuilt WordPress to GitHub
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               run: |
+                  # This appears to be necessary because we encountered the build output being owned by root,
+                  # and there are some subdirectories that the runner user cannot access.
+                  sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public/wp-6.8
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
