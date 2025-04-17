@@ -14,7 +14,7 @@ You can track the status of these issues on the [Playground Project board](https
 
 Playground [disables network connections](/blueprints/data-format#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](/developers/apis/query-api#available-options) or [Blueprints API](/blueprints/troubleshoot-and-debug#review-common-gotchas).
 
-To find plugin and theme slugs, you can browse the official WordPress directories outside Playground:
+To find plugins and themes and their slugs, browse the official WordPress directories outside of Playground.
 
 -   [WordPress Plugin Directory](https://wordpress.org/plugins/)
 -   [WordPress Theme Directory](https://wordpress.org/themes/)

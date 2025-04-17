@@ -51,7 +51,7 @@ You can install plugins and themes from the WordPress directory with only URL pa
 
 Looking for plugins or themes to try?
 
-Browse the official directories to discover plugin and theme slugs:
+Browse the official directories to discover plugin and theme and their slugs.
 
 -   [WordPress Plugin Directory](https://wordpress.org/plugins/)
 -   [WordPress Theme Directory](https://wordpress.org/themes/)
