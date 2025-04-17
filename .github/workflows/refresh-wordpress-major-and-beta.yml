@@ -61,7 +61,7 @@ jobs:
               run: |
                   # This appears to be necessary because we encountered the build output being owned by root,
                   # and there are some subdirectories that the runner user cannot access.
-                  sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public/wp-6.8
+                  sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
