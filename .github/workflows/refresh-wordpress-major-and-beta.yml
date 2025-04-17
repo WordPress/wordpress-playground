@@ -14,14 +14,14 @@ on:
 jobs:
     build_wordpress_major_and_beta_push_to_github_and_deploy_website:
         # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
-        # if: >
-        #     github.ref == 'refs/heads/trunk' && (
-        #         github.actor == 'adamziel' ||
-        #         github.actor == 'dmsnell' ||
-        #         github.actor == 'bgrgicak' ||
-        #         github.actor == 'brandonpayton' ||
-        #         github.actor == 'zaerl'
-        #     )
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl'
+            )
 
         runs-on: ubuntu-latest
         environment:
@@ -69,9 +69,9 @@ jobs:
                   git commit -a -m "Recompile WordPress major and beta versions"
                   git pull --rebase
                   # Push if the pull did not result in a conflict
-              #   if [ $? -eq 0 ]; then
-              #       git push origin HEAD:trunk
-              #   fi;
+                  if [ $? -eq 0 ]; then
+                      git push origin HEAD:trunk
+                  fi;
             - name: Deploy website
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
