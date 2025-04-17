@@ -25,7 +25,7 @@ import {
 import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { Worker } from 'worker_threads';
-import { PlaygroundCliWorker, Mount } from './worker-thread';
+import type { PlaygroundCliWorker, Mount } from './worker-thread';
 import { FcntlFileLockManagerForNode } from '@php-wasm/node';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 export interface RunCLIArgs {

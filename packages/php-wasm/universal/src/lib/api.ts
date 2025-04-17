@@ -1,5 +1,5 @@
-import type { PHPResponseData } from '@php-wasm/universal';
-import { PHPResponse } from '@php-wasm/universal';
+import type { PHPResponseData } from './php-response';
+import { PHPResponse } from './php-response';
 import type { Endpoint } from 'comlink';
 import * as Comlink from 'comlink';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';

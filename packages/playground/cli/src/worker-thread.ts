@@ -1,15 +1,7 @@
-import {
-	PHP,
-	PHPWorker,
-	SupportedPHPVersion,
-	consumeAPI,
-	exposeAPI,
-} from '@php-wasm/universal';
-import {
-	createNodeFsMountHandler,
-	loadNodeRuntime,
-	FileLockManager,
-} from '@php-wasm/node';
+import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import { PHPWorker, consumeAPI, exposeAPI } from '@php-wasm/universal';
+import type { FileLockManager } from '@php-wasm/node';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { zipDirectory } from '@wp-playground/common';
 import { parentPort } from 'worker_threads';
