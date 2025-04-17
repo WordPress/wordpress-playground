@@ -1,4 +1,4 @@
-import { SyncMiddleware } from '.';
+import type { SyncMiddleware } from '.';
 import { logger } from '@php-wasm/logger';
 
 export function loggerMiddleware(clientId: string): SyncMiddleware {

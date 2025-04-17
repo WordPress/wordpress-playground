@@ -23,17 +23,25 @@ export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
 export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
 
 /**
+ * Log handler.
+ */
+export type LogHandler = (log: Log, ...args: any[]) => void;
+
+/**
  * A logger for Playground.
  */
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
+	private readonly handlers: LogHandler[];
 
 	// constructor
 	constructor(
 		// Log handlers
-		private readonly handlers: Function[] = []
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+		handlers: LogHandler[] = []
 	) {
 		super();
+		this.handlers = handlers;
 	}
 
 	/**
@@ -161,7 +169,7 @@ const getDefaultHandlers = () => {
 		if (process.env['NODE_ENV'] === 'test') {
 			return [logToMemory, logEvent];
 		}
-	} catch (e) {
+	} catch {
 		// Process.env is not available in the browser
 	}
 	return [logToMemory, logToConsole, logEvent];

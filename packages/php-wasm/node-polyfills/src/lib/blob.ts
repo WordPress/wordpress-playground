@@ -127,7 +127,7 @@ if (currentJsRuntime === 'NODE') {
 			// This throws on older versions of node:
 			stream.getReader({ mode: 'byob' });
 			return true;
-		} catch (e) {
+		} catch {
 			return false;
 		}
 	}

@@ -46,9 +46,16 @@ export default defineConfig(function () {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			poolOptions: {
+				// This is needed to allow `--expose-gc` to be passed to the
+				// forked test process.
+				forks: {
+					execArgv: ['--expose-gc'],
+				},
+			},
+			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-			setupFiles: ['../../../vitest.setup.ts'],
+			reporters: ['default'],
 		},
 
 		define: {

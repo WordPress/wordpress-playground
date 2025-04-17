@@ -1,5 +1,5 @@
 import { AcquireTimeoutError, Semaphore } from '@php-wasm/util';
-import { PHP } from './php';
+import type { PHP } from './php';
 
 export type PHPFactoryOptions = {
 	isPrimary: boolean;

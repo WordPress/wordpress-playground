@@ -1,10 +1,11 @@
+import type { ProgressTracker } from '@php-wasm/progress';
 import {
 	cloneResponseMonitorProgress,
 	cloneStreamMonitorProgress,
-	ProgressTracker,
 } from '@php-wasm/progress';
-import { FileTree, UniversalPHP } from '@php-wasm/universal';
-import { dirname, Semaphore } from '@php-wasm/util';
+import type { FileTree, UniversalPHP } from '@php-wasm/universal';
+import type { Semaphore } from '@php-wasm/util';
+import { dirname } from '@php-wasm/util';
 import {
 	listDescendantFiles,
 	listGitFiles,
@@ -14,7 +15,7 @@ import {
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
-import { StreamBundledFile } from './blueprint';
+import type { StreamBundledFile } from './blueprint';
 
 export type { FileTree };
 export const ResourceTypes = [
@@ -212,8 +213,10 @@ export abstract class Resource<T extends File | Directory> {
 export abstract class ResourceDecorator<
 	T extends File | Directory
 > extends Resource<T> {
-	constructor(protected resource: Resource<T>) {
+	protected resource: Resource<T>;
+	constructor(resource: Resource<T>) {
 		super();
+		this.resource = resource;
 	}
 
 	/** @inheritDoc */
@@ -250,17 +253,18 @@ export abstract class ResourceDecorator<
  * playground.
  */
 export class VFSResource extends Resource<File> {
+	private resource: VFSReference;
+
 	/**
 	 * Creates a new instance of `VFSResource`.
 	 * @param playground The playground client.
 	 * @param resource The VFS reference.
 	 * @param progress The progress tracker.
 	 */
-	constructor(
-		private resource: VFSReference,
-		public override _progress?: ProgressTracker
-	) {
+	constructor(resource: VFSReference, _progress?: ProgressTracker) {
 		super();
+		this.resource = resource;
+		this._progress = _progress;
 	}
 
 	/** @inheritDoc */
@@ -282,16 +286,17 @@ export class VFSResource extends Resource<File> {
  * A `Resource` that represents a literal file.
  */
 export class LiteralResource extends Resource<File> {
+	private resource: LiteralReference;
+
 	/**
 	 * Creates a new instance of `LiteralResource`.
 	 * @param resource The literal reference.
 	 * @param progress The progress tracker.
 	 */
-	constructor(
-		private resource: LiteralReference,
-		public override _progress?: ProgressTracker
-	) {
+	constructor(resource: LiteralReference, _progress?: ProgressTracker) {
 		super();
+		this.resource = resource;
+		this._progress = _progress;
 	}
 
 	/** @inheritDoc */
@@ -310,15 +315,16 @@ export class LiteralResource extends Resource<File> {
  * A base class for `Resource`s that require fetching data from a remote URL.
  */
 export abstract class FetchResource extends Resource<File> {
+	private corsProxy?: string;
+
 	/**
 	 * Creates a new instance of `FetchResource`.
 	 * @param progress The progress tracker.
 	 */
-	constructor(
-		public override _progress?: ProgressTracker,
-		private corsProxy?: string
-	) {
+	constructor(_progress?: ProgressTracker, corsProxy?: string) {
 		super();
+		this._progress = _progress;
+		this.corsProxy = corsProxy;
 	}
 
 	/** @inheritDoc */
@@ -393,7 +399,7 @@ export abstract class FetchResource extends Resource<File> {
 			return new URL(this.getURL(), 'http://example.com').pathname
 				.split('/')
 				.pop()!;
-		} catch (e) {
+		} catch {
 			return this.getURL();
 		}
 	}
@@ -411,17 +417,22 @@ const noop = (() => {}) as any;
  * A `Resource` that represents a file available from a URL.
  */
 export class UrlResource extends FetchResource {
+	private resource: UrlReference;
+	private options?: { corsProxy?: string };
+
 	/**
 	 * Creates a new instance of `UrlResource`.
 	 * @param resource The URL reference.
 	 * @param progress The progress tracker.
 	 */
 	constructor(
-		private resource: UrlReference,
+		resource: UrlReference,
 		progress?: ProgressTracker,
-		private options?: { corsProxy?: string }
+		options?: { corsProxy?: string }
 	) {
 		super(progress, options?.corsProxy);
+		this.resource = resource;
+		this.options = options;
 		/**
 		 * Translates GitHub URLs into raw.githubusercontent.com URLs.
 		 *
@@ -489,12 +500,18 @@ export class UrlResource extends FetchResource {
  * A `Resource` that represents a git directory.
  */
 export class GitDirectoryResource extends Resource<Directory> {
+	private reference: GitDirectoryReference;
+	private options?: { corsProxy?: string };
+
 	constructor(
-		private reference: GitDirectoryReference,
-		public override _progress?: ProgressTracker,
-		private options?: { corsProxy?: string }
+		reference: GitDirectoryReference,
+		_progress?: ProgressTracker,
+		options?: { corsProxy?: string }
 	) {
 		super();
+		this.reference = reference;
+		this._progress = _progress;
+		this.options = options;
 	}
 
 	async resolve() {
@@ -542,11 +559,15 @@ function mapKeys(obj: Record<string, any>, fn: (key: string) => string) {
  * A `Resource` that represents a git directory.
  */
 export class LiteralDirectoryResource extends Resource<Directory> {
+	private reference: DirectoryLiteralReference;
+
 	constructor(
-		private reference: DirectoryLiteralReference,
-		public override _progress?: ProgressTracker
+		reference: DirectoryLiteralReference,
+		_progress?: ProgressTracker
 	) {
 		super();
+		this.reference = reference;
+		this._progress = _progress;
 	}
 
 	async resolve() {
@@ -563,11 +584,11 @@ export class LiteralDirectoryResource extends Resource<Directory> {
  * A `Resource` that represents a WordPress core theme.
  */
 export class CoreThemeResource extends FetchResource {
-	constructor(
-		private resource: CoreThemeReference,
-		progress?: ProgressTracker
-	) {
+	private resource: CoreThemeReference;
+
+	constructor(resource: CoreThemeReference, progress?: ProgressTracker) {
 		super(progress);
+		this.resource = resource;
 	}
 	override get name() {
 		return zipNameToHumanName(this.resource.slug);
@@ -582,11 +603,11 @@ export class CoreThemeResource extends FetchResource {
  * A resource that fetches a WordPress plugin from wordpress.org.
  */
 export class CorePluginResource extends FetchResource {
-	constructor(
-		private resource: CorePluginReference,
-		progress?: ProgressTracker
-	) {
+	private resource: CorePluginReference;
+
+	constructor(resource: CorePluginReference, progress?: ProgressTracker) {
 		super(progress);
+		this.resource = resource;
 	}
 
 	/** @inheritDoc */
@@ -640,8 +661,10 @@ export class CachedResource<
 export class SemaphoreResource<
 	T extends File | Directory
 > extends ResourceDecorator<T> {
-	constructor(resource: Resource<T>, private readonly semaphore: Semaphore) {
+	private readonly semaphore: Semaphore;
+	constructor(resource: Resource<T>, semaphore: Semaphore) {
 		super(resource);
+		this.semaphore = semaphore;
 	}
 
 	/** @inheritDoc */
@@ -657,6 +680,9 @@ export class SemaphoreResource<
  * A `Resource` that represents a file bundled with the Blueprint.
  */
 export class BundledResource extends Resource<File> {
+	private resource: BundledReference;
+	private streamBundledFile: StreamBundledFile;
+
 	/**
 	 * Creates a new instance of `BlueprintResource`.
 	 * @param resource The blueprint reference.
@@ -664,9 +690,9 @@ export class BundledResource extends Resource<File> {
 	 * @param progress The progress tracker.
 	 */
 	constructor(
-		private resource: BundledReference,
-		private streamBundledFile: StreamBundledFile,
-		public override _progress?: ProgressTracker
+		resource: BundledReference,
+		streamBundledFile: StreamBundledFile,
+		_progress?: ProgressTracker
 	) {
 		if (!streamBundledFile) {
 			throw new Error(
@@ -678,6 +704,9 @@ export class BundledResource extends Resource<File> {
 			);
 		}
 		super();
+		this.resource = resource;
+		this.streamBundledFile = streamBundledFile;
+		this._progress = _progress;
 	}
 
 	/** @inheritDoc */

@@ -1,5 +1,5 @@
 import { test, expect } from '../playground-fixtures.ts';
-import { Blueprint } from '@wp-playground/blueprints';
+import type { Blueprint } from '@wp-playground/blueprints';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the

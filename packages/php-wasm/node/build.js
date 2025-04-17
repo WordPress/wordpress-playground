@@ -35,6 +35,12 @@ const dirnamePlugin = {
 		build.onLoad({ filter: /\/php_\d+_\d+\.js$/ }, ({ path: filePath }) => {
 			if (!filePath.match(/node_modules/)) {
 				let contents = fs.readFileSync(filePath, 'utf8');
+
+				// NOTE: We are building for CommonJS, so we need to remove the
+				// shims for the builtins `__dirname` and `require`.
+				contents = contents.replace(/\bconst __dirname\s*=.*/, '');
+				contents = contents.replace(/\bconst require\s*=.*/, '');
+
 				const loader = path.extname(filePath).substring(1);
 				const dirname = filePath.includes('/jspi/')
 					? '/jspi'

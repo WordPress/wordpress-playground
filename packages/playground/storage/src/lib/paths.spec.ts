@@ -1,4 +1,4 @@
-import { GitFileTree } from './git-sparse-checkout';
+import type { GitFileTree } from './git-sparse-checkout';
 import { listDescendantFiles } from './paths';
 
 const testTree: GitFileTree[] = [

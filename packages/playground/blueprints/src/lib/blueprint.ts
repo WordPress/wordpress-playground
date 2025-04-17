@@ -1,8 +1,8 @@
-import { SupportedPHPVersion } from '@php-wasm/universal';
-import { StepDefinition } from './steps';
-import { FileReference } from './resources';
-import { StreamedFile } from '@php-wasm/stream-compression';
-import { Filesystem } from '@wp-playground/storage';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { StepDefinition } from './steps';
+import type { FileReference } from './resources';
+import type { StreamedFile } from '@php-wasm/stream-compression';
+import type { Filesystem } from '@wp-playground/storage';
 
 export type ExtraLibrary =
 	// Install WP-CLI during boot.

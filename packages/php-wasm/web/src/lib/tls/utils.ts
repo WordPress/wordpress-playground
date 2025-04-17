@@ -39,7 +39,10 @@ export function as8Bytes(value: number): Uint8Array {
 export class ArrayBufferReader {
 	private view: DataView;
 	offset = 0;
-	constructor(private buffer: ArrayBuffer) {
+	private buffer: ArrayBuffer;
+
+	constructor(buffer: ArrayBuffer) {
+		this.buffer = buffer;
 		this.view = new DataView(buffer);
 	}
 

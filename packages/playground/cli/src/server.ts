@@ -1,8 +1,9 @@
-import { PHPRequest, PHPResponse } from '@php-wasm/universal';
-import express, { Request } from 'express';
-import { IncomingMessage, Server, ServerResponse } from 'http';
-import { AddressInfo } from 'net';
-import { RunCLIServer } from './run-cli';
+import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
+import type { Request } from 'express';
+import express from 'express';
+import type { IncomingMessage, Server, ServerResponse } from 'http';
+import type { AddressInfo } from 'net';
+import type { RunCLIServer } from './run-cli';
 
 export interface ServerOptions {
 	port: number;

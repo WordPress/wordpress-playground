@@ -69,7 +69,7 @@ export async function resolveBlueprint({
 			const blueprintText = fs.readFileSync(blueprintPath, 'utf-8');
 			try {
 				JSON.parse(blueprintText);
-			} catch (e) {
+			} catch {
 				throw new Error(
 					`Blueprint file at ${blueprintPath} is not a valid JSON file`
 				);

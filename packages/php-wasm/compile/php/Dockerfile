@@ -1096,6 +1096,7 @@ RUN set -euxo pipefail; \
 #     fi
 
 # Postprocess the build php.js module:
+COPY ./php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
 COPY ./php/esm-prefix.js /root/esm-prefix.js
 COPY ./php/esm-suffix.js /root/esm-suffix.js
 RUN set -euxo pipefail; \
@@ -1183,6 +1184,11 @@ RUN set -euxo pipefail; \
 		# But the alternative `onExit()` handling is conditional and has different semantics.
 		# To avoid bugs due to this change, let's just restore support for quit callback customization.
 		/root/replace.sh "s/(if\s*\(Module\[['\"]thisProgram['\"]\]\)\s*thisProgram\s*=\s*Module\[['\"]thisProgram['\"]\];)/\$1\nif (Module[\"quit\"]) quit_=Module[\"quit\"];/" /root/output/php.js; \
+	# Node.js: Add __dirname declaration and create a require() function
+	# because Emscripten generates Node.js code that requires them.
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			cat /root/esm-node-boilerplate.js >> /root/output/php-module.js; \
+		fi; \
 	# Turn the php.js file into an ES module
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.

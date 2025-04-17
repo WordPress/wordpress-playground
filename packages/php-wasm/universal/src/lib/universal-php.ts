@@ -1,5 +1,5 @@
-import { Remote } from 'comlink';
-import { LimitedPHPApi } from './php-worker';
+import type { Remote } from 'comlink';
+import type { LimitedPHPApi } from './php-worker';
 
 /**
  * Represents an event related to the PHP request.

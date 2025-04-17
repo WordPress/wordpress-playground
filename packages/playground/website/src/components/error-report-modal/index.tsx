@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '@php-wasm/logger';
 import { TextareaControl, TextControl } from '@wordpress/components';
-import { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 import { useDispatch } from 'react-redux';
-import {
+import type {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
-	useAppSelector,
 } from '../../lib/state/redux/store';
+import { useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Modal } from '../../components/modal';
 import ModalButtons from '../modal/modal-buttons';

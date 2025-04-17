@@ -39,7 +39,8 @@
  * described in the previous paragraph.
  */
 import { TLS_1_2_Connection } from './tls/1_2/connection';
-import { generateCertificate, GeneratedCertificate } from './tls/certificates';
+import type { GeneratedCertificate } from './tls/certificates';
+import { generateCertificate } from './tls/certificates';
 import { concatUint8Arrays } from './tls/utils';
 import { ContentTypes } from './tls/1_2/types';
 import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
@@ -114,15 +115,21 @@ export class TCPOverFetchWebsocket {
 	fetchInitiated = false;
 	bufferedBytesFromClient: Uint8Array = new Uint8Array(0);
 
+	url: string;
+	options: string[];
+
 	constructor(
-		public url: string,
-		public options: string[],
+		url: string,
+		options: string[],
 		{
 			CAroot,
 			corsProxyUrl,
 			outputType = 'messages',
 		}: TCPOverFetchWebsocketOptions = {}
 	) {
+		this.url = url;
+		this.options = options;
+
 		const wsUrl = new URL(url);
 		this.host = wsUrl.searchParams.get('host')!;
 		this.port = parseInt(wsUrl.searchParams.get('port')!, 10);
@@ -322,7 +329,7 @@ export class TCPOverFetchWebsocket {
 				request,
 				this.corsProxyUrl
 			).pipeTo(tlsConnection.serverEnd.downstream.writable);
-		} catch (e) {
+		} catch {
 			// Ignore errors from fetch()
 			// They are handled in the constructor
 			// via this.clientDownstream.readable.pipeTo()
@@ -343,7 +350,7 @@ export class TCPOverFetchWebsocket {
 				request,
 				this.corsProxyUrl
 			).pipeTo(this.clientDownstream.writable);
-		} catch (e) {
+		} catch {
 			// Ignore errors from fetch()
 			// They are handled in the constructor
 			// via this.clientDownstream.readable.pipeTo()

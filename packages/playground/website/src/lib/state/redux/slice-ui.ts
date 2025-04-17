@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction, Middleware } from '@reduxjs/toolkit';
+import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'

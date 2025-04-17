@@ -1,4 +1,4 @@
-import { BuiltScriptExecutorSchema } from './schema';
+import type { BuiltScriptExecutorSchema } from './schema';
 import { spawnSync } from 'child_process';
 import { join } from 'path';
 

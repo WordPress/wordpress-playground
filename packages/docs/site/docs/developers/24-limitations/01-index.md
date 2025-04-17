@@ -27,7 +27,7 @@ Also, JavaScript popups originating in the `iframe` may not always display.
 
 ### Run WordPress PHP functions
 
-Playground supports running PHP code in Blueprints using the [`runPHP` step](blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
 ```json
 {

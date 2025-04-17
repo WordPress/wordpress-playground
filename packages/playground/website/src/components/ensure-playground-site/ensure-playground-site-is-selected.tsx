@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-	ResolvedBlueprint,
-	resolveBlueprintFromURL,
-} from '../../lib/state/url/resolve-blueprint-from-url';
+import type { ResolvedBlueprint } from '../../lib/state/url/resolve-blueprint-from-url';
+import { resolveBlueprintFromURL } from '../../lib/state/url/resolve-blueprint-from-url';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {

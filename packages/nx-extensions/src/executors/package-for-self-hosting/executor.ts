@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
-import { ExecutorContext, joinPathFragments, logger } from '@nx/devkit';
-import { PackageForSelfHostingExecutorSchema } from './schema';
+import type { ExecutorContext } from '@nx/devkit';
+import { joinPathFragments, logger } from '@nx/devkit';
+import type { PackageForSelfHostingExecutorSchema } from './schema';
 import * as tar from 'tar-fs';
 
 export default async function packageForSelfHostingExecutor(
@@ -12,7 +13,7 @@ export default async function packageForSelfHostingExecutor(
 	let hostingBaseUrl: URL;
 	try {
 		hostingBaseUrl = new URL(options.hostingBaseUrl);
-	} catch (e) {
+	} catch {
 		logger.error(
 			`hostingBaseUrl option "${options.hostingBaseUrl}" is not a URL.`
 		);

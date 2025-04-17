@@ -6,9 +6,9 @@ import { rootCertificates } from 'tls';
 
 import {
 	LatestSupportedPHPVersion,
-	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 import { PHP } from '@php-wasm/universal';
 import { spawn } from 'child_process';
@@ -19,16 +19,17 @@ if (!args.length) {
 	args = ['--help'];
 }
 
+const baseUrl = (import.meta || {}).url;
+
 // Write the ca-bundle.crt file to disk so that PHP can find it.
-const caBundlePath = new URL('ca-bundle.crt', (import.meta || {}).url).pathname;
+const caBundlePath = new URL('ca-bundle.crt', baseUrl).pathname;
 if (!existsSync(caBundlePath)) {
 	writeFileSync(caBundlePath, rootCertificates.join('\n'));
 }
 args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 
 async function run() {
-	// @ts-ignore
-	const defaultPhpIniPath = await import('./php.ini');
+	const defaultPhpIniPath = new URL('php.ini', baseUrl).pathname;
 	const phpVersion = (process.env['PHP'] ||
 		LatestSupportedPHPVersion) as SupportedPHPVersion;
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {

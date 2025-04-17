@@ -301,7 +301,7 @@ async function resolveObjects(
 					try {
 						currentObject = await idx.read({ oid: item.oid });
 						readObject(currentObject);
-					} catch (e) {
+					} catch {
 						currentObject = item;
 					}
 					found = true;

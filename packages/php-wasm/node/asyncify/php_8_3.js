@@ -1,3 +1,9 @@
+// Emscripten generates code for Node.js that uses the `require` function.
+// We need to explicitly create a require function to avoid errors when running
+// this code in Node.js as an ES module.
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const __dirname = new URL('.', import.meta.url).pathname;
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm';
 export { dependencyFilename };
 export const dependenciesTotalSize = 15495569;
@@ -2328,10 +2334,6 @@ export function init(RuntimeName, PHPLoader) {
 			return ((parentid + hash) >>> 0) % FS.nameTable.length;
 		},
 		hashAddNode(node) {
-			if (node.node_ops === NODEFS.node_ops) {
-				// Avoid caching NODEFS nodes so we always hit the real FS.
-				return;
-			}
 			var hash = FS.hashName(node.parent.id, node.name);
 			node.name_next = FS.nameTable[hash];
 			FS.nameTable[hash] = node;

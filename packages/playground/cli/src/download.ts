@@ -1,4 +1,4 @@
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import fs from 'fs-extra';
 import os from 'os';
 import path, { basename } from 'path';

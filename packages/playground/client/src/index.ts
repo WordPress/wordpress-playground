@@ -25,12 +25,8 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import {
-	Blueprint,
-	compileBlueprint,
-	OnStepCompleted,
-	runBlueprintSteps,
-} from '@wp-playground/blueprints';
+import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';

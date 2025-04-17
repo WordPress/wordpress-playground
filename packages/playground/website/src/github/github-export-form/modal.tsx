@@ -1,6 +1,7 @@
-import GitHubExportForm, { GitHubExportFormProps } from './form';
+import type { GitHubExportFormProps } from './form';
+import GitHubExportForm from './form';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
-import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Modal } from '../../components/modal';

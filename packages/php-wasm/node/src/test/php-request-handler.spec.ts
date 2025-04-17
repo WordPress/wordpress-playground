@@ -2,9 +2,11 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
 import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
-import {
+import type {
 	CookieStore,
 	FileNotFoundGetActionCallback,
+} from '@php-wasm/universal';
+import {
 	HttpCookieStore,
 	PHP,
 	PHPRequestHandler,

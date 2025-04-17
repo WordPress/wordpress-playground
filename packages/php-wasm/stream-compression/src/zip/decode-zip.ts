@@ -1,17 +1,17 @@
 /**
  * Reads files from a stream of zip file bytes.
  */
-import { IterableReadableStream } from '../utils/iterable-stream-polyfill';
+import type { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
+import type { CompressionMethod } from './types';
 import {
 	SIGNATURE_FILE,
 	SIGNATURE_CENTRAL_DIRECTORY,
 	SIGNATURE_CENTRAL_DIRECTORY_END,
 	FILE_HEADER_SIZE,
 	COMPRESSION_DEFLATE,
-	CompressionMethod,
 } from './types';
-import {
+import type {
 	CentralDirectoryEntry,
 	FileEntry,
 	ZipEntry,

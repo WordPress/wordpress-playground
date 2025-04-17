@@ -79,8 +79,7 @@
 			"executor": "@nx/vite:preview-server",
 			"options": {
 				"buildTarget": "playground-website:build",
-				"staticFilePath": "dist/packages/playground/wasm-wordpress-net",
-				"port": 5932
+				"staticFilePath": "../../../dist/packages/playground/wasm-wordpress-net"
 			},
 			"configurations": {
 				"ci": {

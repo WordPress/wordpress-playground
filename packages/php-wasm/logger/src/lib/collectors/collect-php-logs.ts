@@ -1,5 +1,5 @@
 import type { UniversalPHP, PHPRequestErrorEvent } from '../types';
-import { Logger } from '../logger';
+import type { Logger } from '../logger';
 
 let lastPHPLogLength = 0;
 export const errorLogPath = '/wordpress/wp-content/debug.log';

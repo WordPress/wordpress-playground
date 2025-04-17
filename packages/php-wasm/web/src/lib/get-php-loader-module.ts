@@ -1,8 +1,5 @@
-import {
-	LatestSupportedPHPVersion,
-	PHPLoaderModule,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
+import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { jspi } from 'wasm-feature-detect';
 
 /**

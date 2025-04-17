@@ -1,7 +1,7 @@
-import { StepHandler, StepProgress } from '.';
+import type { StepHandler, StepProgress } from '.';
 import { writeFile } from './write-file';
 import { phpVar } from '@php-wasm/util';
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * @inheritDoc importWxr

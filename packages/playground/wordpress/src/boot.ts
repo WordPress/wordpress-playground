@@ -1,12 +1,14 @@
-import {
+import type {
 	CookieStore,
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHP,
 	PHPProcessManager,
-	PHPRequestHandler,
 	SpawnHandler,
+} from '@php-wasm/universal';
+import {
+	PHP,
+	PHPRequestHandler,
 	proxyFileSystem,
 	rotatePHPRuntime,
 	setPhpIniEntries,

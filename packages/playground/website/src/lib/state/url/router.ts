@@ -1,4 +1,4 @@
-import { SiteInfo } from '../redux/slice-sites';
+import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '../../base64';
 
@@ -28,10 +28,10 @@ export function parseBlueprint(rawData: string) {
 	try {
 		try {
 			return JSON.parse(rawData);
-		} catch (e) {
+		} catch {
 			return JSON.parse(decodeBase64ToString(rawData));
 		}
-	} catch (e) {
+	} catch {
 		throw new Error('Invalid blueprint');
 	}
 }

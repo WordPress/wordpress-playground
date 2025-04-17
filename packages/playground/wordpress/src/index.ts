@@ -1,4 +1,4 @@
-import { PHP, UniversalPHP } from '@php-wasm/universal';
+import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
 export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';

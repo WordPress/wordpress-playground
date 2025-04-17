@@ -91,7 +91,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		// Clean up
 		try {
 			php.exit(0);
-		} catch (e) {
+		} catch {
 			// ignore exit-related exceptions
 		}
 	});
@@ -540,7 +540,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					stdin: {
 						write: () => {},
 					},
-					on: (evt: string, callback: Function) => {
+					on: (evt: string, callback: () => void) => {
 						if (evt === 'spawn') {
 							callback();
 						}
@@ -702,7 +702,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 						stdin: {
 							write: () => {},
 						},
-						on: (evt: string, callback: Function) => {
+						on: (evt: string, callback: () => void) => {
 							if (evt === 'spawn') {
 								callback();
 							}
@@ -1584,7 +1584,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				addr: number,
 				...args: any
 			) {
-				const retval = free.call(this, name, ...args);
+				const retval = free.call(this, ...args);
 				if (addr === bodyPtr) {
 					php[__private__dont__use].HEAPU8.fill(
 						0,

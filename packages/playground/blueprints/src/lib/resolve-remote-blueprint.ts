@@ -4,7 +4,7 @@ import {
 	OverlayFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
-import { BlueprintBundle } from './blueprint';
+import type { BlueprintBundle } from './blueprint';
 
 /**
  * Resolves a remote blueprint from a URL.
@@ -36,7 +36,7 @@ export async function resolveRemoteBlueprint(
 				baseUrl: url,
 			}),
 		]);
-	} catch (e) {
+	} catch {
 		// If the blueprint is not a JSON file, check if it's a ZIP file.
 		if (await looksLikeZipFile(blueprintBytes)) {
 			return ZipFilesystem.fromArrayBuffer(blueprintBytes);

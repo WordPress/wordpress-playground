@@ -1,8 +1,10 @@
-import {
+import type {
 	GeneratedCertificate,
 	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+} from '@php-wasm/web';
+import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
@@ -26,21 +28,18 @@ import {
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createMemoizedFetch } from '@wp-playground/common';
-import {
-	FilesystemOperation,
-	journalFSEvents,
-	replayFSJournal,
-} from '@php-wasm/fs-journal';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
-	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -425,7 +424,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						res.text()
 					);
 					primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-				} catch (e) {
+				} catch {
 					logger.warn(
 						`Failed to fetch remote asset paths from ${listUrl}`
 					);

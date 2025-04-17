@@ -1,13 +1,9 @@
-import {
-	Emscripten,
-	FSHelpers,
-	MountHandler,
-	PHP,
-	__private__dont__use,
-} from '@php-wasm/universal';
+import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
+import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents } from '@php-wasm/fs-journal';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
@@ -254,7 +250,7 @@ async function overwriteOpfsFile(
 		buffer = FS.readFile(memfsPath, {
 			encoding: 'binary',
 		});
-	} catch (e) {
+	} catch {
 		// File was removed, ignore
 		return;
 	}
@@ -308,12 +304,12 @@ type JournalEntry = FilesystemOperation;
 
 class OpfsRewriter {
 	private memfsRoot: string;
+	private php: PHP;
+	private opfs: FileSystemDirectoryHandle;
 
-	constructor(
-		private php: PHP,
-		private opfs: FileSystemDirectoryHandle,
-		memfsRoot: string
-	) {
+	constructor(php: PHP, opfs: FileSystemDirectoryHandle, memfsRoot: string) {
+		this.php = php;
+		this.opfs = opfs;
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
 	}
 
@@ -341,7 +337,7 @@ class OpfsRewriter {
 					await opfsParent.removeEntry(name, {
 						recursive: true,
 					});
-				} catch (e) {
+				} catch {
 					// If the directory already doesn't exist, it's fine
 				}
 			} else if (entry.operation === 'CREATE') {
@@ -416,7 +412,7 @@ class OpfsRewriter {
 					 */
 					try {
 						await opfsParent.removeEntry(name);
-					} catch (e) {
+					} catch {
 						// If the directory already doesn't exist, it's fine
 					}
 					await overwriteOpfsFile(

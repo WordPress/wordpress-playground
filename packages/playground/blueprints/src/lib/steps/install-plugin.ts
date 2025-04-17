@@ -1,9 +1,10 @@
-import { StepHandler } from '.';
-import { InstallAssetOptions, installAsset } from './install-asset';
+import type { StepHandler } from '.';
+import type { InstallAssetOptions } from './install-asset';
+import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { writeFile } from './write-file';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
-import { Directory } from '../resources';
+import type { Directory } from '../resources';
 import { joinPaths } from '@php-wasm/util';
 import { writeFiles } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';

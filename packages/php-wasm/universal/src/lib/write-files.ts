@@ -1,6 +1,7 @@
 import { dirname, joinPaths } from '@php-wasm/util';
-import { UniversalPHP } from './universal-php';
+import type { UniversalPHP } from './universal-php';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FileTree
 	extends Record<string, Uint8Array | string | FileTree> {}
 

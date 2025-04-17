@@ -7,6 +7,7 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 export const oAuthMiddleware = async (
 	req: IncomingMessage,
 	res: ServerResponse,
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 	next: Function
 ) => {
 	if (!req.url?.startsWith('/oauth.php')) {

@@ -7,16 +7,14 @@
  * Playground CLI, Studio, WP-ENV, hosted environment etc.
  */
 
-import {
+import type {
 	Blueprint,
 	BlueprintDeclaration,
 	PHPConstants,
-	compileBlueprint,
 } from '@wp-playground/blueprints';
-import {
-	BlueprintSource,
-	resolveBlueprintFromURL,
-} from './state/url/resolve-blueprint-from-url';
+import { compileBlueprint } from '@wp-playground/blueprints';
+import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
+import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
 /**
  * The supported site storage types.

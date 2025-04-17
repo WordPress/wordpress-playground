@@ -1,4 +1,4 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';

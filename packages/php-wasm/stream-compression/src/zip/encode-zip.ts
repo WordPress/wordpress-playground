@@ -1,10 +1,9 @@
-import {
-	COMPRESSION_DEFLATE,
-	COMPRESSION_NONE,
+import type {
 	CentralDirectoryEndEntry,
 	CentralDirectoryEntry,
 	FileHeader,
 } from './types';
+import { COMPRESSION_DEFLATE, COMPRESSION_NONE } from './types';
 import {
 	SIGNATURE_CENTRAL_DIRECTORY_END,
 	SIGNATURE_CENTRAL_DIRECTORY,

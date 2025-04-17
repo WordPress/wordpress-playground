@@ -1,5 +1,5 @@
 import { normalizePath } from '@php-wasm/util';
-import { GitFileTree } from './git-sparse-checkout';
+import type { GitFileTree } from './git-sparse-checkout';
 
 export function listDescendantFiles(
 	files: GitFileTree[],

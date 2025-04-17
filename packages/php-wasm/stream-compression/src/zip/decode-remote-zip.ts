@@ -7,9 +7,9 @@ import {
 	readFileEntry,
 	decodeZip,
 } from './decode-zip';
-import { CentralDirectoryEntry, FileEntry } from './types';
+import type { CentralDirectoryEntry, FileEntry } from './types';
 import { SIGNATURE_CENTRAL_DIRECTORY_END } from './types';
-import { IterableReadableStream } from '../utils/iterable-stream-polyfill';
+import type { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;

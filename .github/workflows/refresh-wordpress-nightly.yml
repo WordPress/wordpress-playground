@@ -27,7 +27,7 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: 'Install bun'
@@ -40,11 +40,10 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Refresh WordPress Nightly"
                   git pull --rebase
                   # Push if the pull did not result in a conflict
                   if [ $? -eq 0 ]; then
-                      git push origin HEAD:trunk
+                      git push
                   fi;

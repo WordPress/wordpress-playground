@@ -1,4 +1,5 @@
-import { UniversalPHP, writeFiles } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
+import { writeFiles } from '@php-wasm/universal';
 import { dirname, joinPaths } from '@php-wasm/util';
 import {
 	activatePlugin,
@@ -6,7 +7,8 @@ import {
 	login,
 	wpContentFilesExcludedFromExport,
 } from '@wp-playground/blueprints';
-import { Files, filesListToObject } from '@wp-playground/storage';
+import type { Files } from '@wp-playground/storage';
+import { filesListToObject } from '@wp-playground/storage';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content' | 'custom-paths';
 export function asContentType(value: any): ContentType | undefined {

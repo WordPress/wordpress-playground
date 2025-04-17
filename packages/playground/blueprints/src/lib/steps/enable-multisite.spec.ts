@@ -9,7 +9,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { login } from './login';
-import { PHPRequest, PHPRequestHandler } from '@php-wasm/universal';
+import type { PHPRequest, PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step enableMultisite', () => {
 	let handler: PHPRequestHandler;

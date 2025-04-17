@@ -3,8 +3,8 @@ import {
 	RawBytesFetch,
 } from './tcp-over-fetch-websocket';
 import express from 'express';
-import http from 'http';
-import { AddressInfo } from 'net';
+import type http from 'http';
+import type { AddressInfo } from 'net';
 import zlib from 'zlib';
 
 const pygmalion = `PREFACE TO PYGMALION.

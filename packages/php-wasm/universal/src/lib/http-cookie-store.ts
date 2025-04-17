@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import { CookieStore } from './php-request-handler';
+import type { CookieStore } from './php-request-handler';
 /**
  * @public
  */

@@ -11,7 +11,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		try {
 			const referrerUrl = new URL(event.request.referrer);
 			url = setURLScope(url, getURLScope(referrerUrl)!);
-		} catch (e) {
+		} catch {
 			// ignore
 		}
 	}

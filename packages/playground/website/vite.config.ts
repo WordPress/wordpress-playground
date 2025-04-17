@@ -18,8 +18,11 @@ import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 
 const proxy: CommonServerOptions['proxy'] = {
@@ -207,9 +210,9 @@ export default defineConfig(({ command, mode }) => {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-			setupFiles: ['../../../vitest.setup.ts'],
+			reporters: ['default'],
 		},
 	};
 });

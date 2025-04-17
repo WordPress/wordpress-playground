@@ -36,6 +36,34 @@
 				"tty": true
 			}
 		},
+		"dev-node": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/php-wasm/cli/src/main.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"debug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/php-wasm/cli/src/main.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {

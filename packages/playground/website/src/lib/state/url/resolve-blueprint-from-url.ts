@@ -1,10 +1,12 @@
-import {
+import type {
 	BlueprintDeclaration,
 	BlueprintBundle,
+	Blueprint,
+} from '@wp-playground/client';
+import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
-	Blueprint,
 } from '@wp-playground/client';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';

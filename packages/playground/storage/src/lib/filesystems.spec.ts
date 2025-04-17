@@ -1,14 +1,14 @@
+import type { Filesystem } from './filesystems';
 import {
 	InMemoryFilesystem,
 	ZipFilesystem,
 	OverlayFilesystem,
 	FetchFilesystem,
-	Filesystem,
 	NodeJsFilesystem,
 } from './filesystems';
 import { StreamedFile } from '@php-wasm/stream-compression';
-import { FileTree } from '@php-wasm/universal';
-import { BlobReader, ZipReader } from '@zip.js/zip.js';
+import type { FileTree } from '@php-wasm/universal';
+import type { BlobReader, ZipReader } from '@zip.js/zip.js';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import path from 'path';
 
@@ -326,7 +326,7 @@ describe('FetchFilesystem', () => {
 	it('should throw an error if the base URL is not a valid URL', () => {
 		expect(
 			() => new FetchFilesystem({ baseUrl: 'not-a-valid-url' })
-		).toThrow('Invalid base URL');
+		).toThrow('Invalid URL');
 	});
 
 	it('should refuse to read a file outside of the base URL', async () => {

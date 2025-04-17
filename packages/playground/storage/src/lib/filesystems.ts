@@ -1,14 +1,19 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
-import { FileTree } from '@php-wasm/universal';
+import type { FileTree } from '@php-wasm/universal';
 import { normalizePath } from '@php-wasm/util';
-import { ZipReader, BlobWriter, BlobReader, Entry } from '@zip.js/zip.js';
+import type { Entry } from '@zip.js/zip.js';
+import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
 export interface Filesystem {
 	read(path: string): Promise<StreamedFile>;
 }
 
 export class InMemoryFilesystem implements Filesystem {
-	constructor(private fileTree: FileTree) {}
+	private fileTree: FileTree;
+
+	constructor(fileTree: FileTree) {
+		this.fileTree = fileTree;
+	}
 
 	async read(path: string): Promise<StreamedFile> {
 		let content = this.getEntryAtPath(path);
@@ -49,6 +54,7 @@ export class InMemoryFilesystem implements Filesystem {
 
 export class ZipFilesystem implements Filesystem {
 	private entries: Map<string, Entry> = new Map();
+	private zipReader: ZipReader<BlobReader>;
 
 	static fromStream(stream: ReadableStream<Uint8Array>): ZipFilesystem {
 		const zipReader = new ZipReader(
@@ -64,7 +70,9 @@ export class ZipFilesystem implements Filesystem {
 		return new ZipFilesystem(zipReader);
 	}
 
-	constructor(private zipReader: ZipReader<BlobReader>) {}
+	constructor(zipReader: ZipReader<BlobReader>) {
+		this.zipReader = zipReader;
+	}
 
 	async read(relativePath: string): Promise<StreamedFile> {
 		const entry = await this.getEntry(relativePath);
@@ -102,6 +110,8 @@ export class ZipFilesystem implements Filesystem {
  * such as checking a local cache before fetching from a remote source.
  */
 export class OverlayFilesystem implements Filesystem {
+	private filesystems: Filesystem[];
+
 	/**
 	 * Creates a new OverlayFilesystem.
 	 *
@@ -109,12 +119,13 @@ export class OverlayFilesystem implements Filesystem {
 	 *                    The order determines the priority - earlier filesystems
 	 *                    are checked first.
 	 */
-	constructor(private filesystems: Filesystem[]) {
+	constructor(filesystems: Filesystem[]) {
 		if (!filesystems.length) {
 			throw new Error(
 				'OverlayFilesystem requires at least one filesystem'
 			);
 		}
+		this.filesystems = filesystems;
 	}
 
 	/**
@@ -160,8 +171,10 @@ export interface FetchFilesystemOptions {
  */
 export class FetchFilesystem implements Filesystem {
 	private baseUrl: string;
+	private options: FetchFilesystemOptions;
 
-	constructor(private options: FetchFilesystemOptions) {
+	constructor(options: FetchFilesystemOptions) {
+		this.options = options;
 		// Ensure the base URL ends with a slash
 		const url = new URL('./', options.baseUrl);
 		if (url.protocol !== 'http:' && url.protocol !== 'https:') {
@@ -220,15 +233,18 @@ export class FetchFilesystem implements Filesystem {
 export class NodeJsFilesystem implements Filesystem {
 	private fs: any;
 	private path: any;
+	private root: string;
 
-	constructor(private root: string) {}
+	constructor(root: string) {
+		this.root = root;
+	}
 
 	private async ensureNodeModules() {
 		if (!this.fs || !this.path) {
 			try {
 				this.fs = await import('fs');
 				this.path = await import('path');
-			} catch (e) {
+			} catch {
 				this.fs = require('fs');
 				this.path = require('path');
 			}

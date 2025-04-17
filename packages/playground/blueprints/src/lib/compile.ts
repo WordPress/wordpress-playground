@@ -1,15 +1,15 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
+import type { SupportedPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import {
 	LatestSupportedPHPVersion,
-	SupportedPHPVersion,
 	SupportedPHPVersions,
-	UniversalPHP,
 } from '@php-wasm/universal';
-import { FileReference, isResourceReference, Resource } from './resources';
-import { Step, StepDefinition, WriteFileStep } from './steps';
+import type { FileReference } from './resources';
+import { isResourceReference, Resource } from './resources';
+import type { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
-import {
+import type {
 	BlueprintDeclaration,
 	BlueprintBundle,
 	ExtraLibrary,
@@ -365,7 +365,7 @@ function compileBlueprintJson(
 					await (playground as any).goTo(
 						blueprint.landingPage || '/'
 					);
-				} catch (e) {
+				} catch {
 					/**
 					 * Redirecting to the landing page is a browser-only feature for now.
 					 *

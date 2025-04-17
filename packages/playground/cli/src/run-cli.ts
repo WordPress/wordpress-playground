@@ -1,22 +1,19 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import {
-	consumeAPI,
-	exposeAPI,
+import type {
 	PHPRequest,
-	PHPResponse,
 	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import {
+import { consumeAPI, exposeAPI, PHPResponse } from '@php-wasm/universal';
+import type {
 	BlueprintDeclaration,
 	BlueprintBundle,
-	compileBlueprint,
-	runBlueprintSteps,
 } from '@wp-playground/blueprints';
+import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs from 'fs';
-import { Server } from 'http';
+import type { Server } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
