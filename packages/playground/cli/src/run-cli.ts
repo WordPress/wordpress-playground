@@ -11,7 +11,11 @@ import type {
 	BlueprintBundle,
 } from '@wp-playground/blueprints';
 import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	RecommendedPHPVersion,
+	unzipFile,
+	zipDirectory,
+} from '@wp-playground/common';
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
@@ -26,7 +30,7 @@ import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { Worker } from 'worker_threads';
 import type { PlaygroundCliWorker, Mount } from './worker-thread';
-import { FcntlFileLockManagerForNode } from '@php-wasm/node';
+import { FileLockManagerForNode } from '@php-wasm/node';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -220,7 +224,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			const fcntlLockManager = new FcntlFileLockManagerForNode();
+			const fileLockManager = new FileLockManagerForNode();
 
 			try {
 				logger.log(`Setting up WordPress ${args.wp}`);
@@ -305,7 +309,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				// TODO: Is it necessary to worry about setting API ready?
 				exposeAPI(
-					fcntlLockManager,
+					fileLockManager,
 					undefined,
 					nodeEndpoint(primaryWorker)
 				);
@@ -326,48 +330,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				await playground.isReady();
 
-				// TODO: Make multiple workers conditional on mounting of realy /wordpress directory
-
-				// Create secondary workers
-				const secondaryWorkers = [];
-				const totalWorkers = 8;
-				const workerRuntimeIdSpace = Math.floor(
-					Number.MAX_SAFE_INTEGER / totalWorkers
-				);
-				for (let i = 1; i < 8; i++) {
-					const worker = await spawnPHPWorkerThread(workerPath);
-					const secondaryPlayground =
-						consumeAPI<PlaygroundCliWorker>(worker);
-					await secondaryPlayground.isConnected();
-					exposeAPI(
-						fcntlLockManager,
-						undefined,
-						nodeEndpoint(worker)
-					);
-
-					// TODO: Parallelize booting and waiting for secondary workers to be ready
-					// TODO: Fix auto-login
-					await secondaryPlayground.boot({
-						phpVersion: compiledBlueprint.versions.php,
-						absoluteUrl,
-						mountsBeforeWpInstall,
-						mountsAfterWpInstall,
-						sqliteIntegrationPluginZip:
-							await sqliteIntegrationPluginZip!.arrayBuffer(),
-						dataSqlPath:
-							'/wordpress/wp-content/database/.ht.sqlite',
-						// TODO: Explain why
-						runtimeIdBase: i * workerRuntimeIdSpace,
-					});
-					await secondaryPlayground.isReady();
-					secondaryWorkers.push(secondaryPlayground);
-				}
-
-				loadBalancer = new LoadBalancer([
-					playground,
-					...secondaryWorkers,
-				]);
-
 				wordPressReady = true;
 
 				if (compiledBlueprint) {
@@ -383,9 +345,61 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				} else if (args.command === 'run-blueprint') {
 					logger.log(`Blueprint executed`);
 					process.exit(0);
-				} else {
-					logger.log(`WordPress is running on ${absoluteUrl}`);
 				}
+
+				// TODO: Make multiple workers conditional on mounting of realy /wordpress directory
+
+				const internalZip = await zipDirectory(playground, '/internal');
+
+				// Create secondary workers
+				const secondaryWorkers = [];
+				const totalWorkers = 8;
+				const workerRuntimeIdSpace = Math.floor(
+					Number.MAX_SAFE_INTEGER / totalWorkers
+				);
+				for (let i = 1; i < 8; i++) {
+					const worker = await spawnPHPWorkerThread(workerPath);
+					const secondaryPlayground =
+						consumeAPI<PlaygroundCliWorker>(worker);
+					await secondaryPlayground.isConnected();
+					exposeAPI(fileLockManager, undefined, nodeEndpoint(worker));
+
+					// TODO: Parallelize booting and waiting for secondary workers to be ready
+					// TODO: Fix auto-login
+					await secondaryPlayground.boot({
+						phpVersion: compiledBlueprint.versions.php,
+						absoluteUrl,
+						mountsBeforeWpInstall,
+						mountsAfterWpInstall,
+						// Skip SQLite integration plugin for now because we
+						// will copy it from primary's `/internal` directory.
+						sqliteIntegrationPluginZip: undefined,
+						dataSqlPath:
+							'/wordpress/wp-content/database/.ht.sqlite',
+						// TODO: Explain why
+						runtimeIdBase: i * workerRuntimeIdSpace,
+					});
+					await secondaryPlayground.isReady();
+
+					await secondaryPlayground.writeFile(
+						'/tmp/internal.zip',
+						internalZip
+					);
+					await unzipFile(
+						secondaryPlayground,
+						'/tmp/internal.zip',
+						'/internal'
+					);
+
+					secondaryWorkers.push(secondaryPlayground);
+				}
+
+				loadBalancer = new LoadBalancer([
+					playground,
+					...secondaryWorkers,
+				]);
+
+				logger.log(`WordPress is running on ${absoluteUrl}`);
 
 				return {
 					playground,

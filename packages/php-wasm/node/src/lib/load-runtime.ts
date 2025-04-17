@@ -6,7 +6,7 @@ import { loadPHPRuntime } from '@php-wasm/universal';
 
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking.js';
-import type { FcntlFileLockManager } from './fcntl-file-locking';
+import type { FileLockManager } from './fcntl-file-locking';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -14,7 +14,7 @@ export interface PHPLoaderOptions {
 
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	emscriptenOptions?: EmscriptenOptions & {
-		fileLockManager?: FcntlFileLockManager;
+		fileLockManager?: FileLockManager;
 	};
 };
 

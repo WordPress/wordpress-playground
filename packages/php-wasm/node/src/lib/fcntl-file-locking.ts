@@ -1,7 +1,7 @@
 import { logger } from '@php-wasm/logger';
 
 // NOTE: This API is async because we intend to use it across worker boundaries.
-export type FcntlFileLockManager = {
+export type FileLockManager = {
 	/**
 	 * Lock a file.
 	 *
@@ -247,7 +247,7 @@ class FileLockIntervalTree {
 	}
 }
 
-export class FcntlFileLockManagerForNode implements FcntlFileLockManager {
+export class FileLockManagerForNode implements FileLockManager {
 	locks: Map<string, FileLockIntervalTree>;
 
 	constructor() {
