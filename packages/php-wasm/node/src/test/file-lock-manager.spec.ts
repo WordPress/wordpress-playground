@@ -1,11 +1,11 @@
-import { FcntlFileLockManagerForNode } from '../lib/fcntl-file-locking';
+import { FileLockManagerForNode } from '../lib/file-lock-manager';
 
 // TODO: Review these tests with a critical eye before merging. They are AI-generated.
-describe('FcntlFileLockManagerForNode', () => {
-	let lockManager: FcntlFileLockManagerForNode;
+describe('FileLockManagerForNode', () => {
+	let lockManager: FileLockManagerForNode;
 
 	beforeEach(() => {
-		lockManager = new FcntlFileLockManagerForNode();
+		lockManager = new FileLockManagerForNode();
 	});
 
 	describe('lockFile', () => {
