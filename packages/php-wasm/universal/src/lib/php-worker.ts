@@ -158,13 +158,14 @@ export class PHPWorker implements LimitedPHPApi {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		const { php, reap } = await _private
-			.get(this)!
-			.requestHandler!.processManager.acquirePHPInstance();
+		const php = _private.get(this)!.php!;
+		// const { php, reap } = await _private
+		// 	.get(this)!
+		// 	.requestHandler!.processManager.acquirePHPInstance();
 		try {
 			return await php.run(request);
 		} finally {
-			reap();
+			// reap();
 		}
 	}
 
