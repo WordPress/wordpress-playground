@@ -11,12 +11,12 @@ const log = (...a: any[]) => DEBUG && console.log('[SABFS]', ...a);
 
 /* ─── POSIX mode and type bits ───────────────────────────────────────────── */
 const S_IFMT = 0o170000,
-	S_IFCHR = 0o020000,
+	// S_IFCHR = 0o020000, // Character device - unused for now
 	S_IFDIR = 0o040000,
-	S_IFREG = 0o100000,
+	// S_IFREG = 0o100000, // Regular file type - unused for now
 	S_IFLNK = 0o120000;
 const MODE_DIR = S_IFDIR | 0o777,
-	MODE_FILE = S_IFREG | 0o666,
+	// MODE_FILE = S_IFREG | 0o666, // Regular file mode - unused for now
 	MODE_SYMLINK = S_IFLNK | 0o777;
 
 /* ─── shared‑memory layout ───────────────────────────────────────────────── */
@@ -43,8 +43,8 @@ const I_MODE = 0,
 	I_MTIME_H = 13,
 	I_CTIME_L = 14,
 	I_CTIME_H = 15,
-	I_NAME = 16; // 16..47 (128 bytes) for UTF‑8 name
-const INODE_WORDS = 16 + 32; // 192 bytes per inode
+	I_NAME = 16; // 16..47 (128 bytes) for UTF-8 name
+const INODE_WORDS = 16 + 32; // 192 bytes per inode
 const NAME_BYTES = 128;
 const MAGIC = 0x53414653; // "SAFS"
 
@@ -142,7 +142,7 @@ export function SharedSABFS(
 	/* directory helpers */
 	const dCount = (off: number) => L(meta, off + I_SIZEL);
 	const dVec = (off: number) =>
-		new Int32Array(metaBuf, L(meta, off + I_DATA_OFF), dCount(off));
+		new Int32Array(dataBuf, L(meta, off + I_DATA_OFF), dCount(off));
 	const pushChild = (off: number, id: number) => {
 		let cnt = dCount(off);
 		let cap = L(meta, off + I_CAP);
@@ -150,16 +150,28 @@ export function SharedSABFS(
 		if (cnt >= cap) {
 			const ncap = Math.max(4, cap ? cap * 2 : 4);
 			const nOff = allocData(ncap * 4);
-			if (cnt) meta8.copyWithin(nOff, start, start + cnt * 4);
+			const m32 = new Int32Array(dataBuf); // Get view on the whole data buffer
+			if (cnt) {
+				// Copy old ids from old location (start) to new location (nOff)
+				m32.set(
+					m32.subarray(start >> 2, (start >> 2) + cnt),
+					nOff >> 2
+				);
+			}
+			// Update start and cap to new values *before* using them
 			start = nOff;
 			cap = ncap;
 			S(meta, off + I_DATA_OFF, start);
 			S(meta, off + I_CAP, cap);
+			// Store new id at the correct offset in the *new* buffer location
+			Atomics.store(m32, (start >> 2) + cnt, id);
+		} else {
+			// If not reallocating, just store the new id at the end
+			const vec = new Int32Array(dataBuf, start, cap);
+			Atomics.store(vec, cnt, id);
 		}
-		const vec = new Int32Array(metaBuf, start, cap);
-		Atomics.store(vec, cnt, id);
-		S(meta, off + I_SIZEL, cnt + 1);
-		Atomics.notify(meta, (off + I_SIZEL) >> 2, 1);
+		S(meta, off + I_SIZEL, cnt + 1); // Increment count
+		Atomics.notify(meta, (off + I_SIZEL) >> 2, 1); // Use meta index, not offset
 		log('dir+', (off - HEADER_WORDS) / INODE_WORDS + 1, 'add', id);
 	};
 	const removeChild = (off: number, id: number) => {
@@ -307,37 +319,45 @@ export function SharedSABFS(
 		},
 		lookup(p: any, name: string) {
 			const poff = ioff(p.sabId);
-			const cntIdx = (poff + I_SIZEL) >> 2;
-			for (let tries = 0; tries < 2; tries++) {
-				const cnt = L(meta, cntIdx);
-				log(
-					'lookup("' + name + '") dir',
-					(poff - HEADER_WORDS) / INODE_WORDS + 1,
-					'tries',
-					tries,
-					'cnt',
-					cnt
-				);
-				if (cnt) {
-					const start = L(meta, poff + I_DATA_OFF);
-					const baseArr = new Int32Array(metaBuf);
-					for (let i = 0; i < cnt; i++) {
-						const id = L(baseArr, (start >> 2) + i);
-						const childName = getName(ioff(id));
-						log('  child', i, 'id', id, 'name', childName);
-						if (childName === name) return mkNode(id, p.mount, p);
+			const parentId = p.sabId;
+			const cnt = L(meta, poff + I_SIZEL);
+			const start = L(meta, poff + I_DATA_OFF);
+			log(
+				`lookup("${name}") dir ${parentId} cnt=${cnt} dataStart=${start}`
+			);
+			if (cnt > 0 && start >= 0) {
+				const baseArr = new Int32Array(dataBuf);
+				for (let i = 0; i < cnt; i++) {
+					const id = L(baseArr, (start >> 2) + i);
+					// Basic sanity check for valid inode ID
+					if (id <= 0) {
+						log(
+							`  lookup dir ${parentId}: invalid child ID ${id} at index ${i}`
+						);
+						continue;
+					}
+					const childOff = ioff(id);
+					// Check if mode is non-zero (inode potentially active)
+					if (L(meta, childOff + I_MODE) === 0) {
+						log(
+							`  lookup dir ${parentId}: child ID ${id} at index ${i} has mode 0 (deleted?)`
+						);
+						continue;
+					}
+					const childName = getName(childOff);
+					log(
+						`  lookup dir ${parentId}: checking child ${i} id=${id} name="${childName}"`
+					);
+					if (childName === name) {
+						log(
+							`  lookup dir ${parentId}: found "${name}" as id ${id}`
+						);
+						return mkNode(id, p.mount, p);
 					}
 				}
-				if (tries === 0)
-					Atomics.wait(meta, cntIdx, L(meta, cntIdx), 10);
 			}
-			log(
-				'lookup failed',
-				name,
-				'in dir',
-				(poff - HEADER_WORDS) / INODE_WORDS + 1
-			);
-			throw new FS.ErrnoError(44);
+			log(`lookup failed for "${name}" in dir ${parentId}`);
+			throw new FS.ErrnoError(44); // ENOENT
 		},
 		mknod(p: any, n: string, m: number, d: number) {
 			return mkNode(newInode(p.sabId, m, n, d), p.mount, p);
@@ -367,9 +387,25 @@ export function SharedSABFS(
 		},
 		readdir(n: any) {
 			const out = ['.', '..'];
-			const vec = dVec(ioff(n.sabId));
-			for (let i = 0; i < vec.length; i++)
-				out.push(getName(ioff(vec[i])));
+			const parentId = n.sabId;
+			const off = ioff(parentId);
+			const cnt = dCount(off);
+			const start = L(meta, off + I_DATA_OFF);
+			log(`readdir dir ${parentId} cnt=${cnt} dataStart=${start}`);
+			if (cnt > 0 && start >= 0) {
+				const vec = dVec(off); // Uses dCount internally
+				for (let i = 0; i < vec.length; i++) {
+					const id = vec[i]; // Use view directly
+					log(`  readdir dir ${parentId}: index ${i} id=${id}`);
+					if (id > 0 && L(meta, ioff(id) + I_MODE) !== 0) {
+						out.push(getName(ioff(id)));
+					} else {
+						log(
+							`  readdir dir ${parentId}: skipping invalid id ${id} at index ${i}`
+						);
+					}
+				}
+			}
 			return out;
 		},
 		symlink(p: any, nm: string, tgt: string) {
@@ -416,13 +452,22 @@ export function SharedSABFS(
 			return len;
 		},
 		llseek(s: any, ofs: number, wh: number) {
-			let p =
-				wh === 0
-					? ofs
-					: wh === 1
-					? s.position + ofs
-					: sz(ioff(s.node.sabId)) + ofs;
-			if (p < 0) throw new FS.ErrnoError(28);
+			const size = sz(ioff(s.node.sabId)); // Cache size
+			let p: number;
+			if (wh === 0) {
+				// SEEK_SET
+				p = ofs;
+			} else if (wh === 1) {
+				// SEEK_CUR
+				p = s.position + ofs;
+			} else if (wh === 2) {
+				// SEEK_END
+				p = size + ofs;
+			} else {
+				throw new FS.ErrnoError(28); // EINVAL
+			}
+
+			if (p < 0) throw new FS.ErrnoError(28); // EINVAL
 			s.position = p;
 			return p;
 		},
