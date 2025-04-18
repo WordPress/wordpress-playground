@@ -6,7 +6,7 @@
 //   worker.postMessage({ metaBuf, dataBuf }, [metaBuf, dataBuf]);
 
 /* Enable or disable verbose console output */
-const DEBUG = false;
+const DEBUG = true;
 const log = (...a: any[]) => DEBUG && console.log('[SABFS]', ...a);
 
 /* ─── POSIX mode and type bits ───────────────────────────────────────────── */
@@ -144,7 +144,7 @@ export function SharedSABFS(
 	const dVec = (off: number) =>
 		new Int32Array(dataBuf, L(meta, off + I_DATA_OFF), dCount(off));
 	const pushChild = (off: number, id: number) => {
-		let cnt = dCount(off);
+		const cnt = dCount(off);
 		let cap = L(meta, off + I_CAP);
 		let start = L(meta, off + I_DATA_OFF);
 		if (cnt >= cap) {
@@ -190,9 +190,30 @@ export function SharedSABFS(
 
 	/* data allocation */
 	const allocData = (bytes: number) => {
-		const off = Atomics.add(meta, IDX_NEXT_DATA, bytes);
-		if (off + bytes > data8.length) throw new FS.ErrnoError(28);
-		return off;
+		let currentOffset;
+		let newOffset;
+		do {
+			currentOffset = Atomics.load(meta, IDX_NEXT_DATA);
+			newOffset = currentOffset + bytes;
+			if (newOffset > data8.length) {
+				log(
+					`allocData failed: requested ${bytes}, currentOffset ${currentOffset}, newOffset ${newOffset} > dataBuffer.length ${data8.length}`
+				);
+				throw new FS.ErrnoError(28); // ENOSPC - No space left on device
+			}
+			// Attempt to atomically update IDX_NEXT_DATA from currentOffset to newOffset
+		} while (
+			Atomics.compareExchange(
+				meta,
+				IDX_NEXT_DATA,
+				currentOffset,
+				newOffset
+			) !== currentOffset
+		);
+		log(
+			`allocData success: allocated ${bytes} bytes at offset ${currentOffset}, new IDX_NEXT_DATA ${newOffset}`
+		);
+		return currentOffset; // Return the beginning of the allocated block
 	};
 
 	/* inode allocation */
@@ -237,29 +258,73 @@ export function SharedSABFS(
 		return to;
 	};
 	const writeBytes = (id: number, pos: number, src: Uint8Array) => {
+		log(`writeBytes id=${id} pos=${pos} len=${src.length}`);
 		const off = ioff(id);
 		let cap = L(meta, off + I_CAP),
 			start = L(meta, off + I_DATA_OFF);
 		const end = pos + src.length,
 			size = sz(off);
+		log(`  -> initial size=${size} cap=${cap} start=${start} end=${end}`);
 		lock();
-		if (end > cap) {
-			const ncap = Math.max(
-				end,
-				cap ? (cap < 1 << 20 ? cap * 2 : (cap * 9) >> 3) : 256
+		try {
+			if (end > cap) {
+				log(`  -> reallocating: end(${end}) > cap(${cap})`);
+				const ncap = Math.max(
+					end,
+					cap ? (cap < 1 << 20 ? cap * 2 : (cap * 9) >> 3) : 256
+				);
+				log(`  -> new capacity ncap=${ncap}`);
+				const nOff = allocData(ncap);
+				log(`  -> allocated new block at nOff=${nOff}`);
+				if (size > 0) {
+					// Only copy if there was previous data
+					log(`  -> slicing ${size} bytes from old offset ${start}`);
+					const oldData = data8.slice(start, start + size);
+					log(
+						`  -> writing ${oldData.length} sliced bytes to new offset ${nOff}`
+					);
+					data8.set(oldData, nOff);
+					// Potential optimization: If ranges [start, start+size) and [nOff, nOff+size)
+					// do not overlap, copyWithin might be faster. But slice/set is safer.
+				}
+				start = nOff;
+				cap = ncap;
+				S(meta, off + I_DATA_OFF, start);
+				S(meta, off + I_CAP, cap);
+				log(`  -> updated DATA_OFF=${start}, CAP=${cap}`);
+			}
+
+			// If the write position is beyond the current size, fill the gap with zeros
+			if (pos > size) {
+				log(
+					`  -> filling gap: pos(${pos}) > size(${size}), filling ${
+						pos - size
+					} bytes from ${start + size}`
+				);
+				data8.fill(0, start + size, start + pos);
+			}
+
+			// Update size *before* writing the data if the file is growing.
+			// This ensures the metadata size is correct before the write happens.
+			if (end > size) {
+				log(`  -> updating size from ${size} to ${end} *before* write`);
+				setSize(off, end);
+				// Update the local 'size' variable as well if needed later in the function,
+				// although it's not used after this point in the current logic.
+				// size = end; // Not strictly needed currently
+			}
+
+			log(
+				`  -> writing ${src.length} bytes to data buffer at offset ${
+					start + pos
+				}`
 			);
-			const nOff = allocData(ncap);
-			if (size) data8.copyWithin(nOff, start, start + size);
-			start = nOff;
-			cap = ncap;
-			S(meta, off + I_DATA_OFF, start);
-			S(meta, off + I_CAP, cap);
+			data8.set(src, start + pos);
+
+			setTimes(off, false, true, true);
+		} finally {
+			unlock();
 		}
-		if (pos > size) data8.fill(0, start + size, start + pos);
-		data8.set(src, start + pos);
-		if (end > size) setSize(off, end);
-		setTimes(off, false, true, true);
-		unlock();
 	};
 
 	/* JS node constructor */
@@ -474,7 +539,9 @@ export function SharedSABFS(
 		flush() {
 			return 0;
 		},
-		fsync() {
+		fsync(s: any) {
+			log(`fsync called for node id ${s.node.sabId}`);
+			// Currently a no-op for SharedArrayBuffer
 			return 0;
 		},
 		ioctl() {
