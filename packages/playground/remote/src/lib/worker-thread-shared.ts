@@ -65,6 +65,34 @@ export class ExperimentalWorkerEndpoint extends PHPWorker {
 			dataOff
 		);
 	}
+	dumpDir(tag: string) {
+		const meta32 = new Int32Array(bufs!.metaBuf);
+		const HEADER_WORDS = 256;
+		const INODE_WORDS = 48; // as defined
+		const I_SIZEL = 4,
+			I_DATA_OFF = 7;
+
+		const base = HEADER_WORDS + 1 * INODE_WORDS; // inode 1
+		const cnt = meta32[base + I_SIZEL];
+		const data = meta32[base + I_DATA_OFF];
+
+		console.log(`[SABFS‑DEBUG] ${tag} dirCount=${cnt}`);
+		const vec = new Int32Array(bufs!.metaBuf, data, cnt);
+		for (let i = 0; i < cnt; i++) {
+			const id = vec[i];
+			const off = HEADER_WORDS + (id - 1) * INODE_WORDS;
+			const nameBytes = new Uint8Array(
+				bufs!.metaBuf,
+				(off + 16) * 4,
+				128
+			); // I_NAME field
+			const nul = nameBytes.indexOf(0);
+			const name = new TextDecoder().decode(
+				new Uint8Array(nameBytes.slice(0, nul < 0 ? 128 : nul))
+			);
+			console.log('  child', i, 'id', id, 'name', JSON.stringify(name));
+		}
+	}
 }
 
 // post message to parent
