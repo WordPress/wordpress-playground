@@ -453,11 +453,15 @@ const worker1 = await spawnSharedFSPhpWorker(buffers);
 const worker2 = await spawnSharedFSPhpWorker(buffers);
 
 // We can actually write and read files!
-// await worker1.writeFile('/experimental-sabfs/test.txt', 'Hello, world!');
-// console.log(await worker1.readFileAsText('/experimental-sabfs/test.txt'));
-
+console.log('writing file');
+await worker1.writeFile('/experimental-sabfs/test.txt', 'Hello, world!');
+// logHeader('worker1', buffers.metaBuf);
+console.log(await worker1.readFileAsText('/experimental-sabfs/test.txt'));
+await worker1.logHeader('worker1');
+await worker1.logDirState('worker1');
 // // Problem: node cache is not shared between workers so worker2 won't see the file:
 // console.log(await worker2.listFiles('/experimental-sabfs/'));
 // console.log(await worker2.readFileAsText('/experimental-sabfs/test.txt'));
-
+await worker2.logHeader('worker2');
+await worker2.logDirState('worker2');
 // @TODO solution: We need to use a SharedArrayBuffer to store the top-level FS metadata
