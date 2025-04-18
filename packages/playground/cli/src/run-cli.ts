@@ -31,7 +31,7 @@ import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { Worker } from 'worker_threads';
 import type { PlaygroundCliWorker, Mount } from './worker-thread';
 import { FileLockManagerForNode } from '@php-wasm/node';
-import nodeEndpoint from 'comlink/dist/esm/node-adapter';
+
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
@@ -308,11 +308,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				// TODO: Add progress tracking
 
 				// TODO: Is it necessary to worry about setting API ready?
-				exposeAPI(
-					fileLockManager,
-					undefined,
-					nodeEndpoint(primaryWorker)
-				);
+				exposeAPI(fileLockManager, undefined, primaryWorker);
 				await playground.boot({
 					phpVersion: compiledBlueprint.versions.php,
 					wpVersion: compiledBlueprint.versions.wp,
@@ -362,7 +358,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					const secondaryPlayground =
 						consumeAPI<PlaygroundCliWorker>(worker);
 					await secondaryPlayground.isConnected();
-					exposeAPI(fileLockManager, undefined, nodeEndpoint(worker));
+					exposeAPI(fileLockManager, undefined, worker);
 
 					// TODO: Parallelize booting and waiting for secondary workers to be ready
 					// TODO: Fix auto-login

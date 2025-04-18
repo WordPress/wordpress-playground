@@ -2,8 +2,8 @@ import type { PHPResponseData } from './php-response';
 import { PHPResponse } from './php-response';
 import type { Endpoint } from 'comlink';
 import * as Comlink from 'comlink';
-import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
+import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 
 export type WithAPIState = {
 	/**
@@ -87,7 +87,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	endpoint?: Endpoint
+	local?: NodeEndpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
@@ -114,7 +114,14 @@ export function exposeAPI<Methods, PipedAPI>(
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
-	if (endpoint === undefined) {
+	let endpoint: Endpoint | undefined;
+	// NOTE: We can expand this to support other local endpoints,
+	// but for now, we only need support for NodeEndpoints.
+	if (local) {
+		endpoint = nodeEndpoint(local);
+	}
+
+	if (local === undefined) {
 		endpoint =
 			typeof window !== 'undefined'
 				? Comlink.windowEndpoint(self.parent)

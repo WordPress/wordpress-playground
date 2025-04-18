@@ -1,6 +1,7 @@
 {
 	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
+		"moduleResolution": "node",
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
 		"noImplicitOverride": true,
