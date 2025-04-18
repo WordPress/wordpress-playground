@@ -5,7 +5,7 @@ import type {
 import { loadPHPRuntime } from '@php-wasm/universal';
 
 import { getPHPLoaderModule } from '.';
-import { withNetworking } from './networking/with-networking.js';
+import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './fcntl-file-locking';
 
 export interface PHPLoaderOptions {
