@@ -54,6 +54,7 @@ export default defineConfig({
 				'dns',
 				'ws',
 				'readline',
+				'worker_threads',
 			],
 		},
 		lib: {
