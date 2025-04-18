@@ -457,6 +457,7 @@ await worker1.writeFile('/experimental-sabfs/test.txt', 'Hello, world!');
 console.log(await worker1.readFileAsText('/experimental-sabfs/test.txt'));
 
 // Problem: node cache is not shared between workers so worker2 won't see the file:
-console.log(await worker2.listFiles('/experimental-sabfs/test.txt'));
+console.log(await worker2.listFiles('/experimental-sabfs/'));
+console.log(await worker2.readFileAsText('/experimental-sabfs/test.txt'));
 
 // @TODO solution: We need to use a SharedArrayBuffer to store the top-level FS metadata

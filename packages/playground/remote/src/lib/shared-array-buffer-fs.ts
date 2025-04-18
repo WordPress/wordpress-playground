@@ -1,12 +1,12 @@
 import { PHP } from '@php-wasm/universal';
 
-const // S_IFCHR = 0o020000,
+/* ───────── constants ───────── */
+const S_IFCHR = 0o020000,
 	S_IFDIR = 0o040000,
-	// S_IFREG = 0o100000,
+	S_IFREG = 0o100000,
 	S_IFLNK = 0o120000;
-
 const MODE_DIR = S_IFDIR | 0o777,
-	// MODE_FILE = S_IFREG | 0o666,
+	MODE_FILE = S_IFREG | 0o666,
 	MODE_SYMLINK = S_IFLNK | 0o777;
 
 const IDX_LOCK = 0,
@@ -31,27 +31,30 @@ const I_MODE = 0,
 	I_CTIME_LO = 14,
 	I_CTIME_HI = 15,
 	I_NAME_OFF = 16;
-
-const INODE_WORDS = 16 + 32; // 32 words (128 bytes) for name
+const INODE_WORDS = 16 + 32; // 32 words (128 bytes) for name
 const NAME_BYTES = 128;
-const MAGIC = 0x53414653; // “SAFS”
+const MAGIC = 0x53414653; // "SAFS"
 const TD = new TextDecoder();
 const TE = new TextEncoder();
 const now64 = () => BigInt(Date.now());
 
-// ───────────────── backend factory ─────────────────
-function SharedArrayBufferFS(
-	FS: any,
+/* ───────── factory ───────── */
+export function SharedSABFS(
+	FS: EmscriptenFS,
 	metaBuf: SharedArrayBuffer,
 	dataBuf: SharedArrayBuffer,
 	maxInodes = 4096
 ) {
+	// Atomics helpers must be defined **before any function uses them**
+	const Aload = Atomics.load;
+	const Astore = Atomics.store;
+	/* typed views */
 	const meta = new Int32Array(metaBuf);
 	const meta8 = new Uint8Array(metaBuf);
 	const data8 = new Uint8Array(dataBuf);
 	const inodeBase = HEADER_WORDS;
 
-	// ── locking ──
+	/* locking */
 	const lock = () => {
 		while (Atomics.compareExchange(meta, IDX_LOCK, 0, 1) !== 0)
 			Atomics.wait(meta, IDX_LOCK, 1);
@@ -61,14 +64,14 @@ function SharedArrayBufferFS(
 		Atomics.notify(meta, IDX_LOCK);
 	};
 
-	// ── init root once ──
+	/* initialise root once */
 	if (Atomics.load(meta, IDX_MAGIC) !== MAGIC) {
 		lock();
 		if (meta[IDX_MAGIC] !== MAGIC) {
 			meta[IDX_MAGIC] = MAGIC;
-			meta[IDX_NEXT_INODE] = 2; // inode 1 = /
+			meta[IDX_NEXT_INODE] = 2;
 			meta[IDX_NEXT_DATA] = 0;
-			const off = inodeBase; // inode 1 offset
+			const off = inodeBase;
 			meta[off + I_MODE] = MODE_DIR;
 			meta[off + I_PARENT] = 1;
 			meta[off + I_NLINK] = 1;
@@ -79,22 +82,22 @@ function SharedArrayBufferFS(
 		unlock();
 	}
 
-	// ── helpers ──
+	/* helpers */
 	const ioff = (id: number) => inodeBase + (id - 1) * INODE_WORDS;
-	/* helper — works for both regular and SAB‑backed views */
-	const decode = (u8: Uint8Array) =>
-		TD.decode(u8.buffer instanceof SharedArrayBuffer ? u8.slice() : u8);
 
 	function writeSize(off: number, sz: number) {
-		meta[off + I_SIZE_LO] = sz >>> 0;
-		meta[off + I_SIZE_HI] = (sz / 0x100000000) >>> 0;
+		Astore(meta, off + I_SIZE_LO, sz >>> 0);
+		Astore(meta, off + I_SIZE_HI, (sz / 0x100000000) >>> 0);
 	}
 	function readSize(off: number) {
-		return meta[off + I_SIZE_LO] + meta[off + I_SIZE_HI] * 0x100000000;
+		return (
+			Aload(meta, off + I_SIZE_LO) +
+			Aload(meta, off + I_SIZE_HI) * 0x100000000
+		);
 	}
 	function writeName(off: number, s: string) {
 		const e = TE.encode(s);
-		if (e.length >= NAME_BYTES) throw new FS.ErrnoError(63); // ENAMETOOLONG
+		if (e.length >= NAME_BYTES) throw new FS.ErrnoError(63);
 		meta8.fill(
 			0,
 			(off + I_NAME_OFF) * 4,
@@ -102,28 +105,31 @@ function SharedArrayBufferFS(
 		);
 		meta8.set(e, (off + I_NAME_OFF) * 4);
 	}
-	function readName(off: number) {
-		const base = (off + I_NAME_OFF) * 4;
-		const view = meta8.subarray(base, base + NAME_BYTES);
 
-		// find NUL
-		let len = 0;
-		while (len < view.length && view[len] !== 0) len++;
-		return decode(view.subarray(0, len));
+	function readName(off: number) {
+		const bytes = meta8.subarray(
+			(off + I_NAME_OFF) * 4,
+			(off + I_NAME_OFF) * 4 + NAME_BYTES
+		);
+		const end = bytes.indexOf(0);
+		// copy into regular ArrayBuffer to appease TextDecoder
+		return TD.decode(
+			new Uint8Array(bytes.slice(0, end < 0 ? NAME_BYTES : end))
+		);
 	}
 	function writeTimes(off: number, at = false, mt = false, ct = false) {
 		const t = now64();
 		if (at) {
-			meta[off + I_ATIME_LO] = Number(t & 0xffffffffn);
-			meta[off + I_ATIME_HI] = Number(t >> 32n);
+			Astore(meta, off + I_ATIME_LO, Number(t & 0xffffffffn));
+			Astore(meta, off + I_ATIME_HI, Number(t >> 32n));
 		}
 		if (mt) {
-			meta[off + I_MTIME_LO] = Number(t & 0xffffffffn);
-			meta[off + I_MTIME_HI] = Number(t >> 32n);
+			Astore(meta, off + I_MTIME_LO, Number(t & 0xffffffffn));
+			Astore(meta, off + I_MTIME_HI, Number(t >> 32n));
 		}
 		if (ct) {
-			meta[off + I_CTIME_LO] = Number(t & 0xffffffffn);
-			meta[off + I_CTIME_HI] = Number(t >> 32n);
+			Astore(meta, off + I_CTIME_LO, Number(t & 0xffffffffn));
+			Astore(meta, off + I_CTIME_HI, Number(t >> 32n));
 		}
 	}
 	function allocData(bytes: number) {
@@ -132,40 +138,44 @@ function SharedArrayBufferFS(
 		return off;
 	}
 
-	// dir helpers
-	const dirCount = (off: number) => meta[off + I_SIZE_LO];
+	/* dir helpers – now fully atomic */
+	const dirCount = (off: number) => Aload(meta, off + I_SIZE_LO);
 	const dirVec = (off: number) =>
-		new Int32Array(metaBuf, meta[off + I_DATA_OFF], dirCount(off));
+		new Int32Array(metaBuf, Aload(meta, off + I_DATA_OFF), dirCount(off));
+
 	const dirPush = (off: number, id: number) => {
-		const cnt = dirCount(off);
-		let cap = meta[off + I_CAPACITY];
-		let start = meta[off + I_DATA_OFF];
+		let cnt = dirCount(off);
+		let cap = Aload(meta, off + I_CAPACITY);
+		let start = Aload(meta, off + I_DATA_OFF);
 		if (cnt >= cap) {
-			// grow vector
-			const nc = Math.max(4, cap * 2);
+			const nc = Math.max(4, cap * 2 || 4);
 			const n = allocData(nc * 4);
 			if (cnt) meta8.copyWithin(n, start, start + cnt * 4);
 			start = n;
 			cap = nc;
-			meta[off + I_DATA_OFF] = start;
-			meta[off + I_CAPACITY] = cap;
+			Astore(meta, off + I_DATA_OFF, start);
+			Astore(meta, off + I_CAPACITY, cap);
 		}
-		new Int32Array(metaBuf, start, cap)[cnt] = id;
-		meta[off + I_SIZE_LO] = cnt + 1;
+		const vec = new Int32Array(metaBuf, start, cap);
+		Atomics.store(vec, cnt, id);
+		Astore(meta, off + I_SIZE_LO, cnt + 1);
 	};
+
 	const dirRemove = (off: number, id: number) => {
 		const cnt = dirCount(off);
 		const vec = dirVec(off);
-		for (let i = 0; i < cnt; i++)
-			if (vec[i] === id) {
-				vec[i] = vec[cnt - 1];
-				meta[off + I_SIZE_LO] = cnt - 1;
+		for (let i = 0; i < cnt; i++) {
+			if (Aload(vec, i) === id) {
+				const last = Aload(vec, cnt - 1);
+				Atomics.store(vec, i, last);
+				Astore(meta, off + I_SIZE_LO, cnt - 1);
 				return;
 			}
+		}
 		throw new FS.ErrnoError(44);
 	};
 
-	// inode alloc
+	/* inode allocation */
 	function allocInode(parent: number, mode: number, name: string, rdev = 0) {
 		lock();
 		const id = Atomics.add(meta, IDX_NEXT_INODE, 1);
@@ -175,21 +185,21 @@ function SharedArrayBufferFS(
 		}
 		const off = ioff(id);
 		meta.fill(0, off, off + INODE_WORDS);
-		meta[off + I_MODE] = mode;
-		meta[off + I_PARENT] = parent;
-		meta[off + I_NLINK] = 1;
-		meta[off + I_RDEV] = rdev;
+		Astore(meta, off + I_MODE, mode);
+		Astore(meta, off + I_PARENT, parent);
+		Astore(meta, off + I_NLINK, 1);
+		Astore(meta, off + I_RDEV, rdev);
 		writeSize(off, 0);
 		writeName(off, name);
 		writeTimes(off, true, true, true);
-		if ((mode & S_IFDIR) === S_IFDIR) meta[off + I_CAPACITY] = 0; // dir vector lazily alloc
+		if ((mode & S_IFDIR) === S_IFDIR) Astore(meta, off + I_CAPACITY, 0);
 		dirPush(ioff(parent), id);
 		writeTimes(ioff(parent), false, true, true);
 		unlock();
 		return id;
 	}
 
-	// raw I/O
+	/* raw file data I/O unchanged (already uses lock) */
 	function readData(id: number, pos: number, len: number, out: Uint8Array) {
 		const off = ioff(id);
 		const size = readSize(off);
@@ -197,8 +207,8 @@ function SharedArrayBufferFS(
 		const to = Math.min(len, size - pos);
 		out.set(
 			data8.subarray(
-				meta[off + I_DATA_OFF] + pos,
-				meta[off + I_DATA_OFF] + pos + to
+				Aload(meta, off + I_DATA_OFF) + pos,
+				Aload(meta, off + I_DATA_OFF) + pos + to
 			)
 		);
 		writeTimes(off, true, false, false);
@@ -206,13 +216,12 @@ function SharedArrayBufferFS(
 	}
 	function writeData(id: number, pos: number, src: Uint8Array) {
 		const off = ioff(id);
-		let cap = meta[off + I_CAPACITY];
-		let start = meta[off + I_DATA_OFF];
+		let cap = Aload(meta, off + I_CAPACITY);
+		let start = Aload(meta, off + I_DATA_OFF);
 		const size = readSize(off);
 		const end = pos + src.length;
 		lock();
 		if (end > cap) {
-			// reallocate
 			const newCap = Math.max(
 				end,
 				cap ? (cap < 1 << 20 ? cap * 2 : (cap * 9) >> 3) : 256
@@ -221,8 +230,8 @@ function SharedArrayBufferFS(
 			if (size) data8.copyWithin(newOff, start, start + size);
 			start = newOff;
 			cap = newCap;
-			meta[off + I_DATA_OFF] = start;
-			meta[off + I_CAPACITY] = cap;
+			Astore(meta, off + I_DATA_OFF, start);
+			Astore(meta, off + I_CAPACITY, cap);
 		}
 		if (pos > size) data8.fill(0, start + size, start + pos);
 		data8.set(src, start + pos);
@@ -231,17 +240,21 @@ function SharedArrayBufferFS(
 		unlock();
 	}
 
-	// mark deleted
+	/* utility */
 	const markDel = (id: number) => {
-		meta[ioff(id) + I_MODE] = 0;
+		Astore(meta, ioff(id) + I_MODE, 0);
 	};
 
-	// JS‑side node creator
+	/* JS node creator */
 	function makeNode(id: number, mount: any, parent: any) {
-		const off = ioff(id);
-		const mode = meta[off + I_MODE];
-		const name = readName(off);
-		const node = FS.createNode(parent, name, mode, meta[off + I_RDEV]);
+		const mode = Aload(meta, ioff(id) + I_MODE);
+		const name = readName(ioff(id));
+		const node = FS.createNode(
+			parent,
+			name,
+			mode,
+			Aload(meta, ioff(id) + I_RDEV)
+		);
 		node.sabId = id;
 		node.node_ops = node_ops;
 		node.stream_ops = FS.isChrdev(mode)
@@ -250,22 +263,24 @@ function SharedArrayBufferFS(
 		return node;
 	}
 
-	// ── node_ops ──
+	/* node_ops – only lookup changed (uses Atomics for count / ids) */
 	const node_ops = {
 		getattr(node: any) {
 			const o = ioff(node.sabId),
-				mode = meta[o + I_MODE];
+				mode = Aload(meta, o + I_MODE);
 			const sz = mode & S_IFDIR ? 4096 : readSize(o);
 			const ts = (i: number) =>
-				new Date(meta[o + i + 1] * 0x100000000 + meta[o + i]);
+				new Date(
+					Aload(meta, o + i + 1) * 0x100000000 + Aload(meta, o + i)
+				);
 			return {
 				dev: 1,
 				ino: node.sabId,
 				mode,
-				nlink: meta[o + I_NLINK],
-				uid: meta[o + I_UID],
-				gid: meta[o + I_GID],
-				rdev: meta[o + I_RDEV],
+				nlink: Aload(meta, o + I_NLINK),
+				uid: Aload(meta, o + I_UID),
+				gid: Aload(meta, o + I_GID),
+				rdev: Aload(meta, o + I_RDEV),
 				size: sz,
 				atime: ts(I_ATIME_LO),
 				mtime: ts(I_MTIME_LO),
@@ -276,10 +291,13 @@ function SharedArrayBufferFS(
 			const o = ioff(node.sabId);
 			lock();
 			if (a.mode !== undefined)
-				meta[o + I_MODE] =
-					(meta[o + I_MODE] & 0o170000) | (a.mode & 0o777);
-			if (a.uid !== undefined) meta[o + I_UID] = a.uid;
-			if (a.gid !== undefined) meta[o + I_GID] = a.gid;
+				Astore(
+					meta,
+					o + I_MODE,
+					(Aload(meta, o + I_MODE) & 0o170000) | (a.mode & 0o777)
+				);
+			if (a.uid !== undefined) Astore(meta, o + I_UID, a.uid);
+			if (a.gid !== undefined) Astore(meta, o + I_GID, a.gid);
 			if (a.size !== undefined) {
 				const cur = readSize(o);
 				if (a.size < cur) writeSize(o, a.size);
@@ -290,10 +308,14 @@ function SharedArrayBufferFS(
 			unlock();
 		},
 		lookup(parent: any, name: string) {
-			const vec = dirVec(ioff(parent.sabId));
-			for (let i = 0; i < vec.length; i++)
-				if (readName(ioff(vec[i])) === name)
-					return makeNode(vec[i], parent.mount, parent);
+			const poff = ioff(parent.sabId);
+			const cnt = dirCount(poff);
+			const start = Aload(meta, poff + I_DATA_OFF);
+			for (let i = 0; i < cnt; i++) {
+				const childId = Aload(meta, (start >> 2) + i); // interpret as Int32 index
+				if (readName(ioff(childId)) === name)
+					return makeNode(childId, parent.mount, parent);
+			}
 			throw new FS.ErrnoError(44);
 		},
 		mknod(p: any, n: string, m: number, d: number) {
@@ -301,8 +323,8 @@ function SharedArrayBufferFS(
 		},
 		rename(old: any, ndir: any, n: string) {
 			lock();
-			dirRemove(ioff(meta[ioff(old.sabId) + I_PARENT]), old.sabId);
-			meta[ioff(old.sabId) + I_PARENT] = ndir.sabId;
+			dirRemove(ioff(Aload(meta, ioff(old.sabId) + I_PARENT)), old.sabId);
+			Astore(meta, ioff(old.sabId) + I_PARENT, ndir.sabId);
 			writeName(ioff(old.sabId), n);
 			dirPush(ioff(ndir.sabId), old.sabId);
 			writeTimes(ioff(old.sabId), false, false, true);
@@ -337,12 +359,9 @@ function SharedArrayBufferFS(
 		readlink(n: any) {
 			if (!(n.mode & S_IFLNK)) throw new FS.ErrnoError(28);
 			const o = ioff(n.sabId);
-			return TD.decode(
-				data8.subarray(
-					meta[o + I_DATA_OFF],
-					meta[o + I_DATA_OFF] + readSize(o)
-				)
-			);
+			const len = readSize(o);
+			const off = Aload(meta, o + I_DATA_OFF);
+			return TD.decode(new Uint8Array(data8.slice(off, off + len)));
 		},
 		chmod(n: any, m: number) {
 			node_ops.setattr(n, { mode: m });
@@ -350,9 +369,9 @@ function SharedArrayBufferFS(
 		chown(n: any, u: number, g: number) {
 			node_ops.setattr(n, { uid: u, gid: g });
 		},
-	};
+	} as any;
 
-	// ── stream_ops ──
+	/* stream_ops unchanged */
 	const stream_ops = {
 		open(s: any) {
 			if (s.flags & 0x400 && FS.isFile(s.node.mode))
@@ -375,7 +394,7 @@ function SharedArrayBufferFS(
 			return l;
 		},
 		llseek(s: any, off: number, w: number) {
-			const pos =
+			let pos =
 				w === 0
 					? off
 					: w === 1
@@ -412,9 +431,9 @@ function SharedArrayBufferFS(
 		msync() {
 			return 0;
 		},
-	};
+	} as any;
 
-	// backend object
+	/* backend */
 	return { mount: (m: any) => makeNode(1, m, null) };
 }
 
@@ -433,7 +452,7 @@ export const createSharedFSBuffers = (
 
 export function sharedArrayBufferMount(buffers: SharedFSBuffers) {
 	return async function (php: PHP, FS: any, vfsMountPoint: string) {
-		const sabfs = SharedArrayBufferFS(FS, buffers.metaBuf, buffers.dataBuf);
+		const sabfs = SharedSABFS(FS, buffers.metaBuf, buffers.dataBuf);
 		FS.mount(sabfs, {}, '/experimental-sabfs');
 
 		return () => {
