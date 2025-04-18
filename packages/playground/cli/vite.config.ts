@@ -55,6 +55,7 @@ export default defineConfig({
 				'ws',
 				'readline',
 				'worker_threads',
+				'url',
 			],
 		},
 		lib: {
