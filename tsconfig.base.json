@@ -4,7 +4,7 @@
 		"rootDir": ".",
 		"sourceMap": true,
 		"declaration": false,
-		"moduleResolution": "bundler",
+		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"importHelpers": true,
 		"resolveJsonModule": true,
