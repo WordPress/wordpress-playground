@@ -199,7 +199,6 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
-
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
 		return;

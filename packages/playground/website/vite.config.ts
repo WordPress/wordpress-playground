@@ -74,6 +74,10 @@ export default defineConfig(({ command, mode }) => {
 			fs: {
 				strict: false, // Serve files from the other project directories.
 			},
+			headers: {
+				'Cross-Origin-Opener-Policy': 'same-origin',
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+			},
 		},
 		plugins: [
 			react({

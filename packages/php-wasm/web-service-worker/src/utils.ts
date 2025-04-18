@@ -58,6 +58,11 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		// X-frame-options gets in a way when PHP is
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
+
+		// When using SharedArrayBuffers, every response needs to have
+		// these headers.
+		phpResponse.headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+		phpResponse.headers['Cross-Origin-Embedder-Policy'] = 'credentialless';
 	} catch (e) {
 		console.error(e, { url: url.toString() });
 		throw e;

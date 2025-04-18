@@ -65,6 +65,10 @@ export default defineConfig({
 			// Allow serving files from the 'packages' directory
 			allow: ['../../'],
 		},
+		headers: {
+			'Cross-Origin-Opener-Policy': 'same-origin',
+			'Cross-Origin-Embedder-Policy': 'credentialless',
+		},
 	},
 
 	plugins,
