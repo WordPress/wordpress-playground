@@ -27,12 +27,22 @@ import moduleWorkerUrl from './worker-thread?worker&url';
 export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
+import experimentalSABFSModuleWorkerUrl from './worker-thread-shared?worker&url';
+export const experimentalSABFSWorkerUrl: string =
+	new URL(experimentalSABFSModuleWorkerUrl, origin) + '';
+
+// @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
+import {
+	SharedFSBuffers,
+	createSharedFSBuffers,
+} from './shared-array-buffer-fs';
+import type { ExperimentalWorkerEndpoint } from './worker-thread-shared';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -422,3 +432,31 @@ function assertNotInfiniteLoadingLoop() {
 	}
 	(window as any).IS_WASM_WORDPRESS = true;
 }
+
+async function spawnSharedFSPhpWorker(sharedBuffers: SharedFSBuffers) {
+	const experimentalPhpWorkerApi = await spawnPHPWorkerThread(
+		experimentalSABFSWorkerUrl
+	);
+	const phpWorkerApi = consumeAPI<ExperimentalWorkerEndpoint>(
+		experimentalPhpWorkerApi
+	);
+	await phpWorkerApi.isConnected();
+	await phpWorkerApi.boot({
+		sharedBuffers,
+	});
+	await phpWorkerApi.isReady();
+	return phpWorkerApi;
+}
+
+const buffers = createSharedFSBuffers();
+const worker1 = await spawnSharedFSPhpWorker(buffers);
+const worker2 = await spawnSharedFSPhpWorker(buffers);
+
+// We can actually write and read files!
+await worker1.writeFile('/experimental-sabfs/test.txt', 'Hello, world!');
+console.log(await worker1.readFileAsText('/experimental-sabfs/test.txt'));
+
+// Problem: node cache is not shared between workers so worker2 won't see the file:
+console.log(await worker2.listFiles('/experimental-sabfs/test.txt'));
+
+// @TODO solution: We need to use a SharedArrayBuffer to store the top-level FS metadata
