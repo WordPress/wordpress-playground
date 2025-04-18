@@ -308,36 +308,24 @@ export function SharedSABFS(
 		lookup(p: any, name: string) {
 			const poff = ioff(p.sabId);
 			const cntIdx = (poff + I_SIZEL) >> 2;
-			for (let tries = 0; tries < 2; tries++) {
+			for (;;) {
 				const cnt = L(meta, cntIdx);
-				log(
-					'lookup("' + name + '") dir',
-					(poff - HEADER_WORDS) / INODE_WORDS + 1,
-					'tries',
-					tries,
-					'cnt',
-					cnt
-				);
 				if (cnt) {
-					const start = L(meta, poff + I_DATA_OFF);
-					const baseArr = new Int32Array(metaBuf);
+					const start = L(meta, poff + I_DATA_OFF),
+						baseArr = new Int32Array(metaBuf);
 					for (let i = 0; i < cnt; i++) {
 						const id = L(baseArr, (start >> 2) + i);
-						const childName = getName(ioff(id));
-						log('  child', i, 'id', id, 'name', childName);
-						if (childName === name) return mkNode(id, p.mount, p);
+						if (getName(ioff(id)) === name)
+							return mkNode(id, p.mount, p);
 					}
+					/* directory populated but child not found → true ENOENT */
+					log('lookup: populated dir but no match', name);
+					throw new FS.ErrnoError(44);
 				}
-				if (tries === 0)
-					Atomics.wait(meta, cntIdx, L(meta, cntIdx), 10);
+				/* empty dir → wait until someone adds first child */
+				log('lookup: waiting for dir population', name);
+				Atomics.wait(meta, cntIdx, 0, 50); // wait up to 50ms, then recheck
 			}
-			log(
-				'lookup failed',
-				name,
-				'in dir',
-				(poff - HEADER_WORDS) / INODE_WORDS + 1
-			);
-			throw new FS.ErrnoError(44);
 		},
 		mknod(p: any, n: string, m: number, d: number) {
 			return mkNode(newInode(p.sabId, m, n, d), p.mount, p);
