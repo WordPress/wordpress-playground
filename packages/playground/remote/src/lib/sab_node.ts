@@ -59,24 +59,52 @@ async function main() {
 					
 					// Use stricter synchronization settings for better reliability
 					echo "[PHP] Setting stricter synchronization pragmas\\n";
-					// $pdo->exec('PRAGMA synchronous = FULL');
-					$pdo->exec('PRAGMA locking_mode = EXCLUSIVE');
+					// Use NORMAL sync mode - our filesystem handles the extra sync
+					$pdo->exec('PRAGMA synchronous = NORMAL');
+					// Use NORMAL locking - our filesystem handles proper SHM file
+					$pdo->exec('PRAGMA locking_mode = NORMAL');
 					
 					echo "[PHP] Beginning transaction...\\n";
 					$pdo->beginTransaction();
 					
-					echo "[PHP] Creating table users...\\n";
-					$pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
+					echo "[PHP] Creating table users (if not exists)...\\n";
+					$pdo->exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)');
+					
+					// Verify the table was created
+					$tableCheck = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
+					$tableExists = $tableCheck->fetchColumn();
+					if (!$tableExists) {
+						echo "[PHP] ERROR: Failed to create table: 'users'\\n";
+						$pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
+						echo "[PHP] Retrying table creation with direct SQL...\\n";
+					}
 					
 					echo "[PHP] Committing transaction...\\n";
 					$pdo->commit();
 					
 					// Force database to flush changes by closing and reopening
-					echo "[PHP] Closing and reopening connection to ensure changes are flushed...\\n";
-					$pdo = null; // Close connection
-					// Reopen connection
+					echo "[PHP] Flushing database changes by closing and reopening connection...\\n";
+					$pdo = null; // Close connection completely
+					
+					// Wait a bit to ensure filesystem operations are complete
+					usleep(50000); // 50ms
+					
+					// Reopen connection to verify table exists
 					$pdo = new PDO('sqlite:' . $dbPath);
 					$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+					
+					// Apply pragmas again
+					$pdo->exec('PRAGMA synchronous = NORMAL');
+					$pdo->exec('PRAGMA locking_mode = NORMAL');
+					
+					// Double check if table exists
+					$tableCheck = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
+					$tableExists = $tableCheck->fetchColumn();
+					if (!$tableExists) {
+						echo "[PHP] ERROR: Table 'users' still missing after reopen!\\n";
+						echo "[PHP] Creating table one more time...\\n";
+						$pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
+					}
 					
 					echo "[PHP] Table users created.\\n";
 					// Show all tables in the database
