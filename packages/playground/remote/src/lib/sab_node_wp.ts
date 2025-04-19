@@ -26,7 +26,7 @@ log('[MAIN] Booting WordPress');
  * We don't store the result in a variable because we don't need it.
  * All we want are SharedArrayBuffers populated with WordPress files.
  */
-await bootWordPress({
+const requestHandler = await bootWordPress({
 	createPhpRuntime: async () => {
 		const runtime = await loadNodeRuntime(RecommendedPHPVersion);
 		return runtime;
@@ -46,6 +46,14 @@ await bootWordPress({
 });
 
 log('[MAIN] Booted WordPress');
+const response = await requestHandler.request({
+	url: '/',
+	method: 'GET',
+	body: '',
+	headers: {},
+});
+console.log(response.text);
+// process.exit(0);
 
 // @ts-ignore
 export const experimentalSABFSWorkerUrl: string =
