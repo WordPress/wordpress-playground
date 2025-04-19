@@ -1,10 +1,16 @@
 import { PHP, PHPWorker, loadPHPRuntime } from '@php-wasm/universal';
-import { getPHPLoaderModule } from '@php-wasm/node';
+import { getPHPLoaderModule, loadNodeRuntime } from '@php-wasm/node';
 import { exposeAPI } from '@php-wasm/web';
 import {
 	sharedArrayBufferMount,
 	SharedFSBuffers,
 } from './shared-array-buffer-fs';
+import {
+	getSqliteDatabaseModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
+import { bootWordPress } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 interface BootOptions {
 	sharedBuffers: SharedFSBuffers;
@@ -25,6 +31,22 @@ export class ExperimentalWorkerEndpoint extends PHPWorker {
 			sharedArrayBufferMount(options.sharedBuffers)
 		);
 		bufs = options.sharedBuffers;
+		this.setPrimaryPHP(php);
+		setApiReady();
+	}
+
+	async bootWordPress(options: {
+		sharedMounts: Record<string, SharedFSBuffers>;
+	}) {
+		const php = new PHP(
+			await loadPHPRuntime(await getPHPLoaderModule('8.0'))
+		);
+		for (const [mountPoint, sharedBuffers] of Object.entries(
+			options.sharedMounts
+		)) {
+			php.mkdir(mountPoint);
+			php.mount(mountPoint, sharedArrayBufferMount(sharedBuffers));
+		}
 		this.setPrimaryPHP(php);
 		setApiReady();
 	}

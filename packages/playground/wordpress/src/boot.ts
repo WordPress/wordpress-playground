@@ -204,7 +204,6 @@ export async function bootWordPress(options: BootOptions) {
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
 	}
-
 	if (options.wordPressZip) {
 		await unzipWordPress(php, await options.wordPressZip);
 	}

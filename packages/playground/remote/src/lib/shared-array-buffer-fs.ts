@@ -17,7 +17,7 @@ export const createSharedFSBuffers = (
 export function sharedArrayBufferMount(buffers: SharedFSBuffers) {
 	return async function (php: PHP, FS: any, vfsMountPoint: string) {
 		const sabfs = SharedSABFS(FS, buffers.metaBuf, buffers.dataBuf);
-		FS.mount(sabfs, {}, '/experimental-sabfs');
+		FS.mount(sabfs, {}, vfsMountPoint);
 
 		return () => {
 			FS!.unmount(vfsMountPoint);
