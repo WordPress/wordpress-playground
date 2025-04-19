@@ -206,31 +206,18 @@ export function SharedSABFS(
 	};
 
 	/* data allocation */
+	const align4 = (x: number) => (x + 3) & ~3;
+
 	const allocData = (bytes: number) => {
-		let currentOffset;
-		let newOffset;
+		let cur, next;
 		do {
-			currentOffset = Atomics.load(meta, IDX_NEXT_DATA);
-			newOffset = currentOffset + bytes;
-			if (newOffset > data8.length) {
-				log(
-					`allocData failed: requested ${bytes}, currentOffset ${currentOffset}, newOffset ${newOffset} > dataBuffer.length ${data8.length}`
-				);
-				throw new FS.ErrnoError(28); // ENOSPC - No space left on device
-			}
-			// Attempt to atomically update IDX_NEXT_DATA from currentOffset to newOffset
+			cur = align4(Atomics.load(meta, IDX_NEXT_DATA)); // <-- new
+			next = cur + align4(bytes); //   |
+			if (next > data8.length) throw new FS.ErrnoError(28);
 		} while (
-			Atomics.compareExchange(
-				meta,
-				IDX_NEXT_DATA,
-				currentOffset,
-				newOffset
-			) !== currentOffset
+			Atomics.compareExchange(meta, IDX_NEXT_DATA, cur, next) !== cur
 		);
-		log(
-			`allocData success: allocated ${bytes} bytes at offset ${currentOffset}, new IDX_NEXT_DATA ${newOffset}`
-		);
-		return currentOffset; // Return the beginning of the allocated block
+		return cur; // always multiple of 4
 	};
 
 	/* Helper to check if a filename is a SQLite journal or WAL file */
