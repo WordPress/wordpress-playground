@@ -6,7 +6,7 @@
 //   worker.postMessage({ metaBuf, dataBuf }, [metaBuf, dataBuf]);
 
 /* Enable or disable verbose console output */
-const DEBUG = true;
+const DEBUG = false;
 const log = (...a: any[]) => DEBUG && console.log('[SABFS]', ...a);
 
 /* ─── POSIX mode and type bits ───────────────────────────────────────────── */

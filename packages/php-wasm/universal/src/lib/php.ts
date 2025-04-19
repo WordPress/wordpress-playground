@@ -901,6 +901,20 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Discuss: should we keep this? Or are the argument semantics too confusing? But it's
+	 * the same as for mv, isn't it?
+	 *
+	 * Also, should it be copy(fromPath, toPath, { recursive: true }) like rmdir?
+	 */
+	copyRecursive(fromPath: string, toPath: string) {
+		return FSHelpers.copyRecursive(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+	}
+
+	/**
 	 * Removes a directory from the PHP filesystem.
 	 *
 	 * @param path The directory path to remove.

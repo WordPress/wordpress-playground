@@ -19,28 +19,51 @@ const log = (...a: any[]) => DEBUG && console.log('[SABFS]', ...a);
  * the boot process of each child worker.
  */
 const wpBuffers = createSharedFSBuffers();
+const internalSharedBuffers = createSharedFSBuffers();
 
 log('[MAIN] Booting WordPress');
+
+let firstTime = true;
 
 /**
  * We don't store the result in a variable because we don't need it.
  * All we want are SharedArrayBuffers populated with WordPress files.
  */
 const requestHandler = await bootWordPress({
-	createPhpRuntime: async () => {
-		const runtime = await loadNodeRuntime(RecommendedPHPVersion);
-		return runtime;
-	},
+	createPhpRuntime: async () => await loadNodeRuntime(RecommendedPHPVersion),
 	siteUrl: 'http://playground-domain/',
 
 	wordPressZip: await getWordPressModule(),
 	sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 	hooks: {
-		beforeWordPressFiles: async (php) => {
-			log('[MAIN] Mounting shared array buffer');
+		/**
+		 * A hook I added temporarily for the sake of explorations.
+		 * I'm not sure if I want to keep it yet. Let's discuss.
+		 */
+		afterPhpInstanceCreated: async (php, { isPrimary }) => {
+			if (!isPrimary) {
+				return;
+			}
+			if (!firstTime) {
+				return;
+			}
+			// This hook will be called every time a new PHP instance is created.
+			// We only want to the mount once.
+			firstTime = false;
+			log('[MAIN] Mounting shared array buffers');
+			php.mv('/internal/shared', '/internal/shared-old');
+			php.mkdir('/internal/shared');
+
+			await php.mount(
+				'/internal/shared',
+				sharedArrayBufferMount(internalSharedBuffers)
+			);
+			php.copyRecursive('/internal/shared-old', '/internal/shared');
+			php.rmdir('/internal/shared-old', { recursive: true });
+
 			php.mkdir('/wordpress');
 			await php.mount('/wordpress', sharedArrayBufferMount(wpBuffers));
-			log('[MAIN] Mounted shared array buffer');
+			log('[MAIN] Mounted shared array buffers');
 		},
 	},
 });
@@ -52,8 +75,14 @@ const response = await requestHandler.request({
 	body: '',
 	headers: {},
 });
-console.log(response.text);
-// process.exit(0);
+const titleMatch = response.text.match(/<title>(.*?)<\/title>/i);
+if (titleMatch && titleMatch[1]) {
+	console.log('Extracted Title:', titleMatch[1]);
+} else {
+	console.log('Could not extract title from response.');
+	// Optionally log the full text if title extraction fails
+	// console.log(response.text);
+}
 
 // @ts-ignore
 export const experimentalSABFSWorkerUrl: string =
@@ -72,6 +101,7 @@ async function spawnSharedFSPhpWorker() {
 	await phpWorkerApi.bootWordPress({
 		sharedMounts: {
 			'/wordpress': wpBuffers,
+			'/internal/shared': internalSharedBuffers,
 		},
 	});
 	await phpWorkerApi.isReady();
@@ -82,6 +112,9 @@ async function spawnSharedFSPhpWorker() {
 
 async function main() {
 	const worker1 = await spawnSharedFSPhpWorker();
+	const worker2 = await spawnSharedFSPhpWorker();
+
+	// Print all the posts in the database
 	const result = await worker1.run({
 		code: `<?php
 require_once '/wordpress/wp-load.php';
@@ -91,11 +124,7 @@ ini_set('display_errors', 1);
 
 echo "[PHP] Getting post titles...\\n";
 
-$all_posts = get_posts( array(
-	'numberposts' => -1, // Get all posts
-	'post_status' => 'publish', // Only published posts
-	'post_type'   => 'post', // Only standard posts
-) );
+$all_posts = $wpdb->get_results( "SELECT ID, post_title FROM {$wpdb->posts} ORDER BY ID ASC" );
 
 if ( ! empty( $all_posts ) ) {
 	echo "[PHP] Found " . count($all_posts) . " posts:\\n";
@@ -112,7 +141,64 @@ echo "[PHP] Finished getting post titles.\\n";
 	});
 	console.log(result.text);
 
-	// const worker2 = await spawnSharedFSPhpWorker();
+	console.log('\n[MAIN] Worker 1: Inserting a new post...');
+	const insertResult = await worker1.run({
+		code: `<?php
+require_once '/wordpress/wp-load.php';
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+echo "[PHP] Inserting a new post...\\n";
+
+$post_id = wp_insert_post(array(
+    'post_title'    => 'My New Post from Worker 1',
+    'post_content'  => 'This is the content of the new post created via PHP.',
+    'post_status'   => 'publish',
+	'post_author'   => 1,        
+	'post_type'     => 'post'
+));
+
+if ( is_wp_error( $post_id ) ) {
+    echo "[PHP] Error inserting post: " . $post_id->get_error_message() . "\\n";
+} else {
+    echo "[PHP] Successfully inserted post with ID: " . $post_id . "\\n";
+}
+`,
+	});
+	console.log(insertResult.text);
+
+	// Verify the post was inserted by listing posts again in worker 2
+	console.log(
+		'\n[MAIN] Worker 2: Listing posts again to verify insertion...'
+	);
+	const verifyResult = await worker2.run({
+		code: `<?php
+require_once '/wordpress/wp-load.php';
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+echo "[PHP] Getting post titles again...\\n";
+global $wpdb;
+
+$all_posts = $wpdb->get_results( "SELECT ID, post_title FROM {$wpdb->posts} ORDER BY ID ASC" );
+
+if ( ! empty( $all_posts ) ) {
+	echo "[PHP] Found " . count($all_posts) . " posts:\\n";
+	foreach ( $all_posts as $single_post ) {
+		// Use htmlspecialchars to prevent potential XSS if titles contain HTML/JS
+		echo "[PHP] - ID: " . $single_post->ID . ", Title: " . htmlspecialchars($single_post->post_title) . "\\n";
+	}
+} else {
+	echo "[PHP] No posts found.\\n";
+}
+
+echo "[PHP] Finished getting post titles again.\\n";
+?>`,
+	});
+	console.log(verifyResult.text);
+
 	// console.log('[Node] Worker 2 spawned and ready.');
 
 	// console.log(

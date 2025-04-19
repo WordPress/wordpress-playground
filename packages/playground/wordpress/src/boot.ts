@@ -26,6 +26,18 @@ import { logger } from '@php-wasm/logger';
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
 export interface Hooks {
+	/**
+	 * Runs immediately after the PHP instance is created.
+	 *
+	 * This hook is called:
+	 *
+	 * * For every PHP instance, including the primary one.
+	 * * Every time a PHP instance is rotated.
+	 */
+	afterPhpInstanceCreated?: (
+		php: PHP,
+		{ isPrimary }: { isPrimary: boolean }
+	) => void | Promise<void>;
 	beforeWordPressFiles?: Hook;
 	beforeDatabaseSetup?: Hook;
 }
@@ -79,7 +91,7 @@ export interface BootOptions {
 	 * {
 	 * 		createFiles: {
 	 * 			'/tmp/hello.txt': 'Hello, World!',
-	 * 			'/internal/preload': {
+	 * 			'/internal/shared/preload': {
 	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
 	 * 			}
 	 * 		}
@@ -133,6 +145,9 @@ export async function bootWordPress(options: BootOptions) {
 		isPrimary: boolean
 	) {
 		const php = new PHP(await options.createPhpRuntime());
+		if (options.hooks?.afterPhpInstanceCreated) {
+			await options.hooks.afterPhpInstanceCreated(php, { isPrimary });
+		}
 		if (options.sapiName) {
 			php.setSapiName(options.sapiName);
 		}
