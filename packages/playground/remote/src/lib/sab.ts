@@ -1108,7 +1108,7 @@ export function SharedSABFS(
 }
 
 /* ─── helper to allocate buffers ─────────────────────────────────────────── */
-export const createBuffers = (metaBytes = 4 << 20, dataBytes = 8 << 20) => ({
+export const createBuffers = (metaBytes = 16 << 20, dataBytes = 128 << 20) => ({
 	metaBuf: new SharedArrayBuffer(metaBytes),
 	dataBuf: new SharedArrayBuffer(dataBytes),
 });

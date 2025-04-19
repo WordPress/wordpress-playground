@@ -7,8 +7,8 @@ export type SharedFSBuffers = {
 	dataBuf: SharedArrayBuffer;
 };
 export const createSharedFSBuffers = (
-	metaBytes = 8 << 20,
-	dataBytes = 16 << 20
+	metaBytes = 16 << 20,
+	dataBytes = 128 << 20
 ): SharedFSBuffers => ({
 	metaBuf: new SharedArrayBuffer(metaBytes),
 	dataBuf: new SharedArrayBuffer(dataBytes),
