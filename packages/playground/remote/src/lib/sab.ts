@@ -185,14 +185,23 @@ export function SharedSABFS(
 	const removeChild = (off: number, id: number) => {
 		const cnt = dCount(off),
 			vec = dVec(off);
-		for (let i = 0; i < cnt; i++)
-			if (Atomics.load(vec, i) === id) {
-				Atomics.store(vec, i, Atomics.load(vec, cnt - 1));
-				S(meta, off + I_SIZEL, cnt - 1);
-				Atomics.notify(meta, (off + I_SIZEL) >> 2, 1);
-				log('dir-', (off - HEADER_WORDS) / INODE_WORDS + 1, 'del', id);
-				return;
+		for (let i = 0; i < cnt; i++) {
+			if (Atomics.load(vec, i) !== id) continue;
+
+			const last = cnt - 1;
+			// Swap down the last entry (if not the same slot)
+			if (i !== last) {
+				Atomics.store(vec, i, Atomics.load(vec, last));
 			}
+			// Really clear the old slot
+			Atomics.store(vec, last, 0);
+
+			// Decrement count
+			S(meta, off + I_SIZEL, last);
+			Atomics.notify(meta, (off + I_SIZEL) >> 2, 1);
+			log('dir-', (off - HEADER_WORDS) / INODE_WORDS + 1, 'del', id);
+			return;
+		}
 		throw new FS.ErrnoError(44);
 	};
 
@@ -633,7 +642,17 @@ export function SharedSABFS(
 			unlock();
 		},
 		unlink(p: any, nm: string) {
-			const c = node_ops.lookup(p, nm);
+			let c;
+			try {
+				c = node_ops.lookup(p, nm);
+			} catch (e: any) {
+				if (e.errno === 44) {
+					// ENOENT
+					log('unlink: file not found, ignore', nm);
+					return;
+				}
+				throw e;
+			}
 			const off = ioff(c.sabId);
 			const name = getName(off);
 
@@ -641,7 +660,11 @@ export function SharedSABFS(
 			lock();
 			try {
 				// Remove from parent directory
-				removeChild(ioff(p.sabId), c.sabId);
+				try {
+					removeChild(ioff(p.sabId), c.sabId);
+				} catch (e: any) {
+					if (e.errno !== 44) throw e;
+				}
 
 				// Set link count to 0.
 				// The file will be fully deleted (mode=0) by the 'close' operation
@@ -650,26 +673,6 @@ export function SharedSABFS(
 					`[SABFS] unlink: setting nlink=0 for inode ${c.sabId} ("${name}")`
 				);
 				S(meta, off + I_NLINK, 0);
-
-				// DO NOT set mode=0 here. This is handled by close().
-				/*
-				const openRefs = L(meta, off + I_OPENREFS);
-				log(
-					`[SABFS] unlink: setting nlink=0 for inode ${c.sabId} ("${name}"), openRefs=${openRefs}`
-				);
-				S(meta, off + I_NLINK, 0);
-				
-				if (openRefs === 0) {
-					log(
-						`[SABFS] unlink: no open refs, marking inode ${c.sabId} as fully deleted (mode=0)`
-					);
-					S(meta, off + I_MODE, 0);
-				} else {
-					log(
-						`[SABFS] unlink: keeping inode ${c.sabId} accessible for ${openRefs} open refs`
-					);
-				}
-				*/
 			} finally {
 				unlock();
 			}
@@ -922,14 +925,6 @@ export function SharedSABFS(
 										log(
 											`  -> open: Initializing ${shmName} with header`
 										);
-										const headerBytes = new Uint8Array([
-											0, 0, 0, 0, 1, 0, 0, 0,
-										]);
-										// writeBytes acquires its own lock - need to adapt it or call internal version
-										// For now, let's skip initialization inside open's lock to avoid complexity.
-										// Initialization can perhaps happen lazily or outside the lock.
-										// OR: Adapt writeBytes similarly. Quick fix: skip init here.
-										// TODO: Revisit SHM initialization safely.
 									}
 								} catch (createError: any) {
 									log(

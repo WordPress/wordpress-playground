@@ -57,12 +57,6 @@ async function main() {
                     // threads or concurrency. The problem IS related to the filesystem and
                     // is happening the very first time we try to write to the database.
 					
-					// Use stricter synchronization settings for better reliability
-					echo "[PHP] Setting stricter synchronization pragmas\\n";
-					// Use NORMAL sync mode - our filesystem handles the extra sync
-					$pdo->exec('PRAGMA synchronous = NORMAL');
-					// Use NORMAL locking - our filesystem handles proper SHM file
-					$pdo->exec('PRAGMA locking_mode = NORMAL');
 					
 					echo "[PHP] Beginning transaction...\\n";
 					$pdo->beginTransaction();
@@ -92,10 +86,6 @@ async function main() {
 					// Reopen connection to verify table exists
 					$pdo = new PDO('sqlite:' . $dbPath);
 					$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-					
-					// Apply pragmas again
-					$pdo->exec('PRAGMA synchronous = NORMAL');
-					$pdo->exec('PRAGMA locking_mode = NORMAL');
 					
 					// Double check if table exists
 					$tableCheck = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
@@ -155,17 +145,44 @@ async function main() {
 		console.error('[Node] Worker 1 Execution Failed:', e);
 	}
 
-	// Comment out Worker 2 for now
-	// console.log('\n[Node] Spawning worker 2...');
-	// const worker2 = await spawnSharedFSPhpWorker(buffers);
-	// console.log('[Node] Worker 2 spawned and ready.');
-	// console.log('\n[Node] Running Worker 2 Task (Read DB)...');
-	// try {
-	// 	const result2 = await worker2.run({ code: `...` });
-	// 	console.log('[Node] Worker 2 Result:', result2.text);
-	// } catch (e) {
-	// 	console.error('[Node] Worker 2 failed:', e);
-	// }
+	console.log('\n[Node] Spawning worker 2...');
+	const worker2 = await spawnSharedFSPhpWorker(buffers);
+	console.log('[Node] Worker 2 spawned and ready.');
+	console.log('\n[Node] Running Worker 2 Task (Read DB)...');
+	try {
+		const result2 = await worker2.run({
+			code: `<?php
+			error_reporting(E_ALL);
+			ini_set('display_errors', 1);
+			echo "[PHP] Worker 2 Start\\n";
+			$dbPath = '/experimental-sabfs/db.sqlite';
+			try {
+				echo "[PHP] Opening database connection...\\n";
+				$pdo = new PDO('sqlite:' . $dbPath);
+				$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+				
+				echo "[PHP] Querying users table...\\n";
+				$stmt = $pdo->query("SELECT * FROM users");
+				while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+					echo "[PHP] User ID: " . $row['id'] . ", Name: " . $row['name'] . "\\n";
+				}
+			} catch (PDOException $e) {
+				echo "[PHP] >>> POST QUERY (PDOException) <<<<<<<<<<<<<<\\n";
+				echo "[PHP] ***** PDOException *****\\n";
+				echo "[PHP] Message: " . $e->getMessage() . "\\n";
+				echo "[PHP] Code: " . $e->getCode() . "\\n";
+				echo "[PHP] File: " . $e->getFile() . ":" . $e->getLine() . "\\n";
+				echo "[PHP] **************************\\n";
+			}
+			echo "[PHP] Worker 2 End\\n";
+		?>`,
+		});
+		console.log(
+			'[Node] Worker 2 Raw Result:\n---\n' + result2.text + '---'
+		);
+	} catch (e) {
+		console.error('[Node] Worker 2 failed:', e);
+	}
 
 	console.log('\n[Node] Test finished.');
 	process.exit(0); // Explicitly exit the process
