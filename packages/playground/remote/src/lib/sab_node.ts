@@ -95,6 +95,7 @@ async function main() {
 						echo "[PHP] Creating table one more time...\\n";
 						$pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
 					}
+					$pdo->exec("INSERT INTO users (id, name) VALUES (1, 'John Doe')");
 					
 					echo "[PHP] Table users created.\\n";
 					// Show all tables in the database
@@ -116,7 +117,7 @@ async function main() {
 					
 					// Run the insert in a transaction
 					$pdo->beginTransaction();
-					$pdo->exec("INSERT INTO users (id, name) VALUES (1, 'John Doe')");
+					$pdo->exec("INSERT INTO users (id, name) VALUES (2, 'John Doe')");
 					$pdo->commit();
 					
 					echo "[PHP] >>> POST INSERT (SUCCESS) <<<<<<<<<<<<<<\\n"; // This won't be reached on error
