@@ -282,7 +282,9 @@ export class FileLockManagerForNode implements FileLockManager {
 				path,
 				`0x${requestedLock.start.toString(16).padStart(8, '0')}`,
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
-				'failure'
+				'failure',
+				'ex',
+				`pid=${requestedLock.pid}`
 			);
 			return false;
 		}
@@ -300,7 +302,9 @@ export class FileLockManagerForNode implements FileLockManager {
 				path,
 				`0x${requestedLock.start.toString(16).padStart(8, '0')}`,
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
-				'failure'
+				'failure',
+				'sh',
+				`pid=${requestedLock.pid}`
 			);
 			return false;
 		}
@@ -318,7 +322,9 @@ export class FileLockManagerForNode implements FileLockManager {
 			path,
 			`0x${requestedLock.start.toString(16).padStart(8, '0')}`,
 			`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
-			'success'
+			'success',
+			requestedLock.type === 'exclusive' ? 'ex' : 'sh',
+			`pid=${requestedLock.pid}`
 		);
 		return true;
 	}
@@ -331,7 +337,9 @@ export class FileLockManagerForNode implements FileLockManager {
 				path,
 				`0x${lockToRelease.start.toString(16).padStart(8, '0')}`,
 				`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
-				'failure'
+				'failure',
+				'  ',
+				`pid=${lockToRelease.pid}`
 			);
 			// TODO: Return an error
 			return;
@@ -345,7 +353,9 @@ export class FileLockManagerForNode implements FileLockManager {
 			path,
 			`0x${lockToRelease.start.toString(16).padStart(8, '0')}`,
 			`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
-			'success'
+			'success',
+			'  ',
+			`pid=${lockToRelease.pid}`
 		);
 	}
 
