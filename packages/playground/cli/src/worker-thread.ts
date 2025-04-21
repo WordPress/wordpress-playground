@@ -8,7 +8,6 @@ import { parentPort } from 'worker_threads';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { logger } from '@php-wasm/logger';
 import { rootCertificates } from 'tls';
-import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 
 export interface Mount {
 	hostPath: string;
