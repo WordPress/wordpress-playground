@@ -123,9 +123,11 @@ export class PlaygroundCliWorker extends PHPWorker {
 			this.__internal_setRequestHandler(requestHandler);
 			logger.log(`Booted!`);
 
-			const php = await requestHandler.getPrimaryPhp();
+			const primaryPhp = await requestHandler.getPrimaryPhp();
+			await this.setPrimaryPHP(primaryPhp);
+
 			// TODO: Restore logic to zipDirectory prior to mounting
-			mountResources(php, mountsAfterWpInstall);
+			mountResources(primaryPhp, mountsAfterWpInstall);
 
 			setApiReady();
 		} catch (e) {
@@ -138,8 +140,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 // post message to parent
 parentPort!.postMessage('worker-script-started');
 
-const workerParentEndpoint = nodeEndpoint(parentPort!);
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
-	workerParentEndpoint
+	undefined,
+	parentPort!
 );
