@@ -109,22 +109,16 @@ export async function resolve(
 		}
 	}
 
-	if (specifier.endsWith('?raw')) {
-		// This is a raw file import and can be handled by our custom loader.
-		return {
-			url: `file://${specifier}`,
-			format: 'raw',
-			shortCircuit: true,
-		};
-	}
-
-	if (specifier.endsWith('?json')) {
-		// This is a JSON file import and can be handled by our custom loader.
-		return {
-			url: `file://${specifier}`,
-			format: 'json',
-			shortCircuit: true,
-		};
+	const specifierUrl = new URL(specifier, 'file://');
+	for (const format of ['raw', 'json', 'url']) {
+		if (specifierUrl.searchParams.has(format)) {
+			// This is a custom format import and can be handled by our custom loader.
+			return {
+				url: specifierUrl.href,
+				format,
+				shortCircuit: true,
+			};
+		}
 	}
 
 	for (const extension of possibleModuleExtensions) {
@@ -166,7 +160,16 @@ export async function load(
 		return nextLoad(url, context);
 	}
 
-	if (urlObj.searchParams.has('raw')) {
+	if (context.format === 'url') {
+		urlObj.search = '';
+		return {
+			format: 'module',
+			source: `export default ${JSON.stringify(urlObj.href)};`,
+			shortCircuit: true,
+		};
+	}
+
+	if (context.format === 'raw') {
 		// Load raw file content
 		const content = readFileSync(urlObj.pathname, 'utf8');
 		return {
@@ -176,7 +179,7 @@ export async function load(
 		};
 	}
 
-	if (urlObj.pathname.endsWith('.json')) {
+	if (context.format === 'json') {
 		const source = readFileSync(urlObj.pathname, 'utf8');
 		return {
 			format: 'json',

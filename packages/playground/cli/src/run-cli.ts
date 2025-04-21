@@ -19,7 +19,7 @@ import {
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { Worker } from 'worker_threads';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -28,8 +28,9 @@ import {
 } from './download';
 import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { Worker } from 'worker_threads';
 import type { PlaygroundCliWorker, Mount } from './worker-thread';
+// @ts-ignore
+import moduleWorkerUrlString from './worker-thread?worker&inline&url';
 import { FileLockManagerForNode } from '@php-wasm/node';
 
 export interface RunCLIArgs {
@@ -174,12 +175,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 * @param  workerUrl The absolute URL of the worker script.
 	 * @returns The spawned Worker Thread.
 	 */
-	async function spawnPHPWorkerThread(workerUrl: string) {
+	async function spawnPHPWorkerThread(workerUrl: URL) {
 		const worker = new Worker(workerUrl);
 		return new Promise<Worker>((resolve, reject) => {
 			worker.addListener('error', (e) => {
 				const error = new Error(
-					`WebWorker failed to load at ${workerUrl}. ${
+					`Worker failed to load at ${workerUrl}. ${
 						e.message ? `Original error: ${e.message}` : ''
 					}`
 				);
@@ -216,6 +217,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	const compiledBlueprint = await compileInputBlueprint();
 
+	// Declare file lock manager outside scope of startServer
+	// so we can look at it when debugging request handling.
+	const fileLockManager = new FileLockManagerForNode();
+
 	let wordPressReady = false;
 
 	logger.log('Starting a PHP server...');
@@ -224,8 +229,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			const fileLockManager = new FileLockManagerForNode();
-
 			try {
 				logger.log(`Setting up WordPress ${args.wp}`);
 				let wpDetails: any = undefined;
@@ -296,10 +299,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					: await fetchSqliteIntegration(monitor);
 				console.log('sqlite zip is here');
 
-				const workerUrl = new URL('worker-thread.js', import.meta.url);
-				const workerPath = fileURLToPath(workerUrl);
-
-				const primaryWorker = await spawnPHPWorkerThread(workerPath);
+				console.log('moduleWorkerUrlString', moduleWorkerUrlString);
+				const moduleWorkerUrl = new URL(moduleWorkerUrlString);
+				console.log('moduleWorkerUrl', moduleWorkerUrl);
+				const primaryWorker = await spawnPHPWorkerThread(
+					moduleWorkerUrl
+				);
 				console.log('consumeAPI');
 				playground = consumeAPI<PlaygroundCliWorker>(primaryWorker);
 				await playground.isConnected();
@@ -322,7 +327,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					// TODO: Set different bases per worker
 					runtimeIdBase: 0,
 				});
-				console.log('booted primary worker', playground);
+				console.log('booted primary worker');
 
 				await playground.isReady();
 
@@ -354,7 +359,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					Number.MAX_SAFE_INTEGER / totalWorkers
 				);
 				for (let i = 1; i < 8; i++) {
-					const worker = await spawnPHPWorkerThread(workerPath);
+					const worker = await spawnPHPWorkerThread(moduleWorkerUrl);
 					const secondaryPlayground =
 						consumeAPI<PlaygroundCliWorker>(worker);
 					await secondaryPlayground.isConnected();
