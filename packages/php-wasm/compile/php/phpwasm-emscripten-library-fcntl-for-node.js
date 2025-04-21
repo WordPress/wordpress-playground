@@ -136,8 +136,7 @@ const LibraryForNode = {
 					lockType: requestedLockType,
 					fcntlLockWhence: `0x${flockStruct.l_whence.toString(16)}`,
 					fcntlLockStart: `0x${flockStruct.l_start.toString(16)}`, 
-					fcntlLockLen: `0x${requestedFcntlLockLen.toString(10)}`,
-					rawBytes,
+					fcntlLockEnd: `0x${flockStruct.l_len.toString(10)}`,
 				});
 
 				const absoluteStartOffset = getBaseAddress(fd, flockStruct.l_whence, flockStruct.l_start);
