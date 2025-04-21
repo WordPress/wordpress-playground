@@ -58,5 +58,19 @@ PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'
 
 return PHPLoader;
 
+// TODO: Revisit this hack after discussion with the Emscripten team.
+FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
+    if (FS.NODEFS && node.node_ops === FS.NODEFS.node_ops) {
+        // TODO: Improve this explanation.
+        // Avoid caching NODEFS VFS nodes so multiple instances
+        // can access the same underlying filesystem without
+        // conflicting caches.
+        return;
+    }
+    var hash = FS.hashName(node.parent.id, node.name);
+    node.name_next = FS.nameTable[hash];
+    FS.nameTable[hash] = node;
+}
+
 // Close the opening bracket from esm-prefix.js:
 }
