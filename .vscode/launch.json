@@ -65,6 +65,17 @@
         "autoAttachChildProcesses": true
       },
       {
+        "name": "Debug Playground CLI (Attach)",
+        "request": "attach",
+        "type": "node",
+        "cwd": "${workspaceFolder}",
+        "autoAttachChildProcesses": true,
+        "port": 9399,
+        "outFiles": [
+          "${workspaceFolder}/packages/playground/cli/dist/**/*.{ts,tsx}"
+        ]
+      },
+      {
         "name": "Launch Chrome",
         "request": "launch",
         "type": "chrome",
