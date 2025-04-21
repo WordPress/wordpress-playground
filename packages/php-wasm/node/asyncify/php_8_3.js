@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const __dirname = new URL('.', import.meta.url).pathname;
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 15495569;
+export const dependenciesTotalSize = 15495576;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -5390,8 +5390,7 @@ export function init(RuntimeName, PHPLoader) {
 					lockType: requestedLockType,
 					fcntlLockWhence: `0x${flockStruct.l_whence.toString(16)}`,
 					fcntlLockStart: `0x${flockStruct.l_start.toString(16)}`,
-					fcntlLockLen: `0x${requestedFcntlLockLen.toString(10)}`,
-					rawBytes,
+					fcntlLockEnd: `0x${flockStruct.l_len.toString(10)}`,
 				});
 				const absoluteStartOffset = getBaseAddress(
 					fd,
@@ -9655,6 +9654,19 @@ export function init(RuntimeName, PHPLoader) {
 		typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 	return PHPLoader;
+
+	FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
+		if (FS.NODEFS && node.node_ops === FS.NODEFS.node_ops) {
+			// TODO: Improve this explanation.
+			// Avoid caching NODEFS VFS nodes so multiple instances
+			// can access the same underlying filesystem without
+			// conflicting caches.
+			return;
+		}
+		var hash = FS.hashName(node.parent.id, node.name);
+		node.name_next = FS.nameTable[hash];
+		FS.nameTable[hash] = node;
+	};
 
 	// Close the opening bracket from esm-prefix.js:
 }
