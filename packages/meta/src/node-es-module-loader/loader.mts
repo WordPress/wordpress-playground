@@ -60,7 +60,34 @@ export async function resolve(
 		}
 	}
 
-	// Resolve relative imports
+	const possibleModuleExtensions = [
+		'',
+		'.ts',
+		'.tsx',
+		'.mts',
+		'.mjs',
+		'.js',
+		'.jsx',
+	];
+
+	const looksLikePackageImport = specifier.match(/^\w+/);
+	if (looksLikePackageImport) {
+		// Support resolving package imports with different file extensions.
+		//
+		// This was added to support importing a specific, nested comlink module.
+		// Before this change, there was a conflict between TypeScript type
+		// resolution and Node.js module resolution:
+		// - Node.js would not find the module without its .mjs extension.
+		// - TypeScript could not resolve import's .d.ts file when the .mjs extension was added.
+		for (const extension of possibleModuleExtensions) {
+			try {
+				const candidate = `${specifier}${extension}`;
+				return await nextResolve(candidate, context);
+			} catch {}
+		}
+	}
+
+	// Handle relative imports
 	if (
 		specifier.startsWith('.') &&
 		context.parentURL &&
@@ -100,7 +127,7 @@ export async function resolve(
 		};
 	}
 
-	for (const extension of ['', '.ts', '.tsx', '.js', '.jsx']) {
+	for (const extension of possibleModuleExtensions) {
 		const candidateFilePath = `${specifier}${extension}`;
 
 		if (
