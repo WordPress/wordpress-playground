@@ -1,7 +1,6 @@
 {
 	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
-		"moduleResolution": "bundler",
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
 		"noImplicitOverride": true,
