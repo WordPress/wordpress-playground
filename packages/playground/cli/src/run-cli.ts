@@ -30,7 +30,7 @@ import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import type { PlaygroundCliWorker, Mount } from './worker-thread';
 // @ts-ignore
-import moduleWorkerUrlString from './worker-thread?worker&inline&url';
+import moduleWorkerUrlString from './worker-thread?worker&url';
 import { FileLockManagerForNode } from '@php-wasm/node';
 
 export interface RunCLIArgs {
@@ -300,7 +300,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				console.log('sqlite zip is here');
 
 				console.log('moduleWorkerUrlString', moduleWorkerUrlString);
-				const moduleWorkerUrl = new URL(moduleWorkerUrlString);
+				const moduleWorkerUrl = new URL(
+					moduleWorkerUrlString,
+					import.meta.url
+				);
 				console.log('moduleWorkerUrl', moduleWorkerUrl);
 				const primaryWorker = await spawnPHPWorkerThread(
 					moduleWorkerUrl
