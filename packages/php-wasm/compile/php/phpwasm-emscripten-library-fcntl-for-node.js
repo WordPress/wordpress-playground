@@ -7,6 +7,8 @@
  */
 'use strict';
 
+// TODO: Rename this file to be less specific and for file locking in general
+// TODO: Rename this var to be more specific
 const LibraryForNode = {
 	// Place the builtin fcntl64 implementation in an object so it is left
 	// intact even if the function is not referenced by C/C++ code.
@@ -112,8 +114,7 @@ const LibraryForNode = {
 			return resolvedOffset;
 		}
 
-		// TODO: Rename this to something describing: php-wasm-pid
-		const pid = PHPLoader.runtimeId;
+		const pid = PHPLoader.processId;
 		switch (cmd) {
 			case emscripten_F_GETLK: {
 				console.log('F_GETLK');
@@ -258,6 +259,11 @@ const LibraryForNode = {
 			default:
 				return default_fcntl64.fn(fd, cmd, varargs);
 		}
+	},
+
+	js_release_file_locks() {
+		const pid = PHPLoader.processId;
+		return PHPLoader.fileLockManager.releaseLocksForProcess(pid);
 	}
 };
 

@@ -37,6 +37,8 @@ unsigned int wasm_sleep(unsigned int time)
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
+extern void js_release_file_locks();
+
 /**
  * Shims popen(3) functionallity:
  * https://man7.org/linux/man-pages/man3/popen.3.html
@@ -1554,6 +1556,9 @@ void wasm_sapi_request_shutdown()
 	// Restore the regular stdout and stderr stream handlers
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
+
+	// Release any locks still held by this process
+	js_release_file_locks();	
 
 	// Prepare a fresh request context
 	wasm_init_server_context();
