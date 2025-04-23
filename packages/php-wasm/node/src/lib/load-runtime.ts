@@ -14,6 +14,12 @@ export interface PHPLoaderOptions {
 
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	emscriptenOptions?: EmscriptenOptions & {
+		// Used to divide runtime IDs into unique ranges per worker.
+		// TODO: Consider also passing upper bound of ID range
+		// TODO: Consider implementing getpid() to return this number.
+		// TODO: Explain why
+		processId?: number;
+
 		fileLockManager?: FileLockManager;
 	};
 };

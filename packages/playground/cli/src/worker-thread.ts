@@ -22,7 +22,7 @@ export type PrimaryWorkerBootOptions = {
 	mountsAfterWpInstall: Array<Mount>;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
-	runtimeIdBase: number;
+	processIdBase: number;
 	dataSqlPath?: string;
 };
 
@@ -59,7 +59,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		phpVersion = '8.0',
 		wordPressZip,
 		sqliteIntegrationPluginZip,
-		runtimeIdBase,
+		processIdBase,
 		dataSqlPath,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
@@ -67,6 +67,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		}
 		this.booted = true;
 
+		let nextProcessId = processIdBase;
 		const fileLockManager = consumeAPI<FileLockManager>(parentPort!);
 		await fileLockManager.isConnected();
 
@@ -82,10 +83,12 @@ export class PlaygroundCliWorker extends PHPWorker {
 			const requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () => {
+					const processId = nextProcessId;
+					nextProcessId++;
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
 							fileLockManager,
-							runtimeIdBase,
+							processId,
 						},
 					});
 				},

@@ -327,8 +327,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						wordPressZip && (await wordPressZip!.arrayBuffer()),
 					sqliteIntegrationPluginZip:
 						await sqliteIntegrationPluginZip!.arrayBuffer(),
-					// TODO: Set different bases per worker
-					runtimeIdBase: 0,
+					processIdBase: 0,
 				});
 				console.log('booted primary worker');
 
@@ -358,10 +357,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				// Create secondary workers
 				const secondaryWorkers = [];
 				const totalWorkers = 8;
-				const workerRuntimeIdSpace = Math.floor(
+				const workerProcessIdSpace = Math.floor(
 					Number.MAX_SAFE_INTEGER / totalWorkers
 				);
-				for (let i = 1; i < 8; i++) {
+				for (let i = 1; i < totalWorkers; i++) {
 					const worker = await spawnPHPWorkerThread(moduleWorkerUrl);
 					const secondaryPlayground =
 						consumeAPI<PlaygroundCliWorker>(worker);
@@ -381,7 +380,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						dataSqlPath:
 							'/wordpress/wp-content/database/.ht.sqlite',
 						// TODO: Explain why
-						runtimeIdBase: i * workerRuntimeIdSpace,
+						processIdBase: i * workerProcessIdSpace,
 					});
 					await secondaryPlayground.isReady();
 
@@ -473,6 +472,10 @@ class LoadBalancer {
 
 		const promiseForResponse = smallestWorkerLoad.worker.request(request);
 		smallestWorkerLoad.activeRequests.add(promiseForResponse);
+
+		// Add URL to promise for use while debugging
+		(promiseForResponse as any).url = request.url;
+
 		return promiseForResponse.finally(() => {
 			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
 		});

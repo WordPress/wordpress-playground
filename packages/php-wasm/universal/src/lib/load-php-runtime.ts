@@ -4,7 +4,8 @@ import type { IncomingMessage, Server, ServerResponse } from 'http';
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
 
-let lastRuntimeIndex = 0;
+// TODO: Revert all changes to this file in this PR because they aren't necessary
+let nextRuntimeId = 0;
 
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.
@@ -128,15 +129,12 @@ let lastRuntimeIndex = 0;
 
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
-	phpModuleArgs: EmscriptenOptions = {
-		runtimeIdBase: 0,
-	}
+	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<number> {
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
-	const { runtimeIdBase = 0 } = phpModuleArgs;
-	++lastRuntimeIndex;
-	const runtimeId = runtimeIdBase + lastRuntimeIndex;
+	const runtimeId = nextRuntimeId;
+	nextRuntimeId++;
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
@@ -202,8 +200,6 @@ export async function loadPHPRuntime(
 			}
 			resolvePHP();
 		},
-		// TODO: Explain why
-		runtimeId,
 	});
 
 	await phpReady;
@@ -308,11 +304,6 @@ export type EmscriptenOptions = {
 			module: WebAssembly.Module
 		) => void
 	) => void;
-
-	// Used to divide runtime IDs into unique ranges per worker.
-	// TODO: Consider also passing upper bound of ID range
-	// TODO: Improve name?
-	runtimeIdBase?: number;
 } & Record<string, any>;
 
 export type EmscriptenMessageListener = (type: string, data: string) => void;
