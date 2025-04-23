@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const __dirname = new URL('.', import.meta.url).pathname;
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 15495576;
+export const dependenciesTotalSize = 15495577;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -9655,17 +9655,16 @@ export function init(RuntimeName, PHPLoader) {
 
 	return PHPLoader;
 
+	var originalHashAddNode = FS.hashAddNode;
+	// TODO: Revisit this hack after discussion with the Emscripten team.
 	FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
 		if (FS.NODEFS && node.node_ops === FS.NODEFS.node_ops) {
-			// TODO: Improve this explanation.
 			// Avoid caching NODEFS VFS nodes so multiple instances
 			// can access the same underlying filesystem without
 			// conflicting caches.
 			return;
 		}
-		var hash = FS.hashName(node.parent.id, node.name);
-		node.name_next = FS.nameTable[hash];
-		FS.nameTable[hash] = node;
+		return originalHashAddNode.apply(FS, arguments);
 	};
 
 	// Close the opening bracket from esm-prefix.js:
