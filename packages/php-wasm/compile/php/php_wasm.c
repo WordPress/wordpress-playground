@@ -37,7 +37,13 @@ unsigned int wasm_sleep(unsigned int time)
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
+// TODO: Move these and comment them
 extern void js_release_file_locks();
+extern int js_flock(int fd, int op);
+
+EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
+	return js_flock(fd, op);
+}
 
 /**
  * Shims popen(3) functionallity:

@@ -264,6 +264,13 @@ const LibraryForNode = {
 	js_release_file_locks() {
 		const pid = PHPLoader.processId;
 		return PHPLoader.fileLockManager.releaseLocksForProcess(pid);
+	},
+
+	// TODO: Try to eliminate the need to declare flock() itself in php_wasm.c
+	// and find a way to declare it here in a way that overrides Emscripten's libc flock()
+	js_flock(fd, op) {
+		console.log('Called flock()');
+		return 0;
 	}
 };
 
