@@ -5398,8 +5398,9 @@ export function init(RuntimeName, PHPLoader) {
 				);
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
+				// TODO: Handle case where flock() conflicts with range lock
 				return PHPLoader.fileLockManager
-					.getConflictingLock(filePath, {
+					.findFirstConflictingByteRangeLock(filePath, {
 						type: requestedLockType,
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
@@ -5465,7 +5466,7 @@ export function init(RuntimeName, PHPLoader) {
 						pid,
 					};
 					return PHPLoader.fileLockManager
-						.unlockFile(filePath, rangeToUnlock)
+						.unlockFileByteRange(filePath, rangeToUnlock)
 						.then(() => 0);
 				} else {
 					// TODO: Handle error
@@ -5477,7 +5478,7 @@ export function init(RuntimeName, PHPLoader) {
 						pid,
 					};
 					return PHPLoader.fileLockManager
-						.lockFile(filePath, rangeToLock)
+						.lockFileByteRange(filePath, rangeToLock)
 						.then((succeeded) => {
 							if (succeeded) {
 								return 0;
@@ -7421,8 +7422,55 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function _js_flock(fd, op) {
-		console.log('Called flock()');
-		return 0;
+		console.log('js_flock', fd, op);
+		// TODO: Consider patching Emscripten to relay these constants via cDefs.
+		// Based on
+		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
+		const emscripten_LOCK_SH = 1;
+		const emscripten_LOCK_EX = 2;
+		const emscripten_LOCK_NB = 4;
+		const emscripten_LOCK_UN = 8;
+		const flockToLockOpType = {
+			[emscripten_LOCK_SH]: 'shared',
+			[emscripten_LOCK_EX]: 'exclusive',
+			[emscripten_LOCK_UN]: 'unlocked',
+		};
+		let filePath;
+		try {
+			filePath = FS.readlink(`/proc/self/fd/${fd}`);
+			console.log('filePath:', filePath);
+		} catch (error) {
+			console.log('unable to resolve file path from fd');
+			_wasm_set_errno(ERRNO_CODES.EBADF);
+			return -1;
+		}
+		// TODO: Consider supporting blocking mode of flock()
+		if (op & (emscripten_LOCK_NB === 0)) {
+			// TODO: Import and use logger.warn here
+			console.warn('blocking mode of flock() is not implemented');
+			// TODO: Set errno?
+			return -1;
+		}
+		const maskedOp =
+			op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
+		const lockOpType = flockToLockOpType[maskedOp];
+		if (lockOpType === undefined) {
+			// TODO: Import and use logger.warn here
+			console.warn('invalid flock() operation');
+			// TODO: Set errno?
+			return -1;
+		}
+		const result = PHPLoader.fileLockManager.lockWholeFile(filePath, {
+			pid: PHPLoader.processId,
+			type: lockOpType,
+		});
+		if (result) {
+			return 0;
+		} else {
+			// TODO: Should this be EWOULDBLOCK? They are usually used interchangeably but are not necessarily the same.
+			_wasm_set_errno(ERRNO_CODES.EAGAIN);
+			return -1;
+		}
 	}
 
 	function _js_open_process(
@@ -7649,8 +7697,10 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function _js_release_file_locks() {
-		const pid = PHPLoader.processId;
-		return PHPLoader.fileLockManager.releaseLocksForProcess(pid);
+		if (PHPLoader.fileLockManager) {
+			const pid = PHPLoader.processId;
+			return PHPLoader.fileLockManager.releaseLocksForProcess(pid);
+		}
 	}
 
 	function _js_waitpid(pid, exitCodePtr) {

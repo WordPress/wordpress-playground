@@ -1,6 +1,6 @@
 import { FileLockManagerForNode } from '../lib/file-lock-manager';
 
-// TODO: Review these tests with a critical eye before merging. They are AI-generated.
+// TODO: These tests are AI-generated and totally unreviewed so far. Review these tests with a critical eye before merging.
 describe('FileLockManagerForNode', () => {
 	let lockManager: FileLockManagerForNode;
 
@@ -8,9 +8,66 @@ describe('FileLockManagerForNode', () => {
 		lockManager = new FileLockManagerForNode();
 	});
 
-	describe('lockFile', () => {
+	describe('lockWholeFile	', () => {
 		it('should allow acquiring an exclusive lock on an unlocked file', async () => {
-			const result = await lockManager.lockFile('/test.txt', {
+			const result = await lockManager.lockWholeFile('/test.txt', {
+				type: 'exclusive',
+				pid: 1,
+			});
+			expect(result).toBe(true);
+		});
+
+		it('should not allow acquiring a shared lock on an unlocked file', async () => {
+			const result = await lockManager.lockWholeFile('/test.txt', {
+				type: 'shared',
+				pid: 1,
+			});
+			expect(result).toBe(false);
+		});
+
+		it('should not allow acquiring an exclusive lock on a file that is already locked by another process', async () => {
+			await lockManager.lockWholeFile('/test.txt', {
+				type: 'exclusive',
+				pid: 1,
+			});
+
+			const result = await lockManager.lockWholeFile('/test.txt', {
+				type: 'exclusive',
+				pid: 2,
+			});
+			expect(result).toBe(false);
+		});
+
+		it('should not allow acquiring a shared lock on a file that is already locked by another process', async () => {
+			await lockManager.lockWholeFile('/test.txt', {
+				type: 'shared',
+				pid: 1,
+			});
+
+			const result = await lockManager.lockWholeFile('/test.txt', {
+				type: 'shared',
+				pid: 2,
+			});
+			expect(result).toBe(false);
+		});
+
+		it('should not allow acquiring an exclusive lock on a file that is already locked by another process', async () => {
+			await lockManager.lockWholeFile('/test.txt', {
+				type: 'exclusive',
+				pid: 1,
+			});
+
+			const result = await lockManager.lockWholeFile('/test.txt', {
+				type: 'exclusive',
+				pid: 2,
+			});
+			expect(result).toBe(false);
+		});
+	});
+
+	describe('lockFileByteRange', () => {
+		it('should allow acquiring an exclusive lock on an unlocked file', async () => {
+			const result = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 0n,
 				end: 100n,
@@ -20,7 +77,7 @@ describe('FileLockManagerForNode', () => {
 		});
 
 		it('should allow acquiring a shared lock on an unlocked file', async () => {
-			const result = await lockManager.lockFile('/test.txt', {
+			const result = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 0n,
 				end: 100n,
@@ -31,7 +88,7 @@ describe('FileLockManagerForNode', () => {
 
 		it('should allow multiple shared locks with overlapping ranges from different processes', async () => {
 			// First process locks 0-100
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 0n,
 				end: 100n,
@@ -39,7 +96,7 @@ describe('FileLockManagerForNode', () => {
 			});
 
 			// Second process locks 50-150
-			const result1 = await lockManager.lockFile('/test.txt', {
+			const result1 = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 50n,
 				end: 150n,
@@ -47,7 +104,7 @@ describe('FileLockManagerForNode', () => {
 			});
 
 			// Third process locks 25-75
-			const result2 = await lockManager.lockFile('/test.txt', {
+			const result2 = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 25n,
 				end: 75n,
@@ -60,21 +117,21 @@ describe('FileLockManagerForNode', () => {
 
 		it('should replace all overlapping locks from same process with new lock', async () => {
 			// Create multiple overlapping locks from same process
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 0n,
 				end: 50n,
 				pid: 1,
 			});
 
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 25n,
 				end: 75n,
 				pid: 1,
 			});
 
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 60n,
 				end: 100n,
@@ -82,7 +139,7 @@ describe('FileLockManagerForNode', () => {
 			});
 
 			// New lock should replace all previous overlapping locks
-			const result = await lockManager.lockFile('/test.txt', {
+			const result = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 20n,
 				end: 80n,
@@ -93,25 +150,28 @@ describe('FileLockManagerForNode', () => {
 
 			// Verify by trying to acquire a shared lock from another process
 			// Should fail because exclusive lock exists
-			const verifyResult = await lockManager.lockFile('/test.txt', {
-				type: 'shared',
-				start: 30n,
-				end: 70n,
-				pid: 2,
-			});
+			const verifyResult = await lockManager.lockFileByteRange(
+				'/test.txt',
+				{
+					type: 'shared',
+					start: 30n,
+					end: 70n,
+					pid: 2,
+				}
+			);
 
 			expect(verifyResult).toBe(false);
 		});
 
 		it('should not allow exclusive lock when partially overlapping shared lock exists', async () => {
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 50n,
 				end: 150n,
 				pid: 1,
 			});
 
-			const result = await lockManager.lockFile('/test.txt', {
+			const result = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 100n,
 				end: 200n,
@@ -121,14 +181,14 @@ describe('FileLockManagerForNode', () => {
 		});
 
 		it('should not allow shared lock when partially overlapping exclusive lock exists', async () => {
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 50n,
 				end: 150n,
 				pid: 1,
 			});
 
-			const result = await lockManager.lockFile('/test.txt', {
+			const result = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 0n,
 				end: 100n,
@@ -138,21 +198,21 @@ describe('FileLockManagerForNode', () => {
 		});
 
 		it('should allow replacing own overlapping locks with different ranges', async () => {
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 0n,
 				end: 100n,
 				pid: 1,
 			});
 
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 50n,
 				end: 150n,
 				pid: 1,
 			});
 
-			const result = await lockManager.lockFile('/test.txt', {
+			const result = await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 25n,
 				end: 125n,
@@ -162,9 +222,9 @@ describe('FileLockManagerForNode', () => {
 		});
 	});
 
-	describe('unlockFile', () => {
+	describe('unlockFileByteRange', () => {
 		it('should successfully unlock a locked range', async () => {
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 0n,
 				end: 100n,
@@ -172,7 +232,7 @@ describe('FileLockManagerForNode', () => {
 			});
 
 			await expect(
-				lockManager.unlockFile('/test.txt', {
+				lockManager.unlockFileByteRange('/test.txt', {
 					start: 0n,
 					end: 100n,
 					pid: 1,
@@ -181,24 +241,25 @@ describe('FileLockManagerForNode', () => {
 		});
 	});
 
-	describe('findConflictingLock', () => {
+	describe('findFirstConflictingByteRangeLock', () => {
 		it('should find conflicting exclusive lock with partial overlap', async () => {
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'exclusive',
 				start: 0n,
 				end: 100n,
 				pid: 1,
 			});
 
-			const conflict = await lockManager.findConflictingLock(
-				'/test.txt',
-				{
-					type: 'shared',
-					start: 50n,
-					end: 150n,
-					pid: 2,
-				}
-			);
+			const conflict =
+				await lockManager.findFirstConflictingByteRangeLock(
+					'/test.txt',
+					{
+						type: 'shared',
+						start: 50n,
+						end: 150n,
+						pid: 2,
+					}
+				);
 
 			expect(conflict).toBeDefined();
 			expect(conflict?.pid).toBe(1);
@@ -206,22 +267,23 @@ describe('FileLockManagerForNode', () => {
 		});
 
 		it('should return undefined when no conflict exists with non-overlapping ranges', async () => {
-			await lockManager.lockFile('/test.txt', {
+			await lockManager.lockFileByteRange('/test.txt', {
 				type: 'shared',
 				start: 0n,
 				end: 100n,
 				pid: 1,
 			});
 
-			const conflict = await lockManager.findConflictingLock(
-				'/test.txt',
-				{
-					type: 'shared',
-					start: 150n,
-					end: 250n,
-					pid: 2,
-				}
-			);
+			const conflict =
+				await lockManager.findFirstConflictingByteRangeLock(
+					'/test.txt',
+					{
+						type: 'shared',
+						start: 150n,
+						end: 250n,
+						pid: 2,
+					}
+				);
 
 			expect(conflict).toBeUndefined();
 		});
@@ -229,21 +291,21 @@ describe('FileLockManagerForNode', () => {
 
 	describe('releaseLocksForProcess', () => {
 		it('should release all locks held by a process across multiple ranges', async () => {
-			await lockManager.lockFile('/test1.txt', {
+			await lockManager.lockFileByteRange('/test1.txt', {
 				type: 'exclusive',
 				start: 0n,
 				end: 100n,
 				pid: 1,
 			});
 
-			await lockManager.lockFile('/test1.txt', {
+			await lockManager.lockFileByteRange('/test1.txt', {
 				type: 'exclusive',
 				start: 200n,
 				end: 300n,
 				pid: 1,
 			});
 
-			await lockManager.lockFile('/test2.txt', {
+			await lockManager.lockFileByteRange('/test2.txt', {
 				type: 'shared',
 				start: 50n,
 				end: 150n,
@@ -253,13 +315,13 @@ describe('FileLockManagerForNode', () => {
 			await lockManager.releaseLocksForProcess(1);
 
 			// Verify locks are released by trying to acquire exclusive locks
-			const result1 = await lockManager.lockFile('/test1.txt', {
+			const result1 = await lockManager.lockFileByteRange('/test1.txt', {
 				type: 'exclusive',
 				start: 0n,
 				end: 300n,
 				pid: 2,
 			});
-			const result2 = await lockManager.lockFile('/test2.txt', {
+			const result2 = await lockManager.lockFileByteRange('/test2.txt', {
 				type: 'exclusive',
 				start: 0n,
 				end: 200n,

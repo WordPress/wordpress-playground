@@ -57,30 +57,56 @@ const LibraryForNode = {
 		function readFlockStruct(flockStructAddress) {
 			return {
 				// Shift right by N to divide by 2^N and get addresses for the correct word size
-				l_type: HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)],
-				l_whence: HEAP16[(((flockStructAddress) + (emscripten_flock_l_whence_offset)) >> 1)],
-				l_start: HEAP64[(((flockStructAddress) + (emscripten_flock_l_start_offset)) >> 3)],
-				l_len: HEAP64[(((flockStructAddress) + (emscripten_flock_l_len_offset)) >> 3)],
-				l_pid: HEAP32[(((flockStructAddress) + (emscripten_flock_l_pid_offset)) >> 2)]
+				l_type: HEAP16[
+					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
+				],
+				l_whence:
+					HEAP16[
+						(flockStructAddress +
+							emscripten_flock_l_whence_offset) >>
+							1
+					],
+				l_start:
+					HEAP64[
+						(flockStructAddress +
+							emscripten_flock_l_start_offset) >>
+							3
+					],
+				l_len: HEAP64[
+					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
+				],
+				l_pid: HEAP32[
+					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
+				],
 			};
 		}
 
 		function updateFlockStruct(flockStructAddress, fields) {
 			if (fields.l_type !== undefined) {
 				// Shift right by N to divide by 2^N and get addresses for the correct word size
-				HEAP16[(((flockStructAddress) + (emscripten_flock_l_type_offset)) >> 1)] = fields.l_type;
+				HEAP16[
+					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
+				] = fields.l_type;
 			}
 			if (fields.l_whence !== undefined) {
-				HEAP16[(((flockStructAddress) + (emscripten_flock_l_whence_offset)) >> 1)] = fields.l_whence;
+				HEAP16[
+					(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
+				] = fields.l_whence;
 			}
 			if (fields.l_start !== undefined) {
-				HEAP64[(((flockStructAddress) + (emscripten_flock_l_start_offset)) >> 3)] = fields.l_start;
+				HEAP64[
+					(flockStructAddress + emscripten_flock_l_start_offset) >> 3
+				] = fields.l_start;
 			}
 			if (fields.l_len !== undefined) {
-				HEAP64[(((flockStructAddress) + (emscripten_flock_l_len_offset)) >> 3)] = fields.l_len;
+				HEAP64[
+					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
+				] = fields.l_len;
 			}
 			if (fields.l_pid !== undefined) {
-				HEAP32[(((flockStructAddress) + (emscripten_flock_l_pid_offset)) >> 2)] = fields.l_pid;
+				HEAP32[
+					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
+				] = fields.l_pid;
 			}
 		}
 
@@ -105,7 +131,7 @@ const LibraryForNode = {
 				// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
 				throw new Error('Failed to get end offset of file descriptor');
 			}
-			
+
 			const resolvedOffset = baseAddress + startOffset;
 			if (resolvedOffset < 0) {
 				// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
@@ -136,48 +162,54 @@ const LibraryForNode = {
 					fcntlLockType: `0x${flockStruct.l_type.toString(16)}`,
 					lockType: requestedLockType,
 					fcntlLockWhence: `0x${flockStruct.l_whence.toString(16)}`,
-					fcntlLockStart: `0x${flockStruct.l_start.toString(16)}`, 
+					fcntlLockStart: `0x${flockStruct.l_start.toString(16)}`,
 					fcntlLockEnd: `0x${flockStruct.l_len.toString(10)}`,
 				});
 
-				const absoluteStartOffset = getBaseAddress(fd, flockStruct.l_whence, flockStruct.l_start);
+				const absoluteStartOffset = getBaseAddress(
+					fd,
+					flockStruct.l_whence,
+					flockStruct.l_start
+				);
 
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
-				return PHPLoader.fileLockManager.getConflictingLock(
-					filePath,
-					{
+				// TODO: Handle case where flock() conflicts with range lock
+				return PHPLoader.fileLockManager
+					.findFirstConflictingByteRangeLock(filePath, {
 						type: requestedLockType,
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
-					}
-				).then(
-					(conflictingLock) => {
-						if (conflictingLock === undefined) {
+					})
+					.then(
+						(conflictingLock) => {
+							if (conflictingLock === undefined) {
+								updateFlockStruct(flockStructAddr, {
+									l_type: F_UNLCK,
+								});
+								return 0;
+							}
+
+							const fcntlLockState =
+								lockStateToFcntl[conflictingLock.type];
 							updateFlockStruct(flockStructAddr, {
-								l_type: F_UNLCK,
+								l_type: fcntlLockState,
+								l_whence: emscripten_SEEK_SET,
+								l_start: conflictingLock.start,
+								l_len:
+									conflictingLock.end - conflictingLock.start,
+								l_pid: conflictingLock.pid,
 							});
 							return 0;
 						}
-
-						const fcntlLockState = lockStateToFcntl[conflictingLock.type];
-						updateFlockStruct(flockStructAddr, {
-							l_type: fcntlLockState,
-							l_whence: emscripten_SEEK_SET,
-							l_start: conflictingLock.start,
-							l_len: conflictingLock.end - conflictingLock.start,
-							l_pid: conflictingLock.pid,
-						});
-						return 0;
-					},
-					// TODO: handle error
-					// TODO: Implement these error codes
-					// EBADF
-					// The filedes argument is invalid.
-					// EINVAL
-					// Either the lockp argument doesn’t specify valid lock information, or the file associated with filedes doesn’t support locks. 
-				);
+						// TODO: handle error
+						// TODO: Implement these error codes
+						// EBADF
+						// The filedes argument is invalid.
+						// EINVAL
+						// Either the lockp argument doesn’t specify valid lock information, or the file associated with filedes doesn’t support locks.
+					);
 			}
 			case emscripten_F_SETLK: {
 				let filePath;
@@ -206,7 +238,7 @@ const LibraryForNode = {
 				// EBADF
 				// 	Either: the filedes argument is invalid; you requested a read lock but the filedes is not open for read access; or, you requested a write lock but the filedes is not open for write access.
 				// EINVAL
-				
+
 				const lockRange = {
 					type: requestedLockType,
 					start: absoluteStartOffset,
@@ -222,12 +254,11 @@ const LibraryForNode = {
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
 					};
-					return PHPLoader.fileLockManager.unlockFile(
-						filePath,
-						rangeToUnlock,
-					).then(() => {
-						return 0;
-					});
+					return PHPLoader.fileLockManager
+						.unlockFileByteRange(filePath, rangeToUnlock)
+						.then(() => {
+							return 0;
+						});
 				} else {
 					// TODO: Handle error
 					// TODO: Implement this for all flock fields
@@ -237,17 +268,16 @@ const LibraryForNode = {
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
 					};
-					return PHPLoader.fileLockManager.lockFile(
-						filePath,
-						rangeToLock,
-					).then((succeeded) => {
-						if (succeeded) {
-							return 0;
-						} else {
-							_wasm_set_errno(ERRNO_CODES.EAGAIN)
-							return -1;
-						}
-					});
+					return PHPLoader.fileLockManager
+						.lockFileByteRange(filePath, rangeToLock)
+						.then((succeeded) => {
+							if (succeeded) {
+								return 0;
+							} else {
+								_wasm_set_errno(ERRNO_CODES.EAGAIN);
+								return -1;
+							}
+						});
 				}
 			}
 			// TODO: Implement waiting for lock
@@ -262,16 +292,74 @@ const LibraryForNode = {
 	},
 
 	js_release_file_locks() {
-		const pid = PHPLoader.processId;
-		return PHPLoader.fileLockManager.releaseLocksForProcess(pid);
+		if (PHPLoader.fileLockManager) {
+			const pid = PHPLoader.processId;
+			return PHPLoader.fileLockManager.releaseLocksForProcess(pid);
+		}
 	},
 
 	// TODO: Try to eliminate the need to declare flock() itself in php_wasm.c
 	// and find a way to declare it here in a way that overrides Emscripten's libc flock()
 	js_flock(fd, op) {
-		console.log('Called flock()');
-		return 0;
-	}
+		console.log('js_flock', fd, op);
+
+		// TODO: Consider patching Emscripten to relay these constants via cDefs.
+		// Based on
+		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
+		const emscripten_LOCK_SH = 1;
+		const emscripten_LOCK_EX = 2;
+		const emscripten_LOCK_NB = 4;
+		const emscripten_LOCK_UN = 8;
+
+		const flockToLockOpType = {
+			[emscripten_LOCK_SH]: 'shared',
+			[emscripten_LOCK_EX]: 'exclusive',
+			[emscripten_LOCK_UN]: 'unlocked',
+		};
+
+		let filePath;
+		try {
+			filePath = FS.readlink(`/proc/self/fd/${fd}`);
+			console.log('filePath:', filePath);
+		} catch (error) {
+			console.log('unable to resolve file path from fd');
+			_wasm_set_errno(ERRNO_CODES.EBADF);
+			return -1;
+		}
+
+		// TODO: Consider supporting blocking mode of flock()
+		if (op & (emscripten_LOCK_NB === 0)) {
+			// TODO: Import and use logger.warn here
+			console.warn('blocking mode of flock() is not implemented');
+			// TODO: Set errno?
+			return -1;
+		}
+
+		const maskedOp =
+			op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
+
+
+		const lockOpType = flockToLockOpType[maskedOp];
+		if (lockOpType === undefined) {
+			// TODO: Import and use logger.warn here
+			console.warn('invalid flock() operation');
+			// TODO: Set errno?
+			return -1;
+		}
+
+		const result = PHPLoader.fileLockManager.lockWholeFile(filePath, {
+			pid: PHPLoader.processId,
+			type: lockOpType,
+		});
+
+		if (result) {
+			return 0;
+		} else {
+			// TODO: Should this be EWOULDBLOCK? They are usually used interchangeably but are not necessarily the same.
+			_wasm_set_errno(ERRNO_CODES.EAGAIN);
+			return -1;
+		}
+	},
 };
 
 autoAddDeps(LibraryForNode, '$default_fcntl64');
