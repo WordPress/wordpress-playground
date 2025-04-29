@@ -5370,6 +5370,7 @@ export function init(RuntimeName, PHPLoader) {
 		const pid = PHPLoader.processId;
 		switch (cmd) {
 			case emscripten_F_GETLK: {
+				// TODO: Only support locking for NODEFS paths
 				console.log('F_GETLK');
 				let filePath;
 				try {
@@ -5427,6 +5428,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 
 			case emscripten_F_SETLK: {
+				// TODO: Only support locking for NODEFS paths
 				let filePath;
 				try {
 					filePath = FS.readlink(`/proc/self/fd/${fd}`);

@@ -10,6 +10,14 @@
 // TODO: Rename this file to be less specific and for file locking in general
 // TODO: Rename this var to be more specific
 const LibraryForNode = {
+	$is_nodefs_node(node) {
+		return node.node_ops === FS.NODEFS.node_ops;
+	},
+	$is_nodefs_path(path) {
+		const node = FS.lookupPath(path);
+		return this.$is_nodefs_node(node);
+	},
+
 	// Place the builtin fcntl64 implementation in an object so it is left
 	// intact even if the function is not referenced by C/C++ code.
 	// Ref: https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#javascript-limits-in-library-files
@@ -143,6 +151,8 @@ const LibraryForNode = {
 		const pid = PHPLoader.processId;
 		switch (cmd) {
 			case emscripten_F_GETLK: {
+				// TODO: Only support locking for NODEFS paths
+
 				console.log('F_GETLK');
 				let filePath;
 				try {
@@ -212,6 +222,8 @@ const LibraryForNode = {
 					);
 			}
 			case emscripten_F_SETLK: {
+				// TODO: Only support locking for NODEFS paths
+
 				let filePath;
 				try {
 					filePath = FS.readlink(`/proc/self/fd/${fd}`);
@@ -338,7 +350,7 @@ const LibraryForNode = {
 		const maskedOp =
 			op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
 
-
+		
 		const lockOpType = flockToLockOpType[maskedOp];
 		if (lockOpType === undefined) {
 			// TODO: Import and use logger.warn here
