@@ -61,7 +61,7 @@ return PHPLoader;
 // TODO: Revisit this hack after discussion with the Emscripten team.
 var originalHashAddNode = FS.hashAddNode;
 FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
-    if (FS.NODEFS && node.node_ops === FS.NODEFS.node_ops) {
+    if (typeof NODEFS === 'object' && node.node_ops === NODEFS.node_ops) {
         // Avoid caching NODEFS VFS nodes so multiple instances
         // can access the same underlying filesystem without
         // conflicting caches.

@@ -4,6 +4,7 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const __dirname = new URL('.', import.meta.url).pathname;
+import { logger } from '@php-wasm/logger';
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm';
 export { dependencyFilename };
 export const dependenciesTotalSize = 15497643;
@@ -5254,6 +5255,35 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
+	var lock_utils = {
+		is_nodefs_node(node) {
+			return (
+				node &&
+				typeof NODEFS === 'object' &&
+				node.node_ops === NODEFS.node_ops
+			);
+		},
+		is_nodefs_path(path) {
+			const { node } = FS.lookupPath(path);
+			return lock_utils.is_nodefs_node(node);
+		},
+		get_fd_access_mode(fd) {
+			const emscripten_F_GETFL = Number('3');
+			const emscripten_O_ACCMODE = Number('2097155');
+			return (
+				default_fcntl64.fn(fd, emscripten_F_GETFL) &
+				emscripten_O_ACCMODE
+			);
+		},
+		resolveFileDescriptorToPath(fd) {
+			try {
+				return [FS.readlink(`/proc/self/fd/${fd}`), 0];
+			} catch (error) {
+				return [null, ERRNO_CODES.EBADF];
+			}
+		},
+	};
+
 	function ___syscall_fcntl64(fd, cmd, varargs) {
 		// Necessary to use varargs accessor
 		SYSCALLS.varargs = varargs;
@@ -5277,6 +5307,10 @@ export function init(RuntimeName, PHPLoader) {
 		const emscripten_F_SETLK = Number('13');
 		const emscripten_F_SETLKW = Number('14');
 		const emscripten_SEEK_SET = Number('0');
+		const emscripten_O_ACCMODE = Number('2097155');
+		const emscripten_O_RDONLY = Number('0');
+		const emscripten_O_WRONLY = Number('1');
+		const emscripten_O_RDWR = Number('2');
 		// TODO: Consider patching Emscripten to provide these offsets or add an access to php_wasm.c
 		const emscripten_flock_l_type_offset = 0;
 		const emscripten_flock_l_whence_offset = 2;
@@ -5353,50 +5387,70 @@ export function init(RuntimeName, PHPLoader) {
 					break;
 
 				default:
-					// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
-					throw new Error(`Invalid whence value: ${whence}`);
+					return [null, ERRNO_CODES.EINVAL];
 			}
 			if (baseAddress == -1) {
-				// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
-				throw new Error('Failed to get end offset of file descriptor');
+				// We cannot resolve the offset within the file.
+				// Let's treat this as a problem with the file descriptor.
+				return [null, ERRNO_CODES.EBADF];
 			}
 			const resolvedOffset = baseAddress + startOffset;
 			if (resolvedOffset < 0) {
-				// TODO: Throw specific error kind that can be relayed to syscaller via return and errno
-				throw new Error('Resolved offset is negative');
+				// This is not a valid offset. Report args as invalid.
+				return [null, ERRNO_CODES.EINVAL];
 			}
-			return resolvedOffset;
+			return [resolvedOffset, 0];
+		}
+		function checkLockParams(fd, l_type) {
+			// TODO: Test logger here again. It seemed to cause some kind of locking problem.
+			if (!(l_type in fcntlToLockState)) {
+				return ERRNO_CODES.EINVAL;
+			}
+			const accessMode = lock_utils.get_fd_access_mode(fd);
+			if (
+				(l_type === F_WRLCK && accessMode === emscripten_O_RDONLY) ||
+				(l_type === F_RDLCK && accessMode === emscripten_O_WRONLY)
+			) {
+				return ERRNO_CODES.EBADF;
+			}
+			return 0;
 		}
 		const pid = PHPLoader.processId;
 		switch (cmd) {
 			case emscripten_F_GETLK: {
-				// TODO: Only support locking for NODEFS paths
-				console.log('F_GETLK');
 				let filePath;
-				try {
-					filePath = FS.readlink(`/proc/self/fd/${fd}`);
-					console.log('filePath:', filePath);
-				} catch (error) {
-					console.log('unable to resolve file path from fd');
-					_wasm_set_errno(ERRNO_CODES.EBADF);
+				let errno;
+				[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+				if (errno !== 0) {
+					_wasm_set_errno(errno);
 					return -1;
+				}
+				if (!lock_utils.is_nodefs_path(filePath)) {
+					// If not a NodeFS path, we can't lock it.
+					// Default to succeeding as Emscripten does.
+					logger.warn(
+						`locking via fcntl() is not implemented for non-NodeFS path '${filePath}'`
+					);
+					return 0;
 				}
 				const flockStructAddr = syscallGetVarargP();
 				const flockStruct = readFlockStruct(flockStructAddr);
+				errno = checkLockParams(fd, flockStruct.l_type);
+				if (errno !== 0) {
+					_wasm_set_errno(errno);
+					return -1;
+				}
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
-				console.log('flock values:', {
-					flockStructAddr: `0x${flockStructAddr.toString(16)}`,
-					fcntlLockType: `0x${flockStruct.l_type.toString(16)}`,
-					lockType: requestedLockType,
-					fcntlLockWhence: `0x${flockStruct.l_whence.toString(16)}`,
-					fcntlLockStart: `0x${flockStruct.l_start.toString(16)}`,
-					fcntlLockEnd: `0x${flockStruct.l_len.toString(10)}`,
-				});
-				const absoluteStartOffset = getBaseAddress(
+				let absoluteStartOffset;
+				[absoluteStartOffset, errno] = getBaseAddress(
 					fd,
 					flockStruct.l_whence,
 					flockStruct.l_start
 				);
+				if (errno !== 0) {
+					_wasm_set_errno(errno);
+					return -1;
+				}
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
 				// TODO: Handle case where flock() conflicts with range lock
@@ -5428,31 +5482,39 @@ export function init(RuntimeName, PHPLoader) {
 			}
 
 			case emscripten_F_SETLK: {
-				// TODO: Only support locking for NODEFS paths
 				let filePath;
-				try {
-					filePath = FS.readlink(`/proc/self/fd/${fd}`);
-				} catch (error) {
-					// TODO: Import and use logger.warn here
-					console.log('unable to resolve file path from fd');
-					_wasm_set_errno(ERRNO_CODES.EBADF);
+				let errno;
+				[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+				if (errno !== 0) {
+					_wasm_set_errno(errno);
 					return -1;
+				}
+				if (!lock_utils.is_nodefs_path(filePath)) {
+					// If not a NodeFS path, we can't lock it.
+					// Default to succeeding as Emscripten does.
+					logger.warn(
+						`locking via fcntl() is not implemented for non-NodeFS path '${filePath}'`
+					);
+					return 0;
 				}
 				var flockStructAddr = syscallGetVarargP();
 				const flockStruct = readFlockStruct(flockStructAddr);
-				const absoluteStartOffset = getBaseAddress(
+				let absoluteStartOffset;
+				[absoluteStartOffset, errno] = getBaseAddress(
 					fd,
 					flockStruct.l_whence,
 					flockStruct.l_start
 				);
-				// TODO: Consider handling errors when fd access mode (read or write) does not match requested lock type
-				// If we want to check fd access flags, we can use fcntl() with F_GETFL command
+				if (errno !== 0) {
+					_wasm_set_errno(errno);
+					return -1;
+				}
+				errno = checkLockParams(fd, flockStruct.l_type);
+				if (errno !== 0) {
+					_wasm_set_errno(errno);
+					return -1;
+				}
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
-				// TODO: Implement these error codes
-				// EAGAIN
-				// EBADF
-				// 	Either: the filedes argument is invalid; you requested a read lock but the filedes is not open for read access; or, you requested a write lock but the filedes is not open for write access.
-				// EINVAL
 				const lockRange = {
 					type: requestedLockType,
 					start: absoluteStartOffset,
@@ -5460,8 +5522,6 @@ export function init(RuntimeName, PHPLoader) {
 					pid,
 				};
 				if (lockRange.type === 'unlocked') {
-					// TODO: What if you can't unlock because you don't have a lock?
-					// TODO: Handle error
 					const rangeToUnlock = {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
@@ -5471,8 +5531,6 @@ export function init(RuntimeName, PHPLoader) {
 						.unlockFileByteRange(filePath, rangeToUnlock)
 						.then(() => 0);
 				} else {
-					// TODO: Handle error
-					// TODO: Implement this for all flock fields
 					const rangeToLock = {
 						type: requestedLockType,
 						start: absoluteStartOffset,
@@ -7438,28 +7496,42 @@ export function init(RuntimeName, PHPLoader) {
 			[emscripten_LOCK_UN]: 'unlocked',
 		};
 		let filePath;
-		try {
-			filePath = FS.readlink(`/proc/self/fd/${fd}`);
-			console.log('filePath:', filePath);
-		} catch (error) {
-			console.log('unable to resolve file path from fd');
+		let errno;
+		[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+		if (errno !== 0) {
+			_wasm_set_errno(errno);
+			return -1;
+		}
+		if (!lock_utils.is_nodefs_path(filePath)) {
+			// If not a NodeFS path, we can't lock it.
+			// Default to succeeding as Emscripten does.
+			logger.warn(
+				`flock() is not implemented for non-NodeFS path '${filePath}'`
+			);
+			return 0;
+		}
+		const accessMode = lock_utils.get_fd_access_mode(fd);
+		if (
+			(accessMode === emscripten_O_WRONLY && op === emscripten_LOCK_SH) ||
+			(accessMode === emscripten_O_RDONLY && op === emscripten_LOCK_EX)
+		) {
 			_wasm_set_errno(ERRNO_CODES.EBADF);
 			return -1;
 		}
 		// TODO: Consider supporting blocking mode of flock()
 		if (op & (emscripten_LOCK_NB === 0)) {
-			// TODO: Import and use logger.warn here
-			console.warn('blocking mode of flock() is not implemented');
-			// TODO: Set errno?
+			logger.warn('blocking mode of flock() is not implemented');
+			_wasm_set_errno(ERRNO_CODES.EWOULDBLOCK);
 			return -1;
 		}
 		const maskedOp =
 			op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
 		const lockOpType = flockToLockOpType[maskedOp];
 		if (lockOpType === undefined) {
-			// TODO: Import and use logger.warn here
-			console.warn('invalid flock() operation');
-			// TODO: Set errno?
+			logger.warn(
+				`invalid flock() operation: 0x${lockOpType.toString(16)}`
+			);
+			_wasm_set_errno(ERRNO_CODES.EINVAL);
 			return -1;
 		}
 		const result = PHPLoader.fileLockManager.lockWholeFile(filePath, {
@@ -7469,8 +7541,7 @@ export function init(RuntimeName, PHPLoader) {
 		if (result) {
 			return 0;
 		} else {
-			// TODO: Should this be EWOULDBLOCK? They are usually used interchangeably but are not necessarily the same.
-			_wasm_set_errno(ERRNO_CODES.EAGAIN);
+			_wasm_set_errno(ERRNO_CODES.EWOULDBLOCK);
 			return -1;
 		}
 	}
@@ -9724,7 +9795,7 @@ export function init(RuntimeName, PHPLoader) {
 	// TODO: Revisit this hack after discussion with the Emscripten team.
 	var originalHashAddNode = FS.hashAddNode;
 	FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
-		if (FS.NODEFS && node.node_ops === FS.NODEFS.node_ops) {
+		if (typeof NODEFS === 'object' && node.node_ops === NODEFS.node_ops) {
 			// Avoid caching NODEFS VFS nodes so multiple instances
 			// can access the same underlying filesystem without
 			// conflicting caches.

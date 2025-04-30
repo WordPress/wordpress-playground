@@ -1197,6 +1197,7 @@ RUN set -euxo pipefail; \
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			#echo "import { flockSync, constants as fsExtConstants } from 'fs-ext'; " >> /root/output/php-module.js; \
 			#echo "import { constants as nodeConstants } from 'constants'; " >> /root/output/php-module.js; \
+			echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
