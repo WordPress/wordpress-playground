@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 
-// NOTE: This API is async because we intend to use it across worker boundaries.
 export type FileLockManager = {
 	/**
 	 * Update the lock on the whole file.
@@ -12,7 +11,7 @@ export type FileLockManager = {
 	 * @param op - The operation to perform, including 'shared', 'exclusive', or 'unlock'.
 	 * @returns A promise for a boolean value.
 	 */
-	lockWholeFile: (path: string, op: WholeFileLockOp) => Promise<boolean>;
+	lockWholeFile: (path: string, op: WholeFileLockOp) => boolean;
 
 	/**
 	 * Lock a file.
@@ -29,7 +28,7 @@ export type FileLockManager = {
 		path: string,
 		requestedLock: LockRangeWithType
 		// TODO: Consider if there is a better return type for this operation.
-	) => Promise<boolean>;
+	) => boolean;
 
 	/**
 	 * Release a lock on the file.
@@ -45,7 +44,7 @@ export type FileLockManager = {
 		path: string,
 		lockToRelease: LockRange
 		// TODO: Return an optional error object
-	) => Promise<void>;
+	) => void;
 
 	/**
 	 * Get the first lock that would conflict with the specified lock.
@@ -61,7 +60,7 @@ export type FileLockManager = {
 	findFirstConflictingByteRangeLock: (
 		path: string,
 		desiredLock: LockRangeWithType
-	) => Promise<LockRangeWithType | undefined>;
+	) => LockRangeWithType | undefined;
 
 	/**
 	 * Release all locks for a given process.
@@ -70,7 +69,7 @@ export type FileLockManager = {
 	 *
 	 * @param pid - The PID of the process that wants to release the locks.
 	 */
-	releaseLocksForProcess: (pid: number) => Promise<void>;
+	releaseLocksForProcess: (pid: number) => void;
 };
 
 export type LockRange = {
@@ -333,7 +332,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	}
 
 	// TODO: Comment reasoning
-	async lockWholeFile(path: string, op: WholeFileLockOp): Promise<boolean> {
+	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		console.log('wholeFileLock', path, op);
 		if (this.locks.get(path) === undefined) {
 			if (op.type === 'unlock') {
@@ -423,10 +422,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		throw new Error(`Unexpected wholeFileLock() op: '${op.type}'`);
 	}
 
-	async lockFileByteRange(
-		path: string,
-		requestedLock: LockRangeWithType
-	): Promise<boolean> {
+	lockFileByteRange(path: string, requestedLock: LockRangeWithType): boolean {
 		if (!this.locks.has(path)) {
 			this.locks.set(path, new FileLock());
 		}
@@ -522,7 +518,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		return true;
 	}
 
-	async unlockFileByteRange(path: string, lockToRelease: LockRange) {
+	unlockFileByteRange(path: string, lockToRelease: LockRange) {
 		const lock = this.locks.get(path);
 		if (!lock) {
 			console.log(
@@ -553,10 +549,10 @@ export class FileLockManagerForNode implements FileLockManager {
 		);
 	}
 
-	async findFirstConflictingByteRangeLock(
+	findFirstConflictingByteRangeLock(
 		path: string,
 		desiredLock: LockRangeWithType
-	): Promise<LockRangeWithType | undefined> {
+	): LockRangeWithType | undefined {
 		logger.log('findConflictingLock', path, desiredLock);
 
 		if (!this.locks.has(path)) {
@@ -576,7 +572,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		return undefined;
 	}
 
-	async releaseLocksForProcess(pid: number) {
+	releaseLocksForProcess(pid: number) {
 		logger.log('releaseLocksForProcess', pid);
 		for (const [path, lock] of this.locks.entries()) {
 			for (const rangeLock of lock.rangeLocks.findLocksForProcess(pid)) {
