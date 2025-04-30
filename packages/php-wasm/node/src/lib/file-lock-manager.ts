@@ -70,6 +70,8 @@ export type FileLockManager = {
 	 * @param pid - The PID of the process that wants to release the locks.
 	 */
 	releaseLocksForProcess: (pid: number) => void;
+
+	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
 };
 
 export type LockRange = {
@@ -78,26 +80,32 @@ export type LockRange = {
 	/** The length of the lock range */
 	end: bigint;
 	/** The process ID that owns this lock */
-	pid: number;
+	pid: Pid;
+	/** The file descriptor that owns this lock */
+	fd: Fd;
 };
 
-export type LockRangeWithType = LockRange & {
+type LockRangeWithType = LockRange & {
 	/** The type of lock ('shared' or 'exclusive') */
 	type: 'shared' | 'exclusive';
 };
 
-export type WholeFileLock =
+type WholeFileLock =
 	| WholeFileLock_Exclusive
 	| WholeFileLock_Shared
 	| WholeFileLock_Unlocked;
 
+type Pid = number;
+type Fd = number;
+
 type WholeFileLock_Exclusive = {
 	type: 'exclusive';
-	pid: number;
+	pid: Pid;
+	fd: Fd;
 };
 type WholeFileLock_Shared = {
 	type: 'shared';
-	pids: Set<number>;
+	pidFds: Map<Pid, Set<Fd>>;
 };
 type WholeFileLock_Unlocked = {
 	type: 'unlocked';
@@ -105,6 +113,7 @@ type WholeFileLock_Unlocked = {
 
 export type WholeFileLockOp = {
 	pid: number;
+	fd: number;
 	type: 'shared' | 'exclusive' | 'unlock';
 };
 
@@ -267,42 +276,58 @@ class FileLockIntervalTree {
 	}
 
 	private areRangesEqual(a: LockRange, b: LockRange): boolean {
-		return a.start === b.start && a.end === b.end && a.pid === b.pid;
+		return (
+			a.start === b.start &&
+			a.end === b.end &&
+			a.pid === b.pid &&
+			a.fd === b.fd
+		);
 	}
 
-	findLocksForProcess(pid: number): LockRangeWithType[] {
+	findLocksForProcess(pid: number, fd?: number): LockRangeWithType[] {
 		const result: LockRangeWithType[] = [];
-		this.findLocksForProcessInNode(this.root, pid, result);
+		this.findLocksForProcessInNode(this.root, pid, fd, result);
 		return result;
 	}
 
 	private findLocksForProcessInNode(
 		node: IntervalNode | null,
 		pid: number,
+		fd: number | undefined,
 		result: LockRangeWithType[]
 	): void {
 		if (!node) {
 			return;
 		}
 
-		if (node.range.pid === pid) {
+		if (
+			node.range.pid === pid &&
+			(fd === undefined || node.range.fd === fd)
+		) {
 			result.push(node.range);
 		}
 
-		this.findLocksForProcessInNode(node.left, pid, result);
-		this.findLocksForProcessInNode(node.right, pid, result);
+		this.findLocksForProcessInNode(node.left, pid, fd, result);
+		this.findLocksForProcessInNode(node.right, pid, fd, result);
 	}
 
-	areThereLocksForOtherProcesses(
-		pid: number,
+	areThereLocksForOtherFileDescriptors(
+		pid: Pid,
+		fd: Fd,
 		type?: LockRangeWithType['type']
 	): boolean {
-		return this.areThereLocksForOtherProcessesInNode(this.root, pid, type);
+		return this.areThereLocksForOtherProcessesInNode(
+			this.root,
+			pid,
+			fd,
+			type
+		);
 	}
 
 	private areThereLocksForOtherProcessesInNode(
 		node: IntervalNode | null,
-		pid: number,
+		pid: Pid,
+		fd: Fd,
 		type?: LockRangeWithType['type'] | undefined
 	): boolean {
 		if (!node) {
@@ -317,13 +342,19 @@ class FileLockIntervalTree {
 		}
 
 		return (
-			this.areThereLocksForOtherProcessesInNode(node.left, pid, type) ||
-			this.areThereLocksForOtherProcessesInNode(node.right, pid, type)
+			this.areThereLocksForOtherProcessesInNode(
+				node.left,
+				pid,
+				fd,
+				type
+			) ||
+			this.areThereLocksForOtherProcessesInNode(node.right, pid, fd, type)
 		);
 	}
 }
 
 // TODO: Move this to dedicated file
+// TODO: Make this more clearly readable
 export class FileLockManagerForNode implements FileLockManager {
 	locks: Map<string, FileLock>;
 
@@ -348,16 +379,18 @@ export class FileLockManagerForNode implements FileLockManager {
 				// Do nothing because the whole file is already unlocked.
 			} else if (
 				lock.wholeFileLock.type === 'exclusive' &&
-				lock.wholeFileLock.pid === op.pid
+				lock.wholeFileLock.pid === op.pid &&
+				lock.wholeFileLock.fd === op.fd
 			) {
 				lock.wholeFileLock = { type: 'unlocked' };
 			} else if (
 				lock.wholeFileLock.type === 'shared' &&
-				lock.wholeFileLock.pids.has(op.pid)
+				lock.wholeFileLock.pidFds.has(op.pid) &&
+				lock.wholeFileLock.pidFds.get(op.pid)!.has(op.fd)
 			) {
-				lock.wholeFileLock.pids.delete(op.pid);
-				if (lock.wholeFileLock.pids.size === 0) {
-					lock.wholeFileLock = { type: 'unlocked' };
+				lock.wholeFileLock.pidFds.get(op.pid)!.delete(op.fd);
+				if (lock.wholeFileLock.pidFds.get(op.pid)!.size === 0) {
+					lock.wholeFileLock.pidFds.delete(op.pid);
 				}
 			}
 
@@ -368,14 +401,22 @@ export class FileLockManagerForNode implements FileLockManager {
 		if (op.type === 'exclusive') {
 			const thereIsAConflictingWholeFileLock =
 				(lock.wholeFileLock.type === 'exclusive' &&
-					lock.wholeFileLock.pid !== op.pid) ||
+					!(
+						lock.wholeFileLock.pid === op.pid &&
+						lock.wholeFileLock.fd === op.fd
+					)) ||
 				(lock.wholeFileLock.type === 'shared' &&
 					!(
-						lock.wholeFileLock.pids.size === 1 ||
-						lock.wholeFileLock.pids.has(op.pid)
+						lock.wholeFileLock.pidFds.size === 1 &&
+						lock.wholeFileLock.pidFds.has(op.pid) &&
+						lock.wholeFileLock.pidFds.get(op.pid)!.size === 1 &&
+						lock.wholeFileLock.pidFds.get(op.pid)!.has(op.fd)
 					));
 			const thereAreConflictingRangeLocks =
-				lock.rangeLocks.areThereLocksForOtherProcesses(op.pid);
+				lock.rangeLocks.areThereLocksForOtherFileDescriptors(
+					op.pid,
+					op.fd
+				);
 
 			if (
 				thereIsAConflictingWholeFileLock ||
@@ -387,6 +428,7 @@ export class FileLockManagerForNode implements FileLockManager {
 			lock.wholeFileLock = {
 				type: 'exclusive',
 				pid: op.pid,
+				fd: op.fd,
 			};
 			return true;
 		}
@@ -394,10 +436,14 @@ export class FileLockManagerForNode implements FileLockManager {
 		if (op.type === 'shared') {
 			const thereIsAConflictingWholeFileLock =
 				lock.wholeFileLock.type === 'exclusive' &&
-				lock.wholeFileLock.pid !== op.pid;
+				!(
+					lock.wholeFileLock.pid === op.pid &&
+					lock.wholeFileLock.fd === op.fd
+				);
 			const thereAreConflictingRangeLocks =
-				lock.rangeLocks.areThereLocksForOtherProcesses(
+				lock.rangeLocks.areThereLocksForOtherFileDescriptors(
 					op.pid,
+					op.fd,
 					'exclusive'
 				);
 
@@ -411,11 +457,15 @@ export class FileLockManagerForNode implements FileLockManager {
 			if (lock.wholeFileLock.type === 'unlocked') {
 				lock.wholeFileLock = {
 					type: 'shared',
-					pids: new Set(),
+					pidFds: new Map(),
 				};
 			}
 
-			(lock.wholeFileLock as WholeFileLock_Shared).pids.add(op.pid);
+			const sharedLock = lock.wholeFileLock as WholeFileLock_Shared;
+			if (!sharedLock.pidFds.has(op.pid)) {
+				sharedLock.pidFds.set(op.pid, new Set());
+			}
+			sharedLock.pidFds.get(op.pid)!.add(op.fd);
 			return true;
 		}
 
@@ -428,11 +478,12 @@ export class FileLockManagerForNode implements FileLockManager {
 		}
 		const lock = this.locks.get(path)!;
 
+		// TODO: Add some predicates to make this more readable
 		if (
 			lock.wholeFileLock.type === 'exclusive' &&
 			lock.wholeFileLock.pid !== requestedLock.pid
 		) {
-			// Any exclusive lock not owned by the same process
+			// Any exclusive lock not owned by the same process and file descriptor
 			// conflicts with this request.
 			return false;
 		}
@@ -440,12 +491,16 @@ export class FileLockManagerForNode implements FileLockManager {
 			requestedLock.type === 'exclusive' &&
 			lock.wholeFileLock.type === 'shared' &&
 			!(
-				lock.wholeFileLock.pids.size === 1 &&
-				lock.wholeFileLock.pids.has(requestedLock.pid)
+				lock.wholeFileLock.pidFds.size === 1 &&
+				lock.wholeFileLock.pidFds.has(requestedLock.pid) &&
+				lock.wholeFileLock.pidFds.get(requestedLock.pid)!.size === 1 &&
+				lock.wholeFileLock.pidFds
+					.get(requestedLock.pid)!
+					.has(requestedLock.fd)
 			)
 		) {
 			// This request conflicts with shared file locks
-			// owned by other processes.
+			// owned by other processes and/or file descriptors.
 			return false;
 		}
 
@@ -453,19 +508,20 @@ export class FileLockManagerForNode implements FileLockManager {
 		// so we can proceed with attempting to lock a byte range.
 		const rangeLocks = lock.rangeLocks;
 		const overlappingLocks = rangeLocks.findOverlapping(requestedLock);
-		const overlappingLocksFromSameProcess = overlappingLocks.filter(
-			(lock) => lock.pid === requestedLock.pid
+		const overlappingLocksFromSameProcessFd = overlappingLocks.filter(
+			(lock) =>
+				lock.pid === requestedLock.pid && lock.fd === requestedLock.fd
 		);
-		const overlappingLocksFromOtherProcesses = overlappingLocks.filter(
+		const overlappingLocksFromOthers = overlappingLocks.filter(
 			(lock) => lock.pid !== requestedLock.pid
 		);
 
 		if (
 			requestedLock.type === 'exclusive' &&
-			overlappingLocksFromOtherProcesses.length > 0
+			overlappingLocksFromOthers.length > 0
 		) {
 			// The requested exclusive lock conflicts with existing locks from
-			// another process.
+			// other processes and/or file descriptors.
 			console.log(
 				'  lock',
 				path,
@@ -473,16 +529,15 @@ export class FileLockManagerForNode implements FileLockManager {
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
 				'failure',
 				'ex',
-				`pid=${requestedLock.pid}`
+				`pid=${requestedLock.pid}`,
+				`fd=${requestedLock.fd}`
 			);
 			return false;
 		}
 
 		if (
 			requestedLock.type === 'shared' &&
-			overlappingLocksFromOtherProcesses.some(
-				(lock) => lock.type === 'exclusive'
-			)
+			overlappingLocksFromOthers.some((lock) => lock.type === 'exclusive')
 		) {
 			// The requested shared lock conflicts with an existing exclusive
 			// lock from another process.
@@ -493,14 +548,15 @@ export class FileLockManagerForNode implements FileLockManager {
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
 				'failure',
 				'sh',
-				`pid=${requestedLock.pid}`
+				`pid=${requestedLock.pid}`,
+				`fd=${requestedLock.fd}`
 			);
 			return false;
 		}
 
 		// Remove overlapping locks from the same process because the requested
 		// lock replaces them.
-		for (const overlappingLock of overlappingLocksFromSameProcess) {
+		for (const overlappingLock of overlappingLocksFromSameProcessFd) {
 			rangeLocks.remove(overlappingLock);
 		}
 
@@ -513,7 +569,8 @@ export class FileLockManagerForNode implements FileLockManager {
 			`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
 			'success',
 			requestedLock.type === 'exclusive' ? 'ex' : 'sh',
-			`pid=${requestedLock.pid}`
+			`pid=${requestedLock.pid}`,
+			`fd=${requestedLock.fd}`
 		);
 		return true;
 	}
@@ -528,13 +585,15 @@ export class FileLockManagerForNode implements FileLockManager {
 				`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
 				'failure',
 				'  ',
-				`pid=${lockToRelease.pid}`
+				`pid=${lockToRelease.pid}`,
+				`fd=${lockToRelease.fd}`
 			);
 			// TODO: Return an error
 			return;
 		}
 
 		// TODO: Confirm the lock is present and error if it is not.
+		// TODO: Check the removal logic
 		lock.rangeLocks.remove(lockToRelease);
 		this.forgetPathIfUnlocked(path);
 
@@ -545,7 +604,8 @@ export class FileLockManagerForNode implements FileLockManager {
 			`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
 			'success',
 			'  ',
-			`pid=${lockToRelease.pid}`
+			`pid=${lockToRelease.pid}`,
+			`fd=${lockToRelease.fd}`
 		);
 	}
 
@@ -562,7 +622,8 @@ export class FileLockManagerForNode implements FileLockManager {
 		const lockTree = this.locks.get(path)!.rangeLocks;
 		const overlappingLocks = lockTree.findOverlapping(desiredLock);
 		const firstConflictingLock = overlappingLocks.find(
-			(lock) => lock.pid !== desiredLock.pid
+			(lock) =>
+				!(lock.pid === desiredLock.pid && lock.fd === desiredLock.fd)
 		);
 
 		if (firstConflictingLock) {
@@ -577,20 +638,58 @@ export class FileLockManagerForNode implements FileLockManager {
 		for (const [path, lock] of this.locks.entries()) {
 			for (const rangeLock of lock.rangeLocks.findLocksForProcess(pid)) {
 				// TODO: Explain why we are using the public interface instead of directly adjusting data structures
-				this.unlockFileByteRange(path, {
-					start: rangeLock.start,
-					end: rangeLock.end,
-					pid,
-				});
+				this.unlockFileByteRange(path, rangeLock);
 			}
 
-			// TODO: Explain why we are using the public interface instead of directly adjusting data structures
-			if (lock.wholeFileLock.type !== 'unlocked') {
+			const { wholeFileLock } = lock;
+			if (
+				wholeFileLock.type === 'exclusive' &&
+				wholeFileLock.pid === pid
+			) {
 				this.lockWholeFile(path, {
-					pid,
 					type: 'unlock',
+					pid,
+					fd: wholeFileLock.fd,
 				});
+			} else if (
+				wholeFileLock.type === 'shared' &&
+				wholeFileLock.pidFds.has(pid)
+			) {
+				for (const fd of wholeFileLock.pidFds.get(pid)!) {
+					this.lockWholeFile(path, {
+						type: 'unlock',
+						pid,
+						fd,
+					});
+				}
 			}
+		}
+	}
+
+	releaseLocksForProcessFd(pid: number, fd: number, path: string) {
+		console.log('releaseLocksForProcessFd', pid, fd, path);
+		const lock = this.locks.get(path);
+		if (!lock) {
+			return;
+		}
+
+		for (const rangeLock of lock.rangeLocks.findLocksForProcess(pid)) {
+			// TODO: Explain why we are using the public interface instead of directly adjusting data structures
+			this.unlockFileByteRange(path, {
+				start: rangeLock.start,
+				end: rangeLock.end,
+				pid,
+				fd,
+			});
+		}
+
+		// TODO: Explain why we are using the public interface instead of directly adjusting data structures
+		if (lock.wholeFileLock.type !== 'unlocked') {
+			this.lockWholeFile(path, {
+				pid,
+				fd,
+				type: 'unlock',
+			});
 		}
 	}
 

@@ -5282,6 +5282,7 @@ export function init(RuntimeName, PHPLoader) {
 				return [null, ERRNO_CODES.EBADF];
 			}
 		},
+		maybeLockedFds: new Set(),
 	};
 
 	function ___syscall_fcntl64(fd, cmd, varargs) {
@@ -5460,6 +5461,7 @@ export function init(RuntimeName, PHPLoader) {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
+						fd,
 					})
 					.then((conflictingLock) => {
 						if (conflictingLock === undefined) {
@@ -5514,18 +5516,15 @@ export function init(RuntimeName, PHPLoader) {
 					_wasm_set_errno(errno);
 					return -1;
 				}
+				// TODO: Explain why
+				lock_utils.maybeLockedFds.add(fd);
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
-				const lockRange = {
-					type: requestedLockType,
-					start: absoluteStartOffset,
-					end: absoluteStartOffset + flockStruct.l_len,
-					pid,
-				};
-				if (lockRange.type === 'unlocked') {
+				if (requestedLockType === 'unlocked') {
 					const rangeToUnlock = {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
+						fd,
 					};
 					return PHPLoader.fileLockManager
 						.unlockFileByteRange(filePath, rangeToUnlock)
@@ -5536,6 +5535,7 @@ export function init(RuntimeName, PHPLoader) {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
+						fd,
 					};
 					return PHPLoader.fileLockManager
 						.lockFileByteRange(filePath, rangeToLock)
@@ -6861,16 +6861,36 @@ export function init(RuntimeName, PHPLoader) {
 		return 0;
 	};
 
-	function _fd_close(fd) {
-		try {
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			FS.close(stream);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
-	}
+	var default_fd_close = {
+		fn: function (fd) {
+			try {
+				var stream = SYSCALLS.getStreamFromFD(fd);
+				FS.close(stream);
+				return 0;
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError'))
+					throw e;
+				return e.errno;
+			}
+		},
+	};
+
+	var _fd_close = function fd_close(fd) {
+		return Promise.resolve(default_fd_close.fn(fd)).finally(() => {
+			if (lock_utils.maybeLockedFds.has(fd)) {
+				console.log(
+					'releasing locks on fd close',
+					PHPLoader.processId,
+					path
+				);
+				return PHPLoader.fileLockManager
+					.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
+					.finally(() => {
+						lock_utils.maybeLockedFds.delete(fd);
+					});
+			}
+		});
+	};
 
 	function _fd_fdstat_get(fd, pbuf) {
 		try {
@@ -7535,8 +7555,9 @@ export function init(RuntimeName, PHPLoader) {
 			return -1;
 		}
 		const result = PHPLoader.fileLockManager.lockWholeFile(filePath, {
-			pid: PHPLoader.processId,
 			type: lockOpType,
+			pid: PHPLoader.processId,
+			fd,
 		});
 		if (result) {
 			return 0;
@@ -8206,7 +8227,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs____syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|___syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|_fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
 					let isAsyncifyImport =
@@ -9793,16 +9814,35 @@ export function init(RuntimeName, PHPLoader) {
 	return PHPLoader;
 
 	// TODO: Revisit this hack after discussion with the Emscripten team.
-	var originalHashAddNode = FS.hashAddNode;
-	FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
-		if (typeof NODEFS === 'object' && node.node_ops === NODEFS.node_ops) {
-			// Avoid caching NODEFS VFS nodes so multiple instances
-			// can access the same underlying filesystem without
-			// conflicting caches.
-			return;
-		}
-		return originalHashAddNode.apply(FS, arguments);
-	};
+	if (typeof NODEFS === 'object') {
+		var originalHashAddNode = FS.hashAddNode;
+		FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
+			if (node.node_ops === NODEFS.node_ops) {
+				// Avoid caching NODEFS VFS nodes so multiple instances
+				// can access the same underlying filesystem without
+				// conflicting caches.
+				return;
+			}
+			return originalHashAddNode.apply(FS, arguments);
+		};
+
+		// // TODO:
+		// var originalNodeFsClose = NODEFS.close;
+		// NODEFS.close = function (fd) {
+		//     const [path, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+		//     return Promise.resolve(
+		//         originalNodeFsClose.apply(NODEFS, fd)
+		//     ).finally(() => {
+		//         if (errno === 0) {
+		//             console.log('releasing locks on fd close', PHPLoader.processId, path);
+		//             return PHPLoader.fileLockManager.releaseLocksForProcessAndPath(
+		//                 PHPLoader.processId,
+		//                 path
+		//             );
+		//         }
+		//     })
+		// };
+	}
 
 	// Close the opening bracket from esm-prefix.js:
 }

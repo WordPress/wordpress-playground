@@ -526,13 +526,12 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "js_popen_to_file",\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
-"__syscall_fcntl64",\n\
 "___syscall_fcntl64",\n\
-"_asyncjs____syscall_fcntl64",\n\
 "js_release_file_locks",\n\
 "js_flock",\n\
 "js_fd_read",\n\
 "_js_fd_read",\n\
+"_fd_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\

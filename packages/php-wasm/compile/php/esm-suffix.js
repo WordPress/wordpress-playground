@@ -59,16 +59,35 @@ PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'
 return PHPLoader;
 
 // TODO: Revisit this hack after discussion with the Emscripten team.
-var originalHashAddNode = FS.hashAddNode;
-FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
-    if (typeof NODEFS === 'object' && node.node_ops === NODEFS.node_ops) {
-        // Avoid caching NODEFS VFS nodes so multiple instances
-        // can access the same underlying filesystem without
-        // conflicting caches.
-        return;
-    }
-    return originalHashAddNode.apply(FS, arguments);
-};
+if (typeof NODEFS === 'object') {
+    var originalHashAddNode = FS.hashAddNode;
+    FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
+        if (node.node_ops === NODEFS.node_ops) {
+            // Avoid caching NODEFS VFS nodes so multiple instances
+            // can access the same underlying filesystem without
+            // conflicting caches.
+            return;
+        }
+        return originalHashAddNode.apply(FS, arguments);
+    };
+
+    // // TODO: 
+    // var originalNodeFsClose = NODEFS.close;
+    // NODEFS.close = function (fd) {
+    //     const [path, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+    //     return Promise.resolve(
+    //         originalNodeFsClose.apply(NODEFS, fd)
+    //     ).finally(() => {
+    //         if (errno === 0) {
+    //             console.log('releasing locks on fd close', PHPLoader.processId, path);
+    //             return PHPLoader.fileLockManager.releaseLocksForProcessAndPath(
+    //                 PHPLoader.processId,
+    //                 path
+    //             );
+    //         }
+    //     })
+    // };  
+}
 
 // Close the opening bracket from esm-prefix.js:
 }

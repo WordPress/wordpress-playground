@@ -37,6 +37,9 @@ const LibraryForFileLocking = {
 				return [null, ERRNO_CODES.EBADF];
 			}
 		},
+
+		// TODO: Reconsider and/or comment
+		maybeLockedFds: new Set(),
 	},
 
 	// Place the builtin fcntl64 implementation in an object so it is left
@@ -182,10 +185,8 @@ const LibraryForFileLocking = {
 
 			const accessMode = lock_utils.get_fd_access_mode(fd);
 			if (
-				(l_type === F_WRLCK &&
-					accessMode === emscripten_O_RDONLY) ||
-				(l_type === F_RDLCK &&
-					accessMode === emscripten_O_WRONLY)
+				(l_type === F_WRLCK && accessMode === emscripten_O_RDONLY) ||
+				(l_type === F_RDLCK && accessMode === emscripten_O_WRONLY)
 			) {
 				return ERRNO_CODES.EBADF;
 			}
@@ -244,6 +245,7 @@ const LibraryForFileLocking = {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
+						fd,
 					})
 					.then((conflictingLock) => {
 						if (conflictingLock === undefined) {
@@ -303,20 +305,16 @@ const LibraryForFileLocking = {
 					return -1;
 				}
 
+				// TODO: Explain why
+				lock_utils.maybeLockedFds.add(fd);
+				
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
-
-				const lockRange = {
-					type: requestedLockType,
-					start: absoluteStartOffset,
-					end: absoluteStartOffset + flockStruct.l_len,
-					pid,
-				};
-
-				if (lockRange.type === 'unlocked') {
+				if (requestedLockType === 'unlocked') {
 					const rangeToUnlock = {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
+						fd,
 					};
 					return PHPLoader.fileLockManager
 						.unlockFileByteRange(filePath, rangeToUnlock)
@@ -329,6 +327,7 @@ const LibraryForFileLocking = {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
+						fd,
 					};
 					return PHPLoader.fileLockManager
 						.lockFileByteRange(filePath, rangeToLock)
@@ -426,8 +425,9 @@ const LibraryForFileLocking = {
 		}
 
 		const result = PHPLoader.fileLockManager.lockWholeFile(filePath, {
-			pid: PHPLoader.processId,
 			type: lockOpType,
+			pid: PHPLoader.processId,
+			fd,
 		});
 
 		if (result) {
@@ -436,6 +436,30 @@ const LibraryForFileLocking = {
 			_wasm_set_errno(ERRNO_CODES.EWOULDBLOCK);
 			return -1;
 		}
+	},
+
+	$default_fd_close: {
+		fn: LibraryManager.library.fd_close,
+	},
+
+	fd_close__deps: ['$default_fd_close'],
+	fd_close(fd) {
+		return Promise.resolve(default_fd_close.fn(fd)).finally(() => {
+			if (lock_utils.maybeLockedFds.has(fd)) {
+				console.log(
+					'releasing locks on fd close',
+					PHPLoader.processId,
+					path
+				);
+				return PHPLoader.fileLockManager.releaseLocksForProcessFd(
+					PHPLoader.processId,
+					fd,
+					path,
+				).finally(() => {
+					lock_utils.maybeLockedFds.delete(fd);
+				});
+			}
+		});
 	},
 };
 
