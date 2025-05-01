@@ -42,7 +42,7 @@ If you're not sure which plugin or theme to use, you can explore the official di
 -   [WordPress Plugin Directory](https://wordpress.org/plugins/)
 -   [WordPress Theme Directory](https://wordpress.org/themes/)
 
-Use the plugin or theme slug from the URL to preinstall them via Playground.
+Use the plugin or theme slug from the URL to preinstall theme via Playground.
 
 To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL:
 
@@ -90,7 +90,7 @@ The easiest way is to use the version switcher on [the official demo site](https
 
 :::info Test your plugin or theme
 
-Compatibility testing with so many WordPres and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
+Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
 :::
 
