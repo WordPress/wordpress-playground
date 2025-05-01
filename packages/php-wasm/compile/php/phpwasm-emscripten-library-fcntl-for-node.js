@@ -307,30 +307,28 @@ const LibraryForFileLocking = {
 
 				// TODO: Explain why
 				lock_utils.maybeLockedFds.add(fd);
-				
+
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
+				const range = {
+					start: absoluteStartOffset,
+					end:
+						flockStruct.l_len === 0
+							// TODO: Pick better typed value supported by file-lock-manager
+							? Infinity
+							: absoluteStartOffset + flockStruct.l_len,
+					pid,
+					fd,
+				};
 				if (requestedLockType === 'unlocked') {
-					const rangeToUnlock = {
-						start: absoluteStartOffset,
-						end: absoluteStartOffset + flockStruct.l_len,
-						pid,
-						fd,
-					};
 					return PHPLoader.fileLockManager
-						.unlockFileByteRange(filePath, rangeToUnlock)
+						.unlockFileByteRange(filePath, range)
 						.then(() => {
 							return 0;
 						});
 				} else {
-					const rangeToLock = {
-						type: requestedLockType,
-						start: absoluteStartOffset,
-						end: absoluteStartOffset + flockStruct.l_len,
-						pid,
-						fd,
-					};
+					range.type = requestedLockType;
 					return PHPLoader.fileLockManager
-						.lockFileByteRange(filePath, rangeToLock)
+						.lockFileByteRange(filePath, range)
 						.then((succeeded) => {
 							if (succeeded) {
 								return 0;
@@ -444,22 +442,25 @@ const LibraryForFileLocking = {
 
 	fd_close__deps: ['$default_fd_close'],
 	fd_close(fd) {
-		return Promise.resolve(default_fd_close.fn(fd)).finally(() => {
-			if (lock_utils.maybeLockedFds.has(fd)) {
-				console.log(
-					'releasing locks on fd close',
-					PHPLoader.processId,
-					path
-				);
-				return PHPLoader.fileLockManager.releaseLocksForProcessFd(
-					PHPLoader.processId,
-					fd,
-					path,
-				).finally(() => {
+		const [path, pathResolutionErrno] =
+			lock_utils.resolveFileDescriptorToPath(fd);
+		if (lock_utils.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
+			console.log(
+				'releasing locks on fd close',
+				PHPLoader.processId,
+				path
+			);
+			return PHPLoader.fileLockManager
+				.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
+				.finally(() => {
 					lock_utils.maybeLockedFds.delete(fd);
+				})
+				.then(() => {
+					return default_fd_close.fn(fd);
 				});
-			}
-		});
+		} else {
+			return default_fd_close.fn(fd);
+		}
 	},
 };
 

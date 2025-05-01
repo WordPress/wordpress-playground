@@ -5519,26 +5519,23 @@ export function init(RuntimeName, PHPLoader) {
 				// TODO: Explain why
 				lock_utils.maybeLockedFds.add(fd);
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
+				const range = {
+					start: absoluteStartOffset,
+					end:
+						flockStruct.l_len === 0
+							? Infinity
+							: absoluteStartOffset + flockStruct.l_len,
+					pid,
+					fd,
+				};
 				if (requestedLockType === 'unlocked') {
-					const rangeToUnlock = {
-						start: absoluteStartOffset,
-						end: absoluteStartOffset + flockStruct.l_len,
-						pid,
-						fd,
-					};
 					return PHPLoader.fileLockManager
-						.unlockFileByteRange(filePath, rangeToUnlock)
+						.unlockFileByteRange(filePath, range)
 						.then(() => 0);
 				} else {
-					const rangeToLock = {
-						type: requestedLockType,
-						start: absoluteStartOffset,
-						end: absoluteStartOffset + flockStruct.l_len,
-						pid,
-						fd,
-					};
+					range.type = requestedLockType;
 					return PHPLoader.fileLockManager
-						.lockFileByteRange(filePath, rangeToLock)
+						.lockFileByteRange(filePath, range)
 						.then((succeeded) => {
 							if (succeeded) {
 								return 0;
@@ -6876,20 +6873,23 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	var _fd_close = function fd_close(fd) {
-		return Promise.resolve(default_fd_close.fn(fd)).finally(() => {
-			if (lock_utils.maybeLockedFds.has(fd)) {
-				console.log(
-					'releasing locks on fd close',
-					PHPLoader.processId,
-					path
-				);
-				return PHPLoader.fileLockManager
-					.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
-					.finally(() => {
-						lock_utils.maybeLockedFds.delete(fd);
-					});
-			}
-		});
+		const [path, pathResolutionErrno] =
+			lock_utils.resolveFileDescriptorToPath(fd);
+		if (lock_utils.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
+			console.log(
+				'releasing locks on fd close',
+				PHPLoader.processId,
+				path
+			);
+			return PHPLoader.fileLockManager
+				.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
+				.finally(() => {
+					lock_utils.maybeLockedFds.delete(fd);
+				})
+				.then(() => default_fd_close.fn(fd));
+		} else {
+			return default_fd_close.fn(fd);
+		}
 	};
 
 	function _fd_fdstat_get(fd, pbuf) {
@@ -9825,23 +9825,6 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return originalHashAddNode.apply(FS, arguments);
 		};
-
-		// // TODO:
-		// var originalNodeFsClose = NODEFS.close;
-		// NODEFS.close = function (fd) {
-		//     const [path, errno] = lock_utils.resolveFileDescriptorToPath(fd);
-		//     return Promise.resolve(
-		//         originalNodeFsClose.apply(NODEFS, fd)
-		//     ).finally(() => {
-		//         if (errno === 0) {
-		//             console.log('releasing locks on fd close', PHPLoader.processId, path);
-		//             return PHPLoader.fileLockManager.releaseLocksForProcessAndPath(
-		//                 PHPLoader.processId,
-		//                 path
-		//             );
-		//         }
-		//     })
-		// };
 	}
 
 	// Close the opening bracket from esm-prefix.js:

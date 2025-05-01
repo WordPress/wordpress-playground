@@ -81,7 +81,10 @@ export type LockRange = {
 	end: bigint;
 	/** The process ID that owns this lock */
 	pid: Pid;
-	/** The file descriptor that owns this lock */
+	/** The file descriptor that owns this lock.
+	 * Note: This is not needed for range locking but is needed to detect
+	 * conflicts with whole file locks.
+	 */
 	fd: Fd;
 };
 
@@ -182,7 +185,7 @@ class FileLockIntervalTree {
 	/**
 	 * Find all ranges that overlap with the given range
 	 */
-	findOverlapping(range: LockRangeWithType): LockRangeWithType[] {
+	findOverlapping(range: LockRange): LockRangeWithType[] {
 		const result: LockRangeWithType[] = [];
 		this.findOverlappingRanges(this.root, range, result);
 		return result;
@@ -190,7 +193,7 @@ class FileLockIntervalTree {
 
 	private findOverlappingRanges(
 		node: IntervalNode | null,
-		range: LockRangeWithType,
+		range: LockRange,
 		result: LockRangeWithType[]
 	): void {
 		if (!node) {
@@ -213,11 +216,8 @@ class FileLockIntervalTree {
 		}
 	}
 
-	private doRangesOverlap(
-		a: LockRangeWithType,
-		b: LockRangeWithType
-	): boolean {
-		return a.start <= b.end && b.start <= a.end;
+	private doRangesOverlap(a: LockRange, b: LockRange): boolean {
+		return a.start < b.end && b.start < a.end;
 	}
 
 	/**
@@ -276,12 +276,7 @@ class FileLockIntervalTree {
 	}
 
 	private areRangesEqual(a: LockRange, b: LockRange): boolean {
-		return (
-			a.start === b.start &&
-			a.end === b.end &&
-			a.pid === b.pid &&
-			a.fd === b.fd
-		);
+		return a.start === b.start && a.end === b.end && a.pid === b.pid;
 	}
 
 	findLocksForProcess(pid: number, fd?: number): LockRangeWithType[] {
@@ -363,6 +358,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	}
 
 	// TODO: Comment reasoning
+	// TODO: Replace lock on a redundant fd with a desired lock by the same process
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		console.log('wholeFileLock', path, op);
 		if (this.locks.get(path) === undefined) {
@@ -508,9 +504,8 @@ export class FileLockManagerForNode implements FileLockManager {
 		// so we can proceed with attempting to lock a byte range.
 		const rangeLocks = lock.rangeLocks;
 		const overlappingLocks = rangeLocks.findOverlapping(requestedLock);
-		const overlappingLocksFromSameProcessFd = overlappingLocks.filter(
-			(lock) =>
-				lock.pid === requestedLock.pid && lock.fd === requestedLock.fd
+		const overlappingLocksFromSameProcess = overlappingLocks.filter(
+			(lock) => lock.pid === requestedLock.pid
 		);
 		const overlappingLocksFromOthers = overlappingLocks.filter(
 			(lock) => lock.pid !== requestedLock.pid
@@ -529,8 +524,7 @@ export class FileLockManagerForNode implements FileLockManager {
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
 				'failure',
 				'ex',
-				`pid=${requestedLock.pid}`,
-				`fd=${requestedLock.fd}`
+				`pid=${requestedLock.pid}`
 			);
 			return false;
 		}
@@ -548,15 +542,14 @@ export class FileLockManagerForNode implements FileLockManager {
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
 				'failure',
 				'sh',
-				`pid=${requestedLock.pid}`,
-				`fd=${requestedLock.fd}`
+				`pid=${requestedLock.pid}`
 			);
 			return false;
 		}
 
 		// Remove overlapping locks from the same process because the requested
 		// lock replaces them.
-		for (const overlappingLock of overlappingLocksFromSameProcessFd) {
+		for (const overlappingLock of overlappingLocksFromSameProcess) {
 			rangeLocks.remove(overlappingLock);
 		}
 
@@ -569,12 +562,12 @@ export class FileLockManagerForNode implements FileLockManager {
 			`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
 			'success',
 			requestedLock.type === 'exclusive' ? 'ex' : 'sh',
-			`pid=${requestedLock.pid}`,
-			`fd=${requestedLock.fd}`
+			`pid=${requestedLock.pid}`
 		);
 		return true;
 	}
 
+	// TODO: Consider unifying unlockFileByteRange and lockFileByteRange
 	unlockFileByteRange(path: string, lockToRelease: LockRange) {
 		const lock = this.locks.get(path);
 		if (!lock) {
@@ -585,17 +578,11 @@ export class FileLockManagerForNode implements FileLockManager {
 				`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
 				'failure',
 				'  ',
-				`pid=${lockToRelease.pid}`,
-				`fd=${lockToRelease.fd}`
+				`pid=${lockToRelease.pid}`
 			);
 			// TODO: Return an error
 			return;
 		}
-
-		// TODO: Confirm the lock is present and error if it is not.
-		// TODO: Check the removal logic
-		lock.rangeLocks.remove(lockToRelease);
-		this.forgetPathIfUnlocked(path);
 
 		console.log(
 			'unlock',
@@ -604,11 +591,29 @@ export class FileLockManagerForNode implements FileLockManager {
 			`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
 			'success',
 			'  ',
-			`pid=${lockToRelease.pid}`,
-			`fd=${lockToRelease.fd}`
+			`pid=${lockToRelease.pid}`
 		);
+
+		// Unlock all overlapping locks from the same process.
+		// TODO: What should happen to partial overlaps?
+		const overlappingLocks = lock.rangeLocks.findOverlapping(lockToRelease);
+		const overlappingLocksFromSameProcess = overlappingLocks.filter(
+			(lock) => lock.pid === lockToRelease.pid
+		);
+		for (const overlappingRangeLock of overlappingLocksFromSameProcess) {
+			console.log(
+				'unlocking overlapping lock',
+				path,
+				`0x${overlappingRangeLock.start.toString(16).padStart(8, '0')}`,
+				`0x${overlappingRangeLock.end.toString(16).padStart(8, '0')}`
+			);
+			lock.rangeLocks.remove(overlappingRangeLock);
+		}
+
+		this.forgetPathIfUnlocked(path);
 	}
 
+	// TODO: Handle whole file lock case
 	findFirstConflictingByteRangeLock(
 		path: string,
 		desiredLock: LockRangeWithType
@@ -622,8 +627,8 @@ export class FileLockManagerForNode implements FileLockManager {
 		const lockTree = this.locks.get(path)!.rangeLocks;
 		const overlappingLocks = lockTree.findOverlapping(desiredLock);
 		const firstConflictingLock = overlappingLocks.find(
-			(lock) =>
-				!(lock.pid === desiredLock.pid && lock.fd === desiredLock.fd)
+			// TODO: Document why we are not checking for fd equality
+			(lock) => lock.pid !== desiredLock.pid
 		);
 
 		if (firstConflictingLock) {
@@ -673,13 +678,18 @@ export class FileLockManagerForNode implements FileLockManager {
 			return;
 		}
 
+		// According to
+		// https://chris.improbable.org/2010/12/16/everything-you-never-wanted-to-know-about-file-locking/
+		// "If you open both databases in sqlite at the same time, then close the second one, all your open sqlite locks on the first one will be lost!"
+		// TODO: Confirm and find better reference.
+		// Closing an fd for a file releases all fcntl locks for the owning process.
 		for (const rangeLock of lock.rangeLocks.findLocksForProcess(pid)) {
 			// TODO: Explain why we are using the public interface instead of directly adjusting data structures
 			this.unlockFileByteRange(path, {
 				start: rangeLock.start,
 				end: rangeLock.end,
-				pid,
-				fd,
+				pid: rangeLock.pid,
+				fd: rangeLock.fd,
 			});
 		}
 
