@@ -70,23 +70,6 @@ if (typeof NODEFS === 'object') {
         }
         return originalHashAddNode.apply(FS, arguments);
     };
-
-    // // TODO: 
-    // var originalNodeFsClose = NODEFS.close;
-    // NODEFS.close = function (fd) {
-    //     const [path, errno] = lock_utils.resolveFileDescriptorToPath(fd);
-    //     return Promise.resolve(
-    //         originalNodeFsClose.apply(NODEFS, fd)
-    //     ).finally(() => {
-    //         if (errno === 0) {
-    //             console.log('releasing locks on fd close', PHPLoader.processId, path);
-    //             return PHPLoader.fileLockManager.releaseLocksForProcessAndPath(
-    //                 PHPLoader.processId,
-    //                 path
-    //             );
-    //         }
-    //     })
-    // };  
 }
 
 // Close the opening bracket from esm-prefix.js:
