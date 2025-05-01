@@ -618,7 +618,13 @@ export class FileLockManagerForNode implements FileLockManager {
 		path: string,
 		desiredLock: LockRangeWithType
 	): LockRangeWithType | undefined {
-		logger.log('findConflictingLock', path, desiredLock);
+		logger.log('findConflictingLock', path, {
+			type: desiredLock.type,
+			start: '0x' + desiredLock.start.toString(16).padStart(8, '0'),
+			end: '0x' + desiredLock.end.toString(16).padStart(8, '0'),
+			pid: desiredLock.pid,
+			fd: desiredLock.fd,
+		});
 
 		if (!this.locks.has(path)) {
 			return undefined;
