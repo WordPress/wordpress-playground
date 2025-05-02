@@ -25,7 +25,6 @@
 U_NAMESPACE_BEGIN
 
 class FieldPositionIteratorHandler;
-class SimpleDateFormat;
 
 namespace number {  // icu::number
 
@@ -191,9 +190,6 @@ class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
 
     // To give C API access to internals
     friend struct impl::UFormattedNumberImpl;
-
-    // To give access to the data pointer for non-heap allocation
-    friend class icu::SimpleDateFormat;
 };
 
 template<typename StringClass>

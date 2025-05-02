@@ -5,16 +5,16 @@ ARG JSPI
 
 
 RUN set -euxo pipefail && \
-    wget https://github.com/unicode-org/icu/releases/download/release-77-1/icu4c-77_1-src.tgz && \
-    tar -xvf icu4c-77_1-src.tgz && \
+    wget https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-src.tgz && \
+    tar -xvf icu4c-74_2-src.tgz && \
     rm -rf /root/icu/source/data/ && \
-    rm icu4c-77_1-src.tgz
+    rm icu4c-74_2-src.tgz
 
 
 RUN set -euxo pipefail && \
-    wget https://github.com/unicode-org/icu/releases/download/release-77-1/icu4c-77_1-data.zip && \
-    unzip icu4c-77_1-data.zip -d /root/icu/source && \
-    rm icu4c-77_1-data.zip
+    wget https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-data.zip && \
+    unzip icu4c-74_2-data.zip -d /root/icu/source && \
+    rm icu4c-74_2-data.zip
 
 
 RUN set -euxo pipefail && \
@@ -47,4 +47,4 @@ RUN set -euxo pipefail && \
 
 RUN set -euxo pipefail && \
     mkdir -p /root/lib/data && \
-    mv /root/lib/share/icu/77.1/icudt77l.dat /root/lib/data
+    mv /root/lib/share/icu/74.2/icudt74l.dat /root/lib/data
