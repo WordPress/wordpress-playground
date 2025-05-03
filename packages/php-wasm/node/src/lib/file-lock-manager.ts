@@ -360,7 +360,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	// TODO: Comment reasoning
 	// TODO: Replace lock on a redundant fd with a desired lock by the same process
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
-		console.log('wholeFileLock', path, op);
+		console.log(`[${new Date().toISOString()}] wholeFileLock`, path, op);
 		if (this.locks.get(path) === undefined) {
 			if (op.type === 'unlock') {
 				return true;
@@ -518,7 +518,7 @@ export class FileLockManagerForNode implements FileLockManager {
 			// The requested exclusive lock conflicts with existing locks from
 			// other processes and/or file descriptors.
 			console.log(
-				'  lock',
+				`[${new Date().toISOString()}]  lock`,
 				path,
 				`0x${requestedLock.start.toString(16).padStart(8, '0')}`,
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
@@ -536,7 +536,7 @@ export class FileLockManagerForNode implements FileLockManager {
 			// The requested shared lock conflicts with an existing exclusive
 			// lock from another process.
 			console.log(
-				'  lock',
+				`[${new Date().toISOString()}]  lock`,
 				path,
 				`0x${requestedLock.start.toString(16).padStart(8, '0')}`,
 				`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
@@ -556,7 +556,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		rangeLocks.insert(requestedLock);
 
 		console.log(
-			'  lock',
+			`[${new Date().toISOString()}]  lock`,
 			path,
 			`0x${requestedLock.start.toString(16).padStart(8, '0')}`,
 			`0x${requestedLock.end.toString(16).padStart(8, '0')}`,
@@ -572,7 +572,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		const lock = this.locks.get(path);
 		if (!lock) {
 			console.log(
-				'unlock',
+				`[${new Date().toISOString()}] unlock`,
 				path,
 				`0x${lockToRelease.start.toString(16).padStart(8, '0')}`,
 				`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
@@ -585,7 +585,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		}
 
 		console.log(
-			'unlock',
+			`[${new Date().toISOString()}] unlock`,
 			path,
 			`0x${lockToRelease.start.toString(16).padStart(8, '0')}`,
 			`0x${lockToRelease.end.toString(16).padStart(8, '0')}`,
@@ -602,7 +602,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		);
 		for (const overlappingRangeLock of overlappingLocksFromSameProcess) {
 			console.log(
-				'unlocking overlapping lock',
+				`[${new Date().toISOString()}] unlocking overlapping lock`,
 				path,
 				`0x${overlappingRangeLock.start.toString(16).padStart(8, '0')}`,
 				`0x${overlappingRangeLock.end.toString(16).padStart(8, '0')}`
@@ -618,7 +618,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		path: string,
 		desiredLock: LockRangeWithType
 	): LockRangeWithType | undefined {
-		logger.log('findConflictingLock', path, {
+		logger.log(`[${new Date().toISOString()}] findConflictingLock`, path, {
 			type: desiredLock.type,
 			start: '0x' + desiredLock.start.toString(16).padStart(8, '0'),
 			end: '0x' + desiredLock.end.toString(16).padStart(8, '0'),
@@ -645,7 +645,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	}
 
 	releaseLocksForProcess(pid: number) {
-		logger.log('releaseLocksForProcess', pid);
+		logger.log(`[${new Date().toISOString()}] releaseLocksForProcess`, pid);
 		for (const [path, lock] of this.locks.entries()) {
 			for (const rangeLock of lock.rangeLocks.findLocksForProcess(pid)) {
 				// TODO: Explain why we are using the public interface instead of directly adjusting data structures
@@ -678,7 +678,12 @@ export class FileLockManagerForNode implements FileLockManager {
 	}
 
 	releaseLocksForProcessFd(pid: number, fd: number, path: string) {
-		console.log('releaseLocksForProcessFd', pid, fd, path);
+		console.log(
+			`[${new Date().toISOString()}] releaseLocksForProcessFd`,
+			pid,
+			fd,
+			path
+		);
 		const lock = this.locks.get(path);
 		if (!lock) {
 			return;
