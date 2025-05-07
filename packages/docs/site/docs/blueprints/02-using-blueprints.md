@@ -5,9 +5,11 @@ slug: /blueprints/using-blueprints
 
 # Using Blueprints
 
-You can use Blueprints in one of two ways:
+You can use Blueprints in one of the following ways:
 
 -   By passing them as a URL fragment to the Playground.
+-   By loading them from a URL using the `blueprint-url` parameter.
+-   By using Blueprint bundles (ZIP files or directories).
 -   By using the JavaScript API.
 
 ## URL Fragment
@@ -92,6 +94,34 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 ```
 Access-Control-Allow-Origin: *
 ```
+
+#### Blueprint Bundles
+
+The `?blueprint-url` parameter now also supports Blueprint bundles in ZIP format. A Blueprint bundle is a ZIP file that contains a `blueprint.json` file at the root level, along with any additional resources referenced by the Blueprint.
+
+For example, you can load a Blueprint bundle like this:
+
+[https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip](https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip)
+
+When using a Blueprint bundle, you can reference bundled resources using the `bundled` resource type:
+
+```json
+{
+	"landingPage": "/my-file.txt",
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/wordpress/my-file.txt",
+			"data": {
+				"resource": "bundled",
+				"path": "/bundled-text-file.txt"
+			}
+		}
+	]
+}
+```
+
+For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation.
 
 ## JavaScript API
 

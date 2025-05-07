@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/util",
-	"version": "1.0.14",
+	"version": "1.0.32",
 	"type": "module",
 	"types": "index.d.ts",
 	"typedoc": {
@@ -13,9 +13,19 @@
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/util"
 	},
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json",
+		"./README.md": "./README.md"
+	},
+	"main": "./index.cjs",
+	"module": "./index.js",
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
 	"engines": {
-		"node": ">=18.18.0",
-		"npm": ">=8.11.0"
+		"node": ">=20.18.3",
+		"npm": ">=10.1.0"
 	}
 }

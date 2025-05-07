@@ -1,14 +1,12 @@
-import {
+import type {
 	EmscriptenOptions,
-	loadPHPRuntime,
 	PHPLoaderModule,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
+import { loadPHPRuntime } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
-import {
-	TCPOverFetchOptions,
-	tcpOverFetchWebsocket,
-} from './tcp-over-fetch-websocket';
+import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
+import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -28,7 +26,7 @@ const fakeWebsocket = () => {
 					constructor() {
 						try {
 							super();
-						} catch (e) {
+						} catch {
 							// pass
 						}
 					}

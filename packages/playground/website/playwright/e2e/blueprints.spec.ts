@@ -1,5 +1,5 @@
 import { test, expect } from '../playground-fixtures';
-import { Blueprint } from '@wp-playground/blueprints';
+import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
 test('Base64-encoded Blueprints should work', async ({
@@ -14,6 +14,54 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('?blueprint-url=... should work with simple blueprints', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should work with ZIP bundles', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should work with JSON blueprints referring bundled resources', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
@@ -320,7 +368,7 @@ test('HTTPS requests via file_get_contents() to invalid URLs should fail', async
 	);
 });
 
-test('HTTPS requests via file_get_contents() to CORS-disabled URLs should fail', async ({
+test('HTTPS requests via file_get_contents() to CORS-disabled URLs should succeed thanks to the CORS proxy', async ({
 	website,
 	wordpress,
 }) => {
@@ -332,13 +380,13 @@ test('HTTPS requests via file_get_contents() to CORS-disabled URLs should fail',
 				step: 'writeFile',
 				path: '/wordpress/https-test.php',
 				/**
-				 * The URL is valid, but the server does not provide the CORS headers required for fetch() to work.
+				 * The URL is valid, but the server does not provide the CORS headers required by fetch().
 				 */
 				data: `<?php
 					var_dump(
 						strlen(
 							file_get_contents(
-								'https://github.com/WordPress/wordpress-playground/blob/5e5ba3e0f5b984ceadd5cbe6e661828c14621d25/README.md'
+								'https://playground.wordpress.net/test-fixtures/cors-file.html'
 							)
 						)
 					);
@@ -347,9 +395,7 @@ test('HTTPS requests via file_get_contents() to CORS-disabled URLs should fail',
 		],
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText(
-		'file_get_contents(https://github.com/WordPress/wordpress-playground/blob/5e5ba3e0f5b984ceadd5cbe6e661828c14621d25/README.md): Failed to open stream: HTTP request failed'
-	);
+	await expect(wordpress.locator('body')).toContainText('int(340)');
 });
 
 test('PHP Shutdown should work', async ({ website, wordpress }) => {
@@ -434,15 +480,15 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 	await expect(wordpress.locator('body')).toContainText('General Settings');
 });
 
-['latest', 'nightly', 'beta'].forEach((version) => {
-	test(`should translate WP-admin to Spanish for the ${version} WordPress build`, async ({
+['latest', 'nightly', 'beta'].forEach((wpVersion) => {
+	test(`should translate WP-admin to Spanish for the ${wpVersion} WordPress build`, async ({
 		website,
 		wordpress,
 	}) => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/',
 			preferredVersions: {
-				wp: 'nightly',
+				wp: wpVersion,
 			},
 			steps: [{ step: 'setSiteLanguage', language: 'es_ES' }],
 		};
@@ -450,4 +496,46 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 		await website.goto(`./#${encodedBlueprint}`);
 		await expect(wordpress.locator('body')).toContainText('Escritorio');
 	});
+});
+
+test('WordPress homepage loads when mu-plugin prints a notice', async ({
+	wordpress,
+	website,
+	page,
+}) => {
+	// Load a blueprint that enables debug mode and adds a mu-plugin that prints a notice
+	const blueprint = {
+		landingPage: '/',
+		preferredVersions: {
+			wp: '6.7',
+			php: '8.0',
+		},
+		steps: [
+			{
+				step: 'defineWpConfigConsts',
+				consts: {
+					WP_DEBUG: true,
+					WP_DEBUG_DISPLAY: true,
+				},
+			},
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/000-print-notice.php',
+				data: `<?php
+					echo 'This is a notice printed by an mu-plugin.';
+				`,
+			},
+		],
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`./#${encodedBlueprint}`);
+
+	// Wait for the page to load and verify it contains both WordPress content and the notice
+	await expect(wordpress.locator('body')).toContainText(
+		'Welcome to WordPress. This is your first post.'
+	);
+
+	// Verify there's no admin bar
+	await expect(wordpress.locator('body')).not.toContainText('Dashboard');
 });

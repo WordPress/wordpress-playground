@@ -1,6 +1,7 @@
-export interface CachedFetchResponse {
-	body: ReadableStream<Uint8Array>;
-	responseInit: ResponseInit;
+export interface CacheEntry {
+	responsePromise: Promise<Response>;
+	unlockedBodyStream?: ReadableStream<Uint8Array>;
+	nextResponse: () => Promise<Response>;
 }
 
 /**
@@ -11,33 +12,35 @@ export interface CachedFetchResponse {
  *
  * @param originalFetch The fetch function to memoize. Defaults to the global fetch.
  */
-export function createMemoizedFetch(originalFetch = fetch) {
-	const cache: Record<
-		string,
-		Promise<CachedFetchResponse> | CachedFetchResponse
-	> = {};
+export function createMemoizedFetch(
+	originalFetch: (
+		input: RequestInfo | URL,
+		init?: RequestInit
+	) => Promise<Response> = fetch
+) {
+	const fetches: Record<string, CacheEntry> = {};
 
 	return async function memoizedFetch(url: string, options?: RequestInit) {
-		if (!cache[url]) {
-			// Write to cache synchronously to avoid duplicate requests.
-			cache[url] = originalFetch(url, options).then((response) => ({
-				body: response.body!,
-				responseInit: {
-					status: response.status,
-					statusText: response.statusText,
-					headers: response.headers,
+		if (!fetches[url]) {
+			fetches[url] = {
+				responsePromise: originalFetch(url, options),
+				async nextResponse() {
+					// Wait for "result" to be set.
+					const response = await fetches[url].responsePromise;
+					const [left, right] =
+						fetches[url].unlockedBodyStream!.tee();
+					fetches[url].unlockedBodyStream = left;
+					return new Response(right, {
+						status: response.status,
+						statusText: response.statusText,
+						headers: response.headers,
+					});
 				},
-			}));
+			};
+			const response = await fetches[url].responsePromise;
+			fetches[url].unlockedBodyStream = response.body!;
 		}
-		const { body, responseInit } = await cache[url];
-		// Split the response stream so that the cached one is not consumed.
-		const [left, right] = body.tee();
-		// Cache the "left" stream and don't use it until the next .tee().
-		cache[url] = {
-			body: left,
-			responseInit,
-		};
-		// Return the "right" stream for consumption.
-		return new Response(right, responseInit);
+
+		return fetches[url].nextResponse();
 	};
 }

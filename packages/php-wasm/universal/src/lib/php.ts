@@ -1,7 +1,7 @@
 import { PHPResponse } from './php-response';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
-import {
+import type {
 	MessageListener,
 	PHPRequest,
 	PHPRequestHeaders,
@@ -10,30 +10,33 @@ import {
 	PHPEventListener,
 	PHPEvent,
 } from './universal-php';
-import { RmDirOptions, ListFilesOptions, FSHelpers } from './fs-helpers';
+import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
+import { FSHelpers } from './fs-helpers';
+import type { UnhandledRejectionsTarget } from './wasm-error-reporting';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
-	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
-import { PHPRequestHandler } from './php-request-handler';
+import type { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
 import { isExitCodeZero } from './is-exit-code-zero';
-import { Emscripten } from './emscripten-types';
+import type { Emscripten } from './emscripten-types';
 
 const STRING = 'string';
 const NUMBER = 'number';
 
 export const __private__dont__use = Symbol('__private__dont__use');
 
+type ErrorSource = 'request' | 'php-wasm';
 export class PHPExecutionFailureError extends Error {
-	constructor(
-		message: string,
-		public response: PHPResponse,
-		public source: 'request' | 'php-wasm'
-	) {
+	response: PHPResponse;
+	source: ErrorSource;
+
+	constructor(message: string, response: PHPResponse, source: ErrorSource) {
 		super(message);
+		this.response = response;
+		this.source = source;
 	}
 }
 
@@ -46,6 +49,11 @@ export type MountHandler = (
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
+
+type MountObject = {
+	mountHandler: MountHandler;
+	unmount: () => Promise<any>;
+};
 
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -62,6 +70,7 @@ export class PHP implements Disposable {
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
+	#mounts: Record<string, MountObject> = {};
 	requestHandler?: PHPRequestHandler;
 
 	/**
@@ -160,6 +169,11 @@ export class PHP implements Disposable {
 	 */
 	onMessage(listener: MessageListener) {
 		this.#messageListeners.push(listener);
+		return async () => {
+			this.#messageListeners = this.#messageListeners.filter(
+				(l) => l !== listener
+			);
+		};
 	}
 
 	async setSpawnHandler(handler: SpawnHandler | string) {
@@ -596,7 +610,7 @@ export class PHP implements Disposable {
 		let port;
 		try {
 			port = parseInt(new URL(host).port, 10);
-		} catch (e) {
+		} catch {
 			// ignore
 		}
 
@@ -728,7 +742,7 @@ export class PHP implements Disposable {
 							'{}'
 					: '{}'
 			);
-		} catch (e) {
+		} catch {
 			// ignore
 		}
 		this.writeFile(
@@ -995,7 +1009,7 @@ export class PHP implements Disposable {
 	 *             is fully decoupled from the request handler and
 	 *             accepts a constructor-level cwd argument.
 	 */
-	hotSwapPHPRuntime(runtime: number, cwd?: string) {
+	async hotSwapPHPRuntime(runtime: number, cwd?: string) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -1003,12 +1017,21 @@ export class PHP implements Disposable {
 		// asynchronous changes to either the filesystem or the
 		// old PHP runtime without propagating them to the new
 		// runtime.
+
 		const oldFS = this[__private__dont__use].FS;
+
+		// Unmount all the mount handlers
+		const mountHandlers: { mountHandler: MountHandler; vfsPath: string }[] =
+			[];
+		for (const [vfsPath, mount] of Object.entries(this.#mounts)) {
+			mountHandlers.push({ mountHandler: mount.mountHandler, vfsPath });
+			await mount.unmount();
+		}
 
 		// Kill the current runtime
 		try {
 			this.exit();
-		} catch (e) {
+		} catch {
 			// Ignore the exit-related exception
 		}
 
@@ -1019,9 +1042,18 @@ export class PHP implements Disposable {
 			this.setSapiName(this.#sapiName);
 		}
 
+		// Copy the old /internal directory to the new filesystem
+		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
+
 		// Copy the MEMFS directory structure from the old FS to the new one
 		if (cwd) {
 			copyFS(oldFS, this[__private__dont__use].FS, cwd);
+		}
+
+		// Re-mount all the mount handlers
+		for (const { mountHandler, vfsPath } of mountHandlers) {
+			this.mkdir(vfsPath);
+			await this.mount(vfsPath, mountHandler);
 		}
 	}
 
@@ -1036,11 +1068,22 @@ export class PHP implements Disposable {
 		virtualFSPath: string,
 		mountHandler: MountHandler
 	): Promise<UnmountFunction> {
-		return await mountHandler(
+		const unmountCallback = await mountHandler(
 			this,
 			this[__private__dont__use].FS,
 			virtualFSPath
 		);
+		const mountObject = {
+			mountHandler,
+			unmount: async () => {
+				await unmountCallback();
+				delete this.#mounts[virtualFSPath];
+			},
+		};
+		this.#mounts[virtualFSPath] = mountObject;
+		return () => {
+			mountObject.unmount();
+		};
 	}
 
 	/**
@@ -1098,7 +1141,7 @@ export class PHP implements Disposable {
 		});
 		try {
 			this[__private__dont__use]._exit(code);
-		} catch (e) {
+		} catch {
 			// ignore the exit error
 		}
 
@@ -1140,7 +1183,7 @@ function copyFS(
 	let oldNode;
 	try {
 		oldNode = source.lookupPath(path);
-	} catch (e) {
+	} catch {
 		return;
 	}
 	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
@@ -1159,7 +1202,7 @@ function copyFS(
 		//        how do we sync in both directions?
 		// target = target.lookupPath(path);
 		// return;
-	} catch (e) {
+	} catch {
 		// There's no such node in the new FS. Good,
 		// we may proceed.
 	}

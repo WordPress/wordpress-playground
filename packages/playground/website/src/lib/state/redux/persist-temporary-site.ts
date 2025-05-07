@@ -1,12 +1,13 @@
 import { logger } from '@php-wasm/logger';
-import { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import { PHPConstants } from '@wp-playground/blueprints';
+import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import type { PHPConstants } from '@wp-playground/blueprints';
 import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
-import store, { PlaygroundReduxState } from './store';
+import type { PlaygroundReduxState } from './store';
+import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
 import {
 	selectSiteBySlug,
@@ -14,7 +15,7 @@ import {
 	updateSiteMetadata,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
-import { SiteStorageType } from '../../site-metadata';
+import type { SiteStorageType } from '../../site-metadata';
 
 export function persistTemporarySite(
 	siteSlug: string,
@@ -201,7 +202,7 @@ async function getPlaygroundDefinedPHPConstants(playground: PlaygroundClient) {
 		constants = JSON.parse(
 			await playground.readFileAsText('/internal/shared/consts.json')
 		);
-	} catch (error) {
+	} catch {
 		// Do nothing
 	}
 	return constants;

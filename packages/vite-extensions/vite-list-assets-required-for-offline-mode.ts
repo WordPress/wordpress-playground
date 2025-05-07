@@ -12,10 +12,14 @@ const patternsToNotCache = [
 	'/README.md',
 	'/.DS_Store',
 	'/index.cjs',
-	'/index.d.ts',
+	/\/.*\.d\.ts$/, // No type declarations are needed at runtime.
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',
+	/**
+	 * Source maps are not required to run the site and can be quite large.
+	 */
+	/\.js\.map$/,
 	/**
 	 * WordPress assets removed from the minified builds, for example:
 	 *

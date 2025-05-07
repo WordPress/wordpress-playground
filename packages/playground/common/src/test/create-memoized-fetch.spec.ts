@@ -23,4 +23,25 @@ describe('createMemoizedFetch', () => {
 		expect(await response1.text()).toBe(await response2.text());
 		expect(fetch).toHaveBeenCalledTimes(1);
 	});
+
+	it('should correctly handle teeing the response stream when called twice without awaiting', async () => {
+		const fetch = vitest.fn().mockResolvedValueOnce(
+			new Response('hello', {
+				status: 200,
+				statusText: 'OK',
+				headers: { 'Content-type': 'text/plain' },
+			})
+		);
+		const memoizedFetch = createMemoizedFetch(fetch);
+		const response1Promise = memoizedFetch('https://example.com');
+		const response2Promise = memoizedFetch('https://example.com');
+		const response1 = await response1Promise;
+		const response2 = await response2Promise;
+		expect(response1.status).toBe(response2.status);
+		expect(response1.headers.get('Content-type')).toBe(
+			response2.headers.get('Content-type')
+		);
+		expect(await response1.text()).toBe(await response2.text());
+		expect(fetch).toHaveBeenCalledTimes(1);
+	});
 });

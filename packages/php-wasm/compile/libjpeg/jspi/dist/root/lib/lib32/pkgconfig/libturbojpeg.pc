@@ -1,0 +1,10 @@
+prefix=/root/lib
+exec_prefix=/root/lib
+libdir=/root/lib/lib32
+includedir=/root/lib/include
+
+Name: libturbojpeg
+Description: A SIMD-accelerated JPEG codec that provides the TurboJPEG API
+Version: 3.0.3
+Libs: -L${libdir} -lturbojpeg
+Cflags: -I${includedir}

@@ -1,8 +1,10 @@
-import {
+import type {
 	GeneratedCertificate,
 	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+} from '@php-wasm/web';
+import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
@@ -26,21 +28,18 @@ import {
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createMemoizedFetch } from '@wp-playground/common';
-import {
-	FilesystemOperation,
-	journalFSEvents,
-	replayFSJournal,
-} from '@php-wasm/fs-journal';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
-	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -75,6 +74,7 @@ export type WorkerBootOptions = {
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
+	corsProxyUrl?: string;
 };
 
 /** @inheritDoc PHPClient */
@@ -168,6 +168,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName = 'cli',
 		withNetworking = false,
 		shouldInstallWordPress = true,
+		corsProxyUrl,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -238,7 +239,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const phpIniEntries: Record<string, string> = {
-				'openssl.cafile': '/internal/ca-bundle.crt',
+				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			};
 			let CAroot: false | GeneratedCertificate = false;
 			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
@@ -262,6 +263,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 				tcpOverFetch = {
 					CAroot,
+					corsProxyUrl,
 				};
 			} else {
 				phpIniEntries['allow_url_fopen'] = '0';
@@ -342,7 +344,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 				phpIniEntries,
 				createFiles: {
-					'/internal/ca-bundle.crt': CAroot
+					'/internal/shared/ca-bundle.crt': CAroot
 						? certificateToPEM(CAroot.certificate)
 						: '',
 					'/internal/shared/mu-plugins': {
@@ -422,7 +424,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						res.text()
 					);
 					primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-				} catch (e) {
+				} catch {
 					logger.warn(
 						`Failed to fetch remote asset paths from ${listUrl}`
 					);

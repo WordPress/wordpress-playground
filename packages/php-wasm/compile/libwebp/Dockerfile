@@ -25,10 +25,10 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --prefix=/root/lib/
 RUN source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make
+    EMCC_SKIP="-lc -lz" EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make
 RUN source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make install
+    EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make install
 # @TODO: Do not remove dependencies like this – it's too easy to miss something.
 #        Instead, source them from another directory and end up with a clean build.
 RUN rm -rf /root/lib/lib/pkgconfig /root/lib/lib/libz.a /root/lib/include/zconf.h /root/lib/include/zlib.h

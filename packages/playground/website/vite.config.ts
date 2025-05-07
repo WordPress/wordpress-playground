@@ -18,9 +18,11 @@ import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
-import { addManifestJson } from '../../vite-extensions/vite-manifest';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 
 const proxy: CommonServerOptions['proxy'] = {
@@ -33,6 +35,13 @@ const proxy: CommonServerOptions['proxy'] = {
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
+	const corsProxyUrl =
+		'CORS_PROXY_URL' in process.env
+			? process.env.CORS_PROXY_URL
+			: mode === 'production'
+			? 'https://wordpress-playground-cors-proxy.net/?'
+			: 'http://127.0.0.1:5263/cors-proxy.php?';
+
 	return {
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
@@ -81,11 +90,7 @@ export default defineConfig(({ command, mode }) => {
 			virtualModule({
 				name: 'cors-proxy-url',
 				content: `
-				export const corsProxyUrl = '${
-					mode === 'production'
-						? '/cors-proxy.php'
-						: 'http://127.0.0.1:5263/cors-proxy.php'
-				}';`,
+				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
 			// GitHub OAuth flow
 			{
@@ -129,14 +134,6 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Add `manifest.json` file to the `dist/` directory when building.
-			 * While in development, modify the `manifest.json` file to use the local
-			 * server URL.
-			 */
-			addManifestJson({
-				manifestPath: path('./manifest.json'),
-			}) as Plugin,
-			/**
 			 * Generate a list of files needed for the website to function offline.
 			 */
 			listAssetsRequiredForOfflineMode({
@@ -167,6 +164,7 @@ export default defineConfig(({ command, mode }) => {
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
 			target: 'esnext',
+			sourcemap: true,
 			rollupOptions: {
 				input: {
 					index: fileURLToPath(
@@ -212,8 +210,9 @@ export default defineConfig(({ command, mode }) => {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
 	};
 });

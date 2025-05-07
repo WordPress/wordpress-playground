@@ -33,6 +33,10 @@
 				"outputPath": "dist/packages/php-wasm/universal"
 			}
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite"]

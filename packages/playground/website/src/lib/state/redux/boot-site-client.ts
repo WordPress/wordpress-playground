@@ -11,14 +11,15 @@ import {
 	updateClientInfo,
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
-import { Blueprint, StepDefinition } from '@wp-playground/blueprints';
+import type { Blueprint, StepDefinition } from '@wp-playground/blueprints';
+import { getBlueprintDeclaration } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
-import { PlaygroundClient } from '@wp-playground/remote';
+import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import { setActiveModal, setActiveSiteError } from './slice-ui';
-import { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -97,13 +98,16 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
-			blueprint = site.metadata.runtimeConfiguration;
+			blueprint = site.metadata.runtimeConfiguration!;
 		} else {
 			blueprint = site.metadata.originalBlueprint;
+			const blueprintDeclaration = await getBlueprintDeclaration(
+				blueprint
+			);
 			// Log the names of provided Blueprint's steps.
 			// Only the names (e.g. "runPhp" or "login") are logged. Step options like
 			// code, password, URLs are never sent anywhere.
-			const steps = (blueprint?.steps || [])
+			const steps = (blueprintDeclaration?.steps || [])
 				?.filter(
 					(step: any) => !!(typeof step === 'object' && step?.step)
 				)
@@ -250,7 +254,7 @@ export async function playgroundAvailableInOpfs(
 			create: false,
 		});
 		await database.getFileHandle('.ht.sqlite', { create: false });
-	} catch (e) {
+	} catch {
 		return false;
 	}
 	return true;

@@ -1,5 +1,5 @@
 import { loadNodeRuntime } from '@php-wasm/node';
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	getSqliteDatabaseModule,
@@ -7,7 +7,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { activateTheme } from './activate-theme';
 import { phpVar } from '@php-wasm/util';
-import { PHPRequestHandler } from '@php-wasm/universal';
+import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 
 describe('Blueprint step activateTheme()', () => {
@@ -103,7 +103,7 @@ describe('Blueprint step activateTheme()', () => {
 			`${docroot}/wp-content/mu-plugins/0-exit.php`,
 			`<?php exit(0); `
 		);
-		expect(
+		await expect(
 			async () =>
 				await activateTheme(php, {
 					themeFolderName: 'test-theme',

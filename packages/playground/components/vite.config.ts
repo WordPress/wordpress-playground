@@ -41,6 +41,7 @@ export default defineConfig({
 			// Don't forgot to update your package.json as well.
 			formats: ['es', 'cjs'],
 		},
+		sourcemap: true,
 		rollupOptions: {
 			external: getExternalModules(),
 		},
@@ -48,11 +49,11 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		setupFiles: ['./src/vitest-setup-file.ts'],
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

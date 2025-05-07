@@ -39,12 +39,16 @@
  * described in the previous paragraph.
  */
 import { TLS_1_2_Connection } from './tls/1_2/connection';
-import { generateCertificate, GeneratedCertificate } from './tls/certificates';
+import type { GeneratedCertificate } from './tls/certificates';
+import { generateCertificate } from './tls/certificates';
 import { concatUint8Arrays } from './tls/utils';
 import { ContentTypes } from './tls/1_2/types';
+import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+import { ChunkedDecoderStream } from './chunked-decoder';
 
 export type TCPOverFetchOptions = {
 	CAroot: GeneratedCertificate;
+	corsProxyUrl?: string;
 };
 
 /**
@@ -67,6 +71,7 @@ export const tcpOverFetchWebsocket = (tcpOptions: TCPOverFetchOptions) => {
 					constructor(url: string, wsOptions: string[]) {
 						super(url, wsOptions, {
 							CAroot: tcpOptions.CAroot,
+							corsProxyUrl: tcpOptions.corsProxyUrl,
 						});
 					}
 				};
@@ -85,6 +90,7 @@ export interface TCPOverFetchWebsocketOptions {
 	 * clientDownstream stream and tracking the closure of that stream.
 	 */
 	outputType?: 'messages' | 'stream';
+	corsProxyUrl?: string;
 }
 
 export class TCPOverFetchWebsocket {
@@ -101,6 +107,7 @@ export class TCPOverFetchWebsocket {
 	port = 0;
 	listeners = new Map<string, any>();
 	CAroot?: GeneratedCertificate;
+	corsProxyUrl?: string;
 
 	clientUpstream = new TransformStream();
 	clientUpstreamWriter = this.clientUpstream.writable.getWriter();
@@ -108,16 +115,27 @@ export class TCPOverFetchWebsocket {
 	fetchInitiated = false;
 	bufferedBytesFromClient: Uint8Array = new Uint8Array(0);
 
+	url: string;
+	options: string[];
+
 	constructor(
-		public url: string,
-		public options: string[],
-		{ CAroot, outputType = 'messages' }: TCPOverFetchWebsocketOptions = {}
+		url: string,
+		options: string[],
+		{
+			CAroot,
+			corsProxyUrl,
+			outputType = 'messages',
+		}: TCPOverFetchWebsocketOptions = {}
 	) {
+		this.url = url;
+		this.options = options;
+
 		const wsUrl = new URL(url);
 		this.host = wsUrl.searchParams.get('host')!;
 		this.port = parseInt(wsUrl.searchParams.get('port')!, 10);
 		this.binaryType = 'arraybuffer';
 
+		this.corsProxyUrl = corsProxyUrl;
 		this.CAroot = CAroot;
 		if (outputType === 'messages') {
 			this.clientDownstream.readable
@@ -307,10 +325,11 @@ export class TCPOverFetchWebsocket {
 			'https'
 		);
 		try {
-			await RawBytesFetch.fetchRawResponseBytes(request).pipeTo(
-				tlsConnection.serverEnd.downstream.writable
-			);
-		} catch (e) {
+			await RawBytesFetch.fetchRawResponseBytes(
+				request,
+				this.corsProxyUrl
+			).pipeTo(tlsConnection.serverEnd.downstream.writable);
+		} catch {
 			// Ignore errors from fetch()
 			// They are handled in the constructor
 			// via this.clientDownstream.readable.pipeTo()
@@ -327,10 +346,11 @@ export class TCPOverFetchWebsocket {
 			'http'
 		);
 		try {
-			await RawBytesFetch.fetchRawResponseBytes(request).pipeTo(
-				this.clientDownstream.writable
-			);
-		} catch (e) {
+			await RawBytesFetch.fetchRawResponseBytes(
+				request,
+				this.corsProxyUrl
+			).pipeTo(this.clientDownstream.writable);
+		} catch {
 			// Ignore errors from fetch()
 			// They are handled in the constructor
 			// via this.clientDownstream.readable.pipeTo()
@@ -405,11 +425,11 @@ function guessProtocol(port: number, data: Uint8Array) {
 	return 'other';
 }
 
-class RawBytesFetch {
+export class RawBytesFetch {
 	/**
 	 * Streams a HTTP response including the status line and headers.
 	 */
-	static fetchRawResponseBytes(request: Request) {
+	static fetchRawResponseBytes(request: Request, corsProxyUrl?: string) {
 		// This initially used a TransformStream and piped the response
 		// body to the writable side of the TransformStream.
 		//
@@ -419,13 +439,38 @@ class RawBytesFetch {
 			async start(controller) {
 				let response: Response;
 				try {
-					response = await fetch(request);
-					controller.enqueue(RawBytesFetch.headersAsBytes(response));
+					response = await fetchWithCorsProxy(
+						request,
+						undefined,
+						corsProxyUrl
+					);
 				} catch (error) {
+					/**
+					 * Pretend we've got a 400 Bad Request response whenever
+					 * the fetch() call fails.
+					 *
+					 * Just propagating an error and closing a WebSocket does
+					 * not make PHP aware the socket closed abruptly. This means
+					 * the AsyncHttp\Client will keep polling the socket indefinitely
+					 * until the request times out. This isn't perfect, as we want
+					 * to close the socket as soon as possible to avoid, e.g., 10 seconds
+					 * of unnecessary waitin for the timeout
+					 *
+					 * The root cause is unknown and likely related to the low-level
+					 * implementation of polling file descriptors. The following
+					 * workaround is far from ideal, but it must suffice until we
+					 * have a platform-level resolution.
+					 */
+					controller.enqueue(
+						new TextEncoder().encode(
+							'HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n'
+						)
+					);
 					controller.error(error);
 					return;
 				}
 
+				controller.enqueue(RawBytesFetch.headersAsBytes(response));
 				const reader = response.body?.getReader();
 				if (!reader) {
 					controller.close();
@@ -541,6 +586,14 @@ class RawBytesFetch {
 
 		const headersBuffer = inputBuffer.slice(0, headersEndIndex);
 		const parsedHeaders = RawBytesFetch.parseRequestHeaders(headersBuffer);
+		const terminationMode =
+			parsedHeaders.headers.get('Transfer-Encoding') !== null
+				? 'chunked'
+				: 'content-length';
+		const contentLength =
+			parsedHeaders.headers.get('Content-Length') !== null
+				? parseInt(parsedHeaders.headers.get('Content-Length')!, 10)
+				: undefined;
 
 		const bodyBytes = inputBuffer.slice(
 			headersEndIndex + 4 /* Skip \r\n\r\n */
@@ -548,6 +601,9 @@ class RawBytesFetch {
 		let outboundBodyStream: ReadableStream<Uint8Array> | undefined;
 		if (parsedHeaders.method !== 'GET') {
 			const requestBytesReader = requestBytesStream.getReader();
+			let seenBytes = bodyBytes.length;
+			let last5Bytes = bodyBytes.slice(-6);
+			const emptyChunk = new TextEncoder().encode('0\r\n\r\n');
 			outboundBodyStream = new ReadableStream<Uint8Array>({
 				async start(controller) {
 					if (bodyBytes.length > 0) {
@@ -559,16 +615,47 @@ class RawBytesFetch {
 				},
 				async pull(controller) {
 					const { done, value } = await requestBytesReader.read();
-
+					seenBytes += value?.length || 0;
 					if (value) {
 						controller.enqueue(value);
+						last5Bytes = concatUint8Arrays([
+							last5Bytes,
+							value || new Uint8Array(),
+						]).slice(-5);
 					}
-					if (done) {
+					const shouldTerminate =
+						done ||
+						(terminationMode === 'content-length' &&
+							contentLength !== undefined &&
+							seenBytes >= contentLength) ||
+						(terminationMode === 'chunked' &&
+							last5Bytes.every(
+								(byte, index) => byte === emptyChunk[index]
+							));
+					if (shouldTerminate) {
 						controller.close();
 						return;
 					}
 				},
 			});
+
+			if (terminationMode === 'chunked') {
+				// Strip chunked transfer encoding from the request body stream.
+				// PHP may encode the request body with chunked transfer encoding,
+				// giving us a stream of chunks with a size line ending in \r\n,
+				// a body chunk, and a chunk trailer ending in \r\n.
+				//
+				// We must not include the chunk headers and trailers in the
+				// transmitted data. fetch() trusts us to provide the body stream
+				// in its original form and will pass treat the chunked encoding
+				// artifacts as a part of the data to be transmitted to the server.
+				// This, in turn, means sending over a corrupted request body.
+				//
+				// Therefore, let's just strip any chunked encoding-related bytes.
+				outboundBodyStream = outboundBodyStream.pipeThrough(
+					new ChunkedDecoderStream()
+				);
+			}
 		}
 
 		/**

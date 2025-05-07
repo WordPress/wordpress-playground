@@ -1,15 +1,21 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
+import type { SupportedPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import {
 	LatestSupportedPHPVersion,
-	SupportedPHPVersion,
 	SupportedPHPVersions,
-	UniversalPHP,
 } from '@php-wasm/universal';
-import { FileReference, isResourceReference, Resource } from './resources';
-import { Step, StepDefinition, WriteFileStep } from './steps';
+import type { FileReference } from './resources';
+import { isResourceReference, Resource } from './resources';
+import type { Step, StepDefinition, WriteFileStep } from './steps';
 import * as allStepHandlers from './steps/handlers';
-import { Blueprint, ExtraLibrary } from './blueprint';
+import type {
+	BlueprintDeclaration,
+	BlueprintBundle,
+	ExtraLibrary,
+	StreamBundledFile,
+	Blueprint,
+} from './blueprint';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -70,6 +76,46 @@ export interface CompileBlueprintOptions {
 	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/gutenberg.git.
 	 */
 	corsProxy?: string;
+	/**
+	 * A filesystem to use for the blueprint.
+	 */
+	streamBundledFile?: StreamBundledFile;
+}
+
+export async function compileBlueprint(
+	input: BlueprintDeclaration | BlueprintBundle,
+	options: Omit<CompileBlueprintOptions, 'streamBundledFile'> = {}
+): Promise<CompiledBlueprint> {
+	const finalOptions: CompileBlueprintOptions = {
+		...options,
+	};
+
+	let blueprint: BlueprintDeclaration;
+	if (isBlueprintBundle(input)) {
+		blueprint = await getBlueprintDeclaration(input);
+		finalOptions.streamBundledFile = function (...args: [any]) {
+			return input.read(...args);
+		};
+	} else {
+		blueprint = input as BlueprintDeclaration;
+	}
+
+	return compileBlueprintJson(blueprint, finalOptions);
+}
+
+export function isBlueprintBundle(input: any): input is BlueprintBundle {
+	return input && 'read' in input && typeof input.read === 'function';
+}
+
+export async function getBlueprintDeclaration(
+	blueprint: Blueprint
+): Promise<BlueprintDeclaration> {
+	if (!isBlueprintBundle(blueprint)) {
+		return blueprint;
+	}
+	const blueprintFile = await blueprint.read('blueprint.json');
+	const blueprintText = await blueprintFile.text();
+	return JSON.parse(blueprintText);
 }
 
 /**
@@ -80,16 +126,16 @@ export interface CompileBlueprintOptions {
  * @param options Additional options for the compilation
  * @returns The compiled blueprint
  */
-export function compileBlueprint(
-	blueprint: Blueprint,
+function compileBlueprintJson(
+	blueprint: BlueprintDeclaration,
 	{
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
 		corsProxy,
+		streamBundledFile,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
-	// Deep clone the blueprint to avoid mutating the input
 	blueprint = structuredClone(blueprint);
 
 	blueprint = {
@@ -261,6 +307,7 @@ export function compileBlueprint(
 			rootProgressTracker: progress,
 			totalProgressWeight,
 			corsProxy,
+			streamBundledFile,
 		})
 	);
 
@@ -285,7 +332,17 @@ export function compileBlueprint(
 					for (const resource of resources) {
 						resource.setPlayground(playground);
 						if (resource.isAsync) {
-							resource.resolve();
+							resource.resolve().catch(() => {
+								/**
+								 * Catch and ignore the errors.
+								 *
+								 * If we let them bubble up at this stage, they'll turn into uncaught
+								 * rejections and clog the error log.
+								 *
+								 * Instead, let's wait until a step tries to await the resource resolution
+								 * and handle the rejection there.
+								 */
+							});
 						}
 					}
 				}
@@ -295,7 +352,6 @@ export function compileBlueprint(
 						const result = await run(playground);
 						onStepCompleted(result, step);
 					} catch (e) {
-						logger.error(e);
 						throw new Error(
 							`Error when executing the blueprint step #${i} (${JSON.stringify(
 								step
@@ -309,12 +365,16 @@ export function compileBlueprint(
 					await (playground as any).goTo(
 						blueprint.landingPage || '/'
 					);
-				} catch (e) {
-					/*
-					 * PHP exposes no goTo method.
-					 * We can't use `goto` in playground here,
-					 * because it may be a Comlink proxy object
-					 * with no such method.
+				} catch {
+					/**
+					 * Redirecting to the landing page is a browser-only feature for now.
+					 *
+					 * The playground object only exposes the `goTo` method when
+					 * it's a Comlink proxy object running in the browser.
+					 *
+					 * Let's tolerate any errors thrown in other runtimes.
+					 *
+					 * @TODO: Handle "landingPage" in a PHP plugin to make it work in all environments.
 					 */
 				}
 				progress.finish();
@@ -425,6 +485,10 @@ interface CompileStepArgsOptions {
 	 * @see CompileBlueprintOptions.corsProxy
 	 */
 	corsProxy?: string;
+	/**
+	 * A filesystem to use for the "blueprint" resource type.
+	 */
+	streamBundledFile?: StreamBundledFile;
 }
 
 /**
@@ -442,6 +506,7 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 		corsProxy,
+		streamBundledFile,
 	}: CompileStepArgsOptions
 ): { run: CompiledStep; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
@@ -455,6 +520,7 @@ function compileStep<S extends StepDefinition>(
 			value = Resource.create(value, {
 				semaphore,
 				corsProxy,
+				streamBundledFile,
 			});
 		}
 		args[key] = value;

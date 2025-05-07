@@ -26,6 +26,7 @@ export default defineConfig({
 		//            in the app mode.
 		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
+		sourcemap: true,
 		rollupOptions: {
 			input: path('src/index.ts'),
 			// These additional options are required to preserve
@@ -52,5 +53,6 @@ export default defineConfig({
 		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

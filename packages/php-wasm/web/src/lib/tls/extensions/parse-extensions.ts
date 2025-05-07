@@ -3,19 +3,14 @@
  * For the full list of TLS extensions, see
  * https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml */
 import { ArrayBufferReader } from '../utils';
-import { ServerNameExtension, ServerNameList } from './0_server_name';
-import {
-	ParsedSupportedGroups,
-	SupportedGroupsExtension,
-} from './10_supported_groups';
-import {
-	ParsedECPointFormats,
-	ECPointFormatsExtension,
-} from './11_ec_point_formats';
-import {
-	SignatureAlgorithms,
-	SignatureAlgorithmsExtension,
-} from './13_signature_algorithms';
+import type { ServerNameList } from './0_server_name';
+import { ServerNameExtension } from './0_server_name';
+import type { ParsedSupportedGroups } from './10_supported_groups';
+import { SupportedGroupsExtension } from './10_supported_groups';
+import type { ParsedECPointFormats } from './11_ec_point_formats';
+import { ECPointFormatsExtension } from './11_ec_point_formats';
+import type { SignatureAlgorithms } from './13_signature_algorithms';
+import { SignatureAlgorithmsExtension } from './13_signature_algorithms';
 import { ExtensionNames } from './types';
 
 export const TLSExtensionsHandlers = {

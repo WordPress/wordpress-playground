@@ -19,6 +19,9 @@ RUN git clone https://github.com/php/php-src.git php-src \
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
+# Polyfill for dns functions
+COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
@@ -50,6 +53,15 @@ else \
 	cp -r /root/builds-libzip/asyncify/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
 	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 fi
+
+COPY ./libopenssl/ /root/builds-libopenssl/
+RUN mkdir -p /libs/libopenssl
+RUN if [ "$WITH_JSPI" = "yes" ]; then \
+	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
+else \
+	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
+fi
+
 # Build PHP
 
 # The PHP extensions to build:
@@ -57,6 +69,7 @@ ARG WITH_CURL
 ARG WITH_FILEINFO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
+ARG WITH_EXIF
 ARG WITH_GD
 ARG WITH_MBSTRING
 ARG WITH_MBREGEX
@@ -66,6 +79,8 @@ ARG WITH_MYSQL
 ARG WITH_OPENSSL
 ARG WITH_ICONV
 ARG WITH_SOURCEMAPS
+ARG OUTPUT_DIR_FOR_SOURCE_MAP_BASE
+ARG WITH_DEBUG
 ARG WITH_WS_NETWORKING_PROXY
 
 # The platform to build for: web or node
@@ -167,9 +182,7 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	then \
 		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags && \
 		echo -n ' -I ext/pdo_sqlite ' >> /root/.emcc-php-wasm-flags; \
-		if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "4" ]] || [ "${PHP_VERSION:0:1}" -eq "8" ]; then \
-			echo -n ' -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
-		fi; \
+		echo -n ' -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # Add GD if needed
@@ -181,12 +194,13 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 		else \
 			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		fi; \
-		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
+		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -lsharpyuv -ljpeg ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # Add openssl if needed
 RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 	then \
+		cp -r /libs/libopenssl/* /root/lib; \
 		echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
 	fi;
@@ -237,9 +251,18 @@ Cflags: -I${includedir}' > /root/lib/lib/pkgconfig/libcurl.pc; \
 	fi;
 
 # Add mbstring if needed
-RUN if [ "$WITH_MBSTRING" = "yes" ]; \
+# mbstring is required for the exif extension
+RUN if [ "$WITH_MBSTRING" = "yes" ] || [ "$WITH_EXIF" = "yes" ]; \
 	then echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
 	else echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
+	fi;
+
+# Add exif if needed
+RUN if [ "$WITH_EXIF" = "yes" ]; \
+	then \
+		echo -n ' --enable-exif ' >> /root/.php-configure-flags; \
+	else \
+		echo -n ' --disable-exif ' >> /root/.php-configure-flags; \
 	fi;
 
 # Add mbregex if needed
@@ -263,7 +286,10 @@ RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
 	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
-		git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+		( [[ "${PHP_VERSION:0:3}" == '8.4' ]] && \
+			git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v || \
+			git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+		) \
 	) && \
 	touch php-src/patched
 
@@ -314,11 +340,37 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 	--enable-ctype     \
 	--enable-tokenizer \
 	--enable-wasm_memory_storage \
+	--enable-dns_polyfill \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
+
+# 64 bit long support {{{
+# PHP uses custom typedefs for 64 bit integers in many places, e.g.
+# timelib_long is int64_t when __x86_64__ is defined and int32_t otherwise.
+#
+# We're defining __x86_64__ in all emcc calls in this project, which
+# works well, but also has some side effects in the PHP codebase.
+#
+# Specifically, PHP has a lot of inlined asm for 64bit processors that is used
+# when __x86_64__ is defined. Inline asm won't build to WebAssembly so we need to
+# disable every instance of inlined asm.
+RUN echo '#undef HAVE_ASM_GOTO' >> /root/php-src/main/php_config.h;
+RUN echo '#define HAVE_ASM_GOTO 0' >> /root/php-src/main/php_config.h;
+# Disable asm arithmetic.
+RUN if [[ ("${PHP_VERSION:0:1}" -ge "7" && "${PHP_VERSION:2:1}" -ge "4") || "${PHP_VERSION:0:1}" -ge "8" ]]; then \
+		/root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h; \
+	elif [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "3" ]]; then \
+		/root/replace.sh 's/defined\(HAVE_ASM_GOTO\)/0/g' /root/php-src/Zend/zend_operators.h; \
+	elif [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "1" ]]; then \
+		/root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_operators.h; \
+	fi;
+RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h
+RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+# }}}
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function
 RUN /root/replace.sh 's/define php_sleep sleep/define php_sleep wasm_sleep/g' /root/php-src/main/php.h
@@ -363,17 +415,15 @@ RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
+	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
+	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
-COPY ./php/dns_polyfill.c /root/
-COPY ./php/dns_polyfill.h /root/
 COPY ./php/proc_open* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
@@ -384,20 +434,24 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		 cp /root/proc_open7.4.h /root/proc_open.h; \
 	fi
 
-
 ARG WITH_SOURCEMAPS
+ARG OUTPUT_DIR_FOR_SOURCE_MAP_BASE
+ARG WITH_DEBUG
 RUN set -euxo pipefail; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		# Add nodefs when building for node.js
 		echo -n ' -lnodefs.js ' >> /root/.emcc-php-wasm-flags; \
 	fi; \
-	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-		echo -n ' -g3 -gsource-map' >> /root/.emcc-php-wasm-flags; \
-		# Ensure source maps are loaded from the correct URL on the web.
-		# Without this, browsers will try the wasm:// protocol and never load the source map.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
-			export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
-			echo -n ' --source-map-base http://127.0.0.1:5400/@fs/Users/cloudnik/www/Automattic/core/plugins/playground/packages/php-wasm/web/public/${PHP_VERSION_ESCAPED}/' >> /root/.emcc-php-wasm-flags; \
+	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
+		echo -n ' -g3 ' >> /root/.emcc-php-wasm-flags; \
+		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+			echo -n ' -gsource-map' >> /root/.emcc-php-wasm-flags; \
+			# Ensure source maps are loaded from the correct URL on the web.
+			# Without this, browsers will try the wasm:// protocol and never load the source map.
+			if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
+				export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
+				echo -n " --source-map-base http://127.0.0.1:5400/@fs${OUTPUT_DIR_FOR_SOURCE_MAP_BASE}/${PHP_VERSION_ESCAPED}/" >> /root/.emcc-php-wasm-flags; \
+			fi; \
 		fi; \
 	else \
 		# Preserve symbol names in node.js build – the bundle size doesn't matter as much
@@ -519,7 +573,16 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
 
-export ASYNCIFY_ONLY=$'"rc_dtor_func",\
+export ASYNCIFY_ONLY=$'"object_init_ex",\
+"zif_exif_imagetype",\
+"zif_exif_read_data",\
+"zif_exif_thumbnail",\
+"exif_error_docref",\
+"zif_phar_fopen",\
+"zif_phar_file_get_contents",\
+"zend_execute_script",\
+"php_execute_script_ex",\
+"rc_dtor_func",\
 "zif_curl_exec",\
 "curl_easy_perform",\
 "Curl_wait_ms",\
@@ -553,6 +616,11 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "Curl_ssl_connect_nonblocking",\
 "https_connecting",\
 "Curl_readwrite",\
+"zend_fetch_debug_backtrace",\
+"zend_default_exception_new",\
+"zend_throw_exception_zstr",\
+"zend_throw_exception",\
+"zend_type_error",\
 "zend_generator_iterator_move_forward",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_generator_resume",\
@@ -561,6 +629,7 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
 "zend_user_it_get_new_iterator",\
 "ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"ZEND_COUNT_SPEC_CV_UNUSED_HANDLER",\
 "__fwritex",\
 "read",\
 "zif_sleep",\
@@ -644,6 +713,11 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_TMPVAR_HANDLER",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CV_OP_DATA_CV_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CV_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_VAR_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_TMP_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CONST_HANDLER",\
 "cli",\
 "wasm_sleep",\
 "wasm_php_stream_flush",\
@@ -695,6 +769,9 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "mysqlnd_mysqlnd_command_handshake_pub",\
 "mysqlnd_mysqlnd_command_init_db_pub",\
 "mysqlnd_mysqlnd_command_reap_result_pub",\
+"mysqlnd_mysqlnd_command_set_option_pub",\
+"mysqlnd_mysqlnd_command_ping_pub",\
+"mysqlnd_mysqlnd_conn_data_ping_pub",\
 "mysqlnd_mysqlnd_conn_connect_pub",\
 "mysqlnd_mysqlnd_conn_data_connect_handshake_pub",\
 "mysqlnd_mysqlnd_conn_data_connect_pub",\
@@ -703,11 +780,13 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "mysqlnd_mysqlnd_conn_data_reap_query_pub",\
 "mysqlnd_mysqlnd_conn_data_select_db_pub",\
 "mysqlnd_mysqlnd_conn_data_set_charset_pub",\
+"mysqlnd_mysqlnd_conn_data_set_server_option_pub",\
 "mysqlnd_mysqlnd_conn_data_store_result_pub",\
 "mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "mysqlnd_mysqlnd_pfc_receive_pub",\
 "mysqlnd_mysqlnd_pfc_send_pub",\
 "mysqlnd_mysqlnd_protocol_send_command_handle_OK_pub",\
+"mysqlnd_mysqlnd_protocol_send_command_handle_EOF_pub",\
 "mysqlnd_mysqlnd_protocol_send_command_handle_response_pub",\
 "mysqlnd_mysqlnd_protocol_send_command_pub",\
 "mysqlnd_mysqlnd_res_store_result_fetch_data_pub",\
@@ -744,6 +823,7 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "php_cli_server_recv_event_read_request",\
 "php_exec",\
 "php_execute_script",\
+"php_execute_script_ex",\
 "php_fsockopen_stream",\
 "php_getimagesize_from_any",\
 "php_mysqlnd_auth_response_read",\
@@ -840,6 +920,7 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "zend_parse_va_args",\
 "zend_std_call_getter",\
 "zend_std_has_property",\
+"zend_parse_method_parameters",\
 "zend_std_read_property",\
 "zif_array_map",\
 "zif_array_reduce",\
@@ -855,8 +936,10 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "zif_fread",\
 "zif_fsockopen",\
 "zif_getimagesize",\
+"zif_mysqli_ping",\
 "zif_mysqli_begin_transaction",\
 "zif_mysqli_connect",\
+"zif_mysqli_link_construct",\
 "zif_mysqli_data_seek",\
 "zif_mysqli_errno",\
 "zif_mysqli_error",\
@@ -903,6 +986,7 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 "zim_reflection_class_newInstanceArgs",\
 "zim_reflection_method_invoke",\
 "zim_reflection_method_invokeArgs",\
+"zim_mysqli___construct",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
 "ZEND_NEW_SPEC_CONST_UNUSED_HANDLER",\
 "compile_file",\
@@ -930,7 +1014,9 @@ export ASYNCIFY_ONLY=$'"rc_dtor_func",\
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
+ARG WITH_DEBUG
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
@@ -940,7 +1026,7 @@ RUN set -euxo pipefail; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
-	fi; \	
+	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "UTF8ToString", \n\
 "stringToUTF8", \n\
@@ -970,11 +1056,12 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
-	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
+	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
 	-I .  \
 	-I ext   \
 	-I ext/json   \
@@ -983,24 +1070,26 @@ RUN set -euxo pipefail; \
 	-I TSRM/ \
 	-I /root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
+	-D__x86_64__\
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+	-s WASM_BIGINT=1 \
+	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
-	-s ALLOW_MEMORY_GROWTH=1         \
-	-s ASSERTIONS=0                  \
-	-s ERROR_ON_UNDEFINED_SYMBOLS=0  \
-	-s NODEJS_CATCH_EXIT=0           \
-	-s NODEJS_CATCH_REJECTION=0      \
-	-s INVOKE_RUN=0                  \
+	-s ALLOW_MEMORY_GROWTH=1 \
+	-s ASSERTIONS=0 \
+	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
+	-s NODEJS_CATCH_EXIT=0 \
+	-s NODEJS_CATCH_REJECTION=0 \
+	-s INVOKE_RUN=0 \
 	-o /build/output/php.js \
-	-s EXIT_RUNTIME=1                \
+	-s EXIT_RUNTIME=1 \
 	-Wl,--wrap=select \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
-		/root/dns_polyfill.c \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
@@ -1019,6 +1108,7 @@ RUN set -euxo pipefail; \
 #     fi
 
 # Postprocess the build php.js module:
+COPY ./php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
 COPY ./php/esm-prefix.js /root/esm-prefix.js
 COPY ./php/esm-suffix.js /root/esm-suffix.js
 RUN set -euxo pipefail; \
@@ -1048,7 +1138,7 @@ RUN set -euxo pipefail; \
 		# This assumes the traffic is always forwarded to the same target.
 		# However, we want to support arbitrary targets, so we need to
 		# replace the hardcoded websocket target URL with a dynamic callback.
-		/root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
+		/root/replace.sh $'s/if\s*\(\s*SOCKFS\.websocketArgs\[[\'"]url[\'"]\]\s*\)/if("function"===typeof SOCKFS.websocketArgs["url"]) {\nurl = SOCKFS.websocketArgs["url"](...arguments);\n}else if ("string" === typeof SOCKFS.websocketArgs["url"])/g' \
 			/root/output/php.js; \
 		# Enable custom WebSocket constructors to support socket options.
 		/root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
@@ -1086,11 +1176,36 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+	# Patch Emscripten exit status to include a stack trace
+		# Override Emscripten's default ExitStatus class which gets
+		# thrown on failure. Unfortunately, the default object is not
+		# a subclass of Error and does not provide any stack trace.
+		#
+		# This is a deliberate behavior on Emscripten's end to prevent
+		# memory leaks after the program exits. See:
+		#
+		# https://github.com/emscripten-core/emscripten/pull/9108
+		#
+		# In case of WordPress Playground, the worker in which the PHP
+		# runs will typically exit after the PHP program finishes, so
+		# we don't have to worry about memory leaks.
+		/root/replace-across-lines.sh "s/(class\\s+ExitStatus\\s*{\\s*name\\s*=\\s*['\"]ExitStatus['\"];\\s*constructor\\s*\(\\s*status\\s*\)\\s*{\\s*this\\.message\\s*=\\s*\`Program terminated with exit\(\\\${status}\)\`;\s*this\\.status\\s*=\\s*status;?\\s*}\\s*})/\$1\nExitStatus = class PHPExitStatus extends Error {\n	constructor\(status\) {\n		super\(status\);\n		this.name = 'ExitStatus';\n		this.message = 'Program terminated with exit\(' + status + '\)';\n		this.status = status;\n	}\n};/" /root/output/php.js; \
+	# Restore quit handling to Emscripten
+		# Quit callback customization was removed from Emscripten by:
+		# https://github.com/emscripten-core/emscripten/pull/22371
+		# But the alternative `onExit()` handling is conditional and has different semantics.
+		# To avoid bugs due to this change, let's just restore support for quit callback customization.
+		/root/replace.sh "s/(if\s*\(Module\[['\"]thisProgram['\"]\]\)\s*thisProgram\s*=\s*Module\[['\"]thisProgram['\"]\];)/\$1\nif (Module[\"quit\"]) quit_=Module[\"quit\"];/" /root/output/php.js; \
+	# Node.js: Add __dirname declaration and create a require() function
+	# because Emscripten generates Node.js code that requires them.
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			cat /root/esm-node-boilerplate.js >> /root/output/php-module.js; \
+		fi; \
 	# Turn the php.js file into an ES module
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+			echo "const dependencyFilename = path.join(__dirname, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		fi; \
@@ -1111,6 +1226,9 @@ RUN set -euxo pipefail; \
 			# Make the source map paths relative to the .wasm file, not the build directory
 			sed -i 's#"\.\./\.\./root/#"#g' /root/output/php.wasm.map; \
 			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
+		fi; \
+		if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
+			# Make PHP source available for use with step debugger
 			rm -rf /root/php-src/.git; \
 			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
 			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \

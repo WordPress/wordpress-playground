@@ -1,6 +1,7 @@
 import { MenuItem } from '@wordpress/components';
 
-import { PlaygroundClient, zipWpContent } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
+import { zipWpContent } from '@wp-playground/client';
 import saveAs from 'file-saver';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 

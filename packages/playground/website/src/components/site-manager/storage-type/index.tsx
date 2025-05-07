@@ -1,7 +1,7 @@
 import { Icon } from '@wordpress/components';
 import { ClockIcon, folder, layout } from '@wp-playground/components';
 import css from './style.module.css';
-import { SiteStorageType } from '../../../lib/site-metadata';
+import type { SiteStorageType } from '../../../lib/site-metadata';
 
 export function StorageType({ type }: { type: SiteStorageType }) {
 	switch (type) {

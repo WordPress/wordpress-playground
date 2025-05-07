@@ -1,4 +1,4 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -23,7 +23,7 @@ describe('Blueprint step wpCLI', () => {
 			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
 			createFiles: {
 				'/tmp/wp-cli.phar': readFileSync(
-					join(__dirname, '../../test/wp-cli.phar')
+					join(__dirname, '../../../tests/fixtures/wp-cli.phar')
 				),
 			},
 		});

@@ -68,9 +68,9 @@ __webpack_require__.d(__webpack_exports__, {
   shortcutAriaLabel: () => (/* binding */ shortcutAriaLabel)
 });
 
-;// CONCATENATED MODULE: external ["wp","i18n"]
+;// external ["wp","i18n"]
 const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
-;// CONCATENATED MODULE: ./node_modules/@wordpress/keycodes/build-module/platform.js
+;// ./node_modules/@wordpress/keycodes/build-module/platform.js
 /**
  * Return true if platform is MacOS.
  *
@@ -91,7 +91,7 @@ function isAppleOS(_window = null) {
   return platform.indexOf('Mac') !== -1 || ['iPad', 'iPhone'].includes(platform);
 }
 
-;// CONCATENATED MODULE: ./node_modules/@wordpress/keycodes/build-module/index.js
+;// ./node_modules/@wordpress/keycodes/build-module/index.js
 /**
  * Note: The order of the modifier keys in many of the [foo]Shortcut()
  * functions in this file are intentional and should not be changed. They're
@@ -294,7 +294,8 @@ const modifiers = {
  * @type {WPModifierHandler<WPKeyHandler<string>>} Keyed map of functions to raw
  *                                                 shortcuts.
  */
-const rawShortcut = mapValues(modifiers, ( /** @type {WPModifier} */modifier) => {
+const rawShortcut = /* @__PURE__ */
+mapValues(modifiers, (/** @type {WPModifier} */modifier) => {
   return /** @type {WPKeyHandler<string>} */(character, _isApple = isAppleOS) => {
     return [...modifier(_isApple), character.toLowerCase()].join('+');
   };
@@ -313,7 +314,8 @@ const rawShortcut = mapValues(modifiers, ( /** @type {WPModifier} */modifier) =>
  * @type {WPModifierHandler<WPKeyHandler<string[]>>} Keyed map of functions to
  *                                                   shortcut sequences.
  */
-const displayShortcutList = mapValues(modifiers, ( /** @type {WPModifier} */modifier) => {
+const displayShortcutList = /* @__PURE__ */
+mapValues(modifiers, (/** @type {WPModifier} */modifier) => {
   return /** @type {WPKeyHandler<string[]>} */(character, _isApple = isAppleOS) => {
     const isApple = _isApple();
     const replacementKeyMap = {
@@ -349,7 +351,8 @@ const displayShortcutList = mapValues(modifiers, ( /** @type {WPModifier} */modi
  * @type {WPModifierHandler<WPKeyHandler<string>>} Keyed map of functions to
  *                                                 display shortcuts.
  */
-const displayShortcut = mapValues(displayShortcutList, ( /** @type {WPKeyHandler<string[]>} */shortcutList) => {
+const displayShortcut = /* @__PURE__ */
+mapValues(displayShortcutList, (/** @type {WPKeyHandler<string[]>} */shortcutList) => {
   return /** @type {WPKeyHandler<string>} */(character, _isApple = isAppleOS) => shortcutList(character, _isApple).join('');
 });
 
@@ -367,7 +370,8 @@ const displayShortcut = mapValues(displayShortcutList, ( /** @type {WPKeyHandler
  * @type {WPModifierHandler<WPKeyHandler<string>>} Keyed map of functions to
  *                                                 shortcut ARIA labels.
  */
-const shortcutAriaLabel = mapValues(modifiers, ( /** @type {WPModifier} */modifier) => {
+const shortcutAriaLabel = /* @__PURE__ */
+mapValues(modifiers, (/** @type {WPModifier} */modifier) => {
   return /** @type {WPKeyHandler<string>} */(character, _isApple = isAppleOS) => {
     const isApple = _isApple();
     /** @type {Record<string,string>} */
@@ -401,7 +405,7 @@ const shortcutAriaLabel = mapValues(modifiers, ( /** @type {WPModifier} */modifi
  * @return {Array<WPModifierPart>} Active modifier constants.
  */
 function getEventModifiers(event) {
-  return /** @type {WPModifierPart[]} */[ALT, CTRL, COMMAND, SHIFT].filter(key => event[( /** @type {'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'} */
+  return /** @type {WPModifierPart[]} */[ALT, CTRL, COMMAND, SHIFT].filter(key => event[(/** @type {'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'} */
   `${key}Key`)]);
 }
 
@@ -419,7 +423,8 @@ function getEventModifiers(event) {
  * @type {WPModifierHandler<WPEventKeyHandler>} Keyed map of functions
  *                                                       to match events.
  */
-const isKeyboardEvent = mapValues(modifiers, ( /** @type {WPModifier} */getModifiers) => {
+const isKeyboardEvent = /* @__PURE__ */
+mapValues(modifiers, (/** @type {WPModifier} */getModifiers) => {
   return /** @type {WPEventKeyHandler} */(event, character, _isApple = isAppleOS) => {
     const mods = getModifiers(_isApple);
     const eventMods = getEventModifiers(event);
@@ -438,7 +443,7 @@ const isKeyboardEvent = mapValues(modifiers, ( /** @type {WPModifier} */getModif
     }
     let key = event.key.toLowerCase();
     if (!character) {
-      return mods.includes( /** @type {WPModifierPart} */key);
+      return mods.includes(/** @type {WPModifierPart} */key);
     }
     if (event.altKey && character.length === 1) {
       key = String.fromCharCode(event.keyCode).toLowerCase();

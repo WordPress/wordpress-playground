@@ -1,8 +1,6 @@
 import { ServerNameExtension } from '../extensions/0_server_name';
 import { CipherSuitesNames } from '../cipher-suites';
 import { CipherSuites } from '../cipher-suites';
-import { SupportedGroupsExtension } from '../extensions/10_supported_groups';
-import { ECPointFormatsExtension } from '../extensions/11_ec_point_formats';
 import { parseClientHelloExtensions } from '../extensions/parse-extensions';
 import {
 	ArrayBufferReader,
@@ -14,14 +12,10 @@ import {
 import {
 	HashAlgorithms,
 	SignatureAlgorithms,
-	SignatureAlgorithmsExtension,
 } from '../extensions/13_signature_algorithms';
 import { tls12Prf } from './prf';
-import {
-	CompressionMethod,
+import type {
 	SessionKeys,
-	HandshakeType,
-	ContentTypes,
 	HandshakeMessage,
 	ClientHello,
 	ClientKeyExchange,
@@ -32,10 +26,15 @@ import {
 	TLSMessage,
 	ContentType,
 	TLSRecord,
-	AlertLevelNames,
-	AlertDescriptionNames,
 	HandshakeMessageBody,
 	HelloRequest,
+} from './types';
+import {
+	CompressionMethod,
+	HandshakeType,
+	ContentTypes,
+	AlertLevelNames,
+	AlertDescriptionNames,
 	ECCurveTypes,
 	ECNamedCurves,
 } from './types';
@@ -258,27 +257,27 @@ export class TLS_1_2_Connection {
 		this.closed = true;
 		try {
 			await this.clientDownstreamWriter.close();
-		} catch (e) {
+		} catch {
 			// Ignore
 		}
 		try {
 			await this.clientUpstreamReader.cancel();
-		} catch (e) {
+		} catch {
 			// Ignore
 		}
 		try {
 			await this.serverUpstreamWriter.close();
-		} catch (e) {
+		} catch {
 			// Ignore
 		}
 		try {
 			await this.clientEnd.upstream.readable.cancel();
-		} catch (e) {
+		} catch {
 			// Ignore
 		}
 		try {
 			await this.clientEnd.downstream.writable.close();
-		} catch (e) {
+		} catch {
 			// Ignore
 		}
 	}
@@ -445,19 +444,19 @@ export class TLS_1_2_Connection {
 	}
 
 	private async readNextHandshakeMessage(
-		messageType: HandshakeType.ClientHello
+		messageType: typeof HandshakeType.ClientHello
 	): Promise<HandshakeMessage<ClientHello>>;
 	private async readNextHandshakeMessage(
-		messageType: HandshakeType.ClientKeyExchange
+		messageType: typeof HandshakeType.ClientKeyExchange
 	): Promise<HandshakeMessage<ClientKeyExchange>>;
 	private async readNextHandshakeMessage(
-		messageType: HandshakeType.Finished
+		messageType: typeof HandshakeType.Finished
 	): Promise<HandshakeMessage<Finished>>;
 	private async readNextHandshakeMessage(
 		messageType:
-			| HandshakeType.ClientHello
-			| HandshakeType.ClientKeyExchange
-			| HandshakeType.Finished
+			| typeof HandshakeType.ClientHello
+			| typeof HandshakeType.ClientKeyExchange
+			| typeof HandshakeType.Finished
 	): Promise<HandshakeMessage<any>> {
 		const message = await this.readNextMessage(ContentTypes.Handshake);
 		if (message.msg_type !== messageType) {
@@ -1171,19 +1170,6 @@ class MessageEncoder {
 						 * Source: dfile:///Users/cloudnik/Library/Application%20Support/Dash/User%20Contributed/RFCs/RFCs.docset/Contents/Resources/Documents/rfc6066.html#section-3
 						 */
 						return ServerNameExtension.encodeForClient();
-					case 'supported_groups':
-						return SupportedGroupsExtension.encodeForClient(
-							'secp256r1'
-						);
-					case 'ec_point_formats':
-						return ECPointFormatsExtension.encodeForClient(
-							'uncompressed'
-						);
-					case 'signature_algorithms':
-						return SignatureAlgorithmsExtension.encodeforClient(
-							'sha256',
-							'rsa'
-						);
 				}
 				return undefined;
 			})

@@ -1,5 +1,5 @@
-import { PHPResponse } from '@php-wasm/universal';
-import { StepHandler } from '.';
+import type { PHPResponse } from '@php-wasm/universal';
+import type { StepHandler } from '.';
 
 /**
  * @inheritDoc runPHP

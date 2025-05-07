@@ -1,27 +1,61 @@
-import { Blueprint } from '@wp-playground/client';
+import type {
+	BlueprintDeclaration,
+	BlueprintBundle,
+	Blueprint,
+	StepDefinition,
+} from '@wp-playground/client';
+import {
+	getBlueprintDeclaration,
+	isBlueprintBundle,
+	resolveRemoteBlueprint,
+} from '@wp-playground/client';
 import { parseBlueprint } from './router';
+import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 
-export async function resolveBlueprintFromURL(url: URL) {
+export type BlueprintSource =
+	| {
+			type: 'remote-url';
+			url: string;
+	  }
+	| {
+			type: 'inline-string';
+	  }
+	| {
+			type: 'none';
+	  };
+
+export type ResolvedBlueprint = {
+	blueprint: Blueprint;
+	source: BlueprintSource;
+};
+
+export async function resolveBlueprintFromURL(
+	url: URL
+): Promise<ResolvedBlueprint> {
 	const query = url.searchParams;
 	const fragment = decodeURI(url.hash || '#').substring(1);
 
-	let blueprint: Blueprint;
+	let blueprint: BlueprintDeclaration | BlueprintBundle;
+	let source: BlueprintSource;
 	/*
 	 * Support passing blueprints via query parameter, e.g.:
 	 * ?blueprint-url=https://example.com/blueprint.json
 	 */
 	if (query.has('blueprint-url')) {
-		const url = query.get('blueprint-url');
-		const response = await fetch(url!, {
-			credentials: 'omit',
-		});
-		blueprint = await response.json();
+		blueprint = await resolveRemoteBlueprint(query.get('blueprint-url')!);
+		source = {
+			type: 'remote-url',
+			url: query.get('blueprint-url')!,
+		};
 	} else if (fragment.length) {
 		/*
 		 * Support passing blueprints in the URI fragment, e.g.:
 		 * /#{"landingPage": "/?p=4"}
 		 */
 		blueprint = parseBlueprint(fragment);
+		source = {
+			type: 'inline-string',
+		};
 	} else {
 		const importWxrQueryArg =
 			query.get('import-wxr') || query.get('import-content');
@@ -33,30 +67,36 @@ export async function resolveBlueprintFromURL(url: URL) {
 			plugins: query.getAll('plugin'),
 			steps: [
 				importWxrQueryArg &&
-					/^(http(s?)):\/\//i.test(importWxrQueryArg) && {
+					/^(http(s?)):\/\//i.test(importWxrQueryArg) &&
+					({
 						step: 'importWxr',
 						file: {
 							resource: 'url',
 							url: importWxrQueryArg,
 						},
-					},
+					} as StepDefinition),
 				query.get('import-site') &&
-					/^(http(s?)):\/\//i.test(query.get('import-site')!) && {
+					/^(http(s?)):\/\//i.test(query.get('import-site')!) &&
+					({
 						step: 'importWordPressFiles',
 						wordPressFilesZip: {
 							resource: 'url',
 							url: query.get('import-site')!,
 						},
-					},
-				query.get('theme') && {
-					step: 'installTheme',
-					themeData: {
-						resource: 'wordpress.org/themes',
-						slug: query.get('theme')!,
-					},
-					progress: { weight: 2 },
-				},
-			],
+					} as StepDefinition),
+				query.get('theme') &&
+					({
+						step: 'installTheme',
+						themeData: {
+							resource: 'wordpress.org/themes',
+							slug: query.get('theme')!,
+						},
+						progress: { weight: 2 },
+					} as StepDefinition),
+			].filter(Boolean),
+		};
+		source = {
+			type: 'none',
 		};
 	}
 
@@ -64,7 +104,26 @@ export async function resolveBlueprintFromURL(url: URL) {
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.
 	 */
+	if (isBlueprintBundle(blueprint)) {
+		let blueprintObject = await getBlueprintDeclaration(blueprint);
+		blueprintObject = applyQueryOverrides(blueprintObject, query);
+		blueprint = new OverlayFilesystem([
+			new InMemoryFilesystem({
+				'blueprint.json': JSON.stringify(blueprintObject),
+			}),
+			blueprint,
+		]);
+	} else {
+		blueprint = applyQueryOverrides(blueprint, query);
+	}
 
+	return { blueprint, source };
+}
+
+function applyQueryOverrides(
+	blueprint: BlueprintDeclaration,
+	query: URLSearchParams
+): BlueprintDeclaration {
 	// PHP and WordPress versions
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;

@@ -50,16 +50,13 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/nx-extensions"],
 			"options": {
-				"jestConfig": "packages/nx-extensions/jest.config.ts",
-				"passWithNoTests": true
-			},
-			"configurations": {
-				"ci": {
-					"ci": true,
-					"codeCoverage": true
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/nx-extensions",
+				"typecheck": {
+					"tsconfig": "{projectRoot}/tsconfig.spec.json"
 				}
 			}
 		},

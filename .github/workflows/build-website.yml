@@ -22,7 +22,8 @@ jobs:
                 github.actor == 'dmsnell' ||
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl'
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes'
             )
 
         # Specify runner + deployment step
@@ -57,15 +58,14 @@ jobs:
                     dist/packages/playground/wasm-wordpress-net/ \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
 
+                  # Include MIME types for use with PHP-served files
+                  cp packages/php-wasm/universal/src/lib/mime-types.json \
+                    packages/playground/website-deployment/
+
                   # Host-specific deployment scripts and server config
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     packages/playground/website-deployment/ \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
-
-                  # Copy MIME types for use with PHP-served files
-                  scp -i ~/.ssh/id_ed25519 \
-                    packages/php-wasm/universal/src/lib/mime-types.json \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment/'
 
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \

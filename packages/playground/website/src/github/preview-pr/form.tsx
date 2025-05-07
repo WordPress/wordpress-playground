@@ -4,7 +4,7 @@ import { Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
-import type { Blueprint } from '@wp-playground/blueprints';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 
 interface PreviewPRFormProps {
 	onClose: () => void;
@@ -13,16 +13,20 @@ interface PreviewPRFormProps {
 
 const urlParams = new URLSearchParams(window.location.search);
 
+// This structure is from plugin-proxy.php
+// where we set allowed inputs for WordPress and Gutenberg repositories
 export const targetParams = {
 	wordpress: {
 		repo: 'wordpress-develop',
 		workflow: 'Test%20Build%20Processes',
 		artifact: 'wordpress-build-',
+		pull: 'github.com/wordpress/wordpress-develop/pull',
 	},
 	gutenberg: {
 		repo: 'gutenberg',
 		workflow: 'Build%20Gutenberg%20Plugin%20Zip',
 		artifact: 'gutenberg-plugin',
+		pull: 'github.com/wordpress/gutenberg/pull',
 	},
 };
 
@@ -70,14 +74,7 @@ export default function PreviewPRForm({
 		setSubmitting(true);
 
 		// Extract number from a GitHub URL
-		if (
-			prNumber
-				.toLowerCase()
-				.includes('github.com/wordpress/wordpress-develop/pull') ||
-			prNumber
-				.toLowerCase()
-				.includes('github.com/wordpress/gutenberg/pull')
-		) {
+		if (prNumber.toLowerCase().includes(targetParams[target].pull)) {
 			prNumber = prNumber.match(/\/pull\/(\d+)/)![1];
 		}
 
@@ -148,7 +145,7 @@ export default function PreviewPRForm({
 		}
 
 		// Redirect to the Playground site with the Blueprint to download and apply the PR
-		const blueprint: Blueprint = {
+		const blueprint: BlueprintDeclaration = {
 			landingPage: urlParams.get('url') || '/wp-admin',
 			login: true,
 			features: {

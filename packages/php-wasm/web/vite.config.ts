@@ -80,6 +80,7 @@ export default defineConfig(({ command }) => {
 				fileName: 'index',
 				formats: ['es'],
 			},
+			sourcemap: true,
 			rollupOptions: {
 				// Don't bundle the PHP loaders in the final build. See
 				// the preserve-php-loaders-imports plugin above.
@@ -98,6 +99,7 @@ export default defineConfig(({ command }) => {
 			},
 			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
 	};
 });

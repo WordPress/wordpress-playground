@@ -1,5 +1,5 @@
-import { FilesystemOperation } from '@php-wasm/fs-journal';
-import { PlaygroundClient } from '@wp-playground/client';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import type { PlaygroundClient } from '@wp-playground/client';
 
 export async function journalFSOperations(
 	playground: PlaygroundClient,

@@ -1,8 +1,8 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 /** @ts-ignore */
 import rewriteWpConfigToDefineConstants from './rewrite-wp-config-to-define-constants.php?raw';
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * @inheritDoc defineWpConfigConsts

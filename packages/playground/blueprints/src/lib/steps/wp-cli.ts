@@ -1,7 +1,7 @@
-import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
-import { StepHandler } from '.';
+import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import type { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import { FileReference } from '../resources';
+import type { FileReference } from '../resources';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';
 export const defaultWpCliResource: FileReference = {
@@ -42,8 +42,7 @@ export const assertWpCli = async (
  * <code>
  * {
  * 		"step": "wp-cli",
- * 		"command": "wp post create --post_title='Test post' --post_excerpt='Some
- * 		content'"
+ * 		"command": "wp post create --post_title='Test post' --post_excerpt='Some content'"
  * }
  * </code>
  */

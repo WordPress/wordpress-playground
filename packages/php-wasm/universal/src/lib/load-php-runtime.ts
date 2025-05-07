@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import { IncomingMessage, Server, ServerResponse } from 'http';
+import type { IncomingMessage, Server, ServerResponse } from 'http';
 
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
@@ -147,7 +147,7 @@ export async function loadPHPRuntime(
 		noInitialRun: true,
 		onRuntimeInitialized() {
 			if (phpModuleArgs.onRuntimeInitialized) {
-				phpModuleArgs.onRuntimeInitialized();
+				phpModuleArgs.onRuntimeInitialized(PHPRuntime);
 			}
 			resolvePHP();
 		},
@@ -157,6 +157,8 @@ export async function loadPHPRuntime(
 
 	const id = ++lastRuntimeId;
 
+	// TODO: Ask @adamziel why this is here.
+	// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- why is this here?
 	PHPRuntime.FS;
 	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;
@@ -241,7 +243,7 @@ export type EmscriptenOptions = {
 	print?: (message: string) => void;
 	printErr?: (message: string) => void;
 	quit?: (status: number, toThrow: any) => void;
-	onRuntimeInitialized?: () => void;
+	onRuntimeInitialized?: (phpRuntime: PHPRuntime) => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
 	outboundNetworkProxyServer?: Server<

@@ -12,10 +12,8 @@ import {
 	selectSiteBySlug,
 	updateSiteMetadata,
 } from '../../../lib/state/redux/slice-sites';
-import {
-	SiteFormData,
-	UnconnectedSiteSettingsForm,
-} from './unconnected-site-settings-form';
+import type { SiteFormData } from './unconnected-site-settings-form';
+import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
 
 export function StoredSiteSettingsForm({
 	siteSlug,

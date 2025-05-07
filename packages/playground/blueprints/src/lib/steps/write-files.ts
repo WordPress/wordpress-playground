@@ -1,6 +1,6 @@
 import { writeFiles as writeFilesToPhpWasm } from '@php-wasm/universal';
-import { StepHandler } from '.';
-import { Directory } from '../resources';
+import type { StepHandler } from '.';
+import type { Directory } from '../resources';
 
 /**
  * @inheritDoc writeFiles

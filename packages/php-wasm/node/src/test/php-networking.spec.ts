@@ -168,7 +168,6 @@ describe.each(SupportedPHPVersions)(
 					var_dump(array_key_exists('8.3', $json));
 					`,
 				});
-				console.log(text);
 				expect(text).toContain('bool(true)');
 			});
 

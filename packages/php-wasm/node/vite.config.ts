@@ -29,6 +29,7 @@ export default defineConfig(function () {
 				fileName: 'index',
 				formats: ['es'],
 			},
+			sourcemap: true,
 			rollupOptions: {
 				// Don't bundle the PHP loaders in the final build. See
 				// the preserve-php-loaders-imports plugin above.
@@ -45,8 +46,16 @@ export default defineConfig(function () {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			poolOptions: {
+				// This is needed to allow `--expose-gc` to be passed to the
+				// forked test process.
+				forks: {
+					execArgv: ['--expose-gc'],
+				},
+			},
+			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
 
 		define: {

@@ -1,42 +1,57 @@
 import { configureStore, createSelector } from '@reduxjs/toolkit';
+import type { SiteError } from './slice-ui';
 import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
-	SiteError,
 } from './slice-ui';
+import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
 	selectSiteBySlug,
 	selectTemporarySites,
-	SiteInfo,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
-import clientsReducer, {
-	ClientInfo,
-	selectAllClientInfo,
-} from './slice-clients';
-import { GetDefaultMiddleware } from '@reduxjs/toolkit/dist/getDefaultMiddleware';
+import type { ClientInfo } from './slice-clients';
+import clientsReducer, { selectAllClientInfo } from './slice-clients';
 import { useDispatch, useSelector } from 'react-redux';
 
-const ignoreSerializableCheck = (getDefaultMiddleware: GetDefaultMiddleware) =>
-	getDefaultMiddleware({
+// NOTE: A GetDefaultMiddleware type is not exported from @reduxjs/toolkit,
+// so we have to derive it from the configureStore() signature.
+type ConfigureStoreOptions<T> = Parameters<typeof configureStore<T>>[0];
+type ConfigureStoreOptionsMiddleware<T> = NonNullable<
+	ConfigureStoreOptions<T>['middleware']
+>;
+type GetDefaultMiddleware<T> = Parameters<
+	ConfigureStoreOptionsMiddleware<T>
+>[0];
+
+function ignoreSerializableCheck<S>(
+	getDefaultMiddleware: GetDefaultMiddleware<S>
+) {
+	return getDefaultMiddleware({
 		serializableCheck: {
 			// Ignore these action types
 			ignoredActions: [
 				'clients/addClientInfo',
 				'clients/updateClientInfo',
+				'sites/addSite',
+				'sites/setFirstTemporarySiteCreated',
+				'ui/setActiveSite',
 			],
 			// Ignore these field paths in all actions
 			ignoredActionPaths: [
 				/payload\.(changes\.)?client/,
 				/payload\.(changes\.)?opfsMountDescriptor\.device\.handle/,
+				/.+\.originalBlueprint/,
 			],
 			// Ignore these paths in the state
 			ignoredPaths: [
 				/clients\.entities\.[^.]+\.client/,
 				/clients\.entities\.[^.]+\.opfsMountDescriptor\.device\.handle/,
+				/.+\.originalBlueprint/,
 			],
 		},
 	});
+}
 
 const store = configureStore({
 	reducer: {

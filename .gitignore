@@ -14,7 +14,6 @@ packages/docs/site/src/model.json
 dist.zip
 rollup.d.ts
 .phpunit.cache
-packages/playground/data-liberation/vendor
 
 # dependencies
 node_modules
@@ -61,3 +60,8 @@ php.js.bak
 **/test-results/
 **/playwright-report/
 **/blob-report/
+
+# @php-wasm/cli saves this file to disk so PHP has access to it.
+# Since it is dynamically generated from the Node.js TLS module,
+# we do not want to commit it to the repository.
+packages/php-wasm/cli/src/ca-bundle.crt

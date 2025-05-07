@@ -49,6 +49,7 @@ export default defineConfig({
 		//            in the app mode.
 		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
+		sourcemap: true,
 		rollupOptions: {
 			external: getExternalModules(),
 			input: path('src/index.ts'),
@@ -76,5 +77,6 @@ export default defineConfig({
 		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

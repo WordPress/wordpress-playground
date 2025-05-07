@@ -4,10 +4,8 @@
 		"rootDir": ".",
 		"sourceMap": true,
 		"declaration": false,
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"esModuleInterop": true,
-		"emitDecoratorMetadata": true,
-		"experimentalDecorators": true,
 		"importHelpers": true,
 		"resolveJsonModule": true,
 		"jsx": "react",
@@ -74,7 +72,7 @@
 			"@wp-playground/wordpress-builds": [
 				"packages/playground/wordpress-builds/src/index.ts"
 			],
-			"isomorphic-git": ["./isomorphic-git/src"]
+			"isomorphic-git": ["./isomorphic-git"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]

@@ -1,9 +1,6 @@
-import { PHP } from '@php-wasm/universal';
-import {
-	SQLJournalEntry,
-	installSqlSyncMuPlugin,
-	journalSQLQueries,
-} from '../sql';
+import type { PHP } from '@php-wasm/universal';
+import type { SQLJournalEntry } from '../sql';
+import { installSqlSyncMuPlugin, journalSQLQueries } from '../sql';
 import {
 	getSqliteDatabaseModule,
 	getWordPressModule,

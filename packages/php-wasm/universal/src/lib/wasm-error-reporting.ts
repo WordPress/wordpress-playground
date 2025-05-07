@@ -168,7 +168,7 @@ function extractPHPFunctionsFromStack(stack: string) {
 			)
 			.map(({ fn }) => fn);
 		return Array.from(new Set(names));
-	} catch (err) {
+	} catch {
 		return [];
 	}
 }

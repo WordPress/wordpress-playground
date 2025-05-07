@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/cli",
-	"version": "1.0.14",
+	"version": "1.0.32",
 	"description": "WordPress Playground CLI",
 	"repository": {
 		"type": "git",
@@ -21,7 +21,7 @@
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"main": "main.js",
+	"main": "index.js",
 	"bin": "wp-playground.js",
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }

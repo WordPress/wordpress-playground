@@ -1,7 +1,7 @@
 /* eslint-disable @nx/enforce-module-boundaries */
 import { PHP } from '@php-wasm/universal';
+import type { FilesystemOperation } from '../lib/fs-journal';
 import {
-	FilesystemOperation,
 	journalFSEvents,
 	normalizeFilesystemOperations,
 	recordExistingPath,

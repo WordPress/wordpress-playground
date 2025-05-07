@@ -1,5 +1,5 @@
-import { PHP } from './php';
-import { PHPEvent } from './universal-php';
+import type { PHP } from './php';
+import type { PHPEvent } from './universal-php';
 
 export interface RotateOptions {
 	php: PHP;
@@ -42,7 +42,7 @@ export function rotatePHPRuntime({
 	async function rotateRuntime() {
 		const release = await php.semaphore.acquire();
 		try {
-			php.hotSwapPHPRuntime(await recreateRuntime(), cwd);
+			await php.hotSwapPHPRuntime(await recreateRuntime(), cwd);
 
 			// A new runtime has handled zero requests.
 			runtimeRequestCount = 0;

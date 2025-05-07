@@ -1,4 +1,4 @@
-import { PHP, UniversalPHP } from '@php-wasm/universal';
+import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
 export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
@@ -147,6 +147,26 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			if (!$user) {
 				return;
 			}
+
+			/**
+			 * We're about to set cookies and redirect. It will log the user in
+			 * if the headers haven't been sent yet.
+			 *
+			 * However, if they have been sent already – e.g. there a PHP
+			 * notice was printed, we'll exit the script with a bunch of errors
+			 * on the screen and without the user being logged in. This
+			 * will happen on every page load and will effectively make Playground
+			 * unusable.
+			 *
+			 * Therefore, we just won't auto-login if headers have been sent. Maybe
+			 * we'll be able to finish the operation in one of the future requests
+			 * or maybe not, but at least we won't end up with a permanent white screen.
+			 */
+			if (headers_sent()) {
+				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
+				return;
+			}
+
 			/**
 			 * This approach is described in a comment on
 			 * https://developer.wordpress.org/reference/functions/wp_set_current_user/
@@ -154,7 +174,17 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			wp_set_current_user( $user->ID, $user->user_login );
 			wp_set_auth_cookie( $user->ID );
 			do_action( 'wp_login', $user->user_login, $user );
+
 			setcookie('playground_auto_login_already_happened', '1');
+
+			/**
+			 * Confirm that nothing in WordPress, plugins, or filters have finalized
+			 * the headers sending phase. See the comment above for more context.
+			 */
+			if (headers_sent()) {
+				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
+				return;
+			}
 
 			/**
 			 * Reload page to ensure the user is logged in correctly.
@@ -232,17 +262,6 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 				$playground_consts = array_keys($playground_consts);
 			}
 			set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
-				/**
-				 * This is a temporary workaround to hide the 32bit integer warnings that
-				 * appear when using various time related function, such as strtotime and mktime.
-				 * Examples of the warnings that are displayed:
-				 *
-				 * Warning: mktime(): Epoch doesn't fit in a PHP integer in <file>
-				 * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
-				 */
-				if (strpos($message, "fit in a PHP integer") !== false) {
-					return;
-				}
 				/**
 				 * Networking support in Playground registers a http_api_transports filter.
 				 *

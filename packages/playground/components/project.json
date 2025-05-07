@@ -22,6 +22,10 @@
 			},
 			"dependsOn": ["^build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"dev": {
 			"executor": "@nx/vite:dev-server",
 			"defaultConfiguration": "development",
