@@ -264,6 +264,20 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
+// Copy data files
+const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
+const publicDir =
+	platform === 'node'
+		? `${path.dirname(outputDir)}`
+		: `${path.dirname(path.dirname(outputDir))}`;
+if (getArg('WITH_INTL').endsWith('yes')) {
+	await asyncSpawn(
+		'cp',
+		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+}
+
 const _args = args;
 
 function asyncSpawn(...args) {

@@ -8,6 +8,17 @@ try {
 	// Ignore
 }
 
+try {
+	fs.mkdirSync('dist/packages/php-wasm/node/shared');
+
+	fs.copyFileSync(
+		'packages/php-wasm/node/shared/icudt74l.dat',
+		'dist/packages/php-wasm/node/shared/icudt74l.dat'
+	);
+} catch (e) {
+	// Ignore
+}
+
 /**
  * This is a naive, best effort dirname/filename replacement plugin.
  *

@@ -20,12 +20,6 @@ RUN git clone https://github.com/php/php-src.git php-src \
 COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
 
-# Work around to add ICU FLAGS to intl below 7.2 to inject -fPIC.
-RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "2" ]]; then \
-		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
-	fi;
-
-
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
@@ -95,8 +89,7 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.emcc-php-wasm-sources && \
 	touch /root/.emcc-php-wasm-flags && \
-	touch /root/.EXPORTED_FUNCTIONS && \
-	touch /root/.env.js
+	touch /root/.EXPORTED_FUNCTIONS
 
 # Grab Bison 2.7 patch in case we need it
 COPY ./bison2.7/bison27.patch /root/bison27.patch
@@ -268,13 +261,12 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 	else echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
 	fi;
 
-# # Add intl if needed
+# Add intl if needed
 RUN if [ "$WITH_INTL" = "yes" ]; \
 	then \
-		if [ "${PHP_VERSION:0:1}" -eq "8" ] || [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+		if [ "${PHP_VERSION:0:1}" -eq "8" ] || [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "2" ]]; then \
 			echo -n ' --enable-intl ' >> /root/.php-configure-flags; \
-			echo -n ' -licuuc -licudata -licui18n -licuio --preload-file /root/lib/data@/internal/shared/preload ' >> /root/.emcc-php-wasm-flags; \
-			echo " Module.preRun = Module.preRun || []; Module.preRun = typeof Module.preRun == 'function' ? [ Module.preRun ] : Module.preRun; Module.preRun.push(() => ENV.ICU_DATA = ENV.ICU_DATA || '/internal/shared/preload'); " >> /root/.env.js; \
+			echo -n ' -licuuc -licudata -licui18n -licuio ' >> /root/.emcc-php-wasm-flags; \
 
 			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
 				/root/replace.sh 's/UBool operator/bool operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.h; \
@@ -282,7 +274,7 @@ RUN if [ "$WITH_INTL" = "yes" ]; \
 				/root/replace.sh 's/ getArg/ phpGetArg/g; s/::getArg/::phpGetArg/g; s/ getMessage/ phpGetMessage/g; s/::getMessage/::phpGetMessage/g' /root/php-src/ext/intl/msgformat/msgformat_helpers.cpp; \
 			fi; \
 
-			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "2" ]]; then \
+			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
 				files=( /root/php-src/ext/intl/collator/collator_sort.c /root/php-src/ext/intl/normalizer/normalizer_normalize.c /root/php-src/ext/intl/dateformat/dateformat_attr.c /root/php-src/ext/intl/timezone/timezone_class.cpp /root/php-src/ext/intl/timezone/timezone_methods.cpp /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp ); \
 				for file in "${files[@]}"; do /root/replace.sh 's/\bFALSE\b/false/g; s/\bTRUE\b/true/g' "$file"; done; \
 			fi; \
@@ -326,7 +318,7 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-ICU_CFLAGS="-fPIC" \
+ICU_CFLAGS="-fPIC -I/root/lib/include" \
 CURL_CFLAGS="-I/root/lib/include" \
 WEBP_LIBS="-L/root/lib/lib" \
 WEBP_CFLAGS="-I/root/lib/include" \
@@ -384,11 +376,6 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
 	fi;
 
-# PHP <= 7.1 has to disable ZEND_BROKEN_SPRINTF in order to enable intl.
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "1" ]]; then \
-		/root/replace.sh 's/define ZEND_BROKEN_SPRINTF 1/define ZEND_BROKEN_SPRINTF 0/g' /root/php-src/main/php_config.h; \
-	fi;
-
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
 
@@ -411,7 +398,7 @@ RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
 
 # Provide custom implementation fo the shutdown() function.
-# These are used by intl ( which links C++ code ) and need C linkage.
+# This is used by intl ( which links C++ code ) and need C linkage.
 RUN cat >> /root/php-src/main/php_config.h <<EOF
 #ifdef __cplusplus
 extern "C" {
@@ -1065,7 +1052,6 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
-	--pre-js /root/.env.js \
 	--js-library /root/phpwasm-emscripten-library.js \
 	-I .  \
 	-I ext   \
@@ -1128,7 +1114,6 @@ RUN set -euxo pipefail; \
 		export EXT_PREFIX=""; \
 		export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
 		export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
-		export PHP_DATA_FILENAME="php.data"; \
 	# Make the php.wasm URL configurable via the dependencyFilename loader argument:
 		/root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js; \
 	# Patch a "property undefined" error
@@ -1179,25 +1164,13 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
-	# Replace the hardcodede PHP_DATA_FILENAME variable with a dynamic computation
-		if [ -f "/root/output/$PHP_DATA_FILENAME" ] && [ "$WITH_INTL" = "yes" ]; then \
-			/root/replace.sh "s/REMOTE_PACKAGE_BASE\s*=\s*\"$PHP_DATA_FILENAME\"/REMOTE_PACKAGE_BASE=phpDataUrl/g" /root/output/php.js; \
-		fi; \
 	# Turn the php.js file into an ES module
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
-
-			if [ -f "/root/output/$PHP_DATA_FILENAME" ] && [ "$WITH_INTL" = "yes" ]; then \
-				echo "const phpDataUrl = __dirname + '/$PHP_DATA_FILENAME'; " >> /root/output/php-module.js; \
-			fi; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
-
-			if [ -f "/root/output/$PHP_DATA_FILENAME" ] && [ "$WITH_INTL" = "yes" ]; then \
-				echo "import phpDataUrl from './$PHP_DATA_FILENAME?url'; " >> /root/output/php-module.js; \
- 			fi; \
 		fi; \
 		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \

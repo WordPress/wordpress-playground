@@ -138,16 +138,18 @@ export async function loadPHPRuntime(
 			// let's just log it.
 			logger.error(reason);
 		},
-		ENV: {},
+		ENV: {
+			ICU_DATA: '/shared',
+		},
 		// Emscripten sometimes prepends a '/' to the path, which
 		// breaks vite dev mode. An identity `locateFile` function
 		// fixes it.
 		locateFile: (path) => path,
 		...phpModuleArgs,
 		noInitialRun: true,
-		onRuntimeInitialized() {
+		async onRuntimeInitialized() {
 			if (phpModuleArgs.onRuntimeInitialized) {
-				phpModuleArgs.onRuntimeInitialized();
+				await phpModuleArgs.onRuntimeInitialized(PHPRuntime);
 			}
 			resolvePHP();
 		},
@@ -172,6 +174,7 @@ export async function loadPHPRuntime(
 
 	PHPRuntime[RuntimeId] = id;
 	loadedRuntimes.set(id, PHPRuntime);
+
 	return id;
 }
 
@@ -241,7 +244,7 @@ export type EmscriptenOptions = {
 	print?: (message: string) => void;
 	printErr?: (message: string) => void;
 	quit?: (status: number, toThrow: any) => void;
-	onRuntimeInitialized?: () => void;
+	onRuntimeInitialized?: (phpRuntime: PHPRuntime) => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
 	outboundNetworkProxyServer?: Server<
