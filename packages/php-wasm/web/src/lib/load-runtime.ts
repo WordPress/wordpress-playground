@@ -56,7 +56,7 @@ export async function loadWebRuntime(
 			 * An ICU data file must be loaded to support Intl extension.
 			 * To achieve this, a shared directory is mounted and referenced
 			 * via the ICU_DATA environment variable.
-			 * By default, this variable is set to `/shared`,
+			 * By default, this variable is set to '/internal/shared',
 			 * which corresponds to the actual file location.
 			 * The web version requires a `loaderOption` to load ICU data.
 			 */

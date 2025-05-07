@@ -41,7 +41,7 @@ export async function loadNodeRuntime(
 			 * An ICU data file must be loaded to support Intl extension.
 			 * To achieve this, a shared directory is mounted and referenced
 			 * via the ICU_DATA environment variable.
-			 * By default, this variable is set to `/shared`,
+			 * By default, this variable is set to '/internal/shared',
 			 * which corresponds to the actual file location.
 			 */
 			const icuFileName = 'icudt74l.dat';

@@ -139,7 +139,7 @@ export async function loadPHPRuntime(
 			logger.error(reason);
 		},
 		ENV: {
-			ICU_DATA: '/shared',
+			ICU_DATA: '/internal/shared',
 		},
 		// Emscripten sometimes prepends a '/' to the path, which
 		// breaks vite dev mode. An identity `locateFile` function
