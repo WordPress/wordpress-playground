@@ -126,9 +126,9 @@ let lastRuntimeId = 0;
  */
 
 export async function loadPHPRuntime(
-	...args: [PHPLoaderModule, ...EmscriptenOptions[]]
+	phpLoaderModule: PHPLoaderModule,
+	...options: EmscriptenOptions[]
 ): Promise<number> {
-	const [phpLoaderModule, ...options] = args;
 	const phpModuleArgs = Object.assign({}, ...options);
 
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();

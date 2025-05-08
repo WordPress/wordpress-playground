@@ -6,7 +6,7 @@ import {
 
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking.js';
-import { withICUData } from './data/with-data.js';
+import { withICUData } from './data/with-icu-data.js';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;

@@ -9,7 +9,7 @@ import {
 	TCPOverFetchOptions,
 	tcpOverFetchWebsocket,
 } from './tcp-over-fetch-websocket';
-import { withICUData } from './with-data';
+import { withICUData } from './with-icu-data';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -46,26 +46,28 @@ const fakeWebsocket = () => {
 
 export async function loadWebRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: LoaderOptions = {}
+	loaderOptions: LoaderOptions = {}
 ) {
 	const emscriptenOptions: EmscriptenOptions = {
-		...(options.emscriptenOptions || {}),
+		...(loaderOptions.emscriptenOptions || {}),
 	};
 
-	const websocketExtension = options.tcpOverFetch
-		? tcpOverFetchWebsocket(options.tcpOverFetch)
+	const websocketExtension: EmscriptenOptions = loaderOptions.tcpOverFetch
+		? tcpOverFetchWebsocket(loaderOptions.tcpOverFetch)
 		: fakeWebsocket();
 
-	const dataExtension = options.withICU ? withICUData() : Promise.resolve({});
+	const dataExtension: EmscriptenOptions = loaderOptions.withICU
+		? withICUData()
+		: Promise.resolve({});
 
-	const args = await Promise.all([
+	const [phpLoaderModule, ...options] = await Promise.all([
 		getPHPLoaderModule(phpVersion),
 		emscriptenOptions,
 		websocketExtension,
 		dataExtension,
 	]);
 
-	options.onPhpLoaderModuleLoaded?.(args[0]);
+	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 
-	return await loadPHPRuntime(...args);
+	return await loadPHPRuntime(phpLoaderModule, ...options);
 }
