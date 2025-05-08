@@ -6,7 +6,7 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
-	assetsInclude: ['**/*.wasm', '*.zip'],
+	assetsInclude: ['**/*.wasm', '**.*.dat', '*.zip'],
 	cacheDir: '../../../node_modules/.vite/playground-common',
 	plugins: [
 		viteTsConfigPaths({
