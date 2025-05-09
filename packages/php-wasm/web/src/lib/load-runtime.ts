@@ -48,26 +48,28 @@ export async function loadWebRuntime(
 	phpVersion: SupportedPHPVersion,
 	loaderOptions: LoaderOptions = {}
 ) {
-	const emscriptenOptions: EmscriptenOptions = {
+	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
+		...fakeWebsocket(),
 		...(loaderOptions.emscriptenOptions || {}),
 	};
 
-	const websocketExtension: EmscriptenOptions = loaderOptions.tcpOverFetch
-		? tcpOverFetchWebsocket(loaderOptions.tcpOverFetch)
-		: fakeWebsocket();
+	if (loaderOptions.tcpOverFetch) {
+		emscriptenOptions = tcpOverFetchWebsocket(
+			emscriptenOptions,
+			loaderOptions.tcpOverFetch
+		);
+	}
 
-	const dataExtension: EmscriptenOptions = loaderOptions.withICU
-		? withICUData(emscriptenOptions)
-		: Promise.resolve({});
+	if (loaderOptions.withICU) {
+		emscriptenOptions = withICUData(emscriptenOptions);
+	}
 
-	const [phpLoaderModule, ...options] = await Promise.all([
+	const [phpLoaderModule, options] = await Promise.all([
 		getPHPLoaderModule(phpVersion),
 		emscriptenOptions,
-		websocketExtension,
-		dataExtension,
 	]);
 
 	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 
-	return await loadPHPRuntime(phpLoaderModule, ...options);
+	return await loadPHPRuntime(phpLoaderModule, options);
 }

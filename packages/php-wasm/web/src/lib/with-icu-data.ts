@@ -11,6 +11,7 @@ export async function withICUData(
 	const ICUData = await (await fetch(filePath)).arrayBuffer();
 
 	return {
+		...options,
 		ENV: {
 			...options.ENV,
 			ICU_DATA: '/internal/shared',
