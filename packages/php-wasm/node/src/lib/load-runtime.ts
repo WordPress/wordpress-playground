@@ -38,6 +38,6 @@ export async function loadNodeRuntime(
 	return await loadPHPRuntime(
 		await getPHPLoaderModule(phpVersion),
 		await withNetworking(emscriptenOptions),
-		await withICUData()
+		await withICUData(emscriptenOptions)
 	);
 }

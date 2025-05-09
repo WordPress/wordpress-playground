@@ -57,7 +57,7 @@ export async function loadWebRuntime(
 		: fakeWebsocket();
 
 	const dataExtension: EmscriptenOptions = loaderOptions.withICU
-		? withICUData()
+		? withICUData(emscriptenOptions)
 		: Promise.resolve({});
 
 	const [phpLoaderModule, ...options] = await Promise.all([

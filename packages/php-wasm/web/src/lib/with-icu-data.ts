@@ -1,7 +1,9 @@
 import { EmscriptenOptions, PHPRuntime } from '@php-wasm/universal';
 import { FSHelpers } from '@php-wasm/universal';
 
-export async function withICUData(): Promise<EmscriptenOptions> {
+export async function withICUData(
+	options: EmscriptenOptions
+): Promise<EmscriptenOptions> {
 	const fileName = 'icudt74l.dat';
 	// @ts-ignore
 	const filePath = (await import('../../public/shared/icudt74l.js'))
@@ -10,9 +12,13 @@ export async function withICUData(): Promise<EmscriptenOptions> {
 
 	return {
 		ENV: {
+			...options.ENV,
 			ICU_DATA: '/internal/shared',
 		},
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
+			if (options.onRuntimeInitialized) {
+				options.onRuntimeInitialized(phpRuntime);
+			}
 			/*
 			 * An ICU data file must be loaded to support Intl extension.
 			 * To achieve this, a shared directory is mounted and referenced
