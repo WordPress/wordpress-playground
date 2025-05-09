@@ -12,15 +12,17 @@
  * \brief C API: Builder API for Locale
  */
 
+#ifndef U_HIDE_DRAFT_API
+
 /**
  * Opaque C service object type for the locale builder API
- * @stable ICU 74
+ * @draft ICU 74
  */
 struct ULocaleBuilder;
 
 /**
  * C typedef for struct ULocaleBuilder.
- * @stable ICU 74
+ * @draft ICU 74
  */
 typedef struct ULocaleBuilder ULocaleBuilder;
 
@@ -60,7 +62,7 @@ typedef struct ULocaleBuilder ULocaleBuilder;
  * UErrorCode, then track the error of the validation of the input parameter
  * into the internal UErrorCode.
  *
- * @stable ICU 74
+ * @draft ICU 74
  */
 
 /**
@@ -69,15 +71,15 @@ typedef struct ULocaleBuilder ULocaleBuilder;
  * empty string. The created builder should be destroyed by calling
  * ulocbld_close();
  *
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI ULocaleBuilder* U_EXPORT2
-ulocbld_open(void);
+ulocbld_open();
 
 /**
  * Close the builder and destroy it's internal states.
  * @param builder the builder
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_close(ULocaleBuilder* builder);
@@ -95,7 +97,7 @@ ulocbld_close(ULocaleBuilder* builder);
  * @param length the length of the locale; if negative, then the locale need to be
  *               null terminated,
  *
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setLocale(ULocaleBuilder* builder, const char* locale, int32_t length);
@@ -111,7 +113,7 @@ ulocbld_setLocale(ULocaleBuilder* builder, const char* locale, int32_t length);
  * @param locale the locale, a ULocale* pointer. The builder adopts the locale
  *               after the call and the client must not delete it.
  *
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_adoptULocale(ULocaleBuilder* builder, ULocale* locale);
@@ -134,7 +136,7 @@ ulocbld_adoptULocale(ULocaleBuilder* builder, ULocale* locale);
  *               the length is non-negative)
  * @param length the length of the tag; if negative, then the tag need to be
  *               null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setLanguageTag(ULocaleBuilder* builder, const char* tag, int32_t length);
@@ -154,7 +156,7 @@ ulocbld_setLanguageTag(ULocaleBuilder* builder, const char* tag, int32_t length)
  *               the length is non-negative)
  * @param length the length of the language; if negative, then the language need to be
  *               null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setLanguage(ULocaleBuilder* builder, const char* language, int32_t length);
@@ -175,7 +177,7 @@ ulocbld_setLanguage(ULocaleBuilder* builder, const char* language, int32_t lengt
  *               the length is non-negative)
  * @param length the length of the script; if negative, then the script need to be
  *               null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setScript(ULocaleBuilder* builder, const char* script, int32_t length);
@@ -199,7 +201,7 @@ ulocbld_setScript(ULocaleBuilder* builder, const char* script, int32_t length);
  *               the length is non-negative)
  * @param length the length of the region; if negative, then the region need to be
  *               null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setRegion(ULocaleBuilder* builder, const char* region, int32_t length);
@@ -225,7 +227,7 @@ ulocbld_setRegion(ULocaleBuilder* builder, const char* region, int32_t length);
  *               the length is non-negative)
  * @param length the length of the variant; if negative, then the variant need to be
  *               null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setVariant(ULocaleBuilder* builder, const char* variant, int32_t length);
@@ -251,7 +253,7 @@ ulocbld_setVariant(ULocaleBuilder* builder, const char* variant, int32_t length)
  *               the length is non-negative)
  * @param length the length of the value; if negative, then the value need to be
  *               null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setExtension(ULocaleBuilder* builder, char key, const char* value, int32_t length);
@@ -280,7 +282,7 @@ ulocbld_setExtension(ULocaleBuilder* builder, char key, const char* value, int32
  * @param typeLength the length of the type; if negative, then the type need to
  *               be null terminated,
  * @return This builder.
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_setUnicodeLocaleKeyword(ULocaleBuilder* builder,
@@ -297,7 +299,7 @@ ulocbld_setUnicodeLocaleKeyword(ULocaleBuilder* builder,
  *               terminated when the length is non-negative)
  * @param length the length of the attribute; if negative, then the attribute
  *               need to be null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_addUnicodeLocaleAttribute(
@@ -316,7 +318,7 @@ ulocbld_addUnicodeLocaleAttribute(
  *               terminated when the length is non-negative)
  * @param length the length of the attribute; if negative, then the attribute
  *               need to be null terminated,
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_removeUnicodeLocaleAttribute(
@@ -327,7 +329,7 @@ ulocbld_removeUnicodeLocaleAttribute(
  * <p>This method clears the internal UErrorCode.
  *
  * @param builder the builder
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_clear(ULocaleBuilder* builder);
@@ -337,7 +339,7 @@ ulocbld_clear(ULocaleBuilder* builder);
  * Language, script, region and variant are unchanged.
  *
  * @param builder the builder
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI void U_EXPORT2
 ulocbld_clearExtensions(ULocaleBuilder* builder);
@@ -356,7 +358,7 @@ ulocbld_clearExtensions(ULocaleBuilder* builder);
  * @param localeCapacity the size of the locale buffer to store the locale id
  * @param err the error code
  * @return the length of the locale id in buffer
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI int32_t U_EXPORT2
 ulocbld_buildLocaleID(ULocaleBuilder* builder, char* locale,
@@ -375,7 +377,7 @@ ulocbld_buildLocaleID(ULocaleBuilder* builder, char* locale,
  * @param err the error code.
  * @return the locale, a ULocale* pointer. The created ULocale must be
  *          destroyed by calling {@link ulocale_close}.
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI ULocale* U_EXPORT2
 ulocbld_buildULocale(ULocaleBuilder* builder, UErrorCode* err);
@@ -395,7 +397,7 @@ ulocbld_buildULocale(ULocaleBuilder* builder, UErrorCode* err);
  * tag
  * @param err the error code
  * @return the length of the language tag in buffer
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI int32_t U_EXPORT2
 ulocbld_buildLanguageTag(ULocaleBuilder* builder, char* language,
@@ -410,7 +412,7 @@ ulocbld_buildLanguageTag(ULocaleBuilder* builder, char* language,
  *                  Unchanged if there is no such error or if outErrorCode
  *                  already contained an error.
  * @return true if U_FAILURE(*outErrorCode)
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_CAPI UBool U_EXPORT2
 ulocbld_copyErrorTo(const ULocaleBuilder* builder, UErrorCode *outErrorCode);
@@ -426,12 +428,14 @@ U_NAMESPACE_BEGIN
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @stable ICU 74
+ * @draft ICU 74
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalULocaleBuilderPointer, ULocaleBuilder, ulocbld_close);
 
 U_NAMESPACE_END
 
 #endif  /* U_SHOW_CPLUSPLUS_API */
+
+#endif  /* U_HIDE_DRAFT_API */
 
 #endif  // __ULOCBUILDER_H__

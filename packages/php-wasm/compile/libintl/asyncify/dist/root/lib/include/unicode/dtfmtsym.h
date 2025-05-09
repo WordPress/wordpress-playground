@@ -43,7 +43,6 @@ U_NAMESPACE_BEGIN
 /* forward declaration */
 class SimpleDateFormat;
 class Hashtable;
-class CharString;
 
 /**
  * DateFormatSymbols is a public class for encapsulating localizable date-time
@@ -568,7 +567,7 @@ public:
      * @return    the non-localized date-time pattern characters
      * @stable ICU 2.0
      */
-    static const char16_t* U_EXPORT2 getPatternUChars();
+    static const char16_t * U_EXPORT2 getPatternUChars(void);
 
     /**
      * Gets localized date-time pattern characters. For example: 'u', 't', etc.
@@ -918,8 +917,8 @@ private:
     /** valid/actual locale information 
      *  these are always ICU locales, so the length should not be a problem
      */
-    CharString* validLocale = nullptr;
-    CharString* actualLocale = nullptr;
+    char validLocale[ULOC_FULLNAME_CAPACITY];
+    char actualLocale[ULOC_FULLNAME_CAPACITY];
 
     DateFormatSymbols() = delete; // default constructor not implemented
 
@@ -972,7 +971,7 @@ private:
     /**
      * Delete all the storage owned by this object.
      */
-    void dispose();
+    void dispose(void);
 
     /**
      * Copy all of the other's data to this.
@@ -983,12 +982,12 @@ private:
     /**
      * Create zone strings array by locale if not yet available
      */
-    void initZoneStringsArray();
+    void initZoneStringsArray(void);
 
     /**
      * Delete just the zone strings.
      */
-    void disposeZoneStrings();
+    void disposeZoneStrings(void);
 
     /**
      * Returns the date format field index of the pattern character c,
