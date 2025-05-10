@@ -33,16 +33,6 @@ describe('Blueprint step enableMultisite', () => {
 		return { php, handler };
 	}
 
-	const requestFollowRedirects = async (request: PHPRequest) => {
-		let response = await handler.request(request);
-		while (response.httpStatusCode === 302) {
-			response = await handler.request({
-				url: response.headers['location'][0],
-			});
-		}
-		return response;
-	};
-
 	[
 		{
 			absoluteUrl: 'http://playground-domain/scope:987987/',
@@ -81,9 +71,12 @@ describe('Blueprint step enableMultisite', () => {
 			 * the admin bar includes the multisite menu.
 			 */
 			await login(php, {});
-			const response = await requestFollowRedirects({
-				url: '/',
-			});
+			const response = await handler.request(
+				{
+					url: '/',
+				},
+				true
+			);
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toContain('My Sites');
 			expect(response.text).toContain('Network Admin');

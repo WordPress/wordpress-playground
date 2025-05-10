@@ -316,8 +316,13 @@ export class PHPRequestHandler {
 	 * ```
 	 *
 	 * @param  request - PHP Request data.
+	 * @param  followRedirects - Follow redirects when the response code is 301 or 302.
+	 * @returns The response.
 	 */
-	async request(request: PHPRequest): Promise<PHPResponse> {
+	async request(
+		request: PHPRequest,
+		followRedirects = false
+	): Promise<PHPResponse> {
 		const isAbsolute = URL.canParse(request.url);
 		const requestedUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
@@ -410,10 +415,22 @@ export class PHPRequestHandler {
 					// Pass along URL with the #fragment filtered out
 					url: requestedUrl.toString(),
 				};
-				return this.#spawnPHPAndDispatchRequest(
+				const response = await this.#spawnPHPAndDispatchRequest(
 					effectiveRequest,
 					fsPath
 				);
+				if (
+					followRedirects &&
+					response.headers['location'] &&
+					response.headers['location'].length === 1 &&
+					[301, 302].includes(response.httpStatusCode)
+				) {
+					return this.request({
+						...request,
+						url: response.headers['location'][0],
+					});
+				}
+				return response;
 			} else {
 				return this.#serveStaticFile(primaryPhp, fsPath);
 			}
