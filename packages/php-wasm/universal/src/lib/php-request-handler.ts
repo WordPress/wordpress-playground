@@ -319,10 +319,7 @@ export class PHPRequestHandler {
 	 * @param  followRedirects - Follow redirects when the response code is 301 or 302.
 	 * @returns The response.
 	 */
-	async request(
-		request: PHPRequest,
-		followRedirects = false
-	): Promise<PHPResponse> {
+	async request(request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute = URL.canParse(request.url);
 		const requestedUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
@@ -419,18 +416,35 @@ export class PHPRequestHandler {
 					effectiveRequest,
 					fsPath
 				);
+
+				/**
+				 * If the response is a redirect, and the request is configured to
+				 * follow redirects, we need to recursively call request() with the
+				 * new URL.
+				 *
+				 * If the response is a redirect, and the request is configured to
+				 * error on redirects, we need to throw an error.
+				 *
+				 * Otherwise, we return the response.
+				 *
+				 * This matches the behavior of the JavaScript fetch API.
+				 * https://developer.mozilla.org/en-US/docs/Web/API/Request/redirect
+				 */
 				if (
-					followRedirects &&
 					response.headers['location'] &&
 					response.headers['location'].length === 1 &&
 					[301, 302].includes(response.httpStatusCode)
 				) {
-					return await this.request(
-						{
+					if (request.redirect === 'error') {
+						throw new Error(
+							'Redirect encountered while following redirects is disabled'
+						);
+					} else if (request.redirect === 'follow') {
+						return await this.request({
 							url: response.headers['location'][0],
-						},
-						followRedirects
-					);
+							redirect: request.redirect,
+						});
+					}
 				}
 				return response;
 			} else {

@@ -28,24 +28,20 @@ describe('Blueprint step login', () => {
 
 	it('should log the user in', async () => {
 		await login(php, {});
-		const response = await handler.request(
-			{
-				url: '/',
-			},
-			true
-		);
+		const response = await handler.request({
+			url: '/',
+			redirect: 'follow',
+		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Edit Site');
 	});
 
 	it('should log the user into wp-admin', async () => {
 		await login(php, {});
-		const response = await handler.request(
-			{
-				url: '/wp-admin/',
-			},
-			true
-		);
+		const response = await handler.request({
+			url: '/wp-admin/',
+			redirect: 'follow',
+		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Dashboard');
 	});
@@ -56,12 +52,10 @@ describe('Blueprint step login', () => {
 				PLAYGROUND_FORCE_AUTO_LOGIN_ENABLED: true,
 			},
 		});
-		const response = await handler.request(
-			{
-				url: '/?playground_force_auto_login_as_user=admin',
-			},
-			true
-		);
+		const response = await handler.request({
+			url: '/?playground_force_auto_login_as_user=admin',
+			redirect: 'follow',
+		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Dashboard');
 	});
@@ -80,12 +74,10 @@ describe('Blueprint step login', () => {
 				}
 			`
 		);
-		const response = await handler.request(
-			{
-				url: '/nonce-test.php',
-			},
-			true
-		);
+		const response = await handler.request({
+			url: '/nonce-test.php',
+			redirect: 'follow',
+		});
 		expect(response.text).toBe('1');
 	});
 });

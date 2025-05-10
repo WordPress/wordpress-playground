@@ -93,6 +93,14 @@ export interface PHPRequest {
 	 * and sent with a `multipart/form-data` header.
 	 */
 	body?: string | Uint8Array | Record<string, string | Uint8Array | File>;
+
+	/**
+	 * Whether to follow redirects.
+	 * - `follow`: Follow redirects.
+	 * - `manual`: Return the redirect response. (Default)
+	 * - `error`: Throw an error if a redirect is encountered.
+	 */
+	redirect?: 'follow' | 'manual' | 'error';
 }
 
 export interface PHPRunOptions {
