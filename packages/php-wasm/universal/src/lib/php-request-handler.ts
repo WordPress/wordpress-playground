@@ -425,10 +425,12 @@ export class PHPRequestHandler {
 					response.headers['location'].length === 1 &&
 					[301, 302].includes(response.httpStatusCode)
 				) {
-					return this.request({
-						...request,
-						url: response.headers['location'][0],
-					});
+					return await this.request(
+						{
+							url: response.headers['location'][0],
+						},
+						followRedirects
+					);
 				}
 				return response;
 			} else {
