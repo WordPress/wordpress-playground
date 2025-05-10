@@ -71,11 +71,14 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/playground/cli"],
 			"options": {
-				"jestConfig": "packages/playground/cli/jest.config.ts",
-				"passWithNoTests": true
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/cli",
+				"typecheck": {
+					"tsconfig": "{projectRoot}/tsconfig.spec.json"
+				}
 			},
 			"configurations": {
 				"ci": {
