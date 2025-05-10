@@ -71,12 +71,10 @@ describe('Blueprint step enableMultisite', () => {
 			 * the admin bar includes the multisite menu.
 			 */
 			await login(php, {});
-			const response = await handler.request(
-				{
-					url: '/',
-				},
-				true
-			);
+			const response = await handler.request({
+				url: '/',
+				redirect: 'follow',
+			});
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toContain('My Sites');
 			expect(response.text).toContain('Network Admin');
