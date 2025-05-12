@@ -42,7 +42,7 @@ describe('Blueprint step login', () => {
 			url: '/',
 		});
 		expect(response.httpStatusCode).toBe(200);
-		expect(response.text).toContain('Edit site');
+		expect(response.text).toContain('Edit Site');
 	});
 
 	it('should log the user into wp-admin', async () => {
