@@ -7,6 +7,8 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import ignoreDataImports from '../ignore-data-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	websiteDevServerHost,
 	websiteDevServerPort,
@@ -84,6 +86,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
+			ignoreDataImports(),
 			buildVersionPlugin('website-config'),
 			virtualModule({
 				name: 'cors-proxy-url',
