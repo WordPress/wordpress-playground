@@ -1,0 +1,26 @@
+{
+	"title": {
+		"message": "WordPress Playground",
+		"description": "The title in the navbar"
+	},
+	"logo.alt": {
+		"message": "WordPress Playground",
+		"description": "The alt text of navbar logo"
+	},
+	"item.label.Documentation": {
+		"message": "Documentation",
+		"description": "Navbar item with label Documentation"
+	},
+	"item.label.Blueprints": {
+		"message": "Blueprints",
+		"description": "Navbar item with label Blueprints"
+	},
+	"item.label.Developers": {
+		"message": "Developers",
+		"description": "Navbar item with label Developers"
+	},
+	"item.label.API Reference": {
+		"message": "API Reference",
+		"description": "Navbar item with label API Reference"
+	}
+}
