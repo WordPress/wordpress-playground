@@ -5,6 +5,8 @@ import { join } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import ignoreDataImports from '../ignore-data-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
@@ -21,6 +23,7 @@ export default defineConfig({
 			pathsToAliases: false,
 		}),
 		ignoreWasmImports(),
+		ignoreDataImports(),
 
 		// @wp-playground/client doesn't actually use the remote-config virtual
 		// module, @wp-playground/remote package does. @wp-playground/client imports
