@@ -436,8 +436,10 @@ export class PHPRequestHandler {
 					[301, 302].includes(response.httpStatusCode)
 				) {
 					if (request.redirect === 'error') {
-						throw new Error(
-							'Redirect encountered while following redirects is disabled'
+						return Promise.reject(
+							new Error(
+								'TypeError: NetworkError when attempting to fetch resource.'
+							)
 						);
 					} else if (request.redirect === 'follow') {
 						return await this.request({
