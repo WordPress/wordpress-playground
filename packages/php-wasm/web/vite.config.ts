@@ -99,7 +99,6 @@ export default defineConfig(({ command }) => {
 						 * The slice(-2) will ensure the 'public/`
 						 * portion is removed.
 						 */
-
 						return '../' + specifier.split('/').slice(-2).join('/');
 					}
 				},

@@ -55,11 +55,11 @@ export type TCPOverFetchOptions = {
  * TLS or HTTP, handles the network transmission using fetch().
  */
 export const tcpOverFetchWebsocket = (
-	options: EmscriptenOptions,
+	emOptions: EmscriptenOptions,
 	tcpOptions: TCPOverFetchOptions
 ) => {
 	return {
-		...options,
+		...emOptions,
 		websocket: {
 			url: (_: any, host: string, port: string) => {
 				const query = new URLSearchParams({

@@ -121,7 +121,7 @@ let lastRuntimeId = 0;
  *
  * @public
  * @param  phpLoaderModule         - The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
- * @param  args                    - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
+ * @param  options                 - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
  * @returns Loaded runtime id.
  */
 

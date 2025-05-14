@@ -23,8 +23,8 @@ export default {
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-		ignoreWasmImports,
-		ignoreDataImports,
+		ignoreWasmImports(),
+		ignoreDataImports(),
 	],
 
 	// Configuration for building your library.
