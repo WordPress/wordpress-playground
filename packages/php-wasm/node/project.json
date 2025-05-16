@@ -146,7 +146,7 @@
 			},
 			"dependsOn": ["build"]
 		},
-		"test": {
+		"test-node": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
@@ -154,7 +154,7 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node"
 			}
 		},
-		"lint": {
+		"lint-node": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {

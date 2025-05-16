@@ -34,6 +34,17 @@ jobs:
               with:
                   node-version: 22
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
+    test-node-unit-asyncify:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=test-node --configuration=ci
     # Most of these tests pass locally but the process is crashing
     # on the CI runner.
     #
