@@ -1,6 +1,7 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
 import { flockSync as nativeFlockSync } from 'fs-ext';
+
 import type {
 	FileLockManager,
 	LockRange,
@@ -15,7 +16,7 @@ import type {
 type NativeLock = {
 	fd: number;
 	// TODO: Use a named type and share it within this module
-	mode: 'exclusive' | 'shared';
+	mode: 'exclusive' | 'shared' | 'unlock';
 };
 
 // TODO: Try in-memory SQLite journal
@@ -195,6 +196,7 @@ class FileLockIntervalTree {
 		this.findLocksForProcessInNode(node.right, pid, fd, result);
 	}
 
+	// TODO: Does this make sense?
 	areThereLocksForOtherFileDescriptors(
 		pid: Pid,
 		fd: Fd,
@@ -206,6 +208,28 @@ class FileLockIntervalTree {
 			fd,
 			type
 		);
+	}
+
+	getMaximumRangeLockType(): 'unlock' | 'shared' | 'exclusive' {
+		let maxType: LockRangeWithType['type'] = 'unlock';
+
+		const traverse = (node: IntervalNode | null) => {
+			if (!node) {
+				return;
+			}
+			if (node.range.type === 'exclusive') {
+				maxType = 'exclusive';
+				return; // Can stop early since exclusive is highest
+			}
+			if (node.range.type === 'shared') {
+				maxType = 'shared';
+			}
+			traverse(node.left);
+			traverse(node.right);
+		};
+		traverse(this.root);
+
+		return maxType;
 	}
 
 	private areThereLocksForOtherProcessesInNode(
@@ -247,7 +271,12 @@ export class FileLock {
 		let fd;
 		try {
 			fd = openSync(path, 'a+');
-			return new FileLock({ fd, mode: 'shared' });
+
+			const flockFlags = mode === 'exclusive' ? 'exnb' : 'shnb';
+			nativeFlockSync(fd, flockFlags);
+
+			const nativeLock: NativeLock = { fd, mode };
+			return new FileLock(nativeLock);
 		} catch (error) {
 			return undefined;
 		} finally {
@@ -309,60 +338,36 @@ export class FileLock {
 				}
 			}
 
-			const minimumRequiredNativeLockType =
-				this.getMinimumRequiredNativeLockType();
-			if (
-				this.nativeLock.mode === 'exclusive' &&
-				minimumRequiredNativeLockType === 'shared'
-			) {
-				try {
-					nativeFlockSync(this.nativeLock.fd, 'shnb');
-					this.nativeLock.mode = 'shared';
-				} catch {
-					// TODO: What to do here? Something went badly wrong. Runtime exception?
-				}
+			if (!this.ensureCompatibleNativeLock()) {
+				// TODO: Throw an error? Log?
 			}
+
 			return true;
 		}
 
+		if (
+			this.doesAConflictingLockExist({
+				type: op.type,
+				start: 0n,
+				// TODO: Consider better max
+				end: BigInt(Number.MAX_SAFE_INTEGER),
+				pid: op.pid,
+				fd: op.fd,
+			})
+		) {
+			// The requested lock conflicts with an existing lock.
+			return false;
+		}
+
+		if (
+			!this.ensureCompatibleNativeLock({
+				overrideWholeFileLockType: op.type,
+			})
+		) {
+			return false;
+		}
+
 		if (op.type === 'exclusive') {
-			const thereIsAConflictingWholeFileLock =
-				(this.wholeFileLock.type === 'exclusive' &&
-					!(
-						this.wholeFileLock.pid === op.pid &&
-						this.wholeFileLock.fd === op.fd
-					)) ||
-				(this.wholeFileLock.type === 'shared' &&
-					!(
-						this.wholeFileLock.pidFds.size === 1 &&
-						this.wholeFileLock.pidFds.has(op.pid) &&
-						this.wholeFileLock.pidFds.get(op.pid)!.size === 1 &&
-						this.wholeFileLock.pidFds.get(op.pid)!.has(op.fd)
-					));
-			const thereAreConflictingRangeLocks =
-				this.rangeLocks.areThereLocksForOtherFileDescriptors(
-					op.pid,
-					op.fd
-				);
-
-			if (
-				thereIsAConflictingWholeFileLock ||
-				thereAreConflictingRangeLocks
-			) {
-				return false;
-			}
-
-			if (this.nativeLock.mode === 'shared') {
-				try {
-					nativeFlockSync(this.nativeLock.fd, 'exnb');
-					this.nativeLock.mode = 'exclusive';
-				} catch (error) {
-					// We cannot obtain a native exclusive file lock,
-					// so we cannot allow an exclusive file lock internally.
-					return false;
-				}
-			}
-
 			this.wholeFileLock = {
 				type: 'exclusive',
 				pid: op.pid,
@@ -373,59 +378,102 @@ export class FileLock {
 		}
 
 		if (op.type === 'shared') {
-			const thereIsAConflictingWholeFileLock =
-				this.wholeFileLock.type === 'exclusive' &&
-				!(
-					this.wholeFileLock.pid === op.pid &&
-					this.wholeFileLock.fd === op.fd
-				);
-			const thereAreConflictingRangeLocks =
-				this.rangeLocks.areThereLocksForOtherFileDescriptors(
-					op.pid,
-					op.fd,
-					'exclusive'
-				);
-
-			if (
-				thereIsAConflictingWholeFileLock ||
-				thereAreConflictingRangeLocks
-			) {
-				return false;
-			}
-
-			if (
-				this.wholeFileLock.type === 'unlocked' ||
-				(this.wholeFileLock.type === 'exclusive' &&
-					this.wholeFileLock.pid === op.pid)
-			) {
-				if (this.nativeLock.mode === 'exclusive') {
-					try {
-						nativeFlockSync(this.nativeLock.fd, 'shnb');
-						this.nativeLock.mode = 'shared';
-					} catch {
-						// TODO: What to do here? Something went badly wrong. Runtime exception?
-					}
-				}
-
+			if (this.wholeFileLock.type !== 'shared') {
 				this.wholeFileLock = {
 					type: 'shared',
 					pidFds: new Map(),
 				};
 			}
 
-			const sharedLock = this.wholeFileLock as WholeFileLock_Shared;
+			const sharedLock = this.wholeFileLock;
 			if (!sharedLock.pidFds.has(op.pid)) {
 				sharedLock.pidFds.set(op.pid, new Set());
 			}
 			sharedLock.pidFds.get(op.pid)!.add(op.fd);
+
 			return true;
 		}
 
 		throw new Error(`Unexpected wholeFileLock() op: '${op.type}'`);
 	}
+	// TODO: Improve name
+	ensureCompatibleNativeLock({
+		overrideWholeFileLockType,
+		overrideRangeLockType,
+	}: {
+		overrideWholeFileLockType?: WholeFileLock['type'];
+		overrideRangeLockType?: LockRangeWithType['type'];
+	} = {}) {
+		const wholeFileLockType =
+			overrideWholeFileLockType ?? this.wholeFileLock.type;
+		const rangeLockType =
+			overrideRangeLockType ?? this.rangeLocks.getMaximumRangeLockType();
+
+		// TODO: Make this mapping more readable
+		let requiredNativeLockType: NativeLock['mode'];
+
+		if (
+			wholeFileLockType === 'exclusive' ||
+			rangeLockType === 'exclusive'
+		) {
+			requiredNativeLockType = 'exclusive';
+		} else if (
+			wholeFileLockType === 'shared' ||
+			rangeLockType === 'shared'
+		) {
+			requiredNativeLockType = 'shared';
+		} else {
+			requiredNativeLockType = 'unlock';
+		}
+
+		if (this.nativeLock.mode === requiredNativeLockType) {
+			return true;
+		}
+
+		const flockFlags =
+			(requiredNativeLockType === 'exclusive' && 'exnb') ||
+			(requiredNativeLockType === 'shared' && 'shnb') ||
+			'un';
+
+		try {
+			nativeFlockSync(this.nativeLock.fd, flockFlags);
+			this.nativeLock.mode = requiredNativeLockType;
+			return true;
+		} catch {
+			return false;
+		}
+	}
 
 	// TODO: Document the need for a native file descriptor
 	lockFileByteRange(requestedLock: LockRangeWithType): boolean {
+		if (requestedLock.type === 'unlock') {
+			const overlappingLocksBySameProcess = this.rangeLocks
+				.findOverlapping(requestedLock)
+				.filter((lock) => lock.pid === requestedLock.pid);
+
+			for (const overlappingLock of overlappingLocksBySameProcess) {
+				this.rangeLocks.remove(overlappingLock);
+
+				if (overlappingLock.start < requestedLock.start) {
+					// This lock precedes our unlock range.
+					// Preserve the part that does not overlap.
+					this.rangeLocks.insert({
+						...overlappingLock,
+						end: requestedLock.start,
+					});
+				} else if (overlappingLock.end > requestedLock.end) {
+					// This lock extends past our unlock range.
+					// Preserve the part that does not overlap.
+					this.rangeLocks.insert({
+						...overlappingLock,
+						start: requestedLock.end,
+					});
+				}
+			}
+
+			return true;
+		}
+
 		// TODO: Add some predicates to make this more readable
 		if (
 			this.wholeFileLock.type === 'exclusive' &&
@@ -456,9 +504,7 @@ export class FileLock {
 		// so we can proceed with attempting to lock a byte range.
 		const rangeLocks = this.rangeLocks;
 		const overlappingLocks = rangeLocks.findOverlapping(requestedLock);
-		const overlappingLocksFromSameProcess = overlappingLocks.filter(
-			(lock) => lock.pid === requestedLock.pid
-		);
+
 		const overlappingLocksFromOthers = overlappingLocks.filter(
 			(lock) => lock.pid !== requestedLock.pid
 		);
@@ -494,8 +540,13 @@ export class FileLock {
 			}
 		}
 
+		const overlappingLocksFromSameProcess = overlappingLocks.filter(
+			(lock) => lock.pid === requestedLock.pid
+		);
+
 		// Remove overlapping locks from the same process because the requested
 		// lock replaces them.
+		// TODO: Merge with overlapping locks from the same process.
 		for (const overlappingLock of overlappingLocksFromSameProcess) {
 			rangeLocks.remove(overlappingLock);
 		}
@@ -605,11 +656,66 @@ export class FileLock {
 		);
 	}
 
+	private doesAConflictingLockExist(requestedLock: LockRangeWithType) {
+		if (
+			this.wholeFileLock.type === 'exclusive' &&
+			this.wholeFileLock.pid !== requestedLock.pid
+		) {
+			// Any exclusive lock not owned by the same process and file descriptor
+			// conflicts with this request.
+			return true;
+		}
+		if (
+			requestedLock.type === 'exclusive' &&
+			this.wholeFileLock.type === 'shared' &&
+			!(
+				this.wholeFileLock.pidFds.size === 1 &&
+				this.wholeFileLock.pidFds.has(requestedLock.pid) &&
+				this.wholeFileLock.pidFds.get(requestedLock.pid)!.size === 1 &&
+				this.wholeFileLock.pidFds
+					.get(requestedLock.pid)!
+					.has(requestedLock.fd)
+			)
+		) {
+			// This request conflicts with shared file locks
+			// owned by other processes and/or file descriptors.
+			return true;
+		}
+
+		for (const overlappingLock of this.rangeLocks.findOverlapping(
+			requestedLock
+		)) {
+			if (overlappingLock.pid === requestedLock.pid) {
+				continue;
+			}
+
+			if (requestedLock.type === 'exclusive') {
+				// Any lock owned by another process conflicts with an exclusive lock.
+				return true;
+			}
+
+			if (
+				requestedLock.type === 'shared' &&
+				overlappingLock.type === 'exclusive'
+			) {
+				// An exclusive lock owned by another process conflicts with a shared lock.
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	getMaximumRangeLockType() {
+		// TODO: Complete implementation
+	}
+
 	private getMinimumRequiredNativeLockType() {
 		if (this.wholeFileLock.type === 'exclusive') {
 			return 'exclusive';
 		}
 
+		// TODO: Complete implementation
 		return 'shared';
 	}
 
@@ -664,6 +770,11 @@ export class FileLockManagerForNode implements FileLockManager {
 	// TODO: Document the need for a native file descriptor
 	lockFileByteRange(path: string, requestedLock: LockRangeWithType): boolean {
 		if (!this.locks.has(path)) {
+			if (requestedLock.type === 'unlock') {
+				// There is no existing lock. This is a no-op.
+				return true;
+			}
+
 			const maybeLock = FileLock.create(path, requestedLock.type);
 			if (maybeLock === undefined) {
 				return false;

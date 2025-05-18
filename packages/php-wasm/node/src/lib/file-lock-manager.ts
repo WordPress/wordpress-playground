@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
-import { flockSync as nativeFlockSync } from 'fs-ext';
 
 export type FileLockManager = {
 	/**
@@ -16,7 +15,7 @@ export type FileLockManager = {
 	lockWholeFile: (path: string, op: WholeFileLockOp) => boolean;
 
 	/**
-	 * Lock a file.
+	 * Update the lock on a byte range of a file.
 	 *
 	 * This method is for locking with the F_SETLK fcntl() command.
 	 * https://sourceware.org/glibc/manual/2.41/html_node/File-Locks.html#index-F_005fSETLK-1
@@ -24,29 +23,14 @@ export type FileLockManager = {
 	 * @param path - The path to the file to lock.
 	 * @param requestedLock - The lock to request, including start, end, type, and pid.
 	 * @returns A promise for a boolean value.
-	 *          True if the lock was acquired, false if it was not.
+	 *          When locking: True if the lock was acquired, false if it was not.
+	 *          When unlocking: Always true.
 	 */
 	lockFileByteRange: (
 		path: string,
 		requestedLock: LockRangeWithType
 		// TODO: Consider if there is a better return type for this operation.
 	) => boolean;
-
-	/**
-	 * Release a lock on the file.
-	 *
-	 * This method is for unlocking with the F_SETLK fcntl() command.
-	 * https://sourceware.org/glibc/manual/2.41/html_node/File-Locks.html#index-F_005fSETLK-1
-	 *
-	 * @param path - The path to the file to unlock.
-	 * @param lockToRelease - The lock to release, including start, end, type, and pid.
-	 * @returns A promise that resolves when the lock is released.
-	 */
-	unlockFileByteRange: (
-		path: string,
-		lockToRelease: LockRange
-		// TODO: Return an optional error object
-	) => void;
 
 	/**
 	 * Get the first lock that would conflict with the specified lock.
@@ -76,29 +60,32 @@ export type FileLockManager = {
 	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
 };
 
-export type LockRange = {
+export type LockRange = Readonly<{
 	/** The start offset of the lock range */
 	start: bigint;
-	/** The length of the lock range */
-	end: bigint | Infinity;
+	/** The end of the lock range */
+	// TODO: How to support special treatment of Infinity?
+	end: bigint;
 	/** The process ID that owns this lock */
 	pid: Pid;
 	/** The file descriptor that owns this lock.
 	 * Note: This is not needed for range locking but is needed to detect
 	 * conflicts with whole file locks.
+	 * TODO: Is this correct? I don't think it is. fcntl() is per file-descriptor.
 	 */
 	fd: Fd;
-};
+}>;
 
-export type LockRangeWithType = LockRange & {
-	/** The type of lock ('shared' or 'exclusive') */
-	type: 'shared' | 'exclusive';
-};
+// TODO: Can we merge this into a single LockRange type?
+export type LockRangeWithType = LockRange &
+	Readonly<{
+		/** The type of lock ('shared' or 'exclusive') */
+		type: 'shared' | 'exclusive' | 'unlock';
+	}>;
 
-export type WholeFileLock =
-	| WholeFileLock_Exclusive
-	| WholeFileLock_Shared
-	| WholeFileLock_Unlocked;
+export type WholeFileLock = Readonly<
+	WholeFileLock_Exclusive | WholeFileLock_Shared | WholeFileLock_Unlocked
+>;
 
 export type Pid = number;
 export type Fd = number;
