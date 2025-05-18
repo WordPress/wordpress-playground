@@ -132,6 +132,7 @@
 		"@testing-library/react": "15.0.6",
 		"@types/ajv": "1.0.0",
 		"@types/file-saver": "^2.0.5",
+		"@types/fs-ext": "2.0.3",
 		"@types/jest": "29.5.14",
 		"@types/node": "20.14.8",
 		"@types/react": "18.3.1",
