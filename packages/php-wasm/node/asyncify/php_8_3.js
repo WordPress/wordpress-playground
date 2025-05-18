@@ -5523,7 +5523,7 @@ export function init(RuntimeName, PHPLoader) {
 					type: requestedLockType,
 					start: absoluteStartOffset,
 					end:
-						flockStruct.l_len === 0
+						flockStruct.l_len === BigInt(0)
 							? Infinity
 							: absoluteStartOffset + flockStruct.l_len,
 					pid,
