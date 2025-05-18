@@ -5519,7 +5519,8 @@ export function init(RuntimeName, PHPLoader) {
 				// TODO: Explain why
 				lock_utils.maybeLockedFds.add(fd);
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
-				const range = {
+				const rangeLock = {
+					type: requestedLockType,
 					start: absoluteStartOffset,
 					end:
 						flockStruct.l_len === 0
@@ -5528,23 +5529,16 @@ export function init(RuntimeName, PHPLoader) {
 					pid,
 					fd,
 				};
-				if (requestedLockType === 'unlocked') {
-					return PHPLoader.fileLockManager
-						.unlockFileByteRange(filePath, range)
-						.then(() => 0);
-				} else {
-					range.type = requestedLockType;
-					return PHPLoader.fileLockManager
-						.lockFileByteRange(filePath, range)
-						.then((succeeded) => {
-							if (succeeded) {
-								return 0;
-							} else {
-								_wasm_set_errno(ERRNO_CODES.EAGAIN);
-								return -1;
-							}
-						});
-				}
+				return PHPLoader.fileLockManager
+					.lockFileByteRange(filePath, rangeLock)
+					.then((succeeded) => {
+						if (succeeded) {
+							return 0;
+						} else {
+							_wasm_set_errno(ERRNO_CODES.EAGAIN);
+							return -1;
+						}
+					});
 			}
 
 			// TODO: Implement waiting for lock

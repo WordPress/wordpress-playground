@@ -28,7 +28,7 @@ export type FileLockManager = {
 	 */
 	lockFileByteRange: (
 		path: string,
-		requestedLock: LockRangeWithType
+		requestedLock: RequestedRangeLock
 		// TODO: Consider if there is a better return type for this operation.
 	) => boolean;
 
@@ -45,8 +45,8 @@ export type FileLockManager = {
 	 */
 	findFirstConflictingByteRangeLock: (
 		path: string,
-		desiredLock: LockRangeWithType
-	) => LockRangeWithType | undefined;
+		desiredLock: RequestedRangeLock
+	) => RequestedRangeLock | undefined;
 
 	/**
 	 * Release all locks for a given process.
@@ -60,7 +60,9 @@ export type FileLockManager = {
 	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
 };
 
-export type LockRange = Readonly<{
+export type RequestedRangeLock = Readonly<{
+	/** The type of lock request */
+	type: 'shared' | 'exclusive' | 'unlocked';
 	/** The start offset of the lock range */
 	start: bigint;
 	/** The end of the lock range */
@@ -77,10 +79,9 @@ export type LockRange = Readonly<{
 }>;
 
 // TODO: Can we merge this into a single LockRange type?
-export type LockRangeWithType = LockRange &
+export type LockRangeWithType = RequestedRangeLock &
 	Readonly<{
 		/** The type of lock ('shared' or 'exclusive') */
-		type: 'shared' | 'exclusive' | 'unlock';
 	}>;
 
 export type WholeFileLock = Readonly<

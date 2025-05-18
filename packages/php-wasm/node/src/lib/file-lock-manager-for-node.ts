@@ -4,8 +4,7 @@ import { flockSync as nativeFlockSync } from 'fs-ext';
 
 import type {
 	FileLockManager,
-	LockRange,
-	LockRangeWithType,
+	RequestedRangeLock,
 	WholeFileLock,
 	WholeFileLockOp,
 	WholeFileLock_Shared,
@@ -19,14 +18,18 @@ type NativeLock = {
 	mode: 'exclusive' | 'shared' | 'unlock';
 };
 
+type LockedRange = RequestedRangeLock & {
+	type: Exclude<RequestedRangeLock['type'], 'unlocked'>;
+};
+
 // TODO: Try in-memory SQLite journal
 class IntervalNode {
-	range: LockRangeWithType;
+	range: LockedRange;
 	max: bigint;
 	left: IntervalNode | null = null;
 	right: IntervalNode | null = null;
 
-	constructor(range: LockRangeWithType) {
+	constructor(range: LockedRange) {
 		this.range = range;
 		this.max = range.end;
 	}
@@ -42,13 +45,13 @@ class FileLockIntervalTree {
 	/**
 	 * Insert a new locked range into the tree
 	 */
-	insert(range: LockRangeWithType): void {
+	insert(range: LockedRange): void {
 		this.root = this.insertNode(this.root, range);
 	}
 
 	private insertNode(
 		node: IntervalNode | null,
-		range: LockRangeWithType
+		range: LockedRange
 	): IntervalNode {
 		if (!node) {
 			return new IntervalNode(range);
@@ -75,16 +78,16 @@ class FileLockIntervalTree {
 	/**
 	 * Find all ranges that overlap with the given range
 	 */
-	findOverlapping(range: LockRange): LockRangeWithType[] {
-		const result: LockRangeWithType[] = [];
+	findOverlapping(range: RequestedRangeLock): LockedRange[] {
+		const result: LockedRange[] = [];
 		this.findOverlappingRanges(this.root, range, result);
 		return result;
 	}
 
 	private findOverlappingRanges(
 		node: IntervalNode | null,
-		range: LockRange,
-		result: LockRangeWithType[]
+		range: RequestedRangeLock,
+		result: LockedRange[]
 	): void {
 		if (!node) {
 			return;
@@ -106,20 +109,23 @@ class FileLockIntervalTree {
 		}
 	}
 
-	private doRangesOverlap(a: LockRange, b: LockRange): boolean {
+	private doRangesOverlap(
+		a: RequestedRangeLock,
+		b: RequestedRangeLock
+	): boolean {
 		return a.start < b.end && b.start < a.end;
 	}
 
 	/**
 	 * Remove a lock range from the tree
 	 */
-	remove(range: LockRange): void {
+	remove(range: RequestedRangeLock): void {
 		this.root = this.removeNode(this.root, range);
 	}
 
 	private removeNode(
 		node: IntervalNode | null,
-		range: LockRange
+		range: RequestedRangeLock
 	): IntervalNode | null {
 		if (!node) {
 			return null;
@@ -165,12 +171,15 @@ class FileLockIntervalTree {
 		return current;
 	}
 
-	private areRangesEqual(a: LockRange, b: LockRange): boolean {
+	private areRangesEqual(
+		a: RequestedRangeLock,
+		b: RequestedRangeLock
+	): boolean {
 		return a.start === b.start && a.end === b.end && a.pid === b.pid;
 	}
 
-	findLocksForProcess(pid: number): LockRangeWithType[] {
-		const result: LockRangeWithType[] = [];
+	findLocksForProcess(pid: number): RequestedRangeLock[] {
+		const result: RequestedRangeLock[] = [];
 		this.findLocksForProcessInNode(this.root, pid, result);
 		return result;
 	}
@@ -178,7 +187,7 @@ class FileLockIntervalTree {
 	private findLocksForProcessInNode(
 		node: IntervalNode | null,
 		pid: number,
-		result: LockRangeWithType[]
+		result: RequestedRangeLock[]
 	): void {
 		if (!node) {
 			return;
@@ -192,22 +201,8 @@ class FileLockIntervalTree {
 		this.findLocksForProcessInNode(node.right, pid, result);
 	}
 
-	// TODO: Does this make sense?
-	areThereLocksForOtherFileDescriptors(
-		pid: Pid,
-		fd: Fd,
-		type?: LockRangeWithType['type']
-	): boolean {
-		return this.areThereLocksForOtherProcessesInNode(
-			this.root,
-			pid,
-			fd,
-			type
-		);
-	}
-
-	getMaximumRangeLockType(): 'unlock' | 'shared' | 'exclusive' {
-		let maxType: LockRangeWithType['type'] = 'unlock';
+	getMaximumRangeLockType(): RequestedRangeLock['type'] {
+		let maxType: RequestedRangeLock['type'] = 'unlocked';
 
 		const traverse = (node: IntervalNode | null) => {
 			if (!node) {
@@ -232,7 +227,7 @@ class FileLockIntervalTree {
 		node: IntervalNode | null,
 		pid: Pid,
 		fd: Fd,
-		type?: LockRangeWithType['type'] | undefined
+		type?: RequestedRangeLock['type'] | undefined
 	): boolean {
 		if (!node) {
 			return false;
@@ -398,7 +393,7 @@ export class FileLock {
 		overrideRangeLockType,
 	}: {
 		overrideWholeFileLockType?: WholeFileLock['type'];
-		overrideRangeLockType?: LockRangeWithType['type'];
+		overrideRangeLockType?: RequestedRangeLock['type'];
 	} = {}) {
 		const wholeFileLockType =
 			overrideWholeFileLockType ?? this.wholeFileLock.type;
@@ -441,8 +436,8 @@ export class FileLock {
 	}
 
 	// TODO: Document the need for a native file descriptor
-	lockFileByteRange(requestedLock: LockRangeWithType): boolean {
-		if (requestedLock.type === 'unlock') {
+	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
+		if (requestedLock.type === 'unlocked') {
 			const overlappingLocksBySameProcess = this.rangeLocks
 				.findOverlapping(requestedLock)
 				.filter((lock) => lock.pid === requestedLock.pid);
@@ -505,8 +500,8 @@ export class FileLock {
 		}
 
 		// Overlapping locks from the same process are merged into a single lock of the requested type.
-		const mergedLock = {
-			...requestedLock,
+		const mergedLock: LockedRange = {
+			...(requestedLock as LockedRange),
 			start: minStart,
 			end: maxEnd,
 		};
@@ -518,8 +513,8 @@ export class FileLock {
 	// TODO: Handle whole file lock case
 	// TODO: Handle response for external conflicting lock
 	findFirstConflictingByteRangeLock(
-		desiredLock: LockRangeWithType
-	): LockRangeWithType | undefined {
+		desiredLock: RequestedRangeLock
+	): RequestedRangeLock | undefined {
 		const overlappingLocks = this.rangeLocks.findOverlapping(desiredLock);
 		const firstConflictingLock = overlappingLocks.find(
 			// TODO: Document why we are not checking for fd equality
@@ -533,7 +528,7 @@ export class FileLock {
 		return undefined;
 	}
 
-	findRangeLocksForProcess(pid: Pid): LockRangeWithType[] {
+	findRangeLocksForProcess(pid: Pid): RequestedRangeLock[] {
 		return this.rangeLocks.findLocksForProcess(pid);
 	}
 
@@ -541,7 +536,7 @@ export class FileLock {
 		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
 			this.lockFileByteRange({
 				...rangeLock,
-				type: 'unlock',
+				type: 'unlocked',
 			});
 		}
 
@@ -577,7 +572,7 @@ export class FileLock {
 		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
 			this.lockFileByteRange({
 				...rangeLock,
-				type: 'unlock',
+				type: 'unlocked',
 			});
 		}
 
@@ -594,7 +589,7 @@ export class FileLock {
 		);
 	}
 
-	private doesAConflictingLockExist(requestedLock: LockRangeWithType) {
+	private doesAConflictingLockExist(requestedLock: RequestedRangeLock) {
 		if (
 			this.wholeFileLock.type === 'exclusive' &&
 			this.wholeFileLock.pid !== requestedLock.pid
@@ -706,9 +701,12 @@ export class FileLockManagerForNode implements FileLockManager {
 	}
 
 	// TODO: Document the need for a native file descriptor
-	lockFileByteRange(path: string, requestedLock: LockRangeWithType): boolean {
+	lockFileByteRange(
+		path: string,
+		requestedLock: RequestedRangeLock
+	): boolean {
 		if (!this.locks.has(path)) {
-			if (requestedLock.type === 'unlock') {
+			if (requestedLock.type === 'unlocked') {
 				// There is no existing lock. This is a no-op.
 				return true;
 			}
@@ -725,8 +723,8 @@ export class FileLockManagerForNode implements FileLockManager {
 
 	findFirstConflictingByteRangeLock(
 		path: string,
-		desiredLock: LockRangeWithType
-	): LockRangeWithType | undefined {
+		desiredLock: RequestedRangeLock
+	): RequestedRangeLock | undefined {
 		const lock = this.locks.get(path);
 		if (lock === undefined) {
 			return undefined;
