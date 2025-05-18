@@ -313,7 +313,7 @@ const LibraryForFileLocking = {
 					type: requestedLockType,
 					start: absoluteStartOffset,
 					end:
-						flockStruct.l_len === 0
+						flockStruct.l_len === BigInt(0)
 							// TODO: Pick better typed value supported by file-lock-manager
 							? Infinity
 							: absoluteStartOffset + flockStruct.l_len,
