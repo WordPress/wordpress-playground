@@ -169,31 +169,27 @@ class FileLockIntervalTree {
 		return a.start === b.start && a.end === b.end && a.pid === b.pid;
 	}
 
-	findLocksForProcess(pid: number, fd?: number): LockRangeWithType[] {
+	findLocksForProcess(pid: number): LockRangeWithType[] {
 		const result: LockRangeWithType[] = [];
-		this.findLocksForProcessInNode(this.root, pid, fd, result);
+		this.findLocksForProcessInNode(this.root, pid, result);
 		return result;
 	}
 
 	private findLocksForProcessInNode(
 		node: IntervalNode | null,
 		pid: number,
-		fd: number | undefined,
 		result: LockRangeWithType[]
 	): void {
 		if (!node) {
 			return;
 		}
 
-		if (
-			node.range.pid === pid &&
-			(fd === undefined || node.range.fd === fd)
-		) {
+		if (node.range.pid === pid) {
 			result.push(node.range);
 		}
 
-		this.findLocksForProcessInNode(node.left, pid, fd, result);
-		this.findLocksForProcessInNode(node.right, pid, fd, result);
+		this.findLocksForProcessInNode(node.left, pid, result);
+		this.findLocksForProcessInNode(node.right, pid, result);
 	}
 
 	// TODO: Does this make sense?
@@ -471,116 +467,52 @@ export class FileLock {
 				}
 			}
 
+			// TODO: Improve this comment
+			// Since we have unlocked a range, let's make sure we only hold the minimum required native lock.
+			this.ensureCompatibleNativeLock();
+
 			return true;
 		}
 
-		// TODO: Add some predicates to make this more readable
-		if (
-			this.wholeFileLock.type === 'exclusive' &&
-			this.wholeFileLock.pid !== requestedLock.pid
-		) {
-			// Any exclusive lock not owned by the same process and file descriptor
-			// conflicts with this request.
-			return false;
-		}
-		if (
-			requestedLock.type === 'exclusive' &&
-			this.wholeFileLock.type === 'shared' &&
-			!(
-				this.wholeFileLock.pidFds.size === 1 &&
-				this.wholeFileLock.pidFds.has(requestedLock.pid) &&
-				this.wholeFileLock.pidFds.get(requestedLock.pid)!.size === 1 &&
-				this.wholeFileLock.pidFds
-					.get(requestedLock.pid)!
-					.has(requestedLock.fd)
-			)
-		) {
-			// This request conflicts with shared file locks
-			// owned by other processes and/or file descriptors.
+		if (this.doesAConflictingLockExist(requestedLock)) {
 			return false;
 		}
 
-		// There does not appear to be a conflicting whole file lock,
-		// so we can proceed with attempting to lock a byte range.
-		const rangeLocks = this.rangeLocks;
-		const overlappingLocks = rangeLocks.findOverlapping(requestedLock);
+		// TODO: Improve this comment?
+		// Make sure we can acquire a compatible native lock before granting an equivalent internal lock.
+		this.ensureCompatibleNativeLock({
+			overrideRangeLockType: requestedLock.type,
+		});
 
-		const overlappingLocksFromOthers = overlappingLocks.filter(
-			(lock) => lock.pid !== requestedLock.pid
-		);
+		const overlappingLocksFromSameProcess = this.rangeLocks
+			.findOverlapping(requestedLock)
+			.filter((lock) => lock.pid === requestedLock.pid);
 
-		if (
-			requestedLock.type === 'exclusive' &&
-			overlappingLocksFromOthers.length > 0
-		) {
-			// The requested exclusive lock conflicts with existing locks from
-			// other processes and/or file descriptors.
-			return false;
-		}
+		let minStart = 0n;
+		let maxEnd = 0n;
+		for (const overlappingLock of overlappingLocksFromSameProcess) {
+			// Remove overlapping locks from the same process because the requested
+			// lock replaces them.
+			this.rangeLocks.remove(overlappingLock);
+			// TODO: Merge with overlapping locks from the same process.
 
-		if (
-			requestedLock.type === 'shared' &&
-			overlappingLocksFromOthers.some((lock) => lock.type === 'exclusive')
-		) {
-			// The requested shared lock conflicts with an existing exclusive
-			// lock from another process.
-			return false;
-		}
-
-		if (
-			this.nativeLock.mode === 'shared' &&
-			requestedLock.type === 'exclusive'
-		) {
-			try {
-				nativeFlockSync(this.nativeLock.fd, 'exnb');
-				this.nativeLock.mode = 'exclusive';
-			} catch {
-				// An external exclusive lock conflicts with the requested lock.
-				return false;
+			if (overlappingLock.start < minStart) {
+				minStart = overlappingLock.start;
+			}
+			if (overlappingLock.end > maxEnd) {
+				maxEnd = overlappingLock.end;
 			}
 		}
 
-		const overlappingLocksFromSameProcess = overlappingLocks.filter(
-			(lock) => lock.pid === requestedLock.pid
-		);
-
-		// Remove overlapping locks from the same process because the requested
-		// lock replaces them.
-		// TODO: Merge with overlapping locks from the same process.
-		for (const overlappingLock of overlappingLocksFromSameProcess) {
-			rangeLocks.remove(overlappingLock);
-		}
-
-		rangeLocks.insert(requestedLock);
+		// Overlapping locks from the same process are merged into a single lock of the requested type.
+		const mergedLock = {
+			...requestedLock,
+			start: minStart,
+			end: maxEnd,
+		};
+		this.rangeLocks.insert(mergedLock);
 
 		return true;
-	}
-
-	// TODO: Consider unifying unlockFileByteRange and lockFileByteRange
-	unlockFileByteRange(lockToRelease: LockRange) {
-		// Unlock all overlapping locks from the same process.
-		// TODO: What should happen to partial overlaps?
-		const overlappingLocks = this.rangeLocks.findOverlapping(lockToRelease);
-		const overlappingLocksFromSameProcess = overlappingLocks.filter(
-			(lock) => lock.pid === lockToRelease.pid
-		);
-		for (const overlappingRangeLock of overlappingLocksFromSameProcess) {
-			this.rangeLocks.remove(overlappingRangeLock);
-		}
-
-		const minimumRequiredNativeLockType =
-			this.getMinimumRequiredNativeLockType();
-		if (
-			this.nativeLock.mode === 'exclusive' &&
-			minimumRequiredNativeLockType === 'shared'
-		) {
-			try {
-				nativeFlockSync(this.nativeLock.fd, 'shnb');
-				this.nativeLock.mode = 'shared';
-			} catch {
-				// TODO: What to do here? Something went badly wrong. Runtime exception?
-			}
-		}
 	}
 
 	// TODO: Handle whole file lock case
@@ -607,7 +539,10 @@ export class FileLock {
 
 	releaseLocksForProcess(pid: Pid) {
 		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
-			this.unlockFileByteRange(rangeLock);
+			this.lockFileByteRange({
+				...rangeLock,
+				type: 'unlock',
+			});
 		}
 
 		if (
@@ -639,8 +574,11 @@ export class FileLock {
 		// "If you open both databases in sqlite at the same time, then close the second one, all your open sqlite locks on the first one will be lost!"
 		// TODO: Confirm and find better reference.
 		// Closing an fd for a file releases all fcntl locks for the owning process.
-		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid, fd)) {
-			this.unlockFileByteRange(rangeLock);
+		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
+			this.lockFileByteRange({
+				...rangeLock,
+				type: 'unlock',
+			});
 		}
 
 		this.lockWholeFile({
@@ -783,19 +721,6 @@ export class FileLockManagerForNode implements FileLockManager {
 		}
 		const lock = this.locks.get(path)!;
 		return lock.lockFileByteRange(requestedLock);
-	}
-
-	// TODO: Consider unifying unlockFileByteRange and lockFileByteRange
-	unlockFileByteRange(path: string, lockToRelease: LockRange) {
-		const lock = this.locks.get(path);
-		if (lock === undefined) {
-			// TODO: Log an error
-			return;
-		}
-
-		const result = lock.unlockFileByteRange(lockToRelease);
-		this.forgetPathIfUnlocked(path);
-		return result;
 	}
 
 	findFirstConflictingByteRangeLock(
