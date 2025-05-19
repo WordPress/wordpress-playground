@@ -212,6 +212,7 @@ const LibraryForFileLocking = {
 					logger.warn(
 						`locking via fcntl() is not implemented for non-NodeFS path '${filePath}'`
 					);
+					// TODO: Set struct to UNLCK
 					return 0;
 				}
 
