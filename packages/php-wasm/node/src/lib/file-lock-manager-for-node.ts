@@ -452,7 +452,9 @@ export class FileLock {
 						...overlappingLock,
 						end: requestedLock.start,
 					});
-				} else if (overlappingLock.end > requestedLock.end) {
+				}
+
+				if (overlappingLock.end > requestedLock.end) {
 					// This lock extends past our unlock range.
 					// Preserve the part that does not overlap.
 					this.rangeLocks.insert({
