@@ -327,6 +327,10 @@ export class FileLock {
 				if (this.wholeFileLock.pidFds.get(op.pid)!.size === 0) {
 					this.wholeFileLock.pidFds.delete(op.pid);
 				}
+
+				if (this.wholeFileLock.pidFds.size === 0) {
+					this.wholeFileLock = { type: 'unlocked' };
+				}
 			}
 
 			if (!this.ensureCompatibleNativeLock()) {
