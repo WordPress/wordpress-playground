@@ -701,9 +701,10 @@ describe('FileLockManagerForNode', () => {
 				});
 				expect(result1).toBe(true);
 
-				// Try to get a lock in the remaining range
+				// Confirm correct starting point by getting an exclusive lock
+				// before the start of the "infinite" range.
 				const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'shared',
+					type: 'exclusive',
 					start: 0n,
 					end: 100n,
 					pid: 2,
@@ -711,11 +712,12 @@ describe('FileLockManagerForNode', () => {
 				});
 				expect(result2).toBe(true);
 
-				// Try to get a lock after the zero-length lock
+				// Confirm the rest of the file is already locked by attempting to exclusively lock
+				// within a large part of that range
 				const result3 = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'shared',
-					start: 100n,
-					end: 200n,
+					type: 'exclusive',
+					start: 200n,
+					end: BigInt(Number.MAX_SAFE_INTEGER),
 					pid: 2,
 					fd: 1,
 				});

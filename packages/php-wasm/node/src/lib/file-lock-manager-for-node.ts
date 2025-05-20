@@ -441,6 +441,16 @@ export class FileLock {
 
 	// TODO: Document the need for a native file descriptor
 	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
+		if (requestedLock.start === requestedLock.end) {
+			// Treat a range with zero length as covering the entire remaining range.
+			// TODO: Link to POSIX reference for this behavior.
+			requestedLock = {
+				...requestedLock,
+				// TODO: Consider better max
+				end: BigInt(Number.MAX_SAFE_INTEGER),
+			};
+		}
+
 		if (requestedLock.type === 'unlocked') {
 			const overlappingLocksBySameProcess = this.rangeLocks
 				.findOverlapping(requestedLock)
