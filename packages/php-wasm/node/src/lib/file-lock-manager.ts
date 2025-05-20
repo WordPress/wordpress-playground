@@ -26,6 +26,7 @@ export type FileLockManager = {
 	 *          When locking: True if the lock was acquired, false if it was not.
 	 *          When unlocking: Always true.
 	 */
+	// TODO: Consider renaming to lockByteRangeForFile because there is an fcntl() F_OFD_SETLK command that would be named lockByteRangeForFileDescriptor
 	lockFileByteRange: (
 		path: string,
 		requestedLock: RequestedRangeLock
