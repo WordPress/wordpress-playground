@@ -47,7 +47,7 @@ export type FileLockManager = {
 	findFirstConflictingByteRangeLock: (
 		path: string,
 		desiredLock: RequestedRangeLock
-	) => RequestedRangeLock | undefined;
+	) => Omit<RequestedRangeLock, 'fd'> | undefined;
 
 	/**
 	 * Release all locks for a given process.

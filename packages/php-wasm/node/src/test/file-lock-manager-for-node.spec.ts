@@ -1051,7 +1051,7 @@ describe('FileLockManagerForNode', () => {
 			expect(conflict).toBeUndefined();
 		});
 
-		it('should handle a conflict with a whole-file lock', async () => {
+		it('should handle an exclusive range lock conflict with a shared whole-file lock', async () => {
 			// First get an exclusive whole-file lock
 			const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 				type: 'exclusive',
@@ -1073,9 +1073,72 @@ describe('FileLockManagerForNode', () => {
 					}
 				);
 
-			expect(conflict).toBeDefined();
-			expect(conflict?.pid).toBe(1);
-			expect(conflict?.type).toBe('exclusive');
+			expect(conflict).toEqual({
+				type: 'exclusive',
+				start: 0n,
+				end: 0n,
+				pid: -1,
+			});
+		});
+
+		it('should handle an exclusive range lock conflict with an exclusive whole-file lock', async () => {
+			// First get an exclusive whole-file lock
+			const result1 = lockManager.lockWholeFile(TEST_FILE1, {
+				type: 'exclusive',
+				pid: 1,
+				fd: 1,
+			});
+			expect(result1).toBe(true);
+
+			// Try to get a range lock
+			const conflict =
+				await lockManager.findFirstConflictingByteRangeLock(
+					TEST_FILE1,
+					{
+						type: 'exclusive',
+						start: 0n,
+						end: 100n,
+						pid: 2,
+						fd: 1,
+					}
+				);
+
+			expect(conflict).toEqual({
+				type: 'exclusive',
+				start: 0n,
+				end: 0n,
+				pid: -1,
+			});
+		});
+
+		it('should handle a shared range lock conflict with an exclusive whole-file lock', async () => {
+			// First get an exclusive whole-file lock
+			const result1 = lockManager.lockWholeFile(TEST_FILE1, {
+				type: 'shared',
+				pid: 1,
+				fd: 1,
+			});
+			expect(result1).toBe(true);
+
+			// Try to get a range lock
+			const conflict =
+				await lockManager.findFirstConflictingByteRangeLock(
+					TEST_FILE1,
+					{
+						type: 'exclusive',
+						start: 0n,
+						end: 100n,
+						pid: 2,
+						fd: 1,
+					}
+				);
+
+			expect(conflict).toEqual({
+				type: 'shared',
+				start: 0n,
+				end: 0n,
+				pid: -1,
+			});
 		});
 	});
 

@@ -307,6 +307,9 @@ export class FileLock {
 	// TODO: Comment reasoning
 	// TODO: Replace lock on a redundant fd with a desired lock by the same process
 	// TODO: Document the need for a native file descriptor
+	// NOTE: flock() locks are associated with open file descriptors
+	// and duplicated file descriptors. We do not currently recognize duplicate
+	// file descriptors.
 	lockWholeFile(op: WholeFileLockOp): boolean {
 		if (op.type === 'unlock') {
 			const originalType = this.wholeFileLock.type;
@@ -530,15 +533,45 @@ export class FileLock {
 	// TODO: Handle response for external conflicting lock
 	findFirstConflictingByteRangeLock(
 		desiredLock: RequestedRangeLock
-	): RequestedRangeLock | undefined {
+	): Omit<RequestedRangeLock, 'fd'> | undefined {
 		const overlappingLocks = this.rangeLocks.findOverlapping(desiredLock);
-		const firstConflictingLock = overlappingLocks.find(
+		const firstConflictingRangeLock = overlappingLocks.find(
 			// TODO: Document why we are not checking for fd equality
-			(lock) => lock.pid !== desiredLock.pid
+			(lock) =>
+				lock.pid !== desiredLock.pid &&
+				(desiredLock.type === 'exclusive' || lock.type === 'exclusive')
 		);
 
-		if (firstConflictingLock) {
-			return firstConflictingLock;
+		if (firstConflictingRangeLock) {
+			return firstConflictingRangeLock;
+		}
+
+		if (this.wholeFileLock.type === 'unlocked') {
+			return undefined;
+		}
+
+		const wholeFileLockConflicts =
+			(this.wholeFileLock.type === 'exclusive' &&
+				this.wholeFileLock.pid !== desiredLock.pid) ||
+			(desiredLock.type === 'exclusive' &&
+				this.wholeFileLock.type === 'shared' &&
+				!(
+					this.wholeFileLock.pidFds.size === 1 &&
+					this.wholeFileLock.pidFds.has(desiredLock.pid) &&
+					this.wholeFileLock.pidFds.get(desiredLock.pid)!.size ===
+						1 &&
+					this.wholeFileLock.pidFds
+						.get(desiredLock.pid)!
+						.has(desiredLock.fd)
+				));
+
+		if (wholeFileLockConflicts) {
+			return {
+				type: this.wholeFileLock.type,
+				start: 0n,
+				end: 0n,
+				pid: -1,
+			};
 		}
 
 		return undefined;
@@ -606,53 +639,9 @@ export class FileLock {
 	}
 
 	private doesAConflictingLockExist(requestedLock: RequestedRangeLock) {
-		if (
-			this.wholeFileLock.type === 'exclusive' &&
-			this.wholeFileLock.pid !== requestedLock.pid
-		) {
-			// Any exclusive lock not owned by the same process and file descriptor
-			// conflicts with this request.
-			return true;
-		}
-		if (
-			requestedLock.type === 'exclusive' &&
-			this.wholeFileLock.type === 'shared' &&
-			!(
-				this.wholeFileLock.pidFds.size === 1 &&
-				this.wholeFileLock.pidFds.has(requestedLock.pid) &&
-				this.wholeFileLock.pidFds.get(requestedLock.pid)!.size === 1 &&
-				this.wholeFileLock.pidFds
-					.get(requestedLock.pid)!
-					.has(requestedLock.fd)
-			)
-		) {
-			// This request conflicts with shared file locks
-			// owned by other processes and/or file descriptors.
-			return true;
-		}
-
-		for (const overlappingLock of this.rangeLocks.findOverlapping(
-			requestedLock
-		)) {
-			if (overlappingLock.pid === requestedLock.pid) {
-				continue;
-			}
-
-			if (requestedLock.type === 'exclusive') {
-				// Any lock owned by another process conflicts with an exclusive lock.
-				return true;
-			}
-
-			if (
-				requestedLock.type === 'shared' &&
-				overlappingLock.type === 'exclusive'
-			) {
-				// An exclusive lock owned by another process conflicts with a shared lock.
-				return true;
-			}
-		}
-
-		return false;
+		return (
+			this.findFirstConflictingByteRangeLock(requestedLock) !== undefined
+		);
 	}
 
 	getMaximumRangeLockType() {
@@ -740,7 +729,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	findFirstConflictingByteRangeLock(
 		path: string,
 		desiredLock: RequestedRangeLock
-	): RequestedRangeLock | undefined {
+	): Omit<RequestedRangeLock, 'fd'> | undefined {
 		const lock = this.locks.get(path);
 		if (lock === undefined) {
 			return undefined;
