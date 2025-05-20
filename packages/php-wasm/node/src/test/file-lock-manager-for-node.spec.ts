@@ -726,14 +726,15 @@ describe('FileLockManagerForNode', () => {
 		});
 		describe('unlock', () => {
 			it('does not error when range not locked by current process', async () => {
-				const result = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'unlocked',
-					start: 0n,
-					end: 100n,
-					pid: 1,
-					fd: 1,
-				});
-				expect(result).toBeUndefined();
+				expect(() =>
+					lockManager.lockFileByteRange(TEST_FILE1, {
+						type: 'unlocked',
+						start: 0n,
+						end: 100n,
+						pid: 1,
+						fd: 1,
+					})
+				).not.toThrow();
 			});
 
 			it('unlocks shared lock', async () => {
