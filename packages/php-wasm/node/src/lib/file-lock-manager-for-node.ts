@@ -485,8 +485,8 @@ export class FileLock {
 			.findOverlapping(requestedLock)
 			.filter((lock) => lock.pid === requestedLock.pid);
 
-		let minStart = 0n;
-		let maxEnd = 0n;
+		let minStart = requestedLock.start;
+		let maxEnd = requestedLock.end;
 		for (const overlappingLock of overlappingLocksFromSameProcess) {
 			// Remove overlapping locks from the same process because the requested
 			// lock replaces them.
