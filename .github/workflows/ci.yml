@@ -31,7 +31,7 @@ jobs:
             matrix:
                 include:
                     - name: test-unit-asyncify (1/6)
-                      target: test
+                      target: test-node
                     - name: test-unit-asyncify (2/6)
                       target: test-php
                     - name: test-unit-asyncify (3/6)

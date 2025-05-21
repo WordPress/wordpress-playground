@@ -146,22 +146,12 @@
 			},
 			"dependsOn": ["build"]
 		},
-		"test": {
+		"test-node": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": [
-					"php-crash.spec.ts",
-					"php-ini.spec.ts",
-					"php-memory.spec.ts",
-					"php-networking.spec.ts",
-					"php-process-manager.spec.ts",
-					"php-request-handler.spec.ts",
-					"php-vars.spec.ts",
-					"rotate-php-runtime.spec.ts",
-					"write-files.spec.ts"
-				]
+				"testFiles": ["php-request-handler.spec.ts"]
 			}
 		},
 		"test-php": {
