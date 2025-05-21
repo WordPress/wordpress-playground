@@ -56,8 +56,6 @@ PHPLoader['removeRunDependency'] = function (...args) {
 PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
-return PHPLoader;
-
 // TODO: Revisit this hack after discussion with the Emscripten team.
 if (typeof NODEFS === 'object') {
     var originalHashAddNode = FS.hashAddNode;
@@ -71,6 +69,8 @@ if (typeof NODEFS === 'object') {
         return originalHashAddNode.apply(FS, arguments);
     };
 }
+
+return PHPLoader;
 
 // Close the opening bracket from esm-prefix.js:
 }
