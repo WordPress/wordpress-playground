@@ -1874,6 +1874,25 @@ bar1
 		});
 	});
 
+	/**
+	 * intl support
+	 */
+	if (!['7.0', '7.1'].includes(phpVersion)) {
+		describe('intl extension support', () => {
+			it('Should be able to use intl functions', async () => {
+				const response = await php.run({
+					code: `<?php
+						$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
+						echo $formatter->format(100.00);
+						$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
+						echo $formatter->format(100.00);
+					?>`,
+				});
+				expect(response.text).toEqual('$100.00100,00\xA0€');
+			});
+		});
+	}
+
 	describe('onMessage', () => {
 		it('should pass messages to JS', async () => {
 			let messageReceived = '';

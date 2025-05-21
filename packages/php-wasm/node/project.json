@@ -146,15 +146,65 @@
 			},
 			"dependsOn": ["build"]
 		},
-		"test-node": {
+		"test": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
-				"passWithNoTests": true,
-				"reportsDirectory": "../../../coverage/packages/php-wasm/node"
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-crash.spec.ts",
+					"php-ini.spec.ts",
+					"php-memory.spec.ts",
+					"php-networking.spec.ts",
+					"php-process-manager.spec.ts",
+					"php-request-handler.spec.ts",
+					"php-vars.spec.ts",
+					"rotate-php-runtime.spec.ts",
+					"write-files.spec.ts"
+				]
 			}
 		},
-		"lint-node": {
+		"test-php": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php.spec.ts"]
+			}
+		},
+		"test-php-asyncify-file-get-contents": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-file-get-contents.spec.ts"]
+			}
+		},
+		"test-php-asyncify-fopen": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-fopen.spec.ts"]
+			}
+		},
+		"test-php-asyncify-fsockopen": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-fsockopen.spec.ts"]
+			}
+		},
+		"test-php-asyncify-gethostbyname": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-gethostbyname.spec.ts"]
+			}
+		},
+		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
