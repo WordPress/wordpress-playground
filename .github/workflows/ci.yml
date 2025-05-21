@@ -50,7 +50,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }} --configuration=ci
     # Most of these tests pass locally but the process is crashing
     # on the CI runner.
     #
