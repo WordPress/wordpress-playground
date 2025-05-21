@@ -439,13 +439,16 @@ const LibraryForFileLocking = {
 				PHPLoader.processId,
 				path
 			);
+
+			// TODO: Say why closing this first
+			const result = default_fd_close.fn(fd);
 			return PHPLoader.fileLockManager
 				.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
 				.finally(() => {
 					lock_utils.maybeLockedFds.delete(fd);
 				})
 				.then(() => {
-					return default_fd_close.fn(fd);
+					return result;
 				});
 		} else {
 			return default_fd_close.fn(fd);
