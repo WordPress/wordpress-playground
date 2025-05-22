@@ -172,20 +172,12 @@
 				"testFiles": ["php.spec.ts"]
 			}
 		},
-		"test-php-request-handler-php-7": {
+		"test-php-request-handler-php": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": ["php-request-handler-php-7.spec.ts"]
-			}
-		},
-		"test-php-request-handler-php-8": {
-			"executor": "@nx/vite:test",
-			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
-			"options": {
-				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": ["php-request-handler-php-8.spec.ts"]
+				"testFiles": ["php-request-handler-php.spec.ts"]
 			}
 		},
 		"test-php-asyncify-file-get-contents": {
