@@ -30,19 +30,21 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/7)
+                    - name: test-unit-asyncify (1/8)
                       target: test-node
-                    - name: test-unit-asyncify (2/7)
+                    - name: test-unit-asyncify (2/8)
                       target: test-php
-                    - name: test-unit-asyncify (3/7)
-                      target: test-php-request-handler-php
-                    - name: test-unit-asyncify (4/7)
+                    - name: test-unit-asyncify (3/8)
+                      target: test-php-request-handler-php-7
+                    - name: test-unit-asyncify (4/8)
+                      target: test-php-request-handler-php-8
+                    - name: test-unit-asyncify (5/8)
                       target: test-php-asyncify-file-get-contents
-                    - name: test-unit-asyncify (5/7)
+                    - name: test-unit-asyncify (6/8)
                       target: test-php-asyncify-fopen
-                    - name: test-unit-asyncify (6/7)
+                    - name: test-unit-asyncify (7/8)
                       target: test-php-asyncify-fsockopen
-                    - name: test-unit-asyncify (7/7)
+                    - name: test-unit-asyncify (8/8)
                       target: test-php-asyncify-gethostbyname
         name: ${{ matrix.name }}
         steps:
