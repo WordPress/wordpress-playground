@@ -1926,3 +1926,17 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 	}
 	return eof_offset;
 }
+
+// TODO: EXPLAIN WHY THIS SHIM FUNCTION
+EM_ASYNC_JS(int, call_js__syscall_fcntl64, (int fd, int cmd, va_list args), {
+  const result = await _js__syscall_fcntl64(fd, cmd, args);
+  return result;
+});
+
+int __syscall_fcntl64(int fd, int cmd, ...) {
+	va_list args;
+	va_start(args, cmd);
+	int result = call_js__syscall_fcntl64(fd, cmd, args);
+	va_end(args);
+	return result;
+}

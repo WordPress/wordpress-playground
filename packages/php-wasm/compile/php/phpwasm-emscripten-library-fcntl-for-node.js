@@ -8,7 +8,6 @@
 'use strict';
 
 // TODO: Rename this file to be less specific and for file locking in general
-// TODO: Rename this var to be more specific
 const LibraryForFileLocking = {
 	$lock_utils: {
 		is_nodefs_node(node) {
@@ -51,8 +50,8 @@ const LibraryForFileLocking = {
 		fn: LibraryManager.library.__syscall_fcntl64,
 	},
 
-	__syscall_fcntl64__deps: ['$default_fcntl64', '$lock_utils'],
-	__syscall_fcntl64(fd, cmd, varargs) {
+	js__syscall_fcntl64__deps: ['$default_fcntl64', '$lock_utils'],
+	js__syscall_fcntl64(fd, cmd, varargs) {
 		// Necessary to use varargs accessor
 		SYSCALLS.varargs = varargs;
 
@@ -203,7 +202,9 @@ const LibraryForFileLocking = {
 
 				[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
 				if (errno !== 0) {
-					js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} resolveFileDescriptorToPath errno ${errno}`);
+					js_wasm_trace(
+						`fcntl F_GETLK ${fd} ${filePath} resolveFileDescriptorToPath errno ${errno}`
+					);
 					_wasm_set_errno(errno);
 					return -1;
 				}
@@ -215,7 +216,9 @@ const LibraryForFileLocking = {
 						`locking via fcntl() is not implemented for non-NodeFS path '${filePath}'`
 					);
 					// TODO: Set struct to UNLCK
-					js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} is_nodefs_path false`);
+					js_wasm_trace(
+						`fcntl F_GETLK ${fd} ${filePath} is_nodefs_path false`
+					);
 					return 0;
 				}
 
@@ -225,7 +228,9 @@ const LibraryForFileLocking = {
 				errno = checkLockParams(fd, flockStruct.l_type);
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
-					js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} check_lock_params errno ${errno}`);
+					js_wasm_trace(
+						`fcntl F_GETLK ${fd} ${filePath} check_lock_params errno ${errno}`
+					);
 					return -1;
 				}
 
@@ -238,7 +243,9 @@ const LibraryForFileLocking = {
 				);
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
-					js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} get_base_address errno ${errno}`);
+					js_wasm_trace(
+						`fcntl F_GETLK ${fd} ${filePath} get_base_address errno ${errno}`
+					);
 					return -1;
 				}
 
@@ -258,7 +265,18 @@ const LibraryForFileLocking = {
 							updateFlockStruct(flockStructAddr, {
 								l_type: F_UNLCK,
 							});
-							js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock type=unlocked start=0x${absoluteStartOffset.toString(16).padStart(16, '0')} end=0x${(absoluteStartOffset + flockStruct.l_len).toString(16).padStart(16, '0')} conflictingLock undefined`);
+							js_wasm_trace(
+								`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock type=unlocked start=0x${absoluteStartOffset
+									.toString(16)
+									.padStart(16, '0')} end=0x${(
+									absoluteStartOffset + flockStruct.l_len
+								)
+									.toString(16)
+									.padStart(
+										16,
+										'0'
+									)} conflictingLock undefined`
+							);
 							return 0;
 						}
 
@@ -271,11 +289,31 @@ const LibraryForFileLocking = {
 							l_len: conflictingLock.end - conflictingLock.start,
 							l_pid: conflictingLock.pid,
 						});
-						js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock type=${conflictingLock.type} start=0x${conflictingLock.start.toString(16).padStart(16, '0')} end=0x${conflictingLock.end.toString(16).padStart(16, '0')} conflictingLock ${conflictingLock.pid}`);
+						js_wasm_trace(
+							`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock type=${
+								conflictingLock.type
+							} start=0x${conflictingLock.start
+								.toString(16)
+								.padStart(16, '0')} end=0x${conflictingLock.end
+								.toString(16)
+								.padStart(16, '0')} conflictingLock ${
+								conflictingLock.pid
+							}`
+						);
 						return 0;
 					})
 					.catch((e) => {
-						js_wasm_trace(`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock error ${JSON.stringify(e, (key, value) => typeof value === "bigint" ? `0x${value.toString(16).padStart(16, '0')}` : value)}`);
+						js_wasm_trace(
+							`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock error ${JSON.stringify(
+								e,
+								(key, value) =>
+									typeof value === 'bigint'
+										? `0x${value
+												.toString(16)
+												.padStart(16, '0')}`
+										: value
+							)}`
+						);
 						_wasm_set_errno(ERRNO_CODES.EINVAL);
 						return -1;
 					});
@@ -288,7 +326,9 @@ const LibraryForFileLocking = {
 				// js_wasm_trace(`fcntl F_SETLK ${fd} resolveFileDescriptorToPath ${filePath} ${errno}`);
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
-					js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} resolveFileDescriptorToPath errno ${errno}`);
+					js_wasm_trace(
+						`fcntl F_SETLK ${fd} ${filePath} resolveFileDescriptorToPath errno ${errno}`
+					);
 					return -1;
 				}
 
@@ -317,7 +357,9 @@ const LibraryForFileLocking = {
 				);
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
-					js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} get_base_address errno ${errno}`);
+					js_wasm_trace(
+						`fcntl F_SETLK ${fd} ${filePath} get_base_address errno ${errno}`
+					);
 					return -1;
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after get_base_address ${absoluteStartOffset}`);
@@ -325,7 +367,9 @@ const LibraryForFileLocking = {
 				errno = checkLockParams(fd, flockStruct.l_type);
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
-					js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} check_lock_params errno ${errno}`);
+					js_wasm_trace(
+						`fcntl F_SETLK ${fd} ${filePath} check_lock_params errno ${errno}`
+					);
 					return -1;
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after check_lock_params ${errno}`);
@@ -341,11 +385,27 @@ const LibraryForFileLocking = {
 					pid,
 					fd,
 				};
-				js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} before lockFileByteRange ${JSON.stringify(rangeLock, (key, value) => typeof value === "bigint" ? `0x${value.toString(16).padStart(16, '0')}` : value)}`);
+				js_wasm_trace(
+					`fcntl F_SETLK ${fd} ${filePath} before lockFileByteRange ${JSON.stringify(
+						rangeLock,
+						(key, value) =>
+							typeof value === 'bigint'
+								? `0x${value.toString(16).padStart(16, '0')}`
+								: value
+					)}`
+				);
 				return PHPLoader.fileLockManager
 					.lockFileByteRange(filePath, rangeLock)
 					.then((succeeded) => {
-						js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} lockFileByteRange type=${requestedLockType} start=0x${absoluteStartOffset.toString(16).padStart(16, '0')} end=0x${(absoluteStartOffset + flockStruct.l_len).toString(16).padStart(16, '0')} ${succeeded}`);
+						js_wasm_trace(
+							`fcntl F_SETLK ${fd} ${filePath} lockFileByteRange type=${requestedLockType} start=0x${absoluteStartOffset
+								.toString(16)
+								.padStart(16, '0')} end=0x${(
+								absoluteStartOffset + flockStruct.l_len
+							)
+								.toString(16)
+								.padStart(16, '0')} ${succeeded}`
+						);
 						if (succeeded) {
 							return 0;
 						} else {
@@ -354,7 +414,17 @@ const LibraryForFileLocking = {
 						}
 					})
 					.catch((e) => {
-						js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} lockFileByteRange error ${JSON.stringify(e, (key, value) => typeof value === "bigint" ? `0x${value.toString(16).padStart(16, '0')}` : value)}`);
+						js_wasm_trace(
+							`fcntl F_SETLK ${fd} ${filePath} lockFileByteRange error ${JSON.stringify(
+								e,
+								(key, value) =>
+									typeof value === 'bigint'
+										? `0x${value
+												.toString(16)
+												.padStart(16, '0')}`
+										: value
+							)}`
+						);
 						_wasm_set_errno(ERRNO_CODES.EINVAL);
 						return -1;
 					});
@@ -378,14 +448,25 @@ const LibraryForFileLocking = {
 		js_wasm_trace(`js_release_file_locks ${PHPLoader.processId}`);
 		if (PHPLoader.fileLockManager) {
 			const pid = PHPLoader.processId;
-			return PHPLoader.fileLockManager.releaseLocksForProcess(pid)
+			return PHPLoader.fileLockManager
+				.releaseLocksForProcess(pid)
 				.then((result) => {
 					js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
 					return result;
 				})
 				.catch((e) => {
 					// TODO: What to actually do for an error here? Can we crash?
-					js_wasm_trace(`js_release_file_locks ${pid} error ${JSON.stringify(e, (key, value) => typeof value === "bigint" ? `0x${value.toString(16).padStart(16, '0')}` : value)}`);
+					js_wasm_trace(
+						`js_release_file_locks ${pid} error ${JSON.stringify(
+							e,
+							(key, value) =>
+								typeof value === 'bigint'
+									? `0x${value
+											.toString(16)
+											.padStart(16, '0')}`
+									: value
+						)}`
+					);
 					return -1;
 				});
 		}
@@ -413,7 +494,9 @@ const LibraryForFileLocking = {
 		let errno;
 
 		[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
-		js_wasm_trace(`js_flock ${fd} ${op} resolveFileDescriptorToPath ${filePath} ${errno}`);
+		js_wasm_trace(
+			`js_flock ${fd} ${op} resolveFileDescriptorToPath ${filePath} ${errno}`
+		);
 		if (errno !== 0) {
 			_wasm_set_errno(errno);
 			return -1;
@@ -464,7 +547,9 @@ const LibraryForFileLocking = {
 			pid: PHPLoader.processId,
 			fd,
 		});
-		js_wasm_trace(`js_flock ${fd} ${op} ${filePath} lockWholeFile ${result}`);
+		js_wasm_trace(
+			`js_flock ${fd} ${op} ${filePath} lockWholeFile ${result}`
+		);
 
 		if (result) {
 			return 0;
@@ -483,18 +568,25 @@ const LibraryForFileLocking = {
 		// js_wasm_trace(`fd_close ${fd}`);
 		const [path, pathResolutionErrno] =
 			lock_utils.resolveFileDescriptorToPath(fd);
-		const shouldLog = pathResolutionErrno === 0 && path.includes('.ht.sqlite');
+		const shouldLog =
+			pathResolutionErrno === 0 && path.includes('.ht.sqlite');
 		// js_wasm_trace(`fd_close ${fd} resolveFileDescriptorToPath ${path} ${pathResolutionErrno}`);
 		if (lock_utils.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
-
-			shouldLog && js_wasm_trace(`fd_close ${fd} ${path} calling default_fd_close` );
+			shouldLog &&
+				js_wasm_trace(
+					`fd_close ${fd} ${path} calling default_fd_close`
+				);
 			// TODO: Say why closing this first
 			const result = default_fd_close.fn(fd);
-			shouldLog && js_wasm_trace(`fd_close ${fd} ${path} finished default_fd_close ${result}`);
+			shouldLog &&
+				js_wasm_trace(
+					`fd_close ${fd} ${path} finished default_fd_close ${result}`
+				);
 			return PHPLoader.fileLockManager
 				.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
 				.finally(() => {
-					shouldLog && js_wasm_trace(`fd_close ${fd} ${path} finally`);
+					shouldLog &&
+						js_wasm_trace(`fd_close ${fd} ${path} finally`);
 					lock_utils.maybeLockedFds.delete(fd);
 				})
 				.then(() => {
@@ -502,10 +594,22 @@ const LibraryForFileLocking = {
 					return result;
 				})
 				.catch((e) => {
-					shouldLog && js_wasm_trace(`fd_close ${fd} error ${JSON.stringify(e, (key, value) => typeof value === "bigint" ? `0x${value.toString(16).padStart(16, '0')}` : value)}`);
+					shouldLog &&
+						js_wasm_trace(
+							`fd_close ${fd} error ${JSON.stringify(
+								e,
+								(key, value) =>
+									typeof value === 'bigint'
+										? `0x${value
+												.toString(16)
+												.padStart(16, '0')}`
+										: value
+							)}`
+						);
 				});
 		} else {
-			shouldLog && js_wasm_trace(`fd_close ${fd} ${path} default_fd_close case`);
+			shouldLog &&
+				js_wasm_trace(`fd_close ${fd} ${path} default_fd_close case`);
 			return default_fd_close.fn(fd);
 		}
 	},
@@ -513,7 +617,7 @@ const LibraryForFileLocking = {
 	// Provide "real" PID to help with logging when debugging multi-worker issues
 	js_getpid() {
 		return PHPLoader.processId;
-	}
+	},
 };
 
 autoAddDeps(LibraryForFileLocking, '$default_fcntl64');

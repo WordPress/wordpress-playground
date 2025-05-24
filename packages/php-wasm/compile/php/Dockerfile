@@ -526,7 +526,9 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "js_popen_to_file",\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
-"___syscall_fcntl64",\n\
+# TODO: MAYBE MOVE THESE TO EXPORTED_FUNCTIONS?
+"_js__syscall_fcntl64",\n\
+"_asyncjs__js__syscall_fcntl64",\n\
 "js_release_file_locks",\n\
 "js_flock",\n\
 "js_fd_read",\n\
@@ -577,6 +579,30 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_viiiiiiii",'; \
 
 export ASYNCIFY_ONLY=$'\
+"fcntl",\
+"lockTrace",\
+"unixFileLock",\
+"sqlite3OsLock",\
+"pagerLockDb",\
+"page_wait_on_lock",\
+"sqlite3PagerSharedLock",\
+"sqlite3BtreeBeginTrans",\
+"sqlite3InitOne",\
+"lockBtree",\
+"sqlite3BtreeBeginTrans",\
+"sqlite3InitOne",\
+"sqlite3Init",\
+"sqlite3ReadSchema",\
+"sqlite3StartTable",\
+"yy_reduce",\
+"sqlite3Parser",\
+"sqlite3RunParser",\
+"sqlite3Prepare",\
+"sqlite3LockAndPrepare",\
+"sqlite3_prepare_v2",\
+"sqlite_handle_preparer",\
+"unixLock",\
+"__syscall_fcntl64",\
 "zif_exif_imagetype",\
 "zif_exif_read_data",\
 "zif_exif_thumbnail",\
@@ -1038,7 +1064,9 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_method", \n\
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
-"_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
+"_wasm_set_skip_shebang", \n\
+# TODO: Maybe just move this to preserved $-prefixed object in library
+"_js__syscall_fcntl64" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
