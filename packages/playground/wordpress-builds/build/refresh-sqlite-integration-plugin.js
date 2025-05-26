@@ -16,6 +16,9 @@ const outputZipPath = `${args.outputDir}/sqlite-database-integration.zip`;
 const sqliteResponse = await fetch(
 	'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/develop.zip'
 );
+if (!sqliteResponse.ok) {
+	throw new Error(`Failed to download SQLite integration plugin: ${sqliteResponse.statusText}`);
+}
 const sqliteZip = Buffer.from(await sqliteResponse.arrayBuffer());
 await fs.writeFile(outputZipPath, sqliteZip);
 
