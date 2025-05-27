@@ -140,8 +140,6 @@ async function run() {
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
 
-	console.log(args);
-
 	const command = args._[0] as string;
 
 	if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {

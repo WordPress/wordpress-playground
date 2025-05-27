@@ -145,7 +145,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	}
 
 	function mountResources(php: PHP, mounts: RunCLIMount[]) {
-		console.log(mounts);
 		for (const mount of mounts) {
 			php.mkdir(mount.vfsPath);
 			php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
