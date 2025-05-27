@@ -60,6 +60,19 @@ async function run() {
 			type: 'array',
 			string: true,
 		})
+		.option('mountDir', {
+			describe:
+				'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
+			type: 'string',
+			nargs: 2,
+			array: true,
+		})
+		.option('mountDirBeforeInstall', {
+			describe:
+				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
+			type: 'string',
+			array: true,
+		})
 		.option('login', {
 			describe: 'Should log the user in',
 			type: 'boolean',
@@ -126,6 +139,8 @@ async function run() {
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
+
+	console.log(args);
 
 	const command = args._[0] as string;
 

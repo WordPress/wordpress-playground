@@ -41,7 +41,9 @@ export interface RunCLIArgs {
 	debug?: boolean;
 	login?: boolean;
 	mount?: string[];
+	mountDir?: string[];
 	mountBeforeInstall?: string[];
+	mountDirBeforeInstall?: string[];
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
@@ -56,6 +58,11 @@ export interface RunCLIArgs {
 export interface RunCLIServer {
 	requestHandler: PHPRequestHandler;
 	server: Server;
+}
+
+export interface RunCLIMount {
+	hostPath: string;
+	vfsPath: string;
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
@@ -104,15 +111,42 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		}
 	}
 
-	function mountResources(php: PHP, rawMounts: string[]) {
-		const parsedMounts = rawMounts.map((mount) => {
-			const [source, vfsPath] = mount.split(':');
+	function parseMounts(
+		mounts: string[] = [],
+		mountDir: string[] = []
+	): RunCLIMount[] {
+		const parsedMounts = mounts.map((mount) => {
+			const mountParts = mount.split(':');
+			if (mountParts.length !== 2) {
+				throw new Error(
+					`Invalid mount format: ${mount}.
+					Expected format: /host/path:/vfs/path.
+					If you're path contains a colon, you can use --mount-dir instead.
+					Example: --mount-dir /host/path /wordpress/`
+				);
+			}
 			return {
-				hostPath: path.resolve(process.cwd(), source),
-				vfsPath,
+				hostPath: path.resolve(process.cwd(), mountParts[0]),
+				vfsPath: mountParts[1],
 			};
 		});
-		for (const mount of parsedMounts) {
+
+		const parsedMountDirs = [];
+		for (let i = 0; i < mountDir.length; i += 2) {
+			const source = mountDir[i];
+			const vfsPath = mountDir[i + 1];
+			parsedMountDirs.push({
+				hostPath: path.resolve(process.cwd(), source),
+				vfsPath,
+			});
+		}
+
+		return [...parsedMounts, ...parsedMountDirs];
+	}
+
+	function mountResources(php: PHP, mounts: RunCLIMount[]) {
+		console.log(mounts);
+		for (const mount of mounts) {
 			php.mkdir(mount.vfsPath);
 			php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
 		}
@@ -301,8 +335,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				},
 				hooks: {
 					async beforeWordPressFiles(php) {
-						if (args.mountBeforeInstall) {
-							mountResources(php, args.mountBeforeInstall);
+						if (
+							args.mountBeforeInstall ||
+							args.mountDirBeforeInstall
+						) {
+							mountResources(
+								php,
+								parseMounts(
+									args.mountBeforeInstall,
+									args.mountDirBeforeInstall
+								)
+							);
 						}
 					},
 				},
@@ -327,8 +370,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					logger.log(`Cached!`);
 				}
 
-				if (args.mount) {
-					mountResources(php, args.mount);
+				if (args.mount || args.mountDir) {
+					mountResources(php, parseMounts(args.mount, args.mountDir));
 				}
 
 				wordPressReady = true;
