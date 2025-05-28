@@ -225,8 +225,7 @@ const LibraryForFileLocking = {
 					js_wasm_trace(
 						`fcntl F_GETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
 					);
-					_wasm_set_errno(errno);
-					return -1;
+					return -errno;
 				}
 
 				if (!lock_utils.is_nodefs_path(vfsPath)) {
@@ -247,11 +246,10 @@ const LibraryForFileLocking = {
 
 				errno = checkLockParams(fd, flockStruct.l_type);
 				if (errno !== 0) {
-					_wasm_set_errno(errno);
 					js_wasm_trace(
 						`fcntl F_GETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
 					);
-					return -1;
+					return -errno;
 				}
 
 				const requestedLockType = fcntlToLockState[flockStruct.l_type];
@@ -262,11 +260,10 @@ const LibraryForFileLocking = {
 					flockStruct.l_start
 				);
 				if (errno !== 0) {
-					_wasm_set_errno(errno);
 					js_wasm_trace(
 						`fcntl F_GETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
 					);
-					return -1;
+					return -errno;
 				}
 
 				const nativeFilePath = lock_utils.get_native_path_from_vfs_path(vfsPath);
@@ -336,8 +333,7 @@ const LibraryForFileLocking = {
 										: value
 							)}`
 						);
-						_wasm_set_errno(ERRNO_CODES.EINVAL);
-						return -1;
+						return -ERRNO_CODES.EINVAL;
 					});
 			}
 			case emscripten_F_SETLK: {
@@ -347,11 +343,10 @@ const LibraryForFileLocking = {
 				[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
 				js_wasm_trace(`fcntl F_SETLK ${fd} get_vfs_path_from_fd ${vfsPath} ${errno}`);
 				if (errno !== 0) {
-					_wasm_set_errno(errno);
 					js_wasm_trace(
 						`fcntl F_SETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
 					);
-					return -1;
+					return -errno;
 				}
 
 				//js_wasm_trace(`fcntl F_SETLK ${fd} before is_nodefs_path ${lock_utils.is_nodefs_path(filePath)}`);
@@ -378,21 +373,19 @@ const LibraryForFileLocking = {
 					flockStruct.l_start
 				);
 				if (errno !== 0) {
-					_wasm_set_errno(errno);
 					js_wasm_trace(
 						`fcntl F_SETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
 					);
-					return -1;
+					return -errno;
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after get_base_address ${absoluteStartOffset}`);
 
 				errno = checkLockParams(fd, flockStruct.l_type);
 				if (errno !== 0) {
-					_wasm_set_errno(errno);
 					js_wasm_trace(
 						`fcntl F_SETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
 					);
-					return -1;
+					return -errno;
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after check_lock_params ${errno}`);
 
@@ -432,8 +425,7 @@ const LibraryForFileLocking = {
 						if (succeeded) {
 							return 0;
 						} else {
-							_wasm_set_errno(ERRNO_CODES.EAGAIN);
-							return -1;
+							return -ERRNO_CODES.EAGAIN;
 						}
 					})
 					.catch((e) => {
@@ -448,8 +440,7 @@ const LibraryForFileLocking = {
 										: value
 							)}`
 						);
-						_wasm_set_errno(ERRNO_CODES.EINVAL);
-						return -1;
+						return -ERRNO_CODES.EINVAL;
 					});
 			}
 			// TODO: Implement waiting for lock
@@ -459,8 +450,7 @@ const LibraryForFileLocking = {
 				js_wasm_trace('F_SETLKW is not implemented');
 				// TODO: Should we use a different error code?
 				// Respond with EDEADLOCK to indicate that the lock is not available via blocking form
-				_wasm_set_errno(ERRNO_CODES.EDEADLOCK);
-				return -1;
+				return -ERRNO_CODES.EDEADLOCK;
 			}
 			default:
 				return default_fcntl64.fn(fd, cmd, varargs);
@@ -521,8 +511,7 @@ const LibraryForFileLocking = {
 			`js_flock ${fd} ${op} get_vfs_path_from_fd ${vfsPath} ${errno}`
 		);
 		if (errno !== 0) {
-			_wasm_set_errno(errno);
-			return -1;
+			return -errno;
 		}
 
 		if (!lock_utils.is_nodefs_path(vfsPath)) {
@@ -540,8 +529,7 @@ const LibraryForFileLocking = {
 			(accessMode === emscripten_O_WRONLY && op === emscripten_LOCK_SH) ||
 			(accessMode === emscripten_O_RDONLY && op === emscripten_LOCK_EX)
 		) {
-			_wasm_set_errno(ERRNO_CODES.EBADF);
-			return -1;
+			return -ERRNO_CODES.EBADF;
 		}
 
 		// TODO: Consider supporting blocking mode of flock()
@@ -549,8 +537,7 @@ const LibraryForFileLocking = {
 			// TODO: Fix this logging
 			//logger.error('blocking mode of flock() is not implemented');
 			console.error('blocking mode of flock() is not implemented');
-			_wasm_set_errno(ERRNO_CODES.EDEADLOCK);
-			return -1;
+			return -ERRNO_CODES.EDEADLOCK;
 		}
 
 		const maskedOp =
@@ -561,8 +548,7 @@ const LibraryForFileLocking = {
 			logger.warn(
 				`invalid flock() operation: 0x${lockOpType.toString(16)}`
 			);
-			_wasm_set_errno(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 
 		const nativeFilePath = lock_utils.get_native_path_from_vfs_path(vfsPath);
@@ -578,8 +564,7 @@ const LibraryForFileLocking = {
 		if (result) {
 			return 0;
 		} else {
-			_wasm_set_errno(ERRNO_CODES.EWOULDBLOCK);
-			return -1;
+			return -ERRNO_CODES.EWOULDBLOCK;
 		}
 	},
 

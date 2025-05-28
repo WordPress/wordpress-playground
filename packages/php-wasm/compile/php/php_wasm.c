@@ -69,8 +69,13 @@ EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 	char buf[1024];
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	
+
+	char traceBuf[1024];
+	snprintf(traceBuf, sizeof(traceBuf), "wasm_trace errno before %d", errno);
+	js_wasm_trace(traceBuf);
 	js_wasm_trace(buf);
+	snprintf(traceBuf, sizeof(traceBuf), "wasm_trace errno after %d", errno);
+	js_wasm_trace(traceBuf);
 }
 
 /**
@@ -1892,20 +1897,6 @@ void wasm_free(void *_Nullable ptr) {
 }
 
 /*
- * Function: wasm_set_errno
- * ----------------------------
- *   Sets errno global.
- *
- *   Used to relay errno from JS to WASM.
- */
-EMSCRIPTEN_KEEPALIVE void wasm_set_errno(int value) {
-	// NOTE: If we have to call this frequently, it might be too slow,
-	// so we might want to expose errno's address and set/get via DataView
-	// as Emscripten used to do.
-	errno = value;
-}
-
-/*
  * Function: wasm_get_end_offset
  * ----------------------------
  *   Returns the end offset of the file descriptor.
@@ -1936,7 +1927,10 @@ EM_ASYNC_JS(int, call_js__syscall_fcntl64, (int fd, int cmd, va_list args), {
 int __syscall_fcntl64(int fd, int cmd, ...) {
 	va_list args;
 	va_start(args, cmd);
+	wasm_trace("__syscall_fcntl64: errno before %d", errno);
 	int result = call_js__syscall_fcntl64(fd, cmd, args);
+	wasm_trace("__syscall_fcntl64: errno after %d", errno);
 	va_end(args);
+	wasm_trace("__syscall_fcntl64: errno after va_end %d", errno);
 	return result;
 }
