@@ -136,6 +136,14 @@ if (typeof NODEFS === 'object') {
         }
         return originalHashAddNode.apply(FS, arguments);
     };
+    const originalCreateNode = NODEFS.createNode;
+    NODEFS.createNode = function createNodeWithSharedFlag() {
+        const node = originalCreateNode.apply(NODEFS, arguments);
+        // TODO: Better name?
+        // TODO: Is this a reasonable solution to marking underlying target of PROXYFS?
+        node.isSharedFS = true;
+        return node;
+    };
 }
 
 return PHPLoader;

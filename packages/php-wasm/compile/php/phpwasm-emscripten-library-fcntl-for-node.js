@@ -11,15 +11,28 @@
 const LibraryForFileLocking = {
 	$lock_utils: {
 		is_nodefs_node(node) {
-			return (
-				node &&
-				typeof NODEFS === 'object' &&
-				node.node_ops === NODEFS.node_ops
-			);
+			if (node?.isSharedFS) {
+				return true;
+			}
+
+			if (!node?.mount?.opts?.fs?.lookupPath) {
+				// TODO: Confirm this property is just for PROXYFS nodes.
+				// Not a PROXYFS node
+				return false;
+			}
+
+			const vfsPath = NODEFS.realPath(node);
+			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
+			return !!underlyingNode?.isSharedFS;
 		},
 		is_nodefs_path(path) {
 			const { node } = FS.lookupPath(path);
-			return lock_utils.is_nodefs_node(node);
+			const answer = lock_utils.is_nodefs_node(node);
+			// TODO: Remove this after testing.
+			if (!answer && path.includes('.ht.sqlite')) {
+				js_wasm_trace(`is_nodefs_path ${path} is_nodefs_node ${answer} node ${nodeUtil.inspect(node, { depth: 2 })}`);
+			}
+			return answer;
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('{{{cDefs.F_GETFL}}}');
@@ -29,12 +42,19 @@ const LibraryForFileLocking = {
 				emscripten_O_ACCMODE
 			);
 		},
-		resolveFileDescriptorToPath(fd) {
+		// TODO: Make naming/casing consistent
+		get_vfs_path_from_fd(fd) {
 			try {
 				return [FS.readlink(`/proc/self/fd/${fd}`), 0];
 			} catch (error) {
 				return [null, ERRNO_CODES.EBADF];
 			}
+		},
+
+		// TODO: Improve name
+		get_native_path_from_vfs_path(vfsPath) {
+			const { node } = FS.lookupPath(vfsPath);
+			return NODEFS.realPath(node);
 		},
 
 		// TODO: Reconsider and/or comment
@@ -197,27 +217,27 @@ const LibraryForFileLocking = {
 		switch (cmd) {
 			case emscripten_F_GETLK: {
 				js_wasm_trace(`fcntl F_GETLK ${fd}`);
-				let filePath;
+				let vfsPath;
 				let errno;
 
-				[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+				[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
 				if (errno !== 0) {
 					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${filePath} resolveFileDescriptorToPath errno ${errno}`
+						`fcntl F_GETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
 					);
 					_wasm_set_errno(errno);
 					return -1;
 				}
 
-				if (!lock_utils.is_nodefs_path(filePath)) {
+				if (!lock_utils.is_nodefs_path(vfsPath)) {
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
 					logger.warn(
-						`locking via fcntl() is not implemented for non-NodeFS path '${filePath}'`
+						`locking via fcntl() is not implemented for non-NodeFS path '${vfsPath}'`
 					);
 					// TODO: Set struct to UNLCK
 					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${filePath} is_nodefs_path false`
+						`fcntl F_GETLK ${fd} ${vfsPath} is_nodefs_path false`
 					);
 					return 0;
 				}
@@ -229,7 +249,7 @@ const LibraryForFileLocking = {
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
 					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${filePath} check_lock_params errno ${errno}`
+						`fcntl F_GETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
 					);
 					return -1;
 				}
@@ -244,16 +264,18 @@ const LibraryForFileLocking = {
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
 					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${filePath} get_base_address errno ${errno}`
+						`fcntl F_GETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
 					);
 					return -1;
 				}
+
+				const nativeFilePath = lock_utils.get_native_path_from_vfs_path(vfsPath);
 
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
 				// TODO: Handle case where flock() conflicts with range lock
 				return PHPLoader.fileLockManager
-					.findFirstConflictingByteRangeLock(filePath, {
+					.findFirstConflictingByteRangeLock(nativeFilePath, {
 						type: requestedLockType,
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
@@ -266,7 +288,7 @@ const LibraryForFileLocking = {
 								l_type: F_UNLCK,
 							});
 							js_wasm_trace(
-								`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock type=unlocked start=0x${absoluteStartOffset
+								`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock type=unlocked start=0x${absoluteStartOffset
 									.toString(16)
 									.padStart(16, '0')} end=0x${(
 									absoluteStartOffset + flockStruct.l_len
@@ -290,7 +312,7 @@ const LibraryForFileLocking = {
 							l_pid: conflictingLock.pid,
 						});
 						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock type=${
+							`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock type=${
 								conflictingLock.type
 							} start=0x${conflictingLock.start
 								.toString(16)
@@ -304,7 +326,7 @@ const LibraryForFileLocking = {
 					})
 					.catch((e) => {
 						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${filePath} findFirstConflictingByteRangeLock error ${JSON.stringify(
+							`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock error ${JSON.stringify(
 								e,
 								(key, value) =>
 									typeof value === 'bigint'
@@ -319,27 +341,27 @@ const LibraryForFileLocking = {
 					});
 			}
 			case emscripten_F_SETLK: {
-				// js_wasm_trace(`fcntl F_SETLK ${fd}`);
-				let filePath;
+				js_wasm_trace(`fcntl F_SETLK ${fd}`);
+				let vfsPath;
 				let errno;
-				[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
-				// js_wasm_trace(`fcntl F_SETLK ${fd} resolveFileDescriptorToPath ${filePath} ${errno}`);
+				[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
+				js_wasm_trace(`fcntl F_SETLK ${fd} get_vfs_path_from_fd ${vfsPath} ${errno}`);
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
 					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${filePath} resolveFileDescriptorToPath errno ${errno}`
+						`fcntl F_SETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
 					);
 					return -1;
 				}
 
-				// js_wasm_trace(`fcntl F_SETLK ${fd} before is_nodefs_path ${lock_utils.is_nodefs_path(filePath)}`);
-				if (!lock_utils.is_nodefs_path(filePath)) {
+				//js_wasm_trace(`fcntl F_SETLK ${fd} before is_nodefs_path ${lock_utils.is_nodefs_path(filePath)}`);
+				if (!lock_utils.is_nodefs_path(vfsPath)) {
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
 					logger.warn(
-						`locking via fcntl() is not implemented for non-NodeFS path '${filePath}'`
+						`locking via fcntl() is not implemented for non-NodeFS path '${vfsPath}'`
 					);
-					// js_wasm_trace(`fcntl F_SETLK ${fd} ${filePath} is_nodefs_path false`);
+					js_wasm_trace(`fcntl F_SETLK ${fd} ${vfsPath} is_nodefs_path false`);
 					return 0;
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after is_nodefs_path ${lock_utils.is_nodefs_path(filePath)}`);
@@ -358,7 +380,7 @@ const LibraryForFileLocking = {
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
 					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${filePath} get_base_address errno ${errno}`
+						`fcntl F_SETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
 					);
 					return -1;
 				}
@@ -368,7 +390,7 @@ const LibraryForFileLocking = {
 				if (errno !== 0) {
 					_wasm_set_errno(errno);
 					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${filePath} check_lock_params errno ${errno}`
+						`fcntl F_SETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
 					);
 					return -1;
 				}
@@ -386,7 +408,7 @@ const LibraryForFileLocking = {
 					fd,
 				};
 				js_wasm_trace(
-					`fcntl F_SETLK ${fd} ${filePath} before lockFileByteRange ${JSON.stringify(
+					`fcntl F_SETLK ${fd} ${vfsPath} before lockFileByteRange ${JSON.stringify(
 						rangeLock,
 						(key, value) =>
 							typeof value === 'bigint'
@@ -394,11 +416,12 @@ const LibraryForFileLocking = {
 								: value
 					)}`
 				);
+				const nativeFilePath = lock_utils.get_native_path_from_vfs_path(vfsPath);
 				return PHPLoader.fileLockManager
-					.lockFileByteRange(filePath, rangeLock)
+					.lockFileByteRange(nativeFilePath, rangeLock)
 					.then((succeeded) => {
 						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${filePath} lockFileByteRange type=${requestedLockType} start=0x${absoluteStartOffset
+							`fcntl F_SETLK ${fd} ${vfsPath} lockFileByteRange type=${requestedLockType} start=0x${absoluteStartOffset
 								.toString(16)
 								.padStart(16, '0')} end=0x${(
 								absoluteStartOffset + flockStruct.l_len
@@ -415,7 +438,7 @@ const LibraryForFileLocking = {
 					})
 					.catch((e) => {
 						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${filePath} lockFileByteRange error ${JSON.stringify(
+							`fcntl F_SETLK ${fd} ${vfsPath} lockFileByteRange error ${JSON.stringify(
 								e,
 								(key, value) =>
 									typeof value === 'bigint'
@@ -490,23 +513,23 @@ const LibraryForFileLocking = {
 			[emscripten_LOCK_UN]: 'unlocked',
 		};
 
-		let filePath;
+		let vfsPath;
 		let errno;
 
-		[filePath, errno] = lock_utils.resolveFileDescriptorToPath(fd);
+		[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
 		js_wasm_trace(
-			`js_flock ${fd} ${op} resolveFileDescriptorToPath ${filePath} ${errno}`
+			`js_flock ${fd} ${op} get_vfs_path_from_fd ${vfsPath} ${errno}`
 		);
 		if (errno !== 0) {
 			_wasm_set_errno(errno);
 			return -1;
 		}
 
-		if (!lock_utils.is_nodefs_path(filePath)) {
+		if (!lock_utils.is_nodefs_path(vfsPath)) {
 			// If not a NodeFS path, we can't lock it.
 			// Default to succeeding as Emscripten does.
 			logger.warn(
-				`flock() is not implemented for non-NodeFS path '${filePath}'`
+				`flock() is not implemented for non-NodeFS path '${vfsPath}'`
 			);
 			return -1;
 		}
@@ -542,13 +565,14 @@ const LibraryForFileLocking = {
 			return -1;
 		}
 
-		const result = PHPLoader.fileLockManager.lockWholeFile(filePath, {
+		const nativeFilePath = lock_utils.get_native_path_from_vfs_path(vfsPath);
+		const result = PHPLoader.fileLockManager.lockWholeFile(nativeFilePath, {
 			type: lockOpType,
 			pid: PHPLoader.processId,
 			fd,
 		});
 		js_wasm_trace(
-			`js_flock ${fd} ${op} ${filePath} lockWholeFile ${result}`
+			`js_flock ${fd} ${op} ${vfsPath} lockWholeFile ${result}`
 		);
 
 		if (result) {
@@ -566,27 +590,28 @@ const LibraryForFileLocking = {
 	fd_close__deps: ['$default_fd_close'],
 	fd_close(fd) {
 		// js_wasm_trace(`fd_close ${fd}`);
-		const [path, pathResolutionErrno] =
-			lock_utils.resolveFileDescriptorToPath(fd);
+		const [vfsPath, pathResolutionErrno] =
+			lock_utils.get_vfs_path_from_fd(fd);
 		const shouldLog =
-			pathResolutionErrno === 0 && path.includes('.ht.sqlite');
-		// js_wasm_trace(`fd_close ${fd} resolveFileDescriptorToPath ${path} ${pathResolutionErrno}`);
+			pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
+		// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
 		if (lock_utils.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
 			shouldLog &&
 				js_wasm_trace(
-					`fd_close ${fd} ${path} calling default_fd_close`
+					`fd_close ${fd} ${vfsPath} calling default_fd_close`
 				);
 			// TODO: Say why closing this first
 			const result = default_fd_close.fn(fd);
 			shouldLog &&
 				js_wasm_trace(
-					`fd_close ${fd} ${path} finished default_fd_close ${result}`
+					`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
 				);
+			const nativeFilePath = lock_utils.get_native_path_from_vfs_path(vfsPath);
 			return PHPLoader.fileLockManager
-				.releaseLocksForProcessFd(PHPLoader.processId, fd, path)
+				.releaseLocksForProcessFd(PHPLoader.processId, fd, nativeFilePath)
 				.finally(() => {
 					shouldLog &&
-						js_wasm_trace(`fd_close ${fd} ${path} finally`);
+						js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
 					lock_utils.maybeLockedFds.delete(fd);
 				})
 				.then(() => {
@@ -609,7 +634,7 @@ const LibraryForFileLocking = {
 				});
 		} else {
 			shouldLog &&
-				js_wasm_trace(`fd_close ${fd} ${path} default_fd_close case`);
+				js_wasm_trace(`fd_close ${fd} ${vfsPath} default_fd_close case`);
 			return default_fd_close.fn(fd);
 		}
 	},
