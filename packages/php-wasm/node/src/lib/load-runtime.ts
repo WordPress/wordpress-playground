@@ -1,6 +1,7 @@
 import type {
 	SupportedPHPVersion,
 	EmscriptenOptions,
+	RemoteAPI,
 } from '@php-wasm/universal';
 import { loadPHPRuntime } from '@php-wasm/universal';
 
@@ -20,7 +21,8 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		// TODO: Explain why
 		processId?: number;
 
-		fileLockManager?: FileLockManager;
+		// TODO: Document this
+		fileLockManager?: RemoteAPI<FileLockManager>;
 	};
 };
 
