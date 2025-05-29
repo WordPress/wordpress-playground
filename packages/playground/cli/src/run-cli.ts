@@ -465,9 +465,14 @@ class LoadBalancer {
 			}
 		}
 
+		// TODO: Add trace facility to Playground CLI to observe internals
 		// TODO: Remove this after testing
 		logger.log(
-			`selected worker ${smallestWorkerLoadIndex} for ${request.url}`
+			`selected worker ${smallestWorkerLoadIndex} for ${
+				request.url
+			} out of workloads ${this.workerLoads.map(
+				(w, i) => `${i}: ${w.activeRequests.size}`
+			)}`
 		);
 
 		const promiseForResponse = smallestWorkerLoad.worker.request(request);
@@ -477,6 +482,9 @@ class LoadBalancer {
 		(promiseForResponse as any).url = request.url;
 
 		return promiseForResponse.finally(() => {
+			console.log(
+				`worker ${smallestWorkerLoadIndex} completed request for ${request.url}`
+			);
 			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
 		});
 	}
