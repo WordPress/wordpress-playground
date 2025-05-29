@@ -269,8 +269,6 @@ export class FileLock {
 			const nativeLock: NativeLock = { fd, mode };
 			return new FileLock(nativeLock);
 		} catch (error) {
-			return undefined;
-		} finally {
 			if (fd !== undefined) {
 				try {
 					closeSync(fd);
@@ -281,6 +279,7 @@ export class FileLock {
 					);
 				}
 			}
+			return undefined;
 		}
 	}
 
@@ -311,6 +310,7 @@ export class FileLock {
 	// and duplicated file descriptors. We do not currently recognize duplicate
 	// file descriptors.
 	lockWholeFile(op: WholeFileLockOp): boolean {
+		// debugger;
 		if (op.type === 'unlock') {
 			const originalType = this.wholeFileLock.type;
 			if (originalType === 'unlocked') {
@@ -402,6 +402,11 @@ export class FileLock {
 		overrideWholeFileLockType?: WholeFileLock['type'];
 		overrideRangeLockType?: RequestedRangeLock['type'];
 	} = {}) {
+		console.log(
+			'ensureCompatibleNativeLock',
+			overrideWholeFileLockType,
+			overrideRangeLockType
+		);
 		const wholeFileLockType =
 			overrideWholeFileLockType ?? this.wholeFileLock.type;
 		const rangeLockType =
@@ -444,6 +449,8 @@ export class FileLock {
 
 	// TODO: Document the need for a native file descriptor
 	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
+		console.error('lockFileByteRange', requestedLock);
+		// debugger;
 		if (requestedLock.start === requestedLock.end) {
 			// Treat a range with zero length as covering the entire remaining range.
 			// TODO: Link to POSIX reference for this behavior.
@@ -679,6 +686,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	locks: Map<string, FileLock>;
 
 	constructor() {
+		console.error('FileLockManagerForNode constructor');
 		this.locks = new Map();
 	}
 
@@ -710,6 +718,7 @@ export class FileLockManagerForNode implements FileLockManager {
 		path: string,
 		requestedLock: RequestedRangeLock
 	): boolean {
+		// debugger;
 		if (!this.locks.has(path)) {
 			if (requestedLock.type === 'unlocked') {
 				// There is no existing lock. This is a no-op.
