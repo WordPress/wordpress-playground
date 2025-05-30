@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import path from 'path';
 import { createNodeFsMountHandler } from '@php-wasm/node';
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 
 export interface Mount {
 	hostPath: string;
