@@ -127,7 +127,7 @@ export async function bootPlaygroundRemote() {
 			bar.destroy();
 		},
 		async onNavigation(fn) {
-			// Manage the address bar
+			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
 					/**
@@ -169,6 +169,34 @@ export async function bootPlaygroundRemote() {
 					// so let's ignore it for now and find a correct fix in time.
 				}
 			});
+
+			// Also propagate navigation changes twice a second for any
+			// updates we don't receive via the iframe load event.
+			//
+			// For more details on the challenges related to the load event,
+			// see:
+			//
+			// * https://github.com/WordPress/wordpress-playground/pull/1945
+			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
+			let lastPath: string | undefined;
+			setInterval(async () => {
+				try {
+					let href = '';
+					if (wpFrame.contentWindow) {
+						href = wpFrame.contentWindow.location.href;
+					} else {
+						href = wpFrame.src;
+					}
+					const path = await playground.internalUrlToPath(href);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore errors due to CORS or CSP restrictions
+				}
+			}, 500);
 		},
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
