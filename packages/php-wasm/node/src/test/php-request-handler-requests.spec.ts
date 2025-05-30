@@ -1,12 +1,14 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
-import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
 import {
-	FileNotFoundGetActionCallback,
 	PHP,
 	PHPRequestHandler,
 	PHPResponse,
 	SupportedPHPVersions,
+} from '@php-wasm/universal';
+import type {
+	FileNotFoundAction,
+	FileNotFoundGetActionCallback,
 } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
 
@@ -40,6 +42,18 @@ const configsForRequestTests: ConfigForRequestTests[] =
 			}));
 		});
 	}).flat(2);
+
+function getFileNotFoundActionForWordPress(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- maintain consistent FileNotFoundGetActionCallback signature
+	relativeUri: string
+): FileNotFoundAction {
+	// Delegate unresolved requests to WordPress. This makes WP magic possible,
+	// like pretty permalinks and dynamically generated sitemaps.
+	return {
+		type: 'internal-redirect',
+		uri: '/index.php',
+	};
+}
 
 describe.each(configsForRequestTests)(
 	'[PHP $phpVersion, DocRoot $docRoot, AbsUrl $absoluteUrl] PHPRequestHandler – request',
