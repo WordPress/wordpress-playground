@@ -28,6 +28,7 @@ jobs:
         needs: [lint-and-typecheck]
         strategy:
             fail-fast: false
+            max-parallel: 1
             matrix:
                 include:
                     - name: test-unit-asyncify (1/7)
@@ -89,7 +90,7 @@ jobs:
     #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
+        needs: [lint-and-typecheck, test-unit-asyncify]
         # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v4
@@ -107,7 +108,7 @@ jobs:
 
     test-e2e-playwright-prepare:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
+        needs: [lint-and-typecheck, test-unit-asyncify]
         steps:
             - uses: actions/checkout@v4
               with:
@@ -169,7 +170,7 @@ jobs:
                   name: playwright-dist
     test-built-npm-packages:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
+        needs: [lint-and-typecheck, test-unit-asyncify]
         steps:
             - uses: actions/checkout@v4
               with:
@@ -239,7 +240,7 @@ jobs:
 
     build:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
+        needs: [lint-and-typecheck, test-unit-asyncify]
         steps:
             - uses: actions/checkout@v4
               with:
