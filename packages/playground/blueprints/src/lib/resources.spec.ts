@@ -1,4 +1,10 @@
-import { UrlResource, GitDirectoryResource } from './resources';
+import {
+	UrlResource,
+	GitDirectoryResource,
+	BundledResource,
+} from './resources';
+import { expect, describe, it, vi, beforeEach } from 'vitest';
+import { StreamedFile } from '@php-wasm/stream-compression';
 
 describe('UrlResource', () => {
 	it('should create a new instance of UrlResource', () => {
@@ -45,5 +51,82 @@ describe('GitDirectoryResource', () => {
 				]);
 			}
 		);
+	});
+});
+
+describe('BlueprintResource', () => {
+	let mockStream: ReadableStream;
+	let mockStreamFile: BundledResource['streamBundledFile'];
+
+	beforeEach(() => {
+		// Create a mock ReadableStream that returns a simple text file
+		const encoder = new TextEncoder();
+		const fileContent = encoder.encode('Test file content');
+
+		mockStream = new ReadableStream({
+			start(controller) {
+				controller.enqueue(fileContent);
+				controller.close();
+			},
+		});
+
+		mockStreamFile = vi.fn(
+			async () =>
+				new StreamedFile(mockStream, 'test.txt', {
+					filesize: fileContent.length,
+				})
+		);
+	});
+
+	it('should create a new instance of BlueprintResource', () => {
+		const resource = new BundledResource(
+			{
+				resource: 'bundled',
+				path: 'test.txt',
+			},
+			mockStreamFile
+		);
+
+		expect(resource).toBeInstanceOf(BundledResource);
+		expect(resource.name).toBe('test.txt');
+		expect(resource.isAsync).toBe(true);
+	});
+
+	it('should resolve a file from the filesystem', async () => {
+		const resource = new BundledResource(
+			{
+				resource: 'bundled',
+				path: 'test.txt',
+			},
+			mockStreamFile
+		);
+
+		const file = await resource.resolve();
+
+		expect(mockStreamFile).toHaveBeenCalledWith('test.txt');
+		expect(file).toBeInstanceOf(File);
+		expect(file.name).toBe('test.txt');
+
+		// Verify the file content
+		const content = await file.text();
+		expect(content).toBe('Test file content');
+	});
+
+	it('should handle errors when reading from the filesystem', async () => {
+		const streamFile = vi.fn(() =>
+			Promise.reject(new Error('File not found'))
+		);
+		const resource = new BundledResource(
+			{
+				resource: 'bundled',
+				path: 'missing.txt',
+			},
+			streamFile
+		);
+
+		await expect(resource.resolve()).rejects.toThrow(
+			/This Blueprint refers to a/
+		);
+		expect(streamFile).toHaveBeenCalledWith('missing.txt');
 	});
 });

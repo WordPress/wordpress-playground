@@ -29,6 +29,10 @@
 				"outputPath": "dist/packages/php-wasm/node-polyfills"
 			}
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite:node", "test:vite:jsdom"]
@@ -65,7 +69,8 @@
 				"lintFilePatterns": [
 					"packages/php-wasm/node-polyfills/**/*.ts",
 					"packages/php-wasm/node-polyfills/package.json"
-				]
+				],
+				"maxWarnings": 0
 			}
 		}
 	},

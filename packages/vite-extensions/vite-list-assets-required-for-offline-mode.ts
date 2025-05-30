@@ -12,7 +12,7 @@ const patternsToNotCache = [
 	'/README.md',
 	'/.DS_Store',
 	'/index.cjs',
-	'/index.d.ts',
+	/\/.*\.d\.ts$/, // No type declarations are needed at runtime.
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',
@@ -61,7 +61,6 @@ const patternsToNotCache = [
 	/^\/assets\/php_.*\.js$/, // PHP JS files
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
-	/^\/assets\/data-liberation-core\.phar-[\w]+\.gz$/, // Data Liberation library for WXR imports
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {

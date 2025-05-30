@@ -41,6 +41,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libzip support',
 		},
+		WITH_EXIF: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with exif support',
+		},
 		WITH_GD: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -96,6 +101,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with source maps',
 		},
+		WITH_DEBUG: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with DWARF debug information.',
+		},
 		WITH_ICONV: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -141,6 +151,7 @@ const platformDefaults = {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
+		WITH_EXIF: 'yes',
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
@@ -181,6 +192,7 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
+const outputDir = path.resolve(process.cwd(), args.outputDir);
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
@@ -205,6 +217,8 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_LIBZIP'),
 		'--build-arg',
+		getArg('WITH_EXIF'),
+		'--build-arg',
 		getArg('WITH_GD'),
 		'--build-arg',
 		getArg('WITH_MBSTRING'),
@@ -225,6 +239,10 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_SOURCEMAPS'),
 		'--build-arg',
+		`OUTPUT_DIR_FOR_SOURCE_MAP_BASE=${outputDir}`,
+		'--build-arg',
+		getArg('WITH_DEBUG'),
+		'--build-arg',
 		getArg('WITH_ICONV'),
 		'--build-arg',
 		getArg('WITH_MYSQL'),
@@ -240,7 +258,6 @@ await asyncSpawn(
 /* eslint-enable prettier/prettier */
 
 // Extract the PHP WASM module
-const outputDir = path.resolve(process.cwd(), args.outputDir);
 await asyncSpawn(
 	'docker',
 	[

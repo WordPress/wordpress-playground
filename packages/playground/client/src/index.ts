@@ -25,16 +25,13 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import {
-	Blueprint,
-	compileBlueprint,
-	OnStepCompleted,
-	runBlueprintSteps,
-} from '@wp-playground/blueprints';
+import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
+import { additionalRemoteOrigins } from './additional-remote-origins';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -86,6 +83,11 @@ export interface StartPlaygroundOptions {
 	 * your Blueprint to replace all cross-origin URLs with the proxy URL.
 	 */
 	corsProxy?: string;
+	/**
+	 * The version of the SQLite driver to use.
+	 * Defaults to the latest development version.
+	 */
+	sqliteDriverVersion?: string;
 }
 
 /**
@@ -109,8 +111,9 @@ export async function startPlaygroundWeb({
 	scope,
 	corsProxy,
 	shouldInstallWordPress,
+	sqliteDriverVersion,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
-	assertValidRemote(remoteUrl);
+	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
 	remoteUrl = setQueryParams(remoteUrl, {
@@ -123,7 +126,7 @@ export async function startPlaygroundWeb({
 		blueprint = {};
 	}
 
-	const compiled = compileBlueprint(blueprint, {
+	const compiled = await compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
 		corsProxy,
@@ -153,6 +156,7 @@ export async function startPlaygroundWeb({
 		wpVersion: compiled.versions.wp,
 		withNetworking: compiled.features.networking,
 		corsProxyUrl: corsProxy,
+		sqliteDriverVersion,
 	});
 	await playground.isReady();
 	downloadPHPandWP.finish();
@@ -192,15 +196,41 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 }
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
-function assertValidRemote(remoteHtmlUrl: string) {
+const validRemoteOrigins = [
+	officialRemoteOrigin,
+	// Allow hosting remote from same origin
+	location.origin,
+	'http://localhost',
+	'https://localhost',
+	'http://127.0.0.1',
+	'https://127.0.0.1',
+	...additionalRemoteOrigins,
+];
+/**
+ * Assert that the remote origin is likely compatible with this client library.
+ *
+ * Prior to this assertion, there were cases where folks used the client library
+ * from playground.wordpress.net with other origins and eventually ran into
+ * compatibility issues when the two sides went out of sync. This way,
+ * we discourage that practice which is likely to lead to breakage for the
+ * embedding app.
+ *
+ * @param remoteHtmlUrl The URL for remote.html
+ */
+function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
-	if (
-		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
-		url.pathname !== '/remote.html'
-	) {
+
+	const validRemote =
+		validRemoteOrigins.includes(url.origin) &&
+		url.pathname === '/remote.html';
+
+	if (!validRemote) {
 		throw new Error(
 			`Invalid remote URL: ${url}. ` +
-				`Expected origin to be ${officialRemoteOrigin}/remote.html.`
+				'Expected remote URL to have a path of "/remote.html" based ' +
+				`on one of the following origins:\n ${validRemoteOrigins.join(
+					'\n'
+				)}`
 		);
 	}
 }

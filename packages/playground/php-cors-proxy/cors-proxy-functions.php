@@ -407,21 +407,21 @@ function should_respond_with_cors_headers($host, $origin) {
         return false;
     }
 
-    $is_request_from_playground_web_app = $origin === 'https://playground.wordpress.net';
-    $not_hosted_with_playground_web_app = $host !== 'playground.wordpress.net';
+    $supported_origins = array(
+        'https://playground.wordpress.net',
+        'http://localhost',
+        'http://127.0.0.1',
+    );
     if (
-        $is_request_from_playground_web_app &&
-        $not_hosted_with_playground_web_app
+        defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS') &&
+        is_array(PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS)
     ) {
-        return true;
+        $supported_origins = PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS;
     }
 
-    $origin_host = parse_url($origin, PHP_URL_HOST);
-    $is_local_origin = in_array(
-        $origin_host,
-        array('localhost', '127.0.0.1'),
+    return in_array(
+        $origin,
+        $supported_origins,
         true
     );
-
-    return $is_local_origin;
 }

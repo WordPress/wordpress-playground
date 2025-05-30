@@ -1,7 +1,7 @@
 <?php
 
 if (
-        empty( $_SERVER['PATH_INFO'] ) &&           
+        empty( $_SERVER['PATH_INFO'] ) &&
         !str_starts_with($_SERVER['REQUEST_URI'], '/?')
 ) {                                                 
         // Allow proxied URL to be provided via request URI,

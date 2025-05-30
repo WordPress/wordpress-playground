@@ -1,3 +1,4 @@
+import type { Tree } from '@nx/devkit';
 import {
 	addProjectConfiguration,
 	formatFiles,
@@ -5,10 +6,9 @@ import {
 	getWorkspaceLayout,
 	names,
 	offsetFromRoot,
-	Tree,
 } from '@nx/devkit';
 import * as path from 'path';
-import { NxExtensionsGeneratorSchema } from './schema';
+import type { NxExtensionsGeneratorSchema } from './schema';
 
 interface NormalizedSchema extends NxExtensionsGeneratorSchema {
 	projectName: string;

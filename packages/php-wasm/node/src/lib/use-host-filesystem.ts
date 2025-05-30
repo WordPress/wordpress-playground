@@ -1,4 +1,4 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { lstatSync, readdirSync } from 'node:fs';
 import { createNodeFsMountHandler } from './node-fs-mount';
 

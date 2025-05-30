@@ -1,4 +1,5 @@
-import { PHPResponse, PHPResponseData } from '@php-wasm/universal';
+import type { PHPResponseData } from '@php-wasm/universal';
+import { PHPResponse } from '@php-wasm/universal';
 import * as Comlink from 'comlink';
 
 export type WithAPIState = {
@@ -46,7 +47,7 @@ export function consumeAPI<APIType>(
 						try {
 							await runWithTimeout(api.isConnected(), 200);
 							break;
-						} catch (e) {
+						} catch {
 							// Timeout exceeded, try again. We can't just use a single
 							// `runWithTimeout` call because it won't reach the remote API
 							// if it's not connected yet. Instead, we need to keep retrying
@@ -131,7 +132,9 @@ function setupTransferHandlers() {
 		deserialize: (obj) => obj,
 	});
 	Comlink.transferHandlers.set('FUNCTION', {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 		canHandle: (obj: unknown): obj is Function => typeof obj === 'function',
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 		serialize(obj: Function) {
 			const { port1, port2 } = new MessageChannel();
 			Comlink.expose(obj, port1);

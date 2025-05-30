@@ -1,4 +1,4 @@
-import { IterableReadableStream } from './iterable-stream-polyfill';
+import type { IterableReadableStream } from './iterable-stream-polyfill';
 
 /**
  * Converts an iterator or iterable to a stream.

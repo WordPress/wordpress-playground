@@ -10,7 +10,7 @@ import {
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import { SiteError } from '../../lib/state/redux/slice-ui';
+import type { SiteError } from '../../lib/state/redux/slice-ui';
 import { Button, Spinner } from '@wordpress/components';
 import {
 	removeSite,

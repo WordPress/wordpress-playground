@@ -29,11 +29,12 @@ try {
  *
  * After the build, the contents are concatenated into a single file, which
  * breaks the dependencyFilename variable. This plugin corrects that by
- * replacing __dirname with the correct value such as 'jspi' or 'asyncify'.
+ * appending the correct value such as '/jspi' or '/asyncify' to __dirname.
  *
- * The implementation is naive and assumes the substrings __dirname is only used
+ * The implementation is naive and assumes the substring __dirname is only used
  * as a variable, are not a part of any other name, and is not seen in any string
- * literals.
+ * literals. It also assumes that the __dirname variable doesn't have a trailing
+ * slash as documented in the Node.js docs. https://nodejs.org/api/modules.html#__dirname
  *
  * @param {string} dirnameReplacement
  * @param {string} filenameReplacement
@@ -45,10 +46,19 @@ const dirnamePlugin = {
 		build.onLoad({ filter: /\/php_\d+_\d+\.js$/ }, ({ path: filePath }) => {
 			if (!filePath.match(/node_modules/)) {
 				let contents = fs.readFileSync(filePath, 'utf8');
+
+				// NOTE: We are building for CommonJS, so we need to remove the
+				// shims for the builtins `__dirname` and `require`.
+				contents = contents.replace(/\bconst __dirname\s*=.*/, '');
+				contents = contents.replace(/\bvar __dirname\s*=.*/, '');
+				contents = contents.replace(/\bconst __filename\s*=.*/, '');
+				contents = contents.replace(/\bvar __filename\s*=.*/, '');
+				contents = contents.replace(/\bconst require\s*=.*/, '');
+
 				const loader = path.extname(filePath).substring(1);
 				const dirname = filePath.includes('/jspi/')
-					? 'jspi'
-					: 'asyncify';
+					? '/jspi'
+					: '/asyncify';
 				contents = contents.replaceAll(
 					'__dirname',
 					`__dirname + ${JSON.stringify(dirname)}`

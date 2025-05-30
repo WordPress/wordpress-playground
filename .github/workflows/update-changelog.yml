@@ -8,7 +8,7 @@ on:
                 required: true
                 default: 'current'
     workflow_run:
-        workflows: [Release NPM packages]
+        workflows: [Release NPM packages, Release self-hosted packages]
         types:
             - completed
 
@@ -22,7 +22,8 @@ jobs:
                 github.actor == 'dmsnell' ||
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl'
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes'
             )
 
         # Specify runner + deployment step
@@ -31,16 +32,18 @@ jobs:
             name: wordpress-assets
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_OWNER: ${{ github.repository_owner }}
+            GITHUB_REPO: ${{ github.repository }}
         steps:
+            - name: 'Prune owner from repo name'
+              run: |
+                  echo "GITHUB_REPO=${GITHUB_REPO#$GITHUB_OWNER/}" >> $GITHUB_ENV
             - uses: actions/checkout@v4
               with:
-                  submodules: true
+                  submodules: recursive
                   ref: trunk
                   clean: true
-                  persist-credentials: false
-            - name: Fetch trunk
-              shell: bash
-              run: git fetch origin trunk --depth=1 --recurse-submodules
+                  persist-credentials: true
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
@@ -58,13 +61,12 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
                       git commit -m "chore: update changelog" \
                           CHANGELOG.md \
                           packages/docs/site/docs/*changelog*.md
-                      git pull origin trunk --rebase
-                      git push origin trunk
+                      git pull --depth=1 --rebase origin "$(git branch --show-current)"
+                      git push
                   else
                       echo "No changes in CHANGELOG.md. Skipping commit and push."
                   fi

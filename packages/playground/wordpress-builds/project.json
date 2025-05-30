@@ -68,29 +68,32 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public"
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}"
 				],
-				"parallel": false
+				"parallel": false,
+				"force": false
 			}
 		},
 		"bundle-wordpress:major-and-beta": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-3 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public || true"
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-3 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force} || true"
 				],
-				"parallel": false
+				"parallel": false,
+				"force": false
 			}
 		},
 		"bundle-sqlite-database": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration "
+					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration",
+					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v2.1.17-alpha.1 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration"
 				],
 				"parallel": false
 			}
@@ -116,7 +119,8 @@
 				"lintFilePatterns": [
 					"packages/playground/wordpress-builds/**/*.ts",
 					"packages/playground/wordpress-builds/package.json"
-				]
+				],
+				"maxWarnings": 0
 			}
 		}
 	},

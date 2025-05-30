@@ -25,6 +25,6 @@ RUN cd libedit-20221030-3.1 && \
 # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
 RUN cd libedit-20221030-3.1 && \
     source /root/emsdk/emsdk_env.sh && \
-    EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
+    EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -D__x86_64__  -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
     emmake make && \
     emmake make install

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import {
-	FileTree,
+	GitFileTree,
 	listDescendantFiles,
 	listGitFiles,
 	sparseCheckout,
@@ -24,9 +24,9 @@ export default function GitBrowserDemo() {
 	);
 	const [branch, setBranch] = React.useState('HEAD');
 
-	const [filesPromise, setFilesPromise] = React.useState<Promise<FileTree[]>>(
-		() => Promise.resolve([])
-	);
+	const [filesPromise, setFilesPromise] = React.useState<
+		Promise<GitFileTree[]>
+	>(() => Promise.resolve([]));
 	const loadFiles = () => {
 		const promise = listGitFiles(repoUrl, branch);
 		setFilesPromise(promise);
@@ -174,7 +174,7 @@ function PathMappingRow({
 	onRemove,
 }: {
 	value: PathMapping;
-	files: PromiseState<FileTree[]>;
+	files: PromiseState<GitFileTree[]>;
 	onChange: (value: PathMapping) => void;
 	onRemove: () => void;
 }) {

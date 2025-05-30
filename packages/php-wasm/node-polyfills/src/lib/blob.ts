@@ -18,7 +18,7 @@ if (currentJsRuntime === 'NODE') {
 		 * just need to implement a few File-specific properties.
 		 */
 		class File extends Blob {
-			override readonly name;
+			readonly name: string;
 			readonly lastModified: number;
 			readonly lastModifiedDate: Date;
 			webkitRelativePath: any;
@@ -127,7 +127,7 @@ if (currentJsRuntime === 'NODE') {
 			// This throws on older versions of node:
 			stream.getReader({ mode: 'byob' });
 			return true;
-		} catch (e) {
+		} catch {
 			return false;
 		}
 	}

@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import { IncomingMessage, Server, ServerResponse } from 'http';
+import type { IncomingMessage, Server, ServerResponse } from 'http';
 
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
@@ -159,6 +159,8 @@ export async function loadPHPRuntime(
 
 	const id = ++lastRuntimeId;
 
+	// TODO: Ask @adamziel why this is here.
+	// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- why is this here?
 	PHPRuntime.FS;
 	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;

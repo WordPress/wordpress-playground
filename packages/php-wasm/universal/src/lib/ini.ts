@@ -1,5 +1,5 @@
 import { PHP_INI_PATH } from './php';
-import { UniversalPHP } from './universal-php';
+import type { UniversalPHP } from './universal-php';
 import { stringify, parse } from 'ini';
 
 /**

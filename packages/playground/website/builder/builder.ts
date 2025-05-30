@@ -563,7 +563,7 @@ const loadFromHash = (editor) => {
 		let json = '';
 		try {
 			json = JSON.parse(atob(hash));
-		} catch (e) {
+		} catch {
 			json = JSON.parse(hash);
 		}
 		return json;

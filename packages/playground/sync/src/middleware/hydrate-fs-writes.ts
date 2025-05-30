@@ -2,8 +2,8 @@ import {
 	hydrateUpdateFileOps,
 	normalizeFilesystemOperations,
 } from '@php-wasm/fs-journal';
-import { SyncMiddleware } from '.';
-import { UniversalPHP } from '@php-wasm/universal';
+import type { SyncMiddleware } from '.';
+import type { UniversalPHP } from '@php-wasm/universal';
 
 export const hydrateFsWritesMiddleware = (
 	php: UniversalPHP

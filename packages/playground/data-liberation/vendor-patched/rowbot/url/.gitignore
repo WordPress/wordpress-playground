@@ -1,6 +1,0 @@
-/vendor/
-/composer.lock
-.vscode
-/build/
-/tests/WhatWg/data/
-/.phpunit.cache/

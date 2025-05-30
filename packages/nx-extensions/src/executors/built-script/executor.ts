@@ -1,4 +1,4 @@
-import { BuiltScriptExecutorSchema } from './schema';
+import type { BuiltScriptExecutorSchema } from './schema';
 import { spawnSync } from 'child_process';
 import { join } from 'path';
 
@@ -7,6 +7,7 @@ const dirname = __dirname;
 
 export default async function runExecutor(options: BuiltScriptExecutorSchema) {
 	const args = [
+		...(options.nodeArg || []),
 		'--loader',
 		join(dirname, 'loader.mjs'),
 		options.scriptPath,

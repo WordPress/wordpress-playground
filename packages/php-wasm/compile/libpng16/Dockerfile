@@ -23,7 +23,7 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --prefix=/root/install/
 RUN source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make
+    EMCC_SKIP="-lc -lz" EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS" emmake make
 RUN source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_FLAGS="-sSIDE_MODULE $JSPI_FLAGS" emmake make install
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS" emmake make install

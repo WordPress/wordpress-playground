@@ -1,0 +1,25 @@
+{
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/index.php",
+			"data": "<?php echo 'Hello World';"
+		},
+		{
+			"step": "writeFile",
+			"path": "/image.png",
+			"data": {
+				"resource": "bundled",
+				"path": "/demo.png"
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/pygmalion.txt",
+			"data": {
+				"resource": "bundled",
+				"path": "/text_file.txt"
+			}
+		}
+	]
+}

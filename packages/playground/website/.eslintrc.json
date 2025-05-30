@@ -41,6 +41,13 @@
 			}
 		},
 		{
+			"files": ["playwright/**/*"],
+			"rules": {
+				// This rule was incorrectly considering Playwright API as React hooks.
+				"react-hooks/rules-of-hooks": 0
+			}
+		},
+		{
 			"files": ["*.ts", "*.tsx"],
 			"rules": {}
 		},

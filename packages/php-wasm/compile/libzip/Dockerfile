@@ -26,8 +26,8 @@ RUN cd libzip/build && \
 
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make
+    EMCC_SKIP="-lz" EMCC_FLAGS=" -D__x86_64__  -sSIDE_MODULE $JSPI_FLAGS" emmake make
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make install
+    EMCC_SKIP="-lz" EMCC_FLAGS=" -D__x86_64__  -sSIDE_MODULE $JSPI_FLAGS" emmake make install
 RUN ls -r /root/install

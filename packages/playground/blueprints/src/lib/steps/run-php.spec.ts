@@ -16,6 +16,6 @@ describe('Blueprint step runPHP', () => {
 	});
 
 	it('should throw on PHP error', async () => {
-		expect(runPHP(php, { code: '<?php $%^;' })).rejects.toThrow();
+		await expect(runPHP(php, { code: '<?php $%^;' })).rejects.toThrow();
 	});
 });

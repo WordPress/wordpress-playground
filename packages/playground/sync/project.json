@@ -85,7 +85,8 @@
 			"options": {
 				"lintFilePatterns": [
 					"packages/playground/sync/**/*.{ts,tsx,js,jsx}"
-				]
+				],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

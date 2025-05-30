@@ -15,7 +15,7 @@ jobs:
     # take ~25s just to run git clone and restore node_modules.
     lint-and-typecheck:
         name: 'Lint and typecheck'
-        runs-on: ubuntu-latest
+        runs-on: wordpress-playground-private
         steps:
             - uses: actions/checkout@v4
               with:
@@ -24,29 +24,46 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
     test-unit-asyncify:
-        runs-on: ubuntu-latest
+        runs-on: wordpress-playground-private
         needs: [lint-and-typecheck]
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/8)
+                    - name: test-unit-asyncify (1/9)
                       target: test-node
-                    - name: test-unit-asyncify (2/8)
+                    - name: test-unit-asyncify (2/9)
                       target: test-php
-                    - name: test-unit-asyncify (3/8)
-                      target: test-php-request-handler-files
-                    - name: test-unit-asyncify (4/8)
-                      target: test-php-request-handler-requests
-                    - name: test-unit-asyncify (5/8)
+                    - name: test-unit-asyncify (3/9)
                       target: test-php-asyncify-file-get-contents
-                    - name: test-unit-asyncify (6/8)
+                    - name: test-unit-asyncify (4/9)
                       target: test-php-asyncify-fopen
-                    - name: test-unit-asyncify (7/8)
+                    - name: test-unit-asyncify (5/9)
                       target: test-php-asyncify-fsockopen
-                    - name: test-unit-asyncify (8/8)
+                    - name: test-unit-asyncify (6/9)
                       target: test-php-asyncify-gethostbyname
+                    - name: test-unit-asyncify (7/9)
+                      target: test-php-asyncify-mysqli
+                    - name: test-unit-asyncify (8/9)
+                      target: test-php-request-handler-files
+                    - name: test-unit-asyncify (9/9)
+                      target: test-php-request-handler-requests
         name: ${{ matrix.name }}
+        services:
+            mysql:
+                image: mysql:5.7
+                env:
+                    MYSQL_DATABASE: test_db
+                    MYSQL_USER: user
+                    MYSQL_PASSWORD: password
+                    MYSQL_ROOT_PASSWORD: rootpassword
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping --silent"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
         steps:
             - uses: actions/checkout@v4
               with:
@@ -55,6 +72,10 @@ jobs:
               with:
                   node-version: 22
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }} --configuration=ci
+              env:
+                  MYSQL_DATABASE: test_db
+                  MYSQL_USER: user
+                  MYSQL_PASSWORD: password
     # Most of these tests pass locally but the process is crashing
     # on the CI runner.
     #
@@ -71,7 +92,7 @@ jobs:
     #               node-version: 23.0.0-nightly2024100909d10b50dc
     #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
-        runs-on: ubuntu-latest
+        runs-on: wordpress-playground-private
         needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
         steps:
@@ -89,7 +110,7 @@ jobs:
                   path: dist/cypress/packages/playground/website/screenshots
 
     test-e2e-playwright-prepare:
-        runs-on: ubuntu-latest
+        runs-on: wordpress-playground-private
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
@@ -108,7 +129,7 @@ jobs:
                   name: playwright-dist
                   path: dist.zip
     test-e2e-playwright:
-        runs-on: ubuntu-latest
+        runs-on: wordpress-playground-private
         needs: [test-e2e-playwright-prepare]
         strategy:
             fail-fast: false
@@ -150,20 +171,99 @@ jobs:
               uses: geekyeggo/delete-artifact@v5
               with:
                   name: playwright-dist
-
-    build:
-        runs-on: ubuntu-latest
+    test-built-npm-packages:
+        runs-on: wordpress-playground-private
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - run: npx nx affected --target=build --parallel=3 --verbose
+            - name: Generate a mock version number (for releasing the packages in a local registry) and store it as a global variable
+              run: |
+                  VERSION=$(date +%s)
+                  PORT=9934
+                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/$VERSION
+                  echo "VERSION=$VERSION" >> $GITHUB_ENV
+                  echo "PORT=$PORT" >> $GITHUB_ENV
+                  echo "PACKAGE_BASE_URL=$PACKAGE_BASE_URL" >> $GITHUB_ENV
+                  echo "PACKAGE_URL=$PACKAGE_BASE_URL/v$VERSION/@wp-playground-cli-$VERSION.tar.gz" >> $GITHUB_ENV
+                  echo "HOST_PATH=./dist/packages-for-self-hosting/http%3A%2F%2F127.0.0.1%3A$PORT%2F$VERSION" >> $GITHUB_ENV
+            - name: Update package.json versions
+              run: |
+                  VERSION=$(date +%s)
+                  for package in packages/*/*/package.json; do
+                    jq --arg version "$VERSION" '.version = $version' "$package" > "$package.tmp"
+                    mv "$package.tmp" "$package"
+                  done
+            - name: Package repository
+              run: |
+                  npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
+            - name: Install Bun
+              uses: oven-sh/setup-bun@v2
+            - name: Start a local node package registry server
+              run: RUNNER_TRACKING_ID="" && (nohup bun ./packages/playground/cli/src/cli.ts server --port=$PORT --mount="$HOST_PATH:/wordpress/$VERSION" --quiet&)
+            - name: Wait for the package server to be ready
+              run: |
+                  for i in {1..60}; do
+                      curl_output=$(curl -v $PACKAGE_URL 2>&1)
+                      if [ $? -eq 0 ]; then
+                          break
+                      fi
+                      sleep 1
+                  done
+            - name: Run integration tests in an ES Modules project
+              run: |
+                  cd packages/playground/test-built-npm-packages/es-modules-and-vitest
+                  jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
+                  mv package.json.tmp package.json
+                  npm install
+                  INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
+                  if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
+                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
+                    echo "Expected: $VERSION"
+                    echo "Installed: $INSTALLED_VERSION"
+                    exit 1
+                  fi
+                  npm run test
+            - name: Run integration tests in a CommonJS project
+              run: |
+                  cd packages/playground/test-built-npm-packages/commonjs-and-jest
+                  jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
+                  mv package.json.tmp package.json
+                  npm install
+                  INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
+                  if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
+                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
+                    echo "Expected: $VERSION"
+                    echo "Installed: $INSTALLED_VERSION"
+                    exit 1
+                  fi
+                  npm run test
+
+    build:
+        runs-on: wordpress-playground-private
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: |
+                  if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
+                    echo "The Playground client build should have failed due to an invalid additional origin."
+                    echo "The build does not appear to be applying ADDITIONAL_REMOTE_ORIGINS."
+                    exit 1
+                  fi
+                  npx nx affected --target=build --parallel=3 --verbose
 
     # Deploy documentation job
     deploy_docs:
-        if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
+        # Only deploy docs when pushing to the WordPress/wordpress-playground repository
+        if: >
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.ref == 'refs/heads/trunk' &&
+            github.event_name == 'push'
         # Add a dependency to the build job
         needs: [test-unit-asyncify, test-e2e, build]
         name: 'Deploy doc site'
@@ -179,7 +279,7 @@ jobs:
             url: ${{ steps.deployment.outputs.page_url }}
 
         # Specify runner + deployment step
-        runs-on: ubuntu-latest
+        runs-on: wordpress-playground-private
         steps:
             - uses: actions/checkout@v4
               with:

@@ -40,6 +40,10 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/progress"],
@@ -52,7 +56,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/progress/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/progress/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

@@ -1,15 +1,15 @@
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { PHP } from './php';
-import { PHPRequestHandler } from './php-request-handler';
-import { PHPResponse } from './php-response';
-import {
+import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { PHP } from './php';
+import type { PHPRequestHandler } from './php-request-handler';
+import type { PHPResponse } from './php-response';
+import type {
 	PHPRequest,
 	PHPRunOptions,
 	MessageListener,
 	PHPEvent,
 	PHPEventListener,
 } from './universal-php';
-import { RmDirOptions, ListFilesOptions } from './fs-helpers';
+import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
 
 const _private = new WeakMap<
 	PHPWorker,

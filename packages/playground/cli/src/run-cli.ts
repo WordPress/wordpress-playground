@@ -1,35 +1,42 @@
-import fs from 'fs';
-import path from 'path';
-import { startServer } from './server';
-import {
+import { errorLogPath, logger } from '@php-wasm/logger';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
+import type {
 	PHP,
 	PHPRequest,
 	PHPRequestHandler,
-	PHPResponse,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { logger, errorLogPath } from '@php-wasm/logger';
+import { PHPResponse } from '@php-wasm/universal';
+import type {
+	BlueprintDeclaration,
+	BlueprintBundle,
+} from '@wp-playground/blueprints';
 import {
-	Blueprint,
 	compileBlueprint,
 	runBlueprintSteps,
+	isBlueprintBundle,
 } from '@wp-playground/blueprints';
-import type { Server } from 'http';
-import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
-import { bootWordPress } from '@wp-playground/wordpress';
+import {
+	bootWordPress,
+	resolveWordPressRelease,
+} from '@wp-playground/wordpress';
+import fs from 'fs';
+import type { Server } from 'http';
+import path from 'path';
 import { rootCertificates } from 'tls';
+import { expandAutoMounts } from './cli-auto-mount';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
 	fetchSqliteIntegration,
 	readAsFile,
 } from './download';
-import { resolveWordPressRelease } from '@wp-playground/wordpress';
+import { startServer } from './server';
 
 export interface RunCLIArgs {
-	blueprint?: Blueprint;
+	blueprint?: BlueprintDeclaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
@@ -40,7 +47,10 @@ export interface RunCLIArgs {
 	port?: number;
 	quiet?: boolean;
 	skipWordPressSetup?: boolean;
+	skipSqliteSetup?: boolean;
 	wp?: string;
+	autoMount?: boolean;
+	followSymlinks?: boolean;
 }
 
 export interface RunCLIServer {
@@ -48,15 +58,13 @@ export interface RunCLIServer {
 	server: Server;
 }
 
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
-
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
-	if (args.quiet) {
-		// @ts-ignore
-		logger.handlers = [];
+	/**
+	 * Expand auto-mounts to include the necessary mounts and steps
+	 * when running in auto-mount mode.
+	 */
+	if (args.autoMount) {
+		args = expandAutoMounts(args);
 	}
 
 	/**
@@ -110,7 +118,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		}
 	}
 
-	function compileInputBlueprint() {
+	async function compileInputBlueprint() {
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
@@ -118,18 +126,24 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		 * 		 Also the Blueprint Builder tool does something similar.
 		 *       Perhaps all these cases could be handled by the same function?
 		 */
-		let blueprint: Blueprint | undefined;
-		if (args.blueprint) {
-			blueprint = args.blueprint as Blueprint;
-		} else {
-			blueprint = {
-				preferredVersions: {
-					php: args.php ?? RecommendedPHPVersion,
-					wp: args.wp ?? 'latest',
-				},
-				login: args.login,
-			};
-		}
+		const blueprint: BlueprintDeclaration | BlueprintBundle =
+			isBlueprintBundle(args.blueprint)
+				? args.blueprint
+				: {
+						login: args.login,
+						...args.blueprint,
+						preferredVersions: {
+							php:
+								args.php ??
+								args?.blueprint?.preferredVersions?.php ??
+								RecommendedPHPVersion,
+							wp:
+								args.wp ??
+								args?.blueprint?.preferredVersions?.wp ??
+								'latest',
+							...(args.blueprint?.preferredVersions || {}),
+						},
+				  };
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -153,7 +167,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				);
 			}
 		});
-		return compileBlueprint(blueprint as Blueprint, {
+		return await compileBlueprint(blueprint as BlueprintDeclaration, {
 			progress: tracker,
 		});
 	}
@@ -185,7 +199,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		}
 	}
 
-	const compiledBlueprint = compileInputBlueprint();
+	if (args.quiet) {
+		// @ts-ignore
+		logger.handlers = [];
+	}
+
+	const compiledBlueprint = await compileInputBlueprint();
 
 	let requestHandler: PHPRequestHandler;
 	let wordPressReady = false;
@@ -262,9 +281,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () =>
-					await loadNodeRuntime(compiledBlueprint.versions.php),
+					await loadNodeRuntime(compiledBlueprint.versions.php, {
+						followSymlinks: args.followSymlinks === true,
+					}),
 				wordPressZip,
-				sqliteIntegrationPluginZip: fetchSqliteIntegration(monitor),
+				sqliteIntegrationPluginZip: args.skipSqliteSetup
+					? undefined
+					: fetchSqliteIntegration(monitor),
 				sapiName: 'cli',
 				createFiles: {
 					'/internal/shared/ca-bundle.crt':
@@ -283,6 +306,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						}
 					},
 				},
+				cookieStore: false,
 			});
 			logger.log(`Booted!`);
 

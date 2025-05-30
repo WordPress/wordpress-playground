@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import http from 'http';
+import type http from 'http';
 import express from 'express';
 import path from 'path';
 import process from 'process';

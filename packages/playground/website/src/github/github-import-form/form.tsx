@@ -1,23 +1,18 @@
 import React from 'react';
 import { useState } from 'react';
 import { Notice, Button as WPButton } from '@wordpress/components';
-import { PlaygroundClient } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import {
-	GitHubURLInformation,
-	staticAnalyzeGitHubURL,
-} from '../analyze-github-url';
-import {
-	GetFilesProgress,
-	GithubClient,
-	createClient,
-	getFilesFromDirectory,
-} from '@wp-playground/storage';
+import type { GitHubURLInformation } from '../analyze-github-url';
+import { staticAnalyzeGitHubURL } from '../analyze-github-url';
+import type { GetFilesProgress, GithubClient } from '@wp-playground/storage';
+import { createClient, getFilesFromDirectory } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
-import { ContentType, importFromGitHub } from '../import-from-github';
+import type { ContentType } from '../import-from-github';
+import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { basename, normalizePath } from '@php-wasm/util';

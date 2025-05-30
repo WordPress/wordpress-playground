@@ -1,7 +1,10 @@
-import { TCPOverFetchWebsocket } from './tcp-over-fetch-websocket';
+import {
+	TCPOverFetchWebsocket,
+	RawBytesFetch,
+} from './tcp-over-fetch-websocket';
 import express from 'express';
-import http from 'http';
-import { AddressInfo } from 'net';
+import type http from 'http';
+import type { AddressInfo } from 'net';
 import zlib from 'zlib';
 
 const pygmalion = `PREFACE TO PYGMALION.
@@ -341,6 +344,29 @@ describe('TCPOverFetchWebsocket', () => {
 		// Confirm the response is not truncated
 		expect(response.length).toBeGreaterThan(pygmalion.length);
 		expect(response).toContain(pygmalion.slice(-100));
+	});
+});
+
+describe('RawBytesFetch', () => {
+	it('parseHttpRequest should handle an transfer-encoding: chunked POST requests', async () => {
+		const encodedBodyBytes = 'abcde';
+		const encodedChunkedBodyBytes = `${encodedBodyBytes.length}\r\n${encodedBodyBytes}\r\n0\r\n\r\n`;
+		const requestBytes = `POST /echo HTTP/1.1\r\nHost: playground.internal\r\ntransfer-encoding: chunked\r\n\r\n${encodedChunkedBodyBytes}`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'playground.internal',
+			'http'
+		);
+		const parsedRequestBody = await request.body?.getReader().read();
+		const decodedRequestBody = new TextDecoder().decode(
+			parsedRequestBody?.value
+		);
+		expect(decodedRequestBody).toEqual(encodedBodyBytes);
 	});
 });
 

@@ -41,8 +41,8 @@ RUN set -euxo pipefail && \
         --disable-shared \
         --enable-static && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS " emmake make -j"$(nproc)" && \
-    EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS " emmake make install -i;
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS " emmake make -j"$(nproc)" && \
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS " emmake make install -i;
 
 
 RUN set -euxo pipefail && \

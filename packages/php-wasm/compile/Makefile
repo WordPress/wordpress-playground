@@ -222,14 +222,14 @@ oniguruma/jspi/dist/root/lib/lib/libonig.a: base-image
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/jspi/dist/root/lib/
 
 libcurl_asyncify: libcurl/asyncify/dist/root/lib/lib/libcurl.a
-libcurl/asyncify/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
+libcurl/asyncify/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_asyncify
 	mkdir -p ./libcurl/asyncify/dist/root/lib
 	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl . --progress=plain
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/asyncify/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/asyncify/dist/root/lib
 
 libcurl_jspi: libcurl/jspi/dist/root/lib/lib/libcurl.a
-libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
+libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_jspi
 	mkdir -p ./libcurl/jspi/dist/root/lib
 	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl . --progress=plain --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/jspi/dist/root/lib/lib

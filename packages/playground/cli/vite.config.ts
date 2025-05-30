@@ -74,5 +74,6 @@ export default defineConfig({
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
+		testTimeout: 15000, // Increase timeout to ensure CLI tests can download WordPress
 	},
 });

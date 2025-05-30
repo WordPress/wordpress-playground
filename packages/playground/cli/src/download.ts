@@ -1,4 +1,4 @@
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import fs from 'fs-extra';
 import os from 'os';
 import path, { basename } from 'path';
@@ -9,7 +9,7 @@ export async function fetchSqliteIntegration(
 	monitor: EmscriptenDownloadMonitor
 ) {
 	const sqliteZip = await cachedDownload(
-		'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip',
+		'https://github.com/Automattic/sqlite-database-integration/archive/refs/heads/develop.zip',
 		'sqlite.zip',
 		monitor
 	);
@@ -52,14 +52,13 @@ async function downloadTo(
 	writer.close();
 	if (!writer.closed) {
 		await new Promise((resolve, reject) => {
-			writer.on('finish', (err: any) => {
-				if (err) {
-					fs.removeSync(tmpPath);
-					reject(err);
-				} else {
-					fs.renameSync(tmpPath, localPath);
-					resolve(null);
-				}
+			writer.on('finish', () => {
+				fs.renameSync(tmpPath, localPath);
+				resolve(null);
+			});
+			writer.on('error', (err: any) => {
+				fs.removeSync(tmpPath);
+				reject(err);
 			});
 		});
 	}

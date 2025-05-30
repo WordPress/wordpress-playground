@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/components",
-	"version": "1.0.29",
+	"version": "1.0.38",
 	"exports": {
 		".": {
 			"import": "./index.js",
@@ -23,7 +23,7 @@
 	},
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
 	"engines": {
-		"node": ">=18.18.0",
-		"npm": ">=8.11.0"
+		"node": ">=20.18.3",
+		"npm": ">=10.1.0"
 	}
 }

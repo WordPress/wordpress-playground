@@ -1,22 +1,29 @@
-import fs from 'fs';
-import path from 'path';
-import yargs from 'yargs';
+/* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
-import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { runCLI, RunCLIArgs } from './run-cli';
+import yargs from 'yargs';
+import { isValidWordPressSlug } from './is-valid-wordpress-slug';
+import type { RunCLIArgs } from './run-cli';
+import { runCLI } from './run-cli';
+import { resolveBlueprint } from './resolve-blueprint';
+import { ReportableError } from './reportable-error';
+
+export interface Mount {
+	hostPath: string;
+	vfsPath: string;
+}
 
 async function run() {
 	/**
 	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
 	 *       Perhaps the two could be handled by the same code?
 	 */
-	const yargsObject = await yargs(process.argv.slice(2))
+	const yargsObject = yargs(process.argv.slice(2))
 		.usage('Usage: wp-playground <command> [options]')
 		.positional('command', {
 			describe: 'Command to run',
-			type: 'string',
-			choices: ['server', 'run-blueprint', 'build-snapshot'],
+			choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
+			demandOption: true,
 		})
 		.option('outfile', {
 			describe: 'When building, write to this output file.',
@@ -62,9 +69,21 @@ async function run() {
 			describe: 'Blueprint to execute.',
 			type: 'string',
 		})
+		.option('blueprintMayReadAdjacentFiles', {
+			describe:
+				'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
+			type: 'boolean',
+			default: false,
+		})
 		.option('skipWordPressSetup', {
 			describe:
 				'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('skipSqliteSetup', {
+			describe:
+				'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
 			type: 'boolean',
 			default: false,
 		})
@@ -79,32 +98,27 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('autoMount', {
+			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
+			type: 'boolean',
+			default: false,
+		})
+		.option('followSymlinks', {
+			describe:
+				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
+			type: 'boolean',
+			default: false,
+		})
 		.showHelpOnFail(false)
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 				try {
 					// Check if is valid URL
 					new URL(args.wp);
-				} catch (e) {
+				} catch {
 					throw new Error(
 						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
 					);
-				}
-			}
-			if (args.blueprint !== undefined) {
-				const blueprintPath = path.resolve(
-					process.cwd(),
-					args.blueprint
-				);
-				if (!fs.existsSync(blueprintPath)) {
-					throw new Error('Blueprint file does not exist');
-				}
-
-				const content = fs.readFileSync(blueprintPath, 'utf-8');
-				try {
-					args.blueprint = JSON.parse(content);
-				} catch (e) {
-					throw new Error('Blueprint file is not a valid JSON file');
 				}
 			}
 			return true;
@@ -123,9 +137,24 @@ async function run() {
 	const cliArgs = {
 		...args,
 		command,
+		blueprint: await resolveBlueprint({
+			sourceString: args.blueprint,
+			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
+		}),
 	} as RunCLIArgs;
 
-	return await runCLI(cliArgs);
+	try {
+		return runCLI(cliArgs);
+	} catch (e) {
+		const reportableCause = ReportableError.getReportableCause(e);
+		if (reportableCause) {
+			console.log('');
+			console.log(reportableCause.message);
+			process.exit(1);
+		} else {
+			throw e;
+		}
+	}
 }
 
 run();
