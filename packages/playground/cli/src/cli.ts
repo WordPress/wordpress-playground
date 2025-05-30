@@ -7,11 +7,7 @@ import type { RunCLIArgs } from './run-cli';
 import { runCLI } from './run-cli';
 import { resolveBlueprint } from './resolve-blueprint';
 import { ReportableError } from './reportable-error';
-
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
+import { getMountsFromCliArgs } from './mount';
 
 async function run() {
 	/**
@@ -154,6 +150,7 @@ async function run() {
 			sourceString: args.blueprint,
 			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
 		}),
+		...getMountsFromCliArgs(args),
 	} as RunCLIArgs;
 
 	try {

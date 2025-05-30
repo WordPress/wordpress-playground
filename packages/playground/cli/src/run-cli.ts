@@ -34,16 +34,15 @@ import {
 	readAsFile,
 } from './download';
 import { startServer } from './server';
+import { Mount, mountResources } from './mount';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
-	mount?: string[];
-	mountDir?: string[];
-	mountBeforeInstall?: string[];
-	mountDirBeforeInstall?: string[];
+	mount?: Mount[];
+	mountBeforeInstall?: Mount[];
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
@@ -108,46 +107,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			fs.writeFileSync(outfile, zip);
 		} finally {
 			reap();
-		}
-	}
-
-	function parseMounts(
-		mounts: string[] = [],
-		mountDir: string[] = []
-	): RunCLIMount[] {
-		const parsedMounts = mounts.map((mount) => {
-			const mountParts = mount.split(':');
-			if (mountParts.length !== 2) {
-				throw new Error(
-					`Invalid mount format: ${mount}.
-					Expected format: /host/path:/vfs/path.
-					If you're path contains a colon, you can use --mount-dir instead.
-					Example: --mount-dir /host/path /wordpress/`
-				);
-			}
-			return {
-				hostPath: path.resolve(process.cwd(), mountParts[0]),
-				vfsPath: mountParts[1],
-			};
-		});
-
-		const parsedMountDirs = [];
-		for (let i = 0; i < mountDir.length; i += 2) {
-			const source = mountDir[i];
-			const vfsPath = mountDir[i + 1];
-			parsedMountDirs.push({
-				hostPath: path.resolve(process.cwd(), source),
-				vfsPath,
-			});
-		}
-
-		return [...parsedMounts, ...parsedMountDirs];
-	}
-
-	function mountResources(php: PHP, mounts: RunCLIMount[]) {
-		for (const mount of mounts) {
-			php.mkdir(mount.vfsPath);
-			php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
 		}
 	}
 
@@ -334,17 +293,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				},
 				hooks: {
 					async beforeWordPressFiles(php) {
-						if (
-							args.mountBeforeInstall ||
-							args.mountDirBeforeInstall
-						) {
-							mountResources(
-								php,
-								parseMounts(
-									args.mountBeforeInstall,
-									args.mountDirBeforeInstall
-								)
-							);
+						if (args.mountBeforeInstall) {
+							mountResources(php, args.mountBeforeInstall);
 						}
 					},
 				},
@@ -369,8 +319,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					logger.log(`Cached!`);
 				}
 
-				if (args.mount || args.mountDir) {
-					mountResources(php, parseMounts(args.mount, args.mountDir));
+				if (args.mount) {
+					mountResources(php, args.mount);
 				}
 
 				wordPressReady = true;
