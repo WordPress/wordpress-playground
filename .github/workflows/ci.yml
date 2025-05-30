@@ -15,7 +15,7 @@ jobs:
     # take ~25s just to run git clone and restore node_modules.
     lint-and-typecheck:
         name: 'Lint and typecheck'
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
               with:
@@ -24,7 +24,7 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
     test-unit-asyncify:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         strategy:
             fail-fast: false
@@ -92,7 +92,7 @@ jobs:
     #               node-version: 23.0.0-nightly2024100909d10b50dc
     #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
         steps:
@@ -110,7 +110,7 @@ jobs:
                   path: dist/cypress/packages/playground/website/screenshots
 
     test-e2e-playwright-prepare:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
@@ -129,7 +129,7 @@ jobs:
                   name: playwright-dist
                   path: dist.zip
     test-e2e-playwright:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [test-e2e-playwright-prepare]
         strategy:
             fail-fast: false
@@ -242,7 +242,7 @@ jobs:
                   npm run test
 
     build:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
@@ -279,7 +279,7 @@ jobs:
             url: ${{ steps.deployment.outputs.page_url }}
 
         # Specify runner + deployment step
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
               with:
