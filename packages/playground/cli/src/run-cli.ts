@@ -1,8 +1,7 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type {
-	PHP,
 	PHPRequest,
 	PHPRequestHandler,
 	SupportedPHPVersion,
@@ -34,7 +33,7 @@ import {
 	readAsFile,
 } from './download';
 import { startServer } from './server';
-import { Mount, mountResources } from './mount';
+import { type Mount, mountResources } from './mount';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -57,11 +56,6 @@ export interface RunCLIArgs {
 export interface RunCLIServer {
 	requestHandler: PHPRequestHandler;
 	server: Server;
-}
-
-export interface RunCLIMount {
-	hostPath: string;
-	vfsPath: string;
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
