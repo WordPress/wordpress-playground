@@ -53,6 +53,7 @@ export default defineConfig(function () {
 					execArgv: ['--expose-gc'],
 					// TODO: Remove this after debugging "Unexpected error" in CI
 					singleFork: true,
+					isolate: true,
 				},
 			},
 			environment: 'node',
