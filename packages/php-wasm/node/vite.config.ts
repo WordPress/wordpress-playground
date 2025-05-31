@@ -55,6 +55,7 @@ export default defineConfig(function () {
 					maxForks: 1,
 				},
 			},
+			fileParallelism: false,
 			environment: 'node',
 			reporters: ['default', 'verbose'],
 		},
