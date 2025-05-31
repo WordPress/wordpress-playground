@@ -46,15 +46,13 @@ export default defineConfig(function () {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			pool: 'forks',
+			pool: 'vmForks',
 			poolOptions: {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.
-				forks: {
+				vmForks: {
 					execArgv: ['--expose-gc'],
-					// TODO: Remove this after debugging "Unexpected error" in CI
-					singleFork: true,
-					isolate: true,
+					maxForks: 1,
 				},
 			},
 			environment: 'node',
