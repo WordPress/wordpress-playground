@@ -51,6 +51,8 @@ export default defineConfig(function () {
 				// forked test process.
 				forks: {
 					execArgv: ['--expose-gc'],
+					// TODO: Remove this after debugging "Unexpected error" in CI
+					singleFork: true,
 				},
 			},
 			environment: 'node',
