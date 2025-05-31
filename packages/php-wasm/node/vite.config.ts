@@ -46,6 +46,7 @@ export default defineConfig(function () {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
+			pool: 'forks',
 			poolOptions: {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.
