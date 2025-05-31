@@ -56,7 +56,7 @@ export default defineConfig(function () {
 				},
 			},
 			environment: 'node',
-			reporters: ['default'],
+			reporters: ['default', 'verbose'],
 		},
 
 		define: {
