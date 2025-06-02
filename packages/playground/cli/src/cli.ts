@@ -7,7 +7,10 @@ import type { RunCLIArgs } from './run-cli';
 import { runCLI } from './run-cli';
 import { resolveBlueprint } from './resolve-blueprint';
 import { ReportableError } from './reportable-error';
-import { getMountsFromCliArgs } from './mount';
+import {
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mount';
 
 async function run() {
 	/**
@@ -49,25 +52,30 @@ async function run() {
 				'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
+			coerce: parseMountWithDelimiterArguments,
 		})
 		.option('mountBeforeInstall', {
 			describe:
 				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
+			coerce: parseMountWithDelimiterArguments,
 		})
 		.option('mountDir', {
 			describe:
 				'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
-			type: 'string',
+			type: 'array',
 			nargs: 2,
 			array: true,
+			// coerce: parseMountDirArguments,
 		})
 		.option('mountDirBeforeInstall', {
 			describe:
 				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
 			type: 'string',
+			nargs: 2,
 			array: true,
+			coerce: parseMountDirArguments,
 		})
 		.option('login', {
 			describe: 'Should log the user in',
@@ -135,6 +143,7 @@ async function run() {
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
+	console.log(args.mountDir);
 
 	const command = args._[0] as string;
 
@@ -150,7 +159,11 @@ async function run() {
 			sourceString: args.blueprint,
 			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
 		}),
-		...getMountsFromCliArgs(args),
+		mount: [...(args.mount || []), ...(args.mountDir || [])],
+		mountBeforeInstall: [
+			...(args.mountBeforeInstall || []),
+			...(args.mountDirBeforeInstall || []),
+		],
 	} as RunCLIArgs;
 
 	try {

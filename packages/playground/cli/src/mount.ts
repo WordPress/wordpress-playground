@@ -8,6 +8,14 @@ export interface Mount {
 	vfsPath: string;
 }
 
+/**
+ * Parse an array of mount argument strings where the host path and VFS path
+ * are separated by a colon.
+ * e.g. [ '/host/path:/vfs/path', '/host/path:/vfs/path' ]
+ *
+ * @param mounts - An array of mount argument strings separated by a colon.
+ * @returns An array of Mount objects.
+ */
 export function parseMountWithDelimiterArguments(mounts: string[]): Mount[] {
 	const parsedMounts = [];
 	for (const mount of mounts) {
@@ -27,6 +35,18 @@ export function parseMountWithDelimiterArguments(mounts: string[]): Mount[] {
 	return parsedMounts;
 }
 
+/**
+ * Parse an array of mount argument strings where each odd array element is a host path
+ * and each even element is the VFS path.
+ * e.g. [ '/host/path', '/vfs/path', '/host/path2', '/vfs/path2' ]
+ *
+ * The result will be an array of Mount objects for each host path the
+ * following element is it's VFS path.
+ * e.g. [ { hostPath: '/host/path', vfsPath: '/vfs/path' }, { hostPath: '/host/path2', vfsPath: '/vfs/path2' } ]
+ *
+ * @param mounts - An array of paths
+ * @returns An array of Mount objects.
+ */
 export function parseMountDirArguments(mounts: string[]): Mount[] {
 	if (mounts.length % 2 !== 0) {
 		throw new Error('Invalid mount format. Expected: /host/path /vfs/path');
@@ -45,41 +65,6 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 		});
 	}
 	return parsedMounts;
-}
-
-export function getMountsFromCliArgs(args: {
-	mount?: string[];
-	mountDir?: string[];
-	mountBeforeInstall?: string[];
-	mountDirBeforeInstall?: string[];
-}): {
-	mount: Mount[];
-	mountBeforeInstall: Mount[];
-} {
-	const mount = [];
-	if (args.mount) {
-		mount.push(...parseMountWithDelimiterArguments(args.mount));
-	}
-	if (args.mountDir) {
-		mount.push(...parseMountDirArguments(args.mountDir));
-	}
-
-	const mountBeforeInstall = [];
-	if (args.mountBeforeInstall) {
-		mountBeforeInstall.push(
-			...parseMountWithDelimiterArguments(args.mountBeforeInstall)
-		);
-	}
-	if (args.mountDirBeforeInstall) {
-		mountBeforeInstall.push(
-			...parseMountDirArguments(args.mountDirBeforeInstall)
-		);
-	}
-
-	return {
-		mount,
-		mountBeforeInstall,
-	};
 }
 
 export function mountResources(php: PHP, mounts: Mount[]) {
