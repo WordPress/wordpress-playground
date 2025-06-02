@@ -15,8 +15,8 @@ export function parseMountWithDelimiterArguments(mounts: string[]): Mount[] {
 		if (mountParts.length !== 2) {
 			throw new Error(`Invalid mount format: ${mount}.
 				Expected format: /host/path:/vfs/path.
-				If you're path contains a colon, you can use --mount-dir instead.
-				Example: --mount-dir /host/path /wordpress/`);
+				If your path contains a colon, e.g. C:\myplugin, use the --mount-dir option instead.
+				Example: --mount-dir C:\my-plugin /wordpress/wp-content/plugins/my-plugin`);
 		}
 		const [hostPath, vfsPath] = mountParts;
 		if (!existsSync(hostPath)) {
