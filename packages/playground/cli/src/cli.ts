@@ -143,7 +143,6 @@ async function run() {
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
-	console.log(args.mountDir);
 
 	const command = args._[0] as string;
 
