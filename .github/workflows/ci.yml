@@ -270,9 +270,10 @@ jobs:
     # Deploy documentation job
     deploy_docs:
         # Only deploy docs when pushing to the WordPress/wordpress-playground repository
+        # TODO: Remove PR branch from condition
         if: >
             github.repository == 'WordPress/wordpress-playground' &&
-            github.ref == 'refs/heads/trunk' &&
+            (github.ref == 'refs/heads/trunk' || github.ref == 'refs/heads/fix-doc-deployment') &&
             github.event_name == 'push'
         # Add a dependency to the build job
         needs: [test-unit-asyncify, test-e2e, build]
