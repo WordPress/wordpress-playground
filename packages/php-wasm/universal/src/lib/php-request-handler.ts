@@ -568,6 +568,15 @@ export class PHPRequestHandler {
 			throw error;
 		}
 	}
+
+	/**
+	 * Set the request handler's cookie store.
+	 *
+	 * @param cookieStore - The cookie store to use.
+	 */
+	setCookieStore(cookieStore: CookieStore | false) {
+		this.#cookieStore = cookieStore;
+	}
 }
 
 /**

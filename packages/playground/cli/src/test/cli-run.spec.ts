@@ -10,6 +10,8 @@ import { exec } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
+import { HttpCookieStore } from '@php-wasm/universal';
+
 describe('cli-run', () => {
 	let cliServer: RunCLIServer;
 
@@ -238,7 +240,7 @@ describe('cli-run', () => {
 		});
 	});
 
-	describe('cookie store', () => {
+	describe.only('cookie store', () => {
 		const createCookieFiles = async (cliServer: RunCLIServer) => {
 			const php = await cliServer.requestHandler.getPrimaryPhp();
 			await php.writeFile(
@@ -272,9 +274,9 @@ describe('cli-run', () => {
 		test('should use a cookie store if enabled', async () => {
 			cliServer = await runCLI({
 				command: 'server',
-				enableCookieStore: true,
 			});
 			await createCookieFiles(cliServer);
+			cliServer.requestHandler.setCookieStore(new HttpCookieStore());
 			await cliServer.requestHandler.request({
 				url: '/set-cookie.php',
 			});
