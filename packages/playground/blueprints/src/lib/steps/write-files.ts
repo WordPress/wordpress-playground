@@ -28,13 +28,24 @@ export interface WriteFilesStep<DirectoryResource> {
 	step: 'writeFiles';
 	/** The path of the file to write to */
 	writeToPath: string;
-	/** The data to write */
+	/**
+	 * The 'filesTree' defines the directory structure, supporting 'literal:directory' or
+	 * 'git:directory' types. The 'name' represents the root directory, while 'files' is an object
+	 * where keys are file paths, and values contain either file content as a string or nested objects
+	 * for subdirectories.
+	 */
 	filesTree: DirectoryResource;
 }
 
 /**
  * Writes multiple files to a specified directory in the Playground
  * filesystem.
+ * ```
+ * my-plugin/
+ * ├── index.php
+ * └── public/
+ *     └── style.css
+ * ```
  */
 export const writeFiles: StepHandler<WriteFilesStep<Directory>> = async (
 	playground,

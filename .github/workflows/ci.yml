@@ -15,7 +15,7 @@ jobs:
     # take ~25s just to run git clone and restore node_modules.
     lint-and-typecheck:
         name: 'Lint and typecheck'
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
               with:
@@ -24,26 +24,40 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
     test-unit-asyncify:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/7)
+                    - name: test-unit-asyncify (1/14)
                       target: test
-                    - name: test-unit-asyncify (2/7)
+                    - name: test-unit-asyncify (2/14)
                       target: test-php
-                    - name: test-unit-asyncify (3/7)
-                      target: test-php-asyncify-file-get-contents
-                    - name: test-unit-asyncify (4/7)
-                      target: test-php-asyncify-fopen
-                    - name: test-unit-asyncify (5/7)
-                      target: test-php-asyncify-fsockopen
-                    - name: test-unit-asyncify (6/7)
-                      target: test-php-asyncify-gethostbyname
-                    - name: test-unit-asyncify (7/7)
-                      target: test-php-asyncify-mysqli
+                    - name: test-unit-asyncify (3/14)
+                      target: test-php-request-handler-files
+                    - name: test-unit-asyncify (4/14)
+                      target: test-php-request-handler-requests
+                    - name: test-unit-asyncify (5/14)
+                      target: test-php-asyncify-file-get-contents-http
+                    - name: test-unit-asyncify (6/14)
+                      target: test-php-asyncify-file-get-contents-https
+                    - name: test-unit-asyncify (7/14)
+                      target: test-php-asyncify-fopen-http
+                    - name: test-unit-asyncify (8/14)
+                      target: test-php-asyncify-fopen-https
+                    - name: test-unit-asyncify (9/14)
+                      target: test-php-asyncify-fsockopen-http
+                    - name: test-unit-asyncify (10/14)
+                      target: test-php-asyncify-fsockopen-https
+                    - name: test-unit-asyncify (11/14)
+                      target: test-php-asyncify-gethostbyname-http
+                    - name: test-unit-asyncify (12/14)
+                      target: test-php-asyncify-gethostbyname-https
+                    - name: test-unit-asyncify (13/14)
+                      target: test-php-asyncify-mysqli-http
+                    - name: test-unit-asyncify (14/14)
+                      target: test-php-asyncify-mysqli-https
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -88,7 +102,7 @@ jobs:
     #               node-version: 23.0.0-nightly2024100909d10b50dc
     #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     test-e2e:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
         steps:
@@ -106,7 +120,7 @@ jobs:
                   path: dist/cypress/packages/playground/website/screenshots
 
     test-e2e-playwright-prepare:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
@@ -125,7 +139,7 @@ jobs:
                   name: playwright-dist
                   path: dist.zip
     test-e2e-playwright:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [test-e2e-playwright-prepare]
         strategy:
             fail-fast: false
@@ -164,11 +178,11 @@ jobs:
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
             - name: Delete playwright-dist artifact
-              uses: geekyeggo/delete-artifact@v2
+              uses: geekyeggo/delete-artifact@v5
               with:
                   name: playwright-dist
     test-built-npm-packages:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
@@ -238,7 +252,7 @@ jobs:
                   npm run test
 
     build:
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
@@ -275,7 +289,7 @@ jobs:
             url: ${{ steps.deployment.outputs.page_url }}
 
         # Specify runner + deployment step
-        runs-on: wordpress-playground-private
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
               with:
