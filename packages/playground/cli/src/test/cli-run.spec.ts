@@ -240,7 +240,7 @@ describe('cli-run', () => {
 		});
 	});
 
-	describe.only('cookie store', () => {
+	describe('cookie store', () => {
 		const createCookieFiles = async (cliServer: RunCLIServer) => {
 			const php = await cliServer.requestHandler.getPrimaryPhp();
 			await php.writeFile(
