@@ -42,7 +42,10 @@ export function parseMountWithDelimiterArguments(mounts: string[]): Mount[] {
  *
  * The result will be an array of Mount objects for each host path the
  * following element is it's VFS path.
- * e.g. [ { hostPath: '/host/path', vfsPath: '/vfs/path' }, { hostPath: '/host/path2', vfsPath: '/vfs/path2' } ]
+ * e.g. [
+ *   { hostPath: '/host/path', vfsPath: '/vfs/path' },
+ *   { hostPath: '/host/path2', vfsPath: '/vfs/path2' }
+ * ]
  *
  * @param mounts - An array of paths
  * @returns An array of Mount objects.
