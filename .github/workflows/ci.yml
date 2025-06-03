@@ -270,11 +270,10 @@ jobs:
     # Deploy documentation job
     deploy_docs:
         # Only deploy docs when pushing to the WordPress/wordpress-playground repository
-        # TODO: Re-enable branch protections
-        # if: >
-        #     github.repository == 'WordPress/wordpress-playground' &&
-        #     github.ref == 'refs/heads/trunk' &&
-        #     github.event_name == 'push'
+        if: >
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.ref == 'refs/heads/trunk' &&
+            github.event_name == 'push'
         # Add a dependency to the build job
         needs: [test-unit-asyncify, test-e2e, build]
         name: 'Deploy doc site'
