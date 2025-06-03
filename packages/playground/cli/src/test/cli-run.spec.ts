@@ -237,4 +237,54 @@ describe('cli-run', () => {
 			expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
 		});
 	});
+
+	describe.only('cookie store', () => {
+		const createCookieFiles = async (cliServer: RunCLIServer) => {
+			const php = await cliServer.requestHandler.getPrimaryPhp();
+			await php.writeFile(
+				'/wordpress/set-cookie.php',
+				`<?php
+				setcookie('test', 'test');
+				?>`
+			);
+			await php.writeFile(
+				'/wordpress/read-cookie.php',
+				`<?php
+				echo json_encode($_COOKIE);
+				?>`
+			);
+		};
+		test("shouldn't use a cookie store by default", async () => {
+			cliServer = await runCLI({
+				command: 'server',
+			});
+			await createCookieFiles(cliServer);
+			await cliServer.requestHandler.request({
+				url: '/set-cookie.php',
+			});
+			const response = await cliServer.requestHandler.request({
+				url: '/read-cookie.php',
+				method: 'GET',
+			});
+			expect(response.json).toMatchObject([]);
+		});
+
+		test('should use a cookie store if enabled', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				enableCookieStore: true,
+			});
+			await createCookieFiles(cliServer);
+			await cliServer.requestHandler.request({
+				url: '/set-cookie.php',
+			});
+			const response = await cliServer.requestHandler.request({
+				url: '/read-cookie.php',
+				method: 'GET',
+			});
+			expect(response.json).toMatchObject({
+				test: 'test',
+			});
+		});
+	});
 });
