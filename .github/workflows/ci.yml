@@ -273,8 +273,7 @@ jobs:
         # TODO: Remove PR branch from condition
         if: >
             github.repository == 'WordPress/wordpress-playground' &&
-            (github.ref == 'refs/heads/trunk' || github.ref == 'refs/heads/fix-doc-deployment') &&
-            github.event_name == 'push'
+            ((github.ref == 'refs/heads/trunk' && github.event_name == 'push') || github.ref == 'refs/heads/fix-doc-deployment')
         # Add a dependency to the build job
         needs: [test-unit-asyncify, test-e2e, build]
         name: 'Deploy doc site'
