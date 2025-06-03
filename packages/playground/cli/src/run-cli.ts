@@ -51,6 +51,7 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: boolean;
 	followSymlinks?: boolean;
+	enableCookieStore?: boolean;
 }
 
 export interface RunCLIServer {
@@ -306,7 +307,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						}
 					},
 				},
-				cookieStore: false,
+				/**
+				 * By setting cookieStore to undefined, the PHPRequestHandler
+				 * will use the HttpCookieStore, otherwise the cookie store
+				 * will be disabled.
+				 */
+				cookieStore:
+					args.enableCookieStore === true ? undefined : false,
 			});
 			logger.log(`Booted!`);
 
