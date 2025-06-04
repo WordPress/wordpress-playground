@@ -3,7 +3,7 @@ import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-	getSqliteDatabaseModule,
+	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPress } from '@wp-playground/wordpress';
@@ -20,7 +20,7 @@ describe('Blueprint step wpCLI', () => {
 			sapiName: 'cli',
 
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 			createFiles: {
 				'/tmp/wp-cli.phar': readFileSync(
 					join(__dirname, '../../../tests/fixtures/wp-cli.phar')

@@ -92,7 +92,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration "
+					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration",
+					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v2.1.17-alpha.1 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration"
 				],
 				"parallel": false
 			}
@@ -118,7 +119,8 @@
 				"lintFilePatterns": [
 					"packages/playground/wordpress-builds/**/*.ts",
 					"packages/playground/wordpress-builds/package.json"
-				]
+				],
+				"maxWarnings": 0
 			}
 		}
 	},

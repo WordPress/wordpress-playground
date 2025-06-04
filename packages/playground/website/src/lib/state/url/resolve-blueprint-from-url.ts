@@ -2,6 +2,7 @@ import type {
 	BlueprintDeclaration,
 	BlueprintBundle,
 	Blueprint,
+	StepDefinition,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
@@ -66,30 +67,33 @@ export async function resolveBlueprintFromURL(
 			plugins: query.getAll('plugin'),
 			steps: [
 				importWxrQueryArg &&
-					/^(http(s?)):\/\//i.test(importWxrQueryArg) && {
+					/^(http(s?)):\/\//i.test(importWxrQueryArg) &&
+					({
 						step: 'importWxr',
 						file: {
 							resource: 'url',
 							url: importWxrQueryArg,
 						},
-					},
+					} as StepDefinition),
 				query.get('import-site') &&
-					/^(http(s?)):\/\//i.test(query.get('import-site')!) && {
+					/^(http(s?)):\/\//i.test(query.get('import-site')!) &&
+					({
 						step: 'importWordPressFiles',
 						wordPressFilesZip: {
 							resource: 'url',
 							url: query.get('import-site')!,
 						},
-					},
-				query.get('theme') && {
-					step: 'installTheme',
-					themeData: {
-						resource: 'wordpress.org/themes',
-						slug: query.get('theme')!,
-					},
-					progress: { weight: 2 },
-				},
-			],
+					} as StepDefinition),
+				query.get('theme') &&
+					({
+						step: 'installTheme',
+						themeData: {
+							resource: 'wordpress.org/themes',
+							slug: query.get('theme')!,
+						},
+						progress: { weight: 2 },
+					} as StepDefinition),
+			].filter(Boolean),
 		};
 		source = {
 			type: 'none',

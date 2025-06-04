@@ -24,6 +24,7 @@ export type PrimaryWorkerBootOptions = {
 	sqliteIntegrationPluginZip?: ArrayBuffer;
 	processIdBase: number;
 	dataSqlPath?: string;
+	followSymlinks: boolean;
 };
 
 function mountResources(php: PHP, mounts: Mount[]) {
@@ -61,6 +62,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		sqliteIntegrationPluginZip,
 		processIdBase,
 		dataSqlPath,
+		followSymlinks,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -90,6 +92,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 							fileLockManager,
 							processId,
 						},
+						followSymlinks,
 					});
 				},
 				wordPressZip:

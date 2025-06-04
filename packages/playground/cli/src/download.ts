@@ -9,7 +9,7 @@ export async function fetchSqliteIntegration(
 	monitor: EmscriptenDownloadMonitor
 ) {
 	const sqliteZip = await cachedDownload(
-		'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip',
+		'https://github.com/Automattic/sqlite-database-integration/archive/refs/heads/develop.zip',
 		'sqlite.zip',
 		monitor
 	);

@@ -68,7 +68,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/components/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/components/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

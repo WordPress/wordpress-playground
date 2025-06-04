@@ -9,122 +9,129 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v1.0.25] (2025-02-04)
+## [v1.0.38] (2025-05-22)
 
 ### Various
 
--   Add missing node external to Playground CLI. ([#19](https://github.com/Automattic/wordpress-playground-private/pull/19))
--   Add self-hosted package publishing. ([#5](https://github.com/Automattic/wordpress-playground-private/pull/5))
+-   Revert "[ php-wasm ] add Intl support (#150)". ([#154](https://github.com/Automattic/wordpress-playground-private/pull/154))
+-   Use the new SQLite driver. ([#144](https://github.com/Automattic/wordpress-playground-private/pull/144))
+-   [ php-wasm ] Add intl support. ([#155](https://github.com/Automattic/wordpress-playground-private/pull/155))
+-   [ php-wasm ] Intl : Improve integration. ([#159](https://github.com/Automattic/wordpress-playground-private/pull/159))
+-   [ php-wasm ] add Intl support. ([#150](https://github.com/Automattic/wordpress-playground-private/pull/150))
+-   [CLI] Enable users to automatically mount their current working directory into Playground. ([#39](https://github.com/Automattic/wordpress-playground-private/pull/39))
+-   [PHP-wasm Node] Fix Identifier '\_\_filename' has already been declared. ([#143](https://github.com/Automattic/wordpress-playground-private/pull/143))
+-   [Website] Support data URLs in blueprint-url query parameter. ([#158](https://github.com/Automattic/wordpress-playground-private/pull/158))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
-@brandonpayton
+@adamziel @bgrgicak @JanJakes @mho22
 
-## [v1.0.26] (2025-02-04)
+## [v1.0.37] (2025-05-15)
+
+### Various
+
+-   Define `DB_NAME` constant when it's missing. ([#140](https://github.com/Automattic/wordpress-playground-private/pull/140))
+-   Support limiting files added to self-hosted packages. ([#149](https://github.com/Automattic/wordpress-playground-private/pull/149))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @JanJakes
+
+## [v1.0.36] (2025-05-08)
+
+### Various
+
+-   Document mounting OPFS storage _after_ the boot. ([#141](https://github.com/Automattic/wordpress-playground-private/pull/141))
+-   QUERY_STRING should default to empty string. ([#139](https://github.com/Automattic/wordpress-playground-private/pull/139))
+-   Remove null steps that are added. ([#135](https://github.com/Automattic/wordpress-playground-private/pull/135))
+-   [CLI] Fix package entry point path. ([#136](https://github.com/Automattic/wordpress-playground-private/pull/136))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @bgrgicak @sejas
+
+## [v1.0.35] (2025-05-08)
+
+## [v1.0.34] (2025-05-08)
+
+### Various
+
+-   Document mounting OPFS storage _after_ the boot. ([#141](https://github.com/Automattic/wordpress-playground-private/pull/141))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame
+
+## [v1.0.33] (2025-05-08)
+
+### Various
+
+-   Add MySQL network calls to Asyncify tests. ([#108](https://github.com/Automattic/wordpress-playground-private/pull/108))
+-   Format the plugin-proxy file. ([#127](https://github.com/Automattic/wordpress-playground-private/pull/127))
+-   Plugin proxy: Allow all repos from WordPress, Automattic and Woocommerce organizations. ([#128](https://github.com/Automattic/wordpress-playground-private/pull/128))
+-   QUERY_STRING should default to empty string. ([#139](https://github.com/Automattic/wordpress-playground-private/pull/139))
+-   Remove null steps that are added. ([#135](https://github.com/Automattic/wordpress-playground-private/pull/135))
+-   Remove unused dependencies. ([#116](https://github.com/Automattic/wordpress-playground-private/pull/116))
+-   [CLI] Fix package entry point path. ([#136](https://github.com/Automattic/wordpress-playground-private/pull/136))
+-   [PHP-wasm Node] Add support for resolving wasm paths in Windows. ([#129](https://github.com/Automattic/wordpress-playground-private/pull/129))
+-   [PHP-wasm Node] Dynamically mount symlinks. ([#125](https://github.com/Automattic/wordpress-playground-private/pull/125))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @bgrgicak @ingeniumed @sejas
+
+## [v1.0.32] (2025-05-06)
+
+### Various
+
+-   Add MySQL network calls to Asyncify tests. ([#108](https://github.com/Automattic/wordpress-playground-private/pull/108))
+-   Format the plugin-proxy file. ([#127](https://github.com/Automattic/wordpress-playground-private/pull/127))
+-   Plugin proxy: Allow all repos from WordPress, Automattic and Woocommerce organizations. ([#128](https://github.com/Automattic/wordpress-playground-private/pull/128))
+-   Remove unused dependencies. ([#116](https://github.com/Automattic/wordpress-playground-private/pull/116))
+-   [PHP-wasm Node] Add support for resolving wasm paths in Windows. ([#129](https://github.com/Automattic/wordpress-playground-private/pull/129))
+-   [PHP-wasm Node] Dynamically mount symlinks. ([#125](https://github.com/Automattic/wordpress-playground-private/pull/125))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @ingeniumed
+
+## [v1.0.31] (2025-04-29)
 
 ### Bug Fixes
 
--   Fix workflow for deploying self-hosted packages. ([#6](https://github.com/Automattic/wordpress-playground-private/pull/6))
+-   Fix changelog version order. ([#100](https://github.com/Automattic/wordpress-playground-private/pull/100))
+-   Fix openssl library paths in php-wasm build. ([#102](https://github.com/Automattic/wordpress-playground-private/pull/102))
 
 ### Various
 
--   Add the launch browser flag to CLI. ([#18](https://github.com/Automattic/wordpress-playground-private/pull/18))
--   [Fix] Zip spec compliance for exported backup file. ([#7](https://github.com/Automattic/wordpress-playground-private/pull/7))
+-   Add private fork links to the changelog. ([#98](https://github.com/Automattic/wordpress-playground-private/pull/98))
+-   Allow public access to A8C Playground instance. ([#119](https://github.com/Automattic/wordpress-playground-private/pull/119))
+-   Make php-wasm and Playground CLI's fast to run with Node.js. ([#107](https://github.com/Automattic/wordpress-playground-private/pull/107))
+-   Playground CLI: Add `skipSqliteSetup` flag for MySQL support. ([#97](https://github.com/Automattic/wordpress-playground-private/pull/97))
+-   Prep the WP update workflows to be re-enabled. ([#110](https://github.com/Automattic/wordpress-playground-private/pull/110))
+-   Support building for additional remote origins. ([#122](https://github.com/Automattic/wordpress-playground-private/pull/122))
+-   Tweak Blueprint test string to match WP 6.8. ([#117](https://github.com/Automattic/wordpress-playground-private/pull/117))
+-   Update Nx, Vite, and ESLint dependencies. ([#35](https://github.com/Automattic/wordpress-playground-private/pull/35))
+-   Upgrade octokit to 3.1.2 to fix vulnerability. ([#106](https://github.com/Automattic/wordpress-playground-private/pull/106))
+-   Use Node as the Vitest environment. ([#96](https://github.com/Automattic/wordpress-playground-private/pull/96))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
-@ashfame @brandonpayton @zaerl
-
-## [v1.0.27] (2025-02-25)
-
-### Bug Fixes
-
--   Fix php-wasm build error for WITH_SOURCEMAPS=yes. ([#44](https://github.com/Automattic/wordpress-playground-private/pull/44))
--   Fix php-wasm source map base. ([#46](https://github.com/Automattic/wordpress-playground-private/pull/46))
--   Fix private website deployment workflow. ([#57](https://github.com/Automattic/wordpress-playground-private/pull/57))
--   Fix up private website deployment workflow after initial commit. ([#29](https://github.com/Automattic/wordpress-playground-private/pull/29))
-
-### Various
-
--   Add WITH_DEBUG option for building php-wasm with DWARF debug info. ([#47](https://github.com/Automattic/wordpress-playground-private/pull/47))
--   Add `janjakes` to GitHub workflows actors. ([#33](https://github.com/Automattic/wordpress-playground-private/pull/33))
--   Add a dedicated workflow for deploying private playground. ([#28](https://github.com/Automattic/wordpress-playground-private/pull/28))
--   Add remote data blocks to the allowlist. ([#30](https://github.com/Automattic/wordpress-playground-private/pull/30))
--   Allow ashfame to run self-hosted package release workflow. ([#22](https://github.com/Automattic/wordpress-playground-private/pull/22))
--   Allow deploying custom supported domains for CORS proxy. ([#54](https://github.com/Automattic/wordpress-playground-private/pull/54))
--   CORS proxy: Make allowed origins configurable. ([#43](https://github.com/Automattic/wordpress-playground-private/pull/43))
--   Make further fixes for unreliable end-to-end tests. ([#9](https://github.com/Automattic/wordpress-playground-private/pull/9))
--   Move DNS polyfills to a PHP extension and add missing constants. ([#27](https://github.com/Automattic/wordpress-playground-private/pull/27))
--   New playground CLI function interface. ([#40](https://github.com/Automattic/wordpress-playground-private/pull/40))
--   Replace some hardcoded refs to playground.wordpress.net web app. ([#42](https://github.com/Automattic/wordpress-playground-private/pull/42))
--   Restore safety condition for CORS proxy deployment workflow. ([#55](https://github.com/Automattic/wordpress-playground-private/pull/55))
--   Revert "Add the launch browser flag to CLI". ([#24](https://github.com/Automattic/wordpress-playground-private/pull/24))
--   Revert "Support file URL resources in command line environment". ([#41](https://github.com/Automattic/wordpress-playground-private/pull/41))
--   Schedule private deployment and use private environment. ([#37](https://github.com/Automattic/wordpress-playground-private/pull/37))
--   Stop assuming CLI stdout is a TTY write stream. ([#51](https://github.com/Automattic/wordpress-playground-private/pull/51))
--   Store WordPress site cookies in the browser instead of a custom Cookie Store. ([#20](https://github.com/Automattic/wordpress-playground-private/pull/20))
--   Support file URL resources in command line environment. ([#34](https://github.com/Automattic/wordpress-playground-private/pull/34))
--   Switch to relative paths in app manifest. ([#36](https://github.com/Automattic/wordpress-playground-private/pull/36))
--   Switch to runner with more CPU and RAM. ([#45](https://github.com/Automattic/wordpress-playground-private/pull/45))
--   Treat zip files as zip files regardless of file name. ([#58](https://github.com/Automattic/wordpress-playground-private/pull/58))
--   Try more Playwright workers since we have a runner with more resources. ([#48](https://github.com/Automattic/wordpress-playground-private/pull/48))
--   Update private Playground instance to use dedicated CORS proxy. ([#56](https://github.com/Automattic/wordpress-playground-private/pull/56))
--   Use rsync instead of scp in website deploy workflow. ([#26](https://github.com/Automattic/wordpress-playground-private/pull/26))
--   Use specified SQLite version also for PHP &lt; 7.4. ([#32](https://github.com/Automattic/wordpress-playground-private/pull/32))
-
-### Contributors
-
-The following contributors merged PRs in this release:
-
-@adamziel @bgrgicak @brandonpayton @ingeniumed @JanJakes @zaerl
-
-## [v1.0.28] (2025-03-05)
-
-### Various
-
--   64bit integer support, drop PHP 7.0 and 7.1 support. ([#74](https://github.com/Automattic/wordpress-playground-private/pull/74))
--   FS Journal: Handle renaming OPFS files via delete + create (instead of file.move()). ([#64](https://github.com/Automattic/wordpress-playground-private/pull/64))
--   GitHub: Cache node_modules per arch to avoid nx error. ([#70](https://github.com/Automattic/wordpress-playground-private/pull/70))
--   Merge from public Playground repo. ([#59](https://github.com/Automattic/wordpress-playground-private/pull/59))
--   OPFS site creation: Use the same "is this directory a site?" check as the site list. ([#65](https://github.com/Automattic/wordpress-playground-private/pull/65))
--   Stop adding source maps to offline assets list. ([#68](https://github.com/Automattic/wordpress-playground-private/pull/68))
--   Support mobile access to private Playground instance. ([#73](https://github.com/Automattic/wordpress-playground-private/pull/73))
--   TLS-&gt;HTTP Proxy: Support outbound request body. ([#61](https://github.com/Automattic/wordpress-playground-private/pull/61))
--   TLS: Only use the server_name extension during server hello. ([#62](https://github.com/Automattic/wordpress-playground-private/pull/62))
--   Website: Blueprints as PWAs with a dynamic manifest.json file. ([#67](https://github.com/Automattic/wordpress-playground-private/pull/67))
--   Website: Preserve the `mode` query arg when opening OPFS site. ([#63](https://github.com/Automattic/wordpress-playground-private/pull/63))
-
-### Contributors
-
-The following contributors merged PRs in this release:
-
-@adamziel @brandonpayton
-
-## [v1.0.28] (2025-03-05)
-
-### Various
-
--   64bit integer support, drop PHP 7.0 and 7.1 support. ([#74](https://github.com/Automattic/wordpress-playground-private/pull/74))
--   FS Journal: Handle renaming OPFS files via delete + create (instead of file.move()). ([#64](https://github.com/Automattic/wordpress-playground-private/pull/64))
--   GitHub: Cache node_modules per arch to avoid nx error. ([#70](https://github.com/Automattic/wordpress-playground-private/pull/70))
--   Merge from public Playground repo. ([#59](https://github.com/Automattic/wordpress-playground-private/pull/59))
--   OPFS site creation: Use the same "is this directory a site?" check as the site list. ([#65](https://github.com/Automattic/wordpress-playground-private/pull/65))
--   Stop adding source maps to offline assets list. ([#68](https://github.com/Automattic/wordpress-playground-private/pull/68))
--   Support mobile access to private Playground instance. ([#73](https://github.com/Automattic/wordpress-playground-private/pull/73))
--   TLS-&gt;HTTP Proxy: Support outbound request body. ([#61](https://github.com/Automattic/wordpress-playground-private/pull/61))
--   TLS: Only use the server_name extension during server hello. ([#62](https://github.com/Automattic/wordpress-playground-private/pull/62))
--   Website: Blueprints as PWAs with a dynamic manifest.json file. ([#67](https://github.com/Automattic/wordpress-playground-private/pull/67))
--   Website: Preserve the `mode` query arg when opening OPFS site. ([#63](https://github.com/Automattic/wordpress-playground-private/pull/63))
-
-### Contributors
-
-The following contributors merged PRs in this release:
-
-@adamziel @brandonpayton
+@bgrgicak @brandonpayton @ivan-ottinger @wojtekn
 
 ## [v1.0.30] (2025-04-07)
 
@@ -171,17 +178,17 @@ The following contributors merged PRs in this release:
 
 ### Various
 
--   64bit integer support, drop PHP 7.0 and 7.1 support.
--   FS Journal: Handle renaming OPFS files via delete + create (instead of file.move()).
--   GitHub: Cache node_modules per arch to avoid nx error.
--   Merge from public Playground repo.
--   OPFS site creation: Use the same "is this directory a site?" check as the site list.
--   Stop adding source maps to offline assets list.
--   Support mobile access to private Playground instance.
--   TLS->HTTP Proxy: Support outbound request body.
--   TLS: Only use the server_name extension during server hello.
--   Website: Blueprints as PWAs with a dynamic manifest.json file.
--   Website: Preserve the `mode` query arg when opening OPFS site.
+-   64bit integer support, drop PHP 7.0 and 7.1 support. ([#74](https://github.com/Automattic/wordpress-playground-private/pull/74))
+-   FS Journal: Handle renaming OPFS files via delete + create (instead of file.move()). ([#64](https://github.com/Automattic/wordpress-playground-private/pull/64))
+-   GitHub: Cache node_modules per arch to avoid nx error. ([#70](https://github.com/Automattic/wordpress-playground-private/pull/70))
+-   Merge from public Playground repo. ([#59](https://github.com/Automattic/wordpress-playground-private/pull/59))
+-   OPFS site creation: Use the same "is this directory a site?" check as the site list. ([#65](https://github.com/Automattic/wordpress-playground-private/pull/65))
+-   Stop adding source maps to offline assets list. ([#68](https://github.com/Automattic/wordpress-playground-private/pull/68))
+-   Support mobile access to private Playground instance. ([#73](https://github.com/Automattic/wordpress-playground-private/pull/73))
+-   TLS-&gt;HTTP Proxy: Support outbound request body. ([#61](https://github.com/Automattic/wordpress-playground-private/pull/61))
+-   TLS: Only use the server_name extension during server hello. ([#62](https://github.com/Automattic/wordpress-playground-private/pull/62))
+-   Website: Blueprints as PWAs with a dynamic manifest.json file. ([#67](https://github.com/Automattic/wordpress-playground-private/pull/67))
+-   Website: Preserve the `mode` query arg when opening OPFS site. ([#63](https://github.com/Automattic/wordpress-playground-private/pull/63))
 
 ### Contributors
 
@@ -193,38 +200,38 @@ The following contributors merged PRs in this release:
 
 ### Bug Fixes
 
--   Fix php-wasm build error for WITH_SOURCEMAPS=yes.
--   Fix php-wasm source map base.
--   Fix private website deployment workflow.
--   Fix up private website deployment workflow after initial commit.
+-   Fix php-wasm build error for WITH_SOURCEMAPS=yes. ([#44](https://github.com/Automattic/wordpress-playground-private/pull/44))
+-   Fix php-wasm source map base. ([#46](https://github.com/Automattic/wordpress-playground-private/pull/46))
+-   Fix private website deployment workflow. ([#57](https://github.com/Automattic/wordpress-playground-private/pull/57))
+-   Fix up private website deployment workflow after initial commit. ([#29](https://github.com/Automattic/wordpress-playground-private/pull/29))
 
 ### Various
 
--   Add WITH_DEBUG option for building php-wasm with DWARF debug info.
--   Add `janjakes` to GitHub workflows actors.
--   Add a dedicated workflow for deploying private playground.
--   Add remote data blocks to the allowlist.
--   Allow ashfame to run self-hosted package release workflow.
--   Allow deploying custom supported domains for CORS proxy.
--   CORS proxy: Make allowed origins configurable.
--   Make further fixes for unreliable end-to-end tests.
--   Move DNS polyfills to a PHP extension and add missing constants.
--   New playground CLI function interface.
--   Replace some hardcoded refs to playground.wordpress.net web app.
--   Restore safety condition for CORS proxy deployment workflow.
--   Revert "Add the launch browser flag to CLI".
--   Revert "Support file URL resources in command line environment".
--   Schedule private deployment and use private environment.
--   Stop assuming CLI stdout is a TTY write stream.
--   Store WordPress site cookies in the browser instead of a custom Cookie Store.
--   Support file URL resources in command line environment.
--   Switch to relative paths in app manifest.
--   Switch to runner with more CPU and RAM.
--   Treat zip files as zip files regardless of file name.
--   Try more Playwright workers since we have a runner with more resources.
--   Update private Playground instance to use dedicated CORS proxy.
--   Use rsync instead of scp in website deploy workflow.
--   Use specified SQLite version also for PHP < 7.4.
+-   Add WITH_DEBUG option for building php-wasm with DWARF debug info. ([#47](https://github.com/Automattic/wordpress-playground-private/pull/47))
+-   Add `janjakes` to GitHub workflows actors. ([#33](https://github.com/Automattic/wordpress-playground-private/pull/33))
+-   Add a dedicated workflow for deploying private playground. ([#28](https://github.com/Automattic/wordpress-playground-private/pull/28))
+-   Add remote data blocks to the allowlist. ([#30](https://github.com/Automattic/wordpress-playground-private/pull/30))
+-   Allow ashfame to run self-hosted package release workflow. ([#22](https://github.com/Automattic/wordpress-playground-private/pull/22))
+-   Allow deploying custom supported domains for CORS proxy. ([#54](https://github.com/Automattic/wordpress-playground-private/pull/54))
+-   CORS proxy: Make allowed origins configurable. ([#43](https://github.com/Automattic/wordpress-playground-private/pull/43))
+-   Make further fixes for unreliable end-to-end tests. ([#9](https://github.com/Automattic/wordpress-playground-private/pull/9))
+-   Move DNS polyfills to a PHP extension and add missing constants. ([#27](https://github.com/Automattic/wordpress-playground-private/pull/27))
+-   New playground CLI function interface. ([#40](https://github.com/Automattic/wordpress-playground-private/pull/40))
+-   Replace some hardcoded refs to playground.wordpress.net web app. ([#42](https://github.com/Automattic/wordpress-playground-private/pull/42))
+-   Restore safety condition for CORS proxy deployment workflow. ([#55](https://github.com/Automattic/wordpress-playground-private/pull/55))
+-   Revert "Add the launch browser flag to CLI". ([#24](https://github.com/Automattic/wordpress-playground-private/pull/24))
+-   Revert "Support file URL resources in command line environment". ([#41](https://github.com/Automattic/wordpress-playground-private/pull/41))
+-   Schedule private deployment and use private environment. ([#37](https://github.com/Automattic/wordpress-playground-private/pull/37))
+-   Stop assuming CLI stdout is a TTY write stream. ([#51](https://github.com/Automattic/wordpress-playground-private/pull/51))
+-   Store WordPress site cookies in the browser instead of a custom Cookie Store. ([#20](https://github.com/Automattic/wordpress-playground-private/pull/20))
+-   Support file URL resources in command line environment. ([#34](https://github.com/Automattic/wordpress-playground-private/pull/34))
+-   Switch to relative paths in app manifest. ([#36](https://github.com/Automattic/wordpress-playground-private/pull/36))
+-   Switch to runner with more CPU and RAM. ([#45](https://github.com/Automattic/wordpress-playground-private/pull/45))
+-   Treat zip files as zip files regardless of file name. ([#58](https://github.com/Automattic/wordpress-playground-private/pull/58))
+-   Try more Playwright workers since we have a runner with more resources. ([#48](https://github.com/Automattic/wordpress-playground-private/pull/48))
+-   Update private Playground instance to use dedicated CORS proxy. ([#56](https://github.com/Automattic/wordpress-playground-private/pull/56))
+-   Use rsync instead of scp in website deploy workflow. ([#26](https://github.com/Automattic/wordpress-playground-private/pull/26))
+-   Use specified SQLite version also for PHP &lt; 7.4. ([#32](https://github.com/Automattic/wordpress-playground-private/pull/32))
 
 ### Contributors
 
@@ -236,12 +243,12 @@ The following contributors merged PRs in this release:
 
 ### Bug Fixes
 
--   Fix workflow for deploying self-hosted packages.
+-   Fix workflow for deploying self-hosted packages. ([#6](https://github.com/Automattic/wordpress-playground-private/pull/6))
 
 ### Various
 
--   Add the launch browser flag to CLI.
--   [Fix] Zip spec compliance for exported backup file.
+-   Add the launch browser flag to CLI. ([#18](https://github.com/Automattic/wordpress-playground-private/pull/18))
+-   [Fix] Zip spec compliance for exported backup file. ([#7](https://github.com/Automattic/wordpress-playground-private/pull/7))
 
 ### Contributors
 
@@ -253,8 +260,8 @@ The following contributors merged PRs in this release:
 
 ### Various
 
--   Add missing node external to Playground CLI.
--   Add self-hosted package publishing.
+-   Add missing node external to Playground CLI. ([#19](https://github.com/Automattic/wordpress-playground-private/pull/19))
+-   Add self-hosted package publishing. ([#5](https://github.com/Automattic/wordpress-playground-private/pull/5))
 
 ### Contributors
 

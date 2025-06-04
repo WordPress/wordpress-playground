@@ -101,7 +101,8 @@
 			"options": {
 				"lintFilePatterns": [
 					"packages/playground/website/**/*.{ts,tsx,js,jsx}"
-				]
+				],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

@@ -80,7 +80,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

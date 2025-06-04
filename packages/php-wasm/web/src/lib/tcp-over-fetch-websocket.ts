@@ -45,6 +45,7 @@ import { concatUint8Arrays } from './tls/utils';
 import { ContentTypes } from './tls/1_2/types';
 import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 import { ChunkedDecoderStream } from './chunked-decoder';
+import type { EmscriptenOptions } from '@php-wasm/universal';
 
 export type TCPOverFetchOptions = {
 	CAroot: GeneratedCertificate;
@@ -55,8 +56,12 @@ export type TCPOverFetchOptions = {
  * Sets up a WebSocket that analyzes the received bytes and, if they look like
  * TLS or HTTP, handles the network transmission using fetch().
  */
-export const tcpOverFetchWebsocket = (tcpOptions: TCPOverFetchOptions) => {
+export const tcpOverFetchWebsocket = (
+	emOptions: EmscriptenOptions,
+	tcpOptions: TCPOverFetchOptions
+) => {
 	return {
+		...emOptions,
 		websocket: {
 			url: (_: any, host: string, port: string) => {
 				const query = new URLSearchParams({

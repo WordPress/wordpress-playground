@@ -20,6 +20,11 @@ export async function restartDemo(initialJournal: TransportEnvelope[] = []) {
 	const playground = await startPlaygroundWeb({
 		iframe,
 		remoteUrl: getRemoteUrl().toString(),
+		// The new AST-based SQLite driver doesn't expose query information
+		// via the "sqlite_last_insert_id", "sqlite_translated_query_executed",
+		// and "sqlite_transaction_query_executed" hooks.
+		// We need to use the old driver here.
+		sqliteDriverVersion: 'v2.1.17-alpha.1',
 	});
 	const transport = new NoopTransport();
 	await setupPlaygroundSync(playground, {

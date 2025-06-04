@@ -38,7 +38,8 @@
 			"options": {
 				"lintFilePatterns": [
 					"packages/php-wasm/web-service-worker/**/*.ts"
-				]
+				],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

@@ -32,6 +32,21 @@ test('?blueprint-url=... should work with simple blueprints', async ({
 	);
 });
 
+test('?blueprint-url=... should accept data URLs', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const blueprintUrl = encodeURIComponent(
+		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
 test('?blueprint-url=... should work with ZIP bundles', async ({
 	page,
 	website,

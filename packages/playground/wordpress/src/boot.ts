@@ -24,6 +24,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { ensureWpConfig } from './rewrite-wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -225,6 +226,13 @@ export async function bootWordPress(options: BootOptions) {
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
+	/*
+	 * Add required constants to "wp-config.php" if they are not already defined.
+	 * This is needed, because some WordPress backups and exports may not include
+	 * definitions for some of the necessary constants.
+	 */
+	await ensureWpConfig(php, requestHandler.documentRoot);
+
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
@@ -252,17 +260,27 @@ export async function bootWordPress(options: BootOptions) {
 	return requestHandler;
 }
 
-async function isWordPressInstalled(php: PHP) {
+/**
+ * Checks if WordPress is installed by checking if the wp-load.php file exists
+ * and if the blog is installed.
+ *
+ * @param php - The PHP instance to check.
+ * @returns True if WordPress is installed, false otherwise.
+ */
+export async function isWordPressInstalled(php: PHP) {
 	const result = await php.run({
 		code: `<?php
-$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-if (!file_exists($wp_load)) {
-	echo '0';
-	exit;
-}
-require $wp_load;
-echo is_blog_installed() ? '1' : '0';
-`,
+			ob_start();
+			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+			if (!file_exists($wp_load)) {
+				echo '-1';
+				exit;
+			}
+			require $wp_load;
+			ob_clean();
+			echo is_blog_installed() ? '1' : '0';
+			ob_end_flush();
+		`,
 		env: {
 			DOCUMENT_ROOT: php.documentRoot,
 		},
@@ -300,18 +318,21 @@ async function installWordPress(php: PHP) {
 
 	const defaultedToPrettyPermalinks = await php.run({
 		code: `<?php
-$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-if (!file_exists($wp_load)) {
-	echo '0';
-	exit;
-}
-require $wp_load;
-$option_result = update_option(
-	'permalink_structure',
-	'/%year%/%monthnum%/%day%/%postname%/'
-);
-echo $option_result ? '1' : '0';
-`,
+			ob_start();
+			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+			if (!file_exists($wp_load)) {
+				echo '0';
+				exit;
+			}
+			require $wp_load;
+			$option_result = update_option(
+				'permalink_structure',
+				'/%year%/%monthnum%/%day%/%postname%/'
+			);
+			ob_clean();
+			echo $option_result ? '1' : '0';
+			ob_end_flush();
+		`,
 		env: {
 			DOCUMENT_ROOT: php.documentRoot,
 		},

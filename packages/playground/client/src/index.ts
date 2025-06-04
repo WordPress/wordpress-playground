@@ -31,6 +31,7 @@ import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
+import { additionalRemoteOrigins } from './additional-remote-origins';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -82,6 +83,11 @@ export interface StartPlaygroundOptions {
 	 * your Blueprint to replace all cross-origin URLs with the proxy URL.
 	 */
 	corsProxy?: string;
+	/**
+	 * The version of the SQLite driver to use.
+	 * Defaults to the latest development version.
+	 */
+	sqliteDriverVersion?: string;
 }
 
 /**
@@ -105,6 +111,7 @@ export async function startPlaygroundWeb({
 	scope,
 	corsProxy,
 	shouldInstallWordPress,
+	sqliteDriverVersion,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -149,6 +156,7 @@ export async function startPlaygroundWeb({
 		wpVersion: compiled.versions.wp,
 		withNetworking: compiled.features.networking,
 		corsProxyUrl: corsProxy,
+		sqliteDriverVersion,
 	});
 	await playground.isReady();
 	downloadPHPandWP.finish();
@@ -196,6 +204,7 @@ const validRemoteOrigins = [
 	'https://localhost',
 	'http://127.0.0.1',
 	'https://127.0.0.1',
+	...additionalRemoteOrigins,
 ];
 /**
  * Assert that the remote origin is likely compatible with this client library.

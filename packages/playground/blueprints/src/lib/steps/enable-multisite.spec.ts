@@ -1,6 +1,6 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
-	getSqliteDatabaseModule,
+	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { enableMultisite } from './enable-multisite';
@@ -21,7 +21,7 @@ describe('Blueprint step enableMultisite', () => {
 			sapiName: 'cli',
 
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 			createFiles: {
 				'/tmp/wp-cli.phar': readFileSync(
 					join(__dirname, '../../../tests/fixtures/wp-cli.phar')

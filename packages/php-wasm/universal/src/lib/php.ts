@@ -577,15 +577,16 @@ export class PHP implements Disposable {
 			[STRING],
 			[uri]
 		);
+		let queryString = '';
 		if (uri.includes('?')) {
-			const queryString = uri.substring(uri.indexOf('?') + 1);
-			this[__private__dont__use].ccall(
-				'wasm_set_query_string',
-				null,
-				[STRING],
-				[queryString]
-			);
+			queryString = uri.substring(uri.indexOf('?') + 1);
 		}
+		this[__private__dont__use].ccall(
+			'wasm_set_query_string',
+			null,
+			[STRING],
+			[queryString]
+		);
 	}
 
 	#setRequestHost(host: string) {

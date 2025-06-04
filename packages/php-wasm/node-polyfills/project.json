@@ -69,7 +69,8 @@
 				"lintFilePatterns": [
 					"packages/php-wasm/node-polyfills/**/*.ts",
 					"packages/php-wasm/node-polyfills/package.json"
-				]
+				],
+				"maxWarnings": 0
 			}
 		}
 	},

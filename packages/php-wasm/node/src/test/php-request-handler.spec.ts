@@ -1,6 +1,5 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
-import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
 import type {
 	CookieStore,
@@ -14,6 +13,27 @@ import {
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths } from '@php-wasm/util';
+
+/*
+ * This is a copy-paste from "@wp-playground/wordpress" in the "boot.ts" file
+ * to avoid adding a dependency on "@wp-playground/wordpress" and causing
+ * circular dependency linter errors.
+ *
+ * TODO: Remove this when we enable ciruclar deps in test files; after the
+ *       package dependency refactor PR is merged:
+ *         https://github.com/Automattic/wordpress-playground-private/pull/148
+ */
+export function getFileNotFoundActionForWordPress(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- maintain consistent FileNotFoundGetActionCallback signature
+	relativeUri: string
+) {
+	// Delegate unresolved requests to WordPress. This makes WP magic possible,
+	// like pretty permalinks and dynamically generated sitemaps.
+	return {
+		type: 'internal-redirect',
+		uri: '/index.php',
+	} as const;
+}
 
 interface ConfigForRequestTests {
 	phpVersion: (typeof SupportedPHPVersions)[number];

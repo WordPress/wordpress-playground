@@ -44,7 +44,7 @@
 						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
 						"forwardAllArgs": false
 					},
-					"node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+					"node --experimental-wasm-jspi  --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
 				],
 				"tty": true,
 				"parallel": false
@@ -86,21 +86,16 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/cli/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/cli/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
-				"jestConfig": "packages/playground/cli/jest.config.ts",
-				"passWithNoTests": true
-			},
-			"configurations": {
-				"ci": {
-					"ci": true,
-					"codeCoverage": true
-				}
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/cli"
 			}
 		},
 		"typecheck": {

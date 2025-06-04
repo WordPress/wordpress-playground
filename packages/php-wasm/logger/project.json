@@ -60,7 +60,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/logger/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/logger/**/*.ts"],
+				"maxWarnings": 0
 			}
 		}
 	},

@@ -235,9 +235,26 @@ libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_jspi
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/jspi/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/jspi/dist/root/lib
 
+libintl_asyncify: libintl/asyncify/dist/root/lib/lib/libintl.a
+libintl/asyncify/dist/root/lib/lib/libintl.a: base-image
+	mkdir -p ./libintl/asyncify/dist/root/lib
+	docker build -f ./libintl/Dockerfile -t playground-php-wasm:libintl . --progress=plain
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/lib ./libintl/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
+
+
+libintl_jspi: libintl/jspi/dist/root/lib/lib/libintl.a
+libintl/jspi/dist/root/lib/lib/libintl.a: base-image
+	mkdir -p ./libintl/jspi/dist/root/lib
+	docker build -f ./libintl/Dockerfile -t playground-php-wasm:libintl . --progress=plain --build-arg JSPI=1
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/lib ./libintl/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
+
 all: all_jspi all_asyncify
-all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi
-all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify
+all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi
+all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify libintl_asyncify
 
 clean:
 	rm -rf ./libz/jspi/dist
@@ -261,3 +278,5 @@ clean:
 	rm -rf ./bison2.7/dist
 	rm -rf ./oniguruma/jspi/dist
 	rm -rf ./oniguruma/asyncify/dist
+	rm -rf ./libintl/jspi/dist
+	rm -rf ./libintl/asyncify/dist

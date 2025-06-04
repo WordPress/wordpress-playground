@@ -66,6 +66,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with mbregex support',
 		},
+		WITH_INTL: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with intl support',
+		},
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -150,6 +155,7 @@ const platformDefaults = {
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
+		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
@@ -219,6 +225,8 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_MBREGEX'),
 		'--build-arg',
+		getArg('WITH_INTL'),
+		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
 		getArg('WITH_OPENSSL'),
@@ -272,6 +280,20 @@ await asyncSpawn(
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
+
+// Copy data files
+const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
+const publicDir =
+	platform === 'node'
+		? `${path.dirname(outputDir)}/src/lib/data`
+		: `${path.dirname(path.dirname(outputDir))}`;
+if (getArg('WITH_INTL').endsWith('yes')) {
+	await asyncSpawn(
+		'cp',
+		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+}
 
 const _args = args;
 

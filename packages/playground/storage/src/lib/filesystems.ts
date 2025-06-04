@@ -170,11 +170,16 @@ export interface FetchFilesystemOptions {
  * It can optionally use a CORS proxy and resolve paths relative to a base URL.
  */
 export class FetchFilesystem implements Filesystem {
-	private baseUrl: string;
+	private baseUrl = '';
 	private options: FetchFilesystemOptions;
+	private isDataUrl: boolean;
 
 	constructor(options: FetchFilesystemOptions) {
 		this.options = options;
+		this.isDataUrl = options.baseUrl.startsWith('data:');
+		if (this.isDataUrl) {
+			return;
+		}
 		// Ensure the base URL ends with a slash
 		const url = new URL('./', options.baseUrl);
 		if (url.protocol !== 'http:' && url.protocol !== 'https:') {
@@ -188,6 +193,12 @@ export class FetchFilesystem implements Filesystem {
 	}
 
 	async read(path: string): Promise<StreamedFile> {
+		if (this.isDataUrl) {
+			throw new Error(
+				'FetchFilesystem cannot fetch files from data URLs'
+			);
+		}
+
 		// Make sure there's no .. segments in the path
 		path = normalizePath(path);
 		// Prevent escaping the base URL

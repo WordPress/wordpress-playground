@@ -22,6 +22,11 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 # Polyfill for dns functions
 COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
+# Work around to add ICU FLAGS to intl below 7.3 to inject -fPIC.
+RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
+		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
+	fi;
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
@@ -37,6 +42,7 @@ COPY ./libsqlite3/ /root/builds/libsqlite3
 COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
+COPY ./libintl/ /root/builds/libintl
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
@@ -82,6 +88,7 @@ ARG WITH_SOURCEMAPS
 ARG OUTPUT_DIR_FOR_SOURCE_MAP_BASE
 ARG WITH_DEBUG
 ARG WITH_WS_NETWORKING_PROXY
+ARG WITH_INTL
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
@@ -265,6 +272,26 @@ RUN if [ "$WITH_EXIF" = "yes" ]; \
 		echo -n ' --disable-exif ' >> /root/.php-configure-flags; \
 	fi;
 
+# Add intl if needed
+RUN if [ "$WITH_INTL" = "yes" ]; \
+	then \
+		if [ "${PHP_VERSION:0:1}" -eq "8" ] || [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "2" ]]; then \
+			echo -n ' --enable-intl ' >> /root/.php-configure-flags; \
+			echo -n ' -licuuc -licudata -licui18n -licuio ' >> /root/.emcc-php-wasm-flags; \
+
+			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+				/root/replace.sh 's/UBool operator/bool operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.h; \
+				/root/replace.sh 's/UBool CodePointBreakIterator::operator/bool CodePointBreakIterator::operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp; \
+				/root/replace.sh 's/ getArg/ phpGetArg/g; s/::getArg/::phpGetArg/g; s/ getMessage/ phpGetMessage/g; s/::getMessage/::phpGetMessage/g' /root/php-src/ext/intl/msgformat/msgformat_helpers.cpp; \
+			fi; \
+
+			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
+				files=( /root/php-src/ext/intl/collator/collator_sort.c /root/php-src/ext/intl/normalizer/normalizer_normalize.c /root/php-src/ext/intl/dateformat/dateformat_attr.c /root/php-src/ext/intl/timezone/timezone_class.cpp /root/php-src/ext/intl/timezone/timezone_methods.cpp /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp ); \
+				for file in "${files[@]}"; do /root/replace.sh 's/\bFALSE\b/false/g; s/\bTRUE\b/true/g' "$file"; done; \
+			fi; \
+		fi; \
+	fi;
+
 # Add mbregex if needed
 # PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
 RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
@@ -301,6 +328,7 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
+ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
 CURL_CFLAGS="-I/root/lib/include" \
 WEBP_LIBS="-L/root/lib/lib" \
 WEBP_CFLAGS="-I/root/lib/include" \
@@ -404,8 +432,35 @@ RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
-RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h;
-RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h;
+
+# Provide custom implementation fo the shutdown() function.
+# This is used by intl ( which links C++ code ) and need C linkage.
+RUN cat >> /root/php-src/main/php_config.h <<EOF
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int wasm_shutdown(int fd, int how);
+extern int wasm_close(int fd);
+
+#ifdef __cplusplus
+}
+#endif
+EOF
+
+# This is used by intl ( which links C++ code ) and need C linkage. Needed in PHP < 7.4.
+RUN sed -i '/^extern char \*\*environ;/d' /root/php-src/main/php.h \
+ && cat <<EOF >> /root/php-src/main/php.h
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern char **environ;
+
+#ifdef __cplusplus
+}
+#endif
+EOF
 
 # Don't ship PHP_FUNCTION(proc_open) with the PHP build
 # so that we can ship a patched version with php_wasm.c
@@ -417,7 +472,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libjpeg.a" \
+	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -licuuc -licudata -licui18n -licuio -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -577,32 +632,8 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-
-export ASYNCIFY_ONLY=$'\
-"fcntl",\
-"lockTrace",\
-"unixFileLock",\
-"sqlite3OsLock",\
-"pagerLockDb",\
-"page_wait_on_lock",\
-"sqlite3PagerSharedLock",\
-"sqlite3BtreeBeginTrans",\
-"sqlite3InitOne",\
-"lockBtree",\
-"sqlite3BtreeBeginTrans",\
-"sqlite3InitOne",\
-"sqlite3Init",\
-"sqlite3ReadSchema",\
-"sqlite3StartTable",\
-"yy_reduce",\
-"sqlite3Parser",\
-"sqlite3RunParser",\
-"sqlite3Prepare",\
-"sqlite3LockAndPrepare",\
-"sqlite3_prepare_v2",\
-"sqlite_handle_preparer",\
-"unixLock",\
-"__syscall_fcntl64",\
+\
+export ASYNCIFY_ONLY=$'"object_init_ex",\
 "zif_exif_imagetype",\
 "zif_exif_read_data",\
 "zif_exif_thumbnail",\
@@ -645,6 +676,11 @@ export ASYNCIFY_ONLY=$'\
 "Curl_ssl_connect_nonblocking",\
 "https_connecting",\
 "Curl_readwrite",\
+"zend_fetch_debug_backtrace",\
+"zend_default_exception_new",\
+"zend_throw_exception_zstr",\
+"zend_throw_exception",\
+"zend_type_error",\
 "zend_generator_iterator_move_forward",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_generator_resume",\
@@ -653,6 +689,7 @@ export ASYNCIFY_ONLY=$'\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
 "zend_user_it_get_new_iterator",\
 "ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"ZEND_COUNT_SPEC_CV_UNUSED_HANDLER",\
 "__fwritex",\
 "read",\
 "zif_sleep",\
@@ -736,6 +773,11 @@ export ASYNCIFY_ONLY=$'\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_TMPVAR_HANDLER",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CV_OP_DATA_CV_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CV_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_VAR_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_TMP_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CONST_HANDLER",\
 "cli",\
 "wasm_sleep",\
 "wasm_php_stream_flush",\
@@ -787,6 +829,9 @@ export ASYNCIFY_ONLY=$'\
 "mysqlnd_mysqlnd_command_handshake_pub",\
 "mysqlnd_mysqlnd_command_init_db_pub",\
 "mysqlnd_mysqlnd_command_reap_result_pub",\
+"mysqlnd_mysqlnd_command_set_option_pub",\
+"mysqlnd_mysqlnd_command_ping_pub",\
+"mysqlnd_mysqlnd_conn_data_ping_pub",\
 "mysqlnd_mysqlnd_conn_connect_pub",\
 "mysqlnd_mysqlnd_conn_data_connect_handshake_pub",\
 "mysqlnd_mysqlnd_conn_data_connect_pub",\
@@ -795,11 +840,13 @@ export ASYNCIFY_ONLY=$'\
 "mysqlnd_mysqlnd_conn_data_reap_query_pub",\
 "mysqlnd_mysqlnd_conn_data_select_db_pub",\
 "mysqlnd_mysqlnd_conn_data_set_charset_pub",\
+"mysqlnd_mysqlnd_conn_data_set_server_option_pub",\
 "mysqlnd_mysqlnd_conn_data_store_result_pub",\
 "mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "mysqlnd_mysqlnd_pfc_receive_pub",\
 "mysqlnd_mysqlnd_pfc_send_pub",\
 "mysqlnd_mysqlnd_protocol_send_command_handle_OK_pub",\
+"mysqlnd_mysqlnd_protocol_send_command_handle_EOF_pub",\
 "mysqlnd_mysqlnd_protocol_send_command_handle_response_pub",\
 "mysqlnd_mysqlnd_protocol_send_command_pub",\
 "mysqlnd_mysqlnd_res_store_result_fetch_data_pub",\
@@ -933,6 +980,7 @@ export ASYNCIFY_ONLY=$'\
 "zend_parse_va_args",\
 "zend_std_call_getter",\
 "zend_std_has_property",\
+"zend_parse_method_parameters",\
 "zend_std_read_property",\
 "zif_array_map",\
 "zif_array_reduce",\
@@ -948,8 +996,10 @@ export ASYNCIFY_ONLY=$'\
 "zif_fread",\
 "zif_fsockopen",\
 "zif_getimagesize",\
+"zif_mysqli_ping",\
 "zif_mysqli_begin_transaction",\
 "zif_mysqli_connect",\
+"zif_mysqli_link_construct",\
 "zif_mysqli_data_seek",\
 "zif_mysqli_errno",\
 "zif_mysqli_error",\
@@ -996,6 +1046,7 @@ export ASYNCIFY_ONLY=$'\
 "zim_reflection_class_newInstanceArgs",\
 "zim_reflection_method_invoke",\
 "zim_reflection_method_invokeArgs",\
+"zim_mysqli___construct",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
 "ZEND_NEW_SPEC_CONST_UNUSED_HANDLER",\
 "compile_file",\
@@ -1013,7 +1064,31 @@ export ASYNCIFY_ONLY=$'\
 "zif_spl_autoload_call",\
 "php_error_docref",\
 "php_pcre_replace_func_impl",\
-"php_verror"'; \
+"php_verror",\
+"fcntl",\
+"lockTrace",\
+"unixFileLock",\
+"sqlite3OsLock",\
+"pagerLockDb",\
+"page_wait_on_lock",\
+"sqlite3PagerSharedLock",\
+"sqlite3BtreeBeginTrans",\
+"sqlite3InitOne",\
+"lockBtree",\
+"sqlite3BtreeBeginTrans",\
+"sqlite3InitOne",\
+"sqlite3Init",\
+"sqlite3ReadSchema",\
+"sqlite3StartTable",\
+"yy_reduce",\
+"sqlite3Parser",\
+"sqlite3RunParser",\
+"sqlite3Prepare",\
+"sqlite3LockAndPrepare",\
+"sqlite3_prepare_v2",\
+"sqlite_handle_preparer",\
+"unixLock",\
+"__syscall_fcntl64"'; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
@@ -1222,10 +1297,8 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			#echo "import { flockSync, constants as fsExtConstants } from 'fs-ext'; " >> /root/output/php-module.js; \
-			#echo "import { constants as nodeConstants } from 'constants'; " >> /root/output/php-module.js; \
 			echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
-			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+			echo "const dependencyFilename = path.join(__dirname, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		fi; \

@@ -1833,6 +1833,17 @@ bar1
 			);
 			expect($_SERVER).toHaveProperty('HTTP_X_IS_AJAX', 'true');
 			expect($_SERVER).toHaveProperty('SERVER_PORT', '1235');
+			expect($_SERVER).toHaveProperty('QUERY_STRING', 'a=b');
+		});
+
+		it('Should have an empty QUERY_STRING when the URI has no query string', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode($_SERVER);`,
+				relativeUri: '/test.php',
+			});
+			const bodyText = new TextDecoder().decode(response.bytes);
+			const $_SERVER = JSON.parse(bodyText);
+			expect($_SERVER).toHaveProperty('QUERY_STRING', '');
 		});
 	});
 
@@ -2011,6 +2022,82 @@ bar1
 		});
 	});
 
+	/**
+	 *  exif support
+	 */
+	describe('exif extension support', () => {
+		beforeEach(async () => {
+			await php.writeFile(
+				'/image.jpg',
+				new Uint8Array(
+					readFileSync(joinPaths(__dirname, 'test-data', 'image.jpg'))
+				)
+			);
+		});
+		it('should return correct image type using exif_imagetype', async () => {
+			const response = await php.run({
+				code: `<?php echo exif_imagetype('/image.jpg');`,
+			});
+			expect(response.errors).toBe('');
+			expect(response.text).toBe('2');
+		});
+		it('should be able to use exif_read_data', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode(exif_read_data('/image.jpg'));`,
+			});
+			expect(response.errors).toBe('');
+			expect(response.json).toMatchObject({
+				FileName: 'image.jpg',
+				FileDateTime: expect.any(Number),
+				FileSize: 1241,
+				FileType: 2,
+				MimeType: 'image/jpeg',
+				SectionsFound: 'COMMENT',
+				COMPUTED: {
+					html: 'width="30" height="30"',
+					Height: 30,
+					Width: 30,
+					IsColor: 1,
+				},
+				COMMENT: ['Created with GIMP'],
+			});
+		});
+		it('should be able to use exif_tagname ', async () => {
+			const response = await php.run({
+				code: `<?php echo exif_tagname(256);`,
+			});
+			expect(response.errors).toBe('');
+			expect(response.text).toBe('ImageWidth');
+		});
+		it('should be able to use exif_thumbnail', async () => {
+			const response = await php.run({
+				code: `<?php
+				var_dump(exif_thumbnail('/image.jpg'));
+				`,
+			});
+			expect(response.errors).toBe('');
+			// TODO: we could improve this by providing an image with a valid thumbnail
+			expect(response.text).toBe('bool(false)\n');
+		});
+	});
+
+	/**
+	 * intl support
+	 */
+	describe('intl extension support', () => {
+		it('Should be able to use intl functions', async () => {
+			const response = await php.run({
+				code: `<?php
+					$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
+					echo $formatter->format(100.00);
+					$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
+					echo $formatter->format(100.00);
+				?>`,
+			});
+			expect(response.text).toEqual('$100.00100,00\xA0€');
+		});
+	});
+
 	describe('onMessage', () => {
 		it('should pass messages to JS', async () => {
 			let messageReceived = '';
@@ -2096,61 +2183,6 @@ bar1
 		});
 	});
 
-	describe('exif extension support', () => {
-		beforeEach(async () => {
-			await php.writeFile(
-				'/image.jpg',
-				new Uint8Array(
-					readFileSync(joinPaths(__dirname, 'test-data', 'image.jpg'))
-				)
-			);
-		});
-		it('should return correct image type using exif_imagetype', async () => {
-			const response = await php.run({
-				code: `<?php echo exif_imagetype('/image.jpg');`,
-			});
-			expect(response.errors).toBe('');
-			expect(response.text).toBe('2');
-		});
-		it('should be able to use exif_read_data', async () => {
-			const response = await php.run({
-				code: `<?php echo json_encode(exif_read_data('/image.jpg'));`,
-			});
-			expect(response.errors).toBe('');
-			expect(response.json).toMatchObject({
-				FileName: 'image.jpg',
-				FileDateTime: expect.any(Number),
-				FileSize: 1241,
-				FileType: 2,
-				MimeType: 'image/jpeg',
-				SectionsFound: 'COMMENT',
-				COMPUTED: {
-					html: 'width="30" height="30"',
-					Height: 30,
-					Width: 30,
-					IsColor: 1,
-				},
-				COMMENT: ['Created with GIMP'],
-			});
-		});
-		it('should be able to use exif_tagname ', async () => {
-			const response = await php.run({
-				code: `<?php echo exif_tagname(256);`,
-			});
-			expect(response.errors).toBe('');
-			expect(response.text).toBe('ImageWidth');
-		});
-		it('should be able to use exif_thumbnail', async () => {
-			const response = await php.run({
-				code: `<?php
-				var_dump(exif_thumbnail('/image.jpg'));
-				`,
-			});
-			expect(response.errors).toBe('');
-			// TODO: we could improve this by providing an image with a valid thumbnail
-			expect(response.text).toBe('bool(false)\n');
-		});
-	});
 	describe('Disk space', () => {
 		it('should return the correct total disk space', async () => {
 			const response = await php.run({

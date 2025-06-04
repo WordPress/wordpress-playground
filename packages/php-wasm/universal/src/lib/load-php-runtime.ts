@@ -123,14 +123,16 @@ let nextRuntimeId = 0;
  *
  * @public
  * @param  phpLoaderModule         - The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
- * @param  phpModuleArgs           - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
+ * @param  options                 - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
  * @returns Loaded runtime id.
  */
 
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
-	phpModuleArgs: EmscriptenOptions = {}
+	...options: EmscriptenOptions[]
 ): Promise<number> {
+	const phpModuleArgs = Object.assign({}, ...options);
+
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
 	const runtimeId = nextRuntimeId;
@@ -151,52 +153,8 @@ export async function loadPHPRuntime(
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {
-			/**
-			 * Emscripten automatically detects the filesystem for a given path,
-			 * and because the root path always uses the MEMFS filesystem, `statfs`
-			 * will return the default hardcoded value for MEMFS instead of the
-			 * actual disk space.
-			 *
-			 * To ensure `statfs` works in the Node version of PHP-WASM,
-			 * we need to add `statfs` from NODEFS to the root FS.
-			 * Otherwise, `statfs` is undefined in the root FS and the NODEFS
-			 * implementation wouldn't be used for paths that exist in MEMFS.
-			 *
-			 * The only place `statfs` is used in PHP are the `disk_total_space`
-			 * and `disk_free_space` functions.
-			 * Both functions return the disk space for a given disk partition.
-			 * If a subdirectory is passed, the function will return the disk space
-			 * for its partition.
-			 */
-			if (currentJsRuntime === 'NODE') {
-				PHPRuntime.FS.root.node_ops = {
-					...PHPRuntime.FS.root.node_ops,
-					statfs: PHPRuntime.FS.filesystems.NODEFS.node_ops.statfs,
-				};
-				/**
-				 * By default FS.root node value of `mount.opts.root` is `undefined`.
-				 * As a result `FS.lookupPath` will return a node with a `undefined`
-				 * `mount.opts.root` path when looking up the `/` path using `FS.lookupPath`.
-				 *
-				 * The `NODEFS.realPath` function works with `undefined` because it uses
-				 * `path.join` to build the path and for the `[undefined]` it will
-				 * return the `.` path.
-				 *
-				 * Because the `node.mount.opts.root` path is `undefined`,
-				 * `fs.statfsSync` will throw an error when trying to get the
-				 * disk space for an undefined path.
-				 * For the `/` path to correctly resolve, we must set the
-				 * `mount.opts.root` path to the current working directory.
-				 *
-				 * We chose the current working directory over `/` because
-				 * NODERAWFS defines the root path as `.`.
-				 * Emscripten reference to setting the root path in NODERAWFS:
-				 * https://github.com/emscripten-core/emscripten/pull/19400/files#diff-456b6256111c90ca5e6bdb583ab87108cd51cbbefc812c4785ea315c0728b3a8R11
-				 */
-				PHPRuntime.FS.root.mount.opts.root = '.';
-			}
 			if (phpModuleArgs.onRuntimeInitialized) {
-				phpModuleArgs.onRuntimeInitialized();
+				phpModuleArgs.onRuntimeInitialized(PHPRuntime);
 			}
 			resolvePHP();
 		},
@@ -290,7 +248,7 @@ export type EmscriptenOptions = {
 	print?: (message: string) => void;
 	printErr?: (message: string) => void;
 	quit?: (status: number, toThrow: any) => void;
-	onRuntimeInitialized?: () => void;
+	onRuntimeInitialized?: (phpRuntime: PHPRuntime) => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
 	outboundNetworkProxyServer?: Server<

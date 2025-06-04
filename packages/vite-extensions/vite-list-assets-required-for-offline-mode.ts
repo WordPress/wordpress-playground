@@ -12,7 +12,7 @@ const patternsToNotCache = [
 	'/README.md',
 	'/.DS_Store',
 	'/index.cjs',
-	'/index.d.ts',
+	/\/.*\.d\.ts$/, // No type declarations are needed at runtime.
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',

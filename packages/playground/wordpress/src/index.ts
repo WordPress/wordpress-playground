@@ -2,6 +2,7 @@ import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
 export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
+export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
 export * from './version-detect';
@@ -338,14 +339,17 @@ export async function preloadSqliteIntegration(
 	await unzipFile(php, sqliteZip, '/tmp/sqlite-database-integration');
 	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
 
-	const temporarySqlitePluginFolder = (await php.isDir(
-		'/tmp/sqlite-database-integration/sqlite-database-integration-main'
-	))
-		? // This is the name when the dev branch used to be called "main"
-		  '/tmp/sqlite-database-integration/sqlite-database-integration-main'
-		: // This is the name today when the dev branch is called "develop"
-		  '/tmp/sqlite-database-integration/sqlite-database-integration-develop';
+	// The SQLite integration plugin was extracted into the sole subdirectory
+	// of /tmp/sqlite-database-integration. Move it to SQLITE_PLUGIN_FOLDER.
+	const temporarySqlitePluginFolder = `/tmp/sqlite-database-integration/${
+		(await php.listFiles('/tmp/sqlite-database-integration'))[0]
+	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
+
+	// Use the new AST-based SQLite driver.
+	// TODO: Remove this once the new driver is the default; when this is closed:
+	//         https://github.com/Automattic/sqlite-database-integration/issues/50
+	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');

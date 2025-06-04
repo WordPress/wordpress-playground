@@ -46,8 +46,9 @@ jobs:
                   chmod 0600 ~/.ssh/*
 
                   # Add site privacy script to the website build
-                  cp packages/playground/website-deployment/a8c/site-privacy.php \
-                    dist/packages/playground/wasm-wordpress-net/
+                  # NOTE: We are no longer enforcing privacy so we can use our private instance in public contexts, like WordPress.com
+                  # cp packages/playground/website-deployment/a8c/site-privacy.php \
+                  #   dist/packages/playground/wasm-wordpress-net/
 
                   # Website files
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
@@ -69,6 +70,7 @@ jobs:
                     -tt '~/website-deployment/apply-update.sh'
 
                   # Enforce privacy for web app
-                  ssh -i ~/.ssh/id_ed25519 \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                    -tt 'sed -i "2i if ( \"cli\" !== php_sapi_name() ) { require_once __DIR__ . \"/site-privacy.php\"; Site_Privacy::enforce();	}" ~/htdocs/custom-redirects.php'
+                  # NOTE: We are no longer enforcing privacy so we can use our private instance in public contexts, like WordPress.com
+                  # ssh -i ~/.ssh/id_ed25519 \
+                  #   ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
+                  #   -tt 'sed -i "2i if ( \"cli\" !== php_sapi_name() ) { require_once __DIR__ . \"/site-privacy.php\"; Site_Privacy::enforce();	}" ~/htdocs/custom-redirects.php'

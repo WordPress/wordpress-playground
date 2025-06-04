@@ -4,6 +4,130 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.0.38] (2025-05-22)
+
+### Various
+
+-   Revert "[ php-wasm ] add Intl support (#150)". ([#154](https://github.com/Automattic/wordpress-playground-private/pull/154))
+-   Use the new SQLite driver. ([#144](https://github.com/Automattic/wordpress-playground-private/pull/144))
+-   [ php-wasm ] Add intl support. ([#155](https://github.com/Automattic/wordpress-playground-private/pull/155))
+-   [ php-wasm ] Intl : Improve integration. ([#159](https://github.com/Automattic/wordpress-playground-private/pull/159))
+-   [ php-wasm ] add Intl support. ([#150](https://github.com/Automattic/wordpress-playground-private/pull/150))
+-   [CLI] Enable users to automatically mount their current working directory into Playground. ([#39](https://github.com/Automattic/wordpress-playground-private/pull/39))
+-   [PHP-wasm Node] Fix Identifier '\_\_filename' has already been declared. ([#143](https://github.com/Automattic/wordpress-playground-private/pull/143))
+-   [Website] Support data URLs in blueprint-url query parameter. ([#158](https://github.com/Automattic/wordpress-playground-private/pull/158))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @JanJakes @mho22
+
+## [v1.0.37] (2025-05-15)
+
+### Various
+
+-   Define `DB_NAME` constant when it's missing. ([#140](https://github.com/Automattic/wordpress-playground-private/pull/140))
+-   Support limiting files added to self-hosted packages. ([#149](https://github.com/Automattic/wordpress-playground-private/pull/149))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @JanJakes
+
+## [v1.0.36] (2025-05-08)
+
+### Various
+
+-   Document mounting OPFS storage _after_ the boot. ([#141](https://github.com/Automattic/wordpress-playground-private/pull/141))
+-   QUERY_STRING should default to empty string. ([#139](https://github.com/Automattic/wordpress-playground-private/pull/139))
+-   Remove null steps that are added. ([#135](https://github.com/Automattic/wordpress-playground-private/pull/135))
+-   [CLI] Fix package entry point path. ([#136](https://github.com/Automattic/wordpress-playground-private/pull/136))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @bgrgicak @sejas
+
+## [v1.0.35] (2025-05-08)
+
+## [v1.0.34] (2025-05-08)
+
+### Various
+
+-   Document mounting OPFS storage _after_ the boot. ([#141](https://github.com/Automattic/wordpress-playground-private/pull/141))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame
+
+## [v1.0.33] (2025-05-08)
+
+### Various
+
+-   Add MySQL network calls to Asyncify tests. ([#108](https://github.com/Automattic/wordpress-playground-private/pull/108))
+-   Format the plugin-proxy file. ([#127](https://github.com/Automattic/wordpress-playground-private/pull/127))
+-   Plugin proxy: Allow all repos from WordPress, Automattic and Woocommerce organizations. ([#128](https://github.com/Automattic/wordpress-playground-private/pull/128))
+-   QUERY_STRING should default to empty string. ([#139](https://github.com/Automattic/wordpress-playground-private/pull/139))
+-   Remove null steps that are added. ([#135](https://github.com/Automattic/wordpress-playground-private/pull/135))
+-   Remove unused dependencies. ([#116](https://github.com/Automattic/wordpress-playground-private/pull/116))
+-   [CLI] Fix package entry point path. ([#136](https://github.com/Automattic/wordpress-playground-private/pull/136))
+-   [PHP-wasm Node] Add support for resolving wasm paths in Windows. ([#129](https://github.com/Automattic/wordpress-playground-private/pull/129))
+-   [PHP-wasm Node] Dynamically mount symlinks. ([#125](https://github.com/Automattic/wordpress-playground-private/pull/125))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @bgrgicak @ingeniumed @sejas
+
+## [v1.0.32] (2025-05-06)
+
+### Various
+
+-   Add MySQL network calls to Asyncify tests. ([#108](https://github.com/Automattic/wordpress-playground-private/pull/108))
+-   Format the plugin-proxy file. ([#127](https://github.com/Automattic/wordpress-playground-private/pull/127))
+-   Plugin proxy: Allow all repos from WordPress, Automattic and Woocommerce organizations. ([#128](https://github.com/Automattic/wordpress-playground-private/pull/128))
+-   Remove unused dependencies. ([#116](https://github.com/Automattic/wordpress-playground-private/pull/116))
+-   [PHP-wasm Node] Add support for resolving wasm paths in Windows. ([#129](https://github.com/Automattic/wordpress-playground-private/pull/129))
+-   [PHP-wasm Node] Dynamically mount symlinks. ([#125](https://github.com/Automattic/wordpress-playground-private/pull/125))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @ingeniumed
+
+## [v1.0.31] (2025-04-29)
+
+### Bug Fixes
+
+-   Fix changelog version order. ([#100](https://github.com/Automattic/wordpress-playground-private/pull/100))
+-   Fix openssl library paths in php-wasm build. ([#102](https://github.com/Automattic/wordpress-playground-private/pull/102))
+
+### Various
+
+-   Add private fork links to the changelog. ([#98](https://github.com/Automattic/wordpress-playground-private/pull/98))
+-   Allow public access to A8C Playground instance. ([#119](https://github.com/Automattic/wordpress-playground-private/pull/119))
+-   Make php-wasm and Playground CLI's fast to run with Node.js. ([#107](https://github.com/Automattic/wordpress-playground-private/pull/107))
+-   Playground CLI: Add `skipSqliteSetup` flag for MySQL support. ([#97](https://github.com/Automattic/wordpress-playground-private/pull/97))
+-   Prep the WP update workflows to be re-enabled. ([#110](https://github.com/Automattic/wordpress-playground-private/pull/110))
+-   Support building for additional remote origins. ([#122](https://github.com/Automattic/wordpress-playground-private/pull/122))
+-   Tweak Blueprint test string to match WP 6.8. ([#117](https://github.com/Automattic/wordpress-playground-private/pull/117))
+-   Update Nx, Vite, and ESLint dependencies. ([#35](https://github.com/Automattic/wordpress-playground-private/pull/35))
+-   Upgrade octokit to 3.1.2 to fix vulnerability. ([#106](https://github.com/Automattic/wordpress-playground-private/pull/106))
+-   Use Node as the Vitest environment. ([#96](https://github.com/Automattic/wordpress-playground-private/pull/96))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @brandonpayton @ivan-ottinger @wojtekn
+
 ## [v1.0.30] (2025-04-07)
 
 ### Bug Fixes

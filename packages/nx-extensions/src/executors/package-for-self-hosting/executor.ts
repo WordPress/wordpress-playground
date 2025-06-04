@@ -5,6 +5,7 @@ import type { ExecutorContext } from '@nx/devkit';
 import { joinPathFragments, logger } from '@nx/devkit';
 import type { PackageForSelfHostingExecutorSchema } from './schema';
 import * as tar from 'tar-fs';
+import { globSync } from 'glob';
 
 export default async function packageForSelfHostingExecutor(
 	options: PackageForSelfHostingExecutorSchema,
@@ -102,15 +103,64 @@ export default async function packageForSelfHostingExecutor(
 	const tarballPath = path.join(tarballOutputDir, tarballFileName);
 	const tarballWriteStream = fs.createWriteStream(tarballPath);
 
+	// NOTE: A package can declare which files should be included when it is installed
+	// as a dependency by declaring a "files" property in its package.json.
+	// https://docs.npmjs.com/cli/v11/configuring-npm/package-json#files
+	//
+	// We use it to limit the published files for some packages and need to support it here.
+	let globs = packageJson.files ? packageJson.files : ['**/*'];
+	// NOTE: There were issues with figuring out how to resolve absolute globs
+	// that were actually relative to the project root, so we just make all globs relative.
+	globs = globs.map(function makeGlobRelative(glob: string) {
+		return glob.startsWith('/') ? glob.slice(1) : glob;
+	});
+	const matchingPaths = globSync(globs, { cwd: builtPackagePath });
+
+	const matchingFiles = new Set<string>();
+	const matchingDirs: string[] = [];
+	for (const matchingPath of matchingPaths) {
+		const absolutePath = path.join(builtPackagePath, matchingPath);
+		if (fs.statSync(absolutePath).isDirectory()) {
+			matchingDirs.push(matchingPath);
+		} else {
+			matchingFiles.add(matchingPath);
+		}
+	}
+
 	await new Promise((resolve, reject) => {
 		const pack = tar.pack(builtPackagePath, {
-			ignore: function isPackageJson(name) {
-				return (
+			// NOTE: AFAICT, tar-fs does not support specifying multiple directories
+			// to add to the tarball, so we tell it to add everything and then exclude
+			// undesired files using this ignore() function.
+			ignore(name) {
+				// Ignore package.json because we will add a patched version later
+				if (
 					path.dirname(name) === builtPackagePath &&
 					path.basename(name) === 'package.json'
+				) {
+					return true;
+				}
+
+				const relativeName = path.relative(builtPackagePath, name);
+				if (matchingFiles.has(relativeName)) {
+					// This file is specifically included with the package.
+					return false;
+				}
+
+				const isMatchingDirChild = matchingDirs.some(
+					(dir) =>
+						dir === relativeName ||
+						relativeName.startsWith(`${dir}/`)
 				);
+				if (isMatchingDirChild) {
+					// This file is under a directory that is included with the package.
+					return false;
+				}
+
+				return true;
 			},
-			map: function prefixWithPackageDir(header) {
+			map(header) {
+				// Place all files under a top-level 'package' directory as expected by npm.
 				header.name = path.join('package', header.name);
 				return header;
 			},

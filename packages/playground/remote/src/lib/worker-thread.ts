@@ -14,9 +14,10 @@ import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
+	getSqliteDriverModuleDetails,
 	LatestMinifiedWordPressVersion,
+	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
-	sqliteDatabaseIntegrationModuleDetails,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
@@ -68,6 +69,7 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	sqliteDriverVersion?: string;
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
@@ -164,6 +166,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		scope,
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
+		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion = '8.0',
 		sapiName = 'cli',
 		withNetworking = false,
@@ -211,12 +214,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				}
 			}
 
+			const sqliteDriverModuleDetails =
+				getSqliteDriverModuleDetails(sqliteDriverVersion);
 			downloadMonitor.expectAssets({
-				[sqliteDatabaseIntegrationModuleDetails.url]:
-					sqliteDatabaseIntegrationModuleDetails.size,
+				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
 			});
 			const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-				fetch(sqliteDatabaseIntegrationModuleDetails.url)
+				fetch(sqliteDriverModuleDetails.url)
 			);
 
 			const constants: Record<string, any> = shouldInstallWordPress

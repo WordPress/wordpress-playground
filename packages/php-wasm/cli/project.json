@@ -86,15 +86,19 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/cli/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/cli/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/cli"],
 			"options": {
-				"jestConfig": "packages/php-wasm/cli/jest.config.ts",
-				"passWithNoTests": true
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/cli",
+				"typecheck": {
+					"tsconfig": "{projectRoot}/tsconfig.spec.json"
+				}
 			},
 			"configurations": {
 				"ci": {

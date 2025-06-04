@@ -54,7 +54,6 @@ export default defineConfig(function () {
 				},
 			},
 			environment: 'node',
-			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 			reporters: ['default'],
 		},
 

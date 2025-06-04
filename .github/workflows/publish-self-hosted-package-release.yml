@@ -67,6 +67,8 @@ jobs:
                   git fetch --depth 1 origin tag "$LATEST_PACKAGE_VERSION_TAG" --no-tags
                   git checkout "$LATEST_PACKAGE_VERSION_TAG"
             - name: Build JS packages for self-hosting
+              env:
+                  ADDITIONAL_REMOTE_ORIGINS: 'https://wordpress-playground.atomicsites.blog'
               shell: bash
               run: npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$HOSTING_BASE_URL"
             - name: Build source tarball
