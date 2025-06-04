@@ -6,9 +6,11 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_3_0', 'php_8_3.wasm');
+import { logger } from '@php-wasm/logger'; 
+import * as nodeUtil from 'util'; 
+const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 18099041; 
+export const dependenciesTotalSize = 18436725; 
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
 // include: shell.js
@@ -6371,6 +6373,44 @@ var PHPWASM = {
     // The files from the preload directory are preloaded using the
     // auto_prepend_file php.ini directive.
     FS.mkdir("/internal/shared/preload");
+    // Create stdout and stderr devices. We can't just use Emscripten's
+    // default stdout and stderr devices because they stop processing data
+    // on the first null byte. However, when dealing with binary data,
+    // null bytes are valid and common.
+    FS.registerDevice(FS.makedev(64, 0), {
+      open: () => {},
+      close: () => {},
+      read: () => 0,
+      write: (stream, buffer, offset, length, pos) => {
+        const chunk = buffer.subarray(offset, offset + length);
+        PHPWASM.onStdout(chunk);
+        return length;
+      }
+    });
+    FS.mkdev("/internal/stdout", FS.makedev(64, 0));
+    FS.registerDevice(FS.makedev(63, 0), {
+      open: () => {},
+      close: () => {},
+      read: () => 0,
+      write: (stream, buffer, offset, length, pos) => {
+        const chunk = buffer.subarray(offset, offset + length);
+        PHPWASM.onStderr(chunk);
+        return length;
+      }
+    });
+    FS.mkdev("/internal/stderr", FS.makedev(63, 0));
+    FS.registerDevice(FS.makedev(62, 0), {
+      open: () => {},
+      close: () => {},
+      read: () => 0,
+      write: (stream, buffer, offset, length, pos) => {
+        const chunk = buffer.subarray(offset, offset + length);
+        PHPWASM.onHeaders(chunk);
+        return length;
+      }
+    });
+    FS.mkdev("/internal/headers", FS.makedev(62, 0));
+    // Handle events.
     PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE ? require("events").EventEmitter : class EventEmitter {
       constructor() {
         this.listeners = {};
@@ -6409,6 +6449,41 @@ var PHPWASM = {
     PHPWASM.child_proc_by_fd = {};
     PHPWASM.child_proc_by_pid = {};
     PHPWASM.input_devices = {};
+  },
+  onHeaders: function(chunk) {
+    if (Module["onHeaders"]) {
+      Module["onHeaders"](chunk);
+      return;
+    }
+    console.log("headers", {
+      chunk
+    });
+  },
+  onStdout: function(chunk) {
+    if (Module["onStdout"]) {
+      Module["onStdout"](chunk);
+      return;
+    }
+    if (ENVIRONMENT_IS_NODE) {
+      process.stdout.write(chunk);
+    } else {
+      console.log("stdout", {
+        chunk
+      });
+    }
+  },
+  onStderr: function(chunk) {
+    if (Module["onStderr"]) {
+      Module["onStderr"](chunk);
+      return;
+    }
+    if (ENVIRONMENT_IS_NODE) {
+      process.stderr.write(chunk);
+    } else {
+      console.warn("stderr", {
+        chunk
+      });
+    }
   },
   getAllWebSockets: function(sock) {
     const webSockets = new Set;
@@ -6563,7 +6638,7 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
       argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
     }
   }
-  const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+  const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
   let envObject = null;
   if (envLength) {
     envObject = {};
@@ -7088,7 +7163,7 @@ var runAndAbortIfError = func => {
 
 var Asyncify = {
   instrumentWasmImports(imports) {
-    var importPattern = /^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|js_fd_read|_js_fd_read|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|wasm_shutdown|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+    var importPattern = /^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|js__syscall_fcntl64|_js__syscall_fcntl64|_asyncjs__js__syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|_fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
     for (let [x, original] of Object.entries(imports)) {
       if (typeof original == "function") {
         let isAsyncifyImport = original.isAsync || importPattern.test(x);
@@ -7780,13 +7855,13 @@ var _wasm_read = Module["_wasm_read"] = (a0, a1, a2) => (_wasm_read = Module["_w
 
 var ___wrap_select = Module["___wrap_select"] = (a0, a1, a2, a3, a4) => (___wrap_select = Module["___wrap_select"] = wasmExports["xb"])(a0, a1, a2, a3, a4);
 
-var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = a0 => (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = wasmExports["yb"])(a0);
+var _wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = a0 => (_wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = wasmExports["yb"])(a0);
 
-var _run_cli = Module["_run_cli"] = () => (_run_cli = Module["_run_cli"] = wasmExports["zb"])();
+var _wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = a0 => (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = wasmExports["zb"])(a0);
 
-var _wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = a0 => (_wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = wasmExports["Ab"])(a0);
+var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = a0 => (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = wasmExports["Ab"])(a0);
 
-var _wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = a0 => (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = wasmExports["Bb"])(a0);
+var _run_cli = Module["_run_cli"] = () => (_run_cli = Module["_run_cli"] = wasmExports["Bb"])();
 
 var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = (a0, a1) => (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = wasmExports["Cb"])(a0, a1);
 
