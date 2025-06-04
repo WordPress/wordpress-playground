@@ -1,12 +1,16 @@
 import type { EmscriptenOptions, PHPRuntime } from '@php-wasm/universal';
 import { FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { basename } from 'path';
+// @ts-ignore -- this is a valid import for a URL
+import icuDataUrl from './shared/icudt74l.dat?url';
 
 export async function withICUData(
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
-	const fileName = 'icudt74l.dat';
-	const filePath = `${__dirname}/shared/${fileName}`;
+	const filePath = fileURLToPath(icuDataUrl);
+	const fileName = basename(filePath);
 	const ICUData = fs.readFileSync(filePath);
 
 	return {
