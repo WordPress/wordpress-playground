@@ -14,3 +14,19 @@ export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 
 export * from './php-vars';
+
+export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
+	let totalLength = 0;
+	arrays.forEach((a) => (totalLength += a.length));
+	const result = new Uint8Array(totalLength);
+	let offset = 0;
+	arrays.forEach((a) => {
+		result.set(a, offset);
+		offset += a.length;
+	});
+	return result;
+}
+
+export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
+	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b))).buffer;
+}
