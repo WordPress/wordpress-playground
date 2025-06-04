@@ -27,6 +27,47 @@ const LibraryExample = {
 			// auto_prepend_file php.ini directive.
 			FS.mkdir('/internal/shared/preload');
 
+			// Create stdout and stderr devices. We can't just use Emscripten's
+			// default stdout and stderr devices because they stop processing data
+			// on the first null byte. However, when dealing with binary data,
+			// null bytes are valid and common.
+			FS.registerDevice(FS.makedev(64, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStdout(chunk);
+					return length;
+				}
+			});
+			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
+
+			FS.registerDevice(FS.makedev(63, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStderr(chunk);
+					return length;
+				}
+			});
+			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
+
+			FS.registerDevice(FS.makedev(62, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onHeaders(chunk);
+					return length;
+				}
+			});
+			FS.mkdev('/internal/headers', FS.makedev(62, 0));
+
+			// Handle events.
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
@@ -77,6 +118,7 @@ const LibraryExample = {
 
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
+
 			PHPWASM.input_devices = {};
 			const originalWrite = TTY.stream_ops.write;
 			TTY.stream_ops.write = function (stream, ...rest) {
@@ -100,6 +142,40 @@ const LibraryExample = {
 				if (val === 10) tty.output.push(val);
 				return originalPutChar(tty, val);
 			};
+		},
+		
+		// Default output stream handlers.
+		// @TODO Consider using Emscripten's default print and printErr instead.
+		onHeaders: function (chunk) {
+			if (Module['onHeaders']) {
+				Module['onHeaders'](chunk);
+				return;
+			}
+			console.log('headers', { chunk });
+		},
+
+		onStdout: function (chunk) {
+			if (Module['onStdout']) {
+				Module['onStdout'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stdout.write(chunk);
+			} else {
+				console.log('stdout', { chunk });
+			}
+		},
+
+		onStderr: function (chunk) {
+			if (Module['onStderr']) {
+				Module['onStderr'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stderr.write(chunk);
+			} else {
+				console.warn('stderr', { chunk });
+			}
 		},
 
 		/**
@@ -370,7 +446,7 @@ const LibraryExample = {
 			}
 		}
 
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+ 		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd()
 		let envObject = null;
 
 		if (envLength) {

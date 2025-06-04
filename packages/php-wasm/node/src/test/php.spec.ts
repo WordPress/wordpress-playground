@@ -1,25 +1,25 @@
+import { getPHPLoaderModule, loadNodeRuntime } from '..';
+import { vi } from 'vitest';
 import {
-	PHP,
-	SupportedPHPVersions,
 	__private__dont__use,
 	getPhpIniEntries,
 	loadPHPRuntime,
+	PHP,
 	setPhpIniEntries,
+	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import {
 	existsSync,
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
 	rmSync,
-	statfsSync,
+	readFileSync,
+	mkdirSync,
 	writeFileSync,
+	statfsSync,
+	mkdtempSync,
 } from 'fs';
-import { tmpdir } from 'os';
-import { vi } from 'vitest';
-import { getPHPLoaderModule, loadNodeRuntime } from '..';
+import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { tmpdir } from 'os';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -94,6 +94,245 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		} catch {
 			// ignore exit-related exceptions
 		}
+	});
+
+	describe('php.runStream()', () => {
+		let php: PHP;
+		beforeEach(async () => {
+			php = new PHP(await loadPHPRuntime(SupportedPHPVersions[0] as any));
+			php.mkdir('/php');
+			await setPhpIniEntries(php, { disable_functions: '' });
+		});
+		afterEach(async () => {
+			try {
+				php.exit(0);
+			} catch {
+				// ignore exit-related exceptions
+			}
+		});
+
+		it('should return a StreamedPHPResponse', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "test";',
+			});
+			expect(streamed.stdout).toBeInstanceOf(ReadableStream);
+			expect(streamed.stderr).toBeInstanceOf(ReadableStream);
+			expect(streamed.exitCode).toBeInstanceOf(Promise);
+			expect(streamed.headers).toBeInstanceOf(Promise);
+		});
+
+		it('should provide stdout text through stdoutText property', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "Hello World";',
+			});
+			const text = await streamed.stdoutText;
+			expect(text).toBe('Hello World');
+		});
+
+		it('should provide stderr text through stderrText property', async () => {
+			const streamed = await php.runStream({
+				code: '<?php file_put_contents("php://stderr", "Error message");',
+			});
+			const stderr = await streamed.stderrText;
+			expect(stderr).toBe('Error message');
+		});
+
+		it('should handle headers correctly', async () => {
+			const streamed = await php.runStream({
+				code: '<?php header("Content-Type: application/json"); header("X-Custom: value"); echo "{}";',
+			});
+			const headers = await streamed.headers;
+			expect(headers['content-type']).toEqual(['application/json']);
+			expect(headers['x-custom']).toEqual(['value']);
+		});
+
+		it('should return exit code 0 for successful execution', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "success";',
+			});
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).toBe(0);
+		});
+
+		it('should return non-zero exit code for PHP fatal errors', async () => {
+			const streamed = await php.runStream({
+				code: '<?php trigger_error("Fatal error", E_USER_ERROR);',
+			});
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).not.toBe(0);
+		});
+
+		it('should return non-zero exit code for syntax errors', async () => {
+			const streamed = await php.runStream({
+				code: '<?php invalid syntax;',
+			});
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).not.toBe(0);
+		});
+
+		it('should handle exit() calls with custom exit codes', async () => {
+			const streamed = await php.runStream({ code: '<?php exit(42);' });
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).toBe(42);
+		});
+
+		it('should provide ok() method that reflects success status', async () => {
+			const successStreamed = await php.runStream({
+				code: '<?php echo "ok";',
+			});
+			const failureStreamed = await php.runStream({
+				code: '<?php trigger_error("Fatal error", E_USER_ERROR);',
+			});
+
+			expect(await successStreamed.ok()).toBe(true);
+			expect(await failureStreamed.ok()).toBe(false);
+		});
+
+		it('should provide finished promise that resolves when complete', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "done";',
+			});
+			await expect(streamed.finished).resolves.toBeUndefined();
+			// Should be able to read results after finished
+			const text = await streamed.stdoutText;
+			expect(text).toBe('done');
+		});
+
+		it('should handle HTTP status codes from PHP', async () => {
+			const streamed = await php.runStream({
+				code: '<?php http_response_code(404); echo "Not found";',
+			});
+			const statusCode = await streamed.httpStatusCode;
+			expect(statusCode).toBe(404);
+		});
+
+		it('should work with script files', async () => {
+			php.writeFile('/test-script.php', '<?php echo "from file";');
+			const streamed = await php.runStream({
+				scriptPath: '/test-script.php',
+			});
+			const text = await streamed.stdoutText;
+			expect(text).toBe('from file');
+		});
+
+		it('should handle large output correctly', async () => {
+			const largeString = 'x'.repeat(10000);
+			const streamed = await php.runStream({
+				code: `<?php echo str_repeat('x', 10000);`,
+			});
+			const text = await streamed.stdoutText;
+			expect(text).toBe(largeString);
+		});
+
+		it('should isolate stderr from stdout', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+					echo "stdout"; 
+					file_put_contents("php://stderr", "stderr");
+				`,
+			});
+			const stdout = await streamed.stdoutText;
+			const stderr = await streamed.stderrText;
+			expect(stdout).toBe('stdout');
+			expect(stderr).toBe('stderr');
+		});
+
+		it('should stream output progressively', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+				echo "first chunk";
+				flush();
+				sleep(1);
+				echo "second chunk";
+				flush();
+			`,
+			});
+
+			const reader = streamed.stdout.getReader();
+			const decoder = new TextDecoder();
+
+			// Read first chunk
+			const firstResult = await reader.read();
+			expect(firstResult.done).toBe(false);
+			const firstChunk = decoder.decode(firstResult.value);
+			expect(firstChunk).toBe('first chunk');
+
+			// Confirm there's no more output available yet
+			const nextResult = await reader.read();
+			expect(nextResult.value?.length).toBe(0);
+			expect(nextResult.done).toBe(false);
+
+			// Read second chunk
+			const secondResult = await reader.read();
+			expect(secondResult.done).toBe(false);
+			const secondChunk = decoder.decode(secondResult.value);
+			expect(secondChunk).toBe('second chunk');
+
+			// Should be done now
+			const finalResult = await reader.read();
+			expect(finalResult.done).toBe(true);
+		});
+
+		it('should stream multiple small outputs progressively', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+				for ($i = 1; $i <= 3; $i++) {
+					echo "chunk $i ";
+					flush();
+					usleep(100000); // 100ms
+				}
+			`,
+			});
+
+			const reader = streamed.stdout.getReader();
+			const decoder = new TextDecoder();
+			const chunks = [];
+
+			// Read all chunks as they come
+			while (true) {
+				const result = await reader.read();
+				if (result.done) break;
+				chunks.push(decoder.decode(result.value));
+			}
+
+			expect(chunks.length).toBeGreaterThan(1);
+			expect(chunks.join('')).toBe('chunk 1 chunk 2 chunk 3 ');
+		});
+
+		it('should stream stderr separately from stdout', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+				echo "stdout first";
+				flush();
+				file_put_contents("php://stderr", "stderr first");
+				fflush(STDERR);
+				sleep(1);
+				echo "stdout second";
+				flush();
+				file_put_contents("php://stderr", "stderr second");
+				fflush(STDERR);
+			`,
+			});
+
+			const stdoutReader = streamed.stdout.getReader();
+			const stderrReader = streamed.stderr.getReader();
+			const decoder = new TextDecoder();
+
+			// Read first stdout chunk
+			const firstStdout = await stdoutReader.read();
+			expect(decoder.decode(firstStdout.value)).toBe('stdout first');
+
+			// Read first stderr chunk
+			const firstStderr = await stderrReader.read();
+			expect(decoder.decode(firstStderr.value)).toBe('stderr first');
+
+			// Verify we can read remaining chunks
+			const secondStdout = await stdoutReader.read();
+			expect(decoder.decode(secondStdout.value)).toBe('stdout second');
+
+			const secondStderr = await stderrReader.read();
+			expect(decoder.decode(secondStderr.value)).toBe('stderr second');
+		});
 	});
 
 	describe('ENV variables', () => {
@@ -427,7 +666,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Passes the cwd and env arguments', async () => {
 			const handler = createSpawnHandler(
-				(_: string[], processApi: any, options: any) => {
+				(command: string[], processApi: any, options: any) => {
 					processApi.flushStdin();
 					processApi.stdout(options.cwd + '\n');
 					for (const key in options.env) {
@@ -858,18 +1097,18 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const startTime = Date.now();
 			await php.run({
 				code: `<?php
-				$res = proc_open(
-					"hanging_command",
-					array(
-						array("pipe","r"),
-						array("pipe","w"),
-						array("pipe","w"),
-					),
-					$pipes
-				);
-				// Wait for the process to exit
-				proc_close($res);
-			`,
+ 				$res = proc_open(
+ 					"hanging_command",
+ 					array(
+ 						array("pipe","r"),
+ 						array("pipe","w"),
+ 						array("pipe","w"),
+ 					),
+ 					$pipes
+ 				);
+ 				// Wait for the process to exit
+ 				proc_close($res);
+ 			`,
 			});
 			const elapsed = Date.now() - startTime;
 			// Should not timeout after 5 seconds
@@ -894,16 +1133,16 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				try {
 					await php.run({
 						code: `<?php
-					$res = proc_open(
-						"hanging_command",
-						array(
-							array("pipe","r"),
-							array("pipe","w"),
-							array("pipe","w"),
-						),
-						$pipes
-					);
-				`,
+						$res = proc_open(
+							"hanging_command",
+							array(
+								array("pipe","r"),
+								array("pipe","w"),
+								array("pipe","w"),
+							),
+							$pipes
+						);
+					`,
 					});
 					// Should not reach here
 					expect(false).toBe(true);
@@ -1492,7 +1731,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 	describe('Interface', () => {
 		it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
-			expect(() => php.run({})).rejects.toThrowError(TypeError);
+			expect(() => php.run({})).rejects.toThrowError(
+				/The request object must have either a `code` or a `scriptPath` property/
+			);
 		});
 	});
 
