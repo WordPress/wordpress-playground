@@ -726,33 +726,6 @@ ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
-
-
-/* Enable PHP to exchange messages with JavaScript */
-PHP_FUNCTION(post_message_to_js)
-{
-	char *data;
-	int data_len;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-	{
-		return;
-	}
-
-	char *response;
-	size_t response_len = js_module_onMessage(data, &response);
-	if (response_len != -1)
-	{
-		zend_string *return_string = zend_string_init(response, response_len, 0);
-		free(response);
-		RETURN_NEW_STR(return_string);
-	}
-	else
-	{
-		RETURN_NULL();
-	}
-}
-
 /**
  * select(2).
  */
