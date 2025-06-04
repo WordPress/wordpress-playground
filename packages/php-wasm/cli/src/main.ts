@@ -1,7 +1,14 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import { writeFileSync, existsSync, mkdtempSync, rmSync, rmdirSync } from 'fs';
+import {
+	writeFileSync,
+	existsSync,
+	mkdtempSync,
+	rmSync,
+	rmdirSync,
+	chmodSync,
+} from 'fs';
 import { rootCertificates } from 'tls';
 
 import {
@@ -45,12 +52,39 @@ async function run() {
 	// @see https://github.com/npm/npm/issues/4531
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { TMPDIR, ...envVariables } = process.env;
+
+	/**
+	 * Ensure the PHP_BINARY constant is set to the PHP-WASM binary.
+	 *
+	 * ## Rationale
+	 *
+	 * We want any `proc_open()` calls to use the PHP-WASM binary and
+	 * not the system PHP binary.
+	 *
+	 * ## How it works
+	 *
+	 * The code below creates a temporary `php` executable in PATH,
+	 * which covers `proc_open( "php", ... )` calls.
+	 *
+	 * Furthermore, when PHP detects the `php` executable in PATH, it
+	 * sets the PHP_BINARY constant to it.
+	 */
+	const tempDir = mkdtempSync('php-wasm-bin');
+	writeFileSync(
+		`${tempDir}/php`,
+		`#!/bin/sh
+${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
+	`
+	);
+	chmodSync(`${tempDir}/php`, 0o755);
+
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
 				ENV: {
 					...envVariables,
 					TERM: 'xterm',
+					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
 		})
@@ -58,38 +92,18 @@ async function run() {
 
 	useHostFilesystem(php);
 	php.setSpawnHandler((command: string) => {
-		const phpWasmCommand = `${process.argv[0]} ${process.execArgv.join(
-			' '
-		)} ${process.argv[1]}`;
-		// Naively replace the PHP binary with the PHP-WASM command
-		// @TODO: Don't process the command. Lean on the shell to do it, e.g.
-		// through a PATH or an alias.
-		const updatedCommand = command.replace(
-			/^(?:\\ |[^ ])*php\d?(\s|$)/,
-			phpWasmCommand + '$1'
-		);
-
-		// Create a shell script in a temporary directory
-		const tempDir = mkdtempSync('php-wasm-');
-		const tempScriptPath = `${tempDir}/script.sh`;
-		writeFileSync(
-			tempScriptPath,
-			`#!/bin/sh
-	${updatedCommand} < /dev/stdin
-	`
-		);
-
-		try {
-			return spawn(updatedCommand, [], {
-				shell: true,
-				stdio: ['pipe', 'pipe', 'pipe'],
-				timeout: 5000,
-			});
-		} finally {
-			// Remove the temporary directory
-			rmSync(tempScriptPath);
-			rmdirSync(tempDir);
+		/**
+		 * @TODO: What if php <path> targets a VFS file? this seems to be happening despite
+		 *        the .useHostFilesystem() call.
+		 */
+		if (command.startsWith('exec ')) {
+			command = command.slice(5);
 		}
+		return spawn(command, [], {
+			shell: true,
+			stdio: ['pipe', 'pipe', 'pipe'],
+			timeout: 5000,
+		});
 	});
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
