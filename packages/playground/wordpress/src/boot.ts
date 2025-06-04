@@ -255,6 +255,59 @@ export async function bootRequestHandler(options: BootOptions) {
 		cookieStore: options.cookieStore,
 	});
 
+	const { php, reap } = await requestHandler.processManager.acquirePHPInstance({
+		considerPrimary: false,
+	});
+	try {
+		if (options.hooks?.beforeWordPressFiles) {
+			await options.hooks.beforeWordPressFiles(php);
+		}
+
+		if (options.wordPressZip) {
+			await unzipWordPress(php, await options.wordPressZip);
+		}
+
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key] as string);
+			}
+		}
+
+		php.defineConstant('WP_HOME', options.siteUrl);
+		php.defineConstant('WP_SITEURL', options.siteUrl);
+
+		/*
+		 * Add required constants to "wp-config.php" if they are not already defined.
+		 * This is needed, because some WordPress backups and exports may not include
+		 * definitions for some of the necessary constants.
+		 */
+		await ensureWpConfig(php, requestHandler.documentRoot);
+
+		// Run "before database" hooks to mount/copy more files in
+		if (options.hooks?.beforeDatabaseSetup) {
+			await options.hooks.beforeDatabaseSetup(php);
+		}
+
+		// @TODO Assert WordPress core files are in place
+
+		if (options.sqliteIntegrationPluginZip) {
+			await preloadSqliteIntegration(
+				php,
+				await options.sqliteIntegrationPluginZip
+			);
+		}
+
+		if (!(await isWordPressInstalled(php))) {
+			await installWordPress(php);
+		}
+
+		if (!(await isWordPressInstalled(php))) {
+			throw new Error('WordPress installation has failed.');
+		}
+	} finally {
+		reap();
+	}
+
 	return requestHandler;
 }
 
