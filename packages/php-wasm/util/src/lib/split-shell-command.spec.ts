@@ -69,6 +69,17 @@ describe('splitShellCommand', () => {
 		]);
 	});
 
+	it('Should allow mixing single and double quotes (2)', () => {
+		const command = `php -r 'echo 'nested outfile: ' . getenv('NESTED_OUTFILE_PATH');'`;
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			'--wordpress=This is nice',
+			'more',
+			'args',
+		]);
+	});
+
 	it('Should allow mixing unquoted data and double quotes', () => {
 		const command = 'ls    --wordpress="This "is" nice"  more args';
 		const result = splitShellCommand(command);

@@ -1,7 +1,11 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
-export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
+export {
+	bootWordPress,
+	bootRequestHandler,
+	getFileNotFoundActionForWordPress,
+} from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
@@ -318,7 +322,7 @@ export async function preloadPhpInfoRoute(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
-    if ( ${phpVar(requestPath)} === $_SERVER['REQUEST_URI'] ) {
+    if ( isset($_SERVER['REQUEST_URI']) && ${phpVar(requestPath)} === $_SERVER['REQUEST_URI'] ) {
         phpinfo();
         exit;
     }

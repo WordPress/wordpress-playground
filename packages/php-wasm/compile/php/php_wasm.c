@@ -768,66 +768,6 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 	return n;
 }
 
-#if WITH_CLI_SAPI == 1
-#include "sapi/cli/php_cli_process_title.h"
-#if PHP_MAJOR_VERSION >= 8
-#include "sapi/cli/php_cli_process_title_arginfo.h"
-#endif
-
-extern int wasm_shutdown(int sockfd, int how);
-extern int wasm_close(int sockfd);
-
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
-
-typedef struct wasm_cli_arg
-{
-	char *value;
-	struct wasm_cli_arg *next;
-} wasm_cli_arg_t;
-
-int cli_argc = 0;
-wasm_cli_arg_t *cli_argv;
-void wasm_add_cli_arg(char *arg)
-{
-	++cli_argc;
-	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
-	ll_entry->value = strdup(arg);
-	ll_entry->next = cli_argv;
-	cli_argv = ll_entry;
-}
-
-/**
- * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
- * The file is provided by the linker and the main() function is not
- * exported from the final .wasm file at the moment.
- */
-int main(int argc, char *argv[]);
-int run_cli()
-{
-	// Convert the argv linkedlist to an array:
-	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
-	wasm_cli_arg_t *current_arg = cli_argv;
-	int i = 0;
-	while (current_arg != NULL)
-	{
-		cli_argv_array[cli_argc - i - 1] = current_arg->value;
-		++i;
-		current_arg = current_arg->next;
-	}
-
-	return main(cli_argc, cli_argv_array);
-}
-
-#else
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
-#endif
-
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
 #endif
@@ -1414,8 +1354,15 @@ static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
 	return count_bytes;
 }
 
-// === FILE UPLOADS SUPPORT ===
+void my_callback(const char *data, size_t len, void *stream_id) {
+    fprintf(stderr, "[CB:%s] %.*s", (char*)stream_id, (int)len, data);
+}
 
+static ssize_t my_write(void *cookie, const char *buf, size_t size) {
+    // Invoke user callback instead of writing to terminal
+    my_callback(buf, size, cookie);
+    return size;  // indicate all bytes “written”
+}
 /**
  * Function: wasm_sapi_module_startup
  * ----------------------------

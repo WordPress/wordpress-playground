@@ -1274,7 +1274,18 @@ export class PHP implements Disposable {
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
 	 */
-	async cli(argv: string[]): Promise<number> {
+	async cli(
+		argv: string[],
+		options: { env?: Record<string, string> } = {}
+	): Promise<StreamedPHPResponse> {
+		const release = await this.semaphore.acquire();
+
+		const env = options.env || {};
+		for (const [key, value] of Object.entries(env)) {
+			this.#setEnv(key, value);
+		}
+		// Enforce the use of the internal php.ini file.
+		argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
 		for (const arg of argv) {
 			this[__private__dont__use].ccall(
 				'wasm_add_cli_arg',
@@ -1283,22 +1294,15 @@ export class PHP implements Disposable {
 				[arg]
 			);
 		}
-		try {
-			return await this[__private__dont__use].ccall(
-				'run_cli',
-				null,
-				[],
-				[],
-				{
-					async: true,
-				}
-			);
-		} catch (error) {
-			if (isExitCodeZero(error)) {
-				return 0;
-			}
-			throw error;
-		}
+
+		return await this.#executeWithErrorHandling(() => {
+			return this[__private__dont__use].ccall('run_cli', null, [], [], {
+				async: true,
+			});
+		}).then((response) => {
+			response.exitCode.finally(release);
+			return response;
+		});
 	}
 
 	setSkipShebang(shouldSkip: boolean) {

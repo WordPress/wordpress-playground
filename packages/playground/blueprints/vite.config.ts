@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { Plugin, defineConfig } from 'vite';
 
 import dts from 'vite-plugin-dts';
 import { join } from 'path';
@@ -9,6 +9,7 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
+const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/playground-blueprints',
 
@@ -22,6 +23,27 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
+
+		{
+			name: 'use-correct-blueprints-phar-file-url-in-vitest-environment',
+			/**
+			 * When ran inside the `blueprints.phar` package, vitest resolves
+			 * `blueprints.phar?url` as `/public/blueprints.phar?url`. However, when ran
+			 * inside other packages, it resolves as `/@fs/full/path/to/blueprints.phar`.
+			 *
+			 * This plugin ensures that the `blueprints.phar` file is always consistently
+			 * resolved as the latter.
+			 */
+			transform(code, id) {
+				if (id.match(new RegExp(`/blueprints\\.phar\\?url`))) {
+					const fullyQualifiedPath = '/@fs' + path(id.split('?')[0]);
+					return `export default ${JSON.stringify(
+						fullyQualifiedPath
+					)};`;
+				}
+				return code;
+			},
+		} as Plugin,
 	],
 
 	// Uncomment this if you are using workers.

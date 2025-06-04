@@ -60,7 +60,11 @@ type ChildProcess = EventEmitter & {
 	stdout: EventEmitter;
 	stderr: EventEmitter;
 };
-export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
+export type SpawnHandler = (
+	command: string,
+	args: string[],
+	options: Record<string, any>
+) => ChildProcess;
 
 export type HTTPMethod =
 	| 'GET'

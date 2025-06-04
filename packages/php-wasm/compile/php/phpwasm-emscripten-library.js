@@ -112,7 +112,64 @@ const LibraryExample = {
 			PHPWASM.child_proc_by_pid = {};
 
 			PHPWASM.input_devices = {};
+			const originalWrite = TTY.stream_ops.write;
+			TTY.stream_ops.write = function (stream, ...rest) {
+				const retval = originalWrite(stream, ...rest);
+				// Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+				// @TODO: Fix this at the wasm level
+				stream.tty.ops.fsync(stream.tty);
+				return retval;
+			};
+			const originalPutChar = TTY.stream_ops.put_char;
+			TTY.stream_ops.put_char = function (tty, val) {
+				/**
+				 * Buffer newlines that Emscripten normally ignores.
+				 *
+				 * Emscripten doesn't do it by default because its default
+				 * print function is console.log that implicitly adds a newline. We are overwriting
+				 * it with an environment-specific function that outputs exaclty what it was given,
+				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+				 * all the newlines make it to the output buffer.
+				 */
+				if (val === 10) tty.output.push(val);
+				return originalPutChar(tty, val);
+			};
 		},
+
+		// Default output stream handlers.
+		// @TODO Consider using Emscripten's default print and printErr instead.
+		onHeaders: function (chunk) {
+			if (Module['onHeaders']) {
+				Module['onHeaders'](chunk);
+				return;
+			}
+			console.log('headers', { chunk });
+		},
+
+		onStdout: function (chunk) {
+			if (Module['onStdout']) {
+				Module['onStdout'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stdout.write(chunk);
+			} else {
+				console.log('stdout', { chunk });
+			}
+		},
+
+		onStderr: function (chunk) {
+			if (Module['onStderr']) {
+				Module['onStderr'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stderr.write(chunk);
+			} else {
+				console.warn('stderr', { chunk });
+			}
+		},
+
 		/**
 		 * A utility function to get all websocket objects associated
 		 * with an Emscripten file descriptor.
@@ -381,7 +438,7 @@ const LibraryExample = {
 			}
 		}
 
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd()
 		let envObject = null;
 
 		if (envLength) {
