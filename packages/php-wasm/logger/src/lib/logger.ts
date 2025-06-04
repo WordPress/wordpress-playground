@@ -32,7 +32,7 @@ export type LogHandler = (log: Log, ...args: any[]) => void;
  */
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
-	private readonly handlers: LogHandler[];
+	handlers: LogHandler[];
 
 	// constructor
 	constructor(
