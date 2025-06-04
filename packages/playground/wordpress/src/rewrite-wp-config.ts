@@ -82,5 +82,8 @@ export async function ensureWpConfig(
 		);
 	}
 
-	await defineWpConfigConstants(php, wpConfigPath, defaults, 'skip');
+	// TODO: Should this be a permanent change? It helps us boot additional workers with same bootWordPress function.
+	if (php.fileExists(wpConfigPath)) {
+		await defineWpConfigConstants(php, wpConfigPath, defaults, 'skip');
+	}
 }
