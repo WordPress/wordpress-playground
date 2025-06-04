@@ -22,6 +22,9 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 # Polyfill for dns functions
 COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
+# Polyfill for post_message_to_js functions
+COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+
 # Work around to add ICU FLAGS to intl below 7.3 to inject -fPIC.
 RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
 		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
@@ -369,6 +372,7 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 	--enable-tokenizer \
 	--enable-wasm_memory_storage \
 	--enable-dns_polyfill \
+	--enable-post_message_to_js \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"

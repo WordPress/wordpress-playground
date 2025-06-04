@@ -1,0 +1,5 @@
+ARG_ENABLE("post_message_to_js", "Enable post_message_to_js support", "no");
+
+if (PHP_POST_MESSAGE_TO_JS == "yes") {
+    EXTENSION("post_message_to_js", "post_message_to_js.c");
+} 
