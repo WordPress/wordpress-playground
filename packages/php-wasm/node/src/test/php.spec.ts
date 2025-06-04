@@ -1414,7 +1414,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 	describe('Interface', () => {
 		it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
-			expect(() => php.run({})).rejects.toThrowError(TypeError);
+			expect(() => php.run({})).rejects.toThrowError(
+				/The request object must have either a `code` or a `scriptPath` property/
+			);
 		});
 	});
 
