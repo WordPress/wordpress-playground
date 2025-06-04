@@ -6,7 +6,6 @@ import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { zipDirectory } from '@wp-playground/common';
 import { parentPort } from 'worker_threads';
 import { bootWordPress } from '@wp-playground/wordpress';
-import { logger } from '@php-wasm/logger';
 import { rootCertificates } from 'tls';
 
 export interface Mount {
@@ -81,7 +80,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 					WP_DEBUG_DISPLAY: false,
 				};
 
-			logger.log(`Booting WordPress...`);
 			const requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () => {
@@ -126,7 +124,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 				dataSqlPath,
 			});
 			this.__internal_setRequestHandler(requestHandler);
-			logger.log(`Booted!`);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
