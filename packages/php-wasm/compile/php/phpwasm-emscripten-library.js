@@ -66,7 +66,15 @@ const LibraryExample = {
 								}
 							}
 						}
-				  };
+				};
+			
+			// Clean up the fd -> childProcess mapping when the fd is closed:
+			const originalClose = FS.close;
+			FS.close = function (stream) {
+				originalClose(stream);
+				delete PHPWASM.child_proc_by_fd[stream.fd];
+			};
+
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
@@ -440,6 +448,21 @@ const LibraryExample = {
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
+				for (const fd of [
+					// The child process exited. Let's clean up its output streams:
+					ProcInfo.stdoutChildFd,
+					ProcInfo.stderrChildFd,
+					// Note we're not closing stdinFd as the parent still might be holding on to it.
+
+					// We won't close these because the parent process is responsible for that:
+					// ProcInfo.stdoutParentFd,
+					// ProcInfo.stderrParentFd,
+				]) {
+					if(FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
+						FS.close(FS.streams[fd]);
+					}
+				}
+
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 				// Emit events for the wasm_poll_socket function.

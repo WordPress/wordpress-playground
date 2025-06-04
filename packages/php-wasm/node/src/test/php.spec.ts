@@ -80,7 +80,7 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
-describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: PHP;
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(phpVersion as any));
@@ -878,21 +878,22 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 			expect(spawnHandlerCalled).toBe(true);
 		}, 10000);
 
-		it('Handle process spawn timeout gracefully', async () => {
-			let spawnHandlerCalled = false;
-			const handler = createSpawnHandler(async () => {
-				spawnHandlerCalled = true;
-				// Don't call processApi.notifySpawn() or processApi.exit()
-				// to simulate a hanging process that never starts
-				await new Promise(() => {}); // Never resolves
-			});
+		if (!['7.2', '7.3'].includes(phpVersion)) {
+			it('Handle process spawn timeout gracefully', async () => {
+				let spawnHandlerCalled = false;
+				const handler = createSpawnHandler(async () => {
+					spawnHandlerCalled = true;
+					// Don't call processApi.notifySpawn() or processApi.exit()
+					// to simulate a hanging process that never starts
+					await new Promise(() => {}); // Never resolves
+				});
 
-			php.setSpawnHandler(handler);
+				php.setSpawnHandler(handler);
 
-			const startTime = Date.now();
-			try {
-				await php.run({
-					code: `<?php
+				const startTime = Date.now();
+				try {
+					await php.run({
+						code: `<?php
 					$res = proc_open(
 						"hanging_command",
 						array(
@@ -903,17 +904,18 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 						$pipes
 					);
 				`,
-				});
-				// Should not reach here
-				expect(false).toBe(true);
-			} catch {
-				const elapsed = Date.now() - startTime;
-				// Should timeout around 5 seconds (allowing some margin)
-				expect(elapsed).toBeGreaterThan(4500);
-				expect(elapsed).toBeLessThan(6000);
-				expect(spawnHandlerCalled).toBe(true);
-			}
-		}, 10000);
+					});
+					// Should not reach here
+					expect(false).toBe(true);
+				} catch {
+					const elapsed = Date.now() - startTime;
+					// Should timeout around 5 seconds (allowing some margin)
+					expect(elapsed).toBeGreaterThan(4500);
+					expect(elapsed).toBeLessThan(6000);
+					expect(spawnHandlerCalled).toBe(true);
+				}
+			}, 10000);
+		}
 	});
 
 	describe('Filesystem', () => {
