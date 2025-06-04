@@ -1,4 +1,4 @@
-import { concatUint8Arrays } from './utils';
+import { concatUint8Arrays } from '@php-wasm/util';
 
 /**
  * Generates an X.509 certificate from the given description.
