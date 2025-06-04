@@ -1354,8 +1354,6 @@ static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
 	return count_bytes;
 }
 
-// === FILE UPLOADS SUPPORT ===
-
 /**
  * Function: wasm_sapi_module_startup
  * ----------------------------

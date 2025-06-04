@@ -1,7 +1,7 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import type { PHPResponse } from './php-response';
+import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	PHPRequest,
 	PHPRunOptions,
@@ -39,6 +39,8 @@ export type LimitedPHPApi = Pick<
 	| 'fileExists'
 	| 'chdir'
 	| 'run'
+	| 'runStream'
+	| 'cli'
 	| 'onMessage'
 > & {
 	documentRoot: PHP['documentRoot'];
@@ -167,6 +169,22 @@ export class PHPWorker implements LimitedPHPApi {
 			reap();
 		}
 	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.runStream */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		const response = await php.runStream(request);
+		response.finished.finally(reap);
+		return response;
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.cli */
+	async cli(): Promise<StreamedPHPResponse> {
+		throw new Error('php.cli() is not yet supported in web browsers');
+	}
+
 
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
 	chdir(path: string): void {
