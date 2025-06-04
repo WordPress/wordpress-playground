@@ -8326,7 +8326,7 @@ export function init(RuntimeName, PHPLoader) {
 						polls.push(PHPWASM.awaitConnection(ws));
 						lookingFor.add('POLLOUT');
 					}
-					if (events & POLLHUP) {
+					if (events & POLLHUP || events & POLLIN || events & POLLOUT || events & POLLPRI) {
 						polls.push(PHPWASM.awaitClose(ws));
 						lookingFor.add('POLLHUP');
 					}

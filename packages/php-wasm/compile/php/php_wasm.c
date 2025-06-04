@@ -147,15 +147,12 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 
     return returnCallback((wakeUp) => {
         const polls = [];
-        if (socketd in PHPWASM.child_proc_by_fd) {
-            // This is a child process-related socket.
-            const procInfo = PHPWASM.child_proc_by_fd[socketd];
-            if (procInfo.exited) {
-                wakeUp(0);
-                return;
-            }
-            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-        } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+        /**
+         * Check for socket-ness first. We don't clean up child_proc_by_fd yet and
+         * sometimes get duplicate entries. isSocket is more reliable out of the two –
+         * let's check for it first.
+         */
+        if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {
@@ -184,23 +181,38 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
                 return;
             }
             for (const ws of webSockets) {
-                if (events & POLLIN || events & POLLPRI) {
-                    polls.push(PHPWASM.awaitData(ws));
-                    lookingFor.add('POLLIN');
-                }
-                if (events & POLLOUT) {
-                    polls.push(PHPWASM.awaitConnection(ws));
-                    lookingFor.add('POLLOUT');
-                }
-                if (events & POLLHUP) {
-                    polls.push(PHPWASM.awaitClose(ws));
-                    lookingFor.add('POLLHUP');
-                }
-                if (events & POLLERR || events & POLLNVAL) {
-                    polls.push(PHPWASM.awaitError(ws));
-                    lookingFor.add('POLLERR');
-                }
+				if (events & POLLIN || events & POLLPRI) {
+					polls.push(PHPWASM.awaitData(ws));
+					lookingFor.add('POLLIN');
+				}
+				if (events & POLLOUT) {
+					polls.push(PHPWASM.awaitConnection(ws));
+					lookingFor.add('POLLOUT');
+				}
+				// Notify the user the socket is now closed even if the only requested
+				// in or out events.
+				if (
+					events & POLLHUP ||
+					events & POLLIN ||
+					events & POLLOUT ||
+					events & POLLERR
+				) {
+					polls.push(PHPWASM.awaitClose(ws));
+					lookingFor.add('POLLHUP');
+				}
+				if (events & POLLERR || events & POLLNVAL) {
+					polls.push(PHPWASM.awaitError(ws));
+					lookingFor.add('POLLERR');
+				}
             }
+        } else if (socketd in PHPWASM.child_proc_by_fd) {
+            // This is a child process-related socket.
+            const procInfo = PHPWASM.child_proc_by_fd[socketd];
+            if (procInfo.exited) {
+                wakeUp(0);
+                return;
+            }
+            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
         } else {
 			setTimeout(function () {
 				wakeUp(1);
