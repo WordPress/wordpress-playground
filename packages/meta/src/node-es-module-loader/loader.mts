@@ -179,7 +179,8 @@ export async function load(
 			// Let's try simple text replacement for now. It is fast and will probably be fine.
 			// If we run into problems, we can consider an AST transform instead.
 			const updatedSource = source.replace(
-				/(?<!const|var|let)\s*\b__(dirname|filename)/g,
+				// Replace __dirname and __filename but not if they are declarations.
+				/(?<!(?:const|var|let)\s*)\b__(dirname|filename)/g,
 				'import.meta.$1'
 			);
 			loadResult.source = Buffer.from(updatedSource, 'utf8');
