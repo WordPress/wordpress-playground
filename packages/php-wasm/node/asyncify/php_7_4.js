@@ -3,26 +3,12 @@
 // this code in Node.js as an ES module.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-import { fileURLToPath } from 'url';
-
-/**
- * __filename and __dirname are not available in ES modules, so we need to
- * polyfill them to ensure the debug command (npx nx debug playground-cli)
- * works.
- *
- * @see https://nodejs.org/api/esm.html#no-__filename-or-__dirname
- */
+// Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
-if (typeof __filename === 'undefined') {
-	var __filename = fileURLToPath(import.meta.url);
-}
-if (typeof __dirname === 'undefined') {
-	var __dirname = path.dirname(__filename);
-}
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 18674777;
+export const dependenciesTotalSize = 18674775;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
