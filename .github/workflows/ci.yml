@@ -251,6 +251,16 @@ jobs:
                   fi
                   npm run test
 
+    test-running-unbuilt-playground-cli:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: packages/playground/cli/src/test/test-running-unbuilt-cli.sh
+
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
