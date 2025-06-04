@@ -33,6 +33,7 @@ export class UnhandledRejectionsTarget extends EventTarget {
  *
  * @param runtime
  */
+let callnb = 0;
 export function improveWASMErrorReporting(runtime: Runtime) {
 	const target = new UnhandledRejectionsTarget();
 	for (const key in runtime.wasmExports) {
