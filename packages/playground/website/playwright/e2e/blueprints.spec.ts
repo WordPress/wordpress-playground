@@ -1,5 +1,5 @@
 import { test, expect } from '../playground-fixtures';
-import { Blueprint } from '@wp-playground/blueprints';
+import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
 test('Base64-encoded Blueprints should work', async ({
@@ -14,6 +14,69 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('?blueprint-url=... should work with simple blueprints', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should accept data URLs', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const blueprintUrl = encodeURIComponent(
+		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should work with ZIP bundles', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should work with JSON blueprints referring bundled resources', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
@@ -432,15 +495,15 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 	await expect(wordpress.locator('body')).toContainText('General Settings');
 });
 
-['latest', 'nightly', 'beta'].forEach((version) => {
-	test(`should translate WP-admin to Spanish for the ${version} WordPress build`, async ({
+['latest', 'nightly', 'beta'].forEach((wpVersion) => {
+	test(`should translate WP-admin to Spanish for the ${wpVersion} WordPress build`, async ({
 		website,
 		wordpress,
 	}) => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/',
 			preferredVersions: {
-				wp: 'nightly',
+				wp: wpVersion,
 			},
 			steps: [{ step: 'setSiteLanguage', language: 'es_ES' }],
 		};

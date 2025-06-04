@@ -1,4 +1,4 @@
-import { EmscriptenOptions, PHPRuntime } from '@php-wasm/universal';
+import type { EmscriptenOptions, PHPRuntime } from '@php-wasm/universal';
 import { FSHelpers } from '@php-wasm/universal';
 
 export async function withICUData(

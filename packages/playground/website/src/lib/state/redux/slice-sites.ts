@@ -1,16 +1,13 @@
+import type { PayloadAction } from '@reduxjs/toolkit';
 import {
 	createSlice,
 	createEntityAdapter,
-	PayloadAction,
 	createSelector,
 } from '@reduxjs/toolkit';
-import { createSiteMetadata, SiteMetadata } from '../../site-metadata';
-import {
-	selectActiveSite,
-	PlaygroundDispatch,
-	PlaygroundReduxState,
-	setActiveSite,
-} from './store';
+import type { SiteMetadata } from '../../site-metadata';
+import { createSiteMetadata } from '../../site-metadata';
+import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { randomSiteName } from './random-site-name';
 
@@ -316,10 +313,12 @@ export const selectSitesLoaded = createSelector(
 			state.sites.opfsSitesLoadingState,
 		(state: { sites: ReturnType<typeof sitesSlice.reducer> }) =>
 			state.sites.firstTemporarySiteCreated,
+		(state) => selectActiveSite(state),
 	],
-	(opfsSitesLoadingState, firstTemporarySiteCreated) =>
+	(opfsSitesLoadingState, firstTemporarySiteCreated, activeSite) =>
 		['loaded', 'error'].includes(opfsSitesLoadingState) &&
-		firstTemporarySiteCreated
+		((activeSite && activeSite.metadata.storage !== 'none') ||
+			firstTemporarySiteCreated)
 );
 
 export default sitesSlice.reducer;

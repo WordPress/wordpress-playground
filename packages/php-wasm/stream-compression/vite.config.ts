@@ -50,8 +50,8 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
-		setupFiles: ['./src/test/vitest-setup-file.ts'],
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

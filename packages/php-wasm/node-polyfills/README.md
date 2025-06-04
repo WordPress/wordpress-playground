@@ -4,7 +4,7 @@ Polyfills JavaScript classes and methods required by WordPress Playground.
 
 Ensures compatibility with the following environments:
 
--   Node.js >= 18
+-   Node.js >= 20
 -   JSDom
 
 ## Building

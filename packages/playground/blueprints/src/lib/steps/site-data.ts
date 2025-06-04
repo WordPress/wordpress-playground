@@ -1,5 +1,5 @@
 import { phpVar } from '@php-wasm/util';
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 
 /**
  * @inheritDoc setSiteOptions

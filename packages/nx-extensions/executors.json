@@ -20,6 +20,11 @@
 			"implementation": "./src/executors/assert-built-esm-and-cjs/executor",
 			"schema": "./src/executors/assert-built-esm-and-cjs/schema.json",
 			"description": "assert-built-esm-and-cjs executor"
+		},
+		"package-for-self-hosting": {
+			"implementation": "./src/executors/package-for-self-hosting/executor",
+			"schema": "./src/executors/package-for-self-hosting/schema.json",
+			"description": "package-for-self-hosting executor"
 		}
 	}
 }

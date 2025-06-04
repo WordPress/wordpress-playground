@@ -74,7 +74,9 @@
 				"@typescript-eslint/no-empty-function": 0,
 				"@typescript-eslint/no-unused-vars": "error",
 				"no-constant-condition": 0,
-				"playground-dev/avoid-wordpress-builds-dependency": "error"
+				"playground-dev/avoid-wordpress-builds-dependency": "error",
+				// Node.js type stripping requires explicit type imports.
+				"@typescript-eslint/consistent-type-imports": "error"
 			}
 		},
 		{

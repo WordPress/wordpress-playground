@@ -29,7 +29,7 @@ Some more examples of this workflow:
 
 ## Synchronize your playground instance with a local folder and create Github Pull Requests
 
-![Storage Type Device Snapshot](../_assets/storage-type-device.png)
+![Storage Type Device Snaphsot](../_assets/storage-type-device.png)
 
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 

@@ -32,7 +32,7 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
 	export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-	EMCC_FLAGS="-fPIC $JSPI_FLAGS" emmake make; \
+	EMCC_FLAGS=" -D__x86_64__ -fPIC $JSPI_FLAGS" emmake make; \
 	emmake make install;
 
 RUN ls -R /root/install

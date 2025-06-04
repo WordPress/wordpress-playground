@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
+import type { PlaygroundClient } from '@wp-playground/client';
 import {
-	PlaygroundClient,
 	wpContentFilesExcludedFromExport,
 	zipWpContent,
 } from '@wp-playground/client';
@@ -10,10 +10,12 @@ import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
 import { staticAnalyzeGitHubURL } from '../analyze-github-url';
-import {
+import type {
 	Changeset,
 	FileEntry,
 	GithubClient,
+} from '@wp-playground/storage';
+import {
 	changeset,
 	createClient,
 	createCommit,
@@ -28,7 +30,7 @@ import {
 import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { ContentType } from '../import-from-github';
+import type { ContentType } from '../import-from-github';
 import { joinPaths } from '@php-wasm/util';
 import MultiplePathsInput from './multiple-paths-input';
 
@@ -102,7 +104,7 @@ export default function GitHubExportForm({
 					formValues.repoUrl
 				);
 				return { owner: owner!, repo: repo! };
-			} catch (e) {
+			} catch {
 				// Ignore
 			}
 		}
@@ -279,7 +281,7 @@ export default function GitHubExportForm({
 						defaultBranch,
 						toPathInRepo
 					));
-			} catch (e) {
+			} catch {
 				// ignore
 			}
 			const ghComparableFiles = filesListToObject(ghRawFiles);

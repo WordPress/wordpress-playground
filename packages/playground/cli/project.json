@@ -49,6 +49,34 @@
 				"tty": true
 			}
 		},
+		"dev-node": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"debug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {
@@ -63,28 +91,24 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/cli/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/cli/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["{workspaceRoot}/coverage/playground/cli"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
 				"passWithNoTests": true,
-				"reportsDirectory": "../../../coverage/packages/playground/cli",
-				"typecheck": {
-					"tsconfig": "{projectRoot}/tsconfig.spec.json"
-				}
-			},
-			"configurations": {
-				"ci": {
-					"ci": true,
-					"codeCoverage": true
-				}
+				"reportsDirectory": "../../../coverage/packages/playground/cli"
 			}
 		},
 		"typecheck": {

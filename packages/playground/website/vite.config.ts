@@ -20,9 +20,11 @@ import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
-import { addManifestJson } from '../../vite-extensions/vite-manifest';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 
 const proxy: CommonServerOptions['proxy'] = {
@@ -135,14 +137,6 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Add `manifest.json` file to the `dist/` directory when building.
-			 * While in development, modify the `manifest.json` file to use the local
-			 * server URL.
-			 */
-			addManifestJson({
-				manifestPath: path('./manifest.json'),
-			}) as Plugin,
-			/**
 			 * Generate a list of files needed for the website to function offline.
 			 */
 			listAssetsRequiredForOfflineMode({
@@ -219,8 +213,9 @@ export default defineConfig(({ command, mode }) => {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
 	};
 });

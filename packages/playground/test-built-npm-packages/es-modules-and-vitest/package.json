@@ -1,0 +1,25 @@
+{
+	"name": "test-wordpress-with-playground",
+	"version": "1.0.0",
+	"description": "",
+	"homepage": "https://github.com/bgrgicak/test-wordpress-with-playground#readme",
+	"bugs": {
+		"url": "https://github.com/bgrgicak/test-wordpress-with-playground/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bgrgicak/test-wordpress-with-playground.git"
+	},
+	"license": "ISC",
+	"author": "",
+	"type": "commonjs",
+	"main": "index.js",
+	"scripts": {
+		"test": "vitest"
+	},
+	"devDependencies": {
+		"@types/node": "^22.14.1",
+		"vitest": "^3.1.1",
+		"@wp-playground/cli": "https://wordpress-playground-packages.atomicsites.blog/packages/v1.0.36/@wp-playground-cli-1.0.36.tar.gz"
+	}
+}

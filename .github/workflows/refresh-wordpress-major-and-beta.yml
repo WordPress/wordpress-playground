@@ -20,7 +20,8 @@ jobs:
                 github.actor == 'dmsnell' ||
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl'
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes'
             )
 
         runs-on: ubuntu-latest
@@ -33,7 +34,7 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
                   submodules: true
             - name: 'Install bun'
               run: |
@@ -44,8 +45,7 @@ jobs:
               shell: bash
               env:
                   FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
-              run: |
-                  PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
+              run: PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
             - name: Check for uncommitted changes
               id: changes
               run: |
@@ -64,17 +64,18 @@ jobs:
                   sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Recompile WordPress major and beta versions"
                   git pull --rebase
                   # Push if the pull did not result in a conflict
                   if [ $? -eq 0 ]; then
-                      git push origin HEAD:trunk
+                      git push
                   fi;
             - name: Deploy website
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
               with:
-                  workflow: build-website.yml
+                  # TODO: Switch back to build-website.yml before merging to public repo
+                  #workflow: build-website.yml
+                  workflow: deploy-private-website.yml
                   token: ${{ secrets.GITHUB_TOKEN }}

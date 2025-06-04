@@ -1,19 +1,18 @@
 import * as fs from 'fs';
 import { createPackageJson } from '@nx/js';
+import type { ExecutorContext, ProjectGraphDependency } from '@nx/devkit';
 import {
-	ExecutorContext,
 	serializeJson,
 	logger,
 	parseTargetString,
 	runExecutor,
-	ProjectGraphDependency,
 } from '@nx/devkit';
 import {
 	getHelperDependenciesFromProjectGraph,
 	HelperDependency,
 	readTsConfig,
 } from '@nx/js';
-import { PackageJsonExecutorSchema } from './schema';
+import type { PackageJsonExecutorSchema } from './schema';
 
 interface ExecutorEvent {
 	outfile: string;

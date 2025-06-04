@@ -3,8 +3,18 @@ import '@php-wasm/node-polyfills';
 
 export * from './lib/steps';
 export * from './lib/steps/handlers';
-export { runBlueprintSteps, compileBlueprint } from './lib/compile';
-export type { Blueprint, PHPConstants } from './lib/blueprint';
+export {
+	isBlueprintBundle,
+	getBlueprintDeclaration,
+	runBlueprintSteps,
+	compileBlueprint,
+} from './lib/compile';
+export type {
+	Blueprint,
+	BlueprintDeclaration,
+	BlueprintBundle,
+	PHPConstants,
+} from './lib/blueprint';
 export type {
 	CompiledStep,
 	CompiledBlueprint,
@@ -31,6 +41,7 @@ export type {
 	VFSResource,
 } from './lib/resources';
 
+export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 
 /**

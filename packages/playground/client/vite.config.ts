@@ -11,6 +11,24 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
+function validateOrigin(origin: string) {
+	try {
+		const url = new URL(origin);
+		if (url.href === `${origin}/`) {
+			return true;
+		}
+	} catch {
+		// Let exceptions fall through to the error below
+	}
+
+	throw new Error(`Invalid origin: '${origin}'`);
+}
+
+const additionalRemoteOriginsModulePath = join(
+	__dirname,
+	'src/additional-remote-origins.ts'
+);
+
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/playground-client',
 	plugins: [
@@ -31,6 +49,32 @@ export default defineConfig({
 		// involve the remote-config virtual module, the bundler still needs to know
 		// what to do when it sees `import from "virtual:remote-config"`.
 		buildVersionPlugin('remote-config'),
+
+		// This plugin allows us to add additional remote origins during build.
+		// We could use a virtual module instead, but if we do, we'll need to
+		// add it to the vite config of every package that imports it, in order
+		// to load those packages in the vite dev server.
+		// By using this build transform, we only need to update this vite config.
+		{
+			name: 'replace-additional-remote-origins-during-build',
+			transform(code: string, id: string) {
+				if (id !== additionalRemoteOriginsModulePath) {
+					return code;
+				}
+				if (!process.env['ADDITIONAL_REMOTE_ORIGINS']) {
+					return code;
+				}
+
+				const additionalRemoteOrigins = process.env[
+					'ADDITIONAL_REMOTE_ORIGINS'
+				]
+					.split(',')
+					.filter(validateOrigin);
+				return `export const additionalRemoteOrigins = ${JSON.stringify(
+					additionalRemoteOrigins
+				)};`;
+			},
+		},
 	],
 
 	// Configuration for building your library.
@@ -50,7 +94,8 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

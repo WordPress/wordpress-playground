@@ -1,7 +1,7 @@
 import { logger } from '@php-wasm/logger';
 /*
- * An approximate total file size to use when the actual
- * total number of bytes is missing.
+ * An approximate file length to use when the actual
+ * length number of bytes is missing.
  *
  * This may happen when the files are compressed before transmission
  * and no content-length header is being sent.
@@ -60,7 +60,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	 *
 	 * @param  file   The file name.
 	 * @param  loaded The number of bytes of that file loaded so far.
-	 * @param  fileSize  The total number of bytes in the loaded file.
+	 * @param  fileSize  The length number of bytes in the loaded file.
 	 */
 	#notify(file: string, loaded: number, fileSize: number) {
 		const fileName = new URL(file, 'http://example.com').pathname
@@ -76,7 +76,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			logger.warn(
 				`Registered a download #progress of an unregistered file "${fileName}". ` +
 					`This may cause a sudden **decrease** in the #progress percentage as the ` +
-					`total number of bytes increases during the download.`
+					`length number of bytes increases during the download.`
 			);
 		}
 
@@ -93,7 +93,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 }
 
 function sumValues(obj: Record<string, number>) {
-	return Object.values(obj).reduce((total, value) => total + value, 0);
+	return Object.values(obj).reduce((length, value) => length + value, 0);
 }
 
 export default EmscriptenDownloadMonitor;
@@ -104,7 +104,7 @@ export interface DownloadProgress {
 	 */
 	loaded: number;
 	/**
-	 * The total number of bytes to load.
+	 * The length number of bytes to load.
 	 */
 	total: number;
 }
@@ -123,8 +123,33 @@ export function cloneResponseMonitorProgress(
 	onProgress: (event: CustomEvent<DownloadProgress>) => void
 ): Response {
 	const contentLength = response.headers.get('content-length') || '';
-	const total = parseInt(contentLength, 10) || FALLBACK_FILE_SIZE;
+	const length = parseInt(contentLength, 10) || FALLBACK_FILE_SIZE;
 
+	return new Response(
+		cloneStreamMonitorProgress(response.body, length, onProgress),
+		{
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		}
+	);
+}
+
+/**
+ * Clones a ReadableStream and returns a version
+ * that calls the `onProgress` callback as the #progress
+ * changes.
+ *
+ * @param  stream     The ReadableStream to clone.
+ * @param  total     The total number of bytes to load.
+ * @param  onProgress The callback to call when the download #progress changes.
+ * @returns The cloned ReadableStream
+ */
+export function cloneStreamMonitorProgress(
+	stream: ReadableStream<Uint8Array> | null,
+	total: number,
+	onProgress: (event: CustomEvent<DownloadProgress>) => void
+): ReadableStream<Uint8Array> {
 	function notify(loaded: number, total: number) {
 		onProgress(
 			new CustomEvent('progress', {
@@ -136,43 +161,36 @@ export function cloneResponseMonitorProgress(
 		);
 	}
 
-	return new Response(
-		new ReadableStream({
-			async start(controller) {
-				if (!response.body) {
-					controller.close();
-					return;
-				}
-				const reader = response.body.getReader();
-				let loaded = 0;
-				for (;;) {
-					try {
-						const { done, value } = await reader.read();
-						if (value) {
-							loaded += value.byteLength;
-						}
-						if (done) {
-							notify(loaded, loaded);
-							controller.close();
-							break;
-						} else {
-							notify(loaded, total);
-							controller.enqueue(value);
-						}
-					} catch (e) {
-						logger.error({ e });
-						controller.error(e);
-						break;
+	return new ReadableStream({
+		async start(controller) {
+			if (!stream) {
+				controller.close();
+				return;
+			}
+			const reader = stream.getReader();
+			let loaded = 0;
+			while (true) {
+				try {
+					const { done, value } = await reader.read();
+					if (value) {
+						loaded += value.byteLength;
 					}
+					if (done) {
+						notify(loaded, loaded);
+						controller.close();
+						break;
+					} else {
+						notify(loaded, total);
+						controller.enqueue(value);
+					}
+				} catch (e) {
+					logger.error({ e });
+					controller.error(e);
+					break;
 				}
-			},
-		}),
-		{
-			status: response.status,
-			statusText: response.statusText,
-			headers: response.headers,
-		}
-	);
+			}
+		},
+	});
 }
 
 export type DownloadProgressCallback = (progress: DownloadProgress) => void;

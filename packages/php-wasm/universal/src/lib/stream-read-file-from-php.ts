@@ -1,4 +1,4 @@
-import { UniversalPHP } from './universal-php';
+import type { UniversalPHP } from './universal-php';
 
 /**
  * Reads a file from PHP filesystem using a stream.

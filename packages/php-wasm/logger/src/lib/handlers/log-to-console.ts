@@ -1,5 +1,6 @@
-import { LogHandler } from '../log-handlers';
-import { Log, prepareLogMessage } from '../logger';
+import type { LogHandler } from '../log-handlers';
+import type { Log } from '../logger';
+import { prepareLogMessage } from '../logger';
 
 /**
  * Log message to the console.

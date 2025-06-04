@@ -1,8 +1,10 @@
-import {
+import type {
 	GeneratedCertificate,
 	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+} from '@php-wasm/web';
+import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
@@ -12,9 +14,10 @@ import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
+	getSqliteDriverModuleDetails,
 	LatestMinifiedWordPressVersion,
+	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
-	sqliteDatabaseIntegrationModuleDetails,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
@@ -26,21 +29,18 @@ import {
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createMemoizedFetch } from '@wp-playground/common';
-import {
-	FilesystemOperation,
-	journalFSEvents,
-	replayFSJournal,
-} from '@php-wasm/fs-journal';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
-	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -69,6 +69,7 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	sqliteDriverVersion?: string;
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
@@ -165,6 +166,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		scope,
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
+		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion = '8.0',
 		sapiName = 'cli',
 		withNetworking = false,
@@ -212,12 +214,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				}
 			}
 
+			const sqliteDriverModuleDetails =
+				getSqliteDriverModuleDetails(sqliteDriverVersion);
 			downloadMonitor.expectAssets({
-				[sqliteDatabaseIntegrationModuleDetails.url]:
-					sqliteDatabaseIntegrationModuleDetails.size,
+				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
 			});
 			const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-				fetch(sqliteDatabaseIntegrationModuleDetails.url)
+				fetch(sqliteDriverModuleDetails.url)
 			);
 
 			const constants: Record<string, any> = shouldInstallWordPress
@@ -240,7 +243,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const phpIniEntries: Record<string, string> = {
-				'openssl.cafile': '/internal/ca-bundle.crt',
+				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			};
 			let CAroot: false | GeneratedCertificate = false;
 			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
@@ -345,7 +348,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 				phpIniEntries,
 				createFiles: {
-					'/internal/ca-bundle.crt': CAroot
+					'/internal/shared/ca-bundle.crt': CAroot
 						? certificateToPEM(CAroot.certificate)
 						: '',
 					'/internal/shared/mu-plugins': {
@@ -425,7 +428,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						res.text()
 					);
 					primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-				} catch (e) {
+				} catch {
 					logger.warn(
 						`Failed to fetch remote asset paths from ${listUrl}`
 					);

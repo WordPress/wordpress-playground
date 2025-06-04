@@ -1,7 +1,7 @@
 // import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
+import type { FileNotFoundGetActionCallback } from '@php-wasm/universal';
 import {
-	FileNotFoundGetActionCallback,
 	PHP,
 	PHPRequestHandler,
 	SupportedPHPVersions,

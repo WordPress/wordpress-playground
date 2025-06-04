@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { defineWpConfigConsts } from '@wp-playground/blueprints';
 
@@ -39,7 +39,7 @@ export async function setupFetchNetworkTransport(
 		try {
 			// PHP-WASM sends messages as strings, so we can't expect valid JSON.
 			envelope = JSON.parse(message);
-		} catch (e) {
+		} catch {
 			return '';
 		}
 		const { type, data } = envelope;
@@ -93,7 +93,7 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 			body: fetchMethod === 'GET' ? undefined : data.data,
 			credentials: 'omit',
 		});
-	} catch (e) {
+	} catch {
 		return new TextEncoder().encode(
 			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
 		);

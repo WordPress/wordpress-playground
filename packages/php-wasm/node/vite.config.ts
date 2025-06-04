@@ -46,11 +46,20 @@ export default defineConfig(function () {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			poolOptions: {
+				// This is needed to allow `--expose-gc` to be passed to the
+				// forked test process.
+				forks: {
+					execArgv: ['--expose-gc'],
+				},
+			},
+			environment: 'node',
+			reporters: ['default'],
 		},
 
 		define: {
 			TEST: JSON.stringify(true),
+			'process.env.PROTOCOL': JSON.stringify('http'),
 		},
 	};
 });

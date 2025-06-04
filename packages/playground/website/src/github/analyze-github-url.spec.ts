@@ -1,7 +1,5 @@
-import {
-	staticAnalyzeGitHubURL,
-	GitHubURLInformation,
-} from './analyze-github-url';
+import type { GitHubURLInformation } from './analyze-github-url';
+import { staticAnalyzeGitHubURL } from './analyze-github-url';
 
 describe('staticAnalyzeGitHubURL', () => {
 	it('should return correct GitHubURLInformation for a repo URL', () => {

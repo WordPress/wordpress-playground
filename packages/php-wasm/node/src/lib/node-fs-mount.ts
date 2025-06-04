@@ -1,4 +1,4 @@
-import { MountHandler } from '@php-wasm/universal';
+import type { MountHandler } from '@php-wasm/universal';
 
 export function createNodeFsMountHandler(localPath: string): MountHandler {
 	return async function (php, FS, vfsMountPoint) {

@@ -1,4 +1,4 @@
-FROM emscripten/emsdk:3.1.61 as emscripten
+FROM emscripten/emsdk:3.1.24 as emscripten
 SHELL ["/bin/bash", "-c"]
 WORKDIR /root
 

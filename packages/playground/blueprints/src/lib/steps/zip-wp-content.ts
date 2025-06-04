@@ -1,5 +1,5 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 
 interface ZipWpContentOptions {

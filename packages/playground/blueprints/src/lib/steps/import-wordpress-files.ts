@@ -1,7 +1,8 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
+import { ensureWpConfig } from '@wp-playground/wordpress';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
@@ -108,6 +109,9 @@ export const importWordPressFiles: StepHandler<
 
 	// Remove the directory where we unzipped the imported zip file.
 	await playground.rmdir(importPath);
+
+	// Ensure required constants are defined in wp-config.php.
+	await ensureWpConfig(playground, documentRoot);
 
 	// Adjust the site URL
 	await defineSiteUrl(playground, {

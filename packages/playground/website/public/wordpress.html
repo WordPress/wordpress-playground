@@ -213,9 +213,12 @@
 			}
 
 			// Redirect to the Playground site with the Blueprint to download and apply the PR
+			const blueprintSchemaUrl = new URL(
+				'blueprint-schema.json',
+				location.href
+			);
 			const blueprint = {
-				$schema:
-					'https://playground.wordpress.net/blueprint-schema.json',
+				$schema: blueprintSchemaUrl.href,
 				landingPage: urlParams.get('url') || '/wp-admin',
 				login: true,
 				preferredVersions: {

@@ -1,8 +1,8 @@
-import { ExecutorContext } from '@nx/devkit';
+import type { ExecutorContext } from '@nx/devkit';
 import { spawn } from 'child_process';
 import { mkdirSync, writeFileSync } from 'fs';
 import * as path from 'path';
-import { AssertBuiltEsmAndCjsExecutorSchema } from './schema';
+import type { AssertBuiltEsmAndCjsExecutorSchema } from './schema';
 
 /**
  * Test whether a module can be imported as both ESM and CJS.

@@ -49,13 +49,6 @@ You can install plugins and themes from the WordPress directory with only URL pa
 
 ## Showcase any plugin or theme
 
-Looking for plugins or themes to try?
-
-Browse the official directories to discover plugin and theme and their slugs.
-
--   [WordPress Plugin Directory](https://wordpress.org/plugins/)
--   [WordPress Theme Directory](https://wordpress.org/themes/)
-
 What if your plugin is not in the WordPress directory?
 
 You can still showcase it on Playground by using [JSON Blueprints](/blueprints). For example, this Blueprint would download and install a plugin and a theme from your website and also import some starter content:
@@ -206,4 +199,4 @@ The JavaScript API provides the `run()` method which you can use to run PHP code
 </script>
 ```
 
-Combine that with a code editor like Monaco or CodeMirror, and you'll get live code snippets like in [this article](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/)!
+Combine that with a code editor like Monako or CodeMirror, and you'll get live code snippets like in [this article](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/)!

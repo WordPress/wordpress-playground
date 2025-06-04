@@ -8,9 +8,18 @@ import {
 	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
-import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import {
+	existsSync,
+	rmSync,
+	readFileSync,
+	mkdirSync,
+	writeFileSync,
+	statfsSync,
+	mkdtempSync,
+} from 'fs';
+import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { tmpdir } from 'os';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -82,7 +91,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		// Clean up
 		try {
 			php.exit(0);
-		} catch (e) {
+		} catch {
 			// ignore exit-related exceptions
 		}
 	});
@@ -172,6 +181,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(result.text).toEqual('bool(false)\n');
 		});
+		it('checkdnsrr should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(checkdnsrr('w.org', 2));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
 		it('dns_get_record should exist and be possible to run', async () => {
 			const result = await php.run({
 				code: `<?php
@@ -195,6 +212,47 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(result.text).toEqual('bool(false)\n');
+		});
+	});
+
+	describe('dns constants', () => {
+		it('DNS_* constants should exist', async () => {
+			const result = await php.run({
+				code: `<?php echo json_encode(array(
+					'DNS_A' => DNS_A,
+					'DNS_NS' => DNS_NS,
+					'DNS_CNAME' => DNS_CNAME,
+					'DNS_SOA' => DNS_SOA,
+					'DNS_PTR' => DNS_PTR,
+					'DNS_HINFO' => DNS_HINFO,
+					'DNS_CAA' => DNS_CAA,
+					'DNS_MX' => DNS_MX,
+					'DNS_TXT' => DNS_TXT,
+					'DNS_SRV' => DNS_SRV,
+					'DNS_NAPTR' => DNS_NAPTR,
+					'DNS_AAAA' => DNS_AAAA,
+					'DNS_A6' => DNS_A6,
+					'DNS_ANY' => DNS_ANY,
+					'DNS_ALL' => DNS_ALL,
+				));`,
+			});
+			expect(result.json).toEqual({
+				DNS_A: 1,
+				DNS_NS: 2,
+				DNS_CNAME: 16,
+				DNS_SOA: 32,
+				DNS_PTR: 2048,
+				DNS_HINFO: 4096,
+				DNS_CAA: 8192,
+				DNS_MX: 16384,
+				DNS_TXT: 32768,
+				DNS_SRV: 33554432,
+				DNS_NAPTR: 67108864,
+				DNS_AAAA: 134217728,
+				DNS_A6: 16777216,
+				DNS_ANY: 268435456,
+				DNS_ALL: 251721779,
+			});
 		});
 	});
 
@@ -312,7 +370,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		// This test fails on older PHP versions
-		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
+		if (!['7.2', '7.3'].includes(phpVersion)) {
 			it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
 				const result = await php.run({
 					code: `<?php
@@ -482,7 +540,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					stdin: {
 						write: () => {},
 					},
-					on: (evt: string, callback: Function) => {
+					on: (evt: string, callback: () => void) => {
 						if (evt === 'spawn') {
 							callback();
 						}
@@ -627,7 +685,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		// This test fails on older PHP versions
-		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
+		if (!['7.2', '7.3'].includes(phpVersion)) {
 			it('Gives access to command and arguments when array type is used in proc_open', async () => {
 				let command = '';
 				let args: string[] = [];
@@ -644,7 +702,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 						stdin: {
 							write: () => {},
 						},
-						on: (evt: string, callback: Function) => {
+						on: (evt: string, callback: () => void) => {
 							if (evt === 'spawn') {
 								callback();
 							}
@@ -916,6 +974,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(
 				php.readFileAsText('/tmp/tmp-dir-for-mv-test/test.txt')
 			).toEqual('contents');
+
+			rmSync(__dirname + '/test-data/mount-contents/a/b/test.txt', {
+				recursive: true,
+			});
 		});
 
 		it('mv() from MEMFS to NODEFS should work', () => {
@@ -1522,7 +1584,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				addr: number,
 				...args: any
 			) {
-				const retval = free.call(this, name, ...args);
+				const retval = free.call(this, ...args);
 				if (addr === bodyPtr) {
 					php[__private__dont__use].HEAPU8.fill(
 						0,
@@ -1771,6 +1833,17 @@ bar1
 			);
 			expect($_SERVER).toHaveProperty('HTTP_X_IS_AJAX', 'true');
 			expect($_SERVER).toHaveProperty('SERVER_PORT', '1235');
+			expect($_SERVER).toHaveProperty('QUERY_STRING', 'a=b');
+		});
+
+		it('Should have an empty QUERY_STRING when the URI has no query string', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode($_SERVER);`,
+				relativeUri: '/test.php',
+			});
+			const bodyText = new TextDecoder().decode(response.bytes);
+			const $_SERVER = JSON.parse(bodyText);
+			expect($_SERVER).toHaveProperty('QUERY_STRING', '');
 		});
 	});
 
@@ -1846,15 +1919,90 @@ bar1
 					mb_regex_encoding('UTF-8');
 				?>`,
 			});
-			// We don't support mbregex in PHP 7.0
-			if (phpVersion === '7.0') {
-				await expect(promise).rejects.toThrow(
-					'Call to undefined function mb_regex_encoding'
-				);
-			} else {
-				const response = await promise;
-				expect(response.errors).toBe('');
-			}
+			const response = await promise;
+			expect(response.errors).toBe('');
+		});
+	});
+
+	describe('64 bit integer support', () => {
+		it('Should be able to use 64 bit integers', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode(9223372036854775807);`,
+			});
+			expect(response.text).toEqual('9223372036854775807');
+		});
+
+		it('Should handle strtotime() correctly', async () => {
+			const response = await php.run({
+				code: `<?php
+				$timestamp = strtotime('2040-01-19 03:14:07');
+				echo json_encode([
+					'value' => $timestamp,
+					'type' => gettype($timestamp),
+				]);`,
+			});
+			const result = JSON.parse(response.text);
+			expect(result.value).toEqual(2210555647);
+			expect(result.type).toBe('integer');
+		});
+
+		it('Should handle adding 64 bit integers', async () => {
+			const response = await php.run({
+				code: `<?php
+				$product = 4611686018427387000 + 4611686018427387000;
+				echo json_encode([
+					'value' => $product,
+					'type' => gettype($product),
+				]);
+				`,
+			});
+			const result = JSON.parse(response.text);
+			expect(result.value + '').toEqual('9223372036854774000');
+			expect(result.type).toEqual('integer');
+		});
+
+		it('Should handle multiplying 64 bit integers', async () => {
+			const response = await php.run({
+				code: `<?php
+				$product = 2 * 4611686018427387000;
+				echo json_encode([
+					'value' => $product,
+					'type' => gettype($product),
+				]);
+				`,
+			});
+			const result = JSON.parse(response.text);
+			expect(result.value + '').toEqual('9223372036854774000');
+			expect(result.type).toEqual('integer');
+		});
+
+		it('Should handle large integer division', async () => {
+			const response = await php.run({
+				code: `<?php
+				$division = intdiv(9223372036854774000, 2);
+				echo json_encode([
+					'value' => $division,
+					'type' => gettype($division),
+				]);`,
+			});
+			const result = JSON.parse(response.text);
+			expect(result.value + '').toEqual('4611686018427387000');
+			expect(result.type).toEqual('integer');
+		});
+
+		it('Should handle PHP_MAX_INT', async () => {
+			const response = await php.run({
+				code: `<?php
+			$maxInt = PHP_INT_MAX;
+			echo json_encode([
+				'value' => $maxInt,
+				'type' => gettype($maxInt),
+			]);
+			`,
+			});
+			const result = JSON.parse(response.text);
+			expect(result.value + '').toEqual('9223372036854776000');
+			expect(result.type).toEqual('integer');
 		});
 	});
 
@@ -1875,23 +2023,80 @@ bar1
 	});
 
 	/**
-	 * intl support
+	 *  exif support
 	 */
-	if (!['7.0', '7.1'].includes(phpVersion)) {
-		describe('intl extension support', () => {
-			it('Should be able to use intl functions', async () => {
-				const response = await php.run({
-					code: `<?php
-						$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
-						echo $formatter->format(100.00);
-						$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
-						echo $formatter->format(100.00);
-					?>`,
-				});
-				expect(response.text).toEqual('$100.00100,00\xA0€');
+	describe('exif extension support', () => {
+		beforeEach(async () => {
+			await php.writeFile(
+				'/image.jpg',
+				new Uint8Array(
+					readFileSync(joinPaths(__dirname, 'test-data', 'image.jpg'))
+				)
+			);
+		});
+		it('should return correct image type using exif_imagetype', async () => {
+			const response = await php.run({
+				code: `<?php echo exif_imagetype('/image.jpg');`,
+			});
+			expect(response.errors).toBe('');
+			expect(response.text).toBe('2');
+		});
+		it('should be able to use exif_read_data', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode(exif_read_data('/image.jpg'));`,
+			});
+			expect(response.errors).toBe('');
+			expect(response.json).toMatchObject({
+				FileName: 'image.jpg',
+				FileDateTime: expect.any(Number),
+				FileSize: 1241,
+				FileType: 2,
+				MimeType: 'image/jpeg',
+				SectionsFound: 'COMMENT',
+				COMPUTED: {
+					html: 'width="30" height="30"',
+					Height: 30,
+					Width: 30,
+					IsColor: 1,
+				},
+				COMMENT: ['Created with GIMP'],
 			});
 		});
-	}
+		it('should be able to use exif_tagname ', async () => {
+			const response = await php.run({
+				code: `<?php echo exif_tagname(256);`,
+			});
+			expect(response.errors).toBe('');
+			expect(response.text).toBe('ImageWidth');
+		});
+		it('should be able to use exif_thumbnail', async () => {
+			const response = await php.run({
+				code: `<?php
+				var_dump(exif_thumbnail('/image.jpg'));
+				`,
+			});
+			expect(response.errors).toBe('');
+			// TODO: we could improve this by providing an image with a valid thumbnail
+			expect(response.text).toBe('bool(false)\n');
+		});
+	});
+
+	/**
+	 * intl support
+	 */
+	describe('intl extension support', () => {
+		it('Should be able to use intl functions', async () => {
+			const response = await php.run({
+				code: `<?php
+					$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
+					echo $formatter->format(100.00);
+					$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
+					echo $formatter->format(100.00);
+				?>`,
+			});
+			expect(response.text).toEqual('$100.00100,00\xA0€');
+		});
+	});
 
 	describe('onMessage', () => {
 		it('should pass messages to JS', async () => {
@@ -1975,6 +2180,51 @@ bar1
 				code: `<?php header('Location: /(?P<id>[\\d]+)');`,
 			});
 			expect(out.headers['location'][0]).toEqual('/(?P<id>[\\d]+)');
+		});
+	});
+
+	describe('Disk space', () => {
+		it('should return the correct total disk space', async () => {
+			const response = await php.run({
+				code: `<?php echo disk_total_space('/');`,
+			});
+			const expectedStatfs = statfsSync('/');
+			const expectedTotalDiskSpace =
+				expectedStatfs.blocks * expectedStatfs.bsize;
+			expect(response.text).toBe(expectedTotalDiskSpace.toString());
+		});
+
+		it('should return the correct free disk space', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode(disk_free_space('/'));`,
+			});
+			const expectedStatfs = statfsSync('/');
+			const expectedFreeDiskSpace =
+				expectedStatfs.bavail * expectedStatfs.bsize;
+			expect(response.text).toBe(expectedFreeDiskSpace.toString());
+		});
+
+		it('should return a hardcoded value from MEMFS for a file created in MEMFS', async () => {
+			php.writeFile('/test.txt', new Uint8Array(1024));
+			const response = await php.run({
+				code: `<?php echo json_encode(disk_total_space('/test.txt'));`,
+			});
+			expect(response.text).toBe('4096000000');
+		});
+
+		it('should return the correct total disk space when passing a subdirectory', async () => {
+			const tempDir = mkdtempSync(joinPaths(tmpdir(), 'php-wasm-test-'));
+			const filePath = joinPaths(tempDir, 'test.txt');
+			writeFileSync(filePath, new Uint8Array(1024));
+			php.mount('/tmp', createNodeFsMountHandler(tempDir));
+
+			const response = await php.run({
+				code: `<?php echo json_encode(disk_total_space('/tmp'));`,
+			});
+			const expectedStatfs = statfsSync('/');
+			const expectedTotalDiskSpace =
+				expectedStatfs.blocks * expectedStatfs.bsize;
+			expect(response.text).toBe(expectedTotalDiskSpace.toString());
 		});
 	});
 });

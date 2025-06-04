@@ -20,7 +20,7 @@ import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
 import { ReportError } from '../../toolbar-buttons/report-error';
 import { TemporarySiteNotice } from '../temporary-site-notice';
-import { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import {
 	setSiteManagerOpen,
 	setSiteManagerSection,

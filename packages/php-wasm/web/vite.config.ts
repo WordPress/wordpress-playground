@@ -113,7 +113,7 @@ export default defineConfig(({ command }) => {
 				entry: 'src/index.ts',
 				name: 'php-wasm-web',
 				fileName: 'index',
-				formats: ['es'],
+				formats: ['es', 'cjs'],
 			},
 			sourcemap: true,
 			rollupOptions: {
@@ -124,10 +124,6 @@ export default defineConfig(({ command }) => {
 					/icudt74l\.js$/,
 					...getExternalModules(),
 				],
-				output: {
-					// Ensure the PHP loaders are not hashed in the final build.
-					entryFileNames: '[name].js',
-				},
 			},
 		},
 
@@ -138,6 +134,7 @@ export default defineConfig(({ command }) => {
 			},
 			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
 	};
 });

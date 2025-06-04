@@ -25,7 +25,7 @@ WordPress Playground is an open-source project that welcomes all contributors—
 
 Want to help sort through open issues and resolve potential bugs? Here's how:
 
-1. Review the [list of open issues](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue) and find the ones that you can help with. Same goes for the [Playground Tools repository](https://github.com/WordPress/playground-tools/issues?q=is%3Aopen+is%3Aissue).
+1. Review the [list of open issues](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue) and find the ones that you can help with. Same goes for the [Plaground Tools repository](https://github.com/WordPress/playground-tools/issues?q=is%3Aopen+is%3Aissue).
 2. Read through the description and comments.
 3. If it's a bug you can reproduce, add a descriptive comment or a potential fix.
 4. Otherwise, add a comment with any additional information that may be helpful.

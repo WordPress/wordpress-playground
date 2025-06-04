@@ -42,6 +42,41 @@
 				}
 			}
 		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun --watch ./packages/php-wasm/cli/src/main.ts",
+				"tty": true
+			}
+		},
+		"dev-node": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/php-wasm/cli/src/main.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"debug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/php-wasm/cli/src/main.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {
@@ -56,19 +91,27 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/cli/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/cli/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/cli"],
 			"options": {
-				"jestConfig": "packages/php-wasm/cli/jest.config.ts",
-				"passWithNoTests": true
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/cli",
+				"typecheck": {
+					"tsconfig": "{projectRoot}/tsconfig.spec.json"
+				}
 			},
 			"configurations": {
 				"ci": {

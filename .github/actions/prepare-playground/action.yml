@@ -5,7 +5,7 @@ inputs:
         type: string
         required: true
         description: 'Node.js version to use'
-        default: '18'
+        default: '20'
 
 runs:
     using: 'composite'
@@ -24,7 +24,7 @@ runs:
           with:
               # caching node_modules
               path: node_modules
-              key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
+              key: ${{ runner.os }}-${{ runner.arch }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
               restore-keys: |
                   ${{ runner.os }}-build-${{ env.cache-name }}-
                   ${{ runner.os }}-build-
@@ -39,3 +39,6 @@ runs:
         - name: Set NX_HEAD
           shell: bash
           run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        - name: Reset NX cache
+          shell: bash
+          run: npx nx reset

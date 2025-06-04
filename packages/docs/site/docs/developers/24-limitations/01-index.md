@@ -14,11 +14,6 @@ You can track the status of these issues on the [Playground Project board](https
 
 Playground [disables network connections](/blueprints/data-format#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](/developers/apis/query-api#available-options) or [Blueprints API](/blueprints/troubleshoot-and-debug#review-common-gotchas).
 
-To find plugins and themes and their slugs, browse the official WordPress directories outside of Playground.
-
--   [WordPress Plugin Directory](https://wordpress.org/plugins/)
--   [WordPress Theme Directory](https://wordpress.org/themes/)
-
 ### Temporary by design
 
 As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Playground Manager" menu on the top left of the site.
@@ -48,7 +43,7 @@ Also, JavaScript popups originating in the `iframe` may not always display.
 
 ### Run WordPress PHP functions
 
-Playground supports running PHP code in Blueprints using the [`runPHP` step](blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
 ```json
 {

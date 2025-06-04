@@ -50,13 +50,13 @@ For example for `es` (Spanish) there's a `packages/docs/site/i18n/es/docusaurus-
 
 Under `docusaurus-plugin-content-docs/current` the same structure of files of the original docs (same structure of files than under `packages/docs/site/docs`) should be replicated.
 
-For example for `es` (Spanish) the following translated files exists: `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`
+For example for `es` (Spanish) the folllowing translated files exists: `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`
 
 If a file is not available under a language's folder the original file in the default language will be loaded
 
 When a new language is added (see PR [#1807](https://github.com/WordPress/wordpress-playground/pull/1807)) you can run `npm run write-translations -- --locale <%LANGUAGE%>` from `packages/docs/site` to generate the JSON files with messages that can be translated to a specific language.
 
-With the proper i18n `docusaurus.config.js` configuration and files under `i18n` when running `npm run build:docs` from the root of the project specific folders under `dist` for each language will be created.
+With the proper i18n `docusaurus.config.js` configuration and files under `i18n` when running `npm run build:docs` from the root of the project especific folders under `dist` for each language will be created.
 
 ## How to locally test a language
 
@@ -73,7 +73,7 @@ npm run dev -- --locale es
 
 ## Language Switcher - UI element to change language
 
-The "Language Switcher" is a UI element provided by docusaurus (the docs engine behind Playground Docs) that allows user to change the language of a specific page.
+The "Language Switcher" is a UI element provided by docusuarus (the docs engine behind Playground Docs) that allows user to change the language of a specific page.
 
 To give more visibility to a translated version the language switcher can be displayed by adding the following lines at `docusaurus.config.js`
 
@@ -109,7 +109,7 @@ These language versions of the docs should be hidden on the language switcher hi
 
 Even if the language switcher doesn't display a specific language, work on adding translated pages can still progress, as the translated pages will become publicly available once the PRs containing the translated files are merged.
 
-Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher
+Asumming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher
 
 ```
   {

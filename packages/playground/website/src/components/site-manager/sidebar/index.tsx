@@ -21,7 +21,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/state/redux/store';
-import { SiteLogo } from '../../../lib/site-metadata';
+import type { SiteLogo } from '../../../lib/site-metadata';
 import {
 	selectSortedSites,
 	selectTemporarySite,

@@ -15,7 +15,7 @@ Read more about this at [How to use WordPress Playground for interactive demos](
 
 Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
 
-The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
+The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it direclty in a Playground instance.
 
 <iframe width="800" src="https://www.youtube.com/embed/lQzozsoJ3aY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 

@@ -5,19 +5,25 @@ import { collectBytes } from './collect-bytes';
  * loaded into memory.
  */
 export class StreamedFile extends File {
+	readonly filesize: number | undefined;
+
+	private readableStream: ReadableStream<Uint8Array>;
+
 	/**
 	 * Creates a new StreamedFile instance.
 	 *
 	 * @param readableStream The readable stream containing the file data.
 	 * @param name The name of the file.
-	 * @param type The MIME type of the file.
+	 * @param options An object containing options such as the MIME type and file size.
 	 */
 	constructor(
-		private readableStream: ReadableStream<Uint8Array>,
+		readableStream: ReadableStream<Uint8Array>,
 		name: string,
-		type?: string
+		options?: { type?: string; filesize?: number }
 	) {
-		super([], name, { type });
+		super([], name, { type: options?.type });
+		this.readableStream = readableStream;
+		this.filesize = options?.filesize;
 	}
 
 	/**

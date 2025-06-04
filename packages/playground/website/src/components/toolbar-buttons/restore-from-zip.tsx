@@ -1,11 +1,15 @@
 import { MenuItem } from '@wordpress/components';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
 import { modalSlugs } from '../layout';
 
 type Props = { text?: string; onClose: () => void; disabled: boolean };
-export function RestoreFromZipMenuItem({ text = 'Restore from .zip', onClose, disabled }: Props) {
+export function RestoreFromZipMenuItem({
+	text = 'Restore from .zip',
+	onClose,
+	disabled,
+}: Props) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 
 	return (
@@ -20,7 +24,7 @@ export function RestoreFromZipMenuItem({ text = 'Restore from .zip', onClose, di
 			}}
 			disabled={disabled}
 		>
-			{ text }
+			{text}
 		</MenuItem>
 	);
 }

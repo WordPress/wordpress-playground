@@ -53,11 +53,12 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		setupFiles: ['./src/vitest-setup-file.ts'],
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
+		setupFiles: ['./src/vitest-setup-file.ts'],
 	},
 });

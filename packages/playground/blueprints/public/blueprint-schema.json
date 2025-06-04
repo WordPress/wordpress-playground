@@ -1,8 +1,8 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$ref": "#/definitions/Blueprint",
+	"$ref": "#/definitions/BlueprintDeclaration",
 	"definitions": {
-		"Blueprint": {
+		"BlueprintDeclaration": {
 			"type": "object",
 			"properties": {
 				"landingPage": {
@@ -165,22 +165,12 @@
 					"type": "string"
 				}
 			},
-			"additionalProperties": false
+			"additionalProperties": false,
+			"description": "The Blueprint declaration, typically stored in a blueprint.json file."
 		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": [
-				"8.4",
-				"8.3",
-				"8.2",
-				"8.1",
-				"8.0",
-				"7.4",
-				"7.3",
-				"7.2",
-				"7.1",
-				"7.0"
-			]
+			"enum": ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4", "7.3", "7.2"]
 		},
 		"ExtraLibrary": {
 			"type": "string",
@@ -208,6 +198,9 @@
 				},
 				{
 					"$ref": "#/definitions/UrlReference"
+				},
+				{
+					"$ref": "#/definitions/BundledReference"
 				}
 			]
 		},
@@ -338,6 +331,22 @@
 				}
 			},
 			"required": ["resource", "url"],
+			"additionalProperties": false
+		},
+		"BundledReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "bundled",
+					"description": "Identifies the file resource as a Blueprint file"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the file in the Blueprint"
+				}
+			},
+			"required": ["resource", "path"],
 			"additionalProperties": false
 		},
 		"StepDefinition": {
@@ -553,7 +562,7 @@
 						},
 						"importer": {
 							"type": "string",
-							"enum": ["data-liberation", "default"],
+							"enum": ["default"],
 							"description": "The importer to use. Possible values:\n\n- `default`: The importer from https://github.com/humanmade/WordPress-Importer\n- `data-liberation`: The experimental Data Liberation WXR importer developed at                      https://github.com/WordPress/wordpress-playground/issues/1894\n\nThis option is deprecated. The syntax will not be removed, but once the Data Liberation importer matures, it will become the only supported importer and the `importer` option will be ignored.",
 							"deprecated": true
 						}

@@ -1,8 +1,8 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
 import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
+import type { FileNotFoundGetActionCallback } from '@php-wasm/universal';
 import {
-	FileNotFoundGetActionCallback,
 	PHP,
 	PHPRequestHandler,
 	PHPResponse,
