@@ -87,6 +87,7 @@ async function build() {
 		assetNames: '[name]',
 		chunkNames: '[name]',
 		logOverride: {
+			'direct-eval': 'silent',
 			'commonjs-variable-in-esm': 'silent',
 		},
 		format: 'cjs',
@@ -118,6 +119,7 @@ const __filename = new URL(import.meta.url).pathname;
 		assetNames: '[name]',
 		chunkNames: '[name]',
 		logOverride: {
+			'direct-eval': 'silent',
 			'commonjs-variable-in-esm': 'silent',
 		},
 		packages: 'external',

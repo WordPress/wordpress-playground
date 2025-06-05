@@ -596,6 +596,37 @@ const LibraryExample = {
 	},
 
 	/**
+	 * Shims recv(2) functionallity for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/recv.2.html
+	 *
+	 * @param {int} sockfd Socket descriptor
+	 * @param {int} buffer Pointer to the stored message buffer
+	 * @param {int} size The maximum bytes to receive
+	 * @param {int} flags Flags to modify the behavior to recv call
+	 * @returns {Promise} Resolved with the number of bytes recieved
+	 */
+	wasm_recv : function (
+		sockfd,
+		buffer,
+		size,
+		flags
+	) {
+		return Asyncify.handleSleep((wakeUp) => {
+			const poll = function() {
+				let newl = ___syscall_recvfrom(sockfd, buffer, size, flags, null, null);
+				if(newl > 0) {
+					wakeUp(newl);
+				} else if ( newl === -6 ) {
+					setTimeout(poll, 20);
+				} else {
+					throw new Error("Socket connection error");
+				}
+			};
+			poll();
+		});
+	},
+
+	/**
 	 * Shims setsockopt(2) functionallity for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
 	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.

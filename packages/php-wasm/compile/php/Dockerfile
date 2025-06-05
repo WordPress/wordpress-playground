@@ -12,8 +12,8 @@ ARG PHP_VERSION
 
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
-	--branch PHP-$PHP_VERSION   \
-	--single-branch          \
+	--branch PHP-$PHP_VERSION \
+	--single-branch \
 	--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
@@ -96,7 +96,6 @@ ARG EMSCRIPTEN_ENVIRONMENT=web
 RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.emcc-php-wasm-sources && \
-	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.EXPORTED_FUNCTIONS
 
 # Grab Bison 2.7 patch in case we need it
@@ -134,8 +133,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             cp -r /libs/libzip/1.2.0/* /root/lib; \
 			# https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
 			echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
-			echo -n ' -I /root/lib -I /root/lib ' >> /root/.emcc-php-wasm-flags; \
-			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
 			cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
 			cp /root/lib/lib/libzip/include/zipconf.h /root/lib/include; \
 			echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
@@ -143,9 +141,8 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 		else \
             cp -r /libs/libzip/1.9.2/* /root/lib; \
 			# https://www.php.net/manual/en/zlib.installation.php
-			echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip' >> /root/.php-configure-flags; \
-			echo -n ' -I /root/lib -I /root/lib' >> /root/.emcc-php-wasm-flags; \
-			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+			echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
+			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
 		fi && \
 		/root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 		/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
@@ -162,6 +159,8 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 		echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
 		echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags && \
 		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
+		# Avoid a symbol conflict between php_cli.c and php_embed.c
+		/root/replace.sh 's/\bHARDCODED_INI\b/HARDCODED_EMBED_INI/g' /root/php-src/sapi/embed/php_embed.c \
 	else \
 		echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
 	fi;
@@ -170,9 +169,8 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
 	then \
 		set -euxo pipefail;\
-		echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlreader --enable-xmlwriter' >> /root/.php-configure-flags && \
-		echo -n ' -I /root/lib -I /root/lib/include/libxml2 -lxml2' >> /root/.emcc-php-wasm-flags && \
-		echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources && \
+		echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlreader --enable-xmlwriter ' >> /root/.php-configure-flags && \
+		echo -n ' /root/lib/lib/libxml2.a ' >> /root/.emcc-php-wasm-sources && \
 		# Libxml check is wrong in PHP < 7.4.0.
 		# In the regular cc it's just a warning, but in the emscripten's emcc that's an error:
 		perl -pi.bak -e 's/char xmlInitParser/void xmlInitParser/g' /root/php-src/configure; \
@@ -188,9 +186,13 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	then \
 		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags && \
-		echo -n ' -I ext/pdo_sqlite ' >> /root/.emcc-php-wasm-flags; \
-		echo -n ' -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
-	fi;
+		if [[ "${PHP_VERSION:0:1}" -ge 8 ]] || [ "${PHP_VERSION:0:3}" == "7.4" ]; then \
+			# PHP bundled its own sqlite3 library in PHP 7.4 and later.
+			echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
+	else \
+		echo -n ' --without-sqlite3 --disable-pdo ' >> /root/.php-configure-flags; \
+	fi
 
 # Add GD if needed
 RUN if [ "$WITH_GD" = "yes" ]; \
@@ -201,7 +203,7 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 		else \
 			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		fi; \
-		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -lsharpyuv -ljpeg ' >> /root/.emcc-php-wasm-flags; \
+		echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
 	fi;
 
 # Add openssl if needed
@@ -209,7 +211,7 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 	then \
 		cp -r /libs/libopenssl/* /root/lib; \
 		echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
-		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
+		echo -n ' /root/lib/lib/libcrypto.a /root/lib/lib/libssl.a ' >> /root/.emcc-php-wasm-sources; \
 	fi;
 
 # Remove fileinfo if needed
@@ -277,7 +279,7 @@ RUN if [ "$WITH_INTL" = "yes" ]; \
 	then \
 		if [ "${PHP_VERSION:0:1}" -eq "8" ] || [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "2" ]]; then \
 			echo -n ' --enable-intl ' >> /root/.php-configure-flags; \
-			echo -n ' -licuuc -licudata -licui18n -licuio ' >> /root/.emcc-php-wasm-flags; \
+			echo -n ' /root/lib/lib/libicudata.a /root/lib/lib/libicui18n.a /root/lib/lib/libicuio.a /root/lib/lib/libicutest.a /root/lib/lib/libicutu.a /root/lib/lib/libicuuc.a ' >> /root/.emcc-php-wasm-sources; \
 
 			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
 				/root/replace.sh 's/UBool operator/bool operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.h; \
@@ -290,19 +292,13 @@ RUN if [ "$WITH_INTL" = "yes" ]; \
 				for file in "${files[@]}"; do /root/replace.sh 's/\bFALSE\b/false/g; s/\bTRUE\b/true/g' "$file"; done; \
 			fi; \
 		fi; \
-	fi;
+	fi
 
 # Add mbregex if needed
-# PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
 RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	then \
-		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
-		# PHP >= 8.0 and 7.4 use the system oniguruma library.
-		# PHP < 7.4 ship their own oniguruma library.
-		if [[ "${PHP_VERSION:0:1}" -ge "8" ]] || [ "${PHP_VERSION:0:3}" = "7.4" ]; then \
-			echo -n ' --with-onig=/root/lib ' >> /root/.php-configure-flags; \
-			echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
-		fi; \
+		echo -n ' --enable-mbregex --with-onig=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
 	else \
 		echo -n ' --disable-mbregex ' >> /root/.php-configure-flags; \
 	fi;
@@ -354,8 +350,8 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 	--disable-opcache  \
 	--disable-posix    \
 	--enable-hash      \
-	--enable-static=yes \
-	--enable-shared=no \
+	--enable-static    \
+	--enable-shared    \
 	--enable-session   \
 	--enable-filter    \
 	--enable-calendar  \
@@ -472,7 +468,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -licuuc -licudata -licui18n -licuio -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -516,17 +511,6 @@ RUN set -euxo pipefail; \
 		fi; \
 	fi;
 
-# PHP < 8.0 errors out with "null function or function signature mismatch"
-# unless EMULATE_FUNCTION_POINTER_CASTS is enabled. The error originates in
-# the rc_dtor_func which traces back to calling the zend_list_free function.
-# The signatures are the same on the face value, but the wasm runtime is not
-# happy somehow. This can probably be patched in PHP, but for now we just
-# enable the flag and pay the price of the additional overhead.
-# https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
-RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
-		echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
-	fi
-
 # Add ws networking proxy support if needed
 RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 	then \
@@ -555,7 +539,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 # are caused by dispatching a PHP request while an execution is paused
 # due to an async call – it means the same PHP files are loaded before
 # the previous request, where they're already loaded, is concluded.
-RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
+RUN export ASYNCIFY_IMPORTS=$'[\n\
 "invoke_i",\n\
 "invoke_ii",\n\
 "invoke_iii",\n\
@@ -1064,11 +1048,12 @@ export ASYNCIFY_ONLY=$'"object_init_ex",\
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
 	fi; \
-	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
+	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags
 
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
 COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
@@ -1076,7 +1061,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
@@ -1114,8 +1099,9 @@ RUN set -euxo pipefail; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
-	emcc $OPTIMIZATION_FLAGS \
+	EMCC_DEBUG=1 emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
+	--js-library /root/phpwasm-emscripten-library-dynamic-linking.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
 	-I .  \
 	-I ext   \
@@ -1123,12 +1109,13 @@ RUN set -euxo pipefail; \
 	-I Zend  \
 	-I main  \
 	-I TSRM/ \
-	-I /root/lib/include \
+	-I/root/lib -I/root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
 	-D__x86_64__\
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
+	-s MAIN_MODULE \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
