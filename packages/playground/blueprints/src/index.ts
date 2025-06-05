@@ -3,6 +3,7 @@ import '@php-wasm/node-polyfills';
 
 export * from './lib/steps';
 export * from './lib/steps/handlers';
+export { runV2 } from './lib/v2';
 export {
 	isBlueprintBundle,
 	getBlueprintDeclaration,

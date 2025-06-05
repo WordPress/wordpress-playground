@@ -12,7 +12,6 @@ import {
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 import { PHP } from '@php-wasm/universal';
-import { spawn } from 'child_process';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import path from 'path';
 

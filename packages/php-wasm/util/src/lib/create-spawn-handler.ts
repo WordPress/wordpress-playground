@@ -119,6 +119,9 @@ export class ProcessApi extends EventEmitter {
 	stderrEnd() {
 		this.childProcess.stderr.emit('end', {});
 	}
+	notifySpawn() {
+		this.childProcess.emit('spawn', true);
+	}
 	exit(code: number) {
 		if (!this.exited) {
 			this.exited = true;

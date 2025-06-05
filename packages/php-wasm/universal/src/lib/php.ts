@@ -471,7 +471,9 @@ export class PHP implements Disposable {
 				logger.warn(`PHP.run() output was:`, response.text);
 				const error = new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
-						response.errors,
+						response.errors +
+						'\n\n' +
+						response.text,
 					response,
 					'request'
 				) as PHPExecutionFailureError;
