@@ -5,6 +5,7 @@ import type {
 } from '@wp-playground/blueprints';
 import fs from 'fs';
 import type { RunCLIArgs } from './run-cli';
+import type { Mount } from './mount';
 
 export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 	const path = process.cwd();
@@ -14,10 +15,16 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 
 	if (isPluginDirectory(path)) {
 		const pluginName = basename(path);
-		mount.push(`${path}:/wordpress/wp-content/plugins/${pluginName}`);
+		mount.push({
+			hostPath: path,
+			vfsPath: `/wordpress/wp-content/plugins/${pluginName}`,
+		});
 	} else if (isThemeDirectory(path)) {
 		const themeName = basename(path);
-		mount.push(`${path}:/wordpress/wp-content/themes/${themeName}`);
+		mount.push({
+			hostPath: path,
+			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
+		});
 	} else if (containsWpContentDirectories(path)) {
 		mount.push(...wpContentMounts(path));
 	} else if (containsFullWordPressInstallation(path)) {
@@ -29,12 +36,15 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		 * and directories into them instead of mounting the entire directory as a NODEFS node.
 		 */
 		const files = fs.readdirSync(path);
-		const mounts: string[] = [];
+		const mounts: Mount[] = [];
 		for (const file of files) {
 			if (file.startsWith('wp-content')) {
 				continue;
 			}
-			mounts.push(`${path}/${file}:/wordpress/${file}`);
+			mounts.push({
+				hostPath: `${path}/${file}`,
+				vfsPath: `/wordpress/${file}`,
+			});
 		}
 		mountBeforeInstall.push(
 			...mounts,
@@ -45,7 +55,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		 * By default, mount the current working directory as the Playground root.
 		 * This allows users to run and PHP or HTML files using the Playground CLI.
 		 */
-		mount.push(`${path}:/wordpress`);
+		mount.push({ hostPath: path, vfsPath: '/wordpress' });
 	}
 
 	const blueprint = (args.blueprint as BlueprintDeclaration) || {};
@@ -117,7 +127,7 @@ export function isPluginDirectory(path: string): boolean {
  *
  * See expandAutoMounts for more details.
  */
-export function wpContentMounts(wpContentDir: string): string[] {
+export function wpContentMounts(wpContentDir: string): Mount[] {
 	const files = fs.readdirSync(wpContentDir);
 	return (
 		files
@@ -129,10 +139,10 @@ export function wpContentMounts(wpContentDir: string): string[] {
 			 * Because index.php should be empty, it's safe to not include it.
 			 */
 			.filter((file) => !file.startsWith('index.php'))
-			.map(
-				(file) =>
-					`${wpContentDir}/${file}:/wordpress/wp-content/${file}`
-			)
+			.map((file) => ({
+				hostPath: `${wpContentDir}/${file}`,
+				vfsPath: `/wordpress/wp-content/${file}`,
+			}))
 	);
 }
 

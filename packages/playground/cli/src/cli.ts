@@ -7,11 +7,10 @@ import type { RunCLIArgs } from './run-cli';
 import { runCLI } from './run-cli';
 import { resolveBlueprint } from './resolve-blueprint';
 import { ReportableError } from './reportable-error';
-
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
+import {
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mount';
 
 async function run() {
 	/**
@@ -53,12 +52,30 @@ async function run() {
 				'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
+			coerce: parseMountWithDelimiterArguments,
 		})
 		.option('mountBeforeInstall', {
 			describe:
 				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
+			coerce: parseMountWithDelimiterArguments,
+		})
+		.option('mountDir', {
+			describe:
+				'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
+			type: 'array',
+			nargs: 2,
+			array: true,
+			// coerce: parseMountDirArguments,
+		})
+		.option('mountDirBeforeInstall', {
+			describe:
+				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
+			type: 'string',
+			nargs: 2,
+			array: true,
+			coerce: parseMountDirArguments,
 		})
 		.option('login', {
 			describe: 'Should log the user in',
@@ -141,6 +158,11 @@ async function run() {
 			sourceString: args.blueprint,
 			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
 		}),
+		mount: [...(args.mount || []), ...(args.mountDir || [])],
+		mountBeforeInstall: [
+			...(args.mountBeforeInstall || []),
+			...(args.mountDirBeforeInstall || []),
+		],
 	} as RunCLIArgs;
 
 	try {
