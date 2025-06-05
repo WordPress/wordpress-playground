@@ -9,7 +9,7 @@ import path from 'path';
 import { logger } from '@php-wasm/logger';
 const dependencyFilename = path.join(__dirname, '8_3_0', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 17914907;
+export const dependenciesTotalSize = 17917487;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -6597,12 +6597,11 @@ export function init(RuntimeName, PHPLoader) {
 
 	function _fd_close(fd) {
 		// js_wasm_trace(`fd_close ${fd}`);
-		const [vfsPath, pathResolutionErrno] =
-			lock_utils.get_vfs_path_from_fd(fd);
+		const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
 		const shouldLog =
 			pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
 		// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
-		if (lock_utils.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
+		if (locking.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
 			shouldLog &&
 				js_wasm_trace(
 					`fd_close ${fd} ${vfsPath} calling default_fd_close`
@@ -6614,7 +6613,7 @@ export function init(RuntimeName, PHPLoader) {
 					`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
 				);
 			const nativeFilePath =
-				lock_utils.get_native_path_from_vfs_path(vfsPath);
+				locking.get_native_path_from_vfs_path(vfsPath);
 			return PHPLoader.fileLockManager
 				.releaseLocksForProcessFd(
 					PHPLoader.processId,
@@ -6624,7 +6623,7 @@ export function init(RuntimeName, PHPLoader) {
 				.finally(() => {
 					shouldLog &&
 						js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
-					lock_utils.maybeLockedFds.delete(fd);
+					locking.maybeLockedFds.delete(fd);
 				})
 				.then(() => {
 					shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
@@ -7278,14 +7277,14 @@ export function init(RuntimeName, PHPLoader) {
 		};
 		let vfsPath;
 		let errno;
-		[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
+		[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 		js_wasm_trace(
 			`js_flock ${fd} ${op} get_vfs_path_from_fd ${vfsPath} ${errno}`
 		);
 		if (errno !== 0) {
 			return -errno;
 		}
-		if (!lock_utils.is_nodefs_path(vfsPath)) {
+		if (!locking.is_nodefs_path(vfsPath)) {
 			// If not a NodeFS path, we can't lock it.
 			// Default to succeeding as Emscripten does.
 			logger.warn(
@@ -7293,19 +7292,16 @@ export function init(RuntimeName, PHPLoader) {
 			);
 			return -1;
 		}
-		const accessMode = lock_utils.get_fd_access_mode(fd);
-		// TODO: Don't we have a helper for this?
-		if (
-			(accessMode === emscripten_O_WRONLY && op === emscripten_LOCK_SH) ||
-			(accessMode === emscripten_O_RDONLY && op === emscripten_LOCK_EX)
-		) {
-			return -ERRNO_CODES.EBADF;
+		errno = locking.check_lock_params(fd, op);
+		if (errno !== 0) {
+			return -errno;
 		}
 		// TODO: Consider supporting blocking mode of flock()
 		if (op & (emscripten_LOCK_NB === 0)) {
 			// TODO: Fix this logging
 			//logger.error('blocking mode of flock() is not implemented');
 			console.error('blocking mode of flock() is not implemented');
+			// TODO: Should we use a different error code?
 			return -ERRNO_CODES.EDEADLOCK;
 		}
 		const maskedOp =
@@ -7317,8 +7313,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 			return -ERRNO_CODES.EINVAL;
 		}
-		const nativeFilePath =
-			lock_utils.get_native_path_from_vfs_path(vfsPath);
+		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
 		const result = PHPLoader.fileLockManager.lockWholeFile(nativeFilePath, {
 			type: lockOpType,
 			pid: PHPLoader.processId,
@@ -8139,7 +8134,21 @@ export function init(RuntimeName, PHPLoader) {
 
 	var FS_createDevice = FS.createDevice;
 
-	var lock_utils = {
+	var locking = {
+		maybeLockedFds: new Set(),
+		F_RDLCK: 0,
+		F_WRLCK: 1,
+		F_UNLCK: 2,
+		lockStateToFcntl: {
+			shared: 0,
+			exclusive: 1,
+			unlocked: 2,
+		},
+		fcntlToLockState: {
+			0: 'shared',
+			1: 'exclusive',
+			2: 'unlocked',
+		},
 		is_nodefs_node(node) {
 			if (node?.isSharedFS) {
 				return true;
@@ -8155,13 +8164,17 @@ export function init(RuntimeName, PHPLoader) {
 		},
 		is_nodefs_path(path) {
 			const { node } = FS.lookupPath(path);
-			const answer = lock_utils.is_nodefs_node(node);
+			const answer = locking.is_nodefs_node(node);
 			// TODO: Remove this after testing.
 			if (!answer && path.includes('.ht.sqlite')) {
-				// TODO: Re-enable this after merge into the PR
-				// js_wasm_trace(`is_nodefs_path ${path} is_nodefs_node ${answer} node ${nodeUtil.inspect(node, {
-				//   depth: 2
-				// })}`);
+				js_wasm_trace(
+					`is_nodefs_path ${path} is_nodefs_node ${answer} node ${nodeUtil.inspect(
+						node,
+						{
+							depth: 2,
+						}
+					)}`
+				);
 			}
 			return answer;
 		},
@@ -8184,37 +8197,31 @@ export function init(RuntimeName, PHPLoader) {
 			const { node } = FS.lookupPath(vfsPath);
 			return NODEFS.realPath(node);
 		},
-		maybeLockedFds: new Set(),
+		check_lock_params(fd, l_type) {
+			const emscripten_O_RDONLY = Number('0');
+			const emscripten_O_WRONLY = Number('1');
+			const accessMode = locking.get_fd_access_mode(fd);
+			if (
+				(l_type === locking.F_WRLCK &&
+					accessMode === emscripten_O_RDONLY) ||
+				(l_type === locking.F_RDLCK &&
+					accessMode === emscripten_O_WRONLY)
+			) {
+				return ERRNO_CODES.EBADF;
+			}
+			return 0;
+		},
 	};
 
 	function _js__syscall_fcntl64(fd, cmd, varargs) {
 		// Necessary to use varargs accessor
 		SYSCALLS.varargs = varargs;
-		// From:
-		// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
-		const F_RDLCK = 0;
-		const F_WRLCK = 1;
-		const F_UNLCK = 2;
-		const lockStateToFcntl = {
-			shared: F_RDLCK,
-			exclusive: F_WRLCK,
-			unlocked: F_UNLCK,
-		};
-		const fcntlToLockState = {
-			[F_RDLCK]: 'shared',
-			[F_WRLCK]: 'exclusive',
-			[F_UNLCK]: 'unlocked',
-		};
 		// These constants are replaced by Emscripten during the build process
 		const emscripten_F_GETLK = Number('12');
 		const emscripten_F_SETLK = Number('13');
 		const emscripten_F_SETLKW = Number('14');
 		const emscripten_SEEK_SET = Number('0');
-		const emscripten_O_ACCMODE = Number('2097155');
-		const emscripten_O_RDONLY = Number('0');
-		const emscripten_O_WRONLY = Number('1');
-		const emscripten_O_RDWR = Number('2');
-		// TODO: Consider patching Emscripten to provide these offsets or add an access to php_wasm.c
+		// todo: consider patching emscripten to provide these offsets or add an access to php_wasm.c
 		const emscripten_flock_l_type_offset = 0;
 		const emscripten_flock_l_whence_offset = 2;
 		const emscripten_flock_l_start_offset = 8;
@@ -8304,34 +8311,20 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return [resolvedOffset, 0];
 		}
-		function checkLockParams(fd, l_type) {
-			// TODO: Test logger here again. It seemed to cause some kind of locking problem.
-			if (!(l_type in fcntlToLockState)) {
-				return ERRNO_CODES.EINVAL;
-			}
-			const accessMode = lock_utils.get_fd_access_mode(fd);
-			if (
-				(l_type === F_WRLCK && accessMode === emscripten_O_RDONLY) ||
-				(l_type === F_RDLCK && accessMode === emscripten_O_WRONLY)
-			) {
-				return ERRNO_CODES.EBADF;
-			}
-			return 0;
-		}
 		const pid = PHPLoader.processId;
 		switch (cmd) {
 			case emscripten_F_GETLK: {
 				js_wasm_trace(`fcntl F_GETLK ${fd}`);
 				let vfsPath;
 				let errno;
-				[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
+				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 				if (errno !== 0) {
 					js_wasm_trace(
 						`fcntl F_GETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
 					);
 					return -errno;
 				}
-				if (!lock_utils.is_nodefs_path(vfsPath)) {
+				if (!locking.is_nodefs_path(vfsPath)) {
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
 					logger.warn(
@@ -8345,14 +8338,18 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				const flockStructAddr = syscallGetVarargP();
 				const flockStruct = readFlockStruct(flockStructAddr);
-				errno = checkLockParams(fd, flockStruct.l_type);
+				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+					return -ERRNO_CODES.EINVAL;
+				}
+				errno = locking.check_lock_params(fd, flockStruct.l_type);
 				if (errno !== 0) {
 					js_wasm_trace(
 						`fcntl F_GETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
 					);
 					return -errno;
 				}
-				const requestedLockType = fcntlToLockState[flockStruct.l_type];
+				const requestedLockType =
+					locking.fcntlToLockState[flockStruct.l_type];
 				let absoluteStartOffset;
 				[absoluteStartOffset, errno] = getBaseAddress(
 					fd,
@@ -8366,7 +8363,7 @@ export function init(RuntimeName, PHPLoader) {
 					return -errno;
 				}
 				const nativeFilePath =
-					lock_utils.get_native_path_from_vfs_path(vfsPath);
+					locking.get_native_path_from_vfs_path(vfsPath);
 				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
 				// TODO: Handle case where flock() conflicts with range lock
@@ -8398,7 +8395,7 @@ export function init(RuntimeName, PHPLoader) {
 							return 0;
 						}
 						const fcntlLockState =
-							lockStateToFcntl[conflictingLock.type];
+							locking.lockStateToFcntl[conflictingLock.type];
 						updateFlockStruct(flockStructAddr, {
 							l_type: fcntlLockState,
 							l_whence: emscripten_SEEK_SET,
@@ -8439,7 +8436,7 @@ export function init(RuntimeName, PHPLoader) {
 				js_wasm_trace(`fcntl F_SETLK ${fd}`);
 				let vfsPath;
 				let errno;
-				[vfsPath, errno] = lock_utils.get_vfs_path_from_fd(fd);
+				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 				js_wasm_trace(
 					`fcntl F_SETLK ${fd} get_vfs_path_from_fd ${vfsPath} ${errno}`
 				);
@@ -8449,8 +8446,8 @@ export function init(RuntimeName, PHPLoader) {
 					);
 					return -errno;
 				}
-				//js_wasm_trace(`fcntl F_SETLK ${fd} before is_nodefs_path ${lock_utils.is_nodefs_path(filePath)}`);
-				if (!lock_utils.is_nodefs_path(vfsPath)) {
+				//js_wasm_trace(`fcntl F_SETLK ${fd} before is_nodefs_path ${locking.is_nodefs_path(filePath)}`);
+				if (!locking.is_nodefs_path(vfsPath)) {
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
 					logger.warn(
@@ -8461,7 +8458,7 @@ export function init(RuntimeName, PHPLoader) {
 					);
 					return 0;
 				}
-				// js_wasm_trace(`fcntl F_SETLK ${fd} after is_nodefs_path ${lock_utils.is_nodefs_path(filePath)}`);
+				// js_wasm_trace(`fcntl F_SETLK ${fd} after is_nodefs_path ${locking.is_nodefs_path(filePath)}`);
 				var flockStructAddr = syscallGetVarargP();
 				const flockStruct = readFlockStruct(flockStructAddr);
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after readFlockStruct ${JSON.stringify(flockStruct, (key, value) => typeof value === "bigint" ? `0x${value.toString(16).padStart(16, '0')}` : value)}`);
@@ -8478,7 +8475,10 @@ export function init(RuntimeName, PHPLoader) {
 					return -errno;
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after get_base_address ${absoluteStartOffset}`);
-				errno = checkLockParams(fd, flockStruct.l_type);
+				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+					return -ERRNO_CODES.EINVAL;
+				}
+				errno = locking.check_lock_params(fd, flockStruct.l_type);
 				if (errno !== 0) {
 					js_wasm_trace(
 						`fcntl F_SETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
@@ -8487,9 +8487,10 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after check_lock_params ${errno}`);
 				// TODO: Explain why
-				lock_utils.maybeLockedFds.add(fd);
+				locking.maybeLockedFds.add(fd);
 				// js_wasm_trace(`fcntl F_SETLK ${fd} after maybeLockedFds.add ${fd}`);
-				const requestedLockType = fcntlToLockState[flockStruct.l_type];
+				const requestedLockType =
+					locking.fcntlToLockState[flockStruct.l_type];
 				const rangeLock = {
 					type: requestedLockType,
 					start: absoluteStartOffset,
@@ -8507,7 +8508,7 @@ export function init(RuntimeName, PHPLoader) {
 					)}`
 				);
 				const nativeFilePath =
-					lock_utils.get_native_path_from_vfs_path(vfsPath);
+					locking.get_native_path_from_vfs_path(vfsPath);
 				return PHPLoader.fileLockManager
 					.lockFileByteRange(nativeFilePath, rangeLock)
 					.then((succeeded) => {
