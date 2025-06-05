@@ -1,14 +1,8 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import {
-	writeFileSync,
-	existsSync,
-	mkdtempSync,
-	rmSync,
-	rmdirSync,
-	chmodSync,
-} from 'fs';
+import os from 'os';
+import { writeFileSync, existsSync, mkdtempSync, chmodSync } from 'fs';
 import { rootCertificates } from 'tls';
 
 import {
@@ -20,6 +14,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { PHP } from '@php-wasm/universal';
 import { spawn } from 'child_process';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
+import path from 'path';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -69,7 +64,7 @@ async function run() {
 	 * Furthermore, when PHP detects the `php` executable in PATH, it
 	 * sets the PHP_BINARY constant to it.
 	 */
-	const tempDir = mkdtempSync('php-wasm-bin');
+	const tempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-bin'));
 	writeFileSync(
 		`${tempDir}/php`,
 		`#!/bin/sh
@@ -78,11 +73,13 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	);
 	chmodSync(`${tempDir}/php`, 0o755);
 
+	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
 				ENV: {
 					...envVariables,
+					TMPDIR: sysTempDir,
 					TERM: 'xterm',
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
