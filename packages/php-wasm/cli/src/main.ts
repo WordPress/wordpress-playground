@@ -88,20 +88,16 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	);
 
 	useHostFilesystem(php);
-	php.setSpawnHandler((command: string) => {
-		/**
-		 * @TODO: What if php <path> targets a VFS file? this seems to be happening despite
-		 *        the .useHostFilesystem() call.
-		 */
-		if (command.startsWith('exec ')) {
-			command = command.slice(5);
+	php.setSpawnHandler(
+		(command: string, args: string[], options: Record<string, any>) => {
+			return spawn(command, args, {
+				...options,
+				shell: true,
+				stdio: ['pipe', 'pipe', 'pipe'],
+				timeout: 5000,
+			});
 		}
-		return spawn(command, [], {
-			shell: true,
-			stdio: ['pipe', 'pipe', 'pipe'],
-			timeout: 5000,
-		});
-	});
+	);
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
 	if (!hasMinusCOption) {
