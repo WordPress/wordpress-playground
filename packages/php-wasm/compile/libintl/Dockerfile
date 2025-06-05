@@ -31,6 +31,8 @@ RUN set -euxo pipefail && \
     cd /root/icu/source && \
     mkdir -p /root/lib && \
     source /root/emsdk/emsdk_env.sh && \
+    export CFLAGS="-fPIC" && \
+    export CXXFLAGS="-fPIC" && \
     emconfigure ./configure \
         --build=i386-pc-linux-gnu \
         --target=wasm32-unknown-emscripten \
@@ -41,8 +43,8 @@ RUN set -euxo pipefail && \
         --disable-shared \
         --enable-static && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS " emmake make -j"$(nproc)" && \
-    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS " emmake make install -i;
+    EMCC_FLAGS=" -D__x86_64__ -fPIC -sSIDE_MODULE $JSPI_FLAGS " emmake make -j"$(nproc)" && \
+    EMCC_FLAGS=" -D__x86_64__ -fPIC -sSIDE_MODULE $JSPI_FLAGS " emmake make install;
 
 
 RUN set -euxo pipefail && \
