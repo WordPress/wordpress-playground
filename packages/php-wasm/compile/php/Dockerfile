@@ -1075,7 +1075,6 @@ export ASYNCIFY_ONLY=$'"object_init_ex",\
 "pager_unlock",\
 "pagerLockDb",\
 "pdo_sqlite_stmt_execute",\
-"php_execute_script",\
 "releasePageOne",\
 "selectExpander",\
 "sqlite_handle_preparer",\
@@ -1084,15 +1083,18 @@ export ASYNCIFY_ONLY=$'"object_init_ex",\
 "sqlite3_step",\
 "sqlite3BtreeBeginTrans",\
 "sqlite3BtreeCommitPhaseTwo",\
+"sqlite3BtreeRollback",\
 "sqlite3Init",\
 "sqlite3InitOne",\
 "sqlite3LocateTable",\
 "sqlite3LockAndPrepare",\
 "sqlite3OsLock",\
+"sqlite3PagerRollback",\
 "sqlite3PagerSharedLock",\
-"sqlite3Parser",\
+"sqlite3Parser",\",\
 "sqlite3Prepare",\
 "sqlite3ReadSchema",\
+"sqlite3RollbackAll",\
 "sqlite3RunParser",\
 "sqlite3Select",\
 "sqlite3SelectPrep",\
