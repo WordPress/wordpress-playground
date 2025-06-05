@@ -1065,30 +1065,34 @@ export ASYNCIFY_ONLY=$'"object_init_ex",\
 "php_error_docref",\
 "php_pcre_replace_func_impl",\
 "php_verror",\
+"__syscall_fcntl64",\
 "fcntl",\
-"lockTrace",\
-"unixFileLock",\
-"sqlite3OsLock",\
-"pagerLockDb",\
-"page_wait_on_lock",\
-"sqlite3PagerSharedLock",\
-"sqlite3BtreeBeginTrans",\
-"sqlite3InitOne",\
 "lockBtree",\
-"sqlite3BtreeBeginTrans",\
-"sqlite3InitOne",\
-"sqlite3Init",\
-"sqlite3ReadSchema",\
-"sqlite3StartTable",\
-"yy_reduce",\
-"sqlite3Parser",\
-"sqlite3RunParser",\
-"sqlite3Prepare",\
-"sqlite3LockAndPrepare",\
-"sqlite3_prepare_v2",\
+"lockTrace",\
+"page_wait_on_lock",\
+"pagerLockDb",\
+"selectExpander",\
 "sqlite_handle_preparer",\
+"sqlite3_prepare_v2",\
+"sqlite3BtreeBeginTrans",\
+"sqlite3Init",\
+"sqlite3InitOne",\
+"sqlite3LocateTable",\
+"sqlite3LockAndPrepare",\
+"sqlite3OsLock",\
+"sqlite3PagerSharedLock",\
+"sqlite3Parser",\
+"sqlite3Prepare",\
+"sqlite3ReadSchema",\
+"sqlite3RunParser",\
+"sqlite3Select",\
+"sqlite3SelectPrep",\
+"sqlite3StartTable",\
+"sqlite3WalkSelect",\
 "unixLock",\
-"__syscall_fcntl64"'; \
+"unixFileLock",\
+"yy_reduce",\
+"zim_PDO_prepare"'; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
