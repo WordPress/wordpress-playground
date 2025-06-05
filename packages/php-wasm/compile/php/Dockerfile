@@ -1067,14 +1067,23 @@ export ASYNCIFY_ONLY=$'"object_init_ex",\
 "php_verror",\
 "__syscall_fcntl64",\
 "fcntl",\
+"btreeEndTransaction",\
 "lockBtree",\
 "lockTrace",\
 "page_wait_on_lock",\
+"pager_end_transaction",\
+"pager_unlock",\
 "pagerLockDb",\
+"pdo_sqlite_stmt_execute",\
+"php_execute_script",\
+"releasePageOne",\
 "selectExpander",\
 "sqlite_handle_preparer",\
+"sqlite3_exec",\
 "sqlite3_prepare_v2",\
+"sqlite3_step",\
 "sqlite3BtreeBeginTrans",\
+"sqlite3BtreeCommitPhaseTwo",\
 "sqlite3Init",\
 "sqlite3InitOne",\
 "sqlite3LocateTable",\
@@ -1088,9 +1097,13 @@ export ASYNCIFY_ONLY=$'"object_init_ex",\
 "sqlite3Select",\
 "sqlite3SelectPrep",\
 "sqlite3StartTable",\
+"sqlite3VdbeExec",\
+"sqlite3VdbeHalt",\
 "sqlite3WalkSelect",\
-"unixLock",\
 "unixFileLock",\
+"unixLock",\
+"unixUnlock",\
+"unixUnlock",\
 "yy_reduce",\
 "zim_PDO_prepare"'; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
