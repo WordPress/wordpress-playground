@@ -108,12 +108,9 @@ async function build() {
 		],
 		banner: {
 			js: `import { createRequire as topLevelCreateRequire } from 'module';
-import { fileURLToPath as topLevelFileURLToPath } from 'url';
-import { dirname as topLevelDirname } from 'path';
-
 const require = topLevelCreateRequire(import.meta.url);
-const __filename = topLevelFileURLToPath(import.meta.url);
-const __dirname = topLevelDirname(__filename);
+const __filename = import.meta.filename;
+const __dirname = import.meta.dirname;
 `,
 		},
 		outdir: 'dist/packages/php-wasm/node',
