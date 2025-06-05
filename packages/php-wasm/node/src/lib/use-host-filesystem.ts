@@ -33,7 +33,7 @@ export function useHostFilesystem(php: PHP) {
 				 * * PHP.wasm calls proc_open() to execute the script in the host filesystem.
 				 */
 				return statPathFollowSymlinks(file).isDirectory();
-			} catch (e) {
+			} catch {
 				return false;
 			}
 		});
