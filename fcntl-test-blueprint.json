@@ -1,0 +1,16 @@
+{
+	"plugins": [],
+	"steps": [
+		{
+			"step": "activatePlugin",
+			"pluginName": "many-writes",
+			"pluginPath": "many-writes/bptest-many-writes.php"
+		}
+	],
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"features": {},
+	"login": true
+}
