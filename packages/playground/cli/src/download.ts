@@ -8,12 +8,17 @@ export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 export async function fetchSqliteIntegration(
 	monitor: EmscriptenDownloadMonitor
 ) {
-	const sqliteZip = await cachedDownload(
-		'https://github.com/Automattic/sqlite-database-integration/archive/refs/heads/develop.zip',
-		'sqlite.zip',
-		monitor
+	// const sqliteZip = await cachedDownload(
+	// 	'file:///Users/brandon/Downloads/sqlite-with-extended-result-codes.zip',
+	// 	//'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip',
+	// 	'sqlite.zip',
+	// 	monitor
+	// );
+	// return sqliteZip;
+
+	return readAsFile(
+		'/Users/brandon/Downloads/sqlite-with-extended-result-codes.zip'
 	);
-	return sqliteZip;
 }
 
 // @TODO: Support HTTP cache, invalidate the local file if the remote file has

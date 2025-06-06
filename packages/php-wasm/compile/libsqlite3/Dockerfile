@@ -12,16 +12,23 @@ RUN if [ "$JSPI" = "1" ]; then \
     fi
 
 
-RUN set -euxo pipefail &&\
-    wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
-    tar -xzvf sqlite-autoconf-3400100.tar.gz && \
-    cd sqlite-autoconf-3400100 && \
+RUN --mount=type=bind,source=./libsqlite3/src,target=/root/src \
+    set -euxo pipefail; \
+    if test -d /root/src/sqlite-autoconf-3400100; then \
+    #if 0; then \
+        cp -r /root/src/sqlite-autoconf-3400100 /root/sqlite-build; \
+    else \
+        wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
+        tar -xzvf sqlite-autoconf-3400100.tar.gz && \
+        mv sqlite-autoconf-3400100 /root/sqlite-build; \
+    fi; \
+    cd sqlite-build && \
     source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure \
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \
         --prefix=/root/lib/ && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-    EMCC_SKIP="-lc" EMCC_FLAGS=" -D__x86_64__  -sSIDE_MODULE $JSPI_FLAGS" emmake make && \
+    EMCC_SKIP="-lc" EMCC_FLAGS=" -D__x86_64__ -sASYNCIFY=1 -sSIDE_MODULE $JSPI_FLAGS -O0 -g3" emmake make && \
     emmake make install
 

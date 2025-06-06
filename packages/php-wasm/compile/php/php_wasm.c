@@ -1597,7 +1597,7 @@ void wasm_sapi_request_shutdown()
 	restore_stream_handler(stderr, stderr_replacement);
 
 	// Release any locks still held by this process
-	js_release_file_locks();	
+	//js_release_file_locks();	
 
 	// Prepare a fresh request context
 	wasm_init_server_context();
@@ -1918,19 +1918,15 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 	return eof_offset;
 }
 
-// TODO: EXPLAIN WHY THIS SHIM FUNCTION
-EM_ASYNC_JS(int, call_js__syscall_fcntl64, (int fd, int cmd, va_list args), {
-  const result = await _js__syscall_fcntl64(fd, cmd, args);
-  return result;
-});
-
-int __syscall_fcntl64(int fd, int cmd, ...) {
-	va_list args;
-	va_start(args, cmd);
-	wasm_trace("__syscall_fcntl64: errno before %d", errno);
-	int result = call_js__syscall_fcntl64(fd, cmd, args);
-	wasm_trace("__syscall_fcntl64: errno after %d", errno);
-	va_end(args);
-	wasm_trace("__syscall_fcntl64: errno after va_end %d", errno);
-	return result;
-}
+//extern int js__syscall_fcntl64(int fd, int cmd, ...);
+// int __syscall_fcntl64(int fd, int cmd, ...) {
+	// va_list args;
+	// va_start(args, cmd);
+	// wasm_trace("__syscall_fcntl64: errno before %d", errno);
+	// void* ptr = va_arg(args, void*);
+	// int result = js__syscall_fcntl64(fd, cmd, ptr);
+	// wasm_trace("__syscall_fcntl64: errno after %d", errno);
+	// va_end(args);
+	// wasm_trace("__syscall_fcntl64: errno after va_end %d", errno);
+	// return result;
+// }

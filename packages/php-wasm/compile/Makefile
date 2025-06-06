@@ -142,17 +142,21 @@ libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/1.1.1/root/lib
 
+DEBUG ?= 0
 libsqlite3_asyncify: libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a
 libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a: base-image libz_asyncify
 	mkdir -p ./libsqlite3/asyncify/dist/root/lib
-	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 .
+	mkdir -p ./libsqlite3/src
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . --build-arg DEBUG=$(DEBUG)
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/asyncify/dist/root/lib
 
 libsqlite3_jspi: libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a
 libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a: base-image libz_jspi
 	mkdir -p ./libsqlite3/jspi/dist/root/lib
-	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . --build-arg JSPI=1
+	mkdir -p ./libsqlite3/src
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . --build-arg JSPI=1 --build-arg DEBUG=$(DEBUG)
+
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/jspi/dist/root/lib
 
