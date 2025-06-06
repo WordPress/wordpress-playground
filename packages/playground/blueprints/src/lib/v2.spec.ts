@@ -31,9 +31,13 @@ describe('V2 runner', () => {
 		'should run the runner',
 		async () => {
 			const { php } = await handler.processManager.acquirePHPInstance();
-			const result = await runV2(php as any, '{"version":2}', {
+			const result = await runV2({
+				php: php as any,
+				blueprintJSON: '{"version":2}',
+				siteUrl: 'http://playground-domain/',
+				documentRoot: '/wordpress',
 				hooks: {
-					onBlueprintTargetResolved: async (php) => {
+					afterBlueprintTargetResolved: async (php) => {
 						console.log('Blueprint target resolved');
 						process.exit(0);
 					},

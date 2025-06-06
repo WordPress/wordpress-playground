@@ -1,40 +1,60 @@
 import { UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
+import { ensureWpConfig } from '@wp-playground/wordpress';
 
 interface RunV2Options {
+	php: UniversalPHP;
+	blueprintJSON: string;
+	siteUrl: string;
+	documentRoot: string;
 	hooks?: {
-		onBlueprintTargetResolved?: (php: UniversalPHP) => void | Promise<void>;
+		afterBlueprintTargetResolved?: (
+			php: UniversalPHP
+		) => void | Promise<void>;
+		beforeWordPressFiles?: (php: UniversalPHP) => void | Promise<void>;
 	};
 }
 
-export async function runV2(
-	php: UniversalPHP,
-	blueprintJSON: string,
-	options: RunV2Options = {}
-) {
+export async function runV2(options: RunV2Options) {
+	const php = options.php;
+	// beforeWordPressFiles
+	if (options.hooks?.beforeWordPressFiles) {
+		await options.hooks.beforeWordPressFiles(php);
+	}
 	const file = await getV2Runner();
 	php.writeFile(
 		'/tmp/blueprints.phar',
 		new Uint8Array(await file.arrayBuffer())
 	);
-	php.writeFile('/tmp/blueprint.json', blueprintJSON);
+	php.writeFile('/tmp/blueprint.json', options.blueprintJSON);
 
+	// @TODO: Unbind this listener after a successful run.
+	//        Maybe propagate messages via addEventListener etc?
 	await php.onMessage(async (message) => {
 		console.log('message', message);
 		try {
 			const parsed =
 				typeof message === 'string' ? JSON.parse(message) : message;
 			if (parsed && parsed.type === 'blueprint.target_resolved') {
-				if (options.hooks?.onBlueprintTargetResolved) {
-					await options.hooks.onBlueprintTargetResolved(php);
+				php.defineConstant('WP_HOME', options.siteUrl);
+				php.defineConstant('WP_SITEURL', options.siteUrl);
+
+				/*
+				 * Add required constants to "wp-config.php" if they are not already defined.
+				 * This is needed, because some WordPress backups and exports may not include
+				 * definitions for some of the necessary constants.
+				 */
+				await ensureWpConfig(php, options.documentRoot);
+
+				if (options.hooks?.afterBlueprintTargetResolved) {
+					await options.hooks.afterBlueprintTargetResolved(php);
 				}
 				return 'true';
 			}
 		} catch (e) {
 			console.warn('Failed to parse message as JSON:', message, e);
 		}
-		process.exit(0);
 	});
 
 	await php?.writeFile('/tmp/stdout', '');
@@ -75,7 +95,7 @@ require( "/tmp/blueprints.phar" );
 					'exec',
 					'/tmp/blueprint.json',
 					'--site-path=/wordpress',
-					'--site-url=http://127.0.0.1',
+					`--site-url=${options.siteUrl}`,
 					'--db-engine=sqlite',
 					'--truncate-new-site-directory=true',
 				]),
