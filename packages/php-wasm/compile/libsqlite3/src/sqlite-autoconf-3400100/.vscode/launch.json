@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/brandon/src/playground/packages/php-wasm/compile/libsqlite3/src/sqlite-autoconf-3400100",
+      "program": "/Users/brandon/src/playground/packages/php-wasm/compile/libsqlite3/src/sqlite-autoconf-3400100/build/Debug/outDebug"
+    }
+  ]
+}
