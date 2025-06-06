@@ -3,7 +3,7 @@ import '@php-wasm/node-polyfills';
 
 export * from './lib/steps';
 export * from './lib/steps/handlers';
-export { bootWordPressBlueprintV2 as runV2 } from './lib/v2';
+export { runBlueprintV2 } from './lib/v2';
 export {
 	isBlueprintBundle,
 	getBlueprintDeclaration,

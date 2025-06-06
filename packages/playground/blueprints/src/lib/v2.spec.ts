@@ -3,7 +3,7 @@ import type { PHP, PHPProcessManager, PHPResponse } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootRequestHandler } from '@wp-playground/wordpress';
-import { bootWordPressBlueprintV2 } from './v2';
+import { runBlueprintV2 } from './v2';
 import { rootCertificates } from 'node:tls';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
@@ -31,7 +31,7 @@ describe('V2 runner', () => {
 		'should run the runner',
 		async () => {
 			const { php } = await handler.processManager.acquirePHPInstance();
-			const result = await bootWordPressBlueprintV2({
+			const result = await runBlueprintV2({
 				php: php as any,
 				blueprintJSON: '{"version":2}',
 				siteUrl: 'http://playground-domain/',

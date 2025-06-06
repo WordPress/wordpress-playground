@@ -22,7 +22,7 @@ interface RunV2Options {
 	};
 }
 
-export async function bootWordPressBlueprintV2(options: RunV2Options) {
+export async function runBlueprintV2(options: RunV2Options) {
 	const php = options.php;
 	const onProgress = options.hooks?.onProgress || (() => {});
 	const onError = options.hooks?.onError || (() => {});
