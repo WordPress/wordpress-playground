@@ -2,13 +2,40 @@ import { UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 
-export async function runV2(php: UniversalPHP, blueprintJSON: string) {
+interface RunV2Options {
+	hooks?: {
+		onBlueprintTargetResolved?: (php: UniversalPHP) => void | Promise<void>;
+	};
+}
+
+export async function runV2(
+	php: UniversalPHP,
+	blueprintJSON: string,
+	options: RunV2Options = {}
+) {
 	const file = await getV2Runner();
 	php.writeFile(
 		'/tmp/blueprints.phar',
 		new Uint8Array(await file.arrayBuffer())
 	);
 	php.writeFile('/tmp/blueprint.json', blueprintJSON);
+
+	await php.onMessage(async (message) => {
+		console.log('message', message);
+		try {
+			const parsed =
+				typeof message === 'string' ? JSON.parse(message) : message;
+			if (parsed && parsed.type === 'blueprint.target_resolved') {
+				if (options.hooks?.onBlueprintTargetResolved) {
+					await options.hooks.onBlueprintTargetResolved(php);
+				}
+				return 'true';
+			}
+		} catch (e) {
+			console.warn('Failed to parse message as JSON:', message, e);
+		}
+		process.exit(0);
+	});
 
 	await php?.writeFile('/tmp/stdout', '');
 	await php?.writeFile('/tmp/stderror', '');
@@ -28,6 +55,13 @@ $_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
 define('STDIN', fopen('php://stdin', 'rb'));
 define('STDOUT', fopen('php://stdout', 'wb'));
 define('STDERR', fopen('/tmp/stderr', 'wb'));
+
+function playground_on_blueprint_target_resolved() {
+	post_message_to_js(json_encode(array(
+		'type' => 'blueprint.target_resolved',
+	)));
+}
+playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
 
 require( "/tmp/blueprints.phar" );
 `
