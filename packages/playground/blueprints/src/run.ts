@@ -1,59 +1,50 @@
+/**
+ * Temporary, experimental script to run Blueprints v2
+ */
 import { loadNodeRuntime } from '@php-wasm/node';
-import type { PHP, PHPProcessManager, PHPResponse } from '@php-wasm/universal';
+import type { PHPProcessManager, PHPResponse } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootRequestHandler } from '@wp-playground/wordpress';
-import { bootWordPressBlueprintV2 } from './v2';
+import { bootWordPressBlueprintV2 } from './lib/v2';
 import { rootCertificates } from 'node:tls';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
-describe('V2 runner', () => {
-	let handler: PHPRequestHandler;
-
-	beforeEach(async () => {
-		handler = await bootRequestHandler({
-			createPhpRuntime: async () =>
-				await loadNodeRuntime(RecommendedPHPVersion),
-			sapiName: 'cli',
-			siteUrl: 'http://playground-domain/',
-			phpIniEntries: {
-				'openssl.cafile': '/internal/shared/ca-bundle.crt',
-			},
-			createFiles: {
-				'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
-			},
-			spawnHandler: spawnHandlerFactory,
-		});
-	});
-
-	it(
-		'should run the runner',
-		async () => {
-			const { php } = await handler.processManager.acquirePHPInstance();
-			const result = await bootWordPressBlueprintV2({
-				php: php as any,
-				blueprintJSON: '{"version":2}',
-				siteUrl: 'http://playground-domain/',
-				documentRoot: '/wordpress',
-				hooks: {
-					afterBlueprintTargetResolved: async (php) => {
-						console.log('Blueprint target resolved');
-						process.exit(0);
-					},
-				},
-			});
-			expect(result?.text).toBe('Hello, World!');
-		},
-		{
-			timeout: 60000,
-		}
-	);
+const handler = await bootRequestHandler({
+	createPhpRuntime: async () => await loadNodeRuntime(RecommendedPHPVersion),
+	sapiName: 'cli',
+	siteUrl: 'http://playground-domain/',
+	phpIniEntries: {
+		'openssl.cafile': '/internal/shared/ca-bundle.crt',
+	},
+	createFiles: {
+		'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
+	},
+	spawnHandler: spawnHandlerFactory,
 });
+const { php } = await handler.processManager.acquirePHPInstance();
+await bootWordPressBlueprintV2({
+	php: php as any,
+	blueprintJSON: '{"version":2}',
+	siteUrl: 'http://playground-domain/',
+	documentRoot: '/wordpress',
+	hooks: {
+		afterBlueprintTargetResolved: async (php) => {
+			console.log('Blueprint target resolved');
+			process.exit(0);
+		},
+		onProgress: (progress, caption) => {
+			const message = `${caption.trim()} – ${progress.toFixed(2)}%`;
+			process.stdout.write('\r\x1b[K' + message);
+		},
+	},
+});
+process.stdout.write('\n');
+console.log('Blueprint execution completed');
+process.exit(0);
 
 export function spawnHandlerFactory(processManager: PHPProcessManager) {
 	return createSpawnHandler(async function (args, processApi, options) {
-		console.log('Spawn handler called', args);
 		processApi.notifySpawn();
 		if (args[0] === 'exec') {
 			args.shift();
