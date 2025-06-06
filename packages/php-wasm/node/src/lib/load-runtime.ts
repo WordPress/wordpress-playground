@@ -35,6 +35,8 @@ export async function loadNodeRuntime(
 		quit: function (code, error) {
 			throw error;
 		},
+		print: process.stdout.write.bind(process.stdout),
+		printErr: process.stderr.write.bind(process.stderr),
 		...(options.emscriptenOptions || {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**

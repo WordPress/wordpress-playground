@@ -22,7 +22,7 @@ if (typeof __dirname === 'undefined') {
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 17379367;
+export const dependenciesTotalSize = 17379366;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -7058,7 +7058,29 @@ export function init(RuntimeName, PHPLoader) {
 				  };
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
+
 			PHPWASM.input_devices = {};
+			const originalWrite = TTY.stream_ops.write;
+			TTY.stream_ops.write = function (stream, ...rest) {
+				const retval = originalWrite(stream, ...rest);
+				// Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+				// @TODO: Fix this at the wasm level
+				stream.tty.ops.fsync(stream.tty);
+				return retval;
+			};
+			const originalPutChar = TTY.stream_ops.put_char;
+			TTY.stream_ops.put_char = function (tty, val) {
+				/**
+				 * Buffer newlines that Emscripten normally ignores.
+				 *
+				 * Emscripten doesn't do it by default because its default
+				 * print function is console.log that implicitly adds a newline. We are overwriting
+				 * it with an environment-specific function that outputs exaclty what it was given,
+				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+				 * all the newlines make it to the output buffer.
+				 */ if (val === 10) tty.output.push(val);
+				return originalPutChar(tty, val);
+			};
 		},
 		getAllWebSockets: function (sock) {
 			const webSockets = new Set();
@@ -7361,8 +7383,7 @@ export function init(RuntimeName, PHPLoader) {
 			 * the process has already been spawned. We can only listen
 			 * to the 'spawn' event and if it has already been spawned,
 			 * listen to the 'exit' event.
-			 */
-			try {
+			 */ try {
 				await new Promise((resolve, reject) => {
 					/**
 					 * There was no `await` between the `spawnProcess` call
@@ -7373,8 +7394,7 @@ export function init(RuntimeName, PHPLoader) {
 					 *
 					 * Let's listen to all the lifecycle events and resolve
 					 * the promise when the process starts or immediately crashes.
-					 */
-					let resolved = false;
+					 */ let resolved = false;
 					cp.on('spawn', () => {
 						if (resolved) return;
 						resolved = true;
@@ -7402,12 +7422,11 @@ export function init(RuntimeName, PHPLoader) {
 					 * the `spawnProcess` implementation failed to dispatch the relevant
 					 * event. Either way, let's crash to avoid blocking the proc_open()
 					 * call indefinitely.
-					 */
-					setTimeout(() => {
+					 */ setTimeout(() => {
 						if (resolved) return;
 						resolved = true;
 						reject(new Error('Process timed out'));
-					}, 5000);
+					}, 5e3);
 				});
 			} catch (e) {
 				console.error(e);
