@@ -1,8 +1,15 @@
+/**
+ * @TODO:
+ * * Mount a stable system tmp or home/.playground-cli directory to store HTTP Cache.
+ *   Flush stale entries periodically.
+ */
+
 import { errorLogPath, logger } from '@php-wasm/logger';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type {
 	PHP,
+	PHPProcessManager,
 	PHPRequest,
 	PHPRequestHandler,
 	SupportedPHPVersion,
@@ -17,7 +24,6 @@ import {
 	runBlueprintSteps,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import {
 	bootRequestHandler,
 	bootWordPress,
@@ -37,6 +43,7 @@ import {
 import { startServer } from './server';
 import { type Mount, mountResources } from './mount';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
+import { createSpawnHandler, phpVar } from '@php-wasm/util';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -126,6 +133,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					disable_functions: '',
 				},
 				cookieStore: false,
+				spawnHandler: spawnHandlerFactory,
 			});
 			logger.log(`Booted!`);
 			const { php, reap } =
@@ -172,6 +180,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				return { requestHandler, server };
 			} catch (error) {
+				console.log('No bosz');
+				console.log(error);
 				if (!args.debug) {
 					throw error;
 				}
@@ -214,5 +224,127 @@ async function zipDirectory(php: PHP, directory: string, zipPath: string) {
 			DIRECTORY_PATH: directory,
 			ZIP_PATH: zipPath,
 		},
+	});
+}
+
+export function spawnHandlerFactory(processManager: PHPProcessManager) {
+	return createSpawnHandler(async function (args, processApi, options) {
+		processApi.notifySpawn();
+		if (args[0] === 'exec') {
+			args.shift();
+		}
+
+		if (args[0].endsWith('.php')) {
+			args.unshift('php');
+		}
+
+		// Mock programs required by wp-cli:
+		if (
+			args[0] === '/usr/bin/env' &&
+			args[1] === 'stty' &&
+			args[2] === 'size'
+		) {
+			// These numbers are hardcoded because this
+			// spawnHandler is transmitted as a string to
+			// the PHP backend and has no access to local
+			// scope. It would be nice to find a way to
+			// transfer / proxy a live object instead.
+			// @TODO: Do not hardcode this
+			processApi.stdout(`18 140`);
+			processApi.exit(0);
+		} else if (args[0] === 'tput' && args[1] === 'cols') {
+			processApi.stdout(`140`);
+			processApi.exit(0);
+		} else if (args[0] === 'less') {
+			processApi.on('stdin', (data: Uint8Array) => {
+				processApi.stdout(data);
+			});
+			processApi.flushStdin();
+			processApi.exit(0);
+		} else if (args[0] === 'fetch') {
+			processApi.flushStdin();
+			fetch(args[1]).then(async (res) => {
+				const reader = res.body?.getReader();
+				if (!reader) {
+					processApi.exit(1);
+					return;
+				}
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						processApi.exit(0);
+						break;
+					}
+					processApi.stdout(value);
+				}
+			});
+			return;
+		} else if (args[0] === 'php') {
+			const { php, reap } = await processManager.acquirePHPInstance();
+
+			let result: PHPResponse | undefined = undefined;
+			try {
+				// @TODO: Run the actual PHP CLI SAPI instead of
+				//        interpreting the arguments and emulating
+				//        the CLI constants and globals.
+				const cliBootstrapScript = `<?php
+                // Set the argv global.
+                $_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
+                    "/wordpress/wp-cli.phar",
+                    "--path=/wordpress"
+                ], ${phpVar(args.slice(2))});
+                $_SERVER['argc'] = $GLOBALS['argc'] = count($argv);
+
+                // Provide stdin, stdout, stderr streams outside of
+                // the CLI SAPI.
+                define('STDIN', fopen('php://stdin', 'rb'));
+                define('STDOUT', fopen('php://stdout', 'wb'));
+                define('STDERR', fopen('php://stderr', 'wb'));
+
+				error_reporting(E_ALL);
+				ini_set('display_errors', '1');
+				ini_set('log_errors', '1');
+				ini_set('error_log', 'php://stderr');
+
+				// Set DOCROOT to the current working directory.
+				if(getenv("DOCROOT")) {
+					chdir(getenv("DOCROOT"));
+				}
+                `;
+
+				const code = args.includes('-r')
+					? args[args.indexOf('-r') + 1]
+					: `require( getenv("SCRIPT_PATH") );`;
+
+				result = await php.run({
+					code: `${cliBootstrapScript} ${code}`,
+					env: {
+						...options.env,
+						DOCROOT: '/wordpress',
+
+						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+						// the output as ASCII tables.
+						// @see https://github.com/wp-cli/wp-cli/issues/1102
+						SHELL_PIPE: '0',
+
+						SCRIPT_PATH: args[1],
+					},
+				});
+
+				processApi.stdout(result.bytes);
+				processApi.stderr(result.errors);
+				processApi.exit(result.exitCode);
+			} catch (e) {
+				logger.error('Error in childPHP:', e);
+				if (e instanceof Error) {
+					processApi.stderr(e.message);
+				}
+				processApi.exit(1);
+			} finally {
+				reap();
+			}
+		} else {
+			processApi.exit(1);
+		}
 	});
 }

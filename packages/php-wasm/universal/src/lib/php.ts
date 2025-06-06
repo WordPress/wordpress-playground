@@ -34,6 +34,12 @@ export class PHPExecutionFailureError extends Error {
 	source: ErrorSource;
 
 	constructor(message: string, response: PHPResponse, source: ErrorSource) {
+		console.log({
+			message,
+			text: response.text,
+			errors: response.errors,
+			source,
+		});
 		super(message);
 		this.response = response;
 		this.source = source;

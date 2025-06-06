@@ -49,8 +49,11 @@ export async function runBlueprintV2(options: RunV2Options) {
 			}
 			switch (parsed.type) {
 				case 'blueprint.target_resolved':
-					php.defineConstant('WP_HOME', options.siteUrl);
-					php.defineConstant('WP_SITEURL', options.siteUrl);
+					// @TODO: Rethink these debug constants. We shouldn't
+					//        always set them, right?
+					php.defineConstant('WP_DEBUG', true);
+					php.defineConstant('WP_DEBUG_LOG', true);
+					php.defineConstant('WP_DEBUG_DISPLAY', false);
 
 					/*
 					 * Add required constants to "wp-config.php" if they are not already defined.
