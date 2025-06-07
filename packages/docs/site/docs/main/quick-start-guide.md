@@ -83,7 +83,7 @@ The easiest way is to use the version switcher on [the official demo site](https
 
 :::info Test your plugin or theme
 
-Compatibility testing with so many WordPres and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
+Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
 :::
 
