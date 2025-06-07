@@ -17,14 +17,13 @@ for (const PHP_VERSION of PHP_VERSIONS) {
 		// Need to reset nx server/cache or otherwise
 		// all the test runs will come from cache.
 		spawnSync('node', ['./node_modules/.bin/nx', 'reset']);
-		spawnSync(
+		const result = spawnSync(
 			'node',
 			[
 				'--stack-trace-limit=100',
 				'./node_modules/.bin/nx',
-				'test',
+				'test-php-asyncify-all',
 				'php-wasm-node',
-				'--test-name-pattern=asyncify',
 			],
 			{
 				env: {
@@ -34,6 +33,12 @@ for (const PHP_VERSION of PHP_VERSIONS) {
 				},
 			}
 		);
+		if (result.status !== 0) {
+			console.error('Test process exited with code', result.status);
+			if (result.stderr) {
+				console.error(result.stderr.toString());
+			}
+		}
 
 		hash2 = getHash();
 		if (hash1 === hash2) {

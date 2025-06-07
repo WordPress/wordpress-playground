@@ -59,22 +59,4 @@ export const phpVersions = [
 		wasmFilename: 'php_7_2.wasm',
 		lastRelease: '7.2.34',
 	},
-	{
-		version: '7.1',
-		loaderFilename: 'php_7_1.js',
-		wasmFilename: 'php_7_1.wasm',
-		lastRelease: '7.1.30',
-	},
-	{
-		version: '7.0',
-		loaderFilename: 'php_7_0.js',
-		wasmFilename: 'php_7_0.wasm',
-		lastRelease: '7.0.33',
-	},
-	{
-		version: '5.6',
-		loaderFilename: 'php_5_6.js',
-		wasmFilename: 'php_5_6.wasm',
-		lastRelease: '5.6.40',
-	},
 ];
