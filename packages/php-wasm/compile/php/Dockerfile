@@ -621,7 +621,8 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"sqlite3VdbeReset",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"zim_sqlite3_backup",\
+"sqlite3VdbeReset",\
 "sqlite3_finalize",\
 "pdo_sqlite_stmt_dtor",\
 "php_pdo_free_statement",\
@@ -1769,9 +1770,11 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zim_PDO_prepare"'; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
-		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
+		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED,"$(echo "$ASYNCIFY_ONLY_UNPREFIXED" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
+	else \
+		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED"; \
 	fi; \
-	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
+	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
 
 # Build the final .wasm file
 RUN mkdir /root/output
@@ -1818,11 +1821,10 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang"'"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-	export OPTIMIZATION_FLAGS="-O0 -g2"; \
-	# if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
-	# 	# TODO: Revert this to -O0 after debugging.
-	# 	export OPTIMIZATION_FLAGS="-O3"; \
-	# fi; \
+	export OPTIMIZATION_FLAGS="-O3"; \
+	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
+		export OPTIMIZATION_FLAGS="-O0 -g2"; \
+	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-fcntl-for-node.js"; \
@@ -1848,8 +1850,6 @@ RUN set -euxo pipefail; \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
-	-s ASSERTIONS=3 \
-	-s ASYNCIFY_STACK_SIZE=50000 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
@@ -1975,8 +1975,7 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			# echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
-			echo "const logger = console; " >> /root/output/php-module.js; \
+			echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
 			# TODO: Remove this after debugging. It is used to render objects in log messages.
 			echo "import * as nodeUtil from 'util'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \

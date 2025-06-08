@@ -173,6 +173,17 @@
 				"testFiles": ["php.spec.ts"]
 			}
 		},
+		"test-php-asyncify-all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"test-php-asyncify-file-get-contents",
+				"test-php-asyncify-fopen",
+				"test-php-asyncify-fsockopen",
+				"test-php-asyncify-gethostbyname",
+				"test-php-asyncify-mysqli",
+				"test-php-asyncify-sqlite3"
+			]
+		},
 		"test-php-asyncify-file-get-contents": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
