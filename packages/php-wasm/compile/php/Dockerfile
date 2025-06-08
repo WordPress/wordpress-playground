@@ -621,29 +621,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"zim_sqlite3_backup",\
-"sqlite3VdbeReset",\
-"sqlite3_finalize",\
-"pdo_sqlite_stmt_dtor",\
-"php_pdo_free_statement",\
-"pdo_dbstmt_free_storage",\
-"zend_hash_reverse_apply",\
-"zend_call_destructors",\
-"zim_PDOStatement_fetchAll",\
-"pdo_sqlite_stmt_fetch",\
-"do_fetch_common",\
-"do_fetch",\
-"zim_PDOStatement_fetch",\
-"sqlite3_backup_step",\
-"zim_SQLite3_backup",\
-"sqlite3BtreeCommit",\
-"schemaIsValid",\
-"ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER",\
-"sqlite_handle_doer",\
-"sqlite3LocateTableItem",\
-"sqlite3SrcListLookup",\
-"sqlite3Insert",\
-"__fseeko_unlocked",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"__fseeko_unlocked",\
 "__ftello_unlocked",\
 "__funcs_on_exit",\
 "__fwritex",\
@@ -752,6 +730,8 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "destroy_op_array",\
 "do_cli_server",\
 "do_cli",\
+"do_fetch_common",\
+"do_fetch",\
 "dotlockCheckReservedLock",\
 "dotlockLock",\
 "dotlockUnlock",\
@@ -793,8 +773,6 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_ji",\
 "dynCall_jii",\
 "dynCall_jiii",\
-"dynCall_jiii",\
-"dynCall_iiiiiii",\
 "dynCall_jiiii",\
 "dynCall_jiiiji",\
 "dynCall_jiij",\
@@ -940,6 +918,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "pcacheUnpin",\
 "pdo_dbh_attribute_set",\
 "pdo_dbh_free_storage",\
+"pdo_dbstmt_free_storage",\
 "pdo_handle_error",\
 "pdo_hash_methods",\
 "pdo_mysql_check_liveness",\
@@ -962,7 +941,9 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "pdo_mysql_stmt_next_rowset",\
 "pdo_mysql_stmt_param_hook",\
 "pdo_parse_params",\
+"pdo_sqlite_stmt_dtor",\
 "pdo_sqlite_stmt_execute",\
+"pdo_sqlite_stmt_fetch",\
 "pdo_stmt_describe_columns",\
 "pdo_stmt_do_next_rowset",\
 "pdo_stmt_init",\
@@ -1022,6 +1003,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "php_openssl_sockop_set_option",\
 "php_openssl_sockop_write",\
 "php_pcre_replace_func_impl",\
+"php_pdo_free_statement",\
 "php_pollfd_for",\
 "php_replace_in_subject_func",\
 "php_request_shutdown",\
@@ -1112,6 +1094,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "rtreeCallbackConstraint",\
 "rtreeInsertCell",\
 "run_cli",\
+"schemaIsValid",\
 "seekAndRead",\
 "seekAndWriteFd",\
 "selectExpander",\
@@ -1149,10 +1132,13 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "SplitNode",\
 "splitNodeStartree",\
 "sqlite_handle_closer",\
+"sqlite_handle_doer",\
 "sqlite_handle_preparer",\
 "sqlite3_autovacuum_pages",\
+"sqlite3_backup_step",\
 "sqlite3_bind_pointer",\
 "sqlite3_exec",\
+"sqlite3_finalize",\
 "sqlite3_free",\
 "sqlite3_malloc64",\
 "sqlite3_msize",\
@@ -1170,6 +1156,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "sqlite3BeginBenignMalloc",\
 "sqlite3BtreeBeginTrans",\
 "sqlite3BtreeClose",\
+"sqlite3BtreeCommit",\
 "sqlite3BtreeCommitPhaseTwo",\
 "sqlite3BtreeDelete",\
 "sqlite3BtreeIndexMoveto",\
@@ -1197,11 +1184,13 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "sqlite3Fts5TokenizerInit",\
 "sqlite3Init",\
 "sqlite3InitOne",\
+"sqlite3Insert",\
 "sqlite3InvokeBusyHandler",\
 "sqlite3IsShadowTableOf",\
 "sqlite3LeaveMutexAndCloseZombie",\
 "sqlite3LoadExtension",\
 "sqlite3LocateTable",\
+"sqlite3LocateTableItem",\
 "sqlite3LockAndPrepare",\
 "sqlite3Malloc",\
 "sqlite3MallocInit",\
@@ -1266,6 +1255,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "sqlite3RunParser",\
 "sqlite3Select",\
 "sqlite3SelectPrep",\
+"sqlite3SrcListLookup",\
 "sqlite3StartTable",\
 "sqlite3Step",\
 "sqlite3ThreadCreate",\
@@ -1277,6 +1267,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "sqlite3VdbeMemFinalizevdbeCommit",\
 "sqlite3VdbeMemGrow",\
 "sqlite3VdbeMemSetStr",\
+"sqlite3VdbeReset",\
 "sqlite3VtabBegin",\
 "sqlite3VtabCallDestroy",\
 "sqlite3VtabModuleUnref",\
@@ -1379,6 +1370,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zend_binary_assign_op_typed_prop",\
 "zend_binary_assign_op_typed_ref",\
 "zend_bind_class_in_slot",\
+"zend_call_destructors",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_call_known_instance_method_with_2_params",\
@@ -1391,6 +1383,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zend_deprecated_function",\
 "zend_destroy_rsrc_list",\
 "ZEND_DO_FCALL_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER",\
 "zend_emit_op_tmp",\
 "zend_emit_op",\
 "zend_enum_add_case_cstr",\
@@ -1436,6 +1429,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zend_hash_apply",\
 "zend_hash_del_key_or_index",\
 "zend_hash_graceful_reverse_destroy",\
+"zend_hash_reverse_apply",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
 "zend_include_or_eval",\
 "zend_internal_type_error",\
@@ -1715,6 +1709,8 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zim_PDOStatement_closeCursor",\
 "zim_PDOStatement_errorInfo",\
 "zim_PDOStatement_execute",\
+"zim_PDOStatement_fetch",\
+"zim_PDOStatement_fetchAll",\
 "zim_PDOStatement_getAttribute",\
 "zim_PDOStatement_getColumnMeta",\
 "zim_PDOStatement_setAttribute",\
@@ -1730,6 +1726,8 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zim_SessionHandler_read",\
 "zim_SessionHandler_write",\
 "zim_SplObjectStorage___debugInfo",\
+"zim_sqlite3_backup",\
+"zim_SQLite3_backup",\
 "zim_SQLite3_exec",\
 "zip_source_file_common_new",\
 "zip_source_function_create",\
@@ -1766,8 +1764,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zval_ptr_dtor",\
 "zval_try_get_string_func",\
 "zval_undefined_cv",\
-"zval_update_constant_ex",\
-"zim_PDO_prepare"'; \
+"zval_update_constant_ex"'; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED,"$(echo "$ASYNCIFY_ONLY_UNPREFIXED" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
