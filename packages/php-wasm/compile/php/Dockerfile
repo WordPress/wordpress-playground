@@ -591,15 +591,6 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_iijiji",\
 "invoke_jii",\
 "invoke_jiii",\
-"invoke_v",\
-"invoke_vi",\
-"invoke_vii",\
-"invoke_viidii",\
-"invoke_viii",\
-"invoke_viiii",\
-"invoke_viiiii",\
-"invoke_viiiiii",\
-"invoke_viiiiiii",\
 "invoke_viijii",\
 "invoke_vji",\
 "js_open_process",\n\
@@ -630,7 +621,28 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"__fseeko_unlocked",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"sqlite3VdbeReset",\
+"sqlite3_finalize",\
+"pdo_sqlite_stmt_dtor",\
+"php_pdo_free_statement",\
+"pdo_dbstmt_free_storage",\
+"zend_hash_reverse_apply",\
+"zend_call_destructors",\
+"zim_PDOStatement_fetchAll",\
+"pdo_sqlite_stmt_fetch",\
+"do_fetch_common",\
+"do_fetch",\
+"zim_PDOStatement_fetch",\
+"sqlite3_backup_step",\
+"zim_SQLite3_backup",\
+"sqlite3BtreeCommit",\
+"schemaIsValid",\
+"ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER",\
+"sqlite_handle_doer",\
+"sqlite3LocateTableItem",\
+"sqlite3SrcListLookup",\
+"sqlite3Insert",\
+"__fseeko_unlocked",\
 "__ftello_unlocked",\
 "__funcs_on_exit",\
 "__fwritex",\
@@ -799,7 +811,6 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_viiiii",\
 "dynCall_viiiiii",\
 "dynCall_viiiiiii",\
-"dynCall_viiiiiiii",\
 "dynCall_viiiiiiii",\
 "dynCall_viiji",\
 "dynCall_viijii",\
@@ -1964,7 +1975,8 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
+			# echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
+			echo "const logger = console; " >> /root/output/php-module.js; \
 			# TODO: Remove this after debugging. It is used to render objects in log messages.
 			echo "import * as nodeUtil from 'util'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \

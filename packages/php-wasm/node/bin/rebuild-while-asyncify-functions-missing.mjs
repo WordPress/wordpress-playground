@@ -22,9 +22,8 @@ for (const PHP_VERSION of PHP_VERSIONS) {
 			[
 				'--stack-trace-limit=100',
 				'./node_modules/.bin/nx',
-				'test',
+				'test-php-asyncify-sqlite3',
 				'php-wasm-node',
-				'--test-name-pattern=asyncify',
 			],
 			{
 				env: {

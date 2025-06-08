@@ -213,6 +213,14 @@
 				"testFiles": ["php-asyncify-mysqli.spec.ts"]
 			}
 		},
+		"test-php-asyncify-sqlite3": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-sqlite3.spec.ts"]
+			}
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
