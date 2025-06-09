@@ -3,14 +3,13 @@ import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import type { RunCLIArgs } from './run-cli';
-import { runCLI } from './run-cli';
-import { resolveBlueprint } from './resolve-blueprint';
-import { ReportableError } from './reportable-error';
 import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mount';
+import { resolveBlueprint } from './resolve-blueprint';
+import type { RunCLIArgs } from './run-cli';
+import { runCLI } from './run-cli';
 
 async function run() {
 	/**
@@ -154,10 +153,6 @@ async function run() {
 	const cliArgs = {
 		...args,
 		command,
-		blueprint: await resolveBlueprint({
-			sourceString: args.blueprint,
-			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
-		}),
 		mount: [...(args.mount || []), ...(args.mountDir || [])],
 		mountBeforeInstall: [
 			...(args.mountBeforeInstall || []),
@@ -165,18 +160,7 @@ async function run() {
 		],
 	} as RunCLIArgs;
 
-	try {
-		return runCLI(cliArgs);
-	} catch (e) {
-		const reportableCause = ReportableError.getReportableCause(e);
-		if (reportableCause) {
-			console.log('');
-			console.log(reportableCause.message);
-			process.exit(1);
-		} else {
-			throw e;
-		}
-	}
+	return await runCLI(cliArgs);
 }
 
-run();
+await run();

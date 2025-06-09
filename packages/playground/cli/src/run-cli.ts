@@ -4,9 +4,8 @@
  *   Flush stale entries periodically.
  */
 
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { errorLogPath, logToMemory, logger } from '@php-wasm/logger';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type {
 	PHP,
 	PHPProcessManager,
@@ -15,38 +14,27 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { PHPResponse } from '@php-wasm/universal';
+import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import type {
-	BlueprintDeclaration,
 	BlueprintBundle,
+	BlueprintDeclaration,
+	PHPExceptionDetails,
 } from '@wp-playground/blueprints';
-import {
-	compileBlueprint,
-	runBlueprintSteps,
-	isBlueprintBundle,
-} from '@wp-playground/blueprints';
-import {
-	bootRequestHandler,
-	bootWordPress,
-	resolveWordPressRelease,
-} from '@wp-playground/wordpress';
+import { runBlueprintV2 } from '@wp-playground/blueprints';
+import { bootRequestHandler } from '@wp-playground/wordpress';
 import fs from 'fs';
 import type { Server } from 'http';
-import path from 'path';
+import { PHPExecutionFailureError } from 'packages/php-wasm/universal/src/lib/php';
 import { rootCertificates } from 'tls';
 import { expandAutoMounts } from './cli-auto-mount';
-import {
-	CACHE_FOLDER,
-	cachedDownload,
-	fetchSqliteIntegration,
-	readAsFile,
-} from './download';
+import { mountResources, type Mount } from './mount';
+import { ReportableError } from './reportable-error';
 import { startServer } from './server';
-import { type Mount, mountResources } from './mount';
-import { runBlueprintV2 } from '@wp-playground/blueprints';
-import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { resolveBlueprint } from './resolve-blueprint';
 
 export interface RunCLIArgs {
-	blueprint?: BlueprintDeclaration | BlueprintBundle;
+	blueprint?: string;
+	blueprintMayReadAdjacentFiles?: boolean;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
@@ -68,139 +56,241 @@ export interface RunCLIServer {
 	server: Server;
 }
 
+/**
+ * Output writer that ensures that progress bars are not printed on the same line as other output.
+ */
+let output = {
+	lastWriteWasProgress: false,
+	progress(data: string) {
+		if (!process.stdout.isTTY) {
+			console.log(data);
+		} else {
+			if (!output.lastWriteWasProgress) {
+				process.stdout.write('\n');
+			}
+			process.stdout.write('\r\x1b[K' + data);
+			output.lastWriteWasProgress = true;
+		}
+	},
+	stdout(data: string) {
+		if (output.lastWriteWasProgress) {
+			process.stdout.write('\n');
+			output.lastWriteWasProgress = false;
+		}
+		process.stdout.write(data);
+	},
+	stderr(data: string) {
+		if (output.lastWriteWasProgress) {
+			process.stdout.write('\n');
+			output.lastWriteWasProgress = false;
+		}
+		process.stderr.write(data);
+	},
+};
+
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
-	/**
-	 * Expand auto-mounts to include the necessary mounts and steps
-	 * when running in auto-mount mode.
-	 */
-	if (args.autoMount) {
-		args = expandAutoMounts(args);
-	}
+	try {
+		/**
+		 * Expand auto-mounts to include the necessary mounts and steps
+		 * when running in auto-mount mode.
+		 */
+		if (args.autoMount) {
+			args = expandAutoMounts(args);
+		}
 
-	if (args.quiet) {
-		// @ts-ignore
-		logger.handlers = [];
-	}
+		// Store errors in memory. Logging all the errors is way too much noise.
+		// Playground CLI curates the error output and only exposes all the errors
+		// when the user specifically asks for it.
+		logger.handlers = [logToMemory];
 
-	let requestHandler: PHPRequestHandler;
-	let wordPressReady = false;
+		if (args.quiet) {
+			output = {
+				lastWriteWasProgress: false,
+				progress: () => {},
+				stdout: () => {},
+				stderr: () => {},
+			};
+		}
 
-	logger.log('Starting a PHP server...');
+		let requestHandler: PHPRequestHandler;
+		let wordPressReady = false;
 
-	// @TODO: Support Blueprint bundles. Don't deal with Filesystem instances.
-	//        Hm, maybe start with any PHP version and then switch once we
-	//        used it to process the blueprint? Although the Blueprint may
-	//        not be compatible with that PHP version :thinking:
-	//
-	//        Maybe a multi-stage processing in PHP? Stage 1: Parse the Blueprint,
-	//        Stage 2: Process the blueprint and get the PHP version,
-	//        Stage 3: Boot the PHP version and run the blueprint.
-	//
-	//        Hm... no. That would force browsers to download multiple PHP versions.
-	//        I guess we need some code duplication to extract the PHP version in
-	//        TypeScript and then pass the rest of the Blueprint/bundle to TypeScript.
-	//
-	//        Alternatively, we could require the caller to specify the PHP version
-	//        and only use the Blueprint as a validation device? :thinking:
-	//        Let's do that for now to reduce the complexity.
+		output.stdout('Starting a PHP server...\n');
 
-	return startServer({
-		port: args['port'] as number,
-		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const absoluteUrl = `http://127.0.0.1:${port}`;
+		// @TODO: Support Blueprint bundles. Don't deal with Filesystem instances.
+		//        Hm, maybe start with any PHP version and then switch once we
+		//        used it to process the blueprint? Although the Blueprint may
+		//        not be compatible with that PHP version :thinking:
+		//
+		//        Maybe a multi-stage processing in PHP? Stage 1: Parse the Blueprint,
+		//        Stage 2: Process the blueprint and get the PHP version,
+		//        Stage 3: Boot the PHP version and run the blueprint.
+		//
+		//        Hm... no. That would force browsers to download multiple PHP versions.
+		//        I guess we need some code duplication to extract the PHP version in
+		//        TypeScript and then pass the rest of the Blueprint/bundle to TypeScript.
+		//
+		//        Alternatively, we could require the caller to specify the PHP version
+		//        and only use the Blueprint as a validation device? :thinking:
+		//        Let's do that for now to reduce the complexity.
 
-			const blueprintJSON = await (
-				await args.blueprint.read('/blueprint.json')
-			).text();
-			console.log(blueprintJSON);
+		const blueprint = resolveBlueprint({
+			sourceString: args.blueprint,
+			blueprintMayReadAdjacentFiles:
+				args.blueprintMayReadAdjacentFiles ?? false,
+		})!;
 
-			logger.log(`Setting up WordPress ${args.wp}`);
+		return await startServer({
+			port: args['port'] as number,
+			onBind: async (
+				server: Server,
+				port: number
+			): Promise<RunCLIServer> => {
+				const absoluteUrl = `http://127.0.0.1:${port}`;
 
-			requestHandler = await bootRequestHandler({
-				siteUrl: absoluteUrl,
-				createPhpRuntime: async () =>
-					await loadNodeRuntime(args.php, {
-						followSymlinks: args.followSymlinks === true,
-					}),
-				sapiName: 'cli',
-				createFiles: {
-					'/internal/shared/ca-bundle.crt':
-						rootCertificates.join('\n'),
-				},
-				phpIniEntries: {
-					'openssl.cafile': '/internal/shared/ca-bundle.crt',
-					allow_url_fopen: '1',
-					disable_functions: '',
-				},
-				cookieStore: false,
-				spawnHandler: spawnHandlerFactory,
-			});
-			logger.log(`Booted!`);
-			const { php, reap } =
-				await requestHandler.processManager.acquirePHPInstance();
-			try {
-				await runBlueprintV2({
-					php,
-					blueprintJSON,
+				output.stdout(`Downloading the Blueprint\n`);
+
+				const blueprintJSON = await (
+					await (await blueprint).read('/blueprint.json')
+				).text();
+
+				output.stdout(`Booting the request handler\n`);
+
+				requestHandler = await bootRequestHandler({
 					siteUrl: absoluteUrl,
-					documentRoot: '/wordpress',
-					hooks: {
-						beforeWordPressFiles: async (php) => {
-							if (args.mountBeforeInstall) {
-								mountResources(
-									php as PHP,
-									args.mountBeforeInstall
-								);
-							}
-						},
-						onProgress: (progress, caption) => {
-							const message = `${caption.trim()} – ${progress.toFixed(
-								2
-							)}%`;
-							process.stdout.write('\r\x1b[K' + message);
-						},
+					createPhpRuntime: async () =>
+						await loadNodeRuntime(args.php, {
+							followSymlinks: args.followSymlinks === true,
+						}),
+					sapiName: 'cli',
+					createFiles: {
+						'/internal/shared/ca-bundle.crt':
+							rootCertificates.join('\n'),
 					},
+					phpIniEntries: {
+						'openssl.cafile': '/internal/shared/ca-bundle.crt',
+						allow_url_fopen: '1',
+						disable_functions: '',
+					},
+					cookieStore: false,
+					spawnHandler: spawnHandlerFactory,
 				});
-				wordPressReady = true;
 
-				if (args.command === 'build-snapshot') {
-					await zipDirectory(php, '/wordpress', '/tmp/build.zip');
-					const zip = php.readFileAsBuffer('/tmp/build.zip');
-					fs.writeFileSync(args.outfile as string, zip);
-					php.unlink('/tmp/build.zip');
+				const { php, reap } =
+					await requestHandler.processManager.acquirePHPInstance();
+				try {
+					await runBlueprintV2({
+						php,
+						blueprintJSON,
+						siteUrl: absoluteUrl,
+						documentRoot: '/wordpress',
+						hooks: {
+							beforeWordPressFiles: async (php) => {
+								if (args.mountBeforeInstall) {
+									mountResources(
+										php as PHP,
+										args.mountBeforeInstall
+									);
+								}
+							},
+							onProgress: (progress, caption) => {
+								const message = `${caption.trim()} – ${progress.toFixed(
+									2
+								)}%`;
+								output.progress(message);
+							},
+							onError: (
+								message,
+								details?: PHPExceptionDetails
+							) => {
+								const red = '\x1b[31m';
+								const bold = '\x1b[1m';
+								const reset = '\x1b[0m';
+								const boldRed = `${red}${bold}`;
+								const boldReset = `${reset}`;
+								if (args.debug && details) {
+									output.stderr(
+										`${boldRed}Fatal error:${boldReset} Uncaught ${details.exception}: ${details.message}\n` +
+											`  at ${details.file}:${details.line}\n` +
+											(details.trace
+												? details.trace + '\n'
+												: '')
+									);
+								} else {
+									output.stderr(
+										`${boldRed}Error:${boldReset} ${message}\n`
+									);
+								}
+							},
+						},
+					});
+					wordPressReady = true;
 
-					logger.log(`WordPress exported to ${args.outfile}`);
-					process.exit(0);
-				} else if (args.command === 'run-blueprint') {
-					logger.log(`Blueprint executed`);
-					process.exit(0);
-				} else {
-					logger.log(`WordPress is running on ${absoluteUrl}`);
+					if (args.command === 'build-snapshot') {
+						await zipDirectory(php, '/wordpress', '/tmp/build.zip');
+						const zip = php.readFileAsBuffer('/tmp/build.zip');
+						fs.writeFileSync(args.outfile as string, zip);
+						php.unlink('/tmp/build.zip');
+
+						output.stdout(
+							`WordPress exported to ${args.outfile}\n`
+						);
+						process.exit(0);
+					} else if (args.command === 'run-blueprint') {
+						output.stdout(`Blueprint executed\n`);
+						process.exit(0);
+					} else {
+						output.stdout(
+							`WordPress is running on ${absoluteUrl}\n`
+						);
+					}
+
+					return { requestHandler, server };
+				} catch (error) {
+					if (!args.debug) {
+						throw error;
+					}
+					const phpLogs = php.readFileAsText(errorLogPath);
+					throw new Error(phpLogs, { cause: error });
+				} finally {
+					reap();
 				}
-
-				return { requestHandler, server };
-			} catch (error) {
-				console.log('No bosz');
-				console.log(error);
-				if (!args.debug) {
-					throw error;
+			},
+			async handleRequest(request: PHPRequest) {
+				if (!wordPressReady) {
+					return PHPResponse.forHttpCode(
+						502,
+						'WordPress is not ready yet'
+					);
 				}
-				const phpLogs = php.readFileAsText(errorLogPath);
-				throw new Error(phpLogs, { cause: error });
-			} finally {
-				reap();
+				return await requestHandler.request(request);
+			},
+		});
+	} catch (e) {
+		/**
+		 * @TODO: Consider printing errors stored in logger memory;
+		 */
+		const reportableCause = ReportableError.getReportableCause(e);
+		if (reportableCause) {
+			output.stdout(reportableCause.message);
+			process.exit(1);
+		} else if (e instanceof PHPExecutionFailureError) {
+			if (args.debug) {
+				output.stderr('--------------------------------');
+				output.stderr('Debug details:');
+				output.stderr('--------------------------------');
+				output.stderr(e.message);
+				output.stderr('PHP stderr:');
+				output.stderr(e.response.errors);
+				output.stderr('PHP stdout:');
+				output.stderr(e.response.text);
+				output.stderr('--------------------------------');
 			}
-		},
-		async handleRequest(request: PHPRequest) {
-			if (!wordPressReady) {
-				return PHPResponse.forHttpCode(
-					502,
-					'WordPress is not ready yet'
-				);
-			}
-			return await requestHandler.request(request);
-		},
-	});
+			process.exit(1);
+		} else {
+			throw e;
+		}
+	}
 }
 
 async function zipDirectory(php: PHP, directory: string, zipPath: string) {
@@ -335,9 +425,9 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 				processApi.stderr(result.errors);
 				processApi.exit(result.exitCode);
 			} catch (e) {
-				logger.error('Error in childPHP:', e);
+				// logger.error('Error in childPHP:', e);
 				if (e instanceof Error) {
-					processApi.stderr(e.message);
+					output.stderr(e.message);
 				}
 				processApi.exit(1);
 			} finally {

@@ -18,9 +18,17 @@ interface RunV2Options {
 		 * @TODO: Do we need this? How is it different from throwing
 		 * an error?
 		 */
-		onError?: (error: string, details?: unknown) => void;
+		onError?: (message: string, details?: PHPExceptionDetails) => void;
 	};
 }
+
+export type PHPExceptionDetails = {
+	exception: string;
+	message: string;
+	file: string;
+	line: number;
+	trace: string;
+};
 
 export async function runBlueprintV2(options: RunV2Options) {
 	const php = options.php;
@@ -73,7 +81,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 					);
 					break;
 				case 'blueprint.error':
-					onError?.(parsed.error, parsed.details);
+					onError?.(parsed.message, parsed.details);
 					break;
 			}
 		} catch (e) {
@@ -159,6 +167,8 @@ require( "/tmp/blueprints.phar" );
 `
 	);
 
+	await php.mkdir('/wordpress');
+
 	return await php.run({
 		scriptPath: '/tmp/run-blueprints.php',
 		env: {
@@ -168,7 +178,7 @@ require( "/tmp/blueprints.phar" );
 				'--site-path=/wordpress',
 				`--site-url=${options.siteUrl}`,
 				'--db-engine=sqlite',
-				'--truncate-new-site-directory=true',
+				// '--truncate-new-site-directory=true',
 			]),
 		},
 	});
