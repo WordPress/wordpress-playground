@@ -29,10 +29,18 @@ import fs from 'fs';
 import type { Server } from 'http';
 import { PHPExecutionFailureError } from 'packages/php-wasm/universal/src/lib/php';
 import { rootCertificates } from 'tls';
-import { expandAutoMounts } from './cli-auto-mount';
-import { mountResources, type Mount } from './mount';
-import { ReportableError } from './reportable-error';
 import { startServer } from './server';
+/* eslint-disable no-console */
+import { SupportedPHPVersions } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import yargs from 'yargs';
+import {
+	expandAutoMounts,
+	mountResources,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+	type Mount,
+} from './mounts';
 
 export interface RunCLIArgs {
 	blueprint?: string | BlueprintDeclaration;
@@ -89,6 +97,145 @@ let output = {
 		process.stderr.write(data);
 	},
 };
+
+export async function parseOptionsAndRunCLI() {
+	/**
+	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
+	 *       Perhaps the two could be handled by the same code?
+	 */
+	const yargsObject = yargs(process.argv.slice(2))
+		.usage('Usage: wp-playground <command> [options]')
+		.positional('command', {
+			describe: 'Command to run',
+			choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
+			demandOption: true,
+		})
+		.option('outfile', {
+			describe: 'When building, write to this output file.',
+			type: 'string',
+			default: 'wordpress.zip',
+		})
+		.option('port', {
+			describe: 'Port to listen on when serving.',
+			type: 'number',
+			default: 9400,
+		})
+		.option('php', {
+			describe: 'PHP version to use.',
+			type: 'string',
+			default: RecommendedPHPVersion,
+			choices: SupportedPHPVersions,
+		})
+		.option('wp', {
+			describe: 'WordPress version to use.',
+			type: 'string',
+			default: 'latest',
+		})
+		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
+		// ReadOnlyNODEFS, or by copying the files into MEMFS
+		.option('mount', {
+			describe:
+				'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
+			type: 'array',
+			string: true,
+			coerce: parseMountWithDelimiterArguments,
+		})
+		.option('mountBeforeInstall', {
+			describe:
+				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
+			type: 'array',
+			string: true,
+			coerce: parseMountWithDelimiterArguments,
+		})
+		.option('mountDir', {
+			describe:
+				'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
+			type: 'array',
+			nargs: 2,
+			array: true,
+			// coerce: parseMountDirArguments,
+		})
+		.option('mountDirBeforeInstall', {
+			describe:
+				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
+			type: 'string',
+			nargs: 2,
+			array: true,
+			coerce: parseMountDirArguments,
+		})
+		.option('login', {
+			describe: 'Should log the user in',
+			type: 'boolean',
+			default: false,
+		})
+		.option('blueprint', {
+			describe: 'Blueprint to execute.',
+			type: 'string',
+		})
+		.option('blueprintMayReadAdjacentFiles', {
+			describe:
+				'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('skipWordPressSetup', {
+			describe:
+				'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('skipSqliteSetup', {
+			describe:
+				'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('quiet', {
+			describe: 'Do not output logs and progress messages.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('debug', {
+			describe:
+				'Print PHP error log content if an error occurs during Playground boot.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('autoMount', {
+			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
+			type: 'boolean',
+			default: false,
+		})
+		.option('followSymlinks', {
+			describe:
+				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
+			type: 'boolean',
+			default: false,
+		})
+		.showHelpOnFail(false);
+
+	yargsObject.wrap(yargsObject.terminalWidth());
+	const args = await yargsObject.argv;
+
+	const command = args._[0] as string;
+
+	if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {
+		yargsObject.showHelp();
+		process.exit(1);
+	}
+
+	const cliArgs = {
+		...args,
+		command,
+		mount: [...(args.mount || []), ...(args.mountDir || [])],
+		mountBeforeInstall: [
+			...(args.mountBeforeInstall || []),
+			...(args.mountDirBeforeInstall || []),
+		],
+	} as RunCLIArgs;
+
+	return await runCLI(cliArgs);
+}
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let phpErrorReported = false;
@@ -249,11 +396,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		/**
 		 * @TODO: Consider printing errors stored in logger memory;
 		 */
-		const reportableCause = ReportableError.getReportableCause(e);
-		if (reportableCause) {
-			output.stdout(reportableCause.message);
-			process.exit(1);
-		} else if (e instanceof PHPExecutionFailureError) {
+		if (e instanceof PHPExecutionFailureError) {
 			// Avoid verbose error messages. Only print all the error details when:
 			// * The user requested debug output
 			// * The onError hook above did not report any error yet and the user cannot
