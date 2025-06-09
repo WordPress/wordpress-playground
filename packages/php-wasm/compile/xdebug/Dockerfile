@@ -1,15 +1,14 @@
 FROM playground-php-wasm:base
 
-ARG WITH_JSPI="yes"
 
-ARG PHP_VERSION=8.4.0
+# ARG PHP_VERSION=8.4.0
 # ARG PHP_VERSION=8.3.0
 # ARG PHP_VERSION=8.2.10
 # ARG PHP_VERSION=8.1.23
 # ARG PHP_VERSION=8.0.30
 # ARG PHP_VERSION=7.4.33
 # ARG PHP_VERSION=7.3.33
-# ARG PHP_VERSION=7.2.34
+ARG PHP_VERSION=7.2.34
 
 
 
@@ -132,25 +131,6 @@ RUN set -euxo pipefail; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT=1 -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -O3"; \
 
-	if [ "$WITH_JSPI" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
-	else \
-		export ASYNCIFY_ONLY='"zm_post_zend_deactivate_xdebug",\
-"xdebug_debugger_post_deactivate",\
-"xdebug_dbgp_deinit",\
-"xdebug_execute_begin",\
-"xdebug_execute_user_code_begin",\
-"xdebug_init_debugger",\
-"xdebug_debug_init_if_requested_at_startup",\
-"xdebug_dbgp_init",\
-"xdebug_execute_ex",\
-"xdebug_statement_call",\
-"xdebug_debugger_statement_call",\
-"xdebug_dbgp_breakpoint",\
-"xdebug_dbgp_cmdloop",\
-"xdebug_fd_read_line_delim"'; \
-
-		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_IMPORTS=wasm_recv -sASYNCIFY_EXPORTS=wasm_recv -sASYNCIFY_ONLY=[${ASYNCIFY_ONLY}]"; \
-	fi; \
+	export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
 
 	emmake make -j1

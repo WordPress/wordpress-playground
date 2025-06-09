@@ -1099,7 +1099,7 @@ RUN set -euxo pipefail; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
-	EMCC_DEBUG=1 emcc $OPTIMIZATION_FLAGS \
+	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
 	--js-library /root/phpwasm-emscripten-library-dynamic-linking.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
