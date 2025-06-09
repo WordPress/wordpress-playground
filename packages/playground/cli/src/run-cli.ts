@@ -20,7 +20,6 @@ import type {
 import { PHPResponse } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import type {
-	BlueprintBundle,
 	BlueprintDeclaration,
 	PHPExceptionDetails,
 } from '@wp-playground/blueprints';
@@ -34,8 +33,6 @@ import { expandAutoMounts } from './cli-auto-mount';
 import { mountResources, type Mount } from './mount';
 import { ReportableError } from './reportable-error';
 import { startServer } from './server';
-import { resolveBlueprint } from './resolve-blueprint';
-import { parseBlueprintDeclaration } from 'packages/playground/blueprints/src/lib/v2';
 
 export interface RunCLIArgs {
 	blueprint?: string | BlueprintDeclaration;

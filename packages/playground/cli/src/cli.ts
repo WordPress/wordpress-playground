@@ -2,12 +2,10 @@
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import yargs from 'yargs';
-import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mount';
-import { resolveBlueprint } from './resolve-blueprint';
 import type { RunCLIArgs } from './run-cli';
 import { runCLI } from './run-cli';
 
@@ -125,20 +123,7 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
-		.showHelpOnFail(false)
-		.check((args) => {
-			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
-				try {
-					// Check if is valid URL
-					new URL(args.wp);
-				} catch {
-					throw new Error(
-						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
-					);
-				}
-			}
-			return true;
-		});
+		.showHelpOnFail(false);
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
