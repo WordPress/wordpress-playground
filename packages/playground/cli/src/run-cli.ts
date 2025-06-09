@@ -135,10 +135,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			): Promise<RunCLIServer> => {
 				const absoluteUrl = `http://127.0.0.1:${port}`;
 
-				output.stdout(`Downloading the Blueprint\n`);
-
 				output.stdout(`Booting the request handler\n`);
-
 				requestHandler = await bootRequestHandler({
 					siteUrl: absoluteUrl,
 					createPhpRuntime: async () =>
