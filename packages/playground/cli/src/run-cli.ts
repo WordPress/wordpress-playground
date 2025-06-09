@@ -2,6 +2,10 @@
  * @TODO:
  * * Mount a stable system tmp or home/.playground-cli directory to store HTTP Cache.
  *   Flush stale entries periodically.
+ * * Find a consistent logging interface. Right now we have a logger for some things and output.stdout for other things.
+ *   In the browser, logger prints information to the devtools console which is only needed for debugging. The HTML makes
+ *   for the UI. In CLI, the console and the UI are the same thing. Perhaps we actually need to separate what we print for
+ *   UI reasons from what we print for debugging?
  */
 
 import { errorLogPath, logToMemory, logger } from '@php-wasm/logger';
