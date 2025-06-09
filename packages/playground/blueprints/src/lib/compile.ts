@@ -51,6 +51,7 @@ export interface CompiledBlueprint {
 		wp: string;
 	};
 	features: {
+		icu: boolean;
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;
 	};
@@ -321,6 +322,8 @@ function compileBlueprintJson(
 			wp: blueprint.preferredVersions?.wp || 'latest',
 		},
 		features: {
+			// Disable icu by default
+			icu: blueprint.features?.icu ?? false,
 			// Disable networking by default
 			networking: blueprint.features?.networking ?? false,
 		},
