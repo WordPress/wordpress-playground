@@ -243,7 +243,6 @@ libintl/asyncify/dist/root/lib/lib/libintl.a: base-image
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
 
-
 libintl_jspi: libintl/jspi/dist/root/lib/lib/libintl.a
 libintl/jspi/dist/root/lib/lib/libintl.a: base-image
 	mkdir -p ./libintl/jspi/dist/root/lib
@@ -251,6 +250,12 @@ libintl/jspi/dist/root/lib/lib/libintl.a: base-image
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/lib ./libintl/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
+
+xdebug_jspi: base-image
+	mkdir -p ./xdebug/jspi
+	docker build -f xdebug/Dockerfile . -t playground-php-wasm:xdebug --progress=plain
+	docker cp $$(docker create playground-php-wasm:xdebug):/root/xdebug/modules/. ./xdebug/jspi
+	cp -a ./xdebug/jspi/. ../node/jspi/
 
 all: all_jspi all_asyncify
 all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi
