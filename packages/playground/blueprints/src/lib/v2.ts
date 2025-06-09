@@ -2,10 +2,11 @@ import { UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
+import { BlueprintDeclaration } from './blueprint';
 
 interface RunV2Options {
 	php: UniversalPHP;
-	blueprintJSON: string;
+	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
 	siteUrl: string;
 	documentRoot: string;
 	hooks?: {
@@ -15,8 +16,12 @@ interface RunV2Options {
 		beforeWordPressFiles?: (php: UniversalPHP) => void | Promise<void>;
 		onProgress?: (progress: number, caption: string) => void;
 		/**
-		 * @TODO: Do we need this? How is it different from throwing
-		 * an error?
+		 * A hook that is called when an error occurs. It provides succinct
+		 * error messages and structured details. Useful for reporting specific
+		 * errors to the user without displaying the full stack trace.
+		 *
+		 * @param message The error message.
+		 * @param details The error details.
 		 */
 		onError?: (message: string, details?: PHPExceptionDetails) => void;
 	};
@@ -44,7 +49,23 @@ export async function runBlueprintV2(options: RunV2Options) {
 		'/tmp/blueprints.phar',
 		new Uint8Array(await file.arrayBuffer())
 	);
-	php.writeFile('/tmp/blueprint.json', options.blueprintJSON);
+
+	const parsedBlueprintDeclaration = parseBlueprintDeclaration(
+		options.blueprint
+	);
+	let blueprintReference = '';
+	switch (parsedBlueprintDeclaration.type) {
+		case 'inline-file':
+			php.writeFile(
+				'/tmp/blueprint.json',
+				parsedBlueprintDeclaration.contents
+			);
+			blueprintReference = '/tmp/blueprint.json';
+			break;
+		case 'file-reference':
+			blueprintReference = parsedBlueprintDeclaration.reference;
+			break;
+	}
 
 	// @TODO: Unbind this listener after a successful run.
 	//        Maybe propagate messages via addEventListener etc?
@@ -174,7 +195,7 @@ require( "/tmp/blueprints.phar" );
 		env: {
 			ARGV: JSON.stringify([
 				'exec',
-				'/tmp/blueprint.json',
+				blueprintReference,
 				'--site-path=/wordpress',
 				`--site-url=${options.siteUrl}`,
 				'--db-engine=sqlite',
@@ -184,10 +205,53 @@ require( "/tmp/blueprints.phar" );
 	});
 }
 
+export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
+export type ParsedBlueprintV2Declaration =
+	| { type: 'inline-file'; contents: string }
+	| { type: 'file-reference'; reference: string };
+
+export function parseBlueprintDeclaration(
+	source: BlueprintV2Declaration | ParsedBlueprintV2Declaration
+): ParsedBlueprintV2Declaration {
+	if (
+		typeof source === 'object' &&
+		'type' in source &&
+		['inline-file', 'file-reference'].includes(source.type)
+	) {
+		return source;
+	}
+	if (!source) {
+		return {
+			type: 'inline-file',
+			contents: '{}',
+		};
+	}
+	if (typeof source !== 'string') {
+		// If source is an object, assume it's a Blueprint declaration object and
+		// convert it to a JSON string.
+		return {
+			type: 'inline-file',
+			contents: JSON.stringify(source),
+		};
+	}
+	try {
+		// If source is valid JSON, return it as is.
+		JSON.parse(source);
+		return {
+			type: 'inline-file',
+			contents: source,
+		};
+	} catch (e) {
+		return {
+			type: 'file-reference',
+			reference: source,
+		};
+	}
+}
+
 export async function getV2Runner(): Promise<File> {
 	let data = null;
 	if (v2_runner_url.startsWith('/')) {
-		console.log('v2_runner_url', v2_runner_url);
 		let path = v2_runner_url;
 		if (path.startsWith('/@fs/')) {
 			path = path.slice(4);

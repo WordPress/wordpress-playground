@@ -33,7 +33,7 @@ describe('V2 runner', () => {
 			const { php } = await handler.processManager.acquirePHPInstance();
 			const result = await runBlueprintV2({
 				php: php as any,
-				blueprintJSON: '{"version":2}',
+				blueprintSource: '{"version":2}',
 				siteUrl: 'http://playground-domain/',
 				documentRoot: '/wordpress',
 				hooks: {

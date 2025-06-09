@@ -25,7 +25,7 @@ const handler = await bootRequestHandler({
 const { php } = await handler.processManager.acquirePHPInstance();
 await runBlueprintV2({
 	php: php as any,
-	blueprintJSON: '{"version":2}',
+	blueprintSource: '{"version":2}',
 	siteUrl: 'http://playground-domain/',
 	documentRoot: '/wordpress',
 	hooks: {

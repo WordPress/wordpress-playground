@@ -35,9 +35,10 @@ import { mountResources, type Mount } from './mount';
 import { ReportableError } from './reportable-error';
 import { startServer } from './server';
 import { resolveBlueprint } from './resolve-blueprint';
+import { parseBlueprintDeclaration } from 'packages/playground/blueprints/src/lib/v2';
 
 export interface RunCLIArgs {
-	blueprint?: string;
+	blueprint?: string | BlueprintDeclaration;
 	blueprintMayReadAdjacentFiles?: boolean;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
@@ -93,6 +94,8 @@ let output = {
 };
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+	let phpErrorReported = false;
+
 	try {
 		/**
 		 * Expand auto-mounts to include the necessary mounts and steps
@@ -105,7 +108,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		// Store errors in memory. Logging all the errors is way too much noise.
 		// Playground CLI curates the error output and only exposes all the errors
 		// when the user specifically asks for it.
-		logger.handlers = [logToMemory];
+		if (!args.debug) {
+			logger.handlers = [logToMemory];
+		}
 
 		if (args.quiet) {
 			output = {
@@ -121,29 +126,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 		output.stdout('Starting a PHP server...\n');
 
-		// @TODO: Support Blueprint bundles. Don't deal with Filesystem instances.
-		//        Hm, maybe start with any PHP version and then switch once we
-		//        used it to process the blueprint? Although the Blueprint may
-		//        not be compatible with that PHP version :thinking:
-		//
-		//        Maybe a multi-stage processing in PHP? Stage 1: Parse the Blueprint,
-		//        Stage 2: Process the blueprint and get the PHP version,
-		//        Stage 3: Boot the PHP version and run the blueprint.
-		//
-		//        Hm... no. That would force browsers to download multiple PHP versions.
-		//        I guess we need some code duplication to extract the PHP version in
-		//        TypeScript and then pass the rest of the Blueprint/bundle to TypeScript.
-		//
-		//        Alternatively, we could require the caller to specify the PHP version
-		//        and only use the Blueprint as a validation device? :thinking:
-		//        Let's do that for now to reduce the complexity.
-
-		const blueprint = resolveBlueprint({
-			sourceString: args.blueprint,
-			blueprintMayReadAdjacentFiles:
-				args.blueprintMayReadAdjacentFiles ?? false,
-		})!;
-
+		// @TODO: if args.php is missing, try to infer it from parsedBlueprintDeclaration
 		return await startServer({
 			port: args['port'] as number,
 			onBind: async (
@@ -154,15 +137,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				output.stdout(`Downloading the Blueprint\n`);
 
-				const blueprintJSON = await (
-					await (await blueprint).read('/blueprint.json')
-				).text();
-
 				output.stdout(`Booting the request handler\n`);
 
 				requestHandler = await bootRequestHandler({
 					siteUrl: absoluteUrl,
 					createPhpRuntime: async () =>
+						// Require the caller to specify the PHP version to avoid pre-emptive downloading of the Blueprint
+						// file in TypeScript. PHP downloads the Blueprint, but before we can do that, we also need to know
+						// which PHP version to use.
 						await loadNodeRuntime(args.php, {
 							followSymlinks: args.followSymlinks === true,
 						}),
@@ -185,7 +167,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				try {
 					await runBlueprintV2({
 						php,
-						blueprintJSON,
+						blueprint: args.blueprint,
 						siteUrl: absoluteUrl,
 						documentRoot: '/wordpress',
 						hooks: {
@@ -207,6 +189,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								message,
 								details?: PHPExceptionDetails
 							) => {
+								phpErrorReported = true;
 								const red = '\x1b[31m';
 								const bold = '\x1b[1m';
 								const reset = '\x1b[0m';
@@ -277,16 +260,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			output.stdout(reportableCause.message);
 			process.exit(1);
 		} else if (e instanceof PHPExecutionFailureError) {
-			if (args.debug) {
-				output.stderr('--------------------------------');
-				output.stderr('Debug details:');
-				output.stderr('--------------------------------');
+			// Avoid verbose error messages. Only print all the error details when:
+			// * The user requested debug output
+			// * The onError hook above did not report any error yet and the user cannot
+			//   see any meaningful error message at this point
+			if (args.debug || !phpErrorReported) {
+				output.stderr(`--------------------------------\n`);
+				output.stderr('Debug details:\n');
+				output.stderr('--------------------------------\n');
 				output.stderr(e.message);
-				output.stderr('PHP stderr:');
+				output.stderr(`\n\n==== PHP stderr ====\n\n`);
 				output.stderr(e.response.errors);
-				output.stderr('PHP stdout:');
+				output.stderr(`\n\n==== PHP stdout ====\n\n`);
 				output.stderr(e.response.text);
-				output.stderr('--------------------------------');
+				output.stderr(`\n\n`);
+				output.stderr(`--------------------------------\n`);
 			}
 			process.exit(1);
 		} else {
