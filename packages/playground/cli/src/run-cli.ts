@@ -210,11 +210,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								const red = '\x1b[31m';
 								const bold = '\x1b[1m';
 								const reset = '\x1b[0m';
-								const boldRed = `${red}${bold}`;
-								const boldReset = `${reset}`;
 								if (args.debug && details) {
 									output.stderr(
-										`${boldRed}Fatal error:${boldReset} Uncaught ${details.exception}: ${details.message}\n` +
+										`${red}${bold}Fatal error:${reset} Uncaught ${details.exception}: ${details.message}\n` +
 											`  at ${details.file}:${details.line}\n` +
 											(details.trace
 												? details.trace + '\n'
@@ -222,7 +220,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 									);
 								} else {
 									output.stderr(
-										`${boldRed}Error:${boldReset} ${message}\n`
+										`${red}${bold}Error:${reset} ${message}\n`
 									);
 								}
 							},
