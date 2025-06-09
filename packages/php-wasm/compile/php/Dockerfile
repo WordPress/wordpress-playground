@@ -718,9 +718,11 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "Curl_poll",\
 "Curl_proxy_connect",\
 "Curl_readwrite",\
+"Curl_setup_conn",\
 "Curl_socket_check",\
 "Curl_ssl_connect_nonblocking",\
 "Curl_wait_ms",\
+"curlx_nonblock",\
 "dbh_free",\
 "dbh_get_gc",\
 "decrement_function",\
@@ -814,6 +816,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "find_implicit_binds_recursively",\
 "findInodeInfo",\
 "findReusableFd",\
+"flock",\
 "fread",\
 "functionDestroy",\
 "fwrite",\
@@ -1023,6 +1026,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "php_sockop_set_option",\
 "php_sockop_write",\
 "php_stdiop_read",\
+"php_stdiop_set_option",\
 "php_stdiop_write",\
 "php_stream_bucket_attach",\
 "php_stream_context_free",\
@@ -1112,6 +1116,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "shutdown_destructors",\
 "shutdown_executor",\
 "sifttrinkle",\
+"singleipconnect",\
 "slow_index_convert",\
 "smart_str_append_printf",\
 "smart_str_erealloc",\
@@ -1816,7 +1821,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "zval_ptr_dtor",\
 "zval_try_get_string_func",\
 "zval_undefined_cv",\
-"zval_update_constant_ex"'; \
+"zval_update_constant_ex"';\
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED,"$(echo "$ASYNCIFY_ONLY_UNPREFIXED" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
