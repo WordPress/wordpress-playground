@@ -348,7 +348,7 @@ export async function preloadSqliteIntegration(
 
 	// Use the new AST-based SQLite driver.
 	// TODO: Remove this once the new driver is the default; when this is closed:
-	//         https://github.com/Automattic/sqlite-database-integration/issues/50
+	//         https://github.com/WordPress/sqlite-database-integration/issues/195
 	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 	// Prevents the SQLite integration from trying to call activate_plugin()

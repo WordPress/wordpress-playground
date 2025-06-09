@@ -16,6 +16,13 @@ const tsconfig: TsConfig = JSON.parse(readFileSync(tsconfigPath, 'utf-8'));
 const pathAliases = tsconfig.compilerOptions.paths;
 const baseUrl = tsconfig.compilerOptions.baseUrl || '.';
 
+const playgroundPackageRoot = resolvePath(
+	import.meta.dirname,
+	'..',
+	'..',
+	'..'
+);
+
 const aliasMap = new Map<string, string>();
 for (const [alias, paths] of Object.entries(pathAliases)) {
 	// Our config is simple and doesn't use wildcards,
@@ -156,6 +163,29 @@ export async function load(
 			source,
 			shortCircuit: true,
 		};
+	}
+
+	const supportedModuleFormats = ['module', 'module-typescript'];
+	if (
+		urlObj.pathname.startsWith(playgroundPackageRoot) &&
+		supportedModuleFormats.includes(context.format!)
+	) {
+		const loadResult = await nextLoad(url, context);
+		if (supportedModuleFormats.includes(loadResult.format)) {
+			const source = (loadResult.source as Buffer).toString('utf8');
+			// Some of our code uses __dirname and __filename which are not available in ES modules.
+			// https://nodejs.org/api/esm.html#no-__filename-or-__dirname
+			//
+			// Let's try simple text replacement for now. It is fast and will probably be fine.
+			// If we run into problems, we can consider an AST transform instead.
+			const updatedSource = source.replace(
+				// Replace __dirname and __filename but not if they are declarations.
+				/(?<!(?:const|var|let)\s*)\b__(dirname|filename)/g,
+				'import.meta.$1'
+			);
+			loadResult.source = Buffer.from(updatedSource, 'utf8');
+		}
+		return loadResult;
 	}
 
 	// Pass everything else to the next loader
