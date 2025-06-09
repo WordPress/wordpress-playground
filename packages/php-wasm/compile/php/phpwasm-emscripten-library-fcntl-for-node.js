@@ -109,10 +109,6 @@ const LibraryForFileLocking = {
 		fn: LibraryManager.library.__syscall_fcntl64,
 	},
 
-	// TODO: Remove these js_ declarations once it is clear we don't need them.
-	// js__syscall_fcntl64__deps: ['$default_fcntl64', '$locking'],
-	// js__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
-	// js__syscall_fcntl64: async function js__syscall_fcntl64(fd, cmd, varargs) {
 	__syscall_fcntl64__deps: [
 		...LibraryManager.library.__syscall_fcntl64__deps,
 		'$default_fcntl64',
@@ -120,10 +116,6 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: async function __syscall_fcntl64(fd, cmd, varargs) {
-		// TODO: Remove this early return after debugging.
-		return Asyncify.handleAsync(async () => {
-			return Promise.resolve(default_fcntl64.fn(fd, cmd, varargs));
-		});
 		return Asyncify.handleAsync(async () => {
 			// return default_fcntl64.fn(fd, cmd, varargs);
 			// Necessary to use varargs accessor
@@ -530,37 +522,37 @@ const LibraryForFileLocking = {
 		});
 	},
 
-	// js_release_file_locks: async function js_release_file_locks() {
-	// 	js_wasm_trace(`js_release_file_locks ${PHPLoader.processId}`);
-	// 	// TODO: Why make this conditional?
-	// 	if (PHPLoader.fileLockManager) {
-	// 		const pid = PHPLoader.processId;
-	// 		return Asyncify.handleSleep((wakeUp) => {
-	// 			return PHPLoader.fileLockManager
-	// 				.releaseLocksForProcess(pid)
-	// 				.then((result) => {
-	// 					js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
-	// 					return result;
-	// 				})
-	// 				.catch((e) => {
-	// 					// TODO: What to actually do for an error here? Can we crash?
-	// 					js_wasm_trace(
-	// 						`js_release_file_locks ${pid} error ${JSON.stringify(
-	// 							e,
-	// 							(key, value) =>
-	// 								typeof value === 'bigint'
-	// 									? `0x${value
-	// 											.toString(16)
-	// 											.padStart(16, '0')}`
-	// 									: value
-	// 						)}`
-	// 					);
-	// 					return -1;
-	// 				})
-	// 				.then(wakeUp);
-	// 		});
-	// 	}
-	// },
+	js_release_file_locks: async function js_release_file_locks() {
+		js_wasm_trace(`js_release_file_locks ${PHPLoader.processId}`);
+		// TODO: Why make this conditional?
+		if (PHPLoader.fileLockManager) {
+			const pid = PHPLoader.processId;
+			return Asyncify.handleSleep((wakeUp) => {
+				return PHPLoader.fileLockManager
+					.releaseLocksForProcess(pid)
+					.then((result) => {
+						js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
+						return result;
+					})
+					.catch((e) => {
+						// TODO: What to actually do for an error here? Can we crash?
+						js_wasm_trace(
+							`js_release_file_locks ${pid} error ${JSON.stringify(
+								e,
+								(key, value) =>
+									typeof value === 'bigint'
+										? `0x${value
+												.toString(16)
+												.padStart(16, '0')}`
+										: value
+							)}`
+						);
+						return -1;
+					})
+					.then(wakeUp);
+			});
+		}
+	},
 
 	// TODO: Try to eliminate the need to declare flock() itself in php_wasm.c
 	// and find a way to declare it here in a way that overrides Emscripten's libc flock()
@@ -644,65 +636,64 @@ const LibraryForFileLocking = {
 		});
 	},
 
-	// TODO: Re-enable these after debugging the Asyncify crash with fcntl(). Also, update to use Asyncify.handleAsync().
-	// $default_fd_close: {
-	// 	fn: LibraryManager.library.fd_close,
-	// },
+	$default_fd_close: {
+		fn: LibraryManager.library.fd_close,
+	},
 
-	// fd_close__deps: ['$default_fd_close'],
-	// fd_close: async function fd_close(fd) {
-	// 	// js_wasm_trace(`fd_close ${fd}`);
-	// 	const [vfsPath, pathResolutionErrno] =
-	// 		locking.get_vfs_path_from_fd(fd);
-	// 	const shouldLog =
-	// 		pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
-	// 	// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
-	// 	if (locking.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
-	// 		shouldLog &&
-	// 			js_wasm_trace(
-	// 				`fd_close ${fd} ${vfsPath} calling default_fd_close`
-	// 			);
-	// 		// TODO: Say why closing this first
-	// 		const result = default_fd_close.fn(fd);
-	// 		shouldLog &&
-	// 			js_wasm_trace(
-	// 				`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
-	// 			);
-	// 		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
-	// 		return Asyncify.handleSleep((wakeUp) => {
-	// 			return PHPLoader.fileLockManager
-	// 				.releaseLocksForProcessFd(PHPLoader.processId, fd, nativeFilePath)
-	// 				.finally(() => {
-	// 					shouldLog &&
-	// 						js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
-	// 					locking.maybeLockedFds.delete(fd);
-	// 				})
-	// 				.then(() => {
-	// 					shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
-	// 					return result;
-	// 				})
-	// 				.catch((e) => {
-	// 					shouldLog &&
-	// 						js_wasm_trace(
-	// 							`fd_close ${fd} error ${JSON.stringify(
-	// 								e,
-	// 								(key, value) =>
-	// 									typeof value === 'bigint'
-	// 										? `0x${value
-	// 												.toString(16)
-	// 												.padStart(16, '0')}`
-	// 										: value
-	// 							)}`
-	// 						);
-	// 				})
-	// 				.then(wakeUp);
-	// 		});
-	// 	} else {
-	// 		shouldLog &&
-	// 			js_wasm_trace(`fd_close ${fd} ${vfsPath} default_fd_close case`);
-	// 		return default_fd_close.fn(fd);
-	// 	}
-	// },
+	fd_close__deps: ['$default_fd_close'],
+	fd_close: async function fd_close(fd) {
+		// js_wasm_trace(`fd_close ${fd}`);
+		const [vfsPath, pathResolutionErrno] =
+			locking.get_vfs_path_from_fd(fd);
+		const shouldLog =
+			pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
+		// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
+		if (locking.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
+			shouldLog &&
+				js_wasm_trace(
+					`fd_close ${fd} ${vfsPath} calling default_fd_close`
+				);
+			// TODO: Say why closing this first
+			const result = default_fd_close.fn(fd);
+			shouldLog &&
+				js_wasm_trace(
+					`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
+				);
+			const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
+			return Asyncify.handleSleep((wakeUp) => {
+				return PHPLoader.fileLockManager
+					.releaseLocksForProcessFd(PHPLoader.processId, fd, nativeFilePath)
+					.finally(() => {
+						shouldLog &&
+							js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
+						locking.maybeLockedFds.delete(fd);
+					})
+					.then(() => {
+						shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
+						return result;
+					})
+					.catch((e) => {
+						shouldLog &&
+							js_wasm_trace(
+								`fd_close ${fd} error ${JSON.stringify(
+									e,
+									(key, value) =>
+										typeof value === 'bigint'
+											? `0x${value
+													.toString(16)
+													.padStart(16, '0')}`
+											: value
+								)}`
+							);
+					})
+					.then(wakeUp);
+			});
+		} else {
+			shouldLog &&
+				js_wasm_trace(`fd_close ${fd} ${vfsPath} default_fd_close case`);
+			return default_fd_close.fn(fd);
+		}
+	},
 
 	// Provide "real" PID to help with logging when debugging multi-worker issues
 	js_getpid() {
