@@ -8,11 +8,13 @@ import fs from 'fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
 import { withICUData } from './data/with-icu-data';
+import { withXdebug } from './xdebug/with-xdebug';
 import { joinPaths } from '@php-wasm/util';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
+	withXdebug?: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
 	options: PHPLoaderOptions = {}
 ) {
-	const emscriptenOptions: EmscriptenOptions = {
+	let emscriptenOptions: EmscriptenOptions = {
 		/**
 		 * Emscripten default behavior is to kill the process when
 		 * the WASM program calls `exit()`. We want to throw an
@@ -130,6 +132,11 @@ export async function loadNodeRuntime(
 			phpRuntime.FS.root.mount.opts.root = '.';
 		},
 	};
+
+	if (options?.withXdebug === true) {
+		emscriptenOptions = await withXdebug(phpVersion, emscriptenOptions);
+	}
+
 	return await loadPHPRuntime(
 		await getPHPLoaderModule(phpVersion),
 		await withNetworking(emscriptenOptions),
