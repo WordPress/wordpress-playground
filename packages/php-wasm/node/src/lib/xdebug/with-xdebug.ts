@@ -4,22 +4,15 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { phpVersions } from '../../../../supported-php-versions.mjs';
+import { fullyQualifiedPHPVersionDirectory } from './supported-php-versions';
 import fs from 'fs';
-
-interface PHPVersion {
-	version: SupportedPHPVersion;
-	loaderFilename: string;
-	wasmFilename: string;
-	lastRelease: string;
-}
 
 export async function withXdebug(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
 	const fileName = 'xdebug.so';
-	const directoryName = fullyQualifiedPHPVersion(version);
+	const directoryName = fullyQualifiedPHPVersionDirectory(version);
 	const filePath = `${__dirname}/jspi/${directoryName}/extensions/${fileName}`;
 	const extension = fs.readFileSync(filePath);
 
@@ -41,15 +34,4 @@ export async function withXdebug(
 			);
 		},
 	};
-}
-
-function fullyQualifiedPHPVersion(
-	requestedVersion: SupportedPHPVersion
-): string {
-	const version = (phpVersions as PHPVersion[]).find(
-		(v) => v.version === requestedVersion
-	);
-	if (!version) return '';
-
-	return version.lastRelease.replaceAll('.', '_');
 }
