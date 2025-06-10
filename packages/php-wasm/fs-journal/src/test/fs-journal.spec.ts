@@ -219,6 +219,34 @@ describe('normalizeFilesystemOperations()', () => {
 			])
 		).toEqual([{ operation: 'CREATE', path: '/test2', nodeType: 'file' }]);
 	});
+	it('Normalizes CREATE and RENAME with WRITEs to a single WRITE (file)', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
+	});
 	it('Normalizes CREATE and RENAME to a single CREATE (directory)', () => {
 		expect(
 			normalizeFilesystemOperations([
