@@ -6,7 +6,7 @@ export async function withICUData(
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
 	const fileName = 'icudt74l.dat';
-	const filePath = `${__dirname}/shared/${fileName}`;
+	const filePath = `${import.meta.dirname}/shared/${fileName}`;
 	const ICUData = fs.readFileSync(filePath);
 
 	return {

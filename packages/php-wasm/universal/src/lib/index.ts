@@ -38,7 +38,7 @@ export {
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
 export type { SupportedPHPVersion } from './supported-php-versions';
-export { PHP, __private__dont__use } from './php';
+export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, getLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';

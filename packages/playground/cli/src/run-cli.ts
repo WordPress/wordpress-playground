@@ -17,7 +17,7 @@ import type {
 	PHPRequestHandler,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { PHPResponse } from '@php-wasm/universal';
+import { PHPExecutionFailureError, PHPResponse } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import type {
 	BlueprintDeclaration,
@@ -27,7 +27,6 @@ import { runBlueprintV2 } from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import fs from 'fs';
 import type { Server } from 'http';
-import { PHPExecutionFailureError } from 'packages/php-wasm/universal/src/lib/php';
 import { rootCertificates } from 'tls';
 import { startServer } from './server';
 /* eslint-disable no-console */
@@ -288,6 +287,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						// which PHP version to use.
 						await loadNodeRuntime(args.php, {
 							followSymlinks: args.followSymlinks === true,
+							emscriptenOptions: {
+								ENV: {
+									TEST_ENV: 'hej',
+								},
+							},
 						}),
 					sapiName: 'cli',
 					createFiles: {

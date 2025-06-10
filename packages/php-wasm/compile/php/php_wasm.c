@@ -726,33 +726,6 @@ ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
-
-
-/* Enable PHP to exchange messages with JavaScript */
-PHP_FUNCTION(post_message_to_js)
-{
-	char *data;
-	int data_len;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-	{
-		return;
-	}
-
-	char *response;
-	size_t response_len = js_module_onMessage(data, &response);
-	if (response_len != -1)
-	{
-		zend_string *return_string = zend_string_init(response, response_len, 0);
-		free(response);
-		RETURN_NEW_STR(return_string);
-	}
-	else
-	{
-		RETURN_NULL();
-	}
-}
-
 /**
  * select(2).
  */
@@ -779,66 +752,6 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 	}
 	return n;
 }
-
-#if WITH_CLI_SAPI == 1
-#include "sapi/cli/php_cli_process_title.h"
-#if PHP_MAJOR_VERSION >= 8
-#include "sapi/cli/php_cli_process_title_arginfo.h"
-#endif
-
-extern int wasm_shutdown(int sockfd, int how);
-extern int wasm_close(int sockfd);
-
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
-
-typedef struct wasm_cli_arg
-{
-	char *value;
-	struct wasm_cli_arg *next;
-} wasm_cli_arg_t;
-
-int cli_argc = 0;
-wasm_cli_arg_t *cli_argv;
-void wasm_add_cli_arg(char *arg)
-{
-	++cli_argc;
-	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
-	ll_entry->value = strdup(arg);
-	ll_entry->next = cli_argv;
-	cli_argv = ll_entry;
-}
-
-/**
- * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
- * The file is provided by the linker and the main() function is not
- * exported from the final .wasm file at the moment.
- */
-int main(int argc, char *argv[]);
-int run_cli()
-{
-	// Convert the argv linkedlist to an array:
-	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
-	wasm_cli_arg_t *current_arg = cli_argv;
-	int i = 0;
-	while (current_arg != NULL)
-	{
-		cli_argv_array[cli_argc - i - 1] = current_arg->value;
-		++i;
-		current_arg = current_arg->next;
-	}
-
-	return main(cli_argc, cli_argv_array);
-}
-
-#else
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
-#endif
 
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
@@ -995,6 +908,88 @@ void wasm_set_phpini_path(char *path)
 	phpini_path_override = strdup(path);
 }
 
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
+extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
+
+static const zend_function_entry additional_functions[] = {
+ZEND_FE(dl, arginfo_dl)
+PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
+PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+{NULL, NULL, NULL}
+};
+
+
+
+typedef struct wasm_cli_arg
+{
+	char *value;
+	struct wasm_cli_arg *next;
+} wasm_cli_arg_t;
+
+int cli_argc = 0;
+wasm_cli_arg_t *cli_argv;
+void wasm_add_cli_arg(char *arg)
+{
+	++cli_argc;
+	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
+	ll_entry->value = strdup(arg);
+	ll_entry->next = cli_argv;
+	cli_argv = ll_entry;
+}
+
+/**
+ * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
+ * The file is provided by the linker and the main() function is not
+ * exported from the final .wasm file at the moment.
+ */
+int main(int argc, char *argv[]);
+int run_cli()
+{
+	// Set the environment variables
+	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
+	while (current_env_entry != NULL) {
+		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
+		sprintf(env_string, "%s=%s", current_env_entry->key, current_env_entry->value);
+		putenv(env_string);
+		current_env_entry = current_env_entry->next;
+	}
+
+	// Convert the argv linkedlist to an array:
+	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
+	wasm_cli_arg_t *current_arg = cli_argv;
+	int i = 0;
+	while (current_arg != NULL)
+	{
+		cli_argv_array[cli_argc - i - 1] = current_arg->value;
+		++i;
+		current_arg = current_arg->next;
+	}
+
+	int result = main(cli_argc, cli_argv_array);
+	
+	// Clear the environment variables
+	while (current_env_entry != NULL) {
+		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
+		sprintf(env_string, "%s=", current_env_entry->key);
+		putenv(env_string);
+		current_env_entry = current_env_entry->next;
+	}
+	
+	return result;
+}
+
+#else
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+#endif
 
 void wasm_init_server_context()
 {

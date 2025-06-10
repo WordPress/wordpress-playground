@@ -69,30 +69,8 @@ const LibraryExample = {
 				  };
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
-			
-    PHPWASM.input_devices = {};
-    const originalWrite = TTY.stream_ops.write;
-    TTY.stream_ops.write = function(stream, ...rest) {
-      const retval = originalWrite(stream, ...rest);
-      // Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
-      // @TODO: Fix this at the wasm level
-      stream.tty.ops.fsync(stream.tty);
-      return retval;
-    };
-    const originalPutChar = TTY.stream_ops.put_char;
-    TTY.stream_ops.put_char = function(tty, val) {
-      /**
-  				 * Buffer newlines that Emscripten normally ignores.
-  				 * 
-  				 * Emscripten doesn't do it by default because its default
-  				 * print function is console.log that implicitly adds a newline. We are overwriting
-  				 * it with an environment-specific function that outputs exaclty what it was given,
-  				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
-  				 * all the newlines make it to the output buffer.
-  				 */ if (val === 10) tty.output.push(val);
-      return originalPutChar(tty, val);
-    };
 
+			PHPWASM.input_devices = {};
 			const originalWrite = TTY.stream_ops.write;
 			TTY.stream_ops.write = function (stream, ...rest) {
 				const retval = originalWrite(stream, ...rest);
@@ -105,7 +83,7 @@ const LibraryExample = {
 			TTY.stream_ops.put_char = function (tty, val) {
 				/**
 				 * Buffer newlines that Emscripten normally ignores.
-				 * 
+				 *
 				 * Emscripten doesn't do it by default because its default
 				 * print function is console.log that implicitly adds a newline. We are overwriting
 				 * it with an environment-specific function that outputs exaclty what it was given,
@@ -520,9 +498,9 @@ const LibraryExample = {
 					 * There was no `await` between the `spawnProcess` call
 					 * and the `await` below so the process haven't had a chance
 					 * to run any of the exit-related callbacks yet.
-					 * 
+					 *
 					 * Good.
-					 * 
+					 *
 					 * Let's listen to all the lifecycle events and resolve
 					 * the promise when the process starts or immediately crashes.
 					 */
@@ -543,7 +521,9 @@ const LibraryExample = {
 						if (code === 0) {
 							resolve();
 						} else {
-							reject(new Error(`Process exited with code ${code}`));
+							reject(
+								new Error(`Process exited with code ${code}`)
+							);
 						}
 					});
 					/**

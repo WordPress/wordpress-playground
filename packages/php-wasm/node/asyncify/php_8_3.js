@@ -20,9 +20,11 @@ if (typeof __dirname === 'undefined') {
 	var __dirname = path.dirname(__filename);
 }
 
-const dependencyFilename = path.join(__dirname, '8_3_0', 'php_8_3.wasm');
+import { logger } from '@php-wasm/logger';
+import * as nodeUtil from 'util';
+const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 18098720;
+export const dependenciesTotalSize = 18436586;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -7088,7 +7090,6 @@ export function init(RuntimeName, PHPLoader) {
 				  };
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
-
 			PHPWASM.input_devices = {};
 			const originalWrite = TTY.stream_ops.write;
 			TTY.stream_ops.write = function (stream, ...rest) {
@@ -7413,8 +7414,7 @@ export function init(RuntimeName, PHPLoader) {
 			 * the process has already been spawned. We can only listen
 			 * to the 'spawn' event and if it has already been spawned,
 			 * listen to the 'exit' event.
-			 */
-			try {
+			 */ try {
 				await new Promise((resolve, reject) => {
 					/**
 					 * There was no `await` between the `spawnProcess` call
@@ -7425,8 +7425,7 @@ export function init(RuntimeName, PHPLoader) {
 					 *
 					 * Let's listen to all the lifecycle events and resolve
 					 * the promise when the process starts or immediately crashes.
-					 */
-					let resolved = false;
+					 */ let resolved = false;
 					cp.on('spawn', () => {
 						if (resolved) return;
 						resolved = true;
@@ -7454,12 +7453,11 @@ export function init(RuntimeName, PHPLoader) {
 					 * the `spawnProcess` implementation failed to dispatch the relevant
 					 * event. Either way, let's crash to avoid blocking the proc_open()
 					 * call indefinitely.
-					 */
-					setTimeout(() => {
+					 */ setTimeout(() => {
 						if (resolved) return;
 						resolved = true;
 						reject(new Error('Process timed out'));
-					}, 5000);
+					}, 5e3);
 				});
 			} catch (e) {
 				console.error(e);
@@ -7963,7 +7961,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|js_fd_read|_js_fd_read|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|wasm_shutdown|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|js__syscall_fcntl64|_js__syscall_fcntl64|_asyncjs__js__syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|_fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
 					let isAsyncifyImport =
@@ -8718,21 +8716,21 @@ export function init(RuntimeName, PHPLoader) {
 			a4
 		));
 
+	var _wasm_set_sapi_name = (Module['_wasm_set_sapi_name'] = (a0) =>
+		(_wasm_set_sapi_name = Module['_wasm_set_sapi_name'] =
+			wasmExports['yb'])(a0));
+
+	var _wasm_set_phpini_path = (Module['_wasm_set_phpini_path'] = (a0) =>
+		(_wasm_set_phpini_path = Module['_wasm_set_phpini_path'] =
+			wasmExports['zb'])(a0));
+
 	var _wasm_add_cli_arg = (Module['_wasm_add_cli_arg'] = (a0) =>
-		(_wasm_add_cli_arg = Module['_wasm_add_cli_arg'] = wasmExports['yb'])(
+		(_wasm_add_cli_arg = Module['_wasm_add_cli_arg'] = wasmExports['Ab'])(
 			a0
 		));
 
 	var _run_cli = (Module['_run_cli'] = () =>
-		(_run_cli = Module['_run_cli'] = wasmExports['zb'])());
-
-	var _wasm_set_sapi_name = (Module['_wasm_set_sapi_name'] = (a0) =>
-		(_wasm_set_sapi_name = Module['_wasm_set_sapi_name'] =
-			wasmExports['Ab'])(a0));
-
-	var _wasm_set_phpini_path = (Module['_wasm_set_phpini_path'] = (a0) =>
-		(_wasm_set_phpini_path = Module['_wasm_set_phpini_path'] =
-			wasmExports['Bb'])(a0));
+		(_run_cli = Module['_run_cli'] = wasmExports['Bb'])());
 
 	var _wasm_add_SERVER_entry = (Module['_wasm_add_SERVER_entry'] = (a0, a1) =>
 		(_wasm_add_SERVER_entry = Module['_wasm_add_SERVER_entry'] =

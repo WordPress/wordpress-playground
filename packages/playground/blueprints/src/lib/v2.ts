@@ -1,8 +1,8 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
-import { BlueprintDeclaration } from './blueprint';
+import type { BlueprintDeclaration } from './blueprint';
 
 interface RunV2Options {
 	php: UniversalPHP;
@@ -119,22 +119,21 @@ export async function runBlueprintV2(options: RunV2Options) {
 // call.
 
 // Set the argv global.
-$_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
-	"/tmp/blueprints.phar",
-], json_decode(getenv('ARGV')));
+// $_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
+// 	"/tmp/blueprints.phar",
+// ], json_decode(getenv('ARGV')));
 
 // Provide stdin, stdout, stderr streams outside of
 // the CLI SAPI.
-define('STDIN', fopen('php://stdin', 'rb'));
-define('STDOUT', fopen('php://stdout', 'wb'));
-define('STDERR', fopen('/tmp/stderr', 'wb'));
+// define('STDIN', fopen('php://stdin', 'rb'));
+// define('STDOUT', fopen('php://stdout', 'wb'));
+// define('STDERR', fopen('/tmp/stderr', 'wb'));
+
 
 function playground_on_blueprint_target_resolved() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
-
-
 
 
 function playground_progress_reporter() {
@@ -190,19 +189,35 @@ require( "/tmp/blueprints.phar" );
 
 	await php.mkdir('/wordpress');
 
-	return await php.run({
-		scriptPath: '/tmp/run-blueprints.php',
-		env: {
-			ARGV: JSON.stringify([
-				'exec',
-				blueprintReference,
-				'--site-path=/wordpress',
-				`--site-url=${options.siteUrl}`,
-				'--db-engine=sqlite',
-				// '--truncate-new-site-directory=true',
-			]),
-		},
-	});
+	// await php.run({
+	// 	scriptPath: '/tmp/run-blueprints.php',
+	// 	env: {
+	// 		ARGV: JSON.stringify([
+	// 			'exec',
+	// 			blueprintReference,
+	// 			'--site-path=/wordpress',
+	// 			`--site-url=${options.siteUrl}`,
+	// 			'--db-engine=sqlite',
+	// 			// '--truncate-new-site-directory=true',
+	// 		]),
+	// 	}
+	// });
+
+	// const code = args.includes('-r')
+	// 	? args[args.indexOf('-r') + 1]
+	// 	: `require( getenv("SCRIPT_PATH") );`;
+	await php.cli([
+		'php',
+		'/tmp/run-blueprints.php',
+		// '/tmp/blueprints.phar',
+		'exec',
+		blueprintReference,
+		'--site-path=/wordpress',
+		`--site-url=${options.siteUrl}`,
+		'--db-engine=sqlite',
+		// '--truncate-new-site-directory=true',
+	]);
+	process.exit(0);
 }
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;

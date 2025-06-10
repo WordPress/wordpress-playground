@@ -1102,7 +1102,16 @@ export class PHP implements Disposable {
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
 	 */
-	async cli(argv: string[]): Promise<number> {
+	async cli(
+		argv: string[],
+		options: { env?: Record<string, string> } = {}
+	): Promise<number> {
+		const env = options.env || {};
+		for (const [key, value] of Object.entries(env)) {
+			this.#setEnv(key, value);
+		}
+		// Enforce the use of the internal php.ini file.
+		argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
 		for (const arg of argv) {
 			this[__private__dont__use].ccall(
 				'wasm_add_cli_arg',
