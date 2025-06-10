@@ -1,4 +1,4 @@
-import { concatUint8Arrays } from './tls/utils';
+import { concatUint8Arrays } from '@php-wasm/util';
 
 /**
  * A TransformStream that decodes HTTP chunked transfer encoding.

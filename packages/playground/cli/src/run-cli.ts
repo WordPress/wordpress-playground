@@ -11,10 +11,12 @@
 import { errorLogPath, logToMemory, logger } from '@php-wasm/logger';
 import { loadNodeRuntime } from '@php-wasm/node';
 import type {
+	EmscriptenOptions,
 	PHP,
 	PHPProcessManager,
 	PHPRequest,
 	PHPRequestHandler,
+	StreamedPHPResponse,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { PHPExecutionFailureError, PHPResponse } from '@php-wasm/universal';
@@ -40,6 +42,7 @@ import {
 	parseMountWithDelimiterArguments,
 	type Mount,
 } from './mounts';
+import { option } from 'yargs';
 
 export interface RunCLIArgs {
 	blueprint?: string | BlueprintDeclaration;
@@ -239,6 +242,7 @@ export async function parseOptionsAndRunCLI() {
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let phpErrorReported = false;
 
+	let streamedResponse: StreamedPHPResponse | undefined;
 	try {
 		/**
 		 * Expand auto-mounts to include the necessary mounts and steps
@@ -287,11 +291,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						// which PHP version to use.
 						await loadNodeRuntime(args.php, {
 							followSymlinks: args.followSymlinks === true,
-							emscriptenOptions: {
-								ENV: {
-									TEST_ENV: 'hej',
-								},
-							},
 						}),
 					sapiName: 'cli',
 					createFiles: {
@@ -310,7 +309,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				const { php, reap } =
 					await requestHandler.processManager.acquirePHPInstance();
 				try {
-					await runBlueprintV2({
+					streamedResponse = await runBlueprintV2({
 						php,
 						blueprint: args.blueprint,
 						siteUrl: absoluteUrl,
@@ -354,6 +353,22 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							},
 						},
 					});
+					if (args.debug) {
+						streamedResponse.stdout.pipeTo(
+							new WritableStream({
+								write(chunk) {
+									process.stdout.write(chunk);
+								},
+							})
+						);
+						streamedResponse.stderr.pipeTo(
+							new WritableStream({
+								write(chunk) {
+									process.stderr.write(chunk);
+								},
+							})
+						);
+					}
 					wordPressReady = true;
 
 					if (args.command === 'build-snapshot') {
@@ -377,6 +392,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 					return { requestHandler, server };
 				} catch (error) {
+					console.log('error!', error);
 					if (!args.debug) {
 						throw error;
 					}
@@ -397,30 +413,38 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			},
 		});
 	} catch (e) {
-		/**
-		 * @TODO: Consider printing errors stored in logger memory;
-		 */
-		if (e instanceof PHPExecutionFailureError) {
-			// Avoid verbose error messages. Only print all the error details when:
-			// * The user requested debug output
-			// * The onError hook above did not report any error yet and the user cannot
-			//   see any meaningful error message at this point
-			if (args.debug || !phpErrorReported) {
-				output.stderr(`--------------------------------\n`);
-				output.stderr('Debug details:\n');
-				output.stderr('--------------------------------\n');
-				output.stderr(e.message);
-				output.stderr(`\n\n==== PHP stderr ====\n\n`);
-				output.stderr(e.response.errors);
-				output.stderr(`\n\n==== PHP stdout ====\n\n`);
-				output.stderr(e.response.text);
-				output.stderr(`\n\n`);
-				output.stderr(`--------------------------------\n`);
-			}
+		console.log('error!', e);
+		if (
+			e instanceof PHPExecutionFailureError &&
+			!args.debug &&
+			phpErrorReported
+		) {
+			// We want to avoid verbose error messages.
+			// Bale out if this is a known failure mode and we've already reported the error.
 			process.exit(1);
-		} else {
-			throw e;
 		}
+
+		if (streamedResponse) {
+			// If we did not expect this error, print **all** the debug details we can get.
+			output.stderr(`--------------------------------\n`);
+			output.stderr('Debug details:\n');
+			output.stderr('--------------------------------\n');
+			if (e && typeof e === 'object' && 'message' in e) {
+				output.stderr(e.message as string);
+			}
+			output.stderr(`\n\n==== PHP stderr ====\n\n`);
+			if (streamedResponse) {
+				output.stderr(await streamedResponse.stderrText);
+			}
+
+			output.stderr(`\n\n==== PHP stdout ====\n\n`);
+			if (streamedResponse) {
+				output.stderr(await streamedResponse.stdoutText);
+			}
+			output.stderr(`\n\n`);
+			output.stderr(`--------------------------------\n`);
+		}
+		throw e;
 	}
 }
 

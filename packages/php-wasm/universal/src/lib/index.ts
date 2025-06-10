@@ -29,7 +29,7 @@ export type {
 	SpawnedPHP,
 } from './php-process-manager';
 
-export { PHPResponse } from './php-response';
+export { PHPResponse, StreamedPHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {

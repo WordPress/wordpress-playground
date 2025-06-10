@@ -47,6 +47,74 @@ const responseTexts: Record<number, string> = {
 	200: 'OK',
 };
 
+export class StreamedPHPResponse {
+	/**
+	 * Response headers.
+	 */
+	readonly headers: Promise<Record<string, string[]>>;
+
+	/**
+	 * Response body. Contains the output from `echo`,
+	 * `print`, inline HTML etc.
+	 */
+	readonly stdout: ReadableStream<Uint8Array>;
+
+	/**
+	 * Stderr contents, if any.
+	 */
+	readonly stderr: ReadableStream<Uint8Array>;
+
+	/**
+	 * The exit code of the script. `0` is a success, while
+	 * `1` and `2` indicate an error.
+	 */
+	readonly exitCode: Promise<number>;
+
+	/**
+	 * Response HTTP status code, e.g. 200.
+	 */
+	readonly httpStatusCode: Promise<number>;
+
+	constructor(
+		headers: Promise<Record<string, string[]>>,
+		stdout: ReadableStream<Uint8Array>,
+		stderr: ReadableStream<Uint8Array>,
+		exitCode: Promise<number>,
+		httpStatusCode: Promise<number>
+	) {
+		this.headers = headers;
+		this.stdout = stdout;
+		this.stderr = stderr;
+		this.exitCode = exitCode;
+		this.httpStatusCode = httpStatusCode;
+	}
+
+	get stdoutText(): Promise<string> {
+		return streamToText(this.stdout);
+	}
+
+	get stderrText(): Promise<string> {
+		return streamToText(this.stderr);
+	}
+}
+
+function streamToText(stream: ReadableStream<Uint8Array>): Promise<string> {
+	return new Promise(async (resolve) => {
+		const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+		const text: string[] = [];
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				resolve(text.join(''));
+				return;
+			}
+			if (value) {
+				text.push(value);
+			}
+		}
+	});
+}
+
 /**
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.

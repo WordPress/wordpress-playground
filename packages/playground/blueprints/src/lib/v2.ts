@@ -1,4 +1,4 @@
-import type { UniversalPHP } from '@php-wasm/universal';
+import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
@@ -118,23 +118,10 @@ export async function runBlueprintV2(options: RunV2Options) {
 // Set up the environment to emulate a shell script
 // call.
 
-// Set the argv global.
-// $_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
-// 	"/tmp/blueprints.phar",
-// ], json_decode(getenv('ARGV')));
-
-// Provide stdin, stdout, stderr streams outside of
-// the CLI SAPI.
-// define('STDIN', fopen('php://stdin', 'rb'));
-// define('STDOUT', fopen('php://stdout', 'wb'));
-// define('STDERR', fopen('/tmp/stderr', 'wb'));
-
-
 function playground_on_blueprint_target_resolved() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
-
 
 function playground_progress_reporter() {
 class PlaygroundProgressReporter implements ProgressReporter {
@@ -205,8 +192,11 @@ require( "/tmp/blueprints.phar" );
 
 	// const code = args.includes('-r')
 	// 	? args[args.indexOf('-r') + 1]
-	// 	: `require( getenv("SCRIPT_PATH") );`;
-	await php.cli([
+	// 	: `require( getenv("SCRIPT_PATH") );`;]
+	/**
+	 * @TODO: Get stdout and stderr as streams. Then, I think, we're good to use the CLI SAPI?!
+	 */
+	return (await php.cli([
 		'php',
 		'/tmp/run-blueprints.php',
 		// '/tmp/blueprints.phar',
@@ -216,8 +206,7 @@ require( "/tmp/blueprints.phar" );
 		`--site-url=${options.siteUrl}`,
 		'--db-engine=sqlite',
 		// '--truncate-new-site-directory=true',
-	]);
-	process.exit(0);
+	])) as StreamedPHPResponse;
 }
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;

@@ -37,6 +37,9 @@ unsigned int wasm_sleep(unsigned int time)
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
+static int redirect_stream_to_file(FILE *stream, char *file_path);
+static void restore_stream_handler(FILE *original_stream, int replacement_stream);
+
 /**
  * Shims popen(3) functionallity:
  * https://man7.org/linux/man-pages/man3/popen.3.html
@@ -908,6 +911,8 @@ void wasm_set_phpini_path(char *path)
 	phpini_path_override = strdup(path);
 }
 
+int stdout_replacement;
+int stderr_replacement;
 
 #if WITH_CLI_SAPI == 1
 #include "sapi/cli/php_cli_process_title.h"
@@ -952,6 +957,14 @@ void wasm_add_cli_arg(char *arg)
 int main(int argc, char *argv[]);
 int run_cli()
 {
+	// See wasm_sapi_request_init() for details on why we need to redirect stdout and stderr.
+	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
+	if (stdout_replacement == -1 || stderr_replacement == -1)
+	{
+		return -1;
+	}
+
 	// Set the environment variables
 	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
 	while (current_env_entry != NULL) {
@@ -981,6 +994,11 @@ int run_cli()
 		putenv(env_string);
 		current_env_entry = current_env_entry->next;
 	}
+
+	restore_stream_handler(stdout, stdout_replacement);
+	restore_stream_handler(stderr, stderr_replacement);
+
+	free(cli_argv_array);
 	
 	return result;
 }
@@ -1257,7 +1275,7 @@ void wasm_set_request_port(int port)
  */
 static int redirect_stream_to_file(FILE *stream, char *file_path)
 {
-	int out = open(file_path, O_TRUNC | O_WRONLY | O_CREAT, 0600);
+	int out = open(file_path, O_WRONLY);
 	if (-1 == out)
 	{
 		return -1;
@@ -1288,9 +1306,6 @@ static void restore_stream_handler(FILE *original_stream, int replacement_stream
 	dup2(replacement_stream, fileno(original_stream));
 	close(replacement_stream);
 }
-
-int stdout_replacement;
-int stderr_replacement;
 
 /*
  * Function: wasm_sapi_read_cookies
@@ -1327,8 +1342,15 @@ static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
 	return count_bytes;
 }
 
-// === FILE UPLOADS SUPPORT ===
+void my_callback(const char *data, size_t len, void *stream_id) {
+    fprintf(stderr, "[CB:%s] %.*s", (char*)stream_id, (int)len, data);
+}
 
+static ssize_t my_write(void *cookie, const char *buf, size_t size) {
+    // Invoke user callback instead of writing to terminal
+    my_callback(buf, size, cookie);
+    return size;  // indicate all bytes “written”
+}
 /**
  * Function: wasm_sapi_module_startup
  * ----------------------------
@@ -1476,11 +1498,9 @@ int wasm_sapi_request_init()
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	// We'll use the /internal directory instead of /tmp, because a child process sharing
-	// the same filesystem and /tmp mount would write to the same stdout and stderr files
-	// and produce unreadable output intertwined with the parent process output. The /internal
-	// directory should always stay in per-process MEMFS space and never be shared with
-	// any other process.
+	// We use our custom Emscripten-defined /internal/std* devices and handle the output in JavaScript.
+	// These /internal devices are not thread-safe and should always stay in per-process MEMFS space.
+	// Sharing them between PHP instances may cause intertwined output.
 	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
 	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
@@ -1733,7 +1753,7 @@ FILE *headers_file;
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
-	headers_file = fopen("/internal/headers.json", "w");
+	headers_file = fopen("/internal/headers", "w");
 	if (headers_file == NULL)
 	{
 		return FAILURE;

@@ -1,4 +1,4 @@
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import type {
@@ -17,7 +17,12 @@ import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	concatUint8Arrays,
+	createSpawnHandler,
+	joinPaths,
+} from '@php-wasm/util';
 import type { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
 import { isExitCodeZero } from './is-exit-code-zero';
@@ -541,18 +546,11 @@ export class PHP implements Disposable {
 		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
 	}
 
-	#getResponseHeaders(): {
+	#parseResponseHeaders(headersChunks: Uint8Array): {
 		headers: PHPResponse['headers'];
 		httpStatusCode: number;
 	} {
-		const headersFilePath = '/internal/headers.json';
-		if (!this.fileExists(headersFilePath)) {
-			throw new Error(
-				'SAPI Error: Could not find response headers file.'
-			);
-		}
-
-		const headersData = JSON.parse(this.readFileAsText(headersFilePath));
+		const headersData = JSON.parse(new TextDecoder().decode(headersChunks));
 		const headers: PHPResponse['headers'] = {};
 		for (const line of headersData.headers) {
 			if (!line.includes(': ')) {
@@ -758,6 +756,22 @@ export class PHP implements Disposable {
 	}
 
 	async #handleRequest(): Promise<PHPResponse> {
+		let stdout: Uint8Array[] = [];
+		this[__private__dont__use].onStdout = (chunk: Uint8Array) => {
+			// stdout.push(chunk);
+		};
+
+		let stderr: Uint8Array[] = [];
+		this[__private__dont__use].onStderr = (chunk: Uint8Array) => {
+			// stderr.push(chunk);
+		};
+
+		let headersChunks: Uint8Array[] = [];
+		this[__private__dont__use].onHeaders = (chunk: Uint8Array) => {
+			headersChunks.push(chunk);
+			console.log('headersChunks', headersChunks);
+		};
+
 		let exitCode: number;
 
 		/*
@@ -824,12 +838,15 @@ export class PHP implements Disposable {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
 		}
 
-		const { headers, httpStatusCode } = this.#getResponseHeaders();
+		const { headers, httpStatusCode } = this.#parseResponseHeaders(
+			concatUint8Arrays(headersChunks)
+		);
 		return new PHPResponse(
 			exitCode === 0 ? httpStatusCode : 500,
 			headers,
-			this.readFileAsBuffer('/internal/stdout'),
-			this.readFileAsText('/internal/stderr'),
+			concatUint8Arrays(stdout),
+			// @TODO: Why should we treat these bytes any different from stdout?
+			new TextDecoder().decode(concatUint8Arrays(stderr)),
 			exitCode
 		);
 	}
@@ -1105,7 +1122,28 @@ export class PHP implements Disposable {
 	async cli(
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
-	): Promise<number> {
+	): Promise<StreamedPHPResponse> {
+		const emscriptenModule = this[__private__dont__use];
+
+		const headers: Uint8Array[] = [];
+		emscriptenModule.onHeaders = (chunk: Uint8Array) => {
+			// slice() chunk to clone the data and preserve it for the reader later on.
+			// We need that because the ArrayBuffer underlying `chunk` may change
+			// after this callback return. Without cloning, the reader would read
+			// whatever bytes are available in the ArrayBuffer at the time of the read.
+			headers.push(chunk.slice());
+		};
+
+		const stdout = await createInvertedReadableStream<Uint8Array>();
+		emscriptenModule.onStdout = (chunk: Uint8Array) => {
+			stdout.controller.enqueue(chunk.slice());
+		};
+
+		const stderr = await createInvertedReadableStream<Uint8Array>();
+		emscriptenModule.onStderr = (chunk: Uint8Array) => {
+			stderr.controller.enqueue(chunk.slice());
+		};
+
 		const env = options.env || {};
 		for (const [key, value] of Object.entries(env)) {
 			this.#setEnv(key, value);
@@ -1120,22 +1158,33 @@ export class PHP implements Disposable {
 				[arg]
 			);
 		}
-		try {
-			return await this[__private__dont__use].ccall(
-				'run_cli',
-				null,
-				[],
-				[],
-				{
-					async: true,
+		const exitCodePromise = Promise.resolve(
+			this[__private__dont__use].ccall('run_cli', null, [], [], {
+				async: true,
+			})
+		).then(
+			(exitCode: number) => {
+				return exitCode;
+			},
+			(error: any) => {
+				if (isExitCodeZero(error)) {
+					return 0;
 				}
-			);
-		} catch (error) {
-			if (isExitCodeZero(error)) {
-				return 0;
+				throw error;
 			}
-			throw error;
-		}
+		);
+
+		const headersAndStatusPromise = exitCodePromise.then(() =>
+			this.#parseResponseHeaders(concatUint8Arrays(headers))
+		);
+
+		return new StreamedPHPResponse(
+			headersAndStatusPromise.then((result) => result.headers),
+			stdout.stream,
+			stderr.stream,
+			exitCodePromise,
+			headersAndStatusPromise.then((result) => result.httpStatusCode)
+		);
 	}
 
 	setSkipShebang(shouldSkip: boolean) {
@@ -1231,4 +1280,35 @@ function copyFS(
 	for (const filename of filenames) {
 		copyFS(source, target, joinPaths(path, filename));
 	}
+}
+async function createInvertedReadableStream<T = Uint8Array>(
+	source: UnderlyingSource<T> = {}
+) {
+	let controllerResolve: (
+		controller: ReadableStreamDefaultController<T>
+	) => void;
+	const controllerPromise = new Promise<ReadableStreamDefaultController<T>>(
+		(resolve) => {
+			controllerResolve = resolve;
+		}
+	);
+
+	const stream = new ReadableStream<T>({
+		...source,
+		start(controller) {
+			// Type assertion to handle the controller type mismatch
+			controllerResolve(controller as ReadableStreamDefaultController<T>);
+			if (source.start) {
+				return source.start(controller);
+			}
+			return undefined;
+		},
+	});
+
+	const controller = await controllerPromise;
+
+	return {
+		stream,
+		controller,
+	};
 }
