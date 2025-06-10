@@ -911,12 +911,14 @@ export class PHP implements Disposable {
 							// @TODO: Why are we logging things so eagerly? Shouldn't
 							//        the caller handle that? There's so much noise in
 							//        the console.
-							logger.error(e);
-							logger.error(e.error);
-							const rethrown = new Error('Rethrown');
-							rethrown.cause = e.error;
-							(rethrown as any).betterMessage = e.message;
-							reject(rethrown);
+							// logger.error(e);
+							// logger.error(e.error);
+							if (!isExitCodeZero(e.error)) {
+								const rethrown = new Error('Rethrown');
+								rethrown.cause = e.error;
+								(rethrown as any).betterMessage = e.message;
+								reject(rethrown);
+							}
 						};
 						this.#wasmErrorsTarget?.addEventListener(
 							'error',
@@ -931,7 +933,7 @@ export class PHP implements Disposable {
 				 * turn exit code errors into integers again.
 				 */
 				if (isExitCode(e)) {
-					return 0;
+					return e.exitCode;
 				}
 
 				stdout.controller.error(e);
@@ -960,12 +962,13 @@ export class PHP implements Disposable {
 				const message = (
 					'betterMessage' in err ? err.betterMessage : err.message
 				) as string;
+
 				const rethrown = new Error(message);
 				rethrown.cause = err;
 				// @TODO: Why are we logging things so eagerly? Shouldn't
 				//        the caller handle that? There's so much noise in
 				//        the console.
-				logger.error(rethrown);
+				// logger.error(rethrown);
 				throw rethrown;
 			} finally {
 				if (!streamsClosed) {

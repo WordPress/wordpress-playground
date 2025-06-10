@@ -196,6 +196,7 @@ require( "/tmp/blueprints.phar" );
 	/**
 	 * @TODO: Get stdout and stderr as streams. Then, I think, we're good to use the CLI SAPI?!
 	 */
+	console.log('running cli');
 	return (await php.cli([
 		'php',
 		'/tmp/run-blueprints.php',

@@ -8428,14 +8428,7 @@ export function init(RuntimeName, PHPLoader) {
 		const POLLNVAL = 32;
 		return returnCallback((wakeUp) => {
 			const polls = [];
-			if (socketd in PHPWASM.child_proc_by_fd) {
-				const procInfo = PHPWASM.child_proc_by_fd[socketd];
-				if (procInfo.exited) {
-					wakeUp(0);
-					return;
-				}
-				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-			} else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+			if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
 					wakeUp(0);
@@ -8469,7 +8462,14 @@ export function init(RuntimeName, PHPLoader) {
 						polls.push(PHPWASM.awaitConnection(ws));
 						lookingFor.add('POLLOUT');
 					}
-					if (events & POLLHUP) {
+					// Notify the user the socket is now closed even if the only requested
+					// in or out events.
+					if (
+						events & POLLHUP ||
+						events & POLLIN ||
+						events & POLLOUT ||
+						events & POLLERR
+					) {
 						polls.push(PHPWASM.awaitClose(ws));
 						lookingFor.add('POLLHUP');
 					}
@@ -8478,6 +8478,13 @@ export function init(RuntimeName, PHPLoader) {
 						lookingFor.add('POLLERR');
 					}
 				}
+			} else if (socketd in PHPWASM.child_proc_by_fd) {
+				const procInfo = PHPWASM.child_proc_by_fd[socketd];
+				if (procInfo.exited) {
+					wakeUp(0);
+					return;
+				}
+				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
 			} else {
 				setTimeout(function () {
 					wakeUp(1);

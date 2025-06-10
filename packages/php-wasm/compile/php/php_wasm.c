@@ -195,10 +195,12 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
                     polls.push(PHPWASM.awaitConnection(ws));
                     lookingFor.add('POLLOUT');
                 }
-                if (events & POLLHUP) {
-                    polls.push(PHPWASM.awaitClose(ws));
-                    lookingFor.add('POLLHUP');
-                }
+				// Notify the user the socket is now closed even if the only requested
+				// in or out events.
+				if (events & POLLHUP || events & POLLIN || events & POLLOUT) {
+					polls.push(PHPWASM.awaitClose(ws));
+					lookingFor.add('POLLHUP');
+				}
                 if (events & POLLERR || events & POLLNVAL) {
                     polls.push(PHPWASM.awaitError(ws));
                     lookingFor.add('POLLERR');

@@ -11,7 +11,6 @@
 import { errorLogPath, logToMemory, logger } from '@php-wasm/logger';
 import { loadNodeRuntime } from '@php-wasm/node';
 import type {
-	EmscriptenOptions,
 	PHP,
 	PHPProcessManager,
 	PHPRequest,
@@ -42,7 +41,6 @@ import {
 	parseMountWithDelimiterArguments,
 	type Mount,
 } from './mounts';
-import { option } from 'yargs';
 
 export interface RunCLIArgs {
 	blueprint?: string | BlueprintDeclaration;
@@ -305,9 +303,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					cookieStore: false,
 					spawnHandler: spawnHandlerFactory,
 				});
+				// Permanently lock primary PHP instance. Don't allow calling .cli() on
+				// it as that would trash it.
+				const primaryPHP =
+					await requestHandler.processManager.acquirePHPInstance();
+
+				console.log('primaryPHP acquired');
 
 				const { php, reap } =
 					await requestHandler.processManager.acquirePHPInstance();
+				console.log('secondaryPHP acquired');
 				try {
 					streamedResponse = await runBlueprintV2({
 						php,
@@ -369,6 +374,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							})
 						);
 					}
+					await streamedResponse.finished;
 					wordPressReady = true;
 
 					if (args.command === 'build-snapshot') {
@@ -527,7 +533,6 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 		} else if (args[0] === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance();
 
-			let result: PHPResponse | undefined = undefined;
 			try {
 				// @TODO: Run the actual PHP CLI SAPI instead of
 				//        interpreting the arguments and emulating
@@ -561,7 +566,7 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 					? args[args.indexOf('-r') + 1]
 					: `require( getenv("SCRIPT_PATH") );`;
 
-				result = await php.run({
+				const result = await php.runStream({
 					code: `${cliBootstrapScript} ${code}`,
 					env: {
 						...options.env,
@@ -576,11 +581,46 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 					},
 				});
 
-				processApi.stdout(result.bytes);
-				processApi.stderr(result.errors);
-				processApi.exit(result.exitCode);
+				// @TODO: Use php.cli(). Problem: it doesn't seem to pass the env
+				//        variables correctly, especially OUTPUT_FILE.
+				// Figure out more about setting env, putenv(), etc.
+				// const result = await php.cli(/*args*/['php', '-r', code], {
+				// 	env: {
+				// 		...options.env,
+				// 		DOCROOT: '/wordpress',
+				// 		SCRIPT_PATH: args[1],
+				// 		// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+				// 		// the output as ASCII tables.
+				// 		// @see https://github.com/wp-cli/wp-cli/issues/1102
+				// 		SHELL_PIPE: '0',
+				// 	},
+				// });
+
+				result.stdout.pipeTo(
+					new WritableStream({
+						write(chunk) {
+							processApi.stdout(chunk);
+						},
+					})
+				);
+				result.stderr.pipeTo(
+					new WritableStream({
+						write(chunk) {
+							processApi.stderr(chunk);
+						},
+					})
+				);
+				await result.exitCode.then(
+					(exitCode) => {
+						processApi.exit(exitCode);
+					},
+					(error) => {
+						console.error('Error in childPHP:', error);
+						processApi.exit(1);
+					}
+				);
 			} catch (e) {
-				// logger.error('Error in childPHP:', e);
+				logger.error('Error in childPHP:', e);
 				if (e instanceof Error) {
 					output.stderr(e.message);
 				}

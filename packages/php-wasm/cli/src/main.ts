@@ -93,8 +93,23 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		args.unshift('-c', defaultPhpIniPath);
 	}
 
-	await php
-		.cli(['php', ...args])
+	const response = await php.cli(['php', ...args]);
+	response.stderr.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				process.stderr.write(chunk);
+			},
+		})
+	);
+	response.stdout.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				process.stdout.write(chunk);
+			},
+		})
+	);
+
+	response.exitCode
 		.catch((result) => {
 			if (result.name === 'ExitStatus') {
 				process.exit(result.status === undefined ? 1 : result.status);
