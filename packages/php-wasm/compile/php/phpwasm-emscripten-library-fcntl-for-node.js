@@ -635,65 +635,63 @@ const LibraryForFileLocking = {
 		});
 	},
 
-	// TODO: Re-enable these after debugging the Asyncify crash with fcntl(). Also, update to use Asyncify.handleAsync().
-	// $default_fd_close: {
-	// 	fn: LibraryManager.library.fd_close,
-	// },
+	$default_fd_close: {
+		fn: LibraryManager.library.fd_close,
+	},
 
-	// fd_close__deps: ['$default_fd_close'],
-	// fd_close: async function fd_close(fd) {
-	// 	// js_wasm_trace(`fd_close ${fd}`);
-	// 	const [vfsPath, pathResolutionErrno] =
-	// 		locking.get_vfs_path_from_fd(fd);
-	// 	const shouldLog =
-	// 		pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
-	// 	// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
-	// 	if (locking.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
-	// 		shouldLog &&
-	// 			js_wasm_trace(
-	// 				`fd_close ${fd} ${vfsPath} calling default_fd_close`
-	// 			);
-	// 		// TODO: Say why closing this first
-	// 		const result = default_fd_close.fn(fd);
-	// 		shouldLog &&
-	// 			js_wasm_trace(
-	// 				`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
-	// 			);
-	// 		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
-	// 		return Asyncify.handleSleep((wakeUp) => {
-	// 			return PHPLoader.fileLockManager
-	// 				.releaseLocksForProcessFd(PHPLoader.processId, fd, nativeFilePath)
-	// 				.finally(() => {
-	// 					shouldLog &&
-	// 						js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
-	// 					locking.maybeLockedFds.delete(fd);
-	// 				})
-	// 				.then(() => {
-	// 					shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
-	// 					return result;
-	// 				})
-	// 				.catch((e) => {
-	// 					shouldLog &&
-	// 						js_wasm_trace(
-	// 							`fd_close ${fd} error ${JSON.stringify(
-	// 								e,
-	// 								(key, value) =>
-	// 									typeof value === 'bigint'
-	// 										? `0x${value
-	// 												.toString(16)
-	// 												.padStart(16, '0')}`
-	// 										: value
-	// 							)}`
-	// 						);
-	// 				})
-	// 				.then(wakeUp);
-	// 		});
-	// 	} else {
-	// 		shouldLog &&
-	// 			js_wasm_trace(`fd_close ${fd} ${vfsPath} default_fd_close case`);
-	// 		return default_fd_close.fn(fd);
-	// 	}
-	// },
+	fd_close__deps: ['$default_fd_close'],
+	fd_close: async function fd_close(fd) {
+		return Asyncify.handleAsync(async () => {
+			// js_wasm_trace(`fd_close ${fd}`);
+			const [vfsPath, pathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
+			const shouldLog =
+				pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
+			// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
+			if (locking.maybeLockedFds.has(fd) && pathResolutionErrno === 0) {
+				shouldLog &&
+					js_wasm_trace(
+						`fd_close ${fd} ${vfsPath} calling default_fd_close`
+					);
+				// TODO: Say why closing this first
+				const result = default_fd_close.fn(fd);
+				shouldLog &&
+					js_wasm_trace(
+						`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
+					);
+				const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
+				return PHPLoader.fileLockManager
+					.releaseLocksForProcessFd(PHPLoader.processId, fd, nativeFilePath)
+					.finally(() => {
+						shouldLog &&
+							js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
+						locking.maybeLockedFds.delete(fd);
+					})
+					.then(() => {
+						shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
+						return result;
+					})
+					.catch((e) => {
+						shouldLog &&
+							js_wasm_trace(
+								`fd_close ${fd} error ${JSON.stringify(
+									e,
+									(key, value) =>
+										typeof value === 'bigint'
+											? `0x${value
+													.toString(16)
+													.padStart(16, '0')}`
+											: value
+								)}`
+							);
+					});
+			} else {
+				shouldLog &&
+					js_wasm_trace(`fd_close ${fd} ${vfsPath} default_fd_close case`);
+				return default_fd_close.fn(fd);
+			}
+		});
+	},
 
 	// Provide "real" PID to help with logging when debugging multi-worker issues
 	js_getpid() {
