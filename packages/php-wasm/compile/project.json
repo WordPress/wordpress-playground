@@ -8,6 +8,15 @@
 				"commands": ["node packages/php-wasm/compile/build.js"],
 				"parallel": false
 			}
+		},
+		"xdebug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/xdebug/build.js --output-dir=packages/php-wasm/node/jspi"
+				],
+				"parallel": false
+			}
 		}
 	},
 	"tags": []
