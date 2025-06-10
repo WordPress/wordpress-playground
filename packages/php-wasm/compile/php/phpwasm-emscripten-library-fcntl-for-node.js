@@ -109,10 +109,6 @@ const LibraryForFileLocking = {
 		fn: LibraryManager.library.__syscall_fcntl64,
 	},
 
-	// TODO: Remove these js_ declarations once it is clear we don't need them.
-	// js__syscall_fcntl64__deps: ['$default_fcntl64', '$locking'],
-	// js__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
-	// js__syscall_fcntl64: async function js__syscall_fcntl64(fd, cmd, varargs) {
 	__syscall_fcntl64__deps: [
 		...LibraryManager.library.__syscall_fcntl64__deps,
 		'$default_fcntl64',
@@ -120,10 +116,6 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: async function __syscall_fcntl64(fd, cmd, varargs) {
-		// TODO: Remove this early return after debugging.
-		return Asyncify.handleAsync(async () => {
-			return Promise.resolve(default_fcntl64.fn(fd, cmd, varargs));
-		});
 		return Asyncify.handleAsync(async () => {
 			// return default_fcntl64.fn(fd, cmd, varargs);
 			// Necessary to use varargs accessor
