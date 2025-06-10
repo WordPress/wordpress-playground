@@ -522,37 +522,36 @@ const LibraryForFileLocking = {
 		});
 	},
 
-	// js_release_file_locks: async function js_release_file_locks() {
-	// 	js_wasm_trace(`js_release_file_locks ${PHPLoader.processId}`);
-	// 	// TODO: Why make this conditional?
-	// 	if (PHPLoader.fileLockManager) {
-	// 		const pid = PHPLoader.processId;
-	// 		return Asyncify.handleSleep((wakeUp) => {
-	// 			return PHPLoader.fileLockManager
-	// 				.releaseLocksForProcess(pid)
-	// 				.then((result) => {
-	// 					js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
-	// 					return result;
-	// 				})
-	// 				.catch((e) => {
-	// 					// TODO: What to actually do for an error here? Can we crash?
-	// 					js_wasm_trace(
-	// 						`js_release_file_locks ${pid} error ${JSON.stringify(
-	// 							e,
-	// 							(key, value) =>
-	// 								typeof value === 'bigint'
-	// 									? `0x${value
-	// 											.toString(16)
-	// 											.padStart(16, '0')}`
-	// 									: value
-	// 						)}`
-	// 					);
-	// 					return -1;
-	// 				})
-	// 				.then(wakeUp);
-	// 		});
-	// 	}
-	// },
+	js_release_file_locks: async function js_release_file_locks() {
+		return Asyncify.handleAsync(async () => {
+			js_wasm_trace(`js_release_file_locks ${PHPLoader.processId}`);
+			// TODO: Why make this conditional?
+			if (PHPLoader.fileLockManager) {
+				const pid = PHPLoader.processId;
+				return PHPLoader.fileLockManager
+					.releaseLocksForProcess(pid)
+					.then((result) => {
+						js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
+						return result;
+					})
+					.catch((e) => {
+						// TODO: What to actually do for an error here? Can we crash?
+						js_wasm_trace(
+							`js_release_file_locks ${pid} error ${JSON.stringify(
+								e,
+								(key, value) =>
+									typeof value === 'bigint'
+										? `0x${value
+												.toString(16)
+												.padStart(16, '0')}`
+										: value
+							)}`
+						);
+						return -1;
+					});
+			}
+		});
+	},
 
 	// TODO: Try to eliminate the need to declare flock() itself in php_wasm.c
 	// and find a way to declare it here in a way that overrides Emscripten's libc flock()

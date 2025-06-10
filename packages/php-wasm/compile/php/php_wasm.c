@@ -1597,7 +1597,7 @@ void wasm_sapi_request_shutdown()
 	restore_stream_handler(stderr, stderr_replacement);
 
 	// Release any locks still held by this process
-	js_release_file_locks();	
+	js_release_file_locks();
 
 	// Prepare a fresh request context
 	wasm_init_server_context();
@@ -1900,7 +1900,7 @@ void wasm_free(void *_Nullable ptr) {
  * Function: wasm_get_end_offset
  * ----------------------------
  *   Returns the end offset of the file descriptor.
- * 
+ *
  *   Useful to determine the base address when file locking
  *   with flock.l_whence == SEEK_END.
  */
