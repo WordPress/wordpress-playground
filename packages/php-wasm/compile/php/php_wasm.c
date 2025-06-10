@@ -1925,6 +1925,7 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 //   return result;
 // });
 
+// extern int js_syscall_fcntl64(int fd, int cmd, void* args);
 // int __syscall_fcntl64(int fd, int cmd, ...) {
 // 	va_list args;
 // 	va_start(args, cmd);
@@ -1934,4 +1935,19 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 // 	va_end(args);
 // 	wasm_trace("__syscall_fcntl64: errno after va_end %d", errno);
 // 	return result;
+// }
+
+// extern int js_fd_close(int fd);
+// EMSCRIPTEN_KEEPALIVE int fd_close(int fd) {
+// 	wasm_trace("fd_close: fd %d", fd);
+// 	return js_fd_close(fd);
+// }
+
+// extern int fd_close(int fd);
+// // TODO: Can we include the file emscripten/system/include/wasi/api.h here?
+// typedef uint32_t __wasi_fd_t;
+// typedef uint16_t __wasi_errno_t;
+// EMSCRIPTEN_KEEPALIVE __wasi_errno_t __wasi_fd_close(__wasi_fd_t fd) {
+// 	wasm_trace("__wasi_fd_close: fd %d", fd);
+// 	return fd_close(fd);
 // }
