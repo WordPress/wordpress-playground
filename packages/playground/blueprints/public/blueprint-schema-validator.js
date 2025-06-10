@@ -74,7 +74,7 @@ const schema11 = {
 				features: {
 					type: 'object',
 					properties: {
-						icu: { type: 'boolean' },
+						intl: { type: 'boolean' },
 						networking: {
 							type: 'boolean',
 							description:
@@ -1411,7 +1411,7 @@ const schema12 = {
 		features: {
 			type: 'object',
 			properties: {
-				icu: { type: 'boolean' },
+				intl: { type: 'boolean' },
 				networking: {
 					type: 'boolean',
 					description:
@@ -19725,7 +19725,7 @@ function validate11(
 											for (const key3 in data11) {
 												if (
 													!(
-														key3 === 'icu' ||
+														key3 === 'intl' ||
 														key3 === 'networking'
 													)
 												) {
@@ -19751,19 +19751,19 @@ function validate11(
 												}
 											}
 											if (_errs33 === errors) {
-												if (data11.icu !== undefined) {
+												if (data11.intl !== undefined) {
 													const _errs34 = errors;
 													if (
-														typeof data11.icu !==
+														typeof data11.intl !==
 														'boolean'
 													) {
 														validate11.errors = [
 															{
 																instancePath:
 																	instancePath +
-																	'/features/icu',
+																	'/features/intl',
 																schemaPath:
-																	'#/properties/features/properties/icu/type',
+																	'#/properties/features/properties/intl/type',
 																keyword: 'type',
 																params: {
 																	type: 'boolean',

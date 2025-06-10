@@ -68,7 +68,7 @@
 				"features": {
 					"type": "object",
 					"properties": {
-						"icu": {
+						"intl": {
 							"type": "boolean"
 						},
 						"networking": {
