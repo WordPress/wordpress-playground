@@ -1,5 +1,5 @@
 import { ErrorEvent } from './error-event-polyfill';
-import { isExitCodeZero } from './is-exit-code-zero';
+import { isExitCodeZero } from './is-exit-code';
 import { logger } from '@php-wasm/logger';
 
 type Runtime = {
@@ -9,13 +9,29 @@ type Runtime = {
 
 export class UnhandledRejectionsTarget extends EventTarget {
 	listenersCount = 0;
-	override addEventListener(type: unknown, callback: unknown): void {
+	override addEventListener(
+		type: unknown,
+		callback: unknown,
+		options?: boolean | AddEventListenerOptions
+	): void {
 		++this.listenersCount;
-		super.addEventListener(type as string, callback as EventListener);
+		super.addEventListener(
+			type as string,
+			callback as EventListener,
+			options
+		);
 	}
-	override removeEventListener(type: unknown, callback: unknown): void {
+	override removeEventListener(
+		type: unknown,
+		callback: unknown,
+		options?: boolean | EventListenerOptions
+	): void {
 		--this.listenersCount;
-		super.removeEventListener(type as string, callback as EventListener);
+		super.removeEventListener(
+			type as string,
+			callback as EventListener,
+			options
+		);
 	}
 	hasListeners() {
 		return this.listenersCount > 0;
@@ -33,6 +49,7 @@ export class UnhandledRejectionsTarget extends EventTarget {
  *
  * @param runtime
  */
+let callnb = 0;
 export function improveWASMErrorReporting(runtime: Runtime) {
 	const target = new UnhandledRejectionsTarget();
 	for (const key in runtime.wasmExports) {
@@ -55,13 +72,12 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					}
 
 					if (target.hasListeners()) {
-						target.dispatchEvent(
-							new ErrorEvent('error', {
-								error: e,
-								message: clearMessage,
-							})
-						);
-						return;
+						const event = new ErrorEvent('error', {
+							error: e,
+							message: clearMessage,
+						});
+						target.dispatchEvent(event);
+						throw e;
 					}
 
 					if (!isExitCodeZero(e)) {

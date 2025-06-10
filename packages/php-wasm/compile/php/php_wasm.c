@@ -1792,8 +1792,7 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 {
 	if (sapi_header == NULL)
 	{
-		fseek(headers_file, ftell(headers_file) - 2, SEEK_SET);
-		fwrite(&"  ", sizeof(char), 2, headers_file);
+		fwrite(&"\"__terminator__\"", sizeof(char), 16, headers_file);
 		return;
 	}
 	_fwrite(headers_file, "\"");

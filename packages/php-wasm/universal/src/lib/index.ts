@@ -74,5 +74,5 @@ export {
 	toRelativeUrl,
 } from './urls';
 
-export { isExitCodeZero } from './is-exit-code-zero';
+export { isExitCodeZero } from './is-exit-code';
 export { proxyFileSystem } from './proxy-file-system';

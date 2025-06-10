@@ -133,7 +133,9 @@ export class PHPProcessManager implements AsyncDisposable {
 			this.primaryIdle = false;
 			return {
 				php: await this.getPrimaryPhp(),
-				reap: () => (this.primaryIdle = true),
+				reap: () => {
+					this.primaryIdle = true;
+				},
 			};
 		}
 
