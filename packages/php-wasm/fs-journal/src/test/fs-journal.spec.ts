@@ -182,6 +182,30 @@ describe('Journal MemFS', () => {
 });
 
 describe('normalizeFilesystemOperations()', () => {
+	it('Normalizes CREATE and WRITE + multiple WRITE file ops to a single WRITE', () => {
+		const expected = [
+			{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+		];
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+	});
 	it('Normalizes CREATE and RENAME to a single CREATE (file)', () => {
 		expect(
 			normalizeFilesystemOperations([
