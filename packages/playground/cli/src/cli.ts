@@ -127,6 +127,7 @@ async function run() {
 			default: false,
 		})
 		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
+		// TODO: Consider making this arg take the number of workers to use.
 		.option('experimentalMultiWorker', {
 			describe:
 				'Enable experimental multi-worker support. ' +
