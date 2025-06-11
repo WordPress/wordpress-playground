@@ -24,7 +24,6 @@ import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
 import { Worker } from 'worker_threads';
-import { rootCertificates } from 'tls';
 import { expandAutoMounts } from './cli-auto-mount';
 import {
 	CACHE_FOLDER,
@@ -38,6 +37,7 @@ import type { PlaygroundCliWorker, Mount } from './worker-thread';
 // @ts-ignore
 import moduleWorkerUrlString from './worker-thread?worker&url';
 import { FileLockManagerForNode } from '@php-wasm/node';
+import { LoadBalancer } from './load-balancer';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -220,15 +220,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		});
 	}
 
-	function parseMounts(mounts: string[] | undefined): Mount[] {
-		return (
-			mounts?.map((mount) => {
-				const [hostPath, vfsPath] = mount.split(':');
-				return { hostPath, vfsPath };
-			}) || []
-		);
-	}
-
 	if (args.quiet) {
 		// @ts-ignore
 		logger.handlers = [];
@@ -403,6 +394,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					processIdBase: 0,
 					followSymlinks,
 				});
+
+				loadBalancer = new LoadBalancer(playground);
 				logger.log(`Booted!`);
 
 				await playground.isReady();
@@ -428,16 +421,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				const internalZip = await zipDirectory(playground, '/internal');
 
-				// Create secondary workers
-				const additionalWorkers = [];
-				const totalWorkers = 8;
+					// Create additional workers
+					const totalAdditionalWorkers = 7;
 				const workerProcessIdSpace = Math.floor(
-					Number.MAX_SAFE_INTEGER / totalWorkers
+						Number.MAX_SAFE_INTEGER / totalAdditionalWorkers
 				);
-				for (let i = 1; i < totalWorkers; i++) {
+					for (let i = 1; i < totalAdditionalWorkers; i++) {
 					// TODO: Write as progress tracking
 					logger.log(`Starting worker ${i}...`);
-					const worker = await spawnPHPWorkerThread(moduleWorkerUrl);
+						const worker = await spawnPHPWorkerThread(
+							moduleWorkerUrl
+						);
 					const additionalPlayground =
 						consumeAPI<PlaygroundCliWorker>(worker);
 					await additionalPlayground.isConnected();
@@ -474,13 +468,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						'/internal'
 					);
 
-					additionalWorkers.push(additionalPlayground);
+						loadBalancer.addWorker(additionalPlayground);
+					}
 				}
-
-				loadBalancer = new LoadBalancer([
-					playground,
-					...additionalWorkers,
-				]);
 
 				logger.log(`WordPress is running on ${absoluteUrl}`);
 
@@ -506,67 +496,4 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			return await loadBalancer.handleRequest(request);
 		},
 	});
-}
-
-// TODO: Let's merge worker management into PHPProcessManager
-// when we can have multiple workers in both CLI and web.
-// Please don't expand upon this as an independent abstraction.
-// TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
-type WorkerLoad = {
-	worker: RemoteAPI<PlaygroundCliWorker>;
-	activeRequests: Set<Promise<PHPResponse>>;
-};
-class LoadBalancer {
-	workerLoads: WorkerLoad[] = [];
-
-	constructor(workers: RemoteAPI<PlaygroundCliWorker>[]) {
-		this.workerLoads = workers.map((worker) => ({
-			worker,
-			activeRequests: new Set(),
-		}));
-	}
-
-	async handleRequest(request: PHPRequest) {
-		let smallestWorkerLoad = this.workerLoads[0];
-		let smallestWorkerLoadIndex = 0;
-
-		// TODO: Is there any way for us to track CPU load so we could avoid
-		//       picking a worker that is under heavy load despite few requests?
-		// Possibly this: https://nodejs.org/api/worker_threads.html#workerperformance
-		// Though we probably don't need to worry about it.
-		for (let i = 1; i < this.workerLoads.length; i++) {
-			const workerLoad = this.workerLoads[i];
-			if (
-				workerLoad.activeRequests.size <
-				smallestWorkerLoad.activeRequests.size
-			) {
-				smallestWorkerLoad = workerLoad;
-				smallestWorkerLoadIndex = i;
-			}
-		}
-
-		// TODO: Add trace facility to Playground CLI to observe internals
-		// TODO: Remove this after testing
-		logger.log(
-			`selected worker ${smallestWorkerLoadIndex} for ${
-				request.url
-			} out of workloads ${this.workerLoads.map(
-				(w, i) => `${i}: ${w.activeRequests.size}`
-			)}`
-		);
-
-		const promiseForResponse = smallestWorkerLoad.worker.request(request);
-		smallestWorkerLoad.activeRequests.add(promiseForResponse);
-
-		// Add URL to promise for use while debugging
-		(promiseForResponse as any).url = request.url;
-
-		return promiseForResponse.finally(() => {
-			// TODO: Add trace for each request
-			// console.log(
-			// 	`worker ${smallestWorkerLoadIndex} completed request for ${request.url}`
-			// );
-			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
-		});
-	}
 }
