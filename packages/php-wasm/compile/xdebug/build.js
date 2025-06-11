@@ -27,7 +27,6 @@ const platformDefaults = {
 	},
 };
 
-/* eslint-disable prettier/prettier */
 const getArg = (name) => {
 	let value =
 		name in args
@@ -72,18 +71,6 @@ await asyncSpawn(
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
-/* eslint-enable prettier/prettier */
-
-// Extract the Xdebug extension
-// await asyncSpawn(
-//     'docker',
-//     [
-//         'cp',
-//         '$$(docker create playground-php-wasm:xdebug):/root/xdebug/modules/.',
-//         `${outputDir}/${getArg('PHP_VERSION')}`,
-//     ],
-//     { cwd: path.dirname(sourceDir), stdio: 'inherit' }
-// );
 
 const version = getArg('PHP_VERSION').split('=')[1].replaceAll('.', '_');
 
