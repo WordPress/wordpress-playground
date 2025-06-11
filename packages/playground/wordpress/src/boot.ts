@@ -247,8 +247,7 @@ export async function bootWordPress(options: BootOptions) {
 		);
 	}
 
-	// TODO: Make this more explicit to allow init with internals which will be copied in later.
-	if (!options.dataSqlPath && options.wordPressZip) {
+	if (!options.dataSqlPath) {
 		if (!(await isWordPressInstalled(php))) {
 			await installWordPress(php);
 		}
