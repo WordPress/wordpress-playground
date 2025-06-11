@@ -305,8 +305,8 @@ export function journalFSEventsToOpfs(
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
-			while (compressedJournal.length) {
-				await rewriter.processEntry(compressedJournal.shift()!);
+			for (const entry of compressedJournal) {
+				await rewriter.processEntry(entry);
 			}
 		} finally {
 			release();
