@@ -126,6 +126,17 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
+		.option('experimentalMultiWorker', {
+			describe:
+				'Enable experimental multi-worker support. ' +
+				'This will enable Playground to service more requests simultaneously. ' +
+				'This feature currently requires:\n' +
+				'- A JavaScript runtime that supports JavaScript Promise Integration (JSPI).\n' +
+				'- A real filesystem directory mounted as the /wordpress directory.',
+			type: 'boolean',
+			default: false,
+		})
 		.showHelpOnFail(false)
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {

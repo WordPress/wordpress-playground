@@ -38,6 +38,7 @@ import type { PlaygroundCliWorker, Mount } from './worker-thread';
 import moduleWorkerUrlString from './worker-thread?worker&url';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
+import { jspi } from 'wasm-feature-detect';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -55,6 +56,7 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: boolean;
 	followSymlinks?: boolean;
+	experimentalMultiWorker?: boolean;
 }
 
 export interface RunCLIServer {
@@ -417,56 +419,80 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					process.exit(0);
 				}
 
-				// TODO: Make multiple workers conditional on mounting of real /wordpress directory
+				if (args.experimentalMultiWorker) {
+					if (!(await jspi())) {
+						throw new Error(
+							// TODO: Improve language?
+							'JSPI is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
+						);
+					}
+					const mountsWordPressDir = (mount: Mount) =>
+						mount.vfsPath === '/wordpress';
+					if (
+						!args.mount?.some(mountsWordPressDir) &&
+						!args.mountBeforeInstall?.some(mountsWordPressDir)
+					) {
+						throw new Error(
+							// TODO: Improve language?
+							'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
+						);
+					}
 
-				const internalZip = await zipDirectory(playground, '/internal');
+					const internalZip = await zipDirectory(
+						playground,
+						'/internal'
+					);
 
 					// Create additional workers
 					const totalAdditionalWorkers = 7;
-				const workerProcessIdSpace = Math.floor(
+					const workerProcessIdSpace = Math.floor(
 						Number.MAX_SAFE_INTEGER / totalAdditionalWorkers
-				);
+					);
 					for (let i = 1; i < totalAdditionalWorkers; i++) {
-					// TODO: Write as progress tracking
-					logger.log(`Starting worker ${i}...`);
+						// TODO: Write as progress tracking
+						logger.log(`Starting worker ${i}...`);
 						const worker = await spawnPHPWorkerThread(
 							moduleWorkerUrl
 						);
-					const additionalPlayground =
-						consumeAPI<PlaygroundCliWorker>(worker);
-					await additionalPlayground.isConnected();
-					exposeAPI(fileLockManager, undefined, worker);
+						const additionalPlayground =
+							consumeAPI<PlaygroundCliWorker>(worker);
+						await additionalPlayground.isConnected();
+						exposeAPI(fileLockManager, undefined, worker);
 
-					// TODO: Parallelize booting and waiting for secondary workers to be ready
-					// TODO: Fix auto-login
-					await additionalPlayground.boot({
-						phpVersion: compiledBlueprint.versions.php,
-						absoluteUrl,
-						mountsBeforeWpInstall,
-						mountsAfterWpInstall,
-						// Skip WordPress zip because we share the /wordpress directory
-						// populated by the initial worker.
-						wordPressZip: undefined,
-						// Skip SQLite integration plugin for now because we
-						// will copy it from primary's `/internal` directory.
-						sqliteIntegrationPluginZip: undefined,
-						dataSqlPath:
-							'/wordpress/wp-content/database/.ht.sqlite',
-						// TODO: Explain why
-						processIdBase: i * workerProcessIdSpace,
-						followSymlinks,
-					});
-					await additionalPlayground.isReady();
+						// TODO: Parallelize booting and waiting for secondary workers to be ready
+						// TODO: Fix auto-login
+						await additionalPlayground.boot({
+							phpVersion: compiledBlueprint.versions.php,
+							absoluteUrl,
+							mountsBeforeWpInstall,
+							mountsAfterWpInstall,
+							// Skip WordPress zip because we share the /wordpress directory
+							// populated by the initial worker.
+							wordPressZip: undefined,
+							// Skip SQLite integration plugin for now because we
+							// will copy it from primary's `/internal` directory.
+							sqliteIntegrationPluginZip: undefined,
+							dataSqlPath:
+								'/wordpress/wp-content/database/.ht.sqlite',
+							// TODO: Explain why
+							processIdBase: i * workerProcessIdSpace,
+							followSymlinks,
+						});
+						await additionalPlayground.isReady();
 
-					await additionalPlayground.writeFile(
-						'/tmp/internal.zip',
-						internalZip
-					);
-					await unzipFile(
-						additionalPlayground,
-						'/tmp/internal.zip',
-						'/internal'
-					);
+						await additionalPlayground.writeFile(
+							'/tmp/internal.zip',
+							internalZip
+						);
+						await unzipFile(
+							additionalPlayground,
+							'/tmp/internal.zip',
+							'/internal'
+						);
+						// TODO: Remove this after debugging
+						// fs.writeFileSync('/Users/brandon/src/playground/internal.zip', internalZip);
+						// const additionalInternalZip = await zipDirectory(additionalPlayground, '/internal');
+						// fs.writeFileSync('/Users/brandon/src/playground/additionalInternal.zip', additionalInternalZip);
 
 						loadBalancer.addWorker(additionalPlayground);
 					}
