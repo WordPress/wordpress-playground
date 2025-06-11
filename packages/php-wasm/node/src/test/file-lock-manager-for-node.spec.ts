@@ -51,7 +51,7 @@ describe('FileLockManagerForNode', () => {
 			});
 
 			it('allows when only byte-range locked by same process', async () => {
-				// TODO: Implement
+				// TODO: Exclusive fcntl() and flock() locks appear to conflict on macos even within same process. Test that instead. Shared locks do not conflict.
 			});
 
 			it('denies when other process holds exclusive whole-file lock', async () => {
@@ -97,7 +97,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -117,7 +116,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -205,7 +203,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -225,7 +222,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -309,7 +305,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result).toBe(true);
 			});
@@ -329,7 +324,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(false);
 			});
@@ -349,7 +343,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(false);
 			});
@@ -361,7 +354,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -371,7 +363,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(false);
 			});
@@ -383,7 +374,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -393,7 +383,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(false);
 			});
@@ -405,7 +394,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -415,7 +403,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 150n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -427,7 +414,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -437,7 +423,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 150n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -449,7 +434,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -459,7 +443,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -470,7 +453,6 @@ describe('FileLockManagerForNode', () => {
 						start: 0n,
 						end: 50n,
 						pid: 2,
-						fd: 1,
 					});
 				expect(obtainedExclusiveLockOnOldRange).toBe(false);
 
@@ -481,7 +463,6 @@ describe('FileLockManagerForNode', () => {
 						start: 100n,
 						end: 150n,
 						pid: 2,
-						fd: 1,
 					});
 				expect(obtainedExclusiveLockOnNewRange).toBe(false);
 			});
@@ -493,7 +474,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -503,7 +483,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -513,7 +492,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 200n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result3).toBe(false);
 			});
@@ -525,7 +503,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result).toBe(true);
 			});
@@ -545,7 +522,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(false);
 			});
@@ -565,7 +541,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -578,7 +553,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -588,7 +562,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(false);
 			});
@@ -600,7 +573,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -610,7 +582,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -622,7 +593,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -632,7 +602,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 150n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -644,7 +613,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -654,7 +622,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 150n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -666,7 +633,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -676,7 +642,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -686,7 +651,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result3).toBe(true);
 			});
@@ -698,7 +662,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -709,7 +672,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -720,7 +682,6 @@ describe('FileLockManagerForNode', () => {
 					start: 200n,
 					end: BigInt(Number.MAX_SAFE_INTEGER),
 					pid: 2,
-					fd: 1,
 				});
 				expect(result3).toBe(false);
 			});
@@ -733,7 +694,6 @@ describe('FileLockManagerForNode', () => {
 						start: 0n,
 						end: 100n,
 						pid: 1,
-						fd: 1,
 					})
 				).not.toThrow();
 			});
@@ -745,7 +705,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -755,7 +714,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify it's unlocked by getting an exclusive lock
@@ -764,7 +722,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -776,7 +733,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -786,7 +742,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify it's unlocked by getting an exclusive lock
@@ -795,7 +750,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -807,7 +761,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -816,7 +769,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -826,7 +778,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify second process's lock is still there
@@ -835,7 +786,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result3).toBe(false);
 			});
@@ -846,7 +796,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -856,7 +805,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify we can now lock 50-100 but not 0-50
@@ -865,7 +813,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -874,7 +821,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result3).toBe(false);
 			});
@@ -886,7 +832,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -896,7 +841,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify we can now lock 50-100 but not 100-150
@@ -905,7 +849,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 100n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -914,7 +857,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 150n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result3).toBe(false);
 			});
@@ -926,7 +868,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 200n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -936,7 +877,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify we can now lock 50-150 but not 0-50 or 150-200
@@ -945,7 +885,6 @@ describe('FileLockManagerForNode', () => {
 					start: 50n,
 					end: 150n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 
@@ -954,7 +893,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 50n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result3).toBe(false);
 
@@ -963,7 +901,6 @@ describe('FileLockManagerForNode', () => {
 					start: 150n,
 					end: 200n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result4).toBe(false);
 			});
@@ -975,7 +912,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 				expect(result1).toBe(true);
 
@@ -985,7 +921,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 100n,
 					pid: 1,
-					fd: 1,
 				});
 
 				// Verify it's unlocked by getting a lock after that point
@@ -994,7 +929,6 @@ describe('FileLockManagerForNode', () => {
 					start: 100n,
 					end: 200n,
 					pid: 2,
-					fd: 1,
 				});
 				expect(result2).toBe(true);
 			});
@@ -1008,7 +942,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 
 			const conflict =
@@ -1019,7 +952,6 @@ describe('FileLockManagerForNode', () => {
 						start: 50n,
 						end: 150n,
 						pid: 2,
-						fd: 1,
 					}
 				);
 
@@ -1034,7 +966,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 
 			const conflict =
@@ -1045,7 +976,6 @@ describe('FileLockManagerForNode', () => {
 						start: 150n,
 						end: 250n,
 						pid: 2,
-						fd: 1,
 					}
 				);
 
@@ -1070,7 +1000,6 @@ describe('FileLockManagerForNode', () => {
 						start: 0n,
 						end: 100n,
 						pid: 2,
-						fd: 1,
 					}
 				);
 
@@ -1100,7 +1029,6 @@ describe('FileLockManagerForNode', () => {
 						start: 0n,
 						end: 100n,
 						pid: 2,
-						fd: 1,
 					}
 				);
 
@@ -1130,7 +1058,6 @@ describe('FileLockManagerForNode', () => {
 						start: 0n,
 						end: 100n,
 						pid: 2,
-						fd: 1,
 					}
 				);
 
@@ -1150,14 +1077,12 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 			await lockManager.lockFileByteRange(TEST_FILE1, {
 				type: 'exclusive',
 				start: 200n,
 				end: 300n,
 				pid: 1,
-				fd: 1,
 			});
 			const exclusiveLockAppearsToBeHeld =
 				!(await lockManager.lockFileByteRange(TEST_FILE1, {
@@ -1165,7 +1090,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 300n,
 					pid: 2,
-					fd: 1,
 				}));
 			expect(exclusiveLockAppearsToBeHeld).toBe(true);
 
@@ -1174,7 +1098,6 @@ describe('FileLockManagerForNode', () => {
 				start: 50n,
 				end: 150n,
 				pid: 1,
-				fd: 1,
 			});
 			const sharedLockAppearsToBeHeld =
 				!(await lockManager.lockFileByteRange(TEST_FILE2, {
@@ -1182,7 +1105,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 300n,
 					pid: 2,
-					fd: 1,
 				}));
 			expect(sharedLockAppearsToBeHeld).toBe(true);
 
@@ -1195,7 +1117,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 300n,
 					pid: 2,
-					fd: 1,
 				});
 			const sharedLockAppearsToBeReleased =
 				await lockManager.lockFileByteRange(TEST_FILE2, {
@@ -1203,7 +1124,6 @@ describe('FileLockManagerForNode', () => {
 					start: 0n,
 					end: 200n,
 					pid: 2,
-					fd: 1,
 				});
 
 			expect(exclusiveLockAppearsToBeReleased).toBe(true);
@@ -1266,7 +1186,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 50n,
 				pid: 1,
-				fd: 1,
 			});
 
 			await lockManager.lockFileByteRange(TEST_FILE1, {
@@ -1274,7 +1193,6 @@ describe('FileLockManagerForNode', () => {
 				start: 50n,
 				end: 100n,
 				pid: 2,
-				fd: 1,
 			});
 
 			// Release first process's locks
@@ -1286,7 +1204,6 @@ describe('FileLockManagerForNode', () => {
 				start: 50n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 			expect(result).toBe(false);
 		});
@@ -1389,7 +1306,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 			expect(result2).toBe(false);
 		});
@@ -1409,7 +1325,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 			expect(result2).toBe(false);
 		});
@@ -1429,7 +1344,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 			expect(result2).toBe(true);
 		});
@@ -1449,7 +1363,6 @@ describe('FileLockManagerForNode', () => {
 				start: 0n,
 				end: 100n,
 				pid: 1,
-				fd: 1,
 			});
 			expect(result2).toBe(false);
 		});
