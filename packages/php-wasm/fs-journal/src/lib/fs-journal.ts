@@ -455,7 +455,7 @@ export function normalizeFilesystemOperations(
 				}
 			}
 		}
-		// Any substiturions? Apply them and and start over.
+		// Any substitutions? Apply them and start over.
 		// We can't just continue as the current operation may
 		// have been replaced.
 		if (Object.entries(substitutions).length > 0) {
