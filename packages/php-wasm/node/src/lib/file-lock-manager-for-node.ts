@@ -22,6 +22,8 @@ type LockedRange = RequestedRangeLock & {
 	type: Exclude<RequestedRangeLock['type'], 'unlocked'>;
 };
 
+const MAX_64BIT_ADDRESS = BigInt(2n ** 64n - 1n);
+
 // TODO: Try in-memory SQLite journal
 class IntervalNode {
 	range: LockedRange;
@@ -347,8 +349,7 @@ export class FileLock {
 			this.doesAConflictingLockExist({
 				type: op.type,
 				start: 0n,
-				// TODO: Consider better max
-				end: BigInt(Number.MAX_SAFE_INTEGER),
+				end: MAX_64BIT_ADDRESS,
 				pid: op.pid,
 			})
 		) {
@@ -455,8 +456,7 @@ export class FileLock {
 			// TODO: Link to POSIX reference for this behavior.
 			requestedLock = {
 				...requestedLock,
-				// TODO: Consider better max
-				end: BigInt(Number.MAX_SAFE_INTEGER),
+				end: MAX_64BIT_ADDRESS,
 			};
 		}
 
