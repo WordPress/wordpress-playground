@@ -615,67 +615,67 @@ const LibraryForFileLocking = {
 		// });
 	},
 
-	// $default_fd_close__deps: LibraryManager.library.fd_close__deps || [],
-	// $default_fd_close: {
-	// 	fn: LibraryManager.library.fd_close,
-	// },
+	$default_fd_close__deps: LibraryManager.library.fd_close__deps || [],
+	$default_fd_close: {
+		fn: LibraryManager.library.fd_close,
+	},
 
-	// fd_close__deps: ['$default_fd_close'],
-	// fd_close(fd) {
-	// 	// return Asyncify.handleAsync(async () => {
-	// 	try {
-	// 		js_wasm_trace(`fd_close ${fd}`);
-	// 		const [vfsPath, pathResolutionErrno] =
-	// 			locking.get_vfs_path_from_fd(fd);
-	// 		const shouldLog =
-	// 			pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
-	// 		// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
-	// 		const result = default_fd_close.fn(fd);
-	// 		shouldLog &&
-	// 			js_wasm_trace(
-	// 				`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
-	// 			);
-	// 		if (locking.maybeLockedFds.has(fd)) {
-	// 			shouldLog &&
-	// 				js_wasm_trace(
-	// 					`fd_close ${fd} ${vfsPath} calling default_fd_close`
-	// 				);
-	// 			const nativeFilePath =
-	// 				locking.get_native_path_from_vfs_path(vfsPath);
-	// 			// TODO: Explain why we are not awaiting. Basically, there are big problems when trying to override with an async fd_close.
-	// 			// We do not fully understand, but it seems to have to do with __wasi_fd_close.
-	// 			return PHPLoader.fileLockManager
-	// 				.releaseLocksForProcessFd(
-	// 					PHPLoader.processId,
-	// 					fd,
-	// 					nativeFilePath
-	// 				)
-	// 				.then((result) => {
-	// 					shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
-	// 					return 0;
-	// 				})
-	// 				.finally(() => {
-	// 					shouldLog &&
-	// 						js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
-	// 					locking.maybeLockedFds.delete(fd);
-	// 				});
-	// 		} else {
-	// 			return 0;
-	// 		}
-	// 	} catch (e) {
-	// 		shouldLog &&
-	// 			js_wasm_trace(
-	// 				`fd_close ${fd} error ${JSON.stringify(e, (key, value) =>
-	// 					typeof value === 'bigint'
-	// 						? `0x${value.toString(16).padStart(16, '0')}`
-	// 						: value
-	// 				)}`
-	// 			);
-	// 		// TODO: Should we fail if close failed to unlock?
-	// 		return 0;
-	// 	}
-	// 	// });
-	// },
+	fd_close__deps: ['$default_fd_close'],
+	fd_close(fd) {
+		// return Asyncify.handleAsync(async () => {
+		try {
+			js_wasm_trace(`fd_close ${fd}`);
+			const [vfsPath, pathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
+			const shouldLog =
+				pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
+			// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
+			const result = default_fd_close.fn(fd);
+			shouldLog &&
+				js_wasm_trace(
+					`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
+				);
+			if (locking.maybeLockedFds.has(fd)) {
+				shouldLog &&
+					js_wasm_trace(
+						`fd_close ${fd} ${vfsPath} calling default_fd_close`
+					);
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
+				// TODO: Explain why we are not awaiting. Basically, there are big problems when trying to override with an async fd_close.
+				// We do not fully understand, but it seems to have to do with __wasi_fd_close.
+				return PHPLoader.fileLockManager
+					.releaseLocksForProcessFd(
+						PHPLoader.processId,
+						fd,
+						nativeFilePath
+					)
+					.then((result) => {
+						shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
+						return 0;
+					})
+					.finally(() => {
+						shouldLog &&
+							js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
+						locking.maybeLockedFds.delete(fd);
+					});
+			} else {
+				return 0;
+			}
+		} catch (e) {
+			shouldLog &&
+				js_wasm_trace(
+					`fd_close ${fd} error ${JSON.stringify(e, (key, value) =>
+						typeof value === 'bigint'
+							? `0x${value.toString(16).padStart(16, '0')}`
+							: value
+					)}`
+				);
+			// TODO: Should we fail if close failed to unlock?
+			return 0;
+		}
+		// });
+	},
 
 	// Provide "real" PID to help with logging when debugging multi-worker issues
 	js_getpid() {
@@ -685,6 +685,6 @@ const LibraryForFileLocking = {
 
 autoAddDeps(LibraryForFileLocking, '$default_fcntl64');
 autoAddDeps(LibraryForFileLocking, '__syscall_fcntl64');
-// autoAddDeps(LibraryForFileLocking, '$default_fd_close');
-// autoAddDeps(LibraryForFileLocking, 'fd_close');
+autoAddDeps(LibraryForFileLocking, '$default_fd_close');
+autoAddDeps(LibraryForFileLocking, 'fd_close');
 mergeInto(LibraryManager.library, LibraryForFileLocking);
