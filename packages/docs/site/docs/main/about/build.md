@@ -29,7 +29,7 @@ Some more examples of this workflow:
 
 ## Synchronize your playground instance with a local folder and create Github Pull Requests
 
-![Storage Type Device Snaphsot](../_assets/storage-type-device.png)
+![Storage Type Device Snapshot](../_assets/storage-type-device.png)
 
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 
@@ -44,7 +44,7 @@ This feature is only available for Google Chrome for now. It won't work with oth
 
 Regarding changes done on both sides of the connection:
 
--   Files changed in Playground will be synchronized to on your computer.
+-   Files changed in Playground will be synchronized to your computer.
 -   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
 
 With this workflow you can create directly GitHub PRs from your changes done on your local directory.

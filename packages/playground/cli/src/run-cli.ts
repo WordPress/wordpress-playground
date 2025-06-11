@@ -44,8 +44,8 @@ export interface RunCLIArgs {
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
-	mount?: string[];
-	mountBeforeInstall?: string[];
+	mount?: Mount[];
+	mountBeforeInstall?: Mount[];
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
@@ -366,10 +366,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							monitor
 					  );
 
-				const mountsBeforeWpInstall = parseMounts(
-					args.mountBeforeInstall
-				);
-				const mountsAfterWpInstall = parseMounts(args.mount);
+				const mountsBeforeWpInstall = args.mountBeforeInstall || [];
+				const mountsAfterWpInstall = args.mount || [];
 
 				logger.log(`Fetching SQLite integration plugin...`);
 				// TODO: Track progress

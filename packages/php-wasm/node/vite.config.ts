@@ -59,6 +59,7 @@ export default defineConfig(function () {
 
 		define: {
 			TEST: JSON.stringify(true),
+			'process.env.PROTOCOL': JSON.stringify('http'),
 		},
 	};
 });

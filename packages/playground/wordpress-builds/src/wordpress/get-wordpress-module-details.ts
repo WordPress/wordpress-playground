@@ -24,63 +24,63 @@ import url_6_3 from './wp-6.3.zip?url';
  */
 export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: number, url: string } {
 	switch (wpVersion) {
-		
+
 		case 'nightly':
 			/** @ts-ignore */
 			return {
-				size: 24750975,
+				size: 24746055,
 				url: url_nightly,
 			};
-			
+
 		case 'beta':
 			/** @ts-ignore */
 			return {
 				size: 24745283,
 				url: url_beta,
 			};
-			
+
 		case '6.8':
 			/** @ts-ignore */
 			return {
 				size: 24745360,
 				url: url_6_8,
 			};
-			
+
 		case '6.7':
 			/** @ts-ignore */
 			return {
 				size: 24591190,
 				url: url_6_7,
 			};
-			
+
 		case '6.6':
 			/** @ts-ignore */
 			return {
 				size: 18382652,
 				url: url_6_6,
 			};
-			
+
 		case '6.5':
 			/** @ts-ignore */
 			return {
 				size: 18453985,
 				url: url_6_5,
 			};
-			
+
 		case '6.4':
 			/** @ts-ignore */
 			return {
 				size: 18265208,
 				url: url_6_4,
 			};
-			
+
 		case '6.3':
 			/** @ts-ignore */
 			return {
 				size: 3595053,
 				url: url_6_3,
 			};
-			
+
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

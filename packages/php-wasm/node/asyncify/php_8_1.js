@@ -10,7 +10,7 @@ import { logger } from '@php-wasm/logger';
 import * as nodeUtil from 'util';
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 6356431;
+export const dependenciesTotalSize = 17368520;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js

@@ -107,5 +107,5 @@ You can translate supported WordPress Plugins by loading the plugin you want to 
 Have a question or an idea for a new feature? Found a bug? Something’s not working as expected? We’re here to help:
 
 -   During Contributor Day, you can reach us at the **Playground table**.
--   Open an issue on the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). If your focus is the VS Code extension, NPM package, or the plugins, open an issue on the [Plaground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
+-   Open an issue on the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). If your focus is the VS Code extension, NPM package, or the plugins, open an issue on the [Playground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
 -   Share your feedback on the [**#meta-playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).

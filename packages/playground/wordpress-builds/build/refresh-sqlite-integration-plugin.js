@@ -25,8 +25,8 @@ const args = parser.argv;
 // Get version and URL.
 const version = args.pluginVersion;
 const url = 'develop' === version
-	? `https://github.com/Automattic/sqlite-database-integration/archive/refs/heads/${version}.zip`
-	: `https://github.com/Automattic/sqlite-database-integration/archive/refs/tags/${version}.zip`;
+	? `https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/${version}.zip`
+	: `https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/${version}.zip`;
 
 // Load versions map.
 const versionsPath = `${args.outputDir}/sqlite-database-integration-versions.json`;

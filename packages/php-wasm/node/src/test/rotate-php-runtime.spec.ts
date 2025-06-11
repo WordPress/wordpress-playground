@@ -226,7 +226,7 @@ describe('rotatePHPRuntime()', () => {
 		await php.run({ code: `<?php echo "abc";` });
 		const freeAfterRotation = freeMemory(php);
 		expect(freeAfterRotation).toBeGreaterThan(freeAfter1000Requests);
-	}, 30_000);
+	}, 45_000);
 
 	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);

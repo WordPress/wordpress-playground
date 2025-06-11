@@ -41,7 +41,7 @@ export interface InstallThemeStep<FileResource, DirectoryResource>
 	 */
 	themeData: FileResource | DirectoryResource;
 	/**
-	 * @deprecated. Use `themeData` instead.
+	 * @deprecated. Use 'themeData' instead.
 	 */
 	themeZipFile?: FileResource;
 	/**
