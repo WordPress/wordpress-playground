@@ -19,6 +19,7 @@ export async function withXdebug(
 	return {
 		ENV: {
 			...options.ENV,
+			PHP_INI_SCAN_DIR: '/internal/shared/extensions',
 		},
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			if (options.onRuntimeInitialized) {
@@ -27,11 +28,35 @@ export async function withXdebug(
 			/* The extension file previously read
 			 * is written inside the /extensions directory
 			 */
-			phpRuntime.FS.mkdirTree('/extensions');
+			phpRuntime.FS.mkdirTree('/internal/shared/extensions');
 			phpRuntime.FS.writeFile(
-				`/extensions/${fileName}`,
+				`/internal/shared/extensions/${fileName}`,
 				new Uint8Array(extension)
 			);
+			/* The extension has its share of ini entries
+			 * to write in a separate ini file
+			 */
+			phpRuntime.FS.writeFile(
+				'/internal/shared/extensions/xdebug.ini',
+				[
+					'zend_extension=/internal/shared/extensions/xdebug.so',
+					'html_errors=Off',
+					'xdebug.mode=debug',
+					'xdebug.start_with_request=yes',
+					'xdebug.log=/xdebug.log',
+				].join('\n')
+			);
+			/* The extension needs to mount the current
+			 * working directory in order to sync with
+			 * the debugger
+			 */
+			phpRuntime.FS.mkdirTree(process.cwd());
+			phpRuntime.FS.mount(
+				phpRuntime.FS.filesystems['NODEFS'],
+				{ root: process.cwd() },
+				process.cwd()
+			);
+			phpRuntime.FS.chdir(process.cwd());
 		},
 	};
 }
