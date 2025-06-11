@@ -1,6 +1,3 @@
-import { logger } from '@php-wasm/logger';
-import { openSync, closeSync } from 'fs';
-
 /**
  * This is an interface used to abstract byte range locking like fcntl() and whole-file locking like flock().
  */
@@ -73,12 +70,6 @@ export type RequestedRangeLock = Readonly<{
 	/** The process ID that owns this lock */
 	pid: Pid;
 }>;
-
-// TODO: Can we merge this into a single LockRange type?
-export type LockRangeWithType = RequestedRangeLock &
-	Readonly<{
-		/** The type of lock ('shared' or 'exclusive') */
-	}>;
 
 export type WholeFileLock = Readonly<
 	WholeFileLock_Exclusive | WholeFileLock_Shared | WholeFileLock_Unlocked
