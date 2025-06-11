@@ -296,13 +296,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						monitor
 				  );
 
-			const constants: Record<string, string | number | boolean | null> =
-				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
-				};
-
 			const followSymlinks = args.followSymlinks === true;
 			try {
 				logger.log(`Setting up WordPress ${args.wp}`);
