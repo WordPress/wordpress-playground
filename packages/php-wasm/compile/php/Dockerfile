@@ -470,7 +470,7 @@ RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS -Wbad-function-cast -Wcast-function-type --profiling-funcs " \
+	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -licuuc -licudata -licui18n -licuio -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
@@ -523,10 +523,9 @@ RUN set -euxo pipefail; \
 # happy somehow. This can probably be patched in PHP, but for now we just
 # enable the flag and pay the price of the additional overhead.
 # https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
-# RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
-# 		echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
-# 	fi
-#RUN echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags;
+RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
+		echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
+	fi
 
 # Add ws networking proxy support if needed
 RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
@@ -1874,10 +1873,10 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_method", \n\
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
-"_wasm_set_skip_shebang"'"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
+"_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
-		export OPTIMIZATION_FLAGS="-O0 -g2"; \
+		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
@@ -2029,9 +2028,8 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			# TODO: Do we want to keep logger use in the file locking code?
 			echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
-			# TODO: Remove this after debugging. It is used to render objects in log messages.
-			echo "import * as nodeUtil from 'util'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \

@@ -6,7 +6,7 @@ DNS.address_map.addrs.localhost = '127.0.0.1';
 
 /**
  * Debugging Asyncify errors is tricky because the stack trace is lost when the
- * error is thrown. This code saves the stack trace in a global variable 
+ * error is thrown. This code saves the stack trace in a global variable
  * so that it can be inspected later.
  */
 PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;
@@ -38,25 +38,24 @@ PHPLoader['removeRunDependency'] = function (...args) {
 
 /**
  * Other exports live in the Dockerfile in:
- * 
+ *
  * * EXPORTED_RUNTIME_METHODS
  * * EXPORTED_FUNCTIONS
- * 
+ *
  * These exports, however, live in here because:
- * 
+ *
  * * Listing them in EXPORTED_RUNTIME_METHODS doesn't actually
  *   export them. This could be a bug in Emscripten or a consequence of
  *   that option being deprecated.
  * * Listing them in EXPORTED_FUNCTIONS works, but they are overridden
  *   on every `BasePHP.run()` call. This is a problem because we want to
  *   spy on these calls in some unit tests.
- * 
+ *
  * Therefore, we export them here.
  */
 PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
-// TODO: Revisit this hack after discussion with the Emscripten team.
 if (typeof NODEFS === 'object') {
     // TODO: Remove tracing or disconnect before merge
     const traceOptionDefaults = {
@@ -126,6 +125,7 @@ if (typeof NODEFS === 'object') {
         formatArgs: (stream) => formatStream(stream),
     });
 
+    // TODO: Revisit this hack after discussion with the Emscripten team.
     var originalHashAddNode = FS.hashAddNode;
     FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
         if (node.node_ops === NODEFS.node_ops) {
