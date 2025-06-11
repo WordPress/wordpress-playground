@@ -567,11 +567,15 @@ const LibraryForFileLocking = {
 			logger.warn(
 				`flock() is not implemented for non-NodeFS path '${vfsPath}'`
 			);
-			return -1;
+			// CAUTION: This implies success, but no lock was acquired.
+			return 0;
 		}
 
 		errno = locking.check_lock_params(fd, op);
 		if (errno !== 0) {
+			js_wasm_trace(
+				`js_flock ${fd} ${op} check_lock_params errno ${errno}`
+			);
 			return -errno;
 		}
 
@@ -579,7 +583,7 @@ const LibraryForFileLocking = {
 		if (op & (emscripten_LOCK_NB === 0)) {
 			// TODO: Fix this logging
 			//logger.error('blocking mode of flock() is not implemented');
-			console.error('blocking mode of flock() is not implemented');
+			js_wasm_trace('blocking mode of flock() is not implemented');
 			// TODO: Should we use a different error code?
 			return -ERRNO_CODES.EDEADLOCK;
 		}
@@ -589,8 +593,8 @@ const LibraryForFileLocking = {
 
 		const lockOpType = flockToLockOpType[maskedOp];
 		if (lockOpType === undefined) {
-			logger.warn(
-				`invalid flock() operation: 0x${lockOpType.toString(16)}`
+			js_wasm_trace(
+				`js_flock ${fd} ${op} invalid flock() operation: 0x${lockOpType.toString(16)}`
 			);
 			return -ERRNO_CODES.EINVAL;
 		}
