@@ -344,6 +344,31 @@ describe('normalizeFilesystemOperations()', () => {
 				},
 			])
 		).toEqual([]);
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'WRITE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test/file1.txt',
+					toPath: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([]);
 	});
 	it('Normalizes a more complex scenario', () => {
 		expect(
