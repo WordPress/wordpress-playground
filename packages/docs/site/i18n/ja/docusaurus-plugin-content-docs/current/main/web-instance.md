@@ -18,7 +18,7 @@ slug: /web-instance
 主な機能:
 
 <!--
-Key features:
+Some key features:
 -->
 
 -   **ブラウザベース**: ローカルサーバーのセットアップは不要です。
@@ -31,51 +31,38 @@ Key features:
 -   **Testing Environment**: Ideal for testing plugins and themes.
 -->
 
-[クエリパラメータ](/developers/apis/query-api/) を使用すると、Playground インスタンスを直接制御できます。WordPress や PHP のバージョン、インストールするプラグインやテーマなどの設定を指定したり、「 Blueprint 」と呼ばれる設定ファイルを参照したりできます。([こちら](/quick-start-guide#try-a-block-a-theme-or-a-plugin) でいくつかの例をご覧ください)。
+[クエリ パラメータ](/developers/apis/query-api/) を使用すると、特定のバージョンの WordPress、テーマ、プラグイン、またはブループリントを介したより複雑なセットアップなどを Playground インスタンスに直接読み込むことができます ([こちら](/quick-start-guide#try-a-block-a-theme-or-a-plugin) でいくつかの例を確認してください)。
 
 <!--
-Via [Query Params](/developers/apis/query-api/) you can directly control the Playground instance. You can assign settings, like WordPress or PHP versions, plugins and theme to install or point to a configuration file called "Blueprint". (check [here](/quick-start-guide#try-a-block-a-theme-or-a-plugin) some examples).
+Via [Query Params](/developers/apis/query-api/) we can directly load in the Playground instance things such as a specific version of WordPress, a theme, a plugin or a more complex setup via blueprints (check [here](/quick-start-guide#try-a-block-a-theme-or-a-plugin) some examples).
 -->
 
-Playground インターフェースは、次の 3 つの主要セクションで構成されています。
+Playground Web サイトには、プレイグラウンド インスタンスをカスタマイズしたり、一部のリソースやユーティリティにすばやくアクセスしたりするためのツールバーもいくつか用意されています。
 
 <!--
-The Playground interface consists of three key sections:
+From the Playground website there are also available some toolbars to customize your playground instance and to provide quick access to some resources and utilities.
 -->
 
--   **サイトエクスプローラー**
+![Playground Toolbar Snapshot](./_assets/toolbar.png)
 
--   **ワークスペースと設定**
-
--   **サイトプレビュー**
-
--   **アドレスバー**
+## プレイグラウンドをカスタマイズする
 
 <!--
--   **Site Explorer**
-
--   **Workspace & Settings**
-
--   **Site Preview**
-
--   **Address Bar**
+## Customize Playground
 -->
 
-![Playground Toolbar Snapshot](./_assets/Playground_Toolbar.png)
+![snapshot of customize playground window at playground instance](./_assets/customize-playground.png)
 
-**Playground Manager** アイコンをクリックすると、下のスクリーンショットに示すように次のインターフェースが表示されます。
+「プレイグラウンドのカスタマイズ」ウィンドウから利用できるオプションは、次の [クエリ API オプション](/developers/apis/query-api#available-options) に対応しています。
 
 <!--
-Upon clicking the **Playground Manager** icon you can view the following interface as shown in the screenshot below.
+The options available from the "Customize Playground" window correpond to the following [Query API options](/developers/apis/query-api#available-options):
 -->
 
-![Playground Interface Snapshot](./_assets/Playground_Interface.png)
-
-これらの各セクションは、WordPress インスタンスを管理するための重要な機能を提供します。
-
-<!--
-Each of these sections provides essential functionalities for managing the WordPress instance.
--->
+-   `php`
+-   `php-extension-bundle`
+-   `networking`
+-   `wp`
 
 :::tip
 
@@ -89,199 +76,49 @@ You need to activate "Network access" to be able to browse for [plugins](https:/
 :::
 -->
 
-#
-
-## 1. サイトエクスプローラー
+## プレイグラウンド オプション メニュー
 
 <!--
-## 1. Site Explorer
+## Playground Options Menu
 -->
 
-**サイトエクスプローラ**パネルでは、Playground ブラウザインスタンス全体を制御できます。以下のことが可能です。
+![options menu at playground instance snapshot](./_assets/options.png)
+
+このメニューには、いくつかの Playground リソースとツールへのリンクが含まれています。
 
 <!--
-The **Site Explorer** panel lets you control the overall Playground browser instance. It allows you to:
+This menu contains links to some Playground resources and tools:
 -->
 
-![Site Explorer Snapshot](./_assets/Site_Explorer.png)
+-   **サイトをリセット**: すべてのデータを消去し、新しいサイトでページをリロードします。
+-   **エラーを報告**: WP Playground で問題が発生した場合は、このオプションから利用できるフォームを使用して報告できます。Playground の開発チームにエラーの詳細を共有することで、Playground の問題解決に協力できます。
+-   **zip としてダウンロード**: テーマやプラグインがインストールされている場合など、Playground インスタンスのセットアップを含む `.zip` ファイルを作成します。この `.zip` ファイルには、コンテンツやデータベースの変更は含まれません。
+-   **zip から復元**: 「zip としてダウンロード」オプションで生成された `.zip` ファイルを使用して、Playground インスタンスを再作成できます。
+-   **Github からインポート**: このオプションを使用すると、プラグイン、テーマ、wp-content ディレクトリを GitHub のパブリックリポジトリから直接インポートできます。この機能を有効にするには、GitHub アカウントを WordPress Playground に接続してください。
 
--   Playground インスタンス内で複数の WordPress サイトを管理できます。
+-   **GitHub へのプルリクエストのエクスポート**: このオプションを使用すると、WordPress プラグイン、テーマ、および wp-content ディレクトリ全体を、任意のパブリック GitHub リポジトリへのプルリクエストとしてエクスポートできます。このオプションの使用方法のデモは [こちら](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) でご覧いただけます。
 
--   保存したサイトを切り替えたり、新しいインスタンスを作成したりできます。
+-   **ログの表示**: このオプションを選択すると、Playground、WordPress、PHP のエラーログを表示するモーダルが表示されます。
 
--   4 つの主要なリソースリンクにアクセスできます。
-
-    -   [WordPress PR のプレビュー](https://playground.wordpress.net)
-    -   [その他のデモ](https://playground.wordpress.net/demos/index.html)
-    -   [ドキュメント](https://wordpress.github.io/wordpress-playground/)
-    -   [GitHub](https://github.com/wordpress/wordpress-playground)
-
--   その他のオプションについては、3 点メニューをご利用ください。
-
-    -   WordPress PR のプレビュー
-    -   Gutenberg PR のプレビュー
-    -   GitHub からのインポート
-    -   Zip からのインポート
+-   **ブループリントの編集**: このオプションを選択すると、[Blueprints Builder ツール](https://playground.wordpress.net/builder/builder.html) で Playground インスタンスに使用されている現在のブループリントが開きます。このツールから、ブループリントをオンラインで編集し、編集したブループリントを使用して新しい Playground インスタンスを実行できます。
 
 <!--
--   Manage multiple WordPress sites within the Playground instance.
+-   **Reset Site**: - It will wipe out all data and reload the page with a new site.
+-   **Report error**: If you have any issue with WP Playground you can report it using the form available from this option. You can help resolve issues with Playground by sharing the error details with development team behind Playground.
+-   **Download as zip**: It creates a `.zip` with the setup of the Playground instance including any themes or plugins installed. This `.zip` won't include content and database changes.
+-   **Restore from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option
+-   **Import from Github**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
 
--   Switch between saved sites and create new instances.
+-   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
 
--   Access four key resource links:
+-   **View Logs**: This option will take you to modal that will show any error logs for Playground, WordPress and PHP.
 
-    -   [Preview WordPress PR](https://playground.wordpress.net)
-    -   [More demos](https://playground.wordpress.net/demos/index.html)
-    -   [Documentation](https://wordpress.github.io/wordpress-playground/)
-    -   [GitHub](https://github.com/wordpress/wordpress-playground)
-
--   Utilize the three-dot menu for additional options:
-
-    -   Preview WordPress PR
-    -   Preview Gutenberg PR
-    -   Import from GitHub
-    -   Import from Zip
+-   **Edit the blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 -->
 
-## 2. ワークスペースと設定
+<span id="edit-the-blueprint"></span>
 
-<!--
-## 2. Workspace & Settings
--->
-
-**ワークスペースと設定** には現在選択されているサイトが表示されます。サイトが 1 つしかない場合は、デフォルトで **一時プレイグラウンド** が表示されます。複数のサイトが保存されている場合は、**サイトエクスプローラー** で選択したサイトに基づいてこのセクションの内容が更新されます。
-
-<!--
-The **Workspace & Settings** displays the currently selected site. If you only have one site, it defaults to the **Temporary Playground**. If multiple sites are saved, this section updates based on the selected site from the **Site Explorer**.
--->
-
-ここで表示される設定はアクティブなサイトにのみ適用され、Playground 全体の設定ではありません。以下のオプションがあります。
-
-<!--
-The settings displayed here apply only to the active site and are not global Playground settings. The options include:
--->
-
--   **WordPress バージョン:** 最新の安定版、リリース候補版 (RC)、および旧バージョンから選択します。
-
--   **PHP バージョン:** 互換性テスト用の PHP バージョンを選択します。
-
--   **言語:** WordPress のインターフェース言語を設定します。
-
--   **ネットワークアクセス:** サイトへのインターネットアクセスを有効または無効にします。
-
--   **マルチサイトネットワーク:** マルチサイト機能を有効にして、ネットワーク化されたサイトをテストします。
-
-<!--
--   **WordPress Version:** Choose from the latest stable version, release candidates (RC), and older versions.
-
--   **PHP Version:** Select the PHP version for compatibility testing.
-
--   **Language:** Set the WordPress interface language.
-
--   **Network Access:** Enable or disable internet access for the site.
-
--   **Multisite Network:** Activate the multisite functionality to test networked sites.
--->
-
-### 一時的な Playground コンテキスト
-
-<!--
-### Temporary Playground Context
--->
-
--   Playground の最初のサイトは、デフォルトで常に「一時 Playground 」と呼ばれます。
-
--   追加のサイトが作成されると、選択されたサイトに応じて UI 名が変更されます。
-
--   **一時 Playground ** で行った変更は、ページを更新すると失われます。
-
--   その他の機能:
-
-    -   **GitHub にエクスポート:** Playground の現在の状態を GitHub リポジトリに保存します。
-
-    -   **サイトを .zip としてダウンロード:** WordPress インスタンスを zip ファイルとしてエクスポートします。
-
-    -   **ブループリントを表示:** Playground の設定詳細を確認します。
-
-    -   **エラーを報告:** 問題が発生した場合は、問題を送信してください。
-
-<!--
--   The first site in the Playground is always called the Temporary Playground by default.
-
--   When additional sites are created, the UI name changes according to the selected site.
-
--   Changes made in the **Temporary Playground** are lost upon page refresh.
-
--   Additional functionalities include:
-
-    -   **Export to GitHub:** Save the current state of the Playground to a GitHub repository.
-
-    -   **Download Site as .zip:** Export the WordPress instance as a zip file.
-
-    -   **View Blueprint:** Check the configuration details of the Playground setup.
-
-    -   **Report Error:** Submit an issue if something goes wrong.
--->
-
-## 3. サイトのプレビュー
-
-<!--
-## 3. Site Preview
--->
-
-![Site Preview Snapshot](./_assets/Site_Preview.png)
-
-**サイトプレビュー**は、現在アクティブな WordPress インスタンスを全画面で表示する機能です。ユーザーは WordPress の設定をリアルタイムで操作できます。
-
-<!--
-The **Site Preview** is a full-screen display of the currently active WordPress instance. It allows users to interact with their WordPress setup in real-time.
--->
-
--   選択すると、ビューが自動的に全画面に拡大されます。
-
--   ユーザーは以下の方法で Playground の他のセクションに戻ることができます。
-
-    -   **左側のアイコン** をクリックすると、**サイトエクスプローラー** に戻ります。
-
-    -   **右側のアイコン** をクリックすると、**ワークスペースと設定** に戻ります。
-
-<!--
--   The view automatically expands to full screen when selected.
-
--   Users can return to the other Playground sections using:
-
-    -   The **left-side icon** to navigate back to the **Site Explorer**.
-
-    -   The **right-side icon** to return to the **Workspace & Settings**.
--->
-
-## 4. アドレスバー
-
-<!--
-## 4. Address Bar
--->
-
-![Address Bar Snapshot](./_assets/Address_Bar.png)
-
-**アドレスバー**には、Playground で現在実行中の WordPress インスタンスの URL が表示されます。ユーザーはここから以下の操作を行うことができます。
-
-<!--
-The **Address Bar** displays the URL of the current WordPress instance running in Playground. It allows users to:
--->
-
--   インスタンスの URL をコピーして共有します。
-
--   高度なデバッグのためにクエリパラメータを変更します。
-
--   インスタンスをデフォルトの状態にリセットします。
-
-<!--
--   Copy and share the instance URL.
-
--   Modify query parameters for advanced debugging.
-
--   Reset the instance to its default state.
--->
+[![snapshot of Builder mode of WordPress Playground](./_assets/builder-mode.png)](https://playground.wordpress.net/builder/builder.html)
 
 :::caution
 
