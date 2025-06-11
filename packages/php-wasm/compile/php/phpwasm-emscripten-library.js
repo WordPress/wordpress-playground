@@ -438,7 +438,7 @@ const LibraryExample = {
 			}
 		}
 
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd()
 		let envObject = null;
 
 		if (envLength) {

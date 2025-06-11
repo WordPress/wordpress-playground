@@ -1,7 +1,7 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import type { PHPResponse } from './php-response';
+import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	PHPRequest,
 	PHPRunOptions,
@@ -39,6 +39,8 @@ export type LimitedPHPApi = Pick<
 	| 'fileExists'
 	| 'chdir'
 	| 'run'
+	| 'runStream'
+	| 'cli'
 	| 'onMessage'
 > & {
 	documentRoot: PHP['documentRoot'];
@@ -163,6 +165,34 @@ export class PHPWorker implements LimitedPHPApi {
 			.requestHandler!.processManager.acquirePHPInstance();
 		try {
 			return await php.run(request);
+		} finally {
+			reap();
+		}
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.runStream */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		try {
+			return await php.runStream(request);
+		} finally {
+			reap();
+		}
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.cli */
+	async cli(
+		args: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<StreamedPHPResponse> {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		// @TODO: Ensure we never run .cli() on the primary PHP instance.
+		try {
+			return await php.cli(args, options);
 		} finally {
 			reap();
 		}

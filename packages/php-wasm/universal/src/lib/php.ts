@@ -866,6 +866,10 @@ export class PHP implements Disposable {
 
 		const headers = await createInvertedReadableStream<Uint8Array>();
 		emscriptenModule.onHeaders = (chunk: Uint8Array) => {
+			if (streamsClosed || headersClosed) {
+				console.error(new TextDecoder().decode(chunk));
+				return;
+			}
 			// slice() chunk to clone the data and preserve it for the reader later on.
 			// We need that because the ArrayBuffer underlying `chunk` may change
 			// after this callback return. Without cloning, the reader would read
@@ -883,12 +887,20 @@ export class PHP implements Disposable {
 		const stdout = await createInvertedReadableStream<Uint8Array>();
 		emscriptenModule.onStdout = (chunk: Uint8Array) => {
 			closeHeadersStream();
+			if (streamsClosed) {
+				console.error(new TextDecoder().decode(chunk));
+				return;
+			}
 			stdout.controller.enqueue(chunk.slice());
 		};
 
 		const stderr = await createInvertedReadableStream<Uint8Array>();
 		emscriptenModule.onStderr = (chunk: Uint8Array) => {
 			closeHeadersStream();
+			if (streamsClosed) {
+				console.error(new TextDecoder().decode(chunk));
+				return;
+			}
 			stderr.controller.enqueue(chunk.slice());
 		};
 
@@ -913,7 +925,7 @@ export class PHP implements Disposable {
 							//        the console.
 							// logger.error(e);
 							// logger.error(e.error);
-							if (!isExitCodeZero(e.error)) {
+							if (!isExitCode(e.error)) {
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
 								(rethrown as any).betterMessage = e.message;

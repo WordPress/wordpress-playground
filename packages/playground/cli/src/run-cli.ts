@@ -305,8 +305,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				});
 				// Permanently lock primary PHP instance. Don't allow calling .cli() on
 				// it as that would trash it.
-				const primaryPHP =
-					await requestHandler.processManager.acquirePHPInstance();
+				await requestHandler.processManager.acquirePHPInstance();
 
 				console.log('primaryPHP acquired');
 
@@ -485,7 +484,7 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			args.shift();
 		}
 
-		if (args[0].endsWith('.php')) {
+		if (args[0].endsWith('.php') || args[0].endsWith('.phar')) {
 			args.unshift('php');
 		}
 
@@ -533,68 +532,20 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 		} else if (args[0] === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance();
 
+			php.chdir(options.cwd as string);
 			try {
-				// @TODO: Run the actual PHP CLI SAPI instead of
-				//        interpreting the arguments and emulating
-				//        the CLI constants and globals.
-				const cliBootstrapScript = `<?php
-                // Set the argv global.
-                $_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
-                    "/wordpress/wp-cli.phar",
-                    "--path=/wordpress"
-                ], ${phpVar(args.slice(2))});
-                $_SERVER['argc'] = $GLOBALS['argc'] = count($argv);
-
-                // Provide stdin, stdout, stderr streams outside of
-                // the CLI SAPI.
-                define('STDIN', fopen('php://stdin', 'rb'));
-                define('STDOUT', fopen('php://stdout', 'wb'));
-                define('STDERR', fopen('php://stderr', 'wb'));
-
-				error_reporting(E_ALL);
-				ini_set('display_errors', '1');
-				ini_set('log_errors', '1');
-				ini_set('error_log', 'php://stderr');
-
-				// Set DOCROOT to the current working directory.
-				if(getenv("DOCROOT")) {
-					chdir(getenv("DOCROOT"));
-				}
-                `;
-
-				const code = args.includes('-r')
-					? args[args.indexOf('-r') + 1]
-					: `require( getenv("SCRIPT_PATH") );`;
-
-				const result = await php.runStream({
-					code: `${cliBootstrapScript} ${code}`,
+				// Figure out more about setting env, putenv(), etc.
+				const result = await php.cli(args, {
 					env: {
 						...options.env,
 						DOCROOT: '/wordpress',
-
+						SCRIPT_PATH: args[1],
 						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 						// the output as ASCII tables.
 						// @see https://github.com/wp-cli/wp-cli/issues/1102
 						SHELL_PIPE: '0',
-
-						SCRIPT_PATH: args[1],
 					},
 				});
-
-				// @TODO: Use php.cli(). Problem: it doesn't seem to pass the env
-				//        variables correctly, especially OUTPUT_FILE.
-				// Figure out more about setting env, putenv(), etc.
-				// const result = await php.cli(/*args*/['php', '-r', code], {
-				// 	env: {
-				// 		...options.env,
-				// 		DOCROOT: '/wordpress',
-				// 		SCRIPT_PATH: args[1],
-				// 		// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-				// 		// the output as ASCII tables.
-				// 		// @see https://github.com/wp-cli/wp-cli/issues/1102
-				// 		SHELL_PIPE: '0',
-				// 	},
-				// });
 
 				result.stdout.pipeTo(
 					new WritableStream({

@@ -211,6 +211,13 @@ export class PHPRequestHandler {
 						...info,
 						requestHandler: this,
 					});
+
+					// Always set managed PHP's cwd to the document root.
+					if (!php.isDir(documentRoot)) {
+						php.mkdir(documentRoot);
+					}
+					php.chdir(documentRoot);
+
 					// @TODO: Decouple PHP and request handler
 					(php as any).requestHandler = this;
 					return php;

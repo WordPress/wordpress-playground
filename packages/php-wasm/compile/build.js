@@ -158,10 +158,10 @@ const platformDefaults = {
 		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
+		WITH_CLI_SAPI: 'yes',
 	},
 	web: {},
 	node: {
-		WITH_CLI_SAPI: 'yes',
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
 	},

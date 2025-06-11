@@ -174,40 +174,16 @@ require( "/tmp/blueprints.phar" );
 `
 	);
 
-	await php.mkdir('/wordpress');
-
-	// await php.run({
-	// 	scriptPath: '/tmp/run-blueprints.php',
-	// 	env: {
-	// 		ARGV: JSON.stringify([
-	// 			'exec',
-	// 			blueprintReference,
-	// 			'--site-path=/wordpress',
-	// 			`--site-url=${options.siteUrl}`,
-	// 			'--db-engine=sqlite',
-	// 			// '--truncate-new-site-directory=true',
-	// 		]),
-	// 	}
-	// });
-
-	// const code = args.includes('-r')
-	// 	? args[args.indexOf('-r') + 1]
-	// 	: `require( getenv("SCRIPT_PATH") );`;]
-	/**
-	 * @TODO: Get stdout and stderr as streams. Then, I think, we're good to use the CLI SAPI?!
-	 */
-	console.log('running cli');
-	return (await php.cli([
+	return await php.cli([
 		'php',
 		'/tmp/run-blueprints.php',
-		// '/tmp/blueprints.phar',
 		'exec',
 		blueprintReference,
 		'--site-path=/wordpress',
 		`--site-url=${options.siteUrl}`,
 		'--db-engine=sqlite',
 		// '--truncate-new-site-directory=true',
-	])) as StreamedPHPResponse;
+	]);
 }
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;

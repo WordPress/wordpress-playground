@@ -20,12 +20,11 @@ if (typeof __dirname === 'undefined') {
 	var __dirname = path.dirname(__filename);
 }
 
-// import { logger } from '@php-wasm/logger';
-// const logger = console;
+import { logger } from '@php-wasm/logger';
 import * as nodeUtil from 'util';
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 18436727;
+export const dependenciesTotalSize = 18436760;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -7367,7 +7366,7 @@ export function init(RuntimeName, PHPLoader) {
 				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
 			}
 		}
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
 		let envObject = null;
 		if (envLength) {
 			envObject = {};
@@ -8462,8 +8461,6 @@ export function init(RuntimeName, PHPLoader) {
 						polls.push(PHPWASM.awaitConnection(ws));
 						lookingFor.add('POLLOUT');
 					}
-					// Notify the user the socket is now closed even if the only requested
-					// in or out events.
 					if (
 						events & POLLHUP ||
 						events & POLLIN ||
