@@ -111,9 +111,7 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: async function __syscall_fcntl64(fd, cmd, varargs) {
-		return default_fcntl64.fn(fd, cmd, varargs);
 		// return Asyncify.handleAsync(async () => {
-		// return default_fcntl64.fn(fd, cmd, varargs);
 		// Necessary to use varargs accessor
 		SYSCALLS.varargs = varargs;
 
@@ -624,12 +622,15 @@ const LibraryForFileLocking = {
 	fd_close(fd) {
 		// return Asyncify.handleAsync(async () => {
 		try {
-			js_wasm_trace(`fd_close ${fd}`);
+			// js_wasm_trace(`fd_close ${fd}`);
 			const [vfsPath, pathResolutionErrno] =
 				locking.get_vfs_path_from_fd(fd);
 			const shouldLog =
 				pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
-			// js_wasm_trace(`fd_close ${fd} get_vfs_path_from_fd ${path} ${pathResolutionErrno}`);
+			// shouldLog &&
+				// js_wasm_trace(
+				// 	`fd_close ${fd} get_vfs_path_from_fd ${vfsPath} ${pathResolutionErrno}`
+				// );
 			const result = default_fd_close.fn(fd);
 			shouldLog &&
 				js_wasm_trace(
