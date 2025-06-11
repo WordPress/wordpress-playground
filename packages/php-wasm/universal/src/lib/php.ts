@@ -20,7 +20,7 @@ import {
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 import type { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
-import { isExitCode, isExitCodeZero } from './is-exit-code';
+import { isExitCode } from './is-exit-code';
 import type { Emscripten } from './emscripten-types';
 
 const STRING = 'string';

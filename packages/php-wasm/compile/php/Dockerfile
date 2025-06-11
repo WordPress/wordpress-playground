@@ -1899,6 +1899,7 @@ RUN set -euxo pipefail; \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+	-s ASSERTIONS=0 \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \

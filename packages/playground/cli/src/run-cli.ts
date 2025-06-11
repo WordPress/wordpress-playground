@@ -477,6 +477,10 @@ async function zipDirectory(php: PHP, directory: string, zipPath: string) {
 	});
 }
 
+/**
+ * @TODO: Consider collapsing this spawn handler and @wp-playground/remote worker-utils.ts
+ *        spawn handler into a single function
+ */
 export function spawnHandlerFactory(processManager: PHPProcessManager) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
@@ -511,24 +515,6 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			});
 			processApi.flushStdin();
 			processApi.exit(0);
-		} else if (args[0] === 'fetch') {
-			processApi.flushStdin();
-			fetch(args[1]).then(async (res) => {
-				const reader = res.body?.getReader();
-				if (!reader) {
-					processApi.exit(1);
-					return;
-				}
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) {
-						processApi.exit(0);
-						break;
-					}
-					processApi.stdout(value);
-				}
-			});
-			return;
 		} else if (args[0] === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance();
 

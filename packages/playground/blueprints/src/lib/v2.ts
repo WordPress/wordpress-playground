@@ -1,4 +1,4 @@
-import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
@@ -232,7 +232,10 @@ export function parseBlueprintDeclaration(
 
 export async function getV2Runner(): Promise<File> {
 	let data = null;
-	if (v2_runner_url.startsWith('/')) {
+	/**
+	 * Only load the v2 runner via node:fs when running in Node.js.
+	 */
+	if (typeof process !== 'undefined' && process.versions?.node) {
 		let path = v2_runner_url;
 		if (path.startsWith('/@fs/')) {
 			path = path.slice(4);

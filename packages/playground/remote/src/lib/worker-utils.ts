@@ -1,6 +1,6 @@
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import type { PHPResponse, PHPProcessManager, PHP } from '@php-wasm/universal';
-import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
+import type { PHPProcessManager, PHP } from '@php-wasm/universal';
+import { createSpawnHandler, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
 import { hasCachedResponse } from './offline-mode-cache';
@@ -8,8 +8,13 @@ import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
 
 export function spawnHandlerFactory(processManager: PHPProcessManager) {
 	return createSpawnHandler(async function (args, processApi, options) {
+		processApi.notifySpawn();
 		if (args[0] === 'exec') {
 			args.shift();
+		}
+
+		if (args[0].endsWith('.php') || args[0].endsWith('.phar')) {
+			args.unshift('php');
 		}
 
 		// Mock programs required by wp-cli:
@@ -26,81 +31,56 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			// @TODO: Do not hardcode this
 			processApi.stdout(`18 140`);
 			processApi.exit(0);
+		} else if (args[0] === 'tput' && args[1] === 'cols') {
+			processApi.stdout(`140`);
+			processApi.exit(0);
 		} else if (args[0] === 'less') {
 			processApi.on('stdin', (data: Uint8Array) => {
 				processApi.stdout(data);
 			});
 			processApi.flushStdin();
 			processApi.exit(0);
-		} else if (args[0] === 'fetch') {
-			processApi.flushStdin();
-			fetch(args[1]).then(async (res) => {
-				const reader = res.body?.getReader();
-				if (!reader) {
-					processApi.exit(1);
-					return;
-				}
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) {
-						processApi.exit(0);
-						break;
-					}
-					processApi.stdout(value);
-				}
-			});
-			return;
 		} else if (args[0] === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance();
 
-			let result: PHPResponse | undefined = undefined;
+			php.chdir(options.cwd as string);
 			try {
-				// @TODO: Run the actual PHP CLI SAPI instead of
-				//        interpreting the arguments and emulating
-				//        the CLI constants and globals.
-				const cliBootstrapScript = `<?php
-                // Set the argv global.
-                $GLOBALS['argv'] = array_merge([
-                    "/wordpress/wp-cli.phar",
-                    "--path=/wordpress"
-                ], ${phpVar(args.slice(2))});
+				// Figure out more about setting env, putenv(), etc.
+				const result = await php.cli(args, {
+					env: {
+						...options.env,
+						DOCROOT: '/wordpress',
+						SCRIPT_PATH: args[1],
+						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+						// the output as ASCII tables.
+						// @see https://github.com/wp-cli/wp-cli/issues/1102
+						SHELL_PIPE: '0',
+					},
+				});
 
-                // Provide stdin, stdout, stderr streams outside of
-                // the CLI SAPI.
-                define('STDIN', fopen('php://stdin', 'rb'));
-                define('STDOUT', fopen('php://stdout', 'wb'));
-                define('STDERR', fopen('/tmp/stderr', 'wb'));
-
-                ${options.cwd ? 'chdir(getenv("DOCROOT")); ' : ''}
-                `;
-
-				if (args.includes('-r')) {
-					result = await php.run({
-						code: `${cliBootstrapScript} ${
-							args[args.indexOf('-r') + 1]
-						}`,
-						env: options.env,
-					});
-				} else if (args[1] === 'wp-cli.phar') {
-					result = await php.run({
-						code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" );`,
-						env: {
-							...options.env,
-							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-							// the output as ASCII tables.
-							// @see https://github.com/wp-cli/wp-cli/issues/1102
-							SHELL_PIPE: '0',
+				result.stdout.pipeTo(
+					new WritableStream({
+						write(chunk) {
+							processApi.stdout(chunk);
 						},
-					});
-				} else {
-					result = await php.run({
-						scriptPath: args[1],
-						env: options.env,
-					});
-				}
-				processApi.stdout(result.bytes);
-				processApi.stderr(result.errors);
-				processApi.exit(result.exitCode);
+					})
+				);
+				result.stderr.pipeTo(
+					new WritableStream({
+						write(chunk) {
+							processApi.stderr(chunk);
+						},
+					})
+				);
+				await result.exitCode.then(
+					(exitCode) => {
+						processApi.exit(exitCode);
+					},
+					(error) => {
+						console.error('Error in childPHP:', error);
+						processApi.exit(1);
+					}
+				);
 			} catch (e) {
 				logger.error('Error in childPHP:', e);
 				if (e instanceof Error) {
