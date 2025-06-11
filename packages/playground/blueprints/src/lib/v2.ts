@@ -44,7 +44,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
 	}
-	const file = await getV2Runner();
+	const file = await loadV2Runner();
 	php.writeFile(
 		'/tmp/blueprints.phar',
 		new Uint8Array(await file.arrayBuffer())
@@ -230,7 +230,7 @@ export function parseBlueprintDeclaration(
 	}
 }
 
-export async function getV2Runner(): Promise<File> {
+export async function loadV2Runner(): Promise<File> {
 	let data = null;
 	/**
 	 * Only load the v2 runner via node:fs when running in Node.js.
@@ -244,6 +244,7 @@ export async function getV2Runner(): Promise<File> {
 		const { readFile } = await import('node:fs/promises');
 		data = await readFile(path);
 	} else {
+		// @TODO: Track progress when fetching from the network.
 		const response = await fetch(v2_runner_url);
 		data = await response.blob();
 	}
