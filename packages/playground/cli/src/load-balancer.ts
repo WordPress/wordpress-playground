@@ -4,7 +4,8 @@ import { logger } from '@php-wasm/logger';
 
 // TODO: Let's merge worker management into PHPProcessManager
 // when we can have multiple workers in both CLI and web.
-// Please don't expand upon this as an independent abstraction.
+// ¡ATTENTION!:Please don't expand upon this as an independent abstraction.
+
 // TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
 type WorkerLoad = {
 	worker: RemoteAPI<PlaygroundCliWorker>;
