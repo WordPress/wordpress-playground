@@ -285,7 +285,6 @@ const LibraryForFileLocking = {
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
-						fd,
 					})
 					.then((conflictingLock) => {
 						if (conflictingLock === undefined) {
@@ -437,7 +436,6 @@ const LibraryForFileLocking = {
 					start: absoluteStartOffset,
 					end: absoluteStartOffset + flockStruct.l_len,
 					pid,
-					fd,
 				};
 				js_wasm_trace(
 					`fcntl F_SETLK ${fd} ${vfsPath} before lockFileByteRange ${JSON.stringify(
