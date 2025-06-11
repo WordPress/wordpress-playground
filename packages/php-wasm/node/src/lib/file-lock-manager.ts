@@ -1,6 +1,9 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
 
+/**
+ * This is an interface used to abstract byte range locking like fcntl() and whole-file locking like flock().
+ */
 export type FileLockManager = {
 	/**
 	 * Update the lock on the whole file.
@@ -26,11 +29,9 @@ export type FileLockManager = {
 	 *          When locking: True if the lock was acquired, false if it was not.
 	 *          When unlocking: Always true.
 	 */
-	// TODO: Consider renaming to lockByteRangeForFile because there is an fcntl() F_OFD_SETLK command that would be named lockByteRangeForFileDescriptor
 	lockFileByteRange: (
 		path: string,
 		requestedLock: RequestedRangeLock
-		// TODO: Consider if there is a better return type for this operation.
 	) => boolean;
 
 	/**
@@ -71,12 +72,6 @@ export type RequestedRangeLock = Readonly<{
 	end: bigint;
 	/** The process ID that owns this lock */
 	pid: Pid;
-	/** The file descriptor that owns this lock.
-	 * Note: This is not needed for range locking but is needed to detect
-	 * conflicts with whole file locks.
-	 * TODO: Is this correct? I don't think it is. fcntl() is per file-descriptor.
-	 */
-	fd: Fd;
 }>;
 
 // TODO: Can we merge this into a single LockRange type?

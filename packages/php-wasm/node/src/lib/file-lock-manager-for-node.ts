@@ -350,7 +350,6 @@ export class FileLock {
 				// TODO: Consider better max
 				end: BigInt(Number.MAX_SAFE_INTEGER),
 				pid: op.pid,
-				fd: op.fd,
 			})
 		) {
 			// The requested lock conflicts with an existing lock.
@@ -557,22 +556,9 @@ export class FileLock {
 			return undefined;
 		}
 
-		const wholeFileLockConflicts =
-			(this.wholeFileLock.type === 'exclusive' &&
-				this.wholeFileLock.pid !== desiredLock.pid) ||
-			(desiredLock.type === 'exclusive' &&
-				this.wholeFileLock.type === 'shared' &&
-				!(
-					this.wholeFileLock.pidFds.size === 1 &&
-					this.wholeFileLock.pidFds.has(desiredLock.pid) &&
-					this.wholeFileLock.pidFds.get(desiredLock.pid)!.size ===
-						1 &&
-					this.wholeFileLock.pidFds
-						.get(desiredLock.pid)!
-						.has(desiredLock.fd)
-				));
-
-		if (wholeFileLockConflicts) {
+		const wfl = this.wholeFileLock;
+		if (wfl.type === 'exclusive' || desiredLock.type === 'exclusive') {
+			// An exclusive lock conflicts with any other exclusive lock.
 			return {
 				type: this.wholeFileLock.type,
 				start: 0n,
@@ -581,6 +567,7 @@ export class FileLock {
 			};
 		}
 
+		// Shared locks do not conflict with each other.
 		return undefined;
 	}
 
