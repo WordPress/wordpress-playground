@@ -8,7 +8,8 @@ export type FileLockManager = {
 	 * This method is for updating the lock on the whole file with the F_SETLKW fcntl() command.
 	 * https://sourceware.org/glibc/manual/2.41/html_node/File-Locks.html#index-F_005fSETLKW-1
 	 *
-	 * @param path - The path to the file to lock.
+	 * @param path - The path of the file to lock. This should be the path of the file in the
+	 *               underlying filesystem.
 	 * @param op - The operation to perform, including 'shared', 'exclusive', or 'unlock'.
 	 * @returns A promise for a boolean value.
 	 */
@@ -20,7 +21,8 @@ export type FileLockManager = {
 	 * This method is for locking with the F_SETLK fcntl() command.
 	 * https://sourceware.org/glibc/manual/2.41/html_node/File-Locks.html#index-F_005fSETLK-1
 	 *
-	 * @param path - The path to the file to lock.
+	 * @param path - The path of the file to lock. This should be the path of the file in the
+	 *               underlying filesystem.
 	 * @param requestedLock - The lock to request, including start, end, type, and pid.
 	 * @returns A promise for a boolean value.
 	 *          When locking: True if the lock was acquired, false if it was not.
@@ -37,7 +39,8 @@ export type FileLockManager = {
 	 * This method is meant to satisfy the needs of the F_GETLK fcntl() command.
 	 * https://sourceware.org/glibc/manual/2.41/html_node/File-Locks.html#index-F_005fGETLK-1
 	 *
-	 * @param path - The path to the file to check for conflicts.
+	 * @param path - The path of the file to check for conflicts. This should be the path
+	 *               of the file in the underlying filesystem.
 	 * @param desiredLock - The lock to check for conflicts.
 	 * @returns A promise for the first conflicting lock,
 	 *          or undefined if there is no conflict.
@@ -56,6 +59,14 @@ export type FileLockManager = {
 	 */
 	releaseLocksForProcess: (pid: number) => void;
 
+	/**
+	 * Release all locks for the given process and file descriptor.
+	 *
+	 * @param pid The process ID to release locks for.
+	 * @param fd The file descriptor to release locks for.
+	 * @param path The path to the file to release locks for. This should be the path
+	 *             of the file in the underlying filesystem.
+	 */
 	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
 };
 

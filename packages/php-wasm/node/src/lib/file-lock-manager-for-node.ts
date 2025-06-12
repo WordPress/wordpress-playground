@@ -7,15 +7,15 @@ import type {
 	RequestedRangeLock,
 	WholeFileLock,
 	WholeFileLockOp,
-	WholeFileLock_Shared,
 	Pid,
 	Fd,
 } from './file-lock-manager';
 
+type LockMode = 'exclusive' | 'shared' | 'unlock';
+
 type NativeLock = {
 	fd: number;
-	// TODO: Use a named type and share it within this module
-	mode: 'exclusive' | 'shared' | 'unlock';
+	mode: LockMode;
 };
 
 type LockedRange = RequestedRangeLock & {
@@ -24,7 +24,7 @@ type LockedRange = RequestedRangeLock & {
 
 const MAX_64BIT_ADDRESS = BigInt(2n ** 64n - 1n);
 
-// TODO: Try in-memory SQLite journal
+// TODO: Move key classes to top.
 class IntervalNode {
 	range: LockedRange;
 	max: bigint;
@@ -51,6 +51,15 @@ class FileLockIntervalTree {
 		this.root = this.insertNode(this.root, range);
 	}
 
+	/**
+	 * Find all ranges that overlap with the given range
+	 */
+	findOverlapping(range: RequestedRangeLock): LockedRange[] {
+		const result: LockedRange[] = [];
+		this.findOverlappingRanges(this.root, range, result);
+		return result;
+	}
+
 	private insertNode(
 		node: IntervalNode | null,
 		range: LockedRange
@@ -75,15 +84,6 @@ class FileLockIntervalTree {
 		return args.reduce((max, current) => {
 			return current > max ? current : max;
 		}, args[0]);
-	}
-
-	/**
-	 * Find all ranges that overlap with the given range
-	 */
-	findOverlapping(range: RequestedRangeLock): LockedRange[] {
-		const result: LockedRange[] = [];
-		this.findOverlappingRanges(this.root, range, result);
-		return result;
 	}
 
 	private findOverlappingRanges(
@@ -224,42 +224,29 @@ class FileLockIntervalTree {
 
 		return maxType;
 	}
-
-	private areThereLocksForOtherProcessesInNode(
-		node: IntervalNode | null,
-		pid: Pid,
-		fd: Fd,
-		type?: RequestedRangeLock['type'] | undefined
-	): boolean {
-		if (!node) {
-			return false;
-		}
-
-		if (
-			node.range.pid !== pid &&
-			(type === undefined || node.range.type === type)
-		) {
-			return true;
-		}
-
-		return (
-			this.areThereLocksForOtherProcessesInNode(
-				node.left,
-				pid,
-				fd,
-				type
-			) ||
-			this.areThereLocksForOtherProcessesInNode(node.right, pid, fd, type)
-		);
-	}
 }
 
+/**
+ * A FileLock instance encapsulates a native whole-file lock and file locking between
+ * php-wasm processes.
+ *
+ * A FileLock supports php-wasm whole-file locks and byte range locks.
+ * Before granting a php-wasm lock, a FileLock ensures that it first holds a compatible
+ * native lock. If a compatible native lock cannot be acquired, the php-wasm lock is
+ * not granted.
+ */
 export class FileLock {
-	// TODO: Improve name
-	// TODO: Document that it obtains a native file lock if possible and fails otherwise
-	static create(
+	/**
+	 * Create a new FileLock instance for the given file and mode.
+	 * Fail if the underlying native file lock cannot be acquired.
+	 *
+	 * @param path The path to the file to lock
+	 * @param mode The type of lock to acquire
+	 * @returns A FileLock instance if the lock was acquired, undefined otherwise
+	 */
+	static maybeCreate(
 		path: string,
-		mode: 'exclusive' | 'shared'
+		mode: Exclude<WholeFileLock['type'], 'unlocked'>
 	): FileLock | undefined {
 		let fd;
 		try {
@@ -295,7 +282,11 @@ export class FileLock {
 		this.wholeFileLock = { type: 'unlocked' };
 	}
 
-	// TODO: Replace this with a Symbol.dispose property once supported by all JS runtimes.
+	/**
+	 * Close the file descriptor and release the native lock.
+	 *
+	 * @TODO Replace this with a Symbol.dispose property once supported by all JS runtimes.
+	 */
 	dispose() {
 		try {
 			// Closing the file will release its lock
@@ -306,11 +297,18 @@ export class FileLock {
 	}
 
 	// TODO: Comment reasoning
-	// TODO: Replace lock on a redundant fd with a desired lock by the same process
-	// TODO: Document the need for a native file descriptor
+	// TODO: Replace lock on a redundant fd with a desired lock by the same process?
 	// NOTE: flock() locks are associated with open file descriptors
 	// and duplicated file descriptors. We do not currently recognize duplicate
 	// file descriptors.
+	/**
+	 * Lock the whole file.
+	 *
+	 * This method corresponds to the flock() function.
+	 *
+	 * @param op The whole file lock operation to perform.
+	 * @returns True if the lock was granted, false otherwise.
+	 */
 	lockWholeFile(op: WholeFileLockOp): boolean {
 		// debugger;
 		if (op.type === 'unlock') {
@@ -394,14 +392,21 @@ export class FileLock {
 
 		throw new Error(`Unexpected wholeFileLock() op: '${op.type}'`);
 	}
-	// TODO: Improve name
-	ensureCompatibleNativeLock({
+
+	/**
+	 * Ensure that the native lock is compatible with the php-wasm lock, upgrading or downgrading as needed.
+	 *
+	 * @param overrideWholeFileLockType If provided, use this type for the whole file lock.
+	 * @param overrideRangeLockType If provided, use this type for the range lock.
+	 * @returns True if the native lock was upgraded or downgraded, false otherwise.
+	 */
+	private ensureCompatibleNativeLock({
 		overrideWholeFileLockType,
 		overrideRangeLockType,
 	}: {
 		overrideWholeFileLockType?: WholeFileLock['type'];
 		overrideRangeLockType?: RequestedRangeLock['type'];
-	} = {}) {
+	} = {}): boolean {
 		console.log(
 			'ensureCompatibleNativeLock',
 			overrideWholeFileLockType,
@@ -447,7 +452,14 @@ export class FileLock {
 		}
 	}
 
-	// TODO: Document the need for a native file descriptor
+	/**
+	 * Lock a byte range.
+	 *
+	 * This method corresponds to the fcntl() F_SETLK command.
+	 *
+	 * @param requestedLock The byte range lock to perform.
+	 * @returns True if the lock was granted, false otherwise.
+	 */
 	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
 		console.error('lockFileByteRange', requestedLock);
 		// debugger;
@@ -537,6 +549,14 @@ export class FileLock {
 
 	// TODO: Handle whole file lock case
 	// TODO: Handle response for external conflicting lock
+	/**
+	 * Find the first conflicting byte range lock.
+	 *
+	 * This method corresponds to the fcntl() F_GETLK command.
+	 *
+	 * @param desiredLock The desired byte range lock.
+	 * @returns The first conflicting byte range lock, or undefined if no conflicting lock exists.
+	 */
 	findFirstConflictingByteRangeLock(
 		desiredLock: RequestedRangeLock
 	): Omit<RequestedRangeLock, 'fd'> | undefined {
@@ -571,10 +591,11 @@ export class FileLock {
 		return undefined;
 	}
 
-	findRangeLocksForProcess(pid: Pid): RequestedRangeLock[] {
-		return this.rangeLocks.findLocksForProcess(pid);
-	}
-
+	/**
+	 * Release all locks for the given process.
+	 *
+	 * @param pid The process ID to release locks for.
+	 */
 	releaseLocksForProcess(pid: Pid) {
 		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
 			this.lockFileByteRange({
@@ -606,6 +627,12 @@ export class FileLock {
 		}
 	}
 
+	/**
+	 * Release all locks for the given process and file descriptor.
+	 *
+	 * @param pid The process ID to release locks for.
+	 * @param fd The file descriptor to release locks for.
+	 */
 	releaseLocksForProcessFd(pid: Pid, fd: Fd) {
 		// According to
 		// https://chris.improbable.org/2010/12/16/everything-you-never-wanted-to-know-about-file-locking/
@@ -626,49 +653,37 @@ export class FileLock {
 		});
 	}
 
+	/**
+	 * Check if the file lock is unlocked.
+	 *
+	 * @returns True if the file lock is unlocked, false otherwise.
+	 */
 	isUnlocked(): boolean {
 		return (
 			this.wholeFileLock.type === 'unlocked' && this.rangeLocks.isEmpty()
 		);
 	}
 
+	/**
+	 * Check if a conflicting lock exists.
+	 *
+	 * @param requestedLock The desired byte range lock.
+	 * @returns True if a conflicting lock exists, false otherwise.
+	 */
 	private doesAConflictingLockExist(requestedLock: RequestedRangeLock) {
 		return (
 			this.findFirstConflictingByteRangeLock(requestedLock) !== undefined
 		);
 	}
-
-	getMaximumRangeLockType() {
-		// TODO: Complete implementation
-	}
-
-	private getMinimumRequiredNativeLockType() {
-		if (this.wholeFileLock.type === 'exclusive') {
-			return 'exclusive';
-		}
-
-		// TODO: Complete implementation
-		return 'shared';
-	}
-
-	private hasExclusiveRangeLockInNode(node: IntervalNode | null): boolean {
-		if (!node) {
-			return false;
-		}
-
-		if (node.range.type === 'exclusive') {
-			return true;
-		}
-
-		return (
-			this.hasExclusiveRangeLockInNode(node.left) ||
-			this.hasExclusiveRangeLockInNode(node.right)
-		);
-	}
 }
 
-// TODO: Move this to dedicated file
 // TODO: Make this more clearly readable
+/**
+ * This is the file lock manager for use within JS runtimes like Node.js.
+ *
+ * A FileLockManagerForNode is a wrapper around a Map of FileLock instances.
+ * It provides methods for locking and unlocking files, as well as finding conflicting locks.
+ */
 export class FileLockManagerForNode implements FileLockManager {
 	locks: Map<string, FileLock>;
 
@@ -680,6 +695,14 @@ export class FileLockManagerForNode implements FileLockManager {
 	// TODO: Comment reasoning
 	// TODO: Replace lock on a redundant fd with a desired lock by the same process
 	// TODO: Document the need for a native file descriptor
+	/**
+	 * Lock the whole file.
+	 *
+	 * @param path The path to the file to lock. This should be the path
+	 *             of the file in the native filesystem.
+	 * @param op The whole file lock operation to perform.
+	 * @returns True if the lock was granted, false otherwise.
+	 */
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		// console.log('wholeFileLock', path, op);
 		if (this.locks.get(path) === undefined) {
@@ -687,7 +710,7 @@ export class FileLockManagerForNode implements FileLockManager {
 				return true;
 			}
 
-			const maybeLock = FileLock.create(path, op.type);
+			const maybeLock = FileLock.maybeCreate(path, op.type);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -700,7 +723,14 @@ export class FileLockManagerForNode implements FileLockManager {
 		return result;
 	}
 
-	// TODO: Document the need for a native file descriptor
+	/**
+	 * Lock a byte range.
+	 *
+	 * @param path The path to the file to lock. This should be the path
+	 *             of the file in the native filesystem.
+	 * @param requestedLock The byte range lock to perform.
+	 * @returns True if the lock was granted, false otherwise.
+	 */
 	lockFileByteRange(
 		path: string,
 		requestedLock: RequestedRangeLock
@@ -712,7 +742,7 @@ export class FileLockManagerForNode implements FileLockManager {
 				return true;
 			}
 
-			const maybeLock = FileLock.create(path, requestedLock.type);
+			const maybeLock = FileLock.maybeCreate(path, requestedLock.type);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -722,6 +752,13 @@ export class FileLockManagerForNode implements FileLockManager {
 		return lock.lockFileByteRange(requestedLock);
 	}
 
+	/**
+	 * Find the first conflicting byte range lock.
+	 *
+	 * @param path The path to the file to find the conflicting lock for.
+	 * @param desiredLock The desired byte range lock.
+	 * @returns The first conflicting byte range lock, or undefined if no conflicting lock exists.
+	 */
 	findFirstConflictingByteRangeLock(
 		path: string,
 		desiredLock: RequestedRangeLock
@@ -733,6 +770,11 @@ export class FileLockManagerForNode implements FileLockManager {
 		return lock.findFirstConflictingByteRangeLock(desiredLock);
 	}
 
+	/**
+	 * Release all locks for the given process.
+	 *
+	 * @param pid The process ID to release locks for.
+	 */
 	releaseLocksForProcess(pid: number) {
 		//logger.log('releaseLocksForProcess', pid);
 		for (const [path, lock] of this.locks.entries()) {
@@ -741,16 +783,28 @@ export class FileLockManagerForNode implements FileLockManager {
 		}
 	}
 
-	releaseLocksForProcessFd(pid: number, fd: number, path: string) {
+	/**
+	 * Release all locks for the given process and file descriptor.
+	 *
+	 * @param pid The process ID to release locks for.
+	 * @param fd The file descriptor to release locks for.
+	 * @param path The path to the file to release locks for.
+	 */
+	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
 		// console.log('releaseLocksForProcessFd', pid, fd, path);
-		const lock = this.locks.get(path);
+		const lock = this.locks.get(nativePath);
 		if (!lock) {
 			return;
 		}
 		lock.releaseLocksForProcessFd(pid, fd);
-		this.forgetPathIfUnlocked(path);
+		this.forgetPathIfUnlocked(nativePath);
 	}
 
+	/**
+	 * Forget the path if it is unlocked.
+	 *
+	 * @param path The path to the file to forget.
+	 */
 	private forgetPathIfUnlocked(path: string) {
 		const lock = this.locks.get(path);
 		if (!lock) {
