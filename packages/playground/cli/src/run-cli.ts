@@ -38,7 +38,6 @@ import type { PlaygroundCliWorker, Mount } from './worker-thread';
 import moduleWorkerUrlString from './worker-thread?worker&url';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
-import { jspi } from 'wasm-feature-detect';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -56,7 +55,7 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: boolean;
 	followSymlinks?: boolean;
-	experimentalMultiWorker?: boolean;
+	experimentalMultiWorker?: number;
 }
 
 export interface RunCLIServer {
@@ -373,8 +372,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				// TODO: Add progress tracking
 
-				// TODO: Is it necessary to worry about setting API ready?
 				exposeAPI(fileLockManager, undefined, initialWorker);
+
 				logger.log(`Booting WordPress...`);
 				await playground.boot({
 					phpVersion: compiledBlueprint.versions.php,
@@ -391,11 +390,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				});
 
 				loadBalancer = new LoadBalancer(playground);
-				logger.log(`Booted!`);
 
 				await playground.isReady();
-
 				wordPressReady = true;
+				logger.log(`Booted!`);
 
 				if (compiledBlueprint) {
 					logger.log(`Running the Blueprint...`);
@@ -412,32 +410,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					process.exit(0);
 				}
 
-				if (args.experimentalMultiWorker) {
-					if (!(await jspi())) {
-						throw new Error(
-							// TODO: Improve language?
-							'JSPI is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
-						);
-					}
-					const mountsWordPressDir = (mount: Mount) =>
-						mount.vfsPath === '/wordpress';
-					if (
-						!args.mount?.some(mountsWordPressDir) &&
-						!args.mountBeforeInstall?.some(mountsWordPressDir)
-					) {
-						throw new Error(
-							// TODO: Improve language?
-							'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
-						);
-					}
-
+				if (
+					args.experimentalMultiWorker &&
+					args.experimentalMultiWorker > 1
+				) {
 					const internalZip = await zipDirectory(
 						playground,
 						'/internal'
 					);
 
+					// TODO: Document multi-worker in PR
 					// Create additional workers
-					const totalAdditionalWorkers = 7;
+					const totalAdditionalWorkers = args.experimentalMultiWorker;
 					const workerProcessIdSpace = Math.floor(
 						Number.MAX_SAFE_INTEGER / totalAdditionalWorkers
 					);
@@ -482,10 +466,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							'/tmp/internal.zip',
 							'/internal'
 						);
-						// TODO: Remove this after debugging
-						// fs.writeFileSync('/Users/brandon/src/playground/internal.zip', internalZip);
-						// const additionalInternalZip = await zipDirectory(additionalPlayground, '/internal');
-						// fs.writeFileSync('/Users/brandon/src/playground/additionalInternal.zip', additionalInternalZip);
 
 						loadBalancer.addWorker(additionalPlayground);
 					}

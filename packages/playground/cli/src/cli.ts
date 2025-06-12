@@ -2,6 +2,7 @@
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import yargs from 'yargs';
+import { cpus } from 'os';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import type { RunCLIArgs } from './run-cli';
 import { runCLI } from './run-cli';
@@ -11,6 +12,8 @@ import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mount';
+import type { Mount } from './mount';
+import { jspi } from 'wasm-feature-detect';
 
 async function run() {
 	/**
@@ -133,13 +136,16 @@ async function run() {
 				'Enable experimental multi-worker support. ' +
 				'This will enable Playground to service more requests simultaneously. ' +
 				'This feature currently requires:\n' +
+				// TODO: Why is this string cut off in the help text?
 				'- A JavaScript runtime that supports JavaScript Promise Integration (JSPI).\n' +
-				'- A real filesystem directory mounted as the /wordpress directory.',
-			type: 'boolean',
-			default: false,
+				'- A real filesystem directory mounted as the /wordpress directory.\n\n' +
+				'The number of workers defaults to the number of CPUs minus 1. Pass a positive ' +
+				'number that is 2 or greater to specify the number of workers to use.',
+			type: 'number',
+			coerce: (value?: number) => value ?? cpus().length - 1,
 		})
 		.showHelpOnFail(false)
-		.check((args) => {
+		.check(async (args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 				try {
 					// Check if is valid URL
@@ -147,6 +153,33 @@ async function run() {
 				} catch {
 					throw new Error(
 						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+					);
+				}
+			}
+
+			if (args.experimentalMultiWorker !== undefined) {
+				if (args.experimentalMultiWorker <= 1) {
+					throw new Error(
+						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
+					);
+				}
+
+				if (!(await jspi())) {
+					throw new Error(
+						// TODO: Improve language?
+						'JSPI is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
+					);
+				}
+
+				const mountsWordPressDir = (mount: Mount) =>
+					mount.vfsPath === '/wordpress';
+				if (
+					!args.mount?.some(mountsWordPressDir) &&
+					!args.mountBeforeInstall?.some(mountsWordPressDir)
+				) {
+					throw new Error(
+						// TODO: Improve language?
+						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
 					);
 				}
 			}
