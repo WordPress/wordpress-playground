@@ -50,7 +50,10 @@ export default defineConfig(function () {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.
 				forks: {
-					execArgv: ['--expose-gc'],
+					execArgv: [
+						'--expose-gc',
+						'--async-stack-traces',
+					],
 				},
 			},
 			environment: 'node',

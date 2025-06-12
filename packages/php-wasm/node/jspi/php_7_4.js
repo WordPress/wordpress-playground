@@ -6,11 +6,9 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-import { logger } from '@php-wasm/logger'; 
-import * as nodeUtil from 'util'; 
-const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
+const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 16900876; 
+export const dependenciesTotalSize = 18395564; 
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
 // include: shell.js
@@ -393,7 +391,6 @@ async function createWasm() {
     Module["wasmExports"] = wasmExports;
     wasmMemory = wasmExports["memory"];
     updateMemoryViews();
-    wasmTable = wasmExports["__indirect_function_table"];
     removeRunDependency("wasm-instantiate");
     return wasmExports;
   }
@@ -539,22 +536,7 @@ Module["UTF8ToString"] = UTF8ToString;
 
 var ___assert_fail = (condition, filename, line, func) => abort(`Assertion failed: ${UTF8ToString(condition)}, at: ` + [ filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function" ]);
 
-var wasmTableMirror = [];
-
-/** @type {WebAssembly.Table} */ var wasmTable;
-
-var getWasmTableEntry = funcPtr => {
-  var func = wasmTableMirror[funcPtr];
-  if (!func) {
-    /** @suppress {checkTypes} */ wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
-    if (Asyncify.isAsyncExport(func)) {
-      wasmTableMirror[funcPtr] = func = Asyncify.makeAsyncFunction(func);
-    }
-  }
-  return func;
-};
-
-var ___call_sighandler = (fp, sig) => getWasmTableEntry(fp)(sig);
+var ___call_sighandler = (fp, sig) => (a1 => dynCall_vi(fp, a1))(sig);
 
 var initRandomFill = () => view => crypto.getRandomValues(view);
 
@@ -6380,9 +6362,36 @@ var PHPWASM = {
         }
       }
     };
+    // Clean up the fd -> childProcess mapping when the fd is closed:
+    const originalClose = FS.close;
+    FS.close = function(stream) {
+      originalClose(stream);
+      delete PHPWASM.child_proc_by_fd[stream.fd];
+    };
     PHPWASM.child_proc_by_fd = {};
     PHPWASM.child_proc_by_pid = {};
     PHPWASM.input_devices = {};
+    const originalWrite = TTY.stream_ops.write;
+    TTY.stream_ops.write = function(stream, ...rest) {
+      const retval = originalWrite(stream, ...rest);
+      // Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+      // @TODO: Fix this at the wasm level
+      stream.tty.ops.fsync(stream.tty);
+      return retval;
+    };
+    const originalPutChar = TTY.stream_ops.put_char;
+    TTY.stream_ops.put_char = function(tty, val) {
+      /**
+  				 * Buffer newlines that Emscripten normally ignores.
+  				 *
+  				 * Emscripten doesn't do it by default because its default
+  				 * print function is console.log that implicitly adds a newline. We are overwriting
+  				 * it with an environment-specific function that outputs exaclty what it was given,
+  				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+  				 * all the newlines make it to the output buffer.
+  				 */ if (val === 10) tty.output.push(val);
+      return originalPutChar(tty, val);
+    };
   },
   onHeaders: function(chunk) {
     if (Module["onHeaders"]) {
@@ -6641,6 +6650,12 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     if (ProcInfo.stderrParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
     PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
     cp.on("exit", function(code) {
+      for (const fd of [ // The child process exited. Let's clean up its output streams:
+      ProcInfo.stdoutChildFd, ProcInfo.stderrChildFd ]) {
+        if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
+          FS.close(FS.streams[fd]);
+        }
+      }
       ProcInfo.exitCode = code;
       ProcInfo.exited = true;
       // Emit events for the wasm_poll_socket function.
@@ -6675,12 +6690,50 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
   			 * listen to the 'exit' event.
   			 */ try {
       await new Promise((resolve, reject) => {
-        cp.on("spawn", resolve);
-        cp.on("error", reject);
+        /**
+  					 * There was no `await` between the `spawnProcess` call
+  					 * and the `await` below so the process haven't had a chance
+  					 * to run any of the exit-related callbacks yet.
+  					 *
+  					 * Good.
+  					 *
+  					 * Let's listen to all the lifecycle events and resolve
+  					 * the promise when the process starts or immediately crashes.
+  					 */ let resolved = false;
+        cp.on("spawn", () => {
+          if (resolved) return;
+          resolved = true;
+          resolve();
+        });
+        cp.on("error", e => {
+          if (resolved) return;
+          resolved = true;
+          reject(e);
+        });
+        cp.on("exit", function(code) {
+          if (resolved) return;
+          resolved = true;
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Process exited with code ${code}`));
+          }
+        });
+        /**
+  					 * If the process haven't even started after 5 seconds, something
+  					 * is wrong. Perhaps we're missing an event listener, or perhaps
+  					 * the `spawnProcess` implementation failed to dispatch the relevant
+  					 * event. Either way, let's crash to avoid blocking the proc_open()
+  					 * call indefinitely.
+  					 */ setTimeout(() => {
+          if (resolved) return;
+          resolved = true;
+          reject(new Error("Process timed out"));
+        }, 5e3);
       });
     } catch (e) {
       console.error(e);
-      wakeUp(1);
+      wakeUp(ProcInfo.pid);
       return;
     }
     // Now we want to pass data from the STDIN source supplied by PHP
@@ -7297,14 +7350,7 @@ function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
     const POLLNVAL = 32;
     return returnCallback(wakeUp => {
       const polls = [];
-      if (socketd in PHPWASM.child_proc_by_fd) {
-        const procInfo = PHPWASM.child_proc_by_fd[socketd];
-        if (procInfo.exited) {
-          wakeUp(0);
-          return;
-        }
-        polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
-      } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+      if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
         const sock = getSocketFromFD(socketd);
         if (!sock) {
           wakeUp(0);
@@ -7338,7 +7384,7 @@ function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
             polls.push(PHPWASM.awaitConnection(ws));
             lookingFor.add("POLLOUT");
           }
-          if (events & POLLHUP) {
+          if (events & POLLHUP || events & POLLIN || events & POLLOUT || events & POLLERR) {
             polls.push(PHPWASM.awaitClose(ws));
             lookingFor.add("POLLHUP");
           }
@@ -7347,6 +7393,13 @@ function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
             lookingFor.add("POLLERR");
           }
         }
+      } else if (socketd in PHPWASM.child_proc_by_fd) {
+        const procInfo = PHPWASM.child_proc_by_fd[socketd];
+        if (procInfo.exited) {
+          wakeUp(0);
+          return;
+        }
+        polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
       } else {
         setTimeout(function() {
           wakeUp(1);
@@ -7644,6 +7697,8 @@ var __emscripten_stack_restore = a0 => (__emscripten_stack_restore = wasmExports
 var __emscripten_stack_alloc = a0 => (__emscripten_stack_alloc = wasmExports["_emscripten_stack_alloc"])(a0);
 
 var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports["emscripten_stack_get_current"])();
+
+var dynCall_vi = Module["dynCall_vi"] = (a0, a1) => (dynCall_vi = Module["dynCall_vi"] = wasmExports["dynCall_vi"])(a0, a1);
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===

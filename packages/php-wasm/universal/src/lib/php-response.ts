@@ -12,7 +12,7 @@ export interface PHPResponseData {
 	 * Response body. Contains the output from `echo`,
 	 * `print`, inline HTML etc.
 	 */
-	readonly bytes: ArrayBuffer;
+	readonly bytes: Uint8Array;
 
 	/**
 	 * Stderr contents, if any.
@@ -117,14 +117,23 @@ export class StreamedPHPResponse {
 	}
 
 	get httpStatusCode(): Promise<number> {
-		return this.getParsedHeaders().then(
-			(headers) => headers.httpStatusCode,
-			() =>
-				this.exitCode.then(
-					(exitCode) => (exitCode === 0 ? 200 : 500),
-					() => 500
-				)
-		);
+		return Promise.race([
+			this.getParsedHeaders().then((headers) => headers.httpStatusCode),
+			this.exitCode.then((exitCode) =>
+				exitCode !== 0 ? 500 : undefined
+			),
+		])
+			.then((result) => {
+				if (result !== undefined) {
+					return result;
+				}
+				// If exit code is 0 or not available yet, fall back to parsed headers
+				return this.getParsedHeaders().then(
+					(headers) => headers.httpStatusCode,
+					() => 200
+				);
+			})
+			.catch(() => 500);
 	}
 
 	get stdoutText(): Promise<string> {
@@ -184,7 +193,9 @@ async function parseHeadersStream(
 	};
 }
 
-async function streamToText(stream: ReadableStream<Uint8Array>): Promise<string> {
+async function streamToText(
+	stream: ReadableStream<Uint8Array>
+): Promise<string> {
 	const reader = (stream as ReadableStream<BufferSource>)
 		.pipeThrough(new TextDecoderStream())
 		.getReader();
@@ -212,7 +223,7 @@ export class PHPResponse implements PHPResponseData {
 	readonly headers: Record<string, string[]>;
 
 	/** @inheritDoc */
-	readonly bytes: ArrayBuffer;
+	readonly bytes: Uint8Array;
 
 	/** @inheritDoc */
 	readonly errors: string;
@@ -226,7 +237,7 @@ export class PHPResponse implements PHPResponseData {
 	constructor(
 		httpStatusCode: number,
 		headers: Record<string, string[]>,
-		body: ArrayBuffer,
+		body: Uint8Array,
 		errors = '',
 		exitCode = 0
 	) {
@@ -243,7 +254,7 @@ export class PHPResponse implements PHPResponseData {
 			{},
 			new TextEncoder().encode(
 				text || responseTexts[httpStatusCode] || ''
-			).buffer
+			)
 		);
 	}
 
@@ -264,7 +275,7 @@ export class PHPResponse implements PHPResponseData {
 		return new PHPResponse(
 			await streamedResponse.httpStatusCode,
 			await streamedResponse.headers,
-			new TextEncoder().encode(await streamedResponse.stdoutText).buffer,
+			new TextEncoder().encode(await streamedResponse.stdoutText),
 			await streamedResponse.stderrText,
 			await streamedResponse.exitCode
 		);

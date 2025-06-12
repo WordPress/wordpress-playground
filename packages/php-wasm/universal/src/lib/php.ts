@@ -605,8 +605,7 @@ export class PHP implements Disposable {
 		});
 
 		// Free up resources when the response is done
-		streamedResponsePromise
-			.then((response) => response.exitCode)
+		await streamedResponsePromise
 			.catch((error) => {
 				this.dispatchEvent({
 					type: 'request.error',
@@ -894,7 +893,6 @@ export class PHP implements Disposable {
 
 		const stderr = await createInvertedReadableStream<Uint8Array>();
 		emscriptenModule.onStderr = (chunk: Uint8Array) => {
-			closeHeadersStream();
 			if (streamsClosed) {
 				return;
 			}
@@ -913,7 +911,7 @@ export class PHP implements Disposable {
 				 * get crashes and unhandled promise rejections without any useful error
 				 * messages or meaningful stack traces.
 				 */
-				return await Promise.race([
+				const exit = await Promise.race([
 					executionFn(),
 					new Promise((_, reject) => {
 						errorListener = (e: ErrorEvent) => {
@@ -936,6 +934,7 @@ export class PHP implements Disposable {
 						);
 					}),
 				]);
+				return exit;
 			} catch (e) {
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's

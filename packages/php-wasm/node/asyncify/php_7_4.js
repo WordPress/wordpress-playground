@@ -6,11 +6,9 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-import { logger } from '@php-wasm/logger'; 
-import * as nodeUtil from 'util'; 
-const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
+const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 17396396; 
+export const dependenciesTotalSize = 18675923; 
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
 // include: shell.js
@@ -6416,9 +6414,36 @@ var PHPWASM = {
         }
       }
     };
+    // Clean up the fd -> childProcess mapping when the fd is closed:
+    const originalClose = FS.close;
+    FS.close = function(stream) {
+      originalClose(stream);
+      delete PHPWASM.child_proc_by_fd[stream.fd];
+    };
     PHPWASM.child_proc_by_fd = {};
     PHPWASM.child_proc_by_pid = {};
     PHPWASM.input_devices = {};
+    const originalWrite = TTY.stream_ops.write;
+    TTY.stream_ops.write = function(stream, ...rest) {
+      const retval = originalWrite(stream, ...rest);
+      // Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+      // @TODO: Fix this at the wasm level
+      stream.tty.ops.fsync(stream.tty);
+      return retval;
+    };
+    const originalPutChar = TTY.stream_ops.put_char;
+    TTY.stream_ops.put_char = function(tty, val) {
+      /**
+  				 * Buffer newlines that Emscripten normally ignores.
+  				 *
+  				 * Emscripten doesn't do it by default because its default
+  				 * print function is console.log that implicitly adds a newline. We are overwriting
+  				 * it with an environment-specific function that outputs exaclty what it was given,
+  				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+  				 * all the newlines make it to the output buffer.
+  				 */ if (val === 10) tty.output.push(val);
+      return originalPutChar(tty, val);
+    };
   },
   onHeaders: function(chunk) {
     if (Module["onHeaders"]) {
@@ -6677,6 +6702,12 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     if (ProcInfo.stderrParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
     PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
     cp.on("exit", function(code) {
+      for (const fd of [ // The child process exited. Let's clean up its output streams:
+      ProcInfo.stdoutChildFd, ProcInfo.stderrChildFd ]) {
+        if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
+          FS.close(FS.streams[fd]);
+        }
+      }
       ProcInfo.exitCode = code;
       ProcInfo.exited = true;
       // Emit events for the wasm_poll_socket function.
@@ -6711,12 +6742,50 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
   			 * listen to the 'exit' event.
   			 */ try {
       await new Promise((resolve, reject) => {
-        cp.on("spawn", resolve);
-        cp.on("error", reject);
+        /**
+  					 * There was no `await` between the `spawnProcess` call
+  					 * and the `await` below so the process haven't had a chance
+  					 * to run any of the exit-related callbacks yet.
+  					 *
+  					 * Good.
+  					 *
+  					 * Let's listen to all the lifecycle events and resolve
+  					 * the promise when the process starts or immediately crashes.
+  					 */ let resolved = false;
+        cp.on("spawn", () => {
+          if (resolved) return;
+          resolved = true;
+          resolve();
+        });
+        cp.on("error", e => {
+          if (resolved) return;
+          resolved = true;
+          reject(e);
+        });
+        cp.on("exit", function(code) {
+          if (resolved) return;
+          resolved = true;
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Process exited with code ${code}`));
+          }
+        });
+        /**
+  					 * If the process haven't even started after 5 seconds, something
+  					 * is wrong. Perhaps we're missing an event listener, or perhaps
+  					 * the `spawnProcess` implementation failed to dispatch the relevant
+  					 * event. Either way, let's crash to avoid blocking the proc_open()
+  					 * call indefinitely.
+  					 */ setTimeout(() => {
+          if (resolved) return;
+          resolved = true;
+          reject(new Error("Process timed out"));
+        }, 5e3);
       });
     } catch (e) {
       console.error(e);
-      wakeUp(1);
+      wakeUp(ProcInfo.pid);
       return;
     }
     // Now we want to pass data from the STDIN source supplied by PHP
@@ -7129,7 +7198,7 @@ var runAndAbortIfError = func => {
 
 var Asyncify = {
   instrumentWasmImports(imports) {
-    var importPattern = /^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|js__syscall_fcntl64|_js__syscall_fcntl64|_asyncjs__js__syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|_fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+    var importPattern = /^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|js_fd_read|_js_fd_read|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|wasm_shutdown|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
     for (let [x, original] of Object.entries(imports)) {
       if (typeof original == "function") {
         let isAsyncifyImport = original.isAsync || importPattern.test(x);
@@ -7502,14 +7571,7 @@ function wasm_poll_socket(socketd, events, timeout) {
   const POLLNVAL = 32;
   return returnCallback(wakeUp => {
     const polls = [];
-    if (socketd in PHPWASM.child_proc_by_fd) {
-      const procInfo = PHPWASM.child_proc_by_fd[socketd];
-      if (procInfo.exited) {
-        wakeUp(0);
-        return;
-      }
-      polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
-    } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+    if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
       const sock = getSocketFromFD(socketd);
       if (!sock) {
         wakeUp(0);
@@ -7543,7 +7605,7 @@ function wasm_poll_socket(socketd, events, timeout) {
           polls.push(PHPWASM.awaitConnection(ws));
           lookingFor.add("POLLOUT");
         }
-        if (events & POLLHUP) {
+        if (events & POLLHUP || events & POLLIN || events & POLLOUT || events & POLLERR) {
           polls.push(PHPWASM.awaitClose(ws));
           lookingFor.add("POLLHUP");
         }
@@ -7552,6 +7614,13 @@ function wasm_poll_socket(socketd, events, timeout) {
           lookingFor.add("POLLERR");
         }
       }
+    } else if (socketd in PHPWASM.child_proc_by_fd) {
+      const procInfo = PHPWASM.child_proc_by_fd[socketd];
+      if (procInfo.exited) {
+        wakeUp(0);
+        return;
+      }
+      polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
     } else {
       setTimeout(function() {
         wakeUp(1);
