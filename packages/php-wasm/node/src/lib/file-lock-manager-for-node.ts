@@ -22,7 +22,7 @@ type LockedRange = RequestedRangeLock & {
 	type: Exclude<RequestedRangeLock['type'], 'unlocked'>;
 };
 
-const MAX_64BIT_ADDRESS = BigInt(2n ** 64n - 1n);
+const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
 
 // TODO: Move key classes to top.
 class IntervalNode {
@@ -297,10 +297,6 @@ export class FileLock {
 	}
 
 	// TODO: Comment reasoning
-	// TODO: Replace lock on a redundant fd with a desired lock by the same process?
-	// NOTE: flock() locks are associated with open file descriptors
-	// and duplicated file descriptors. We do not currently recognize duplicate
-	// file descriptors.
 	/**
 	 * Lock the whole file.
 	 *
@@ -310,7 +306,6 @@ export class FileLock {
 	 * @returns True if the lock was granted, false otherwise.
 	 */
 	lockWholeFile(op: WholeFileLockOp): boolean {
-		// debugger;
 		if (op.type === 'unlock') {
 			const originalType = this.wholeFileLock.type;
 			if (originalType === 'unlocked') {
@@ -336,8 +331,11 @@ export class FileLock {
 				}
 			}
 
+			// Make sure we only hold the minimum required native lock.
 			if (!this.ensureCompatibleNativeLock()) {
-				// TODO: Throw an error? Log?
+				logger.error(
+					'Unable to update native lock after removing a whole file lock.'
+				);
 			}
 
 			return true;
@@ -347,7 +345,7 @@ export class FileLock {
 			this.doesAConflictingLockExist({
 				type: op.type,
 				start: 0n,
-				end: MAX_64BIT_ADDRESS,
+				end: MAX_64BIT_OFFSET,
 				pid: op.pid,
 			})
 		) {
@@ -360,6 +358,8 @@ export class FileLock {
 				overrideWholeFileLockType: op.type,
 			})
 		) {
+			// We cannot acquire a native lock that is compatible with the requested lock.
+			// An external process may be holding a conflicting lock.
 			return false;
 		}
 
@@ -417,9 +417,7 @@ export class FileLock {
 		const rangeLockType =
 			overrideRangeLockType ?? this.rangeLocks.getMaximumRangeLockType();
 
-		// TODO: Make this mapping more readable
 		let requiredNativeLockType: NativeLock['mode'];
-
 		if (
 			wholeFileLockType === 'exclusive' ||
 			rangeLockType === 'exclusive'
@@ -462,13 +460,16 @@ export class FileLock {
 	 */
 	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
 		console.error('lockFileByteRange', requestedLock);
-		// debugger;
 		if (requestedLock.start === requestedLock.end) {
-			// Treat a range with zero length as covering the entire remaining range.
-			// TODO: Link to POSIX reference for this behavior.
+			/*
+			 * Treat a range with zero length as covering the entire remaining range.
+			 * POSIX Ref: https://pubs.opengroup.org/onlinepubs/9799919799/functions/fcntl.html
+			 *   "A lock shall be set to extend to the largest possible value of the file offset
+			 *    for that file by setting l_len to 0."
+			 */
 			requestedLock = {
 				...requestedLock,
-				end: MAX_64BIT_ADDRESS,
+				end: MAX_64BIT_OFFSET,
 			};
 		}
 
@@ -499,22 +500,30 @@ export class FileLock {
 				}
 			}
 
-			// TODO: Improve this comment
-			// Since we have unlocked a range, let's make sure we only hold the minimum required native lock.
-			this.ensureCompatibleNativeLock();
+			// Make sure we only hold the minimum required native lock.
+			if (!this.ensureCompatibleNativeLock()) {
+				logger.error(
+					'Unable to update native lock after removing a byte range lock.'
+				);
+			}
 
 			return true;
 		}
 
 		if (this.doesAConflictingLockExist(requestedLock)) {
+			// A conflicting lock exists.
 			return false;
 		}
 
-		// TODO: Improve this comment?
-		// Make sure we can acquire a compatible native lock before granting an equivalent internal lock.
-		this.ensureCompatibleNativeLock({
-			overrideRangeLockType: requestedLock.type,
-		});
+		if (
+			!this.ensureCompatibleNativeLock({
+				overrideRangeLockType: requestedLock.type,
+			})
+		) {
+			// We cannot acquire a native lock that is compatible with the requested lock.
+			// An external process may be holding a conflicting lock.
+			return false;
+		}
 
 		const overlappingLocksFromSameProcess = this.rangeLocks
 			.findOverlapping(requestedLock)
@@ -526,7 +535,6 @@ export class FileLock {
 			// Remove overlapping locks from the same process because the requested
 			// lock replaces them.
 			this.rangeLocks.remove(overlappingLock);
-			// TODO: Merge with overlapping locks from the same process.
 
 			if (overlappingLock.start < minStart) {
 				minStart = overlappingLock.start;
@@ -735,7 +743,6 @@ export class FileLockManagerForNode implements FileLockManager {
 		path: string,
 		requestedLock: RequestedRangeLock
 	): boolean {
-		// debugger;
 		if (!this.locks.has(path)) {
 			if (requestedLock.type === 'unlocked') {
 				// There is no existing lock. This is a no-op.

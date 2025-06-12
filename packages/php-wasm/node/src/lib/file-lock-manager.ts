@@ -96,6 +96,10 @@ export type WholeFileLock_Exclusive = {
 };
 export type WholeFileLock_Shared = {
 	type: 'shared';
+	/**
+	 * NOTE: flock() locks are associated with open file descriptors and duplicated file descriptors.
+	 * We do not currently recognize duplicate file descriptors.
+	 */
 	pidFds: Map<Pid, Set<Fd>>;
 };
 export type WholeFileLock_Unlocked = {
