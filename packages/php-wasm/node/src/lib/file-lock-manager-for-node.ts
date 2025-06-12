@@ -296,7 +296,6 @@ export class FileLock {
 		}
 	}
 
-	// TODO: Comment reasoning
 	/**
 	 * Lock the whole file.
 	 *
@@ -555,8 +554,6 @@ export class FileLock {
 		return true;
 	}
 
-	// TODO: Handle whole file lock case
-	// TODO: Handle response for external conflicting lock
 	/**
 	 * Find the first conflicting byte range lock.
 	 *
@@ -567,10 +564,9 @@ export class FileLock {
 	 */
 	findFirstConflictingByteRangeLock(
 		desiredLock: RequestedRangeLock
-	): Omit<RequestedRangeLock, 'fd'> | undefined {
+	): RequestedRangeLock | undefined {
 		const overlappingLocks = this.rangeLocks.findOverlapping(desiredLock);
 		const firstConflictingRangeLock = overlappingLocks.find(
-			// TODO: Document why we are not checking for fd equality
 			(lock) =>
 				lock.pid !== desiredLock.pid &&
 				(desiredLock.type === 'exclusive' || lock.type === 'exclusive')
@@ -642,11 +638,10 @@ export class FileLock {
 	 * @param fd The file descriptor to release locks for.
 	 */
 	releaseLocksForProcessFd(pid: Pid, fd: Fd) {
-		// According to
-		// https://chris.improbable.org/2010/12/16/everything-you-never-wanted-to-know-about-file-locking/
-		// "If you open both databases in sqlite at the same time, then close the second one, all your open sqlite locks on the first one will be lost!"
-		// TODO: Confirm and find better reference.
-		// Closing an fd for a file releases all fcntl locks for the owning process.
+		// Closing an fd for a file releases all fcntl locks for that file by the process.
+		// POSIX Ref: https://pubs.opengroup.org/onlinepubs/9799919799/functions/fcntl.html
+		//   "Closing a file descriptor shall release all locks held by the process on the file
+		//    associated with that file descriptor."
 		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
 			this.lockFileByteRange({
 				...rangeLock,
@@ -685,7 +680,6 @@ export class FileLock {
 	}
 }
 
-// TODO: Make this more clearly readable
 /**
  * This is the file lock manager for use within JS runtimes like Node.js.
  *
@@ -700,9 +694,6 @@ export class FileLockManagerForNode implements FileLockManager {
 		this.locks = new Map();
 	}
 
-	// TODO: Comment reasoning
-	// TODO: Replace lock on a redundant fd with a desired lock by the same process
-	// TODO: Document the need for a native file descriptor
 	/**
 	 * Lock the whole file.
 	 *
