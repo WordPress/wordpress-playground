@@ -130,15 +130,15 @@ async function run() {
 			default: false,
 		})
 		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
-		// TODO: Consider making this arg take the number of workers to use.
 		.option('experimentalMultiWorker', {
 			describe:
 				'Enable experimental multi-worker support. ' +
 				'This will enable Playground to service more requests simultaneously. ' +
 				'This feature currently requires:\n' +
-				// TODO: Why is this string cut off in the help text?
+				// TODO: Why is there a newline embedded in this string in the printed help text?
 				'- A JavaScript runtime that supports JavaScript Promise Integration (JSPI).\n' +
 				'- A real filesystem directory mounted as the /wordpress directory.\n\n' +
+				// TODO: Why is there a newline embedded in this string in the printed help text?
 				'The number of workers defaults to the number of CPUs minus 1. Pass a positive ' +
 				'number that is 2 or greater to specify the number of workers to use.',
 			type: 'number',
