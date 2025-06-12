@@ -24,205 +24,139 @@ type LockedRange = RequestedRangeLock & {
 
 const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
 
-// TODO: Move key classes to top.
-class IntervalNode {
-	range: LockedRange;
-	max: bigint;
-	left: IntervalNode | null = null;
-	right: IntervalNode | null = null;
+/**
+ * This is the file lock manager for use within JS runtimes like Node.js.
+ *
+ * A FileLockManagerForNode is a wrapper around a Map of FileLock instances.
+ * It provides methods for locking and unlocking files, as well as finding conflicting locks.
+ */
+export class FileLockManagerForNode implements FileLockManager {
+	locks: Map<string, FileLock>;
 
-	constructor(range: LockedRange) {
-		this.range = range;
-		this.max = range.end;
-	}
-}
-
-class FileLockIntervalTree {
-	private root: IntervalNode | null = null;
-
-	isEmpty() {
-		return this.root === null;
+	constructor() {
+		console.error('FileLockManagerForNode constructor');
+		this.locks = new Map();
 	}
 
 	/**
-	 * Insert a new locked range into the tree
+	 * Lock the whole file.
+	 *
+	 * @param path The path to the file to lock. This should be the path
+	 *             of the file in the native filesystem.
+	 * @param op The whole file lock operation to perform.
+	 * @returns True if the lock was granted, false otherwise.
 	 */
-	insert(range: LockedRange): void {
-		this.root = this.insertNode(this.root, range);
-	}
+	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
+		// console.log('wholeFileLock', path, op);
+		if (this.locks.get(path) === undefined) {
+			if (op.type === 'unlock') {
+				return true;
+			}
 
-	/**
-	 * Find all ranges that overlap with the given range
-	 */
-	findOverlapping(range: RequestedRangeLock): LockedRange[] {
-		const result: LockedRange[] = [];
-		this.findOverlappingRanges(this.root, range, result);
+			const maybeLock = FileLock.maybeCreate(path, op.type);
+			if (maybeLock === undefined) {
+				return false;
+			}
+			this.locks.set(path, maybeLock);
+		}
+
+		const lock = this.locks.get(path)!;
+		const result = lock.lockWholeFile(op);
+		this.forgetPathIfUnlocked(path);
 		return result;
 	}
 
-	private insertNode(
-		node: IntervalNode | null,
-		range: LockedRange
-	): IntervalNode {
-		if (!node) {
-			return new IntervalNode(range);
-		}
-
-		// Insert to left subtree if start is less than node's start
-		if (range.start < node.range.start) {
-			node.left = this.insertNode(node.left, range);
-		} else {
-			node.right = this.insertNode(node.right, range);
-		}
-
-		// Update max value
-		node.max = this.bigintMax(node.max, range.end);
-		return node;
-	}
-
-	private bigintMax(...args: bigint[]): bigint {
-		return args.reduce((max, current) => {
-			return current > max ? current : max;
-		}, args[0]);
-	}
-
-	private findOverlappingRanges(
-		node: IntervalNode | null,
-		range: RequestedRangeLock,
-		result: LockedRange[]
-	): void {
-		if (!node) {
-			return;
-		}
-
-		// Check if current node overlaps
-		if (this.doRangesOverlap(node.range, range)) {
-			result.push(node.range);
-		}
-
-		// If left child exists and its max is greater than range start, search left
-		if (node.left && node.left.max >= range.start) {
-			this.findOverlappingRanges(node.left, range, result);
-		}
-
-		// Search right if it could contain overlapping intervals
-		if (node.right && node.range.start <= range.end) {
-			this.findOverlappingRanges(node.right, range, result);
-		}
-	}
-
-	private doRangesOverlap(
-		a: RequestedRangeLock,
-		b: RequestedRangeLock
+	/**
+	 * Lock a byte range.
+	 *
+	 * @param path The path to the file to lock. This should be the path
+	 *             of the file in the native filesystem.
+	 * @param requestedLock The byte range lock to perform.
+	 * @returns True if the lock was granted, false otherwise.
+	 */
+	lockFileByteRange(
+		path: string,
+		requestedLock: RequestedRangeLock
 	): boolean {
-		return a.start < b.end && b.start < a.end;
+		if (!this.locks.has(path)) {
+			if (requestedLock.type === 'unlocked') {
+				// There is no existing lock. This is a no-op.
+				return true;
+			}
+
+			const maybeLock = FileLock.maybeCreate(path, requestedLock.type);
+			if (maybeLock === undefined) {
+				return false;
+			}
+			this.locks.set(path, maybeLock);
+		}
+		const lock = this.locks.get(path)!;
+		return lock.lockFileByteRange(requestedLock);
 	}
 
 	/**
-	 * Remove a lock range from the tree
+	 * Find the first conflicting byte range lock.
+	 *
+	 * @param path The path to the file to find the conflicting lock for.
+	 * @param desiredLock The desired byte range lock.
+	 * @returns The first conflicting byte range lock, or undefined if no conflicting lock exists.
 	 */
-	remove(range: RequestedRangeLock): void {
-		this.root = this.removeNode(this.root, range);
+	findFirstConflictingByteRangeLock(
+		path: string,
+		desiredLock: RequestedRangeLock
+	): Omit<RequestedRangeLock, 'fd'> | undefined {
+		const lock = this.locks.get(path);
+		if (lock === undefined) {
+			return undefined;
+		}
+		return lock.findFirstConflictingByteRangeLock(desiredLock);
 	}
 
-	private removeNode(
-		node: IntervalNode | null,
-		range: RequestedRangeLock
-	): IntervalNode | null {
-		if (!node) {
-			return null;
+	/**
+	 * Release all locks for the given process.
+	 *
+	 * @param pid The process ID to release locks for.
+	 */
+	releaseLocksForProcess(pid: number) {
+		//logger.log('releaseLocksForProcess', pid);
+		for (const [path, lock] of this.locks.entries()) {
+			lock.releaseLocksForProcess(pid);
+			this.forgetPathIfUnlocked(path);
 		}
-
-		// Check if current node is the one to remove
-		if (this.areRangesEqual(node.range, range)) {
-			// Handle cases of no children or one child
-			if (!node.left) {
-				return node.right;
-			}
-			if (!node.right) {
-				return node.left;
-			}
-
-			// Node has two children - find successor
-			const successor = this.findMin(node.right);
-			node.range = successor.range;
-			node.right = this.removeNode(node.right, successor.range);
-		} else if (range.start < node.range.start) {
-			node.left = this.removeNode(node.left, range);
-		} else {
-			node.right = this.removeNode(node.right, range);
-		}
-
-		// Update max value
-		node.max = node.range.end;
-		if (node.left) {
-			node.max = this.bigintMax(node.max, node.left.max);
-		}
-		if (node.right) {
-			node.max = this.bigintMax(node.max, node.right.max);
-		}
-
-		return node;
 	}
 
-	private findMin(node: IntervalNode): IntervalNode {
-		let current = node;
-		while (current.left) {
-			current = current.left;
+	/**
+	 * Release all locks for the given process and file descriptor.
+	 *
+	 * @param pid The process ID to release locks for.
+	 * @param fd The file descriptor to release locks for.
+	 * @param path The path to the file to release locks for.
+	 */
+	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
+		// console.log('releaseLocksForProcessFd', pid, fd, path);
+		const lock = this.locks.get(nativePath);
+		if (!lock) {
+			return;
 		}
-		return current;
+		lock.releaseLocksForProcessFd(pid, fd);
+		this.forgetPathIfUnlocked(nativePath);
 	}
 
-	private areRangesEqual(
-		a: RequestedRangeLock,
-		b: RequestedRangeLock
-	): boolean {
-		return a.start === b.start && a.end === b.end && a.pid === b.pid;
-	}
-
-	findLocksForProcess(pid: number): RequestedRangeLock[] {
-		const result: RequestedRangeLock[] = [];
-		this.findLocksForProcessInNode(this.root, pid, result);
-		return result;
-	}
-
-	private findLocksForProcessInNode(
-		node: IntervalNode | null,
-		pid: number,
-		result: RequestedRangeLock[]
-	): void {
-		if (!node) {
+	/**
+	 * Forget the path if it is unlocked.
+	 *
+	 * @param path The path to the file to forget.
+	 */
+	private forgetPathIfUnlocked(path: string) {
+		const lock = this.locks.get(path);
+		if (!lock) {
 			return;
 		}
 
-		if (node.range.pid === pid) {
-			result.push(node.range);
+		if (lock.isUnlocked()) {
+			lock.dispose();
+			this.locks.delete(path);
 		}
-
-		this.findLocksForProcessInNode(node.left, pid, result);
-		this.findLocksForProcessInNode(node.right, pid, result);
-	}
-
-	getMaximumRangeLockType(): RequestedRangeLock['type'] {
-		let maxType: RequestedRangeLock['type'] = 'unlocked';
-
-		const traverse = (node: IntervalNode | null) => {
-			if (!node) {
-				return;
-			}
-			if (node.range.type === 'exclusive') {
-				maxType = 'exclusive';
-				return; // Can stop early since exclusive is highest
-			}
-			if (node.range.type === 'shared') {
-				maxType = 'shared';
-			}
-			traverse(node.left);
-			traverse(node.right);
-		};
-		traverse(this.root);
-
-		return maxType;
 	}
 }
 
@@ -390,63 +324,6 @@ export class FileLock {
 		}
 
 		throw new Error(`Unexpected wholeFileLock() op: '${op.type}'`);
-	}
-
-	/**
-	 * Ensure that the native lock is compatible with the php-wasm lock, upgrading or downgrading as needed.
-	 *
-	 * @param overrideWholeFileLockType If provided, use this type for the whole file lock.
-	 * @param overrideRangeLockType If provided, use this type for the range lock.
-	 * @returns True if the native lock was upgraded or downgraded, false otherwise.
-	 */
-	private ensureCompatibleNativeLock({
-		overrideWholeFileLockType,
-		overrideRangeLockType,
-	}: {
-		overrideWholeFileLockType?: WholeFileLock['type'];
-		overrideRangeLockType?: RequestedRangeLock['type'];
-	} = {}): boolean {
-		console.log(
-			'ensureCompatibleNativeLock',
-			overrideWholeFileLockType,
-			overrideRangeLockType
-		);
-		const wholeFileLockType =
-			overrideWholeFileLockType ?? this.wholeFileLock.type;
-		const rangeLockType =
-			overrideRangeLockType ?? this.rangeLocks.getMaximumRangeLockType();
-
-		let requiredNativeLockType: NativeLock['mode'];
-		if (
-			wholeFileLockType === 'exclusive' ||
-			rangeLockType === 'exclusive'
-		) {
-			requiredNativeLockType = 'exclusive';
-		} else if (
-			wholeFileLockType === 'shared' ||
-			rangeLockType === 'shared'
-		) {
-			requiredNativeLockType = 'shared';
-		} else {
-			requiredNativeLockType = 'unlock';
-		}
-
-		if (this.nativeLock.mode === requiredNativeLockType) {
-			return true;
-		}
-
-		const flockFlags =
-			(requiredNativeLockType === 'exclusive' && 'exnb') ||
-			(requiredNativeLockType === 'shared' && 'shnb') ||
-			'un';
-
-		try {
-			nativeFlockSync(this.nativeLock.fd, flockFlags);
-			this.nativeLock.mode = requiredNativeLockType;
-			return true;
-		} catch {
-			return false;
-		}
 	}
 
 	/**
@@ -668,6 +545,64 @@ export class FileLock {
 	}
 
 	/**
+	 * Ensure that the native lock is compatible with the php-wasm lock, upgrading or downgrading as needed.
+	 *
+	 * @param overrideWholeFileLockType If provided, use this type for the whole file lock.
+	 * @param overrideRangeLockType If provided, use this type for the range lock.
+	 * @returns True if the native lock was upgraded or downgraded, false otherwise.
+	 */
+	private ensureCompatibleNativeLock({
+		overrideWholeFileLockType,
+		overrideRangeLockType,
+	}: {
+		overrideWholeFileLockType?: WholeFileLock['type'];
+		overrideRangeLockType?: RequestedRangeLock['type'];
+	} = {}): boolean {
+		console.log(
+			'ensureCompatibleNativeLock',
+			overrideWholeFileLockType,
+			overrideRangeLockType
+		);
+		const wholeFileLockType =
+			overrideWholeFileLockType ?? this.wholeFileLock.type;
+		const rangeLockType =
+			overrideRangeLockType ??
+			this.rangeLocks.findStrictestExistingLockType();
+
+		let requiredNativeLockType: NativeLock['mode'];
+		if (
+			wholeFileLockType === 'exclusive' ||
+			rangeLockType === 'exclusive'
+		) {
+			requiredNativeLockType = 'exclusive';
+		} else if (
+			wholeFileLockType === 'shared' ||
+			rangeLockType === 'shared'
+		) {
+			requiredNativeLockType = 'shared';
+		} else {
+			requiredNativeLockType = 'unlock';
+		}
+
+		if (this.nativeLock.mode === requiredNativeLockType) {
+			return true;
+		}
+
+		const flockFlags =
+			(requiredNativeLockType === 'exclusive' && 'exnb') ||
+			(requiredNativeLockType === 'shared' && 'shnb') ||
+			'un';
+
+		try {
+			nativeFlockSync(this.nativeLock.fd, flockFlags);
+			this.nativeLock.mode = requiredNativeLockType;
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
 	 * Check if a conflicting lock exists.
 	 *
 	 * @param requestedLock The desired byte range lock.
@@ -680,138 +615,214 @@ export class FileLock {
 	}
 }
 
-/**
- * This is the file lock manager for use within JS runtimes like Node.js.
- *
- * A FileLockManagerForNode is a wrapper around a Map of FileLock instances.
- * It provides methods for locking and unlocking files, as well as finding conflicting locks.
- */
-export class FileLockManagerForNode implements FileLockManager {
-	locks: Map<string, FileLock>;
+class IntervalNode {
+	range: LockedRange;
+	max: bigint;
+	left: IntervalNode | null = null;
+	right: IntervalNode | null = null;
 
-	constructor() {
-		console.error('FileLockManagerForNode constructor');
-		this.locks = new Map();
+	constructor(range: LockedRange) {
+		this.range = range;
+		this.max = range.end;
+	}
+}
+
+class FileLockIntervalTree {
+	private root: IntervalNode | null = null;
+
+	isEmpty() {
+		return this.root === null;
 	}
 
 	/**
-	 * Lock the whole file.
-	 *
-	 * @param path The path to the file to lock. This should be the path
-	 *             of the file in the native filesystem.
-	 * @param op The whole file lock operation to perform.
-	 * @returns True if the lock was granted, false otherwise.
+	 * Insert a new locked range into the tree
 	 */
-	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
-		// console.log('wholeFileLock', path, op);
-		if (this.locks.get(path) === undefined) {
-			if (op.type === 'unlock') {
-				return true;
-			}
+	insert(range: LockedRange): void {
+		this.root = this.insertNode(this.root, range);
+	}
 
-			const maybeLock = FileLock.maybeCreate(path, op.type);
-			if (maybeLock === undefined) {
-				return false;
-			}
-			this.locks.set(path, maybeLock);
-		}
-
-		const lock = this.locks.get(path)!;
-		const result = lock.lockWholeFile(op);
-		this.forgetPathIfUnlocked(path);
+	/**
+	 * Find all ranges that overlap with the given range
+	 */
+	findOverlapping(range: RequestedRangeLock): LockedRange[] {
+		const result: LockedRange[] = [];
+		this.findOverlappingRanges(this.root, range, result);
 		return result;
 	}
 
 	/**
-	 * Lock a byte range.
-	 *
-	 * @param path The path to the file to lock. This should be the path
-	 *             of the file in the native filesystem.
-	 * @param requestedLock The byte range lock to perform.
-	 * @returns True if the lock was granted, false otherwise.
+	 * Remove a lock range from the tree
 	 */
-	lockFileByteRange(
-		path: string,
-		requestedLock: RequestedRangeLock
+	remove(range: RequestedRangeLock): void {
+		this.root = this.removeNode(this.root, range);
+	}
+
+	/**
+	 * Find all ranges locked by the given process.
+	 *
+	 * @param pid The process ID to find locks for.
+	 * @returns All locked ranges for the given process.
+	 */
+	findLocksForProcess(pid: number): RequestedRangeLock[] {
+		const result: RequestedRangeLock[] = [];
+		this.findLocksForProcessInNode(this.root, pid, result);
+		return result;
+	}
+
+	/**
+	 * Find the strictest existing lock type in the range lock tree.
+	 *
+	 * @returns The strictest existing lock type, or 'unlocked' if no locks exist.
+	 */
+	findStrictestExistingLockType(): RequestedRangeLock['type'] {
+		let maxType: RequestedRangeLock['type'] = 'unlocked';
+
+		const traverse = (node: IntervalNode | null) => {
+			if (!node) {
+				return;
+			}
+			if (node.range.type === 'exclusive') {
+				maxType = 'exclusive';
+				return; // Can stop early since exclusive is highest
+			}
+			if (node.range.type === 'shared') {
+				maxType = 'shared';
+			}
+			traverse(node.left);
+			traverse(node.right);
+		};
+		traverse(this.root);
+
+		return maxType;
+	}
+
+	private insertNode(
+		node: IntervalNode | null,
+		range: LockedRange
+	): IntervalNode {
+		if (!node) {
+			return new IntervalNode(range);
+		}
+
+		// Insert to left subtree if start is less than node's start
+		if (range.start < node.range.start) {
+			node.left = this.insertNode(node.left, range);
+		} else {
+			node.right = this.insertNode(node.right, range);
+		}
+
+		// Update max value
+		node.max = this.bigintMax(node.max, range.end);
+		return node;
+	}
+
+	private bigintMax(...args: bigint[]): bigint {
+		return args.reduce((max, current) => {
+			return current > max ? current : max;
+		}, args[0]);
+	}
+
+	private findOverlappingRanges(
+		node: IntervalNode | null,
+		range: RequestedRangeLock,
+		result: LockedRange[]
+	): void {
+		if (!node) {
+			return;
+		}
+
+		// Check if current node overlaps
+		if (this.doRangesOverlap(node.range, range)) {
+			result.push(node.range);
+		}
+
+		// If left child exists and its max is greater than range start, search left
+		if (node.left && node.left.max >= range.start) {
+			this.findOverlappingRanges(node.left, range, result);
+		}
+
+		// Search right if it could contain overlapping intervals
+		if (node.right && node.range.start <= range.end) {
+			this.findOverlappingRanges(node.right, range, result);
+		}
+	}
+
+	private doRangesOverlap(
+		a: RequestedRangeLock,
+		b: RequestedRangeLock
 	): boolean {
-		if (!this.locks.has(path)) {
-			if (requestedLock.type === 'unlocked') {
-				// There is no existing lock. This is a no-op.
-				return true;
+		return a.start < b.end && b.start < a.end;
+	}
+
+	private removeNode(
+		node: IntervalNode | null,
+		range: RequestedRangeLock
+	): IntervalNode | null {
+		if (!node) {
+			return null;
+		}
+
+		// Check if current node is the one to remove
+		if (this.areRangesEqual(node.range, range)) {
+			// Handle cases of no children or one child
+			if (!node.left) {
+				return node.right;
+			}
+			if (!node.right) {
+				return node.left;
 			}
 
-			const maybeLock = FileLock.maybeCreate(path, requestedLock.type);
-			if (maybeLock === undefined) {
-				return false;
-			}
-			this.locks.set(path, maybeLock);
+			// Node has two children - find successor
+			const successor = this.findMin(node.right);
+			node.range = successor.range;
+			node.right = this.removeNode(node.right, successor.range);
+		} else if (range.start < node.range.start) {
+			node.left = this.removeNode(node.left, range);
+		} else {
+			node.right = this.removeNode(node.right, range);
 		}
-		const lock = this.locks.get(path)!;
-		return lock.lockFileByteRange(requestedLock);
+
+		// Update max value
+		node.max = node.range.end;
+		if (node.left) {
+			node.max = this.bigintMax(node.max, node.left.max);
+		}
+		if (node.right) {
+			node.max = this.bigintMax(node.max, node.right.max);
+		}
+
+		return node;
 	}
 
-	/**
-	 * Find the first conflicting byte range lock.
-	 *
-	 * @param path The path to the file to find the conflicting lock for.
-	 * @param desiredLock The desired byte range lock.
-	 * @returns The first conflicting byte range lock, or undefined if no conflicting lock exists.
-	 */
-	findFirstConflictingByteRangeLock(
-		path: string,
-		desiredLock: RequestedRangeLock
-	): Omit<RequestedRangeLock, 'fd'> | undefined {
-		const lock = this.locks.get(path);
-		if (lock === undefined) {
-			return undefined;
+	private findMin(node: IntervalNode): IntervalNode {
+		let current = node;
+		while (current.left) {
+			current = current.left;
 		}
-		return lock.findFirstConflictingByteRangeLock(desiredLock);
+		return current;
 	}
 
-	/**
-	 * Release all locks for the given process.
-	 *
-	 * @param pid The process ID to release locks for.
-	 */
-	releaseLocksForProcess(pid: number) {
-		//logger.log('releaseLocksForProcess', pid);
-		for (const [path, lock] of this.locks.entries()) {
-			lock.releaseLocksForProcess(pid);
-			this.forgetPathIfUnlocked(path);
-		}
+	private areRangesEqual(
+		a: RequestedRangeLock,
+		b: RequestedRangeLock
+	): boolean {
+		return a.start === b.start && a.end === b.end && a.pid === b.pid;
 	}
 
-	/**
-	 * Release all locks for the given process and file descriptor.
-	 *
-	 * @param pid The process ID to release locks for.
-	 * @param fd The file descriptor to release locks for.
-	 * @param path The path to the file to release locks for.
-	 */
-	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
-		// console.log('releaseLocksForProcessFd', pid, fd, path);
-		const lock = this.locks.get(nativePath);
-		if (!lock) {
-			return;
-		}
-		lock.releaseLocksForProcessFd(pid, fd);
-		this.forgetPathIfUnlocked(nativePath);
-	}
-
-	/**
-	 * Forget the path if it is unlocked.
-	 *
-	 * @param path The path to the file to forget.
-	 */
-	private forgetPathIfUnlocked(path: string) {
-		const lock = this.locks.get(path);
-		if (!lock) {
+	private findLocksForProcessInNode(
+		node: IntervalNode | null,
+		pid: number,
+		result: RequestedRangeLock[]
+	): void {
+		if (!node) {
 			return;
 		}
 
-		if (lock.isUnlocked()) {
-			lock.dispose();
-			this.locks.delete(path);
+		if (node.range.pid === pid) {
+			result.push(node.range);
 		}
+
+		this.findLocksForProcessInNode(node.left, pid, result);
+		this.findLocksForProcessInNode(node.right, pid, result);
 	}
 }
