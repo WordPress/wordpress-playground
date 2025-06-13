@@ -59,10 +59,9 @@ EMSCRIPTEN_KEEPALIVE pid_t getpid() {
 	return js_getpid();
 }
 
-// TODO: Re-enable this and fix the bugs.
-// EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
-// 	return js_flock(fd, op);
-// }
+EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
+	return js_flock(fd, op);
+}
 
 EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 	va_list args;

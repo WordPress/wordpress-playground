@@ -596,7 +596,7 @@ const LibraryForFileLocking = {
 		}
 
 		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
-		const result = await PHPLoader.fileLockManager.lockWholeFile(
+		const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
 			nativeFilePath,
 			{
 				type: lockOpType,
@@ -605,9 +605,9 @@ const LibraryForFileLocking = {
 			}
 		);
 		js_wasm_trace(
-			`js_flock ${fd} ${op} ${vfsPath} lockWholeFile ${result}`
+			`js_flock ${fd} ${op} ${vfsPath} lockWholeFile ${obtainedLock}`
 		);
-		return result;
+		return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
 		// });
 	},
 
