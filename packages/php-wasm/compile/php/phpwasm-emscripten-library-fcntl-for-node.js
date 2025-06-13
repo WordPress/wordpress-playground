@@ -62,7 +62,6 @@ const LibraryForFileLocking = {
 				emscripten_O_ACCMODE
 			);
 		},
-		// TODO: Make naming/casing consistent
 		get_vfs_path_from_fd(fd) {
 			try {
 				return [FS.readlink(`/proc/self/fd/${fd}`), 0];
@@ -71,7 +70,6 @@ const LibraryForFileLocking = {
 			}
 		},
 
-		// TODO: Improve name
 		get_native_path_from_vfs_path(vfsPath) {
 			const { node } = FS.lookupPath(vfsPath);
 			return NODEFS.realPath(node);
@@ -121,15 +119,16 @@ const LibraryForFileLocking = {
 		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
 		const emscripten_SEEK_SET = Number('{{{cDefs.SEEK_SET}}}');
 
-		// todo: consider patching emscripten to provide these offsets or add an access to php_wasm.c
+		// TODO: consider patching emscripten to provide these offsets or add an access to php_wasm.c
 		const emscripten_flock_l_type_offset = 0;
 		const emscripten_flock_l_whence_offset = 2;
 		const emscripten_flock_l_start_offset = 8;
 		const emscripten_flock_l_len_offset = 16;
 		const emscripten_flock_l_pid_offset = 24;
 
-		function readFlockStruct(flockStructAddress) {
+		function read_flock_struct(flockStructAddress) {
 			return {
+				// TODO: Document this better.
 				// Shift right by N to divide by 2^N and get addresses for the correct word size
 				l_type: HEAP16[
 					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
@@ -155,8 +154,9 @@ const LibraryForFileLocking = {
 			};
 		}
 
-		function updateFlockStruct(flockStructAddress, fields) {
+		function update_flock_struct(flockStructAddress, fields) {
 			if (fields.l_type !== undefined) {
+				// TODO: Document this better.
 				// Shift right by N to divide by 2^N and get addresses for the correct word size
 				HEAP16[
 					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
@@ -184,7 +184,15 @@ const LibraryForFileLocking = {
 			}
 		}
 
-		function getBaseAddress(fd, whence, startOffset) {
+		// TODO: Finish documenting this.
+		/**
+		 * Resolve the base address of the range depending on the whence and start offset.
+		 * @param {*} fd
+		 * @param {*} whence
+		 * @param {*} startOffset
+		 * @returns
+		 */
+		function get_base_address(fd, whence, startOffset) {
 			let baseAddress;
 			switch (whence) {
 				case emscripten_SEEK_SET:
@@ -244,7 +252,7 @@ const LibraryForFileLocking = {
 				}
 
 				const flockStructAddr = syscallGetVarargP();
-				const flockStruct = readFlockStruct(flockStructAddr);
+				const flockStruct = read_flock_struct(flockStructAddr);
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
 					return -ERRNO_CODES.EINVAL;
@@ -261,7 +269,7 @@ const LibraryForFileLocking = {
 				const requestedLockType =
 					locking.fcntlToLockState[flockStruct.l_type];
 				let absoluteStartOffset;
-				[absoluteStartOffset, errno] = getBaseAddress(
+				[absoluteStartOffset, errno] = get_base_address(
 					fd,
 					flockStruct.l_whence,
 					flockStruct.l_start
@@ -276,7 +284,6 @@ const LibraryForFileLocking = {
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
 
-				// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
 				// TODO: try/catch
 				// TODO: Handle case where flock() conflicts with range lock
 				return PHPLoader.fileLockManager
@@ -288,7 +295,7 @@ const LibraryForFileLocking = {
 					})
 					.then((conflictingLock) => {
 						if (conflictingLock === undefined) {
-							updateFlockStruct(flockStructAddr, {
+							update_flock_struct(flockStructAddr, {
 								l_type: F_UNLCK,
 							});
 							js_wasm_trace(
@@ -308,7 +315,7 @@ const LibraryForFileLocking = {
 
 						const fcntlLockState =
 							locking.lockStateToFcntl[conflictingLock.type];
-						updateFlockStruct(flockStructAddr, {
+						update_flock_struct(flockStructAddr, {
 							l_type: fcntlLockState,
 							l_whence: emscripten_SEEK_SET,
 							l_start: conflictingLock.start,
@@ -381,7 +388,7 @@ const LibraryForFileLocking = {
 				);
 
 				var flockStructAddr = syscallGetVarargP();
-				const flockStruct = readFlockStruct(flockStructAddr);
+				const flockStruct = read_flock_struct(flockStructAddr);
 
 				js_wasm_trace(
 					`fcntl F_SETLK ${fd} after readFlockStruct ${JSON.stringify(
@@ -394,7 +401,7 @@ const LibraryForFileLocking = {
 				);
 
 				let absoluteStartOffset;
-				[absoluteStartOffset, errno] = getBaseAddress(
+				[absoluteStartOffset, errno] = get_base_address(
 					fd,
 					flockStruct.l_whence,
 					flockStruct.l_start
@@ -502,7 +509,7 @@ const LibraryForFileLocking = {
 		// TODO: Why make this conditional?
 		if (PHPLoader.fileLockManager) {
 			const pid = PHPLoader.processId;
-			return PHPLoader.fileLockManager
+			return await PHPLoader.fileLockManager
 				.releaseLocksForProcess(pid)
 				.then((result) => {
 					js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
@@ -676,6 +683,7 @@ const LibraryForFileLocking = {
 		// });
 	},
 
+	// TODO: Document "real" PID in PR description
 	// Provide "real" PID to help with logging when debugging multi-worker issues
 	js_getpid() {
 		return PHPLoader.processId;
