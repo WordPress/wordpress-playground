@@ -57,75 +57,7 @@ PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 if (typeof NODEFS === 'object') {
-    // TODO: Remove tracing or disconnect before merge
-    const traceOptionDefaults = {
-        shouldTrace(...args) { return true; },
-        formatArgs(...args) {
-            return args.join(', ');
-        },
-        formatResult(r) { return r; },
-    }
-    function wrapForTrace(
-        fn,
-        fnName,
-        traceOptions,
-    ) {
-        traceOptions = { ...traceOptionDefaults, ...traceOptions };
-
-        return function traceFn(...args) {
-            const shouldTrace = traceOptions.shouldTrace(...args);
-            if (shouldTrace) {
-                js_wasm_trace(`call   ${fnName} ${traceOptions.formatArgs(...args)}`);
-            }
-            let error;
-            let result;
-            try {
-                result = fn(...args);
-                return result;
-            } catch (e) {
-                error = e;
-                throw e;
-            } finally {
-                if (shouldTrace) {
-                    if (error) {
-                        js_wasm_trace(`error  ${fnName} ${traceOptions.formatArgs(...args)} -> 💥 ${JSON.stringify(error)}`);
-                    } else {
-                        let formattedResult = traceOptions.formatResult(result);
-                        js_wasm_trace(`return ${fnName} ${traceOptions.formatArgs(...args)} ${formattedResult ? `-> ${formattedResult}` : ''}`);
-                    }
-                }
-            }
-        };
-    }
-
-    // TODO: Clean up or remove before merge?
-    function addMethodTrace(obj, fnName, traceOptions) {
-        obj[fnName] = wrapForTrace(obj[fnName], fnName, traceOptions);
-    }
-
-    function formatStream(stream) {
-        var path = NODEFS.realPath(stream.node);
-        return `${stream.nfd}, ${path}`;
-    }
-    function shouldTraceStreamOp(stream) {
-        const path = NODEFS.realPath(stream.node);
-        return path.includes('.ht.sqlite');
-    }
-
-    addMethodTrace(NODEFS.node_ops, 'unlink', {
-        shouldTrace: (_, path) => path.includes('.ht.sqlite'),
-        formatArgs: (_, path) => path,
-    });
-    addMethodTrace(NODEFS.stream_ops, 'open', {
-        shouldTrace: shouldTraceStreamOp,
-        formatArgs: (stream) => formatStream(stream),
-    });
-    addMethodTrace(NODEFS.stream_ops, 'close', {
-        shouldTrace: shouldTraceStreamOp,
-        formatArgs: (stream) => formatStream(stream),
-    });
-
-    // TODO: Revisit this hack after discussion with the Emscripten team.
+    // TODO: Document why.
     var originalHashAddNode = FS.hashAddNode;
     FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
         if (node.node_ops === NODEFS.node_ops) {
@@ -136,11 +68,13 @@ if (typeof NODEFS === 'object') {
         }
         return originalHashAddNode.apply(FS, arguments);
     };
+
+    // TODO: Document why.
     const originalCreateNode = NODEFS.createNode;
     NODEFS.createNode = function createNodeWithSharedFlag() {
         const node = originalCreateNode.apply(NODEFS, arguments);
-        // TODO: Better name?
         // TODO: Is this a reasonable solution to marking underlying target of PROXYFS?
+        // TODO: Better name?
         node.isSharedFS = true;
         return node;
     };
