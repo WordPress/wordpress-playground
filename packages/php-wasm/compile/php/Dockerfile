@@ -1833,7 +1833,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
-COPY ./php/phpwasm-emscripten-library-fcntl-for-node.js /root/phpwasm-emscripten-library-fcntl-for-node.js
+COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 RUN set -euxo pipefail; \
@@ -1880,7 +1880,7 @@ RUN set -euxo pipefail; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-fcntl-for-node.js"; \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \

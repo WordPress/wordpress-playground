@@ -49,7 +49,9 @@ const LibraryForFileLocking = {
 			const answer = locking.is_nodefs_node(node);
 			// TODO: Remove this after testing.
 			if (!answer && path.includes('.ht.sqlite')) {
-				js_wasm_trace(`is_nodefs_path ${path} is_nodefs_node ${answer}`);
+				js_wasm_trace(
+					`is_nodefs_path ${path} is_nodefs_node ${answer}`
+				);
 			}
 			return answer;
 		},
@@ -570,6 +572,9 @@ const LibraryForFileLocking = {
 			logger.warn(
 				`flock() is not implemented for non-NodeFS path '${vfsPath}'`
 			);
+			js_wasm_trace(
+				`js_flock ${fd} ${op} is_nodefs_path false`
+			);
 			// CAUTION: This implies success, but no lock was acquired.
 			return 0;
 		}
@@ -597,12 +602,17 @@ const LibraryForFileLocking = {
 		const lockOpType = flockToLockOpType[maskedOp];
 		if (lockOpType === undefined) {
 			js_wasm_trace(
-				`js_flock ${fd} ${op} invalid flock() operation: 0x${lockOpType.toString(16)}`
+				`js_flock ${fd} ${op} invalid flock() operation: 0x${lockOpType.toString(
+					16
+				)}`
 			);
 			return -ERRNO_CODES.EINVAL;
 		}
 
 		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
+		js_wasm_trace(
+			`js_flock ${fd} ${op} ${vfsPath} get_native_path_from_vfs_path ${nativeFilePath}`
+		);
 		const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
 			nativeFilePath,
 			{
@@ -633,9 +643,9 @@ const LibraryForFileLocking = {
 			const shouldLog =
 				pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
 			// shouldLog &&
-				// js_wasm_trace(
-				// 	`fd_close ${fd} get_vfs_path_from_fd ${vfsPath} ${pathResolutionErrno}`
-				// );
+			// js_wasm_trace(
+			// 	`fd_close ${fd} get_vfs_path_from_fd ${vfsPath} ${pathResolutionErrno}`
+			// );
 			const result = default_fd_close.fn(fd);
 			shouldLog &&
 				js_wasm_trace(
