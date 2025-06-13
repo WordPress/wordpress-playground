@@ -32,6 +32,7 @@ export const SiteManager = forwardRef<
 	const sidebar = (
 		<Sidebar
 			className={css.sidebar}
+			mobileUi={fullScreenSections}
 			afterSiteClick={() => {
 				if (fullScreenSiteManager) {
 					// Close the site manager so the site view is visible.

@@ -66,11 +66,42 @@ const LibraryExample = {
 								}
 							}
 						}
-				  };
+				};
+			
+			// Clean up the fd -> childProcess mapping when the fd is closed:
+			const originalClose = FS.close;
+			FS.close = function (stream) {
+				originalClose(stream);
+				delete PHPWASM.child_proc_by_fd[stream.fd];
+			};
+
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
+			const originalWrite = TTY.stream_ops.write;
+			TTY.stream_ops.write = function (stream, ...rest) {
+				const retval = originalWrite(stream, ...rest);
+				// Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+				// @TODO: Fix this at the wasm level
+				stream.tty.ops.fsync(stream.tty);
+				return retval;
+			};
+			const originalPutChar = TTY.stream_ops.put_char;
+			TTY.stream_ops.put_char = function (tty, val) {
+				/**
+				 * Buffer newlines that Emscripten normally ignores.
+				 *
+				 * Emscripten doesn't do it by default because its default
+				 * print function is console.log that implicitly adds a newline. We are overwriting
+				 * it with an environment-specific function that outputs exaclty what it was given,
+				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+				 * all the newlines make it to the output buffer.
+				 */
+				if (val === 10) tty.output.push(val);
+				return originalPutChar(tty, val);
+			};
 		},
+
 		/**
 		 * A utility function to get all websocket objects associated
 		 * with an Emscripten file descriptor.
@@ -417,6 +448,21 @@ const LibraryExample = {
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
+				for (const fd of [
+					// The child process exited. Let's clean up its output streams:
+					ProcInfo.stdoutChildFd,
+					ProcInfo.stderrChildFd,
+					// Note we're not closing stdinFd as the parent still might be holding on to it.
+
+					// We won't close these because the parent process is responsible for that:
+					// ProcInfo.stdoutParentFd,
+					// ProcInfo.stderrParentFd,
+				]) {
+					if(FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
+						FS.close(FS.streams[fd]);
+					}
+				}
+
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 				// Emit events for the wasm_poll_socket function.
@@ -471,12 +517,54 @@ const LibraryExample = {
 			 */
 			try {
 				await new Promise((resolve, reject) => {
-					cp.on('spawn', resolve);
-					cp.on('error', reject);
+					/**
+					 * There was no `await` between the `spawnProcess` call
+					 * and the `await` below so the process haven't had a chance
+					 * to run any of the exit-related callbacks yet.
+					 *
+					 * Good.
+					 *
+					 * Let's listen to all the lifecycle events and resolve
+					 * the promise when the process starts or immediately crashes.
+					 */
+					let resolved = false;
+					cp.on('spawn', () => {
+						if (resolved) return;
+						resolved = true;
+						resolve();
+					});
+					cp.on('error', (e) => {
+						if (resolved) return;
+						resolved = true;
+						reject(e);
+					});
+					cp.on('exit', function (code) {
+						if (resolved) return;
+						resolved = true;
+						if (code === 0) {
+							resolve();
+						} else {
+							reject(
+								new Error(`Process exited with code ${code}`)
+							);
+						}
+					});
+					/**
+					 * If the process haven't even started after 5 seconds, something
+					 * is wrong. Perhaps we're missing an event listener, or perhaps
+					 * the `spawnProcess` implementation failed to dispatch the relevant
+					 * event. Either way, let's crash to avoid blocking the proc_open()
+					 * call indefinitely.
+					 */
+					setTimeout(() => {
+						if (resolved) return;
+						resolved = true;
+						reject(new Error('Process timed out'));
+					}, 5000);
 				});
 			} catch (e) {
 				console.error(e);
-				wakeUp(1);
+				wakeUp(ProcInfo.pid);
 				return;
 			}
 

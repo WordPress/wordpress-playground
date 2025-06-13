@@ -1,14 +1,10 @@
+import { concatUint8Arrays } from '@php-wasm/util';
+
 import { ServerNameExtension } from '../extensions/0_server_name';
 import { CipherSuitesNames } from '../cipher-suites';
 import { CipherSuites } from '../cipher-suites';
 import { parseClientHelloExtensions } from '../extensions/parse-extensions';
-import {
-	ArrayBufferReader,
-	as2Bytes,
-	as3Bytes,
-	as8Bytes,
-	concatUint8Arrays,
-} from '../utils';
+import { ArrayBufferReader, as2Bytes, as3Bytes, as8Bytes } from '../utils';
 import {
 	HashAlgorithms,
 	SignatureAlgorithms,
