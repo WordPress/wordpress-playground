@@ -9,6 +9,7 @@ import { rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
 import http from 'http';
 
+// describe.each(SupportedPHPVersions)(
 describe.each(SupportedPHPVersions)(
 	'PHP %s',
 	(phpVersion) => {
@@ -62,6 +63,81 @@ describe.each(SupportedPHPVersions)(
 				await stopServer(server);
 			}
 		});
+
+		it('should support fopen() and fread() until EOF', async () => {
+			try {
+				const serverUrl = await startServer();
+				const php = new PHP(await loadNodeRuntime(phpVersion));
+				await setPhpIniEntries(php, {
+					allow_url_fopen: 1,
+					disable_functions: '',
+				});
+				
+				php.writeFile(
+					'/tmp/test.php',
+					`<?php
+				$url = str_replace('http://', '', "${serverUrl}"); 
+				list($host, $port) = explode(':', $url);
+				
+				// Send a request via a stream_socket_client()
+				$handle = stream_socket_client("tcp://$host:$port", $errno, $errstr, 1);
+				stream_set_blocking($handle, false);
+				while(true) {
+					$write = [$handle];
+					$read = [];
+					$except = [];
+					$result = stream_select($read, $write, $except, 1);
+					if ($result > 0 && count($write) > 0) {
+						// Socket is ready for writing
+						break;
+					}
+				}
+				$request = "GET / HTTP/1.1".chr(13).chr(10);
+				$request .= "Host: $host".chr(13).chr(10);
+				$request .= "Connection: close".chr(13).chr(10);
+				$request .= chr(13).chr(10);
+				fwrite($handle, $request);
+
+				// Read the response
+				$content = '';
+				while(true) {
+					$read = [$handle];
+					$write = [];
+					$except = [];
+					$result = stream_select($read, $write, $except, 1);
+					if ($result > 0 && count($read) > 0) {
+						$content .= fread($handle, 8192);
+						if(strlen($content) !== 0) {
+							break;
+						}
+					}
+				}
+
+				// We have the response now, which should be just "response from express".
+				// Let's confirm that:
+				if (substr($content, -strlen('response from express')) !== 'response from express') {
+					throw new Exception('Response is "'.$content.'". Expected: "response from express"');
+				}
+
+				// Okay, the response is fully received. Now the actual test:
+				// stream_select() should return 1 even if we only ask for POLLIN:
+				$read = [$handle];
+				$write = [];
+				$except = [];
+				$result = stream_select($read, $write, $except, 1);
+
+				echo "Stream select result: $result\n";
+				fclose($handle);
+				`
+				);
+				const { text } = await php.run({
+					scriptPath: '/tmp/test.php',
+				});
+				expect(text).toContain('Stream select result: 1');
+			} finally {
+				await stopServer(server);
+			}
+		}, 10000);
 
 		describe('cURL', () => {
 			it('should support single handle requests', async () => {

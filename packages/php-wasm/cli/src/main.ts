@@ -1,7 +1,8 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import { writeFileSync, existsSync, mkdtempSync, rmSync, rmdirSync } from 'fs';
+import os from 'os';
+import { writeFileSync, existsSync, mkdtempSync, chmodSync } from 'fs';
 import { rootCertificates } from 'tls';
 
 import {
@@ -11,8 +12,8 @@ import {
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 import { PHP } from '@php-wasm/universal';
-import { spawn } from 'child_process';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
+import path from 'path';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -45,52 +46,47 @@ async function run() {
 	// @see https://github.com/npm/npm/issues/4531
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { TMPDIR, ...envVariables } = process.env;
+
+	/**
+	 * Ensure the PHP_BINARY constant is set to the PHP-WASM binary.
+	 *
+	 * ## Rationale
+	 *
+	 * We want any `proc_open()` calls to use the PHP-WASM binary and
+	 * not the system PHP binary.
+	 *
+	 * ## How it works
+	 *
+	 * The code below creates a temporary `php` executable in PATH,
+	 * which covers `proc_open( "php", ... )` calls.
+	 *
+	 * Furthermore, when PHP detects the `php` executable in PATH, it
+	 * sets the PHP_BINARY constant to it.
+	 */
+	const tempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-bin'));
+	writeFileSync(
+		`${tempDir}/php`,
+		`#!/bin/sh
+${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
+	`
+	);
+	chmodSync(`${tempDir}/php`, 0o755);
+
+	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
 				ENV: {
 					...envVariables,
+					TMPDIR: sysTempDir,
 					TERM: 'xterm',
+					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
 		})
 	);
 
 	useHostFilesystem(php);
-	php.setSpawnHandler((command: string) => {
-		const phpWasmCommand = `${process.argv[0]} ${process.execArgv.join(
-			' '
-		)} ${process.argv[1]}`;
-		// Naively replace the PHP binary with the PHP-WASM command
-		// @TODO: Don't process the command. Lean on the shell to do it, e.g.
-		// through a PATH or an alias.
-		const updatedCommand = command.replace(
-			/^(?:\\ |[^ ])*php\d?(\s|$)/,
-			phpWasmCommand + '$1'
-		);
-
-		// Create a shell script in a temporary directory
-		const tempDir = mkdtempSync('php-wasm-');
-		const tempScriptPath = `${tempDir}/script.sh`;
-		writeFileSync(
-			tempScriptPath,
-			`#!/bin/sh
-	${updatedCommand} < /dev/stdin
-	`
-		);
-
-		try {
-			return spawn(updatedCommand, [], {
-				shell: true,
-				stdio: ['pipe', 'pipe', 'pipe'],
-				timeout: 5000,
-			});
-		} finally {
-			// Remove the temporary directory
-			rmSync(tempScriptPath);
-			rmdirSync(tempDir);
-		}
-	});
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
 	if (!hasMinusCOption) {

@@ -147,15 +147,12 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 
     return returnCallback((wakeUp) => {
         const polls = [];
-        if (socketd in PHPWASM.child_proc_by_fd) {
-            // This is a child process-related socket.
-            const procInfo = PHPWASM.child_proc_by_fd[socketd];
-            if (procInfo.exited) {
-                wakeUp(0);
-                return;
-            }
-            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-        } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+        /**
+         * Check for socket-ness first. We don't clean up child_proc_by_fd yet and
+         * sometimes get duplicate entries. isSocket is more reliable out of the two –
+         * let's check for it first.
+         */
+        if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {
@@ -184,23 +181,38 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
                 return;
             }
             for (const ws of webSockets) {
-                if (events & POLLIN || events & POLLPRI) {
-                    polls.push(PHPWASM.awaitData(ws));
-                    lookingFor.add('POLLIN');
-                }
-                if (events & POLLOUT) {
-                    polls.push(PHPWASM.awaitConnection(ws));
-                    lookingFor.add('POLLOUT');
-                }
-                if (events & POLLHUP) {
-                    polls.push(PHPWASM.awaitClose(ws));
-                    lookingFor.add('POLLHUP');
-                }
-                if (events & POLLERR || events & POLLNVAL) {
-                    polls.push(PHPWASM.awaitError(ws));
-                    lookingFor.add('POLLERR');
-                }
+				if (events & POLLIN || events & POLLPRI) {
+					polls.push(PHPWASM.awaitData(ws));
+					lookingFor.add('POLLIN');
+				}
+				if (events & POLLOUT) {
+					polls.push(PHPWASM.awaitConnection(ws));
+					lookingFor.add('POLLOUT');
+				}
+				// Notify the user the socket is now closed even if the only requested
+				// in or out events.
+				if (
+					events & POLLHUP ||
+					events & POLLIN ||
+					events & POLLOUT ||
+					events & POLLERR
+				) {
+					polls.push(PHPWASM.awaitClose(ws));
+					lookingFor.add('POLLHUP');
+				}
+				if (events & POLLERR || events & POLLNVAL) {
+					polls.push(PHPWASM.awaitError(ws));
+					lookingFor.add('POLLERR');
+				}
             }
+        } else if (socketd in PHPWASM.child_proc_by_fd) {
+            // This is a child process-related socket.
+            const procInfo = PHPWASM.child_proc_by_fd[socketd];
+            if (procInfo.exited) {
+                wakeUp(0);
+                return;
+            }
+            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
         } else {
 			setTimeout(function () {
 				wakeUp(1);
@@ -718,40 +730,9 @@ EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, stru
 	return n;
 }
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
-ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
-
-
-
-/* Enable PHP to exchange messages with JavaScript */
-PHP_FUNCTION(post_message_to_js)
-{
-	char *data;
-	int data_len;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-	{
-		return;
-	}
-
-	char *response;
-	size_t response_len = js_module_onMessage(data, &response);
-	if (response_len != -1)
-	{
-		zend_string *return_string = zend_string_init(response, response_len, 0);
-		free(response);
-		RETURN_NEW_STR(return_string);
-	}
-	else
-	{
-		RETURN_NULL();
-	}
-}
 
 /**
  * select(2).
@@ -792,8 +773,7 @@ extern int wasm_close(int sockfd);
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
 		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)};
 
 typedef struct wasm_cli_arg
 {
@@ -836,8 +816,7 @@ int run_cli()
 
 #else
 static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+	ZEND_FE(dl, arginfo_dl)};
 #endif
 
 #if !defined(TSRMLS_DC)

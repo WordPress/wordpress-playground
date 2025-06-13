@@ -7377,14 +7377,56 @@ export function init(RuntimeName, PHPLoader) {
 			 * the process has already been spawned. We can only listen
 			 * to the 'spawn' event and if it has already been spawned,
 			 * listen to the 'exit' event.
-			 */ try {
+			 */
+			try {
 				await new Promise((resolve, reject) => {
-					cp.on('spawn', resolve);
-					cp.on('error', reject);
+					/**
+					 * There was no `await` between the `spawnProcess` call
+					 * and the `await` below so the process haven't had a chance
+					 * to run any of the exit-related callbacks yet.
+					 *
+					 * Good.
+					 *
+					 * Let's listen to all the lifecycle events and resolve
+					 * the promise when the process starts or immediately crashes.
+					 */
+					let resolved = false;
+					cp.on('spawn', () => {
+						if (resolved) return;
+						resolved = true;
+						resolve();
+					});
+					cp.on('error', (e) => {
+						if (resolved) return;
+						resolved = true;
+						reject(e);
+					});
+					cp.on('exit', function (code) {
+						if (resolved) return;
+						resolved = true;
+						if (code === 0) {
+							resolve();
+						} else {
+							reject(
+								new Error(`Process exited with code ${code}`)
+							);
+						}
+					});
+					/**
+					 * If the process haven't even started after 5 seconds, something
+					 * is wrong. Perhaps we're missing an event listener, or perhaps
+					 * the `spawnProcess` implementation failed to dispatch the relevant
+					 * event. Either way, let's crash to avoid blocking the proc_open()
+					 * call indefinitely.
+					 */
+					setTimeout(() => {
+						if (resolved) return;
+						resolved = true;
+						reject(new Error('Process timeout – the process got started, but did not exit or report being spawned within 5 seconds'));
+					}, 5000);
 				});
 			} catch (e) {
-				console.error(e);
-				wakeUp(1);
+				wakeUp(ProcInfo.pid);
 				return;
 			}
 			// Now we want to pass data from the STDIN source supplied by PHP
@@ -8318,7 +8360,7 @@ export function init(RuntimeName, PHPLoader) {
 						polls.push(PHPWASM.awaitConnection(ws));
 						lookingFor.add('POLLOUT');
 					}
-					if (events & POLLHUP) {
+					if (events & POLLHUP || events & POLLIN || events & POLLOUT || events & POLLPRI) {
 						polls.push(PHPWASM.awaitClose(ws));
 						lookingFor.add('POLLHUP');
 					}
