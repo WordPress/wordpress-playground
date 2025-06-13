@@ -2166,10 +2166,10 @@ bar1
 		it('Should be able to use intl functions', async () => {
 			const response = await php.run({
 				code: `<?php
-					$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
-					echo $formatter->format(100.00);
-					$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
-					echo $formatter->format(100.00);
+					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
 				?>`,
 			});
 			expect(response.text).toEqual('$100.00100,00\xA0€');

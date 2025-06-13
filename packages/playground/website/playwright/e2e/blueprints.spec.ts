@@ -236,10 +236,10 @@ test('Intl functions should work when intl is enabled', async ({
 				step: 'writeFile',
 				path: '/wordpress/intl-test.php',
 				data: `<?php
-					$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
-					echo $formatter->format(100.00);
-					$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
-					echo $formatter->format(100.00);
+					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
 				`,
 			},
 		],
