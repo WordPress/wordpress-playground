@@ -26,7 +26,10 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 			unhandledRejection = error;
 		}
 
-		afterEach(() => {
+		afterEach(async () => {
+			// Make sure the process exits and give any unhandled rejections a chance to be caught
+			php.exit();
+			await new Promise(resolve => setTimeout(resolve, 100));
 			process.off('unhandledRejection', unhandledRejectionHandler);
 		});
 
@@ -65,9 +68,6 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
 					);
 				}
-			} finally {
-				// Clean up the listener
-				process.off('unhandledRejection', unhandledRejectionHandler);
 			}
 
 			// Accept either a caught error or an unhandled rejection
