@@ -91,7 +91,7 @@ export class StreamedPHPResponse {
 	}
 
 	/**
-	 * Returns a promise that resolves to true if the response was successful (status code 200-399),
+	 * True if the response is successful (HTTP status code 200-399),
 	 * false otherwise.
 	 */
 	async ok(): Promise<boolean> {
@@ -104,7 +104,7 @@ export class StreamedPHPResponse {
 	}
 
 	/**
-	 * Returns a promise that resolves when the response has finished processing.
+	 * Resolves when the response has finished processing – either successfully or not.
 	 */
 	get finished(): Promise<void> {
 		return Promise.allSettled([this.exitCode.finally(() => {})]).then(
@@ -112,10 +112,16 @@ export class StreamedPHPResponse {
 		);
 	}
 
+	/**
+	 * Resolves once HTTP headers are available.
+	 */
 	get headers(): Promise<Record<string, string[]>> {
 		return this.getParsedHeaders().then((headers) => headers.headers);
 	}
 
+	/**
+	 * Resolves once HTTP status code is available.
+	 */
 	get httpStatusCode(): Promise<number> {
 		return Promise.race([
 			this.getParsedHeaders().then((headers) => headers.httpStatusCode),
@@ -136,6 +142,9 @@ export class StreamedPHPResponse {
 			.catch(() => 500);
 	}
 
+	/**
+	 * Exposes the stdout bytes as they're produced by the PHP instance
+	 */
 	get stdoutText(): Promise<string> {
 		if (!this.cachedStdoutText) {
 			this.cachedStdoutText = streamToText(this.stdout);
@@ -143,6 +152,9 @@ export class StreamedPHPResponse {
 		return this.cachedStdoutText;
 	}
 
+	/**
+	 * Exposes the stderr bytes as they're produced by the PHP instance
+	 */
 	get stderrText(): Promise<string> {
 		if (!this.cachedStderrText) {
 			this.cachedStderrText = streamToText(this.stderr);
