@@ -120,71 +120,114 @@ const LibraryForFileLocking = {
 		const emscripten_flock_l_len_offset = 16;
 		const emscripten_flock_l_pid_offset = 24;
 
+		/**
+		 * Read the flock struct at the given address.
+		 *
+		 * @param {bigint} flockStructAddress - the address of the flock struct
+		 * @returns the flock struct
+		 */
 		function read_flock_struct(flockStructAddress) {
+			/*
+			 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+			 * we need to adjust offsets to address the word size of each HEAP.
+			 *
+			 * For example, an offset of 64 bytes is the following for each HEAP:
+			 * - HEAP8: 64  (the 64th byte)
+			 * - HEAP16: 32 (the 32nd 16-bit word)
+			 * - HEAP32: 16 (the 16th 32-bit word)
+			 * - HEAP64: 8  (the 8th 64-bit word)
+			 *
+			 * We get a word offset by dividing the byte offset by the word size.
+			 */
 			return {
-				// TODO: Document this better.
-				// Shift right by N to divide by 2^N and get addresses for the correct word size
 				l_type: HEAP16[
+					// Shift right by 1 to divide by 2^1.
 					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
 				],
 				l_whence:
 					HEAP16[
+						// Shift right by 1 to divide by 2^1.
 						(flockStructAddress +
 							emscripten_flock_l_whence_offset) >>
 							1
 					],
 				l_start:
 					HEAP64[
+						// Shift right by 3 to divide by 2^3.
 						(flockStructAddress +
 							emscripten_flock_l_start_offset) >>
 							3
 					],
 				l_len: HEAP64[
+					// Shift right by 3 to divide by 2^3.
 					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
 				],
 				l_pid: HEAP32[
+					// Shift right by 2 to divide by 2^2.
 					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
 				],
 			};
 		}
 
+		/**
+		 * Update the flock struct at the given address with the given fields.
+		 *
+		 * @param {bigint} flockStructAddress - the address of the flock struct
+		 * @param {object} fields - the fields to update
+		 */
 		function update_flock_struct(flockStructAddress, fields) {
+			/*
+			 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+			 * we need to adjust offsets to address the word size of each HEAP.
+			 *
+			 * For example, an offset of 64 bytes is the following for each HEAP:
+			 * - HEAP8: 64  (the 64th byte)
+			 * - HEAP16: 32 (the 32nd 16-bit word)
+			 * - HEAP32: 16 (the 16th 32-bit word)
+			 * - HEAP64: 8  (the 8th 64-bit word)
+			 *
+			 * We get a word offset by dividing the byte offset by the word size.
+			 */
 			if (fields.l_type !== undefined) {
-				// TODO: Document this better.
-				// Shift right by N to divide by 2^N and get addresses for the correct word size
 				HEAP16[
+					// Shift right by 1 to divide by 2^1.
 					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
 				] = fields.l_type;
 			}
 			if (fields.l_whence !== undefined) {
 				HEAP16[
+					// Shift right by 1 to divide by 2^1.
 					(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
 				] = fields.l_whence;
 			}
 			if (fields.l_start !== undefined) {
 				HEAP64[
+					// Shift right by 3 to divide by 2^3.
 					(flockStructAddress + emscripten_flock_l_start_offset) >> 3
 				] = fields.l_start;
 			}
 			if (fields.l_len !== undefined) {
 				HEAP64[
+					// Shift right by 3 to divide by 2^3.
 					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
 				] = fields.l_len;
 			}
 			if (fields.l_pid !== undefined) {
 				HEAP32[
+					// Shift right by 2 to divide by 2^2.
 					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
 				] = fields.l_pid;
 			}
 		}
 
-		// TODO: Finish documenting this.
 		/**
 		 * Resolve the base address of the range depending on the whence and start offset.
-		 * @param {*} fd
-		 * @param {*} whence
-		 * @param {*} startOffset
-		 * @returns
+		 *
+		 * @param {number} fd - the file descriptor
+		 * @param {number} whence - what the start offset is relative to
+		 * @param {bigint} startOffset - the offset from the whence
+		 * @returns The resolved offset and the errno. If there is an error,
+		 *          the resolved offset is null, and the errno is non-zero.
 		 */
 		function get_base_address(fd, whence, startOffset) {
 			let baseAddress;
@@ -274,8 +317,6 @@ const LibraryForFileLocking = {
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
 
-				// TODO: try/catch
-				// TODO: Handle case where flock() conflicts with range lock
 				return PHPLoader.fileLockManager
 					.findFirstConflictingByteRangeLock(nativeFilePath, {
 						type: requestedLockType,
@@ -412,12 +453,18 @@ const LibraryForFileLocking = {
 		// });
 	},
 
-	// TODO: Try to eliminate the need to declare flock() itself in php_wasm.c
-	// and find a way to declare it here in a way that overrides Emscripten's libc flock()
+	// TODO: Document this in PR
+	/**
+	 * Perform a flock() operation on the file descriptor.
+	 *
+	 * @param {number} fd - the file descriptor
+	 * @param {number} op - the operation to perform
+	 * @returns Zero on success, or a negative errno on failure.
+	 */
 	js_flock: async function js_flock(fd, op) {
 		// return Asyncify.handleAsync(async () => {
 		_js_wasm_trace('js_flock(%d, %d)', fd, op);
-		// TODO: Consider patching Emscripten to relay these constants via cDefs.
+		// Emscripten does not expose these constants to JS, so we hardcode them here.
 		// Based on
 		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
 		const emscripten_LOCK_SH = 1;
@@ -485,10 +532,15 @@ const LibraryForFileLocking = {
 		// });
 	},
 
-	builtin_fd_close__deps: LibraryManager.library.fd_close__deps || [],
 	builtin_fd_close: LibraryManager.library.fd_close,
+	builtin_fd_close__deps: LibraryManager.library.fd_close__deps || [],
 
-	fd_close__deps: ['builtin_fd_close', 'js_wasm_trace'],
+	/**
+	 * Override the builtin fd_close function to release file locks.
+	 *
+	 * @param {number} fd - the file descriptor
+	 * @returns Zero on success, or a negative errno on failure.
+	 */
 	fd_close(fd) {
 		_js_wasm_trace('fd_close(%d)', fd);
 
@@ -528,9 +580,14 @@ const LibraryForFileLocking = {
 			return result;
 		}
 	},
+	fd_close__deps: ['builtin_fd_close', 'js_wasm_trace'],
 
 	// TODO: Document this in PR
-	// TODO: Document this inline
+	/**
+	 * Release all file locks for the current process.
+	 *
+	 * This function should be called at the end of each PHP request.
+	 */
 	js_release_file_locks: async function js_release_file_locks() {
 		_js_wasm_trace('js_release_file_locks()');
 		// TODO: Why make this conditional?
