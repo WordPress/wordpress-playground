@@ -1,4 +1,4 @@
-import type { UniversalPHP } from '@php-wasm/universal';
+import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
@@ -47,7 +47,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 	}
 	const file = await getV2Runner();
 	php.writeFile(
-		'/tmp/blueprints.phar',
+		'/internal/blueprints.phar',
 		new Uint8Array(await file.arrayBuffer())
 	);
 
@@ -58,10 +58,10 @@ export async function runBlueprintV2(options: RunV2Options) {
 	switch (parsedBlueprintDeclaration.type) {
 		case 'inline-file':
 			php.writeFile(
-				'/tmp/blueprint.json',
+				'/internal/blueprint.json',
 				parsedBlueprintDeclaration.contents
 			);
-			blueprintReference = '/tmp/blueprint.json';
+			blueprintReference = '/internal/blueprint.json';
 			break;
 		case 'file-reference':
 			blueprintReference = parsedBlueprintDeclaration.reference;
@@ -111,10 +111,8 @@ export async function runBlueprintV2(options: RunV2Options) {
 		}
 	});
 
-	await php?.writeFile('/tmp/stdout', '');
-	await php?.writeFile('/tmp/stderror', '');
 	await php?.writeFile(
-		'/tmp/run-blueprints.php',
+		'/internal/run-blueprints.php',
 		`<?php
 // Set up the environment to emulate a shell script
 // call.
@@ -170,21 +168,23 @@ class PlaygroundProgressReporter implements ProgressReporter {
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
 
-require( "/tmp/blueprints.phar" );
+require( "/internal/blueprints.phar" );
 `
 	);
 
 	// @TODO: Remove this cast. Add the cli() method to UniversalPHP.
-	return await (php as any).cli([
+	const response = (await (php as any).cli([
 		'php',
-		'/tmp/run-blueprints.php',
+		'/internal/run-blueprints.php',
 		'exec',
 		blueprintReference,
 		'--site-path=/wordpress',
 		`--site-url=${options.siteUrl}`,
 		'--db-engine=sqlite',
 		// '--truncate-new-site-directory=true',
-	]);
+	])) as StreamedPHPResponse;
+
+	return response;
 }
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;

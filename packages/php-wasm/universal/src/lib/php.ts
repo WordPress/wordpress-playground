@@ -915,8 +915,16 @@ export class PHP implements Disposable {
 					executionFn(),
 					new Promise((_, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							logger.error(e);
-							logger.error(e.error);
+							// These very eager log statements pollute the CLI output. Let's
+							// reconsider how to handle them.
+							if (
+								!isExitCode(e.error) ||
+								(e.error.exitCode ??
+									(e as any).error.status) !== 0
+							) {
+								logger.error(e);
+								logger.error(e.error);
+							}
 							if (!isExitCode(e.error)) {
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
