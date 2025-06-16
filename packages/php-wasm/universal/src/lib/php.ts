@@ -915,11 +915,8 @@ export class PHP implements Disposable {
 					executionFn(),
 					new Promise((_, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							// @TODO: Why are we logging things so eagerly? Shouldn't
-							//        the caller handle that? There's so much noise in
-							//        the console.
-							// logger.error(e);
-							// logger.error(e.error);
+							logger.error(e);
+							logger.error(e.error);
 							if (!isExitCode(e.error)) {
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
@@ -973,10 +970,7 @@ export class PHP implements Disposable {
 
 				const rethrown = new Error(message);
 				rethrown.cause = err;
-				// @TODO: Why are we logging things so eagerly? Shouldn't
-				//        the caller handle that? There's so much noise in
-				//        the console.
-				// logger.error(rethrown);
+				logger.error(rethrown);
 				throw rethrown;
 			} finally {
 				if (!streamsClosed) {
