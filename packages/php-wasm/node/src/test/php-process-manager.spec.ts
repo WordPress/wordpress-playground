@@ -3,6 +3,17 @@ import { loadNodeRuntime } from '..';
 import { PHP, PHPProcessManager } from '@php-wasm/universal';
 
 describe('PHPProcessManager', () => {
+	it('should return the primary PHP instance', async () => {
+		const mgr = new PHPProcessManager({
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
+			maxPhpInstances: 4,
+		});
+
+		const php = await mgr.getPrimaryPhp();
+		expect(php).toBeInstanceOf(PHP);
+	});
+
 	it('should spawn new PHP instances', async () => {
 		const mgr = new PHPProcessManager({
 			phpFactory: async () =>
@@ -92,12 +103,17 @@ describe('PHPProcessManager', () => {
 			maxPhpInstances: 5,
 		});
 
+		// A synchronous call. Do not await this promise on purpose.
 		mgr.getPrimaryPhp();
+
 		// No await here, because we want to check if a second,
 		// synchronous call throws an error if issued before
 		// the first call completes asynchronously.
-		await expect(() => mgr.getPrimaryPhp()).rejects.toThrowError(
-			/Requested spawning a primary PHP instance/
-		);
+		try {
+			mgr.getPrimaryPhp();
+		} catch (e) {
+			expect(e).toBeInstanceOf(Error);
+			expect((e as Error).message).toContain('Requested spawning a primary PHP instance');
+		}
 	});
 });

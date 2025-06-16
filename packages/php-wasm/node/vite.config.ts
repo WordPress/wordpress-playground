@@ -51,8 +51,7 @@ export default defineConfig(function () {
 				// forked test process.
 				forks: {
 					execArgv: [
-						'--expose-gc',
-						'--async-stack-traces',
+						'--expose-gc'
 					],
 				},
 			},

@@ -147,7 +147,7 @@ export class PHPProcessManager implements AsyncDisposable {
 		considerPrimary = true,
 	}: {
 		considerPrimary?: boolean;
-	} = {}): Promise<SpawnedPHP> {
+		} = {}): Promise<SpawnedPHP> {
 		/**
 		 * First and foremost, make sure we have the primary PHP instance in place.
 		 * We don't acquire it yet. We just make sure it exists.
@@ -200,10 +200,12 @@ export class PHPProcessManager implements AsyncDisposable {
 	 * for PHP to spawn.
 	 */
 	private spawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
-		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
-			throw new Error(
-				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
-			);
+		if (factoryArgs.isPrimary) {
+			if (this.primaryPhpPromise && !this.primaryPhp) {
+				throw new Error(
+					'Requested spawning a primary PHP instance when another primary instance already started spawning.'
+				);
+			}
 		}
 		const spawned = this.doSpawn(factoryArgs);
 		this.allInstances.push(spawned);
