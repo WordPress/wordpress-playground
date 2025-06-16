@@ -34,24 +34,20 @@ const LibraryForFileLocking = {
 			[2]: 'unlocked',
 		},
 
-		is_nodefs_node(node) {
+		is_path_to_shared_fs(path) {
+			const { node } = FS.lookupPath(path);
+
 			if (node?.isSharedFS) {
 				return true;
 			}
 
 			if (!node?.mount?.opts?.fs?.lookupPath) {
-				// TODO: Confirm this property is just for PROXYFS nodes.
-				// Not a PROXYFS node
 				return false;
 			}
 
 			const vfsPath = NODEFS.realPath(node);
 			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
 			return !!underlyingNode?.isSharedFS;
-		},
-		is_nodefs_path(path) {
-			const { node } = FS.lookupPath(path);
-			return locking.is_nodefs_node(node);
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('{{{cDefs.F_GETFL}}}');
@@ -236,9 +232,9 @@ const LibraryForFileLocking = {
 					return -ERRNO_CODES.EBADF;
 				}
 
-				if (!locking.is_nodefs_path(vfsPath)) {
+				if (!locking.is_path_to_shared_fs(vfsPath)) {
 					_js_wasm_trace(
-						"fcntl(%d, F_GETLK) locking via fcntl() is not implemented for non-NodeFS path '%s'",
+						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
 						fd,
 						vfsPath
 					);
@@ -341,8 +337,8 @@ const LibraryForFileLocking = {
 					return -errno;
 				}
 
-				if (!locking.is_nodefs_path(vfsPath)) {
-					_js_wasm_trace('fcntl(%d, F_SETLK) locking via fcntl() is not implemented for non-NodeFS path %s', fd, vfsPath);
+				if (!locking.is_path_to_shared_fs(vfsPath)) {
+					_js_wasm_trace('fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s', fd, vfsPath);
 
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
@@ -444,8 +440,8 @@ const LibraryForFileLocking = {
 			return -errno;
 		}
 
-		if (!locking.is_nodefs_path(vfsPath)) {
-			_js_wasm_trace('js_flock(%d, %d) is_nodefs_path false', fd, op);
+		if (!locking.is_path_to_shared_fs(vfsPath)) {
+			_js_wasm_trace('js_flock(%d, %d) locking is not implemented for non-NodeFS path %s', fd, op, vfsPath);
 			// If not a NodeFS path, we can't lock it.
 			// Default to succeeding as Emscripten does.
 			return 0;
