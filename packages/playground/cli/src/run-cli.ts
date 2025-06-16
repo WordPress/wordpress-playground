@@ -56,6 +56,7 @@ export interface RunCLIArgs {
 	autoMount?: boolean;
 	followSymlinks?: boolean;
 	experimentalMultiWorker?: number;
+	trace?: boolean;
 }
 
 export interface RunCLIServer {
@@ -296,6 +297,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				  );
 
 			const followSymlinks = args.followSymlinks === true;
+			const trace = args.trace === true;
 			try {
 				logger.log(`Setting up WordPress ${args.wp}`);
 				let wpDetails: any = undefined;
@@ -387,6 +389,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						await sqliteIntegrationPluginZip!.arrayBuffer(),
 					processIdBase: 0,
 					followSymlinks,
+					trace,
 				});
 
 				loadBalancer = new LoadBalancer(playground);
@@ -454,6 +457,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							// TODO: Explain why
 							processIdBase: i * workerProcessIdSpace,
 							followSymlinks,
+							trace,
 						});
 						await additionalPlayground.isReady();
 

@@ -24,6 +24,7 @@ export type PrimaryWorkerBootOptions = {
 	processIdBase: number;
 	dataSqlPath?: string;
 	followSymlinks: boolean;
+	trace: boolean;
 };
 
 function mountResources(php: PHP, mounts: Mount[]) {
@@ -31,6 +32,14 @@ function mountResources(php: PHP, mounts: Mount[]) {
 		php.mkdir(mount.vfsPath);
 		php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
 	}
+}
+
+function tracePhpWasm(processId: number, format: string, ...args: any[]) {
+	console.log(
+		performance.now().toString().padStart(15, '0'),
+		processId.toString().padStart(16, '0'),
+		sprintf(format, ...args)
+	);
 }
 
 export class PlaygroundCliWorker extends PHPWorker {
@@ -62,6 +71,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		processIdBase,
 		dataSqlPath,
 		followSymlinks,
+		trace,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -89,17 +99,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 						emscriptenOptions: {
 							fileLockManager,
 							processId,
-							// TODO: Make this optional
-							trace: (processId, format, ...args) => {
-								console.log(
-									performance
-										.now()
-										.toString()
-										.padStart(15, '0'),
-									processId.toString().padStart(16, '0'),
-									sprintf(format, ...args)
-								);
-							},
+							trace: trace ? tracePhpWasm : undefined,
 						},
 						followSymlinks,
 					});

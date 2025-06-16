@@ -129,6 +129,12 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('trace', {
+			describe:
+				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
+			type: 'boolean',
+			default: false,
+		})
 		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
 		.option('experimentalMultiWorker', {
 			describe:
