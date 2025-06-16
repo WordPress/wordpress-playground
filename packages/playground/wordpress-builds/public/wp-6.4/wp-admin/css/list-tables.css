@@ -1989,7 +1989,7 @@ div.action-links,
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
-		color: transparent;
+		/* color: transparent; */
 	}
 
 	.row-actions span a,
