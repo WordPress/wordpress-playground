@@ -34,6 +34,13 @@ function mountResources(php: PHP, mounts: Mount[]) {
 	}
 }
 
+/**
+ * Print trace messages from PHP-WASM.
+ *
+ * @param {number} processId - The process ID.
+ * @param {string} format - The format string.
+ * @param {...any} args - The arguments.
+ */
 function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	console.log(
 		performance.now().toString().padStart(15, '0'),

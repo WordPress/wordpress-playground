@@ -453,7 +453,6 @@ const LibraryForFileLocking = {
 		// });
 	},
 
-	// TODO: Document this in PR
 	/**
 	 * Perform a flock() operation on the file descriptor.
 	 *
@@ -582,7 +581,6 @@ const LibraryForFileLocking = {
 	},
 	fd_close__deps: ['builtin_fd_close', 'js_wasm_trace'],
 
-	// TODO: Document this in PR
 	/**
 	 * Release all file locks for the current process.
 	 *
