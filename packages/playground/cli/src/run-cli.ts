@@ -8,7 +8,7 @@
  *   UI reasons from what we print for debugging?
  */
 
-import { errorLogPath, logToMemory, logger } from '@php-wasm/logger';
+import { errorLogPath, logger } from '@php-wasm/logger';
 import { loadNodeRuntime } from '@php-wasm/node';
 import type {
 	PHP,
@@ -19,7 +19,7 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { PHPExecutionFailureError, PHPResponse } from '@php-wasm/universal';
-import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { createSpawnHandler } from '@php-wasm/util';
 import type {
 	BlueprintDeclaration,
 	PHPExceptionDetails,

@@ -1,12 +1,11 @@
-import { loadNodeRuntime } from '@php-wasm/node';
-import type { PHPProcessManager } from '@php-wasm/universal';
-import { RecommendedPHPVersion } from '@wp-playground/common';
-import type { PHPRequestHandler } from '@php-wasm/universal';
-import { bootRequestHandler } from '@wp-playground/wordpress';
-import { runBlueprintV2 } from './v2';
-import { rootCertificates } from 'node:tls';
-import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { loadNodeRuntime } from '@php-wasm/node';
+import type { PHPProcessManager, PHPRequestHandler } from '@php-wasm/universal';
+import { createSpawnHandler } from '@php-wasm/util';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { bootRequestHandler } from '@wp-playground/wordpress';
+import { rootCertificates } from 'node:tls';
+import { runBlueprintV2 } from './v2';
 
 describe('V2 runner', () => {
 	let handler: PHPRequestHandler;
