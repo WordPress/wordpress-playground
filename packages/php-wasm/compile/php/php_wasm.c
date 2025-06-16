@@ -41,20 +41,9 @@ extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval,
 extern void js_release_file_locks();
 extern int js_flock(int fd, int op);
 extern pid_t js_getpid();
-
-// TODO: Remove this before merge?
 extern void js_wasm_trace(const char *msg);
-EM_JS(void, js_wasm_trace, (const char *msg), {
-	if (typeof msg !== 'string') {
-		msg = UTF8ToString(msg);
-	}
-	console.log(
-		process.hrtime.bigint().toString(10).padStart(15, "0"),
-		_js_getpid().toString().padStart(16, '0'),
-		msg
-	);
-});
 
+// TODO: Test whether this can be defined purely in JS.
 EMSCRIPTEN_KEEPALIVE pid_t getpid() {
 	return js_getpid();
 }
@@ -63,6 +52,8 @@ EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
 	return js_flock(fd, op);
 }
 
+// TODO: Document this inline
+// TODO: Document this in PR
 EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -71,10 +62,6 @@ EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 	va_end(args);
 
 	char traceBuf[1024];
-	snprintf(traceBuf, sizeof(traceBuf), "wasm_trace errno before %d", errno);
-	js_wasm_trace(traceBuf);
-	js_wasm_trace(buf);
-	snprintf(traceBuf, sizeof(traceBuf), "wasm_trace errno after %d", errno);
 	js_wasm_trace(traceBuf);
 }
 

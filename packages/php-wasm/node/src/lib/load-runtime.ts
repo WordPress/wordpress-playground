@@ -27,6 +27,15 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 
 		// TODO: Document this
 		fileLockManager?: RemoteAPI<FileLockManager>;
+
+		/**
+		 * An optional function to collect trace messages.
+		 *
+		 * @param processId - The process ID of the PHP runtime.
+		 * @param format - A printf-style format string.
+		 * @param args - Arguments to the format string.
+		 */
+		trace?: (processId: number, format: string, ...args: any[]) => void;
 	};
 };
 

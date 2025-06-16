@@ -7,10 +7,15 @@
  */
 'use strict';
 
-// TODO: Rename this file to be less specific and for file locking in general
 const LibraryForFileLocking = {
 	$locking: {
-		// TODO: Reconsider and/or comment
+		/*
+		 * This is a set of possibly locked file descriptors.
+		 *
+		 * When a file descriptor is closed, we need to release any associated held by this process.
+		 * Instead of trying remember and forget file descriptors as they are locked and unlocked,
+		 * we just track file descriptors we have locked before and try an unlock when they are closed.
+		 */
 		maybeLockedFds: new Set(),
 
 		// From:
@@ -46,14 +51,7 @@ const LibraryForFileLocking = {
 		},
 		is_nodefs_path(path) {
 			const { node } = FS.lookupPath(path);
-			const answer = locking.is_nodefs_node(node);
-			// TODO: Remove this after testing.
-			if (!answer && path.includes('.ht.sqlite')) {
-				js_wasm_trace(
-					`is_nodefs_path ${path} is_nodefs_node ${answer}`
-				);
-			}
-			return answer;
+			return locking.is_nodefs_node(node);
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('{{{cDefs.F_GETFL}}}');
@@ -228,28 +226,28 @@ const LibraryForFileLocking = {
 		const pid = PHPLoader.processId;
 		switch (cmd) {
 			case emscripten_F_GETLK: {
-				js_wasm_trace(`fcntl F_GETLK ${fd}`);
+				_js_wasm_trace('fcntl(%d, F_GETLK)', fd);
 				let vfsPath;
 				let errno;
 
 				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 				if (errno !== 0) {
-					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
-					);
-					return -errno;
+					_js_wasm_trace('fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d', fd, vfsPath, errno);
+					return -ERRNO_CODES.EBADF;
 				}
 
 				if (!locking.is_nodefs_path(vfsPath)) {
+					_js_wasm_trace(
+						"fcntl(%d, F_GETLK) locking via fcntl() is not implemented for non-NodeFS path '%s'",
+						fd,
+						vfsPath
+					);
+
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
-					logger.warn(
-						`locking via fcntl() is not implemented for non-NodeFS path '${vfsPath}'`
-					);
-					// TODO: Set struct to UNLCK
-					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${vfsPath} is_nodefs_path false`
-					);
+					update_flock_struct(flockStructAddr, {
+						l_type: F_UNLCK,
+					});
 					return 0;
 				}
 
@@ -262,10 +260,8 @@ const LibraryForFileLocking = {
 
 				errno = locking.check_lock_params(fd, flockStruct.l_type);
 				if (errno !== 0) {
-					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
-					);
-					return -errno;
+					_js_wasm_trace('fcntl(%d, F_GETLK) %s check_lock_params errno %d', fd, vfsPath, errno);
+					return -ERRNO_CODES.EINVAL;
 				}
 
 				const requestedLockType =
@@ -277,10 +273,8 @@ const LibraryForFileLocking = {
 					flockStruct.l_start
 				);
 				if (errno !== 0) {
-					js_wasm_trace(
-						`fcntl F_GETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
-					);
-					return -errno;
+					_js_wasm_trace('fcntl(%d, F_GETLK) %s get_base_address errno %d', fd, vfsPath, errno);
+					return -ERRNO_CODES.EINVAL;
 				}
 
 				const nativeFilePath =
@@ -297,23 +291,29 @@ const LibraryForFileLocking = {
 					})
 					.then((conflictingLock) => {
 						if (conflictingLock === undefined) {
+							_js_wasm_trace(
+								'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=unlocked start=0x%x end=0x%x',
+								fd,
+								vfsPath,
+								absoluteStartOffset,
+								absoluteStartOffset + flockStruct.l_len
+							);
+
 							update_flock_struct(flockStructAddr, {
 								l_type: F_UNLCK,
 							});
-							js_wasm_trace(
-								`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock type=unlocked start=0x${absoluteStartOffset
-									.toString(16)
-									.padStart(16, '0')} end=0x${(
-									absoluteStartOffset + flockStruct.l_len
-								)
-									.toString(16)
-									.padStart(
-										16,
-										'0'
-									)} conflictingLock undefined`
-							);
 							return 0;
 						}
+
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=%s start=0x%x end=0x%x conflictingLock %d',
+							fd,
+							vfsPath,
+							conflictingLock.type,
+							conflictingLock.start,
+							conflictingLock.end,
+							conflictingLock.pid
+						);
 
 						const fcntlLockState =
 							locking.lockStateToFcntl[conflictingLock.type];
@@ -324,83 +324,33 @@ const LibraryForFileLocking = {
 							l_len: conflictingLock.end - conflictingLock.start,
 							l_pid: conflictingLock.pid,
 						});
-						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock type=${
-								conflictingLock.type
-							} start=0x${conflictingLock.start
-								.toString(16)
-								.padStart(16, '0')} end=0x${conflictingLock.end
-								.toString(16)
-								.padStart(16, '0')} conflictingLock ${
-								conflictingLock.pid
-							}`
-						);
 						return 0;
 					})
 					.catch((e) => {
-						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock error ${JSON.stringify(
-								e,
-								(key, value) =>
-									typeof value === 'bigint'
-										? `0x${value
-												.toString(16)
-												.padStart(16, '0')}`
-										: value
-							)}`
-						);
+						_js_wasm_trace('fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s', fd, vfsPath, e);
 						return -ERRNO_CODES.EINVAL;
 					});
 			}
 			case emscripten_F_SETLK: {
-				js_wasm_trace(`fcntl F_SETLK ${fd}`);
+				_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
 				let vfsPath;
 				let errno;
 				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} get_vfs_path_from_fd ${vfsPath} ${errno}`
-				);
 				if (errno !== 0) {
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
-					);
+					_js_wasm_trace('fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d', fd, vfsPath, errno);
 					return -errno;
 				}
 
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} before is_nodefs_path ${locking.is_nodefs_path(
-						vfsPath
-					)}`
-				);
 				if (!locking.is_nodefs_path(vfsPath)) {
+					_js_wasm_trace('fcntl(%d, F_SETLK) locking via fcntl() is not implemented for non-NodeFS path %s', fd, vfsPath);
+
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
-					logger.warn(
-						`locking via fcntl() is not implemented for non-NodeFS path '${vfsPath}'`
-					);
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${vfsPath} is_nodefs_path false`
-					);
 					return 0;
 				}
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} after is_nodefs_path ${locking.is_nodefs_path(
-						vfsPath
-					)}`
-				);
 
 				var flockStructAddr = syscallGetVarargP();
 				const flockStruct = read_flock_struct(flockStructAddr);
-
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} after readFlockStruct ${JSON.stringify(
-						flockStruct,
-						(key, value) =>
-							typeof value === 'bigint'
-								? `0x${value.toString(16).padStart(16, '0')}`
-								: value
-					)}`
-				);
 
 				let absoluteStartOffset;
 				[absoluteStartOffset, errno] = get_base_address(
@@ -409,35 +359,23 @@ const LibraryForFileLocking = {
 					flockStruct.l_start
 				);
 				if (errno !== 0) {
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
-					);
+					_js_wasm_trace('fcntl(%d, F_SETLK) %s get_base_address errno %d', fd, vfsPath, errno);
 					return -errno;
 				}
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} after get_base_address ${absoluteStartOffset}`
-				);
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+					_js_wasm_trace('fcntl(%d, F_SETLK) %s invalid lock type %d', fd, vfsPath, flockStruct.l_type);
 					return -ERRNO_CODES.EINVAL;
 				}
 
 				errno = locking.check_lock_params(fd, flockStruct.l_type);
 				if (errno !== 0) {
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
-					);
+					_js_wasm_trace('fcntl(%d, F_SETLK) %s check_lock_params errno %d', fd, vfsPath, errno);
 					return -errno;
 				}
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} after check_lock_params ${errno}`
-				);
 
-				// TODO: Explain why
 				locking.maybeLockedFds.add(fd);
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} after maybeLockedFds.add ${fd}`
-				);
+
 				const requestedLockType =
 					locking.fcntlToLockState[flockStruct.l_type];
 				const rangeLock = {
@@ -446,56 +384,29 @@ const LibraryForFileLocking = {
 					end: absoluteStartOffset + flockStruct.l_len,
 					pid,
 				};
-				js_wasm_trace(
-					`fcntl F_SETLK ${fd} ${vfsPath} before lockFileByteRange ${JSON.stringify(
-						rangeLock,
-						(key, value) =>
-							typeof value === 'bigint'
-								? `0x${value.toString(16).padStart(16, '0')}`
-								: value
-					)}`
-				);
+
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
+				_js_wasm_trace('fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s', fd, vfsPath, rangeLock);
 				return PHPLoader.fileLockManager
 					.lockFileByteRange(nativeFilePath, rangeLock)
 					.then((succeeded) => {
-						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${vfsPath} lockFileByteRange type=${requestedLockType} start=0x${absoluteStartOffset
-								.toString(16)
-								.padStart(16, '0')} end=0x${(
-								absoluteStartOffset + flockStruct.l_len
-							)
-								.toString(16)
-								.padStart(16, '0')} ${succeeded}`
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
+							fd,
+							vfsPath,
+							succeeded,
+							rangeLock,
 						);
-						if (succeeded) {
-							return 0;
-						} else {
-							return -ERRNO_CODES.EAGAIN;
-						}
+						return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
 					})
 					.catch((e) => {
-						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${vfsPath} lockFileByteRange error ${JSON.stringify(
-								e,
-								(key, value) =>
-									typeof value === 'bigint'
-										? `0x${value
-												.toString(16)
-												.padStart(16, '0')}`
-										: value
-							)}`
-						);
+						_js_wasm_trace('fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s', fd, vfsPath, e, rangeLock);
 						return -ERRNO_CODES.EINVAL;
 					});
 			}
-			// TODO: Implement waiting for lock
+			// @TODO: Implement waiting for lock
 			case emscripten_F_SETLKW: {
-				// NOTE: I don't think this is used by Playground.
-				// Let's throw an error to discover if it is used.
-				js_wasm_trace('F_SETLKW is not implemented');
-				// TODO: Should we use a different error code?
 				// Respond with EDEADLOCK to indicate that the lock is not available via blocking form
 				return -ERRNO_CODES.EDEADLOCK;
 			}
@@ -505,42 +416,11 @@ const LibraryForFileLocking = {
 		// });
 	},
 
-	js_release_file_locks: async function js_release_file_locks() {
-		// return Asyncify.handleAsync(async () => {
-		js_wasm_trace(`js_release_file_locks ${PHPLoader.processId}`);
-		// TODO: Why make this conditional?
-		if (PHPLoader.fileLockManager) {
-			const pid = PHPLoader.processId;
-			return await PHPLoader.fileLockManager
-				.releaseLocksForProcess(pid)
-				.then((result) => {
-					js_wasm_trace(`js_release_file_locks ${pid} ${result}`);
-					return result;
-				})
-				.catch((e) => {
-					// TODO: What to actually do for an error here? Can we crash?
-					js_wasm_trace(
-						`js_release_file_locks ${pid} error ${JSON.stringify(
-							e,
-							(key, value) =>
-								typeof value === 'bigint'
-									? `0x${value
-											.toString(16)
-											.padStart(16, '0')}`
-									: value
-						)}`
-					);
-					return -1;
-				});
-		}
-		// });
-	},
-
 	// TODO: Try to eliminate the need to declare flock() itself in php_wasm.c
 	// and find a way to declare it here in a way that overrides Emscripten's libc flock()
 	js_flock: async function js_flock(fd, op) {
 		// return Asyncify.handleAsync(async () => {
-		js_wasm_trace(`js_flock ${fd} ${op}`);
+		_js_wasm_trace('js_flock(%d, %d)', fd, op);
 		// TODO: Consider patching Emscripten to relay these constants via cDefs.
 		// Based on
 		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
@@ -559,39 +439,27 @@ const LibraryForFileLocking = {
 		let errno;
 
 		[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-		js_wasm_trace(
-			`js_flock ${fd} ${op} get_vfs_path_from_fd ${vfsPath} ${errno}`
-		);
 		if (errno !== 0) {
+			_js_wasm_trace('js_flock(%d, %d) get_vfs_path_from_fd errno %d', fd, op, vfsPath, errno);
 			return -errno;
 		}
 
 		if (!locking.is_nodefs_path(vfsPath)) {
+			_js_wasm_trace('js_flock(%d, %d) is_nodefs_path false', fd, op);
 			// If not a NodeFS path, we can't lock it.
 			// Default to succeeding as Emscripten does.
-			logger.warn(
-				`flock() is not implemented for non-NodeFS path '${vfsPath}'`
-			);
-			js_wasm_trace(
-				`js_flock ${fd} ${op} is_nodefs_path false`
-			);
-			// CAUTION: This implies success, but no lock was acquired.
 			return 0;
 		}
 
 		errno = locking.check_lock_params(fd, op);
 		if (errno !== 0) {
-			js_wasm_trace(
-				`js_flock ${fd} ${op} check_lock_params errno ${errno}`
-			);
+			_js_wasm_trace('js_flock(%d, %d) check_lock_params errno %d', fd, op, errno);
 			return -errno;
 		}
 
-		// TODO: Consider supporting blocking mode of flock()
+		// @TODO: Consider supporting blocking mode of flock()
 		if (op & (emscripten_LOCK_NB === 0)) {
-			// TODO: Fix this logging
-			//logger.error('blocking mode of flock() is not implemented');
-			js_wasm_trace('blocking mode of flock() is not implemented');
+			_js_wasm_trace('js_flock(%d, %d) blocking mode of flock() is not implemented', fd, op);
 			// TODO: Should we use a different error code?
 			return -ERRNO_CODES.EDEADLOCK;
 		}
@@ -601,18 +469,11 @@ const LibraryForFileLocking = {
 
 		const lockOpType = flockToLockOpType[maskedOp];
 		if (lockOpType === undefined) {
-			js_wasm_trace(
-				`js_flock ${fd} ${op} invalid flock() operation: 0x${lockOpType.toString(
-					16
-				)}`
-			);
+			_js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
 			return -ERRNO_CODES.EINVAL;
 		}
 
 		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
-		js_wasm_trace(
-			`js_flock ${fd} ${op} ${vfsPath} get_native_path_from_vfs_path ${nativeFilePath}`
-		);
 		const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
 			nativeFilePath,
 			{
@@ -621,9 +482,7 @@ const LibraryForFileLocking = {
 				fd,
 			}
 		);
-		js_wasm_trace(
-			`js_flock ${fd} ${op} ${vfsPath} lockWholeFile ${obtainedLock}`
-		);
+		_js_wasm_trace('js_flock(%d, %d) lockWholeFile %s returned %d', fd, op, vfsPath, obtainedLock);
 		return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
 		// });
 	},
@@ -633,70 +492,65 @@ const LibraryForFileLocking = {
 		fn: LibraryManager.library.fd_close,
 	},
 
-	fd_close__deps: ['$default_fd_close'],
+	fd_close__deps: ['$default_fd_close', 'js_wasm_trace'],
 	fd_close(fd) {
-		// return Asyncify.handleAsync(async () => {
-		try {
-			// js_wasm_trace(`fd_close ${fd}`);
-			const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-			const shouldLog =
-				pathResolutionErrno === 0 && vfsPath.includes('.ht.sqlite');
-			// shouldLog &&
-			// js_wasm_trace(
-			// 	`fd_close ${fd} get_vfs_path_from_fd ${vfsPath} ${pathResolutionErrno}`
-			// );
-			const result = default_fd_close.fn(fd);
-			shouldLog &&
-				js_wasm_trace(
-					`fd_close ${fd} ${vfsPath} finished default_fd_close ${result}`
-				);
-			if (locking.maybeLockedFds.has(fd)) {
-				shouldLog &&
-					js_wasm_trace(
-						`fd_close ${fd} ${vfsPath} calling default_fd_close`
-					);
-				const nativeFilePath =
-					locking.get_native_path_from_vfs_path(vfsPath);
-				// TODO: Explain why we are not awaiting. Basically, there are big problems when trying to override with an async fd_close.
-				// We do not fully understand, but it seems to have to do with __wasi_fd_close.
-				return PHPLoader.fileLockManager
-					.releaseLocksForProcessFd(
-						PHPLoader.processId,
-						fd,
-						nativeFilePath
-					)
-					.then((result) => {
-						shouldLog && js_wasm_trace(`fd_close ${fd} ${result}`);
-						return 0;
-					})
-					.finally(() => {
-						shouldLog &&
-							js_wasm_trace(`fd_close ${fd} ${vfsPath} finally`);
-						locking.maybeLockedFds.delete(fd);
-					});
-			} else {
-				return 0;
-			}
-		} catch (e) {
-			shouldLog &&
-				js_wasm_trace(
-					`fd_close ${fd} error ${JSON.stringify(e, (key, value) =>
-						typeof value === 'bigint'
-							? `0x${value.toString(16).padStart(16, '0')}`
-							: value
-					)}`
-				);
-			// TODO: Should we fail if close failed to unlock?
-			return 0;
+		_js_wasm_trace('fd_close(%d)', fd);
+
+		const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
+		if (pathResolutionErrno !== 0) {
+			_js_wasm_trace('fd_close(%d) get_vfs_path_from_fd error %d', fd, pathResolutionErrno);
+			return -ERRNO_CODES.EBADF;
 		}
-		// });
+
+		const result = default_fd_close.fn(fd);
+		// return Asyncify.handleAsync(async () => {
+		if (result === 0 && locking.maybeLockedFds.has(fd)) {
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
+
+			return PHPLoader.fileLockManager
+				.releaseLocksForProcessFd(
+					PHPLoader.processId,
+					fd,
+					nativeFilePath
+				)
+				.then(() => {
+					_js_wasm_trace('fd_close(%d) release locks success', fd);
+				})
+				.catch((e) => {
+					_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
+				})
+				.then(() => {
+					_js_wasm_trace('fd_close(%d) result %d', fd, result);
+					return result;
+				})
+				.finally(() => {
+					locking.maybeLockedFds.delete(fd);
+				});
+		} else {
+			_js_wasm_trace('fd_close(%d) result %d', fd, result);
+			return result;
+		}
 	},
 
-	// TODO: Document "real" PID in PR description
-	// Provide "real" PID to help with logging when debugging multi-worker issues
-	js_getpid() {
-		return PHPLoader.processId;
+	// TODO: Document this in PR
+	// TODO: Document this inline
+	js_release_file_locks: async function js_release_file_locks() {
+		_js_wasm_trace('js_release_file_locks()');
+		// TODO: Why make this conditional?
+		if (PHPLoader.fileLockManager) {
+			const pid = PHPLoader.processId;
+			return await PHPLoader.fileLockManager
+				.releaseLocksForProcess(pid)
+				.then(() => {
+					_js_wasm_trace('js_release_file_locks succeeded');
+				})
+				.catch((e) => {
+					logger.error('js_release_file_locks error', e);
+					_js_wasm_trace('js_release_file_locks error %s', e);
+				});
+		}
+		// });
 	},
 };
 

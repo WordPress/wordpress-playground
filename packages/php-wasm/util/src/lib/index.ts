@@ -14,3 +14,5 @@ export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 
 export * from './php-vars';
+
+export * from './sprintf';

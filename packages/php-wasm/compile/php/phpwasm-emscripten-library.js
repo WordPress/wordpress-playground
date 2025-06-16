@@ -638,7 +638,23 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
+
+	// TODO: Document "real" PID in PR description
+	// Provide "real" PID to help with logging when debugging multi-worker issues
+	js_getpid() {
+		return PHPLoader.processId;
+	},
+
+	// TODO: Document this inline
+	// TODO: Document this in PR
+	js_wasm_trace: function (format, ...args) {
+		if (PHPLoader.trace instanceof Function) {
+			PHPLoader.trace(_js_getpid(), format, ...args);
+		}
+	},
+	js_wasm_trace__deps: ['js_getpid'],
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');
+autoAddDeps(LibraryExample, 'js_wasm_trace');
 mergeInto(LibraryManager.library, LibraryExample);

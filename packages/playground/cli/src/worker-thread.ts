@@ -3,9 +3,9 @@ import { PHPWorker, consumeAPI, exposeAPI } from '@php-wasm/universal';
 import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { zipDirectory } from '@wp-playground/common';
 import { parentPort } from 'worker_threads';
 import { bootWordPress } from '@wp-playground/wordpress';
+import { sprintf } from '@php-wasm/util';
 import { rootCertificates } from 'tls';
 
 export interface Mount {
@@ -89,6 +89,17 @@ export class PlaygroundCliWorker extends PHPWorker {
 						emscriptenOptions: {
 							fileLockManager,
 							processId,
+							// TODO: Make this optional
+							trace: (processId, format, ...args) => {
+								console.log(
+									performance
+										.now()
+										.toString()
+										.padStart(15, '0'),
+									processId.toString().padStart(16, '0'),
+									sprintf(format, ...args)
+								);
+							},
 						},
 						followSymlinks,
 					});
