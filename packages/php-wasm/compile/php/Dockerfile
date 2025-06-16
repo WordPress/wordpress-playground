@@ -1880,6 +1880,7 @@ RUN set -euxo pipefail; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \

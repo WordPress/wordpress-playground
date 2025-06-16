@@ -1583,8 +1583,10 @@ void wasm_sapi_request_shutdown()
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
 
+#ifdef PHP_WASM_FILE_LOCKING_SUPPORT
 	// Release any locks still held by this process
 	js_release_file_locks();
+#endif
 
 	// Prepare a fresh request context
 	wasm_init_server_context();
@@ -1904,37 +1906,3 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 	}
 	return eof_offset;
 }
-
-// TODO: Remove this if it is no longer needed
-// // TODO: EXPLAIN WHY THIS SHIM FUNCTION
-// EM_ASYNC_JS(int, call_js__syscall_fcntl64, (int fd, int cmd, va_list args), {
-//   const result = await _js__syscall_fcntl64(fd, cmd, args);
-//   return result;
-// });
-
-// extern int js_syscall_fcntl64(int fd, int cmd, void* args);
-// int __syscall_fcntl64(int fd, int cmd, ...) {
-// 	va_list args;
-// 	va_start(args, cmd);
-// 	wasm_trace("__syscall_fcntl64: errno before %d", errno);
-// 	int result = call_js__syscall_fcntl64(fd, cmd, args);
-// 	wasm_trace("__syscall_fcntl64: errno after %d", errno);
-// 	va_end(args);
-// 	wasm_trace("__syscall_fcntl64: errno after va_end %d", errno);
-// 	return result;
-// }
-
-// extern int js_fd_close(int fd);
-// EMSCRIPTEN_KEEPALIVE int fd_close(int fd) {
-// 	wasm_trace("fd_close: fd %d", fd);
-// 	return js_fd_close(fd);
-// }
-
-// extern int fd_close(int fd);
-// // TODO: Can we include the file emscripten/system/include/wasi/api.h here?
-// typedef uint32_t __wasi_fd_t;
-// typedef uint16_t __wasi_errno_t;
-// EMSCRIPTEN_KEEPALIVE __wasi_errno_t __wasi_fd_close(__wasi_fd_t fd) {
-// 	wasm_trace("__wasi_fd_close: fd %d", fd);
-// 	return fd_close(fd);
-// }
