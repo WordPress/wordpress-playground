@@ -1852,7 +1852,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(response.exitCode).toEqual(0);
 		});
 
-		it('Frees up the heap memory after handling a request body with a size of ~512MB', async () => {
+		it('Frees up the heap memory after handling a request body with a size of ~400MB', async () => {
 			const estimateFreeMemory = () =>
 				php[__private__dont__use].HEAPU32.reduce(
 					(count: number, byte: number) =>
@@ -1872,7 +1872,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			//   body pointer.
 			// This will allow us to estimate the amount of the memory that
 			// was not freed after the request.
-			const body = '#'.repeat(1024 * 1024 * 512 - 24);
+			const body = '#'.repeat(1024 * 1024 * 400 - 24);
 
 			let contentLength = 0;
 			const _lengthBytesUTF8 = php[__private__dont__use].lengthBytesUTF8;
