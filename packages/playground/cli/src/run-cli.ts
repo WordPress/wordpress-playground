@@ -60,6 +60,18 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: boolean;
 	followSymlinks?: boolean;
+	// Blueprint CLI options
+	sitePath?: string;
+	executionContext?: string;
+	mode?: string;
+	dbEngine?: string;
+	dbHost?: string;
+	dbUser?: string;
+	dbPass?: string;
+	dbName?: string;
+	dbPath?: string;
+	truncateNewSiteDirectory?: boolean;
+	allow?: string;
 }
 
 export interface RunCLIServer {
@@ -213,6 +225,54 @@ export async function parseOptionsAndRunCLI() {
 			type: 'boolean',
 			default: false,
 		})
+		// Blueprint CLI options
+		.option('sitePath', {
+			describe: 'Target directory with WordPress install context',
+			type: 'string',
+		})
+		.option('executionContext', {
+			describe: 'Source directory with Blueprint context files',
+			type: 'string',
+		})
+		.option('mode', {
+			describe: 'Execution mode',
+			type: 'string',
+			choices: ['create-new-site', 'apply'],
+		})
+		.option('dbEngine', {
+			describe: 'Database engine',
+			type: 'string',
+			choices: ['mysql', 'sqlite'],
+		})
+		.option('dbHost', {
+			describe: 'MySQL host',
+			type: 'string',
+		})
+		.option('dbUser', {
+			describe: 'MySQL user',
+			type: 'string',
+		})
+		.option('dbPass', {
+			describe: 'MySQL password',
+			type: 'string',
+		})
+		.option('dbName', {
+			describe: 'MySQL database',
+			type: 'string',
+		})
+		.option('dbPath', {
+			describe: 'SQLite file path',
+			type: 'string',
+		})
+		.option('truncateNewSiteDirectory', {
+			describe: 'Delete target directory if it exists before execution',
+			type: 'boolean',
+			default: false,
+		})
+		.option('allow', {
+			describe: 'Allowed permissions (comma-separated)',
+			type: 'string',
+		})
 		.showHelpOnFail(false);
 
 	yargsObject.wrap(yargsObject.terminalWidth());
@@ -236,6 +296,50 @@ export async function parseOptionsAndRunCLI() {
 	} as RunCLIArgs;
 
 	return await runCLI(cliArgs);
+}
+
+function buildBlueprintCliArgs(args: RunCLIArgs): string[] {
+	const cliArgs: string[] = [];
+
+	if (args.sitePath) {
+		cliArgs.push(`--site-path=${args.sitePath}`);
+	}
+	if (args.executionContext) {
+		cliArgs.push(`--execution-context=${args.executionContext}`);
+	}
+	if (args.mode) {
+		cliArgs.push(`--mode=${args.mode}`);
+	}
+	if (args.dbEngine) {
+		cliArgs.push(`--db-engine=${args.dbEngine}`);
+	}
+	if (args.dbHost) {
+		cliArgs.push(`--db-host=${args.dbHost}`);
+	}
+	if (args.dbUser) {
+		cliArgs.push(`--db-user=${args.dbUser}`);
+	}
+	if (args.dbPass) {
+		cliArgs.push(`--db-pass=${args.dbPass}`);
+	}
+	if (args.dbName) {
+		cliArgs.push(`--db-name=${args.dbName}`);
+	}
+	if (args.dbPath) {
+		cliArgs.push(`--db-path=${args.dbPath}`);
+	}
+	if (args.truncateNewSiteDirectory) {
+		cliArgs.push('--truncate-new-site-directory');
+	}
+	if (args.allow) {
+		cliArgs.push(`--allow=${args.allow}`);
+	}
+	// Map blueprintMayReadAdjacentFiles to allow permission
+	if (args.blueprintMayReadAdjacentFiles) {
+		cliArgs.push('--allow=bundled');
+	}
+
+	return cliArgs;
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
@@ -314,6 +418,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						blueprint: args.blueprint,
 						siteUrl: absoluteUrl,
 						documentRoot: '/wordpress',
+						cliArgs: buildBlueprintCliArgs(args),
 						hooks: {
 							beforeWordPressFiles: async (php) => {
 								if (args.mountBeforeInstall) {

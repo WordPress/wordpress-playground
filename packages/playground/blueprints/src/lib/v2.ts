@@ -10,6 +10,7 @@ interface RunV2Options {
 	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
 	siteUrl: string;
 	documentRoot: string;
+	cliArgs?: string[];
 	hooks?: {
 		afterBlueprintTargetResolved?: (
 			php: UniversalPHP
@@ -173,16 +174,52 @@ require( "/tmp/blueprints.phar" );
 	);
 
 	// @TODO: Remove this cast. Add the cli() method to UniversalPHP.
-	const response = (await (php as any).cli([
+	const defaultArgs = [
+		'--site-path=/wordpress',
+		`--site-url=${options.siteUrl}`,
+		'--db-engine=sqlite',
+	];
+
+	// Allow CLI args to override defaults
+	const cliArgs = options.cliArgs || [];
+	const finalArgs = [...defaultArgs];
+
+	// Override defaults with CLI args
+	for (const arg of cliArgs) {
+		if (arg.startsWith('--site-path=')) {
+			const index = finalArgs.findIndex((a) =>
+				a.startsWith('--site-path=')
+			);
+			if (index !== -1) finalArgs[index] = arg;
+			else finalArgs.push(arg);
+		} else if (arg.startsWith('--site-url=')) {
+			const index = finalArgs.findIndex((a) =>
+				a.startsWith('--site-url=')
+			);
+			if (index !== -1) finalArgs[index] = arg;
+			else finalArgs.push(arg);
+		} else if (arg.startsWith('--db-engine=')) {
+			const index = finalArgs.findIndex((a) =>
+				a.startsWith('--db-engine=')
+			);
+			if (index !== -1) finalArgs[index] = arg;
+			else finalArgs.push(arg);
+		} else {
+			finalArgs.push(arg);
+		}
+	}
+
+	const cliCommand = [
 		'php',
 		'/tmp/run-blueprints.php',
 		'exec',
 		blueprintReference,
-		'--site-path=/wordpress',
-		`--site-url=${options.siteUrl}`,
-		'--db-engine=sqlite',
-		// '--truncate-new-site-directory=true',
-	])) as StreamedPHPResponse;
+		...finalArgs,
+	];
+	console.log(cliCommand);
+	const response = (await (php as any).cli(
+		cliCommand
+	)) as StreamedPHPResponse;
 
 	return response;
 }
