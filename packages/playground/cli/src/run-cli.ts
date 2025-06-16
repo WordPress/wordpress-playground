@@ -511,7 +511,9 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			processApi.flushStdin();
 			processApi.exit(0);
 		} else if (args[0] === 'php') {
-			const { php, reap } = await processManager.acquirePHPInstance();
+			const { php, reap } = await processManager.acquirePHPInstance({
+				considerPrimary: false,
+			});
 
 			php.chdir(options.cwd as string);
 			try {

@@ -47,7 +47,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 	}
 	const file = await getV2Runner();
 	php.writeFile(
-		'/internal/blueprints.phar',
+		'/tmp/blueprints.phar',
 		new Uint8Array(await file.arrayBuffer())
 	);
 
@@ -58,10 +58,10 @@ export async function runBlueprintV2(options: RunV2Options) {
 	switch (parsedBlueprintDeclaration.type) {
 		case 'inline-file':
 			php.writeFile(
-				'/internal/blueprint.json',
+				'/tmp/blueprint.json',
 				parsedBlueprintDeclaration.contents
 			);
-			blueprintReference = '/internal/blueprint.json';
+			blueprintReference = '/tmp/blueprint.json';
 			break;
 		case 'file-reference':
 			blueprintReference = parsedBlueprintDeclaration.reference;
@@ -112,7 +112,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 	});
 
 	await php?.writeFile(
-		'/internal/run-blueprints.php',
+		'/tmp/run-blueprints.php',
 		`<?php
 // Set up the environment to emulate a shell script
 // call.
@@ -168,14 +168,14 @@ class PlaygroundProgressReporter implements ProgressReporter {
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
 
-require( "/internal/blueprints.phar" );
+require( "/tmp/blueprints.phar" );
 `
 	);
 
 	// @TODO: Remove this cast. Add the cli() method to UniversalPHP.
 	const response = (await (php as any).cli([
 		'php',
-		'/internal/run-blueprints.php',
+		'/tmp/run-blueprints.php',
 		'exec',
 		blueprintReference,
 		'--site-path=/wordpress',
