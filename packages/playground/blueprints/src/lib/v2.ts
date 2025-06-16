@@ -3,6 +3,7 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import type { BlueprintDeclaration } from './blueprint';
+import { logger } from '@php-wasm/logger';
 
 interface RunV2Options {
 	php: UniversalPHP;
@@ -106,7 +107,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 					break;
 			}
 		} catch (e) {
-			console.warn('Failed to parse message as JSON:', message, e);
+			logger.warn('Failed to parse message as JSON:', message, e);
 		}
 	});
 
@@ -117,7 +118,6 @@ export async function runBlueprintV2(options: RunV2Options) {
 		`<?php
 // Set up the environment to emulate a shell script
 // call.
-
 function playground_on_blueprint_target_resolved() {
 	return new PlaygroundProgressReporter();
 }
@@ -134,7 +134,7 @@ class PlaygroundProgressReporter implements ProgressReporter {
         ]);
     }
 
-    public function reportError(string $message, ?\Throwable $exception = null): void {
+    public function reportError(string $message, ?Throwable $exception = null): void {
         $errorData = [
             'type' => 'blueprint.error',
             'message' => $message
@@ -174,7 +174,8 @@ require( "/tmp/blueprints.phar" );
 `
 	);
 
-	return await php.cli([
+	// @TODO: Remove this cast. Add the cli() method to UniversalPHP.
+	return await (php as any).cli([
 		'php',
 		'/tmp/run-blueprints.php',
 		'exec',
@@ -222,7 +223,7 @@ export function parseBlueprintDeclaration(
 			type: 'inline-file',
 			contents: source,
 		};
-	} catch (e) {
+	} catch {
 		return {
 			type: 'file-reference',
 			reference: source,

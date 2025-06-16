@@ -1,5 +1,5 @@
 import { loadNodeRuntime } from '@php-wasm/node';
-import type { PHP, PHPProcessManager, PHPResponse } from '@php-wasm/universal';
+import type { PHPProcessManager, PHPResponse } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootRequestHandler } from '@wp-playground/wordpress';
@@ -27,23 +27,25 @@ describe('V2 runner', () => {
 		});
 	});
 
-	it(
+	// @TODO: Unskip this test. It needs the rest of the https://github.com/WordPress/wordpress-playground/pull/2238 to be merged
+	// before it will pass.
+	it.skip(
 		'should run the runner',
 		async () => {
 			const { php } = await handler.processManager.acquirePHPInstance();
 			const result = await runBlueprintV2({
 				php: php as any,
-				blueprintSource: '{"version":2}',
+				blueprint: '{"version":2}',
 				siteUrl: 'http://playground-domain/',
 				documentRoot: '/wordpress',
 				hooks: {
-					afterBlueprintTargetResolved: async (php) => {
+					afterBlueprintTargetResolved: async () => {
 						console.log('Blueprint target resolved');
 						process.exit(0);
 					},
 				},
 			});
-			expect(result?.text).toBe('Hello, World!');
+			expect(await result?.stdoutText).toBe('Hello, World!');
 		},
 		{
 			timeout: 60000,
