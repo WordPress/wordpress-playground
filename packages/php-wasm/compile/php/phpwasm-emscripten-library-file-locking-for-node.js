@@ -54,7 +54,7 @@ const LibraryForFileLocking = {
 			const emscripten_O_ACCMODE = Number('{{{ cDefs.O_ACCMODE}}}');
 
 			return (
-				default_fcntl64.fn(fd, emscripten_F_GETFL) &
+				_builtin_fcntl64(fd, emscripten_F_GETFL) &
 				emscripten_O_ACCMODE
 			);
 		},
@@ -92,15 +92,12 @@ const LibraryForFileLocking = {
 	// Place the builtin fcntl64 implementation in an object so it is left
 	// intact even if the function is not referenced by C/C++ code.
 	// Ref: https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#javascript-limits-in-library-files
-	// TODO: Would "builtin" be better than "default"?
-	$default_fcntl64__deps: LibraryManager.library.__syscall_fcntl64__deps,
-	$default_fcntl64: {
-		fn: LibraryManager.library.__syscall_fcntl64,
-	},
+	builtin_fcntl64__deps: LibraryManager.library.__syscall_fcntl64__deps,
+	builtin_fcntl64: LibraryManager.library.__syscall_fcntl64,
 
 	__syscall_fcntl64__deps: [
 		...LibraryManager.library.__syscall_fcntl64__deps,
-		'$default_fcntl64',
+		'builtin_fcntl64',
 		'$locking',
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
@@ -115,7 +112,8 @@ const LibraryForFileLocking = {
 		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
 		const emscripten_SEEK_SET = Number('{{{cDefs.SEEK_SET}}}');
 
-		// TODO: consider patching emscripten to provide these offsets or add an access to php_wasm.c
+		// NOTE: With the exception of l_type, these offsets are not exposed to
+		// JS by Emscripten, so we hardcode them here.
 		const emscripten_flock_l_type_offset = 0;
 		const emscripten_flock_l_whence_offset = 2;
 		const emscripten_flock_l_start_offset = 8;
@@ -403,11 +401,13 @@ const LibraryForFileLocking = {
 			}
 			// @TODO: Implement waiting for lock
 			case emscripten_F_SETLKW: {
-				// Respond with EDEADLOCK to indicate that the lock is not available via blocking form
-				return -ERRNO_CODES.EDEADLOCK;
+				// We do not yet support the blocking form of flock().
+				// We respond with EDEADLK to indicate failure
+				// because it is a known errno for a failed F_SETLKW command.
+				return -ERRNO_CODES.EDEADLK;
 			}
 			default:
-				return default_fcntl64.fn(fd, cmd, varargs);
+				return _builtin_fcntl64(fd, cmd, varargs);
 		}
 		// });
 	},
@@ -441,7 +441,7 @@ const LibraryForFileLocking = {
 		}
 
 		if (!locking.is_path_to_shared_fs(vfsPath)) {
-			_js_wasm_trace('js_flock(%d, %d) locking is not implemented for non-NodeFS path %s', fd, op, vfsPath);
+			_js_wasm_trace('flock(%d, %d) locking is not implemented for non-NodeFS path %s', fd, op, vfsPath);
 			// If not a NodeFS path, we can't lock it.
 			// Default to succeeding as Emscripten does.
 			return 0;
@@ -456,8 +456,10 @@ const LibraryForFileLocking = {
 		// @TODO: Consider supporting blocking mode of flock()
 		if (op & (emscripten_LOCK_NB === 0)) {
 			_js_wasm_trace('js_flock(%d, %d) blocking mode of flock() is not implemented', fd, op);
-			// TODO: Should we use a different error code?
-			return -ERRNO_CODES.EDEADLOCK;
+			// We do not yet support the blocking form of flock().
+			// We respond with EINVAL to indicate failure
+			// because it is a known errno for a failed blocking flock().
+			return -ERRNO_CODES.EINVAL;
 		}
 
 		const maskedOp =
@@ -483,12 +485,10 @@ const LibraryForFileLocking = {
 		// });
 	},
 
-	$default_fd_close__deps: LibraryManager.library.fd_close__deps || [],
-	$default_fd_close: {
-		fn: LibraryManager.library.fd_close,
-	},
+	builtin_fd_close__deps: LibraryManager.library.fd_close__deps || [],
+	builtin_fd_close: LibraryManager.library.fd_close,
 
-	fd_close__deps: ['$default_fd_close', 'js_wasm_trace'],
+	fd_close__deps: ['builtin_fd_close', 'js_wasm_trace'],
 	fd_close(fd) {
 		_js_wasm_trace('fd_close(%d)', fd);
 
@@ -498,7 +498,7 @@ const LibraryForFileLocking = {
 			return -ERRNO_CODES.EBADF;
 		}
 
-		const result = default_fd_close.fn(fd);
+		const result = _builtin_fd_close(fd);
 		// return Asyncify.handleAsync(async () => {
 		if (result === 0 && locking.maybeLockedFds.has(fd)) {
 			const nativeFilePath =
@@ -550,8 +550,8 @@ const LibraryForFileLocking = {
 	},
 };
 
-autoAddDeps(LibraryForFileLocking, '$default_fcntl64');
+autoAddDeps(LibraryForFileLocking, 'builtin_fcntl64');
 autoAddDeps(LibraryForFileLocking, '__syscall_fcntl64');
-autoAddDeps(LibraryForFileLocking, '$default_fd_close');
+autoAddDeps(LibraryForFileLocking, 'builtin_fd_close');
 autoAddDeps(LibraryForFileLocking, 'fd_close');
 mergeInto(LibraryManager.library, LibraryForFileLocking);
