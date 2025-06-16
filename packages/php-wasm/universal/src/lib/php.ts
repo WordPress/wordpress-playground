@@ -946,7 +946,7 @@ export class PHP implements Disposable {
 				 * turn exit code errors into integers again.
 				 */
 				if (isExitCode(e)) {
-					return e.exitCode;
+					return e.exitCode ?? (e as any).status;
 				}
 
 				stdout.controller.error(e);

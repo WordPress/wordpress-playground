@@ -1,5 +1,5 @@
 import { loadNodeRuntime } from '@php-wasm/node';
-import type { PHPProcessManager, PHPResponse } from '@php-wasm/universal';
+import type { PHPProcessManager } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootRequestHandler } from '@wp-playground/wordpress';
@@ -27,41 +27,28 @@ describe('V2 runner', () => {
 		});
 	});
 
-	// @TODO: Unskip this test. It needs the rest of the https://github.com/WordPress/wordpress-playground/pull/2238 to be merged
-	// before it will pass.
-	it.skip(
-		'should run the runner',
-		async () => {
-			const { php } = await handler.processManager.acquirePHPInstance();
-			const result = await runBlueprintV2({
-				php: php as any,
-				blueprint: '{"version":2}',
-				siteUrl: 'http://playground-domain/',
-				documentRoot: '/wordpress',
-				hooks: {
-					afterBlueprintTargetResolved: async () => {
-						console.log('Blueprint target resolved');
-						process.exit(0);
-					},
-				},
-			});
-			expect(await result?.stdoutText).toBe('Hello, World!');
-		},
-		{
-			timeout: 60000,
-		}
-	);
+	it('should put WordPress in the document root', async () => {
+		const instance = await handler.processManager.acquirePHPInstance();
+		const result = await runBlueprintV2({
+			php: instance.php as any,
+			blueprint: '{"version":2}',
+			siteUrl: 'http://playground-domain/',
+			documentRoot: '/wordpress',
+		});
+		await result.finished;
+		const instance2 = await handler.processManager.acquirePHPInstance();
+		expect(instance2.php.listFiles('/wordpress')).toContain('wp-content');
+	}, 60000);
 });
 
 export function spawnHandlerFactory(processManager: PHPProcessManager) {
 	return createSpawnHandler(async function (args, processApi, options) {
-		console.log('Spawn handler called', args);
 		processApi.notifySpawn();
 		if (args[0] === 'exec') {
 			args.shift();
 		}
 
-		if (args[0].endsWith('.php')) {
+		if (args[0].endsWith('.php') || args[0].endsWith('.phar')) {
 			args.unshift('php');
 		}
 
@@ -88,74 +75,49 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			});
 			processApi.flushStdin();
 			processApi.exit(0);
-		} else if (args[0] === 'fetch') {
-			processApi.flushStdin();
-			fetch(args[1]).then(async (res) => {
-				const reader = res.body?.getReader();
-				if (!reader) {
-					processApi.exit(1);
-					return;
-				}
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) {
-						processApi.exit(0);
-						break;
-					}
-					processApi.stdout(value);
-				}
-			});
-			return;
 		} else if (args[0] === 'php') {
-			const { php, reap } = await processManager.acquirePHPInstance();
+			const { php, reap } = await processManager.acquirePHPInstance({
+				considerPrimary: false,
+			});
 
-			let result: PHPResponse | undefined = undefined;
+			php.chdir(options.cwd as string);
 			try {
-				// @TODO: Run the actual PHP CLI SAPI instead of
-				//        interpreting the arguments and emulating
-				//        the CLI constants and globals.
-				const cliBootstrapScript = `<?php
-                // Set the argv global.
-                $_SERVER['argv'] = $GLOBALS['argv'] = array_merge([
-                    "/wordpress/wp-cli.phar",
-                    "--path=/wordpress"
-                ], ${phpVar(args.slice(2))});
-                $_SERVER['argc'] = $GLOBALS['argc'] = count($argv);
-
-                // Provide stdin, stdout, stderr streams outside of
-                // the CLI SAPI.
-                define('STDIN', fopen('php://stdin', 'rb'));
-                define('STDOUT', fopen('php://stdout', 'wb'));
-                define('STDERR', fopen('/tmp/stderr', 'wb'));
-
-				// Set DOCROOT to the current working directory.
-				if(getenv("DOCROOT")) {
-					chdir(getenv("DOCROOT"));
-				}
-                `;
-
-				const code = args.includes('-r')
-					? args[args.indexOf('-r') + 1]
-					: `require( getenv("SCRIPT_PATH") );`;
-
-				result = await php.run({
-					code: `${cliBootstrapScript} ${code}`,
+				// Figure out more about setting env, putenv(), etc.
+				const result = await php.cli(args, {
 					env: {
 						...options.env,
 						DOCROOT: '/wordpress',
-
+						SCRIPT_PATH: args[1],
 						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 						// the output as ASCII tables.
 						// @see https://github.com/wp-cli/wp-cli/issues/1102
 						SHELL_PIPE: '0',
-
-						SCRIPT_PATH: args[1],
 					},
 				});
 
-				processApi.stdout(result.bytes);
-				processApi.stderr(result.errors);
-				processApi.exit(result.exitCode);
+				result.stdout.pipeTo(
+					new WritableStream({
+						write(chunk) {
+							processApi.stdout(chunk);
+						},
+					})
+				);
+				result.stderr.pipeTo(
+					new WritableStream({
+						write(chunk) {
+							processApi.stderr(chunk);
+						},
+					})
+				);
+				await result.exitCode.then(
+					(exitCode) => {
+						processApi.exit(exitCode);
+					},
+					(error) => {
+						console.error('Error in childPHP:', error);
+						processApi.exit(1);
+					}
+				);
 			} catch (e) {
 				logger.error('Error in childPHP:', e);
 				if (e instanceof Error) {
