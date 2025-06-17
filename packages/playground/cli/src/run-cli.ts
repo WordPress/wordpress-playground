@@ -2,8 +2,8 @@
  * @TODO:
  * * Mount a stable system tmp or home/.playground-cli directory to store HTTP Cache.
  *   Flush stale entries periodically.
- * * Find a consistent logging interface. Right now we have a logger for some things and 
- *   output.stdout for other things. In the browser, logger prints information to the 
+ * * Find a consistent logging interface. Right now we have a logger for some things and
+ *   output.stdout for other things. In the browser, logger prints information to the
  *   devtools console which is only needed for debugging. The HTML makes for the UI.
  *   In CLI, the console and the UI are the same thing. Perhaps we actually need to
  *   separate what we print for UI reasons from what we print for debugging?
@@ -397,6 +397,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							emscriptenOptions: {
 								ENV: {
 									PATH: '/internal/shared/bin',
+									DOCROOT: '/wordpress',
 								},
 							},
 						}),
@@ -488,7 +489,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					}
 					await streamedResponse!.finished;
 					if ((await streamedResponse!.exitCode) !== 0) {
-						process.exit(1);
+						throw new PHPExecutionFailureError(
+							'Execution failed',
+							await PHPResponse.fromStreamedResponse(
+								streamedResponse
+							),
+							'request'
+						);
 					}
 					wordPressReady = true;
 
@@ -642,7 +649,6 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 				const result = await php.cli(args, {
 					env: {
 						...options.env,
-						DOCROOT: '/wordpress',
 						SCRIPT_PATH: args[1],
 						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 						// the output as ASCII tables.
