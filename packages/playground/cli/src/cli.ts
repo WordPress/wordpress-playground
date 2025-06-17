@@ -1,3 +1,4 @@
 import { parseOptionsAndRunCLI } from './run-cli';
 
-await parseOptionsAndRunCLI();
+// Do not await this as top-level await is not supported in all environments.
+parseOptionsAndRunCLI();
