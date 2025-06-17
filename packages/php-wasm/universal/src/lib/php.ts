@@ -1,4 +1,4 @@
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import type {
@@ -20,7 +20,7 @@ import {
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 import type { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
-import { isExitCodeZero } from './is-exit-code-zero';
+import { isExitCode } from './is-exit-code';
 import type { Emscripten } from './emscripten-types';
 
 const STRING = 'string';
@@ -397,16 +397,140 @@ export class PHP implements Disposable {
 	 *
 	 * @example
 	 * ```js
-	 * const result = await php.run(`<?php
-	 *  $fp = fopen('php://stderr', 'w');
-	 *  fwrite($fp, "Hello, world!");
-	 * `);
+	 * const result = await php.run({
+	 * 	code: `<?php
+	 * 		$fp = fopen('php://stderr', 'w');
+	 * 		fwrite($fp, "Hello, world!");
+	 * 	`
+	 * });
 	 * // result.errors === "Hello, world!"
 	 * ```
 	 *
-	 * @param  options - PHP runtime options.
+	 * @deprecated Use stream() instead.
+	 * @param  request - PHP runtime options.
 	 */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
+		const streamedResponse = await this.runStream(request);
+		const syncResponse = await PHPResponse.fromStreamedResponse(
+			streamedResponse
+		);
+
+		if (syncResponse.exitCode !== 0) {
+			logger.warn(`PHP.run() output was:`, syncResponse.text);
+			const error = new PHPExecutionFailureError(
+				`PHP.run() failed with exit code ${syncResponse.exitCode} and the following output: ` +
+					syncResponse.errors +
+					'\n\n' +
+					syncResponse.text,
+				syncResponse,
+				'request'
+			) as PHPExecutionFailureError;
+			logger.error(error);
+			this.dispatchEvent({
+				type: 'request.error',
+				error: new Error(
+					'PHP.run() failed with exit code ' + syncResponse.exitCode
+				),
+				// Distinguish between PHP request and PHP-wasm errors
+				source: 'request',
+			});
+			throw error;
+		}
+
+		return syncResponse;
+	}
+	/**
+	 * Runs PHP code and returns a StreamedPHPResponse object that can be used to
+	 * process the output incrementally.
+	 *
+	 * This low-level method directly interacts with the WebAssembly
+	 * PHP interpreter and provides streaming capabilities for processing
+	 * PHP output as it becomes available.
+	 *
+	 * Every time you call stream(), it prepares the PHP
+	 * environment and:
+	 *
+	 * * Resets the internal PHP state
+	 * * Populates superglobals ($_SERVER, $_GET, etc.)
+	 * * Handles file uploads
+	 * * Populates input streams (stdin, argv, etc.)
+	 * * Sets the current working directory
+	 *
+	 * You can use stream() in two primary modes:
+	 *
+	 * ### Code snippet mode
+	 *
+	 * In this mode, you pass a string containing PHP code to run.
+	 *
+	 * ```ts
+	 * const streamedResponse = await php.stream({
+	 * 	code: `<?php echo "Hello world!";`
+	 * });
+	 * // Process output incrementally
+	 * for await (const chunk of streamedResponse.text) {
+	 * 	console.log(chunk);
+	 * }
+	 * ```
+	 *
+	 * In this mode, information like __DIR__ or __FILE__ isn't very
+	 * useful because the code is not associated with any file.
+	 *
+	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
+	 * C function.
+	 *
+	 * ### File mode
+	 *
+	 * In the file mode, you pass a scriptPath and PHP executes a file
+	 * found at that path:
+	 *
+	 * ```ts
+	 * php.writeFile(
+	 * 	"/www/index.php",
+	 * 	`<?php echo "Hello world!";"`
+	 * );
+	 * const streamedResponse = await php.stream({
+	 * 	scriptPath: "/www/index.php"
+	 * });
+	 * // Process output incrementally
+	 * for await (const chunk of streamedResponse.text) {
+	 * 	console.log(chunk);
+	 * }
+	 * ```
+	 *
+	 * In this mode, you can rely on path-related information like __DIR__
+	 * or __FILE__.
+	 *
+	 * Under the hood, the PHP file is executed with the `php_execute_script`
+	 * C function.
+	 *
+	 * The `stream()` method cannot be used in conjunction with `cli()`.
+	 *
+	 * @example
+	 * ```js
+	 * const streamedResponse = await php.stream({
+	 * 	code: `<?php
+	 * 		for ($i = 0; $i < 5; $i++) {
+	 * 			echo "Line $i\n";
+	 * 			flush();
+	 * 		}
+	 * 	`
+	 * });
+	 *
+	 * // Process output as it becomes available
+	 * for await (const chunk of streamedResponse.text) {
+	 * 	console.log('Received:', chunk);
+	 * }
+	 *
+	 * // Get the final exit code
+	 * const exitCode = await streamedResponse.exitCode;
+	 * console.log('Exit code:', exitCode);
+	 * ```
+	 *
+	 * @see run() – a synchronous version of this method.
+	 * @param request - PHP runtime options.
+	 * @returns A StreamedPHPResponse object.
+	 */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -414,8 +538,8 @@ export class PHP implements Disposable {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
-		let heapBodyPointer;
-		try {
+		let heapBodyPointer: number | undefined;
+		const streamedResponsePromise = this.#executeWithErrorHandling(() => {
 			if (!this.#webSapiInitialized) {
 				this.#initWebRuntime();
 				this.#webSapiInitialized = true;
@@ -427,8 +551,8 @@ export class PHP implements Disposable {
 			}
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
-			const headers = normalizeHeaders(request.headers || {});
-			const host = headers['host'] || 'example.com:443';
+			const requestHeaders = normalizeHeaders(request.headers || {});
+			const host = requestHeaders['host'] || 'example.com:443';
 
 			const port = this.#inferPortFromHostAndProtocol(
 				host,
@@ -436,7 +560,7 @@ export class PHP implements Disposable {
 			);
 			this.#setRequestHost(host);
 			this.#setRequestPort(port);
-			this.#setRequestHeaders(headers);
+			this.#setRequestHeaders(requestHeaders);
 			if (request.body) {
 				heapBodyPointer = this.#setRequestBody(request.body);
 			}
@@ -454,7 +578,7 @@ export class PHP implements Disposable {
 
 			const $_SERVER = this.#prepareServerEntries(
 				request.$_SERVER,
-				headers,
+				requestHeaders,
 				port
 			);
 			for (const key in $_SERVER) {
@@ -466,39 +590,42 @@ export class PHP implements Disposable {
 				this.#setEnv(key, env[key]);
 			}
 
-			const response = await this.#handleRequest();
-			if (response.exitCode !== 0) {
-				logger.warn(`PHP.run() output was:`, response.text);
-				const error = new PHPExecutionFailureError(
-					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
-						response.errors,
-					response,
-					'request'
-				) as PHPExecutionFailureError;
-				logger.error(error);
-				throw error;
+			if (!this.#webSapiInitialized) {
+				this.#initWebRuntime();
+				this.#webSapiInitialized = true;
 			}
-			return response;
-		} catch (e) {
-			this.dispatchEvent({
-				type: 'request.error',
-				error: e as Error,
-				// Distinguish between PHP request and PHP-wasm errors
-				source: (e as any).source ?? 'php-wasm',
-			});
-			throw e;
-		} finally {
-			try {
+
+			return this[__private__dont__use].ccall(
+				'wasm_sapi_handle_request',
+				NUMBER,
+				[],
+				[],
+				{ async: true }
+			);
+		});
+
+		// Free up resources when the response is done
+		await streamedResponsePromise
+			.catch((error) => {
+				this.dispatchEvent({
+					type: 'request.error',
+					error: error as Error,
+					// Distinguish between PHP request and PHP-wasm errors
+					source: (error as any).source ?? 'php-wasm',
+				});
+			})
+			.finally(() => {
 				if (heapBodyPointer) {
 					this[__private__dont__use].free(heapBodyPointer);
 				}
-			} finally {
+			})
+			.finally(() => {
 				release();
 				this.dispatchEvent({
 					type: 'request.end',
 				});
-			}
-		}
+			});
+		return streamedResponsePromise;
 	}
 
 	/**
@@ -537,37 +664,6 @@ export class PHP implements Disposable {
 
 	#initWebRuntime() {
 		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
-	}
-
-	#getResponseHeaders(): {
-		headers: PHPResponse['headers'];
-		httpStatusCode: number;
-	} {
-		const headersFilePath = '/internal/headers.json';
-		if (!this.fileExists(headersFilePath)) {
-			throw new Error(
-				'SAPI Error: Could not find response headers file.'
-			);
-		}
-
-		const headersData = JSON.parse(this.readFileAsText(headersFilePath));
-		const headers: PHPResponse['headers'] = {};
-		for (const line of headersData.headers) {
-			if (!line.includes(': ')) {
-				continue;
-			}
-			const colonIndex = line.indexOf(': ');
-			const headerName = line.substring(0, colonIndex).toLowerCase();
-			const headerValue = line.substring(colonIndex + 2);
-			if (!(headerName in headers)) {
-				headers[headerName] = [] as string[];
-			}
-			headers[headerName].push(headerValue);
-		}
-		return {
-			headers,
-			httpStatusCode: headersData.status,
-		};
 	}
 
 	#setRelativeRequestUri(uri: string) {
@@ -755,80 +851,148 @@ export class PHP implements Disposable {
 		);
 	}
 
-	async #handleRequest(): Promise<PHPResponse> {
-		let exitCode: number;
+	/**
+	 * Executes a PHP runtime function with proper error handling and streaming setup.
+	 * Sets up streaming infrastructure and returns a StreamedPHPResponse.
+	 *
+	 * @param executionFn - Function that returns the exit code or a promise of exit code
+	 * @returns Promise that resolves to a StreamedPHPResponse
+	 */
+	async #executeWithErrorHandling(
+		executionFn: () => any
+	): Promise<StreamedPHPResponse> {
+		const emscriptenModule = this[__private__dont__use];
 
-		/*
-		 * Emscripten throws WASM failures outside of the promise chain so we need
-		 * to listen for them here and rethrow in the correct context. Otherwise we
-		 * get crashes and unhandled promise rejections without any useful error
-		 * messages or stack traces.
-		 */
+		const headers = await createInvertedReadableStream<Uint8Array>();
+		emscriptenModule.onHeaders = (chunk: Uint8Array) => {
+			if (streamsClosed || headersClosed) {
+				return;
+			}
+			// slice() chunk to clone the data and preserve it for the reader later on.
+			// We need that because the ArrayBuffer underlying `chunk` may change
+			// after this callback return. Without cloning, the reader would read
+			// whatever bytes are available in the ArrayBuffer at the time of the read.
+			headers.controller.enqueue(chunk.slice());
+		};
+		let headersClosed = false;
+		const closeHeadersStream = () => {
+			if (!headersClosed) {
+				headersClosed = true;
+				headers.controller.close();
+			}
+		};
+
+		const stdout = await createInvertedReadableStream<Uint8Array>();
+		emscriptenModule.onStdout = (chunk: Uint8Array) => {
+			closeHeadersStream();
+			if (streamsClosed) {
+				return;
+			}
+			stdout.controller.enqueue(chunk.slice());
+		};
+
+		const stderr = await createInvertedReadableStream<Uint8Array>();
+		emscriptenModule.onStderr = (chunk: Uint8Array) => {
+			if (streamsClosed) {
+				return;
+			}
+			stderr.controller.enqueue(chunk.slice());
+		};
+
+		let streamsClosed = false;
+
 		let errorListener: any;
-		try {
-			// eslint-disable-next-line no-async-promise-executor
-			exitCode = await new Promise<number>((resolve, reject) => {
-				errorListener = (e: ErrorEvent) => {
-					logger.error(e);
-					logger.error(e.error);
-					const rethrown = new Error('Rethrown');
-					rethrown.cause = e.error;
-					(rethrown as any).betterMessage = e.message;
-					reject(rethrown);
-				};
-				this.#wasmErrorsTarget?.addEventListener(
+
+		const runExecutionFunction = async () => {
+			try {
+				/*
+				 * Emscripten throws WASM failures outside of the promise chain so we need
+				 * to listen for them here and rethrow in the correct context. Otherwise we
+				 * get crashes and unhandled promise rejections without any useful error
+				 * messages or meaningful stack traces.
+				 */
+				const exit = await Promise.race([
+					executionFn(),
+					new Promise((_, reject) => {
+						errorListener = (e: ErrorEvent) => {
+							logger.error(e);
+							logger.error(e.error);
+							if (!isExitCode(e.error)) {
+								const rethrown = new Error('Rethrown');
+								rethrown.cause = e.error;
+								(rethrown as any).betterMessage = e.message;
+								reject(rethrown);
+							}
+						};
+						this.#wasmErrorsTarget?.addEventListener(
+							'error',
+							errorListener,
+							{ once: true }
+						);
+					}),
+				]);
+				return exit;
+			} catch (e) {
+				/**
+				 * Emscripten sometimes communicates program exit as an error. Let's
+				 * turn exit code errors into integers again.
+				 */
+				if (isExitCode(e)) {
+					return e.exitCode;
+				}
+
+				stdout.controller.error(e);
+				stderr.controller.error(e);
+				headers.controller.error(e);
+				streamsClosed = true;
+
+				/**
+				 * A non-exit-code error means an irrecoverable crash. Let's make
+				 * it very clear to the consumers of this API – every method
+				 * call on this PHP instance will throw an error from now on.
+				 */
+				for (const name in this) {
+					if (typeof this[name] === 'function') {
+						(this as any)[name] = () => {
+							throw new Error(
+								`PHP runtime has crashed – see the earlier error for details.`
+							);
+						};
+					}
+				}
+				(this as any).functionsMaybeMissingFromAsyncify =
+					getFunctionsMaybeMissingFromAsyncify();
+
+				const err = e as Error;
+				const message = (
+					'betterMessage' in err ? err.betterMessage : err.message
+				) as string;
+
+				const rethrown = new Error(message);
+				rethrown.cause = err;
+				logger.error(rethrown);
+				throw rethrown;
+			} finally {
+				if (!streamsClosed) {
+					stdout.controller.close();
+					stderr.controller.close();
+					closeHeadersStream();
+					streamsClosed = true;
+				}
+				this.#wasmErrorsTarget?.removeEventListener(
 					'error',
 					errorListener
 				);
-				const response = this[__private__dont__use].ccall(
-					'wasm_sapi_handle_request',
-					NUMBER,
-					[],
-					[],
-					{ async: true }
-				);
-				if (response instanceof Promise) {
-					return response.then(resolve, reject);
-				}
-				return resolve(response);
-			});
-		} catch (e) {
-			/**
-			 * An exception here means an irrecoverable crash. Let's make
-			 * it very clear to the consumers of this API – every method
-			 * call on this PHP instance will throw an error from now on.
-			 */
-			for (const name in this) {
-				if (typeof this[name] === 'function') {
-					(this as any)[name] = () => {
-						throw new Error(
-							`PHP runtime has crashed – see the earlier error for details.`
-						);
-					};
-				}
 			}
-			(this as any).functionsMaybeMissingFromAsyncify =
-				getFunctionsMaybeMissingFromAsyncify();
+		};
 
-			const err = e as Error;
-			const message = (
-				'betterMessage' in err ? err.betterMessage : err.message
-			) as string;
-			const rethrown = new Error(message);
-			rethrown.cause = err;
-			logger.error(rethrown);
-			throw rethrown;
-		} finally {
-			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
-		}
+		const exitCodePromise = runExecutionFunction();
 
-		const { headers, httpStatusCode } = this.#getResponseHeaders();
-		return new PHPResponse(
-			exitCode === 0 ? httpStatusCode : 500,
-			headers,
-			this.readFileAsBuffer('/internal/stdout'),
-			this.readFileAsText('/internal/stderr'),
-			exitCode
+		return new StreamedPHPResponse(
+			headers.stream,
+			stdout.stream,
+			stderr.stream,
+			exitCodePromise
 		);
 	}
 
@@ -1100,7 +1264,18 @@ export class PHP implements Disposable {
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
 	 */
-	async cli(argv: string[]): Promise<number> {
+	async cli(
+		argv: string[],
+		options: { env?: Record<string, string> } = {}
+	): Promise<StreamedPHPResponse> {
+		const release = await this.semaphore.acquire();
+
+		const env = options.env || {};
+		for (const [key, value] of Object.entries(env)) {
+			this.#setEnv(key, value);
+		}
+		// Enforce the use of the internal php.ini file.
+		argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
 		for (const arg of argv) {
 			this[__private__dont__use].ccall(
 				'wasm_add_cli_arg',
@@ -1109,22 +1284,15 @@ export class PHP implements Disposable {
 				[arg]
 			);
 		}
-		try {
-			return await this[__private__dont__use].ccall(
-				'run_cli',
-				null,
-				[],
-				[],
-				{
-					async: true,
-				}
-			);
-		} catch (error) {
-			if (isExitCodeZero(error)) {
-				return 0;
-			}
-			throw error;
-		}
+
+		return await this.#executeWithErrorHandling(() => {
+			return this[__private__dont__use].ccall('run_cli', null, [], [], {
+				async: true,
+			});
+		}).then((response) => {
+			response.exitCode.finally(release);
+			return response;
+		});
 	}
 
 	setSkipShebang(shouldSkip: boolean) {
@@ -1220,4 +1388,35 @@ function copyFS(
 	for (const filename of filenames) {
 		copyFS(source, target, joinPaths(path, filename));
 	}
+}
+async function createInvertedReadableStream<T = BufferSource>(
+	source: UnderlyingSource<T> = {}
+) {
+	let controllerResolve: (
+		controller: ReadableStreamDefaultController<T>
+	) => void;
+	const controllerPromise = new Promise<ReadableStreamDefaultController<T>>(
+		(resolve) => {
+			controllerResolve = resolve;
+		}
+	);
+
+	const stream = new ReadableStream<T>({
+		...source,
+		start(controller) {
+			// Type assertion to handle the controller type mismatch
+			controllerResolve(controller as ReadableStreamDefaultController<T>);
+			if (source.start) {
+				return source.start(controller);
+			}
+			return undefined;
+		},
+	});
+
+	const controller = await controllerPromise;
+
+	return {
+		stream,
+		controller,
+	};
 }

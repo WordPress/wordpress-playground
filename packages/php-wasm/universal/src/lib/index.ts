@@ -29,7 +29,7 @@ export type {
 	SpawnedPHP,
 } from './php-process-manager';
 
-export { PHPResponse } from './php-response';
+export { PHPResponse, StreamedPHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
@@ -38,7 +38,7 @@ export {
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
 export type { SupportedPHPVersion } from './supported-php-versions';
-export { PHP, __private__dont__use } from './php';
+export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, getLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';
@@ -74,5 +74,5 @@ export {
 	toRelativeUrl,
 } from './urls';
 
-export { isExitCodeZero } from './is-exit-code-zero';
+export { isExitCode } from './is-exit-code';
 export { proxyFileSystem } from './proxy-file-system';

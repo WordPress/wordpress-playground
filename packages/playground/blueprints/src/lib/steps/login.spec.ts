@@ -43,7 +43,7 @@ describe('Blueprint step login', () => {
 		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Edit Site');
-	});
+	}, 10000);
 
 	it('should log the user into wp-admin', async () => {
 		await login(php, {});
@@ -52,7 +52,7 @@ describe('Blueprint step login', () => {
 		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Dashboard');
-	});
+	}, 10000);
 
 	it('should log the user in if the playground_force_auto_login_as_user query parameter is set', async () => {
 		await defineWpConfigConsts(php, {

@@ -448,14 +448,19 @@ export function normalizeFilesystemOperations(
 					latter.operation === 'DELETE' &&
 					formerType === 'same_node'
 				) {
-					// Creating a node and then deleting it is equivalent to doing
-					// nothing.
+					// A CREATE/WRITE followed by a DELETE on the same node.
+					// The CREATE/WRITE is redundant.
 					substitutions[j] = [];
-					substitutions[i] = [];
+
+					// The DELETE is redundant only if the node was created
+					// in this journal.
+					if (former.operation === 'CREATE') {
+						substitutions[i] = [];
+					}
 				}
 			}
 		}
-		// Any substiturions? Apply them and and start over.
+		// Any substitutions? Apply them and start over.
 		// We can't just continue as the current operation may
 		// have been replaced.
 		if (Object.entries(substitutions).length > 0) {

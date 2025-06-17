@@ -156,6 +156,14 @@ export async function load(
 		};
 	}
 
+	if (urlObj.searchParams.has('url')) {
+		return {
+			format: 'module',
+			shortCircuit: true,
+			source: `export default ${JSON.stringify(urlObj.pathname)};`,
+		};
+	}
+
 	if (urlObj.pathname.endsWith('.json')) {
 		const source = readFileSync(urlObj.pathname, 'utf8');
 		return {

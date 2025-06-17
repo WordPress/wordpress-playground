@@ -41,11 +41,11 @@
 import { TLS_1_2_Connection } from './tls/1_2/connection';
 import type { GeneratedCertificate } from './tls/certificates';
 import { generateCertificate } from './tls/certificates';
-import { concatUint8Arrays } from './tls/utils';
 import { ContentTypes } from './tls/1_2/types';
 import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 import { ChunkedDecoderStream } from './chunked-decoder';
 import type { EmscriptenOptions } from '@php-wasm/universal';
+import { concatUint8Arrays } from '@php-wasm/util';
 
 export type TCPOverFetchOptions = {
 	CAroot: GeneratedCertificate;
