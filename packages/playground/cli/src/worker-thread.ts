@@ -21,7 +21,8 @@ export type PrimaryWorkerBootOptions = {
 	mountsAfterWpInstall: Array<Mount>;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
-	processIdBase: number;
+	firstProcessId: number;
+	processIdSpaceLength: number;
 	dataSqlPath?: string;
 	followSymlinks: boolean;
 	trace: boolean;
@@ -75,7 +76,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 		phpVersion = '8.0',
 		wordPressZip,
 		sqliteIntegrationPluginZip,
-		processIdBase,
+		firstProcessId,
+		processIdSpaceLength,
 		dataSqlPath,
 		followSymlinks,
 		trace,
@@ -85,7 +87,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 		}
 		this.booted = true;
 
-		let nextProcessId = processIdBase;
+		let nextProcessId = firstProcessId;
+		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
 		const fileLockManager = consumeAPI<FileLockManager>(parentPort!);
 		await fileLockManager.isConnected();
 
@@ -101,7 +104,14 @@ export class PlaygroundCliWorker extends PHPWorker {
 				siteUrl: absoluteUrl,
 				createPhpRuntime: async () => {
 					const processId = nextProcessId;
-					nextProcessId++;
+
+					if (nextProcessId < lastProcessId) {
+						nextProcessId++;
+					} else {
+						// We've reached the end of the process ID space. Start over.
+						nextProcessId = firstProcessId;
+					}
+
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
 							fileLockManager,

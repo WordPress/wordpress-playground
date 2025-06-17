@@ -56,7 +56,7 @@ export interface RunCLIArgs {
 	autoMount?: boolean;
 	followSymlinks?: boolean;
 	experimentalMultiWorker?: number;
-	trace?: boolean;
+	experimentalTrace?: boolean;
 }
 
 export interface RunCLIServer {
@@ -66,7 +66,6 @@ export interface RunCLIServer {
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let loadBalancer: LoadBalancer;
-	// TODO: Consider direct reference to primary playground. Does this make sense?
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
 	/**
@@ -217,6 +216,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		});
 	}
 
+	function spawnWorkerThreads(count: number): Promise<Worker[]> {
+		const moduleWorkerUrl = new URL(moduleWorkerUrlString, import.meta.url);
+
+		const promises = [];
+		for (let i = 0; i < count; i++) {
+			promises.push(spawnPHPWorkerThread(moduleWorkerUrl));
+		}
+		return Promise.all(promises);
+	}
+
 	if (args.quiet) {
 		// @ts-ignore
 		logger.handlers = [];
@@ -236,6 +245,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
+
+			const moduleWorkerUrl = new URL(
+				moduleWorkerUrlString,
+				import.meta.url
+			);
+
+			// Kick off worker threads now to save time later.
+			// There is no need to wait for other async processes to complete.
+			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
+			const promisedWorkers = spawnWorkerThreads(totalWorkerCount);
 
 			logger.log(`Setting up WordPress ${args.wp}`);
 			let wpDetails: any = undefined;
@@ -291,87 +310,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						monitor
 				  );
 
+			logger.log(`Fetching SQLite integration plugin...`);
+			const sqliteIntegrationPluginZip = args.skipSqliteSetup
+				? undefined
+				: await fetchSqliteIntegration(monitor);
+
 			const followSymlinks = args.followSymlinks === true;
-			const trace = args.trace === true;
+			const trace = args.experimentalTrace === true;
 			try {
-				logger.log(`Setting up WordPress ${args.wp}`);
-				let wpDetails: any = undefined;
-				// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
-				// about that class anymore.
-				const monitor = new EmscriptenDownloadMonitor();
-				if (!args.skipWordPressSetup) {
-					let progressReached100 = false;
-					monitor.addEventListener('progress', ((
-						e: CustomEvent<ProgressEvent & { finished: boolean }>
-					) => {
-						if (progressReached100) {
-							return;
-						}
-
-						// @TODO Every progress bar will want percentages. The
-						//       download monitor should just provide that.
-						const { loaded, total } = e.detail;
-						// Use floor() so we don't report 100% until truly there.
-						const percentProgress = Math.floor(
-							Math.min(100, (100 * loaded) / total)
-						);
-						progressReached100 = percentProgress === 100;
-
-						if (!args.quiet) {
-							writeProgressUpdate(
-								process.stdout,
-								`Downloading WordPress ${percentProgress}%...`,
-								progressReached100
-							);
-						}
-					}) as any);
-
-					wpDetails = await resolveWordPressRelease(args.wp);
-				}
-				logger.log(
-					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-				);
-
-				const preinstalledWpContentPath =
-					wpDetails &&
-					path.join(
-						CACHE_FOLDER,
-						`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-					);
-				const wordPressZip = !wpDetails
-					? undefined
-					: fs.existsSync(preinstalledWpContentPath)
-					? readAsFile(preinstalledWpContentPath)
-					: await cachedDownload(
-							wpDetails.releaseUrl,
-							`${wpDetails.version}.zip`,
-							monitor
-					  );
-
 				const mountsBeforeWpInstall = args.mountBeforeInstall || [];
 				const mountsAfterWpInstall = args.mount || [];
 
-				logger.log(`Fetching SQLite integration plugin...`);
-				// TODO: Track progress
-				const sqliteIntegrationPluginZip = args.skipSqliteSetup
-					? undefined
-					: await fetchSqliteIntegration(monitor);
+				const [initialWorker, ...additionalWorkers] =
+					await promisedWorkers;
 
-				const moduleWorkerUrl = new URL(
-					moduleWorkerUrlString,
-					import.meta.url
-				);
-				const initialWorker = await spawnPHPWorkerThread(
-					moduleWorkerUrl
-				);
 				playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
 				await playground.isConnected();
-
-				// TODO: Add progress tracking
 
 				exposeAPI(fileLockManager, undefined, initialWorker);
 
 				logger.log(`Booting WordPress...`);
+
+				// Each additional worker needs a separate process ID space
+				// for file locking to work properly because locks are associated
+				// with individual processes. To accommodate this, we split the safe
+				// integers into a range for each worker.
+				const processIdSpaceLength = Math.floor(
+					Number.MAX_SAFE_INTEGER / totalWorkerCount
+				);
+
 				await playground.boot({
 					phpVersion: compiledBlueprint.versions.php,
 					wpVersion: compiledBlueprint.versions.wp,
@@ -382,10 +349,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						wordPressZip && (await wordPressZip!.arrayBuffer()),
 					sqliteIntegrationPluginZip:
 						await sqliteIntegrationPluginZip!.arrayBuffer(),
-					processIdBase: 0,
+					firstProcessId: 0,
+					lastProcessId: 0 + processIdSpaceLength - 1,
 					followSymlinks,
 					trace,
 				});
+
+				if (
+					wpDetails &&
+					!args.mountBeforeInstall &&
+					!fs.existsSync(preinstalledWpContentPath)
+				) {
+					logger.log(
+						`Caching preinstalled WordPress for the next boot...`
+					);
+					fs.writeFileSync(
+						preinstalledWpContentPath,
+						await zipDirectory(playground, '/wordpress')
+					);
+					logger.log(`Cached!`);
+				}
 
 				loadBalancer = new LoadBalancer(playground);
 
@@ -412,62 +395,67 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					args.experimentalMultiWorker &&
 					args.experimentalMultiWorker > 1
 				) {
+					logger.log(`Preparing additional workers...`);
+
+					// Save /internal directory from initial worker so we can replicate it
+					// in each additional worker.
 					const internalZip = await zipDirectory(
 						playground,
 						'/internal'
 					);
 
-					// Create additional workers
-					const totalAdditionalWorkers = args.experimentalMultiWorker;
-					const workerProcessIdSpace = Math.floor(
-						Number.MAX_SAFE_INTEGER / totalAdditionalWorkers
+					// Boot additional workers
+					const initialWorkerProcessIdSpace = processIdSpaceLength;
+					await Promise.all(
+						additionalWorkers.map(async (worker, index) => {
+							const additionalPlayground =
+								consumeAPI<PlaygroundCliWorker>(worker);
+							await additionalPlayground.isConnected();
+							exposeAPI(fileLockManager, undefined, worker);
+
+							const firstProcessId =
+								initialWorkerProcessIdSpace +
+								index * processIdSpaceLength;
+
+							await additionalPlayground.boot({
+								phpVersion: compiledBlueprint.versions.php,
+								absoluteUrl,
+								mountsBeforeWpInstall,
+								mountsAfterWpInstall,
+								// Skip WordPress zip because we share the /wordpress directory
+								// populated by the initial worker.
+								wordPressZip: undefined,
+								// Skip SQLite integration plugin for now because we
+								// will copy it from primary's `/internal` directory.
+								sqliteIntegrationPluginZip: undefined,
+								dataSqlPath:
+									'/wordpress/wp-content/database/.ht.sqlite',
+								firstProcessId,
+								processIdSpaceLength,
+								followSymlinks,
+								trace,
+							});
+							await additionalPlayground.isReady();
+
+							// Replicate the Blueprint-initialized /internal directory
+							await additionalPlayground.writeFile(
+								'/tmp/internal.zip',
+								internalZip
+							);
+							await unzipFile(
+								additionalPlayground,
+								'/tmp/internal.zip',
+								'/internal'
+							);
+							await additionalPlayground.unlink(
+								'/tmp/internal.zip'
+							);
+
+							loadBalancer.addWorker(additionalPlayground);
+						})
 					);
-					for (let i = 1; i < totalAdditionalWorkers; i++) {
-						// TODO: Write as progress tracking
-						logger.log(`Starting worker ${i}...`);
-						const worker = await spawnPHPWorkerThread(
-							moduleWorkerUrl
-						);
-						const additionalPlayground =
-							consumeAPI<PlaygroundCliWorker>(worker);
-						await additionalPlayground.isConnected();
-						exposeAPI(fileLockManager, undefined, worker);
 
-						// TODO: Parallelize booting and waiting for secondary workers to be ready
-						// TODO: Fix auto-login
-						await additionalPlayground.boot({
-							phpVersion: compiledBlueprint.versions.php,
-							absoluteUrl,
-							mountsBeforeWpInstall,
-							mountsAfterWpInstall,
-							// Skip WordPress zip because we share the /wordpress directory
-							// populated by the initial worker.
-							wordPressZip: undefined,
-							// Skip SQLite integration plugin for now because we
-							// will copy it from primary's `/internal` directory.
-							sqliteIntegrationPluginZip: undefined,
-							dataSqlPath:
-								'/wordpress/wp-content/database/.ht.sqlite',
-							// TODO: Explain why
-							processIdBase: i * workerProcessIdSpace,
-							// TODO: Pass processIdSpace so process IDs can start over at processIdBase
-							followSymlinks,
-							trace,
-						});
-						await additionalPlayground.isReady();
-
-						await additionalPlayground.writeFile(
-							'/tmp/internal.zip',
-							internalZip
-						);
-						await unzipFile(
-							additionalPlayground,
-							'/tmp/internal.zip',
-							'/internal'
-						);
-
-						loadBalancer.addWorker(additionalPlayground);
-					}
+					logger.log(`Ready!`);
 				}
 
 				logger.log(`WordPress is running on ${absoluteUrl}`);

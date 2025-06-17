@@ -129,11 +129,13 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
-		.option('trace', {
+		// TODO: Probably do not merge this unless it can be hidden because we'll want a more general log-level flag instead.
+		.option('experimentalTrace', {
 			describe:
 				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
 			type: 'boolean',
 			default: false,
+			hidden: true,
 		})
 		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
 		// TODO: Convert this to kebab-case to match incoming Blueprints v2 runner work.
