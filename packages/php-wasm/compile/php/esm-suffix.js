@@ -58,6 +58,7 @@ PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'
 
 if (typeof NODEFS === 'object') {
     // TODO: Document why.
+    // TODO: Mention in PR description
     var originalHashAddNode = FS.hashAddNode;
     FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
         if (node.node_ops === NODEFS.node_ops) {
@@ -70,6 +71,7 @@ if (typeof NODEFS === 'object') {
     };
 
     // TODO: Document why.
+    // TODO: Mention in PR description
     const originalCreateNode = NODEFS.createNode;
     NODEFS.createNode = function createNodeWithSharedFlag() {
         const node = originalCreateNode.apply(NODEFS, arguments);
