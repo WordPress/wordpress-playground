@@ -188,7 +188,7 @@ export class FileLock {
 
 			const nativeLock: NativeLock = { fd, mode };
 			return new FileLock(nativeLock);
-		} catch (error) {
+		} catch {
 			if (fd !== undefined) {
 				try {
 					closeSync(fd);
@@ -541,7 +541,8 @@ export class FileLock {
 	}
 
 	/**
-	 * Ensure that the native lock is compatible with the php-wasm lock, upgrading or downgrading as needed.
+	 * Ensure that the native lock is compatible with the php-wasm lock,
+	 * upgrading or downgrading as needed.
 	 *
 	 * @param overrideWholeFileLockType If provided, use this type for the whole file lock.
 	 * @param overrideRangeLockType If provided, use this type for the range lock.

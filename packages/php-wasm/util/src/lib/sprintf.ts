@@ -19,7 +19,7 @@ export function sprintf(format: string, ...args: any[]): string {
 			const specifier = format[i + 1];
 
 			switch (specifier) {
-				case 's':
+				case 's': {
 					let str = String(args[argIndex++]);
 					if (str === '[object Object]') {
 						try {
@@ -33,7 +33,8 @@ export function sprintf(format: string, ...args: any[]): string {
 					result += str;
 					i++;
 					break;
-				case 'd':
+				}
+				case 'd': {
 					const dValue = args[argIndex++];
 					if (typeof dValue === 'bigint') {
 						result += dValue.toString();
@@ -42,7 +43,8 @@ export function sprintf(format: string, ...args: any[]): string {
 					}
 					i++;
 					break;
-				case 'f':
+				}
+				case 'f': {
 					const fValue = args[argIndex++];
 					if (typeof fValue === 'bigint') {
 						result += Number(fValue);
@@ -51,7 +53,8 @@ export function sprintf(format: string, ...args: any[]): string {
 					}
 					i++;
 					break;
-				case 'x':
+				}
+				case 'x': {
 					const xValue = args[argIndex++];
 					if (typeof xValue === 'bigint') {
 						result += xValue.toString(16);
@@ -60,13 +63,17 @@ export function sprintf(format: string, ...args: any[]): string {
 					}
 					i++;
 					break;
-				case '%':
+				}
+				case '%': {
 					result += '%';
 					i++;
 					break;
-				default:
+				}
+				default: {
 					result += '%' + specifier;
 					i++;
+					break;
+				}
 			}
 		} else {
 			result += format[i];

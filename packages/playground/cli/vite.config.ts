@@ -41,7 +41,7 @@ export default defineConfig({
 				'worker_threads',
 			],
 			output: {
-				entryFileNames: (chunkInfo: any) => {
+				entryFileNames: (/* chunkInfo: any */) => {
 					return '[name]-[hash].js';
 				},
 			},

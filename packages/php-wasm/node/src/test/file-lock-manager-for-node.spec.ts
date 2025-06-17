@@ -1,12 +1,12 @@
 import { writeFileSync, unlinkSync } from 'fs';
 import { FileLockManagerForNode } from '../lib/file-lock-manager-for-node';
-import { fork, ChildProcess } from 'child_process';
+import { fork } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import { join } from 'path';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
 const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
 
-// TODO: These tests are AI-generated and totally unreviewed so far. Review these tests with a critical eye before merging.
 describe('FileLockManagerForNode', () => {
 	let lockManager: FileLockManagerForNode;
 
@@ -51,7 +51,9 @@ describe('FileLockManagerForNode', () => {
 			});
 
 			it('allows when only byte-range locked by same process', async () => {
-				// TODO: Exclusive fcntl() and flock() locks appear to conflict on macos even within same process. Test that instead. Shared locks do not conflict.
+				// TODO: Exclusive fcntl() and flock() locks appear to conflict on macos even
+				// within same process. Test that instead. Shared locks do not conflict.
+				throw new Error('Not implemented');
 			});
 
 			it('denies when other process holds exclusive whole-file lock', async () => {
@@ -158,6 +160,7 @@ describe('FileLockManagerForNode', () => {
 
 			it('allows when only byte-range locked by same process', async () => {
 				// TODO: Implement
+				throw new Error('Not implemented');
 			});
 
 			it('denies when other process holds exclusive whole-file lock', async () => {
@@ -351,7 +354,7 @@ describe('FileLockManagerForNode', () => {
 				// First process gets exclusive range lock
 				const result1 = lockManager.lockFileByteRange(TEST_FILE1, {
 					type: 'exclusive',
-					start: 50n,
+					start: 0n,
 					end: 150n,
 					pid: 1,
 				});

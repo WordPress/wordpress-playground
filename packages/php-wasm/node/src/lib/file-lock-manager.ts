@@ -1,5 +1,6 @@
 /**
- * This is an interface used to abstract byte range locking like fcntl() and whole-file locking like flock().
+ * This is an interface used to abstract byte range locking like fcntl()
+ * and whole-file locking like flock().
  */
 export type FileLockManager = {
 	/**
