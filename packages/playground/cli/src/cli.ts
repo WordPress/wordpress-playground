@@ -136,6 +136,7 @@ async function run() {
 			default: false,
 		})
 		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
+		// TODO: Convert this to kebab-case to match incoming Blueprints v2 runner work.
 		.option('experimentalMultiWorker', {
 			describe:
 				'Enable experimental multi-worker support. ' +
@@ -177,11 +178,11 @@ async function run() {
 					);
 				}
 
-				const mountsWordPressDir = (mount: Mount) =>
+				const isMountingWordPressDir = (mount: Mount) =>
 					mount.vfsPath === '/wordpress';
 				if (
-					!args.mount?.some(mountsWordPressDir) &&
-					!args.mountBeforeInstall?.some(mountsWordPressDir)
+					!args.mount?.some(isMountingWordPressDir) &&
+					!args.mountBeforeInstall?.some(isMountingWordPressDir)
 				) {
 					throw new Error(
 						// TODO: Improve language?
