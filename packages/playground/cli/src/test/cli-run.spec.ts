@@ -117,7 +117,7 @@ describe('cli-run', () => {
 			cliServer = await runCLI({
 				php: '8.0',
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const php = await cliServer.requestHandler.getPrimaryPhp();
 			const phpResponse = await php.run({
@@ -145,7 +145,7 @@ describe('cli-run', () => {
 			cliServer = await runCLI({
 				php: '8.0',
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 
 			expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -167,7 +167,7 @@ describe('cli-run', () => {
 			cliServer = await runCLI({
 				php: '8.0',
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/wp-login.php',
@@ -183,7 +183,7 @@ describe('cli-run', () => {
 			cliServer = await runCLI({
 				php: '8.0',
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/',
@@ -200,7 +200,7 @@ describe('cli-run', () => {
 			cliServer = await runCLI({
 				php: '8.0',
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/',
@@ -228,7 +228,7 @@ describe('cli-run', () => {
 			cliServer = await runCLI({
 				php: '8.0',
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/',
