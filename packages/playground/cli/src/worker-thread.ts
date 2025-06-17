@@ -44,7 +44,7 @@ function mountResources(php: PHP, mounts: Mount[]) {
  */
 function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	console.log(
-		performance.now().toString().padStart(15, '0'),
+		performance.now().toFixed(6).padStart(15, '0'),
 		processId.toString().padStart(16, '0'),
 		sprintf(format, ...args)
 	);
