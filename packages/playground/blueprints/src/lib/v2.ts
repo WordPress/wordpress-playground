@@ -1,7 +1,7 @@
 import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
-// @ts-ignore
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from '@wp-playground/wordpress';
+// @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import type { BlueprintDeclaration } from './blueprint';
 

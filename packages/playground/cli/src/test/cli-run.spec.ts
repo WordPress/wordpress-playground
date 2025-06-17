@@ -42,6 +42,7 @@ describe('cli-run', () => {
 				MinifiedWordPressVersionsList.length - 1
 			];
 		cliServer = await runCLI({
+			php: '8.0',
 			command: 'server',
 			wp: oldestSupportedVersion,
 		});
@@ -63,6 +64,7 @@ describe('cli-run', () => {
 
 	test('should run blueprint', async () => {
 		cliServer = await runCLI({
+			php: '8.0',
 			command: 'server',
 			blueprint: {
 				steps: [
@@ -113,6 +115,7 @@ describe('cli-run', () => {
 				path.join(__dirname, 'mount-examples', 'plugin')
 			);
 			cliServer = await runCLI({
+				php: '8.0',
 				command: 'server',
 				autoMount: true,
 			});
@@ -140,6 +143,7 @@ describe('cli-run', () => {
 				path.join(__dirname, 'mount-examples', 'theme')
 			);
 			cliServer = await runCLI({
+				php: '8.0',
 				command: 'server',
 				autoMount: true,
 			});
@@ -161,6 +165,7 @@ describe('cli-run', () => {
 				path.join(__dirname, 'mount-examples', 'wp-content')
 			);
 			cliServer = await runCLI({
+				php: '8.0',
 				command: 'server',
 				autoMount: true,
 			});
@@ -176,6 +181,7 @@ describe('cli-run', () => {
 				path.join(__dirname, 'mount-examples', 'static-html')
 			);
 			cliServer = await runCLI({
+				php: '8.0',
 				command: 'server',
 				autoMount: true,
 			});
@@ -192,6 +198,7 @@ describe('cli-run', () => {
 				path.join(__dirname, 'mount-examples', 'php')
 			);
 			cliServer = await runCLI({
+				php: '8.0',
 				command: 'server',
 				autoMount: true,
 			});
@@ -219,6 +226,7 @@ describe('cli-run', () => {
 			const checksum = await getDirectoryChecksum(tmpDir);
 
 			cliServer = await runCLI({
+				php: '8.0',
 				command: 'server',
 				autoMount: true,
 			});
