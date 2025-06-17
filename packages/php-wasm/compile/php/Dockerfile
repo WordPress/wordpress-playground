@@ -1038,6 +1038,7 @@ export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
 "php_openssl_sockop_write",\
 "php_pcre_replace_func_impl",\
 "php_pdo_free_statement",\
+"php_pdo_internal_construct_driver",\
 "php_pollfd_for",\
 "php_replace_in_subject_func",\
 "php_request_shutdown",\

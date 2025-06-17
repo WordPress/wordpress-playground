@@ -10,7 +10,7 @@
  */
 
 import { errorLogPath, logger } from '@php-wasm/logger';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import type {
 	PHP,
 	PHPProcessManager,
@@ -27,7 +27,7 @@ import type {
 } from '@wp-playground/blueprints';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
-import fs from 'fs';
+import fs, { existsSync } from 'fs';
 import type { Server } from 'http';
 import { rootCertificates } from 'tls';
 import { startServer } from './server';
@@ -42,6 +42,7 @@ import {
 	parseMountWithDelimiterArguments,
 	type Mount,
 } from './mounts';
+import path from 'path';
 
 export interface RunCLIArgs {
 	blueprint?: string | BlueprintDeclaration;
@@ -58,19 +59,18 @@ export interface RunCLIArgs {
 	skipWordPressSetup?: boolean;
 	skipSqliteSetup?: boolean;
 	wp?: string;
-	autoMount?: boolean;
-	followSymlinks?: boolean;
+	'auto-mount'?: boolean;
+	'follow-symlinks'?: boolean;
 	// Blueprint CLI options
-	sitePath?: string;
-	executionContext?: string;
+	'site-path'?: string;
 	mode?: string;
-	dbEngine?: string;
-	dbHost?: string;
-	dbUser?: string;
-	dbPass?: string;
-	dbName?: string;
-	dbPath?: string;
-	truncateNewSiteDirectory?: boolean;
+	'db-engine'?: string;
+	'db-host'?: string;
+	'db-user'?: string;
+	'db-pass'?: string;
+	'db-name'?: string;
+	'db-path'?: string;
+	'truncate-new-site-directory'?: boolean;
 	allow?: string;
 }
 
@@ -133,17 +133,56 @@ export async function parseOptionsAndRunCLI() {
 			type: 'number',
 			default: 9400,
 		})
+
+		// Blueprints v2 CLI options
+
+		// @TODO: make this option optional and infer it from the blueprint. This also means
+		//        we need to process the Blueprint before running it.
 		.option('php', {
 			describe: 'PHP version to use.',
 			type: 'string',
 			default: RecommendedPHPVersion,
 			choices: SupportedPHPVersions,
 		})
+
+		// This comes from the Blueprint now.
+		// @TODO: Should we deprecate this?
 		.option('wp', {
-			describe: 'WordPress version to use.',
+			describe:
+				'WordPress version to use. If Blueprint is provided, this option overrides the WordPress version specified in the Blueprint.',
 			type: 'string',
 			default: 'latest',
+			hidden: true,
 		})
+		.option('login', {
+			describe:
+				'Should log the user in. If Blueprint is provided, this option overrides the login specified in the Blueprint.',
+			type: 'boolean',
+			default: false,
+			hidden: true,
+		})
+
+		.option('skipWordPressSetup', {
+			describe:
+				'[DEPRECATED] Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress. This option is deprecated and will be replaced by --mode=existing-site.',
+			type: 'boolean',
+			default: false,
+			hidden: true,
+		})
+		.option('skipSqliteSetup', {
+			describe:
+				'[DEPRECATED] Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL. This option is deprecated and will be replaced by --db-engine=mysql.',
+			type: 'boolean',
+			default: false,
+			hidden: true,
+		})
+		.option('sitePath', {
+			describe:
+				'[DEPRECATED] Target directory with WordPress install context. This option is deprecated and will be replaced by --target-path.',
+			type: 'string',
+			hidden: true,
+		})
+
 		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 		// ReadOnlyNODEFS, or by copying the files into MEMFS
 		.option('mount', {
@@ -176,11 +215,6 @@ export async function parseOptionsAndRunCLI() {
 			array: true,
 			coerce: parseMountDirArguments,
 		})
-		.option('login', {
-			describe: 'Should log the user in',
-			type: 'boolean',
-			default: false,
-		})
 		.option('blueprint', {
 			describe: 'Blueprint to execute.',
 			type: 'string',
@@ -190,18 +224,7 @@ export async function parseOptionsAndRunCLI() {
 				'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
 			type: 'boolean',
 			default: false,
-		})
-		.option('skipWordPressSetup', {
-			describe:
-				'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
-			type: 'boolean',
-			default: false,
-		})
-		.option('skipSqliteSetup', {
-			describe:
-				'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
-			type: 'boolean',
-			default: false,
+			hidden: true,
 		})
 		.option('quiet', {
 			describe: 'Do not output logs and progress messages.',
@@ -224,47 +247,40 @@ export async function parseOptionsAndRunCLI() {
 				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
 			type: 'boolean',
 			default: false,
+			hidden: true,
 		})
 		// Blueprint CLI options
-		.option('sitePath', {
-			describe: 'Target directory with WordPress install context',
-			type: 'string',
-		})
-		.option('executionContext', {
-			describe: 'Source directory with Blueprint context files',
-			type: 'string',
-		})
 		.option('mode', {
 			describe: 'Execution mode',
 			type: 'string',
-			choices: ['create-new-site', 'apply'],
+			choices: ['create-new-site', 'apply-to-existing-site'],
 		})
-		.option('dbEngine', {
+		.option('db-engine', {
 			describe: 'Database engine',
 			type: 'string',
 			choices: ['mysql', 'sqlite'],
 		})
-		.option('dbHost', {
+		.option('db-host', {
 			describe: 'MySQL host',
 			type: 'string',
 		})
-		.option('dbUser', {
+		.option('db-user', {
 			describe: 'MySQL user',
 			type: 'string',
 		})
-		.option('dbPass', {
+		.option('db-pass', {
 			describe: 'MySQL password',
 			type: 'string',
 		})
-		.option('dbName', {
+		.option('db-name', {
 			describe: 'MySQL database',
 			type: 'string',
 		})
-		.option('dbPath', {
+		.option('db-path', {
 			describe: 'SQLite file path',
 			type: 'string',
 		})
-		.option('truncateNewSiteDirectory', {
+		.option('truncate-new-site-directory', {
 			describe: 'Delete target directory if it exists before execution',
 			type: 'boolean',
 			default: false,
@@ -272,6 +288,8 @@ export async function parseOptionsAndRunCLI() {
 		.option('allow', {
 			describe: 'Allowed permissions (comma-separated)',
 			type: 'string',
+			coerce: (value) => value.split(','),
+			choices: ['bundled-files', 'follow-symlinks-anywhere'],
 		})
 		.showHelpOnFail(false);
 
@@ -301,42 +319,52 @@ export async function parseOptionsAndRunCLI() {
 function buildBlueprintCliArgs(args: RunCLIArgs): string[] {
 	const cliArgs: string[] = [];
 
-	if (args.sitePath) {
-		cliArgs.push(`--site-path=${args.sitePath}`);
+	if (args.wp) {
+		cliArgs.push(`--wp=${args.wp}`);
 	}
-	if (args.executionContext) {
-		cliArgs.push(`--execution-context=${args.executionContext}`);
+
+	if (args['site-path']) {
+		cliArgs.push(`--site-path=${args['site-path']}`);
 	}
-	if (args.mode) {
+
+	if (args.skipWordPressSetup) {
+		cliArgs.push('--mode=existing-site');
+	} else if (args.mode) {
 		cliArgs.push(`--mode=${args.mode}`);
 	}
-	if (args.dbEngine) {
-		cliArgs.push(`--db-engine=${args.dbEngine}`);
+
+	if (args.skipSqliteSetup) {
+		cliArgs.push('--db-engine=mysql');
+	} else if (args['db-engine']) {
+		cliArgs.push(`--db-engine=${args['db-engine']}`);
 	}
-	if (args.dbHost) {
-		cliArgs.push(`--db-host=${args.dbHost}`);
+
+	if (args['db-host']) {
+		cliArgs.push(`--db-host=${args['db-host']}`);
 	}
-	if (args.dbUser) {
-		cliArgs.push(`--db-user=${args.dbUser}`);
+	if (args['db-user']) {
+		cliArgs.push(`--db-user=${args['db-user']}`);
 	}
-	if (args.dbPass) {
-		cliArgs.push(`--db-pass=${args.dbPass}`);
+	if (args['db-pass']) {
+		cliArgs.push(`--db-pass=${args['db-pass']}`);
 	}
-	if (args.dbName) {
-		cliArgs.push(`--db-name=${args.dbName}`);
+	if (args['db-name']) {
+		cliArgs.push(`--db-name=${args['db-name']}`);
 	}
-	if (args.dbPath) {
-		cliArgs.push(`--db-path=${args.dbPath}`);
+	if (args['db-path']) {
+		cliArgs.push(`--db-path=${args['db-path']}`);
 	}
-	if (args.truncateNewSiteDirectory) {
+	if (args['truncate-new-site-directory']) {
 		cliArgs.push('--truncate-new-site-directory');
 	}
-	if (args.allow) {
+	if (args['allow']) {
 		cliArgs.push(`--allow=${args.allow}`);
 	}
-	// Map blueprintMayReadAdjacentFiles to allow permission
 	if (args.blueprintMayReadAdjacentFiles) {
-		cliArgs.push('--allow=bundled');
+		cliArgs.push('--allow=bundled-files');
+	}
+	if (args['follow-symlinks']) {
+		cliArgs.push('--allow=follow-symlinks-anywhere');
 	}
 
 	return cliArgs;
@@ -351,7 +379,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		 * Expand auto-mounts to include the necessary mounts and steps
 		 * when running in auto-mount mode.
 		 */
-		if (args.autoMount) {
+		if (args['auto-mount']) {
 			args = expandAutoMounts(args);
 		}
 
@@ -373,6 +401,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 		let requestHandler: PHPRequestHandler;
 		let wordPressReady = false;
+		let isFirstRequest = true;
 
 		output.stdout('Starting a PHP server...\n');
 
@@ -393,7 +422,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						// file in TypeScript. PHP downloads the Blueprint, but before we can do that, we also need to know
 						// which PHP version to use.
 						await loadNodeRuntime(args.php, {
-							followSymlinks: args.followSymlinks === true,
+							followSymlinks: args.allow?.includes(
+								'follow-symlinks-anywhere'
+							),
 							emscriptenOptions: {
 								ENV: {
 									PATH: '/internal/shared/bin',
@@ -416,15 +447,44 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					cookieStore: false,
 					spawnHandler: spawnHandlerFactory,
 				});
+
+				const primaryPhp = await requestHandler.getPrimaryPhp();
+
+				// Mark the PHP binary as executable, otherwise PHP won't
+				// use it to populate the PHP_BINARY constant.
+				primaryPhp.chmod('/internal/shared/bin/php', 0o755);
+
+				if (args.mountBeforeInstall) {
+					await mountResources(primaryPhp, args.mountBeforeInstall);
+				}
+
+				// Mount the current working directory to the PHP runtime for the purposes of
+				// Blueprint resolution.
+				let unmountCwd = () => {};
+				if (typeof args.blueprint === 'string') {
+					const blueprintPath = path.resolve(
+						process.cwd(),
+						args.blueprint
+					);
+					if (existsSync(blueprintPath)) {
+						primaryPhp.mkdir('/internal/shared/cwd');
+						unmountCwd = await primaryPhp.mount(
+							'/internal/shared/cwd',
+							createNodeFsMountHandler(
+								path.dirname(blueprintPath)
+							)
+						);
+						args.blueprint = path.join(
+							'/internal/shared/cwd',
+							path.basename(args.blueprint)
+						);
+					}
+				}
+
 				const { php, reap } =
 					await requestHandler.processManager.acquirePHPInstance({
 						considerPrimary: false,
 					});
-
-				// Mark the PHP binary as executable, otherwise PHP won't
-				// use it to populate the PHP_BINARY constant.
-				php.chmod('/internal/shared/bin/php', 0o755);
-
 				try {
 					streamedResponse = await runBlueprintV2({
 						php,
@@ -433,14 +493,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						documentRoot: '/wordpress',
 						cliArgs: buildBlueprintCliArgs(args),
 						hooks: {
-							beforeWordPressFiles: async (php) => {
-								if (args.mountBeforeInstall) {
-									mountResources(
-										php as PHP,
-										args.mountBeforeInstall
-									);
-								}
-							},
 							onProgress: (progress, caption) => {
 								const message = `${caption.trim()} – ${progress.toFixed(
 									2
@@ -499,6 +551,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					}
 					wordPressReady = true;
 
+					// @TODO: Should we also support this via the platform options in the Blueprint?
+					//        Maybe the PHP runtime could post a message when it processed the Blueprint?
+					if (args.login) {
+						php.defineConstant(
+							'PLAYGROUND_AUTO_LOGIN_AS_USER',
+							'admin'
+						);
+					}
+
 					if (args.command === 'build-snapshot') {
 						await zipDirectory(php, '/wordpress', '/tmp/build.zip');
 						const zip = php.readFileAsBuffer('/tmp/build.zip');
@@ -523,10 +584,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					if (!args.debug) {
 						throw error;
 					}
-					const phpLogs = php.readFileAsText(errorLogPath);
+					let phpLogs = '';
+					try {
+						phpLogs = php.readFileAsText(errorLogPath);
+					} catch {
+						phpLogs =
+							'Unknown error – we could not even read the PHP error log.';
+					}
 					throw new Error(phpLogs, { cause: error });
 				} finally {
 					reap();
+					unmountCwd();
 				}
 			},
 			async handleRequest(request: PHPRequest) {
@@ -536,6 +604,33 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						'WordPress is not ready yet'
 					);
 				}
+
+				// Clear the playground_auto_login_already_happened cookie on the first request.
+				// Otherwise the first Playground CLI server started on the machine will set it,
+				// all the subsequent runs will get the stale cookie, and the auto-login will
+				// assume they don't have to auto-login again.
+				if (isFirstRequest) {
+					isFirstRequest = false;
+					if (
+						request.headers?.['cookie']?.includes(
+							'playground_auto_login_already_happened'
+						)
+					) {
+						return new PHPResponse(
+							302,
+							{
+								'Set-Cookie': [
+									'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
+								],
+								'Content-Type': ['text/plain'],
+								'Content-Length': ['0'],
+								Location: ['/'],
+							},
+							new Uint8Array()
+						);
+					}
+				}
+
 				return await requestHandler.request(request);
 			},
 		});

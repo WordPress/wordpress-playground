@@ -15,7 +15,6 @@ interface RunV2Options {
 		afterBlueprintTargetResolved?: (
 			php: UniversalPHP
 		) => void | Promise<void>;
-		beforeWordPressFiles?: (php: UniversalPHP) => void | Promise<void>;
 		onProgress?: (progress: number, caption: string) => void;
 		/**
 		 * A hook that is called when an error occurs. It provides succinct
@@ -42,10 +41,6 @@ export async function runBlueprintV2(options: RunV2Options) {
 	const onProgress = options.hooks?.onProgress || (() => {});
 	const onError = options.hooks?.onError || (() => {});
 
-	// beforeWordPressFiles
-	if (options.hooks?.beforeWordPressFiles) {
-		await options.hooks.beforeWordPressFiles(php);
-	}
 	const file = await getV2Runner();
 	php.writeFile(
 		'/tmp/blueprints.phar',

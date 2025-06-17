@@ -84,10 +84,13 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 	return parsedMounts;
 }
 
-export function mountResources(php: PHP, mounts: Mount[]) {
+export async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
 		php.mkdir(mount.vfsPath);
-		php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
+		await php.mount(
+			mount.vfsPath,
+			createNodeFsMountHandler(mount.hostPath)
+		);
 	}
 }
 
