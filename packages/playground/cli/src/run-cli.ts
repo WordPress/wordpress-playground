@@ -246,11 +246,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
 
-			const moduleWorkerUrl = new URL(
-				moduleWorkerUrlString,
-				import.meta.url
-			);
-
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const totalWorkerCount = args.experimentalMultiWorker ?? 1;

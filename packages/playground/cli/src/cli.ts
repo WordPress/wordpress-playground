@@ -129,27 +129,22 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
-		// TODO: Probably do not merge this unless it can be hidden because we'll want a more general log-level flag instead.
 		.option('experimentalTrace', {
 			describe:
 				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
 			type: 'boolean',
 			default: false,
+			// Hide this option because we want to replace with a more general log-level flag.
 			hidden: true,
 		})
-		// TODO: Should we make this a hidden flag? Or something that could be shown with `--help --verbose`?
+		// TODO: Should we make this a hidden flag?
 		// TODO: Convert this to kebab-case to match incoming Blueprints v2 runner work.
 		.option('experimentalMultiWorker', {
 			describe:
-				'Enable experimental multi-worker support. ' +
-				'This will enable Playground to service more requests simultaneously. ' +
-				'This feature currently requires:\n' +
-				// TODO: Why is there a newline embedded in this string in the printed help text?
-				'- A JavaScript runtime that supports JavaScript Promise Integration (JSPI).\n' +
-				'- A real filesystem directory mounted as the /wordpress directory.\n\n' +
-				// TODO: Why is there a newline embedded in this string in the printed help text?
-				'The number of workers defaults to the number of CPUs minus 1. Pass a positive ' +
-				'number that is 2 or greater to specify the number of workers to use.',
+				'Enable experimental multi-worker support which requires JSPI ' +
+				'and a /wordpress directory backed by a real filesystem. ' +
+				'Pass a positive number to specify the number of workers to use. ' +
+				'Otherwise, default to the number of CPUs minus 1.',
 			type: 'number',
 			coerce: (value?: number) => value ?? cpus().length - 1,
 		})

@@ -1,6 +1,5 @@
 import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundCliWorker } from './worker-thread';
-import { logger } from '@php-wasm/logger';
 
 // TODO: Let's merge worker management into PHPProcessManager
 // when we can have multiple workers in both CLI and web.
@@ -11,7 +10,6 @@ type WorkerLoad = {
 	worker: RemoteAPI<PlaygroundCliWorker>;
 	activeRequests: Set<Promise<PHPResponse>>;
 };
-
 export class LoadBalancer {
 	workerLoads: WorkerLoad[] = [];
 
@@ -35,7 +33,6 @@ export class LoadBalancer {
 
 	async handleRequest(request: PHPRequest) {
 		let smallestWorkerLoad = this.workerLoads[0];
-		let smallestWorkerLoadIndex = 0;
 
 		// TODO: Is there any way for us to track CPU load so we could avoid
 		//       picking a worker that is under heavy load despite few requests?
@@ -48,7 +45,6 @@ export class LoadBalancer {
 				smallestWorkerLoad.activeRequests.size
 			) {
 				smallestWorkerLoad = workerLoad;
-				smallestWorkerLoadIndex = i;
 			}
 		}
 

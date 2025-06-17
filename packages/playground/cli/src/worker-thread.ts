@@ -43,6 +43,7 @@ function mountResources(php: PHP, mounts: Mount[]) {
  * @param {...any} args - The arguments.
  */
 function tracePhpWasm(processId: number, format: string, ...args: any[]) {
+	// eslint-disable-next-line no-console
 	console.log(
 		performance.now().toFixed(6).padStart(15, '0'),
 		processId.toString().padStart(16, '0'),
