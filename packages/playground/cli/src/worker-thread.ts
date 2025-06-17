@@ -157,11 +157,11 @@ export class PlaygroundCliWorker extends PHPWorker {
 	}
 }
 
-// post message to parent
-parentPort!.postMessage('worker-script-started');
-
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
 	undefined,
 	parentPort!
 );
+
+// Confirm that the worker script has initialized.
+parentPort!.postMessage('worker-script-initialized');

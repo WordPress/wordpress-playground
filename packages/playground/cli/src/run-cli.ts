@@ -60,12 +60,10 @@ export interface RunCLIArgs {
 }
 
 export interface RunCLIServer {
-	// TODO: Create interface over multiple workers?
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
 }
 
-// TODO: Restore this to a Promise for RunCLIServer?
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let loadBalancer: LoadBalancer;
 	// TODO: Consider direct reference to primary playground. Does this make sense?
@@ -199,7 +197,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	async function spawnPHPWorkerThread(workerUrl: URL) {
 		const worker = new Worker(workerUrl);
 		return new Promise<Worker>((resolve, reject) => {
-			worker.addListener('error', (e) => {
+			worker.once('message', (event: string) => {
+				// Let the worker confirm it has initialized.
+				// We could use the 'online' event to detect start of JS execution,
+				// but that would miss initialization errors.
+				if (event === 'worker-script-initialized') {
+					resolve(worker);
+				}
+			});
+			worker.once('error', (e) => {
 				const error = new Error(
 					`Worker failed to load at ${workerUrl}. ${
 						e.message ? `Original error: ${e.message}` : ''
@@ -208,17 +214,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				(error as any).filename = workerUrl;
 				reject(error);
 			});
-			// There is no way to know when the worker script has started
-			// executing, so we use a message to signal that.
-			function onStartup(event: string) {
-				// TODO: Use 'online' event instead because it doesn't require participation of the worker script
-				// https://nodejs.org/api/worker_threads.html#event-online
-				if (event === 'worker-script-started') {
-					resolve(worker);
-					worker.removeListener('message', onStartup);
-				}
-			}
-			worker.addListener('message', onStartup);
 		});
 	}
 
@@ -422,7 +417,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						'/internal'
 					);
 
-					// TODO: Document multi-worker in PR
 					// Create additional workers
 					const totalAdditionalWorkers = args.experimentalMultiWorker;
 					const workerProcessIdSpace = Math.floor(
@@ -456,6 +450,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								'/wordpress/wp-content/database/.ht.sqlite',
 							// TODO: Explain why
 							processIdBase: i * workerProcessIdSpace,
+							// TODO: Pass processIdSpace so process IDs can start over at processIdBase
 							followSymlinks,
 							trace,
 						});
