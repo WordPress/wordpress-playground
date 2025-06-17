@@ -34,7 +34,6 @@ export class FileLockManagerForNode implements FileLockManager {
 	locks: Map<string, FileLock>;
 
 	constructor() {
-		console.error('FileLockManagerForNode constructor');
 		this.locks = new Map();
 	}
 
@@ -47,7 +46,6 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @returns True if the lock was granted, false otherwise.
 	 */
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
-		// console.log('wholeFileLock', path, op);
 		if (this.locks.get(path) === undefined) {
 			if (op.type === 'unlock') {
 				return true;
@@ -133,7 +131,6 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param path The path to the file to release locks for.
 	 */
 	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
-		// console.log('releaseLocksForProcessFd', pid, fd, path);
 		const lock = this.locks.get(nativePath);
 		if (!lock) {
 			return;
@@ -335,7 +332,6 @@ export class FileLock {
 	 * @returns True if the lock was granted, false otherwise.
 	 */
 	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
-		console.error('lockFileByteRange', requestedLock);
 		if (requestedLock.start === requestedLock.end) {
 			/*
 			 * Treat a range with zero length as covering the entire remaining range.
@@ -558,11 +554,6 @@ export class FileLock {
 		overrideWholeFileLockType?: WholeFileLock['type'];
 		overrideRangeLockType?: RequestedRangeLock['type'];
 	} = {}): boolean {
-		console.log(
-			'ensureCompatibleNativeLock',
-			overrideWholeFileLockType,
-			overrideRangeLockType
-		);
 		const wholeFileLockType =
 			overrideWholeFileLockType ?? this.wholeFileLock.type;
 		const rangeLockType =
