@@ -103,7 +103,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 23
-            - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
     # Most of these tests pass locally but the process is crashing
     # on the CI runner.
     #

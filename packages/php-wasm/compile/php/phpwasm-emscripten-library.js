@@ -108,7 +108,7 @@ const LibraryExample = {
 							}
 						}
 				};
-			
+
 			// Clean up the fd -> childProcess mapping when the fd is closed:
 			const originalClose = FS.close;
 			FS.close = function (stream) {
@@ -143,7 +143,7 @@ const LibraryExample = {
 				return originalPutChar(tty, val);
 			};
 		},
-		
+
 		// Default output stream handlers.
 		// @TODO Consider using Emscripten's default print and printErr instead.
 		onHeaders: function (chunk) {
@@ -782,6 +782,8 @@ const LibraryExample = {
 					wakeUp(newl);
 				} else if ( newl === -6 ) {
 					setTimeout(poll, 20);
+				} else {
+					wakeUp(0);
 				}
 			};
 			poll();

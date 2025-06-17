@@ -30091,6 +30091,8 @@ export function init(RuntimeName, PHPLoader) {
 					wakeUp(newl);
 				} else if (newl === -6) {
 					setTimeout(poll, 20);
+				} else {
+					wakeUp(0);
 				}
 			};
 			poll();
