@@ -1,9 +1,5 @@
 import { loadNodeRuntime } from '..';
-import {
-	__private__dont__use,
-	PHP,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
+import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
 import path from 'path';
 import fs from 'fs';
 
@@ -33,8 +29,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('supports dynamic loading', async () => {
-			let iniPath = '/internal/shared/extensions/xdebug.ini';
-			let entries = php
+			const iniPath = '/internal/shared/extensions/xdebug.ini';
+			const entries = php
 				.readFileAsText(iniPath)
 				.replace('xdebug.mode=debug,develop', 'xdebug.mode=off')
 				.concat('\nhtml_errors=off');
