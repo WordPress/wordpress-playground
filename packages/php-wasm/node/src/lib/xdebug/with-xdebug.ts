@@ -45,10 +45,9 @@ export async function withXdebug(
 					'/internal/shared/extensions/xdebug.ini',
 					[
 						'zend_extension=/internal/shared/extensions/xdebug.so',
-						'html_errors=off',
-						'xdebug.mode=debug',
+						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
-						'xdebug.log=/xdebug.log',
+						'xdebug.start_upon_error=yes',
 					].join('\n')
 				);
 				/* The extension needs to mount the current

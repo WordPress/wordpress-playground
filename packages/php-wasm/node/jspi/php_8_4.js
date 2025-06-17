@@ -29935,8 +29935,6 @@ export function init(RuntimeName, PHPLoader) {
 					wakeUp(newl);
 				} else if (newl === -6) {
 					setTimeout(poll, 20);
-				} else {
-					throw new Error('Socket connection error');
 				}
 			};
 			poll();

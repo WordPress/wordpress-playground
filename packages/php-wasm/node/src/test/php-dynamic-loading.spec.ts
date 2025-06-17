@@ -34,7 +34,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('supports dynamic loading', async () => {
 			let iniPath = '/internal/shared/extensions/xdebug.ini';
-			let entries = php.readFileAsText(iniPath).replace('=debug', '=off');
+			let entries = php
+				.readFileAsText(iniPath)
+				.replace('xdebug.mode=debug,develop', 'xdebug.mode=off')
+				.concat('\nhtml_errors=off');
 			php.writeFile(iniPath, entries);
 
 			const result = await php.run({
@@ -52,10 +55,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			const expected = [
 				'zend_extension=/internal/shared/extensions/xdebug.so',
-				'html_errors=off',
-				'xdebug.mode=debug',
+				'xdebug.mode=debug,develop',
 				'xdebug.start_with_request=yes',
-				'xdebug.log=/xdebug.log',
+				'xdebug.start_upon_error=yes',
 			].join('\n');
 
 			expect(entries).toEqual(expected);
