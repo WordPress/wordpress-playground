@@ -1,9 +1,9 @@
 import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
-import v2_runner_url from '../../public/blueprints.phar?url';
-import { ensureWpConfig } from '@wp-playground/wordpress';
-import type { BlueprintDeclaration } from './blueprint';
 import { logger } from '@php-wasm/logger';
+import { ensureWpConfig } from '@wp-playground/wordpress';
+import v2_runner_url from '../../public/blueprints.phar?url';
+import type { BlueprintDeclaration } from './blueprint';
 
 interface RunV2Options {
 	php: UniversalPHP;
@@ -209,19 +209,13 @@ require( "/tmp/blueprints.phar" );
 		}
 	}
 
-	const cliCommand = [
-		'php',
+	return (await (php as any).cli([
+		'/internal/shared/bin/php',
 		'/tmp/run-blueprints.php',
 		'exec',
 		blueprintReference,
 		...finalArgs,
-	];
-	console.log(cliCommand);
-	const response = (await (php as any).cli(
-		cliCommand
-	)) as StreamedPHPResponse;
-
-	return response;
+	])) as StreamedPHPResponse;
 }
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;

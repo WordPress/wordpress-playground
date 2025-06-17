@@ -394,11 +394,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						// which PHP version to use.
 						await loadNodeRuntime(args.php, {
 							followSymlinks: args.followSymlinks === true,
+							emscriptenOptions: {
+								ENV: {
+									PATH: '/internal/shared/bin',
+								},
+							},
 						}),
 					sapiName: 'cli',
 					createFiles: {
 						'/internal/shared/ca-bundle.crt':
 							rootCertificates.join('\n'),
+						// Dummy PHP binary to ensure that PHP-WASM is used for proc_open() calls.
+						'/internal/shared/bin/php': '#!/bin/sh\nphp "$@"',
 					},
 					phpIniEntries: {
 						'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -412,6 +419,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					await requestHandler.processManager.acquirePHPInstance({
 						considerPrimary: false,
 					});
+
+				// Mark the PHP binary as executable, otherwise PHP won't
+				// use it to populate the PHP_BINARY constant.
+				php.chmod('/internal/shared/bin/php', 0o755);
+
 				try {
 					streamedResponse = await runBlueprintV2({
 						php,
@@ -475,6 +487,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						);
 					}
 					await streamedResponse!.finished;
+					if ((await streamedResponse!.exitCode) !== 0) {
+						process.exit(1);
+					}
 					wordPressReady = true;
 
 					if (args.command === 'build-snapshot') {
@@ -498,7 +513,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 					return { requestHandler, server };
 				} catch (error) {
-					console.log('error!', error);
 					if (!args.debug) {
 						throw error;
 					}
@@ -519,7 +533,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			},
 		});
 	} catch (e) {
-		console.log('error!', e);
 		if (
 			e instanceof PHPExecutionFailureError &&
 			!args.debug &&
@@ -593,6 +606,8 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			args.unshift('php');
 		}
 
+		const binaryName = args[0].split('/').pop();
+
 		// Mock programs required by wp-cli:
 		if (
 			args[0] === '/usr/bin/env' &&
@@ -607,16 +622,16 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			// @TODO: Do not hardcode this
 			processApi.stdout(`18 140`);
 			processApi.exit(0);
-		} else if (args[0] === 'tput' && args[1] === 'cols') {
+		} else if (binaryName === 'tput' && args[1] === 'cols') {
 			processApi.stdout(`140`);
 			processApi.exit(0);
-		} else if (args[0] === 'less') {
+		} else if (binaryName === 'less') {
 			processApi.on('stdin', (data: Uint8Array) => {
 				processApi.stdout(data);
 			});
 			processApi.flushStdin();
 			processApi.exit(0);
-		} else if (args[0] === 'php') {
+		} else if (binaryName === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance({
 				considerPrimary: false,
 			});

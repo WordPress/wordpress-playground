@@ -324,6 +324,15 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Changes the permissions of a file or directory.
+	 * @param path - The path to the file or directory.
+	 * @param mode - The new permissions.
+	 */
+	chmod(path: string, mode: number) {
+		this[__private__dont__use].FS.chmod(path, mode);
+	}
+
+	/**
 	 * Do not use. Use new PHPRequestHandler() instead.
 	 * @deprecated
 	 */
@@ -922,8 +931,8 @@ export class PHP implements Disposable {
 								(e.error.exitCode ??
 									(e as any).error.status) !== 0
 							) {
-								logger.error(e);
-								logger.error(e.error);
+								// logger.error(e);
+								// logger.error(e.error);
 							}
 							if (!isExitCode(e.error)) {
 								const rethrown = new Error('Rethrown');
