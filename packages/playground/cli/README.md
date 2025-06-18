@@ -38,7 +38,7 @@ The minimum supported version of Node.js is 20. The latest Long-Term Support (LT
 
 ## Usage
 
-You don't have to install `@wp-playground/cli`, you can run directly with `npx`. This is the recommended way to use the CLI and requires no permanent installation. To run a vanilla WordPress website, you can run the command:
+You don't have to install `@wp-playground/cli`, you can run it directly with `npx`. This is the recommended way to use the CLI and requires no permanent installation. To run a vanilla WordPress website, you can run the command:
 
 ```bash
 npx @wp-playground/cli server
@@ -46,10 +46,10 @@ npx @wp-playground/cli server
 
 ### Choosing a WordPress Version
 
-By default, the CLI will load the latest stable version from WordPress. To set up the preferred version, we can use the flags `--wp=<version>`. This flag will switch to different versions on the fly:
+By default, the CLI will load the latest stable version of WordPress and PHP. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
- npx @wp-playground/cli server --wp=6.8
+ npx @wp-playground/cli server --wp=6.8 --php=8.4
 ```
 
 ### Mounting local Directories
@@ -58,10 +58,10 @@ By default, the CLI will load the latest stable version from WordPress. To set u
 
 ### Automatic Mounting with --autoMount
 
-The `--autoMount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. It supports the following directory types:
+The `--autoMount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. These are the supported directory types and how they are detected:
 
--   **Plugin Mode**: Presence of a PHP file with "Plugin Name:" in its header.
--   **Theme Mode**: Presence of a style.css file with "Theme Name:" in its header.
+-   **Plugin Mode**: Presence of a PHP file with `Plugin Name:` in its header.
+-   **Theme Mode**: Presence of a style.css file with `Theme Name:` in its header.
 -   **wp-content Mode**: Presence of plugins and themes subdirectories.
 -   **WordPress Mode**: Presence of a complete WordPress installation. The directory will be mounted to the root `/wordpress` folder.
 
@@ -76,7 +76,7 @@ npx @wp-playground/cli server --mount=/wordpress/wp-content/themes
 ## Command and Arguments
 
 Playground CLI is simple, configurable, and unopinionated. You can set it up according
-to your unique WordPress setup. With the playground CLI, you can use the following top-level commands:
+to your unique WordPress setup. With the Playground CLI, you can use the following top-level commands:
 
 -   **`server`**: (Default) Starts a local WordPress server.
 -   **`run-blueprint`**: Executes a Blueprint file without starting a web server.
@@ -153,19 +153,18 @@ multiple PHP instances.
 
 ## Comparisons
 
-### Laravel Valet
+### Things the Playground does compared to Laravel Valet
 
--   @wp-playground/cli handles the entire WordPress installation for you.
--   It works across all desktop platforms (Mac, Linux, Windows).
--   It does not set up custom host domains for you.
--   It allows you to switch WordPress and PHP versions on the fly.
+-   Handles the entire WordPress installation for you.
+-   Works across all desktop platforms (Mac, Linux, Windows).
+-   Does not set up custom host domains for you.
+-   Allows you to switch WordPress and PHP versions on the fly.
 
-### wp-env
+### Things the Playground does compared to `wp-env`
 
--   @wp-playground/cli supports non-WordPress projects (any PHP/HTML files).
--   It does not require Docker.
--   It is faster to start up for quick tests and development.
--   It does not include lifecycle scripts or a persistent MySQL database.
+-   Does not require Docker.
+-   Is faster to start up for quick tests and development.
+-   Does not include lifecycle scripts or a persistent MySQL database.
 
 ## How can I contribute?
 
