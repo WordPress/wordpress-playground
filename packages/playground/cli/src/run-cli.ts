@@ -8,8 +8,10 @@
  *   UI reasons from what we print for debugging?
  */
 
+import * as os from 'os';
+import * as path from 'path';
 import { errorLogPath, logToMemory, logger } from '@php-wasm/logger';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import type {
 	PHP,
 	PHPProcessManager,
@@ -19,7 +21,7 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { PHPExecutionFailureError, PHPResponse } from '@php-wasm/universal';
-import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { createSpawnHandler } from '@php-wasm/util';
 import type {
 	BlueprintDeclaration,
 	PHPExceptionDetails,
@@ -303,21 +305,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					cookieStore: false,
 					spawnHandler: spawnHandlerFactory,
 				});
-				// Permanently lock primary PHP instance. Don't allow calling .cli() on
-				// it as that would trash it.
-				await requestHandler.processManager.acquirePHPInstance();
 
-				console.log('primaryPHP acquired');
+				// Use a cross-platform way to get the user's home directory and construct the cache dir path
+				const httpCacheDir = path.join(
+					os.homedir(),
+					'.wordpress-playground-cli',
+					'http-cache'
+				);
+				if (!fs.existsSync(httpCacheDir)) {
+					fs.mkdirSync(httpCacheDir, { recursive: true });
+				}
+				const primaryPhp =
+					await requestHandler.processManager.getPrimaryPhp();
+				const vfsCacheDir = '/internal/shared/http-cache';
+				primaryPhp.mkdir(vfsCacheDir);
+				primaryPhp.mount(
+					vfsCacheDir,
+					createNodeFsMountHandler(httpCacheDir)
+				);
 
 				const { php, reap } =
-					await requestHandler.processManager.acquirePHPInstance();
-				console.log('secondaryPHP acquired');
+					await requestHandler.processManager.acquirePHPInstance({
+						considerPrimary: false,
+					});
 				try {
 					streamedResponse = await runBlueprintV2({
 						php,
 						blueprint: args.blueprint,
 						siteUrl: absoluteUrl,
 						documentRoot: '/wordpress',
+						// httpCacheDir: vfsCacheDir,
 						hooks: {
 							beforeWordPressFiles: async (php) => {
 								if (args.mountBeforeInstall) {
@@ -516,7 +533,9 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			processApi.flushStdin();
 			processApi.exit(0);
 		} else if (args[0] === 'php') {
-			const { php, reap } = await processManager.acquirePHPInstance();
+			const { php, reap } = await processManager.acquirePHPInstance({
+				considerPrimary: false,
+			});
 
 			php.chdir(options.cwd as string);
 			try {

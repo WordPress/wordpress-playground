@@ -3,12 +3,14 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import v2_runner_url from '../../public/blueprints.phar?url';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import type { BlueprintDeclaration } from './blueprint';
+import { phpVar } from '@php-wasm/util';
 
 interface RunV2Options {
 	php: UniversalPHP;
 	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
 	siteUrl: string;
 	documentRoot: string;
+	httpCacheDir?: string;
 	hooks?: {
 		afterBlueprintTargetResolved?: (
 			php: UniversalPHP
@@ -115,13 +117,21 @@ export async function runBlueprintV2(options: RunV2Options) {
 	await php?.writeFile(
 		'/tmp/run-blueprints.php',
 		`<?php
-// Set up the environment to emulate a shell script
-// call.
-
 function playground_on_blueprint_target_resolved() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
+
+function playground_create_http_client() {
+	$http_cache_dir = ${phpVar(options.httpCacheDir)};
+	if ($http_cache_dir && is_dir($http_cache_dir)) {
+		return new WordPress\\HttpClient\\Client([
+			'transport' => 'sockets',
+			'cache_dir' => $http_cache_dir,
+		]);
+	}
+}
+playground_add_filter('blueprint.http_client', 'playground_create_http_client');
 
 function playground_progress_reporter() {
 class PlaygroundProgressReporter implements ProgressReporter {
