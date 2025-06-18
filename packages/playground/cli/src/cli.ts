@@ -56,14 +56,14 @@ async function run() {
 		})
 		.option('mountBeforeInstall', {
 			describe:
-				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
+				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mountBeforeInstall or --mount-before-install multiple times. Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
 			coerce: parseMountWithDelimiterArguments,
 		})
 		.option('mountDir', {
 			describe:
-				'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
+				'Mount a directory to the PHP runtime. You can provide --mountDir or --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
 			type: 'array',
 			nargs: 2,
 			array: true,
@@ -71,7 +71,7 @@ async function run() {
 		})
 		.option('mountDirBeforeInstall', {
 			describe:
-				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
+				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mountDirBeforeInstall or --mount-dir-before-install multiple times. Format: "/host/path" "/vfs/path"',
 			type: 'string',
 			nargs: 2,
 			array: true,
