@@ -169,7 +169,7 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
-				// quiet: true,
+				quiet: true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/wp-login.php',
