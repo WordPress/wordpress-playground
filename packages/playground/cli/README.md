@@ -75,7 +75,7 @@ npx @wp-playground/cli server --mount=/wordpress/wp-content/themes
 
 ## Command and Arguments
 
-Playground CLI is simple, configurable, and unopinionated. You can set it up
+Playground CLI is simple, configurable, and unopinionated. You can set it up according
 to your unique WordPress setup. With the playground CLI, you can use the following top-level commands:
 
 -   **`server`**: (Default) Starts a local WordPress server.
