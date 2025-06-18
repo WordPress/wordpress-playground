@@ -91,7 +91,7 @@ The `server` command supports the following optional arguments:
 -   `--mount=<mapping>`: Manually mount a directory. Format: /host/path:/vfs/path. It can be used multiple times.
 -   `--mountBeforeInstall`: Mount a directory to the PHP runtime before installing WordPress. You can provide `--mountBeforeInstall` or `--mount-before-install` multiple times. Format: `/host/path:/vfs/path`.
 -   `--mountDir`: Mount a directory to the PHP runtime. You can provide `--mountDir` or `--mount-dir` multiple times. Format: `"/host/path"` `"/vfs/path"`
--   `--mountDirBeforeInstall`: Mount a directory to the PHP runtime before installing WordPress. You can provide `--mountBeforeInstall` or `--mount-before-install` multiple times. Format: `"/host/path"` `"/vfs/path"`
+-   `--mountDirBeforeInstall`: Mount a directory to the PHP runtime before installing WordPress. You can provide `--mountDirBeforeInstall` or `--mount-dir-before-install` multiple times. Format: `"/host/path"` `"/vfs/path"`
 -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 -   `--blueprintMayReadAdjacentFiles`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 -   `--login`: Automatically log the user in as an administrator.
