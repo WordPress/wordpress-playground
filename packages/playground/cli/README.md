@@ -13,7 +13,7 @@ cd my-plugin-or-theme-directory
 npx @wp-playground/cli server --autoMount
 ```
 
-The flag `--autoMount` will figure out if the project folder is a Plugin or a Theme for you. For more custom scenarios, we can work with the following example using the flag `--mount`.
+The flag `--autoMount` will figure out if the project folder is a plugin or a theme for you. For more custom scenarios, we can work with the following example using the flag `--mount`.
 
 ### Mount a project into Playground
 
