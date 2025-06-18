@@ -9,6 +9,7 @@ interface RunV2Options {
 	php: UniversalPHP;
 	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
 	additionalBlueprintSteps?: any[];
+	wordpressVersionOverride?: string;
 	siteUrl: string;
 	documentRoot: string;
 	cliArgs?: string[];
@@ -125,6 +126,13 @@ function playground_on_blueprint_resolved($blueprint) {
 			$blueprint['additionalStepsAfterExecution'] ?? [],
 			$additional_blueprint_steps
 		);
+	}
+
+	$wp_version_override = json_decode(${phpVar(
+		JSON.stringify(options.wordpressVersionOverride || null)
+	)}, true);
+	if($wp_version_override) {
+		$blueprint['wordpressVersion'] = $wp_version_override;
 	}
 	return $blueprint;
 }

@@ -94,6 +94,24 @@ export async function mountResources(php: PHP, mounts: Mount[]) {
 	}
 }
 
+const ACTIVATE_FIRST_THEME_STEP = {
+	step: 'runPHP',
+	code: {
+		filename: 'activate-theme.php',
+		code: `<?php
+			require_once getenv('DOCROOT') . '/wp-load.php';
+			$theme = wp_get_theme();
+			if (!$theme->exists()) {
+				$themes = wp_get_themes();
+				if (count($themes) > 0) {
+					$themeName = array_keys($themes)[0];
+					switch_theme($themeName);
+				}
+			}
+		`,
+	},
+};
+
 /**
  * Auto-mounts resolution logic:
  */
@@ -149,37 +167,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				vfsPath: `/wordpress/wp-content/${file}`,
 			});
 		}
-		newArgs.additionalBlueprintSteps.push({
-			step: 'runPHP',
-			code: `<?php
-				require_once getenv('DOCROOT') . '/wp-load.php';
-				$theme = wp_get_theme();
-				if (!$theme->exists()) {
-					$themes = wp_get_themes();
-					if (count($themes) > 0) {
-						$themeName = array_keys($themes)[0];
-						switch_theme($themeName);
-					}
-				}
-			`,
-		});
+		newArgs.additionalBlueprintSteps.push(ACTIVATE_FIRST_THEME_STEP);
 	} else if (containsFullWordPressInstallation(path)) {
 		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
 		newArgs.mode = 'apply-to-existing-site';
-		newArgs.additionalBlueprintSteps.push({
-			step: 'runPHP',
-			code: `<?php
-				require_once getenv('DOCROOT') . '/wp-load.php';
-				$theme = wp_get_theme();
-				if (!$theme->exists()) {
-					$themes = wp_get_themes();
-					if (count($themes) > 0) {
-						$themeName = array_keys($themes)[0];
-						switch_theme($themeName);
-					}
-				}
-			`,
-		});
+		newArgs.additionalBlueprintSteps.push(ACTIVATE_FIRST_THEME_STEP);
 	} else {
 		/**
 		 * By default, mount the current working directory as the Playground root.

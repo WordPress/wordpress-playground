@@ -324,10 +324,6 @@ export async function parseOptionsAndRunCLI() {
 function buildBlueprintCliArgs(args: RunCLIArgs): string[] {
 	const cliArgs: string[] = [];
 
-	if (args.wp) {
-		cliArgs.push(`--wp=${args.wp}`);
-	}
-
 	if (args['site-path']) {
 		cliArgs.push(`--site-path=${args['site-path']}`);
 	}
@@ -494,6 +490,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					if (args.mode !== 'mount-only') {
 						streamedResponse = await runBlueprintV2({
 							php,
+							wordpressVersionOverride: args.wp,
 							blueprint: args.blueprint,
 							additionalBlueprintSteps:
 								args.additionalBlueprintSteps,
@@ -659,40 +656,28 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		) {
 			// We want to avoid verbose error messages.
 			// Bale out if this is a known failure mode and we've already reported the error.
-			// process.exit(1);
+			process.exit(1);
 		}
 
-		console.log(e);
-
+		// If we did not expect this error, print **all** the debug details we can get.
+		output.stderr(`--------------------------------\n`);
+		output.stderr('Debug details:\n');
+		output.stderr('--------------------------------\n');
+		if (e && typeof e === 'object' && 'message' in e) {
+			output.stderr(e.message as string);
+		}
+		output.stderr(`\n\n==== PHP stderr ====\n\n`);
 		if (streamedResponse) {
-			// If we did not expect this error, print **all** the debug details we can get.
-			output.stderr(`--------------------------------\n`);
-			output.stderr('Debug details:\n');
-			output.stderr('--------------------------------\n');
-			if (e && typeof e === 'object' && 'message' in e) {
-				output.stderr(e.message as string);
-			}
-			output.stderr(`\n\n==== PHP stderr ====\n\n`);
-			if (streamedResponse) {
-				output.stderr(await streamedResponse.stderrText);
-			}
+			output.stderr(await streamedResponse.stderrText);
+		}
 
-			output.stderr(`\n\n==== PHP stdout ====\n\n`);
-			if (streamedResponse) {
-				output.stderr(await streamedResponse.stdoutText);
-			}
-			output.stderr(`\n\n`);
-			output.stderr(`--------------------------------\n`);
+		output.stderr(`\n\n==== PHP stdout ====\n\n`);
+		if (streamedResponse) {
+			output.stderr(await streamedResponse.stdoutText);
 		}
 		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		output.stderr(`\n\n`);
-		process.exit(1);
+		output.stderr(`--------------------------------\n`);
+
 		throw e;
 	}
 }
