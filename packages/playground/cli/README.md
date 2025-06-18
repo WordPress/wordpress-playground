@@ -1,6 +1,6 @@
 # WordPress Playground CLI
 
-`@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As the antecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
+`@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As its predecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
 
 The requirement to run the Playground CLI is to have installed `Node.js 20.18.3` or superior, which you can find at [Node.js website](https://nodejs.org/en/download).
 
