@@ -154,6 +154,7 @@ export async function startPlaygroundWeb({
 		shouldInstallWordPress,
 		phpVersion: compiled.versions.php,
 		wpVersion: compiled.versions.wp,
+		withICU: compiled.features.intl,
 		withNetworking: compiled.features.networking,
 		corsProxyUrl: corsProxy,
 		sqliteDriverVersion,

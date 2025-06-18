@@ -51,6 +51,10 @@ import {
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 import { generateCertificate, certificateToPEM } from '@php-wasm/web';
+import {
+	intlDisabledFunctions,
+	networkingDisabledFunctions,
+} from './disabled-functions';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -73,6 +77,7 @@ export type WorkerBootOptions = {
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
+	withICU: boolean;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -169,6 +174,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion = '8.0',
 		sapiName = 'cli',
+		withICU = false,
 		withNetworking = false,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
@@ -247,6 +253,15 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			};
 			let CAroot: false | GeneratedCertificate = false;
 			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
+			if (!withICU) {
+				phpIniEntries['disable_functions'] = (
+					phpIniEntries['disable_functions'] ?? ''
+				)
+					.split(',')
+					.concat(intlDisabledFunctions)
+					.filter((n) => n)
+					.join(',');
+			}
 			if (withNetworking) {
 				/**
 				 * Generate a self-signed CA certificate and tell PHP to trust it.
@@ -274,8 +289,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				// Calling curl_exec() with networking disabled causes PHP to
 				// enter an infinite loop. Let's disable it completely to
 				// throw a fatal error instead.
-				phpIniEntries['disable_functions'] =
-					'curl_exec,curl_multi_exec';
+				phpIniEntries['disable_functions'] = (
+					phpIniEntries['disable_functions'] ?? ''
+				)
+					.split(',')
+					.concat(networkingDisabledFunctions)
+					.filter((n) => n)
+					.join(',');
 			}
 			const requestHandler = await bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
@@ -283,6 +303,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					let wasmUrl = '';
 					return await loadWebRuntime(phpVersion, {
 						tcpOverFetch,
+						withICU,
 						emscriptenOptions: {
 							instantiateWasm(imports, receiveInstance) {
 								// Using .then because Emscripten typically returns an empty

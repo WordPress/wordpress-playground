@@ -172,6 +172,9 @@ export async function load(
 		return {
 			format: 'module',
 			source: `export default ${JSON.stringify(urlObj.href)};`,
+			// TODO: Consider which is preferable and discuss with @adamziel.
+			// He implemented the pathname version.
+			//source: `export default ${JSON.stringify(urlObj.pathname)};`,
 			shortCircuit: true,
 		};
 	}
@@ -186,7 +189,7 @@ export async function load(
 		};
 	}
 
-	if (context.format === 'json') {
+	if (context.format === 'json' || urlObj.pathname.endsWith('.json')) {
 		const source = readFileSync(urlObj.pathname, 'utf8');
 		return {
 			format: 'json',

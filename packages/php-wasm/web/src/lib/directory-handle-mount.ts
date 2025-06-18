@@ -3,6 +3,7 @@ import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { normalizeFilesystemOperations } from '@php-wasm/fs-journal';
 import { journalFSEvents } from '@php-wasm/fs-journal';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
@@ -282,12 +283,30 @@ export function journalFSEventsToOpfs(
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
 
 	async function flushJournal() {
+		if (journal.length === 0) {
+			return;
+		}
+
 		const release = await php.semaphore.acquire();
+
+		// Concurrency safety note
+		// As I understand it, journal is specific to a PHP instance,
+		// so it's not possible to have concurrency push of entries to journal
+		// But this can change in future so it doesn't hurt to read from journal
+		// in a concurrent safe way, which is what we are doing here.
+
+		// We first copy it to a new array
+		const journalEntries = [...journal];
+		// and then only delete however many entries we were able to grab
+		// since with concurrent writes there could have been more insertions
+		journal.splice(0, journalEntries.length);
+
+		const compressedJournal = normalizeFilesystemOperations(journalEntries);
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
-			while (journal.length) {
-				await rewriter.processEntry(journal.shift()!);
+			for (const entry of compressedJournal) {
+				await rewriter.processEntry(entry);
 			}
 		} finally {
 			release();

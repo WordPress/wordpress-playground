@@ -74,6 +74,7 @@ const schema11 = {
 				features: {
 					type: 'object',
 					properties: {
+						intl: { type: 'boolean' },
 						networking: {
 							type: 'boolean',
 							description:
@@ -155,18 +156,7 @@ const schema11 = {
 		},
 		SupportedPHPVersion: {
 			type: 'string',
-			enum: [
-				'8.4',
-				'8.3',
-				'8.2',
-				'8.1',
-				'8.0',
-				'7.4',
-				'7.3',
-				'7.2',
-				'7.1',
-				'7.0',
-			],
+			enum: ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2'],
 		},
 		ExtraLibrary: { type: 'string', const: 'wp-cli' },
 		PHPConstants: {
@@ -473,6 +463,13 @@ const schema11 = {
 							$ref: '#/definitions/FileReference',
 							description: 'The file to import',
 						},
+						importer: {
+							type: 'string',
+							enum: ['data-liberation', 'default'],
+							description:
+								'The importer to use. Possible values:\n\n- `default`: The importer from https://github.com/humanmade/WordPress-Importer\n- `data-liberation`: The experimental Data Liberation WXR importer developed at                      https://github.com/WordPress/wordpress-playground/issues/1894\n\nThis option is deprecated. The syntax will not be removed, but once the Data Liberation importer matures, it will become the only supported importer and the `importer` option will be ignored.',
+							deprecated: true,
+						},
 					},
 					required: ['file', 'step'],
 				},
@@ -560,7 +557,7 @@ const schema11 = {
 						},
 						pluginZipFile: {
 							$ref: '#/definitions/FileReference',
-							deprecated: '. Use `pluginData` instead.',
+							deprecated: ". Use 'pluginData' instead.",
 						},
 						options: {
 							$ref: '#/definitions/InstallPluginOptions',
@@ -602,7 +599,7 @@ const schema11 = {
 						},
 						themeZipFile: {
 							$ref: '#/definitions/FileReference',
-							deprecated: '. Use `themeData` instead.',
+							deprecated: ". Use 'themeData' instead.",
 						},
 						options: {
 							$ref: '#/definitions/InstallThemeOptions',
@@ -997,7 +994,8 @@ const schema11 = {
 						},
 						filesTree: {
 							$ref: '#/definitions/DirectoryReference',
-							description: 'The data to write',
+							description:
+								"The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
 						},
 					},
 					required: ['filesTree', 'step', 'writeToPath'],
@@ -1413,6 +1411,7 @@ const schema12 = {
 		features: {
 			type: 'object',
 			properties: {
+				intl: { type: 'boolean' },
 				networking: {
 					type: 'boolean',
 					description:
@@ -1491,18 +1490,7 @@ const schema12 = {
 };
 const schema13 = {
 	type: 'string',
-	enum: [
-		'8.4',
-		'8.3',
-		'8.2',
-		'8.1',
-		'8.0',
-		'7.4',
-		'7.3',
-		'7.2',
-		'7.1',
-		'7.0',
-	],
+	enum: ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2'],
 };
 const schema14 = { type: 'string', const: 'wp-cli' };
 const schema15 = {
@@ -3358,6 +3346,13 @@ const schema23 = {
 					$ref: '#/definitions/FileReference',
 					description: 'The file to import',
 				},
+				importer: {
+					type: 'string',
+					enum: ['data-liberation', 'default'],
+					description:
+						'The importer to use. Possible values:\n\n- `default`: The importer from https://github.com/humanmade/WordPress-Importer\n- `data-liberation`: The experimental Data Liberation WXR importer developed at                      https://github.com/WordPress/wordpress-playground/issues/1894\n\nThis option is deprecated. The syntax will not be removed, but once the Data Liberation importer matures, it will become the only supported importer and the `importer` option will be ignored.',
+					deprecated: true,
+				},
 			},
 			required: ['file', 'step'],
 		},
@@ -3444,7 +3439,7 @@ const schema23 = {
 				},
 				pluginZipFile: {
 					$ref: '#/definitions/FileReference',
-					deprecated: '. Use `pluginData` instead.',
+					deprecated: ". Use 'pluginData' instead.",
 				},
 				options: {
 					$ref: '#/definitions/InstallPluginOptions',
@@ -3485,7 +3480,7 @@ const schema23 = {
 				},
 				themeZipFile: {
 					$ref: '#/definitions/FileReference',
-					deprecated: '. Use `themeData` instead.',
+					deprecated: ". Use 'themeData' instead.",
 				},
 				options: {
 					$ref: '#/definitions/InstallThemeOptions',
@@ -3861,7 +3856,8 @@ const schema23 = {
 				},
 				filesTree: {
 					$ref: '#/definitions/DirectoryReference',
-					description: 'The data to write',
+					description:
+						"The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
 				},
 			},
 			required: ['filesTree', 'step', 'writeToPath'],
@@ -10241,6 +10237,38 @@ function validate14(
 																		},
 																		message:
 																			'must be string',
+																	},
+																];
+															return false;
+														}
+														if (
+															!(
+																data40 ===
+																	'data-liberation' ||
+																data40 ===
+																	'default'
+															)
+														) {
+															validate14.errors =
+																[
+																	{
+																		instancePath:
+																			instancePath +
+																			'/importer',
+																		schemaPath:
+																			'#/oneOf/6/properties/importer/enum',
+																		keyword:
+																			'enum',
+																		params: {
+																			allowedValues:
+																				schema23
+																					.oneOf[6]
+																					.properties
+																					.importer
+																					.enum,
+																		},
+																		message:
+																			'must be equal to one of the allowed values',
 																	},
 																];
 															return false;
@@ -19495,9 +19523,7 @@ function validate11(
 															data9 === '8.0' ||
 															data9 === '7.4' ||
 															data9 === '7.3' ||
-															data9 === '7.2' ||
-															data9 === '7.1' ||
-															data9 === '7.0'
+															data9 === '7.2'
 														)
 													) {
 														const err1 = {
@@ -19697,7 +19723,12 @@ function validate11(
 										) {
 											const _errs33 = errors;
 											for (const key3 in data11) {
-												if (!(key3 === 'networking')) {
+												if (
+													!(
+														key3 === 'intl' ||
+														key3 === 'networking'
+													)
+												) {
 													validate11.errors = [
 														{
 															instancePath:
@@ -19720,21 +19751,19 @@ function validate11(
 												}
 											}
 											if (_errs33 === errors) {
-												if (
-													data11.networking !==
-													undefined
-												) {
+												if (data11.intl !== undefined) {
+													const _errs34 = errors;
 													if (
-														typeof data11.networking !==
+														typeof data11.intl !==
 														'boolean'
 													) {
 														validate11.errors = [
 															{
 																instancePath:
 																	instancePath +
-																	'/features/networking',
+																	'/features/intl',
 																schemaPath:
-																	'#/properties/features/properties/networking/type',
+																	'#/properties/features/properties/intl/type',
 																keyword: 'type',
 																params: {
 																	type: 'boolean',
@@ -19744,6 +19773,45 @@ function validate11(
 															},
 														];
 														return false;
+													}
+													var valid6 =
+														_errs34 === errors;
+												} else {
+													var valid6 = true;
+												}
+												if (valid6) {
+													if (
+														data11.networking !==
+														undefined
+													) {
+														const _errs36 = errors;
+														if (
+															typeof data11.networking !==
+															'boolean'
+														) {
+															validate11.errors =
+																[
+																	{
+																		instancePath:
+																			instancePath +
+																			'/features/networking',
+																		schemaPath:
+																			'#/properties/features/properties/networking/type',
+																		keyword:
+																			'type',
+																		params: {
+																			type: 'boolean',
+																		},
+																		message:
+																			'must be boolean',
+																	},
+																];
+															return false;
+														}
+														var valid6 =
+															_errs36 === errors;
+													} else {
+														var valid6 = true;
 													}
 												}
 											}
@@ -19769,21 +19837,21 @@ function validate11(
 								}
 								if (valid0) {
 									if (data.extraLibraries !== undefined) {
-										let data13 = data.extraLibraries;
-										const _errs36 = errors;
-										if (errors === _errs36) {
-											if (Array.isArray(data13)) {
+										let data14 = data.extraLibraries;
+										const _errs38 = errors;
+										if (errors === _errs38) {
+											if (Array.isArray(data14)) {
 												var valid7 = true;
-												const len1 = data13.length;
+												const len1 = data14.length;
 												for (
 													let i1 = 0;
 													i1 < len1;
 													i1++
 												) {
-													let data14 = data13[i1];
-													const _errs38 = errors;
+													let data15 = data14[i1];
+													const _errs40 = errors;
 													if (
-														typeof data14 !==
+														typeof data15 !==
 														'string'
 													) {
 														validate11.errors = [
@@ -19804,7 +19872,7 @@ function validate11(
 														];
 														return false;
 													}
-													if ('wp-cli' !== data14) {
+													if ('wp-cli' !== data15) {
 														validate11.errors = [
 															{
 																instancePath:
@@ -19826,7 +19894,7 @@ function validate11(
 														return false;
 													}
 													var valid7 =
-														_errs38 === errors;
+														_errs40 === errors;
 													if (!valid7) {
 														break;
 													}
@@ -19850,34 +19918,34 @@ function validate11(
 												return false;
 											}
 										}
-										var valid0 = _errs36 === errors;
+										var valid0 = _errs38 === errors;
 									} else {
 										var valid0 = true;
 									}
 									if (valid0) {
 										if (data.constants !== undefined) {
-											let data15 = data.constants;
-											const _errs41 = errors;
-											const _errs42 = errors;
-											if (errors === _errs42) {
+											let data16 = data.constants;
+											const _errs43 = errors;
+											const _errs44 = errors;
+											if (errors === _errs44) {
 												if (
-													data15 &&
-													typeof data15 == 'object' &&
-													!Array.isArray(data15)
+													data16 &&
+													typeof data16 == 'object' &&
+													!Array.isArray(data16)
 												) {
-													for (const key4 in data15) {
-														let data16 =
-															data15[key4];
-														const _errs45 = errors;
+													for (const key4 in data16) {
+														let data17 =
+															data16[key4];
+														const _errs47 = errors;
 														if (
-															typeof data16 !==
+															typeof data17 !==
 																'string' &&
-															typeof data16 !==
+															typeof data17 !==
 																'boolean' &&
 															!(
-																typeof data16 ==
+																typeof data17 ==
 																	'number' &&
-																isFinite(data16)
+																isFinite(data17)
 															)
 														) {
 															validate11.errors =
@@ -19911,7 +19979,7 @@ function validate11(
 															return false;
 														}
 														var valid10 =
-															_errs45 === errors;
+															_errs47 === errors;
 														if (!valid10) {
 															break;
 														}
@@ -19935,35 +20003,35 @@ function validate11(
 													return false;
 												}
 											}
-											var valid0 = _errs41 === errors;
+											var valid0 = _errs43 === errors;
 										} else {
 											var valid0 = true;
 										}
 										if (valid0) {
 											if (data.plugins !== undefined) {
-												let data17 = data.plugins;
-												const _errs47 = errors;
-												if (errors === _errs47) {
-													if (Array.isArray(data17)) {
+												let data18 = data.plugins;
+												const _errs49 = errors;
+												if (errors === _errs49) {
+													if (Array.isArray(data18)) {
 														var valid11 = true;
 														const len2 =
-															data17.length;
+															data18.length;
 														for (
 															let i2 = 0;
 															i2 < len2;
 															i2++
 														) {
-															let data18 =
-																data17[i2];
-															const _errs49 =
-																errors;
-															const _errs50 =
-																errors;
-															let valid12 = false;
+															let data19 =
+																data18[i2];
 															const _errs51 =
 																errors;
+															const _errs52 =
+																errors;
+															let valid12 = false;
+															const _errs53 =
+																errors;
 															if (
-																typeof data18 !==
+																typeof data19 !==
 																'string'
 															) {
 																const err5 = {
@@ -19996,24 +20064,24 @@ function validate11(
 																errors++;
 															}
 															var _valid1 =
-																_errs51 ===
+																_errs53 ===
 																errors;
 															valid12 =
 																valid12 ||
 																_valid1;
 															if (!valid12) {
-																const _errs53 =
+																const _errs55 =
 																	errors;
 																if (
 																	!validate12(
-																		data18,
+																		data19,
 																		{
 																			instancePath:
 																				instancePath +
 																				'/plugins/' +
 																				i2,
 																			parentData:
-																				data17,
+																				data18,
 																			parentDataProperty:
 																				i2,
 																			rootData,
@@ -20031,7 +20099,7 @@ function validate11(
 																		vErrors.length;
 																}
 																var _valid1 =
-																	_errs53 ===
+																	_errs55 ===
 																	errors;
 																valid12 =
 																	valid12 ||
@@ -20069,16 +20137,16 @@ function validate11(
 																return false;
 															} else {
 																errors =
-																	_errs50;
+																	_errs52;
 																if (
 																	vErrors !==
 																	null
 																) {
 																	if (
-																		_errs50
+																		_errs52
 																	) {
 																		vErrors.length =
-																			_errs50;
+																			_errs52;
 																	} else {
 																		vErrors =
 																			null;
@@ -20086,7 +20154,7 @@ function validate11(
 																}
 															}
 															var valid11 =
-																_errs49 ===
+																_errs51 ===
 																errors;
 															if (!valid11) {
 																break;
@@ -20111,7 +20179,7 @@ function validate11(
 														return false;
 													}
 												}
-												var valid0 = _errs47 === errors;
+												var valid0 = _errs49 === errors;
 											} else {
 												var valid0 = true;
 											}
@@ -20120,31 +20188,31 @@ function validate11(
 													data.siteOptions !==
 													undefined
 												) {
-													let data19 =
+													let data20 =
 														data.siteOptions;
-													const _errs54 = errors;
-													if (errors === _errs54) {
+													const _errs56 = errors;
+													if (errors === _errs56) {
 														if (
-															data19 &&
-															typeof data19 ==
+															data20 &&
+															typeof data20 ==
 																'object' &&
 															!Array.isArray(
-																data19
+																data20
 															)
 														) {
-															const _errs56 =
+															const _errs58 =
 																errors;
-															for (const key5 in data19) {
+															for (const key5 in data20) {
 																if (
 																	!(
 																		key5 ===
 																		'blogname'
 																	)
 																) {
-																	const _errs57 =
+																	const _errs59 =
 																		errors;
 																	if (
-																		typeof data19[
+																		typeof data20[
 																			key5
 																		] !==
 																		'string'
@@ -20178,7 +20246,7 @@ function validate11(
 																		return false;
 																	}
 																	var valid13 =
-																		_errs57 ===
+																		_errs59 ===
 																		errors;
 																	if (
 																		!valid13
@@ -20188,15 +20256,15 @@ function validate11(
 																}
 															}
 															if (
-																_errs56 ===
+																_errs58 ===
 																errors
 															) {
 																if (
-																	data19.blogname !==
+																	data20.blogname !==
 																	undefined
 																) {
 																	if (
-																		typeof data19.blogname !==
+																		typeof data20.blogname !==
 																		'string'
 																	) {
 																		validate11.errors =
@@ -20242,7 +20310,7 @@ function validate11(
 														}
 													}
 													var valid0 =
-														_errs54 === errors;
+														_errs56 === errors;
 												} else {
 													var valid0 = true;
 												}
@@ -20250,13 +20318,13 @@ function validate11(
 													if (
 														data.login !== undefined
 													) {
-														let data22 = data.login;
-														const _errs61 = errors;
-														const _errs62 = errors;
-														let valid15 = false;
+														let data23 = data.login;
 														const _errs63 = errors;
+														const _errs64 = errors;
+														let valid15 = false;
+														const _errs65 = errors;
 														if (
-															typeof data22 !==
+															typeof data23 !==
 															'boolean'
 														) {
 															const err7 = {
@@ -20286,31 +20354,31 @@ function validate11(
 															errors++;
 														}
 														var _valid2 =
-															_errs63 === errors;
+															_errs65 === errors;
 														valid15 =
 															valid15 || _valid2;
 														if (!valid15) {
-															const _errs65 =
+															const _errs67 =
 																errors;
 															if (
 																errors ===
-																_errs65
+																_errs67
 															) {
 																if (
-																	data22 &&
-																	typeof data22 ==
+																	data23 &&
+																	typeof data23 ==
 																		'object' &&
 																	!Array.isArray(
-																		data22
+																		data23
 																	)
 																) {
 																	let missing2;
 																	if (
-																		(data22.username ===
+																		(data23.username ===
 																			undefined &&
 																			(missing2 =
 																				'username')) ||
-																		(data22.password ===
+																		(data23.password ===
 																			undefined &&
 																			(missing2 =
 																				'password'))
@@ -20348,9 +20416,9 @@ function validate11(
 																		}
 																		errors++;
 																	} else {
-																		const _errs67 =
+																		const _errs69 =
 																			errors;
-																		for (const key6 in data22) {
+																		for (const key6 in data23) {
 																			if (
 																				!(
 																					key6 ===
@@ -20393,17 +20461,17 @@ function validate11(
 																			}
 																		}
 																		if (
-																			_errs67 ===
+																			_errs69 ===
 																			errors
 																		) {
 																			if (
-																				data22.username !==
+																				data23.username !==
 																				undefined
 																			) {
-																				const _errs68 =
+																				const _errs70 =
 																					errors;
 																				if (
-																					typeof data22.username !==
+																					typeof data23.username !==
 																					'string'
 																				) {
 																					const err10 =
@@ -20437,7 +20505,7 @@ function validate11(
 																					errors++;
 																				}
 																				var valid16 =
-																					_errs68 ===
+																					_errs70 ===
 																					errors;
 																			} else {
 																				var valid16 = true;
@@ -20446,13 +20514,13 @@ function validate11(
 																				valid16
 																			) {
 																				if (
-																					data22.password !==
+																					data23.password !==
 																					undefined
 																				) {
-																					const _errs70 =
+																					const _errs72 =
 																						errors;
 																					if (
-																						typeof data22.password !==
+																						typeof data23.password !==
 																						'string'
 																					) {
 																						const err11 =
@@ -20486,7 +20554,7 @@ function validate11(
 																						errors++;
 																					}
 																					var valid16 =
-																						_errs70 ===
+																						_errs72 ===
 																						errors;
 																				} else {
 																					var valid16 = true;
@@ -20527,7 +20595,7 @@ function validate11(
 																}
 															}
 															var _valid2 =
-																_errs65 ===
+																_errs67 ===
 																errors;
 															valid15 =
 																valid15 ||
@@ -20562,13 +20630,13 @@ function validate11(
 																vErrors;
 															return false;
 														} else {
-															errors = _errs62;
+															errors = _errs64;
 															if (
 																vErrors !== null
 															) {
-																if (_errs62) {
+																if (_errs64) {
 																	vErrors.length =
-																		_errs62;
+																		_errs64;
 																} else {
 																	vErrors =
 																		null;
@@ -20576,7 +20644,7 @@ function validate11(
 															}
 														}
 														var valid0 =
-															_errs61 === errors;
+															_errs63 === errors;
 													} else {
 														var valid0 = true;
 													}
@@ -20585,49 +20653,49 @@ function validate11(
 															data.steps !==
 															undefined
 														) {
-															let data25 =
+															let data26 =
 																data.steps;
-															const _errs72 =
+															const _errs74 =
 																errors;
 															if (
 																errors ===
-																_errs72
+																_errs74
 															) {
 																if (
 																	Array.isArray(
-																		data25
+																		data26
 																	)
 																) {
 																	var valid17 = true;
 																	const len3 =
-																		data25.length;
+																		data26.length;
 																	for (
 																		let i3 = 0;
 																		i3 <
 																		len3;
 																		i3++
 																	) {
-																		let data26 =
-																			data25[
+																		let data27 =
+																			data26[
 																				i3
 																			];
-																		const _errs74 =
+																		const _errs76 =
 																			errors;
-																		const _errs75 =
+																		const _errs77 =
 																			errors;
 																		let valid18 = false;
-																		const _errs76 =
+																		const _errs78 =
 																			errors;
 																		if (
 																			!validate14(
-																				data26,
+																				data27,
 																				{
 																					instancePath:
 																						instancePath +
 																						'/steps/' +
 																						i3,
 																					parentData:
-																						data25,
+																						data26,
 																					parentDataProperty:
 																						i3,
 																					rootData,
@@ -20645,7 +20713,7 @@ function validate11(
 																				vErrors.length;
 																		}
 																		var _valid3 =
-																			_errs76 ===
+																			_errs78 ===
 																			errors;
 																		valid18 =
 																			valid18 ||
@@ -20653,10 +20721,10 @@ function validate11(
 																		if (
 																			!valid18
 																		) {
-																			const _errs77 =
+																			const _errs79 =
 																				errors;
 																			if (
-																				typeof data26 !==
+																				typeof data27 !==
 																				'string'
 																			) {
 																				const err14 =
@@ -20691,7 +20759,7 @@ function validate11(
 																				errors++;
 																			}
 																			var _valid3 =
-																				_errs77 ===
+																				_errs79 ===
 																				errors;
 																			valid18 =
 																				valid18 ||
@@ -20699,7 +20767,7 @@ function validate11(
 																			if (
 																				!valid18
 																			) {
-																				const _errs79 =
+																				const _errs81 =
 																					errors;
 																				const err15 =
 																					{
@@ -20730,7 +20798,7 @@ function validate11(
 																				}
 																				errors++;
 																				var _valid3 =
-																					_errs79 ===
+																					_errs81 ===
 																					errors;
 																				valid18 =
 																					valid18 ||
@@ -20738,10 +20806,10 @@ function validate11(
 																				if (
 																					!valid18
 																				) {
-																					const _errs81 =
+																					const _errs83 =
 																						errors;
 																					if (
-																						typeof data26 !==
+																						typeof data27 !==
 																						'boolean'
 																					) {
 																						const err16 =
@@ -20777,7 +20845,7 @@ function validate11(
 																					}
 																					if (
 																						false !==
-																						data26
+																						data27
 																					) {
 																						const err17 =
 																							{
@@ -20811,7 +20879,7 @@ function validate11(
 																						errors++;
 																					}
 																					var _valid3 =
-																						_errs81 ===
+																						_errs83 ===
 																						errors;
 																					valid18 =
 																						valid18 ||
@@ -20819,10 +20887,10 @@ function validate11(
 																					if (
 																						!valid18
 																					) {
-																						const _errs83 =
+																						const _errs85 =
 																							errors;
 																						if (
-																							data26 !==
+																							data27 !==
 																							null
 																						) {
 																							const err18 =
@@ -20857,7 +20925,7 @@ function validate11(
 																							errors++;
 																						}
 																						var _valid3 =
-																							_errs83 ===
+																							_errs85 ===
 																							errors;
 																						valid18 =
 																							valid18 ||
@@ -20902,16 +20970,16 @@ function validate11(
 																			return false;
 																		} else {
 																			errors =
-																				_errs75;
+																				_errs77;
 																			if (
 																				vErrors !==
 																				null
 																			) {
 																				if (
-																					_errs75
+																					_errs77
 																				) {
 																					vErrors.length =
-																						_errs75;
+																						_errs77;
 																				} else {
 																					vErrors =
 																						null;
@@ -20919,7 +20987,7 @@ function validate11(
 																			}
 																		}
 																		var valid17 =
-																			_errs74 ===
+																			_errs76 ===
 																			errors;
 																		if (
 																			!valid17
@@ -20949,7 +21017,7 @@ function validate11(
 																}
 															}
 															var valid0 =
-																_errs72 ===
+																_errs74 ===
 																errors;
 														} else {
 															var valid0 = true;
@@ -20959,7 +21027,7 @@ function validate11(
 																data.$schema !==
 																undefined
 															) {
-																const _errs85 =
+																const _errs87 =
 																	errors;
 																if (
 																	typeof data.$schema !==
@@ -20985,7 +21053,7 @@ function validate11(
 																	return false;
 																}
 																var valid0 =
-																	_errs85 ===
+																	_errs87 ===
 																	errors;
 															} else {
 																var valid0 = true;

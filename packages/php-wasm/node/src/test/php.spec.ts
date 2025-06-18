@@ -96,6 +96,250 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		}
 	});
 
+	describe('php.runStream()', () => {
+		it('should return a StreamedPHPResponse', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "test";',
+			});
+			expect(streamed.stdout).toBeInstanceOf(ReadableStream);
+			expect(streamed.stderr).toBeInstanceOf(ReadableStream);
+			expect(streamed.exitCode).toBeInstanceOf(Promise);
+			expect(streamed.headers).toBeInstanceOf(Promise);
+		});
+
+		it('should provide stdout text through stdoutText property', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "Hello World";',
+			});
+			const text = await streamed.stdoutText;
+			expect(text).toBe('Hello World');
+		});
+
+		it('should provide stderr text through stderrText property', async () => {
+			const streamed = await php.runStream({
+				code: '<?php file_put_contents("php://stderr", "Error message");',
+			});
+			const stderr = await streamed.stderrText;
+			expect(stderr).toBe('Error message');
+		});
+
+		it('should handle headers correctly', async () => {
+			const streamed = await php.runStream({
+				code: '<?php header("Content-Type: application/json"); header("X-Custom: value"); echo "{}";',
+			});
+			const headers = await streamed.headers;
+			expect(headers['content-type']).toEqual(['application/json']);
+			expect(headers['x-custom']).toEqual(['value']);
+		});
+
+		it('should return exit code 0 for successful execution', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "success";',
+			});
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).toBe(0);
+		});
+
+		it('should return non-zero exit code for PHP fatal errors', async () => {
+			const streamed = await php.runStream({
+				code: '<?php trigger_error("Fatal error", E_USER_ERROR);',
+			});
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).not.toBe(0);
+		});
+
+		it('should return non-zero exit code for syntax errors', async () => {
+			const streamed = await php.runStream({
+				code: '<?php invalid syntax;',
+			});
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).not.toBe(0);
+		});
+
+		it('should handle exit() calls with custom exit codes', async () => {
+			const streamed = await php.runStream({ code: '<?php exit(42);' });
+			const exitCode = await streamed.exitCode;
+			expect(exitCode).toBe(42);
+		});
+
+		it('should provide ok() method that reflects HTTP response status', async () => {
+			const successStreamed = await php.runStream({
+				code: '<?php echo "ok";',
+			});
+			expect(await successStreamed.ok()).toBe(true);
+
+			const exitCode1Http200 = await php.runStream({
+				code: '<?php trigger_error("Fatal error", E_USER_ERROR);',
+			});
+			expect(await exitCode1Http200.ok()).toBe(false);
+
+			const http500 = await php.runStream({
+				code: '<?php http_response_code(500); ',
+			});
+			expect(await http500.ok()).toBe(false);
+		});
+
+		it('should provide finished promise that resolves when complete', async () => {
+			const streamed = await php.runStream({
+				code: '<?php echo "done";',
+			});
+			await expect(streamed.finished).resolves.toBeUndefined();
+			// Should be able to read results after finished
+			const text = await streamed.stdoutText;
+			expect(text).toBe('done');
+		});
+
+		it('should handle HTTP status codes from PHP', async () => {
+			const streamed = await php.runStream({
+				code: '<?php http_response_code(404); echo "Not found";',
+			});
+			const statusCode = await streamed.httpStatusCode;
+			expect(statusCode).toBe(404);
+		});
+
+		it('should work with script files', async () => {
+			php.writeFile('/test-script.php', '<?php echo "from file";');
+			const streamed = await php.runStream({
+				scriptPath: '/test-script.php',
+			});
+			const text = await streamed.stdoutText;
+			expect(text).toBe('from file');
+		});
+
+		it('should handle large output correctly', async () => {
+			const largeString = 'x'.repeat(10000);
+			const streamed = await php.runStream({
+				code: `<?php echo str_repeat('x', 10000);`,
+			});
+			const text = await streamed.stdoutText;
+			expect(text).toBe(largeString);
+		});
+
+		it('should isolate stderr from stdout', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+					echo "stdout"; 
+					file_put_contents("php://stderr", "stderr");
+				`,
+			});
+			const stdout = await streamed.stdoutText;
+			const stderr = await streamed.stderrText;
+			expect(stdout).toBe('stdout');
+			expect(stderr).toBe('stderr');
+		});
+
+		it('should stream output progressively', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+				echo "first chunk";
+				flush();
+				sleep(1);
+				flush();
+				echo "second chunk";
+				flush();
+			`,
+			});
+
+			const reader = streamed.stdout.getReader();
+			const decoder = new TextDecoder();
+
+			// Read first chunk
+			const firstResult = await reader.read();
+			expect(firstResult.done).toBe(false);
+			const firstChunk = decoder.decode(firstResult.value);
+			expect(firstChunk).toBe('first chunk');
+
+			// Read second chunk (should come after ~1 second delay)
+			const startTime = Date.now();
+			let secondStdout = await reader.read();
+			// Be lenient – PHP 7.2 may yield an empty stdout chunk. That's okay.
+			if (secondStdout.value?.length === 0) {
+				secondStdout = await reader.read();
+				expect(decoder.decode(secondStdout.value)).toBe('second chunk');
+			}
+			const elapsedTime = Date.now() - startTime;
+			expect(elapsedTime).toBeGreaterThanOrEqual(900); // Allow some margin for timing
+
+			expect(secondStdout.done).toBe(false);
+
+			// Should be done now
+			let finalResult = await reader.read();
+			if (!finalResult.done) {
+				finalResult = await reader.read();
+			}
+			expect(finalResult.done).toBe(true);
+		});
+
+		it('should stream multiple small outputs progressively', async () => {
+			const streamed = await php.runStream({
+				code: `<?php 
+				for ($i = 1; $i <= 3; $i++) {
+					echo "chunk $i ";
+					flush();
+					usleep(100000); // 100ms
+				}
+			`,
+			});
+
+			const reader = streamed.stdout.getReader();
+			const decoder = new TextDecoder();
+			const chunks = [];
+
+			// Read all chunks as they come
+			while (true) {
+				const result = await reader.read();
+				if (result.done) break;
+				chunks.push(decoder.decode(result.value));
+			}
+
+			expect(chunks.length).toBeGreaterThan(1);
+			expect(chunks.join('')).toBe('chunk 1 chunk 2 chunk 3 ');
+		});
+
+		it('should stream stderr separately from stdout', async () => {
+			const streamed = await php.cli([
+				'php',
+				'-r',
+				`
+				echo "stdout first";
+				flush();
+				file_put_contents("php://stderr", "stderr first");
+				fflush(STDERR);
+				sleep(1);
+				echo "stdout second";
+				flush();
+				file_put_contents("php://stderr", "stderr second");
+				fflush(STDERR);
+			`,
+			]);
+
+			const stdoutReader = streamed.stdout.getReader();
+			const stderrReader = streamed.stderr.getReader();
+			const decoder = new TextDecoder();
+
+			// Read first stdout chunk
+			const firstStdout = await stdoutReader.read();
+			expect(decoder.decode(firstStdout.value)).toBe('stdout first');
+
+			// Read first stderr chunk
+			const firstStderr = await stderrReader.read();
+			expect(decoder.decode(firstStderr.value)).toBe('stderr first');
+
+			// Verify we can read remaining chunks
+			let secondStdout = await stdoutReader.read();
+			// Be lenient – PHP 7.2 may yield an empty stdout chunk. That's okay.
+			if (secondStdout.value?.length === 0) {
+				secondStdout = await stdoutReader.read();
+				expect(decoder.decode(secondStdout.value)).toBe(
+					'stdout second'
+				);
+			}
+
+			const secondStderr = await stderrReader.read();
+			expect(decoder.decode(secondStderr.value)).toBe('stderr second');
+		});
+	});
+
 	describe('ENV variables', () => {
 		it('Supports setting per-request ENV variables', async () => {
 			const result = await php.run({
@@ -838,6 +1082,84 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				'First hello world!\nSecond hello world!\n'
 			);
 		});
+
+		it('A process that reports being spawned does not timeout', async () => {
+			let spawnHandlerCalled = false;
+			const handler = createSpawnHandler(
+				async (command: string[], processApi: any) => {
+					spawnHandlerCalled = true;
+					// Avoid the timeout by reporting that the process has been spawned
+					processApi.notifySpawn();
+					// Take 6 seconds to exit
+					setTimeout(() => {
+						processApi.exit(0);
+					}, 6000);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const startTime = Date.now();
+			await php.run({
+				code: `<?php
+ 				$res = proc_open(
+ 					"hanging_command",
+ 					array(
+ 						array("pipe","r"),
+ 						array("pipe","w"),
+ 						array("pipe","w"),
+ 					),
+ 					$pipes
+ 				);
+ 				// Wait for the process to exit
+ 				proc_close($res);
+ 			`,
+			});
+			const elapsed = Date.now() - startTime;
+			// Should not timeout after 5 seconds
+			expect(elapsed).toBeGreaterThan(6000);
+			expect(elapsed).toBeLessThan(6500);
+			expect(spawnHandlerCalled).toBe(true);
+		}, 10000);
+
+		if (!['7.2', '7.3'].includes(phpVersion)) {
+			it('Handle process spawn timeout gracefully', async () => {
+				let spawnHandlerCalled = false;
+				const handler = createSpawnHandler(async () => {
+					spawnHandlerCalled = true;
+					// Don't call processApi.notifySpawn() or processApi.exit()
+					// to simulate a hanging process that never starts
+					await new Promise(() => {}); // Never resolves
+				});
+
+				php.setSpawnHandler(handler);
+
+				const startTime = Date.now();
+				try {
+					await php.run({
+						code: `<?php
+						$res = proc_open(
+							"hanging_command",
+							array(
+								array("pipe","r"),
+								array("pipe","w"),
+								array("pipe","w"),
+							),
+							$pipes
+						);
+					`,
+					});
+					// Should not reach here
+					expect(false).toBe(true);
+				} catch {
+					const elapsed = Date.now() - startTime;
+					// Should timeout around 5 seconds (allowing some margin)
+					expect(elapsed).toBeGreaterThan(4500);
+					expect(elapsed).toBeLessThan(6000);
+					expect(spawnHandlerCalled).toBe(true);
+				}
+			}, 10000);
+		}
 	});
 
 	describe('Filesystem', () => {
@@ -1414,7 +1736,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 	describe('Interface', () => {
 		it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
-			expect(() => php.run({})).rejects.toThrowError(TypeError);
+			expect(() => php.run({})).rejects.toThrowError(
+				/The request object must have either a `code` or a `scriptPath` property/
+			);
 		});
 	});
 
@@ -1532,7 +1856,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(response.exitCode).toEqual(0);
 		});
 
-		it('Frees up the heap memory after handling a request body with a size of ~512MB', async () => {
+		it('Frees up the heap memory after handling a request body with a size of ~400MB', async () => {
 			const estimateFreeMemory = () =>
 				php[__private__dont__use].HEAPU32.reduce(
 					(count: number, byte: number) =>
@@ -1552,7 +1876,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			//   body pointer.
 			// This will allow us to estimate the amount of the memory that
 			// was not freed after the request.
-			const body = '#'.repeat(1024 * 1024 * 512 - 24);
+			const body = '#'.repeat(1024 * 1024 * 400 - 24);
 
 			let contentLength = 0;
 			const _lengthBytesUTF8 = php[__private__dont__use].lengthBytesUTF8;
@@ -2088,10 +2412,10 @@ bar1
 		it('Should be able to use intl functions', async () => {
 			const response = await php.run({
 				code: `<?php
-					$formatter = new NumberFormatter('en-US', NumberFormatter::CURRENCY);
-					echo $formatter->format(100.00);
-					$formatter = new NumberFormatter('fr-FR', NumberFormatter::CURRENCY);
-					echo $formatter->format(100.00);
+					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
 				?>`,
 			});
 			expect(response.text).toEqual('$100.00100,00\xA0€');

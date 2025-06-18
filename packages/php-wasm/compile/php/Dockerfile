@@ -22,6 +22,9 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 # Polyfill for dns functions
 COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
+# Polyfill for post_message_to_js functions
+COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+
 # Work around to add ICU FLAGS to intl below 7.3 to inject -fPIC.
 RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
 		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
@@ -369,6 +372,7 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 	--enable-tokenizer \
 	--enable-wasm_memory_storage \
 	--enable-dns_polyfill \
+	--enable-post_message_to_js \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
@@ -555,6 +559,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 # are caused by dispatching a PHP request while an execution is paused
 # due to an async call – it means the same PHP files are loaded before
 # the previous request, where they're already loaded, is concluded.
+# TODO: Consider reverting asyncify additions before merging this PR if file locking doesn't support asyncify.
 RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_i",\n\
 "invoke_ii",\n\
@@ -801,6 +806,151 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_vjiii",\
 "easy_perform",\
 "easy_transfer",\
+"RAND_poll",\
+"rand_bytes",\
+"RAND_bytes",\
+"SSL_CTX_new",\
+"rand_nopseudo_bytes",\
+"rand_enough",\
+"Curl_ossl_seed",\
+"zif_curl_multi_exec",\
+"zif_curl_multi_select",\
+"ossl_connect_common",\
+"Curl_ossl_connect_nonblocking",\
+"Curl_ssl_connect_nonblocking",\
+"https_connecting",\
+"Curl_readwrite",\
+"zend_fetch_debug_backtrace",\
+"zend_default_exception_new",\
+"zend_throw_exception_zstr",\
+"zend_throw_exception",\
+"zend_type_error",\
+"zend_generator_iterator_move_forward",\
+"ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
+"zend_generator_resume",\
+"zend_generator_iterator_rewind",\
+"zend_fe_reset_iterator",\
+"ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
+"zend_user_it_get_new_iterator",\
+"ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"ZEND_COUNT_SPEC_CV_UNUSED_HANDLER",\
+"__fwritex",\
+"read",\
+"zif_sleep",\
+"zif_stream_get_contents",\
+"zif_stream_select",\
+"_php_stream_fill_read_buffer",\
+"_php_stream_read",\
+"php_stream_read_to_str",\
+"php_userstreamop_read",\
+"zif_fread",\
+"wasm_read",\
+"php_stdiop_read",\
+"fwrite",\
+"zif_fwrite",\
+"php_stdiop_write",\
+"zif_array_filter",\
+"zend_call_known_instance_method_with_2_params",\
+"zend_fetch_dimension_address_read_R",\
+"_zval_dtor_func_for_ptr",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_fetch_dimension_address_read",\
+"php_if_fopen",\
+"_php_stream_cast",\
+"php_stream_temp_cast",\
+"php_stream_temp_flush",\
+"_php_stream_flush",\
+"php_stream_flush",\
+"_php_stream_write",\
+"php_stream_write",\
+"_php_stream_free",\
+"_php_stream_free_enclosed",\
+"stream_resource_persistent_dtor",\
+"stream_resource_regular_dtor",\
+"zend_std_has_dimension",\
+"zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
+"zend_assign_to_object",\
+"zif_file_put_contents",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CV_HANDLER",\
+"zend_std_call_user_call",\
+"zend_objects_store_del_ref_by_handle_ex",\
+"zend_objects_store_del_ref",\
+"_zval_dtor_func",\
+"_zval_ptr_dtor",\
+"zend_hash_del_key_or_index",\
+"zend_delete_variable",\
+"ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
+"zend_std_unset_dimension",\
+"ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_std_read_dimension",\
+"zend_fetch_dimension_address_read_R_slow",\
+"ZEND_FETCH_DIM_R_SPEC_CV_CONST_HANDLER",\
+"zend_call_method",\
+"zend_assign_to_object_dim",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_std_write_dimension",\
+"zend_isset_dim_slow",\
+"ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_CONST_HANDLER",\
+"zend_std_write_property",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_objects_store_del",\
+"ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_FCALL_SPEC_CONST_HANDLER",\
+"ZEND_DO_FCALL_SPEC_HANDLER",\
+"ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER",\
+"ZEND_DO_FCALL_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_HANDLER",\
+"ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER",\
+"ZEND_FETCH_OBJ_FUNC_ARG_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_TMPVAR_CONST_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_TMPVAR_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER",\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CV_OP_DATA_CV_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CV_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_VAR_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_TMP_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CONST_HANDLER",\
+"ZEND_ASSIGN_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER",\
+"cli",\
+"wasm_sleep",\
+"wasm_php_stream_flush",\
+"wasm_php_stream_read",\
+"php_crc32_stream_bulk_update",\
+"phar_parse_zipfile",\
+"get_http_body",\
+"wasm_php_exec",\
+"wasm_sapi_handle_request",\
+"wasm_sapi_request_shutdown",\
+"_call_user_function_ex",\
+"_call_user_function_impl",\
+"_mysqlnd_run_command",\
+"_php_stream_copy_to_mem",\
+"_php_stream_copy_to_stream_ex",\
+"_php_stream_eof",\
+"_php_stream_fill_read_buffer",\
+"_php_stream_free",\
+"_php_stream_get_line",\
+"_php_stream_open_wrapper_ex",\
+"_php_stream_read",\
+"_php_stream_set_option",\
+"_php_stream_write",\
+"_php_stream_xport_create",\
+"zif_stream_socket_enable_crypto",\
+"do_cli",\
+"do_cli_server",\
+"execute_ex",\
 "EVP_PKEY_encrypt",\
 "execute_ex",\
 "exif_error_docref",\
@@ -853,6 +1003,25 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "mysqlnd_com_init_db_run",\
 "mysqlnd_com_stmt_execute_run",\
 "mysqlnd_com_stmt_prepare_run",\
+"mysqlnd_com_set_option_run",\
+"mysqlnd_com_ping_run",\
+"mysqlnd_com_set_option_run",\
+"mysqlnd_com_debug_run",\
+"mysqlnd_com_init_db_run",\
+"mysqlnd_com_ping_run",\
+"mysqlnd_com_statistics_run",\
+"mysqlnd_com_process_kill_run",\
+"mysqlnd_com_refresh_run",\
+"mysqlnd_com_quit_run",\
+"mysqlnd_com_query_run",\
+"mysqlnd_com_change_user_run",\
+"mysqlnd_com_reap_result_run",\
+"mysqlnd_com_stmt_prepare_run",\
+"mysqlnd_com_stmt_reset_run",\
+"mysqlnd_com_stmt_send_long_data_run",\
+"mysqlnd_com_stmt_close_run",\
+"mysqlnd_com_enable_ssl_run",\
+"mysqlnd_com_handshake_run",\
 "mysqlnd_connect",\
 "mysqlnd_connection_connect",\
 "mysqlnd_mysqlnd_command_handshake_pub",\

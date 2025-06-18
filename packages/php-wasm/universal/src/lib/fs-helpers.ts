@@ -142,6 +142,9 @@ export class FSHelpers {
 				}
 			});
 		}
+		if (FS.getPath(FS.lookupPath(path).node) === FS.cwd()) {
+			FS.chdir(joinPaths(FS.cwd(), '..'));
+		}
 		FS.rmdir(path);
 	}
 

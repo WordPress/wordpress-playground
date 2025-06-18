@@ -121,7 +121,7 @@ export default defineConfig(({ command }) => {
 				// the preserve-php-loaders-imports plugin above.
 				external: [
 					/php_\d_\d.js$/,
-					/icudt74l\.js$/,
+					/icudt74l.js$/,
 					...getExternalModules(),
 				],
 			},

@@ -1,6 +1,7 @@
 import { writeFiles as writeFilesToPhpWasm } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import type { Directory } from '../resources';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc writeFiles
@@ -51,5 +52,25 @@ export const writeFiles: StepHandler<WriteFilesStep<Directory>> = async (
 	playground,
 	{ writeToPath, filesTree }
 ) => {
+	if (!writeToPath.startsWith('/')) {
+		logger.error(
+			`
+The writeFiles() step in your Blueprint refers to a relative path.
+
+Playground recently changed the working directory from '/' to '/wordpress' to better mimic 
+how real web servers work. This means relative paths that used to work may no longer
+point to the correct location.
+
+Playground automatically updated the path for you, but at one point path rewriting will be removed. Please
+update your code to use an absolute path instead:
+
+Instead of:  writeFiles({ writeToPath: 'wordpress/wp-content/plugins/my-plugin', filesTree: { name: 'style.css': 'a { color: red; }' });
+Use:         writeFiles({ writeToPath: '/wordpress/wp-content/plugins/my-plugin', filesTree: { name: 'style.css': 'a { color: red; }' });
+
+This will ensure your code works reliably regardless of the current working directory.
+		`.trim()
+		);
+		writeToPath = `/${writeToPath}`;
+	}
 	await writeFilesToPhpWasm(playground, writeToPath, filesTree.files);
 };

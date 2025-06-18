@@ -6,3 +6,4 @@ export interface LogHandler {
 
 export * from './handlers/log-to-console';
 export * from './handlers/log-to-memory';
+export * from './handlers/log-event';
