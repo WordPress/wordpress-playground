@@ -6,7 +6,7 @@ The requirement to run the Playground CLI is to have installed `Node.js 20.18.3`
 
 ## Quickstart
 
-Running the playground CLI is as simple as accessing your plugin or theme directory and running the following command:
+Running the Playground CLI is as simple as going to your plugin or theme directory and running the following command:
 
 ```bash
 cd my-plugin-or-theme-directory
