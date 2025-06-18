@@ -1085,6 +1085,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
+		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \

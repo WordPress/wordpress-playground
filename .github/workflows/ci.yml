@@ -94,7 +94,7 @@ jobs:
             matrix:
                 include:
                     - name: test-unit-jspi (1/1)
-                      target: test-php-dynamic-loading
+                      target: test-php-dynamic-loading-jspi
         name: ${{ matrix.name }}
         steps:
             - uses: actions/checkout@v4

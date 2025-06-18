@@ -173,7 +173,7 @@
 				"testFiles": ["php.spec.ts"]
 			}
 		},
-		"test-php-dynamic-loading": {
+		"test-php-dynamic-loading-jspi": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {

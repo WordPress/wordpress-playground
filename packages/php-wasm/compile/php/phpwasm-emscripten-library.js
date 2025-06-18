@@ -335,7 +335,7 @@ const LibraryExample = {
 		},
 
 		/**
-		 * Shims unix shutdown(2) functionallity for asynchronous sockets:
+		 * Shims unix shutdown(2) functionality for asynchronous sockets:
 		 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 		 *
 		 * Does not support SHUT_RD or SHUT_WR.
@@ -735,7 +735,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix shutdown(2) functionallity for asynchronous:
+	 * Shims unix shutdown(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 	 *
 	 * Does not support SHUT_RD or SHUT_WR.
@@ -749,7 +749,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix close(2) functionallity for asynchronous:
+	 * Shims unix close(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/close.2.html
 	 *
 	 * @param {int} socketd
@@ -760,7 +760,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims recv(2) functionallity for asynchronous websockets:
+	 * Shims recv(2) functionality for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/recv.2.html
 	 *
 	 * @param {int} sockfd Socket descriptor
@@ -791,7 +791,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims setsockopt(2) functionallity for asynchronous websockets:
+	 * Shims setsockopt(2) functionality for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
 	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.
 	 *

@@ -1,10 +1,6 @@
 FROM playground-php-wasm:base
 
-
 ARG PHP_VERSION
-
-
-
 
 # Install Bison, required to build PHP
 RUN mkdir -p /libs
@@ -33,9 +29,6 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 	else \
 		apt install -y bison; \
 	fi;
-
-
-
 
 # Build PHP
 RUN git clone https://github.com/php/php-src.git php-src \
@@ -71,9 +64,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# PHP 7.4
 	--without-iconv
 
-
-
-
 # Disable asm arithmetic.
 RUN if [[ ("${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "4") || "${PHP_VERSION:0:1}" -ge "8" ]]; then \
 		/root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h; \
@@ -91,9 +81,6 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 	fi;
 
 RUN cd /root/php-src && make install
-
-
-
 
 # Build Xdebug
 RUN set -euxo pipefail; \

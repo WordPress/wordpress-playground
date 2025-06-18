@@ -83,7 +83,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			const server = createServer();
 
-			server.on('connection', function handleConnection(tcpSource) {
+			server.on('connection', (tcpSource) => {
 				tcpSource.on('data', (data) => {
 					if (queries[i]) {
 						responses += new TextDecoder().decode(data);
