@@ -10,6 +10,7 @@ export async function withICUData(
 	const ICUData = fs.readFileSync(filePath);
 
 	return {
+		...options,
 		ENV: {
 			...options.ENV,
 			ICU_DATA: '/internal/shared',

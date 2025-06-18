@@ -25,6 +25,7 @@ export async function withXdebug(
 	const extension = fs.readFileSync(filePath);
 
 	return {
+		...options,
 		ENV: {
 			...options.ENV,
 			PHP_INI_SCAN_DIR: '/internal/shared/extensions',
