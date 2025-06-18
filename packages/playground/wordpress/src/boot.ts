@@ -37,6 +37,7 @@ export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
 export interface BootOptions {
 	createPhpRuntime: () => Promise<number>;
+	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -240,6 +241,10 @@ export async function bootRequestHandler(options: BootOptions) {
 			recreateRuntime: options.createPhpRuntime,
 			maxRequests: 400,
 		});
+
+		if (options.onPHPInstanceCreated) {
+			await options.onPHPInstanceCreated(php);
+		}
 
 		return php;
 	}
