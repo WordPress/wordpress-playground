@@ -20,7 +20,7 @@ export async function withXdebug(
 	const fileName = 'xdebug.so';
 	const directoryName = fullyQualifiedPHPVersionDirectory(version);
 	const filePath = `${dirname(
-		__filename
+		dirname(dirname(import.meta.dirname))
 	)}/jspi/${directoryName}/extensions/${fileName}`;
 	const extension = fs.readFileSync(filePath);
 
