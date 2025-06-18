@@ -6,11 +6,9 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-import { logger } from '@php-wasm/logger';
-import * as nodeUtil from 'util';
 const dependencyFilename = __dirname + '/7_2_34/php_7_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 18084171;
+export const dependenciesTotalSize = 18425745;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -230,7 +228,7 @@ export function init(RuntimeName, PHPLoader) {
 		if (!Module['noFSInit'] && !FS.initialized) FS.init();
 		TTY.init();
 		PIPEFS.root = FS.mount(PIPEFS, {}, null);
-		wasmExports['$a']();
+		wasmExports['gb']();
 		FS.ignorePermissions = false;
 	}
 
@@ -398,9 +396,9 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports = instance.exports;
 			wasmExports = Asyncify.instrumentWasmExports(wasmExports);
 			Module['wasmExports'] = wasmExports;
-			wasmMemory = wasmExports['_a'];
+			wasmMemory = wasmExports['fb'];
 			updateMemoryViews();
-			wasmTable = wasmExports['ab'];
+			wasmTable = wasmExports['hb'];
 			removeRunDependency('wasm-instantiate');
 			return wasmExports;
 		}
@@ -572,6 +570,65 @@ export function init(RuntimeName, PHPLoader) {
 		);
 
 	var ___call_sighandler = (fp, sig) => ((a1) => dynCall_vi(fp, a1))(sig);
+
+	class ExceptionInfo {
+		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
+		constructor(excPtr) {
+			this.excPtr = excPtr;
+			this.ptr = excPtr - 24;
+		}
+		set_type(type) {
+			HEAPU32[(this.ptr + 4) >> 2] = type;
+		}
+		get_type() {
+			return HEAPU32[(this.ptr + 4) >> 2];
+		}
+		set_destructor(destructor) {
+			HEAPU32[(this.ptr + 8) >> 2] = destructor;
+		}
+		get_destructor() {
+			return HEAPU32[(this.ptr + 8) >> 2];
+		}
+		set_caught(caught) {
+			caught = caught ? 1 : 0;
+			HEAP8[this.ptr + 12] = caught;
+		}
+		get_caught() {
+			return HEAP8[this.ptr + 12] != 0;
+		}
+		set_rethrown(rethrown) {
+			rethrown = rethrown ? 1 : 0;
+			HEAP8[this.ptr + 13] = rethrown;
+		}
+		get_rethrown() {
+			return HEAP8[this.ptr + 13] != 0;
+		}
+		// Initialize native structure fields. Should be called once after allocated.
+		init(type, destructor) {
+			this.set_adjusted_ptr(0);
+			this.set_type(type);
+			this.set_destructor(destructor);
+		}
+		set_adjusted_ptr(adjustedPtr) {
+			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
+		}
+		get_adjusted_ptr() {
+			return HEAPU32[(this.ptr + 16) >> 2];
+		}
+	}
+
+	var exceptionLast = 0;
+
+	var uncaughtExceptionCount = 0;
+
+	var ___cxa_throw = (ptr, type, destructor) => {
+		var info = new ExceptionInfo(ptr);
+		// Initialize ExceptionInfo content after it was allocated in __cxa_allocate_exception.
+		info.init(type, destructor);
+		exceptionLast = ptr;
+		uncaughtExceptionCount++;
+		throw exceptionLast;
+	};
 
 	var initRandomFill = () => (view) => crypto.getRandomValues(view);
 
@@ -4405,6 +4462,10 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				var WebSocketServer = require('ws').Server;
 				var host = sock.saddr;
+				if (Module['websocket']['serverDecorator']) {
+					WebSocketServer =
+						Module['websocket']['serverDecorator'](WebSocketServer);
+				}
 				sock.server = new WebSocketServer({
 					host,
 					port: sock.sport,
@@ -4549,7 +4610,7 @@ export function init(RuntimeName, PHPLoader) {
 					throw new FS.ErrnoError(28);
 				}
 			},
-			recvmsg(sock, length) {
+			recvmsg(sock, length, flags) {
 				// http://pubs.opengroup.org/onlinepubs/7908799/xns/recvmsg.html
 				if (sock.type === 1 && sock.server) {
 					// tcp servers should not be recv()'ing on the listen socket
@@ -4595,6 +4656,9 @@ export function init(RuntimeName, PHPLoader) {
 					port: queued.port,
 				};
 				// push back any unread data for TCP connections
+				if (flags & 2) {
+					bytesRead = 0;
+				}
 				if (sock.type === 1 && bytesRead < queuedLength) {
 					var bytesRemaining = queuedLength - bytesRead;
 					queued.data = new Uint8Array(
@@ -5193,63 +5257,314 @@ export function init(RuntimeName, PHPLoader) {
 
 	var syscallGetVarargP = syscallGetVarargI;
 
-	var default_fcntl64 = {
-		fn: function (fd, cmd, varargs) {
-			SYSCALLS.varargs = varargs;
-			try {
-				var stream = SYSCALLS.getStreamFromFD(fd);
-				switch (cmd) {
-					case 0: {
-						var arg = syscallGetVarargI();
-						if (arg < 0) {
-							return -28;
+	var stringToUTF8 = (str, outPtr, maxBytesToWrite) =>
+		stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
+
+	Module['stringToUTF8'] = stringToUTF8;
+
+	var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
+
+	/** @suppress {duplicate } */ var stringToUTF8OnStack = (str) => {
+		var size = lengthBytesUTF8(str) + 1;
+		var ret = stackAlloc(size);
+		stringToUTF8(str, ret, size);
+		return ret;
+	};
+
+	var allocateUTF8OnStack = stringToUTF8OnStack;
+
+	var PHPWASM = {
+		init: function () {
+			// The /internal directory is required by the C module. It's where the
+			// stdout, stderr, and headers information are written for the JavaScript
+			// code to read later on.
+			FS.mkdir('/internal');
+			// The files from the shared directory are shared between all the
+			// PHP processes managed by PHPProcessManager.
+			FS.mkdir('/internal/shared');
+			// The files from the preload directory are preloaded using the
+			// auto_prepend_file php.ini directive.
+			FS.mkdir('/internal/shared/preload');
+			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
+				? require('events').EventEmitter
+				: class EventEmitter {
+						constructor() {
+							this.listeners = {};
 						}
-						while (FS.streams[arg]) {
-							arg++;
+						emit(eventName, data) {
+							if (this.listeners[eventName]) {
+								this.listeners[eventName].forEach(
+									(callback) => {
+										callback(data);
+									}
+								);
+							}
 						}
-						var newStream;
-						newStream = FS.dupStream(stream, arg);
-						return newStream.fd;
-					}
-
-					case 1:
-					case 2:
-						return 0;
-
-					// FD_CLOEXEC makes no sense for a single process.
-					case 3:
-						return stream.flags;
-
-					case 4: {
-						var arg = syscallGetVarargI();
-						stream.flags |= arg;
-						return 0;
-					}
-
-					case 12: {
-						var arg = syscallGetVarargP();
-						var offset = 0;
-						// We're always unlocked.
-						HEAP16[(arg + offset) >> 1] = 2;
-						return 0;
-					}
-
-					case 13:
-					case 14:
-						// Pretend that the locking is successful. These are process-level locks,
-						// and Emscripten programs are a single process. If we supported linking a
-						// filesystem between programs, we'd need to do more here.
-						// See https://github.com/emscripten-core/emscripten/issues/23697
-						return 0;
+						once(eventName, callback) {
+							const self = this;
+							function removedCallback() {
+								callback(...arguments);
+								self.removeListener(eventName, removedCallback);
+							}
+							this.on(eventName, removedCallback);
+						}
+						removeAllListeners(eventName) {
+							if (eventName) {
+								delete this.listeners[eventName];
+							} else {
+								this.listeners = {};
+							}
+						}
+						removeListener(eventName, callback) {
+							if (this.listeners[eventName]) {
+								const idx =
+									this.listeners[eventName].indexOf(callback);
+								if (idx !== -1) {
+									this.listeners[eventName].splice(idx, 1);
+								}
+							}
+						}
+				  };
+			PHPWASM.child_proc_by_fd = {};
+			PHPWASM.child_proc_by_pid = {};
+			PHPWASM.input_devices = {};
+		},
+		getAllWebSockets: function (sock) {
+			const webSockets = new Set();
+			if (sock.server) {
+				sock.server.clients.forEach((ws) => {
+					webSockets.add(ws);
+				});
+			}
+			for (const peer of PHPWASM.getAllPeers(sock)) {
+				webSockets.add(peer.socket);
+			}
+			return Array.from(webSockets);
+		},
+		getAllPeers: function (sock) {
+			const peers = new Set();
+			if (sock.server) {
+				sock.pending
+					.filter((pending) => pending.peers)
+					.forEach((pending) => {
+						for (const peer of Object.values(pending.peers)) {
+							peers.add(peer);
+						}
+					});
+			}
+			if (sock.peers) {
+				for (const peer of Object.values(sock.peers)) {
+					peers.add(peer);
 				}
-				return -28;
+			}
+			return Array.from(peers);
+		},
+		awaitData: function (ws) {
+			return PHPWASM.awaitEvent(ws, 'message');
+		},
+		awaitConnection: function (ws) {
+			if (ws.OPEN === ws.readyState) {
+				return [Promise.resolve(), PHPWASM.noop];
+			}
+			return PHPWASM.awaitEvent(ws, 'open');
+		},
+		awaitClose: function (ws) {
+			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
+				return [Promise.resolve(), PHPWASM.noop];
+			}
+			return PHPWASM.awaitEvent(ws, 'close');
+		},
+		awaitError: function (ws) {
+			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
+				return [Promise.resolve(), PHPWASM.noop];
+			}
+			return PHPWASM.awaitEvent(ws, 'error');
+		},
+		awaitEvent: function (ws, event) {
+			let resolve;
+			const listener = () => {
+				resolve();
+			};
+			const promise = new Promise(function (_resolve) {
+				resolve = _resolve;
+				ws.once(event, listener);
+			});
+			const cancel = () => {
+				ws.removeListener(event, listener);
+				// Rejecting the promises bubbles up and kills the entire
+				// node process. Let's resolve them on the next tick instead
+				// to give the caller some space to unbind any handlers.
+				setTimeout(resolve);
+			};
+			return [promise, cancel];
+		},
+		noop: function () {},
+		spawnProcess: function (command, args, options) {
+			if (Module['spawnProcess']) {
+				const spawnedPromise = Module['spawnProcess'](
+					command,
+					args,
+					options
+				);
+				return Promise.resolve(spawnedPromise).then(function (spawned) {
+					if (!spawned || !spawned.on) {
+						throw new Error(
+							'spawnProcess() must return an EventEmitter but returned a different type.'
+						);
+					}
+					return spawned;
+				});
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				return require('child_process').spawn(command, args, {
+					...options,
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+					timeout: 100,
+				});
+			}
+			const e = new Error(
+				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
+					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+					'and similar functions via php.ini.'
+			);
+			e.code = 'SPAWN_UNSUPPORTED';
+			throw e;
+		},
+		shutdownSocket: function (socketd, how) {
+			// This implementation only supports websockets at the moment
+			const sock = getSocketFromFD(socketd);
+			const peer = Object.values(sock.peers)[0];
+			if (!peer) {
+				return -1;
+			}
+			try {
+				peer.socket.close();
+				SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				return 0;
 			} catch (e) {
-				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError'))
-					throw e;
-				return -e.errno;
+				console.log('Socket shutdown error', e);
+				return -1;
 			}
 		},
 	};
+
+	function _js_getpid() {
+		return PHPLoader.processId;
+	}
+
+	function _js_wasm_trace(format, ...args) {
+		if (PHPLoader.trace instanceof Function) {
+			PHPLoader.trace(_js_getpid(), format, ...args);
+		}
+	}
+
+	function _fd_close(fd) {
+		_js_wasm_trace('fd_close(%d)', fd);
+		const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
+		if (pathResolutionErrno !== 0) {
+			_js_wasm_trace(
+				'fd_close(%d) get_vfs_path_from_fd error %d',
+				fd,
+				pathResolutionErrno
+			);
+			return -ERRNO_CODES.EBADF;
+		}
+		const result = _builtin_fd_close(fd);
+		// return Asyncify.handleAsync(async () => {
+		if (result === 0 && locking.maybeLockedFds.has(fd)) {
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
+			return PHPLoader.fileLockManager
+				.releaseLocksForProcessFd(
+					PHPLoader.processId,
+					fd,
+					nativeFilePath
+				)
+				.then(() => {
+					_js_wasm_trace('fd_close(%d) release locks success', fd);
+				})
+				.catch((e) => {
+					_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
+				})
+				.then(() => {
+					_js_wasm_trace('fd_close(%d) result %d', fd, result);
+					return result;
+				})
+				.finally(() => {
+					locking.maybeLockedFds.delete(fd);
+				});
+		} else {
+			_js_wasm_trace('fd_close(%d) result %d', fd, result);
+			return result;
+		}
+	}
+
+	function _builtin_fd_close(fd) {
+		try {
+			var stream = SYSCALLS.getStreamFromFD(fd);
+			FS.close(stream);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return e.errno;
+		}
+	}
+
+	function _builtin_fcntl64(fd, cmd, varargs) {
+		SYSCALLS.varargs = varargs;
+		try {
+			var stream = SYSCALLS.getStreamFromFD(fd);
+			switch (cmd) {
+				case 0: {
+					var arg = syscallGetVarargI();
+					if (arg < 0) {
+						return -28;
+					}
+					while (FS.streams[arg]) {
+						arg++;
+					}
+					var newStream;
+					newStream = FS.dupStream(stream, arg);
+					return newStream.fd;
+				}
+
+				case 1:
+				case 2:
+					return 0;
+
+				// FD_CLOEXEC makes no sense for a single process.
+				case 3:
+					return stream.flags;
+
+				case 4: {
+					var arg = syscallGetVarargI();
+					stream.flags |= arg;
+					return 0;
+				}
+
+				case 12: {
+					var arg = syscallGetVarargP();
+					var offset = 0;
+					// We're always unlocked.
+					HEAP16[(arg + offset) >> 1] = 2;
+					return 0;
+				}
+
+				case 13:
+				case 14:
+					// Pretend that the locking is successful. These are process-level locks,
+					// and Emscripten programs are a single process. If we supported linking a
+					// filesystem between programs, we'd need to do more here.
+					// See https://github.com/emscripten-core/emscripten/issues/23697
+					return 0;
+			}
+			return -28;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
 
 	var locking = {
 		maybeLockedFds: new Set(),
@@ -5266,41 +5581,23 @@ export function init(RuntimeName, PHPLoader) {
 			1: 'exclusive',
 			2: 'unlocked',
 		},
-		is_nodefs_node(node) {
+		is_path_to_shared_fs(path) {
+			const { node } = FS.lookupPath(path);
 			if (node?.isSharedFS) {
 				return true;
 			}
 			if (!node?.mount?.opts?.fs?.lookupPath) {
-				// TODO: Confirm this property is just for PROXYFS nodes.
-				// Not a PROXYFS node
 				return false;
 			}
 			const vfsPath = NODEFS.realPath(node);
 			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
 			return !!underlyingNode?.isSharedFS;
 		},
-		is_nodefs_path(path) {
-			const { node } = FS.lookupPath(path);
-			const answer = locking.is_nodefs_node(node);
-			// TODO: Remove this after testing.
-			if (!answer && path.includes('.ht.sqlite')) {
-				js_wasm_trace(
-					`is_nodefs_path ${path} is_nodefs_node ${answer} node ${nodeUtil.inspect(
-						node,
-						{
-							depth: 2,
-						}
-					)}`
-				);
-			}
-			return answer;
-		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('3');
 			const emscripten_O_ACCMODE = Number('2097155');
 			return (
-				default_fcntl64.fn(fd, emscripten_F_GETFL) &
-				emscripten_O_ACCMODE
+				_builtin_fcntl64(fd, emscripten_F_GETFL) & emscripten_O_ACCMODE
 			);
 		},
 		get_vfs_path_from_fd(fd) {
@@ -5335,395 +5632,370 @@ export function init(RuntimeName, PHPLoader) {
 		cmd,
 		varargs
 	) {
-		// TODO: Remove this early return after debugging.
-		return Asyncify.handleAsync(async () =>
-			Promise.resolve(default_fcntl64.fn(fd, cmd, varargs))
-		);
-		return Asyncify.handleAsync(async () => {
-			// return default_fcntl64.fn(fd, cmd, varargs);
-			// Necessary to use varargs accessor
-			SYSCALLS.varargs = varargs;
-			// These constants are replaced by Emscripten during the build process
-			const emscripten_F_GETLK = Number('12');
-			const emscripten_F_SETLK = Number('13');
-			const emscripten_F_SETLKW = Number('14');
-			const emscripten_SEEK_SET = Number('0');
-			// todo: consider patching emscripten to provide these offsets or add an access to php_wasm.c
-			const emscripten_flock_l_type_offset = 0;
-			const emscripten_flock_l_whence_offset = 2;
-			const emscripten_flock_l_start_offset = 8;
-			const emscripten_flock_l_len_offset = 16;
-			const emscripten_flock_l_pid_offset = 24;
-			function readFlockStruct(flockStructAddress) {
-				return {
-					// Shift right by N to divide by 2^N and get addresses for the correct word size
-					l_type: HEAP16[
-						(flockStructAddress + emscripten_flock_l_type_offset) >>
-							1
-					],
-					l_whence:
-						HEAP16[
-							(flockStructAddress +
-								emscripten_flock_l_whence_offset) >>
-								1
-						],
-					l_start:
-						HEAP64[
-							(flockStructAddress +
-								emscripten_flock_l_start_offset) >>
-								3
-						],
-					l_len: HEAP64[
-						(flockStructAddress + emscripten_flock_l_len_offset) >>
-							3
-					],
-					l_pid: HEAP32[
-						(flockStructAddress + emscripten_flock_l_pid_offset) >>
-							2
-					],
-				};
-			}
-			function updateFlockStruct(flockStructAddress, fields) {
-				if (fields.l_type !== undefined) {
-					// Shift right by N to divide by 2^N and get addresses for the correct word size
-					HEAP16[
-						(flockStructAddress + emscripten_flock_l_type_offset) >>
-							1
-					] = fields.l_type;
-				}
-				if (fields.l_whence !== undefined) {
-					HEAP16[
+		// return Asyncify.handleAsync(async () => {
+		// Necessary to use varargs accessor
+		SYSCALLS.varargs = varargs;
+		// These constants are replaced by Emscripten during the build process
+		const emscripten_F_GETLK = Number('12');
+		const emscripten_F_SETLK = Number('13');
+		const emscripten_F_SETLKW = Number('14');
+		const emscripten_SEEK_SET = Number('0');
+		// NOTE: With the exception of l_type, these offsets are not exposed to
+		// JS by Emscripten, so we hardcode them here.
+		const emscripten_flock_l_type_offset = 0;
+		const emscripten_flock_l_whence_offset = 2;
+		const emscripten_flock_l_start_offset = 8;
+		const emscripten_flock_l_len_offset = 16;
+		const emscripten_flock_l_pid_offset = 24;
+		/**
+		 * Read the flock struct at the given address.
+		 *
+		 * @param {bigint} flockStructAddress - the address of the flock struct
+		 * @returns the flock struct
+		 */ function read_flock_struct(flockStructAddress) {
+			/*
+			 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+			 * we need to adjust offsets to address the word size of each HEAP.
+			 *
+			 * For example, an offset of 64 bytes is the following for each HEAP:
+			 * - HEAP8: 64  (the 64th byte)
+			 * - HEAP16: 32 (the 32nd 16-bit word)
+			 * - HEAP32: 16 (the 16th 32-bit word)
+			 * - HEAP64: 8  (the 8th 64-bit word)
+			 *
+			 * We get a word offset by dividing the byte offset by the word size.
+			 */ return {
+				l_type: HEAP16[ // Shift right by 1 to divide by 2^1.
+					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
+				],
+				l_whence:
+					HEAP16[ // Shift right by 1 to divide by 2^1.
 						(flockStructAddress +
 							emscripten_flock_l_whence_offset) >>
 							1
-					] = fields.l_whence;
-				}
-				if (fields.l_start !== undefined) {
-					HEAP64[
+					],
+				l_start:
+					HEAP64[ // Shift right by 3 to divide by 2^3.
 						(flockStructAddress +
 							emscripten_flock_l_start_offset) >>
 							3
-					] = fields.l_start;
-				}
-				if (fields.l_len !== undefined) {
-					HEAP64[
-						(flockStructAddress + emscripten_flock_l_len_offset) >>
-							3
-					] = fields.l_len;
-				}
-				if (fields.l_pid !== undefined) {
-					HEAP32[
-						(flockStructAddress + emscripten_flock_l_pid_offset) >>
-							2
-					] = fields.l_pid;
-				}
+					],
+				l_len: HEAP64[ // Shift right by 3 to divide by 2^3.
+					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
+				],
+				l_pid: HEAP32[ // Shift right by 2 to divide by 2^2.
+					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
+				],
+			};
+		}
+		/**
+		 * Update the flock struct at the given address with the given fields.
+		 *
+		 * @param {bigint} flockStructAddress - the address of the flock struct
+		 * @param {object} fields - the fields to update
+		 */ function update_flock_struct(flockStructAddress, fields) {
+			/*
+			 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+			 * we need to adjust offsets to address the word size of each HEAP.
+			 *
+			 * For example, an offset of 64 bytes is the following for each HEAP:
+			 * - HEAP8: 64  (the 64th byte)
+			 * - HEAP16: 32 (the 32nd 16-bit word)
+			 * - HEAP32: 16 (the 16th 32-bit word)
+			 * - HEAP64: 8  (the 8th 64-bit word)
+			 *
+			 * We get a word offset by dividing the byte offset by the word size.
+			 */ if (fields.l_type !== undefined) {
+				HEAP16[ // Shift right by 1 to divide by 2^1.
+					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
+				] = fields.l_type;
 			}
-			function getBaseAddress(fd, whence, startOffset) {
-				let baseAddress;
-				switch (whence) {
-					case emscripten_SEEK_SET:
-						baseAddress = 0n;
-						break;
+			if (fields.l_whence !== undefined) {
+				HEAP16[ // Shift right by 1 to divide by 2^1.
+					(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
+				] = fields.l_whence;
+			}
+			if (fields.l_start !== undefined) {
+				HEAP64[ // Shift right by 3 to divide by 2^3.
+					(flockStructAddress + emscripten_flock_l_start_offset) >> 3
+				] = fields.l_start;
+			}
+			if (fields.l_len !== undefined) {
+				HEAP64[ // Shift right by 3 to divide by 2^3.
+					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
+				] = fields.l_len;
+			}
+			if (fields.l_pid !== undefined) {
+				HEAP32[ // Shift right by 2 to divide by 2^2.
+					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
+				] = fields.l_pid;
+			}
+		}
+		/**
+		 * Resolve the base address of the range depending on the whence and start offset.
+		 *
+		 * @param {number} fd - the file descriptor
+		 * @param {number} whence - what the start offset is relative to
+		 * @param {bigint} startOffset - the offset from the whence
+		 * @returns The resolved offset and the errno. If there is an error,
+		 *          the resolved offset is null, and the errno is non-zero.
+		 */ function get_base_address(fd, whence, startOffset) {
+			let baseAddress;
+			switch (whence) {
+				case emscripten_SEEK_SET:
+					baseAddress = 0n;
+					break;
 
-					case emscripten_SEEK_CUR:
-						baseAddress = FS.lseek(fd, 0, whence);
-						break;
+				case emscripten_SEEK_CUR:
+					baseAddress = FS.lseek(fd, 0, whence);
+					break;
 
-					case emscripten_SEEK_END:
-						baseAddress = _wasm_get_end_offset(fd);
-						break;
+				case emscripten_SEEK_END:
+					baseAddress = _wasm_get_end_offset(fd);
+					break;
 
-					default:
-						return [null, ERRNO_CODES.EINVAL];
-				}
-				if (baseAddress == -1) {
-					// We cannot resolve the offset within the file.
-					// Let's treat this as a problem with the file descriptor.
-					return [null, ERRNO_CODES.EBADF];
-				}
-				const resolvedOffset = baseAddress + startOffset;
-				if (resolvedOffset < 0) {
-					// This is not a valid offset. Report args as invalid.
+				default:
 					return [null, ERRNO_CODES.EINVAL];
-				}
-				return [resolvedOffset, 0];
 			}
-			const pid = PHPLoader.processId;
-			switch (cmd) {
-				case emscripten_F_GETLK: {
-					js_wasm_trace(`fcntl F_GETLK ${fd}`);
-					let vfsPath;
-					let errno;
-					[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-					if (errno !== 0) {
-						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
-						);
-						return -errno;
-					}
-					if (!locking.is_nodefs_path(vfsPath)) {
-						// If not a NodeFS path, we can't lock it.
-						// Default to succeeding as Emscripten does.
-						logger.warn(
-							`locking via fcntl() is not implemented for non-NodeFS path '${vfsPath}'`
-						);
-						// TODO: Set struct to UNLCK
-						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${vfsPath} is_nodefs_path false`
-						);
-						return 0;
-					}
-					const flockStructAddr = syscallGetVarargP();
-					const flockStruct = readFlockStruct(flockStructAddr);
-					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-						return -ERRNO_CODES.EINVAL;
-					}
-					errno = locking.check_lock_params(fd, flockStruct.l_type);
-					if (errno !== 0) {
-						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
-						);
-						return -errno;
-					}
-					const requestedLockType =
-						locking.fcntlToLockState[flockStruct.l_type];
-					let absoluteStartOffset;
-					[absoluteStartOffset, errno] = getBaseAddress(
+			if (baseAddress == -1) {
+				// We cannot resolve the offset within the file.
+				// Let's treat this as a problem with the file descriptor.
+				return [null, ERRNO_CODES.EBADF];
+			}
+			const resolvedOffset = baseAddress + startOffset;
+			if (resolvedOffset < 0) {
+				// This is not a valid offset. Report args as invalid.
+				return [null, ERRNO_CODES.EINVAL];
+			}
+			return [resolvedOffset, 0];
+		}
+		const pid = PHPLoader.processId;
+		switch (cmd) {
+			case emscripten_F_GETLK: {
+				_js_wasm_trace('fcntl(%d, F_GETLK)', fd);
+				let vfsPath;
+				let errno;
+				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+				if (errno !== 0) {
+					_js_wasm_trace(
+						'fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d',
 						fd,
-						flockStruct.l_whence,
-						flockStruct.l_start
+						vfsPath,
+						errno
 					);
-					if (errno !== 0) {
-						js_wasm_trace(
-							`fcntl F_GETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
-						);
-						return -errno;
-					}
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					// TODO: Can we and do we want to support setting pid of the locking process? I don't think so.
-					// TODO: try/catch
-					// TODO: Handle case where flock() conflicts with range lock
-					return PHPLoader.fileLockManager
-						.findFirstConflictingByteRangeLock(nativeFilePath, {
-							type: requestedLockType,
-							start: absoluteStartOffset,
-							end: absoluteStartOffset + flockStruct.l_len,
-							pid,
-							fd,
-						})
-						.then((conflictingLock) => {
-							if (conflictingLock === undefined) {
-								updateFlockStruct(flockStructAddr, {
-									l_type: F_UNLCK,
-								});
-								js_wasm_trace(
-									`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock type=unlocked start=0x${absoluteStartOffset
-										.toString(16)
-										.padStart(16, '0')} end=0x${(
-										absoluteStartOffset + flockStruct.l_len
-									)
-										.toString(16)
-										.padStart(
-											16,
-											'0'
-										)} conflictingLock undefined`
-								);
-								return 0;
-							}
-							const fcntlLockState =
-								locking.lockStateToFcntl[conflictingLock.type];
-							updateFlockStruct(flockStructAddr, {
-								l_type: fcntlLockState,
-								l_whence: emscripten_SEEK_SET,
-								l_start: conflictingLock.start,
-								l_len:
-									conflictingLock.end - conflictingLock.start,
-								l_pid: conflictingLock.pid,
-							});
-							js_wasm_trace(
-								`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock type=${
-									conflictingLock.type
-								} start=0x${conflictingLock.start
-									.toString(16)
-									.padStart(
-										16,
-										'0'
-									)} end=0x${conflictingLock.end
-									.toString(16)
-									.padStart(16, '0')} conflictingLock ${
-									conflictingLock.pid
-								}`
-							);
-							return 0;
-						})
-						.catch((e) => {
-							js_wasm_trace(
-								`fcntl F_GETLK ${fd} ${vfsPath} findFirstConflictingByteRangeLock error ${JSON.stringify(
-									e,
-									(key, value) =>
-										typeof value === 'bigint'
-											? `0x${value
-													.toString(16)
-													.padStart(16, '0')}`
-											: value
-								)}`
-							);
-							return -ERRNO_CODES.EINVAL;
-						});
+					return -ERRNO_CODES.EBADF;
 				}
-
-				case emscripten_F_SETLK: {
-					js_wasm_trace(`fcntl F_SETLK ${fd}`);
-					let vfsPath;
-					let errno;
-					[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} get_vfs_path_from_fd ${vfsPath} ${errno}`
-					);
-					if (errno !== 0) {
-						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${vfsPath} get_vfs_path_from_fd errno ${errno}`
-						);
-						return -errno;
-					}
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} before is_nodefs_path ${locking.is_nodefs_path(
-							vfsPath
-						)}`
-					);
-					if (!locking.is_nodefs_path(vfsPath)) {
-						// If not a NodeFS path, we can't lock it.
-						// Default to succeeding as Emscripten does.
-						logger.warn(
-							`locking via fcntl() is not implemented for non-NodeFS path '${vfsPath}'`
-						);
-						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${vfsPath} is_nodefs_path false`
-						);
-						return 0;
-					}
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} after is_nodefs_path ${locking.is_nodefs_path(
-							vfsPath
-						)}`
-					);
-					var flockStructAddr = syscallGetVarargP();
-					const flockStruct = readFlockStruct(flockStructAddr);
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} after readFlockStruct ${JSON.stringify(
-							flockStruct,
-							(key, value) =>
-								typeof value === 'bigint'
-									? `0x${value
-											.toString(16)
-											.padStart(16, '0')}`
-									: value
-						)}`
-					);
-					let absoluteStartOffset;
-					[absoluteStartOffset, errno] = getBaseAddress(
+				if (!locking.is_path_to_shared_fs(vfsPath)) {
+					_js_wasm_trace(
+						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
 						fd,
-						flockStruct.l_whence,
-						flockStruct.l_start
+						vfsPath
 					);
-					if (errno !== 0) {
-						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${vfsPath} get_base_address errno ${errno}`
-						);
-						return -errno;
-					}
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} after get_base_address ${absoluteStartOffset}`
+					// If not a NodeFS path, we can't lock it.
+					// Default to succeeding as Emscripten does.
+					update_flock_struct(flockStructAddr, {
+						l_type: F_UNLCK,
+					});
+					return 0;
+				}
+				const flockStructAddr = syscallGetVarargP();
+				const flockStruct = read_flock_struct(flockStructAddr);
+				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+					return -ERRNO_CODES.EINVAL;
+				}
+				errno = locking.check_lock_params(fd, flockStruct.l_type);
+				if (errno !== 0) {
+					_js_wasm_trace(
+						'fcntl(%d, F_GETLK) %s check_lock_params errno %d',
+						fd,
+						vfsPath,
+						errno
 					);
-					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-						return -ERRNO_CODES.EINVAL;
-					}
-					errno = locking.check_lock_params(fd, flockStruct.l_type);
-					if (errno !== 0) {
-						js_wasm_trace(
-							`fcntl F_SETLK ${fd} ${vfsPath} check_lock_params errno ${errno}`
-						);
-						return -errno;
-					}
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} after check_lock_params ${errno}`
+					return -ERRNO_CODES.EINVAL;
+				}
+				const requestedLockType =
+					locking.fcntlToLockState[flockStruct.l_type];
+				let absoluteStartOffset;
+				[absoluteStartOffset, errno] = get_base_address(
+					fd,
+					flockStruct.l_whence,
+					flockStruct.l_start
+				);
+				if (errno !== 0) {
+					_js_wasm_trace(
+						'fcntl(%d, F_GETLK) %s get_base_address errno %d',
+						fd,
+						vfsPath,
+						errno
 					);
-					// TODO: Explain why
-					locking.maybeLockedFds.add(fd);
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} after maybeLockedFds.add ${fd}`
-					);
-					const requestedLockType =
-						locking.fcntlToLockState[flockStruct.l_type];
-					const rangeLock = {
+					return -ERRNO_CODES.EINVAL;
+				}
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
+				return PHPLoader.fileLockManager
+					.findFirstConflictingByteRangeLock(nativeFilePath, {
 						type: requestedLockType,
 						start: absoluteStartOffset,
 						end: absoluteStartOffset + flockStruct.l_len,
 						pid,
-						fd,
-					};
-					js_wasm_trace(
-						`fcntl F_SETLK ${fd} ${vfsPath} before lockFileByteRange ${JSON.stringify(
-							rangeLock,
-							(key, value) =>
-								typeof value === 'bigint'
-									? `0x${value
-											.toString(16)
-											.padStart(16, '0')}`
-									: value
-						)}`
-					);
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					return PHPLoader.fileLockManager
-						.lockFileByteRange(nativeFilePath, rangeLock)
-						.then((succeeded) => {
-							js_wasm_trace(
-								`fcntl F_SETLK ${fd} ${vfsPath} lockFileByteRange type=${requestedLockType} start=0x${absoluteStartOffset
-									.toString(16)
-									.padStart(16, '0')} end=0x${(
-									absoluteStartOffset + flockStruct.l_len
-								)
-									.toString(16)
-									.padStart(16, '0')} ${succeeded}`
+					})
+					.then((conflictingLock) => {
+						if (conflictingLock === undefined) {
+							_js_wasm_trace(
+								'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=unlocked start=0x%x end=0x%x',
+								fd,
+								vfsPath,
+								absoluteStartOffset,
+								absoluteStartOffset + flockStruct.l_len
 							);
-							if (succeeded) {
-								return 0;
-							} else {
-								return -ERRNO_CODES.EAGAIN;
-							}
-						})
-						.catch((e) => {
-							js_wasm_trace(
-								`fcntl F_SETLK ${fd} ${vfsPath} lockFileByteRange error ${JSON.stringify(
-									e,
-									(key, value) =>
-										typeof value === 'bigint'
-											? `0x${value
-													.toString(16)
-													.padStart(16, '0')}`
-											: value
-								)}`
-							);
-							return -ERRNO_CODES.EINVAL;
+							update_flock_struct(flockStructAddr, {
+								l_type: F_UNLCK,
+							});
+							return 0;
+						}
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=%s start=0x%x end=0x%x conflictingLock %d',
+							fd,
+							vfsPath,
+							conflictingLock.type,
+							conflictingLock.start,
+							conflictingLock.end,
+							conflictingLock.pid
+						);
+						const fcntlLockState =
+							locking.lockStateToFcntl[conflictingLock.type];
+						update_flock_struct(flockStructAddr, {
+							l_type: fcntlLockState,
+							l_whence: emscripten_SEEK_SET,
+							l_start: conflictingLock.start,
+							l_len: conflictingLock.end - conflictingLock.start,
+							l_pid: conflictingLock.pid,
 						});
-				}
-
-				// TODO: Implement waiting for lock
-				case emscripten_F_SETLKW: {
-					// NOTE: I don't think this is used by Playground.
-					// Let's throw an error to discover if it is used.
-					js_wasm_trace('F_SETLKW is not implemented');
-					// TODO: Should we use a different error code?
-					// Respond with EDEADLOCK to indicate that the lock is not available via blocking form
-					return -ERRNO_CODES.EDEADLOCK;
-				}
-
-				default:
-					return default_fcntl64.fn(fd, cmd, varargs);
+						return 0;
+					})
+					.catch((e) => {
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s',
+							fd,
+							vfsPath,
+							e
+						);
+						return -ERRNO_CODES.EINVAL;
+					});
 			}
-		});
+
+			case emscripten_F_SETLK: {
+				_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
+				let vfsPath;
+				let errno;
+				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+				if (errno !== 0) {
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
+					return -errno;
+				}
+				if (!locking.is_path_to_shared_fs(vfsPath)) {
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s',
+						fd,
+						vfsPath
+					);
+					// If not a NodeFS path, we can't lock it.
+					// Default to succeeding as Emscripten does.
+					return 0;
+				}
+				var flockStructAddr = syscallGetVarargP();
+				const flockStruct = read_flock_struct(flockStructAddr);
+				let absoluteStartOffset;
+				[absoluteStartOffset, errno] = get_base_address(
+					fd,
+					flockStruct.l_whence,
+					flockStruct.l_start
+				);
+				if (errno !== 0) {
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s get_base_address errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
+					return -errno;
+				}
+				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s invalid lock type %d',
+						fd,
+						vfsPath,
+						flockStruct.l_type
+					);
+					return -ERRNO_CODES.EINVAL;
+				}
+				errno = locking.check_lock_params(fd, flockStruct.l_type);
+				if (errno !== 0) {
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s check_lock_params errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
+					return -errno;
+				}
+				locking.maybeLockedFds.add(fd);
+				const requestedLockType =
+					locking.fcntlToLockState[flockStruct.l_type];
+				const rangeLock = {
+					type: requestedLockType,
+					start: absoluteStartOffset,
+					end: absoluteStartOffset + flockStruct.l_len,
+					pid,
+				};
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
+				_js_wasm_trace(
+					'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+					fd,
+					vfsPath,
+					rangeLock
+				);
+				return PHPLoader.fileLockManager
+					.lockFileByteRange(nativeFilePath, rangeLock)
+					.then((succeeded) => {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
+							fd,
+							vfsPath,
+							succeeded,
+							rangeLock
+						);
+						return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
+					})
+					.catch((e) => {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s',
+							fd,
+							vfsPath,
+							e,
+							rangeLock
+						);
+						return -ERRNO_CODES.EINVAL;
+					});
+			}
+
+			// @TODO: Implement waiting for lock
+			case emscripten_F_SETLKW: {
+				// We do not yet support the blocking form of flock().
+				// We respond with EDEADLK to indicate failure
+				// because it is a known errno for a failed F_SETLKW command.
+				return -ERRNO_CODES.EDEADLK;
+			}
+
+			default:
+				return _builtin_fcntl64(fd, cmd, varargs);
+		}
 	};
 
 	___syscall_fcntl64.isAsync = true;
@@ -5758,11 +6030,6 @@ export function init(RuntimeName, PHPLoader) {
 			return -e.errno;
 		}
 	}
-
-	var stringToUTF8 = (str, outPtr, maxBytesToWrite) =>
-		stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
-
-	Module['stringToUTF8'] = stringToUTF8;
 
 	function ___syscall_getcwd(buf, size) {
 		try {
@@ -6359,7 +6626,11 @@ export function init(RuntimeName, PHPLoader) {
 	function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
 		try {
 			var sock = getSocketFromFD(fd);
-			var msg = sock.sock_ops.recvmsg(sock, len);
+			var msg = sock.sock_ops.recvmsg(
+				sock,
+				len,
+				typeof flags !== 'undefined' ? flags : 0
+			);
 			if (!msg) return 0;
 			// socket is closed
 			if (addr) {
@@ -7023,17 +7294,6 @@ export function init(RuntimeName, PHPLoader) {
 		return 0;
 	};
 
-	function _fd_close(fd) {
-		try {
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			FS.close(stream);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return e.errno;
-		}
-	}
-
 	function _fd_fdstat_get(fd, pbuf) {
 		try {
 			var rightsBase = 0;
@@ -7151,6 +7411,148 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	var _getaddrinfo = (node, service, hint, out) => {
+		var addr = 0;
+		var port = 0;
+		var flags = 0;
+		var family = 0;
+		var type = 0;
+		var proto = 0;
+		var ai;
+		function allocaddrinfo(family, type, proto, canon, addr, port) {
+			var sa, salen, ai;
+			var errno;
+			salen = family === 10 ? 28 : 16;
+			addr = family === 10 ? inetNtop6(addr) : inetNtop4(addr);
+			sa = _malloc(salen);
+			errno = writeSockaddr(sa, family, addr, port);
+			assert(!errno);
+			ai = _malloc(32);
+			HEAP32[(ai + 4) >> 2] = family;
+			HEAP32[(ai + 8) >> 2] = type;
+			HEAP32[(ai + 12) >> 2] = proto;
+			HEAPU32[(ai + 24) >> 2] = canon;
+			HEAPU32[(ai + 20) >> 2] = sa;
+			if (family === 10) {
+				HEAP32[(ai + 16) >> 2] = 28;
+			} else {
+				HEAP32[(ai + 16) >> 2] = 16;
+			}
+			HEAP32[(ai + 28) >> 2] = 0;
+			return ai;
+		}
+		if (hint) {
+			flags = HEAP32[hint >> 2];
+			family = HEAP32[(hint + 4) >> 2];
+			type = HEAP32[(hint + 8) >> 2];
+			proto = HEAP32[(hint + 12) >> 2];
+		}
+		if (type && !proto) {
+			proto = type === 2 ? 17 : 6;
+		}
+		if (!type && proto) {
+			type = proto === 17 ? 2 : 1;
+		}
+		// If type or proto are set to zero in hints we should really be returning multiple addrinfo values, but for
+		// now default to a TCP STREAM socket so we can at least return a sensible addrinfo given NULL hints.
+		if (proto === 0) {
+			proto = 6;
+		}
+		if (type === 0) {
+			type = 1;
+		}
+		if (!node && !service) {
+			return -2;
+		}
+		if (flags & ~(1 | 2 | 4 | 1024 | 8 | 16 | 32)) {
+			return -1;
+		}
+		if (hint !== 0 && HEAP32[hint >> 2] & 2 && !node) {
+			return -1;
+		}
+		if (flags & 32) {
+			// TODO
+			return -2;
+		}
+		if (type !== 0 && type !== 1 && type !== 2) {
+			return -7;
+		}
+		if (family !== 0 && family !== 2 && family !== 10) {
+			return -6;
+		}
+		if (service) {
+			service = UTF8ToString(service);
+			port = parseInt(service, 10);
+			if (isNaN(port)) {
+				if (flags & 1024) {
+					return -2;
+				}
+				// TODO support resolving well-known service names from:
+				// http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.txt
+				return -8;
+			}
+		}
+		if (!node) {
+			if (family === 0) {
+				family = 2;
+			}
+			if ((flags & 1) === 0) {
+				if (family === 2) {
+					addr = _htonl(2130706433);
+				} else {
+					addr = [0, 0, 0, _htonl(1)];
+				}
+			}
+			ai = allocaddrinfo(family, type, proto, null, addr, port);
+			HEAPU32[out >> 2] = ai;
+			return 0;
+		}
+		// try as a numeric address
+		node = UTF8ToString(node);
+		addr = inetPton4(node);
+		if (addr !== null) {
+			// incoming node is a valid ipv4 address
+			if (family === 0 || family === 2) {
+				family = 2;
+			} else if (family === 10 && flags & 8) {
+				addr = [0, 0, _htonl(65535), addr];
+				family = 10;
+			} else {
+				return -2;
+			}
+		} else {
+			addr = inetPton6(node);
+			if (addr !== null) {
+				// incoming node is a valid ipv6 address
+				if (family === 0 || family === 10) {
+					family = 10;
+				} else {
+					return -2;
+				}
+			}
+		}
+		if (addr != null) {
+			ai = allocaddrinfo(family, type, proto, node, addr, port);
+			HEAPU32[out >> 2] = ai;
+			return 0;
+		}
+		if (flags & 4) {
+			return -2;
+		}
+		// try as a hostname
+		// resolve the hostname to a temporary fake address
+		node = DNS.lookup_name(node);
+		addr = inetPton4(node);
+		if (family === 0) {
+			family = 2;
+		} else if (family === 10) {
+			addr = [0, 0, _htonl(65535), addr];
+		}
+		ai = allocaddrinfo(family, type, proto, null, addr, port);
+		HEAPU32[out >> 2] = ai;
+		return 0;
+	};
+
 	var _getnameinfo = (sa, salen, node, nodelen, serv, servlen, flags) => {
 		var info = readSockaddr(sa, salen);
 		if (info.errno) {
@@ -7249,193 +7651,6 @@ export function init(RuntimeName, PHPLoader) {
 		return result;
 	};
 
-	var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
-
-	/** @suppress {duplicate } */ var stringToUTF8OnStack = (str) => {
-		var size = lengthBytesUTF8(str) + 1;
-		var ret = stackAlloc(size);
-		stringToUTF8(str, ret, size);
-		return ret;
-	};
-
-	var allocateUTF8OnStack = stringToUTF8OnStack;
-
-	var PHPWASM = {
-		init: function () {
-			// The /internal directory is required by the C module. It's where the
-			// stdout, stderr, and headers information are written for the JavaScript
-			// code to read later on.
-			FS.mkdir('/internal');
-			// The files from the shared directory are shared between all the
-			// PHP processes managed by PHPProcessManager.
-			FS.mkdir('/internal/shared');
-			// The files from the preload directory are preloaded using the
-			// auto_prepend_file php.ini directive.
-			FS.mkdir('/internal/shared/preload');
-			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
-				? require('events').EventEmitter
-				: class EventEmitter {
-						constructor() {
-							this.listeners = {};
-						}
-						emit(eventName, data) {
-							if (this.listeners[eventName]) {
-								this.listeners[eventName].forEach(
-									(callback) => {
-										callback(data);
-									}
-								);
-							}
-						}
-						once(eventName, callback) {
-							const self = this;
-							function removedCallback() {
-								callback(...arguments);
-								self.removeListener(eventName, removedCallback);
-							}
-							this.on(eventName, removedCallback);
-						}
-						removeAllListeners(eventName) {
-							if (eventName) {
-								delete this.listeners[eventName];
-							} else {
-								this.listeners = {};
-							}
-						}
-						removeListener(eventName, callback) {
-							if (this.listeners[eventName]) {
-								const idx =
-									this.listeners[eventName].indexOf(callback);
-								if (idx !== -1) {
-									this.listeners[eventName].splice(idx, 1);
-								}
-							}
-						}
-				  };
-			PHPWASM.child_proc_by_fd = {};
-			PHPWASM.child_proc_by_pid = {};
-			PHPWASM.input_devices = {};
-		},
-		getAllWebSockets: function (sock) {
-			const webSockets = new Set();
-			if (sock.server) {
-				sock.server.clients.forEach((ws) => {
-					webSockets.add(ws);
-				});
-			}
-			for (const peer of PHPWASM.getAllPeers(sock)) {
-				webSockets.add(peer.socket);
-			}
-			return Array.from(webSockets);
-		},
-		getAllPeers: function (sock) {
-			const peers = new Set();
-			if (sock.server) {
-				sock.pending
-					.filter((pending) => pending.peers)
-					.forEach((pending) => {
-						for (const peer of Object.values(pending.peers)) {
-							peers.add(peer);
-						}
-					});
-			}
-			if (sock.peers) {
-				for (const peer of Object.values(sock.peers)) {
-					peers.add(peer);
-				}
-			}
-			return Array.from(peers);
-		},
-		awaitData: function (ws) {
-			return PHPWASM.awaitEvent(ws, 'message');
-		},
-		awaitConnection: function (ws) {
-			if (ws.OPEN === ws.readyState) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'open');
-		},
-		awaitClose: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'close');
-		},
-		awaitError: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'error');
-		},
-		awaitEvent: function (ws, event) {
-			let resolve;
-			const listener = () => {
-				resolve();
-			};
-			const promise = new Promise(function (_resolve) {
-				resolve = _resolve;
-				ws.once(event, listener);
-			});
-			const cancel = () => {
-				ws.removeListener(event, listener);
-				// Rejecting the promises bubbles up and kills the entire
-				// node process. Let's resolve them on the next tick instead
-				// to give the caller some space to unbind any handlers.
-				setTimeout(resolve);
-			};
-			return [promise, cancel];
-		},
-		noop: function () {},
-		spawnProcess: function (command, args, options) {
-			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
-					command,
-					args,
-					options
-				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
-					if (!spawned || !spawned.on) {
-						throw new Error(
-							'spawnProcess() must return an EventEmitter but returned a different type.'
-						);
-					}
-					return spawned;
-				});
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
-				});
-			}
-			const e = new Error(
-				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
-					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-					'and similar functions via php.ini.'
-			);
-			e.code = 'SPAWN_UNSUPPORTED';
-			throw e;
-		},
-		shutdownSocket: function (socketd, how) {
-			// This implementation only supports websockets at the moment
-			const sock = getSocketFromFD(socketd);
-			const peer = Object.values(sock.peers)[0];
-			if (!peer) {
-				return -1;
-			}
-			try {
-				peer.socket.close();
-				SOCKFS.websocket_sock_ops.removePeer(sock, peer);
-				return 0;
-			} catch (e) {
-				console.log('Socket shutdown error', e);
-				return -1;
-			}
-		},
-	};
-
 	function _js_create_input_device(deviceId) {
 		let dataBuffer = [];
 		let dataCallback;
@@ -7472,81 +7687,97 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	var _js_flock = async function js_flock(fd, op) {
-		return Asyncify.handleAsync(async () => {
-			js_wasm_trace(`js_flock ${fd} ${op}`);
-			// TODO: Consider patching Emscripten to relay these constants via cDefs.
-			// Based on
-			// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
-			const emscripten_LOCK_SH = 1;
-			const emscripten_LOCK_EX = 2;
-			const emscripten_LOCK_NB = 4;
-			const emscripten_LOCK_UN = 8;
-			const flockToLockOpType = {
-				[emscripten_LOCK_SH]: 'shared',
-				[emscripten_LOCK_EX]: 'exclusive',
-				[emscripten_LOCK_UN]: 'unlocked',
-			};
-			let vfsPath;
-			let errno;
-			[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-			js_wasm_trace(
-				`js_flock ${fd} ${op} get_vfs_path_from_fd ${vfsPath} ${errno}`
+		// return Asyncify.handleAsync(async () => {
+		_js_wasm_trace('js_flock(%d, %d)', fd, op);
+		// Emscripten does not expose these constants to JS, so we hardcode them here.
+		// Based on
+		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
+		const emscripten_LOCK_SH = 1;
+		const emscripten_LOCK_EX = 2;
+		const emscripten_LOCK_NB = 4;
+		const emscripten_LOCK_UN = 8;
+		const flockToLockOpType = {
+			[emscripten_LOCK_SH]: 'shared',
+			[emscripten_LOCK_EX]: 'exclusive',
+			[emscripten_LOCK_UN]: 'unlocked',
+		};
+		let vfsPath;
+		let errno;
+		[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+		if (errno !== 0) {
+			_js_wasm_trace(
+				'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
+				fd,
+				op,
+				vfsPath,
+				errno
 			);
-			if (errno !== 0) {
-				return -errno;
-			}
-			if (!locking.is_nodefs_path(vfsPath)) {
-				// If not a NodeFS path, we can't lock it.
-				// Default to succeeding as Emscripten does.
-				logger.warn(
-					`flock() is not implemented for non-NodeFS path '${vfsPath}'`
-				);
-				return -1;
-			}
-			errno = locking.check_lock_params(fd, op);
-			if (errno !== 0) {
-				return -errno;
-			}
-			// TODO: Consider supporting blocking mode of flock()
-			if (op & (emscripten_LOCK_NB === 0)) {
-				// TODO: Fix this logging
-				//logger.error('blocking mode of flock() is not implemented');
-				console.error('blocking mode of flock() is not implemented');
-				// TODO: Should we use a different error code?
-				return -ERRNO_CODES.EDEADLOCK;
-			}
-			const maskedOp =
-				op &
-				(emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
-			const lockOpType = flockToLockOpType[maskedOp];
-			if (lockOpType === undefined) {
-				logger.warn(
-					`invalid flock() operation: 0x${lockOpType.toString(16)}`
-				);
-				return -ERRNO_CODES.EINVAL;
-			}
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
-			const result = await PHPLoader.fileLockManager.lockWholeFile(
-				nativeFilePath,
-				{
-					type: lockOpType,
-					pid: PHPLoader.processId,
-					fd,
-				}
+			return -errno;
+		}
+		if (!locking.is_path_to_shared_fs(vfsPath)) {
+			_js_wasm_trace(
+				'flock(%d, %d) locking is not implemented for non-NodeFS path %s',
+				fd,
+				op,
+				vfsPath
 			);
-			js_wasm_trace(
-				`js_flock ${fd} ${op} ${vfsPath} lockWholeFile ${result}`
+			// If not a NodeFS path, we can't lock it.
+			// Default to succeeding as Emscripten does.
+			return 0;
+		}
+		errno = locking.check_lock_params(fd, op);
+		if (errno !== 0) {
+			_js_wasm_trace(
+				'js_flock(%d, %d) check_lock_params errno %d',
+				fd,
+				op,
+				errno
 			);
-			return result;
-		});
+			return -errno;
+		}
+		// @TODO: Consider supporting blocking mode of flock()
+		if (op & (emscripten_LOCK_NB === 0)) {
+			_js_wasm_trace(
+				'js_flock(%d, %d) blocking mode of flock() is not implemented',
+				fd,
+				op
+			);
+			// We do not yet support the blocking form of flock().
+			// We respond with EINVAL to indicate failure
+			// because it is a known errno for a failed blocking flock().
+			return -ERRNO_CODES.EINVAL;
+		}
+		const maskedOp =
+			op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
+		const lockOpType = flockToLockOpType[maskedOp];
+		if (lockOpType === undefined) {
+			_js_wasm_trace(
+				'js_flock(%d, %d) invalid flock() operation',
+				fd,
+				op
+			);
+			return -ERRNO_CODES.EINVAL;
+		}
+		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
+		const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
+			nativeFilePath,
+			{
+				type: lockOpType,
+				pid: PHPLoader.processId,
+				fd,
+			}
+		);
+		_js_wasm_trace(
+			'js_flock(%d, %d) lockWholeFile %s returned %d',
+			fd,
+			op,
+			vfsPath,
+			obtainedLock
+		);
+		return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
 	};
 
 	_js_flock.isAsync = true;
-
-	function _js_getpid() {
-		return PHPLoader.processId;
-	}
 
 	function _js_open_process(
 		command,
@@ -7770,6 +8001,24 @@ export function init(RuntimeName, PHPLoader) {
 		}
 		return 0;
 	}
+
+	var _js_release_file_locks = async function js_release_file_locks() {
+		_js_wasm_trace('js_release_file_locks()');
+		// TODO: Why make this conditional?
+		if (PHPLoader.fileLockManager) {
+			const pid = PHPLoader.processId;
+			return await PHPLoader.fileLockManager
+				.releaseLocksForProcess(pid)
+				.then(() => {
+					_js_wasm_trace('js_release_file_locks succeeded');
+				})
+				.catch((e) => {
+					_js_wasm_trace('js_release_file_locks error %s', e);
+				});
+		}
+	};
+
+	_js_release_file_locks.isAsync = true;
 
 	function _js_waitpid(pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
@@ -8531,17 +8780,6 @@ export function init(RuntimeName, PHPLoader) {
 	PHPWASM.init();
 
 	// End JS library code
-	function js_wasm_trace(msg) {
-		if (typeof msg !== 'string') {
-			msg = UTF8ToString(msg);
-		}
-		console.log(
-			process.hrtime.bigint().toString(10).padStart(15, '0'),
-			_js_getpid().toString().padStart(16, '0'),
-			msg
-		);
-	}
-
 	function js_popen_to_file(command, mode, exitCodePtr) {
 		const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 		if (!command) return 1;
@@ -8789,147 +9027,156 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	var wasmImports = {
-		/** @export */ l: ___assert_fail,
-		/** @export */ V: __asyncjs__js_module_onMessage,
-		/** @export */ Za: ___call_sighandler,
-		/** @export */ Ya: ___syscall_accept4,
-		/** @export */ Xa: ___syscall_bind,
-		/** @export */ Wa: ___syscall_chdir,
-		/** @export */ Q: ___syscall_chmod,
-		/** @export */ Va: ___syscall_connect,
-		/** @export */ Ua: ___syscall_dup,
-		/** @export */ Ta: ___syscall_dup3,
-		/** @export */ Sa: ___syscall_faccessat,
-		/** @export */ Ra: ___syscall_fallocate,
-		/** @export */ Qa: ___syscall_fchmod,
-		/** @export */ Pa: ___syscall_fchown32,
-		/** @export */ P: ___syscall_fchownat,
-		/** @export */ k: ___syscall_fcntl64,
-		/** @export */ Oa: ___syscall_fdatasync,
-		/** @export */ Na: ___syscall_fstat64,
-		/** @export */ Ma: ___syscall_ftruncate64,
-		/** @export */ La: ___syscall_getcwd,
-		/** @export */ Ka: ___syscall_getdents64,
-		/** @export */ Ja: ___syscall_getpeername,
-		/** @export */ Ia: ___syscall_getsockname,
-		/** @export */ Ha: ___syscall_getsockopt,
-		/** @export */ Ga: ___syscall_ioctl,
-		/** @export */ Fa: ___syscall_listen,
-		/** @export */ Ea: ___syscall_lstat64,
-		/** @export */ Da: ___syscall_mkdirat,
-		/** @export */ Ca: ___syscall_newfstatat,
-		/** @export */ B: ___syscall_openat,
-		/** @export */ Ba: ___syscall_pipe,
-		/** @export */ Aa: ___syscall_poll,
-		/** @export */ za: ___syscall_readlinkat,
-		/** @export */ ya: ___syscall_recvfrom,
-		/** @export */ xa: ___syscall_renameat,
-		/** @export */ O: ___syscall_rmdir,
-		/** @export */ wa: ___syscall_sendto,
-		/** @export */ N: ___syscall_socket,
-		/** @export */ va: ___syscall_stat64,
-		/** @export */ ua: ___syscall_statfs64,
-		/** @export */ ta: ___syscall_symlinkat,
-		/** @export */ M: ___syscall_unlinkat,
-		/** @export */ sa: ___syscall_utimensat,
-		/** @export */ ma: __abort_js,
-		/** @export */ la: __emscripten_lookup_name,
-		/** @export */ ka: __emscripten_runtime_keepalive_clear,
-		/** @export */ ja: __emscripten_throw_longjmp,
-		/** @export */ ia: __gmtime_js,
-		/** @export */ ha: __localtime_js,
-		/** @export */ ga: __mktime_js,
-		/** @export */ fa: __mmap_js,
-		/** @export */ ea: __munmap_js,
-		/** @export */ J: __setitimer_js,
-		/** @export */ da: __tzset_js,
-		/** @export */ ra: _clock_time_get,
-		/** @export */ I: _emscripten_date_now,
-		/** @export */ ca: _emscripten_get_heap_max,
-		/** @export */ w: _emscripten_get_now,
-		/** @export */ ba: _emscripten_resize_heap,
-		/** @export */ H: _emscripten_sleep,
-		/** @export */ qa: _environ_get,
-		/** @export */ pa: _environ_sizes_get,
+		/** @export */ n: ___assert_fail,
+		/** @export */ $: __asyncjs__js_module_onMessage,
+		/** @export */ eb: ___call_sighandler,
+		/** @export */ U: ___cxa_throw,
+		/** @export */ db: ___syscall_accept4,
+		/** @export */ cb: ___syscall_bind,
+		/** @export */ bb: ___syscall_chdir,
+		/** @export */ T: ___syscall_chmod,
+		/** @export */ ab: ___syscall_connect,
+		/** @export */ $a: ___syscall_dup,
+		/** @export */ _a: ___syscall_dup3,
+		/** @export */ Za: ___syscall_faccessat,
+		/** @export */ Ya: ___syscall_fallocate,
+		/** @export */ Xa: ___syscall_fchmod,
+		/** @export */ Wa: ___syscall_fchown32,
+		/** @export */ S: ___syscall_fchownat,
+		/** @export */ m: ___syscall_fcntl64,
+		/** @export */ Va: ___syscall_fdatasync,
+		/** @export */ Ua: ___syscall_fstat64,
+		/** @export */ Ta: ___syscall_ftruncate64,
+		/** @export */ Sa: ___syscall_getcwd,
+		/** @export */ Ra: ___syscall_getdents64,
+		/** @export */ Qa: ___syscall_getpeername,
+		/** @export */ Pa: ___syscall_getsockname,
+		/** @export */ Oa: ___syscall_getsockopt,
+		/** @export */ G: ___syscall_ioctl,
+		/** @export */ Na: ___syscall_listen,
+		/** @export */ Ma: ___syscall_lstat64,
+		/** @export */ La: ___syscall_mkdirat,
+		/** @export */ Ka: ___syscall_newfstatat,
+		/** @export */ y: ___syscall_openat,
+		/** @export */ Ja: ___syscall_pipe,
+		/** @export */ Ia: ___syscall_poll,
+		/** @export */ Ha: ___syscall_readlinkat,
+		/** @export */ Ga: ___syscall_recvfrom,
+		/** @export */ Fa: ___syscall_renameat,
+		/** @export */ R: ___syscall_rmdir,
+		/** @export */ Ea: ___syscall_sendto,
+		/** @export */ Q: ___syscall_socket,
+		/** @export */ Da: ___syscall_stat64,
+		/** @export */ Ca: ___syscall_statfs64,
+		/** @export */ Ba: ___syscall_symlinkat,
+		/** @export */ F: ___syscall_unlinkat,
+		/** @export */ Aa: ___syscall_utimensat,
+		/** @export */ ua: __abort_js,
+		/** @export */ ta: __emscripten_lookup_name,
+		/** @export */ sa: __emscripten_runtime_keepalive_clear,
+		/** @export */ ra: __emscripten_throw_longjmp,
+		/** @export */ qa: __gmtime_js,
+		/** @export */ pa: __localtime_js,
+		/** @export */ oa: __mktime_js,
+		/** @export */ na: __mmap_js,
+		/** @export */ ma: __munmap_js,
+		/** @export */ N: __setitimer_js,
+		/** @export */ la: __tzset_js,
+		/** @export */ za: _clock_time_get,
+		/** @export */ M: _emscripten_date_now,
+		/** @export */ ka: _emscripten_get_heap_max,
+		/** @export */ x: _emscripten_get_now,
+		/** @export */ ja: _emscripten_resize_heap,
+		/** @export */ L: _emscripten_sleep,
+		/** @export */ ya: _environ_get,
+		/** @export */ xa: _environ_sizes_get,
 		/** @export */ q: _exit,
-		/** @export */ u: _fd_close,
-		/** @export */ L: _fd_fdstat_get,
-		/** @export */ K: _fd_read,
-		/** @export */ oa: _fd_seek,
-		/** @export */ A: _fd_write,
-		/** @export */ G: _getnameinfo,
-		/** @export */ aa: _getprotobyname,
-		/** @export */ $: _getprotobynumber,
-		/** @export */ h: invoke_i,
-		/** @export */ d: invoke_ii,
+		/** @export */ r: _fd_close,
+		/** @export */ P: _fd_fdstat_get,
+		/** @export */ O: _fd_read,
+		/** @export */ wa: _fd_seek,
+		/** @export */ E: _fd_write,
+		/** @export */ ia: _getaddrinfo,
+		/** @export */ K: _getnameinfo,
+		/** @export */ ha: _getprotobyname,
+		/** @export */ ga: _getprotobynumber,
+		/** @export */ i: invoke_i,
+		/** @export */ c: invoke_ii,
 		/** @export */ b: invoke_iii,
-		/** @export */ g: invoke_iiii,
-		/** @export */ e: invoke_iiiii,
-		/** @export */ t: invoke_iiiiiii,
-		/** @export */ v: invoke_iiiiiiii,
-		/** @export */ F: invoke_iiiiiiiiii,
-		/** @export */ _: invoke_iiji,
-		/** @export */ Z: invoke_iijii,
-		/** @export */ Y: invoke_iijiji,
-		/** @export */ X: invoke_jiii,
-		/** @export */ c: invoke_v,
+		/** @export */ f: invoke_iiii,
+		/** @export */ g: invoke_iiiii,
+		/** @export */ t: invoke_iiiiii,
+		/** @export */ v: invoke_iiiiiii,
+		/** @export */ w: invoke_iiiiiiii,
+		/** @export */ D: invoke_iiiiiiiiii,
+		/** @export */ fa: invoke_iiji,
+		/** @export */ ea: invoke_iijii,
+		/** @export */ da: invoke_iijiji,
+		/** @export */ ca: invoke_jii,
+		/** @export */ ba: invoke_jiii,
+		/** @export */ e: invoke_v,
 		/** @export */ a: invoke_vi,
-		/** @export */ f: invoke_vii,
-		/** @export */ z: invoke_viidii,
-		/** @export */ p: invoke_viii,
-		/** @export */ m: invoke_viiii,
-		/** @export */ i: invoke_viiiiii,
-		/** @export */ n: invoke_viijii,
-		/** @export */ E: invoke_vji,
-		/** @export */ D: _js_create_input_device,
-		/** @export */ W: js_fd_read,
-		/** @export */ y: _js_flock,
+		/** @export */ d: invoke_vii,
+		/** @export */ C: invoke_viidii,
+		/** @export */ h: invoke_viii,
+		/** @export */ l: invoke_viiii,
+		/** @export */ B: invoke_viiiii,
+		/** @export */ k: invoke_viiiiii,
+		/** @export */ A: invoke_viiiiiiiii,
+		/** @export */ o: invoke_viijii,
+		/** @export */ J: invoke_vji,
+		/** @export */ I: _js_create_input_device,
+		/** @export */ aa: js_fd_read,
+		/** @export */ z: _js_flock,
 		/** @export */ j: _js_getpid,
-		/** @export */ C: _js_open_process,
-		/** @export */ U: js_popen_to_file,
-		/** @export */ T: _js_process_status,
-		/** @export */ S: _js_waitpid,
-		/** @export */ x: js_wasm_trace,
-		/** @export */ na: _proc_exit,
-		/** @export */ R: _strptime,
-		/** @export */ r: _wasm_close,
-		/** @export */ s: wasm_poll_socket,
-		/** @export */ o: _wasm_setsockopt,
+		/** @export */ H: _js_open_process,
+		/** @export */ _: js_popen_to_file,
+		/** @export */ Z: _js_process_status,
+		/** @export */ Y: _js_release_file_locks,
+		/** @export */ X: _js_waitpid,
+		/** @export */ W: _js_wasm_trace,
+		/** @export */ va: _proc_exit,
+		/** @export */ V: _strptime,
+		/** @export */ s: _wasm_close,
+		/** @export */ u: wasm_poll_socket,
+		/** @export */ p: _wasm_setsockopt,
 	};
 
 	var wasmExports;
 
 	createWasm();
 
-	var ___wasm_call_ctors = () => (___wasm_call_ctors = wasmExports['$a'])();
+	var ___wasm_call_ctors = () => (___wasm_call_ctors = wasmExports['gb'])();
 
-	var _malloc = (a0) => (_malloc = wasmExports['bb'])(a0);
+	var _malloc = (a0) => (_malloc = wasmExports['ib'])(a0);
 
-	var _free = (a0) => (_free = wasmExports['cb'])(a0);
+	var _free = (a0) => (_free = wasmExports['jb'])(a0);
 
 	var _getpid = (Module['_getpid'] = () =>
-		(_getpid = Module['_getpid'] = wasmExports['db'])());
+		(_getpid = Module['_getpid'] = wasmExports['kb'])());
 
 	var _wasm_sleep = (Module['_wasm_sleep'] = (a0) =>
-		(_wasm_sleep = Module['_wasm_sleep'] = wasmExports['eb'])(a0));
+		(_wasm_sleep = Module['_wasm_sleep'] = wasmExports['lb'])(a0));
 
-	var _ntohs = (a0) => (_ntohs = wasmExports['fb'])(a0);
+	var _ntohs = (a0) => (_ntohs = wasmExports['mb'])(a0);
 
-	var _htons = (a0) => (_htons = wasmExports['gb'])(a0);
+	var _htons = (a0) => (_htons = wasmExports['nb'])(a0);
+
+	var _htonl = (a0) => (_htonl = wasmExports['ob'])(a0);
 
 	var _wasm_read = (Module['_wasm_read'] = (a0, a1, a2) =>
-		(_wasm_read = Module['_wasm_read'] = wasmExports['hb'])(a0, a1, a2));
+		(_wasm_read = Module['_wasm_read'] = wasmExports['pb'])(a0, a1, a2));
 
-	var _fflush = (a0) => (_fflush = wasmExports['ib'])(a0);
+	var _fflush = (a0) => (_fflush = wasmExports['qb'])(a0);
 
 	var _flock = (Module['_flock'] = (a0, a1) =>
-		(_flock = Module['_flock'] = wasmExports['jb'])(a0, a1));
+		(_flock = Module['_flock'] = wasmExports['rb'])(a0, a1));
 
 	var _wasm_popen = (Module['_wasm_popen'] = (a0, a1) =>
-		(_wasm_popen = Module['_wasm_popen'] = wasmExports['kb'])(a0, a1));
+		(_wasm_popen = Module['_wasm_popen'] = wasmExports['sb'])(a0, a1));
 
 	var _wasm_php_exec = (Module['_wasm_php_exec'] = (a0, a1, a2, a3) =>
-		(_wasm_php_exec = Module['_wasm_php_exec'] = wasmExports['lb'])(
+		(_wasm_php_exec = Module['_wasm_php_exec'] = wasmExports['tb'])(
 			a0,
 			a1,
 			a2,
@@ -8937,17 +9184,17 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var _php_pollfd_for = (Module['_php_pollfd_for'] = (a0, a1, a2) =>
-		(_php_pollfd_for = Module['_php_pollfd_for'] = wasmExports['mb'])(
+		(_php_pollfd_for = Module['_php_pollfd_for'] = wasmExports['ub'])(
 			a0,
 			a1,
 			a2
 		));
 
 	var _wasm_trace = (Module['_wasm_trace'] = (a0, a1) =>
-		(_wasm_trace = Module['_wasm_trace'] = wasmExports['nb'])(a0, a1));
+		(_wasm_trace = Module['_wasm_trace'] = wasmExports['vb'])(a0, a1));
 
 	var ___wrap_select = (Module['___wrap_select'] = (a0, a1, a2, a3, a4) =>
-		(___wrap_select = Module['___wrap_select'] = wasmExports['ob'])(
+		(___wrap_select = Module['___wrap_select'] = wasmExports['wb'])(
 			a0,
 			a1,
 			a2,
@@ -8956,121 +9203,121 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var _wasm_add_cli_arg = (Module['_wasm_add_cli_arg'] = (a0) =>
-		(_wasm_add_cli_arg = Module['_wasm_add_cli_arg'] = wasmExports['pb'])(
+		(_wasm_add_cli_arg = Module['_wasm_add_cli_arg'] = wasmExports['xb'])(
 			a0
 		));
 
 	var _run_cli = (Module['_run_cli'] = () =>
-		(_run_cli = Module['_run_cli'] = wasmExports['qb'])());
+		(_run_cli = Module['_run_cli'] = wasmExports['yb'])());
 
 	var _wasm_set_sapi_name = (Module['_wasm_set_sapi_name'] = (a0) =>
 		(_wasm_set_sapi_name = Module['_wasm_set_sapi_name'] =
-			wasmExports['rb'])(a0));
+			wasmExports['zb'])(a0));
 
 	var _wasm_set_phpini_path = (Module['_wasm_set_phpini_path'] = (a0) =>
 		(_wasm_set_phpini_path = Module['_wasm_set_phpini_path'] =
-			wasmExports['sb'])(a0));
+			wasmExports['Ab'])(a0));
 
 	var _wasm_add_SERVER_entry = (Module['_wasm_add_SERVER_entry'] = (a0, a1) =>
 		(_wasm_add_SERVER_entry = Module['_wasm_add_SERVER_entry'] =
-			wasmExports['tb'])(a0, a1));
+			wasmExports['Bb'])(a0, a1));
 
 	var _wasm_add_ENV_entry = (Module['_wasm_add_ENV_entry'] = (a0, a1) =>
 		(_wasm_add_ENV_entry = Module['_wasm_add_ENV_entry'] =
-			wasmExports['ub'])(a0, a1));
+			wasmExports['Cb'])(a0, a1));
 
 	var _wasm_set_query_string = (Module['_wasm_set_query_string'] = (a0) =>
 		(_wasm_set_query_string = Module['_wasm_set_query_string'] =
-			wasmExports['vb'])(a0));
+			wasmExports['Db'])(a0));
 
 	var _wasm_set_path_translated = (Module['_wasm_set_path_translated'] = (
 		a0
 	) =>
 		(_wasm_set_path_translated = Module['_wasm_set_path_translated'] =
-			wasmExports['wb'])(a0));
+			wasmExports['Eb'])(a0));
 
 	var _wasm_set_skip_shebang = (Module['_wasm_set_skip_shebang'] = (a0) =>
 		(_wasm_set_skip_shebang = Module['_wasm_set_skip_shebang'] =
-			wasmExports['xb'])(a0));
+			wasmExports['Fb'])(a0));
 
 	var _wasm_set_request_uri = (Module['_wasm_set_request_uri'] = (a0) =>
 		(_wasm_set_request_uri = Module['_wasm_set_request_uri'] =
-			wasmExports['yb'])(a0));
+			wasmExports['Gb'])(a0));
 
 	var _wasm_set_request_method = (Module['_wasm_set_request_method'] = (a0) =>
 		(_wasm_set_request_method = Module['_wasm_set_request_method'] =
-			wasmExports['zb'])(a0));
+			wasmExports['Hb'])(a0));
 
 	var _wasm_set_request_host = (Module['_wasm_set_request_host'] = (a0) =>
 		(_wasm_set_request_host = Module['_wasm_set_request_host'] =
-			wasmExports['Ab'])(a0));
+			wasmExports['Ib'])(a0));
 
 	var _wasm_set_content_type = (Module['_wasm_set_content_type'] = (a0) =>
 		(_wasm_set_content_type = Module['_wasm_set_content_type'] =
-			wasmExports['Bb'])(a0));
+			wasmExports['Jb'])(a0));
 
 	var _wasm_set_request_body = (Module['_wasm_set_request_body'] = (a0) =>
 		(_wasm_set_request_body = Module['_wasm_set_request_body'] =
-			wasmExports['Cb'])(a0));
+			wasmExports['Kb'])(a0));
 
 	var _wasm_set_content_length = (Module['_wasm_set_content_length'] = (a0) =>
 		(_wasm_set_content_length = Module['_wasm_set_content_length'] =
-			wasmExports['Db'])(a0));
+			wasmExports['Lb'])(a0));
 
 	var _wasm_set_cookies = (Module['_wasm_set_cookies'] = (a0) =>
-		(_wasm_set_cookies = Module['_wasm_set_cookies'] = wasmExports['Eb'])(
+		(_wasm_set_cookies = Module['_wasm_set_cookies'] = wasmExports['Mb'])(
 			a0
 		));
 
 	var _wasm_set_request_port = (Module['_wasm_set_request_port'] = (a0) =>
 		(_wasm_set_request_port = Module['_wasm_set_request_port'] =
-			wasmExports['Fb'])(a0));
+			wasmExports['Nb'])(a0));
 
 	var _wasm_sapi_request_shutdown = (Module['_wasm_sapi_request_shutdown'] =
 		() =>
 			(_wasm_sapi_request_shutdown = Module[
 				'_wasm_sapi_request_shutdown'
 			] =
-				wasmExports['Gb'])());
+				wasmExports['Ob'])());
 
 	var _wasm_sapi_handle_request = (Module['_wasm_sapi_handle_request'] = () =>
 		(_wasm_sapi_handle_request = Module['_wasm_sapi_handle_request'] =
-			wasmExports['Hb'])());
+			wasmExports['Pb'])());
 
 	var _php_wasm_init = (Module['_php_wasm_init'] = () =>
-		(_php_wasm_init = Module['_php_wasm_init'] = wasmExports['Ib'])());
+		(_php_wasm_init = Module['_php_wasm_init'] = wasmExports['Qb'])());
 
 	var _wasm_free = (Module['_wasm_free'] = (a0) =>
-		(_wasm_free = Module['_wasm_free'] = wasmExports['Jb'])(a0));
+		(_wasm_free = Module['_wasm_free'] = wasmExports['Rb'])(a0));
 
 	var _wasm_get_end_offset = (Module['_wasm_get_end_offset'] = (a0) =>
 		(_wasm_get_end_offset = Module['_wasm_get_end_offset'] =
-			wasmExports['Kb'])(a0));
+			wasmExports['Sb'])(a0));
 
-	var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports['Lb'])();
+	var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports['Tb'])();
 
 	var _emscripten_builtin_memalign = (a0, a1) =>
-		(_emscripten_builtin_memalign = wasmExports['Mb'])(a0, a1);
+		(_emscripten_builtin_memalign = wasmExports['Ub'])(a0, a1);
 
 	var __emscripten_timeout = (a0, a1) =>
-		(__emscripten_timeout = wasmExports['Nb'])(a0, a1);
+		(__emscripten_timeout = wasmExports['Vb'])(a0, a1);
 
-	var _setThrew = (a0, a1) => (_setThrew = wasmExports['Ob'])(a0, a1);
+	var _setThrew = (a0, a1) => (_setThrew = wasmExports['Wb'])(a0, a1);
 
 	var __emscripten_stack_restore = (a0) =>
-		(__emscripten_stack_restore = wasmExports['Pb'])(a0);
+		(__emscripten_stack_restore = wasmExports['Xb'])(a0);
 
 	var __emscripten_stack_alloc = (a0) =>
-		(__emscripten_stack_alloc = wasmExports['Qb'])(a0);
+		(__emscripten_stack_alloc = wasmExports['Yb'])(a0);
 
 	var _emscripten_stack_get_current = () =>
-		(_emscripten_stack_get_current = wasmExports['Rb'])();
+		(_emscripten_stack_get_current = wasmExports['Zb'])();
 
 	var dynCall_vi = (Module['dynCall_vi'] = (a0, a1) =>
-		(dynCall_vi = Module['dynCall_vi'] = wasmExports['Sb'])(a0, a1));
+		(dynCall_vi = Module['dynCall_vi'] = wasmExports['_b'])(a0, a1));
 
 	var dynCall_iiii = (Module['dynCall_iiii'] = (a0, a1, a2, a3) =>
-		(dynCall_iiii = Module['dynCall_iiii'] = wasmExports['Tb'])(
+		(dynCall_iiii = Module['dynCall_iiii'] = wasmExports['$b'])(
 			a0,
 			a1,
 			a2,
@@ -9078,16 +9325,26 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var dynCall_ii = (Module['dynCall_ii'] = (a0, a1) =>
-		(dynCall_ii = Module['dynCall_ii'] = wasmExports['Ub'])(a0, a1));
+		(dynCall_ii = Module['dynCall_ii'] = wasmExports['ac'])(a0, a1));
 
 	var dynCall_vii = (Module['dynCall_vii'] = (a0, a1, a2) =>
-		(dynCall_vii = Module['dynCall_vii'] = wasmExports['Vb'])(a0, a1, a2));
+		(dynCall_vii = Module['dynCall_vii'] = wasmExports['bc'])(a0, a1, a2));
+
+	var dynCall_viiiii = (Module['dynCall_viiiii'] = (a0, a1, a2, a3, a4, a5) =>
+		(dynCall_viiiii = Module['dynCall_viiiii'] = wasmExports['cc'])(
+			a0,
+			a1,
+			a2,
+			a3,
+			a4,
+			a5
+		));
 
 	var dynCall_iii = (Module['dynCall_iii'] = (a0, a1, a2) =>
-		(dynCall_iii = Module['dynCall_iii'] = wasmExports['Wb'])(a0, a1, a2));
+		(dynCall_iii = Module['dynCall_iii'] = wasmExports['dc'])(a0, a1, a2));
 
 	var dynCall_iiiii = (Module['dynCall_iiiii'] = (a0, a1, a2, a3, a4) =>
-		(dynCall_iiiii = Module['dynCall_iiiii'] = wasmExports['Xb'])(
+		(dynCall_iiiii = Module['dynCall_iiiii'] = wasmExports['ec'])(
 			a0,
 			a1,
 			a2,
@@ -9104,7 +9361,7 @@ export function init(RuntimeName, PHPLoader) {
 		a5,
 		a6
 	) =>
-		(dynCall_iiiiiii = Module['dynCall_iiiiiii'] = wasmExports['Yb'])(
+		(dynCall_iiiiiii = Module['dynCall_iiiiiii'] = wasmExports['fc'])(
 			a0,
 			a1,
 			a2,
@@ -9114,11 +9371,21 @@ export function init(RuntimeName, PHPLoader) {
 			a6
 		));
 
+	var dynCall_iiiiii = (Module['dynCall_iiiiii'] = (a0, a1, a2, a3, a4, a5) =>
+		(dynCall_iiiiii = Module['dynCall_iiiiii'] = wasmExports['gc'])(
+			a0,
+			a1,
+			a2,
+			a3,
+			a4,
+			a5
+		));
+
 	var dynCall_i = (Module['dynCall_i'] = (a0) =>
-		(dynCall_i = Module['dynCall_i'] = wasmExports['Zb'])(a0));
+		(dynCall_i = Module['dynCall_i'] = wasmExports['hc'])(a0));
 
 	var dynCall_viii = (Module['dynCall_viii'] = (a0, a1, a2, a3) =>
-		(dynCall_viii = Module['dynCall_viii'] = wasmExports['_b'])(
+		(dynCall_viii = Module['dynCall_viii'] = wasmExports['ic'])(
 			a0,
 			a1,
 			a2,
@@ -9126,7 +9393,7 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var dynCall_viiii = (Module['dynCall_viiii'] = (a0, a1, a2, a3, a4) =>
-		(dynCall_viiii = Module['dynCall_viiii'] = wasmExports['$b'])(
+		(dynCall_viiii = Module['dynCall_viiii'] = wasmExports['jc'])(
 			a0,
 			a1,
 			a2,
@@ -9135,10 +9402,10 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var dynCall_v = (Module['dynCall_v'] = (a0) =>
-		(dynCall_v = Module['dynCall_v'] = wasmExports['ac'])(a0));
+		(dynCall_v = Module['dynCall_v'] = wasmExports['kc'])(a0));
 
 	var dynCall_iijii = (Module['dynCall_iijii'] = (a0, a1, a2, a3, a4) =>
-		(dynCall_iijii = Module['dynCall_iijii'] = wasmExports['bc'])(
+		(dynCall_iijii = Module['dynCall_iijii'] = wasmExports['lc'])(
 			a0,
 			a1,
 			a2,
@@ -9147,19 +9414,76 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var dynCall_jiii = (Module['dynCall_jiii'] = (a0, a1, a2, a3) =>
-		(dynCall_jiii = Module['dynCall_jiii'] = wasmExports['cc'])(
+		(dynCall_jiii = Module['dynCall_jiii'] = wasmExports['mc'])(
 			a0,
 			a1,
 			a2,
 			a3
 		));
 
-	var dynCall_iiji = (Module['dynCall_iiji'] = (a0, a1, a2, a3) =>
-		(dynCall_iiji = Module['dynCall_iiji'] = wasmExports['dc'])(
+	var dynCall_viiiiiiiii = (Module['dynCall_viiiiiiiii'] = (
+		a0,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9
+	) =>
+		(dynCall_viiiiiiiii = Module['dynCall_viiiiiiiii'] = wasmExports['nc'])(
 			a0,
 			a1,
 			a2,
-			a3
+			a3,
+			a4,
+			a5,
+			a6,
+			a7,
+			a8,
+			a9
+		));
+
+	var dynCall_viiiiii = (Module['dynCall_viiiiii'] = (
+		a0,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6
+	) =>
+		(dynCall_viiiiii = Module['dynCall_viiiiii'] = wasmExports['oc'])(
+			a0,
+			a1,
+			a2,
+			a3,
+			a4,
+			a5,
+			a6
+		));
+
+	var dynCall_iiiiiiii = (Module['dynCall_iiiiiiii'] = (
+		a0,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7
+	) =>
+		(dynCall_iiiiiiii = Module['dynCall_iiiiiiii'] = wasmExports['pc'])(
+			a0,
+			a1,
+			a2,
+			a3,
+			a4,
+			a5,
+			a6,
+			a7
 		));
 
 	var dynCall_iiiiiiiiii = (Module['dynCall_iiiiiiiiii'] = (
@@ -9174,7 +9498,7 @@ export function init(RuntimeName, PHPLoader) {
 		a8,
 		a9
 	) =>
-		(dynCall_iiiiiiiiii = Module['dynCall_iiiiiiiiii'] = wasmExports['ec'])(
+		(dynCall_iiiiiiiiii = Module['dynCall_iiiiiiiiii'] = wasmExports['qc'])(
 			a0,
 			a1,
 			a2,
@@ -9187,8 +9511,19 @@ export function init(RuntimeName, PHPLoader) {
 			a9
 		));
 
+	var dynCall_iiji = (Module['dynCall_iiji'] = (a0, a1, a2, a3) =>
+		(dynCall_iiji = Module['dynCall_iiji'] = wasmExports['rc'])(
+			a0,
+			a1,
+			a2,
+			a3
+		));
+
+	var dynCall_jii = (Module['dynCall_jii'] = (a0, a1, a2) =>
+		(dynCall_jii = Module['dynCall_jii'] = wasmExports['sc'])(a0, a1, a2));
+
 	var dynCall_viijii = (Module['dynCall_viijii'] = (a0, a1, a2, a3, a4, a5) =>
-		(dynCall_viijii = Module['dynCall_viijii'] = wasmExports['fc'])(
+		(dynCall_viijii = Module['dynCall_viijii'] = wasmExports['tc'])(
 			a0,
 			a1,
 			a2,
@@ -9197,29 +9532,8 @@ export function init(RuntimeName, PHPLoader) {
 			a5
 		));
 
-	var dynCall_iiiiiiii = (Module['dynCall_iiiiiiii'] = (
-		a0,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7
-	) =>
-		(dynCall_iiiiiiii = Module['dynCall_iiiiiiii'] = wasmExports['gc'])(
-			a0,
-			a1,
-			a2,
-			a3,
-			a4,
-			a5,
-			a6,
-			a7
-		));
-
 	var dynCall_iijiji = (Module['dynCall_iijiji'] = (a0, a1, a2, a3, a4, a5) =>
-		(dynCall_iijiji = Module['dynCall_iijiji'] = wasmExports['hc'])(
+		(dynCall_iijiji = Module['dynCall_iijiji'] = wasmExports['uc'])(
 			a0,
 			a1,
 			a2,
@@ -9229,29 +9543,10 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var dynCall_vji = (Module['dynCall_vji'] = (a0, a1, a2) =>
-		(dynCall_vji = Module['dynCall_vji'] = wasmExports['ic'])(a0, a1, a2));
-
-	var dynCall_viiiiii = (Module['dynCall_viiiiii'] = (
-		a0,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6
-	) =>
-		(dynCall_viiiiii = Module['dynCall_viiiiii'] = wasmExports['jc'])(
-			a0,
-			a1,
-			a2,
-			a3,
-			a4,
-			a5,
-			a6
-		));
+		(dynCall_vji = Module['dynCall_vji'] = wasmExports['vc'])(a0, a1, a2));
 
 	var dynCall_viidii = (Module['dynCall_viidii'] = (a0, a1, a2, a3, a4, a5) =>
-		(dynCall_viidii = Module['dynCall_viidii'] = wasmExports['kc'])(
+		(dynCall_viidii = Module['dynCall_viidii'] = wasmExports['wc'])(
 			a0,
 			a1,
 			a2,
@@ -9261,16 +9556,16 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var _asyncify_start_unwind = (a0) =>
-		(_asyncify_start_unwind = wasmExports['lc'])(a0);
+		(_asyncify_start_unwind = wasmExports['xc'])(a0);
 
 	var _asyncify_stop_unwind = () =>
-		(_asyncify_stop_unwind = wasmExports['mc'])();
+		(_asyncify_stop_unwind = wasmExports['yc'])();
 
 	var _asyncify_start_rewind = (a0) =>
-		(_asyncify_start_rewind = wasmExports['nc'])(a0);
+		(_asyncify_start_rewind = wasmExports['zc'])(a0);
 
 	var _asyncify_stop_rewind = () =>
-		(_asyncify_stop_rewind = wasmExports['oc'])();
+		(_asyncify_stop_rewind = wasmExports['Ac'])();
 
 	function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
 		var sp = stackSave();
@@ -9449,6 +9744,61 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+		var sp = stackSave();
+		try {
+			return dynCall_iiiiiiiiii(
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+		var sp = stackSave();
+		try {
+			return dynCall_iiiiii(index, a1, a2, a3, a4, a5);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiii(index, a1, a2, a3, a4, a5) {
+		var sp = stackSave();
+		try {
+			dynCall_viiiii(index, a1, a2, a3, a4, a5);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+		var sp = stackSave();
+		try {
+			dynCall_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_iijii(index, a1, a2, a3, a4) {
 		var sp = stackSave();
 		try {
@@ -9493,25 +9843,15 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+	function invoke_jii(index, a1, a2) {
 		var sp = stackSave();
 		try {
-			return dynCall_iiiiiiiiii(
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9
-			);
+			return dynCall_jii(index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
 			_setThrew(1, 0);
+			return 0n;
 		}
 	}
 
@@ -9638,91 +9978,9 @@ export function init(RuntimeName, PHPLoader) {
 	PHPLoader['free'] =
 		typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
-	// TODO: Revisit this hack after discussion with the Emscripten team.
 	if (typeof NODEFS === 'object') {
-		// TODO: Remove tracing or disconnect before merge
-		const traceOptionDefaults = {
-			shouldTrace(...args) {
-				return true;
-			},
-			formatArgs(...args) {
-				return args.join(', ');
-			},
-			formatResult(r) {
-				return r;
-			},
-		};
-		function wrapForTrace(fn, fnName, traceOptions) {
-			traceOptions = { ...traceOptionDefaults, ...traceOptions };
-
-			return function traceFn(...args) {
-				const shouldTrace = traceOptions.shouldTrace(...args);
-				if (shouldTrace) {
-					js_wasm_trace(
-						`call   ${fnName} ${traceOptions.formatArgs(...args)}`
-					);
-				}
-				let error;
-				let result;
-				try {
-					result = fn(...args);
-					return result;
-				} catch (e) {
-					error = e;
-					throw e;
-				} finally {
-					if (shouldTrace) {
-						if (error) {
-							js_wasm_trace(
-								`error  ${fnName} ${traceOptions.formatArgs(
-									...args
-								)} -> 💥 ${JSON.stringify(error)}`
-							);
-						} else {
-							let formattedResult =
-								traceOptions.formatResult(result);
-							js_wasm_trace(
-								`return ${fnName} ${traceOptions.formatArgs(
-									...args
-								)} ${
-									formattedResult
-										? `-> ${formattedResult}`
-										: ''
-								}`
-							);
-						}
-					}
-				}
-			};
-		}
-
-		// TODO: Clean up or remove before merge?
-		function addMethodTrace(obj, fnName, traceOptions) {
-			obj[fnName] = wrapForTrace(obj[fnName], fnName, traceOptions);
-		}
-
-		function formatStream(stream) {
-			var path = NODEFS.realPath(stream.node);
-			return `${stream.nfd}, ${path}`;
-		}
-		function shouldTraceStreamOp(stream) {
-			const path = NODEFS.realPath(stream.node);
-			return path.includes('.ht.sqlite');
-		}
-
-		addMethodTrace(NODEFS.node_ops, 'unlink', {
-			shouldTrace: (_, path) => path.includes('.ht.sqlite'),
-			formatArgs: (_, path) => path,
-		});
-		addMethodTrace(NODEFS.stream_ops, 'open', {
-			shouldTrace: shouldTraceStreamOp,
-			formatArgs: (stream) => formatStream(stream),
-		});
-		addMethodTrace(NODEFS.stream_ops, 'close', {
-			shouldTrace: shouldTraceStreamOp,
-			formatArgs: (stream) => formatStream(stream),
-		});
-
+		// TODO: Document why.
+		// TODO: Mention in PR description
 		var originalHashAddNode = FS.hashAddNode;
 		FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
 			if (node.node_ops === NODEFS.node_ops) {
@@ -9733,11 +9991,14 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return originalHashAddNode.apply(FS, arguments);
 		};
+
+		// TODO: Document why.
+		// TODO: Mention in PR description
 		const originalCreateNode = NODEFS.createNode;
 		NODEFS.createNode = function createNodeWithSharedFlag() {
 			const node = originalCreateNode.apply(NODEFS, arguments);
-			// TODO: Better name?
 			// TODO: Is this a reasonable solution to marking underlying target of PROXYFS?
+			// TODO: Better name?
 			node.isSharedFS = true;
 			return node;
 		};

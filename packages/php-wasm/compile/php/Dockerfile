@@ -1880,6 +1880,7 @@ RUN set -euxo pipefail; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+		# TODO: Make this a JSPI-only feature.
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js"; \
 	fi; \
@@ -2029,8 +2030,6 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			# TODO: Do we want to keep logger use in the file locking code?
-			echo "import { logger } from '@php-wasm/logger'; " >> /root/output/php-module.js; \
 			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \

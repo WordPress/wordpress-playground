@@ -597,7 +597,6 @@ const LibraryForFileLocking = {
 					_js_wasm_trace('js_release_file_locks succeeded');
 				})
 				.catch((e) => {
-					logger.error('js_release_file_locks error', e);
 					_js_wasm_trace('js_release_file_locks error %s', e);
 				});
 		}
