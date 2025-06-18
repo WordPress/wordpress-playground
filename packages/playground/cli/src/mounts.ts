@@ -103,11 +103,22 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args.mountBeforeInstall || [])];
 
-	if (isPluginDirectory(path)) {
+	const newArgs = {
+		...args,
+		mount,
+		mountBeforeInstall,
+		additionalBlueprintSteps: [...(args.additionalBlueprintSteps || [])],
+	};
+
+	if (isPluginFilename(path)) {
 		const pluginName = basename(path);
 		mount.push({
 			hostPath: path,
 			vfsPath: `/wordpress/wp-content/plugins/${pluginName}`,
+		});
+		newArgs.additionalBlueprintSteps.push({
+			step: 'activatePlugin',
+			pluginPath: `/wordpress/wp-content/plugins/${basename(path)}`,
 		});
 	} else if (isThemeDirectory(path)) {
 		const themeName = basename(path);
@@ -115,56 +126,70 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			hostPath: path,
 			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
 		});
+		newArgs.additionalBlueprintSteps.push({
+			step: 'activateTheme',
+			themeDirectoryName: themeName,
+		});
 	} else if (containsWpContentDirectories(path)) {
-		mount.push(...wpContentMounts(path));
-	} else if (containsFullWordPressInstallation(path)) {
 		/**
-		 * We don't want Playground and WordPress to modify the OS filesystem on their own
-		 * by creating files like wp-config.php or wp-content/db.php.
-		 * To ensure WordPress can write to the /wordpress/ and /wordpress/wp-content/ directories,
-		 * we leave these directories as MEMFS nodes and mount individual files
-		 * and directories into them instead of mounting the entire directory as a NODEFS node.
+		 * Mount each wp-content file and directory individually.
 		 */
 		const files = fs.readdirSync(path);
-		const mounts: Mount[] = [];
 		for (const file of files) {
-			if (file.startsWith('wp-content')) {
+			/**
+			 * WordPress already ships with the wp-content/index.php file
+			 * and Playground does not support overriding existing VFS files
+			 * with mounts.
+			 */
+			if (file === 'index.php') {
 				continue;
 			}
-			mounts.push({
+			mount.push({
 				hostPath: `${path}/${file}`,
-				vfsPath: `/wordpress/${file}`,
+				vfsPath: `/wordpress/wp-content/${file}`,
 			});
 		}
-		mountBeforeInstall.push(
-			...mounts,
-			...wpContentMounts(join(path, 'wp-content'))
-		);
+		newArgs.additionalBlueprintSteps.push({
+			step: 'runPHP',
+			code: `<?php
+				require_once getenv('DOCROOT') . '/wp-load.php';
+				$theme = wp_get_theme();
+				if (!$theme->exists()) {
+					$themes = wp_get_themes();
+					if (count($themes) > 0) {
+						$themeName = array_keys($themes)[0];
+						switch_theme($themeName);
+					}
+				}
+			`,
+		});
+	} else if (containsFullWordPressInstallation(path)) {
+		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
+		newArgs.mode = 'apply-to-existing-site';
+		newArgs.additionalBlueprintSteps.push({
+			step: 'runPHP',
+			code: `<?php
+				require_once getenv('DOCROOT') . '/wp-load.php';
+				$theme = wp_get_theme();
+				if (!$theme->exists()) {
+					$themes = wp_get_themes();
+					if (count($themes) > 0) {
+						$themeName = array_keys($themes)[0];
+						switch_theme($themeName);
+					}
+				}
+			`,
+		});
 	} else {
 		/**
 		 * By default, mount the current working directory as the Playground root.
 		 * This allows users to run and PHP or HTML files using the Playground CLI.
 		 */
 		mount.push({ hostPath: path, vfsPath: '/wordpress' });
+		newArgs.mode = 'mount-only';
 	}
 
-	const blueprint = (args.blueprint as BlueprintDeclaration) || {};
-	blueprint.steps = [...(blueprint.steps || []), ...getSteps(path)];
-
-	/**
-	 * If Playground is mounting a full WordPress directory,
-	 * it doesn't need to setup WordPress.
-	 */
-	const skipWordPressSetup =
-		args.skipWordPressSetup || containsFullWordPressInstallation(path);
-
-	return {
-		...args,
-		blueprint,
-		mount,
-		mountBeforeInstall,
-		skipWordPressSetup,
-	} as RunCLIArgs;
+	return newArgs as RunCLIArgs;
 }
 
 export function containsFullWordPressInstallation(path: string): boolean {
@@ -196,7 +221,7 @@ export function isThemeDirectory(path: string): boolean {
 	return !!themeNameRegex.exec(styleCssContent);
 }
 
-export function isPluginDirectory(path: string): boolean {
+export function isPluginFilename(path: string): boolean {
 	const files = fs.readdirSync(path);
 	const pluginNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
 	const pluginNameMatch = files
@@ -206,75 +231,4 @@ export function isPluginDirectory(path: string): boolean {
 			return !!pluginNameRegex.exec(fileContent);
 		});
 	return !!pluginNameMatch;
-}
-
-/**
- * Returns a list of files and directories in the wp-content directory
- * to be mounted individually.
- *
- * This is needed because WordPress needs to be able to write to the
- * wp-content directory without Playground modifying the OS filesystem.
- *
- * See expandAutoMounts for more details.
- */
-export function wpContentMounts(wpContentDir: string): Mount[] {
-	const files = fs.readdirSync(wpContentDir);
-	return (
-		files
-			/**
-			 * index.php is added by WordPress automatically and
-			 * can't be mounted from the current working directory
-			 * because it already exists.
-			 *
-			 * Because index.php should be empty, it's safe to not include it.
-			 */
-			.filter((file) => !file.startsWith('index.php'))
-			.map((file) => ({
-				hostPath: `${wpContentDir}/${file}`,
-				vfsPath: `/wordpress/wp-content/${file}`,
-			}))
-	);
-}
-
-export function getSteps(path: string): StepDefinition[] {
-	if (isPluginDirectory(path)) {
-		return [
-			{
-				step: 'activatePlugin',
-				pluginPath: `/wordpress/wp-content/plugins/${basename(path)}`,
-			},
-		];
-	} else if (isThemeDirectory(path)) {
-		return [
-			{
-				step: 'activateTheme',
-				themeFolderName: basename(path),
-			},
-		];
-	} else if (
-		containsWpContentDirectories(path) ||
-		containsFullWordPressInstallation(path)
-	) {
-		/**
-		 * Playground needs to ensure there is an active theme.
-		 * Otherwise when WordPress loads it will show a white screen.
-		 */
-		return [
-			{
-				step: 'runPHP',
-				code: `<?php
-					require_once '/wordpress/wp-load.php';
-					$theme = wp_get_theme();
-					if (!$theme->exists()) {
-						$themes = wp_get_themes();
-						if (count($themes) > 0) {
-							$themeName = array_keys($themes)[0];
-							switch_theme($themeName);
-						}
-					}
-				`,
-			},
-		];
-	}
-	return [];
 }

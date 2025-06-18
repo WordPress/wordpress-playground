@@ -45,6 +45,7 @@ import {
 import path from 'path';
 
 export interface RunCLIArgs {
+	additionalBlueprintSteps?: any[];
 	blueprint?: string | BlueprintDeclaration;
 	blueprintMayReadAdjacentFiles?: boolean;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
@@ -164,7 +165,7 @@ export async function parseOptionsAndRunCLI() {
 
 		.option('skipWordPressSetup', {
 			describe:
-				'[DEPRECATED] Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress. This option is deprecated and will be replaced by --mode=existing-site.',
+				'[DEPRECATED] Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress. This option is deprecated and will be replaced by --mode=apply-to-existing-site.',
 			type: 'boolean',
 			default: false,
 			hidden: true,
@@ -237,7 +238,7 @@ export async function parseOptionsAndRunCLI() {
 			type: 'boolean',
 			default: false,
 		})
-		.option('autoMount', {
+		.option('auto-mount', {
 			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 			type: 'boolean',
 			default: false,
@@ -253,7 +254,11 @@ export async function parseOptionsAndRunCLI() {
 		.option('mode', {
 			describe: 'Execution mode',
 			type: 'string',
-			choices: ['create-new-site', 'apply-to-existing-site'],
+			choices: [
+				'create-new-site',
+				'apply-to-existing-site',
+				'mount-only',
+			],
 		})
 		.option('db-engine', {
 			describe: 'Database engine',
@@ -328,7 +333,7 @@ function buildBlueprintCliArgs(args: RunCLIArgs): string[] {
 	}
 
 	if (args.skipWordPressSetup) {
-		cliArgs.push('--mode=existing-site');
+		cliArgs.push('--mode=apply-to-existing-site');
 	} else if (args.mode) {
 		cliArgs.push(`--mode=${args.mode}`);
 	}
@@ -486,68 +491,80 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						considerPrimary: false,
 					});
 				try {
-					streamedResponse = await runBlueprintV2({
-						php,
-						blueprint: args.blueprint,
-						siteUrl: absoluteUrl,
-						documentRoot: '/wordpress',
-						cliArgs: buildBlueprintCliArgs(args),
-						hooks: {
-							onProgress: (progress, caption) => {
-								const message = `${caption.trim()} – ${progress.toFixed(
-									2
-								)}%`;
-								output.progress(message);
-							},
-							onError: (
-								message,
-								details?: PHPExceptionDetails
-							) => {
-								phpErrorReported = true;
-								const red = '\x1b[31m';
-								const bold = '\x1b[1m';
-								const reset = '\x1b[0m';
-								if (args.debug && details) {
-									output.stderr(
-										`${red}${bold}Fatal error:${reset} Uncaught ${details.exception}: ${details.message}\n` +
-											`  at ${details.file}:${details.line}\n` +
-											(details.trace
-												? details.trace + '\n'
-												: '')
+					if (args.mode !== 'mount-only') {
+						streamedResponse = await runBlueprintV2({
+							php,
+							blueprint: args.blueprint,
+							additionalBlueprintSteps:
+								args.additionalBlueprintSteps,
+							siteUrl: absoluteUrl,
+							documentRoot: '/wordpress',
+							cliArgs: buildBlueprintCliArgs(args),
+							hooks: {
+								afterBlueprintTargetResolved: async () => {
+									await mountResources(
+										primaryPhp,
+										args.mount || []
 									);
-								} else {
-									output.stderr(
-										`${red}${bold}Error:${reset} ${message}\n`
-									);
-								}
+								},
+								onProgress: (progress, caption) => {
+									const message = `${caption.trim()} – ${progress.toFixed(
+										2
+									)}%`;
+									output.progress(message);
+								},
+								onError: (
+									message,
+									details?: PHPExceptionDetails
+								) => {
+									phpErrorReported = true;
+									const red = '\x1b[31m';
+									const bold = '\x1b[1m';
+									const reset = '\x1b[0m';
+									if (args.debug && details) {
+										output.stderr(
+											`${red}${bold}Fatal error:${reset} Uncaught ${details.exception}: ${details.message}\n` +
+												`  at ${details.file}:${details.line}\n` +
+												(details.trace
+													? details.trace + '\n'
+													: '')
+										);
+									} else {
+										output.stderr(
+											`${red}${bold}Error:${reset} ${message}\n`
+										);
+									}
+								},
 							},
-						},
-					});
-					if (args.debug) {
-						streamedResponse!.stdout.pipeTo(
-							new WritableStream({
-								write(chunk) {
-									process.stdout.write(chunk);
-								},
-							})
-						);
-						streamedResponse!.stderr.pipeTo(
-							new WritableStream({
-								write(chunk) {
-									process.stderr.write(chunk);
-								},
-							})
-						);
-					}
-					await streamedResponse!.finished;
-					if ((await streamedResponse!.exitCode) !== 0) {
-						throw new PHPExecutionFailureError(
-							'Execution failed',
-							await PHPResponse.fromStreamedResponse(
-								streamedResponse
-							),
-							'request'
-						);
+						});
+						if (args.debug) {
+							streamedResponse!.stdout.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stdout.write(chunk);
+									},
+								})
+							);
+							streamedResponse!.stderr.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stderr.write(chunk);
+									},
+								})
+							);
+						}
+						await streamedResponse!.finished;
+						if ((await streamedResponse!.exitCode) !== 0) {
+							throw new PHPExecutionFailureError(
+								'Execution failed',
+								await PHPResponse.fromStreamedResponse(
+									streamedResponse
+								),
+								'request'
+							);
+						}
+					} else {
+						await mountResources(primaryPhp, args.mount || []);
 					}
 					wordPressReady = true;
 
@@ -642,8 +659,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		) {
 			// We want to avoid verbose error messages.
 			// Bale out if this is a known failure mode and we've already reported the error.
-			process.exit(1);
+			// process.exit(1);
 		}
+
+		console.log(e);
 
 		if (streamedResponse) {
 			// If we did not expect this error, print **all** the debug details we can get.
@@ -665,6 +684,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			output.stderr(`\n\n`);
 			output.stderr(`--------------------------------\n`);
 		}
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		output.stderr(`\n\n`);
+		process.exit(1);
 		throw e;
 	}
 }

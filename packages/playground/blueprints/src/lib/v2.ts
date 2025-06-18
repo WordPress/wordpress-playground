@@ -1,13 +1,14 @@
 import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from '@wp-playground/wordpress';
 // @ts-ignore
 import v2_runner_url from '../../public/blueprints.phar?url';
 import type { BlueprintDeclaration } from './blueprint';
+import { phpVar } from '@php-wasm/util';
 
 interface RunV2Options {
 	php: UniversalPHP;
 	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	additionalBlueprintSteps?: any[];
 	siteUrl: string;
 	documentRoot: string;
 	cliArgs?: string[];
@@ -75,18 +76,13 @@ export async function runBlueprintV2(options: RunV2Options) {
 			}
 			switch (parsed.type) {
 				case 'blueprint.target_resolved':
-					// @TODO: Rethink these debug constants. We shouldn't
-					//        always set them, right?
-					php.defineConstant('WP_DEBUG', true);
-					php.defineConstant('WP_DEBUG_LOG', true);
-					php.defineConstant('WP_DEBUG_DISPLAY', false);
-
 					/*
 					 * Add required constants to "wp-config.php" if they are not already defined.
 					 * This is needed, because some WordPress backups and exports may not include
 					 * definitions for some of the necessary constants.
+					 * @TODO: Make it work. It seems to be hanging the CLi
 					 */
-					await ensureWpConfig(php, options.documentRoot);
+					// await ensureWpConfig(php, options.documentRoot);
 
 					if (options.hooks?.afterBlueprintTargetResolved) {
 						await options.hooks.afterBlueprintTargetResolved(php);
@@ -113,9 +109,25 @@ export async function runBlueprintV2(options: RunV2Options) {
 // Set up the environment to emulate a shell script
 // call.
 function playground_on_blueprint_target_resolved() {
-	return new PlaygroundProgressReporter();
+	post_message_to_js(json_encode([
+		'type' => 'blueprint.target_resolved',
+	]));
 }
 playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
+
+playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
+function playground_on_blueprint_resolved($blueprint) {
+	$additional_blueprint_steps = json_decode(${phpVar(
+		JSON.stringify(options.additionalBlueprintSteps || [])
+	)}, true);
+	if(count($additional_blueprint_steps) > 0) {
+		$blueprint['additionalStepsAfterExecution'] = array_merge(
+			$blueprint['additionalStepsAfterExecution'] ?? [],
+			$additional_blueprint_steps
+		);
+	}
+	return $blueprint;
+}
 
 function playground_progress_reporter() {
 class PlaygroundProgressReporter implements ProgressReporter {

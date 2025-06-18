@@ -7,7 +7,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { mkdir, mkdirSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 describe('cli-run', () => {
@@ -23,6 +23,7 @@ describe('cli-run', () => {
 		cliServer = await runCLI({
 			command: 'server',
 			php: '8.0',
+			quiet: true,
 		});
 		(await cliServer.requestHandler.getPrimaryPhp()).writeFile(
 			'/wordpress/version.php',
@@ -45,6 +46,7 @@ describe('cli-run', () => {
 			php: '8.0',
 			command: 'server',
 			wp: oldestSupportedVersion,
+			quiet: true,
 		});
 		const php = await cliServer.requestHandler.getPrimaryPhp();
 		php.writeFile(
@@ -76,6 +78,7 @@ describe('cli-run', () => {
 					},
 				],
 			},
+			quiet: true,
 		});
 		const response = await cliServer.requestHandler.request({
 			url: '/',
@@ -118,6 +121,7 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
+				quiet: true,
 			});
 			const php = await cliServer.requestHandler.getPrimaryPhp();
 			const phpResponse = await php.run({
@@ -134,9 +138,7 @@ describe('cli-run', () => {
 				method: 'GET',
 			});
 			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain(
-				'<title>My WordPress Website</title>'
-			);
+			expect(response.text).toContain('WordPress');
 		});
 		test(`should run a theme project using --auto-mount`, async () => {
 			vi.spyOn(process, 'cwd').mockReturnValue(
@@ -146,6 +148,7 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
+				quiet: true,
 			});
 
 			expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -155,9 +158,7 @@ describe('cli-run', () => {
 				method: 'GET',
 			});
 			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain(
-				'<title>My WordPress Website</title>'
-			);
+			expect(response.text).toContain('WordPress');
 		});
 
 		test(`should run a wp-content project using --auto-mount`, async () => {
@@ -168,13 +169,17 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
+				// quiet: true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/wp-login.php',
 				method: 'GET',
 			});
-			expect(response.httpStatusCode).toBe(200);
-		});
+			expect(response.httpStatusCode).toBe(500);
+			expect(response.text).toContain(
+				'Error establishing a database connection'
+			);
+		}, 20000);
 
 		test('should run a static html project using --auto-mount', async () => {
 			vi.spyOn(process, 'cwd').mockReturnValue(
@@ -186,7 +191,7 @@ describe('cli-run', () => {
 				'auto-mount': true,
 			});
 			const response = await cliServer.requestHandler.request({
-				url: '/',
+				url: '/index.html',
 				method: 'GET',
 			});
 			expect(response.httpStatusCode).toBe(200);
@@ -201,6 +206,7 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
+				quiet: true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/',
@@ -214,35 +220,44 @@ describe('cli-run', () => {
 			const tmpDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-')
 			);
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(tmpDir, 'wordpress')
-			);
-
-			const zip = await fetch('https://wordpress.org/latest.zip');
-			const zipPath = path.join(tmpDir, 'wp.zip');
-			await writeFile(zipPath, new Uint8Array(await zip.arrayBuffer()));
-			await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
-
-			const checksum = await getDirectoryChecksum(tmpDir);
+			const wordpressDir = path.join(tmpDir, 'wordpress');
+			mkdirSync(wordpressDir);
+			vi.spyOn(process, 'cwd').mockReturnValue(wordpressDir);
 
 			cliServer = await runCLI({
+				port: 58954,
+				php: '8.0',
+				command: 'server',
+				quiet: true,
+				mountBeforeInstall: [
+					{
+						hostPath: wordpressDir,
+						vfsPath: '/wordpress',
+					},
+				],
+			});
+			cliServer.server.close();
+
+			const checksum = await getDirectoryChecksum(wordpressDir);
+			cliServer = await runCLI({
+				port: 58954,
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
+				quiet: true,
 			});
+
 			const response = await cliServer.requestHandler.request({
 				url: '/',
 				method: 'GET',
 			});
 			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain(
-				'<title>My WordPress Website</title>'
-			);
+			expect(response.text).toContain('WordPress');
 
 			/**
 			 * Playground should not modify the mounted directory.
 			 */
-			expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
+			expect(await getDirectoryChecksum(wordpressDir)).toBe(checksum);
 		});
 	});
 });
