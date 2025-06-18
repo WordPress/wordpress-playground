@@ -60,7 +60,7 @@ By default, the CLI will load the latest stable version from WordPress. To set u
 
 The `--autoMount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. It supports the following directory types:
 
--   **Plugin Mode:** Presence of a PHP file with "Plugin Name:" in its header.
+-   **Plugin Mode**: Presence of a PHP file with "Plugin Name:" in its header.
 -   **Theme Mode**: Presence of a style.css file with "Theme Name:" in its header.
 -   **wp-content Mode**: Presence of plugins and themes subdirectories.
 -   **WordPress Mode**: Presence of a complete WordPress installation. The directory will be mounted to the root `/wordpress` folder.
