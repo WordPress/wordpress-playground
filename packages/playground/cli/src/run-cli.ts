@@ -24,6 +24,8 @@ import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
 import { Worker } from 'worker_threads';
+// @ts-ignore
+import importedWorkerUrlString from './worker-thread?worker&url';
 import { expandAutoMounts } from './cli-auto-mount';
 import {
 	CACHE_FOLDER,
@@ -217,7 +219,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	}
 
 	function spawnWorkerThreads(count: number): Promise<Worker[]> {
-		const moduleWorkerUrl = new URL('./worker-thread', import.meta.url);
+		const moduleWorkerUrl = new URL(
+			importedWorkerUrlString,
+			import.meta.url
+		);
 
 		const promises = [];
 		for (let i = 0; i < count; i++) {
