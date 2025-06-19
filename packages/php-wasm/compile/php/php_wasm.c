@@ -1874,6 +1874,7 @@ void wasm_free(void *_Nullable ptr) {
 	free(ptr);
 }
 
+#ifdef PHP_WASM_FILE_LOCKING_SUPPORT
 /*
  * Function: wasm_get_end_offset
  * ----------------------------
@@ -1896,28 +1897,52 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 	return eof_offset;
 }
 
-// TODO: Move these and comment them
-extern int js_flock(int fd, int op);
 extern pid_t js_getpid();
-extern void js_wasm_trace(const char *msg);
 
-// TODO: Test whether this can be defined purely in JS.
-// TODO: Document this inline
+/**
+ * Function: getpid
+ * ----------------------------
+ *   Returns the process ID of the current process.
+ *
+ *   As of 2025-06-19, Emscripten's built-in getpid() always returns 42.
+ *   We provide our own getpid() implementation to return a distinct ID
+ *   for the purpose of file locking.
+ */
 EMSCRIPTEN_KEEPALIVE pid_t getpid() {
+	// The process ID is provided in JS as a PHPLoader option,
+	// so we ask JS for it here.
 	return js_getpid();
 }
 
-// TODO: Document this inline
+extern int js_flock(int fd, int op);
+/**
+ * Function: flock
+ * ----------------------------
+ *   Emscripten's built-in flock() function is a no-op that pretends to succeed.
+ *
+ *   We provide a real flock() implementation that performs whole-file locking
+ *   amongst php-wasm processes and the host platform.
+ */
 EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
 	return js_flock(fd, op);
 }
+#endif
 
-// TODO: Document this inline
-// TODO: Document this in PR
+extern void js_wasm_trace(const char *msg);
+
+/**
+ * Function: wasm_trace
+ * ----------------------------
+ *   This is a printf()-style function that forwards trace messages to JS.
+ *   It is provided as a utility that can be used while debugging native code.
+ */
 EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	char buf[1024];
+	// NOTE: It would be better and more efficient to just pass varargs to JS,
+	// but AFAIK, this is not a good way to do that directly.
+	// Perhaps we could devise something later, but this is good enough for now.
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
