@@ -19,13 +19,21 @@ export interface PHPLoaderOptions {
 
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	emscriptenOptions?: EmscriptenOptions & {
-		// Used to divide runtime IDs into unique ranges per worker.
-		// TODO: Consider also passing upper bound of ID range
-		// TODO: Consider implementing getpid() to return this number.
-		// TODO: Explain why
+		/**
+		 * The process ID for the PHP runtime.
+		 *
+		 * This is used to distinguish between php-wasm processes for the
+		 * purpose of file locking and more informative trace messages.
+		 *
+		 * This ID is optional when running a single php-wasm process.
+		 */
 		processId?: number;
 
-		// TODO: Document this
+		/**
+		 * An optional file lock manager to use for the PHP runtime.
+		 *
+		 * The lock manager is optional when running a single php-wasm process.
+		 */
 		fileLockManager?: RemoteAPI<FileLockManager>;
 
 		/**
