@@ -7,12 +7,12 @@ import { phpVar } from '@php-wasm/util';
 
 interface RunV2Options {
 	php: UniversalPHP;
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
-	additionalBlueprintSteps?: any[];
-	wordpressVersionOverride?: string;
-	siteUrl: string;
-	documentRoot: string;
 	cliArgs?: string[];
+	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	blueprintOverrides?: {
+		wordpressVersion?: string;
+		additionalSteps?: any[];
+	};
 	hooks?: {
 		afterBlueprintTargetResolved?: (
 			php: UniversalPHP
@@ -39,6 +39,16 @@ export type PHPExceptionDetails = {
 };
 
 export async function runBlueprintV2(options: RunV2Options) {
+	const cliArgs = options.cliArgs || [];
+	for (const arg of cliArgs) {
+		if (arg.startsWith('--site-path=')) {
+			throw new Error(
+				'The --site-path CLI argument must not be provided. In Playground, it is always set to /wordpress.'
+			);
+		}
+	}
+	cliArgs.push('--site-path=/wordpress');
+
 	const php = options.php;
 	const onProgress = options.hooks?.onProgress || (() => {});
 	const onError = options.hooks?.onError || (() => {});
@@ -81,9 +91,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 					 * Add required constants to "wp-config.php" if they are not already defined.
 					 * This is needed, because some WordPress backups and exports may not include
 					 * definitions for some of the necessary constants.
-					 * @TODO: Make it work. It seems to be hanging the CLi
 					 */
-					// await ensureWpConfig(php, options.documentRoot);
 
 					if (options.hooks?.afterBlueprintTargetResolved) {
 						await options.hooks.afterBlueprintTargetResolved(php);
@@ -104,11 +112,22 @@ export async function runBlueprintV2(options: RunV2Options) {
 		}
 	});
 
+	/**
+	 * Prepare hooks, filters, and run the Blueprint:
+	 */
 	await php?.writeFile(
 		'/tmp/run-blueprints.php',
 		`<?php
-// Set up the environment to emulate a shell script
-// call.
+
+function playground_http_client_factory() {
+	return new WordPress\\HttpClient\\Client([
+		// sockets transport is somehow faster than curl in Playground. Maybe
+		// it uses a larger chunk size?
+		'transport' => 'sockets',
+	]);
+}
+playground_add_filter('blueprint.http_client', 'playground_http_client_factory');
+
 function playground_on_blueprint_target_resolved() {
 	post_message_to_js(json_encode([
 		'type' => 'blueprint.target_resolved',
@@ -119,7 +138,7 @@ playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_targ
 playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
 function playground_on_blueprint_resolved($blueprint) {
 	$additional_blueprint_steps = json_decode(${phpVar(
-		JSON.stringify(options.additionalBlueprintSteps || [])
+		JSON.stringify(options.blueprintOverrides?.additionalSteps || [])
 	)}, true);
 	if(count($additional_blueprint_steps) > 0) {
 		$blueprint['additionalStepsAfterExecution'] = array_merge(
@@ -129,7 +148,7 @@ function playground_on_blueprint_resolved($blueprint) {
 	}
 
 	$wp_version_override = json_decode(${phpVar(
-		JSON.stringify(options.wordpressVersionOverride || null)
+		JSON.stringify(options.blueprintOverrides?.wordpressVersion || null)
 	)}, true);
 	if($wp_version_override) {
 		$blueprint['wordpressVersion'] = $wp_version_override;
@@ -138,48 +157,48 @@ function playground_on_blueprint_resolved($blueprint) {
 }
 
 function playground_progress_reporter() {
-class PlaygroundProgressReporter implements ProgressReporter {
+	class PlaygroundProgressReporter implements ProgressReporter {
 
-    public function reportProgress(float $progress, string $caption): void {
-        $this->writeJsonMessage([
-            'type' => 'blueprint.progress',
-            'progress' => round($progress, 2),
-            'caption' => $caption
-        ]);
-    }
+		public function reportProgress(float $progress, string $caption): void {
+			$this->writeJsonMessage([
+				'type' => 'blueprint.progress',
+				'progress' => round($progress, 2),
+				'caption' => $caption
+			]);
+		}
 
-    public function reportError(string $message, ?Throwable $exception = null): void {
-        $errorData = [
-            'type' => 'blueprint.error',
-            'message' => $message
-        ];
+		public function reportError(string $message, ?Throwable $exception = null): void {
+			$errorData = [
+				'type' => 'blueprint.error',
+				'message' => $message
+			];
 
-        if ($exception) {
-            $errorData['details'] = [
-                'exception' => get_class($exception),
-                'message' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'trace' => $exception->getTraceAsString()
-            ];
-        }
+			if ($exception) {
+				$errorData['details'] = [
+					'exception' => get_class($exception),
+					'message' => $exception->getMessage(),
+					'file' => $exception->getFile(),
+					'line' => $exception->getLine(),
+					'trace' => $exception->getTraceAsString()
+				];
+			}
 
-        $this->writeJsonMessage($errorData);
-    }
+			$this->writeJsonMessage($errorData);
+		}
 
-    public function reportCompletion(string $message): void {
-        $this->writeJsonMessage([
-            'type' => 'blueprint.completion',
-            'message' => $message
-        ]);
-    }
+		public function reportCompletion(string $message): void {
+			$this->writeJsonMessage([
+				'type' => 'blueprint.completion',
+				'message' => $message
+			]);
+		}
 
-    public function close(): void {}
+		public function close(): void {}
 
-    private function writeJsonMessage(array $data): void {
-        post_message_to_js(json_encode($data));
-    }
-}
+		private function writeJsonMessage(array $data): void {
+			post_message_to_js(json_encode($data));
+		}
+	}
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
@@ -188,48 +207,12 @@ require( "/tmp/blueprints.phar" );
 `
 	);
 
-	// @TODO: Remove this cast. Add the cli() method to UniversalPHP.
-	const defaultArgs = [
-		'--site-path=/wordpress',
-		`--site-url=${options.siteUrl}`,
-		'--db-engine=sqlite',
-	];
-
-	// Allow CLI args to override defaults
-	const cliArgs = options.cliArgs || [];
-	const finalArgs = [...defaultArgs];
-
-	// Override defaults with CLI args
-	for (const arg of cliArgs) {
-		if (arg.startsWith('--site-path=')) {
-			const index = finalArgs.findIndex((a) =>
-				a.startsWith('--site-path=')
-			);
-			if (index !== -1) finalArgs[index] = arg;
-			else finalArgs.push(arg);
-		} else if (arg.startsWith('--site-url=')) {
-			const index = finalArgs.findIndex((a) =>
-				a.startsWith('--site-url=')
-			);
-			if (index !== -1) finalArgs[index] = arg;
-			else finalArgs.push(arg);
-		} else if (arg.startsWith('--db-engine=')) {
-			const index = finalArgs.findIndex((a) =>
-				a.startsWith('--db-engine=')
-			);
-			if (index !== -1) finalArgs[index] = arg;
-			else finalArgs.push(arg);
-		} else {
-			finalArgs.push(arg);
-		}
-	}
-
 	return (await (php as any).cli([
 		'/internal/shared/bin/php',
 		'/tmp/run-blueprints.php',
 		'exec',
 		blueprintReference,
-		...finalArgs,
+		...cliArgs,
 	])) as StreamedPHPResponse;
 }
 

@@ -47,7 +47,6 @@ import path from 'path';
 export interface RunCLIArgs {
 	additionalBlueprintSteps?: any[];
 	blueprint?: string | BlueprintDeclaration;
-	blueprintMayReadAdjacentFiles?: boolean;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
@@ -57,13 +56,9 @@ export interface RunCLIArgs {
 	php: SupportedPHPVersion;
 	port?: number;
 	quiet?: boolean;
-	skipWordPressSetup?: boolean;
-	skipSqliteSetup?: boolean;
 	wp?: string;
 	'auto-mount'?: boolean;
-	'follow-symlinks'?: boolean;
 	// Blueprint CLI options
-	'site-path'?: string;
 	mode?: string;
 	'db-engine'?: string;
 	'db-host'?: string;
@@ -146,8 +141,7 @@ export async function parseOptionsAndRunCLI() {
 			choices: SupportedPHPVersions,
 		})
 
-		// This comes from the Blueprint now.
-		// @TODO: Should we deprecate this?
+		// Modifies the Blueprint:
 		.option('wp', {
 			describe:
 				'WordPress version to use. If Blueprint is provided, this option overrides the WordPress version specified in the Blueprint.',
@@ -163,20 +157,6 @@ export async function parseOptionsAndRunCLI() {
 			hidden: true,
 		})
 
-		.option('skipWordPressSetup', {
-			describe:
-				'[DEPRECATED] Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress. This option is deprecated and will be replaced by --mode=apply-to-existing-site.',
-			type: 'boolean',
-			default: false,
-			hidden: true,
-		})
-		.option('skipSqliteSetup', {
-			describe:
-				'[DEPRECATED] Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL. This option is deprecated and will be replaced by --db-engine=mysql.',
-			type: 'boolean',
-			default: false,
-			hidden: true,
-		})
 		.option('sitePath', {
 			describe:
 				'[DEPRECATED] Target directory with WordPress install context. This option is deprecated and will be replaced by --target-path.',
@@ -206,7 +186,7 @@ export async function parseOptionsAndRunCLI() {
 			type: 'array',
 			nargs: 2,
 			array: true,
-			// coerce: parseMountDirArguments,
+			coerce: parseMountDirArguments,
 		})
 		.option('mountDirBeforeInstall', {
 			describe:
@@ -219,13 +199,6 @@ export async function parseOptionsAndRunCLI() {
 		.option('blueprint', {
 			describe: 'Blueprint to execute.',
 			type: 'string',
-		})
-		.option('blueprintMayReadAdjacentFiles', {
-			describe:
-				'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
-			type: 'boolean',
-			default: false,
-			hidden: true,
 		})
 		.option('quiet', {
 			describe: 'Do not output logs and progress messages.',
@@ -254,6 +227,7 @@ export async function parseOptionsAndRunCLI() {
 		.option('mode', {
 			describe: 'Execution mode',
 			type: 'string',
+			default: 'create-new-site',
 			choices: [
 				'create-new-site',
 				'apply-to-existing-site',
@@ -263,6 +237,7 @@ export async function parseOptionsAndRunCLI() {
 		.option('db-engine', {
 			describe: 'Database engine',
 			type: 'string',
+			default: 'sqlite',
 			choices: ['mysql', 'sqlite'],
 		})
 		.option('db-host', {
@@ -288,7 +263,6 @@ export async function parseOptionsAndRunCLI() {
 		.option('truncate-new-site-directory', {
 			describe: 'Delete target directory if it exists before execution',
 			type: 'boolean',
-			default: false,
 		})
 		.option('allow', {
 			describe: 'Allowed permissions (comma-separated)',
@@ -319,56 +293,6 @@ export async function parseOptionsAndRunCLI() {
 	} as RunCLIArgs;
 
 	return await runCLI(cliArgs);
-}
-
-function buildBlueprintCliArgs(args: RunCLIArgs): string[] {
-	const cliArgs: string[] = [];
-
-	if (args['site-path']) {
-		cliArgs.push(`--site-path=${args['site-path']}`);
-	}
-
-	if (args.skipWordPressSetup) {
-		cliArgs.push('--mode=apply-to-existing-site');
-	} else if (args.mode) {
-		cliArgs.push(`--mode=${args.mode}`);
-	}
-
-	if (args.skipSqliteSetup) {
-		cliArgs.push('--db-engine=mysql');
-	} else if (args['db-engine']) {
-		cliArgs.push(`--db-engine=${args['db-engine']}`);
-	}
-
-	if (args['db-host']) {
-		cliArgs.push(`--db-host=${args['db-host']}`);
-	}
-	if (args['db-user']) {
-		cliArgs.push(`--db-user=${args['db-user']}`);
-	}
-	if (args['db-pass']) {
-		cliArgs.push(`--db-pass=${args['db-pass']}`);
-	}
-	if (args['db-name']) {
-		cliArgs.push(`--db-name=${args['db-name']}`);
-	}
-	if (args['db-path']) {
-		cliArgs.push(`--db-path=${args['db-path']}`);
-	}
-	if (args['truncate-new-site-directory']) {
-		cliArgs.push('--truncate-new-site-directory');
-	}
-	if (args['allow']) {
-		cliArgs.push(`--allow=${args.allow}`);
-	}
-	if (args.blueprintMayReadAdjacentFiles) {
-		cliArgs.push('--allow=bundled-files');
-	}
-	if (args['follow-symlinks']) {
-		cliArgs.push('--allow=follow-symlinks-anywhere');
-	}
-
-	return cliArgs;
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
@@ -488,15 +412,30 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					});
 				try {
 					if (args.mode !== 'mount-only') {
+						const cliArgsToPass: (keyof RunCLIArgs)[] = [
+							'mode',
+							'db-engine',
+							'db-host',
+							'db-user',
+							'db-pass',
+							'db-name',
+							'db-path',
+							'truncate-new-site-directory',
+							'allow',
+						];
+						const cliArgs = cliArgsToPass
+							.filter((arg) => arg in args)
+							.map((arg) => `--${arg}=${args[arg]}`);
+						cliArgs.push(`--site-url=${absoluteUrl}`);
+
 						streamedResponse = await runBlueprintV2({
 							php,
-							wordpressVersionOverride: args.wp,
 							blueprint: args.blueprint,
-							additionalBlueprintSteps:
-								args.additionalBlueprintSteps,
-							siteUrl: absoluteUrl,
-							documentRoot: '/wordpress',
-							cliArgs: buildBlueprintCliArgs(args),
+							blueprintOverrides: {
+								additionalSteps: args.additionalBlueprintSteps,
+								wordpressVersion: args.wp,
+							},
+							cliArgs,
 							hooks: {
 								afterBlueprintTargetResolved: async () => {
 									await mountResources(
