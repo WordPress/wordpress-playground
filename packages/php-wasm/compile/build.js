@@ -206,7 +206,6 @@ await asyncSpawn(
 		'.',
 		'--tag=php-wasm',
 		'--progress=plain',
-		// args.DEBUG ? '--progress=plain' : '--progress=auto',
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',
