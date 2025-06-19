@@ -54,8 +54,7 @@ const LibraryForFileLocking = {
 			const emscripten_O_ACCMODE = Number('{{{ cDefs.O_ACCMODE}}}');
 
 			return (
-				_builtin_fcntl64(fd, emscripten_F_GETFL) &
-				emscripten_O_ACCMODE
+				_builtin_fcntl64(fd, emscripten_F_GETFL) & emscripten_O_ACCMODE
 			);
 		},
 		get_vfs_path_from_fd(fd) {
@@ -102,7 +101,6 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: async function __syscall_fcntl64(fd, cmd, varargs) {
-		// return Asyncify.handleAsync(async () => {
 		// Necessary to use varargs accessor
 		SYSCALLS.varargs = varargs;
 
@@ -269,7 +267,12 @@ const LibraryForFileLocking = {
 
 				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 				if (errno !== 0) {
-					_js_wasm_trace('fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d', fd, vfsPath, errno);
+					_js_wasm_trace(
+						'fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
 					return -ERRNO_CODES.EBADF;
 				}
 
@@ -297,7 +300,12 @@ const LibraryForFileLocking = {
 
 				errno = locking.check_lock_params(fd, flockStruct.l_type);
 				if (errno !== 0) {
-					_js_wasm_trace('fcntl(%d, F_GETLK) %s check_lock_params errno %d', fd, vfsPath, errno);
+					_js_wasm_trace(
+						'fcntl(%d, F_GETLK) %s check_lock_params errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
 					return -ERRNO_CODES.EINVAL;
 				}
 
@@ -310,7 +318,12 @@ const LibraryForFileLocking = {
 					flockStruct.l_start
 				);
 				if (errno !== 0) {
-					_js_wasm_trace('fcntl(%d, F_GETLK) %s get_base_address errno %d', fd, vfsPath, errno);
+					_js_wasm_trace(
+						'fcntl(%d, F_GETLK) %s get_base_address errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
 					return -ERRNO_CODES.EINVAL;
 				}
 
@@ -362,7 +375,12 @@ const LibraryForFileLocking = {
 						return 0;
 					})
 					.catch((e) => {
-						_js_wasm_trace('fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s', fd, vfsPath, e);
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s',
+							fd,
+							vfsPath,
+							e
+						);
 						return -ERRNO_CODES.EINVAL;
 					});
 			}
@@ -372,12 +390,21 @@ const LibraryForFileLocking = {
 				let errno;
 				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 				if (errno !== 0) {
-					_js_wasm_trace('fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d', fd, vfsPath, errno);
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
 					return -errno;
 				}
 
 				if (!locking.is_path_to_shared_fs(vfsPath)) {
-					_js_wasm_trace('fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s', fd, vfsPath);
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s',
+						fd,
+						vfsPath
+					);
 
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
@@ -394,18 +421,33 @@ const LibraryForFileLocking = {
 					flockStruct.l_start
 				);
 				if (errno !== 0) {
-					_js_wasm_trace('fcntl(%d, F_SETLK) %s get_base_address errno %d', fd, vfsPath, errno);
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s get_base_address errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
 					return -errno;
 				}
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-					_js_wasm_trace('fcntl(%d, F_SETLK) %s invalid lock type %d', fd, vfsPath, flockStruct.l_type);
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s invalid lock type %d',
+						fd,
+						vfsPath,
+						flockStruct.l_type
+					);
 					return -ERRNO_CODES.EINVAL;
 				}
 
 				errno = locking.check_lock_params(fd, flockStruct.l_type);
 				if (errno !== 0) {
-					_js_wasm_trace('fcntl(%d, F_SETLK) %s check_lock_params errno %d', fd, vfsPath, errno);
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s check_lock_params errno %d',
+						fd,
+						vfsPath,
+						errno
+					);
 					return -errno;
 				}
 
@@ -422,7 +464,12 @@ const LibraryForFileLocking = {
 
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
-				_js_wasm_trace('fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s', fd, vfsPath, rangeLock);
+				_js_wasm_trace(
+					'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+					fd,
+					vfsPath,
+					rangeLock
+				);
 				return PHPLoader.fileLockManager
 					.lockFileByteRange(nativeFilePath, rangeLock)
 					.then((succeeded) => {
@@ -431,12 +478,18 @@ const LibraryForFileLocking = {
 							fd,
 							vfsPath,
 							succeeded,
-							rangeLock,
+							rangeLock
 						);
 						return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
 					})
 					.catch((e) => {
-						_js_wasm_trace('fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s', fd, vfsPath, e, rangeLock);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s',
+							fd,
+							vfsPath,
+							e,
+							rangeLock
+						);
 						return -ERRNO_CODES.EINVAL;
 					});
 			}
@@ -450,7 +503,6 @@ const LibraryForFileLocking = {
 			default:
 				return _builtin_fcntl64(fd, cmd, varargs);
 		}
-		// });
 	},
 
 	/**
@@ -461,7 +513,6 @@ const LibraryForFileLocking = {
 	 * @returns Zero on success, or a negative errno on failure.
 	 */
 	js_flock: async function js_flock(fd, op) {
-		// return Asyncify.handleAsync(async () => {
 		_js_wasm_trace('js_flock(%d, %d)', fd, op);
 		// Emscripten does not expose these constants to JS, so we hardcode them here.
 		// Based on
@@ -482,12 +533,23 @@ const LibraryForFileLocking = {
 
 		[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
 		if (errno !== 0) {
-			_js_wasm_trace('js_flock(%d, %d) get_vfs_path_from_fd errno %d', fd, op, vfsPath, errno);
+			_js_wasm_trace(
+				'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
+				fd,
+				op,
+				vfsPath,
+				errno
+			);
 			return -errno;
 		}
 
 		if (!locking.is_path_to_shared_fs(vfsPath)) {
-			_js_wasm_trace('flock(%d, %d) locking is not implemented for non-NodeFS path %s', fd, op, vfsPath);
+			_js_wasm_trace(
+				'flock(%d, %d) locking is not implemented for non-NodeFS path %s',
+				fd,
+				op,
+				vfsPath
+			);
 			// If not a NodeFS path, we can't lock it.
 			// Default to succeeding as Emscripten does.
 			return 0;
@@ -495,13 +557,22 @@ const LibraryForFileLocking = {
 
 		errno = locking.check_lock_params(fd, op);
 		if (errno !== 0) {
-			_js_wasm_trace('js_flock(%d, %d) check_lock_params errno %d', fd, op, errno);
+			_js_wasm_trace(
+				'js_flock(%d, %d) check_lock_params errno %d',
+				fd,
+				op,
+				errno
+			);
 			return -errno;
 		}
 
 		// @TODO: Consider supporting blocking mode of flock()
 		if (op & (emscripten_LOCK_NB === 0)) {
-			_js_wasm_trace('js_flock(%d, %d) blocking mode of flock() is not implemented', fd, op);
+			_js_wasm_trace(
+				'js_flock(%d, %d) blocking mode of flock() is not implemented',
+				fd,
+				op
+			);
 			// We do not yet support the blocking form of flock().
 			// We respond with EINVAL to indicate failure
 			// because it is a known errno for a failed blocking flock().
@@ -513,7 +584,11 @@ const LibraryForFileLocking = {
 
 		const lockOpType = flockToLockOpType[maskedOp];
 		if (lockOpType === undefined) {
-			_js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
+			_js_wasm_trace(
+				'js_flock(%d, %d) invalid flock() operation',
+				fd,
+				op
+			);
 			return -ERRNO_CODES.EINVAL;
 		}
 
@@ -526,9 +601,14 @@ const LibraryForFileLocking = {
 				fd,
 			}
 		);
-		_js_wasm_trace('js_flock(%d, %d) lockWholeFile %s returned %d', fd, op, vfsPath, obtainedLock);
+		_js_wasm_trace(
+			'js_flock(%d, %d) lockWholeFile %s returned %d',
+			fd,
+			op,
+			vfsPath,
+			obtainedLock
+		);
 		return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
-		// });
 	},
 
 	builtin_fd_close: LibraryManager.library.fd_close,
@@ -545,12 +625,15 @@ const LibraryForFileLocking = {
 
 		const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
 		if (pathResolutionErrno !== 0) {
-			_js_wasm_trace('fd_close(%d) get_vfs_path_from_fd error %d', fd, pathResolutionErrno);
+			_js_wasm_trace(
+				'fd_close(%d) get_vfs_path_from_fd error %d',
+				fd,
+				pathResolutionErrno
+			);
 			return -ERRNO_CODES.EBADF;
 		}
 
 		const result = _builtin_fd_close(fd);
-		// return Asyncify.handleAsync(async () => {
 		if (result === 0 && locking.maybeLockedFds.has(fd)) {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
@@ -588,19 +671,15 @@ const LibraryForFileLocking = {
 	 */
 	js_release_file_locks: async function js_release_file_locks() {
 		_js_wasm_trace('js_release_file_locks()');
-		// TODO: Why make this conditional?
-		if (PHPLoader.fileLockManager) {
-			const pid = PHPLoader.processId;
-			return await PHPLoader.fileLockManager
-				.releaseLocksForProcess(pid)
-				.then(() => {
-					_js_wasm_trace('js_release_file_locks succeeded');
-				})
-				.catch((e) => {
-					_js_wasm_trace('js_release_file_locks error %s', e);
-				});
-		}
-		// });
+		const pid = PHPLoader.processId;
+		return await PHPLoader.fileLockManager
+			.releaseLocksForProcess(pid)
+			.then(() => {
+				_js_wasm_trace('js_release_file_locks succeeded');
+			})
+			.catch((e) => {
+				_js_wasm_trace('js_release_file_locks error %s', e);
+			});
 	},
 };
 
