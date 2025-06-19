@@ -613,10 +613,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		) {
 			// We want to avoid verbose error messages.
 			// Bale out if this is a known failure mode and we've already reported the error.
-			// process.exit(1);
+			throw e;
 		}
 
-		console.log('\n\n\n\n\n\n\n\n\n\n\n');
 		// If we did not expect this error, print **all** the debug details we can get.
 		output.stderr(`--------------------------------\n`);
 		output.stderr('Debug details:\n');
@@ -636,7 +635,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		output.stderr(`\n\n`);
 		output.stderr(`--------------------------------\n`);
 
-		console.log('\n\n\n\n\n\n\n\n\n\n\n');
 		throw e;
 	}
 }
