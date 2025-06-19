@@ -345,7 +345,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					sqliteIntegrationPluginZip:
 						await sqliteIntegrationPluginZip!.arrayBuffer(),
 					firstProcessId: 0,
-					lastProcessId: 0 + processIdSpaceLength - 1,
+					processIdSpaceLength,
 					followSymlinks,
 					trace,
 				});
