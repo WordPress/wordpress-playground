@@ -2,7 +2,6 @@ import { errorLogPath, logger } from '@php-wasm/logger';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type {
-	PHP,
 	PHPRequest,
 	PHPRequestHandler,
 	SupportedPHPVersion,
