@@ -72,7 +72,7 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
-const version = getArg('PHP_VERSION').split('=')[1].replaceAll('.', '_');
+const version = args['PHP_VERSION'].replace('.', '_');
 
 await asyncSpawn(
 	'docker',
@@ -88,7 +88,7 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`mkdir -p /output/${version}/extensions && cp -rf /root/xdebug/modules/* /output/${version}/extensions`,
+		`mkdir -p /output/extensions/xdebug/${version} && cp -rf /root/xdebug/modules/* /output/extensions/xdebug/${version}`,
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );

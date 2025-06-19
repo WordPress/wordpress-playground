@@ -80,7 +80,9 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
 	fi;
 
-RUN cd /root/php-src && make install
+RUN source /root/emsdk/emsdk_env.sh && \
+	cd /root/php-src && \
+	emmake make install
 
 # Build Xdebug
 RUN set -euxo pipefail; \

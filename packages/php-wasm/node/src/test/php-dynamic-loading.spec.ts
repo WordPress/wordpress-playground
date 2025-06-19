@@ -23,26 +23,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			const result = await php.runStream({
 				code: `<?php
-                    var_dump(extension_loaded('xdebug'));`,
+					var_dump(extension_loaded('xdebug'));`,
 			});
 
 			expect(await result.stdoutText).toEqual('bool(false)\n');
 		});
 
 		it('supports dynamic loading', async () => {
-			const iniPath = '/internal/shared/extensions/xdebug.ini';
-			const entries = php
-				.readFileAsText(iniPath)
-				.replace('xdebug.mode=debug,develop', 'xdebug.mode=off')
-				.concat('\nhtml_errors=off');
-			php.writeFile(iniPath, entries);
-
 			const result = await php.runStream({
 				code: `<?php
-                    var_dump(extension_loaded('xdebug'));`,
+					var_dump(extension_loaded('xdebug'));`,
 			});
 
-			expect(await result.stdoutText).toEqual('bool(true)\n');
+			expect(await result.stdoutText).toEqual(
+				[
+					"<pre class='xdebug-var-dump' dir='ltr'>",
+					"<small>/internal/eval.php:2:</small><small>boolean</small> <font color='#75507b'>true</font>",
+					'</pre>',
+				].join('\n')
+			);
 		});
 
 		it('has its own ini file and entries', async () => {

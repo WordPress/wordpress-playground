@@ -3,9 +3,8 @@ import type {
 	PHPRuntime,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import { jspi } from 'wasm-feature-detect';
-import { fullyQualifiedPHPVersionDirectory } from './supported-php-versions';
 import { dirname } from 'path';
 import fs from 'fs';
 
@@ -18,10 +17,10 @@ export async function withXdebug(
 	}
 
 	const fileName = 'xdebug.so';
-	const directoryName = fullyQualifiedPHPVersionDirectory(version);
+	const directoryName = version.replace('.', '_');
 	const filePath = `${dirname(
 		__filename
-	)}/jspi/${directoryName}/extensions/${fileName}`;
+	)}/jspi//extensions/xdebug/${directoryName}/${fileName}`;
 	const extension = fs.readFileSync(filePath);
 
 	return {
@@ -37,26 +36,53 @@ export async function withXdebug(
 			/* The extension file previously read
 			 * is written inside the /extensions directory
 			 */
-			phpRuntime.FS.mkdirTree('/internal/shared/extensions');
-			phpRuntime.FS.writeFile(
-				`/internal/shared/extensions/${fileName}`,
-				new Uint8Array(extension)
-			);
+			if (
+				!FSHelpers.fileExists(
+					phpRuntime.FS,
+					'/internal/shared/extensions'
+				)
+			) {
+				phpRuntime.FS.mkdirTree('/internal/shared/extensions');
+			}
+			if (
+				!FSHelpers.fileExists(
+					phpRuntime.FS,
+					`/internal/shared/extensions/${fileName}`
+				)
+			) {
+				phpRuntime.FS.writeFile(
+					`/internal/shared/extensions/${fileName}`,
+					new Uint8Array(extension)
+				);
+			}
 			/* The extension has its share of ini entries
 			 * to write in a separate ini file
 			 */
-			phpRuntime.FS.writeFile(
-				'/internal/shared/extensions/xdebug.ini',
-				[
-					'zend_extension=/internal/shared/extensions/xdebug.so',
-					'xdebug.mode=debug,develop',
-					'xdebug.start_with_request=yes',
-					'xdebug.start_upon_error=yes',
-				].join('\n')
-			);
+			if (
+				!FSHelpers.fileExists(
+					phpRuntime.FS,
+					'/internal/shared/extensions/xdebug.ini'
+				)
+			) {
+				phpRuntime.FS.writeFile(
+					'/internal/shared/extensions/xdebug.ini',
+					[
+						'zend_extension=/internal/shared/extensions/xdebug.so',
+						'xdebug.mode=debug,develop',
+						'xdebug.start_with_request=yes',
+						'xdebug.start_upon_error=yes',
+					].join('\n')
+				);
+			}
 			/* The extension needs to mount the current
 			 * working directory in order to sync with
-			 * the debugger
+			 * the debugger.
+			 * This is currently the base step but
+			 * we may mount any path – cwd or not cwd.
+			 * We may also mount multiple paths in different locations,
+			 * or we may not mount any paths at all and just write a
+			 * bunch of PHP files into /wordpress, e.g.
+			 * when executing a Blueprint.
 			 */
 			phpRuntime.FS.mkdirTree(process.cwd());
 			phpRuntime.FS.mount(
