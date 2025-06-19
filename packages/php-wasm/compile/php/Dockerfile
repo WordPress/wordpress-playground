@@ -603,11 +603,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "js_popen_to_file",\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
-# TODO: MAYBE MOVE THESE TO EXPORTED_FUNCTIONS?
 "__syscall_fcntl64",\n\
-"js__syscall_fcntl64",\n\
-"_js__syscall_fcntl64",\n\
-"_asyncjs__js__syscall_fcntl64",\n\
 "js_release_file_locks",\n\
 "js_flock",\n\
 "js_fd_read",\n\
@@ -2048,8 +2044,7 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
-	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-		# TODO: Make this a JSPI-only feature.
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js"; \
 	fi; \
