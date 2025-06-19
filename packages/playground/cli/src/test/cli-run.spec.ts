@@ -24,11 +24,11 @@ describe('cli-run', () => {
 			command: 'server',
 			php: '8.0',
 		});
-		(await cliServer.requestHandler.getPrimaryPhp()).writeFile(
+		await cliServer.playground.writeFile(
 			'/wordpress/version.php',
 			'<?php echo phpversion(); ?>'
 		);
-		const response = await cliServer.requestHandler.request({
+		const response = await cliServer.playground.request({
 			url: '/version.php',
 			method: 'GET',
 		});
@@ -45,15 +45,14 @@ describe('cli-run', () => {
 			command: 'server',
 			wp: oldestSupportedVersion,
 		});
-		const php = await cliServer.requestHandler.getPrimaryPhp();
-		php.writeFile(
+		await cliServer.playground.writeFile(
 			'/wordpress/version.php',
 			`<?php
             require_once '/wordpress/wp-load.php';
             echo get_bloginfo("version");
             ?>`
 		);
-		const response = await cliServer.requestHandler.request({
+		const response = await cliServer.playground.request({
 			url: '/version.php',
 			method: 'GET',
 		});
@@ -75,7 +74,7 @@ describe('cli-run', () => {
 				],
 			},
 		});
-		const response = await cliServer.requestHandler.request({
+		const response = await cliServer.playground.request({
 			url: '/',
 			method: 'GET',
 		});
@@ -92,8 +91,7 @@ describe('cli-run', () => {
 			return hash.digest('hex');
 		};
 		const getActiveTheme = async () => {
-			const php = await cliServer.requestHandler.getPrimaryPhp();
-			const response = await php.run({
+			const response = await cliServer.playground.run({
 				code: `<?php
 					require_once '/wordpress/wp-load.php';
 					$theme = wp_get_theme();
@@ -116,8 +114,7 @@ describe('cli-run', () => {
 				command: 'server',
 				autoMount: true,
 			});
-			const php = await cliServer.requestHandler.getPrimaryPhp();
-			const phpResponse = await php.run({
+			const phpResponse = await cliServer.playground.run({
 				code: `<?php
 					require_once '/wordpress/wp-load.php';
 					require_once '/wordpress/wp-admin/includes/plugin.php';
@@ -126,7 +123,7 @@ describe('cli-run', () => {
 			});
 			expect(phpResponse.text).toBe('1');
 
-			const response = await cliServer.requestHandler.request({
+			const response = await cliServer.playground.request({
 				url: '/',
 				method: 'GET',
 			});
@@ -146,7 +143,7 @@ describe('cli-run', () => {
 
 			expect(await getActiveTheme()).toBe('Yolo Theme');
 
-			const response = await cliServer.requestHandler.request({
+			const response = await cliServer.playground.request({
 				url: '/',
 				method: 'GET',
 			});
@@ -164,7 +161,7 @@ describe('cli-run', () => {
 				command: 'server',
 				autoMount: true,
 			});
-			const response = await cliServer.requestHandler.request({
+			const response = await cliServer.playground.request({
 				url: '/wp-login.php',
 				method: 'GET',
 			});
@@ -179,7 +176,7 @@ describe('cli-run', () => {
 				command: 'server',
 				autoMount: true,
 			});
-			const response = await cliServer.requestHandler.request({
+			const response = await cliServer.playground.request({
 				url: '/',
 				method: 'GET',
 			});
@@ -195,7 +192,7 @@ describe('cli-run', () => {
 				command: 'server',
 				autoMount: true,
 			});
-			const response = await cliServer.requestHandler.request({
+			const response = await cliServer.playground.request({
 				url: '/',
 				method: 'GET',
 			});
@@ -222,7 +219,7 @@ describe('cli-run', () => {
 				command: 'server',
 				autoMount: true,
 			});
-			const response = await cliServer.requestHandler.request({
+			const response = await cliServer.playground.request({
 				url: '/',
 				method: 'GET',
 			});
