@@ -3,9 +3,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'http';
 
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
-
-// TODO: Revert all changes to this file in this PR because they aren't necessary
-let nextRuntimeId = 0;
+let lastRuntimeId = 0;
 
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.
@@ -135,9 +133,6 @@ export async function loadPHPRuntime(
 
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
-	const runtimeId = nextRuntimeId;
-	nextRuntimeId++;
-
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
 			rejectPHP(reason);
@@ -162,10 +157,12 @@ export async function loadPHPRuntime(
 
 	await phpReady;
 
+	const id = ++lastRuntimeId;
+
 	// TODO: Ask @adamziel why this is here.
 	// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- why is this here?
 	PHPRuntime.FS;
-	PHPRuntime.id = runtimeId;
+	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
@@ -173,13 +170,13 @@ export async function loadPHPRuntime(
 			PHPRuntime.outboundNetworkProxyServer.close();
 			PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
 		}
-		loadedRuntimes.delete(runtimeId);
+		loadedRuntimes.delete(id);
 		return PHPRuntime.originalExit(code);
 	};
 
-	PHPRuntime[RuntimeId] = runtimeId;
-	loadedRuntimes.set(runtimeId, PHPRuntime);
-	return runtimeId;
+	PHPRuntime[RuntimeId] = id;
+	loadedRuntimes.set(id, PHPRuntime);
+	return id;
 }
 
 export type RuntimeType = 'NODE' | 'WEB' | 'WORKER';
