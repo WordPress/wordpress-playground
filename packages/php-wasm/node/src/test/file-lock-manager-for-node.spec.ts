@@ -1376,7 +1376,7 @@ describe('FileLockManagerForNode', () => {
 			lockType: 'exclusive' | 'shared'
 		): Promise<{ success: boolean; error?: string; child?: ChildProcess }> {
 			return new Promise((resolve) => {
-				const child = fork(join(__dirname, 'lock-worker.js'));
+				const child = fork(join(__dirname, 'file-lock-test-worker.js'));
 
 				child.on(
 					'message',
