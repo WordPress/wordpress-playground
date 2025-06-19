@@ -1,3 +1,37 @@
+/**
+ * WASM Imports and Exports Inspector
+ * 
+ * Parses WebAssembly binary files and extracts their imports and exports sections. It's useful
+ * for debugging WASM modules.
+ * 
+ * USAGE:
+ * ------
+ *
+ *   ./print-wasm-imports-and-exports <path-to-wasm-file>
+ * 
+ * OUTPUT FORMAT:
+ * --------------
+ * The output is JSON with two main sections:
+ * {
+ *   "imports": [
+ *     {
+ *       "module": "env",           // The module name that provides this import
+ *       "name": "malloc",          // The function/symbol name
+ *       "kind": "0x00",            // 0x00=function, 0x01=table, 0x02=memory, 0x03=global
+ *       "type": "function",
+ *       "typeIndex": 42            // Index into the type section (for functions)
+ *     }
+ *   ],
+ *   "exports": [
+ *     {
+ *       "name": "php_wasm_init",   // The exported symbol name
+ *       "kind": 0,                 // Same kind values as imports
+ *       "index": 123               // Index into the respective section
+ *     }
+ *   ]
+ * }
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
