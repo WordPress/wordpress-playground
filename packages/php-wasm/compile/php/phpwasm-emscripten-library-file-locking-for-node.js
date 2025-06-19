@@ -34,13 +34,12 @@ const LibraryForFileLocking = {
 			[2]: 'unlocked',
 		},
 
-		is_path_to_shared_fs(path) {
-			const { node } = FS.lookupPath(path);
-
+		is_shared_fs_node(node) {
 			if (node?.isSharedFS) {
 				return true;
 			}
 
+			// Handle PROXYFS nodes which wrap other nodes.
 			if (!node?.mount?.opts?.fs?.lookupPath) {
 				return false;
 			}
@@ -48,6 +47,10 @@ const LibraryForFileLocking = {
 			const vfsPath = NODEFS.realPath(node);
 			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
 			return !!underlyingNode?.isSharedFS;
+		},
+		is_path_to_shared_fs(path) {
+			const { node } = FS.lookupPath(path);
+			return locking.is_shared_fs_node(node);
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('{{{cDefs.F_GETFL}}}');
