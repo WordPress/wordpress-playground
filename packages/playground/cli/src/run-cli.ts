@@ -729,6 +729,7 @@ async function resolveBlueprintObject(
 
 		try {
 			if (isUrl) {
+				// @TODO: Respect HTTP cache in CLI.
 				const response = await fetch(filePath);
 				if (!response.ok) {
 					throw new BlueprintReferenceError(
