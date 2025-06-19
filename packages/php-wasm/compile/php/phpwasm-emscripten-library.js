@@ -16,6 +16,12 @@ const LibraryExample = {
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
 		init: function () {
+			Module['ENV'] = Module['ENV'] || {};
+			// Ensure a platform-level bin directory for a fallback `php` binary.
+			Module['ENV']['PATH'] = [Module['ENV']['PATH'], '/internal/shared/bin']
+				.filter(Boolean)
+				.join(':');
+			
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
@@ -26,6 +32,17 @@ const LibraryExample = {
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
 			FS.mkdir('/internal/shared/preload');
+			// Platform-level bin directory for a fallback `php` binary. Without it,
+			// PHP may not populate the PHP_BINARY constant.
+			FS.mkdir('/internal/shared/bin');
+			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
+			Module['onRuntimeInitialized'] = () => {
+				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
+				FS.writeFile('/internal/shared/bin/php', new TextEncoder().encode('#!/bin/sh\nphp "$@"'));
+				// It must be executable to be used by PHP.
+				FS.chmod('/internal/shared/bin/php', 0o755);
+				originalOnRuntimeInitialized();
+			}
 
 			// Create stdout and stderr devices. We can't just use Emscripten's
 			// default stdout and stderr devices because they stop processing data

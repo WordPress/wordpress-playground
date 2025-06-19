@@ -130,6 +130,11 @@ export async function loadPHPRuntime(
 	...options: EmscriptenOptions[]
 ): Promise<number> {
 	const phpModuleArgs = Object.assign({}, ...options);
+	phpModuleArgs.ENV = phpModuleArgs.ENV || {};
+	// Ensure a platform-level bin directory for a fallback `php` binary.
+	phpModuleArgs.ENV.PATH = [phpModuleArgs.ENV.PATH, '/internal/shared/bin']
+		.filter(Boolean)
+		.join(':');
 
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
@@ -140,7 +145,6 @@ export async function loadPHPRuntime(
 			// let's just log it.
 			logger.error(reason);
 		},
-		ENV: {},
 		// Emscripten sometimes prepends a '/' to the path, which
 		// breaks vite dev mode. An identity `locateFile` function
 		// fixes it.
@@ -159,9 +163,6 @@ export async function loadPHPRuntime(
 
 	const id = ++lastRuntimeId;
 
-	// TODO: Ask @adamziel why this is here.
-	// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- why is this here?
-	PHPRuntime.FS;
 	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;
 

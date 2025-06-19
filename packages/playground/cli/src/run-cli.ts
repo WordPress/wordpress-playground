@@ -352,7 +352,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							),
 							emscriptenOptions: {
 								ENV: {
-									PATH: '/internal/shared/bin',
 									DOCROOT: '/wordpress',
 								},
 							},
@@ -361,8 +360,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					createFiles: {
 						'/internal/shared/ca-bundle.crt':
 							rootCertificates.join('\n'),
-						// Dummy PHP binary to ensure that PHP-WASM is used for proc_open() calls.
-						'/internal/shared/bin/php': '#!/bin/sh\nphp "$@"',
 					},
 					phpIniEntries: {
 						'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -374,10 +371,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				});
 
 				const primaryPhp = await requestHandler.getPrimaryPhp();
-
-				// Mark the PHP binary as executable, otherwise PHP won't
-				// use it to populate the PHP_BINARY constant.
-				primaryPhp.chmod('/internal/shared/bin/php', 0o755);
 
 				if (args.mountBeforeInstall) {
 					await mountResources(primaryPhp, args.mountBeforeInstall);
