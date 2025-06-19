@@ -25,13 +25,6 @@ COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 # Polyfill for post_message_to_js functions
 COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
 
-# Work around to add ICU FLAGS to intl below 7.3 to inject -fPIC.
-RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
-		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
-	fi;
-
-RUN cd php-src && ./buildconf --force
-
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
@@ -70,6 +63,21 @@ RUN if [ "$WITH_JSPI" = "yes" ]; then \
 else \
 	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
 fi
+
+
+# Workaround to add ICU FLAGS to intl below 7.3 to inject -fPIC.
+RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
+		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
+	fi;
+
+# Workaround to unbundle sqlite from PHP <= 7.3.
+# https://github.com/php/php-src/commit/6083a38
+RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+		cp /root/builds/libsqlite3/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
+		cp /root/builds/libsqlite3/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
+	fi;
+
+RUN cd php-src && ./buildconf --force
 
 # Build PHP
 
@@ -189,10 +197,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	then \
 		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags; \
-		if [[ "${PHP_VERSION:0:1}" -ge 8 ]] || [ "${PHP_VERSION:0:3}" == "7.4" ]; then \
-			# PHP bundles its own sqlite3 library in PHP 7.3 and PHP 7.2. Resulting in duplicate symbols if adding this source.
-			echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
-		fi; \
+		echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
 	else \
 		echo -n ' --without-sqlite3 --disable-pdo ' >> /root/.php-configure-flags; \
 	fi
