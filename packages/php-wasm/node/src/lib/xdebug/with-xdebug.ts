@@ -5,7 +5,7 @@ import type {
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import { jspi } from 'wasm-feature-detect';
-import { dirname } from 'path';
+import path from 'path';
 import fs from 'fs';
 
 export async function withXdebug(
@@ -18,9 +18,10 @@ export async function withXdebug(
 
 	const fileName = 'xdebug.so';
 	const directoryName = version.replace('.', '_');
-	const filePath = `${dirname(
-		__filename
-	)}/jspi//extensions/xdebug/${directoryName}/${fileName}`;
+	const filePath = path.resolve(
+		import.meta.dirname,
+		`../../../jspi/extensions/xdebug/${directoryName}/${fileName}`
+	);
 	const extension = fs.readFileSync(filePath);
 
 	return {

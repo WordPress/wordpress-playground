@@ -188,8 +188,11 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 # Add sqlite3 if needed
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	then \
-		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags && \
-		echo -n ' -I ext/pdo_sqlite -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
+		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags; \
+		if [[ "${PHP_VERSION:0:1}" -ge 8 ]] || [ "${PHP_VERSION:0:3}" == "7.4" ]; then \
+			# PHP bundles its own sqlite3 library in PHP 7.3 and PHP 7.2. Resulting in duplicate symbols if adding this source.
+			echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
 	else \
 		echo -n ' --without-sqlite3 --disable-pdo ' >> /root/.php-configure-flags; \
 	fi

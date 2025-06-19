@@ -72,6 +72,23 @@ const dirnamePlugin = {
 	},
 };
 
+const xdebugPlugin = {
+	name: 'xdebug',
+	setup(build) {
+		build.onLoad({ filter: /\/with-xdebug\.ts$/ }, ({ path: filePath }) => {
+			let contents = fs.readFileSync(filePath, 'utf8');
+
+			return {
+				contents: contents.replace(
+					/import\.meta\.dirname,\s*`\.\.\/\.\.\/\.\.\//g,
+					'__dirname, `./'
+				),
+				loader: 'ts',
+			};
+		});
+	},
+};
+
 async function build() {
 	await esbuild.build({
 		entryPoints: [
@@ -99,7 +116,7 @@ async function build() {
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin],
+		plugins: [dirnamePlugin, xdebugPlugin],
 	});
 
 	await esbuild.build({
@@ -136,7 +153,7 @@ const __dirname = import.meta.dirname;
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin],
+		plugins: [dirnamePlugin, xdebugPlugin],
 	});
 
 	fs.copyFileSync(

@@ -1,13 +1,7 @@
 import { loadNodeRuntime } from '..';
 import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
-import path from 'path';
 import fs from 'fs';
 import { createServer } from 'net';
-
-vi.mock('path', async (originalPath) => ({
-	...(await originalPath()),
-	dirname: vi.fn((input) => path.resolve(input, '../../../../')),
-}));
 
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
