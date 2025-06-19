@@ -814,8 +814,16 @@ const LibraryExample = {
 		return PHPLoader.processId ?? 42;
 	},
 
-	// TODO: Document this inline
-	// TODO: Document this in PR
+	/**
+	 * Relays a trace message if a PHPLoader.trace function is provided.
+	 *
+	 * This is a printf-style API that supports:
+	 * - Basic format specifiers: %s, %d, %f, %x, %%
+	 * - Bigint integer values
+	 *
+	 * @param {string} format The format string
+	 * @param {...any} args The arguments to the format string
+	 */
 	js_wasm_trace: function (format, ...args) {
 		if (PHPLoader.trace instanceof Function) {
 			PHPLoader.trace(_js_getpid(), format, ...args);
