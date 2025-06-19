@@ -57,28 +57,25 @@ PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 if (typeof NODEFS === 'object') {
-    // TODO: Document why.
-    // TODO: Mention in PR description
+    // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS nodes.
+    // This way we can tell whether file-locking is needed and possible for an FS node,
+    // even if wrapped with PROXYFS.
+    const originalCreateNode = NODEFS.createNode;
+    NODEFS.createNode = function createNodeWithSharedFlag() {
+        const node = originalCreateNode.apply(NODEFS, arguments);
+        node.isSharedFS = true;
+        return node;
+    };
+
     var originalHashAddNode = FS.hashAddNode;
-    FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
-        if (node.node_ops === NODEFS.node_ops) {
-            // Avoid caching NODEFS VFS nodes so multiple instances
+    FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
+        if (locking?.is_path_to_shared_fs(node.path)) {
+            // Avoid caching shared VFS nodes so multiple instances
             // can access the same underlying filesystem without
             // conflicting caches.
             return;
         }
         return originalHashAddNode.apply(FS, arguments);
-    };
-
-    // TODO: Document why.
-    // TODO: Mention in PR description
-    const originalCreateNode = NODEFS.createNode;
-    NODEFS.createNode = function createNodeWithSharedFlag() {
-        const node = originalCreateNode.apply(NODEFS, arguments);
-        // TODO: Is this a reasonable solution to marking underlying target of PROXYFS?
-        // TODO: Better name?
-        node.isSharedFS = true;
-        return node;
     };
 }
 
