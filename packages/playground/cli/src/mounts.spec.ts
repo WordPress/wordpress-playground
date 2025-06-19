@@ -82,7 +82,7 @@ describe('expandAutoMounts', () => {
 			expect(result.additionalBlueprintSteps).toEqual([
 				{
 					step: 'activateTheme',
-					themeFolderName: 'theme',
+					themeDirectoryName: 'theme',
 				},
 			]);
 		});
@@ -138,7 +138,10 @@ describe('expandAutoMounts', () => {
 			expect(steps).toHaveLength(1);
 			expect(steps![0]).toEqual({
 				step: 'runPHP',
-				code: expect.stringContaining('wp_get_theme'),
+				code: {
+					filename: 'activate-theme.php',
+					content: expect.stringContaining('wp_get_theme'),
+				},
 			});
 		});
 
@@ -213,7 +216,10 @@ describe('expandAutoMounts', () => {
 			expect(steps).toHaveLength(1);
 			expect(steps![0]).toEqual({
 				step: 'runPHP',
-				code: expect.stringContaining('wp_get_theme'),
+				code: {
+					filename: 'activate-theme.php',
+					content: expect.stringContaining('wp_get_theme'),
+				},
 			});
 		});
 	});

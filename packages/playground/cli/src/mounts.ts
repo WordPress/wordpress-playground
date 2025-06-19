@@ -92,7 +92,7 @@ const ACTIVATE_FIRST_THEME_STEP = {
 	step: 'runPHP',
 	code: {
 		filename: 'activate-theme.php',
-		code: `<?php
+		content: `<?php
 			require_once getenv('DOCROOT') . '/wp-load.php';
 			$theme = wp_get_theme();
 			if (!$theme->exists()) {

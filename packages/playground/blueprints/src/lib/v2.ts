@@ -49,6 +49,16 @@ export async function runBlueprintV2(options: RunV2Options) {
 	}
 	cliArgs.push('--site-path=/wordpress');
 
+	/**
+	 * Divergence from blueprints.phar – the default database engine is
+	 * SQLite. Why? Because in Playground we'll use SQLite far more often than
+	 * MySQL.
+	 */
+	const dbEngine = cliArgs.find((arg) => arg.startsWith('--db-engine='));
+	if (!dbEngine) {
+		cliArgs.push('--db-engine=sqlite');
+	}
+
 	const php = options.php;
 	const onProgress = options.hooks?.onProgress || (() => {});
 	const onError = options.hooks?.onError || (() => {});

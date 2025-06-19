@@ -327,19 +327,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							`Automatic PHP version detection only works for JSON blueprints. ` +
 							`To continue, please specify the PHP version explicitly using the --php option (e.g. --php=8.2).`
 					);
-					process.exit(1);
+					throw e;
 				} else if (e instanceof BlueprintReferenceError) {
 					output.stderr(
 						`Failed to load Blueprint: ${e.message}. ` +
 							`Please check that the Blueprint path or URL is correct.`
 					);
-					process.exit(1);
+					throw e;
 				} else if (e instanceof BlueprintParseError) {
 					output.stderr(
 						`Blueprint contains invalid JSON: ${e.parseError}. ` +
 							`Please check the Blueprint syntax and try again.`
 					);
-					process.exit(1);
+					throw e;
 				}
 
 				// Generic inference failure
@@ -613,9 +613,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		) {
 			// We want to avoid verbose error messages.
 			// Bale out if this is a known failure mode and we've already reported the error.
-			process.exit(1);
+			// process.exit(1);
 		}
 
+		console.log('\n\n\n\n\n\n\n\n\n\n\n');
 		// If we did not expect this error, print **all** the debug details we can get.
 		output.stderr(`--------------------------------\n`);
 		output.stderr('Debug details:\n');
@@ -635,6 +636,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		output.stderr(`\n\n`);
 		output.stderr(`--------------------------------\n`);
 
+		console.log('\n\n\n\n\n\n\n\n\n\n\n');
 		throw e;
 	}
 }

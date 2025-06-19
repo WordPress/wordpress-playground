@@ -44,7 +44,6 @@ describe('cli-run', () => {
 			php: '8.0',
 			command: 'server',
 			wp: oldestSupportedVersion,
-			quiet: true,
 		});
 		const php = await cliServer.requestHandler.getPrimaryPhp();
 		php.writeFile(
@@ -167,7 +166,7 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
-				quiet: true,
+				// quiet: true,
 			});
 			const response = await cliServer.requestHandler.request({
 				url: '/wp-login.php',
@@ -226,7 +225,7 @@ describe('cli-run', () => {
 				port: 58954,
 				php: '8.0',
 				command: 'server',
-				quiet: true,
+				// quiet: true,
 				mountBeforeInstall: [
 					{
 						hostPath: wordpressDir,
@@ -242,7 +241,7 @@ describe('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				'auto-mount': true,
-				quiet: true,
+				// quiet: true,
 			});
 
 			const response = await cliServer.requestHandler.request({
