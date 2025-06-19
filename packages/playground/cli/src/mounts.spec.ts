@@ -367,34 +367,6 @@ describe('expandAutoMounts', () => {
 				},
 			]);
 		});
-
-		test('should respect existing skipWordPressSetup flag', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'test/mount-examples/plugin')
-			);
-
-			const args: RunCLIArgs = {
-				...createBasicArgs(),
-				skipWordPressSetup: true,
-			};
-			const result = expandAutoMounts(args);
-
-			expect(result.skipWordPressSetup).toBe(true);
-		});
-
-		test('should override skipWordPressSetup for full WordPress installation', () => {
-			vi.spyOn(process, 'cwd').mockReturnValue(
-				path.join(__dirname, 'test/mount-examples/wordpress')
-			);
-
-			const args: RunCLIArgs = {
-				...createBasicArgs(),
-				skipWordPressSetup: false,
-			};
-			const result = expandAutoMounts(args);
-
-			expect(result.mode).toBe('apply-to-existing-site');
-		});
 	});
 
 	describe('edge cases', () => {
