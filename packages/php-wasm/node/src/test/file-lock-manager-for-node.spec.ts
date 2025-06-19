@@ -548,7 +548,6 @@ describe('FileLockManagerForNode', () => {
 				expect(result2).toBe(true);
 			});
 
-			// TODO: Merge exclusive/shared/unlock into name of test instead of making it a nested describe
 			it('denies when other process holds overlapping exclusive range lock', async () => {
 				// First process gets exclusive range lock
 				const result1 = lockManager.lockFileByteRange(TEST_FILE1, {
