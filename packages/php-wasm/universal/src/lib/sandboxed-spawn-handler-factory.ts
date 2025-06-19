@@ -1,50 +1,17 @@
-import { loadNodeRuntime } from '@php-wasm/node';
-import {
-	PHPProcessManager,
-	sandboxedSpawnHandlerFactory,
-	type PHPRequestHandler,
-} from '@php-wasm/universal';
-import { RecommendedPHPVersion } from '@wp-playground/common';
-import { bootRequestHandler } from '@wp-playground/wordpress';
-import { rootCertificates } from 'node:tls';
-import { runBlueprintV2 } from './v2';
 import { createSpawnHandler } from '@php-wasm/util';
+import { PHPProcessManager } from './php-process-manager';
+import { logger } from '@php-wasm/logger';
 
-describe('V2 runner', () => {
-	let handler: PHPRequestHandler;
-
-	beforeEach(async () => {
-		handler = await bootRequestHandler({
-			createPhpRuntime: async () => await loadNodeRuntime('8.3'),
-			sapiName: 'cli',
-			siteUrl: 'http://playground-domain/',
-			phpIniEntries: {
-				'openssl.cafile': '/internal/shared/ca-bundle.crt',
-			},
-			createFiles: {
-				'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
-			},
-			spawnHandler: spawnHandlerFactory,
-			// spawnHandler: sandboxedSpawnHandlerFactory,
-		});
-	});
-
-	it('should put WordPress in the document root', async () => {
-		const instance = await handler.processManager.acquirePHPInstance();
-		const result = await runBlueprintV2({
-			php: instance.php as any,
-			blueprint: '{"version":2}',
-			cliArgs: ['--site-url=http://playground-domain/'],
-		});
-		await result.finished;
-		expect(await result.stdoutText).toBe('');
-		expect(await result.stderrText).toBe('');
-		const instance2 = await handler.processManager.acquirePHPInstance();
-		expect(instance2.php.listFiles('/wordpress')).toContain('wp-content');
-	}, 60000);
-});
-
-export function spawnHandlerFactory(processManager: PHPProcessManager) {
+export function sandboxedSpawnHandlerFactory(
+	processManager: PHPProcessManager,
+	factoryOptions: {
+		onError: (error: Error) => void;
+	} = {
+		onError: (error) => {
+			logger.error('Error in childPHP:', error);
+		},
+	}
+) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
 		if (args[0] === 'exec') {
@@ -54,6 +21,8 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 		if (args[0].endsWith('.php') || args[0].endsWith('.phar')) {
 			args.unshift('php');
 		}
+
+		const binaryName = args[0].split('/').pop();
 
 		// Mock programs required by wp-cli:
 		if (
@@ -69,16 +38,16 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			// @TODO: Do not hardcode this
 			processApi.stdout(`18 140`);
 			processApi.exit(0);
-		} else if (args[0] === 'tput' && args[1] === 'cols') {
+		} else if (binaryName === 'tput' && args[1] === 'cols') {
 			processApi.stdout(`140`);
 			processApi.exit(0);
-		} else if (args[0] === 'less') {
+		} else if (binaryName === 'less') {
 			processApi.on('stdin', (data: Uint8Array) => {
 				processApi.stdout(data);
 			});
 			processApi.flushStdin();
 			processApi.exit(0);
-		} else if (args[0] === 'php') {
+		} else if (binaryName === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance({
 				considerPrimary: false,
 			});
@@ -89,7 +58,6 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 				const result = await php.cli(args, {
 					env: {
 						...options.env,
-						DOCROOT: '/wordpress',
 						SCRIPT_PATH: args[1],
 						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 						// the output as ASCII tables.
@@ -117,15 +85,12 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 						processApi.exit(exitCode);
 					},
 					(error) => {
-						console.error('Error in childPHP:', error);
+						factoryOptions.onError(error as Error);
 						processApi.exit(1);
 					}
 				);
 			} catch (e) {
-				// logger.error('Error in childPHP:', e);
-				if (e instanceof Error) {
-					processApi.stderr(e.message);
-				}
+				factoryOptions.onError(e as Error);
 				processApi.exit(1);
 			} finally {
 				reap();

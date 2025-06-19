@@ -130,11 +130,6 @@ export async function loadPHPRuntime(
 	...options: EmscriptenOptions[]
 ): Promise<number> {
 	const phpModuleArgs = Object.assign({}, ...options);
-	phpModuleArgs.ENV = phpModuleArgs.ENV || {};
-	// Ensure a platform-level bin directory for a fallback `php` binary.
-	phpModuleArgs.ENV.PATH = [phpModuleArgs.ENV.PATH, '/internal/shared/bin']
-		.filter(Boolean)
-		.join(':');
 
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
@@ -148,6 +143,7 @@ export async function loadPHPRuntime(
 		// Emscripten sometimes prepends a '/' to the path, which
 		// breaks vite dev mode. An identity `locateFile` function
 		// fixes it.
+		ENV: {},
 		locateFile: (path) => path,
 		...phpModuleArgs,
 		noInitialRun: true,

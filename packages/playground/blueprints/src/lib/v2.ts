@@ -202,11 +202,9 @@ function playground_progress_reporter() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
-
 require( "/tmp/blueprints.phar" );
 `
 	);
-
 	return (await (php as any).cli([
 		'/internal/shared/bin/php',
 		'/tmp/run-blueprints.php',
