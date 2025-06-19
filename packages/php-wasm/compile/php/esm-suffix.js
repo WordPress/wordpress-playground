@@ -57,9 +57,9 @@ PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 if (typeof NODEFS === 'object') {
-    // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS nodes.
-    // This way we can tell whether file-locking is needed and possible for an FS node,
-    // even if wrapped with PROXYFS.
+    // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
+    // nodes. This way we can tell whether file-locking is needed and possible
+    // for an FS node, even if wrapped with PROXYFS.
     const originalCreateNode = NODEFS.createNode;
     NODEFS.createNode = function createNodeWithSharedFlag() {
         const node = originalCreateNode.apply(NODEFS, arguments);
