@@ -138,7 +138,6 @@ async function run() {
 			hidden: true,
 		})
 		// TODO: Should we make this a hidden flag?
-		// TODO: Convert this to kebab-case to match incoming Blueprints v2 runner work.
 		.option('experimentalMultiWorker', {
 			describe:
 				'Enable experimental multi-worker support which requires JSPI ' +
@@ -170,8 +169,7 @@ async function run() {
 
 				if (!(await jspi())) {
 					throw new Error(
-						// TODO: Improve language?
-						'JSPI is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
+						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
 					);
 				}
 
@@ -182,7 +180,6 @@ async function run() {
 					!args.mountBeforeInstall?.some(isMountingWordPressDir)
 				) {
 					throw new Error(
-						// TODO: Improve language?
 						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
 					);
 				}
