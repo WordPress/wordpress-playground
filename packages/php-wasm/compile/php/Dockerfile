@@ -2194,7 +2194,7 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+			echo "const dependencyFilename = path.join(__dirname, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js;\
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		fi; \
