@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 17369361;
+export const dependenciesTotalSize = 17690815;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -5285,6 +5285,44 @@ export function init(RuntimeName, PHPLoader) {
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
 			FS.mkdir('/internal/shared/preload');
+			// Create stdout and stderr devices. We can't just use Emscripten's
+			// default stdout and stderr devices because they stop processing data
+			// on the first null byte. However, when dealing with binary data,
+			// null bytes are valid and common.
+			FS.registerDevice(FS.makedev(64, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStdout(chunk);
+					return length;
+				},
+			});
+			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
+			FS.registerDevice(FS.makedev(63, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStderr(chunk);
+					return length;
+				},
+			});
+			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
+			FS.registerDevice(FS.makedev(62, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onHeaders(chunk);
+					return length;
+				},
+			});
+			FS.mkdev('/internal/headers', FS.makedev(62, 0));
+			// Handle events.
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
@@ -5325,9 +5363,71 @@ export function init(RuntimeName, PHPLoader) {
 							}
 						}
 				  };
+			// Clean up the fd -> childProcess mapping when the fd is closed:
+			const originalClose = FS.close;
+			FS.close = function (stream) {
+				originalClose(stream);
+				delete PHPWASM.child_proc_by_fd[stream.fd];
+			};
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
+			const originalWrite = TTY.stream_ops.write;
+			TTY.stream_ops.write = function (stream, ...rest) {
+				const retval = originalWrite(stream, ...rest);
+				// Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+				// @TODO: Fix this at the wasm level
+				stream.tty.ops.fsync(stream.tty);
+				return retval;
+			};
+			const originalPutChar = TTY.stream_ops.put_char;
+			TTY.stream_ops.put_char = function (tty, val) {
+				/**
+				 * Buffer newlines that Emscripten normally ignores.
+				 *
+				 * Emscripten doesn't do it by default because its default
+				 * print function is console.log that implicitly adds a newline. We are overwriting
+				 * it with an environment-specific function that outputs exaclty what it was given,
+				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+				 * all the newlines make it to the output buffer.
+				 */ if (val === 10) tty.output.push(val);
+				return originalPutChar(tty, val);
+			};
+		},
+		onHeaders: function (chunk) {
+			if (Module['onHeaders']) {
+				Module['onHeaders'](chunk);
+				return;
+			}
+			console.log('headers', {
+				chunk,
+			});
+		},
+		onStdout: function (chunk) {
+			if (Module['onStdout']) {
+				Module['onStdout'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stdout.write(chunk);
+			} else {
+				console.log('stdout', {
+					chunk,
+				});
+			}
+		},
+		onStderr: function (chunk) {
+			if (Module['onStderr']) {
+				Module['onStderr'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stderr.write(chunk);
+			} else {
+				console.warn('stderr', {
+					chunk,
+				});
+			}
 		},
 		getAllWebSockets: function (sock) {
 			const webSockets = new Set();
@@ -7679,293 +7779,6 @@ export function init(RuntimeName, PHPLoader) {
 		return result;
 	};
 
-	var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
-
-	/** @suppress {duplicate } */ var stringToUTF8OnStack = (str) => {
-		var size = lengthBytesUTF8(str) + 1;
-		var ret = stackAlloc(size);
-		stringToUTF8(str, ret, size);
-		return ret;
-	};
-
-	var allocateUTF8OnStack = stringToUTF8OnStack;
-
-	var PHPWASM = {
-		init: function () {
-			// The /internal directory is required by the C module. It's where the
-			// stdout, stderr, and headers information are written for the JavaScript
-			// code to read later on.
-			FS.mkdir('/internal');
-			// The files from the shared directory are shared between all the
-			// PHP processes managed by PHPProcessManager.
-			FS.mkdir('/internal/shared');
-			// The files from the preload directory are preloaded using the
-			// auto_prepend_file php.ini directive.
-			FS.mkdir('/internal/shared/preload');
-			// Create stdout and stderr devices. We can't just use Emscripten's
-			// default stdout and stderr devices because they stop processing data
-			// on the first null byte. However, when dealing with binary data,
-			// null bytes are valid and common.
-			FS.registerDevice(FS.makedev(64, 0), {
-				open: () => {},
-				close: () => {},
-				read: () => 0,
-				write: (stream, buffer, offset, length, pos) => {
-					const chunk = buffer.subarray(offset, offset + length);
-					PHPWASM.onStdout(chunk);
-					return length;
-				},
-			});
-			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
-			FS.registerDevice(FS.makedev(63, 0), {
-				open: () => {},
-				close: () => {},
-				read: () => 0,
-				write: (stream, buffer, offset, length, pos) => {
-					const chunk = buffer.subarray(offset, offset + length);
-					PHPWASM.onStderr(chunk);
-					return length;
-				},
-			});
-			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
-			FS.registerDevice(FS.makedev(62, 0), {
-				open: () => {},
-				close: () => {},
-				read: () => 0,
-				write: (stream, buffer, offset, length, pos) => {
-					const chunk = buffer.subarray(offset, offset + length);
-					PHPWASM.onHeaders(chunk);
-					return length;
-				},
-			});
-			FS.mkdev('/internal/headers', FS.makedev(62, 0));
-			// Handle events.
-			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
-				? require('events').EventEmitter
-				: class EventEmitter {
-						constructor() {
-							this.listeners = {};
-						}
-						emit(eventName, data) {
-							if (this.listeners[eventName]) {
-								this.listeners[eventName].forEach(
-									(callback) => {
-										callback(data);
-									}
-								);
-							}
-						}
-						once(eventName, callback) {
-							const self = this;
-							function removedCallback() {
-								callback(...arguments);
-								self.removeListener(eventName, removedCallback);
-							}
-							this.on(eventName, removedCallback);
-						}
-						removeAllListeners(eventName) {
-							if (eventName) {
-								delete this.listeners[eventName];
-							} else {
-								this.listeners = {};
-							}
-						}
-						removeListener(eventName, callback) {
-							if (this.listeners[eventName]) {
-								const idx =
-									this.listeners[eventName].indexOf(callback);
-								if (idx !== -1) {
-									this.listeners[eventName].splice(idx, 1);
-								}
-							}
-						}
-				  };
-			// Clean up the fd -> childProcess mapping when the fd is closed:
-			const originalClose = FS.close;
-			FS.close = function (stream) {
-				originalClose(stream);
-				delete PHPWASM.child_proc_by_fd[stream.fd];
-			};
-			PHPWASM.child_proc_by_fd = {};
-			PHPWASM.child_proc_by_pid = {};
-			PHPWASM.input_devices = {};
-			const originalWrite = TTY.stream_ops.write;
-			TTY.stream_ops.write = function (stream, ...rest) {
-				const retval = originalWrite(stream, ...rest);
-				// Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
-				// @TODO: Fix this at the wasm level
-				stream.tty.ops.fsync(stream.tty);
-				return retval;
-			};
-			const originalPutChar = TTY.stream_ops.put_char;
-			TTY.stream_ops.put_char = function (tty, val) {
-				/**
-				 * Buffer newlines that Emscripten normally ignores.
-				 *
-				 * Emscripten doesn't do it by default because its default
-				 * print function is console.log that implicitly adds a newline. We are overwriting
-				 * it with an environment-specific function that outputs exaclty what it was given,
-				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
-				 * all the newlines make it to the output buffer.
-				 */ if (val === 10) tty.output.push(val);
-				return originalPutChar(tty, val);
-			};
-		},
-		onHeaders: function (chunk) {
-			if (Module['onHeaders']) {
-				Module['onHeaders'](chunk);
-				return;
-			}
-			console.log('headers', {
-				chunk,
-			});
-		},
-		onStdout: function (chunk) {
-			if (Module['onStdout']) {
-				Module['onStdout'](chunk);
-				return;
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				process.stdout.write(chunk);
-			} else {
-				console.log('stdout', {
-					chunk,
-				});
-			}
-		},
-		onStderr: function (chunk) {
-			if (Module['onStderr']) {
-				Module['onStderr'](chunk);
-				return;
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				process.stderr.write(chunk);
-			} else {
-				console.warn('stderr', {
-					chunk,
-				});
-			}
-		},
-		getAllWebSockets: function (sock) {
-			const webSockets = new Set();
-			if (sock.server) {
-				sock.server.clients.forEach((ws) => {
-					webSockets.add(ws);
-				});
-			}
-			for (const peer of PHPWASM.getAllPeers(sock)) {
-				webSockets.add(peer.socket);
-			}
-			return Array.from(webSockets);
-		},
-		getAllPeers: function (sock) {
-			const peers = new Set();
-			if (sock.server) {
-				sock.pending
-					.filter((pending) => pending.peers)
-					.forEach((pending) => {
-						for (const peer of Object.values(pending.peers)) {
-							peers.add(peer);
-						}
-					});
-			}
-			if (sock.peers) {
-				for (const peer of Object.values(sock.peers)) {
-					peers.add(peer);
-				}
-			}
-			return Array.from(peers);
-		},
-		awaitData: function (ws) {
-			return PHPWASM.awaitEvent(ws, 'message');
-		},
-		awaitConnection: function (ws) {
-			if (ws.OPEN === ws.readyState) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'open');
-		},
-		awaitClose: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'close');
-		},
-		awaitError: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'error');
-		},
-		awaitEvent: function (ws, event) {
-			let resolve;
-			const listener = () => {
-				resolve();
-			};
-			const promise = new Promise(function (_resolve) {
-				resolve = _resolve;
-				ws.once(event, listener);
-			});
-			const cancel = () => {
-				ws.removeListener(event, listener);
-				// Rejecting the promises bubbles up and kills the entire
-				// node process. Let's resolve them on the next tick instead
-				// to give the caller some space to unbind any handlers.
-				setTimeout(resolve);
-			};
-			return [promise, cancel];
-		},
-		noop: function () {},
-		spawnProcess: function (command, args, options) {
-			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
-					command,
-					args,
-					options
-				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
-					if (!spawned || !spawned.on) {
-						throw new Error(
-							'spawnProcess() must return an EventEmitter but returned a different type.'
-						);
-					}
-					return spawned;
-				});
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
-				});
-			}
-			const e = new Error(
-				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
-					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-					'and similar functions via php.ini.'
-			);
-			e.code = 'SPAWN_UNSUPPORTED';
-			throw e;
-		},
-		shutdownSocket: function (socketd, how) {
-			// This implementation only supports websockets at the moment
-			const sock = getSocketFromFD(socketd);
-			const peer = Object.values(sock.peers)[0];
-			if (!peer) {
-				return -1;
-			}
-			try {
-				peer.socket.close();
-				SOCKFS.websocket_sock_ops.removePeer(sock, peer);
-				return 0;
-			} catch (e) {
-				console.log('Socket shutdown error', e);
-				return -1;
-			}
-		},
-	};
-
 	function _js_create_input_device(deviceId) {
 		let dataBuffer = [];
 		let dataCallback;
@@ -9574,11 +9387,8 @@ export function init(RuntimeName, PHPLoader) {
 	var _wasm_sleep = (Module['_wasm_sleep'] = (a0) =>
 		(_wasm_sleep = Module['_wasm_sleep'] = wasmExports['Bb'])(a0));
 
-	var _wasm_trace = (Module['_wasm_trace'] = (a0, a1) =>
-		(_wasm_trace = Module['_wasm_trace'] = wasmExports['Cb'])(a0, a1));
-
 	var ___wrap_select = (Module['___wrap_select'] = (a0, a1, a2, a3, a4) =>
-		(___wrap_select = Module['___wrap_select'] = wasmExports['Db'])(
+		(___wrap_select = Module['___wrap_select'] = wasmExports['Cb'])(
 			a0,
 			a1,
 			a2,
@@ -9588,95 +9398,98 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _wasm_set_sapi_name = (Module['_wasm_set_sapi_name'] = (a0) =>
 		(_wasm_set_sapi_name = Module['_wasm_set_sapi_name'] =
-			wasmExports['xb'])(a0));
+			wasmExports['Db'])(a0));
 
 	var _wasm_set_phpini_path = (Module['_wasm_set_phpini_path'] = (a0) =>
 		(_wasm_set_phpini_path = Module['_wasm_set_phpini_path'] =
-			wasmExports['yb'])(a0));
+			wasmExports['Eb'])(a0));
 
 	var _wasm_add_cli_arg = (Module['_wasm_add_cli_arg'] = (a0) =>
-		(_wasm_add_cli_arg = Module['_wasm_add_cli_arg'] = wasmExports['zb'])(
+		(_wasm_add_cli_arg = Module['_wasm_add_cli_arg'] = wasmExports['Fb'])(
 			a0
 		));
 
 	var _run_cli = (Module['_run_cli'] = () =>
-		(_run_cli = Module['_run_cli'] = wasmExports['Ab'])());
+		(_run_cli = Module['_run_cli'] = wasmExports['Gb'])());
 
 	var _wasm_add_SERVER_entry = (Module['_wasm_add_SERVER_entry'] = (a0, a1) =>
 		(_wasm_add_SERVER_entry = Module['_wasm_add_SERVER_entry'] =
-			wasmExports['Ib'])(a0, a1));
+			wasmExports['Hb'])(a0, a1));
 
 	var _wasm_add_ENV_entry = (Module['_wasm_add_ENV_entry'] = (a0, a1) =>
 		(_wasm_add_ENV_entry = Module['_wasm_add_ENV_entry'] =
-			wasmExports['Jb'])(a0, a1));
+			wasmExports['Ib'])(a0, a1));
 
 	var _wasm_set_query_string = (Module['_wasm_set_query_string'] = (a0) =>
 		(_wasm_set_query_string = Module['_wasm_set_query_string'] =
-			wasmExports['Kb'])(a0));
+			wasmExports['Jb'])(a0));
 
 	var _wasm_set_path_translated = (Module['_wasm_set_path_translated'] = (
 		a0
 	) =>
 		(_wasm_set_path_translated = Module['_wasm_set_path_translated'] =
-			wasmExports['Lb'])(a0));
+			wasmExports['Kb'])(a0));
 
 	var _wasm_set_skip_shebang = (Module['_wasm_set_skip_shebang'] = (a0) =>
 		(_wasm_set_skip_shebang = Module['_wasm_set_skip_shebang'] =
-			wasmExports['Mb'])(a0));
+			wasmExports['Lb'])(a0));
 
 	var _wasm_set_request_uri = (Module['_wasm_set_request_uri'] = (a0) =>
 		(_wasm_set_request_uri = Module['_wasm_set_request_uri'] =
-			wasmExports['Nb'])(a0));
+			wasmExports['Mb'])(a0));
 
 	var _wasm_set_request_method = (Module['_wasm_set_request_method'] = (a0) =>
 		(_wasm_set_request_method = Module['_wasm_set_request_method'] =
-			wasmExports['Ob'])(a0));
+			wasmExports['Nb'])(a0));
 
 	var _wasm_set_request_host = (Module['_wasm_set_request_host'] = (a0) =>
 		(_wasm_set_request_host = Module['_wasm_set_request_host'] =
-			wasmExports['Pb'])(a0));
+			wasmExports['Ob'])(a0));
 
 	var _wasm_set_content_type = (Module['_wasm_set_content_type'] = (a0) =>
 		(_wasm_set_content_type = Module['_wasm_set_content_type'] =
-			wasmExports['Qb'])(a0));
+			wasmExports['Pb'])(a0));
 
 	var _wasm_set_request_body = (Module['_wasm_set_request_body'] = (a0) =>
 		(_wasm_set_request_body = Module['_wasm_set_request_body'] =
-			wasmExports['Rb'])(a0));
+			wasmExports['Qb'])(a0));
 
 	var _wasm_set_content_length = (Module['_wasm_set_content_length'] = (a0) =>
 		(_wasm_set_content_length = Module['_wasm_set_content_length'] =
-			wasmExports['Sb'])(a0));
+			wasmExports['Rb'])(a0));
 
 	var _wasm_set_cookies = (Module['_wasm_set_cookies'] = (a0) =>
-		(_wasm_set_cookies = Module['_wasm_set_cookies'] = wasmExports['Tb'])(
+		(_wasm_set_cookies = Module['_wasm_set_cookies'] = wasmExports['Sb'])(
 			a0
 		));
 
 	var _wasm_set_request_port = (Module['_wasm_set_request_port'] = (a0) =>
 		(_wasm_set_request_port = Module['_wasm_set_request_port'] =
-			wasmExports['Ub'])(a0));
+			wasmExports['Tb'])(a0));
 
 	var _wasm_sapi_request_shutdown = (Module['_wasm_sapi_request_shutdown'] =
 		() =>
 			(_wasm_sapi_request_shutdown = Module[
 				'_wasm_sapi_request_shutdown'
 			] =
-				wasmExports['Vb'])());
+				wasmExports['Ub'])());
 
 	var _wasm_sapi_handle_request = (Module['_wasm_sapi_handle_request'] = () =>
 		(_wasm_sapi_handle_request = Module['_wasm_sapi_handle_request'] =
-			wasmExports['Wb'])());
+			wasmExports['Vb'])());
 
 	var _php_wasm_init = (Module['_php_wasm_init'] = () =>
-		(_php_wasm_init = Module['_php_wasm_init'] = wasmExports['Xb'])());
+		(_php_wasm_init = Module['_php_wasm_init'] = wasmExports['Wb'])());
 
 	var _wasm_free = (Module['_wasm_free'] = (a0) =>
-		(_wasm_free = Module['_wasm_free'] = wasmExports['Yb'])(a0));
+		(_wasm_free = Module['_wasm_free'] = wasmExports['Xb'])(a0));
 
 	var _wasm_get_end_offset = (Module['_wasm_get_end_offset'] = (a0) =>
 		(_wasm_get_end_offset = Module['_wasm_get_end_offset'] =
-			wasmExports['Zb'])(a0));
+			wasmExports['Yb'])(a0));
+
+	var _wasm_trace = (Module['_wasm_trace'] = (a0, a1) =>
+		(_wasm_trace = Module['_wasm_trace'] = wasmExports['Zb'])(a0, a1));
 
 	var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports['_b'])();
 
