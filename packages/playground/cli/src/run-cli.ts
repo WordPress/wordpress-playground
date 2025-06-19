@@ -26,6 +26,7 @@ import {
 import type {
 	BlueprintDeclaration,
 	PHPExceptionDetails,
+	ParsedBlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import {
 	parseBlueprintDeclaration,
@@ -39,7 +40,6 @@ import { startServer } from './server';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { ParsedBlueprintV2Declaration } from 'packages/playground/blueprints/src/lib/v2';
 import path from 'path';
 import yargs from 'yargs';
 import {
