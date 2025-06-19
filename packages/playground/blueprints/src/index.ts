@@ -40,8 +40,11 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/resources';
-export { runBlueprintV2 } from './lib/v2';
-export type { PHPExceptionDetails } from './lib/v2';
+export type {
+	PHPExceptionDetails,
+	ParsedBlueprintV2Declaration,
+} from './lib/v2';
+export { runBlueprintV2, parseBlueprintDeclaration } from './lib/v2';
 
 export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';

@@ -27,7 +27,10 @@ import type {
 	BlueprintDeclaration,
 	PHPExceptionDetails,
 } from '@wp-playground/blueprints';
-import { runBlueprintV2 } from '@wp-playground/blueprints';
+import {
+	parseBlueprintDeclaration,
+	runBlueprintV2,
+} from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import fs, { existsSync } from 'fs';
 import type { Server } from 'http';
@@ -36,6 +39,7 @@ import { startServer } from './server';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { ParsedBlueprintV2Declaration } from 'packages/playground/blueprints/src/lib/v2';
 import path from 'path';
 import yargs from 'yargs';
 import {
@@ -133,13 +137,10 @@ export async function parseOptionsAndRunCLI() {
 		})
 
 		// Blueprints v2 CLI options
-
-		// @TODO: make this option optional and infer it from the blueprint. This also means
-		//        we need to process the Blueprint before running it.
 		.option('php', {
-			describe: 'PHP version to use.',
+			describe:
+				'PHP version to use. If Blueprint is provided, this option overrides the PHP version specified in the Blueprint.',
 			type: 'string',
-			default: RecommendedPHPVersion,
 			choices: SupportedPHPVersions,
 		})
 
@@ -310,6 +311,44 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			args = expandAutoMounts(args);
 		}
 
+		let phpVersion = args.php;
+		if (!phpVersion) {
+			try {
+				phpVersion = await inferPHP(args.blueprint);
+			} catch (e) {
+				if (e instanceof NonJsonBlueprintError) {
+					output.stderr(
+						`Could not determine the PHP version from the Blueprint. ` +
+							`This usually happens if your Blueprint is not a plain JSON file ` +
+							`(for example, if it's a ZIP, git repo, or another bundle format). ` +
+							`Automatic PHP version detection only works for JSON blueprints. ` +
+							`To continue, please specify the PHP version explicitly using the --php option (e.g. --php=8.2).`
+					);
+					process.exit(1);
+				} else if (e instanceof BlueprintReferenceError) {
+					output.stderr(
+						`Failed to load Blueprint: ${e.message}. ` +
+							`Please check that the Blueprint path or URL is correct.`
+					);
+					process.exit(1);
+				} else if (e instanceof BlueprintParseError) {
+					output.stderr(
+						`Blueprint contains invalid JSON: ${e.parseError}. ` +
+							`Please check the Blueprint syntax and try again.`
+					);
+					process.exit(1);
+				}
+
+				// Generic inference failure
+				throw new Error(
+					`Failed to infer PHP version from Blueprint: ${
+						e instanceof Error ? e.message : 'Unknown error'
+					}. ` +
+						`Please specify the PHP version explicitly using the --php option.`
+				);
+			}
+		}
+
 		// Store errors in memory. Logging all the errors is way too much noise.
 		// Playground CLI curates the error output and only exposes all the errors
 		// when the user specifically asks for it.
@@ -345,10 +384,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				requestHandler = await bootRequestHandler({
 					siteUrl: absoluteUrl,
 					createPhpRuntime: async () =>
-						// Require the caller to specify the PHP version to avoid pre-emptive downloading of the Blueprint
-						// file in TypeScript. PHP downloads the Blueprint, but before we can do that, we also need to know
-						// which PHP version to use.
-						await loadNodeRuntime(args.php, {
+						await loadNodeRuntime(phpVersion, {
 							followSymlinks:
 								args.allow?.includes('follow-symlinks'),
 							emscriptenOptions: {
@@ -614,6 +650,206 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		output.stderr(`--------------------------------\n`);
 
 		throw e;
+	}
+}
+
+/**
+ * Infer the PHP version from the Blueprint declaration when the user
+ * didn't explicitly provide --php. This needs to happen before we boot
+ * the request handler so that we download / load the correct runtime.
+ *
+ * Ideally, we wouldn't need to reason about the Blueprint structure inside
+ * TypeScript at all. We already have great PHP libraries for handling all that.
+ * Unfortunately, we did not boot PHP yet. Even worse, we don't know which PHP
+ * version we need to load yet.
+ *
+ * The code below duplicates the data resolution and Blueprint parsing logic
+ * from the PHP Blueprint runner. We don't need it that much in CLI, since we
+ * could just load any PHP version to parse the Blueprint and then load the
+ * correct runtime. However, we will need it in the browser where downloading
+ * PHP runtimes is expensive. We might as well implement it once and reuse it
+ * in both places.
+ *
+ * ## Limitations
+ *
+ * * It can only handle JSON blueprints. Bundles (ZIP, git, etc.) are unsupported.
+ *   The user must provide an explicit `--php=` version when using a bundle.
+ *
+ * @param blueprint The Blueprint declaration.
+ * @returns The PHP version to use.
+ */
+async function inferPHP(blueprint: string | BlueprintDeclaration | undefined) {
+	if (!blueprint) {
+		return RecommendedPHPVersion;
+	}
+	/**
+	 * Infer the PHP version from the Blueprint declaration when the user
+	 * didn't explicitly provide --php. This needs to happen before we boot
+	 * the request handler so that we download / load the correct runtime.
+	 */
+	const blueprintObject = await resolveBlueprintObject(
+		parseBlueprintDeclaration(blueprint)
+	);
+	if (!blueprintObject || typeof blueprintObject !== 'object') {
+		throw new Error('Blueprint is not a valid object');
+	}
+
+	let requestedPhp: any | string | undefined = undefined;
+	/**
+	 * We must, unfortunately, account for all possible versions of the Blueprint
+	 * schema in here. The transpilation to the latest version only happens in the
+	 * PHP code.
+	 */
+	requestedPhp =
+		blueprintObject.phpVersion ??
+		blueprintObject.preferredVersions?.php ??
+		RecommendedPHPVersion;
+
+	if (
+		blueprintObject.phpVersion &&
+		typeof blueprintObject.phpVersion === 'object'
+	) {
+		return (
+			blueprintObject.phpVersion.recommended ||
+			blueprintObject.phpVersion.max ||
+			blueprintObject.phpVersion.min
+		);
+	} else if (typeof requestedPhp === 'string') {
+		return requestedPhp as SupportedPHPVersion;
+	} else {
+		throw new Error('phpVersion is not a valid object or string');
+	}
+}
+
+async function resolveBlueprintObject(
+	declaration: ParsedBlueprintV2Declaration
+): Promise<any> {
+	if (declaration.type === 'inline-file') {
+		try {
+			return JSON.parse(declaration.contents);
+		} catch (e) {
+			throw new BlueprintParseError(
+				`Failed to parse inline Blueprint JSON`,
+				e instanceof Error ? e.message : 'Unknown JSON parse error'
+			);
+		}
+	}
+	if (declaration.type === 'file-reference') {
+		const filePath = declaration.reference;
+		const isUrl =
+			filePath.startsWith('http://') || filePath.startsWith('https://');
+		let contents: string;
+
+		try {
+			if (isUrl) {
+				const response = await fetch(filePath);
+				if (!response.ok) {
+					throw new BlueprintReferenceError(
+						`Failed to fetch Blueprint from URL (HTTP ${response.status})`,
+						filePath,
+						response.status
+					);
+				}
+				contents = await response.text();
+			} else {
+				const resolvedPath = filePath.startsWith('/')
+					? filePath
+					: path.resolve(process.cwd(), filePath);
+
+				if (!existsSync(resolvedPath)) {
+					throw new BlueprintReferenceError(
+						`Blueprint file not found`,
+						resolvedPath
+					);
+				}
+
+				try {
+					contents = fs.readFileSync(resolvedPath, 'utf8');
+				} catch (e) {
+					if ((e as any).code === 'ENOENT') {
+						throw new BlueprintReferenceError(
+							`Blueprint file not found`,
+							resolvedPath
+						);
+					}
+					throw new BlueprintReferenceError(
+						`Failed to read Blueprint file: ${
+							(e as any).message || 'Unknown error'
+						}`,
+						resolvedPath
+					);
+				}
+			}
+		} catch (e) {
+			// Re-throw our custom errors
+			if (e instanceof BlueprintReferenceError) {
+				throw e;
+			}
+			// Handle other network/fetch errors
+			throw new BlueprintReferenceError(
+				`Failed to load Blueprint: ${
+					e instanceof Error ? e.message : 'Unknown error'
+				}`,
+				filePath
+			);
+		}
+
+		try {
+			return JSON.parse(contents);
+		} catch (e) {
+			// Check if this looks like a non-JSON file (ZIP, binary, etc.)
+			if (
+				contents.startsWith('PK') ||
+				contents.includes('\x00') ||
+				!contents.trim().startsWith('{')
+			) {
+				const detectedType = contents.startsWith('PK')
+					? 'ZIP archive'
+					: contents.includes('\x00')
+					? 'binary file'
+					: 'non-JSON text file';
+				throw new NonJsonBlueprintError(
+					`Blueprint appears to be a ${detectedType}, not a JSON file`,
+					detectedType
+				);
+			}
+			throw new BlueprintParseError(
+				`Failed to parse Blueprint JSON from ${isUrl ? 'URL' : 'file'}`,
+				e instanceof Error ? e.message : 'Unknown JSON parse error'
+			);
+		}
+	}
+	throw new NonJsonBlueprintError(
+		`Unknown blueprint declaration type`,
+		'unknown'
+	);
+}
+
+/**
+ * Custom error classes for blueprint resolution failures
+ */
+class NonJsonBlueprintError extends Error {
+	constructor(message: string, public readonly blueprintType: string) {
+		super(message);
+		this.name = 'NonJsonBlueprintError';
+	}
+}
+
+class BlueprintReferenceError extends Error {
+	constructor(
+		message: string,
+		public readonly reference: string,
+		public readonly statusCode?: number
+	) {
+		super(message);
+		this.name = 'BlueprintReferenceError';
+	}
+}
+
+class BlueprintParseError extends Error {
+	constructor(message: string, public readonly parseError: string) {
+		super(message);
+		this.name = 'BlueprintParseError';
 	}
 }
 
