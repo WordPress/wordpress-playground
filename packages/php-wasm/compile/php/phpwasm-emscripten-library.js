@@ -108,7 +108,7 @@ const LibraryExample = {
 							}
 						}
 				};
-			
+
 			// Clean up the fd -> childProcess mapping when the fd is closed:
 			const originalClose = FS.close;
 			FS.close = function (stream) {
@@ -143,7 +143,7 @@ const LibraryExample = {
 				return originalPutChar(tty, val);
 			};
 		},
-		
+
 		// Default output stream handlers.
 		// @TODO Consider using Emscripten's default print and printErr instead.
 		onHeaders: function (chunk) {
@@ -803,10 +803,15 @@ const LibraryExample = {
 		return 0;
 	},
 
-	// TODO: Document "real" PID in PR description
-	// Provide "real" PID to help with logging when debugging multi-worker issues
+	/**
+	 * Returns the assigned process ID of the current process or 42 if not available.
+	 *
+	 * Emscripten's built-in getpid() always returns 42,
+	 * but we will provide our assigned process ID if available.
+	 * Using distinct IDs allows us to associate trace messages with their php-wasm process.
+	 */
 	js_getpid() {
-		return PHPLoader.processId;
+		return PHPLoader.processId ?? 42;
 	},
 
 	// TODO: Document this inline
