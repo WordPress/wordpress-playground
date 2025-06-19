@@ -30,7 +30,6 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
-import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
@@ -319,12 +318,6 @@ export async function bootPlaygroundRemote() {
 					wpFrame,
 					getOrigin((await playground.absoluteUrl)!)
 				);
-
-				if (options.withNetworking) {
-					await setupFetchNetworkTransport(phpWorkerApi, {
-						corsProxyUrl: options.corsProxyUrl,
-					});
-				}
 
 				setAPIReady();
 			} catch (e) {

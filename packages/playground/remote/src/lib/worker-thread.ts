@@ -37,7 +37,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -55,6 +55,7 @@ import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
+import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -334,6 +335,21 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 							});
 						},
 					});
+				},
+				onPHPInstanceCreated: async (php: PHP) => {
+					/**
+	 				 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
+	   				 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
+		 			 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
+	   				 * instances without a network call handler.
+		 			 *
+					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
+	   				 */ 
+					if (withNetworking) {
+						await setupFetchNetworkTransport(php, {
+							corsProxyUrl: corsProxyUrl,
+						});
+					}
 				},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
