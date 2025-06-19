@@ -3,9 +3,9 @@ import { PHPWorker, consumeAPI, exposeAPI } from '@php-wasm/universal';
 import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { parentPort } from 'worker_threads';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { sprintf } from '@php-wasm/util';
+import { parentPort } from 'worker_threads';
 import { rootCertificates } from 'tls';
 
 export interface Mount {
@@ -53,18 +53,6 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 
 export class PlaygroundCliWorker extends PHPWorker {
 	booted = false;
-
-	/**
-	 * A string representing the requested version of WordPress.
-	 */
-	requestedWordPressVersion: string | undefined;
-
-	/**
-	 * A string representing the version of WordPress that was loaded.
-	 */
-	loadedWordPressVersion: string | undefined;
-
-	unmounts: Record<string, () => any> = {};
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -157,7 +145,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
 
-			// TODO: Restore logic to zipDirectory prior to mounting
 			mountResources(primaryPhp, mountsAfterWpInstall);
 
 			setApiReady();
