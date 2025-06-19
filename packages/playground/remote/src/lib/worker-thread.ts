@@ -337,6 +337,14 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					});
 				},
 				onPHPInstanceCreated: async (php: PHP) => {
+					/**
+	 				 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
+	   				 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
+		 			 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
+	   				 * instances without a network call handler.
+		 			 *
+					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
+	   				 */ 
 					if (withNetworking) {
 						await setupFetchNetworkTransport(php, {
 							corsProxyUrl: corsProxyUrl,
