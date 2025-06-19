@@ -84,7 +84,7 @@ RUN cd /root/php-src && make install
 
 # Build Xdebug
 RUN set -euxo pipefail; \
-
+	# See https://xdebug.org/docs/compat for XDebug / PHP compatibility matrix.
 	if [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_4"; \
 	else \
