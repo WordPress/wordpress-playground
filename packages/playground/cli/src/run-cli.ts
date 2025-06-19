@@ -289,6 +289,23 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	let streamedResponse: StreamedPHPResponse | undefined;
 	try {
+		// Store errors in memory. Logging all the errors is way too much noise.
+		// Playground CLI curates the error output and only exposes all the errors
+		// when the user specifically asks for it.
+		if (!args.debug) {
+			// @TODO: Implement this
+			// logger.handlers = [logToMemory];
+		}
+
+		if (args.quiet) {
+			output = {
+				lastWriteWasProgress: false,
+				progress: () => {},
+				stdout: () => {},
+				stderr: () => {},
+			};
+		}
+
 		/**
 		 * Expand auto-mounts to include the necessary mounts and steps
 		 * when running in auto-mount mode.
@@ -333,22 +350,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						`Please specify the PHP version explicitly using the --php option.`
 				);
 			}
-		}
-
-		// Store errors in memory. Logging all the errors is way too much noise.
-		// Playground CLI curates the error output and only exposes all the errors
-		// when the user specifically asks for it.
-		if (!args.debug) {
-			// logger.handlers = [logToMemory];
-		}
-
-		if (args.quiet) {
-			output = {
-				lastWriteWasProgress: false,
-				progress: () => {},
-				stdout: () => {},
-				stderr: () => {},
-			};
 		}
 
 		let requestHandler: PHPRequestHandler;
