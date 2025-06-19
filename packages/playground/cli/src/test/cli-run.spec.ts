@@ -1,15 +1,13 @@
+import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readdirSync } from 'node:fs';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runCLI } from '../run-cli';
-import type { RunCLIServer } from '../run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { promisify } from 'node:util';
-import { exec } from 'node:child_process';
-import { mkdir, mkdirSync, readdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
-import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
+import type { RunCLIServer } from '../run-cli';
+import { runCLI } from '../run-cli';
 describe('cli-run', () => {
 	let cliServer: RunCLIServer;
 

@@ -1,5 +1,5 @@
 import { createSpawnHandler } from '@php-wasm/util';
-import { PHPProcessManager } from './php-process-manager';
+import type { PHPProcessManager } from './php-process-manager';
 import { logger } from '@php-wasm/logger';
 
 export function sandboxedSpawnHandlerFactory(

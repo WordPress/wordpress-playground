@@ -1,9 +1,8 @@
 import path from 'node:path';
-import { vi, describe, test, expect, afterEach } from 'vitest';
 import type { MockInstance } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { expandAutoMounts } from './mounts';
 import type { RunCLIArgs } from './run-cli';
-import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 
 describe('expandAutoMounts', () => {
 	afterEach(() => {
