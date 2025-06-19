@@ -35,7 +35,6 @@ import { startServer } from './server';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import type { PlaygroundCliWorker, Mount } from './worker-thread';
 // @ts-ignore
-import importedWorkerUrlString from './worker-thread?worker&url';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
 
@@ -195,12 +194,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 */
 	async function spawnPHPWorkerThread(workerUrl: URL) {
 		const worker = new Worker(workerUrl);
-		// const worker = new Worker(workerUrl, {
-		// 	...(import.meta?.env?.DEV
-		// 		// Support loading the worker module in Vitest
-		// 		? (console.log('DEV'), { execArgv: ['--require', 'ts-node/register'] })
-		// 		: {}),
-		// });
 
 		return new Promise<Worker>((resolve, reject) => {
 			worker.once('message', (event: string) => {
