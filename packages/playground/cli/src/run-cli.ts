@@ -160,13 +160,6 @@ export async function parseOptionsAndRunCLI() {
 			hidden: true,
 		})
 
-		.option('sitePath', {
-			describe:
-				'[DEPRECATED] Target directory with WordPress install context. This option is deprecated and will be replaced by --target-path.',
-			type: 'string',
-			hidden: true,
-		})
-
 		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 		// ReadOnlyNODEFS, or by copying the files into MEMFS
 		.option('mount', {
@@ -218,13 +211,6 @@ export async function parseOptionsAndRunCLI() {
 			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 			type: 'boolean',
 			default: false,
-		})
-		.option('followSymlinks', {
-			describe:
-				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
-			type: 'boolean',
-			default: false,
-			hidden: true,
 		})
 		// Blueprint CLI options
 		.option('mode', {
