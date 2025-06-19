@@ -358,7 +358,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 		output.stdout('Starting a PHP server...\n');
 
-		// @TODO: if args.php is missing, try to infer it from parsedBlueprintDeclaration
 		return await startServer({
 			port: args['port'] as number,
 			onBind: async (
