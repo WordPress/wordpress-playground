@@ -87,7 +87,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	local?: NodeEndpoint
+	targetWorker?: NodeEndpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
@@ -115,13 +115,11 @@ export function exposeAPI<Methods, PipedAPI>(
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
 	let endpoint: Endpoint | undefined;
-	// NOTE: We can expand this to support other local endpoints,
-	// but for now, we only need support for NodeEndpoints.
-	if (local) {
-		endpoint = nodeEndpoint(local);
-	}
-
-	if (local === undefined) {
+	if (targetWorker) {
+		// NOTE: If there are other target types, we could expand this later,
+		// but for now, we only need support for NodeEndpoints.
+		endpoint = nodeEndpoint(targetWorker);
+	} else {
 		endpoint =
 			typeof window !== 'undefined'
 				? Comlink.windowEndpoint(self.parent)
