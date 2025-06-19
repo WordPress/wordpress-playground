@@ -36,6 +36,7 @@ import { startServer } from './server';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import path from 'path';
 import yargs from 'yargs';
 import {
 	expandAutoMounts,
@@ -44,7 +45,6 @@ import {
 	parseMountWithDelimiterArguments,
 	type Mount,
 } from './mounts';
-import path from 'path';
 
 export interface RunCLIArgs {
 	additionalBlueprintSteps?: any[];
@@ -270,7 +270,7 @@ export async function parseOptionsAndRunCLI() {
 			describe: 'Allowed permissions (comma-separated)',
 			type: 'string',
 			coerce: (value) => value.split(','),
-			choices: ['bundled-files', 'follow-symlinks-anywhere'],
+			choices: ['bundled-files', 'follow-symlinks'],
 		})
 		.showHelpOnFail(false);
 
@@ -349,9 +349,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						// file in TypeScript. PHP downloads the Blueprint, but before we can do that, we also need to know
 						// which PHP version to use.
 						await loadNodeRuntime(args.php, {
-							followSymlinks: args.allow?.includes(
-								'follow-symlinks-anywhere'
-							),
+							followSymlinks:
+								args.allow?.includes('follow-symlinks'),
 							emscriptenOptions: {
 								ENV: {
 									DOCROOT: '/wordpress',
@@ -365,8 +364,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					},
 					phpIniEntries: {
 						'openssl.cafile': '/internal/shared/ca-bundle.crt',
-						allow_url_fopen: '1',
-						disable_functions: '',
 					},
 					cookieStore: false,
 					spawnHandler: (processManager) =>
@@ -505,8 +502,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					}
 					wordPressReady = true;
 
-					// @TODO: Should we also support this via the platform options in the Blueprint?
-					//        Maybe the PHP runtime could post a message when it processed the Blueprint?
 					if (args.login) {
 						php.defineConstant(
 							'PLAYGROUND_AUTO_LOGIN_AS_USER',
