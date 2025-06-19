@@ -1547,6 +1547,8 @@ int wasm_sapi_request_init()
 	return SUCCESS;
 }
 
+extern void js_release_file_locks();
+
 /**
  * Function: wasm_sapi_request_shutdown
  * ----------------------------
@@ -1895,7 +1897,6 @@ EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
 }
 
 // TODO: Move these and comment them
-extern void js_release_file_locks();
 extern int js_flock(int fd, int op);
 extern pid_t js_getpid();
 extern void js_wasm_trace(const char *msg);
