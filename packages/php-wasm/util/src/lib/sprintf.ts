@@ -16,63 +16,71 @@ export function sprintf(format: string, ...args: any[]): string {
 
 	for (let i = 0; i < format.length; i++) {
 		if (format[i] === '%' && i + 1 < format.length) {
-			const specifier = format[i + 1];
+			i++;
+			const specifier = format[i];
 
 			switch (specifier) {
 				case 's': {
-					let str = String(args[argIndex++]);
-					if (str === '[object Object]') {
+					const arg = args[argIndex++];
+					let str;
+					if (typeof arg === 'object') {
 						try {
 							// If an object doesn't provide its own toString(),
 							// try to represent it as JSON.
-							str = JSON.stringify(args[argIndex++], null, 2);
+							str = JSON.stringify(
+								arg,
+								// Represent bigint values as strings in JSON.stringify().
+								(key, value) => {
+									if (typeof value === 'bigint') {
+										return `0x${value.toString(16)}`;
+									}
+									return value;
+								},
+								2
+							);
 						} catch {
 							// Ignore error and use default representation.
 						}
+					} else {
+						str = String(arg);
 					}
+
 					result += str;
-					i++;
 					break;
 				}
 				case 'd': {
-					const dValue = args[argIndex++];
-					if (typeof dValue === 'bigint') {
-						result += dValue.toString();
+					const arg = args[argIndex++];
+					if (typeof arg === 'bigint') {
+						result += arg.toString();
 					} else {
-						result += Math.floor(Number(dValue));
+						result += Math.floor(Number(arg));
 					}
-					i++;
 					break;
 				}
 				case 'f': {
-					const fValue = args[argIndex++];
-					if (typeof fValue === 'bigint') {
-						result += Number(fValue);
+					const arg = args[argIndex++];
+					if (typeof arg === 'bigint') {
+						result += Number(arg);
 					} else {
-						result += Number(fValue);
+						result += Number(arg);
 					}
-					i++;
 					break;
 				}
 				case 'x': {
-					const xValue = args[argIndex++];
-					if (typeof xValue === 'bigint') {
-						result += xValue.toString(16);
+					const arg = args[argIndex++];
+					if (typeof arg === 'bigint') {
+						result += arg.toString(16);
 					} else {
-						result += Math.floor(Number(xValue)).toString(16);
+						result += Math.floor(Number(arg)).toString(16);
 					}
-					i++;
 					break;
 				}
 				case '%': {
 					result += '%';
-					i++;
 					break;
 				}
 				default: {
 					result += '%' + specifier;
-					i++;
-					break;
 				}
 			}
 		} else {
