@@ -87,16 +87,16 @@ The `server` command supports the following optional arguments:
 -   `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
 -   `--outfile`: When building, write to this output file.
 -   `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
--   `--autoMount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
--   `--mount=<mapping>`: Manually mount a directory. Format: /host/path:/vfs/path. It can be used multiple times.
--   `--mountBeforeInstall`: Mount a directory to the PHP runtime before installing WordPress. You can provide `--mountBeforeInstall` or `--mount-before-install` multiple times. Format: `/host/path:/vfs/path`.
--   `--mountDir`: Mount a directory to the PHP runtime. You can provide `--mountDir` or `--mount-dir` multiple times. Format: `"/host/path"` `"/vfs/path"`
--   `--mountDirBeforeInstall`: Mount a directory to the PHP runtime before installing WordPress. You can provide `--mountDirBeforeInstall` or `--mount-dir-before-install` multiple times. Format: `"/host/path"` `"/vfs/path"`
+-   `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
+-   `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: /host/path:/vfs/path
+-   `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
+-   `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
+-   `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`
 -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
--   `--blueprintMayReadAdjacentFiles`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
+-   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 -   `--login`: Automatically log the user in as an administrator.
--   `--skipWordPressSetup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
--   `--skipSqliteSetup`: Do not set up the SQLite database integration.
+-   `--skip-word-pressSetup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
+-   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 -   `--quiet`: Do not output logs and progress messages.
 -   `--debug`: Print the PHP error log if an error occurs during boot.
 
