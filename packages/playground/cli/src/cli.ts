@@ -49,7 +49,7 @@ async function run() {
 		// ReadOnlyNODEFS, or by copying the files into MEMFS
 		.option('mount', {
 			describe:
-				'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
+				'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
 			coerce: parseMountWithDelimiterArguments,
