@@ -5,6 +5,7 @@ set -euo pipefail
 if node -e 'if (parseInt(process.versions.node) < 22) { process.exit(0); }'; then
 	source ~/.nvm/nvm.sh
 	nvm install 22
+	npm ci
 fi
 
 # Run Playground CLI with a timeout.
@@ -25,7 +26,7 @@ if grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; then
 	exit 0
 else
 	cat playground-cli-test-output
-	echo 
+	echo
 	echo Playground CLI failed to start
 	exit 1
 fi
