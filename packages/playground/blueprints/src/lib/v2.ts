@@ -86,9 +86,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 			break;
 	}
 
-	// @TODO: Unbind this listener after a successful run.
-	//        Maybe propagate messages via addEventListener etc?
-	await php.onMessage(async (message) => {
+	const unbindMessageListener = await php.onMessage(async (message) => {
 		try {
 			const parsed =
 				typeof message === 'string' ? JSON.parse(message) : message;
@@ -215,13 +213,16 @@ playground_add_filter('blueprint.progress_reporter', 'playground_progress_report
 require( "/tmp/blueprints.phar" );
 `
 	);
-	return (await (php as any).cli([
+	const streamedResponse = (await (php as any).cli([
 		'/internal/shared/bin/php',
 		'/tmp/run-blueprints.php',
 		'exec',
 		blueprintReference,
 		...cliArgs,
 	])) as StreamedPHPResponse;
+
+	streamedResponse.finished.finally(unbindMessageListener);
+	return streamedResponse;
 }
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
