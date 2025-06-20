@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 17684221;
+export const dependenciesTotalSize = 17684220;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -9600,7 +9600,10 @@ export function init(RuntimeName, PHPLoader) {
 
 		var originalHashAddNode = FS.hashAddNode;
 		FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
-			if (locking?.is_shared_fs_node(node)) {
+			if (
+				typeof locking === 'object' &&
+				locking?.is_shared_fs_node(node)
+			) {
 				// Avoid caching shared VFS nodes so multiple instances
 				// can access the same underlying filesystem without
 				// conflicting caches.
