@@ -1,19 +1,16 @@
 import { openSync, closeSync } from 'fs';
-import { flockSync } from 'fs-ext';
+import { lock as nativeFileLock } from 'os-lock';
 
 process.on('message', (message) => {
 	if (message.type === 'acquire') {
 		try {
-			// Open the file
 			const fd = openSync(message.filePath, 'a+');
 
-			// Convert lock type to flock flags
-			const flockFlags =
-				message.lockType === 'exclusive' ? 'exnb' : 'shnb';
-
-			// Attempt to acquire the lock
 			try {
-				flockSync(fd, flockFlags);
+				nativeFileLock(fd, {
+					exclusive: message.lockType === 'exclusive',
+					immediate: true,
+				});
 				process.send?.({ type: 'success', fd });
 			} catch (error) {
 				closeSync(fd);
