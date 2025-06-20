@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = __dirname + '/7_3_33/php_7_3.wasm';
+const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
 export const dependenciesTotalSize = 17915848;
 export function init(RuntimeName, PHPLoader) {
@@ -5502,7 +5502,7 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	function _js_getpid() {
-		return PHPLoader.processId;
+		return PHPLoader.processId ?? 42;
 	}
 
 	function _js_wasm_trace(format, ...args) {
@@ -5523,7 +5523,6 @@ export function init(RuntimeName, PHPLoader) {
 			return -ERRNO_CODES.EBADF;
 		}
 		const result = _builtin_fd_close(fd);
-		// return Asyncify.handleAsync(async () => {
 		if (result === 0 && locking.maybeLockedFds.has(fd)) {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
@@ -5633,17 +5632,21 @@ export function init(RuntimeName, PHPLoader) {
 			1: 'exclusive',
 			2: 'unlocked',
 		},
-		is_path_to_shared_fs(path) {
-			const { node } = FS.lookupPath(path);
+		is_shared_fs_node(node) {
 			if (node?.isSharedFS) {
 				return true;
 			}
+			// Handle PROXYFS nodes which wrap other nodes.
 			if (!node?.mount?.opts?.fs?.lookupPath) {
 				return false;
 			}
 			const vfsPath = NODEFS.realPath(node);
 			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
 			return !!underlyingNode?.isSharedFS;
+		},
+		is_path_to_shared_fs(path) {
+			const { node } = FS.lookupPath(path);
+			return locking.is_shared_fs_node(node);
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('3');
@@ -5679,12 +5682,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___syscall_fcntl64 = async function __syscall_fcntl64(
-		fd,
-		cmd,
-		varargs
-	) {
-		// return Asyncify.handleAsync(async () => {
+	async function ___syscall_fcntl64(fd, cmd, varargs) {
 		// Necessary to use varargs accessor
 		SYSCALLS.varargs = varargs;
 		// These constants are replaced by Emscripten during the build process
@@ -6048,7 +6046,7 @@ export function init(RuntimeName, PHPLoader) {
 			default:
 				return _builtin_fcntl64(fd, cmd, varargs);
 		}
-	};
+	}
 
 	___syscall_fcntl64.isAsync = true;
 
@@ -7734,8 +7732,7 @@ export function init(RuntimeName, PHPLoader) {
 		return allocateUTF8OnStack(devicePath);
 	}
 
-	var _js_flock = async function js_flock(fd, op) {
-		// return Asyncify.handleAsync(async () => {
+	async function _js_flock(fd, op) {
 		_js_wasm_trace('js_flock(%d, %d)', fd, op);
 		// Emscripten does not expose these constants to JS, so we hardcode them here.
 		// Based on
@@ -7823,7 +7820,7 @@ export function init(RuntimeName, PHPLoader) {
 			obtainedLock
 		);
 		return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
-	};
+	}
 
 	_js_flock.isAsync = true;
 
@@ -8101,18 +8098,15 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _js_release_file_locks = async function js_release_file_locks() {
 		_js_wasm_trace('js_release_file_locks()');
-		// TODO: Why make this conditional?
-		if (PHPLoader.fileLockManager) {
-			const pid = PHPLoader.processId;
-			return await PHPLoader.fileLockManager
-				.releaseLocksForProcess(pid)
-				.then(() => {
-					_js_wasm_trace('js_release_file_locks succeeded');
-				})
-				.catch((e) => {
-					_js_wasm_trace('js_release_file_locks error %s', e);
-				});
-		}
+		const pid = PHPLoader.processId;
+		return await PHPLoader.fileLockManager
+			.releaseLocksForProcess(pid)
+			.then(() => {
+				_js_wasm_trace('js_release_file_locks succeeded');
+			})
+			.catch((e) => {
+				_js_wasm_trace('js_release_file_locks error %s', e);
+			});
 	};
 
 	_js_release_file_locks.isAsync = true;
@@ -9354,28 +9348,25 @@ export function init(RuntimeName, PHPLoader) {
 		typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 	if (typeof NODEFS === 'object') {
-		// TODO: Document why.
-		// TODO: Mention in PR description
+		// We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
+		// nodes. This way we can tell whether file-locking is needed and possible
+		// for an FS node, even if wrapped with PROXYFS.
+		const originalCreateNode = NODEFS.createNode;
+		NODEFS.createNode = function createNodeWithSharedFlag() {
+			const node = originalCreateNode.apply(NODEFS, arguments);
+			node.isSharedFS = true;
+			return node;
+		};
+
 		var originalHashAddNode = FS.hashAddNode;
-		FS.hashAddNode = function hashAddNodeIfNotNODEFS(node) {
-			if (node.node_ops === NODEFS.node_ops) {
-				// Avoid caching NODEFS VFS nodes so multiple instances
+		FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
+			if (locking?.is_shared_fs_node(node)) {
+				// Avoid caching shared VFS nodes so multiple instances
 				// can access the same underlying filesystem without
 				// conflicting caches.
 				return;
 			}
 			return originalHashAddNode.apply(FS, arguments);
-		};
-
-		// TODO: Document why.
-		// TODO: Mention in PR description
-		const originalCreateNode = NODEFS.createNode;
-		NODEFS.createNode = function createNodeWithSharedFlag() {
-			const node = originalCreateNode.apply(NODEFS, arguments);
-			// TODO: Is this a reasonable solution to marking underlying target of PROXYFS?
-			// TODO: Better name?
-			node.isSharedFS = true;
-			return node;
 		};
 	}
 
