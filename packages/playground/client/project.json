@@ -5,13 +5,26 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/client/README.md dist/packages/playground/client"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/playground/client/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/client",
 				"buildTarget": "playground-client:build:bundle:production"
 			},
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {
 			"executor": "nx:run-commands",
@@ -23,15 +36,6 @@
 					"cp packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
 				],
 				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
-		},
-		"build:README": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"cp packages/playground/client/README.md dist/packages/playground/client"
-				]
 			},
 			"dependsOn": ["build:bundle"]
 		},

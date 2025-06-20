@@ -74,6 +74,7 @@ export type BlueprintDeclaration = {
 		wp: string | 'latest';
 	};
 	features?: {
+		intl?: boolean;
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking?: boolean;
 	};

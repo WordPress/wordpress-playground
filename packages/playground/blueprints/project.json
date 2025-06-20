@@ -5,6 +5,19 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/blueprints/README.md dist/packages/playground/blueprints"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/playground/blueprints/tsconfig.lib.json",

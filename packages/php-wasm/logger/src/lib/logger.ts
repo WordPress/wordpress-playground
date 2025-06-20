@@ -1,5 +1,10 @@
 import { logEvent } from './handlers/log-event';
-import { logToMemory, logToConsole, logs } from './log-handlers';
+import {
+	logToMemory,
+	logToConsole,
+	logs,
+	type LogHandler,
+} from './log-handlers';
 
 export { logEventType } from './handlers/log-event';
 
@@ -21,11 +26,6 @@ export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
  * Log prefix.
  */
 export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
-
-/**
- * Log handler.
- */
-export type LogHandler = (log: Log, ...args: any[]) => void;
 
 /**
  * A logger for Playground.

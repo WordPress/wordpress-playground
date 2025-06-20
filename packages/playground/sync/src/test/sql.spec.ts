@@ -23,7 +23,7 @@ describe('Sync tests', () => {
 				// via the "sqlite_last_insert_id", "sqlite_translated_query_executed",
 				// and "sqlite_transaction_query_executed" hooks.
 				// We need to use the old driver here.
-				'v2.1.17-alpha.1'
+				'v2.1.16'
 			),
 		});
 		php = await handler.getPrimaryPhp();

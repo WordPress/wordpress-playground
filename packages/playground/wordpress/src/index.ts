@@ -1,7 +1,11 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
-export { bootWordPress, getFileNotFoundActionForWordPress } from './boot';
+export {
+	bootWordPress,
+	bootRequestHandler,
+	getFileNotFoundActionForWordPress,
+} from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
@@ -318,7 +322,7 @@ export async function preloadPhpInfoRoute(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
-    if ( ${phpVar(requestPath)} === $_SERVER['REQUEST_URI'] ) {
+    if ( isset($_SERVER['REQUEST_URI']) && ${phpVar(requestPath)} === $_SERVER['REQUEST_URI'] ) {
         phpinfo();
         exit;
     }
@@ -348,7 +352,7 @@ export async function preloadSqliteIntegration(
 
 	// Use the new AST-based SQLite driver.
 	// TODO: Remove this once the new driver is the default; when this is closed:
-	//         https://github.com/Automattic/sqlite-database-integration/issues/50
+	//         https://github.com/WordPress/sqlite-database-integration/issues/195
 	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 	// Prevents the SQLite integration from trying to call activate_plugin()

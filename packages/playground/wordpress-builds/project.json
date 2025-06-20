@@ -93,7 +93,7 @@
 			"options": {
 				"commands": [
 					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration",
-					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v2.1.17-alpha.1 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration"
+					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --plugin-version=v2.1.16 --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration"
 				],
 				"parallel": false
 			}

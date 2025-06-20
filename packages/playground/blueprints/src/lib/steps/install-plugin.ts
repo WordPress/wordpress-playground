@@ -59,7 +59,7 @@ export interface InstallPluginStep<FileResource, DirectoryResource>
 	pluginData: FileResource | DirectoryResource;
 
 	/**
-	 * @deprecated. Use `pluginData` instead.
+	 * @deprecated. Use 'pluginData' instead.
 	 */
 	pluginZipFile?: FileResource;
 

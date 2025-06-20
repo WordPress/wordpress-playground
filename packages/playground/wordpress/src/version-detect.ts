@@ -3,19 +3,26 @@ import type { PHPRequestHandler } from '@php-wasm/universal';
 export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
 ): Promise<string> {
-	const php = await requestHandler.getPrimaryPhp();
-	const result = await php.run({
-		code: `<?php
-			require '${requestHandler.documentRoot}/wp-includes/version.php';
-			echo $wp_version;
-		`,
-	});
+	const { php, reap } =
+		await requestHandler.processManager.acquirePHPInstance({
+			considerPrimary: true,
+		});
+	try {
+		const result = await php.run({
+			code: `<?php
+				require '${requestHandler.documentRoot}/wp-includes/version.php';
+				echo $wp_version;
+			`,
+		});
 
-	const versionString = result.text;
-	if (!versionString) {
-		throw new Error('Unable to read loaded WordPress version.');
+		const versionString = result.text;
+		if (!versionString) {
+			throw new Error('Unable to read loaded WordPress version.');
+		}
+		return versionStringToLoadedWordPressVersion(versionString);
+	} finally {
+		reap();
 	}
-	return versionStringToLoadedWordPressVersion(versionString);
 }
 
 /**

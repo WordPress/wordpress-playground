@@ -6,7 +6,7 @@ slug: /contributing/documentation
 
 [WordPress Playground's documentation site](/) is maintained by volunteers like you, who'd love your help.
 
-All documentation-related issues are labeled [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Documentation) or [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Developer%20Documentation) in the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
+All documentation-related issues are labeled [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22) or [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) in the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 
 ## How can I contribute?
 

@@ -6,6 +6,19 @@
 	"tags": ["scope:web-client"],
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/sync/README.md dist/packages/playground/sync"
+				]
+			},
+			"dependsOn": ["build:vite"]
+		},
+		"build:vite": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",

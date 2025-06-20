@@ -68,6 +68,9 @@
 				"features": {
 					"type": "object",
 					"properties": {
+						"intl": {
+							"type": "boolean"
+						},
 						"networking": {
 							"type": "boolean",
 							"description": "Should boot with support for network request via wp_safe_remote_get?"
@@ -562,7 +565,7 @@
 						},
 						"importer": {
 							"type": "string",
-							"enum": ["default"],
+							"enum": ["data-liberation", "default"],
 							"description": "The importer to use. Possible values:\n\n- `default`: The importer from https://github.com/humanmade/WordPress-Importer\n- `data-liberation`: The experimental Data Liberation WXR importer developed at                      https://github.com/WordPress/wordpress-playground/issues/1894\n\nThis option is deprecated. The syntax will not be removed, but once the Data Liberation importer matures, it will become the only supported importer and the `importer` option will be ignored.",
 							"deprecated": true
 						}
@@ -667,7 +670,7 @@
 						},
 						"pluginZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"deprecated": ". Use `pluginData` instead."
+							"deprecated": ". Use 'pluginData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallPluginOptions",
@@ -715,7 +718,7 @@
 						},
 						"themeZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"deprecated": ". Use `themeData` instead."
+							"deprecated": ". Use 'themeData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallThemeOptions",
@@ -1224,7 +1227,7 @@
 						},
 						"filesTree": {
 							"$ref": "#/definitions/DirectoryReference",
-							"description": "The data to write"
+							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
 						}
 					},
 					"required": ["filesTree", "step", "writeToPath"]

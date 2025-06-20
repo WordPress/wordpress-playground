@@ -1,8 +1,7 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type {
-	PHP,
 	PHPRequest,
 	PHPRequestHandler,
 	SupportedPHPVersion,
@@ -34,14 +33,15 @@ import {
 	readAsFile,
 } from './download';
 import { startServer } from './server';
+import { type Mount, mountResources } from './mount';
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
-	mount?: string[];
-	mountBeforeInstall?: string[];
+	mount?: Mount[];
+	mountBeforeInstall?: Mount[];
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
@@ -101,20 +101,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			fs.writeFileSync(outfile, zip);
 		} finally {
 			reap();
-		}
-	}
-
-	function mountResources(php: PHP, rawMounts: string[]) {
-		const parsedMounts = rawMounts.map((mount) => {
-			const [source, vfsPath] = mount.split(':');
-			return {
-				hostPath: path.resolve(process.cwd(), source),
-				vfsPath,
-			};
-		});
-		for (const mount of parsedMounts) {
-			php.mkdir(mount.vfsPath);
-			php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
 		}
 	}
 

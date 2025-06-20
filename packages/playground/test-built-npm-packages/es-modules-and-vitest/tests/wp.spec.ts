@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { runCLI } from '@wp-playground/cli';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 
-['8.0'].forEach((phpVersion) => {
+SupportedPHPVersions.forEach((phpVersion: string) => {
 	describe(`PHP ${phpVersion}`, () => {
 		it('Should load WordPress', async () => {
 			const cli = await runCLI({
@@ -25,6 +25,6 @@ import { SupportedPHPVersions } from '@php-wasm/universal';
 				await php.exit();
 				await server.close();
 			}
-		});
+		}, 10000);
 	});
 });

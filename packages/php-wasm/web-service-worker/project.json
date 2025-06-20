@@ -5,12 +5,17 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
-			"executor": "@wp-playground/nx-extensions:package-json",
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
 			"options": {
-				"tsConfig": "packages/php-wasm/web-service-worker/tsconfig.lib.json",
-				"outputPath": "dist/packages/php-wasm/web-service-worker",
-				"buildTarget": "php-wasm-web-service-worker:build:bundle:production"
-			}
+				"commands": [
+					"cp packages/php-wasm/web-service-worker/README.md dist/packages/php-wasm/web-service-worker"
+				]
+			},
+			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",

@@ -30,6 +30,7 @@ export default async function packageForSelfHostingExecutor(
 
 	const builtPackagePath =
 		project.data?.targets?.build?.options?.outputPath ||
+		project.data?.targets?.['build:vite']?.options?.outputPath ||
 		project.data?.targets?.['build:bundle']?.options?.outputPath ||
 		project.data?.targets?.['build:package-json']?.options?.outputPath;
 	if (!builtPackagePath) {

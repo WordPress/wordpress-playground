@@ -15,14 +15,14 @@ async function zipFiles(
 
 	await php.run({
 		code: `<?php $zip = new ZipArchive(); 
-					 $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); 
+					 $zip->open("${zipFilePath}", ZIPARCHIVE::CREATE); 
 					 $files = ${phpVar(files)};
 					 foreach($files as $path => $content) {
 						$zip->addFromString($path, $content);
 					 }
-					 $zip->close();`,
+					 $zip->close();
+					 `,
 	});
-
 	const zip = await php.readFileAsBuffer(zipFilePath);
 	php.unlink(zipFilePath);
 	return new File([zip], fileName);

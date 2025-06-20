@@ -73,6 +73,7 @@ export class MaxPhpInstancesError extends Error {
  */
 export class PHPProcessManager implements AsyncDisposable {
 	private primaryPhp?: PHP;
+	private primaryPhpPromise?: Promise<SpawnedPHP>;
 	private primaryIdle = true;
 	private nextInstance: Promise<SpawnedPHP> | null = null;
 	/**
@@ -112,8 +113,11 @@ export class PHPProcessManager implements AsyncDisposable {
 				'phpFactory or primaryPhp must be set before calling getPrimaryPhp().'
 			);
 		} else if (!this.primaryPhp) {
-			const spawned = await this.spawn!({ isPrimary: true });
-			this.primaryPhp = spawned.php;
+			if (!this.primaryPhpPromise) {
+				this.primaryPhpPromise = this.spawn({ isPrimary: true });
+			}
+			this.primaryPhp = (await this.primaryPhpPromise).php;
+			this.primaryPhpPromise = undefined;
 		}
 		return this.primaryPhp!;
 	}
@@ -125,15 +129,43 @@ export class PHPProcessManager implements AsyncDisposable {
 	 * instance, or a newly spawned PHP instance – depending on the resource
 	 * availability.
 	 *
+	 * @param considerPrimary - Whether to consider the primary PHP instance.
+	 *                          It matters because PHP.cli() sets the SAPI to CLI and
+	 *                          kills the entire process after it finishes running,
+	 *                          making the primary PHP instance non-reusable for
+	 *                          subsequent .run() calls. This is fine for one-off
+	 *                          child PHP instances, but not for the primary PHP
+	 *                          that's meant to continue working for the entire duration
+	 *                          of the ProcessManager lifetime. Therefore, we don't
+	 *                          consider the primary PHP instance by default unless
+	 *                          the caller explicitly requests it.
+	 *
 	 * @throws {MaxPhpInstancesError} when the maximum number of PHP instances is reached
 	 *                                and the waiting timeout is exceeded.
 	 */
-	async acquirePHPInstance(): Promise<SpawnedPHP> {
-		if (this.primaryIdle) {
+	async acquirePHPInstance({
+		considerPrimary = true,
+	}: {
+		considerPrimary?: boolean;
+		} = {}): Promise<SpawnedPHP> {
+		/**
+		 * First and foremost, make sure we have the primary PHP instance in place.
+		 * We don't acquire it yet. We just make sure it exists.
+		 *
+		 * @TODO: Decouple Filesystem from PHP to get rid of the notion of a primary PHP instance.
+		 * @see https://github.com/WordPress/wordpress-playground/issues/2269
+		 */
+		if (!this.primaryPhp) {
+			await this.getPrimaryPhp();
+		}
+
+		if (this.primaryIdle && considerPrimary) {
 			this.primaryIdle = false;
 			return {
 				php: await this.getPrimaryPhp(),
-				reap: () => (this.primaryIdle = true),
+				reap: () => {
+					this.primaryIdle = true;
+				},
 			};
 		}
 
@@ -168,10 +200,12 @@ export class PHPProcessManager implements AsyncDisposable {
 	 * for PHP to spawn.
 	 */
 	private spawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
-		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
-			throw new Error(
-				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
-			);
+		if (factoryArgs.isPrimary) {
+			if (this.primaryPhpPromise && !this.primaryPhp) {
+				throw new Error(
+					'Requested spawning a primary PHP instance when another primary instance already started spawning.'
+				);
+			}
 		}
 		const spawned = this.doSpawn(factoryArgs);
 		this.allInstances.push(spawned);

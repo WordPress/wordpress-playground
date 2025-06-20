@@ -50,7 +50,9 @@ export default defineConfig(function () {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.
 				forks: {
-					execArgv: ['--expose-gc'],
+					execArgv: [
+						'--expose-gc'
+					],
 				},
 			},
 			environment: 'node',
@@ -59,6 +61,7 @@ export default defineConfig(function () {
 
 		define: {
 			TEST: JSON.stringify(true),
+			'process.env.PROTOCOL': JSON.stringify('http'),
 		},
 	};
 });
