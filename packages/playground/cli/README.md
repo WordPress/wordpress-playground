@@ -2,7 +2,18 @@
 
 `@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As its predecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
 
-The requirement to run the Playground CLI is to have installed `Node.js 20.18.3` or higher, which you can find at the [Node.js website](https://nodejs.org/en/download).
+# Table of contents
+
+-   [Requirements](#requirements)
+-   [Quickstart](#quickstart)
+-   [Usage](#usage)
+-   [Working with Blueprints](#working-with-blueprints)
+-   [How can I contribute?](#how-can-i-contribute)
+-
+
+## Requirements
+
+The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
 
 ## Quickstart
 
@@ -10,31 +21,10 @@ Running the Playground CLI is as simple as going to your plugin or theme directo
 
 ```bash
 cd my-plugin-or-theme-directory
-npx @wp-playground/cli server --autoMount
+npx @wp-playground/cli server --auto-mount
 ```
 
-The flag `--autoMount` will figure out if the project folder is a plugin or a theme for you. For more custom scenarios, we can work with the following example using the flag `--mount`.
-
-### Mount a project into Playground
-
-To start using the CLI, mount the current project folder to a specific WordPress folder. For example, I would like to set my plugin project folder to `wordpress/wp-content/plugins/`. We will use the following command:
-
-```shell
-cd my-plugin-or-theme-directory
-npx @wp-playground/cli server --mount=.:/wordpress/wp-content/plugins/
-```
-
-# Table of contents
-
--   [Quickstart](#quickstart)
--   [Requirements](#requirements)
--   [Usage](#usage)
--   [Working with Blueprints](#working-with-blueprints)
--   [How can I contribute?](#how-can-i-contribute)
-
-## Requirements
-
-The minimum supported version of Node.js is 20. The latest Long-Term Support (LTS) version (20.18 or later) is recommended.
+The flag `--auto-mount` will figure out if the project folder is a plugin or a theme for you. For more advanced mounting options, see the [Mounting Local Directories](#mounting-local-directories) section.
 
 ## Usage
 
@@ -54,24 +44,23 @@ By default, the CLI will load the latest stable version of WordPress and PHP. To
 
 ### Mounting local Directories
 
-`@wp-playground/cli` operates by mounting your local project files into a virtualized WordPress environment. You can do this automatically or manually.
+`@wp-playground/cli` operates by mounting your local project files into a virtualized WordPress environment. This allows you to work on your plugin or theme with a live WordPress instance without any complex setup. You can do this automatically or manually.
 
-### Automatic Mounting with --autoMount
+For full control, you can manually mount a local directory to a specific path inside the virtual WordPress installation. For example, to mount your current project folder into the plugins directory, use the `--mount` flag:
 
-The `--autoMount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. These are the supported directory types and how they are detected:
+```shell
+cd my-plugin-or-theme-directory
+npx @wp-playground/cli server --mount=.:/wordpress/wp-content/plugins/
+```
+
+### Automatic Mounting with `--auto-mount`
+
+The `--auto-mount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. These are the supported directory types and how they are detected:
 
 -   **Plugin Mode**: Presence of a PHP file with `Plugin Name:` in its header.
 -   **Theme Mode**: Presence of a style.css file with `Theme Name:` in its header.
 -   **wp-content Mode**: Presence of plugins and themes subdirectories.
 -   **WordPress Mode**: Presence of a complete WordPress installation. The directory will be mounted to the root `/wordpress` folder.
-
-### Manual Mounting
-
-For more control, you can manually specify with the flag `--mount`. For example, to mount a local theme directory into a virtual `wp-content/themes` directory, we use the following command:
-
-```bash
-npx @wp-playground/cli server --mount=/wordpress/wp-content/themes
-```
 
 ## Command and Arguments
 
@@ -112,8 +101,6 @@ npx @wp-playground/cli --help
 
 Blueprint is a JSON file where you can pre-define the initial state of your WordPress instance. It provides several functionalities, like installing plugins and themes, creating content, setting WordPress options, and executing steps.
 
-Below is an example of a Blueprint that installs a plugin, logs the user in, and opens the new post editor.
-
 ```JSON
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
@@ -138,12 +125,26 @@ Below is an example of a Blueprint that installs a plugin, logs the user in, and
 }
 ```
 
-You can prototype and test your Blueprint in the online Playground editor.
+The example of a Blueprint above installs a plugin, logs the user in, and opens the new post editor. To learn more about Blueprints, please check the [documentation](https://wordpress.github.io/wordpress-playground/blueprints).
 
 To use a Blueprint, create a file (e.g., my-blueprint.json) and run the following command:
 
 ```bash
 npx @wp-playground/cli server --blueprint=./my-blueprint.json
+```
+
+## Programmatic Usage with JavaScript
+
+The Playground CLI can be controlled programmatically from your JavaScript code using the `runCLI` function. This allows you to integrate all CLI functionalities directly into your development workflow, for example, end-to-end testing.
+
+```JavaScript
+import { runCLI } from "@wp-playground/cli";
+
+const cliServer = await runCLI({
+      command: "server"
+});
+const handler = cliServer.requestHandler;
+const php = await handler.getPrimaryPhp();
 ```
 
 ## Interoperability
