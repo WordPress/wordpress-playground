@@ -54,14 +54,14 @@ async function run() {
 			string: true,
 			coerce: parseMountWithDelimiterArguments,
 		})
-		.option('mountBeforeInstall', {
+		.option('mount-before-install', {
 			describe:
 				'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 			type: 'array',
 			string: true,
 			coerce: parseMountWithDelimiterArguments,
 		})
-		.option('mountDir', {
+		.option('mount-dir', {
 			describe:
 				'Mount a directory to the PHP runtime (can be used multiple times). Format: "/host/path" "/vfs/path"',
 			type: 'array',
@@ -69,7 +69,7 @@ async function run() {
 			array: true,
 			// coerce: parseMountDirArguments,
 		})
-		.option('mountDirBeforeInstall', {
+		.option('mount-dir-before-install', {
 			describe:
 				'Mount a directory before WordPress installation (can be used multiple times). Format: "/host/path" "/vfs/path"',
 			type: 'string',
@@ -86,19 +86,19 @@ async function run() {
 			describe: 'Blueprint to execute.',
 			type: 'string',
 		})
-		.option('blueprintMayReadAdjacentFiles', {
+		.option('blueprint-may-read-adjacent-files', {
 			describe:
 				'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
 			type: 'boolean',
 			default: false,
 		})
-		.option('skipWordPressSetup', {
+		.option('skip-wordpress-setup', {
 			describe:
 				'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
 			type: 'boolean',
 			default: false,
 		})
-		.option('skipSqliteSetup', {
+		.option('skip-sqlite-setup', {
 			describe:
 				'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
 			type: 'boolean',
@@ -115,12 +115,12 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
-		.option('autoMount', {
+		.option('auto-mount', {
 			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 			type: 'boolean',
 			default: false,
 		})
-		.option('followSymlinks', {
+		.option('follow-symlinks', {
 			describe:
 				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
 			type: 'boolean',
