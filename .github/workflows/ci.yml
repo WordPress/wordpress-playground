@@ -216,10 +216,6 @@ jobs:
                   npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
             - name: Install Bun
               uses: oven-sh/setup-bun@v2
-            - name: TODO Remove this after testing and before merging
-              run: |
-                  # See if forcing a fresh install of the dependencies helps.
-                  npm ci
             - name: Start a local node package registry server
               run: RUNNER_TRACKING_ID="" && (nohup bun ./packages/playground/cli/src/cli.ts server --port=$PORT --mount="$HOST_PATH:/wordpress/$VERSION" --quiet&)
             - name: Wait for the package server to be ready
