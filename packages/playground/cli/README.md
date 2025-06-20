@@ -148,7 +148,7 @@ npx @wp-playground/cli server --blueprint=./my-blueprint.json
 
 ## Interoperability
 
-This CLI package is not just a helpful tool. It drives interoperability between the in-browser Playground, CLI packages, and the PHP Blueprints library. Once complete, it will reuse the same internals as the website at https://playground.wordpress.org, whether we're talking about running PHP code, executing Blueprints, building snapshots, serving requests, or maintaining
+This CLI package is not just a helpful tool. It drives interoperability between the in-browser Playground, CLI packages, and the PHP Blueprints library. Once complete, it will reuse the same internals as the website at https://playground.wordpress.net, whether we're talking about running PHP code, executing Blueprints, building snapshots, serving requests, or maintaining
 multiple PHP instances.
 
 ## Comparisons
