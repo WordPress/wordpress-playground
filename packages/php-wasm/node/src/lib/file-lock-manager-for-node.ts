@@ -1,6 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
-import { lock as nativeFileLock, unlock as nativeFileUnlock } from 'os-lock';
+import { flockSync as nativeFlockSync } from 'fs-ext';
 
 import type {
 	FileLockManager,
@@ -45,13 +45,13 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param op The whole file lock operation to perform.
 	 * @returns True if the lock was granted, false otherwise.
 	 */
-	async lockWholeFile(path: string, op: WholeFileLockOp): Promise<boolean> {
+	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		if (this.locks.get(path) === undefined) {
 			if (op.type === 'unlock') {
 				return true;
 			}
 
-			const maybeLock = await FileLock.maybeCreate(path, op.type);
+			const maybeLock = FileLock.maybeCreate(path, op.type);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -72,20 +72,17 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param requestedLock The byte range lock to perform.
 	 * @returns True if the lock was granted, false otherwise.
 	 */
-	async lockFileByteRange(
+	lockFileByteRange(
 		path: string,
 		requestedLock: RequestedRangeLock
-	): Promise<boolean> {
+	): boolean {
 		if (!this.locks.has(path)) {
 			if (requestedLock.type === 'unlocked') {
 				// There is no existing lock. This is a no-op.
 				return true;
 			}
 
-			const maybeLock = await FileLock.maybeCreate(
-				path,
-				requestedLock.type
-			);
+			const maybeLock = FileLock.maybeCreate(path, requestedLock.type);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -102,10 +99,10 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param desiredLock The desired byte range lock.
 	 * @returns The first conflicting byte range lock, or undefined if no conflicting lock exists.
 	 */
-	async findFirstConflictingByteRangeLock(
+	findFirstConflictingByteRangeLock(
 		path: string,
 		desiredLock: RequestedRangeLock
-	): Promise<Omit<RequestedRangeLock, 'fd'> | undefined> {
+	): Omit<RequestedRangeLock, 'fd'> | undefined {
 		const lock = this.locks.get(path);
 		if (lock === undefined) {
 			return undefined;
@@ -118,7 +115,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	 *
 	 * @param pid The process ID to release locks for.
 	 */
-	async releaseLocksForProcess(pid: number) {
+	releaseLocksForProcess(pid: number) {
 		//logger.log('releaseLocksForProcess', pid);
 		for (const [path, lock] of this.locks.entries()) {
 			lock.releaseLocksForProcess(pid);
@@ -133,11 +130,7 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param fd The file descriptor to release locks for.
 	 * @param path The path to the file to release locks for.
 	 */
-	async releaseLocksForProcessFd(
-		pid: number,
-		fd: number,
-		nativePath: string
-	) {
+	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
 		const lock = this.locks.get(nativePath);
 		if (!lock) {
 			return;
@@ -182,18 +175,16 @@ export class FileLock {
 	 * @param mode The type of lock to acquire
 	 * @returns A FileLock instance if the lock was acquired, undefined otherwise
 	 */
-	static async maybeCreate(
+	static maybeCreate(
 		path: string,
 		mode: Exclude<WholeFileLock['type'], 'unlocked'>
-	): Promise<FileLock | undefined> {
+	): FileLock | undefined {
 		let fd;
 		try {
 			fd = openSync(path, 'a+');
 
-			await nativeFileLock(fd, {
-				exclusive: mode === 'exclusive',
-				immediate: true,
-			});
+			const flockFlags = mode === 'exclusive' ? 'exnb' : 'shnb';
+			nativeFlockSync(fd, flockFlags);
 
 			const nativeLock: NativeLock = { fd, mode };
 			return new FileLock(nativeLock);
@@ -244,7 +235,7 @@ export class FileLock {
 	 * @param op The whole file lock operation to perform.
 	 * @returns True if the lock was granted, false otherwise.
 	 */
-	async lockWholeFile(op: WholeFileLockOp): Promise<boolean> {
+	lockWholeFile(op: WholeFileLockOp): boolean {
 		if (op.type === 'unlock') {
 			const originalType = this.wholeFileLock.type;
 			if (originalType === 'unlocked') {
@@ -271,7 +262,7 @@ export class FileLock {
 			}
 
 			// Make sure we only hold the minimum required native lock.
-			if (!(await this.ensureCompatibleNativeLock())) {
+			if (!this.ensureCompatibleNativeLock()) {
 				logger.error(
 					'Unable to update native lock after removing a whole file lock.'
 				);
@@ -281,7 +272,7 @@ export class FileLock {
 		}
 
 		if (
-			await this.doesAConflictingLockExist({
+			this.doesAConflictingLockExist({
 				type: op.type,
 				start: 0n,
 				end: MAX_64BIT_OFFSET,
@@ -293,9 +284,9 @@ export class FileLock {
 		}
 
 		if (
-			!(await this.ensureCompatibleNativeLock({
+			!this.ensureCompatibleNativeLock({
 				overrideWholeFileLockType: op.type,
-			}))
+			})
 		) {
 			// We cannot acquire a native lock that is compatible with the requested lock.
 			// An external process may be holding a conflicting lock.
@@ -340,9 +331,7 @@ export class FileLock {
 	 * @param requestedLock The byte range lock to perform.
 	 * @returns True if the lock was granted, false otherwise.
 	 */
-	async lockFileByteRange(
-		requestedLock: RequestedRangeLock
-	): Promise<boolean> {
+	lockFileByteRange(requestedLock: RequestedRangeLock): boolean {
 		if (requestedLock.start === requestedLock.end) {
 			/*
 			 * Treat a range with zero length as covering the entire remaining range.
@@ -384,7 +373,7 @@ export class FileLock {
 			}
 
 			// Make sure we only hold the minimum required native lock.
-			if (!(await this.ensureCompatibleNativeLock())) {
+			if (!this.ensureCompatibleNativeLock()) {
 				logger.error(
 					'Unable to update native lock after removing a byte range lock.'
 				);
@@ -393,15 +382,15 @@ export class FileLock {
 			return true;
 		}
 
-		if (await this.doesAConflictingLockExist(requestedLock)) {
+		if (this.doesAConflictingLockExist(requestedLock)) {
 			// A conflicting lock exists.
 			return false;
 		}
 
 		if (
-			!(await this.ensureCompatibleNativeLock({
+			!this.ensureCompatibleNativeLock({
 				overrideRangeLockType: requestedLock.type,
-			}))
+			})
 		) {
 			// We cannot acquire a native lock that is compatible with the requested lock.
 			// An external process may be holding a conflicting lock.
@@ -446,9 +435,9 @@ export class FileLock {
 	 * @param desiredLock The desired byte range lock.
 	 * @returns The first conflicting byte range lock, or undefined if no conflicting lock exists.
 	 */
-	async findFirstConflictingByteRangeLock(
+	findFirstConflictingByteRangeLock(
 		desiredLock: RequestedRangeLock
-	): Promise<RequestedRangeLock | undefined> {
+	): RequestedRangeLock | undefined {
 		const overlappingLocks = this.rangeLocks.findOverlapping(desiredLock);
 		const firstConflictingRangeLock = overlappingLocks.find(
 			(lock) =>
@@ -484,7 +473,7 @@ export class FileLock {
 	 *
 	 * @param pid The process ID to release locks for.
 	 */
-	async releaseLocksForProcess(pid: Pid) {
+	releaseLocksForProcess(pid: Pid) {
 		for (const rangeLock of this.rangeLocks.findLocksForProcess(pid)) {
 			this.lockFileByteRange({
 				...rangeLock,
@@ -521,7 +510,7 @@ export class FileLock {
 	 * @param pid The process ID to release locks for.
 	 * @param fd The file descriptor to release locks for.
 	 */
-	async releaseLocksForProcessFd(pid: Pid, fd: Fd) {
+	releaseLocksForProcessFd(pid: Pid, fd: Fd) {
 		// Closing an fd for a file releases all fcntl locks for that file by the process.
 		// POSIX Ref: https://pubs.opengroup.org/onlinepubs/9799919799/functions/fcntl.html
 		//   "Closing a file descriptor shall release all locks held by the process on the file
@@ -559,13 +548,13 @@ export class FileLock {
 	 * @param overrideRangeLockType If provided, use this type for the range lock.
 	 * @returns True if the native lock was upgraded or downgraded, false otherwise.
 	 */
-	private async ensureCompatibleNativeLock({
+	private ensureCompatibleNativeLock({
 		overrideWholeFileLockType,
 		overrideRangeLockType,
 	}: {
 		overrideWholeFileLockType?: WholeFileLock['type'];
 		overrideRangeLockType?: RequestedRangeLock['type'];
-	} = {}): Promise<boolean> {
+	} = {}): boolean {
 		const wholeFileLockType =
 			overrideWholeFileLockType ?? this.wholeFileLock.type;
 		const rangeLockType =
@@ -597,17 +586,7 @@ export class FileLock {
 			'un';
 
 		try {
-			if (
-				requiredNativeLockType === 'exclusive' ||
-				requiredNativeLockType === 'shared'
-			) {
-				await nativeFileLock(this.nativeLock.fd, {
-					exclusive: requiredNativeLockType === 'exclusive',
-					immediate: true,
-				});
-			} else {
-				await nativeFileUnlock(this.nativeLock.fd);
-			}
+			nativeFlockSync(this.nativeLock.fd, flockFlags);
 			this.nativeLock.mode = requiredNativeLockType;
 			return true;
 		} catch {
@@ -621,11 +600,10 @@ export class FileLock {
 	 * @param requestedLock The desired byte range lock.
 	 * @returns True if a conflicting lock exists, false otherwise.
 	 */
-	private async doesAConflictingLockExist(
-		requestedLock: RequestedRangeLock
-	): Promise<boolean> {
-		const c = await this.findFirstConflictingByteRangeLock(requestedLock);
-		return c !== undefined;
+	private doesAConflictingLockExist(requestedLock: RequestedRangeLock) {
+		return (
+			this.findFirstConflictingByteRangeLock(requestedLock) !== undefined
+		);
 	}
 }
 

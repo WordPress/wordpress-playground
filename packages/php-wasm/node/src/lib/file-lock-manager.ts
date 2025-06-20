@@ -14,7 +14,7 @@ export type FileLockManager = {
 	 * @param op - The operation to perform, including 'shared', 'exclusive', or 'unlock'.
 	 * @returns A promise for a boolean value.
 	 */
-	lockWholeFile: (path: string, op: WholeFileLockOp) => Promise<boolean>;
+	lockWholeFile: (path: string, op: WholeFileLockOp) => boolean;
 
 	/**
 	 * Update the lock on a byte range of a file.
@@ -32,7 +32,7 @@ export type FileLockManager = {
 	lockFileByteRange: (
 		path: string,
 		requestedLock: RequestedRangeLock
-	) => Promise<boolean>;
+	) => boolean;
 
 	/**
 	 * Get the first lock that would conflict with the specified lock.
@@ -49,7 +49,7 @@ export type FileLockManager = {
 	findFirstConflictingByteRangeLock: (
 		path: string,
 		desiredLock: RequestedRangeLock
-	) => Promise<Omit<RequestedRangeLock, 'fd'> | undefined>;
+	) => Omit<RequestedRangeLock, 'fd'> | undefined;
 
 	/**
 	 * Release all locks for a given process.
@@ -58,7 +58,7 @@ export type FileLockManager = {
 	 *
 	 * @param pid - The PID of the process that wants to release the locks.
 	 */
-	releaseLocksForProcess: (pid: number) => Promise<void>;
+	releaseLocksForProcess: (pid: number) => void;
 
 	/**
 	 * Release all locks for the given process and file descriptor.
@@ -68,11 +68,7 @@ export type FileLockManager = {
 	 * @param path The path to the file to release locks for. This should be the path
 	 *             of the file in the underlying filesystem.
 	 */
-	releaseLocksForProcessFd: (
-		pid: number,
-		fd: number,
-		path: string
-	) => Promise<void>;
+	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
 };
 
 export type RequestedRangeLock = Readonly<{
