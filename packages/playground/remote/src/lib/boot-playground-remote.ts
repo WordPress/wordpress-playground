@@ -126,7 +126,21 @@ export async function bootPlaygroundRemote() {
 			}
 			bar.destroy();
 		},
+
+		/**
+		 * Listens to Playground navigation.
+		 *
+		 * @param fn The function to be called when a navigation event occurs.
+		 */
 		async onNavigation(fn) {
+			/**
+			 * Note: We do not manually clear the event listener and the interval set in this function.
+			 *
+			 * This is because we're inside remote.html – a Playground instance-specific iframe.
+			 * When a Playground is stopped the iframe is destroyed and the resources – cleaned up.
+			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
+			 * We'll let the browser handle that.
+			 */
 			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
