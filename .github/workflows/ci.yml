@@ -215,7 +215,8 @@ jobs:
                   npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
             - name: Start a local node package registry server
               run: |
-                  nvm install 22 &&
+                  source ~/.nvm/nvm.sh;
+                  nvm install 22;
                   RUNNER_TRACKING_ID="" && ( \
                     nohup node \
                       --experimental-strip-types \
