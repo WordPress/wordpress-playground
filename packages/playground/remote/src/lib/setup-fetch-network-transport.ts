@@ -47,6 +47,15 @@ export async function setupFetchNetworkTransport(
 			return '';
 		}
 
+		const event = new CustomEvent('request', {
+			detail: data,
+		});
+		await (playground as any).dispatchEvent(event);
+		console.log('dispatched request event', event);
+		// if (event.defaultPrevented && event.response !== undefined) {
+		// 	return event.response;
+		// }
+
 		// PHP encodes empty arrays as JSON arrays, not objects.
 		// We can't easily reason about the request body, but we know
 		// headers should be an object so let's convert it here.
@@ -57,6 +66,7 @@ export async function setupFetchNetworkTransport(
 		}
 
 		const corsProxyUrl = options?.corsProxyUrl;
+		return;
 		return handleRequest(data, (url: any, options: any) =>
 			fetchWithCorsProxy(url, options, corsProxyUrl)
 		);
