@@ -70,7 +70,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let loadBalancer: LoadBalancer;
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
-	let playgroundsToCleanUp: RemoteAPI<PlaygroundCliWorker>[] = [];
+	const playgroundsToCleanUp: RemoteAPI<PlaygroundCliWorker>[] = [];
 
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps
