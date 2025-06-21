@@ -60,7 +60,7 @@ export interface RunCLIArgs {
 	experimentalTrace?: boolean;
 }
 
-export interface RunCLIServer {
+export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
 	[Symbol.asyncDispose](): Promise<void>;
@@ -204,15 +204,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		const worker = new Worker(workerUrl);
 
 		return new Promise<Worker>((resolve, reject) => {
-			worker.once('message', (event: string) => {
+			function onMessage(event: string) {
 				// Let the worker confirm it has initialized.
 				// We could use the 'online' event to detect start of JS execution,
 				// but that would miss initialization errors.
 				if (event === 'worker-script-initialized') {
 					resolve(worker);
+					worker.off('message', onMessage);
 				}
-			});
-			worker.once('error', (e) => {
+			}
+			function onError(e: Error) {
 				const error = new Error(
 					`Worker failed to load at ${workerUrl}. ${
 						e.message ? `Original error: ${e.message}` : ''
@@ -220,7 +221,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				);
 				(error as any).filename = workerUrl;
 				reject(error);
-			});
+				worker.off('error', onError);
+			}
+			worker.on('message', onMessage);
+			worker.on('error', onError);
 		});
 	}
 
@@ -479,7 +483,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				return {
 					playground,
 					server,
-					async [Symbol.asyncDispose]() {
+					[Symbol.asyncDispose]: async function disposeCLI() {
 						await Promise.all(
 							playgroundsToCleanUp.map(
 								async ({ playground, worker }) => {
