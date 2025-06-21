@@ -70,7 +70,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let loadBalancer: LoadBalancer;
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
-	const playgroundsToCleanUp: RemoteAPI<PlaygroundCliWorker>[] = [];
+	const playgroundsToCleanUp: {
+		playground: RemoteAPI<PlaygroundCliWorker>;
+		worker: Worker;
+	}[] = [];
 
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps
@@ -328,7 +331,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					await promisedWorkers;
 
 				playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
-				playgroundsToCleanUp.push(playground);
+				playgroundsToCleanUp.push({
+					playground,
+					worker: initialWorker,
+				});
 
 				await playground.isConnected();
 
@@ -415,7 +421,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						additionalWorkers.map(async (worker, index) => {
 							const additionalPlayground =
 								consumeAPI<PlaygroundCliWorker>(worker);
-							playgroundsToCleanUp.push(additionalPlayground);
+							playgroundsToCleanUp.push({
+								playground: additionalPlayground,
+								worker,
+							});
 
 							await additionalPlayground.isConnected();
 							exposeAPI(fileLockManager, undefined, worker);
@@ -472,11 +481,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					server,
 					async [Symbol.asyncDispose]() {
 						await Promise.all(
-							playgroundsToCleanUp.map((playground) =>
-								playground.dispose()
+							playgroundsToCleanUp.map(
+								async ({ playground, worker }) => {
+									await playground.dispose();
+									await worker.terminate();
+								}
 							)
 						);
-						await server.close();
+						await new Promise((resolve) => server.close(resolve));
 					},
 				};
 			} catch (error) {

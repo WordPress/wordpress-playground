@@ -157,7 +157,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 	// Provide a named disposal method that can be invoked via comlink.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
-		process.exit(0);
 	}
 }
 
