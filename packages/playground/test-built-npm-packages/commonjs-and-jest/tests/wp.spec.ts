@@ -7,6 +7,11 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			const cli = await runCLI({
 				command: 'server',
 				php: phpVersion as any,
+				blueprint: {
+					siteOptions: {
+						blogname: 'My WordPress Website',
+					},
+				},
 			});
 			const server = cli.server;
 			const requestHandler = cli.requestHandler;
