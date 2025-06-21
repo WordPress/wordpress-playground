@@ -63,6 +63,7 @@ export interface RunCLIArgs {
 export interface RunCLIServer {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
+	[Symbol.asyncDispose](): Promise<void>;
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
@@ -463,6 +464,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				return {
 					playground,
 					server,
+					async [Symbol.asyncDispose]() {
+						await playground[Symbol.asyncDispose]();
+						await server.close();
+					},
 				};
 			} catch (error) {
 				if (!args.debug) {

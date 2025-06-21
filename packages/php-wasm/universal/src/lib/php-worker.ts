@@ -253,4 +253,8 @@ export class PHPWorker implements LimitedPHPApi {
 	): void {
 		_private.get(this)!.php!.removeEventListener(eventType, listener);
 	}
+
+	async [Symbol.asyncDispose]() {
+		await _private.get(this)!.requestHandler?.[Symbol.asyncDispose]();
+	}
 }

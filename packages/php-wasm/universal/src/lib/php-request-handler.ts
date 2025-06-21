@@ -577,6 +577,10 @@ export class PHPRequestHandler {
 			throw error;
 		}
 	}
+
+	async [Symbol.asyncDispose]() {
+		await this.processManager[Symbol.asyncDispose]();
+	}
 }
 
 /**

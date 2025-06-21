@@ -4,26 +4,20 @@ const { runCLI } = require('@wp-playground/cli');
 SupportedPHPVersions.forEach((phpVersion: string) => {
 	describe(`PHP ${phpVersion}`, () => {
 		it('WordPress should load', async () => {
-			const cli = await runCLI({
+			await using cli = await runCLI({
 				command: 'server',
 				php: phpVersion as any,
 			});
-			const server = cli.server;
-			const playground = cli.playground;
 
-			try {
-				// Make a request
-				const response = await playground.request({
-					method: 'GET',
-					url: '/',
-				});
+			// Make a request
+			const response = await cli.playground.request({
+				method: 'GET',
+				url: '/',
+			});
 
-				// Verify response
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain('My WordPress Website');
-			} finally {
-				await server.close();
-			}
+			// Verify response
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain('My WordPress Website');
 		}, 10000);
 	});
 });
