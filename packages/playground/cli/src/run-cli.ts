@@ -299,10 +299,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}) as any);
 
 				wpDetails = await resolveWordPressRelease(args.wp);
+				logger.log(
+					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+				);
 			}
-			logger.log(
-				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-			);
 
 			const preinstalledWpContentPath =
 				wpDetails &&
