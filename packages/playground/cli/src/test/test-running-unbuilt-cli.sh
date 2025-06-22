@@ -5,8 +5,7 @@ set -euo pipefail
 if node -e 'if (parseInt(process.versions.node) < 23) { process.exit(0); }'; then
 	source ~/.nvm/nvm.sh
 	nvm install 23
-# TODO: Re-enable before commit
-# 	npm ci
+	npm ci
 fi
 
 function test_playground_cli() {
