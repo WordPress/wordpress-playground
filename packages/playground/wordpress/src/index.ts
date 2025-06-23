@@ -322,7 +322,9 @@ export async function preloadPhpInfoRoute(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
-    if ( isset($_SERVER['REQUEST_URI']) && ${phpVar(requestPath)} === $_SERVER['REQUEST_URI'] ) {
+    if ( isset($_SERVER['REQUEST_URI']) && ${phpVar(
+		requestPath
+	)} === $_SERVER['REQUEST_URI'] ) {
         phpinfo();
         exit;
     }

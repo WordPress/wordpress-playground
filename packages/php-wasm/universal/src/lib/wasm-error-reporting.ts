@@ -61,14 +61,15 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					if (!(e instanceof Error)) {
 						throw e;
 					}
-					const clearMessage = clarifyErrorMessage(
-						e,
-						runtime.lastAsyncifyStackSource?.stack
-					);
 
 					if (runtime.lastAsyncifyStackSource) {
 						e.cause = runtime.lastAsyncifyStackSource;
 					}
+
+					const clearMessage = clarifyErrorMessage(
+						e,
+						runtime.lastAsyncifyStackSource?.stack
+					);
 
 					if (target.hasListeners()) {
 						const event = new ErrorEvent('error', {
@@ -106,12 +107,26 @@ export function clarifyErrorMessage(
 				`\n\nThis stack trace is lacking. For a better one initialize \n` +
 				`the PHP runtime with { debug: true }, e.g. PHPNode.load('8.1', { debug: true }).\n\n`;
 		}
-		functionsMaybeMissingFromAsyncify = extractPHPFunctionsFromStack(
-			asyncifyStack || crypticError.stack || ''
+
+		// Extract all the PHP functions from the entire error chain.
+		const uniqueFunctions = new Set<string>(
+			extractPHPFunctionsFromStack(asyncifyStack || '')
 		);
-		for (const fn of functionsMaybeMissingFromAsyncify) {
+		let lastError = crypticError;
+		do {
+			for (const fn of extractPHPFunctionsFromStack(
+				lastError.stack || ''
+			)) {
+				uniqueFunctions.add(fn);
+			}
+			lastError = lastError.cause as Error;
+		} while (lastError);
+		functionsMaybeMissingFromAsyncify = Array.from(uniqueFunctions);
+
+		for (const fn of uniqueFunctions) {
 			betterMessage += `    * ${fn}\n`;
 		}
+
 		return betterMessage;
 	}
 	return crypticError.message;
@@ -172,7 +187,7 @@ function extractPHPFunctionsFromStack(stack: string) {
 				const parts = line.trim().substring('at '.length).split(' ');
 				return {
 					fn: parts.length >= 2 ? parts[0] : '<unknown>',
-					isWasm: line.includes('wasm://'),
+					isWasm: line.includes('wasm:/'),
 				};
 			})
 			.filter(

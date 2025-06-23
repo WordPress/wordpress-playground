@@ -113,7 +113,9 @@ describe('PHPProcessManager', () => {
 			mgr.getPrimaryPhp();
 		} catch (e) {
 			expect(e).toBeInstanceOf(Error);
-			expect((e as Error).message).toContain('Requested spawning a primary PHP instance');
+			expect((e as Error).message).toContain(
+				'Requested spawning a primary PHP instance'
+			);
 		}
 	});
 });

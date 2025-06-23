@@ -16,6 +16,12 @@ const LibraryExample = {
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
 		init: function () {
+			Module['ENV'] = Module['ENV'] || {};
+			// Ensure a platform-level bin directory for a fallback `php` binary.
+			Module['ENV']['PATH'] = [Module['ENV']['PATH'], '/internal/shared/bin']
+				.filter(Boolean)
+				.join(':');
+			
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
@@ -26,6 +32,17 @@ const LibraryExample = {
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
 			FS.mkdir('/internal/shared/preload');
+			// Platform-level bin directory for a fallback `php` binary. Without it,
+			// PHP may not populate the PHP_BINARY constant.
+			FS.mkdir('/internal/shared/bin');
+			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
+			Module['onRuntimeInitialized'] = () => {
+				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
+				FS.writeFile('/internal/shared/bin/php', new TextEncoder().encode('#!/bin/sh\nphp "$@"'));
+				// It must be executable to be used by PHP.
+				FS.chmod('/internal/shared/bin/php', 0o755);
+				originalOnRuntimeInitialized();
+			}
 
 			// Create stdout and stderr devices. We can't just use Emscripten's
 			// default stdout and stderr devices because they stop processing data
@@ -108,7 +125,7 @@ const LibraryExample = {
 							}
 						}
 				};
-			
+
 			// Clean up the fd -> childProcess mapping when the fd is closed:
 			const originalClose = FS.close;
 			FS.close = function (stream) {
@@ -143,7 +160,7 @@ const LibraryExample = {
 				return originalPutChar(tty, val);
 			};
 		},
-		
+
 		// Default output stream handlers.
 		// @TODO Consider using Emscripten's default print and printErr instead.
 		onHeaders: function (chunk) {
@@ -802,7 +819,36 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
+
+	/**
+	 * Returns the assigned process ID of the current process or 42 if not available.
+	 *
+	 * Emscripten's built-in getpid() always returns 42,
+	 * but we will provide our assigned process ID if available.
+	 * Using distinct IDs allows us to associate trace messages with their php-wasm process.
+	 */
+	js_getpid() {
+		return PHPLoader.processId ?? 42;
+	},
+
+	/**
+	 * Relays a trace message if a PHPLoader.trace function is provided.
+	 *
+	 * This is a printf-style API that supports:
+	 * - Basic format specifiers: %s, %d, %f, %x, %%
+	 * - Bigint integer values
+	 *
+	 * @param {string} format The format string
+	 * @param {...any} args The arguments to the format string
+	 */
+	js_wasm_trace: function (format, ...args) {
+		if (PHPLoader.trace instanceof Function) {
+			PHPLoader.trace(_js_getpid(), format, ...args);
+		}
+	},
+	js_wasm_trace__deps: ['js_getpid'],
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');
+autoAddDeps(LibraryExample, 'js_wasm_trace');
 mergeInto(LibraryManager.library, LibraryExample);

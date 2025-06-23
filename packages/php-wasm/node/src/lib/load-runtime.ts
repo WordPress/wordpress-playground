@@ -2,11 +2,13 @@ import type {
 	SupportedPHPVersion,
 	EmscriptenOptions,
 	PHPRuntime,
+	RemoteAPI,
 } from '@php-wasm/universal';
 import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
+import type { FileLockManager } from './file-lock-manager';
 import { withICUData } from './data/with-icu-data';
 import { joinPaths } from '@php-wasm/util';
 
@@ -14,6 +16,36 @@ export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
 }
+
+type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	emscriptenOptions?: EmscriptenOptions & {
+		/**
+		 * The process ID for the PHP runtime.
+		 *
+		 * This is used to distinguish between php-wasm processes for the
+		 * purpose of file locking and more informative trace messages.
+		 *
+		 * This ID is optional when running a single php-wasm process.
+		 */
+		processId?: number;
+
+		/**
+		 * An optional file lock manager to use for the PHP runtime.
+		 *
+		 * The lock manager is optional when running a single php-wasm process.
+		 */
+		fileLockManager?: RemoteAPI<FileLockManager>;
+
+		/**
+		 * An optional function to collect trace messages.
+		 *
+		 * @param processId - The process ID of the PHP runtime.
+		 * @param format - A printf-style format string.
+		 * @param args - Arguments to the format string.
+		 */
+		trace?: (processId: number, format: string, ...args: any[]) => void;
+	};
+};
 
 /**
  * Does what load() does, but synchronously returns
@@ -24,7 +56,7 @@ export interface PHPLoaderOptions {
  */
 export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: PHPLoaderOptions = {}
+	options: PHPLoaderOptionsForNode = {}
 ) {
 	const emscriptenOptions: EmscriptenOptions = {
 		/**

@@ -76,3 +76,6 @@ export {
 
 export { isExitCode } from './is-exit-code';
 export { proxyFileSystem } from './proxy-file-system';
+
+export * from './api';
+export type { WithAPIState as WithIsReady } from './api';

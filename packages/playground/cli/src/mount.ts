@@ -11,11 +11,11 @@ export interface Mount {
 /**
  * Parse an array of mount argument strings where the host path and VFS path
  * are separated by a colon.
- * 
+ *
  * Example:
  *     parseMountWithDelimiterArguments( [ '/host/path:/vfs/path', '/host/path:/vfs/path' ] )
  *     // returns:
- *     [ 
+ *     [
  *         { hostPath: '/host/path', vfsPath: '/vfs/path' },
  *         { hostPath: '/host/path', vfsPath: '/vfs/path' }
  *     ]

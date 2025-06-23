@@ -12,14 +12,13 @@
 	},
 	"license": "ISC",
 	"author": "",
-	"type": "commonjs",
+	"type": "module",
 	"main": "index.js",
 	"scripts": {
-		"test": "vitest"
+		"test": "node --experimental-strip-types --experimental-transform-types ./run-tests.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^22.14.1",
-		"vitest": "^3.1.1",
 		"@wp-playground/cli": "https://wordpress-playground-packages.atomicsites.blog/packages/v1.0.36/@wp-playground-cli-1.0.36.tar.gz"
 	}
 }
