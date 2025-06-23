@@ -1,4 +1,4 @@
-import { handleRequest } from '../lib/setup-fetch-network-transport';
+import { handleRequest } from '../lib/wordpress-fetch-network-transport';
 
 describe('handleRequest', () => {
 	it('Should return a correct response to a basic request', async () => {

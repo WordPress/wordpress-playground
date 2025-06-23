@@ -55,7 +55,11 @@ import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
-import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
+import {
+	WordPressFetchNetworkTransport,
+	preloadWpAdminApiRequests,
+	setupFetchNetworkTransport,
+} from './wordpress-fetch-network-transport';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -298,7 +302,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					.filter((n) => n)
 					.join(',');
 			}
-			const requestHandler = await bootWordPress({
+
+			const fetchNetworkTransport = new WordPressFetchNetworkTransport({
+				corsProxyUrl: corsProxyUrl,
+			});
+
+			const requestHandlerPromise = bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
@@ -338,17 +347,15 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 				onPHPInstanceCreated: async (php: PHP) => {
 					/**
-	 				 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
-	   				 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
-		 			 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
-	   				 * instances without a network call handler.
-		 			 *
+					 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
+					 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
+					 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
+					 * instances without a network call handler.
+					 *
 					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
-	   				 */ 
+					 */
 					if (withNetworking) {
-						await setupFetchNetworkTransport(php, {
-							corsProxyUrl: corsProxyUrl,
-						});
+						await fetchNetworkTransport.setupMessageHandler(php);
 					}
 				},
 				// Do not await the WordPress download or the sqlite integration download.
@@ -419,10 +426,27 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					};
 				},
 			});
+			const requestHandler = await requestHandlerPromise;
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+
+			/**
+			 * Pre-fetch the slow initial burst of wp_update_* requests to greatly
+			 * improve the first wp-admin load time.
+			 */
+			if (withNetworking) {
+				await fetchNetworkTransport.preloadWpAdminApiRequests(
+					primaryPhp
+				);
+				/**
+				 * Only setup the network transport after WordPress have been installed. Otherwise,
+				 * the installer may send a network request to /wp-cron.php, which will fail because
+				 * the entire setup around network, SQLite, etc. is not complete yet.
+				 */
+				await fetchNetworkTransport.setEnabled(primaryPhp, true);
+			}
 
 			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
 			// from browser storage is the default version when it is actually something else.

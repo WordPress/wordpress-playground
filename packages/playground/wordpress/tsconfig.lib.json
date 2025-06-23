@@ -5,6 +5,9 @@
 		"declaration": true,
 		"types": ["node", "vite/client"]
 	},
-	"include": ["src/**/*.ts"],
+	"include": [
+		"src/**/*.ts",
+		"../remote/src/lib/wordpress-fetch-network-transport.ts"
+	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

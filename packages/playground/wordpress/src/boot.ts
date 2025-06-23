@@ -171,7 +171,6 @@ export async function bootWordPress(options: BootOptions) {
 			await options.sqliteIntegrationPluginZip
 		);
 	}
-
 	if (!(await isWordPressInstalled(php))) {
 		await installWordPress(php);
 	}
@@ -179,8 +178,6 @@ export async function bootWordPress(options: BootOptions) {
 	if (!(await isWordPressInstalled(php))) {
 		throw new Error('WordPress installation has failed.');
 	}
-
-	await interceptAdminRequests(php);
 
 	return requestHandler;
 }
@@ -346,122 +343,6 @@ async function installWordPress(php: PHP) {
 	if (defaultedToPrettyPermalinks.text !== '1') {
 		logger.warn('Failed to default to pretty permalinks after WP install.');
 	}
-}
-
-type WordPressRequest = {
-	url: string;
-	body?: any;
-	cookies?: any[];
-	headers?: any[];
-	method?: string;
-};
-async function interceptAdminRequests(playground: PHP) {
-	await playground.addEventListener('request', (event) => {
-		console.log('got request event', event);
-	});
-	// Dispatch a "request" event on the playground instance when a request is intercepted.
-	// await playground.dispatchEvent({
-	// 	type: 'request',
-	// 	data: {
-	// 		url: 'https://example.com',
-	// 		method: 'GET',
-	// 		headers: [],
-	// 		body: {},
-	// 	},
-	// });
-	// console.log('dispatched request event');
-	const requests: Record<string, WordPressRequest> = {};
-	const unbind = await playground.onMessage((message) => {
-		const parsed = JSON.parse(message);
-		if (parsed.type === 'parallelize_request') {
-			const url = new URL(parsed.url);
-			url.protocol = 'https';
-
-			requests[url.toString()] = {
-				url: url.toString(),
-				...parsed.request,
-			};
-		}
-	});
-	await playground.run({
-		code: `<?php
-			require_once '/wordpress/wp-load.php';
-			require_once '/wordpress/wp-admin/includes/misc.php';
-			add_filter('pre_http_request', function($pre, $r, $url) {
-				post_message_to_js(json_encode([
-					'type' => 'parallelize_request',
-                    'url' => $url,
-					'request' => $r
-				]));
-               	return new WP_Error( 'http_request_block', __( "This request is not allowed", "textdomain" ) );
-			}, 10, 3);
-			wp_check_php_version();
-			wp_update_plugins();
-			wp_update_themes();
-			wp_version_check();
-			// @TODO: Only delete transients if they were not present before. Do not purge transients
-			//        from a pre-existing site that had them set.
-			delete_site_transient('update_core');
-			delete_site_transient('update_themes');
-			delete_site_transient('update_plugins');
-		`,
-	});
-	await unbind();
-	console.log(requests);
-
-	const fetchPromises = Object.values(requests).map(async (request) => {
-		const method = request?.method || 'GET';
-		let body: BodyInit | undefined = undefined;
-		let isUrlEncoded = false;
-		if (method !== 'GET' && request?.body) {
-			if (
-				typeof request.body === 'object' &&
-				!(request.body instanceof FormData)
-			) {
-				body = new URLSearchParams(request.body).toString();
-				isUrlEncoded = true;
-			} else {
-				body = request.body;
-			}
-		}
-		const rawHeaders = Array.isArray(request?.headers)
-			? Object.fromEntries(request.headers)
-			: request?.headers || {};
-
-		// If submitting urlencoded form, indicate that in the headers
-		const headers = { ...rawHeaders };
-		if (isUrlEncoded) {
-			headers['Content-Type'] =
-				'application/x-www-form-urlencoded;charset=UTF-8';
-		}
-
-		const fetchOptions: RequestInit = {
-			method,
-			headers,
-			body,
-			// credentials: 'include',
-		};
-		console.log(fetchOptions);
-		return fetch(request.url, fetchOptions).then(async (response) => {
-			const contentType = response.headers.get('content-type');
-			let data;
-			// if (contentType && contentType.includes('application/json')) {
-			// 	data = await response.json();
-			// } else {
-			data = await response.text();
-			// }
-			return {
-				url: request.url,
-				status: response.status,
-				statusText: response.statusText,
-				headers: Object.fromEntries(response.headers.entries()),
-				data,
-			};
-		});
-	});
-	const results = await Promise.all(fetchPromises);
-
-	console.log('Parallel fetch results:', results);
 }
 
 export function getFileNotFoundActionForWordPress(
