@@ -15,6 +15,8 @@ export { randomFilename } from './random-filename';
 
 export * from './php-vars';
 
+export * from './sprintf';
+
 export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 	let totalLength = 0;
 	arrays.forEach((a) => (totalLength += a.length));

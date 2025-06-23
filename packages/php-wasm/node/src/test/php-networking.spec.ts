@@ -72,7 +72,7 @@ describe.each(SupportedPHPVersions)(
 					allow_url_fopen: 1,
 					disable_functions: '',
 				});
-				
+
 				php.writeFile(
 					'/tmp/test.php',
 					`<?php

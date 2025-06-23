@@ -33,8 +33,9 @@ export const writeFile: StepHandler<WriteFileStep<File>> = async (
 	if (data instanceof File) {
 		data = new Uint8Array(await data.arrayBuffer());
 	}
-	if (!path.startsWith("/")) {
-		logger.error(`
+	if (!path.startsWith('/')) {
+		logger.error(
+			`
 The writeFile() step in your Blueprint refers to a relative path.
 
 Playground recently changed the working directory from '/' to '/wordpress' to better mimic 
@@ -48,7 +49,8 @@ Instead of:  writeFile({ path: 'wordpress/wp-load.php', data: '<?php echo "Hello
 Use:         writeFile({ path: '/wordpress/wp-load.php', data: '<?php echo "Hello World!"; ?>' });
 
 This will ensure your code works reliably regardless of the current working directory.
-		`.trim());
+		`.trim()
+		);
 		path = `/${path}`;
 	}
 	/**

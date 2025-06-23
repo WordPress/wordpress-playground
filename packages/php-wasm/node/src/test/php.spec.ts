@@ -248,7 +248,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(firstResult.done).toBe(false);
 			const firstChunk = decoder.decode(firstResult.value);
 			expect(firstChunk).toBe('first chunk');
-			
+
 			// Read second chunk (should come after ~1 second delay)
 			const startTime = Date.now();
 			let secondStdout = await reader.read();
@@ -298,7 +298,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should stream stderr separately from stdout', async () => {
 			const streamed = await php.cli([
-				'php', '-r', `
+				'php',
+				'-r',
+				`
 				echo "stdout first";
 				flush();
 				file_put_contents("php://stderr", "stderr first");
@@ -328,7 +330,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			// Be lenient – PHP 7.2 may yield an empty stdout chunk. That's okay.
 			if (secondStdout.value?.length === 0) {
 				secondStdout = await stdoutReader.read();
-				expect(decoder.decode(secondStdout.value)).toBe('stdout second');
+				expect(decoder.decode(secondStdout.value)).toBe(
+					'stdout second'
+				);
 			}
 
 			const secondStderr = await stderrReader.read();

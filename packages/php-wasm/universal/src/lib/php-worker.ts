@@ -48,7 +48,7 @@ export type LimitedPHPApi = Pick<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class PHPWorker implements LimitedPHPApi {
+export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
 	absoluteUrl = '';
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
@@ -252,5 +252,9 @@ export class PHPWorker implements LimitedPHPApi {
 		listener: PHPEventListener
 	): void {
 		_private.get(this)!.php!.removeEventListener(eventType, listener);
+	}
+
+	async [Symbol.asyncDispose]() {
+		await _private.get(this)!.requestHandler?.[Symbol.asyncDispose]();
 	}
 }

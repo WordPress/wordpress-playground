@@ -24,8 +24,9 @@ export interface RmdirStep {
  * Removes a directory at the specified path.
  */
 export const rmdir: StepHandler<RmdirStep> = async (playground, { path }) => {
-	if (!path.startsWith("/")) {
-		logger.error(`
+	if (!path.startsWith('/')) {
+		logger.error(
+			`
 The rmdir() step in your Blueprint refers to a relative path.
 
 Playground recently changed the working directory from '/' to '/wordpress' to better mimic 
@@ -39,7 +40,8 @@ Instead of:  rmdir({ path: 'wordpress/wp-load.php' });
 Use:         rmdir({ path: '/wordpress/wp-load.php' });
 
 This will ensure your code works reliably regardless of the current working directory.
-		`.trim());
+		`.trim()
+		);
 		path = `/${path}`;
 	}
 	await playground.rmdir(path);

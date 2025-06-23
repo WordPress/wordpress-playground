@@ -13,13 +13,9 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 					},
 				},
 			});
-			const server = cli.server;
-			const requestHandler = cli.requestHandler;
-			const php = await requestHandler.getPrimaryPhp();
-
 			try {
 				// Make a request
-				const response = await requestHandler.request({
+				const response = await cli.playground.request({
 					method: 'GET',
 					url: '/',
 				});
@@ -28,8 +24,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				expect(response.httpStatusCode).toBe(200);
 				expect(response.text).toContain('My WordPress Website');
 			} finally {
-				await php.exit();
-				await server.close();
+				await cli[Symbol.asyncDispose]();
 			}
 		}, 10000);
 	});

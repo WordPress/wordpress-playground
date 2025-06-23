@@ -559,6 +559,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 # are caused by dispatching a PHP request while an execution is paused
 # due to an async call – it means the same PHP files are loaded before
 # the previous request, where they're already loaded, is concluded.
+# TODO: Consider reverting asyncify additions before merging this PR if file locking doesn't support asyncify.
 RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_i",\n\
 "invoke_ii",\n\
@@ -579,14 +580,35 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_viiiiii",\n\
 "invoke_viiiiiii",\n\
 "invoke_viiiiiiiii",\n\
+"invoke_i",\
+"invoke_ii",\
+"invoke_iii",\
+"invoke_iiii",\
+"invoke_iiiii",\
+"invoke_iiiiii",\
+"invoke_iiiiiii",\
+"invoke_iiiiiiii",\
+"invoke_iiiiiiiiii",\
+"invoke_iij",\
+"invoke_iiji",\
+"invoke_iijii",\
+"invoke_iijiji",\
+"invoke_jii",\
+"invoke_jiii",\
+"invoke_viijii",\
+"invoke_vji",\
 "js_open_process",\n\
 "_js_open_process",\n\
 "_asyncjs__js_open_process",\n\
 "js_popen_to_file",\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
+"__syscall_fcntl64",\n\
+"js_release_file_locks",\n\
+"js_flock",\n\
 "js_fd_read",\n\
 "_js_fd_read",\n\
+"_fd_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
@@ -596,11 +618,132 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "wasm_poll_socket",\n\
 "_wasm_poll_socket",\n\
 "_asyncjs__wasm_poll_socket",\n\
-"wasm_shutdown",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"__fseeko_unlocked",\
+"__ftello_unlocked",\
+"__funcs_on_exit",\
+"__funcs_on_exit",\
+"__fwritex",\
+"__netlink_enumerate",\
+"__overflow",\
+"__toread",\
+"__uflow",\
+"__vfprintf_internal",\
+"__wrap_select",\
+"__zend_malloc",\
+"_call_user_function_ex",\
+"_call_user_function_impl",\
+"_emalloc_large",\
+"_erealloc",\
+"_erealloc2",\
+"_estrdup",\
+"_get_zval_cv_lookup",\
+"_is_numeric_string_ex",\
+"_mysqlnd_init_ps_subsystem",\
+"_mysqlnd_run_command",\
+"_pcre2_memctl_malloc_8",\
+"_pdo_mysql_error",\
+"_php_error_log_ex",\
+"_php_import_environment_variables",\
+"_php_stream_cast",\
+"_php_stream_copy_to_mem",\
+"_php_stream_copy_to_stream_ex",\
+"_php_stream_eof",\
+"_php_stream_fill_read_buffer",\
+"_php_stream_filter_flush",\
+"_php_stream_flush",\
+"_php_stream_free_enclosed",\
+"_php_stream_free",\
+"_php_stream_get_line",\
+"_php_stream_mkdir",\
+"_php_stream_open_wrapper_ex",\
+"_php_stream_opendir",\
+"_php_stream_passthru",\
+"_php_stream_read",\
+"_php_stream_rmdir",\
+"_php_stream_seek",\
+"_php_stream_set_option",\
+"_php_stream_stat_path",\
+"_php_stream_stat",\
+"_php_stream_sync",\
+"_php_stream_truncate_set_size",\
+"_php_stream_write_buffer",\
+"_php_stream_write_filtered",\
+"_php_stream_write",\
+"_php_stream_xport_create",\
+"_safe_emalloc",\
+"_try_convert_to_string",\
+"_zend_hash_init",\
+"_zend_new_array_0",\
+"_zend_new_array",\
+"_zend_observe_fcall_begin",\
+"_zend_observer_class_linked_notify",\
+"_zend_observer_error_notify",\
+"_zend_observer_function_declared_notify",\
+"_zval_dtor_func_for_ptr",\
+"_zval_dtor_func",\
+"_zval_ptr_dtor",\
+"autoVacuumCommit",\
+"bsearch",\
+"btreeCellSizeCheck",\
+"btreeEndTransaction",\
+"btreeParseCell",\
+"call_extract_if_dead",\
+"call",\
+"callCollNeeded",\
+"callFinaliser",\
+"checkTreePage",\
+"cleanup_unfinished_calls",\
+"clearDatabasePage",\
+"cli_register_file_handles",\
+"cli",\
+"close_stmt_and_copy_errors",\
+"close",\
+"closeUnixFile",\
+"compile_file",\
+"createCollation",\
+"createFunctionApi",\
+"createModule",\
+"ctype_fallback",\
+"Curl_conncache_foreach",\
+"curl_easy_perform",\
+"Curl_http_connect",\
+"Curl_is_connected",\
+"curl_multi_perform",\
+"curl_multi_poll",\
+"Curl_multi_wait",\
+"Curl_ossl_connect_nonblocking",\
+"Curl_ossl_seed",\
+"Curl_poll",\
+"Curl_proxy_connect",\
+"Curl_readwrite",\
+"Curl_setup_conn",\
+"Curl_socket_check",\
+"Curl_ssl_connect_nonblocking",\
+"Curl_wait_ms",\
+"curlx_nonblock",\
+"dbh_free",\
+"dbh_get_gc",\
+"decrement_function",\
+"deflate",\
+"deflateEnd",\
+"deflateInit2_",\
+"defragmentPage",\
+"destroy_op_array",\
+"do_cli_server",\
+"do_cli",\
+"do_fetch_common",\
+"do_fetch",\
+"dotlockCheckReservedLock",\
+"dotlockLock",\
+"dotlockUnlock",\
+"doWalCallbacks",\
+"dynCall_dd",\
+"dynCall_ddd",\
+"dynCall_di",\
+"dynCall_dii",\
 "dynCall_i",\
 "dynCall_ii",\
 "dynCall_iidiiii",\
@@ -613,27 +756,45 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "dynCall_iiiiiiii",\
 "dynCall_iiiiiiiii",\
 "dynCall_iiiiiiiiii",\
+"dynCall_iiiiiiiiiii",\
+"dynCall_iiiiiiiiiiii",\
+"dynCall_iiiiiiiiiiij",\
+"dynCall_iiiiiij",\
+"dynCall_iiiiijii",\
+"dynCall_iiiij",\
+"dynCall_iiiiji",\
+"dynCall_iiiijii",\
+"dynCall_iiiijji",\
 "dynCall_iiij",\
 "dynCall_iiiji",\
+"dynCall_iij",\
+"dynCall_iiji",\
+"dynCall_iijii",\
+"dynCall_iijiji",\
+"dynCall_iijj",\
+"dynCall_ij",\
+"dynCall_j",\
 "dynCall_ji",\
 "dynCall_jii",\
+"dynCall_jiii",\
+"dynCall_jiiii",\
 "dynCall_jiiiji",\
 "dynCall_jiij",\
 "dynCall_jiiji",\
 "dynCall_jiji",\
+"dynCall_jijj",\
 "dynCall_jj",\
 "dynCall_v",\
 "dynCall_vi",\
+"dynCall_vid",\
 "dynCall_vii",\
 "dynCall_viidii",\
 "dynCall_viii",\
 "dynCall_viiii",\
 "dynCall_viiiii",\
+"dynCall_viiiiii",\
 "dynCall_viiiiiii",\
-"dynCall_viiiiiiii",'; \
-
-export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
-"__funcs_on_exit",\
+"dynCall_viiiiiiii",\
 "__fwritex",\
 "__netlink_enumerate",\
 "__overflow",\
@@ -826,6 +987,7 @@ export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
 "findReusableFd",\
 "fwrite",\
 "fopen",\
+"flock",\
 "fread",\
 "functionDestroy",\
 "fwrite",\
@@ -846,6 +1008,8 @@ export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
 "modifyPagePointer",\
 "module_destructor",\
 "mul_function_slow",\
+"multi_runsingle",\
+"multipart_buffer_read",\
 "mysql_handle_begin",\
 "mysql_handle_closer",\
 "mysql_handle_commit",\
@@ -1048,6 +1212,7 @@ export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
 "php_sockop_set_option",\
 "php_sockop_write",\
 "php_stdiop_read",\
+"php_stdiop_set_option",\
 "php_stdiop_write",\
 "php_stream_bucket_attach",\
 "php_stream_context_free",\
@@ -1137,6 +1302,7 @@ export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
 "shutdown_destructors",\
 "shutdown_executor",\
 "sifttrinkle",\
+"singleipconnect",\
 "slow_index_convert",\
 "smart_str_append_printf",\
 "smart_str_erealloc",\
@@ -1845,14 +2011,17 @@ export ASYNCIFY_ONLY=$'"__ftello_unlocked",\
 "zval_update_constant_ex"'; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
-		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
+		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED,"$(echo "$ASYNCIFY_ONLY_UNPREFIXED" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
+	else \
+		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED"; \
 	fi; \
-	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
+	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
 
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
+COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 RUN set -euxo pipefail; \
@@ -1897,9 +2066,15 @@ RUN set -euxo pipefail; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
+	PLATFORM_SPECIFIC_ARGS=''; \
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js"; \
+	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
+	$PLATFORM_SPECIFIC_ARGS \
 	-I .  \
 	-I ext   \
 	-I ext/json   \
@@ -1917,7 +2092,6 @@ RUN set -euxo pipefail; \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
-	-s ASSERTIONS=0 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
@@ -2043,7 +2217,7 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "const dependencyFilename = path.join(__dirname, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js; \
+			echo "const dependencyFilename = path.join(__dirname, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js;\
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		fi; \

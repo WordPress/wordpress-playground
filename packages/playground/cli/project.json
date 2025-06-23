@@ -84,6 +84,34 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"unbuilt-asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"unbuilt-jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 23) { console.error('Node.js version 23 or greater is required for JSPI support'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-wasm-jspi --experimental-strip-types --experimental-transform-types  --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
 		"publish": {
 			"executor": "nx:run-commands",
 			"options": {

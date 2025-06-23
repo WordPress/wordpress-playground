@@ -29,7 +29,7 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 		afterEach(async () => {
 			// Make sure the process exits and give any unhandled rejections a chance to be caught
 			php.exit();
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 			process.off('unhandledRejection', unhandledRejectionHandler);
 		});
 

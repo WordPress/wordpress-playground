@@ -9,7 +9,7 @@ const docroot = '/php';
 describe('Blueprint step rmdir()', () => {
 	let php: PHP;
 	let loggerErrorSpy: any;
-	
+
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 		php.mkdir(docroot);
@@ -23,11 +23,11 @@ describe('Blueprint step rmdir()', () => {
 	it('should remove a directory', async () => {
 		php.mkdir(`${docroot}/testdir`);
 		expect(php.isDir(`${docroot}/testdir`)).toBe(true);
-		
+
 		await rmdir(php, {
 			path: `${docroot}/testdir`,
 		});
-		
+
 		expect(php.isDir(`${docroot}/testdir`)).toBe(false);
 	});
 
@@ -41,20 +41,22 @@ describe('Blueprint step rmdir()', () => {
 
 	it('should log error and normalize relative path', async () => {
 		php.mkdir(`${docroot}/testdir`);
-		
+
 		await rmdir(php, {
 			path: 'php/testdir',
 		});
 
 		expect(loggerErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('The rmdir() step in your Blueprint refers to a relative path.')
+			expect.stringContaining(
+				'The rmdir() step in your Blueprint refers to a relative path.'
+			)
 		);
 		expect(php.isDir(`${docroot}/testdir`)).toBe(false);
 	});
 
 	it('should not log error for absolute paths', async () => {
 		php.mkdir(`${docroot}/testdir`);
-		
+
 		await rmdir(php, {
 			path: `${docroot}/testdir`,
 		});
@@ -62,4 +64,4 @@ describe('Blueprint step rmdir()', () => {
 		expect(loggerErrorSpy).not.toHaveBeenCalled();
 		expect(php.isDir(`${docroot}/testdir`)).toBe(false);
 	});
-}); 
+});

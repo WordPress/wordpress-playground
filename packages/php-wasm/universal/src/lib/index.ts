@@ -77,3 +77,6 @@ export {
 export { isExitCode } from './is-exit-code';
 export { proxyFileSystem } from './proxy-file-system';
 export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory';
+
+export * from './api';
+export type { WithAPIState as WithIsReady } from './api';

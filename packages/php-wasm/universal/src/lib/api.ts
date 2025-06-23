@@ -1,6 +1,9 @@
-import type { PHPResponseData } from '@php-wasm/universal';
-import { PHPResponse } from '@php-wasm/universal';
+import type { PHPResponseData } from './php-response';
+import { PHPResponse } from './php-response';
+import type { Endpoint } from 'comlink';
 import * as Comlink from 'comlink';
+import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
+import nodeEndpoint from 'comlink/dist/esm/node-adapter';
 
 export type WithAPIState = {
 	/**
@@ -17,15 +20,21 @@ export type WithAPIState = {
 export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window,
+	remote: Worker | Window | NodeEndpoint,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
-	const endpoint =
-		remote instanceof Worker
-			? remote
-			: Comlink.windowEndpoint(remote, context);
+	let endpoint;
+	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
+	if (appearsToBeNodeEnvironment) {
+		endpoint = nodeEndpoint(remote as NodeEndpoint);
+	} else {
+		endpoint =
+			remote instanceof Worker
+				? remote
+				: Comlink.windowEndpoint(remote as Window, context);
+	}
 
 	/**
 	 * This shouldn't be necessary, but Comlink doesn't seem to
@@ -77,7 +86,8 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 >;
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
-	pipedApi?: PipedAPI
+	pipedApi?: PipedAPI,
+	targetWorker?: NodeEndpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
@@ -104,12 +114,20 @@ export function exposeAPI<Methods, PipedAPI>(
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
-	Comlink.expose(
-		exposedApi,
-		typeof window !== 'undefined'
-			? Comlink.windowEndpoint(self.parent)
-			: undefined
-	);
+	let endpoint: Endpoint | undefined;
+	if (targetWorker) {
+		// NOTE: If there are other target types, we could expand this later,
+		// but for now, we only need support for NodeEndpoints.
+		endpoint = nodeEndpoint(targetWorker);
+	} else {
+		endpoint =
+			typeof window !== 'undefined'
+				? Comlink.windowEndpoint(self.parent)
+				: undefined;
+	}
+
+	Comlink.expose(exposedApi, endpoint);
+
 	return [setReady, setFailed, exposedApi];
 }
 

@@ -168,7 +168,7 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration &
  * // "Hi from PHP!"
  * ```
  */
-export class PHPRequestHandler {
+export class PHPRequestHandler implements AsyncDisposable {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -576,6 +576,10 @@ export class PHPRequestHandler {
 			}
 			throw error;
 		}
+	}
+
+	async [Symbol.asyncDispose]() {
+		await this.processManager[Symbol.asyncDispose]();
 	}
 }
 

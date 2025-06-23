@@ -56,16 +56,6 @@ export async function setupFetchNetworkTransport(
 			data.headers = Object.fromEntries(data.headers);
 		}
 
-		// Let the Playground request handler know that this request is
-		// coming from PHP. We can't just add this header to all external
-		// requests because of CORS. The browser will refuse to process
-		// cross-origin requests with custom headers unless the server
-		// explicitly allows them in Access-Control-Allow-Headers.
-		const parsedUrl = new URL(data.url);
-		if (parsedUrl.hostname === window.location.hostname) {
-			data.headers['x-request-issuer'] = 'php';
-		}
-
 		const corsProxyUrl = options?.corsProxyUrl;
 		return handleRequest(data, (url: any, options: any) =>
 			fetchWithCorsProxy(url, options, corsProxyUrl)

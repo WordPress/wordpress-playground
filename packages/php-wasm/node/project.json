@@ -173,6 +173,17 @@
 				"testFiles": ["php.spec.ts"]
 			}
 		},
+		"test-php-asyncify-all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"test-php-asyncify-file-get-contents",
+				"test-php-asyncify-fopen",
+				"test-php-asyncify-fsockopen",
+				"test-php-asyncify-gethostbyname",
+				"test-php-asyncify-mysqli",
+				"test-php-asyncify-sqlite3"
+			]
+		},
 		"test-php-request-handler-files": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
@@ -272,6 +283,14 @@
 				"configFile": "packages/php-wasm/node/vite.https.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": ["php-asyncify-mysqli.spec.ts"]
+			}
+		},
+		"test-php-asyncify-sqlite3": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-sqlite3.spec.ts"]
 			}
 		},
 		"lint": {
