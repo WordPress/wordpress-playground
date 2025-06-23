@@ -295,6 +295,7 @@ test('HTTPS requests via curl_exec() should fail when networking is disabled', a
 }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/curl-test.php',
+		features: { networking: false },
 		steps: [
 			{
 				step: 'writeFile',
@@ -372,6 +373,7 @@ test('HTTPS requests via file_get_contents() should fail when networking is disa
 }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/https-test.php',
+		features: { networking: false },
 		steps: [
 			{
 				step: 'writeFile',

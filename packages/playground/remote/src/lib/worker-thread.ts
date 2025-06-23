@@ -178,7 +178,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		phpVersion = '8.0',
 		sapiName = 'cli',
 		withICU = false,
-		withNetworking = false,
+		withNetworking = true,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
 	}: WorkerBootOptions) {

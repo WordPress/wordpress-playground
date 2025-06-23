@@ -139,11 +139,11 @@ function applyQueryOverrides(
 	}
 
 	/**
-	 * Networking is disabled by default, so we only need to enable it
-	 * if the query param is explicitly set to "yes".
+	 * Networking is enabled by default, so we only need to disable it
+	 * if the query param is explicitly set to something other than "yes".
 	 */
-	if (query.get('networking') === 'yes') {
-		blueprint.features['networking'] = true;
+	if (query.get('networking') && query.get('networking') !== 'yes') {
+		blueprint.features['networking'] = false;
 	}
 
 	// Language
