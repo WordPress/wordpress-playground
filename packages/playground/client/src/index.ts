@@ -170,6 +170,9 @@ export async function startPlaygroundWeb({
 	}
 
 	await runBlueprintSteps(compiled, playground);
+	if (compiled.features.networking) {
+		await playground.preloadWpAdminApiRequests();
+	}
 	progressTracker.finish();
 
 	return playground;

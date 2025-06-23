@@ -106,6 +106,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	unmounts: Record<string, () => any> = {};
 
+	private networkTransport: WordPressFetchNetworkTransport | undefined;
+
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
 	}
@@ -299,7 +301,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					.join(',');
 			}
 
-			const fetchNetworkTransport = new WordPressFetchNetworkTransport({
+			this.networkTransport = new WordPressFetchNetworkTransport({
 				corsProxyUrl: corsProxyUrl,
 			});
 
@@ -351,7 +353,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
 					 */
 					if (withNetworking) {
-						await fetchNetworkTransport.setupMessageHandler(php);
+						await this.networkTransport!.setupMessageHandler(php);
 					}
 				},
 				// Do not await the WordPress download or the sqlite integration download.
@@ -433,15 +435,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			 * improve the first wp-admin load time.
 			 */
 			if (withNetworking) {
-				await fetchNetworkTransport.preloadWpAdminApiRequests(
-					primaryPhp
-				);
 				/**
 				 * Only setup the network transport after WordPress have been installed. Otherwise,
 				 * the installer may send a network request to /wp-cron.php, which will fail because
 				 * the entire setup around network, SQLite, etc. is not complete yet.
 				 */
-				await fetchNetworkTransport.setEnabled(primaryPhp, true);
+				await this.networkTransport!.setEnabled(primaryPhp, true);
 			}
 
 			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
@@ -506,6 +505,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async preloadWpAdminApiRequests() {
+		const primaryPhp = this.__internal_getPHP()!;
+		await this.networkTransport!.preloadWpAdminApiRequests(primaryPhp);
 	}
 
 	// These methods are only here for the time traveling Playground demo.
