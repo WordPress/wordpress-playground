@@ -68,7 +68,6 @@ COPY ./replace-across-lines.sh /root/replace-across-lines.sh
 RUN chmod a+x /root/replace-across-lines.sh
 
 COPY ./emcc-for-php-wasm.sh /root/emcc-for-php-wasm.sh
-COPY ./print-wasm-imports-and-exports.c /root/print-wasm-imports-and-exports.c
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 #
@@ -94,5 +93,4 @@ RUN <<EOF
     cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py
     cp /root/emcc-for-php-wasm.sh /root/emsdk/upstream/emscripten/emcc
     chmod a+x /root/emsdk/upstream/emscripten/emcc
-    cc /root/print-wasm-imports-and-exports.c -o /root/print-wasm-imports-and-exports
 EOF

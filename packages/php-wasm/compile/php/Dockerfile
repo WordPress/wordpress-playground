@@ -70,11 +70,15 @@ RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then 
 		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
 	fi;
 
-# Workaround to unbundle sqlite from PHP <= 7.3.
-# https://github.com/php/php-src/commit/6083a38
+# Workaround to unbundle sqlite from PHP <7.4.
+# Prior to 7.4, PHP bundled sqlite internally,
+# leading compilation to fail with : wasm-ld: error: duplicate symbol: [sqlite3_xxx]
+# Unbundling sqlite manually by copying files from 7.4 solves the issue
+# Related discussion: https://github.com/WordPress/wordpress-playground/pull/2248#issuecomment-2988044885
+# And 7.4 commit reference: https://github.com/php/php-src/commit/6083a38
 RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		cp /root/builds/libsqlite3/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
-		cp /root/builds/libsqlite3/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
+		cp /root/builds/libsqlite3/\<7\.4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
+		cp /root/builds/libsqlite3/\<7\.4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
 	fi;
 
 RUN cd php-src && ./buildconf --force

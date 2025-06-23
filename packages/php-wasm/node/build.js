@@ -72,6 +72,14 @@ const dirnamePlugin = {
 	},
 };
 
+/**
+ * Hack: Keeping the path working in both
+ * the source file and the final bundle requires
+ * esbuild to rewrite the file path.
+ * `import.meta.dirname, ../../../` is auto replaced with
+ * `__dirname, './' since target directories are
+ * not identically located in built and unbuilt versions.
+ */
 const xdebugPlugin = {
 	name: 'xdebug',
 	setup(build) {

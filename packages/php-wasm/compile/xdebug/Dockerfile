@@ -1,5 +1,9 @@
 FROM playground-php-wasm:base
 
+# Each version of PHP requires its own version of Xdebug
+# because each version of PHP has a specific Zend Engine API version.
+# Consequently, each version of Xdebug is designed to be
+# compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
 # Install Bison, required to build PHP
