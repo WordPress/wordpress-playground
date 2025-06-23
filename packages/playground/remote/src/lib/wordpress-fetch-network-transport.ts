@@ -187,10 +187,10 @@ export class WordPressFetchNetworkTransport {
 				add_filter('pre_http_request', function($pre, $r, $url) {
 					post_message_to_js(json_encode([
 						'type' => 'parallelize_request',
-	                    'url' => $url,
+						'url' => $url,
 						'request' => $r
 					]));
-	               	return new WP_Error( 'http_request_block', __( "This request is not allowed", "textdomain" ) );
+					return new WP_Error( 'http_request_block', __( "This request is not allowed", "textdomain" ) );
 				}, 10, 3);
 
 				// Set the user agent header required by wp_check_browser_version()
