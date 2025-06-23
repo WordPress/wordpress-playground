@@ -162,7 +162,7 @@ export class WordPressFetchNetworkTransport {
 	 * 4. Cache the responses for later use by the network transport.
 	 * 5. When the user makes the actual requests later, serve from cache instead.
 	 */
-	async preloadWpAdminApiRequests(
+	async prefetchUpdateChecks(
 		playground: UniversalPHP
 	): Promise<Promise<any>[]> {
 		const requests: Record<string, WordPressRequest> = {};

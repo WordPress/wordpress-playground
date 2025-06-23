@@ -507,9 +507,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 	}
 
-	async preloadWpAdminApiRequests() {
+	async prefetchUpdateChecks() {
 		const primaryPhp = this.__internal_getPHP()!;
-		await this.networkTransport!.preloadWpAdminApiRequests(primaryPhp);
+		await this.networkTransport!.prefetchUpdateChecks(primaryPhp);
 	}
 
 	// These methods are only here for the time traveling Playground demo.
