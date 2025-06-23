@@ -177,7 +177,7 @@ async function run() {
 					mount.vfsPath === '/wordpress';
 				if (
 					!args.mount?.some(isMountingWordPressDir) &&
-					!args.mountBeforeInstall?.some(isMountingWordPressDir)
+					!args['mountBeforeInstall']?.some(isMountingWordPressDir)
 				) {
 					throw new Error(
 						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
