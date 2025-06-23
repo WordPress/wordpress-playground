@@ -6,7 +6,7 @@ DNS.address_map.addrs.localhost = '127.0.0.1';
 
 /**
  * Debugging Asyncify errors is tricky because the stack trace is lost when the
- * error is thrown. This code saves the stack trace in a global variable 
+ * error is thrown. This code saves the stack trace in a global variable
  * so that it can be inspected later.
  */
 PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;
@@ -38,23 +38,49 @@ PHPLoader['removeRunDependency'] = function (...args) {
 
 /**
  * Other exports live in the Dockerfile in:
- * 
+ *
  * * EXPORTED_RUNTIME_METHODS
  * * EXPORTED_FUNCTIONS
- * 
+ *
  * These exports, however, live in here because:
- * 
+ *
  * * Listing them in EXPORTED_RUNTIME_METHODS doesn't actually
  *   export them. This could be a bug in Emscripten or a consequence of
  *   that option being deprecated.
  * * Listing them in EXPORTED_FUNCTIONS works, but they are overridden
  *   on every `BasePHP.run()` call. This is a problem because we want to
  *   spy on these calls in some unit tests.
- * 
+ *
  * Therefore, we export them here.
  */
 PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
+
+if (typeof NODEFS === 'object') {
+    // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
+    // nodes. This way we can tell whether file-locking is needed and possible
+    // for an FS node, even if wrapped with PROXYFS.
+    const originalCreateNode = NODEFS.createNode;
+    NODEFS.createNode = function createNodeWithSharedFlag() {
+        const node = originalCreateNode.apply(NODEFS, arguments);
+        node.isSharedFS = true;
+        return node;
+    };
+
+    var originalHashAddNode = FS.hashAddNode;
+    FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
+        if (
+            typeof locking === 'object' &&
+            locking?.is_shared_fs_node(node)
+        ) {
+            // Avoid caching shared VFS nodes so multiple instances
+            // can access the same underlying filesystem without
+            // conflicting caches.
+            return;
+        }
+        return originalHashAddNode.apply(FS, arguments);
+    };
+}
 
 return PHPLoader;
 

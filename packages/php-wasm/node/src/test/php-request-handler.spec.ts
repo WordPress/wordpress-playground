@@ -55,18 +55,16 @@ describe.each(SupportedPHPVersions)(
 			expect(response.text).toEqual('/subdir/index.php');
 		});
 
-	it('should assign the correct cwd', async () => {
-		const php = await handler.getPrimaryPhp();
-		php.writeFile(
-			'/var/www/index.php',
-			`<?php echo getcwd();`
-		);
-		const response = await handler.request({
-			url: '/index.php',
+		it('should assign the correct cwd', async () => {
+			const php = await handler.getPrimaryPhp();
+			php.writeFile('/var/www/index.php', `<?php echo getcwd();`);
+			const response = await handler.request({
+				url: '/index.php',
+			});
+			expect(response.text).toEqual('/var/www');
 		});
-		expect(response.text).toEqual('/var/www');
-	});
-});
+	}
+);
 
 describe('PHPRequestHandler – Loopback call', () => {
 	let handler: PHPRequestHandler;

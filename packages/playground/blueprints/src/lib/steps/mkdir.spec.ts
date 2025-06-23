@@ -8,7 +8,7 @@ import { vi } from 'vitest';
 describe('Blueprint step mkdir', () => {
 	let php: PHP;
 	let loggerErrorSpy: any;
-	
+
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 		loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
@@ -52,20 +52,22 @@ describe('Blueprint step mkdir', () => {
 
 	it('should log error when using relative path', async () => {
 		const relativePath = 'php/newdir';
-		
+
 		await mkdir(php, {
 			path: relativePath,
 		});
 
 		expect(loggerErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('The mkdir() step in your Blueprint refers to a relative path.')
+			expect.stringContaining(
+				'The mkdir() step in your Blueprint refers to a relative path.'
+			)
 		);
 		expect(php.isDir('/php/newdir')).toBe(true);
 	});
 
 	it('should not log error for absolute paths', async () => {
 		const absolutePath = '/php/newdir';
-		
+
 		await mkdir(php, {
 			path: absolutePath,
 		});

@@ -22,7 +22,7 @@ import {
 	unzipWordPress,
 	wordPressRewriteRules,
 } from '.';
-import { joinPaths } from '@php-wasm/util';
+import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './rewrite-wp-config';
 
@@ -148,6 +148,11 @@ export async function bootWordPress(options: BootOptions) {
 		}
 	}
 
+	if (options.dataSqlPath) {
+		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
+		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
+	}
+
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
@@ -171,12 +176,15 @@ export async function bootWordPress(options: BootOptions) {
 			await options.sqliteIntegrationPluginZip
 		);
 	}
-	if (!(await isWordPressInstalled(php))) {
-		await installWordPress(php);
-	}
 
-	if (!(await isWordPressInstalled(php))) {
-		throw new Error('WordPress installation has failed.');
+	if (!options.dataSqlPath) {
+		if (!(await isWordPressInstalled(php))) {
+			await installWordPress(php);
+		}
+
+		if (!(await isWordPressInstalled(php))) {
+			throw new Error('WordPress installation has failed.');
+		}
 	}
 
 	return requestHandler;

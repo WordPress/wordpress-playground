@@ -24,7 +24,7 @@ runs:
           with:
               # caching node_modules
               path: node_modules
-              key: ${{ runner.os }}-${{ runner.arch }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
+              key: ${{ runner.os }}-${{ runner.arch }}-node-${{ inputs.node-version }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
               restore-keys: |
                   ${{ runner.os }}-build-${{ env.cache-name }}-
                   ${{ runner.os }}-build-

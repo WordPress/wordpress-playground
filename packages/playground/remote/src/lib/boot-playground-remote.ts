@@ -125,8 +125,22 @@ export async function bootPlaygroundRemote() {
 			}
 			bar.destroy();
 		},
+
+		/**
+		 * Listens to Playground navigation.
+		 *
+		 * @param fn The function to be called when a navigation event occurs.
+		 */
 		async onNavigation(fn) {
-			// Manage the address bar
+			/**
+			 * Note: We do not manually clear the event listener and the interval set in this function.
+			 *
+			 * This is because we're inside remote.html – a Playground instance-specific iframe.
+			 * When a Playground is stopped the iframe is destroyed and the resources – cleaned up.
+			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
+			 * We'll let the browser handle that.
+			 */
+			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
 					/**
@@ -168,6 +182,34 @@ export async function bootPlaygroundRemote() {
 					// so let's ignore it for now and find a correct fix in time.
 				}
 			});
+
+			// Also propagate navigation changes twice a second for any
+			// updates we don't receive via the iframe load event.
+			//
+			// For more details on the challenges related to the load event,
+			// see:
+			//
+			// * https://github.com/WordPress/wordpress-playground/pull/1945
+			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
+			let lastPath: string | undefined;
+			setInterval(async () => {
+				try {
+					let href = '';
+					if (wpFrame.contentWindow) {
+						href = wpFrame.contentWindow.location.href;
+					} else {
+						href = wpFrame.src;
+					}
+					const path = await playground.internalUrlToPath(href);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore errors due to CORS or CSP restrictions
+				}
+			}, 500);
 		},
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {

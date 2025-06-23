@@ -67,7 +67,34 @@ export async function resolve(
 		}
 	}
 
-	// Resolve relative imports
+	const possibleModuleExtensions = [
+		'',
+		'.ts',
+		'.tsx',
+		'.mts',
+		'.mjs',
+		'.js',
+		'.jsx',
+	];
+
+	const looksLikePackageImport = specifier.match(/^\w+/);
+	if (looksLikePackageImport) {
+		// Support resolving package imports with different file extensions.
+		//
+		// This was added to support importing a specific, nested comlink module.
+		// Before this change, there was a conflict between TypeScript type
+		// resolution and Node.js module resolution:
+		// - Node.js would not find the module without its .mjs extension.
+		// - TypeScript could not resolve import's .d.ts file when the .mjs extension was added.
+		for (const extension of possibleModuleExtensions) {
+			try {
+				const candidate = `${specifier}${extension}`;
+				return await nextResolve(candidate, context);
+			} catch {}
+		}
+	}
+
+	// Handle relative imports
 	if (
 		specifier.startsWith('.') &&
 		context.parentURL &&
@@ -89,25 +116,19 @@ export async function resolve(
 		}
 	}
 
-	if (specifier.endsWith('?raw')) {
-		// This is a raw file import and can be handled by our custom loader.
-		return {
-			url: `file://${specifier}`,
-			format: 'raw',
-			shortCircuit: true,
-		};
+	const specifierUrl = new URL(specifier, 'file://');
+	for (const format of ['raw', 'json', 'url']) {
+		if (specifierUrl.searchParams.has(format)) {
+			// This is a custom format import and can be handled by our custom loader.
+			return {
+				url: specifierUrl.href,
+				format,
+				shortCircuit: true,
+			};
+		}
 	}
 
-	if (specifier.endsWith('?json')) {
-		// This is a JSON file import and can be handled by our custom loader.
-		return {
-			url: `file://${specifier}`,
-			format: 'json',
-			shortCircuit: true,
-		};
-	}
-
-	for (const extension of ['', '.ts', '.tsx', '.js', '.jsx']) {
+	for (const extension of possibleModuleExtensions) {
 		const candidateFilePath = `${specifier}${extension}`;
 
 		if (
@@ -146,7 +167,19 @@ export async function load(
 		return nextLoad(url, context);
 	}
 
-	if (urlObj.searchParams.has('raw')) {
+	if (context.format === 'url') {
+		urlObj.search = '';
+		return {
+			format: 'module',
+			source: `export default ${JSON.stringify(urlObj.href)};`,
+			// TODO: Consider which is preferable and discuss with @adamziel.
+			// He implemented the pathname version.
+			//source: `export default ${JSON.stringify(urlObj.pathname)};`,
+			shortCircuit: true,
+		};
+	}
+
+	if (context.format === 'raw') {
 		// Load raw file content
 		const content = readFileSync(urlObj.pathname, 'utf8');
 		return {
@@ -156,15 +189,7 @@ export async function load(
 		};
 	}
 
-	if (urlObj.searchParams.has('url')) {
-		return {
-			format: 'module',
-			shortCircuit: true,
-			source: `export default ${JSON.stringify(urlObj.pathname)};`,
-		};
-	}
-
-	if (urlObj.pathname.endsWith('.json')) {
+	if (context.format === 'json' || urlObj.pathname.endsWith('.json')) {
 		const source = readFileSync(urlObj.pathname, 'utf8');
 		return {
 			format: 'json',

@@ -46,21 +46,21 @@ try {
 		initialSyncDirection: hasWordPressSiteInOPFS ? 'opfs-to-memfs' : 'memfs-to-opfs',
 	};
 
-	const client = await startPlaygroundWeb( {
+	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),
 		remoteUrl: 'https://playground.wordpress.net/remote.html',
 		blueprint: blueprint,
-		shouldInstallWordPress: ! hasWordPressSiteInOPFS,
-		mounts: hasWordPressSiteInOPFS ? [ mountDescriptor ] : [],
-	} );
+		shouldInstallWordPress: !hasWordPressSiteInOPFS,
+		mounts: hasWordPressSiteInOPFS ? [mountDescriptor] : [],
+	});
 
-	if ( ! hasWordPressSiteInOPFS ) {
-		await client.mountOpfs( mountDescriptor );
+	if (!hasWordPressSiteInOPFS) {
+		await client.mountOpfs(mountDescriptor);
 	}
 
 	await client.isReady();
 	return client;
-} catch ( error ) {
+} catch (error) {
 	// handle error here
 }
 ```

@@ -9,7 +9,7 @@ const docroot = '/php';
 describe('Blueprint step rm()', () => {
 	let php: PHP;
 	let loggerErrorSpy: any;
-	
+
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 		php.mkdir(docroot);
@@ -47,20 +47,22 @@ describe('Blueprint step rm()', () => {
 
 	it('should log error and normalize relative path', async () => {
 		php.writeFile(`${docroot}/test.php`, `<?php echo 'Test';`);
-		
+
 		await rm(php, {
 			path: 'php/test.php',
 		});
 
 		expect(loggerErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('The rm() step in your Blueprint refers to a relative path.')
+			expect.stringContaining(
+				'The rm() step in your Blueprint refers to a relative path.'
+			)
 		);
 		expect(php.fileExists(`${docroot}/test.php`)).toBe(false);
 	});
 
 	it('should not log error for absolute paths', async () => {
 		php.writeFile(`${docroot}/test.php`, `<?php echo 'Test';`);
-		
+
 		await rm(php, {
 			path: `${docroot}/test.php`,
 		});

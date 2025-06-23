@@ -205,7 +205,7 @@ await asyncSpawn(
 		'php/Dockerfile',
 		'.',
 		'--tag=php-wasm',
-		args.DEBUG ? '--progress=plain' : '--progress=auto',
+		'--progress=plain',
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',

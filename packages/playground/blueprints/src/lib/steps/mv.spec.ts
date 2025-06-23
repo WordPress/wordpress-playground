@@ -9,7 +9,7 @@ const docroot = '/php';
 describe('Blueprint step mv()', () => {
 	let php: PHP;
 	let loggerErrorSpy: any;
-	
+
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 		php.mkdir(docroot);
@@ -65,14 +65,16 @@ describe('Blueprint step mv()', () => {
 
 	it('should log error and normalize relative fromPath', async () => {
 		php.writeFile(`${docroot}/source.php`, `<?php echo 'Test';`);
-		
+
 		await mv(php, {
 			fromPath: 'php/source.php',
 			toPath: `${docroot}/dest.php`,
 		});
 
 		expect(loggerErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('The mv() step in your Blueprint refers to a relative path.')
+			expect.stringContaining(
+				'The mv() step in your Blueprint refers to a relative path.'
+			)
 		);
 		expect(php.fileExists(`${docroot}/source.php`)).toBe(false);
 		expect(php.fileExists(`${docroot}/dest.php`)).toBe(true);
@@ -80,14 +82,16 @@ describe('Blueprint step mv()', () => {
 
 	it('should log error and normalize relative toPath', async () => {
 		php.writeFile(`${docroot}/source.php`, `<?php echo 'Test';`);
-		
+
 		await mv(php, {
 			fromPath: `${docroot}/source.php`,
 			toPath: 'php/dest.php',
 		});
 
 		expect(loggerErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('The mv() step in your Blueprint refers to a relative path.')
+			expect.stringContaining(
+				'The mv() step in your Blueprint refers to a relative path.'
+			)
 		);
 		expect(php.fileExists(`${docroot}/source.php`)).toBe(false);
 		expect(php.fileExists(`${docroot}/dest.php`)).toBe(true);
@@ -95,14 +99,16 @@ describe('Blueprint step mv()', () => {
 
 	it('should log error and normalize both relative paths', async () => {
 		php.writeFile(`${docroot}/source.php`, `<?php echo 'Test';`);
-		
+
 		await mv(php, {
 			fromPath: 'php/source.php',
 			toPath: 'php/dest.php',
 		});
 
 		expect(loggerErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('The mv() step in your Blueprint refers to a relative path.')
+			expect.stringContaining(
+				'The mv() step in your Blueprint refers to a relative path.'
+			)
 		);
 		expect(php.fileExists(`${docroot}/source.php`)).toBe(false);
 		expect(php.fileExists(`${docroot}/dest.php`)).toBe(true);
@@ -110,7 +116,7 @@ describe('Blueprint step mv()', () => {
 
 	it('should not log error for absolute paths', async () => {
 		php.writeFile(`${docroot}/source.php`, `<?php echo 'Test';`);
-		
+
 		await mv(php, {
 			fromPath: `${docroot}/source.php`,
 			toPath: `${docroot}/dest.php`,

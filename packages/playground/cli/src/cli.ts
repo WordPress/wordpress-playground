@@ -2,6 +2,7 @@
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import yargs from 'yargs';
+import { cpus } from 'os';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import type { RunCLIArgs } from './run-cli';
 import { runCLI } from './run-cli';
@@ -11,6 +12,8 @@ import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mount';
+import type { Mount } from './mount';
+import { jspi } from 'wasm-feature-detect';
 
 async function run() {
 	/**
@@ -126,8 +129,26 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('experimentalTrace', {
+			describe:
+				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
+			type: 'boolean',
+			default: false,
+			// Hide this option because we want to replace with a more general log-level flag.
+			hidden: true,
+		})
+		// TODO: Should we make this a hidden flag?
+		.option('experimentalMultiWorker', {
+			describe:
+				'Enable experimental multi-worker support which requires JSPI ' +
+				'and a /wordpress directory backed by a real filesystem. ' +
+				'Pass a positive number to specify the number of workers to use. ' +
+				'Otherwise, default to the number of CPUs minus 1.',
+			type: 'number',
+			coerce: (value?: number) => value ?? cpus().length - 1,
+		})
 		.showHelpOnFail(false)
-		.check((args) => {
+		.check(async (args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 				try {
 					// Check if is valid URL
@@ -135,6 +156,31 @@ async function run() {
 				} catch {
 					throw new Error(
 						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+					);
+				}
+			}
+
+			if (args.experimentalMultiWorker !== undefined) {
+				if (args.experimentalMultiWorker <= 1) {
+					throw new Error(
+						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
+					);
+				}
+
+				if (!(await jspi())) {
+					throw new Error(
+						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
+					);
+				}
+
+				const isMountingWordPressDir = (mount: Mount) =>
+					mount.vfsPath === '/wordpress';
+				if (
+					!args.mount?.some(isMountingWordPressDir) &&
+					!args.mountBeforeInstall?.some(isMountingWordPressDir)
+				) {
+					throw new Error(
+						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
 					);
 				}
 			}
