@@ -55,11 +55,7 @@ import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
-import {
-	WordPressFetchNetworkTransport,
-	preloadWpAdminApiRequests,
-	setupFetchNetworkTransport,
-} from './wordpress-fetch-network-transport';
+import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 // post message to parent
 self.postMessage('worker-script-started');

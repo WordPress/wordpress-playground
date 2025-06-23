@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import type { PHP, UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { defineWpConfigConsts } from '@wp-playground/blueprints';
 
@@ -38,15 +38,16 @@ type WordPressRequest = {
  *
  * ```ts
  * const transport = new FetchNetworkTransport(playground);
- * await transport.setup();
+ * await transport.setup( php );
  *
+ * // The transport is disabled by default, let's enable it:
+ * await transport.enable( php );
  * ```
  *
  * @param playground the Playground instance to set up with network support.
  */
 export class WordPressFetchNetworkTransport {
 	private options: SetupFetchNetworkTransportOptions;
-	private enabled: boolean = true;
 	private preloadedResponseCache = new Map<
 		string,
 		{
@@ -56,7 +57,6 @@ export class WordPressFetchNetworkTransport {
 			data: string;
 		}
 	>();
-	private messageHandler?: () => Promise<void>;
 
 	constructor(options?: SetupFetchNetworkTransportOptions) {
 		this.options = options || {};
@@ -69,7 +69,6 @@ export class WordPressFetchNetworkTransport {
 		playground: UniversalPHP,
 		enabled: boolean
 	): Promise<void> {
-		this.enabled = enabled;
 		await defineWpConfigConsts(playground, {
 			consts: {
 				USE_FETCH_FOR_REQUESTS: enabled,
@@ -78,14 +77,12 @@ export class WordPressFetchNetworkTransport {
 	}
 
 	/**
-	 * Set up the message handler for network requests
+	 * Set up the message handler for network requests. This only sets up the
+	 * message handler, it does not enable the transport. You will still need
+	 * to call `transport.setEnabled(php, true)` to enable it.
 	 */
 	async setupMessageHandler(playground: UniversalPHP) {
 		return await playground.onMessage(async (message: string) => {
-			if (!this.enabled) {
-				return '';
-			}
-
 			let envelope: RequestMessage;
 			try {
 				// PHP-WASM sends messages as strings, so we can't expect valid JSON.
@@ -101,7 +98,7 @@ export class WordPressFetchNetworkTransport {
 			// Check if we have a cached response first
 			const cachedResponse = this.preloadedResponseCache.get(data.url);
 			if (cachedResponse) {
-				console.log('Using cached response for:', data.url);
+				logger.info('Using cached response for:', data.url);
 
 				// Convert the cached response back to the format expected by PHP
 				const responseHeaders: string[] = [];
@@ -277,7 +274,6 @@ export class WordPressFetchNetworkTransport {
 				method,
 				headers,
 				body,
-				// credentials: 'include',
 			};
 
 			try {
