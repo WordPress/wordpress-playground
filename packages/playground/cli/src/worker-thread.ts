@@ -110,6 +110,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 		await this.bootRequestHandler(args);
 
 		const primaryPhp = this.__internal_getPHP()!;
+		mountResources(primaryPhp, args.mountBeforeInstall || []);
+
 		if (args.mode === 'mount-only') {
 			mountResources(primaryPhp, args.mount || []);
 			return;
