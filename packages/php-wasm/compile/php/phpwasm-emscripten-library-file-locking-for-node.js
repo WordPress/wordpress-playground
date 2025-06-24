@@ -40,13 +40,21 @@ const LibraryForFileLocking = {
 			}
 
 			// Handle PROXYFS nodes which wrap other nodes.
-			if (!node?.mount?.opts?.fs?.lookupPath) {
+			if (!node?.mount?.opts?.fs?.lookupPath || !node?.mount?.type?.realPath) {
 				return false;
 			}
 
-			const vfsPath = NODEFS.realPath(node);
-			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
-			return !!underlyingNode?.isSharedFS;
+			// Only NODEFS can be shared between workers at the moment.
+			if (node.mount.type !== NODEFS) {
+				return false;
+			}
+			const vfsPath = node.mount.type.realPath(node);
+			try {
+				const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
+				return !!underlyingNode?.isSharedFS;
+			} catch (e) {
+				return false;
+			}
 		},
 		is_path_to_shared_fs(path) {
 			const { node } = FS.lookupPath(path);
