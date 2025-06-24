@@ -2496,6 +2496,11 @@ bar1
 			expect(consoleLogMock).not.toHaveBeenCalled();
 			expect(consoleErrorMock).not.toHaveBeenCalled();
 		});
+
+		it('should define the PHP_BINARY constant', async () => {
+			const response = await php.cli(['php', '-r', 'echo PHP_BINARY;']);
+			expect(await response.stdoutText).toBe('/internal/shared/bin/php');
+		});
 	});
 
 	describe('Response parsing', () => {
