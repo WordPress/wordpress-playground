@@ -1,3 +1,7 @@
+import { errorLogPath, logger } from '@php-wasm/logger';
+import type { FileLockManager } from '@php-wasm/node';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPExecutionFailureError,
@@ -7,22 +11,18 @@ import {
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
-import type { FileLockManager } from '@php-wasm/node';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { bootRequestHandler, bootWordPress } from '@wp-playground/wordpress';
 import { sprintf } from '@php-wasm/util';
-import { parentPort } from 'worker_threads';
-import { rootCertificates } from 'tls';
-import type { RunCLIArgs } from './run-cli';
 import {
-	type PHPExceptionDetails,
 	runBlueprintV2,
+	type PHPExceptionDetails,
 } from '@wp-playground/blueprints';
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
+import { rootCertificates } from 'tls';
+import { parentPort } from 'worker_threads';
 import type { Mount } from './mounts';
+import type { RunCLIArgs } from './run-cli';
 
 function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -50,10 +50,11 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 /**
  * Output writer that ensures that progress bars are not printed on the same line as other output.
  */
-let output = {
+const output = {
 	lastWriteWasProgress: false,
 	progress(data: string) {
 		if (!process.stdout.isTTY) {
+			// eslint-disable-next-line no-console
 			console.log(data);
 		} else {
 			if (!output.lastWriteWasProgress) {
@@ -154,7 +155,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 			}
 		}
 
-		let phpErrorReported = false;
+		// let phpErrorReported = false;
 		try {
 			const cliArgsToPass: (keyof WorkerRunBlueprintArgs)[] = [
 				'mode',
@@ -249,7 +250,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 					'Unknown error. Even the PHP error log is not available to source more details.';
 			}
 			// @TODO: Without this console.error, we don't get the error details we need to debug.
-			console.error(error);
+			logger.error(error);
 			throw new Error(phpLogs, { cause: error });
 		} finally {
 			reap();

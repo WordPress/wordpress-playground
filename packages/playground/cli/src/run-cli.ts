@@ -312,7 +312,7 @@ export async function parseOptionsAndRunCLI() {
 /**
  * Output writer that ensures that progress bars are not printed on the same line as other output.
  */
-let output = {
+const output = {
 	lastWriteWasProgress: false,
 	progress(data: string) {
 		if (!process.stdout.isTTY) {
@@ -351,7 +351,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	// @TODO: We lost track of phpErrorReported with multiple workers. How
 	//        should we handle it?
 	// @TODO: Preserve cwd when booting workers.
-	let phpErrorReported = false;
+	const phpErrorReported = false;
 	let streamedResponse: StreamedPHPResponse | undefined;
 
 	try {

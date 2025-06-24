@@ -1,60 +1,60 @@
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { setURLScope } from '@php-wasm/scopes';
+import { joinPaths, randomString } from '@php-wasm/util';
 import type {
 	GeneratedCertificate,
-	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+	TCPOverFetchOptions,
 } from '@php-wasm/web';
 import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
 } from '@php-wasm/web';
-import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
-import { wordPressSiteUrl } from './config';
+import { createMemoizedFetch } from '@wp-playground/common';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import {
-	getWordPressModuleDetails,
-	getSqliteDriverModuleDetails,
 	LatestMinifiedWordPressVersion,
 	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
 	MinifiedWordPressVersionsList,
+	getSqliteDriverModuleDetails,
+	getWordPressModuleDetails,
 } from '@wp-playground/wordpress-builds';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
-import { randomString } from '@php-wasm/util';
+import { wordPressSiteUrl } from './config';
 import {
-	spawnHandlerFactory,
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
+	spawnHandlerFactory,
 } from './worker-utils';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { createMemoizedFetch } from '@wp-playground/common';
-import type { FilesystemOperation } from '@php-wasm/fs-journal';
-import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
-import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import { logger } from '@php-wasm/logger';
 import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import {
 	bootWordPress,
 	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import { logger } from '@php-wasm/logger';
-import { generateCertificate, certificateToPEM } from '@php-wasm/web';
 import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
+/* @ts-ignore */
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 // post message to parent
