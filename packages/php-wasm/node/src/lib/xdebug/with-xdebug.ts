@@ -5,8 +5,8 @@ import type {
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import { jspi } from 'wasm-feature-detect';
-import path from 'path';
 import fs from 'fs';
+import { getXdebugExtensionModule } from './get-xdebug-extension-module';
 
 export async function withXdebug(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
@@ -17,19 +17,7 @@ export async function withXdebug(
 	}
 
 	const fileName = 'xdebug.so';
-	const directoryName = version.replace('.', '_');
-	/**
-	 * Hack: Keeping the path working in both
-	 * the source file and the final bundle requires
-	 * esbuild to rewrite the below path.
-	 * `import.meta.dirname, ../../../` is auto replaced with
-	 * `__dirname, './' in build.js since target directories are
-	 * not identically located in built and unbuilt versions.
-	 */
-	const filePath = path.resolve(
-		import.meta.dirname,
-		`../../../jspi/extensions/xdebug/${directoryName}/${fileName}`
-	);
+	const filePath = await getXdebugExtensionModule(version);
 	const extension = fs.readFileSync(filePath);
 
 	return {

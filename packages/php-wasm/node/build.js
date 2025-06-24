@@ -72,28 +72,29 @@ const dirnamePlugin = {
 	},
 };
 
-/**
- * Hack: Keeping the path working in both
- * the source file and the final bundle requires
- * esbuild to rewrite the file path.
- * `import.meta.dirname, ../../../` is auto replaced with
- * `__dirname, './' since target directories are
- * not identically located in built and unbuilt versions.
- */
-const xdebugPlugin = {
-	name: 'xdebug',
+const importUrlPlugin = {
+	name: 'import-url',
 	setup(build) {
-		build.onLoad({ filter: /\/with-xdebug\.ts$/ }, ({ path: filePath }) => {
-			let contents = fs.readFileSync(filePath, 'utf8');
+		build.onResolve({ filter: /\?url$/ }, ({ path: filePath }) => {
+			const fixedPath = filePath.replace(/^(\.\.\/)+/, './');
 
 			return {
-				contents: contents.replace(
-					/import\.meta\.dirname,\s*`\.\.\/\.\.\/\.\.\//g,
-					'__dirname, `./'
-				),
-				loader: 'ts',
+				path: fixedPath,
+				namespace: 'import-url',
 			};
 		});
+		build.onLoad(
+			{ filter: /\?url$/, namespace: 'import-url' },
+			({ path: filePath }) => {
+				const defaultPath = filePath.replace('?url', '');
+
+				return {
+					contents: `import path from 'path';
+					export default path.resolve(__dirname, ${JSON.stringify(defaultPath)});`,
+					loader: 'js',
+				};
+			}
+		);
 	},
 };
 
@@ -124,7 +125,7 @@ async function build() {
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin, xdebugPlugin],
+		plugins: [dirnamePlugin, importUrlPlugin],
 	});
 
 	await esbuild.build({
@@ -161,7 +162,7 @@ const __dirname = import.meta.dirname;
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin, xdebugPlugin],
+		plugins: [dirnamePlugin, importUrlPlugin],
 	});
 
 	fs.copyFileSync(
