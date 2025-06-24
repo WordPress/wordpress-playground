@@ -193,7 +193,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 						output.progress(message);
 					},
 					onError: (message, details?: PHPExceptionDetails) => {
-						phpErrorReported = true;
+						// phpErrorReported = true;
 						const red = '\x1b[31m';
 						const bold = '\x1b[1m';
 						const reset = '\x1b[0m';
