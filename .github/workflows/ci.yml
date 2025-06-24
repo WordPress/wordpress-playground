@@ -30,34 +30,36 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/14)
+                    - name: test-unit-asyncify (1/15)
                       target: test
-                    - name: test-unit-asyncify (2/14)
+                    - name: test-unit-asyncify (2/15)
                       target: test-php
-                    - name: test-unit-asyncify (3/14)
+                    - name: test-unit-asyncify (3/15)
                       target: test-php-request-handler-files
-                    - name: test-unit-asyncify (4/14)
+                    - name: test-unit-asyncify (4/15)
                       target: test-php-request-handler-requests
-                    - name: test-unit-asyncify (5/14)
+                    - name: test-unit-asyncify (5/15)
                       target: test-php-asyncify-file-get-contents-http
-                    - name: test-unit-asyncify (6/14)
+                    - name: test-unit-asyncify (6/15)
                       target: test-php-asyncify-file-get-contents-https
-                    - name: test-unit-asyncify (7/14)
+                    - name: test-unit-asyncify (7/15)
                       target: test-php-asyncify-fopen-http
-                    - name: test-unit-asyncify (8/14)
+                    - name: test-unit-asyncify (8/15)
                       target: test-php-asyncify-fopen-https
-                    - name: test-unit-asyncify (9/14)
+                    - name: test-unit-asyncify (9/15)
                       target: test-php-asyncify-fsockopen-http
-                    - name: test-unit-asyncify (10/14)
+                    - name: test-unit-asyncify (10/15)
                       target: test-php-asyncify-fsockopen-https
-                    - name: test-unit-asyncify (11/14)
+                    - name: test-unit-asyncify (11/15)
                       target: test-php-asyncify-gethostbyname-http
-                    - name: test-unit-asyncify (12/14)
+                    - name: test-unit-asyncify (12/15)
                       target: test-php-asyncify-gethostbyname-https
-                    - name: test-unit-asyncify (13/14)
+                    - name: test-unit-asyncify (13/15)
                       target: test-php-asyncify-mysqli-http
-                    - name: test-unit-asyncify (14/14)
+                    - name: test-unit-asyncify (14/15)
                       target: test-php-asyncify-mysqli-https
+                    - name: test-unit-sqlite3 (15/15)
+                      target: test-php-asyncify-sqlite3
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -189,6 +191,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
             - name: Generate a mock version number (for releasing the packages in a local registry) and store it as a global variable
               run: |
                   VERSION=$(date +%s)
@@ -209,10 +213,20 @@ jobs:
             - name: Package repository
               run: |
                   npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
-            - name: Install Bun
-              uses: oven-sh/setup-bun@v2
             - name: Start a local node package registry server
-              run: RUNNER_TRACKING_ID="" && (nohup bun ./packages/playground/cli/src/cli.ts server --port=$PORT --mount="$HOST_PATH:/wordpress/$VERSION" --quiet&)
+              run: |
+                  source ~/.nvm/nvm.sh;
+                  nvm install 22;
+                  RUNNER_TRACKING_ID="" && ( \
+                    nohup node \
+                      --experimental-strip-types \
+                      --experimental-transform-types \
+                      --import ./packages/meta/src/node-es-module-loader/register.mts \
+                      ./packages/playground/cli/src/cli.ts server \
+                      --port=$PORT \
+                      --mount="$HOST_PATH:/wordpress/$VERSION" \
+                      --quiet& \
+                    )
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do

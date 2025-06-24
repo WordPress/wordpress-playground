@@ -9,25 +9,24 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v1.0.38] (2025-05-22) 
+## [v1.0.38] (2025-05-22)
 
 ### Various
 
-- Revert "[ php-wasm ] add Intl support (#150)". ([#154](https://github.com/Automattic/wordpress-playground-private/pull/154))
-- Use the new SQLite driver. ([#144](https://github.com/Automattic/wordpress-playground-private/pull/144))
-- [ php-wasm ] Add intl support. ([#155](https://github.com/Automattic/wordpress-playground-private/pull/155))
-- [ php-wasm ] Intl : Improve integration. ([#159](https://github.com/Automattic/wordpress-playground-private/pull/159))
-- [ php-wasm ] add Intl support. ([#150](https://github.com/Automattic/wordpress-playground-private/pull/150))
-- [CLI] Enable users to automatically mount their current working directory into Playground. ([#39](https://github.com/Automattic/wordpress-playground-private/pull/39))
-- [PHP-wasm Node] Fix Identifier '__filename' has already been declared. ([#143](https://github.com/Automattic/wordpress-playground-private/pull/143))
-- [Website] Support data URLs in blueprint-url query parameter. ([#158](https://github.com/Automattic/wordpress-playground-private/pull/158))
+-   Revert "[ php-wasm ] add Intl support (#150)". ([#154](https://github.com/Automattic/wordpress-playground-private/pull/154))
+-   Use the new SQLite driver. ([#144](https://github.com/Automattic/wordpress-playground-private/pull/144))
+-   [ php-wasm ] Add intl support. ([#155](https://github.com/Automattic/wordpress-playground-private/pull/155))
+-   [ php-wasm ] Intl : Improve integration. ([#159](https://github.com/Automattic/wordpress-playground-private/pull/159))
+-   [ php-wasm ] add Intl support. ([#150](https://github.com/Automattic/wordpress-playground-private/pull/150))
+-   [CLI] Enable users to automatically mount their current working directory into Playground. ([#39](https://github.com/Automattic/wordpress-playground-private/pull/39))
+-   [PHP-wasm Node] Fix Identifier '\_\_filename' has already been declared. ([#143](https://github.com/Automattic/wordpress-playground-private/pull/143))
+-   [Website] Support data URLs in blueprint-url query parameter. ([#158](https://github.com/Automattic/wordpress-playground-private/pull/158))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @bgrgicak @JanJakes @mho22
-
 
 ## [v1.0.37] (2025-05-15)
 

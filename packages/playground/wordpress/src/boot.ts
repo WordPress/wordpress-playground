@@ -22,7 +22,7 @@ import {
 	unzipWordPress,
 	wordPressRewriteRules,
 } from '.';
-import { joinPaths } from '@php-wasm/util';
+import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './rewrite-wp-config';
 
@@ -37,6 +37,7 @@ export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
 export interface BootOptions {
 	createPhpRuntime: () => Promise<number>;
+	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -147,6 +148,11 @@ export async function bootWordPress(options: BootOptions) {
 		}
 	}
 
+	if (options.dataSqlPath) {
+		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
+		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
+	}
+
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
@@ -171,12 +177,14 @@ export async function bootWordPress(options: BootOptions) {
 		);
 	}
 
-	if (!(await isWordPressInstalled(php))) {
-		await installWordPress(php);
-	}
+	if (!options.dataSqlPath) {
+		if (!(await isWordPressInstalled(php))) {
+			await installWordPress(php);
+		}
 
-	if (!(await isWordPressInstalled(php))) {
-		throw new Error('WordPress installation has failed.');
+		if (!(await isWordPressInstalled(php))) {
+			throw new Error('WordPress installation has failed.');
+		}
 	}
 
 	return requestHandler;
@@ -240,6 +248,10 @@ export async function bootRequestHandler(options: BootOptions) {
 			recreateRuntime: options.createPhpRuntime,
 			maxRequests: 400,
 		});
+
+		if (options.onPHPInstanceCreated) {
+			await options.onPHPInstanceCreated(php);
+		}
 
 		return php;
 	}

@@ -147,7 +147,7 @@ export class PHPProcessManager implements AsyncDisposable {
 		considerPrimary = true,
 	}: {
 		considerPrimary?: boolean;
-		} = {}): Promise<SpawnedPHP> {
+	} = {}): Promise<SpawnedPHP> {
 		/**
 		 * First and foremost, make sure we have the primary PHP instance in place.
 		 * We don't acquire it yet. We just make sure it exists.

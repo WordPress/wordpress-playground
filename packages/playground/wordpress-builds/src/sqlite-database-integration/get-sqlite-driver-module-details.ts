@@ -19,7 +19,6 @@ export function getSqliteDriverModuleDetails(
 	url: string;
 } {
 	switch (version) {
-		
 		case 'develop':
 			/** @ts-ignore */
 			return {
