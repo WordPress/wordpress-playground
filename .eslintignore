@@ -12,4 +12,6 @@ packages/php-wasm/node/src/test/__test*
 rollup.d.ts
 .local
 .vscode
+.nx
 playwright-report
+rollup.d.ts

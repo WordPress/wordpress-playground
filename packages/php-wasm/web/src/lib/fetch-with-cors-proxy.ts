@@ -3,11 +3,33 @@ import { cloneRequest, teeRequest } from '@php-wasm/web-service-worker';
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
 	init?: RequestInit,
-	corsProxyUrl?: string
+	corsProxyUrl?: string,
+	playgroundUrl?: string
 ): Promise<Response> {
 	const requestObject =
 		typeof input === 'string' ? new Request(input, init) : input;
 	if (!corsProxyUrl) {
+		return await fetch(requestObject);
+	}
+
+	/**
+	 * Never try to proxy requests to the playground itself. The remote proxy
+	 * won't be able to reach it. At best, it will produce a cryptic error
+	 * message. At worst, it will time out, making the user wait for 30 seconds.
+	 */
+	const playgroundUrlObj = playgroundUrl ? new URL(playgroundUrl) : null;
+	const requestUrlObj = new URL(
+		requestObject.url,
+		playgroundUrlObj || undefined
+	);
+
+	if (
+		playgroundUrlObj &&
+		requestUrlObj.protocol === playgroundUrlObj.protocol &&
+		requestUrlObj.hostname === playgroundUrlObj.hostname &&
+		requestUrlObj.port === playgroundUrlObj.port &&
+		requestUrlObj.pathname.startsWith(playgroundUrlObj.pathname)
+	) {
 		return await fetch(requestObject);
 	}
 

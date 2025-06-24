@@ -14,6 +14,7 @@
 		"lib": ["ES2022", "esnext.disposable", "dom"],
 		"skipLibCheck": true,
 		"skipDefaultLibCheck": true,
+		"noPropertyAccessFromIndexSignature": false,
 		"baseUrl": ".",
 		"paths": {
 			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],

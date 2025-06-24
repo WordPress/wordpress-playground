@@ -48,8 +48,6 @@ The WordPress you see when you open Playground in your browser is a WordPress th
 
 The loading screen and progress bar you see on Playground includes both the streaming of those foundational technologies to your browser and configuration steps from [WordPress Blueprints](/blueprints) (see [examples](/blueprints/examples)), so that a full server, WordPress software, Theme & Plugin solutions and configuration instructions can be streamed over-the-wire.
 
-While many WordPress solutions may require internet connectivity to interact with social networks, live feeds, and other internet services, those connections [could be limited in Playground](/developers/architecture/wasm-php-overview#networking-support-varies-between-platforms). However, by enabling network connectivity in the Customize Playground settings modal [(example URL w/ query parameter)](https://playground.wordpress.net/?networking=yes), you can mostly wire up internet connectivity to WordPress in Playground.
-
 ## What makes Playground different from running WordPress on a web server or local desktop app?
 
 Web applications like WordPress have long relied on server technologies [to run logic](/developers/architecture/wasm-php-overview) and [store data](/developers/architecture/wordpress#sqlite).

@@ -1,3 +1,14 @@
+/**
+ * @TODO:
+ * * Mount a stable system tmp or home/.playground-cli directory to store HTTP Cache.
+ *   Flush stale entries periodically.
+ * * Find a consistent logging interface. Right now we have a logger for some things and
+ *   output.stdout for other things. In the browser, logger prints information to the
+ *   devtools console which is only needed for debugging. The HTML makes for the UI.
+ *   In CLI, the console and the UI are the same thing. Perhaps we actually need to
+ *   separate what we print for UI reasons from what we print for debugging?
+ */
+
 import { errorLogPath, logger } from '@php-wasm/logger';
 import type {
 	PHPRequest,
@@ -28,6 +39,7 @@ import path from 'path';
 import { Worker } from 'worker_threads';
 import yargs from 'yargs';
 // @ts-ignore
+import { expandAutoMounts } from './mounts';
 import { startServer } from './server';
 import type { PlaygroundCliWorker } from './worker-thread';
 // @ts-ignore
@@ -35,24 +47,15 @@ import importedWorkerUrlString from './worker-thread?worker&url';
 // @ts-ignore
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
-import type { Mount } from './mounts';
 import {
-	expandAutoMounts,
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
+	type Mount,
 } from './mounts';
-/**
- * @TODO:
- * * Mount a stable system tmp or home/.playground-cli directory to store HTTP Cache.
- *   Flush stale entries periodically.
- * * Find a consistent logging interface. Right now we have a logger for some things and
- *   output.stdout for other things. In the browser, logger prints information to the
- *   devtools console which is only needed for debugging. The HTML makes for the UI.
- *   In CLI, the console and the UI are the same thing. Perhaps we actually need to
- *   separate what we print for UI reasons from what we print for debugging?
- */
 
 /* eslint-disable no-console */
+import { cpus } from 'os';
+import { jspi } from 'wasm-feature-detect';
 
 export interface RunCLIArgs {
 	additionalBlueprintSteps?: any[];
@@ -228,7 +231,60 @@ export async function parseOptionsAndRunCLI() {
 			coerce: (value) => value.split(','),
 			choices: ['bundled-files', 'follow-symlinks'],
 		})
-		.showHelpOnFail(false);
+		.option('follow-symlinks', {
+			describe:
+				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('experimentalTrace', {
+			describe:
+				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
+			type: 'boolean',
+			default: false,
+			// Hide this option because we want to replace with a more general log-level flag.
+			hidden: true,
+		})
+		// TODO: Should we make this a hidden flag?
+		.option('experimentalMultiWorker', {
+			describe:
+				'Enable experimental multi-worker support which requires JSPI ' +
+				'and a /wordpress directory backed by a real filesystem. ' +
+				'Pass a positive number to specify the number of workers to use. ' +
+				'Otherwise, default to the number of CPUs minus 1.',
+			type: 'number',
+			coerce: (value?: number) => value ?? cpus().length - 1,
+		})
+		.showHelpOnFail(false)
+		.check(async (args) => {
+			if (args.experimentalMultiWorker !== undefined) {
+				if (args.experimentalMultiWorker <= 1) {
+					throw new Error(
+						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
+					);
+				}
+
+				if (!(await jspi())) {
+					throw new Error(
+						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag. In Node.js, you can use the --experimental-wasm-jspi flag.'
+					);
+				}
+
+				const isMountingWordPressDir = (mount: Mount) =>
+					mount.vfsPath === '/wordpress';
+				if (
+					!args.mount?.some(isMountingWordPressDir) &&
+					!(args['mountBeforeInstall'] as any)?.some(
+						isMountingWordPressDir
+					)
+				) {
+					throw new Error(
+						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
+					);
+				}
+			}
+			return true;
+		});
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
@@ -544,9 +600,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					if (!args.debug) {
 						throw error;
 					}
-					const phpLogs = await playground.readFileAsText(
-						errorLogPath
-					);
+					let phpLogs = '';
+					try {
+						// @TODO: Don't assume errorLogPath starts with /wordpress/
+						//        ...or maybe we can assume that in Playground CLI?
+						phpLogs = await playground.readFileAsText(errorLogPath);
+					} catch {
+						phpLogs =
+							'Unknown error. Even the PHP error log is not available to source more details.';
+					}
 					throw new Error(phpLogs, { cause: error });
 				}
 			},

@@ -43,7 +43,7 @@ describe('Query API', () => {
 
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
-			cy.visit('/?url=/wp-admin/plugin-install.php');
+			cy.visit('/?networking=no&url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.notice.error')
 				.should(

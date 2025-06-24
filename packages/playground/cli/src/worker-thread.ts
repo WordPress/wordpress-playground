@@ -243,10 +243,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 			try {
 				// @TODO: Don't assume errorLogPath starts with /wordpress/
 				//        ...or maybe we can assume that in Playground CLI?
-				phpLogs = php.readFileAsText(errorLogPath);
+				phpLogs = await php.readFileAsText(errorLogPath);
 			} catch {
 				phpLogs =
-					'Unknown error – we could not even read the PHP error log.';
+					'Unknown error. Even the PHP error log is not available to source more details.';
 			}
 			// @TODO: Without this console.error, we don't get the error details we need to debug.
 			console.error(error);
