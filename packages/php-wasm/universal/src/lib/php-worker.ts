@@ -99,6 +99,10 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		});
 	}
 
+	public __internal_getRequestHandler() {
+		return _private.get(this)!.requestHandler;
+	}
+
 	/**
 	 * @internal
 	 * @deprecated

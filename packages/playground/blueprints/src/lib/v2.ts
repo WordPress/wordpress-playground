@@ -277,7 +277,10 @@ export async function getV2Runner(): Promise<File> {
 	if (typeof process !== 'undefined' && process.versions?.node) {
 		let path = v2_runner_url;
 		if (path.startsWith('/@fs/')) {
-			path = path.slice(4);
+			path = path.slice('/@fs'.length);
+		}
+		if (path.startsWith('file://')) {
+			path = path.slice('file://'.length);
 		}
 
 		const { readFile } = await import('node:fs/promises');

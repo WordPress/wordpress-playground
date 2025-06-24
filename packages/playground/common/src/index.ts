@@ -72,12 +72,12 @@ export const unzipFile = async (
 		await php.unlink(tmpPath);
 	}
 };
-
 export const zipDirectory = async (
 	php: UniversalPHP,
-	directoryPath: string
+	directoryPath: string,
+	zipPath?: string
 ) => {
-	const outputPath = `/tmp/file${Math.random()}.zip`;
+	const outputPath = zipPath || `/tmp/file${Math.random()}.zip`;
 	const js = phpVars({
 		directoryPath,
 		outputPath,
@@ -106,6 +106,10 @@ export const zipDirectory = async (
 		zipDirectory(${js.directoryPath}, ${js.outputPath});
 		`,
 	});
+
+	if (zipPath) {
+		return undefined;
+	}
 
 	const fileBuffer = await php.readFileAsBuffer(outputPath);
 	php.unlink(outputPath);

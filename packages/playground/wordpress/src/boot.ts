@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import type {
 	CookieStore,
 	FileNotFoundAction,
@@ -15,15 +16,14 @@ import {
 	withPHPIniValues,
 	writeFiles,
 } from '@php-wasm/universal';
+import { basename, dirname, joinPaths } from '@php-wasm/util';
 import {
 	preloadPhpInfoRoute,
-	setupPlatformLevelMuPlugins,
 	preloadSqliteIntegration,
+	setupPlatformLevelMuPlugins,
 	unzipWordPress,
 	wordPressRewriteRules,
 } from '.';
-import { basename, dirname, joinPaths } from '@php-wasm/util';
-import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './rewrite-wp-config';
 
 export type PhpIniOptions = Record<string, string>;
@@ -35,7 +35,7 @@ export interface Hooks {
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
-export interface BootOptions {
+export interface BootRequestHandlerOptions {
 	createPhpRuntime: () => Promise<number>;
 	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
 	/**
@@ -58,12 +58,6 @@ export interface BootOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	/** SQL file to load instead of installing WordPress. */
-	dataSqlPath?: string;
-	/** Zip with the WordPress installation to extract in /wordpress. */
-	wordPressZip?: File | Promise<File> | undefined;
-	/** Preloaded SQLite integration plugin. */
-	sqliteIntegrationPluginZip?: File | Promise<File>;
 	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
@@ -113,6 +107,23 @@ export interface BootOptions {
 	 * the CookieStore interface.
 	 */
 	cookieStore?: CookieStore | false;
+}
+
+export interface BootOptions extends BootRequestHandlerOptions {
+	/**
+	 * Mounting and Copying is handled via hooks for starters.
+	 *
+	 * In the future we could standardize the
+	 * browser-specific and node-specific mounts
+	 * in the future.
+	 */
+	hooks?: Hooks;
+	/** SQL file to load instead of installing WordPress. */
+	dataSqlPath?: string;
+	/** Zip with the WordPress installation to extract in /wordpress. */
+	wordPressZip?: File | Promise<File> | undefined;
+	/** Preloaded SQLite integration plugin. */
+	sqliteIntegrationPluginZip?: File | Promise<File>;
 }
 
 /**
@@ -190,7 +201,7 @@ export async function bootWordPress(options: BootOptions) {
 	return requestHandler;
 }
 
-export async function bootRequestHandler(options: BootOptions) {
+export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	async function createPhp(
 		requestHandler: PHPRequestHandler,
 		isPrimary: boolean

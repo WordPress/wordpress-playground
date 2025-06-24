@@ -1,3 +1,46 @@
+import { errorLogPath, logger } from '@php-wasm/logger';
+import type {
+	PHPRequest,
+	RemoteAPI,
+	StreamedPHPResponse,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
+import {
+	PHPExecutionFailureError,
+	PHPResponse,
+	SupportedPHPVersions,
+	consumeAPI,
+	exposeAPI,
+} from '@php-wasm/universal';
+import type {
+	BlueprintDeclaration,
+	ParsedBlueprintV2Declaration,
+} from '@wp-playground/blueprints';
+import { parseBlueprintDeclaration } from '@wp-playground/blueprints';
+import {
+	RecommendedPHPVersion,
+	unzipFile,
+	zipDirectory,
+} from '@wp-playground/common';
+import fs, { existsSync } from 'fs';
+import type { Server } from 'http';
+import path from 'path';
+import { Worker } from 'worker_threads';
+import yargs from 'yargs';
+// @ts-ignore
+import { startServer } from './server';
+import type { PlaygroundCliWorker } from './worker-thread';
+// @ts-ignore
+import importedWorkerUrlString from './worker-thread?worker&url';
+// @ts-ignore
+import { FileLockManagerForNode } from '@php-wasm/node';
+import { LoadBalancer } from './load-balancer';
+import type { Mount } from './mounts';
+import {
+	expandAutoMounts,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mounts';
 /**
  * @TODO:
  * * Mount a stable system tmp or home/.playground-cli directory to store HTTP Cache.
@@ -9,58 +52,7 @@
  *   separate what we print for UI reasons from what we print for debugging?
  */
 
-import { errorLogPath, logger } from '@php-wasm/logger';
-import {
-	FileLockManagerForNode,
-	createNodeFsMountHandler,
-	loadNodeRuntime,
-} from '@php-wasm/node';
-import type {
-	PHP,
-	PHPRequest,
-	PHPRequestHandler,
-	RemoteAPI,
-	StreamedPHPResponse,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
-import {
-	PHPExecutionFailureError,
-	PHPResponse,
-	sandboxedSpawnHandlerFactory,
-} from '@php-wasm/universal';
-import type {
-	BlueprintDeclaration,
-	PHPExceptionDetails,
-	ParsedBlueprintV2Declaration,
-} from '@wp-playground/blueprints';
-import {
-	parseBlueprintDeclaration,
-	runBlueprintV2,
-} from '@wp-playground/blueprints';
-import { bootRequestHandler } from '@wp-playground/wordpress';
-import fs, { existsSync } from 'fs';
-import type { Server } from 'http';
-import { rootCertificates } from 'tls';
-import { startServer } from './server';
 /* eslint-disable no-console */
-import { SupportedPHPVersions } from '@php-wasm/universal';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
-import path from 'path';
-import yargs from 'yargs';
-import {
-	expandAutoMounts,
-	mountResources,
-	parseMountDirArguments,
-	parseMountWithDelimiterArguments,
-	type Mount,
-} from './mounts';
-// @ts-ignore
-import type { PlaygroundCliWorker } from './worker-thread';
-import { LoadBalancer } from './load-balancer';
-// @ts-ignore
-import { cpus } from 'os';
-import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { jspi } from 'wasm-feature-detect';
 
 export interface RunCLIArgs {
 	additionalBlueprintSteps?: any[];
@@ -89,44 +81,6 @@ export interface RunCLIArgs {
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 }
-
-export interface RunCLIServer extends AsyncDisposable {
-	playground: RemoteAPI<PlaygroundCliWorker>;
-	server: Server;
-	[Symbol.asyncDispose](): Promise<void>;
-}
-
-/**
- * Output writer that ensures that progress bars are not printed on the same line as other output.
- */
-let output = {
-	lastWriteWasProgress: false,
-	progress(data: string) {
-		if (!process.stdout.isTTY) {
-			console.log(data);
-		} else {
-			if (!output.lastWriteWasProgress) {
-				process.stdout.write('\n');
-			}
-			process.stdout.write('\r\x1b[K' + data);
-			output.lastWriteWasProgress = true;
-		}
-	},
-	stdout(data: string) {
-		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
-			output.lastWriteWasProgress = false;
-		}
-		process.stdout.write(data);
-	},
-	stderr(data: string) {
-		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
-			output.lastWriteWasProgress = false;
-		}
-		process.stderr.write(data);
-	},
-};
 
 export async function parseOptionsAndRunCLI() {
 	/**
@@ -274,63 +228,7 @@ export async function parseOptionsAndRunCLI() {
 			coerce: (value) => value.split(','),
 			choices: ['bundled-files', 'follow-symlinks'],
 		})
-		.showHelpOnFail(false)
-		.option('experimentalTrace', {
-			describe:
-				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
-			type: 'boolean',
-			default: false,
-			// Hide this option because we want to replace with a more general log-level flag.
-			hidden: true,
-		})
-		// TODO: Should we make this a hidden flag?
-		.option('experimentalMultiWorker', {
-			describe:
-				'Enable experimental multi-worker support which requires JSPI ' +
-				'and a /wordpress directory backed by a real filesystem. ' +
-				'Pass a positive number to specify the number of workers to use. ' +
-				'Otherwise, default to the number of CPUs minus 1.',
-			type: 'number',
-			coerce: (value?: number) => value ?? cpus().length - 1,
-		})
-		.check(async (args) => {
-			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
-				try {
-					// Check if is valid URL
-					new URL(args.wp);
-				} catch {
-					throw new Error(
-						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
-					);
-				}
-			}
-
-			if (args.experimentalMultiWorker !== undefined) {
-				if (args.experimentalMultiWorker <= 1) {
-					throw new Error(
-						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
-					);
-				}
-
-				if (!(await jspi())) {
-					throw new Error(
-						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
-					);
-				}
-
-				const isMountingWordPressDir = (mount: Mount) =>
-					mount.vfsPath === '/wordpress';
-				if (
-					!args.mount?.some(isMountingWordPressDir) &&
-					!args.mountBeforeInstall?.some(isMountingWordPressDir)
-				) {
-					throw new Error(
-						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
-					);
-				}
-			}
-			return true;
-		});
+		.showHelpOnFail(false);
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
@@ -342,14 +240,6 @@ export async function parseOptionsAndRunCLI() {
 		process.exit(1);
 	}
 
-	let loadBalancer: LoadBalancer;
-	let playground: RemoteAPI<PlaygroundCliWorker>;
-
-	const playgroundsToCleanUp: {
-		playground: RemoteAPI<PlaygroundCliWorker>;
-		worker: Worker;
-	}[] = [];
-
 	const cliArgs = {
 		...args,
 		command,
@@ -358,406 +248,377 @@ export async function parseOptionsAndRunCLI() {
 			...(args.mountBeforeInstall || []),
 			...(args.mountDirBeforeInstall || []),
 		],
-		blueprint:
-			typeof args.blueprint === 'string' ? args.blueprint : undefined,
-		php: (args.php ?? RecommendedPHPVersion) as SupportedPHPVersion,
-	};
+	} as RunCLIArgs;
 
-	// 4. Define phpErrorReported in the correct scope
-	let phpErrorReported = false;
+	return await runCLI(cliArgs);
+}
 
-	/**
-	 * Spawns a new Worker Thread.
-	 *
-	 * @param  workerUrl The absolute URL of the worker script.
-	 * @returns The spawned Worker Thread.
-	 */
-	async function spawnPHPWorkerThread(workerUrl: URL) {
-		const worker = new Worker(workerUrl);
-		return new Promise<Worker>((resolve, reject) => {
-			function onMessage(event: string) {
-				if (event === 'worker-script-initialized') {
-					resolve(worker);
-					if (typeof (worker as any).off === 'function') {
-						(worker as any).off('message', onMessage);
-					} else if (
-						typeof (worker as any).removeListener === 'function'
-					) {
-						(worker as any).removeListener('message', onMessage);
-					}
-				}
+/**
+ * Output writer that ensures that progress bars are not printed on the same line as other output.
+ */
+let output = {
+	lastWriteWasProgress: false,
+	progress(data: string) {
+		if (!process.stdout.isTTY) {
+			console.log(data);
+		} else {
+			if (!output.lastWriteWasProgress) {
+				process.stdout.write('\n');
 			}
-			function onError(e: Error) {
-				const error = new Error(
-					`Worker failed to load at ${workerUrl}. ${
-						e.message ? `Original error: ${e.message}` : ''
-					}`
-				);
-				(error as any).filename = workerUrl;
-				reject(error);
-				if (typeof (worker as any).off === 'function') {
-					(worker as any).off('error', onError);
-				} else if (
-					typeof (worker as any).removeListener === 'function'
-				) {
-					(worker as any).removeListener('error', onError);
-				}
-			}
-			if (typeof (worker as any).on === 'function') {
-				(worker as any).on('message', onMessage);
-				(worker as any).on('error', onError);
-			} else if (typeof (worker as any).addListener === 'function') {
-				(worker as any).addListener('message', onMessage);
-				(worker as any).addListener('error', onError);
-			}
-		});
-	}
-
-	function isValidWordPressSlug(slug: string): boolean {
-		// Accepts 'latest', 'nightly', 'trunk', or a version like '6.2', '6.2.1', '6.2-beta1', '6.2-RC1'
-		return (
-			slug === 'latest' ||
-			slug === 'nightly' ||
-			slug === 'trunk' ||
-			/^\d+\.\d+(\.\d+)?(-beta\d+|-RC\d+)?$/.test(slug)
-		);
-	}
-
-	let expandedArgs = args;
-	if (args['auto-mount']) {
-		expandedArgs = { ...args, ...expandAutoMounts(args) };
-	}
-
-	// Kick off worker threads now to save time later.
-	// There is no need to wait for other async processes to complete.
-	const totalWorkerCount = expandedArgs.experimentalMultiWorker ?? 1;
-	const promisedWorkers = spawnWorkerThreads(totalWorkerCount);
-
-	// 2. Ensure php is always a SupportedPHPVersion
-	let phpVersion = expandedArgs.php as SupportedPHPVersion;
-	if (!phpVersion) {
-		try {
-			phpVersion = await inferPHP(expandedArgs.blueprint);
-		} catch (e) {
-			if (e instanceof NonJsonBlueprintError) {
-				output.stderr(
-					`Could not determine the PHP version from the Blueprint. ` +
-						`This usually happens if your Blueprint is not a plain JSON file ` +
-						`(for example, if it's a ZIP, git repo, or another bundle format). ` +
-						`Automatic PHP version detection only works for JSON blueprints. ` +
-						`To continue, please specify the PHP version explicitly using the --php option (e.g. --php=8.2).`
-				);
-				throw e;
-			} else if (e instanceof BlueprintReferenceError) {
-				output.stderr(
-					`Failed to load Blueprint: ${e.message}. ` +
-						`Please check that the Blueprint path or URL is correct.`
-				);
-				throw e;
-			} else if (e instanceof BlueprintParseError) {
-				output.stderr(
-					`Blueprint contains invalid JSON: ${e.parseError}. ` +
-						`Please check the Blueprint syntax and try again.`
-				);
-				throw e;
-			}
-			throw new Error(
-				`Failed to infer PHP version from Blueprint: ${
-					e instanceof Error ? e.message : 'Unknown error'
-				}. ` +
-					`Please specify the PHP version explicitly using the --php option.`
-			);
+			process.stdout.write('\r\x1b[K' + data);
+			output.lastWriteWasProgress = true;
 		}
-	}
+	},
+	stdout(data: string) {
+		if (output.lastWriteWasProgress) {
+			process.stdout.write('\n');
+			output.lastWriteWasProgress = false;
+		}
+		process.stdout.write(data);
+	},
+	stderr(data: string) {
+		if (output.lastWriteWasProgress) {
+			process.stdout.write('\n');
+			output.lastWriteWasProgress = false;
+		}
+		process.stderr.write(data);
+	},
+};
 
-	let requestHandler: PHPRequestHandler;
-	let wordPressReady = false;
-	let isFirstRequest = true;
+export interface RunCLIServer extends AsyncDisposable {
+	playground: RemoteAPI<PlaygroundCliWorker>;
+	server: Server;
+	[Symbol.asyncDispose](): Promise<void>;
+}
 
-	output.stdout('Starting a PHP server...\n');
+export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+	// @TODO: We lost track of phpErrorReported with multiple workers. How
+	//        should we handle it?
+	// @TODO: Preserve cwd when booting workers.
+	let phpErrorReported = false;
+	let streamedResponse: StreamedPHPResponse | undefined;
 
-	return await startServer({
-		port: expandedArgs['port'] as number,
-		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const absoluteUrl = `http://127.0.0.1:${port}`;
+	try {
+		let loadBalancer: LoadBalancer;
+		let playground: RemoteAPI<PlaygroundCliWorker>;
 
-			output.stdout(`Booting the request handler\n`);
-			requestHandler = await bootRequestHandler({
-				siteUrl: absoluteUrl,
-				createPhpRuntime: async () =>
-					await loadNodeRuntime(phpVersion, {
-						followSymlinks:
-							expandedArgs.allow?.includes('follow-symlinks'),
-						emscriptenOptions: {
-							ENV: {
-								DOCROOT: '/wordpress',
-							},
-						},
-					}),
-				sapiName: 'cli',
-				createFiles: {
-					'/internal/shared/ca-bundle.crt':
-						rootCertificates.join('\n'),
-				},
-				phpIniEntries: {
-					'openssl.cafile': '/internal/shared/ca-bundle.crt',
-				},
-				cookieStore: false,
-				spawnHandler: (processManager) =>
-					sandboxedSpawnHandlerFactory(processManager, {
-						onError: (error) => {
-							logger.error(error);
-							output.stderr(`${error.message}\n`);
-						},
-					}),
-			});
+		const playgroundsToCleanUp: {
+			playground: RemoteAPI<PlaygroundCliWorker>;
+			worker: Worker;
+		}[] = [];
 
-			const primaryPhp = await requestHandler.getPrimaryPhp();
+		/**
+		 * Expand auto-mounts to include the necessary mounts and steps
+		 * when running in auto-mount mode.
+		 */
+		if (args['auto-mount']) {
+			args = expandAutoMounts(args);
+		}
 
-			if (expandedArgs.mountBeforeInstall) {
-				await mountResources(
-					primaryPhp,
-					expandedArgs.mountBeforeInstall
-				);
-			}
+		const phpVersion = args.php || (await inferPHP(args.blueprint));
+		let wordPressReady = false;
+		let isFirstRequest = true;
 
-			// Mount the current working directory to the PHP runtime for the purposes of
-			// Blueprint resolution.
-			let unmountCwd = () => {};
-			if (typeof expandedArgs.blueprint === 'string') {
-				const blueprintPath = path.resolve(
-					process.cwd(),
-					expandedArgs.blueprint
-				);
-				if (existsSync(blueprintPath)) {
-					primaryPhp.mkdir('/internal/shared/cwd');
-					unmountCwd = await primaryPhp.mount(
-						'/internal/shared/cwd',
-						createNodeFsMountHandler(path.dirname(blueprintPath))
-					);
-					expandedArgs.blueprint = path.join(
-						'/internal/shared/cwd',
-						path.basename(expandedArgs.blueprint)
-					);
-				}
-			}
+		/**
+		 * Spawns a new Worker Thread.
+		 *
+		 * @param  workerUrl The absolute URL of the worker script.
+		 * @returns The spawned Worker Thread.
+		 */
+		async function spawnPHPWorkerThread(workerUrl: URL) {
+			const worker = new Worker(workerUrl);
 
-			if (
-				expandedArgs.experimentalMultiWorker &&
-				expandedArgs.experimentalMultiWorker > 1
-			) {
-				// Multi-worker logic (from the trunk branch)
-				// ... Insert the multi-worker logic here, adapted to use Blueprints v2 if needed ...
-				// For now, show a message and exit (implement full logic as needed)
-				output.stdout(
-					'Experimental multi-worker mode is not fully implemented in this merge.'
-				);
-				process.exit(1);
-			} else {
-				// Single worker logic (Blueprints v2 execution)
-				// ... Insert the Blueprints v2 execution logic here (from HEAD branch) ...
-				// (This is the logic that uses runBlueprintV2, etc.)
-				// ... existing code ...
-				const { php, reap } =
-					await requestHandler.processManager.acquirePHPInstance({
-						considerPrimary: false,
-					});
-				try {
-					if (expandedArgs.mode !== 'mount-only') {
-						const cliArgsToPass: (keyof RunCLIArgs)[] = [
-							'mode',
-							'db-engine',
-							'db-host',
-							'db-user',
-							'db-pass',
-							'db-name',
-							'db-path',
-							'truncate-new-site-directory',
-							'allow',
-						];
-						const cliArgs = cliArgsToPass
-							.filter((arg) => arg in expandedArgs)
-							.map((arg) => `--${arg}=${expandedArgs[arg]}`);
-						cliArgs.push(`--site-url=${absoluteUrl}`);
-
-						// 1. Ensure blueprint is string for runBlueprintV2
-						const blueprintArg =
-							typeof expandedArgs.blueprint === 'string'
-								? expandedArgs.blueprint
-								: undefined;
-
-						// 3. Use correct access for additionalBlueprintSteps
-						const additionalBlueprintSteps = (expandedArgs as any)[
-							'additionalBlueprintSteps'
-						];
-
-						const streamedResponse = await runBlueprintV2({
-							php,
-							blueprint: blueprintArg,
-							blueprintOverrides: {
-								additionalSteps: additionalBlueprintSteps,
-								wordpressVersion: expandedArgs.wp,
-							},
-							cliArgs,
-							hooks: {
-								afterBlueprintTargetResolved: async () => {
-									await mountResources(
-										primaryPhp,
-										expandedArgs.mount || []
-									);
-								},
-								onProgress: (progress, caption) => {
-									const message = `${caption.trim()} – ${progress.toFixed(
-										2
-									)}%`;
-									output.progress(message);
-								},
-								onError: (
-									message,
-									details?: PHPExceptionDetails
-								) => {
-									phpErrorReported = true;
-									const red = '\x1b[31m';
-									const bold = '\x1b[1m';
-									const reset = '\x1b[0m';
-									if (expandedArgs.debug && details) {
-										output.stderr(
-											`${red}${bold}Fatal error:${reset} Uncaught ${details.exception}: ${details.message}\n` +
-												`  at ${details.file}:${details.line}\n` +
-												(details.trace
-													? details.trace + '\n'
-													: '')
-										);
-									} else {
-										output.stderr(
-											`${red}${bold}Error:${reset} ${message}\n`
-										);
-									}
-								},
-							},
-						});
-						if (expandedArgs.debug) {
-							streamedResponse!.stdout.pipeTo(
-								new WritableStream({
-									write(chunk) {
-										process.stdout.write(chunk);
-									},
-								})
-							);
-							streamedResponse!.stderr.pipeTo(
-								new WritableStream({
-									write(chunk) {
-										process.stderr.write(chunk);
-									},
-								})
-							);
-						}
-						await streamedResponse!.finished;
-						if ((await streamedResponse!.exitCode) !== 0) {
-							throw new PHPExecutionFailureError(
-								'Execution failed',
-								await PHPResponse.fromStreamedResponse(
-									streamedResponse
-								),
-								'request'
-							);
-						}
-					} else {
-						await mountResources(
-							primaryPhp,
-							expandedArgs.mount || []
-						);
+			return new Promise<Worker>((resolve, reject) => {
+				function onMessage(event: string) {
+					// Let the worker confirm it has initialized.
+					// We could use the 'online' event to detect start of JS execution,
+					// but that would miss initialization errors.
+					if (event === 'worker-script-initialized') {
+						resolve(worker);
+						worker.off('message', onMessage);
 					}
-					wordPressReady = true;
+				}
+				function onError(e: Error) {
+					const error = new Error(
+						`Worker failed to load at ${workerUrl}. ${
+							e.message ? `Original error: ${e.message}` : ''
+						}`
+					);
+					(error as any).filename = workerUrl;
+					reject(error);
+					worker.off('error', onError);
+				}
+				worker.on('message', onMessage);
+				worker.on('error', onError);
+			});
+		}
 
-					if (expandedArgs.login) {
-						php.defineConstant(
+		function spawnWorkerThreads(count: number): Promise<Worker[]> {
+			const moduleWorkerUrl = new URL(
+				importedWorkerUrlString,
+				import.meta.url
+			);
+
+			const promises = [];
+			for (let i = 0; i < count; i++) {
+				promises.push(spawnPHPWorkerThread(moduleWorkerUrl));
+			}
+			return Promise.all(promises);
+		}
+
+		if (args.quiet) {
+			// @ts-ignore
+			logger.handlers = [];
+		}
+
+		// Declare file lock manager outside scope of startServer
+		// so we can look at it when debugging request handling.
+		const fileLockManager = new FileLockManagerForNode();
+
+		logger.log('Starting a PHP server...');
+
+		return startServer({
+			port: args['port'] as number,
+			onBind: async (
+				server: Server,
+				port: number
+			): Promise<RunCLIServer> => {
+				const siteUrl = `http://127.0.0.1:${port}`;
+
+				// Kick off worker threads now to save time later.
+				// There is no need to wait for other async processes to complete.
+				const totalWorkerCount = args.experimentalMultiWorker ?? 1;
+				const promisedWorkers = spawnWorkerThreads(totalWorkerCount);
+
+				logger.log(`Setting up WordPress ${args.wp}`);
+
+				const trace = args.experimentalTrace === true;
+				try {
+					const [initialWorker, ...additionalWorkers] =
+						await promisedWorkers;
+
+					playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
+					playgroundsToCleanUp.push({
+						playground,
+						worker: initialWorker,
+					});
+
+					await playground.isConnected();
+
+					exposeAPI(fileLockManager, undefined, initialWorker);
+
+					logger.log(`Booting WordPress...`);
+
+					// Each additional worker needs a separate process ID space
+					// for file locking to work properly because locks are associated
+					// with individual processes. To accommodate this, we split the safe
+					// integers into a range for each worker.
+					const processIdSpaceLength = Math.floor(
+						Number.MAX_SAFE_INTEGER / totalWorkerCount
+					);
+
+					await playground.bootAsPrimaryWorker({
+						...args,
+						php: phpVersion,
+						siteUrl,
+						firstProcessId: 0,
+						processIdSpaceLength,
+						trace,
+					});
+
+					if (args.login) {
+						// @TODO: Do we need this in all the workers? Or just in the primary one?
+						//        Are we sharing constants between workers?
+						await playground.defineConstant(
 							'PLAYGROUND_AUTO_LOGIN_AS_USER',
 							'admin'
 						);
 					}
 
-					if (expandedArgs.command === 'build-snapshot') {
-						await zipDirectory(php, '/wordpress');
-						const zip = php.readFileAsBuffer('/tmp/file.zip');
-						fs.writeFileSync(expandedArgs.outfile as string, zip);
-						php.unlink('/tmp/file.zip');
+					loadBalancer = new LoadBalancer(playground);
 
-						output.stdout(
-							`WordPress exported to ${expandedArgs.outfile}\n`
+					await playground.isReady();
+					wordPressReady = true;
+					logger.log(`Booted!`);
+
+					if (args.command === 'build-snapshot') {
+						await zipDirectory(
+							playground,
+							'/wordpress',
+							args.outfile as string
 						);
+						logger.log(`WordPress exported to ${args.outfile}`);
 						process.exit(0);
-					} else if (expandedArgs.command === 'run-blueprint') {
-						output.stdout(`Blueprint executed\n`);
+					} else if (args.command === 'run-blueprint') {
+						logger.log(`Blueprint executed`);
 						process.exit(0);
-					} else {
-						output.stdout(
-							`WordPress is running on ${absoluteUrl}\n`
-						);
 					}
+
+					if (
+						args.experimentalMultiWorker &&
+						args.experimentalMultiWorker > 1
+					) {
+						logger.log(`Preparing additional workers...`);
+
+						// Save /internal directory from initial worker so we can replicate it
+						// in each additional worker.
+						const internalZip = await zipDirectory(
+							playground,
+							'/internal'
+						)!;
+
+						// Boot additional workers
+						const initialWorkerProcessIdSpace =
+							processIdSpaceLength;
+						await Promise.all(
+							additionalWorkers.map(async (worker, index) => {
+								const additionalPlayground =
+									consumeAPI<PlaygroundCliWorker>(worker);
+								playgroundsToCleanUp.push({
+									playground: additionalPlayground,
+									worker,
+								});
+
+								await additionalPlayground.isConnected();
+								exposeAPI(fileLockManager, undefined, worker);
+
+								const firstProcessId =
+									initialWorkerProcessIdSpace +
+									index * processIdSpaceLength;
+
+								await additionalPlayground.bootAsSecondaryWorker(
+									{
+										...args,
+										php: phpVersion,
+										siteUrl,
+										firstProcessId,
+										processIdSpaceLength,
+										trace,
+									}
+								);
+								await additionalPlayground.isReady();
+
+								// Replicate the Blueprint-initialized /internal directory
+								await additionalPlayground.writeFile(
+									'/tmp/internal.zip',
+									internalZip!
+								);
+								await unzipFile(
+									additionalPlayground,
+									'/tmp/internal.zip',
+									'/internal'
+								);
+								await additionalPlayground.unlink(
+									'/tmp/internal.zip'
+								);
+
+								loadBalancer.addWorker(additionalPlayground);
+							})
+						);
+
+						logger.log(`Ready!`);
+					}
+
+					logger.log(`WordPress is running on ${siteUrl}`);
 
 					return {
 						playground,
 						server,
-						[Symbol.asyncDispose]: async function () {
-							await server.close();
+						[Symbol.asyncDispose]: async function disposeCLI() {
+							await Promise.all(
+								playgroundsToCleanUp.map(
+									async ({ playground, worker }) => {
+										await playground.dispose();
+										await worker.terminate();
+									}
+								)
+							);
+							await new Promise((resolve) =>
+								server.close(resolve)
+							);
 						},
 					};
 				} catch (error) {
-					if (!expandedArgs.debug) {
+					// @TODO: Without this console.log, the error is not reported
+					console.error('error', error);
+					if (!args.debug) {
 						throw error;
 					}
-					let phpLogs = '';
-					try {
-						phpLogs = php.readFileAsText(errorLogPath);
-					} catch {
-						phpLogs =
-							'Unknown error – we could not even read the PHP error log.';
-					}
+					const phpLogs = await playground.readFileAsText(
+						errorLogPath
+					);
 					throw new Error(phpLogs, { cause: error });
-				} finally {
-					reap();
-					unmountCwd();
 				}
-			}
-		},
-		async handleRequest(request: PHPRequest) {
-			if (!wordPressReady) {
-				return PHPResponse.forHttpCode(
-					502,
-					'WordPress is not ready yet'
-				);
-			}
-
-			// Clear the playground_auto_login_already_happened cookie on the first request.
-			// Otherwise the first Playground CLI server started on the machine will set it,
-			// all the subsequent runs will get the stale cookie, and the auto-login will
-			// assume they don't have to auto-login again.
-			if (isFirstRequest) {
-				isFirstRequest = false;
-				if (
-					request.headers?.['cookie']?.includes(
-						'playground_auto_login_already_happened'
-					)
-				) {
-					return new PHPResponse(
-						302,
-						{
-							'Set-Cookie': [
-								'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
-							],
-							'Content-Type': ['text/plain'],
-							'Content-Length': ['0'],
-							Location: ['/'],
-						},
-						new Uint8Array()
+			},
+			async handleRequest(request: PHPRequest) {
+				if (!wordPressReady) {
+					return PHPResponse.forHttpCode(
+						502,
+						'WordPress is not ready yet'
 					);
 				}
-			}
 
-			return await requestHandler.request(request);
-		},
-	});
+				// Clear the playground_auto_login_already_happened cookie on the first request.
+				// Otherwise the first Playground CLI server started on the machine will set it,
+				// all the subsequent runs will get the stale cookie, and the auto-login will
+				// assume they don't have to auto-login again.
+				if (isFirstRequest) {
+					isFirstRequest = false;
+					if (
+						request.headers?.['cookie']?.includes(
+							'playground_auto_login_already_happened'
+						)
+					) {
+						return new PHPResponse(
+							302,
+							{
+								'Set-Cookie': [
+									'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
+								],
+								'Content-Type': ['text/plain'],
+								'Content-Length': ['0'],
+								Location: ['/'],
+							},
+							new Uint8Array()
+						);
+					}
+				}
+
+				return await loadBalancer.handleRequest(request);
+			},
+		});
+	} catch (e) {
+		if (
+			e instanceof PHPExecutionFailureError &&
+			!args.debug &&
+			phpErrorReported
+		) {
+			// We want to avoid verbose error messages.
+			// Bale out if this is a known failure mode and we've already reported the error.
+			throw e;
+		}
+
+		// If we did not expect this error, print **all** the debug details we can get.
+		output.stderr(`--------------------------------\n`);
+		output.stderr('Debug details:\n');
+		output.stderr('--------------------------------\n');
+		if (e && typeof e === 'object' && 'message' in e) {
+			output.stderr(e.message as string);
+		}
+		output.stderr(`\n\n==== PHP stderr ====\n\n`);
+		if (streamedResponse) {
+			output.stderr(await streamedResponse.stderrText);
+		}
+
+		output.stderr(`\n\n==== PHP stdout ====\n\n`);
+		if (streamedResponse) {
+			output.stderr(await streamedResponse.stdoutText);
+		}
+		output.stderr(`\n\n`);
+		output.stderr(`--------------------------------\n`);
+
+		throw e;
+	}
 }
 
 /**
@@ -786,45 +647,78 @@ export async function parseOptionsAndRunCLI() {
  * @returns The PHP version to use.
  */
 async function inferPHP(blueprint: string | BlueprintDeclaration | undefined) {
-	if (!blueprint) {
-		return RecommendedPHPVersion;
-	}
-	/**
-	 * Infer the PHP version from the Blueprint declaration when the user
-	 * didn't explicitly provide --php. This needs to happen before we boot
-	 * the request handler so that we download / load the correct runtime.
-	 */
-	const blueprintObject = await resolveBlueprintObject(
-		parseBlueprintDeclaration(blueprint)
-	);
-	if (!blueprintObject || typeof blueprintObject !== 'object') {
-		throw new Error('Blueprint is not a valid object');
-	}
-
-	let requestedPhp: any | string | undefined = undefined;
-	/**
-	 * We must, unfortunately, account for all possible versions of the Blueprint
-	 * schema in here. The transpilation to the latest version only happens in the
-	 * PHP code.
-	 */
-	requestedPhp =
-		blueprintObject.phpVersion ??
-		blueprintObject.preferredVersions?.php ??
-		RecommendedPHPVersion;
-
-	if (
-		blueprintObject.phpVersion &&
-		typeof blueprintObject.phpVersion === 'object'
-	) {
-		return (
-			blueprintObject.phpVersion.recommended ||
-			blueprintObject.phpVersion.max ||
-			blueprintObject.phpVersion.min
+	try {
+		if (!blueprint) {
+			return RecommendedPHPVersion;
+		}
+		/**
+		 * Infer the PHP version from the Blueprint declaration when the user
+		 * didn't explicitly provide --php. This needs to happen before we boot
+		 * the request handler so that we download / load the correct runtime.
+		 */
+		const blueprintObject = await resolveBlueprintObject(
+			parseBlueprintDeclaration(blueprint)
 		);
-	} else if (typeof requestedPhp === 'string') {
-		return requestedPhp as SupportedPHPVersion;
-	} else {
-		throw new Error('phpVersion is not a valid object or string');
+		if (!blueprintObject || typeof blueprintObject !== 'object') {
+			throw new Error('Blueprint is not a valid object');
+		}
+
+		let requestedPhp: any | string | undefined = undefined;
+		/**
+		 * We must, unfortunately, account for all possible versions of the Blueprint
+		 * schema in here. The transpilation to the latest version only happens in the
+		 * PHP code.
+		 */
+		requestedPhp =
+			blueprintObject.phpVersion ??
+			blueprintObject.preferredVersions?.php ??
+			RecommendedPHPVersion;
+
+		if (
+			blueprintObject.phpVersion &&
+			typeof blueprintObject.phpVersion === 'object'
+		) {
+			return (
+				blueprintObject.phpVersion.recommended ||
+				blueprintObject.phpVersion.max ||
+				blueprintObject.phpVersion.min
+			);
+		} else if (typeof requestedPhp === 'string') {
+			return requestedPhp as SupportedPHPVersion;
+		} else {
+			throw new Error('phpVersion is not a valid object or string');
+		}
+	} catch (e) {
+		if (e instanceof NonJsonBlueprintError) {
+			output.stderr(
+				`Could not determine the PHP version from the Blueprint. ` +
+					`This usually happens if your Blueprint is not a plain JSON file ` +
+					`(for example, if it's a ZIP, git repo, or another bundle format). ` +
+					`Automatic PHP version detection only works for JSON blueprints. ` +
+					`To continue, please specify the PHP version explicitly using the --php option (e.g. --php=8.2).`
+			);
+			throw e;
+		} else if (e instanceof BlueprintReferenceError) {
+			output.stderr(
+				`Failed to load Blueprint: ${e.message}. ` +
+					`Please check that the Blueprint path or URL is correct.`
+			);
+			throw e;
+		} else if (e instanceof BlueprintParseError) {
+			output.stderr(
+				`Blueprint contains invalid JSON: ${e.parseError}. ` +
+					`Please check the Blueprint syntax and try again.`
+			);
+			throw e;
+		}
+
+		// Generic inference failure
+		throw new Error(
+			`Failed to infer PHP version from Blueprint: ${
+				e instanceof Error ? e.message : 'Unknown error'
+			}. ` +
+				`Please specify the PHP version explicitly using the --php option.`
+		);
 	}
 }
 
@@ -888,33 +782,6 @@ async function resolveBlueprintObject(
 					);
 				}
 			}
-
-			try {
-				return JSON.parse(contents);
-			} catch (e) {
-				// Check if this looks like a non-JSON file (ZIP, binary, etc.)
-				if (
-					contents.startsWith('PK') ||
-					contents.includes('\x00') ||
-					!contents.trim().startsWith('{')
-				) {
-					const detectedType = contents.startsWith('PK')
-						? 'ZIP archive'
-						: contents.includes('\x00')
-						? 'binary file'
-						: 'non-JSON text file';
-					throw new NonJsonBlueprintError(
-						`Blueprint appears to be a ${detectedType}, not a JSON file`,
-						detectedType
-					);
-				}
-				throw new BlueprintParseError(
-					`Failed to parse Blueprint JSON from ${
-						isUrl ? 'URL' : 'file'
-					}`,
-					e instanceof Error ? e.message : 'Unknown JSON parse error'
-				);
-			}
 		} catch (e) {
 			// Re-throw our custom errors
 			if (e instanceof BlueprintReferenceError) {
@@ -928,6 +795,31 @@ async function resolveBlueprintObject(
 				filePath
 			);
 		}
+
+		try {
+			return JSON.parse(contents);
+		} catch (e) {
+			// Check if this looks like a non-JSON file (ZIP, binary, etc.)
+			if (
+				contents.startsWith('PK') ||
+				contents.includes('\x00') ||
+				!contents.trim().startsWith('{')
+			) {
+				const detectedType = contents.startsWith('PK')
+					? 'ZIP archive'
+					: contents.includes('\x00')
+					? 'binary file'
+					: 'non-JSON text file';
+				throw new NonJsonBlueprintError(
+					`Blueprint appears to be a ${detectedType}, not a JSON file`,
+					detectedType
+				);
+			}
+			throw new BlueprintParseError(
+				`Failed to parse Blueprint JSON from ${isUrl ? 'URL' : 'file'}`,
+				e instanceof Error ? e.message : 'Unknown JSON parse error'
+			);
+		}
 	}
 	throw new NonJsonBlueprintError(
 		`Unknown blueprint declaration type`,
@@ -939,37 +831,33 @@ async function resolveBlueprintObject(
  * Custom error classes for blueprint resolution failures
  */
 class NonJsonBlueprintError extends Error {
-	constructor(message: string, public readonly blueprintType: string) {
+	public readonly blueprintType: string;
+
+	constructor(message: string, blueprintType: string) {
 		super(message);
 		this.name = 'NonJsonBlueprintError';
+		this.blueprintType = blueprintType;
 	}
 }
 
 class BlueprintReferenceError extends Error {
-	constructor(
-		message: string,
-		public readonly reference: string,
-		public readonly statusCode?: number
-	) {
+	public readonly reference: string;
+	public readonly statusCode?: number;
+
+	constructor(message: string, reference: string, statusCode?: number) {
 		super(message);
 		this.name = 'BlueprintReferenceError';
+		this.reference = reference;
+		this.statusCode = statusCode;
 	}
 }
 
 class BlueprintParseError extends Error {
-	constructor(message: string, public readonly parseError: string) {
+	public readonly parseError: string;
+
+	constructor(message: string, parseError: string) {
 		super(message);
 		this.name = 'BlueprintParseError';
+		this.parseError = parseError;
 	}
-}
-
-function spawnWorkerThreads(count: number): Promise<Worker[]> {
-	// TODO: Set the correct worker script URL for your environment
-	const importedWorkerUrlString = './worker-thread.js';
-	const moduleWorkerUrl = new URL(importedWorkerUrlString, import.meta.url);
-	const promises = [];
-	for (let i = 0; i < count; i++) {
-		promises.push(spawnPHPWorkerThread(moduleWorkerUrl));
-	}
-	return Promise.all(promises);
 }
