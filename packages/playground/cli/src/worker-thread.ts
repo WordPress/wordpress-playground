@@ -14,7 +14,7 @@ import {
 import { sprintf } from '@php-wasm/util';
 import {
 	runBlueprintV2,
-	type PHPExceptionDetails,
+	type BlueprintMessage,
 } from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
@@ -122,10 +122,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 		await this.bootRequestHandler(args);
 
 		const primaryPhp = this.__internal_getPHP()!;
-		mountResources(primaryPhp, args.mountBeforeInstall || []);
+		await mountResources(primaryPhp, args.mountBeforeInstall || []);
 
 		if (args.mode === 'mount-only') {
-			mountResources(primaryPhp, args.mount || []);
+			await mountResources(primaryPhp, args.mount || []);
 			return;
 		}
 
@@ -136,8 +136,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 		await this.bootRequestHandler(args);
 		const php = this.__internal_getPHP()!;
 		// When secondary workers are spawned, WordPress is already installed.
-		mountResources(php, args.mountBeforeInstall || []);
-		mountResources(php, args.mount || []);
+		await mountResources(php, args.mountBeforeInstall || []);
+		await mountResources(php, args.mount || []);
 	}
 
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
@@ -184,6 +184,8 @@ export class PlaygroundCliWorker extends PHPWorker {
 			cliArgs.push(`--site-url=${args.siteUrl}`);
 
 			const php = this.__internal_getPHP()!;
+			let afterBlueprintTargetResolvedCalled = false;
+
 			const streamedResponse = await runBlueprintV2({
 				php,
 				blueprint: args.blueprint,
@@ -192,32 +194,39 @@ export class PlaygroundCliWorker extends PHPWorker {
 					wordpressVersion: args.wp,
 				},
 				cliArgs,
-				hooks: {
-					afterBlueprintTargetResolved: async () => {
-						await mountResources(php, args.mount || []);
-					},
-					onProgress: (progress, caption) => {
-						const message = `${caption.trim()} – ${progress.toFixed(
-							2
-						)}%`;
-						output.progress(message);
-					},
-					onError: (message, details?: PHPExceptionDetails) => {
-						const red = '\x1b[31m';
-						const bold = '\x1b[1m';
-						const reset = '\x1b[0m';
-						if (args.debug && details) {
-							output.stderr(
-								`${red}${bold}Fatal error:${reset} Uncaught ${details.exception}: ${details.message}\n` +
-									`  at ${details.file}:${details.line}\n` +
-									(details.trace ? details.trace + '\n' : '')
-							);
-						} else {
-							output.stderr(
-								`${red}${bold}Error:${reset} ${message}\n`
-							);
-						}
-					},
+				onMessage: async (message: BlueprintMessage) => {
+					switch (message.type) {
+						case 'blueprint.target_resolved':
+							if (!afterBlueprintTargetResolvedCalled) {
+								await mountResources(php, args.mount || []);
+								afterBlueprintTargetResolvedCalled = true;
+							}
+							break;
+						case 'blueprint.progress':
+							const progressMessage = `${message.caption.trim()} – ${message.progress.toFixed(
+								2
+							)}%`;
+							output.progress(progressMessage);
+							break;
+						case 'blueprint.error':
+							const red = '\x1b[31m';
+							const bold = '\x1b[1m';
+							const reset = '\x1b[0m';
+							if (args.debug && message.details) {
+								output.stderr(
+									`${red}${bold}Fatal error:${reset} Uncaught ${message.details.exception}: ${message.details.message}\n` +
+										`  at ${message.details.file}:${message.details.line}\n` +
+										(message.details.trace
+											? message.details.trace + '\n'
+											: '')
+								);
+							} else {
+								output.stderr(
+									`${red}${bold}Error:${reset} ${message.message}\n`
+								);
+							}
+							break;
+					}
 				},
 			});
 			/**

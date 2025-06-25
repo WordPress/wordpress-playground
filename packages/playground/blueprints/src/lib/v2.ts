@@ -1,32 +1,8 @@
-import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { StreamedPHPResponse } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 import type { BlueprintDeclaration } from './blueprint';
 import { phpVar } from '@php-wasm/util';
-
-interface RunV2Options {
-	php: UniversalPHP;
-	cliArgs?: string[];
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
-	blueprintOverrides?: {
-		wordpressVersion?: string;
-		additionalSteps?: any[];
-	};
-	hooks?: {
-		afterBlueprintTargetResolved?: (
-			php: UniversalPHP
-		) => void | Promise<void>;
-		onProgress?: (progress: number, caption: string) => void;
-		/**
-		 * A hook that is called when an error occurs. It provides succinct
-		 * error messages and structured details. Useful for reporting specific
-		 * errors to the user without displaying the full stack trace.
-		 *
-		 * @param message The error message.
-		 * @param details The error details.
-		 */
-		onError?: (message: string, details?: PHPExceptionDetails) => void;
-	};
-}
 
 export type PHPExceptionDetails = {
 	exception: string;
@@ -36,7 +12,112 @@ export type PHPExceptionDetails = {
 	trace: string;
 };
 
-export async function runBlueprintV2(options: RunV2Options) {
+export type BlueprintMessage =
+	| { type: 'blueprint.target_resolved' }
+	| { type: 'blueprint.progress'; progress: number; caption: string }
+	| {
+			type: 'blueprint.error';
+			message: string;
+			details?: PHPExceptionDetails;
+	  }
+	| { type: 'blueprint.completion'; message: string };
+
+interface RunV2Options {
+	php: UniversalPHP;
+	cliArgs?: string[];
+	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	blueprintOverrides?: {
+		wordpressVersion?: string;
+		additionalSteps?: any[];
+	};
+	onMessage?: (message: BlueprintMessage) => void | Promise<void>;
+}
+
+export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
+export type ParsedBlueprintV2Declaration =
+	| { type: 'inline-file'; contents: string }
+	| { type: 'file-reference'; reference: string };
+
+export function parseBlueprintDeclaration(
+	source: BlueprintV2Declaration | ParsedBlueprintV2Declaration
+): ParsedBlueprintV2Declaration {
+	if (
+		typeof source === 'object' &&
+		'type' in source &&
+		['inline-file', 'file-reference'].includes(source.type)
+	) {
+		return source;
+	}
+	if (!source) {
+		return {
+			type: 'inline-file',
+			contents: '{}',
+		};
+	}
+	if (typeof source !== 'string') {
+		// If source is an object, assume it's a Blueprint declaration object and
+		// convert it to a JSON string.
+		return {
+			type: 'inline-file',
+			contents: JSON.stringify(source),
+		};
+	}
+	try {
+		// If source is valid JSON, return it as is.
+		JSON.parse(source);
+		return {
+			type: 'inline-file',
+			contents: source,
+		};
+	} catch {
+		return {
+			type: 'file-reference',
+			reference: source,
+		};
+	}
+}
+
+export async function getV2Runner(): Promise<File> {
+	let data = null;
+
+	/**
+	 * Avoid a static dependency for now.
+	 *
+	 * Playground.wordpress.net does not need to know about the new runner yet, and
+	 * a static import would force it to download the v2 runner even when it's not needed.
+	 * This breaks the offline mode as the static assets list is not yet updated to accommodate
+	 * for the new .phar file.
+	 */
+	// @ts-ignore
+	const v2_runner_url = (await import('../../public/blueprints.phar?url'))
+		.default;
+
+	/**
+	 * Only load the v2 runner via node:fs when running in Node.js.
+	 */
+	if (typeof process !== 'undefined' && process.versions?.node) {
+		let path = v2_runner_url;
+		if (path.startsWith('/@fs/')) {
+			path = path.slice('/@fs'.length);
+		}
+		if (path.startsWith('file://')) {
+			path = path.slice('file://'.length);
+		}
+
+		const { readFile } = await import('node:fs/promises');
+		data = await readFile(path);
+	} else {
+		const response = await fetch(v2_runner_url);
+		data = await response.blob();
+	}
+	return new File([data], `blueprints.phar`, {
+		type: 'application/zip',
+	});
+}
+
+export async function runBlueprintV2(
+	options: RunV2Options
+): Promise<StreamedPHPResponse> {
 	const cliArgs = options.cliArgs || [];
 	for (const arg of cliArgs) {
 		if (arg.startsWith('--site-path=')) {
@@ -58,8 +139,7 @@ export async function runBlueprintV2(options: RunV2Options) {
 	}
 
 	const php = options.php;
-	const onProgress = options.hooks?.onProgress || (() => {});
-	const onError = options.hooks?.onError || (() => {});
+	const onMessage = options?.onMessage || (() => {});
 
 	const file = await getV2Runner();
 	php.writeFile(
@@ -98,27 +178,8 @@ export async function runBlueprintV2(options: RunV2Options) {
 			// @TODO: Remove this workaround. Find the root cause why stdout data is delayed and address it directly.
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
-			switch (parsed.type) {
-				case 'blueprint.target_resolved':
-					/*
-					 * Add required constants to "wp-config.php" if they are not already defined.
-					 * This is needed, because some WordPress backups and exports may not include
-					 * definitions for some of the necessary constants.
-					 */
-
-					if (options.hooks?.afterBlueprintTargetResolved) {
-						await options.hooks.afterBlueprintTargetResolved(php);
-					}
-					break;
-				case 'blueprint.progress':
-					onProgress?.(
-						parsed.progress,
-						parsed.caption || 'Running the Blueprint'
-					);
-					break;
-				case 'blueprint.error':
-					onError?.(parsed.message, parsed.details);
-					break;
+			if (parsed.type.startsWith('blueprint.')) {
+				await onMessage(parsed);
 			}
 		} catch (e) {
 			logger.warn('Failed to parse message as JSON:', message, e);
@@ -226,87 +287,6 @@ require( "/tmp/blueprints.phar" );
 	])) as StreamedPHPResponse;
 
 	streamedResponse.finished.finally(unbindMessageListener);
+
 	return streamedResponse;
-}
-
-export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
-export type ParsedBlueprintV2Declaration =
-	| { type: 'inline-file'; contents: string }
-	| { type: 'file-reference'; reference: string };
-
-export function parseBlueprintDeclaration(
-	source: BlueprintV2Declaration | ParsedBlueprintV2Declaration
-): ParsedBlueprintV2Declaration {
-	if (
-		typeof source === 'object' &&
-		'type' in source &&
-		['inline-file', 'file-reference'].includes(source.type)
-	) {
-		return source;
-	}
-	if (!source) {
-		return {
-			type: 'inline-file',
-			contents: '{}',
-		};
-	}
-	if (typeof source !== 'string') {
-		// If source is an object, assume it's a Blueprint declaration object and
-		// convert it to a JSON string.
-		return {
-			type: 'inline-file',
-			contents: JSON.stringify(source),
-		};
-	}
-	try {
-		// If source is valid JSON, return it as is.
-		JSON.parse(source);
-		return {
-			type: 'inline-file',
-			contents: source,
-		};
-	} catch {
-		return {
-			type: 'file-reference',
-			reference: source,
-		};
-	}
-}
-
-export async function getV2Runner(): Promise<File> {
-	let data = null;
-
-	/**
-	 * Avoid a static dependency for now.
-	 *
-	 * Playground.wordpress.net does not need to know about the new runner yet, and
-	 * a static import would force it to download the v2 runner even when it's not needed.
-	 * This breaks the offline mode as the static assets list is not yet updated to accommodate
-	 * for the new .phar file.
-	 */
-	// @ts-ignore
-	const v2_runner_url = (await import('../../public/blueprints.phar?url'))
-		.default;
-
-	/**
-	 * Only load the v2 runner via node:fs when running in Node.js.
-	 */
-	if (typeof process !== 'undefined' && process.versions?.node) {
-		let path = v2_runner_url;
-		if (path.startsWith('/@fs/')) {
-			path = path.slice('/@fs'.length);
-		}
-		if (path.startsWith('file://')) {
-			path = path.slice('file://'.length);
-		}
-
-		const { readFile } = await import('node:fs/promises');
-		data = await readFile(path);
-	} else {
-		const response = await fetch(v2_runner_url);
-		data = await response.blob();
-	}
-	return new File([data], `blueprints.phar`, {
-		type: 'application/zip',
-	});
 }

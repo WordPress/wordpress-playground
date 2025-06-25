@@ -43,6 +43,7 @@ export type {
 export type {
 	PHPExceptionDetails,
 	ParsedBlueprintV2Declaration,
+	BlueprintMessage,
 } from './lib/v2';
 export { runBlueprintV2, parseBlueprintDeclaration } from './lib/v2';
 
