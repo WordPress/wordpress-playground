@@ -14,7 +14,7 @@ function test_playground_cli() {
 
 	# Run Playground CLI with a timeout.
 	echo "Running Playground CLI with Nx target: $TARGET $@"
-	echo '{"version":2,"siteOptions":{"blogname":"My WordPress Site"}}' > ./blueprint.json
+	echo '{"version":2,"siteOptions":{"blogname":"My WordPress Website"}}' > ./blueprint.json
 	timeout -s TERM 30s npx nx "$TARGET" playground-cli server --blueprint=./blueprint.json --php=8.3 $@ 2>&1 > playground-cli-test-output &
 	PID=$!
 	CLI_STARTUP_STRING='WordPress is running on http://127.0.0.1:9400'
