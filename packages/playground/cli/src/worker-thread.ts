@@ -183,7 +183,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 				.map((arg) => `--${arg}=${args[arg]}`);
 			cliArgs.push(`--site-url=${args.siteUrl}`);
 
-			const php = this.__internal_getPHP()!;
 			let afterBlueprintTargetResolvedCalled = false;
 
 			const streamedResponse = await runBlueprintV2({

@@ -72,6 +72,8 @@ export class PHP implements Disposable {
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	requestHandler?: PHPRequestHandler;
+	private cliCalled = false;
+	private runStreamCalled = false;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -529,6 +531,14 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		if (this.cliCalled) {
+			throw new Error(
+				'php.runStream() can only be called if php.cli() was not called before. The two methods set a conflicting ' +
+					'C-level global state.'
+			);
+		}
+		this.runStreamCalled = true;
+
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -1265,6 +1275,18 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
 	): Promise<StreamedPHPResponse> {
+		if (this.cliCalled) {
+			throw new Error(
+				'php.cli() can only be called once. The method sets a C-level global state that does not allow repeated calls.'
+			);
+		}
+		if (this.runStreamCalled) {
+			throw new Error(
+				'php.cli() can only be called if php.runStream() was not called before. The two methods set a conflicting ' +
+					'C-level global state.'
+			);
+		}
+		this.cliCalled = true;
 		const release = await this.semaphore.acquire();
 
 		const env = options.env || {};
