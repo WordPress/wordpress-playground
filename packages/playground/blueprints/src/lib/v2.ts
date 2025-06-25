@@ -1,7 +1,5 @@
 import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
-// @ts-ignore
-import v2_runner_url from '../../public/blueprints.phar?url';
 import type { BlueprintDeclaration } from './blueprint';
 import { phpVar } from '@php-wasm/util';
 
@@ -271,6 +269,18 @@ export function parseBlueprintDeclaration(
 
 export async function getV2Runner(): Promise<File> {
 	let data = null;
+
+	/**
+	 * Avoid a static dependency for now.
+	 *
+	 * Playground.wordpress.net does not need to know about the new runner yet, and
+	 * a static import would force it to download the v2 runner even when it's not needed.
+	 * This breaks the offline mode as the static assets list is not yet updated to accommodate
+	 * for the new .phar file.
+	 */
+	// @ts-ignore
+	const v2_runner_url = await import('../../public/blueprints.phar?url');
+
 	/**
 	 * Only load the v2 runner via node:fs when running in Node.js.
 	 */
