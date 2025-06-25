@@ -85,227 +85,241 @@ export interface RunCLIArgs {
 }
 
 export async function parseOptionsAndRunCLI() {
-	/**
-	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
-	 *       Perhaps the two could be handled by the same code?
-	 */
-	const yargsObject = yargs(process.argv.slice(2))
-		.usage('Usage: wp-playground <command> [options]')
-		.positional('command', {
-			describe: 'Command to run',
-			choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
-			demandOption: true,
-		})
-		.option('outfile', {
-			describe: 'When building, write to this output file.',
-			type: 'string',
-			default: 'wordpress.zip',
-		})
-		.option('port', {
-			describe: 'Port to listen on when serving.',
-			type: 'number',
-			default: 9400,
-		})
+	let cliArgs: RunCLIArgs | undefined = undefined;
+	try {
+		/**
+		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
+		 *       Perhaps the two could be handled by the same code?
+		 */
+		const yargsObject = yargs(process.argv.slice(2))
+			.usage('Usage: wp-playground <command> [options]')
+			.positional('command', {
+				describe: 'Command to run',
+				choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
+				demandOption: true,
+			})
+			.option('outfile', {
+				describe: 'When building, write to this output file.',
+				type: 'string',
+				default: 'wordpress.zip',
+			})
+			.option('port', {
+				describe: 'Port to listen on when serving.',
+				type: 'number',
+				default: 9400,
+			})
 
-		// Blueprints v2 CLI options
-		.option('php', {
-			describe:
-				'PHP version to use. If Blueprint is provided, this option overrides the PHP version specified in the Blueprint.',
-			type: 'string',
-			choices: SupportedPHPVersions,
-		})
+			// Blueprints v2 CLI options
+			.option('php', {
+				describe:
+					'PHP version to use. If Blueprint is provided, this option overrides the PHP version specified in the Blueprint.',
+				type: 'string',
+				choices: SupportedPHPVersions,
+			})
 
-		// Modifies the Blueprint:
-		.option('wp', {
-			describe:
-				'WordPress version to use. If Blueprint is provided, this option overrides the WordPress version specified in the Blueprint.',
-			type: 'string',
-			default: 'latest',
-			hidden: true,
-		})
-		.option('login', {
-			describe:
-				'Should log the user in. If Blueprint is provided, this option overrides the login specified in the Blueprint.',
-			type: 'boolean',
-			default: false,
-			hidden: true,
-		})
+			// Modifies the Blueprint:
+			.option('wp', {
+				describe:
+					'WordPress version to use. If Blueprint is provided, this option overrides the WordPress version specified in the Blueprint.',
+				type: 'string',
+				default: 'latest',
+				hidden: true,
+			})
+			.option('login', {
+				describe:
+					'Should log the user in. If Blueprint is provided, this option overrides the login specified in the Blueprint.',
+				type: 'boolean',
+				default: false,
+				hidden: true,
+			})
 
-		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
-		// ReadOnlyNODEFS, or by copying the files into MEMFS
-		.option('mount', {
-			describe:
-				'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
-			type: 'array',
-			string: true,
-			coerce: parseMountWithDelimiterArguments,
-		})
-		.option('mountBeforeInstall', {
-			describe:
-				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
-			type: 'array',
-			string: true,
-			coerce: parseMountWithDelimiterArguments,
-		})
-		.option('mountDir', {
-			describe:
-				'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
-			type: 'array',
-			nargs: 2,
-			array: true,
-			coerce: parseMountDirArguments,
-		})
-		.option('mountDirBeforeInstall', {
-			describe:
-				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
-			type: 'string',
-			nargs: 2,
-			array: true,
-			coerce: parseMountDirArguments,
-		})
-		.option('blueprint', {
-			describe: 'Blueprint to execute.',
-			type: 'string',
-		})
-		.option('quiet', {
-			describe: 'Do not output logs and progress messages.',
-			type: 'boolean',
-			default: false,
-		})
-		.option('debug', {
-			describe:
-				'Print PHP error log content if an error occurs during Playground boot.',
-			type: 'boolean',
-			default: false,
-		})
-		.option('auto-mount', {
-			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
-			type: 'boolean',
-			default: false,
-		})
-		// Blueprint CLI options
-		.option('mode', {
-			describe: 'Execution mode',
-			type: 'string',
-			default: 'create-new-site',
-			choices: [
-				'create-new-site',
-				'apply-to-existing-site',
-				'mount-only',
+			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
+			// ReadOnlyNODEFS, or by copying the files into MEMFS
+			.option('mount', {
+				describe:
+					'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
+				type: 'array',
+				string: true,
+				coerce: parseMountWithDelimiterArguments,
+			})
+			.option('mountBeforeInstall', {
+				describe:
+					'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
+				type: 'array',
+				string: true,
+				coerce: parseMountWithDelimiterArguments,
+			})
+			.option('mountDir', {
+				describe:
+					'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
+				type: 'array',
+				nargs: 2,
+				array: true,
+				coerce: parseMountDirArguments,
+			})
+			.option('mountDirBeforeInstall', {
+				describe:
+					'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseMountDirArguments,
+			})
+			.option('blueprint', {
+				describe: 'Blueprint to execute.',
+				type: 'string',
+			})
+			.option('quiet', {
+				describe: 'Do not output logs and progress messages.',
+				type: 'boolean',
+				default: false,
+			})
+			.option('debug', {
+				describe:
+					'Print PHP error log content if an error occurs during Playground boot.',
+				type: 'boolean',
+				default: false,
+			})
+			.option('auto-mount', {
+				describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
+				type: 'boolean',
+				default: false,
+			})
+			// Blueprint CLI options
+			.option('mode', {
+				describe: 'Execution mode',
+				type: 'string',
+				default: 'create-new-site',
+				choices: [
+					'create-new-site',
+					'apply-to-existing-site',
+					'mount-only',
+				],
+			})
+			.option('db-engine', {
+				describe: 'Database engine',
+				type: 'string',
+				default: 'sqlite',
+				choices: ['mysql', 'sqlite'],
+			})
+			.option('db-host', {
+				describe: 'MySQL host',
+				type: 'string',
+			})
+			.option('db-user', {
+				describe: 'MySQL user',
+				type: 'string',
+			})
+			.option('db-pass', {
+				describe: 'MySQL password',
+				type: 'string',
+			})
+			.option('db-name', {
+				describe: 'MySQL database',
+				type: 'string',
+			})
+			.option('db-path', {
+				describe: 'SQLite file path',
+				type: 'string',
+			})
+			.option('truncate-new-site-directory', {
+				describe:
+					'Delete target directory if it exists before execution',
+				type: 'boolean',
+			})
+			.option('allow', {
+				describe: 'Allowed permissions (comma-separated)',
+				type: 'string',
+				coerce: (value) => value.split(','),
+				choices: ['bundled-files', 'follow-symlinks'],
+			})
+			.option('follow-symlinks', {
+				describe:
+					'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
+				type: 'boolean',
+				default: false,
+			})
+			.option('experimentalTrace', {
+				describe:
+					'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
+				type: 'boolean',
+				default: false,
+				// Hide this option because we want to replace with a more general log-level flag.
+				hidden: true,
+			})
+			// TODO: Should we make this a hidden flag?
+			.option('experimentalMultiWorker', {
+				describe:
+					'Enable experimental multi-worker support which requires JSPI ' +
+					'and a /wordpress directory backed by a real filesystem. ' +
+					'Pass a positive number to specify the number of workers to use. ' +
+					'Otherwise, default to the number of CPUs minus 1.',
+				type: 'number',
+				coerce: (value?: number) => value ?? cpus().length - 1,
+			})
+			.showHelpOnFail(false)
+			.check(async (args) => {
+				if (args.experimentalMultiWorker !== undefined) {
+					if (args.experimentalMultiWorker <= 1) {
+						const message =
+							'The --experimentalMultiWorker flag must be a positive integer greater than 1.';
+						console.error(message);
+						throw new Error(message);
+					}
+
+					if (!(await jspi())) {
+						const message =
+							'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag. In Node.js, you can use the --experimental-wasm-jspi flag.';
+						console.error(message);
+						throw new Error(message);
+					}
+
+					const isMountingWordPressDir = (mount: Mount) =>
+						mount.vfsPath === '/wordpress';
+					if (
+						!args.mount?.some(isMountingWordPressDir) &&
+						!(args['mountBeforeInstall'] as any)?.some(
+							isMountingWordPressDir
+						)
+					) {
+						const message =
+							'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.';
+						console.error(message);
+						throw new Error(message);
+					}
+				}
+				return true;
+			});
+
+		yargsObject.wrap(yargsObject.terminalWidth());
+		const args = await yargsObject.argv;
+
+		const command = args._[0] as string;
+
+		if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {
+			yargsObject.showHelp();
+			process.exit(1);
+		}
+
+		cliArgs = {
+			...args,
+			command,
+			mount: [...(args.mount || []), ...(args.mountDir || [])],
+			mountBeforeInstall: [
+				...(args.mountBeforeInstall || []),
+				...(args.mountDirBeforeInstall || []),
 			],
-		})
-		.option('db-engine', {
-			describe: 'Database engine',
-			type: 'string',
-			default: 'sqlite',
-			choices: ['mysql', 'sqlite'],
-		})
-		.option('db-host', {
-			describe: 'MySQL host',
-			type: 'string',
-		})
-		.option('db-user', {
-			describe: 'MySQL user',
-			type: 'string',
-		})
-		.option('db-pass', {
-			describe: 'MySQL password',
-			type: 'string',
-		})
-		.option('db-name', {
-			describe: 'MySQL database',
-			type: 'string',
-		})
-		.option('db-path', {
-			describe: 'SQLite file path',
-			type: 'string',
-		})
-		.option('truncate-new-site-directory', {
-			describe: 'Delete target directory if it exists before execution',
-			type: 'boolean',
-		})
-		.option('allow', {
-			describe: 'Allowed permissions (comma-separated)',
-			type: 'string',
-			coerce: (value) => value.split(','),
-			choices: ['bundled-files', 'follow-symlinks'],
-		})
-		.option('follow-symlinks', {
-			describe:
-				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
-			type: 'boolean',
-			default: false,
-		})
-		.option('experimentalTrace', {
-			describe:
-				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
-			type: 'boolean',
-			default: false,
-			// Hide this option because we want to replace with a more general log-level flag.
-			hidden: true,
-		})
-		// TODO: Should we make this a hidden flag?
-		.option('experimentalMultiWorker', {
-			describe:
-				'Enable experimental multi-worker support which requires JSPI ' +
-				'and a /wordpress directory backed by a real filesystem. ' +
-				'Pass a positive number to specify the number of workers to use. ' +
-				'Otherwise, default to the number of CPUs minus 1.',
-			type: 'number',
-			coerce: (value?: number) => value ?? cpus().length - 1,
-		})
-		.showHelpOnFail(false)
-		.check(async (args) => {
-			if (args.experimentalMultiWorker !== undefined) {
-				if (args.experimentalMultiWorker <= 1) {
-					throw new Error(
-						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
-					);
-				}
+		} as RunCLIArgs;
 
-				if (!(await jspi())) {
-					throw new Error(
-						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag. In Node.js, you can use the --experimental-wasm-jspi flag.'
-					);
-				}
+		return await runCLI(cliArgs);
+	} catch (e) {
+		if (cliArgs?.debug) {
+			await printDebugDetails(e, (e as any)?.streamedResponse);
+		}
 
-				const isMountingWordPressDir = (mount: Mount) =>
-					mount.vfsPath === '/wordpress';
-				if (
-					!args.mount?.some(isMountingWordPressDir) &&
-					!(args['mountBeforeInstall'] as any)?.some(
-						isMountingWordPressDir
-					)
-				) {
-					throw new Error(
-						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
-					);
-				}
-			}
-			return true;
-		});
-
-	yargsObject.wrap(yargsObject.terminalWidth());
-	const args = await yargsObject.argv;
-
-	const command = args._[0] as string;
-
-	if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {
-		yargsObject.showHelp();
-		process.exit(1);
+		// If we did not expect this error, print **all** the debug details we can get.
+		throw e;
 	}
-
-	const cliArgs = {
-		...args,
-		command,
-		mount: [...(args.mount || []), ...(args.mountDir || [])],
-		mountBeforeInstall: [
-			...(args.mountBeforeInstall || []),
-			...(args.mountDirBeforeInstall || []),
-		],
-	} as RunCLIArgs;
-
-	return await runCLI(cliArgs);
 }
 
 export interface RunCLIServer extends AsyncDisposable {
@@ -601,10 +615,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			},
 		});
 	} catch (e) {
-		if (args.debug) {
-			await printDebugDetails(e, streamedResponse);
+		if (e) {
+			(e as any).streamedResponse = streamedResponse;
 		}
-
 		// If we did not expect this error, print **all** the debug details we can get.
 		throw e;
 	}
