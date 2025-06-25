@@ -54,8 +54,7 @@ function test_playground_cli_multi_worker() {
 
 	# TODO: Also test with asyncify once we multiple workers there.
 	test_playground_cli unbuilt-jspi \
-	    --mode=apply-to-existing-site \
-		--mountBeforeInstall="$MULTIWORKER_WP_PATH:/wordpress" \
+		--truncate-new-site-directory \
 		--experimentalMultiWorker
 }
 
