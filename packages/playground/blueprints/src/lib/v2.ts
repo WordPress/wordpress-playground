@@ -91,6 +91,13 @@ export async function runBlueprintV2(options: RunV2Options) {
 			if (!parsed) {
 				return;
 			}
+
+			// Make sure stdout and stderr data is emited before the next message is processed.
+			// Otherwise a code such as `echo "Hello"; post_message_to_js(json_encode(['type' => 'blueprint.error', 'message' => 'Error']));`
+			// might emit the message before we process the stdout data.
+			// @TODO: Remove this workaround. Find the root cause why stdout data is delayed and address it directly.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
 			switch (parsed.type) {
 				case 'blueprint.target_resolved':
 					/*
@@ -124,7 +131,6 @@ export async function runBlueprintV2(options: RunV2Options) {
 	await php?.writeFile(
 		'/tmp/run-blueprints.php',
 		`<?php
-
 function playground_http_client_factory() {
 	return new WordPress\\HttpClient\\Client([
 		// sockets transport is somehow faster than curl in Playground. Maybe

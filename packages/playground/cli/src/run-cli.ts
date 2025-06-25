@@ -309,38 +309,6 @@ export async function parseOptionsAndRunCLI() {
 	return await runCLI(cliArgs);
 }
 
-/**
- * Output writer that ensures that progress bars are not printed on the same line as other output.
- */
-const output = {
-	lastWriteWasProgress: false,
-	progress(data: string) {
-		if (!process.stdout.isTTY) {
-			console.log(data);
-		} else {
-			if (!output.lastWriteWasProgress) {
-				process.stdout.write('\n');
-			}
-			process.stdout.write('\r\x1b[K' + data);
-			output.lastWriteWasProgress = true;
-		}
-	},
-	stdout(data: string) {
-		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
-			output.lastWriteWasProgress = false;
-		}
-		process.stdout.write(data);
-	},
-	stderr(data: string) {
-		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
-			output.lastWriteWasProgress = false;
-		}
-		process.stderr.write(data);
-	},
-};
-
 export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
@@ -348,11 +316,8 @@ export interface RunCLIServer extends AsyncDisposable {
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
-	// @TODO: We lost track of phpErrorReported with multiple workers. How
-	//        should we handle it?
-	// @TODO: Preserve cwd when booting workers.
-	const phpErrorReported = false;
 	let streamedResponse: StreamedPHPResponse | undefined;
+	let initialWorker: Worker;
 
 	try {
 		let loadBalancer: LoadBalancer;
@@ -433,7 +398,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 		logger.log('Starting a PHP server...');
 
-		return startServer({
+		return await startServer({
 			port: args['port'] as number,
 			onBind: async (
 				server: Server,
@@ -449,30 +414,31 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				logger.log(`Setting up WordPress ${args.wp}`);
 
 				const trace = args.experimentalTrace === true;
+				const workers = await promisedWorkers;
+				initialWorker = workers[0];
+				const additionalWorkers = workers.slice(1);
+
+				playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
+				playgroundsToCleanUp.push({
+					playground,
+					worker: initialWorker,
+				});
+
+				await playground.isConnected();
+
+				exposeAPI(fileLockManager, undefined, initialWorker);
+
+				logger.log(`Booting WordPress...`);
+
+				// Each additional worker needs a separate process ID space
+				// for file locking to work properly because locks are associated
+				// with individual processes. To accommodate this, we split the safe
+				// integers into a range for each worker.
+				const processIdSpaceLength = Math.floor(
+					Number.MAX_SAFE_INTEGER / totalWorkerCount
+				);
+
 				try {
-					const [initialWorker, ...additionalWorkers] =
-						await promisedWorkers;
-
-					playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
-					playgroundsToCleanUp.push({
-						playground,
-						worker: initialWorker,
-					});
-
-					await playground.isConnected();
-
-					exposeAPI(fileLockManager, undefined, initialWorker);
-
-					logger.log(`Booting WordPress...`);
-
-					// Each additional worker needs a separate process ID space
-					// for file locking to work properly because locks are associated
-					// with individual processes. To accommodate this, we split the safe
-					// integers into a range for each worker.
-					const processIdSpaceLength = Math.floor(
-						Number.MAX_SAFE_INTEGER / totalWorkerCount
-					);
-
 					await playground.bootAsPrimaryWorker({
 						...args,
 						php: phpVersion,
@@ -481,136 +447,122 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						processIdSpaceLength,
 						trace,
 					});
-
-					if (args.login) {
-						// @TODO: Do we need this in all the workers? Or just in the primary one?
-						//        Are we sharing constants between workers?
-						await playground.defineConstant(
-							'PLAYGROUND_AUTO_LOGIN_AS_USER',
-							'admin'
-						);
-					}
-
-					loadBalancer = new LoadBalancer(playground);
-
-					await playground.isReady();
-					wordPressReady = true;
-					logger.log(`Booted!`);
-
-					if (args.command === 'build-snapshot') {
-						await zipDirectory(
-							playground,
-							'/wordpress',
-							args.outfile as string
-						);
-						logger.log(`WordPress exported to ${args.outfile}`);
-						process.exit(0);
-					} else if (args.command === 'run-blueprint') {
-						logger.log(`Blueprint executed`);
-						process.exit(0);
-					}
-
-					if (
-						args.experimentalMultiWorker &&
-						args.experimentalMultiWorker > 1
-					) {
-						logger.log(`Preparing additional workers...`);
-
-						// Save /internal directory from initial worker so we can replicate it
-						// in each additional worker.
-						const internalZip = await zipDirectory(
-							playground,
-							'/internal'
-						)!;
-
-						// Boot additional workers
-						const initialWorkerProcessIdSpace =
-							processIdSpaceLength;
-						await Promise.all(
-							additionalWorkers.map(async (worker, index) => {
-								const additionalPlayground =
-									consumeAPI<PlaygroundCliWorker>(worker);
-								playgroundsToCleanUp.push({
-									playground: additionalPlayground,
-									worker,
-								});
-
-								await additionalPlayground.isConnected();
-								exposeAPI(fileLockManager, undefined, worker);
-
-								const firstProcessId =
-									initialWorkerProcessIdSpace +
-									index * processIdSpaceLength;
-
-								await additionalPlayground.bootAsSecondaryWorker(
-									{
-										...args,
-										php: phpVersion,
-										siteUrl,
-										firstProcessId,
-										processIdSpaceLength,
-										trace,
-									}
-								);
-								await additionalPlayground.isReady();
-
-								// Replicate the Blueprint-initialized /internal directory
-								await additionalPlayground.writeFile(
-									'/tmp/internal.zip',
-									internalZip!
-								);
-								await unzipFile(
-									additionalPlayground,
-									'/tmp/internal.zip',
-									'/internal'
-								);
-								await additionalPlayground.unlink(
-									'/tmp/internal.zip'
-								);
-
-								loadBalancer.addWorker(additionalPlayground);
-							})
-						);
-
-						logger.log(`Ready!`);
-					}
-
-					logger.log(`WordPress is running on ${siteUrl}`);
-
-					return {
-						playground,
-						server,
-						[Symbol.asyncDispose]: async function disposeCLI() {
-							await Promise.all(
-								playgroundsToCleanUp.map(
-									async ({ playground, worker }) => {
-										await playground.dispose();
-										await worker.terminate();
-									}
-								)
-							);
-							await new Promise((resolve) =>
-								server.close(resolve)
-							);
-						},
-					};
-				} catch (error) {
-					// @TODO: Without this console.log, the error is not reported
-					console.error('error', error);
-					if (!args.debug) {
-						throw error;
-					}
-					let phpLogs = '';
-					try {
-						// @TODO: Don't assume errorLogPath starts with /wordpress/
-						//        ...or maybe we can assume that in Playground CLI?
-						phpLogs = await playground.readFileAsText(errorLogPath);
-					} catch {
-						phpLogs =
-							'Unknown error. Even the PHP error log is not available to source more details.';
-					}
-					throw new Error(phpLogs, { cause: error });
+				} catch (e) {
+					await initialWorker.terminate();
+					throw e;
 				}
+
+				if (args.login) {
+					// @TODO: Do we need this in all the workers? Or just in the primary one?
+					//        Are we sharing constants between workers?
+					await playground.defineConstant(
+						'PLAYGROUND_AUTO_LOGIN_AS_USER',
+						'admin'
+					);
+				}
+
+				loadBalancer = new LoadBalancer(playground);
+
+				await playground.isReady();
+				wordPressReady = true;
+
+				// Add a newline after the progress bar to avoid the next log message
+				// from being printed on the same line.
+				logger.log('');
+				logger.log(`Booted!`);
+
+				if (args.command === 'build-snapshot') {
+					await zipDirectory(
+						playground,
+						'/wordpress',
+						args.outfile as string
+					);
+					logger.log(`WordPress exported to ${args.outfile}`);
+					process.exit(0);
+				} else if (args.command === 'run-blueprint') {
+					logger.log(`Blueprint executed`);
+					process.exit(0);
+				}
+
+				if (
+					args.experimentalMultiWorker &&
+					args.experimentalMultiWorker > 1
+				) {
+					logger.log(`Preparing additional workers...`);
+
+					// Save /internal directory from initial worker so we can replicate it
+					// in each additional worker.
+					const internalZip = await zipDirectory(
+						playground,
+						'/internal'
+					)!;
+
+					// Boot additional workers
+					const initialWorkerProcessIdSpace = processIdSpaceLength;
+					await Promise.all(
+						additionalWorkers.map(async (worker, index) => {
+							const additionalPlayground =
+								consumeAPI<PlaygroundCliWorker>(worker);
+							playgroundsToCleanUp.push({
+								playground: additionalPlayground,
+								worker,
+							});
+
+							await additionalPlayground.isConnected();
+							exposeAPI(fileLockManager, undefined, worker);
+
+							const firstProcessId =
+								initialWorkerProcessIdSpace +
+								index * processIdSpaceLength;
+
+							await additionalPlayground.bootAsSecondaryWorker({
+								...args,
+								php: phpVersion,
+								siteUrl,
+								firstProcessId,
+								processIdSpaceLength,
+								trace,
+							});
+							await additionalPlayground.isReady();
+
+							// Replicate the Blueprint-initialized /internal directory
+							await additionalPlayground.writeFile(
+								'/tmp/internal.zip',
+								internalZip!
+							);
+							await unzipFile(
+								additionalPlayground,
+								'/tmp/internal.zip',
+								'/internal'
+							);
+							await additionalPlayground.unlink(
+								'/tmp/internal.zip'
+							);
+
+							loadBalancer.addWorker(additionalPlayground);
+						})
+					);
+
+					logger.log(`Ready!`);
+				}
+
+				logger.log(`WordPress is running on ${siteUrl}`);
+
+				return {
+					playground,
+					server,
+					[Symbol.asyncDispose]: async function disposeCLI() {
+						await Promise.all(
+							playgroundsToCleanUp.map(
+								async ({ playground, worker }) => {
+									await playground.dispose();
+									await worker.terminate();
+								}
+							)
+						);
+						await new Promise((resolve) => server.close(resolve));
+					},
+				};
 			},
 			async handleRequest(request: PHPRequest) {
 				if (!wordPressReady) {
@@ -650,37 +602,100 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			},
 		});
 	} catch (e) {
-		if (
-			e instanceof PHPExecutionFailureError &&
-			!args.debug &&
-			phpErrorReported
-		) {
-			// We want to avoid verbose error messages.
-			// Bale out if this is a known failure mode and we've already reported the error.
-			throw e;
+		if (args.debug) {
+			await printDebugDetails(e, streamedResponse);
 		}
 
 		// If we did not expect this error, print **all** the debug details we can get.
-		output.stderr(`--------------------------------\n`);
-		output.stderr('Debug details:\n');
-		output.stderr('--------------------------------\n');
-		if (e && typeof e === 'object' && 'message' in e) {
-			output.stderr(e.message as string);
-		}
-		output.stderr(`\n\n==== PHP stderr ====\n\n`);
-		if (streamedResponse) {
-			output.stderr(await streamedResponse.stderrText);
-		}
-
-		output.stderr(`\n\n==== PHP stdout ====\n\n`);
-		if (streamedResponse) {
-			output.stderr(await streamedResponse.stdoutText);
-		}
-		output.stderr(`\n\n`);
-		output.stderr(`--------------------------------\n`);
-
 		throw e;
 	}
+}
+
+async function printDebugDetails(
+	e: any,
+	streamedResponse?: StreamedPHPResponse
+) {
+	if (streamedResponse) {
+		printResponseDebugDetails(
+			await PHPResponse.fromStreamedResponse(streamedResponse)
+		);
+	}
+	await prettyPrintFullStackTrace(e);
+}
+
+/**
+ * Pretty prints the full stack trace of the error and all its causes.
+ * Includes debug details for each error in the chain.
+ * This is needed
+ *
+ * @param e
+ */
+async function prettyPrintFullStackTrace(e: any) {
+	let current = e;
+	let isFirst = true;
+	while (current) {
+		if (!isFirst) {
+			process.stderr.write('\nCaused by:\n\n');
+		}
+
+		process.stderr.write(current.originalErrorClassName ?? current.name);
+		process.stderr.write(': ' + current.message + '\n');
+		process.stderr.write(
+			(current.stack + '').split('\n').slice(1).join('\n')
+		);
+		process.stderr.write(`\n`);
+		if (current.response) {
+			printResponseDebugDetails(current.response);
+		}
+		if (current.phpLogs) {
+			process.stderr.write(`\n\n==== PHP error log ====\n\n`);
+			process.stderr.write(current.phpLogs);
+		}
+		current = current.cause;
+		isFirst = false;
+	}
+	process.stderr.write('\n');
+}
+
+function printResponseDebugDetails(response: PHPResponse) {
+	// Print a short summary of what we have:
+	process.stderr.write(
+		`\n    exitCode=${response.exitCode} httpStatusCode=${response.httpStatusCode} `
+	);
+	const hasHeaders =
+		response.headers && Object.keys(response.headers).length > 0;
+	if (!hasHeaders) {
+		process.stderr.write(`responseHeaders=(empty) `);
+	}
+	if (!response.text) {
+		process.stderr.write(`stdout=(empty) `);
+	}
+	if (!response.errors) {
+		process.stderr.write(`stderr=(empty) `);
+	}
+	process.stderr.write(`\n`);
+
+	// Print all the extended information in a separate section:
+	if (hasHeaders) {
+		process.stderr.write(
+			`\n==== PHP response headers ====\n\n${JSON.stringify(
+				response.headers,
+				null,
+				2
+			)}\n\n`
+		);
+	}
+
+	if (response.text) {
+		process.stderr.write(`\n==== PHP stdout ====\n\n`);
+		process.stderr.write(response.text);
+	}
+
+	if (response.errors) {
+		process.stderr.write(`\n==== PHP stderr ====\n\n`);
+		process.stderr.write(response.errors);
+	}
+	process.stderr.write(`\n`);
 }
 
 /**
@@ -752,7 +767,7 @@ async function inferPHP(blueprint: string | BlueprintDeclaration | undefined) {
 		}
 	} catch (e) {
 		if (e instanceof NonJsonBlueprintError) {
-			output.stderr(
+			process.stderr.write(
 				`Could not determine the PHP version from the Blueprint. ` +
 					`This usually happens if your Blueprint is not a plain JSON file ` +
 					`(for example, if it's a ZIP, git repo, or another bundle format). ` +
@@ -761,13 +776,13 @@ async function inferPHP(blueprint: string | BlueprintDeclaration | undefined) {
 			);
 			throw e;
 		} else if (e instanceof BlueprintReferenceError) {
-			output.stderr(
+			process.stderr.write(
 				`Failed to load Blueprint: ${e.message}. ` +
 					`Please check that the Blueprint path or URL is correct.`
 			);
 			throw e;
 		} else if (e instanceof BlueprintParseError) {
-			output.stderr(
+			process.stderr.write(
 				`Blueprint contains invalid JSON: ${e.parseError}. ` +
 					`Please check the Blueprint syntax and try again.`
 			);

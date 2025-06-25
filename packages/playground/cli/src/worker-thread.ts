@@ -48,6 +48,17 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 }
 
 /**
+ * Force TTY status to preserve ANSI control codes in the output.
+ *
+ * This script is spawned as `new Worker()` and process.stdout and process.stderr are
+ * WritableWorkerStdio objects. By default, they strip ANSI control codes from the output
+ * causing every progress bar update to be printed in a new line instead of updating the
+ * same line.
+ */
+Object.defineProperty(process.stdout, 'isTTY', { value: true });
+Object.defineProperty(process.stderr, 'isTTY', { value: true });
+
+/**
  * Output writer that ensures that progress bars are not printed on the same line as other output.
  */
 const output = {
@@ -155,7 +166,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 			}
 		}
 
-		// let phpErrorReported = false;
 		try {
 			const cliArgsToPass: (keyof WorkerRunBlueprintArgs)[] = [
 				'mode',
@@ -193,7 +203,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 						output.progress(message);
 					},
 					onError: (message, details?: PHPExceptionDetails) => {
-						// phpErrorReported = true;
 						const red = '\x1b[31m';
 						const bold = '\x1b[1m';
 						const reset = '\x1b[0m';
@@ -211,6 +220,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 					},
 				},
 			});
+			/**
+			 * When we're debugging, every bit of information matters – let's immediately output
+			 * everything we get from the PHP output streams.
+			 */
 			if (args.debug) {
 				streamedResponse!.stdout.pipeTo(
 					new WritableStream({
@@ -229,29 +242,27 @@ export class PlaygroundCliWorker extends PHPWorker {
 			}
 			await streamedResponse!.finished;
 			if ((await streamedResponse!.exitCode) !== 0) {
+				// exitCode != 1 means the blueprint execution failed. Let's throw an error.
+				// and clean up.
+				const syncResponse = await PHPResponse.fromStreamedResponse(
+					streamedResponse
+				);
 				throw new PHPExecutionFailureError(
-					'Execution failed',
-					await PHPResponse.fromStreamedResponse(streamedResponse),
+					`PHP.run() failed with exit code ${syncResponse.exitCode}.`,
+					syncResponse,
 					'request'
 				);
 			}
 		} catch (error) {
-			// @TODO: Rethink error handling here.
-			if (!args.debug) {
-				throw error;
-			}
+			// Capture the PHP error log details to provide more context for debugging.
 			let phpLogs = '';
 			try {
 				// @TODO: Don't assume errorLogPath starts with /wordpress/
 				//        ...or maybe we can assume that in Playground CLI?
-				phpLogs = await php.readFileAsText(errorLogPath);
-			} catch {
-				phpLogs =
-					'Unknown error. Even the PHP error log is not available to source more details.';
-			}
-			// @TODO: Without this console.error, we don't get the error details we need to debug.
-			logger.error(error);
-			throw new Error(phpLogs, { cause: error });
+				phpLogs = php.readFileAsText(errorLogPath);
+			} catch {}
+			(error as any).phpLogs = phpLogs;
+			throw error;
 		} finally {
 			reap();
 			unmountCwd();
@@ -318,13 +329,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 					'openssl.cafile': '/internal/shared/ca-bundle.crt',
 				},
 				cookieStore: false,
-				spawnHandler: (processManager) =>
-					sandboxedSpawnHandlerFactory(processManager, {
-						onError: (error) => {
-							logger.error(error);
-							output.stderr(`${error.message}\n`);
-						},
-					}),
+				spawnHandler: sandboxedSpawnHandlerFactory,
 			});
 			this.__internal_setRequestHandler(requestHandler);
 

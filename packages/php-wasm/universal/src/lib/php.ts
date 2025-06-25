@@ -425,25 +425,14 @@ export class PHP implements Disposable {
 		);
 
 		if (syncResponse.exitCode !== 0) {
-			logger.warn(`PHP.run() output was:`, syncResponse.text);
-			const error = new PHPExecutionFailureError(
-				`PHP.run() failed with exit code ${syncResponse.exitCode} and the following output: ` +
-					syncResponse.errors +
-					'\n\n' +
-					syncResponse.text,
+			// Legacy behavior: throw if PHP exited with a non-zero exit code.
+			// It could be a WASM crash, but it could be a PHP userland error such
+			// as "Fatal error: Uncaught Error: Call to undefined function no_such_function()".
+			throw new PHPExecutionFailureError(
+				`PHP.run() failed with exit code ${syncResponse.exitCode}. \n\n=== Stdout ===\n ${syncResponse.text}\n\n=== Stderr ===\n ${syncResponse.errors}`,
 				syncResponse,
 				'request'
 			) as PHPExecutionFailureError;
-			logger.error(error);
-			this.dispatchEvent({
-				type: 'request.error',
-				error: new Error(
-					'PHP.run() failed with exit code ' + syncResponse.exitCode
-				),
-				// Distinguish between PHP request and PHP-wasm errors
-				source: 'request',
-			});
-			throw error;
 		}
 
 		return syncResponse;
@@ -616,12 +605,19 @@ export class PHP implements Disposable {
 		// Free up resources when the response is done
 		await streamedResponsePromise
 			.catch((error) => {
+				/**
+				 * Dispatch a request.error event for any global crash handlers. For example,
+				 * Playground web uses this to automatically display a "Report crash" modal.
+				 */
 				this.dispatchEvent({
 					type: 'request.error',
 					error: error as Error,
 					// Distinguish between PHP request and PHP-wasm errors
 					source: (error as any).source ?? 'php-wasm',
 				});
+
+				// Rethrow the error. We don't want to swallow it.
+				throw error;
 			})
 			.finally(() => {
 				if (heapBodyPointer) {
@@ -630,6 +626,10 @@ export class PHP implements Disposable {
 			})
 			.finally(() => {
 				release();
+				/**
+				 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
+				 * another request.
+				 */
 				this.dispatchEvent({
 					type: 'request.end',
 				});
@@ -920,25 +920,12 @@ export class PHP implements Disposable {
 				 * get crashes and unhandled promise rejections without any useful error
 				 * messages or meaningful stack traces.
 				 */
-				const exit = await Promise.race([
+				const exitCode = await Promise.race([
 					executionFn(),
 					new Promise((_, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							// These very eager log statements pollute the CLI output. Let's
-							// reconsider how to handle them.
-							if (
-								!isExitCode(e.error) ||
-								(e.error.exitCode ??
-									(e as any).error.status) !== 0
-							) {
-								// logger.error(e);
-								// logger.error(e.error);
-							}
 							if (!isExitCode(e.error)) {
-								const rethrown = new Error('Rethrown');
-								rethrown.cause = e.error;
-								(rethrown as any).betterMessage = e.message;
-								reject(rethrown);
+								reject(e.error);
 							}
 						};
 						this.#wasmErrorsTarget?.addEventListener(
@@ -948,7 +935,7 @@ export class PHP implements Disposable {
 						);
 					}),
 				]);
-				return exit;
+				return exitCode;
 			} catch (e) {
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
@@ -958,6 +945,7 @@ export class PHP implements Disposable {
 					return e.exitCode ?? (e as any).status;
 				}
 
+				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
 				stdout.controller.error(e);
 				stderr.controller.error(e);
 				headers.controller.error(e);
@@ -980,15 +968,7 @@ export class PHP implements Disposable {
 				(this as any).functionsMaybeMissingFromAsyncify =
 					getFunctionsMaybeMissingFromAsyncify();
 
-				const err = e as Error;
-				const message = (
-					'betterMessage' in err ? err.betterMessage : err.message
-				) as string;
-
-				const rethrown = new Error(message);
-				rethrown.cause = err;
-				logger.error(rethrown);
-				throw rethrown;
+				throw e;
 			} finally {
 				if (!streamsClosed) {
 					stdout.controller.close();

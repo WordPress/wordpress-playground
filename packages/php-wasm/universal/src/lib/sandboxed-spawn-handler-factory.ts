@@ -1,16 +1,8 @@
 import { createSpawnHandler } from '@php-wasm/util';
 import type { PHPProcessManager } from './php-process-manager';
-import { logger } from '@php-wasm/logger';
 
 export function sandboxedSpawnHandlerFactory(
-	processManager: PHPProcessManager,
-	factoryOptions: {
-		onError: (error: Error) => void;
-	} = {
-		onError: (error) => {
-			logger.error('Error in childPHP:', error);
-		},
-	}
+	processManager: PHPProcessManager
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
@@ -80,18 +72,11 @@ export function sandboxedSpawnHandlerFactory(
 						},
 					})
 				);
-				await result.exitCode.then(
-					(exitCode) => {
-						processApi.exit(exitCode);
-					},
-					(error) => {
-						factoryOptions.onError(error as Error);
-						processApi.exit(1);
-					}
-				);
+				processApi.exit(await result.exitCode);
 			} catch (e) {
-				factoryOptions.onError(e as Error);
+				// An exception here means the PHP runtime has crashed.
 				processApi.exit(1);
+				throw e;
 			} finally {
 				reap();
 			}

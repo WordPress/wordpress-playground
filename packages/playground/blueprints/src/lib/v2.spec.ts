@@ -29,12 +29,6 @@ describe('V2 runner', () => {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
 			},
-			spawnHandler: (processManager) =>
-				sandboxedSpawnHandlerFactory(processManager, {
-					onError: (error) => {
-						console.log('Error in childPHP:', error);
-					},
-				}),
 		});
 	});
 

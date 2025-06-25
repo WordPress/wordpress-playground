@@ -152,6 +152,9 @@ export class Logger extends EventTarget {
 	 * @param args any
 	 */
 	public error(message: any, ...args: any[]): void {
+		// @TODO: Actually log all the information carried by the error object.
+		//        Right now this only captures the message and stack of the top-level error.
+		//        It ignores the chain of causes and every other property of the error object.
 		this.logMessage(
 			{
 				message,
