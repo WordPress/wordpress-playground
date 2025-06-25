@@ -9,7 +9,7 @@
  *   separate what we print for UI reasons from what we print for debugging?
  */
 
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { logger } from '@php-wasm/logger';
 import type {
 	PHPRequest,
 	RemoteAPI,
@@ -17,7 +17,6 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
-	PHPExecutionFailureError,
 	PHPResponse,
 	SupportedPHPVersions,
 	consumeAPI,

@@ -1,4 +1,4 @@
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { errorLogPath } from '@php-wasm/logger';
 import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -196,19 +196,21 @@ export class PlaygroundCliWorker extends PHPWorker {
 				cliArgs,
 				onMessage: async (message: BlueprintMessage) => {
 					switch (message.type) {
-						case 'blueprint.target_resolved':
+						case 'blueprint.target_resolved': {
 							if (!afterBlueprintTargetResolvedCalled) {
 								await mountResources(php, args.mount || []);
 								afterBlueprintTargetResolvedCalled = true;
 							}
 							break;
-						case 'blueprint.progress':
+						}
+						case 'blueprint.progress': {
 							const progressMessage = `${message.caption.trim()} – ${message.progress.toFixed(
 								2
 							)}%`;
 							output.progress(progressMessage);
 							break;
-						case 'blueprint.error':
+						}
+						case 'blueprint.error': {
 							const red = '\x1b[31m';
 							const bold = '\x1b[1m';
 							const reset = '\x1b[0m';
@@ -226,6 +228,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 								);
 							}
 							break;
+						}
 					}
 				},
 			});
@@ -269,7 +272,9 @@ export class PlaygroundCliWorker extends PHPWorker {
 				// @TODO: Don't assume errorLogPath starts with /wordpress/
 				//        ...or maybe we can assume that in Playground CLI?
 				phpLogs = php.readFileAsText(errorLogPath);
-			} catch {}
+			} catch {
+				// Ignore errors reading the PHP error log.
+			}
 			(error as any).phpLogs = phpLogs;
 			throw error;
 		} finally {

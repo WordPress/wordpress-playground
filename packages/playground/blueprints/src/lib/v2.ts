@@ -1,8 +1,10 @@
-import { StreamedPHPResponse } from '@php-wasm/universal';
-import type { UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
-import type { BlueprintDeclaration } from './blueprint';
+import {
+	type StreamedPHPResponse,
+	type UniversalPHP,
+} from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
+import type { BlueprintDeclaration } from './blueprint';
 
 export type PHPExceptionDetails = {
 	exception: string;
@@ -173,9 +175,15 @@ export async function runBlueprintV2(
 			}
 
 			// Make sure stdout and stderr data is emited before the next message is processed.
-			// Otherwise a code such as `echo "Hello"; post_message_to_js(json_encode(['type' => 'blueprint.error', 'message' => 'Error']));`
+			// Otherwise a code such as `echo "Hello"; post_message_to_js(json_encode([
+			//    'type' => 'blueprint.error',
+			//    'message' => 'Error'
+			// ]));`
 			// might emit the message before we process the stdout data.
-			// @TODO: Remove this workaround. Find the root cause why stdout data is delayed and address it directly.
+			//
+			// This is a workaround to ensure that the message is emitted after the stdout data is processed.
+			// @TODO: Remove this workaround. Find the root cause why stdout data is delayed and address it
+			//        directly.
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			if (parsed.type.startsWith('blueprint.')) {

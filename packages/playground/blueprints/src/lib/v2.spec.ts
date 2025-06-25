@@ -1,11 +1,8 @@
 import { loadNodeRuntime } from '@php-wasm/node';
-import {
-	sandboxedSpawnHandlerFactory,
-	type PHPRequestHandler,
-} from '@php-wasm/universal';
+import { type PHPRequestHandler } from '@php-wasm/universal';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { rootCertificates } from 'node:tls';
-import { runBlueprintV2, type BlueprintMessage } from './v2';
+import { runBlueprintV2 } from './v2';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 
 describe('V2 runner', () => {
