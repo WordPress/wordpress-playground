@@ -5,6 +5,8 @@ import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 const plugins = [
 	dts({
@@ -18,6 +20,19 @@ const plugins = [
 	}),
 ];
 
+const external = [
+	...getExternalModules(),
+	'@php-wasm/node',
+	'@php-wasm/web',
+	'@php-wasm/universal',
+	'@php-wasm/logger',
+	'@php-wasm/progress',
+	'@php-wasm/util',
+	'@wp-playground/wordpress',
+	'@wp-playground/common',
+	'@wp-playground/blueprints',
+];
+
 export default defineConfig({
 	base: './',
 	assetsInclude: ['**/*.ini'],
@@ -29,17 +44,7 @@ export default defineConfig({
 		format: 'es',
 		plugins: () => plugins,
 		rollupOptions: {
-			external: [
-				'@php-wasm/universal',
-				'@php-wasm/node',
-				'@php-wasm/progress',
-				'@wp-playground/common',
-				'@wp-playground/wordpress',
-				'@php-wasm/logger',
-				'net',
-				'tls',
-				'worker_threads',
-			],
+			external,
 			output: {
 				entryFileNames: (/* chunkInfo: any */) => {
 					return '[name]-[hash].js';
@@ -55,34 +60,7 @@ export default defineConfig({
 		target: 'es2020',
 		sourcemap: true,
 		rollupOptions: {
-			external: [
-				'@php-wasm/node',
-				'@php-wasm/universal',
-				'@php-wasm/logger',
-				'@php-wasm/progress',
-				'@php-wasm/util',
-				'@wp-playground/wordpress',
-				'@wp-playground/common',
-				'@wp-playground/blueprints',
-				'yargs',
-				'express',
-				'crypto',
-				'os',
-				'net',
-				'fs',
-				'fs-extra',
-				'path',
-				'child_process',
-				'http',
-				'path',
-				'tls',
-				'util',
-				'dns',
-				'ws',
-				'readline',
-				'worker_threads',
-				'url',
-			],
+			external,
 		},
 		lib: {
 			entry: {
