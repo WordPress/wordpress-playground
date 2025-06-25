@@ -61,6 +61,8 @@ const patternsToNotCache = [
 	/^\/assets\/php_.*\.js$/, // PHP JS files
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
+	/^\/assets\/blueprints.*\.phar$/, // Blueprints v2 runner. It isn't used by the Playground website yet,
+	// only by the CLI.
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {
