@@ -8,6 +8,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				command: 'server',
 				php: phpVersion as any,
 				blueprint: {
+					version: 2,
 					siteOptions: {
 						blogname: 'My WordPress Website',
 					},
