@@ -510,7 +510,6 @@ RUN set -euxo pipefail; \
 		echo -n ' -g3 ' >> /root/.emcc-php-wasm-flags; \
 		# Make source file paths relative to the location of the .wasm file
 		# so we can debug without additional config in host OS.
-		#echo -n ' -fdebug-prefix-map=/root/php-src/=./php-src/ ' >> /root/.emcc-php-wasm-flags; \
 		export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
 		echo -n " -fdebug-compilation-dir=${OUTPUT_DIR_FOR_SOURCE_MAP_BASE}/${PHP_VERSION_ESCAPED}/ " \
 			"-fdebug-prefix-map=/root/php_wasm.c=${DEBUG_OFFSET_TO_PHP_WASM_PACKAGE}/compile/php/php_wasm.c " \
