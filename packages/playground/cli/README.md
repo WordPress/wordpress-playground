@@ -31,15 +31,17 @@ The flag `--auto-mount` will figure out if the project folder is a plugin or a t
 You don't have to install `@wp-playground/cli`, you can run it directly with `npx`. This is the recommended way to use the CLI and requires no permanent installation. To run a vanilla WordPress website, you can run the command:
 
 ```bash
-npx @wp-playground/cli server
+npx @wp-playground/cli@latest server
 ```
+
+> **_NOTE:_** You can also use the `@wp-playground/cli@latest` to load the latest version of playground.
 
 ### Choosing a WordPress Version
 
-By default, the CLI will load the latest stable version of WordPress and PHP. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
+By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
- npx @wp-playground/cli server --wp=6.8 --php=8.4
+ npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
 ```
 
 ### Mounting local Directories
@@ -50,7 +52,13 @@ For full control, you can manually mount a local directory to a specific path in
 
 ```shell
 cd my-plugin-or-theme-directory
-npx @wp-playground/cli server --mount=.:/wordpress/wp-content/plugins/
+npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/
+```
+
+Another helpful flag is `--mount-before-install` allows the users to create a site in a local filesystem instead of in the Virtual File System.
+
+```shell
+npx @wp-playground/cli@latest server --mount-before-install=./my-local-site:/wordpress
 ```
 
 ### Automatic Mounting with `--auto-mount`
@@ -94,7 +102,7 @@ The `server` command supports the following optional arguments:
 With the Playground CLI, you can use the `--help` to get some support about the available commands.
 
 ```bash
-npx @wp-playground/cli --help
+npx @wp-playground/cli@latest --help
 ```
 
 ## Working with Blueprints
@@ -130,7 +138,7 @@ The example of a Blueprint above installs a plugin, logs the user in, and opens 
 To use a Blueprint, create a file (e.g., my-blueprint.json) and run the following command:
 
 ```bash
-npx @wp-playground/cli server --blueprint=./my-blueprint.json
+npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 ```
 
 ## Programmatic Usage with JavaScript
@@ -147,11 +155,6 @@ const handler = cliServer.requestHandler;
 const php = await handler.getPrimaryPhp();
 ```
 
-## Interoperability
-
-This CLI package is not just a helpful tool. It drives interoperability between the in-browser Playground, CLI packages, and the PHP Blueprints library. Once complete, it will reuse the same internals as the website at https://playground.wordpress.net, whether we're talking about running PHP code, executing Blueprints, building snapshots, serving requests, or maintaining
-multiple PHP instances.
-
 ## Comparisons
 
 ### Things the Playground does compared to Laravel Valet
@@ -159,13 +162,12 @@ multiple PHP instances.
 -   Handles the entire WordPress installation for you.
 -   Works across all desktop platforms (Mac, Linux, Windows).
 -   Does not set up custom host domains for you.
--   Allows you to switch WordPress and PHP versions on the fly.
 
 ### Things the Playground does compared to `wp-env`
 
 -   Does not require Docker.
 -   Is faster to start up for quick tests and development.
--   Does not include lifecycle scripts or a persistent MySQL database.
+-   The Playground doesn't come with a MySQL Server, but you can provide your own MySQL credentials.
 
 ## How can I contribute?
 
