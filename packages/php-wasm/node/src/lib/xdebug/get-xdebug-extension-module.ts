@@ -17,58 +17,58 @@ export async function getXdebugExtensionModule(
 	 */
 	switch (version) {
 		case '8.4':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/8_4/xdebug.so?url`
 				)
 			).default;
 		case '8.3':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/8_3/xdebug.so?url`
 				)
 			).default;
 		case '8.2':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/8_2/xdebug.so?url`
 				)
 			).default;
 		case '8.1':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/8_1/xdebug.so?url`
 				)
 			).default;
 		case '8.0':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/8_0/xdebug.so?url`
 				)
 			).default;
 		case '7.4':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/7_4/xdebug.so?url`
 				)
 			).default;
 		case '7.3':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/7_3/xdebug.so?url`
 				)
 			).default;
 		case '7.2':
-			// @ts-ignore
 			return (
 				await import(
+					// @ts-ignore
 					`../../../jspi/extensions/xdebug/7_2/xdebug.so?url`
 				)
 			).default;

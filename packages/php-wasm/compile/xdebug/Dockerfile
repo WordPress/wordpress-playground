@@ -115,7 +115,7 @@ RUN set -euxo pipefail; \
 	# with the main module.
 	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
 
-	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT=1 -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -O3"; \
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -O3"; \
 
 	export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
 
