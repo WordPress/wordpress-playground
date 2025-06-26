@@ -242,6 +242,12 @@ await asyncSpawn(
 		`OUTPUT_DIR_FOR_SOURCE_MAP_BASE=${outputDir}`,
 		'--build-arg',
 		getArg('WITH_DEBUG'),
+		// This directory path offset allows us to reconcile paths for source
+		// source files in DWARF debug info.
+		'--build-arg',
+		`DEBUG_OFFSET_TO_PHP_WASM_PACKAGE=${
+			platform === 'web' ? '../../../../..' : '../../..'
+		}`,
 		'--build-arg',
 		getArg('WITH_ICONV'),
 		'--build-arg',
