@@ -23,74 +23,74 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
-
-	# test-unit-asyncify:
-    #     runs-on: ubuntu-latest
-    #     needs: [lint-and-typecheck]
-    #     strategy:
-    #         fail-fast: false
-    #         matrix:
-    #             include:
-    #                 - name: test-unit-asyncify (1/15)
-    #                   target: test
-    #                 - name: test-unit-asyncify (2/15)
-    #                   target: test-php
-    #                 - name: test-unit-asyncify (3/15)
-    #                   target: test-php-request-handler-files
-    #                 - name: test-unit-asyncify (4/15)
-    #                   target: test-php-request-handler-requests
-    #                 - name: test-unit-asyncify (5/15)
-    #                   target: test-php-asyncify-file-get-contents-http
-    #                 - name: test-unit-asyncify (6/15)
-    #                   target: test-php-asyncify-file-get-contents-https
-    #                 - name: test-unit-asyncify (7/15)
-    #                   target: test-php-asyncify-fopen-http
-    #                 - name: test-unit-asyncify (8/15)
-    #                   target: test-php-asyncify-fopen-https
-    #                 - name: test-unit-asyncify (9/15)
-    #                   target: test-php-asyncify-fsockopen-http
-    #                 - name: test-unit-asyncify (10/15)
-    #                   target: test-php-asyncify-fsockopen-https
-    #                 - name: test-unit-asyncify (11/15)
-    #                   target: test-php-asyncify-gethostbyname-http
-    #                 - name: test-unit-asyncify (12/15)
-    #                   target: test-php-asyncify-gethostbyname-https
-    #                 - name: test-unit-asyncify (13/15)
-    #                   target: test-php-asyncify-mysqli-http
-    #                 - name: test-unit-asyncify (14/15)
-    #                   target: test-php-asyncify-mysqli-https
-    #                 - name: test-unit-sqlite3 (15/15)
-    #                   target: test-php-asyncify-sqlite3
-    #     name: ${{ matrix.name }}
-    #     services:
-    #         mysql:
-    #             image: mysql:5.7
-    #             env:
-    #                 MYSQL_DATABASE: test_db
-    #                 MYSQL_USER: user
-    #                 MYSQL_PASSWORD: password
-    #                 MYSQL_ROOT_PASSWORD: rootpassword
-    #             ports:
-    #                 - 3306:3306
-    #             options: >-
-    #                 --health-cmd="mysqladmin ping --silent"
-    #                 --health-interval=10s
-    #                 --health-timeout=5s
-    #                 --health-retries=3
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #           with:
-    #               node-version: 20
-    #         - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
-    #           env:
-    #               MYSQL_DATABASE: test_db
-    #               MYSQL_USER: user
-    #               MYSQL_PASSWORD: password
-
-    # Most of these tests pass locally but the process is crashing
+    test-unit-asyncify:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+		if: false # TODO: Re-enable this once the tests are fixed
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: test-unit-asyncify (1/15)
+                      target: test
+                    - name: test-unit-asyncify (2/15)
+                      target: test-php
+                    - name: test-unit-asyncify (3/15)
+                      target: test-php-request-handler-files
+                    - name: test-unit-asyncify (4/15)
+                      target: test-php-request-handler-requests
+                    - name: test-unit-asyncify (5/15)
+                      target: test-php-asyncify-file-get-contents-http
+                    - name: test-unit-asyncify (6/15)
+                      target: test-php-asyncify-file-get-contents-https
+                    - name: test-unit-asyncify (7/15)
+                      target: test-php-asyncify-fopen-http
+                    - name: test-unit-asyncify (8/15)
+                      target: test-php-asyncify-fopen-https
+                    - name: test-unit-asyncify (9/15)
+                      target: test-php-asyncify-fsockopen-http
+                    - name: test-unit-asyncify (10/15)
+                      target: test-php-asyncify-fsockopen-https
+                    - name: test-unit-asyncify (11/15)
+                      target: test-php-asyncify-gethostbyname-http
+                    - name: test-unit-asyncify (12/15)
+                      target: test-php-asyncify-gethostbyname-https
+                    - name: test-unit-asyncify (13/15)
+                      target: test-php-asyncify-mysqli-http
+                    - name: test-unit-asyncify (14/15)
+                      target: test-php-asyncify-mysqli-https
+                    - name: test-unit-sqlite3 (15/15)
+                      target: test-php-asyncify-sqlite3
+        name: ${{ matrix.name }}
+        services:
+            mysql:
+                image: mysql:5.7
+                env:
+                    MYSQL_DATABASE: test_db
+                    MYSQL_USER: user
+                    MYSQL_PASSWORD: password
+                    MYSQL_ROOT_PASSWORD: rootpassword
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping --silent"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 20
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
+              env:
+                  MYSQL_DATABASE: test_db
+                  MYSQL_USER: user
+                  MYSQL_PASSWORD: password
+ 
+	# Most of these tests pass locally but the process is crashing
     # on the CI runner.
     #
     # test-unit-jspi:
@@ -106,88 +106,90 @@ jobs:
     #               node-version: 23.0.0-nightly2024100909d10b50dc
     #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
 
-    # test-e2e:
-    #     runs-on: ubuntu-latest
-    #     needs: [lint-and-typecheck]
-    #     # Run as root to allow node to bind to port 80
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #         - run: sudo ./node_modules/.bin/cypress install --force
-    #         - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
-    #         # Upload the Cypress screenshots as artifacts if the job fails
-    #         - uses: actions/upload-artifact@v4
-    #           if: ${{ failure() }}
-    #           with:
-    #               name: cypress-screenshots
-    #               path: dist/cypress/packages/playground/website/screenshots
 
-    # test-e2e-playwright-prepare:
-    #     runs-on: ubuntu-latest
-    #     needs: [lint-and-typecheck]
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #         - name: Install Playwright Browsers
-    #           run: sudo npx playwright install --with-deps
-    #         - name: Prepare app deploy and offline mode
-    #           run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
-    #         - name: Zip dist
-    #           run: zip -r dist.zip dist
-    #         - name: Upload dist
-    #           uses: actions/upload-artifact@v4
-    #           with:
-    #               name: playwright-dist
-    #               path: dist.zip
-    # test-e2e-playwright:
-    #     runs-on: ubuntu-latest
-    #     needs: [test-e2e-playwright-prepare]
-    #     strategy:
-    #         fail-fast: false
-    #         matrix:
-    #             part: ['chromium', 'firefox', 'webkit']
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #         - name: Download dist
-    #           uses: actions/download-artifact@v4
-    #           with:
-    #               name: playwright-dist
-    #         - name: Unzip dist
-    #           run: unzip dist.zip
-    #         - name: Install Playwright Browser
-    #           run: sudo npx playwright install ${{ matrix.part }} --with-deps
-    #         - name: Run Playwright tests - ${{ matrix.part }}
-    #           run: |
-    #               if [ "${{ matrix.part }}" = "firefox" ]; then
-    #                 sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
-    #               else
-    #                 sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
-    #               fi
-    #         - uses: actions/upload-artifact@v4
-    #           if: ${{ !cancelled() }}
-    #           with:
-    #               name: playwright-report-${{ matrix.part }}
-    #               path: packages/playground/website/playwright-report/
-    #               if-no-files-found: ignore
-    #         - uses: actions/upload-artifact@v4
-    #           if: ${{ !cancelled() }}
-    #           with:
-    #               name: playwright-snapshots-${{ matrix.part }}
-    #               path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
-    #               if-no-files-found: ignore
-    #         - name: Delete playwright-dist artifact
-    #           uses: geekyeggo/delete-artifact@v5
-    #           with:
-    #               name: playwright-dist
+	test-e2e:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+		if: false # TODO: Re-enable this once the tests are fixed
+        # Run as root to allow node to bind to port 80
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo ./node_modules/.bin/cypress install --force
+            - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
+            # Upload the Cypress screenshots as artifacts if the job fails
+            - uses: actions/upload-artifact@v4
+              if: ${{ failure() }}
+              with:
+                  name: cypress-screenshots
+                  path: dist/cypress/packages/playground/website/screenshots
 
-	test-built-npm-packages:
+    test-e2e-playwright-prepare:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: sudo npx playwright install --with-deps
+            - name: Prepare app deploy and offline mode
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Zip dist
+              run: zip -r dist.zip dist
+            - name: Upload dist
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-dist
+                  path: dist.zip
+    test-e2e-playwright:
+        runs-on: ubuntu-latest
+        needs: [test-e2e-playwright-prepare]
+        strategy:
+            fail-fast: false
+            matrix:
+                part: ['chromium', 'firefox', 'webkit']
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Download dist
+              uses: actions/download-artifact@v4
+              with:
+                  name: playwright-dist
+            - name: Unzip dist
+              run: unzip dist.zip
+            - name: Install Playwright Browser
+              run: sudo npx playwright install ${{ matrix.part }} --with-deps
+            - name: Run Playwright tests - ${{ matrix.part }}
+              run: |
+                  if [ "${{ matrix.part }}" = "firefox" ]; then
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  else
+                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  fi
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report-${{ matrix.part }}
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-snapshots-${{ matrix.part }}
+                  path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
+                  if-no-files-found: ignore
+            - name: Delete playwright-dist artifact
+              uses: geekyeggo/delete-artifact@v5
+              with:
+                  name: playwright-dist
+
+    test-built-npm-packages:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
@@ -301,36 +303,36 @@ jobs:
                   npx nx affected --target=build --parallel=3 --verbose
 
     # Deploy documentation job
-    # deploy_docs:
-    #     # Only deploy docs when pushing to the WordPress/wordpress-playground repository
-    #     if: >
-    #         github.repository == 'WordPress/wordpress-playground' &&
-    #         github.ref == 'refs/heads/trunk' &&
-    #         github.event_name == 'push'
-    #     # Add a dependency to the build job
-    #     needs: [test-unit-asyncify, test-e2e, build]
-    #     name: 'Deploy doc site'
+    deploy_docs:
+        # Only deploy docs when pushing to the WordPress/wordpress-playground repository
+        if: >
+            github.repository == 'WordPress/wordpress-playground' &&
+            github.ref == 'refs/heads/trunk' &&
+            github.event_name == 'push'
+        # Add a dependency to the build job
+        needs: [test-unit-asyncify, test-e2e, build]
+        name: 'Deploy doc site'
 
-    #     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
-    #     permissions:
-    #         pages: write # to deploy to Pages
-    #         id-token: write # to verify the deployment originates from an appropriate source
+        # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+        permissions:
+            pages: write # to deploy to Pages
+            id-token: write # to verify the deployment originates from an appropriate source
 
-    #     # Deploy to the github-pages environment
-    #     environment:
-    #         name: github-pages
-    #         url: ${{ steps.deployment.outputs.page_url }}
+        # Deploy to the github-pages environment
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
 
-    #     # Specify runner + deployment step
-    #     runs-on: ubuntu-latest
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #         - run: npm run build:docs
-    #         - uses: actions/upload-pages-artifact@v3
-    #           with: { path: dist/docs/build }
-    #         - name: Deploy to GitHub Pages
-    #           id: deployment
-    #           uses: actions/deploy-pages@v4
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: npm run build:docs
+            - uses: actions/upload-pages-artifact@v3
+              with: { path: dist/docs/build }
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4
