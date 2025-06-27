@@ -88,9 +88,9 @@ ARG WITH_MYSQL
 ARG WITH_OPENSSL
 ARG WITH_ICONV
 ARG WITH_SOURCEMAPS
-ARG OUTPUT_DIR_FOR_SOURCE_MAP_BASE
+ARG OUTPUT_DIR_ON_HOST
 ARG WITH_DEBUG
-ARG DEBUG_OFFSET_TO_PHP_WASM_PACKAGE
+ARG DEBUG_DWARF_COMPILATION_DIR
 ARG WITH_WS_NETWORKING_PROXY
 ARG WITH_INTL
 
@@ -162,6 +162,7 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 		# Configure build flags
 		echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
 		echo -n ' /root/php-src/sapi/cli/php_cli_process_title.c /root/php-src/sapi/cli/ps_title.c ' \
+			# Use absolute paths to help path mapping for DWARF debug info
 			'/root/php-src/sapi/cli/php_http_parser.c /root/php-src/sapi/cli/php_cli_server.c ' \
 			'/root/php-src/sapi/cli/php_cli.c ' \
 			>> /root/.emcc-php-wasm-sources && \
@@ -474,11 +475,16 @@ EOF
 RUN echo '' > /root/php-src/ext/standard/proc_open.h;
 RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 
+ARG OUTPUT_DIR_ON_HOST
+ARG DEBUG_DWARF_COMPILATION_DIR
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
-	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec $JSPI_FLAGS -fdebug-compilation-dir=${OUTPUT_DIR_FOR_SOURCE_MAP_BASE}/${PHP_VERSION_ESCAPED}/ -fdebug-prefix-map=/root/php-src/=php-src/ " \
+	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
+		$JSPI_FLAGS \
+		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
+		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -licuuc -licudata -licui18n -licuio -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libjpeg.a" \
 	emmake make -j1
@@ -498,8 +504,8 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 	fi
 
 ARG WITH_SOURCEMAPS
-ARG OUTPUT_DIR_FOR_SOURCE_MAP_BASE
-ARG DEBUG_OFFSET_TO_PHP_WASM_PACKAGE
+ARG OUTPUT_DIR_ON_HOST
+ARG DEBUG_DWARF_COMPILATION_DIR
 ARG WITH_DEBUG
 RUN set -euxo pipefail; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
@@ -511,16 +517,17 @@ RUN set -euxo pipefail; \
 		# Make source file paths relative to the location of the .wasm file
 		# so we can debug without additional config in host OS.
 		export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
-		echo -n " -fdebug-compilation-dir=${OUTPUT_DIR_FOR_SOURCE_MAP_BASE}/${PHP_VERSION_ESCAPED}/ " \
-			"-fdebug-prefix-map=/root/php_wasm.c=${DEBUG_OFFSET_TO_PHP_WASM_PACKAGE}/compile/php/php_wasm.c " \
-			"-fdebug-prefix-map=/root/php-src/=php-src/  " \
+		echo -n " -fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ " \
+			"-fdebug-prefix-map=/root/php_wasm.c=${DEBUG_DWARF_COMPILATION_DIR}/compile/php/php_wasm.c " \
+			"-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/  " \
+			"-fdebug-prefix-map=./=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/  " \
 			>> /root/.emcc-php-wasm-flags; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 			echo -n ' -gsource-map' >> /root/.emcc-php-wasm-flags; \
 			# Ensure source maps are loaded from the correct URL on the web.
 			# Without this, browsers will try the wasm:// protocol and never load the source map.
 			if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
-				echo -n " --source-map-base http://127.0.0.1:5400/@fs${OUTPUT_DIR_FOR_SOURCE_MAP_BASE}/${PHP_VERSION_ESCAPED}/" >> /root/.emcc-php-wasm-flags; \
+				echo -n " --source-map-base http://127.0.0.1:5400/@fs${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/" >> /root/.emcc-php-wasm-flags; \
 			fi; \
 		fi; \
 	else \
@@ -2080,6 +2087,7 @@ RUN set -euxo pipefail; \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
+	-s ASSERTIONS=0 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
