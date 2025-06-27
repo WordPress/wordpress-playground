@@ -1,6 +1,6 @@
 # WordPress Playground CLI
 
-`@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As its predecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
+`@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As with its predecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
 
 # Table of contents
 
@@ -9,7 +9,6 @@
 -   [Usage](#usage)
 -   [Working with Blueprints](#working-with-blueprints)
 -   [How can I contribute?](#how-can-i-contribute)
--
 
 ## Requirements
 
@@ -92,7 +91,7 @@ The `server` command supports the following optional arguments:
 -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 -   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 -   `--login`: Automatically log the user in as an administrator.
--   `--skip-word-pressSetup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
+-   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 -   `--quiet`: Do not output logs and progress messages.
 -   `--debug`: Print the PHP error log if an error occurs during boot.
