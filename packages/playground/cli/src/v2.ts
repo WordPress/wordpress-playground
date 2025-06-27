@@ -4,7 +4,7 @@ import {
 	type UniversalPHP,
 } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import type { BlueprintDeclaration } from '../../blueprints/src/lib/blueprint';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 
 export type PHPExceptionDetails = {
 	exception: string;
