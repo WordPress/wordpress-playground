@@ -22,11 +22,7 @@ import {
 	consumeAPI,
 	exposeAPI,
 } from '@php-wasm/universal';
-import type {
-	BlueprintDeclaration,
-	ParsedBlueprintV2Declaration,
-} from '@wp-playground/blueprints';
-import { parseBlueprintDeclaration } from '@wp-playground/blueprints';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 import {
 	RecommendedPHPVersion,
 	unzipFile,
@@ -55,6 +51,10 @@ import {
 /* eslint-disable no-console */
 import { cpus } from 'os';
 import { jspi } from 'wasm-feature-detect';
+import {
+	type ParsedBlueprintV2Declaration,
+	parseBlueprintDeclaration,
+} from './v2';
 
 export interface RunCLIArgs {
 	additionalBlueprintSteps?: any[];

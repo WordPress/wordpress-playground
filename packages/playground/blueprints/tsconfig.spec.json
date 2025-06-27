@@ -15,6 +15,7 @@
 		"src/**/*.test.jsx",
 		"src/**/*.spec.jsx",
 		"src/**/*.d.ts",
-		"../common/src/**/*.spec.ts"
+		"../common/src/**/*.spec.ts",
+		"../cli/src/v2.spec.ts"
 	]
 }

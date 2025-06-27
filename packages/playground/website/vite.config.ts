@@ -63,6 +63,7 @@ export default defineConfig(({ command, mode }) => {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
 			proxy,
+			allowedHosts: ['playground-preview.test'],
 		},
 
 		server: {
