@@ -64,7 +64,7 @@
         "cwd": "${workspaceFolder}",
         "autoAttachChildProcesses": true
       },
-            {
+      {
         "name": "Debug Playground CLI with DWARF Symbols",
         "request": "launch",
         "type": "node",
@@ -75,7 +75,6 @@
           "debug",
           "playground-cli",
           "server",
-          "--php=8.3",
         ],
         "args": "${input:playgroundCliCommand}",
         "cwd": "${workspaceFolder}",
