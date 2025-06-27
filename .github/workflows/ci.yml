@@ -197,7 +197,7 @@ jobs:
               run: |
                   VERSION=$(date +%s)
                   PORT=9934
-                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/
+                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/$VERSION
                   echo "VERSION=$VERSION" >> $GITHUB_ENV
                   echo "PORT=$PORT" >> $GITHUB_ENV
                   echo "PACKAGE_BASE_URL=$PACKAGE_BASE_URL" >> $GITHUB_ENV
@@ -210,11 +210,9 @@ jobs:
                     jq --arg version "$VERSION" '.version = $version' "$package" > "$package.tmp"
                     mv "$package.tmp" "$package"
                   done
-            - name: Package repository
+            - name: Package repository and start a local node package registry server
               run: |
                   npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
-            - name: Start a local node package registry server
-              run: |
                   cd $HOST_PATH
                   python3 -c "
                   import http.server
