@@ -197,7 +197,7 @@ jobs:
               run: |
                   VERSION=$(date +%s)
                   PORT=9934
-                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/$VERSION
+                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/
                   echo "VERSION=$VERSION" >> $GITHUB_ENV
                   echo "PORT=$PORT" >> $GITHUB_ENV
                   echo "PACKAGE_BASE_URL=$PACKAGE_BASE_URL" >> $GITHUB_ENV
@@ -215,18 +215,23 @@ jobs:
                   npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
             - name: Start a local node package registry server
               run: |
-                  source ~/.nvm/nvm.sh;
-                  nvm install 22;
-                  RUNNER_TRACKING_ID="" && ( \
-                    nohup node \
-                      --experimental-strip-types \
-                      --experimental-transform-types \
-                      --import ./packages/meta/src/node-es-module-loader/register.mts \
-                      ./packages/playground/cli/src/cli.ts server \
-                      --port=$PORT \
-                      --mount="$HOST_PATH:/wordpress/$VERSION" \
-                      --quiet& \
-                    )
+                  cd $HOST_PATH
+                  python3 -c "
+                  import http.server
+                  import socketserver
+                  from urllib.parse import unquote
+
+                  class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+                      def do_GET(self):
+                          if self.path.startswith('/${{ env.VERSION }}/'):
+                              self.path = self.path[len('/${{ env.VERSION }}'):]
+                          elif self.path == '/${{ env.VERSION }}':
+                              self.path = '/'
+                          super().do_GET()
+
+                  with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
+                      httpd.serve_forever()
+                  " &
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do
