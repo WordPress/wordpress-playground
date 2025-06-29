@@ -1,54 +1,54 @@
 {
 	"version.label": {
 		"message": "Próximo",
-		"description": "The label for version current"
+		"description": "O rótulo para a versão atual"
 	},
 	"sidebar.mainSidebar.category.Documentation": {
 		"message": "Documentação",
-		"description": "The label for category Documentation in sidebar mainSidebar"
+		"description": "O rótulo para a categoria Documentação na barra lateral mainSidebar"
 	},
 	"sidebar.mainSidebar.category.About Playground": {
 		"message": "Sobre o Playground",
-		"description": "The label for category About Playground in sidebar mainSidebar"
+		"description": "O rótulo para a categoria Sobre o Playground na barra lateral mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Guides": {
 		"message": "Guias",
-		"description": "The label for category Guides in sidebar mainSidebar"
+		"description": "O rótulo para a categoria Guias na barra lateral mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Contributing": {
 		"message": "Contribuindo",
-		"description": "The label for category Contributing in sidebar mainSidebar"
+		"description": "O rótulo para a categoria Contribuindo na barra lateral mainSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Blueprints": {
 		"message": "Blueprints",
-		"description": "The label for category Blueprints in sidebar blueprintsSidebar"
+		"description": "O rótulo para a categoria Blueprints na barra lateral blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Tutorial": {
 		"message": "Tutorial",
-		"description": "The label for category Tutorial in sidebar blueprintsSidebar"
+		"description": "O rótulo para a categoria Tutorial na barra lateral blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Steps": {
 		"message": "Passos",
-		"description": "The label for category Steps in sidebar blueprintsSidebar"
+		"description": "O rótulo para a categoria Passos na barra lateral blueprintsSidebar"
 	},
 	"sidebar.developersSidebar.category.Developers": {
 		"message": "Desenvolvedores",
-		"description": "The label for category Developers in sidebar developersSidebar"
+		"description": "O rótulo para a categoria Desenvolvedores na barra lateral developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Local Development": {
 		"message": "Desenvolvimento Local",
-		"description": "The label for category Local Development in sidebar developersSidebar"
+		"description": "O rótulo para a categoria Desenvolvimento Local na barra lateral developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Playground APIs": {
 		"message": "APIs do Playground",
-		"description": "The label for category Playground APIs in sidebar developersSidebar"
+		"description": "O rótulo para a categoria APIs do Playground na barra lateral developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Javascript API": {
 		"message": "API JavaScript",
-		"description": "The label for category Javascript API in sidebar developersSidebar"
+		"description": "O rótulo para a categoria API JavaScript na barra lateral developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Architecture": {
 		"message": "Arquitetura",
-		"description": "The label for category Architecture in sidebar developersSidebar"
+		"description": "O rótulo para a categoria Arquitetura na barra lateral developersSidebar"
 	}
 }
