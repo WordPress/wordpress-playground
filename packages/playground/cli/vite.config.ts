@@ -44,10 +44,10 @@ const plugins = [
 						let pharPath;
 						if (typeof __dirname !== 'undefined') {
 							// CommonJS
-							pharPath = join(__dirname, "./blueprints.phar");
+							pharPath = join(__dirname, "../blueprints.phar");
 						} else {
 							// ESM
-							pharPath = join(import.meta.dirname, "./blueprints.phar");
+							pharPath = join(import.meta.dirname, "../blueprints.phar");
 						}
 						
 						export default pharPath;
