@@ -45,7 +45,7 @@ Cada vez que você visita o [official demo on playground.wordpress.net](https://
 You can then create pages, upload plugins, themes, import your own site, and do most things you would do on a regular WordPress.
 -->
 
-Você pode então criar páginas, carregar plugins, temas, importar seu próprio site e fazer a maioria das coisas que faria numa instalação normal do WordPress.
+Você pode então criar páginas, carregar plugins, temas, importar o seu próprio site e fazer a maioria das coisas que faria numa instalação normal do WordPress.
 
 <!--
 It's that easy to start!
@@ -57,7 +57,7 @@ E o processo para iniciar é simples!
 The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page!
 -->
 
-A estrutura inteira do site fica no seu navegador e é copiado quando você fecha a aba. Quer recomeçar? Basta atualizar a página!
+A estrutura inteira do site fica no seu navegador sendo copiado quando você fecha a aba. Quer recomeçar? Basta atualizar a página!
 
 <!--
 :::info WordPress Playground is private
@@ -69,7 +69,7 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 
 :::info O WordPress Playground é privado
 
-Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
+Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar o seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
 
 :::
 
@@ -89,7 +89,7 @@ You can upload any plugin or theme you want in [/wp-admin/](https://playground.w
 To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL:
 -->
 
-Para agilizar o processo, também é possível pre-instalar plugins ou temas passa o parâmetro no URL `plugin` ou `theme`. Por exemplo, caso queira instalar o plugin coblocks, basta usar o URL:
+Para agilizar o processo, também é possível pre-instalar plugins ou temas, passando o parâmetro no URL `plugin` ou `theme`. Por exemplo, caso queira instalar o plugin coblocks, basta usar o URL:
 
 https://playground.wordpress.net/?plugin=coblocks
 
@@ -130,7 +130,7 @@ Abra o gerenciador de sites
 Use the "Export" button in the top bar:
 -->
 
-Use o botão "Download as .zip" no menu de ações adicionais
+Use o botão "Download como .zip" no menu de ações adicionais
 ![Export button](@site/static/img/site-manager-menu.webp)
 
 <!--
@@ -155,7 +155,7 @@ O arquivo de banco de dados SQLite também está incluído na exportação. Voc�
 You can restore the site you saved by using the import button in WordPress Playground:
 -->
 
-Você pode restaurar o site salvo usando o botão de importação de .zip no painel de gerenciamento de sites, no menu de ações de importação:
+Você pode restaurar o site salvo usando o botão de "Importação de .zip" no painel de gerenciamento de sites, no menu de ações de importação:
 
 ![Botão de importação de .zip](@site/static/img/site-manager-import-actions-menu.webp)
 
@@ -169,7 +169,7 @@ Você pode restaurar o site salvo usando o botão de importação de .zip no pai
 The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):
 -->
 
-A maneira mais rápida de trocar a versão do WordPres ou PHP no é utilizando o painel de configurações do [site oficial de demonstração](https://playground.wordpress.net/):
+A maneira mais rápida de trocar a versão do WordPress ou PHP no é utilizando o painel de configurações do [site oficial de demonstração](https://playground.wordpress.net/):
 ![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
 
 <!--
@@ -246,7 +246,7 @@ Isso é diferente do recurso de importação descrito acima. O recurso de import
 WordPress Playground is programmable, which means you can build WordPress apps, set up plugin demos, and even use it as a zero-setup local development environment.
 -->
 
-O WordPress Playground é programável, o que significa que você pode criar aplicativos WordPress, configurar demonstrações de plug-ins e até mesmo usá-lo como um ambiente de desenvolvimento local sem necessidade de configuração.
+O WordPress Playground é programável, o que significa que você pode criar aplicativos WordPress, configurar demonstrações de plugins e até mesmo usá-lo como um ambiente de desenvolvimento local sem necessidade de configuração.
 
 <!--
 To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
