@@ -20,7 +20,7 @@ WordPress Playground website moved to [wordpress.org/playground/](https://wordpr
 
 :::info **Está procurando a versão web do WordPress Playground?**
 
-A página oficial do WordPress Playground está disponível em [wordpress.org/playground/](https://wordpress.org/playground/). Esta página abriga a documentção do WordPress Playground.
+A página oficial do WordPress Playground está disponível em [wordpress.org/playground/](https://wordpress.org/playground/). Esta página abriga a documentação do WordPress Playground.
 
 :::
 
@@ -32,7 +32,7 @@ Playground is an online tool to experiment and learn about WordPress. This site 
 
 👋 Olá! Bem vindo a documentação oficial do WordPress Playground.
 
-WordPress Playground é uma ferramenta online onde podes testar e aprender mais sobre o WordPress. Nesta página(Documentação) irá encontrar toda as informações necessárias para começar a trabalhar com o Playground.
+WordPress Playground é uma ferramenta online onde podes testar e aprender mais sobre o WordPress. Nesta página(Documentação) irá encontrar todas as informações necessárias para começar a trabalhar com o Playground.
 
 <!--
 <p class="docs-hubs">The WordPress Playground documentation is distributed across four separate hubs (subsites):</p>
@@ -49,7 +49,7 @@ WordPress Playground é uma ferramenta online onde podes testar e aprender mais 
 -   👉 [**Documentação**](/) _(você está aqui)_ – Introdução a WordPress Playground, guia inicial e ponto de entrada para a documentação do WordPress Playuground.
 -   [**Blueprints**](/blueprints) – Blueprints são arquivos JSON que permitem configurar e definir o estado de novas instâncias do WordPress Playground. Saiba mais o que é possível com Blueprints na sessão dedicada.
 -   [**Desenvolvedores**](/developers) – WordPress Playground é uma ferramenta poderosa para desenvolvedores onde podemos criar ambiente de desenvolvimento e testes. Descubra mais o que podes fazer com o WordPress playground na sessão dedica a desenvolvedores.
--   [**Referência da API**](/api) – Referência de toda API pública do WordPress Playground.
+-   [**Referência da API**](/api) – Referência de toda a API pública do WordPress Playground.
 
 <!--
 ## Navigating this documentation hub
@@ -111,7 +111,7 @@ Read [**Introduction to Playground: running WordPress in the browser**](https://
 -->
 
 :::tip
-O artigo [**Introdução para o WordPress Playground: rodando WordPress no navegadore(ENG)**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) do [Blog para Desenvolvedores do WordPress](https://developer.wordpress.org/news) é uma ótima introdução ao WordPress Playground.
+O artigo [**Introdução para o WordPress Playground: rodando WordPress no navegador(ENG)**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) do [Blog para Desenvolvedores do WordPress](https://developer.wordpress.org/news) é uma ótima introdução ao WordPress Playground.
 :::
 
 <!--
