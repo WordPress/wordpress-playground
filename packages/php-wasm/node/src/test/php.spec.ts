@@ -217,8 +217,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should isolate stderr from stdout', async () => {
 			const streamed = await php.runStream({
-				code: `<?php 
-					echo "stdout"; 
+				code: `<?php
+					echo "stdout";
 					file_put_contents("php://stderr", "stderr");
 				`,
 			});
@@ -230,7 +230,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should stream output progressively', async () => {
 			const streamed = await php.runStream({
-				code: `<?php 
+				code: `<?php
 				echo "first chunk";
 				flush();
 				sleep(1);
@@ -272,7 +272,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should stream multiple small outputs progressively', async () => {
 			const streamed = await php.runStream({
-				code: `<?php 
+				code: `<?php
 				for ($i = 1; $i <= 3; $i++) {
 					echo "chunk $i ";
 					flush();
@@ -536,6 +536,37 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	});
 
 	describe('proc_open()', () => {
+		// This test applies only to these PHP versions
+		// due to a new patch that replaces the use of
+		// EMULATE_FUNCTION_POINTER_CASTS option.
+		if (['7.3', '7.4'].includes(phpVersion)) {
+			it.only('resolves without crashing with unknown function signature mismatch', async () => {
+				const promise = php.runStream({
+					code: `<?php
+					$descriptorspec = array(
+	 					1 => array("pipe","w")
+					);
+
+					$res = proc_open(
+						"echo 'Hello World!'",
+						$descriptorspec,
+						$pipes
+					);
+
+					$res = proc_open(
+						"echo 'Hello World!'",
+						$descriptorspec,
+						$pipes
+					);
+					`,
+				});
+
+				await expect(promise).resolves.not.toThrow(
+					/null function or function signature mismatch/
+				);
+			});
+		}
+
 		it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php

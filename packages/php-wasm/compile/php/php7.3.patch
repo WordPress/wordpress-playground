@@ -85,11 +85,13 @@ index c2594274dd4..42fbacf8c6e 100644
  static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
  	/* IS_UNDEF        */ (zend_rc_dtor_func_t)zend_empty_destroy,
  	/* IS_NULL         */ (zend_rc_dtor_func_t)zend_empty_destroy,
-@@ -54,7 +61,7 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+@@ -54,7 +61,9 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
  	/* IS_STRING       */ (zend_rc_dtor_func_t)zend_string_destroy,
  	/* IS_ARRAY        */ (zend_rc_dtor_func_t)zend_array_destroy_wrapper,
  	/* IS_OBJECT       */ (zend_rc_dtor_func_t)zend_object_destroy_wrapper,
 -	/* IS_RESOURCE     */ (zend_rc_dtor_func_t)zend_resource_destroy_wrapper,
++	// Info: zend_resource_destroy_wrapper is an alias for zend_list_free
++	// https://github.com/php/php-src/blob/PHP-7.3.33/Zend/zend_variables.c#L41
 +	/* IS_RESOURCE     */ zend_list_free_wrapper,
  	/* IS_REFERENCE    */ (zend_rc_dtor_func_t)zend_reference_destroy,
  	/* IS_CONSTANT_AST */ (zend_rc_dtor_func_t)zend_ast_ref_destroy_wrapper
