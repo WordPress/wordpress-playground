@@ -1,6 +1,7 @@
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { runCLI } from '@wp-playground/cli';
+import { printDebugDetails } from '@php-wasm/util';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -36,6 +37,9 @@ describe(`PHP ${phpVersion}`, () => {
 				response.text.includes(expectedText),
 				`Response text does not include '${expectedText}'`
 			);
+		} catch (e) {
+			await printDebugDetails(e, (e as any)?.streamedResponse);
+			throw e;
 		} finally {
 			if (cli) {
 				await cli[Symbol.asyncDispose]();
