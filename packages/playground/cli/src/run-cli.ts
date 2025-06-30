@@ -36,6 +36,7 @@ import yargs from 'yargs';
 // @ts-ignore
 import { expandAutoMounts } from './mounts';
 import { startServer } from './server';
+import { printDebugDetails } from '@php-wasm/universal';
 import type { PlaygroundCliWorker } from './worker-thread';
 // @ts-ignore
 import importedWorkerUrlString from './worker-thread?worker&url';
@@ -55,7 +56,6 @@ import {
 	type ParsedBlueprintV2Declaration,
 	parseBlueprintDeclaration,
 } from './v2';
-import { printDebugDetails } from '@php-wasm/util';
 
 export interface RunCLIArgs {
 	additionalBlueprintSteps?: any[];

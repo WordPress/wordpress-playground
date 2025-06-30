@@ -12,11 +12,6 @@ export {
 export { createSpawnHandler } from './create-spawn-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
-export {
-	printDebugDetails,
-	prettyPrintFullStackTrace,
-	printResponseDebugDetails,
-} from './error-reporting';
 
 export * from './php-vars';
 

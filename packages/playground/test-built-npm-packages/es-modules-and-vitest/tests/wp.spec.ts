@@ -1,7 +1,6 @@
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import { printDebugDetails, SupportedPHPVersions } from '@php-wasm/universal';
 import { runCLI } from '@wp-playground/cli';
-import { printDebugDetails } from '@php-wasm/util';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 

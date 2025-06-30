@@ -10,6 +10,11 @@ export type {
 	PHPRequestHeaders,
 	SpawnHandler,
 } from './universal-php';
+export {
+	printDebugDetails,
+	prettyPrintFullStackTrace,
+	printResponseDebugDetails,
+} from './error-reporting';
 export { FSHelpers } from './fs-helpers';
 export type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 export { PHPWorker } from './php-worker';
