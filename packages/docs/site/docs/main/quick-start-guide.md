@@ -51,12 +51,6 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 <ThisIsQueryApi />
 
-:::info Plugin directory doesn't work in WordPress Playground
-
-Plugins must be installed manually because your WordPress site doesn't send any data to the internet. You won't be able to navigate the WordPress plugin directory inside `/wp-admin/`. The Query API method may seem to contradict that, but behind the scenes it uses the same plugin upload form as you would.
-
-:::
-
 ## Save your site
 
 To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
