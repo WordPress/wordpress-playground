@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { join } from 'path';
-import { defineConfig } from 'vite';
+import { PluginOption, defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -18,7 +18,48 @@ const plugins = [
 	viteTsConfigPaths({
 		root: '../../../',
 	}),
-];
+	/**
+	 * In library mode, Vite bundles all `?url` imports as JS modules with a single,
+	 * base64 export. blueprints.phar is too large for that. We need to preserve it
+	 * as an actual file.
+	 *
+	 * ... more comment tbd ...
+	 *
+	 * @see https://github.com/vitejs/vite/issues/3295
+	 */
+	{
+		name: 'build-phars-as-URL-modules-not-data-imports',
+
+		transform(code, id, options) {
+			if (id?.includes('.phar')) {
+				console.log({ id, options });
+				// @TODO don't hardcode it
+				// @TODO use URL on the web and path on Node.js
+				// @TODO use import.url in ESM and __dirname in CJS
+				return {
+					code: `
+						import { fileURLToPath } from 'url';
+						import { dirname, join } from 'path';
+						
+						let pharPath;
+						if (typeof __dirname !== 'undefined') {
+							// CommonJS
+							pharPath = "./blueprints.phar";
+						} else {
+							// ESM
+							const __filename = fileURLToPath(import.meta.url);
+							const __dirname = dirname(__filename);
+							pharPath = "./blueprints.phar";
+						}
+						
+						export default pharPath;
+					`,
+					map: null,
+				};
+			}
+		},
+	},
+] as PluginOption[];
 
 const external = [
 	...getExternalModules(),
