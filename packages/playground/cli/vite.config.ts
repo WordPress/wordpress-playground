@@ -8,6 +8,37 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
+/**
+ * @TODO: Consider rsbuild for this:
+ * import { defineConfig } from "@rsbuild/core";
+import { pluginReact } from "@rsbuild/plugin-react";
+
+export default defineConfig({
+  plugins: [pluginReact()],
+  source: {
+    assetsInclude: /\.dat$/,
+  },
+  output: {
+    dataUriLimit: 0,
+    chunkFormat: "commonjs",
+    target,
+  },
+  module: {
+    rules: [
+      {
+        test: /\.dat/,
+        use: [
+          {
+            loader: "url-loader",
+          },
+        ],
+        type: "asset/inline",
+      },
+    ],
+  },
+});
+
+ */
 const plugins = [
 	dts({
 		entryRoot: 'src',

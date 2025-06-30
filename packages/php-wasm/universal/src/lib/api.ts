@@ -4,7 +4,7 @@ import type { Endpoint } from 'comlink';
 import * as Comlink from 'comlink';
 import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
 import nodeEndpoint from 'comlink/dist/esm/node-adapter';
-import * as ErrorSerializer from 'serialize-error';
+import * as ErrorSerializer from './serialize-error';
 
 export type WithAPIState = {
 	/**
