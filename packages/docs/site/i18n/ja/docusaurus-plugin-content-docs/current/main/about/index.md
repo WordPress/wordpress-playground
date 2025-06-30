@@ -132,12 +132,6 @@ Playground に表示される読み込み画面と進行状況バーには、ブ
 The loading screen and progress bar you see on Playground includes both the streaming of those foundational technologies to your browser and configuration steps from [WordPress Blueprints](/blueprints) (see [examples](/blueprints/examples)), so that a full server, WordPress software, Theme & Plugin solutions and configuration instructions can be streamed over-the-wire.
 -->
 
-多くの WordPress ソリューションでは、ソーシャルネットワーク、ライブフィード、その他のインターネットサービスと連携するためにインターネット接続が必要になりますが、[Playground ではこれらの接続が制限される可能性があります](/developers/architecture/wasm-php-overview#networking-support-varies-between-platforms)。ただし、Playground のカスタマイズ設定モーダル[クエリパラメータ付き URL の例](https://playground.wordpress.net/?networking=yes)でネットワーク接続を有効にすると、Playground 内で WordPress へのインターネット接続をほぼ確実に確立できます。
-
-<!--
-While many WordPress solutions may require internet connectivity to interact with social networks, live feeds, and other internet services, those connections [could be limited in Playground](/developers/architecture/wasm-php-overview#networking-support-varies-between-platforms). However, by enabling network connectivity in the Customize Playground settings modal [(example URL w/ query parameter)](https://playground.wordpress.net/?networking=yes), you can mostly wire up internet connectivity to WordPress in Playground.
--->
-
 ## Playground は、Web サーバーまたはローカル デスクトップ アプリで WordPress を実行することと何が違うのでしょうか?
 
 <!--

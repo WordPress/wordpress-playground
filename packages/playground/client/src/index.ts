@@ -170,6 +170,14 @@ export async function startPlaygroundWeb({
 	}
 
 	await runBlueprintSteps(compiled, playground);
+	/**
+	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/pull/2295
+	 */
+	if (compiled.features.networking) {
+		await playground.prefetchUpdateChecks();
+	}
 	progressTracker.finish();
 
 	return playground;
