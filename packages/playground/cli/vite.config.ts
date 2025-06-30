@@ -44,10 +44,10 @@ const plugins = [
 						let pharPath;
 						if (typeof __dirname !== 'undefined') {
 							// CommonJS
-							pharPath = join(__dirname, "../blueprints.phar");
+							pharPath = join(__dirname, "./blueprints.phar");
 						} else {
 							// ESM
-							pharPath = join(import.meta.dirname, "../blueprints.phar");
+							pharPath = join(import.meta.dirname, "./blueprints.phar");
 						}
 						
 						export default pharPath;
@@ -95,6 +95,7 @@ export default defineConfig({
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
+		assetsDir: '',
 		assetsInlineLimit: 0,
 		target: 'es2020',
 		sourcemap: true,
