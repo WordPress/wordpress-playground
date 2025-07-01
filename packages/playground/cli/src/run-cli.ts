@@ -205,12 +205,6 @@ export async function parseOptionsAndRunCLI() {
 					);
 				}
 
-				if (!(await jspi())) {
-					throw new Error(
-						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
-					);
-				}
-
 				const isMountingWordPressDir = (mount: Mount) =>
 					mount.vfsPath === '/wordpress';
 				if (
