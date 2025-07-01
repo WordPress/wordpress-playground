@@ -155,7 +155,6 @@
 					"php-crash.spec.ts",
 					"php-ini.spec.ts",
 					"php-memory.spec.ts",
-					"php-networking.spec.ts",
 					"php-process-manager.spec.ts",
 					"php-request-handler.spec.ts",
 					"php-vars.spec.ts",
@@ -171,6 +170,14 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": ["php.spec.ts"]
+			}
+		},
+		"test-php-networking": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-networking.spec.ts"]
 			}
 		},
 		"test-php-dynamic-loading-jspi": {
