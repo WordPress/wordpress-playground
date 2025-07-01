@@ -1,76 +1,183 @@
 # WordPress Playground CLI
 
-A CLI tool for running WordPress playground locally instead of in the browser:
+`@wp-playground/cli` streamlines the process of setting up a local WordPress environment for development and testing. It utilizes WordPress Playground to set up a new WordPress environment seamlessly. As with its predecessor `wp-now`, you can switch between PHP and WordPress versions only with a flag.
 
-```shell
-$ bun packages/playground/cli/src/cli.ts server --wp=6.5
-WordPress is running on http://127.0.0.1:9400
+# Table of contents
+
+-   [Requirements](#requirements)
+-   [Quickstart](#quickstart)
+-   [Usage](#usage)
+-   [Working with Blueprints](#working-with-blueprints)
+-   [How can I contribute?](#how-can-i-contribute)
+
+## Requirements
+
+The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+
+## Quickstart
+
+Running the Playground CLI is as simple as going to your plugin or theme directory and running the following command:
+
+```bash
+cd my-plugin-or-theme-directory
+npx @wp-playground/cli server --auto-mount
 ```
 
-Playground CLI is simple, configurable, and unopinionated. You can set it up
-to your unique WordPress setup. For example, this command would run the documentation
-workflow at https://github.com/adamziel/playground-docs-workflow:
+The flag `--auto-mount` will figure out if the project folder is a plugin or a theme for you. For more advanced mounting options, see the [Mounting Local Directories](#mounting-local-directories) section.
 
-```shell
-bun --config=/Users/adam/.bunfig.toml \
-    ./packages/playground/cli/src/cli.ts \
-    server \
-    --mount=./wp-content/plugins/wp-docs-plugin:/wordpress/wp-content/plugins/wp-docs-plugin \
-    --mount=./wp-content/html-pages:/wordpress/wp-content/html-pages \
-    --mount=./wp-content/uploads:/wordpress/wp-content/uploads \
-    --mount=./wp-content/themes/playground-docs:/wordpress/wp-content/themes/playground-docs \
-    --blueprint=./wp-content/blueprint-wp-now.json \
-    --wp=6.5
+## Usage
+
+You don't have to install `@wp-playground/cli`, you can run it directly with `npx`. This is the recommended way to use the CLI and requires no permanent installation. To run a vanilla WordPress website, you can run the command:
+
+```bash
+npx @wp-playground/cli@latest server
 ```
 
-It is long, sure, but it is also very flexible. If you need a shorter version, you can alias
-it or write a bash script. In the future, Blueprints might support relative path mappings,
-at which point that command would get much shorter.
+> **_NOTE:_** You can also use the `@wp-playground/cli@latest` to load the latest version of playground.
 
-## Philosophy
+### Choosing a WordPress Version
 
-The data flow is as follows:
+By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
--   Start PHP
--   Mount any local directories
--   Put a fresh WordPress in the resulting virtual filesystem (unless you're mounting directly at /wordpress).
--   Run the Blueprint
--   Start a local server, accept requests
+```bash
+ npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
+```
 
-On each run, a fresh WordPress release is unzipped in the virtual filesystem. It is sourced
-from a zip file cached at ~/.wordpress-playground/. If you mess up your site, just restart the
-server and you'll get a fresh one, again unzipped. The CLI tool never modifies the zip file
-so you can always be sure you're starting from a clean slate.
+### Mounting local Directories
 
-## Future work
+`@wp-playground/cli` operates by mounting your local project files into a virtualized WordPress environment. This allows you to work on your plugin or theme with a live WordPress instance without any complex setup. You can do this automatically or manually.
 
-The CLI tool will have the following commands:
+For full control, you can manually mount a local directory to a specific path inside the virtual WordPress installation. For example, to mount your current project folder into the plugins directory, use the `--mount` flag:
 
--   `server` - start a fresh WordPress playground server.
--   `build-snapshot` - run a Blueprint and output a .zip file with the resulting WordPress instance.
--   `run-blueprint` - run a Blueprint and output errors to the console if they occur.
+```shell
+cd my-plugin-or-theme-directory
+npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/
+```
 
-It will also support:
+Another helpful flag is `--mount-before-install` allows the users to create a site in a local filesystem instead of in the Virtual File System.
 
--   Loading Blueprints from URLs.
--   Saving the running WordPress site and loading it later.
--   Caching all remote resources referenced in Blueprints. Currently, say, plugins are downloaded on each run.
+```shell
+npx @wp-playground/cli@latest server --mount-before-install=./my-local-site:/wordpress
+```
 
-Conceptually, this isn't too different from Docker containers. There are images (zip files),
-containers (running instances), and commands (Blueprints). Playground could support the same
-concepts such as:
+### Automatic Mounting with `--auto-mount`
 
--   Listing and managing available images and containers.
--   Saving a running container and restoring it later
--   Starting a container from a specific image (already supported via zip files)
--   Running a command in a container (the `php` command)
--   Building a new image from a Blueprint (the `build` command)
--   Step-by-step cache for Blueprints so that only the changed steps are re-run.
+The `--auto-mount` flag is the easiest way to get started. It inspects the current directory and automatically mounts it to the correct location in the virtual WordPress site. These are the supported directory types and how they are detected:
 
-## Interoperability
+-   **Plugin Mode**: Presence of a PHP file with `Plugin Name:` in its header.
+-   **Theme Mode**: Presence of a style.css file with `Theme Name:` in its header.
+-   **wp-content Mode**: Presence of plugins and themes subdirectories.
+-   **WordPress Mode**: Presence of a complete WordPress installation. The directory will be mounted to the root `/wordpress` folder.
 
-This CLI package is not just a useful tool. It drives interoperability between the in-browser
-Playground, CLI packages, and the PHP Blueprints library. Once complete, it will reuse the
-same internals as the website at https://playground.wordpress.org whether we're talking about
-running PHP code, executing Blueprints, building snapshots, serving requests, or maintaining
-multiple PHP instances
+## Command and Arguments
+
+Playground CLI is simple, configurable, and unopinionated. You can set it up according
+to your unique WordPress setup. With the Playground CLI, you can use the following top-level commands:
+
+-   **`server`**: (Default) Starts a local WordPress server.
+-   **`run-blueprint`**: Executes a Blueprint file without starting a web server.
+-   **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
+
+The `server` command supports the following optional arguments:
+
+-   `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
+-   `--outfile`: When building, write to this output file.
+-   `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
+-   `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
+-   `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: /host/path:/vfs/path
+-   `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
+-   `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
+-   `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`
+-   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
+-   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
+-   `--login`: Automatically log the user in as an administrator.
+-   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
+-   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
+-   `--quiet`: Do not output logs and progress messages.
+-   `--debug`: Print the PHP error log if an error occurs during boot.
+
+## Need some help with the CLI?
+
+With the Playground CLI, you can use the `--help` to get some support about the available commands.
+
+```bash
+npx @wp-playground/cli@latest --help
+```
+
+## Working with Blueprints
+
+Blueprint is a JSON file where you can pre-define the initial state of your WordPress instance. It provides several functionalities, like installing plugins and themes, creating content, setting WordPress options, and executing steps.
+
+```JSON
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/post-new.php",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "gutenberg"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "login",
+			"username": "admin",
+			"password": "password"
+		}
+	]
+}
+```
+
+The example of a Blueprint above installs a plugin, logs the user in, and opens the new post editor. To learn more about Blueprints, please check the [documentation](https://wordpress.github.io/wordpress-playground/blueprints).
+
+To use a Blueprint, create a file (e.g., my-blueprint.json) and run the following command:
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
+```
+
+## Programmatic Usage with JavaScript
+
+The Playground CLI can be controlled programmatically from your JavaScript code using the `runCLI` function. This allows you to integrate all CLI functionalities directly into your development workflow, for example, end-to-end testing.
+
+```JavaScript
+import { runCLI } from "@wp-playground/cli";
+
+const cliServer = await runCLI({
+      command: "server"
+});
+const handler = cliServer.requestHandler;
+const php = await handler.getPrimaryPhp();
+```
+
+## Comparisons
+
+### Things the Playground does compared to Laravel Valet
+
+-   Handles the entire WordPress installation for you.
+-   Works across all desktop platforms (Mac, Linux, Windows).
+-   Does not set up custom host domains for you.
+
+### Things the Playground does compared to `wp-env`
+
+-   Does not require Docker.
+-   Is faster to start up for quick tests and development.
+-   The Playground doesn't come with a MySQL Server, but you can provide your own MySQL credentials.
+
+## How can I contribute?
+
+WordPress Playground CLI is an open-source project and welcomes all contributors from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
+
+Here are a few quick-start guides to get you started:
+
+-   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
+-   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
+-   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
+-   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
+-   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
+-   Ideas, designs, or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
+-   Join our Slack channel [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) at Make WordPress
