@@ -58,13 +58,13 @@ import {
 } from './v2';
 
 export interface RunCLIArgs {
-	additionalBlueprintSteps?: any[];
+	'additional-blueprint-steps'?: any[];
 	blueprint?: string | BlueprintDeclaration;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
-	mountBeforeInstall?: Mount[];
+	'mount-before-install'?: Mount[];
 	outfile?: string;
 	php: SupportedPHPVersion;
 	port?: number;
@@ -81,8 +81,8 @@ export interface RunCLIArgs {
 	'db-path'?: string;
 	'truncate-new-site-directory'?: boolean;
 	allow?: string;
-	experimentalMultiWorker?: number;
-	experimentalTrace?: boolean;
+	'experimental-multi-worker'?: number;
+	'experimental-trace'?: boolean;
 }
 
 export async function parseOptionsAndRunCLI() {
@@ -143,14 +143,14 @@ export async function parseOptionsAndRunCLI() {
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
 			})
-			.option('mountBeforeInstall', {
+			.option('mount-before-install', {
 				describe:
 					'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
 			})
-			.option('mountDir', {
+			.option('mount-dir', {
 				describe:
 					'Mount a directory to the PHP runtime. You can provide --mount-dir multiple times. Format: "/host/path" "/vfs/path"',
 				type: 'array',
@@ -158,7 +158,7 @@ export async function parseOptionsAndRunCLI() {
 				array: true,
 				coerce: parseMountDirArguments,
 			})
-			.option('mountDirBeforeInstall', {
+			.option('mount-dir-before-install', {
 				describe:
 					'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: "/host/path" "/vfs/path"',
 				type: 'string',
@@ -240,7 +240,7 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('experimentalTrace', {
+			.option('experimental-trace', {
 				describe:
 					'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
 				type: 'boolean',
@@ -249,7 +249,7 @@ export async function parseOptionsAndRunCLI() {
 				hidden: true,
 			})
 			// TODO: Should we make this a hidden flag?
-			.option('experimentalMultiWorker', {
+			.option('experimental-multi-worker', {
 				describe:
 					'Enable experimental multi-worker support which requires JSPI ' +
 					'and a /wordpress directory backed by a real filesystem. ' +
@@ -260,8 +260,8 @@ export async function parseOptionsAndRunCLI() {
 			})
 			.showHelpOnFail(false)
 			.check(async (args) => {
-				if (args.experimentalMultiWorker !== undefined) {
-					if (args.experimentalMultiWorker <= 1) {
+				if (args['experimental-multi-worker'] !== undefined) {
+					if (args['experimental-multi-worker'] <= 1) {
 						const message =
 							'The --experimentalMultiWorker flag must be a positive integer greater than 1.';
 						console.error(message);
@@ -279,7 +279,7 @@ export async function parseOptionsAndRunCLI() {
 						mount.vfsPath === '/wordpress';
 					if (
 						!args.mount?.some(isMountingWordPressDir) &&
-						!(args['mountBeforeInstall'] as any)?.some(
+						!(args['mount-before-install'] as any)?.some(
 							isMountingWordPressDir
 						)
 					) {
@@ -306,9 +306,9 @@ export async function parseOptionsAndRunCLI() {
 			...args,
 			command,
 			mount: [...(args.mount || []), ...(args.mountDir || [])],
-			mountBeforeInstall: [
-				...(args.mountBeforeInstall || []),
-				...(args.mountDirBeforeInstall || []),
+			'mount-before-install': [
+				...(args['mount-before-install'] || []),
+				...(args['mount-dir-before-install'] || []),
 			],
 		} as RunCLIArgs;
 
@@ -424,10 +424,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				// Kick off worker threads now to save time later.
 				// There is no need to wait for other async processes to complete.
-				const totalWorkerCount = args.experimentalMultiWorker ?? 1;
+				const totalWorkerCount = args['experimental-multi-worker'] ?? 1;
 				const promisedWorkers = spawnWorkerThreads(totalWorkerCount);
 
-				const trace = args.experimentalTrace === true;
+				const trace = args['experimental-trace'] === true;
 				const workers = await promisedWorkers;
 				initialWorker = workers[0];
 				const additionalWorkers = workers.slice(1);
@@ -499,8 +499,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 
 				if (
-					args.experimentalMultiWorker &&
-					args.experimentalMultiWorker > 1
+					args['experimental-multi-worker'] &&
+					args['experimental-multi-worker'] > 1
 				) {
 					logger.log(`Preparing additional workers...`);
 
