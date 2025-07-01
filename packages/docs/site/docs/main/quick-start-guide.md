@@ -53,11 +53,15 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 ## Save your site
 
-To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
+To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
 
-Use the "Export" button in the top bar:
+1. Open the Plaground site manager panel:
 
-![Export button](@site/static/img/export-button.png)
+![Site Manager](@site/static/img/open-site-manager.webp)
+
+2. Use the "Download as .zip" button in the additional actions menu
+
+![Export button](@site/static/img/site-manager-menu.webp)
 
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
 
@@ -65,15 +69,15 @@ The SQLite database file is also included in the export, you'll find it `wp-cont
 
 ## Restore a saved site
 
-You can restore the site you saved by using the import button in WordPress Playground:
+You can restore the saved site using the "Import from .zip" button in the site management panel:
 
-![Import button](@site/static/img/import-button.png)
+![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp)
 
 ## Use a specific WordPress or PHP version
 
-The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):
+The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
 
-![WordPress Version switcher](@site/static/img/wp-version-switcher.png)
+![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
 
 :::info Test your plugin or theme
 
