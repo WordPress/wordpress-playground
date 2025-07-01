@@ -63,6 +63,10 @@ describe.each(configsForRequestTests)(
 			php.mkdir(docRoot);
 		});
 
+		afterEach(async () => {
+			php?.[Symbol.dispose]?.();
+		});
+
 		it('should execute a PHP file', async () => {
 			php.writeFile(
 				joinPaths(docRoot, 'index.php'),

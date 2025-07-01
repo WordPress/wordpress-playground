@@ -58,7 +58,7 @@ jobs:
                       target: test-php-asyncify-mysqli-http
                     - name: test-unit-asyncify (14/15)
                       target: test-php-asyncify-mysqli-https
-                    - name: test-unit-sqlite3 (15/15)
+                    - name: test-unit-asyncify (15/15)
                       target: test-php-asyncify-sqlite3
         name: ${{ matrix.name }}
         services:
@@ -83,9 +83,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 20
-            - run: |
-                  export NODE_OPTIONS="--max_old_space_size=9216"
-                  node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }} -- --threads=false
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user

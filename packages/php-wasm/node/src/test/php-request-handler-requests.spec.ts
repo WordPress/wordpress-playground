@@ -65,6 +65,10 @@ describe.each(configsForRequestTests)(
 			php.mkdir(docRoot);
 		});
 
+		afterEach(async () => {
+			php?.[Symbol.dispose]?.();
+		});
+
 		const fileNotFoundFallbackTestUris = [
 			'/index.php',
 			'/other.php',
