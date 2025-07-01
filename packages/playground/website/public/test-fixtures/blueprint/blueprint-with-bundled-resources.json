@@ -1,0 +1,13 @@
+{
+	"landingPage": "/pygmalion.txt",
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/wordpress/pygmalion.txt",
+			"data": {
+				"resource": "bundled",
+				"path": "/text_file.txt"
+			}
+		}
+	]
+}

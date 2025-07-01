@@ -41,6 +41,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libzip support',
 		},
+		WITH_EXIF: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with exif support',
+		},
 		WITH_GD: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -60,6 +65,11 @@ const argParser = yargs(process.argv.slice(2))
 			type: 'string',
 			choices: ['yes', 'no'],
 			description: 'Build with mbregex support',
+		},
+		WITH_INTL: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with intl support',
 		},
 		WITH_CLI_SAPI: {
 			type: 'string',
@@ -90,6 +100,11 @@ const argParser = yargs(process.argv.slice(2))
 			type: 'string',
 			choices: ['yes', 'no'],
 			description: 'Build with source maps',
+		},
+		WITH_DEBUG: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with DWARF debug information.',
 		},
 		WITH_ICONV: {
 			type: 'string',
@@ -136,9 +151,11 @@ const platformDefaults = {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
+		WITH_EXIF: 'yes',
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
+		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
@@ -175,6 +192,7 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
+const outputDir = path.resolve(process.cwd(), args.outputDir);
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
@@ -187,7 +205,7 @@ await asyncSpawn(
 		'php/Dockerfile',
 		'.',
 		'--tag=php-wasm',
-		args.DEBUG ? '--progress=plain' : '--progress=auto',
+		'--progress=plain',
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',
@@ -199,11 +217,15 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_LIBZIP'),
 		'--build-arg',
+		getArg('WITH_EXIF'),
+		'--build-arg',
 		getArg('WITH_GD'),
 		'--build-arg',
 		getArg('WITH_MBSTRING'),
 		'--build-arg',
 		getArg('WITH_MBREGEX'),
+		'--build-arg',
+		getArg('WITH_INTL'),
 		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
@@ -216,6 +238,19 @@ await asyncSpawn(
 		getArg('WITH_SQLITE'),
 		'--build-arg',
 		getArg('WITH_SOURCEMAPS'),
+		'--build-arg',
+		// Relay output directory so we can create source maps and DWARF debug
+		// info containing correct paths.
+		`OUTPUT_DIR_ON_HOST=${outputDir}`,
+		'--build-arg',
+		getArg('WITH_DEBUG'),
+		// This directory path allows us to set what the DWARF file references
+		// are relative to so step debugging source files works correctly.
+		'--build-arg',
+		`DEBUG_DWARF_COMPILATION_DIR=${path.resolve(
+			import.meta.dirname,
+			'..'
+		)}`,
 		'--build-arg',
 		getArg('WITH_ICONV'),
 		'--build-arg',
@@ -232,7 +267,6 @@ await asyncSpawn(
 /* eslint-enable prettier/prettier */
 
 // Extract the PHP WASM module
-const outputDir = path.resolve(process.cwd(), args.outputDir);
 await asyncSpawn(
 	'docker',
 	[
@@ -255,6 +289,20 @@ await asyncSpawn(
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
+
+// Copy data files
+const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
+const publicDir =
+	platform === 'node'
+		? `${path.dirname(outputDir)}/src/lib/data`
+		: `${path.dirname(path.dirname(outputDir))}`;
+if (getArg('WITH_INTL').endsWith('yes')) {
+	await asyncSpawn(
+		'cp',
+		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+}
 
 const _args = args;
 

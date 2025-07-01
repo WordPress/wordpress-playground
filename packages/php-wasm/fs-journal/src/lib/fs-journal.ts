@@ -1,4 +1,5 @@
-import { PHP, UniversalPHP, __private__dont__use } from '@php-wasm/universal';
+import type { PHP, UniversalPHP } from '@php-wasm/universal';
+import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
@@ -138,6 +139,7 @@ export function journalFSEvents(
 		 * We could use a Proxy object here if the Emscripten JavaScript module
 		 * did not use hard-coded references to the FS object.
 		 */
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 		const originalFunctions: Record<string, Function> = {};
 		for (const [name] of Object.entries(FSHooks)) {
 			originalFunctions[name] = FS[name];
@@ -257,7 +259,7 @@ const createFSHooks = (
 				path: oldLookup.path,
 				toPath: joinPaths(newParentPath, basename(new_path)),
 			});
-		} catch (e) {
+		} catch {
 			// We're running a bunch of FS lookups that may fail at this point.
 			// Let's ignore the failures and let the actual rename operation
 			// fail if it needs to.
@@ -446,14 +448,19 @@ export function normalizeFilesystemOperations(
 					latter.operation === 'DELETE' &&
 					formerType === 'same_node'
 				) {
-					// Creating a node and then deleting it is equivalent to doing
-					// nothing.
+					// A CREATE/WRITE followed by a DELETE on the same node.
+					// The CREATE/WRITE is redundant.
 					substitutions[j] = [];
-					substitutions[i] = [];
+
+					// The DELETE is redundant only if the node was created
+					// in this journal.
+					if (former.operation === 'CREATE') {
+						substitutions[i] = [];
+					}
 				}
 			}
 		}
-		// Any substiturions? Apply them and and start over.
+		// Any substitutions? Apply them and start over.
 		// We can't just continue as the current operation may
 		// have been replaced.
 		if (Object.entries(substitutions).length > 0) {

@@ -47,6 +47,8 @@ type VersionDetails = {
 };
 
 const newChanges = await getReleaseChangelog({
+	owner: process.env.GITHUB_OWNER,
+	repo: process.env.GITHUB_REPO,
 	token: process.env.GITHUB_TOKEN,
 	version,
 });

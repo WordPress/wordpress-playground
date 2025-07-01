@@ -1,9 +1,21 @@
 import esbuild from 'esbuild';
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 
 try {
 	fs.mkdirSync('dist/packages/php-wasm/node', { recursive: true });
+} catch (e) {
+	// Ignore
+}
+
+try {
+	fs.mkdirSync('dist/packages/php-wasm/node/shared');
+
+	fs.copyFileSync(
+		'packages/php-wasm/node/src/lib/data/shared/icudt74l.dat',
+		'dist/packages/php-wasm/node/shared/icudt74l.dat'
+	);
 } catch (e) {
 	// Ignore
 }
@@ -18,11 +30,12 @@ try {
  *
  * After the build, the contents are concatenated into a single file, which
  * breaks the dependencyFilename variable. This plugin corrects that by
- * replacing __dirname with the correct value such as 'jspi' or 'asyncify'.
+ * appending the correct value such as '/jspi' or '/asyncify' to __dirname.
  *
- * The implementation is naive and assumes the substrings __dirname is only used
+ * The implementation is naive and assumes the substring __dirname is only used
  * as a variable, are not a part of any other name, and is not seen in any string
- * literals.
+ * literals. It also assumes that the __dirname variable doesn't have a trailing
+ * slash as documented in the Node.js docs. https://nodejs.org/api/modules.html#__dirname
  *
  * @param {string} dirnameReplacement
  * @param {string} filenameReplacement
@@ -34,10 +47,19 @@ const dirnamePlugin = {
 		build.onLoad({ filter: /\/php_\d+_\d+\.js$/ }, ({ path: filePath }) => {
 			if (!filePath.match(/node_modules/)) {
 				let contents = fs.readFileSync(filePath, 'utf8');
+
+				// NOTE: We are building for CommonJS, so we need to remove the
+				// shims for the builtins `__dirname` and `require`.
+				contents = contents.replace(/\bconst __dirname\s*=.*/, '');
+				contents = contents.replace(/\bvar __dirname\s*=.*/, '');
+				contents = contents.replace(/\bconst __filename\s*=.*/, '');
+				contents = contents.replace(/\bvar __filename\s*=.*/, '');
+				contents = contents.replace(/\bconst require\s*=.*/, '');
+
 				const loader = path.extname(filePath).substring(1);
 				const dirname = filePath.includes('/jspi/')
-					? 'jspi'
-					: 'asyncify';
+					? '/jspi'
+					: '/asyncify';
 				contents = contents.replaceAll(
 					'__dirname',
 					`__dirname + ${JSON.stringify(dirname)}`
@@ -48,6 +70,54 @@ const dirnamePlugin = {
 				};
 			}
 		});
+	},
+};
+
+// Create a require function that can be used in the nativeNodeModulesPlugin.
+const require = createRequire(import.meta.url);
+
+/**
+ * This is a plugin for handling native Node.js modules.
+ *
+ * Taken from:
+ * https://github.com/evanw/esbuild/issues/1051#issuecomment-806325487
+ */
+const nativeNodeModulesPlugin = {
+	name: 'native-node-modules',
+	setup(build) {
+		// If a ".node" file is imported within a module in the "file" namespace, resolve
+		// it to an absolute path and put it into the "node-file" virtual namespace.
+		build.onResolve({ filter: /\.node$/, namespace: 'file' }, (args) => ({
+			path: require.resolve(args.path, { paths: [args.resolveDir] }),
+			namespace: 'node-file',
+		}));
+
+		// Files in the "node-file" virtual namespace call "require()" on the
+		// path from esbuild of the ".node" file in the output directory.
+		build.onLoad({ filter: /.*/, namespace: 'node-file' }, (args) => ({
+			contents: `
+				import path from ${JSON.stringify(args.path)}
+				try { module.exports = require(path) }
+				catch {}
+			`,
+		}));
+
+		// If a ".node" file is imported within a module in the "node-file" namespace, put
+		// it in the "file" namespace where esbuild's default loading behavior will handle
+		// it. It is already an absolute path since we resolved it to one above.
+		build.onResolve(
+			{ filter: /\.node$/, namespace: 'node-file' },
+			(args) => ({
+				path: args.path,
+				namespace: 'file',
+			})
+		);
+
+		// Tell esbuild's default loading behavior to use the "file" loader for
+		// these ".node" files.
+		let opts = build.initialOptions;
+		opts.loader = opts.loader || {};
+		opts.loader['.node'] = 'file';
 	},
 };
 
@@ -77,7 +147,7 @@ async function build() {
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin],
+		plugins: [dirnamePlugin, nativeNodeModulesPlugin],
 	});
 
 	await esbuild.build({
@@ -88,8 +158,8 @@ async function build() {
 		banner: {
 			js: `import { createRequire as topLevelCreateRequire } from 'module';
 const require = topLevelCreateRequire(import.meta.url);
-const __dirname = new URL('.', import.meta.url).pathname;
-const __filename = new URL(import.meta.url).pathname;
+const __filename = import.meta.filename;
+const __dirname = import.meta.dirname;
 `,
 		},
 		outdir: 'dist/packages/php-wasm/node',
@@ -113,7 +183,7 @@ const __filename = new URL(import.meta.url).pathname;
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin],
+		plugins: [dirnamePlugin, nativeNodeModulesPlugin],
 	});
 
 	fs.copyFileSync(

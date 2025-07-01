@@ -214,10 +214,8 @@ function CopyButton({
   children
 }) {
   const ref = (0,external_wp_compose_namespaceObject.useCopyToClipboard)(text);
-  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-  // TODO: Switch to `true` (40px size) if possible
-  , {
-    __next40pxDefaultSize: false,
+  return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+    size: "compact",
     variant: "secondary",
     ref: ref,
     children: children
@@ -532,7 +530,6 @@ const store = (0,external_wp_data_namespaceObject.createReduxStore)(STORE_NAME, 
  */
 
 
-
 function Inserter({
   setIsOpened
 }) {
@@ -547,11 +544,8 @@ function Inserter({
         id: inserterTitleId,
         className: "customize-widgets-layout__inserter-panel-header-title",
         children: (0,external_wp_i18n_namespaceObject.__)('Add a block')
-      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-      // TODO: Switch to `true` (40px size) if possible
-      , {
-        __next40pxDefaultSize: false,
-        className: "customize-widgets-layout__inserter-panel-header-close-button",
+      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+        size: "small",
         icon: close_small,
         onClick: () => setIsOpened(false),
         "aria-label": (0,external_wp_i18n_namespaceObject.__)('Close inserter')
@@ -684,8 +678,6 @@ const textFormattingShortcuts = [{
 
 
 
-
-
 function KeyCombination({
   keyCombination,
   forceAriaLabel
@@ -791,7 +783,6 @@ function DynamicShortcut({
 /**
  * Internal dependencies
  */
-
 
 
 
@@ -912,8 +903,6 @@ function KeyboardShortcutHelpModal({
  */
 
 
-
-
 function MoreMenu() {
   const [isKeyboardShortcutsModalActive, setIsKeyboardShortcutsModalVisible] = (0,external_wp_element_namespaceObject.useState)(false);
   const toggleKeyboardShortcutsModal = () => setIsKeyboardShortcutsModalVisible(!isKeyboardShortcutsModalActive);
@@ -1006,8 +995,6 @@ function MoreMenu() {
 
 
 
-
-
 function Header({
   sidebar,
   inserter,
@@ -1057,7 +1044,7 @@ function Header({
           }
         }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(MoreMenu, {})]
       })
-    }), (0,external_wp_element_namespaceObject.createPortal)( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(components_inserter, {
+    }), (0,external_wp_element_namespaceObject.createPortal)(/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(components_inserter, {
       setIsOpened: setIsInserterOpened
     }), inserter.contentContainer[0])]
   });
@@ -1485,7 +1472,6 @@ function SidebarEditorProvider({
 
 
 
-
 function WelcomeGuide({
   sidebar
 }) {
@@ -1515,11 +1501,8 @@ function WelcomeGuide({
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("p", {
       className: "customize-widgets-welcome-guide__text",
       children: isEntirelyBlockWidgets ? (0,external_wp_i18n_namespaceObject.__)('Your theme provides different “block” areas for you to add and edit content. Try adding a search bar, social icons, or other types of blocks here and see how they’ll look on your site.') : (0,external_wp_i18n_namespaceObject.__)('You can now add any block to your site’s widget areas. Don’t worry, all of your favorite widgets still work flawlessly.')
-    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button
-    // TODO: Switch to `true` (40px size) if possible
-    , {
-      __next40pxDefaultSize: false,
-      className: "customize-widgets-welcome-guide__button",
+    }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+      size: "compact",
       variant: "primary",
       onClick: () => toggle('core/customize-widgets', 'welcomeGuide'),
       children: (0,external_wp_i18n_namespaceObject.__)('Got it')
@@ -1676,8 +1659,6 @@ function BlockAppender(props) {
 
 
 
-
-
 const {
   ExperimentalBlockCanvas: BlockCanvas
 } = unlock(external_wp_blockEditor_namespaceObject.privateApis);
@@ -1734,6 +1715,7 @@ function SidebarBlockEditor({
       mediaUpload: mediaUploadBlockEditor,
       hasFixedToolbar: isFixedToolbarActive || !isMediumViewport,
       keepCaretInsideBlock,
+      editorTool: 'edit',
       __unstableHasCustomAppender: true
     };
   }, [hasUploadPermissions, blockEditorSettings, isFixedToolbarActive, isMediumViewport, keepCaretInsideBlock, setIsInserterOpened]);
@@ -1904,7 +1886,6 @@ function useClearSelectedBlock(sidebarControl, popoverRef) {
 
 
 
-
 function CustomizeWidgets({
   api,
   sidebarControls,
@@ -1924,7 +1905,7 @@ function CustomizeWidgets({
       unsubscribers.forEach(unsubscriber => unsubscriber());
     };
   }, [sidebarControls]);
-  const activeSidebar = activeSidebarControl && (0,external_wp_element_namespaceObject.createPortal)( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ErrorBoundary, {
+  const activeSidebar = activeSidebarControl && (0,external_wp_element_namespaceObject.createPortal)(/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(ErrorBoundary, {
     children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(SidebarBlockEditor, {
       blockEditorSettings: blockEditorSettings,
       sidebar: activeSidebarControl.sidebarAdapter,
@@ -1935,7 +1916,7 @@ function CustomizeWidgets({
 
   // We have to portal this to the parent of both the editor and the inspector,
   // so that the popovers will appear above both of them.
-  const popover = parentContainer && (0,external_wp_element_namespaceObject.createPortal)( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
+  const popover = parentContainer && (0,external_wp_element_namespaceObject.createPortal)(/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
     className: "customize-widgets-popover",
     ref: popoverRef,
     children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Popover.Slot, {})
@@ -2565,8 +2546,6 @@ function getSidebarControl() {
 
 
 
-
-
 const withMoveToSidebarToolbarItem = (0,external_wp_compose_namespaceObject.createHigherOrderComponent)(BlockEdit => props => {
   let widgetId = (0,external_wp_widgets_namespaceObject.getWidgetIdFromBlock)(props);
   const sidebarControls = useSidebarControls();
@@ -2731,7 +2710,7 @@ function initialize(editorName, blockEditorSettings) {
         sidebarControls.push(control);
       }
     });
-    (0,external_wp_element_namespaceObject.createRoot)(container).render( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_element_namespaceObject.StrictMode, {
+    (0,external_wp_element_namespaceObject.createRoot)(container).render(/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_element_namespaceObject.StrictMode, {
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(CustomizeWidgets, {
         api: build_module_wp.customize,
         sidebarControls: sidebarControls,

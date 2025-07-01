@@ -11,7 +11,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		try {
 			const referrerUrl = new URL(event.request.referrer);
 			url = setURLScope(url, getURLScope(referrerUrl)!);
-		} catch (e) {
+		} catch {
 			// ignore
 		}
 	}
@@ -173,6 +173,26 @@ export async function cloneRequest(
 		integrity: request.integrity,
 		...overrides,
 	});
+}
+
+/**
+ * Tee a request to ensure the body stream is not consumed
+ * when executing or cloning the request.
+ *
+ * @param request
+ * @returns
+ */
+export async function teeRequest(
+	request: Request
+): Promise<[Request, Request]> {
+	if (!request.body) {
+		return [request, request];
+	}
+	const [body1, body2] = request.body.tee();
+	return [
+		await cloneRequest(request, { body: body1, duplex: 'half' }),
+		await cloneRequest(request, { body: body2, duplex: 'half' }),
+	];
 }
 
 /**

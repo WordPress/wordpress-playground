@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { logger } from '@php-wasm/logger';
 /**
  * @inheritDoc activatePlugin

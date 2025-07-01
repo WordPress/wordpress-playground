@@ -197,7 +197,7 @@ function find(context, {
       nodeName
     } = element;
     if ('AREA' === nodeName) {
-      return isValidFocusableArea( /** @type {HTMLAreaElement} */element);
+      return isValidFocusableArea(/** @type {HTMLAreaElement} */element);
     }
     return true;
   });
@@ -250,7 +250,7 @@ function isTabbableIndex(element) {
 function createStatefulCollapseRadioGroup() {
   /** @type {Record<string, MaybeHTMLInputElement>} */
   const CHOSEN_RADIO_BY_NAME = {};
-  return function collapseRadioGroup( /** @type {MaybeHTMLInputElement[]} */result, /** @type {MaybeHTMLInputElement} */element) {
+  return function collapseRadioGroup(/** @type {MaybeHTMLInputElement[]} */result, /** @type {MaybeHTMLInputElement} */element) {
     const {
       nodeName,
       type,
@@ -733,7 +733,7 @@ function getScrollContainer(node, direction = 'vertical') {
   }
 
   // Continue traversing.
-  return getScrollContainer( /** @type {Element} */node.parentNode, direction);
+  return getScrollContainer(/** @type {Element} */node.parentNode, direction);
 }
 
 ;// ./node_modules/@wordpress/dom/build-module/dom/get-offset-parent.js
@@ -768,7 +768,7 @@ function getOffsetParent(node) {
 
   // If the closest element is already positioned, return it, as offsetParent
   // does not otherwise consider the node itself.
-  if (getComputedStyle( /** @type {Element} */closestElement).position !== 'static') {
+  if (getComputedStyle(/** @type {Element} */closestElement).position !== 'static') {
     return closestElement;
   }
 
@@ -1819,7 +1819,7 @@ const noop = () => {};
  * @param {boolean}  inline   Whether to clean for inline mode.
  */
 function cleanNodeList(nodeList, doc, schema, inline) {
-  Array.from(nodeList).forEach(( /** @type {Node & { nextElementSibling?: unknown }} */node) => {
+  Array.from(nodeList).forEach((/** @type {Node & { nextElementSibling?: unknown }} */node) => {
     const tag = node.nodeName.toLowerCase();
 
     // It's a valid child, if the tag exists in the schema without an isMatch
@@ -1855,10 +1855,13 @@ function cleanNodeList(nodeList, doc, schema, inline) {
           // TODO: Explore patching this in jsdom-jscore.
           if (node.classList && node.classList.length) {
             const mattchers = classes.map(item => {
-              if (typeof item === 'string') {
-                return ( /** @type {string} */className) => className === item;
+              if (item === '*') {
+                // Keep all classes.
+                return () => true;
+              } else if (typeof item === 'string') {
+                return (/** @type {string} */className) => className === item;
               } else if (item instanceof RegExp) {
-                return ( /** @type {string} */className) => item.test(className);
+                return (/** @type {string} */className) => item.test(className);
               }
               return noop;
             });

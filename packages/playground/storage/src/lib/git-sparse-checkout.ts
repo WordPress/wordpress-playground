@@ -62,16 +62,16 @@ export async function sparseCheckout(
 	return fetchedPaths;
 }
 
-export type FileTreeFile = {
+export type GitFileTreeFile = {
 	name: string;
 	type: 'file';
 };
-export type FileTreeFolder = {
+export type GitFileTreeFolder = {
 	name: string;
 	type: 'folder';
-	children: FileTree[];
+	children: GitFileTree[];
 };
-export type FileTree = FileTreeFile | FileTreeFolder;
+export type GitFileTree = GitFileTreeFile | GitFileTreeFolder;
 
 export type GitRef = {
 	value: string;
@@ -90,7 +90,7 @@ export type GitRef = {
 export async function listGitFiles(
 	repoUrl: string,
 	commitHash: string
-): Promise<FileTree[]> {
+): Promise<GitFileTree[]> {
 	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
 	const rootTree = await resolveAllObjects(treesIdx, commitHash);
 	if (!rootTree?.object) {
@@ -142,24 +142,24 @@ export async function resolveCommitHash(repoUrl: string, ref: GitRef) {
 	}
 }
 
-function gitTreeToFileTree(tree: GitTree): FileTree[] {
+function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
 	return tree.object
 		.map((branch) => {
 			if (branch.type === 'blob') {
 				return {
 					name: branch.path,
 					type: 'file',
-				} as FileTreeFile;
+				} as GitFileTreeFile;
 			} else if (branch.type === 'tree' && branch.object) {
 				return {
 					name: branch.path,
 					type: 'folder',
 					children: gitTreeToFileTree(branch as any as GitTree),
-				} as FileTreeFolder;
+				} as GitFileTreeFolder;
 			}
 			return undefined;
 		})
-		.filter((entry) => !!entry?.name) as FileTree[];
+		.filter((entry) => !!entry?.name) as GitFileTree[];
 }
 
 /**
@@ -301,7 +301,7 @@ async function resolveObjects(
 					try {
 						currentObject = await idx.read({ oid: item.oid });
 						readObject(currentObject);
-					} catch (e) {
+					} catch {
 						currentObject = item;
 					}
 					found = true;

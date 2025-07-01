@@ -131,3 +131,31 @@ To use the _LiteralReference_ resource, you need to provide the name of the file
 	"contents": "Hello, World!"
 }
 ```
+
+### BundledReference
+
+The `BundledReference` resource is used to reference files that are bundled with the Blueprint itself. This is particularly useful for creating self-contained Blueprint bundles that include all necessary resources. The `BundledReference` resource is defined as follows:
+
+```typescript
+type BundledReference = {
+	resource: 'bundled';
+	path: string;
+};
+```
+
+To use the `BundledReference` resource, you need to provide the relative path to the file within the bundle. For example, to reference a file named "plugin.php" that is bundled with the Blueprint, you can create a `BundledReference` as follows:
+
+```json
+{
+	"resource": "bundled",
+	"path": "plugin.php"
+}
+```
+
+Blueprint bundles can be distributed in various formats, including:
+
+-   ZIP files with a top-level `blueprint.json` file
+-   Directories containing a `blueprint.json` file and related resources
+-   Remote URLs where the Blueprint and its resources are hosted together
+
+For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation.

@@ -358,7 +358,6 @@ const close_close = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx
  */
 
 
-
 function onClick(event) {
   // Tips are often nested within buttons. We stop propagation so that clicking
   // on a tip doesn't result in the button being clicked.

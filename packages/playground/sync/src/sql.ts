@@ -1,4 +1,4 @@
-import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';

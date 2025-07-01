@@ -1,5 +1,5 @@
-import { PHP } from './php';
-import { PHPEvent } from './universal-php';
+import type { PHP } from './php';
+import type { PHPEvent } from './universal-php';
 
 export interface RotateOptions {
 	php: PHP;

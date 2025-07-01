@@ -11,7 +11,7 @@ import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
 import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
-import { SiteStorageType } from '../../../lib/site-metadata';
+import type { SiteStorageType } from '../../../lib/site-metadata';
 
 export function SitePersistButton({
 	siteSlug,

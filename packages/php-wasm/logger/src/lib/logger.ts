@@ -1,5 +1,10 @@
 import { logEvent } from './handlers/log-event';
-import { logToMemory, logToConsole, logs } from './log-handlers';
+import {
+	logToMemory,
+	logToConsole,
+	logs,
+	type LogHandler,
+} from './log-handlers';
 
 export { logEventType } from './handlers/log-event';
 
@@ -27,13 +32,16 @@ export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
  */
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
+	private readonly handlers: LogHandler[];
 
 	// constructor
 	constructor(
 		// Log handlers
-		private readonly handlers: Function[] = []
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+		handlers: LogHandler[] = []
 	) {
 		super();
+		this.handlers = handlers;
 	}
 
 	/**
@@ -161,7 +169,7 @@ const getDefaultHandlers = () => {
 		if (process.env['NODE_ENV'] === 'test') {
 			return [logToMemory, logEvent];
 		}
-	} catch (e) {
+	} catch {
 		// Process.env is not available in the browser
 	}
 	return [logToMemory, logToConsole, logEvent];

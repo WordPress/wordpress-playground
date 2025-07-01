@@ -1,6 +1,6 @@
 import { joinPaths, normalizePath } from '@php-wasm/util';
 import { StreamedFile } from '@php-wasm/stream-compression';
-import { UniversalPHP } from './universal-php';
+import type { UniversalPHP } from './universal-php';
 import { streamReadFileFromPHP } from './stream-read-file-from-php';
 
 export type IteratePhpFilesOptions = {

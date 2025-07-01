@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 
 /**
  * @inheritDoc resetData

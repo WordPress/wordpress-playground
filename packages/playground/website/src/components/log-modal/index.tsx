@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import css from './style.module.css';
 import { Modal } from '../modal';
 import { TextControl } from '@wordpress/components';
-import {
+import type {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 } from '../../lib/state/redux/store';

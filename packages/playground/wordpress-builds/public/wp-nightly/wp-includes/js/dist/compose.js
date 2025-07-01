@@ -1,1080 +1,6 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 6689:
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   createUndoManager: () => (/* binding */ createUndoManager)
-/* harmony export */ });
-/* harmony import */ var _wordpress_is_shallow_equal__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(923);
-/* harmony import */ var _wordpress_is_shallow_equal__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_wordpress_is_shallow_equal__WEBPACK_IMPORTED_MODULE_0__);
-/**
- * WordPress dependencies
- */
-
-
-/** @typedef {import('./types').HistoryRecord}  HistoryRecord */
-/** @typedef {import('./types').HistoryChange}  HistoryChange */
-/** @typedef {import('./types').HistoryChanges} HistoryChanges */
-/** @typedef {import('./types').UndoManager} UndoManager */
-
-/**
- * Merge changes for a single item into a record of changes.
- *
- * @param {Record< string, HistoryChange >} changes1 Previous changes
- * @param {Record< string, HistoryChange >} changes2 NextChanges
- *
- * @return {Record< string, HistoryChange >} Merged changes
- */
-function mergeHistoryChanges(changes1, changes2) {
-  /**
-   * @type {Record< string, HistoryChange >}
-   */
-  const newChanges = {
-    ...changes1
-  };
-  Object.entries(changes2).forEach(([key, value]) => {
-    if (newChanges[key]) {
-      newChanges[key] = {
-        ...newChanges[key],
-        to: value.to
-      };
-    } else {
-      newChanges[key] = value;
-    }
-  });
-  return newChanges;
-}
-
-/**
- * Adds history changes for a single item into a record of changes.
- *
- * @param {HistoryRecord}  record  The record to merge into.
- * @param {HistoryChanges} changes The changes to merge.
- */
-const addHistoryChangesIntoRecord = (record, changes) => {
-  const existingChangesIndex = record?.findIndex(({
-    id: recordIdentifier
-  }) => {
-    return typeof recordIdentifier === 'string' ? recordIdentifier === changes.id : _wordpress_is_shallow_equal__WEBPACK_IMPORTED_MODULE_0___default()(recordIdentifier, changes.id);
-  });
-  const nextRecord = [...record];
-  if (existingChangesIndex !== -1) {
-    // If the edit is already in the stack leave the initial "from" value.
-    nextRecord[existingChangesIndex] = {
-      id: changes.id,
-      changes: mergeHistoryChanges(nextRecord[existingChangesIndex].changes, changes.changes)
-    };
-  } else {
-    nextRecord.push(changes);
-  }
-  return nextRecord;
-};
-
-/**
- * Creates an undo manager.
- *
- * @return {UndoManager} Undo manager.
- */
-function createUndoManager() {
-  /**
-   * @type {HistoryRecord[]}
-   */
-  let history = [];
-  /**
-   * @type {HistoryRecord}
-   */
-  let stagedRecord = [];
-  /**
-   * @type {number}
-   */
-  let offset = 0;
-  const dropPendingRedos = () => {
-    history = history.slice(0, offset || undefined);
-    offset = 0;
-  };
-  const appendStagedRecordToLatestHistoryRecord = () => {
-    var _history$index;
-    const index = history.length === 0 ? 0 : history.length - 1;
-    let latestRecord = (_history$index = history[index]) !== null && _history$index !== void 0 ? _history$index : [];
-    stagedRecord.forEach(changes => {
-      latestRecord = addHistoryChangesIntoRecord(latestRecord, changes);
-    });
-    stagedRecord = [];
-    history[index] = latestRecord;
-  };
-
-  /**
-   * Checks whether a record is empty.
-   * A record is considered empty if it the changes keep the same values.
-   * Also updates to function values are ignored.
-   *
-   * @param {HistoryRecord} record
-   * @return {boolean} Whether the record is empty.
-   */
-  const isRecordEmpty = record => {
-    const filteredRecord = record.filter(({
-      changes
-    }) => {
-      return Object.values(changes).some(({
-        from,
-        to
-      }) => typeof from !== 'function' && typeof to !== 'function' && !_wordpress_is_shallow_equal__WEBPACK_IMPORTED_MODULE_0___default()(from, to));
-    });
-    return !filteredRecord.length;
-  };
-  return {
-    /**
-     * Record changes into the history.
-     *
-     * @param {HistoryRecord=} record   A record of changes to record.
-     * @param {boolean}        isStaged Whether to immediately create an undo point or not.
-     */
-    addRecord(record, isStaged = false) {
-      const isEmpty = !record || isRecordEmpty(record);
-      if (isStaged) {
-        if (isEmpty) {
-          return;
-        }
-        record.forEach(changes => {
-          stagedRecord = addHistoryChangesIntoRecord(stagedRecord, changes);
-        });
-      } else {
-        dropPendingRedos();
-        if (stagedRecord.length) {
-          appendStagedRecordToLatestHistoryRecord();
-        }
-        if (isEmpty) {
-          return;
-        }
-        history.push(record);
-      }
-    },
-    undo() {
-      if (stagedRecord.length) {
-        dropPendingRedos();
-        appendStagedRecordToLatestHistoryRecord();
-      }
-      const undoRecord = history[history.length - 1 + offset];
-      if (!undoRecord) {
-        return;
-      }
-      offset -= 1;
-      return undoRecord;
-    },
-    redo() {
-      const redoRecord = history[history.length + offset];
-      if (!redoRecord) {
-        return;
-      }
-      offset += 1;
-      return redoRecord;
-    },
-    hasUndo() {
-      return !!history[history.length - 1 + offset];
-    },
-    hasRedo() {
-      return !!history[history.length + offset];
-    }
-  };
-}
-
-
-/***/ }),
-
-/***/ 3758:
-/***/ (function(module) {
-
-/*!
- * clipboard.js v2.0.11
- * https://clipboardjs.com/
- *
- * Licensed MIT © Zeno Rocha
- */
-(function webpackUniversalModuleDefinition(root, factory) {
-	if(true)
-		module.exports = factory();
-	else {}
-})(this, function() {
-return /******/ (function() { // webpackBootstrap
-/******/ 	var __webpack_modules__ = ({
-
-/***/ 686:
-/***/ (function(__unused_webpack_module, __nested_webpack_exports__, __nested_webpack_require_623__) {
-
-"use strict";
-
-// EXPORTS
-__nested_webpack_require_623__.d(__nested_webpack_exports__, {
-  "default": function() { return /* binding */ clipboard; }
-});
-
-// EXTERNAL MODULE: ./node_modules/tiny-emitter/index.js
-var tiny_emitter = __nested_webpack_require_623__(279);
-var tiny_emitter_default = /*#__PURE__*/__nested_webpack_require_623__.n(tiny_emitter);
-// EXTERNAL MODULE: ./node_modules/good-listener/src/listen.js
-var listen = __nested_webpack_require_623__(370);
-var listen_default = /*#__PURE__*/__nested_webpack_require_623__.n(listen);
-// EXTERNAL MODULE: ./node_modules/select/src/select.js
-var src_select = __nested_webpack_require_623__(817);
-var select_default = /*#__PURE__*/__nested_webpack_require_623__.n(src_select);
-;// CONCATENATED MODULE: ./src/common/command.js
-/**
- * Executes a given operation type.
- * @param {String} type
- * @return {Boolean}
- */
-function command(type) {
-  try {
-    return document.execCommand(type);
-  } catch (err) {
-    return false;
-  }
-}
-;// CONCATENATED MODULE: ./src/actions/cut.js
-
-
-/**
- * Cut action wrapper.
- * @param {String|HTMLElement} target
- * @return {String}
- */
-
-var ClipboardActionCut = function ClipboardActionCut(target) {
-  var selectedText = select_default()(target);
-  command('cut');
-  return selectedText;
-};
-
-/* harmony default export */ var actions_cut = (ClipboardActionCut);
-;// CONCATENATED MODULE: ./src/common/create-fake-element.js
-/**
- * Creates a fake textarea element with a value.
- * @param {String} value
- * @return {HTMLElement}
- */
-function createFakeElement(value) {
-  var isRTL = document.documentElement.getAttribute('dir') === 'rtl';
-  var fakeElement = document.createElement('textarea'); // Prevent zooming on iOS
-
-  fakeElement.style.fontSize = '12pt'; // Reset box model
-
-  fakeElement.style.border = '0';
-  fakeElement.style.padding = '0';
-  fakeElement.style.margin = '0'; // Move element out of screen horizontally
-
-  fakeElement.style.position = 'absolute';
-  fakeElement.style[isRTL ? 'right' : 'left'] = '-9999px'; // Move element to the same position vertically
-
-  var yPosition = window.pageYOffset || document.documentElement.scrollTop;
-  fakeElement.style.top = "".concat(yPosition, "px");
-  fakeElement.setAttribute('readonly', '');
-  fakeElement.value = value;
-  return fakeElement;
-}
-;// CONCATENATED MODULE: ./src/actions/copy.js
-
-
-
-/**
- * Create fake copy action wrapper using a fake element.
- * @param {String} target
- * @param {Object} options
- * @return {String}
- */
-
-var fakeCopyAction = function fakeCopyAction(value, options) {
-  var fakeElement = createFakeElement(value);
-  options.container.appendChild(fakeElement);
-  var selectedText = select_default()(fakeElement);
-  command('copy');
-  fakeElement.remove();
-  return selectedText;
-};
-/**
- * Copy action wrapper.
- * @param {String|HTMLElement} target
- * @param {Object} options
- * @return {String}
- */
-
-
-var ClipboardActionCopy = function ClipboardActionCopy(target) {
-  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
-    container: document.body
-  };
-  var selectedText = '';
-
-  if (typeof target === 'string') {
-    selectedText = fakeCopyAction(target, options);
-  } else if (target instanceof HTMLInputElement && !['text', 'search', 'url', 'tel', 'password'].includes(target === null || target === void 0 ? void 0 : target.type)) {
-    // If input type doesn't support `setSelectionRange`. Simulate it. https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/setSelectionRange
-    selectedText = fakeCopyAction(target.value, options);
-  } else {
-    selectedText = select_default()(target);
-    command('copy');
-  }
-
-  return selectedText;
-};
-
-/* harmony default export */ var actions_copy = (ClipboardActionCopy);
-;// CONCATENATED MODULE: ./src/actions/default.js
-function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-
-
-/**
- * Inner function which performs selection from either `text` or `target`
- * properties and then executes copy or cut operations.
- * @param {Object} options
- */
-
-var ClipboardActionDefault = function ClipboardActionDefault() {
-  var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-  // Defines base properties passed from constructor.
-  var _options$action = options.action,
-      action = _options$action === void 0 ? 'copy' : _options$action,
-      container = options.container,
-      target = options.target,
-      text = options.text; // Sets the `action` to be performed which can be either 'copy' or 'cut'.
-
-  if (action !== 'copy' && action !== 'cut') {
-    throw new Error('Invalid "action" value, use either "copy" or "cut"');
-  } // Sets the `target` property using an element that will be have its content copied.
-
-
-  if (target !== undefined) {
-    if (target && _typeof(target) === 'object' && target.nodeType === 1) {
-      if (action === 'copy' && target.hasAttribute('disabled')) {
-        throw new Error('Invalid "target" attribute. Please use "readonly" instead of "disabled" attribute');
-      }
-
-      if (action === 'cut' && (target.hasAttribute('readonly') || target.hasAttribute('disabled'))) {
-        throw new Error('Invalid "target" attribute. You can\'t cut text from elements with "readonly" or "disabled" attributes');
-      }
-    } else {
-      throw new Error('Invalid "target" value, use a valid Element');
-    }
-  } // Define selection strategy based on `text` property.
-
-
-  if (text) {
-    return actions_copy(text, {
-      container: container
-    });
-  } // Defines which selection strategy based on `target` property.
-
-
-  if (target) {
-    return action === 'cut' ? actions_cut(target) : actions_copy(target, {
-      container: container
-    });
-  }
-};
-
-/* harmony default export */ var actions_default = (ClipboardActionDefault);
-;// CONCATENATED MODULE: ./src/clipboard.js
-function clipboard_typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { clipboard_typeof = function _typeof(obj) { return typeof obj; }; } else { clipboard_typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return clipboard_typeof(obj); }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
-
-function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
-
-function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
-
-function _possibleConstructorReturn(self, call) { if (call && (clipboard_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
-
-function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
-
-function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-
-function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
-
-
-
-
-
-
-/**
- * Helper function to retrieve attribute value.
- * @param {String} suffix
- * @param {Element} element
- */
-
-function getAttributeValue(suffix, element) {
-  var attribute = "data-clipboard-".concat(suffix);
-
-  if (!element.hasAttribute(attribute)) {
-    return;
-  }
-
-  return element.getAttribute(attribute);
-}
-/**
- * Base class which takes one or more elements, adds event listeners to them,
- * and instantiates a new `ClipboardAction` on each click.
- */
-
-
-var Clipboard = /*#__PURE__*/function (_Emitter) {
-  _inherits(Clipboard, _Emitter);
-
-  var _super = _createSuper(Clipboard);
-
-  /**
-   * @param {String|HTMLElement|HTMLCollection|NodeList} trigger
-   * @param {Object} options
-   */
-  function Clipboard(trigger, options) {
-    var _this;
-
-    _classCallCheck(this, Clipboard);
-
-    _this = _super.call(this);
-
-    _this.resolveOptions(options);
-
-    _this.listenClick(trigger);
-
-    return _this;
-  }
-  /**
-   * Defines if attributes would be resolved using internal setter functions
-   * or custom functions that were passed in the constructor.
-   * @param {Object} options
-   */
-
-
-  _createClass(Clipboard, [{
-    key: "resolveOptions",
-    value: function resolveOptions() {
-      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-      this.action = typeof options.action === 'function' ? options.action : this.defaultAction;
-      this.target = typeof options.target === 'function' ? options.target : this.defaultTarget;
-      this.text = typeof options.text === 'function' ? options.text : this.defaultText;
-      this.container = clipboard_typeof(options.container) === 'object' ? options.container : document.body;
-    }
-    /**
-     * Adds a click event listener to the passed trigger.
-     * @param {String|HTMLElement|HTMLCollection|NodeList} trigger
-     */
-
-  }, {
-    key: "listenClick",
-    value: function listenClick(trigger) {
-      var _this2 = this;
-
-      this.listener = listen_default()(trigger, 'click', function (e) {
-        return _this2.onClick(e);
-      });
-    }
-    /**
-     * Defines a new `ClipboardAction` on each click event.
-     * @param {Event} e
-     */
-
-  }, {
-    key: "onClick",
-    value: function onClick(e) {
-      var trigger = e.delegateTarget || e.currentTarget;
-      var action = this.action(trigger) || 'copy';
-      var text = actions_default({
-        action: action,
-        container: this.container,
-        target: this.target(trigger),
-        text: this.text(trigger)
-      }); // Fires an event based on the copy operation result.
-
-      this.emit(text ? 'success' : 'error', {
-        action: action,
-        text: text,
-        trigger: trigger,
-        clearSelection: function clearSelection() {
-          if (trigger) {
-            trigger.focus();
-          }
-
-          window.getSelection().removeAllRanges();
-        }
-      });
-    }
-    /**
-     * Default `action` lookup function.
-     * @param {Element} trigger
-     */
-
-  }, {
-    key: "defaultAction",
-    value: function defaultAction(trigger) {
-      return getAttributeValue('action', trigger);
-    }
-    /**
-     * Default `target` lookup function.
-     * @param {Element} trigger
-     */
-
-  }, {
-    key: "defaultTarget",
-    value: function defaultTarget(trigger) {
-      var selector = getAttributeValue('target', trigger);
-
-      if (selector) {
-        return document.querySelector(selector);
-      }
-    }
-    /**
-     * Allow fire programmatically a copy action
-     * @param {String|HTMLElement} target
-     * @param {Object} options
-     * @returns Text copied.
-     */
-
-  }, {
-    key: "defaultText",
-
-    /**
-     * Default `text` lookup function.
-     * @param {Element} trigger
-     */
-    value: function defaultText(trigger) {
-      return getAttributeValue('text', trigger);
-    }
-    /**
-     * Destroy lifecycle.
-     */
-
-  }, {
-    key: "destroy",
-    value: function destroy() {
-      this.listener.destroy();
-    }
-  }], [{
-    key: "copy",
-    value: function copy(target) {
-      var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
-        container: document.body
-      };
-      return actions_copy(target, options);
-    }
-    /**
-     * Allow fire programmatically a cut action
-     * @param {String|HTMLElement} target
-     * @returns Text cutted.
-     */
-
-  }, {
-    key: "cut",
-    value: function cut(target) {
-      return actions_cut(target);
-    }
-    /**
-     * Returns the support of the given action, or all actions if no action is
-     * given.
-     * @param {String} [action]
-     */
-
-  }, {
-    key: "isSupported",
-    value: function isSupported() {
-      var action = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : ['copy', 'cut'];
-      var actions = typeof action === 'string' ? [action] : action;
-      var support = !!document.queryCommandSupported;
-      actions.forEach(function (action) {
-        support = support && !!document.queryCommandSupported(action);
-      });
-      return support;
-    }
-  }]);
-
-  return Clipboard;
-}((tiny_emitter_default()));
-
-/* harmony default export */ var clipboard = (Clipboard);
-
-/***/ }),
-
-/***/ 828:
-/***/ (function(module) {
-
-var DOCUMENT_NODE_TYPE = 9;
-
-/**
- * A polyfill for Element.matches()
- */
-if (typeof Element !== 'undefined' && !Element.prototype.matches) {
-    var proto = Element.prototype;
-
-    proto.matches = proto.matchesSelector ||
-                    proto.mozMatchesSelector ||
-                    proto.msMatchesSelector ||
-                    proto.oMatchesSelector ||
-                    proto.webkitMatchesSelector;
-}
-
-/**
- * Finds the closest parent that matches a selector.
- *
- * @param {Element} element
- * @param {String} selector
- * @return {Function}
- */
-function closest (element, selector) {
-    while (element && element.nodeType !== DOCUMENT_NODE_TYPE) {
-        if (typeof element.matches === 'function' &&
-            element.matches(selector)) {
-          return element;
-        }
-        element = element.parentNode;
-    }
-}
-
-module.exports = closest;
-
-
-/***/ }),
-
-/***/ 438:
-/***/ (function(module, __unused_webpack_exports, __nested_webpack_require_15749__) {
-
-var closest = __nested_webpack_require_15749__(828);
-
-/**
- * Delegates event to a selector.
- *
- * @param {Element} element
- * @param {String} selector
- * @param {String} type
- * @param {Function} callback
- * @param {Boolean} useCapture
- * @return {Object}
- */
-function _delegate(element, selector, type, callback, useCapture) {
-    var listenerFn = listener.apply(this, arguments);
-
-    element.addEventListener(type, listenerFn, useCapture);
-
-    return {
-        destroy: function() {
-            element.removeEventListener(type, listenerFn, useCapture);
-        }
-    }
-}
-
-/**
- * Delegates event to a selector.
- *
- * @param {Element|String|Array} [elements]
- * @param {String} selector
- * @param {String} type
- * @param {Function} callback
- * @param {Boolean} useCapture
- * @return {Object}
- */
-function delegate(elements, selector, type, callback, useCapture) {
-    // Handle the regular Element usage
-    if (typeof elements.addEventListener === 'function') {
-        return _delegate.apply(null, arguments);
-    }
-
-    // Handle Element-less usage, it defaults to global delegation
-    if (typeof type === 'function') {
-        // Use `document` as the first parameter, then apply arguments
-        // This is a short way to .unshift `arguments` without running into deoptimizations
-        return _delegate.bind(null, document).apply(null, arguments);
-    }
-
-    // Handle Selector-based usage
-    if (typeof elements === 'string') {
-        elements = document.querySelectorAll(elements);
-    }
-
-    // Handle Array-like based usage
-    return Array.prototype.map.call(elements, function (element) {
-        return _delegate(element, selector, type, callback, useCapture);
-    });
-}
-
-/**
- * Finds closest match and invokes callback.
- *
- * @param {Element} element
- * @param {String} selector
- * @param {String} type
- * @param {Function} callback
- * @return {Function}
- */
-function listener(element, selector, type, callback) {
-    return function(e) {
-        e.delegateTarget = closest(e.target, selector);
-
-        if (e.delegateTarget) {
-            callback.call(element, e);
-        }
-    }
-}
-
-module.exports = delegate;
-
-
-/***/ }),
-
-/***/ 879:
-/***/ (function(__unused_webpack_module, exports) {
-
-/**
- * Check if argument is a HTML element.
- *
- * @param {Object} value
- * @return {Boolean}
- */
-exports.node = function(value) {
-    return value !== undefined
-        && value instanceof HTMLElement
-        && value.nodeType === 1;
-};
-
-/**
- * Check if argument is a list of HTML elements.
- *
- * @param {Object} value
- * @return {Boolean}
- */
-exports.nodeList = function(value) {
-    var type = Object.prototype.toString.call(value);
-
-    return value !== undefined
-        && (type === '[object NodeList]' || type === '[object HTMLCollection]')
-        && ('length' in value)
-        && (value.length === 0 || exports.node(value[0]));
-};
-
-/**
- * Check if argument is a string.
- *
- * @param {Object} value
- * @return {Boolean}
- */
-exports.string = function(value) {
-    return typeof value === 'string'
-        || value instanceof String;
-};
-
-/**
- * Check if argument is a function.
- *
- * @param {Object} value
- * @return {Boolean}
- */
-exports.fn = function(value) {
-    var type = Object.prototype.toString.call(value);
-
-    return type === '[object Function]';
-};
-
-
-/***/ }),
-
-/***/ 370:
-/***/ (function(module, __unused_webpack_exports, __nested_webpack_require_19113__) {
-
-var is = __nested_webpack_require_19113__(879);
-var delegate = __nested_webpack_require_19113__(438);
-
-/**
- * Validates all params and calls the right
- * listener function based on its target type.
- *
- * @param {String|HTMLElement|HTMLCollection|NodeList} target
- * @param {String} type
- * @param {Function} callback
- * @return {Object}
- */
-function listen(target, type, callback) {
-    if (!target && !type && !callback) {
-        throw new Error('Missing required arguments');
-    }
-
-    if (!is.string(type)) {
-        throw new TypeError('Second argument must be a String');
-    }
-
-    if (!is.fn(callback)) {
-        throw new TypeError('Third argument must be a Function');
-    }
-
-    if (is.node(target)) {
-        return listenNode(target, type, callback);
-    }
-    else if (is.nodeList(target)) {
-        return listenNodeList(target, type, callback);
-    }
-    else if (is.string(target)) {
-        return listenSelector(target, type, callback);
-    }
-    else {
-        throw new TypeError('First argument must be a String, HTMLElement, HTMLCollection, or NodeList');
-    }
-}
-
-/**
- * Adds an event listener to a HTML element
- * and returns a remove listener function.
- *
- * @param {HTMLElement} node
- * @param {String} type
- * @param {Function} callback
- * @return {Object}
- */
-function listenNode(node, type, callback) {
-    node.addEventListener(type, callback);
-
-    return {
-        destroy: function() {
-            node.removeEventListener(type, callback);
-        }
-    }
-}
-
-/**
- * Add an event listener to a list of HTML elements
- * and returns a remove listener function.
- *
- * @param {NodeList|HTMLCollection} nodeList
- * @param {String} type
- * @param {Function} callback
- * @return {Object}
- */
-function listenNodeList(nodeList, type, callback) {
-    Array.prototype.forEach.call(nodeList, function(node) {
-        node.addEventListener(type, callback);
-    });
-
-    return {
-        destroy: function() {
-            Array.prototype.forEach.call(nodeList, function(node) {
-                node.removeEventListener(type, callback);
-            });
-        }
-    }
-}
-
-/**
- * Add an event listener to a selector
- * and returns a remove listener function.
- *
- * @param {String} selector
- * @param {String} type
- * @param {Function} callback
- * @return {Object}
- */
-function listenSelector(selector, type, callback) {
-    return delegate(document.body, selector, type, callback);
-}
-
-module.exports = listen;
-
-
-/***/ }),
-
-/***/ 817:
-/***/ (function(module) {
-
-function select(element) {
-    var selectedText;
-
-    if (element.nodeName === 'SELECT') {
-        element.focus();
-
-        selectedText = element.value;
-    }
-    else if (element.nodeName === 'INPUT' || element.nodeName === 'TEXTAREA') {
-        var isReadOnly = element.hasAttribute('readonly');
-
-        if (!isReadOnly) {
-            element.setAttribute('readonly', '');
-        }
-
-        element.select();
-        element.setSelectionRange(0, element.value.length);
-
-        if (!isReadOnly) {
-            element.removeAttribute('readonly');
-        }
-
-        selectedText = element.value;
-    }
-    else {
-        if (element.hasAttribute('contenteditable')) {
-            element.focus();
-        }
-
-        var selection = window.getSelection();
-        var range = document.createRange();
-
-        range.selectNodeContents(element);
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        selectedText = selection.toString();
-    }
-
-    return selectedText;
-}
-
-module.exports = select;
-
-
-/***/ }),
-
-/***/ 279:
-/***/ (function(module) {
-
-function E () {
-  // Keep this empty so it's easier to inherit from
-  // (via https://github.com/lipsmack from https://github.com/scottcorgan/tiny-emitter/issues/3)
-}
-
-E.prototype = {
-  on: function (name, callback, ctx) {
-    var e = this.e || (this.e = {});
-
-    (e[name] || (e[name] = [])).push({
-      fn: callback,
-      ctx: ctx
-    });
-
-    return this;
-  },
-
-  once: function (name, callback, ctx) {
-    var self = this;
-    function listener () {
-      self.off(name, listener);
-      callback.apply(ctx, arguments);
-    };
-
-    listener._ = callback
-    return this.on(name, listener, ctx);
-  },
-
-  emit: function (name) {
-    var data = [].slice.call(arguments, 1);
-    var evtArr = ((this.e || (this.e = {}))[name] || []).slice();
-    var i = 0;
-    var len = evtArr.length;
-
-    for (i; i < len; i++) {
-      evtArr[i].fn.apply(evtArr[i].ctx, data);
-    }
-
-    return this;
-  },
-
-  off: function (name, callback) {
-    var e = this.e || (this.e = {});
-    var evts = e[name];
-    var liveEvents = [];
-
-    if (evts && callback) {
-      for (var i = 0, len = evts.length; i < len; i++) {
-        if (evts[i].fn !== callback && evts[i].fn._ !== callback)
-          liveEvents.push(evts[i]);
-      }
-    }
-
-    // Remove event from queue to prevent memory leak
-    // Suggested by https://github.com/lazd
-    // Ref: https://github.com/scottcorgan/tiny-emitter/commit/c6ebfaa9bc973b33d110a84a307742b7cf94c953#commitcomment-5024910
-
-    (liveEvents.length)
-      ? e[name] = liveEvents
-      : delete e[name];
-
-    return this;
-  }
-};
-
-module.exports = E;
-module.exports.TinyEmitter = E;
-
-
-/***/ })
-
-/******/ 	});
-/************************************************************************/
-/******/ 	// The module cache
-/******/ 	var __webpack_module_cache__ = {};
-/******/ 	
-/******/ 	// The require function
-/******/ 	function __nested_webpack_require_24495__(moduleId) {
-/******/ 		// Check if module is in cache
-/******/ 		if(__webpack_module_cache__[moduleId]) {
-/******/ 			return __webpack_module_cache__[moduleId].exports;
-/******/ 		}
-/******/ 		// Create a new module (and put it into the cache)
-/******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			// no module.id needed
-/******/ 			// no module.loaded needed
-/******/ 			exports: {}
-/******/ 		};
-/******/ 	
-/******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __nested_webpack_require_24495__);
-/******/ 	
-/******/ 		// Return the exports of the module
-/******/ 		return module.exports;
-/******/ 	}
-/******/ 	
-/************************************************************************/
-/******/ 	/* webpack/runtime/compat get default export */
-/******/ 	!function() {
-/******/ 		// getDefaultExport function for compatibility with non-harmony modules
-/******/ 		__nested_webpack_require_24495__.n = function(module) {
-/******/ 			var getter = module && module.__esModule ?
-/******/ 				function() { return module['default']; } :
-/******/ 				function() { return module; };
-/******/ 			__nested_webpack_require_24495__.d(getter, { a: getter });
-/******/ 			return getter;
-/******/ 		};
-/******/ 	}();
-/******/ 	
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	!function() {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__nested_webpack_require_24495__.d = function(exports, definition) {
-/******/ 			for(var key in definition) {
-/******/ 				if(__nested_webpack_require_24495__.o(definition, key) && !__nested_webpack_require_24495__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	}();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	!function() {
-/******/ 		__nested_webpack_require_24495__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
-/******/ 	}();
-/******/ 	
-/************************************************************************/
-/******/ 	// module exports must be returned from runtime so entry inlining is disabled
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	return __nested_webpack_require_24495__(686);
-/******/ })()
-.default;
-});
-
-/***/ }),
-
 /***/ 1933:
 /***/ ((module, exports, __webpack_require__) => {
 
@@ -2141,6 +1067,897 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*global define:false */
 
 /***/ }),
 
+/***/ 3758:
+/***/ (function(module) {
+
+/*!
+ * clipboard.js v2.0.11
+ * https://clipboardjs.com/
+ *
+ * Licensed MIT © Zeno Rocha
+ */
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(true)
+		module.exports = factory();
+	else {}
+})(this, function() {
+return /******/ (function() { // webpackBootstrap
+/******/ 	var __webpack_modules__ = ({
+
+/***/ 686:
+/***/ (function(__unused_webpack_module, __nested_webpack_exports__, __nested_webpack_require_623__) {
+
+"use strict";
+
+// EXPORTS
+__nested_webpack_require_623__.d(__nested_webpack_exports__, {
+  "default": function() { return /* binding */ clipboard; }
+});
+
+// EXTERNAL MODULE: ./node_modules/tiny-emitter/index.js
+var tiny_emitter = __nested_webpack_require_623__(279);
+var tiny_emitter_default = /*#__PURE__*/__nested_webpack_require_623__.n(tiny_emitter);
+// EXTERNAL MODULE: ./node_modules/good-listener/src/listen.js
+var listen = __nested_webpack_require_623__(370);
+var listen_default = /*#__PURE__*/__nested_webpack_require_623__.n(listen);
+// EXTERNAL MODULE: ./node_modules/select/src/select.js
+var src_select = __nested_webpack_require_623__(817);
+var select_default = /*#__PURE__*/__nested_webpack_require_623__.n(src_select);
+;// CONCATENATED MODULE: ./src/common/command.js
+/**
+ * Executes a given operation type.
+ * @param {String} type
+ * @return {Boolean}
+ */
+function command(type) {
+  try {
+    return document.execCommand(type);
+  } catch (err) {
+    return false;
+  }
+}
+;// CONCATENATED MODULE: ./src/actions/cut.js
+
+
+/**
+ * Cut action wrapper.
+ * @param {String|HTMLElement} target
+ * @return {String}
+ */
+
+var ClipboardActionCut = function ClipboardActionCut(target) {
+  var selectedText = select_default()(target);
+  command('cut');
+  return selectedText;
+};
+
+/* harmony default export */ var actions_cut = (ClipboardActionCut);
+;// CONCATENATED MODULE: ./src/common/create-fake-element.js
+/**
+ * Creates a fake textarea element with a value.
+ * @param {String} value
+ * @return {HTMLElement}
+ */
+function createFakeElement(value) {
+  var isRTL = document.documentElement.getAttribute('dir') === 'rtl';
+  var fakeElement = document.createElement('textarea'); // Prevent zooming on iOS
+
+  fakeElement.style.fontSize = '12pt'; // Reset box model
+
+  fakeElement.style.border = '0';
+  fakeElement.style.padding = '0';
+  fakeElement.style.margin = '0'; // Move element out of screen horizontally
+
+  fakeElement.style.position = 'absolute';
+  fakeElement.style[isRTL ? 'right' : 'left'] = '-9999px'; // Move element to the same position vertically
+
+  var yPosition = window.pageYOffset || document.documentElement.scrollTop;
+  fakeElement.style.top = "".concat(yPosition, "px");
+  fakeElement.setAttribute('readonly', '');
+  fakeElement.value = value;
+  return fakeElement;
+}
+;// CONCATENATED MODULE: ./src/actions/copy.js
+
+
+
+/**
+ * Create fake copy action wrapper using a fake element.
+ * @param {String} target
+ * @param {Object} options
+ * @return {String}
+ */
+
+var fakeCopyAction = function fakeCopyAction(value, options) {
+  var fakeElement = createFakeElement(value);
+  options.container.appendChild(fakeElement);
+  var selectedText = select_default()(fakeElement);
+  command('copy');
+  fakeElement.remove();
+  return selectedText;
+};
+/**
+ * Copy action wrapper.
+ * @param {String|HTMLElement} target
+ * @param {Object} options
+ * @return {String}
+ */
+
+
+var ClipboardActionCopy = function ClipboardActionCopy(target) {
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
+    container: document.body
+  };
+  var selectedText = '';
+
+  if (typeof target === 'string') {
+    selectedText = fakeCopyAction(target, options);
+  } else if (target instanceof HTMLInputElement && !['text', 'search', 'url', 'tel', 'password'].includes(target === null || target === void 0 ? void 0 : target.type)) {
+    // If input type doesn't support `setSelectionRange`. Simulate it. https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/setSelectionRange
+    selectedText = fakeCopyAction(target.value, options);
+  } else {
+    selectedText = select_default()(target);
+    command('copy');
+  }
+
+  return selectedText;
+};
+
+/* harmony default export */ var actions_copy = (ClipboardActionCopy);
+;// CONCATENATED MODULE: ./src/actions/default.js
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+
+
+/**
+ * Inner function which performs selection from either `text` or `target`
+ * properties and then executes copy or cut operations.
+ * @param {Object} options
+ */
+
+var ClipboardActionDefault = function ClipboardActionDefault() {
+  var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+  // Defines base properties passed from constructor.
+  var _options$action = options.action,
+      action = _options$action === void 0 ? 'copy' : _options$action,
+      container = options.container,
+      target = options.target,
+      text = options.text; // Sets the `action` to be performed which can be either 'copy' or 'cut'.
+
+  if (action !== 'copy' && action !== 'cut') {
+    throw new Error('Invalid "action" value, use either "copy" or "cut"');
+  } // Sets the `target` property using an element that will be have its content copied.
+
+
+  if (target !== undefined) {
+    if (target && _typeof(target) === 'object' && target.nodeType === 1) {
+      if (action === 'copy' && target.hasAttribute('disabled')) {
+        throw new Error('Invalid "target" attribute. Please use "readonly" instead of "disabled" attribute');
+      }
+
+      if (action === 'cut' && (target.hasAttribute('readonly') || target.hasAttribute('disabled'))) {
+        throw new Error('Invalid "target" attribute. You can\'t cut text from elements with "readonly" or "disabled" attributes');
+      }
+    } else {
+      throw new Error('Invalid "target" value, use a valid Element');
+    }
+  } // Define selection strategy based on `text` property.
+
+
+  if (text) {
+    return actions_copy(text, {
+      container: container
+    });
+  } // Defines which selection strategy based on `target` property.
+
+
+  if (target) {
+    return action === 'cut' ? actions_cut(target) : actions_copy(target, {
+      container: container
+    });
+  }
+};
+
+/* harmony default export */ var actions_default = (ClipboardActionDefault);
+;// CONCATENATED MODULE: ./src/clipboard.js
+function clipboard_typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { clipboard_typeof = function _typeof(obj) { return typeof obj; }; } else { clipboard_typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return clipboard_typeof(obj); }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
+
+function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
+
+function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+
+function _possibleConstructorReturn(self, call) { if (call && (clipboard_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
+
+function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
+
+function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+
+function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
+
+
+
+
+
+
+/**
+ * Helper function to retrieve attribute value.
+ * @param {String} suffix
+ * @param {Element} element
+ */
+
+function getAttributeValue(suffix, element) {
+  var attribute = "data-clipboard-".concat(suffix);
+
+  if (!element.hasAttribute(attribute)) {
+    return;
+  }
+
+  return element.getAttribute(attribute);
+}
+/**
+ * Base class which takes one or more elements, adds event listeners to them,
+ * and instantiates a new `ClipboardAction` on each click.
+ */
+
+
+var Clipboard = /*#__PURE__*/function (_Emitter) {
+  _inherits(Clipboard, _Emitter);
+
+  var _super = _createSuper(Clipboard);
+
+  /**
+   * @param {String|HTMLElement|HTMLCollection|NodeList} trigger
+   * @param {Object} options
+   */
+  function Clipboard(trigger, options) {
+    var _this;
+
+    _classCallCheck(this, Clipboard);
+
+    _this = _super.call(this);
+
+    _this.resolveOptions(options);
+
+    _this.listenClick(trigger);
+
+    return _this;
+  }
+  /**
+   * Defines if attributes would be resolved using internal setter functions
+   * or custom functions that were passed in the constructor.
+   * @param {Object} options
+   */
+
+
+  _createClass(Clipboard, [{
+    key: "resolveOptions",
+    value: function resolveOptions() {
+      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+      this.action = typeof options.action === 'function' ? options.action : this.defaultAction;
+      this.target = typeof options.target === 'function' ? options.target : this.defaultTarget;
+      this.text = typeof options.text === 'function' ? options.text : this.defaultText;
+      this.container = clipboard_typeof(options.container) === 'object' ? options.container : document.body;
+    }
+    /**
+     * Adds a click event listener to the passed trigger.
+     * @param {String|HTMLElement|HTMLCollection|NodeList} trigger
+     */
+
+  }, {
+    key: "listenClick",
+    value: function listenClick(trigger) {
+      var _this2 = this;
+
+      this.listener = listen_default()(trigger, 'click', function (e) {
+        return _this2.onClick(e);
+      });
+    }
+    /**
+     * Defines a new `ClipboardAction` on each click event.
+     * @param {Event} e
+     */
+
+  }, {
+    key: "onClick",
+    value: function onClick(e) {
+      var trigger = e.delegateTarget || e.currentTarget;
+      var action = this.action(trigger) || 'copy';
+      var text = actions_default({
+        action: action,
+        container: this.container,
+        target: this.target(trigger),
+        text: this.text(trigger)
+      }); // Fires an event based on the copy operation result.
+
+      this.emit(text ? 'success' : 'error', {
+        action: action,
+        text: text,
+        trigger: trigger,
+        clearSelection: function clearSelection() {
+          if (trigger) {
+            trigger.focus();
+          }
+
+          window.getSelection().removeAllRanges();
+        }
+      });
+    }
+    /**
+     * Default `action` lookup function.
+     * @param {Element} trigger
+     */
+
+  }, {
+    key: "defaultAction",
+    value: function defaultAction(trigger) {
+      return getAttributeValue('action', trigger);
+    }
+    /**
+     * Default `target` lookup function.
+     * @param {Element} trigger
+     */
+
+  }, {
+    key: "defaultTarget",
+    value: function defaultTarget(trigger) {
+      var selector = getAttributeValue('target', trigger);
+
+      if (selector) {
+        return document.querySelector(selector);
+      }
+    }
+    /**
+     * Allow fire programmatically a copy action
+     * @param {String|HTMLElement} target
+     * @param {Object} options
+     * @returns Text copied.
+     */
+
+  }, {
+    key: "defaultText",
+
+    /**
+     * Default `text` lookup function.
+     * @param {Element} trigger
+     */
+    value: function defaultText(trigger) {
+      return getAttributeValue('text', trigger);
+    }
+    /**
+     * Destroy lifecycle.
+     */
+
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      this.listener.destroy();
+    }
+  }], [{
+    key: "copy",
+    value: function copy(target) {
+      var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
+        container: document.body
+      };
+      return actions_copy(target, options);
+    }
+    /**
+     * Allow fire programmatically a cut action
+     * @param {String|HTMLElement} target
+     * @returns Text cutted.
+     */
+
+  }, {
+    key: "cut",
+    value: function cut(target) {
+      return actions_cut(target);
+    }
+    /**
+     * Returns the support of the given action, or all actions if no action is
+     * given.
+     * @param {String} [action]
+     */
+
+  }, {
+    key: "isSupported",
+    value: function isSupported() {
+      var action = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : ['copy', 'cut'];
+      var actions = typeof action === 'string' ? [action] : action;
+      var support = !!document.queryCommandSupported;
+      actions.forEach(function (action) {
+        support = support && !!document.queryCommandSupported(action);
+      });
+      return support;
+    }
+  }]);
+
+  return Clipboard;
+}((tiny_emitter_default()));
+
+/* harmony default export */ var clipboard = (Clipboard);
+
+/***/ }),
+
+/***/ 828:
+/***/ (function(module) {
+
+var DOCUMENT_NODE_TYPE = 9;
+
+/**
+ * A polyfill for Element.matches()
+ */
+if (typeof Element !== 'undefined' && !Element.prototype.matches) {
+    var proto = Element.prototype;
+
+    proto.matches = proto.matchesSelector ||
+                    proto.mozMatchesSelector ||
+                    proto.msMatchesSelector ||
+                    proto.oMatchesSelector ||
+                    proto.webkitMatchesSelector;
+}
+
+/**
+ * Finds the closest parent that matches a selector.
+ *
+ * @param {Element} element
+ * @param {String} selector
+ * @return {Function}
+ */
+function closest (element, selector) {
+    while (element && element.nodeType !== DOCUMENT_NODE_TYPE) {
+        if (typeof element.matches === 'function' &&
+            element.matches(selector)) {
+          return element;
+        }
+        element = element.parentNode;
+    }
+}
+
+module.exports = closest;
+
+
+/***/ }),
+
+/***/ 438:
+/***/ (function(module, __unused_webpack_exports, __nested_webpack_require_15749__) {
+
+var closest = __nested_webpack_require_15749__(828);
+
+/**
+ * Delegates event to a selector.
+ *
+ * @param {Element} element
+ * @param {String} selector
+ * @param {String} type
+ * @param {Function} callback
+ * @param {Boolean} useCapture
+ * @return {Object}
+ */
+function _delegate(element, selector, type, callback, useCapture) {
+    var listenerFn = listener.apply(this, arguments);
+
+    element.addEventListener(type, listenerFn, useCapture);
+
+    return {
+        destroy: function() {
+            element.removeEventListener(type, listenerFn, useCapture);
+        }
+    }
+}
+
+/**
+ * Delegates event to a selector.
+ *
+ * @param {Element|String|Array} [elements]
+ * @param {String} selector
+ * @param {String} type
+ * @param {Function} callback
+ * @param {Boolean} useCapture
+ * @return {Object}
+ */
+function delegate(elements, selector, type, callback, useCapture) {
+    // Handle the regular Element usage
+    if (typeof elements.addEventListener === 'function') {
+        return _delegate.apply(null, arguments);
+    }
+
+    // Handle Element-less usage, it defaults to global delegation
+    if (typeof type === 'function') {
+        // Use `document` as the first parameter, then apply arguments
+        // This is a short way to .unshift `arguments` without running into deoptimizations
+        return _delegate.bind(null, document).apply(null, arguments);
+    }
+
+    // Handle Selector-based usage
+    if (typeof elements === 'string') {
+        elements = document.querySelectorAll(elements);
+    }
+
+    // Handle Array-like based usage
+    return Array.prototype.map.call(elements, function (element) {
+        return _delegate(element, selector, type, callback, useCapture);
+    });
+}
+
+/**
+ * Finds closest match and invokes callback.
+ *
+ * @param {Element} element
+ * @param {String} selector
+ * @param {String} type
+ * @param {Function} callback
+ * @return {Function}
+ */
+function listener(element, selector, type, callback) {
+    return function(e) {
+        e.delegateTarget = closest(e.target, selector);
+
+        if (e.delegateTarget) {
+            callback.call(element, e);
+        }
+    }
+}
+
+module.exports = delegate;
+
+
+/***/ }),
+
+/***/ 879:
+/***/ (function(__unused_webpack_module, exports) {
+
+/**
+ * Check if argument is a HTML element.
+ *
+ * @param {Object} value
+ * @return {Boolean}
+ */
+exports.node = function(value) {
+    return value !== undefined
+        && value instanceof HTMLElement
+        && value.nodeType === 1;
+};
+
+/**
+ * Check if argument is a list of HTML elements.
+ *
+ * @param {Object} value
+ * @return {Boolean}
+ */
+exports.nodeList = function(value) {
+    var type = Object.prototype.toString.call(value);
+
+    return value !== undefined
+        && (type === '[object NodeList]' || type === '[object HTMLCollection]')
+        && ('length' in value)
+        && (value.length === 0 || exports.node(value[0]));
+};
+
+/**
+ * Check if argument is a string.
+ *
+ * @param {Object} value
+ * @return {Boolean}
+ */
+exports.string = function(value) {
+    return typeof value === 'string'
+        || value instanceof String;
+};
+
+/**
+ * Check if argument is a function.
+ *
+ * @param {Object} value
+ * @return {Boolean}
+ */
+exports.fn = function(value) {
+    var type = Object.prototype.toString.call(value);
+
+    return type === '[object Function]';
+};
+
+
+/***/ }),
+
+/***/ 370:
+/***/ (function(module, __unused_webpack_exports, __nested_webpack_require_19113__) {
+
+var is = __nested_webpack_require_19113__(879);
+var delegate = __nested_webpack_require_19113__(438);
+
+/**
+ * Validates all params and calls the right
+ * listener function based on its target type.
+ *
+ * @param {String|HTMLElement|HTMLCollection|NodeList} target
+ * @param {String} type
+ * @param {Function} callback
+ * @return {Object}
+ */
+function listen(target, type, callback) {
+    if (!target && !type && !callback) {
+        throw new Error('Missing required arguments');
+    }
+
+    if (!is.string(type)) {
+        throw new TypeError('Second argument must be a String');
+    }
+
+    if (!is.fn(callback)) {
+        throw new TypeError('Third argument must be a Function');
+    }
+
+    if (is.node(target)) {
+        return listenNode(target, type, callback);
+    }
+    else if (is.nodeList(target)) {
+        return listenNodeList(target, type, callback);
+    }
+    else if (is.string(target)) {
+        return listenSelector(target, type, callback);
+    }
+    else {
+        throw new TypeError('First argument must be a String, HTMLElement, HTMLCollection, or NodeList');
+    }
+}
+
+/**
+ * Adds an event listener to a HTML element
+ * and returns a remove listener function.
+ *
+ * @param {HTMLElement} node
+ * @param {String} type
+ * @param {Function} callback
+ * @return {Object}
+ */
+function listenNode(node, type, callback) {
+    node.addEventListener(type, callback);
+
+    return {
+        destroy: function() {
+            node.removeEventListener(type, callback);
+        }
+    }
+}
+
+/**
+ * Add an event listener to a list of HTML elements
+ * and returns a remove listener function.
+ *
+ * @param {NodeList|HTMLCollection} nodeList
+ * @param {String} type
+ * @param {Function} callback
+ * @return {Object}
+ */
+function listenNodeList(nodeList, type, callback) {
+    Array.prototype.forEach.call(nodeList, function(node) {
+        node.addEventListener(type, callback);
+    });
+
+    return {
+        destroy: function() {
+            Array.prototype.forEach.call(nodeList, function(node) {
+                node.removeEventListener(type, callback);
+            });
+        }
+    }
+}
+
+/**
+ * Add an event listener to a selector
+ * and returns a remove listener function.
+ *
+ * @param {String} selector
+ * @param {String} type
+ * @param {Function} callback
+ * @return {Object}
+ */
+function listenSelector(selector, type, callback) {
+    return delegate(document.body, selector, type, callback);
+}
+
+module.exports = listen;
+
+
+/***/ }),
+
+/***/ 817:
+/***/ (function(module) {
+
+function select(element) {
+    var selectedText;
+
+    if (element.nodeName === 'SELECT') {
+        element.focus();
+
+        selectedText = element.value;
+    }
+    else if (element.nodeName === 'INPUT' || element.nodeName === 'TEXTAREA') {
+        var isReadOnly = element.hasAttribute('readonly');
+
+        if (!isReadOnly) {
+            element.setAttribute('readonly', '');
+        }
+
+        element.select();
+        element.setSelectionRange(0, element.value.length);
+
+        if (!isReadOnly) {
+            element.removeAttribute('readonly');
+        }
+
+        selectedText = element.value;
+    }
+    else {
+        if (element.hasAttribute('contenteditable')) {
+            element.focus();
+        }
+
+        var selection = window.getSelection();
+        var range = document.createRange();
+
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        selectedText = selection.toString();
+    }
+
+    return selectedText;
+}
+
+module.exports = select;
+
+
+/***/ }),
+
+/***/ 279:
+/***/ (function(module) {
+
+function E () {
+  // Keep this empty so it's easier to inherit from
+  // (via https://github.com/lipsmack from https://github.com/scottcorgan/tiny-emitter/issues/3)
+}
+
+E.prototype = {
+  on: function (name, callback, ctx) {
+    var e = this.e || (this.e = {});
+
+    (e[name] || (e[name] = [])).push({
+      fn: callback,
+      ctx: ctx
+    });
+
+    return this;
+  },
+
+  once: function (name, callback, ctx) {
+    var self = this;
+    function listener () {
+      self.off(name, listener);
+      callback.apply(ctx, arguments);
+    };
+
+    listener._ = callback
+    return this.on(name, listener, ctx);
+  },
+
+  emit: function (name) {
+    var data = [].slice.call(arguments, 1);
+    var evtArr = ((this.e || (this.e = {}))[name] || []).slice();
+    var i = 0;
+    var len = evtArr.length;
+
+    for (i; i < len; i++) {
+      evtArr[i].fn.apply(evtArr[i].ctx, data);
+    }
+
+    return this;
+  },
+
+  off: function (name, callback) {
+    var e = this.e || (this.e = {});
+    var evts = e[name];
+    var liveEvents = [];
+
+    if (evts && callback) {
+      for (var i = 0, len = evts.length; i < len; i++) {
+        if (evts[i].fn !== callback && evts[i].fn._ !== callback)
+          liveEvents.push(evts[i]);
+      }
+    }
+
+    // Remove event from queue to prevent memory leak
+    // Suggested by https://github.com/lazd
+    // Ref: https://github.com/scottcorgan/tiny-emitter/commit/c6ebfaa9bc973b33d110a84a307742b7cf94c953#commitcomment-5024910
+
+    (liveEvents.length)
+      ? e[name] = liveEvents
+      : delete e[name];
+
+    return this;
+  }
+};
+
+module.exports = E;
+module.exports.TinyEmitter = E;
+
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __nested_webpack_require_24495__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		if(__webpack_module_cache__[moduleId]) {
+/******/ 			return __webpack_module_cache__[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __nested_webpack_require_24495__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	!function() {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__nested_webpack_require_24495__.n = function(module) {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				function() { return module['default']; } :
+/******/ 				function() { return module; };
+/******/ 			__nested_webpack_require_24495__.d(getter, { a: getter });
+/******/ 			return getter;
+/******/ 		};
+/******/ 	}();
+/******/ 	
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	!function() {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__nested_webpack_require_24495__.d = function(exports, definition) {
+/******/ 			for(var key in definition) {
+/******/ 				if(__nested_webpack_require_24495__.o(definition, key) && !__nested_webpack_require_24495__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	}();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	!function() {
+/******/ 		__nested_webpack_require_24495__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
+/******/ 	}();
+/******/ 	
+/************************************************************************/
+/******/ 	// module exports must be returned from runtime so entry inlining is disabled
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	return __nested_webpack_require_24495__(686);
+/******/ })()
+.default;
+});
+
+/***/ }),
+
 /***/ 5760:
 /***/ (() => {
 
@@ -2191,14 +2008,6 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*global define:false */
     Mousetrap.init();
 }) (typeof Mousetrap !== "undefined" ? Mousetrap : undefined);
 
-
-/***/ }),
-
-/***/ 923:
-/***/ ((module) => {
-
-"use strict";
-module.exports = window["wp"]["isShallowEqual"];
 
 /***/ })
 
@@ -2589,10 +2398,19 @@ var __setModuleDefault = Object.create ? (function(o, v) {
   o["default"] = v;
 };
 
+var ownKeys = function(o) {
+  ownKeys = Object.getOwnPropertyNames || function (o) {
+    var ar = [];
+    for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+    return ar;
+  };
+  return ownKeys(o);
+};
+
 function __importStar(mod) {
   if (mod && mod.__esModule) return mod;
   var result = {};
-  if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+  if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
   __setModuleDefault(result, mod);
   return result;
 }
@@ -2673,12 +2491,25 @@ function __disposeResources(env) {
   return next();
 }
 
+function __rewriteRelativeImportExtension(path, preserveJsx) {
+  if (typeof path === "string" && /^\.\.?\//.test(path)) {
+      return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function (m, tsx, d, ext, cm) {
+          return tsx ? preserveJsx ? ".jsx" : ".js" : d && (!ext || !cm) ? m : (d + ext + "." + cm.toLowerCase() + "js");
+      });
+  }
+  return path;
+}
+
 /* harmony default export */ const tslib_es6 = ({
   __extends,
   __assign,
   __rest,
   __decorate,
   __param,
+  __esDecorate,
+  __runInitializers,
+  __propKey,
+  __setFunctionName,
   __metadata,
   __awaiter,
   __generator,
@@ -2701,6 +2532,7 @@ function __disposeResources(env) {
   __classPrivateFieldIn,
   __addDisposableResource,
   __disposeResources,
+  __rewriteRelativeImportExtension,
 });
 
 ;// ./node_modules/lower-case/dist.es2015/index.js
@@ -3304,9 +3136,9 @@ function ifCondition(predicate) {
 }
 /* harmony default export */ const if_condition = (ifCondition);
 
-// EXTERNAL MODULE: external ["wp","isShallowEqual"]
-var external_wp_isShallowEqual_ = __webpack_require__(923);
-var external_wp_isShallowEqual_default = /*#__PURE__*/__webpack_require__.n(external_wp_isShallowEqual_);
+;// external ["wp","isShallowEqual"]
+const external_wp_isShallowEqual_namespaceObject = window["wp"]["isShallowEqual"];
+var external_wp_isShallowEqual_default = /*#__PURE__*/__webpack_require__.n(external_wp_isShallowEqual_namespaceObject);
 ;// external ["wp","element"]
 const external_wp_element_namespaceObject = window["wp"]["element"];
 ;// ./node_modules/@wordpress/compose/build-module/higher-order/pure/index.js
@@ -3368,7 +3200,7 @@ class Listener {
     this.listeners = {};
     this.handleEvent = this.handleEvent.bind(this);
   }
-  add( /** @type {any} */eventType, /** @type {any} */instance) {
+  add(/** @type {any} */eventType, /** @type {any} */instance) {
     if (!this.listeners[eventType]) {
       // Adding first listener for this type, so bind event.
       window.addEventListener(eventType, this.handleEvent);
@@ -3376,19 +3208,19 @@ class Listener {
     }
     this.listeners[eventType].push(instance);
   }
-  remove( /** @type {any} */eventType, /** @type {any} */instance) {
+  remove(/** @type {any} */eventType, /** @type {any} */instance) {
     if (!this.listeners[eventType]) {
       return;
     }
-    this.listeners[eventType] = this.listeners[eventType].filter(( /** @type {any} */listener) => listener !== instance);
+    this.listeners[eventType] = this.listeners[eventType].filter((/** @type {any} */listener) => listener !== instance);
     if (!this.listeners[eventType].length) {
       // Removing last listener for this type, so unbind event.
       window.removeEventListener(eventType, this.handleEvent);
       delete this.listeners[eventType];
     }
   }
-  handleEvent( /** @type {any} */event) {
-    this.listeners[event.type]?.forEach(( /** @type {any} */instance) => {
+  handleEvent(/** @type {any} */event) {
+    this.listeners[event.type]?.forEach((/** @type {any} */instance) => {
       instance.handleEvent(event);
     });
   }
@@ -3443,7 +3275,7 @@ function withGlobalEvents(eventTypesToHandlers) {
   // @ts-ignore We don't need to fix the type-related issues because this is deprecated.
   return createHigherOrderComponent(WrappedComponent => {
     class Wrapper extends external_wp_element_namespaceObject.Component {
-      constructor( /** @type {any} */props) {
+      constructor(/** @type {any} */props) {
         super(props);
         this.handleEvent = this.handleEvent.bind(this);
         this.handleRef = this.handleRef.bind(this);
@@ -3458,8 +3290,8 @@ function withGlobalEvents(eventTypesToHandlers) {
           with_global_events_listener.remove(eventType, this);
         });
       }
-      handleEvent( /** @type {any} */event) {
-        const handler = eventTypesToHandlers[( /** @type {keyof GlobalEventHandlersEventMap} */
+      handleEvent(/** @type {any} */event) {
+        const handler = eventTypesToHandlers[(/** @type {keyof GlobalEventHandlersEventMap} */
         event.type
 
         /* eslint-enable jsdoc/no-undefined-types */)];
@@ -3467,7 +3299,7 @@ function withGlobalEvents(eventTypesToHandlers) {
           this.wrappedRef[handler](event);
         }
       }
-      handleRef( /** @type {any} */el) {
+      handleRef(/** @type {any} */el) {
         this.wrappedRef = el;
         // Any component using `withGlobalEvents` that is not setting a `ref`
         // will cause `this.props.forwardedRef` to be `null`, so we need this
@@ -3659,7 +3491,7 @@ function withState(initialState = {}) {
   });
   return createHigherOrderComponent(OriginalComponent => {
     return class WrappedComponent extends external_wp_element_namespaceObject.Component {
-      constructor( /** @type {any} */props) {
+      constructor(/** @type {any} */props) {
         super(props);
         this.setState = this.setState.bind(this);
         this.state = initialState;
@@ -3750,8 +3582,8 @@ function useRefEffect(callback, dependencies) {
  * ```
  */
 function useConstrainedTabbing() {
-  return useRefEffect(( /** @type {HTMLElement} */node) => {
-    function onKeyDown( /** @type {KeyboardEvent} */event) {
+  return useRefEffect((/** @type {HTMLElement} */node) => {
+    function onKeyDown(/** @type {KeyboardEvent} */event) {
       const {
         key,
         shiftKey,
@@ -3761,7 +3593,7 @@ function useConstrainedTabbing() {
         return;
       }
       const action = shiftKey ? 'findPrevious' : 'findNext';
-      const nextElement = external_wp_dom_namespaceObject.focus.tabbable[action]( /** @type {HTMLElement} */target) || null;
+      const nextElement = external_wp_dom_namespaceObject.focus.tabbable[action](/** @type {HTMLElement} */target) || null;
 
       // When the target element contains the element that is about to
       // receive focus, for example when the target is a tabbable
@@ -3769,7 +3601,7 @@ function useConstrainedTabbing() {
       // In this case we can't rely on native browsers behavior. We need
       // to manage focus instead.
       // See https://github.com/WordPress/gutenberg/issues/46041.
-      if ( /** @type {HTMLElement} */target.contains(nextElement)) {
+      if (/** @type {HTMLElement} */target.contains(nextElement)) {
         event.preventDefault();
         nextElement?.focus();
         return;
@@ -3908,7 +3740,9 @@ function useCopyOnClick(ref, text, timeout = 4000) {
  */
 function useUpdatedRef(value) {
   const ref = (0,external_wp_element_namespaceObject.useRef)(value);
-  ref.current = value;
+  (0,external_wp_element_namespaceObject.useLayoutEffect)(() => {
+    ref.current = value;
+  }, [value]);
   return ref;
 }
 
@@ -4077,6 +3911,7 @@ function useFocusReturn(onFocusReturn) {
   }, [onFocusReturn]);
   return (0,external_wp_element_namespaceObject.useCallback)(node => {
     if (node) {
+      var _activeDocument$activ;
       // Set ref to be used when unmounting.
       ref.current = node;
 
@@ -4084,7 +3919,8 @@ function useFocusReturn(onFocusReturn) {
       if (focusedBeforeMount.current) {
         return;
       }
-      focusedBeforeMount.current = node.ownerDocument.activeElement;
+      const activeDocument = node.ownerDocument.activeElement instanceof window.HTMLIFrameElement ? node.ownerDocument.activeElement.contentDocument : node.ownerDocument;
+      focusedBeforeMount.current = (_activeDocument$activ = activeDocument?.activeElement) !== null && _activeDocument$activ !== void 0 ? _activeDocument$activ : null;
     } else if (focusedBeforeMount.current) {
       const isFocused = ref.current?.contains(ref.current?.ownerDocument.activeElement);
       if (ref.current?.isConnected && !isFocused) {
@@ -4710,7 +4546,7 @@ var mousetrap_global_bind = __webpack_require__(5760);
  * @param {(e: import('mousetrap').ExtendedKeyboardEvent, combo: string) => void} callback  Shortcut callback.
  * @param {WPKeyboardShortcutConfig}                                              options   Shortcut options.
  */
-function useKeyboardShortcut( /* eslint-enable jsdoc/valid-types */
+function useKeyboardShortcut(/* eslint-enable jsdoc/valid-types */
 shortcuts, callback, {
   bindGlobal = false,
   eventName = 'keydown',
@@ -4748,7 +4584,7 @@ shortcuts, callback, {
       }
       const bindFn = bindGlobal ? 'bindGlobal' : 'bind';
       // @ts-ignore `bindGlobal` is an undocumented property
-      mousetrap[bindFn](shortcut, ( /* eslint-disable jsdoc/valid-types */
+      mousetrap[bindFn](shortcut, (/* eslint-disable jsdoc/valid-types */
       /** @type {[e: import('mousetrap').ExtendedKeyboardEvent, combo: string]} */...args) => /* eslint-enable jsdoc/valid-types */
       currentCallbackRef.current(...args), eventName);
     });
@@ -4859,8 +4695,178 @@ function usePrevious(value) {
 const useReducedMotion = () => useMediaQuery('(prefers-reduced-motion: reduce)');
 /* harmony default export */ const use_reduced_motion = (useReducedMotion);
 
-// EXTERNAL MODULE: ./node_modules/@wordpress/undo-manager/build-module/index.js
-var build_module = __webpack_require__(6689);
+;// ./node_modules/@wordpress/undo-manager/build-module/index.js
+/**
+ * WordPress dependencies
+ */
+
+
+/** @typedef {import('./types').HistoryRecord}  HistoryRecord */
+/** @typedef {import('./types').HistoryChange}  HistoryChange */
+/** @typedef {import('./types').HistoryChanges} HistoryChanges */
+/** @typedef {import('./types').UndoManager} UndoManager */
+
+/**
+ * Merge changes for a single item into a record of changes.
+ *
+ * @param {Record< string, HistoryChange >} changes1 Previous changes
+ * @param {Record< string, HistoryChange >} changes2 NextChanges
+ *
+ * @return {Record< string, HistoryChange >} Merged changes
+ */
+function mergeHistoryChanges(changes1, changes2) {
+  /**
+   * @type {Record< string, HistoryChange >}
+   */
+  const newChanges = {
+    ...changes1
+  };
+  Object.entries(changes2).forEach(([key, value]) => {
+    if (newChanges[key]) {
+      newChanges[key] = {
+        ...newChanges[key],
+        to: value.to
+      };
+    } else {
+      newChanges[key] = value;
+    }
+  });
+  return newChanges;
+}
+
+/**
+ * Adds history changes for a single item into a record of changes.
+ *
+ * @param {HistoryRecord}  record  The record to merge into.
+ * @param {HistoryChanges} changes The changes to merge.
+ */
+const addHistoryChangesIntoRecord = (record, changes) => {
+  const existingChangesIndex = record?.findIndex(({
+    id: recordIdentifier
+  }) => {
+    return typeof recordIdentifier === 'string' ? recordIdentifier === changes.id : external_wp_isShallowEqual_default()(recordIdentifier, changes.id);
+  });
+  const nextRecord = [...record];
+  if (existingChangesIndex !== -1) {
+    // If the edit is already in the stack leave the initial "from" value.
+    nextRecord[existingChangesIndex] = {
+      id: changes.id,
+      changes: mergeHistoryChanges(nextRecord[existingChangesIndex].changes, changes.changes)
+    };
+  } else {
+    nextRecord.push(changes);
+  }
+  return nextRecord;
+};
+
+/**
+ * Creates an undo manager.
+ *
+ * @return {UndoManager} Undo manager.
+ */
+function createUndoManager() {
+  /**
+   * @type {HistoryRecord[]}
+   */
+  let history = [];
+  /**
+   * @type {HistoryRecord}
+   */
+  let stagedRecord = [];
+  /**
+   * @type {number}
+   */
+  let offset = 0;
+  const dropPendingRedos = () => {
+    history = history.slice(0, offset || undefined);
+    offset = 0;
+  };
+  const appendStagedRecordToLatestHistoryRecord = () => {
+    var _history$index;
+    const index = history.length === 0 ? 0 : history.length - 1;
+    let latestRecord = (_history$index = history[index]) !== null && _history$index !== void 0 ? _history$index : [];
+    stagedRecord.forEach(changes => {
+      latestRecord = addHistoryChangesIntoRecord(latestRecord, changes);
+    });
+    stagedRecord = [];
+    history[index] = latestRecord;
+  };
+
+  /**
+   * Checks whether a record is empty.
+   * A record is considered empty if it the changes keep the same values.
+   * Also updates to function values are ignored.
+   *
+   * @param {HistoryRecord} record
+   * @return {boolean} Whether the record is empty.
+   */
+  const isRecordEmpty = record => {
+    const filteredRecord = record.filter(({
+      changes
+    }) => {
+      return Object.values(changes).some(({
+        from,
+        to
+      }) => typeof from !== 'function' && typeof to !== 'function' && !external_wp_isShallowEqual_default()(from, to));
+    });
+    return !filteredRecord.length;
+  };
+  return {
+    /**
+     * Record changes into the history.
+     *
+     * @param {HistoryRecord=} record   A record of changes to record.
+     * @param {boolean}        isStaged Whether to immediately create an undo point or not.
+     */
+    addRecord(record, isStaged = false) {
+      const isEmpty = !record || isRecordEmpty(record);
+      if (isStaged) {
+        if (isEmpty) {
+          return;
+        }
+        record.forEach(changes => {
+          stagedRecord = addHistoryChangesIntoRecord(stagedRecord, changes);
+        });
+      } else {
+        dropPendingRedos();
+        if (stagedRecord.length) {
+          appendStagedRecordToLatestHistoryRecord();
+        }
+        if (isEmpty) {
+          return;
+        }
+        history.push(record);
+      }
+    },
+    undo() {
+      if (stagedRecord.length) {
+        dropPendingRedos();
+        appendStagedRecordToLatestHistoryRecord();
+      }
+      const undoRecord = history[history.length - 1 + offset];
+      if (!undoRecord) {
+        return;
+      }
+      offset -= 1;
+      return undoRecord;
+    },
+    redo() {
+      const redoRecord = history[history.length + offset];
+      if (!redoRecord) {
+        return;
+      }
+      offset += 1;
+      return redoRecord;
+    },
+    hasUndo() {
+      return !!history[history.length - 1 + offset];
+    },
+    hasRedo() {
+      return !!history[history.length + offset];
+    }
+  };
+}
+
 ;// ./node_modules/@wordpress/compose/build-module/hooks/use-state-with-history/index.js
 /**
  * WordPress dependencies
@@ -4912,7 +4918,7 @@ function undoRedoReducer(state, action) {
 }
 function initReducer(value) {
   return {
-    manager: (0,build_module.createUndoManager)(),
+    manager: createUndoManager(),
     value
   };
 }
@@ -5005,7 +5011,7 @@ const OPERATOR_EVALUATORS = {
   '>=': (breakpointValue, width) => width >= breakpointValue,
   '<': (breakpointValue, width) => width < breakpointValue
 };
-const ViewportMatchWidthContext = (0,external_wp_element_namespaceObject.createContext)( /** @type {null | number} */null);
+const ViewportMatchWidthContext = (0,external_wp_element_namespaceObject.createContext)(/** @type {null | number} */null);
 
 /**
  * Returns true if the viewport matches the given query, or false otherwise.
@@ -5286,7 +5292,7 @@ const external_wp_priorityQueue_namespaceObject = window["wp"]["priorityQueue"];
  *
  * @param list  New array.
  * @param state Current state.
- * @return First items present iin state.
+ * @return First items present in state.
  */
 function getFirstItemsPresentInState(list, state) {
   const firstItems = [];
@@ -5343,7 +5349,7 @@ function useAsyncList(list, config = {
  */
 
 
-// Disable reason: Object and object are distinctly different types in TypeScript and we mean the lowercase object in thise case
+// Disable reason: Object and object are distinctly different types in TypeScript and we mean the lowercase object in this case
 // but eslint wants to force us to use `Object`. See https://stackoverflow.com/questions/49464634/difference-between-object-and-object-in-typescript
 /* eslint-disable jsdoc/check-types */
 /**
@@ -5367,9 +5373,9 @@ function useAsyncList(list, config = {
 function useWarnOnChange(object, prefix = 'Change detection') {
   const previousValues = usePrevious(object);
   Object.entries(previousValues !== null && previousValues !== void 0 ? previousValues : []).forEach(([key, value]) => {
-    if (value !== object[( /** @type {keyof typeof object} */key)]) {
+    if (value !== object[(/** @type {keyof typeof object} */key)]) {
       // eslint-disable-next-line no-console
-      console.warn(`${prefix}: ${key} key changed:`, value, object[( /** @type {keyof typeof object} */key)]
+      console.warn(`${prefix}: ${key} key changed:`, value, object[(/** @type {keyof typeof object} */key)]
       /* eslint-enable jsdoc/check-types */);
     }
   });
@@ -5528,36 +5534,10 @@ function useThrottle(fn, wait, options) {
 
 ;// ./node_modules/@wordpress/compose/build-module/hooks/use-drop-zone/index.js
 /**
- * WordPress dependencies
- */
-
-
-/**
  * Internal dependencies
  */
 
 
-/* eslint-disable jsdoc/valid-types */
-/**
- * @template T
- * @param {T} value
- * @return {import('react').MutableRefObject<T|null>} A ref with the value.
- */
-function useFreshRef(value) {
-  /* eslint-enable jsdoc/valid-types */
-  /* eslint-disable jsdoc/no-undefined-types */
-  /** @type {import('react').MutableRefObject<T>} */
-  /* eslint-enable jsdoc/no-undefined-types */
-  // Disable reason: We're doing something pretty JavaScript-y here where the
-  // ref will always have a current value that is not null or undefined but it
-  // needs to start as undefined. We don't want to change the return type so
-  // it's easier to just ts-ignore this specific line that's complaining about
-  // undefined not being part of T.
-  // @ts-ignore
-  const ref = (0,external_wp_element_namespaceObject.useRef)();
-  ref.current = value;
-  return ref;
-}
 
 /**
  * A hook to facilitate drag and drop handling.
@@ -5584,12 +5564,12 @@ function useDropZone({
   onDragEnd: _onDragEnd,
   onDragOver: _onDragOver
 }) {
-  const onDropRef = useFreshRef(_onDrop);
-  const onDragStartRef = useFreshRef(_onDragStart);
-  const onDragEnterRef = useFreshRef(_onDragEnter);
-  const onDragLeaveRef = useFreshRef(_onDragLeave);
-  const onDragEndRef = useFreshRef(_onDragEnd);
-  const onDragOverRef = useFreshRef(_onDragOver);
+  const onDropEvent = useEvent(_onDrop);
+  const onDragStartEvent = useEvent(_onDragStart);
+  const onDragEnterEvent = useEvent(_onDragEnter);
+  const onDragLeaveEvent = useEvent(_onDragLeave);
+  const onDragEndEvent = useEvent(_onDragEnd);
+  const onDragOverEvent = useEvent(_onDragOver);
   return useRefEffect(elem => {
     if (isDisabled) {
       return;
@@ -5628,7 +5608,7 @@ function useDropZone({
       } while (elementToCheck = elementToCheck.parentElement);
       return false;
     }
-    function maybeDragStart( /** @type {DragEvent} */event) {
+    function maybeDragStart(/** @type {DragEvent} */event) {
       if (isDragging) {
         return;
       }
@@ -5640,35 +5620,35 @@ function useDropZone({
       // node is removed.
       ownerDocument.addEventListener('dragend', maybeDragEnd);
       ownerDocument.addEventListener('mousemove', maybeDragEnd);
-      if (onDragStartRef.current) {
-        onDragStartRef.current(event);
+      if (_onDragStart) {
+        onDragStartEvent(event);
       }
     }
-    function onDragEnter( /** @type {DragEvent} */event) {
+    function onDragEnter(/** @type {DragEvent} */event) {
       event.preventDefault();
 
       // The `dragenter` event will also fire when entering child
       // elements, but we only want to call `onDragEnter` when
       // entering the drop zone, which means the `relatedTarget`
       // (element that has been left) should be outside the drop zone.
-      if (element.contains( /** @type {Node} */event.relatedTarget)) {
+      if (element.contains(/** @type {Node} */event.relatedTarget)) {
         return;
       }
-      if (onDragEnterRef.current) {
-        onDragEnterRef.current(event);
+      if (_onDragEnter) {
+        onDragEnterEvent(event);
       }
     }
-    function onDragOver( /** @type {DragEvent} */event) {
+    function onDragOver(/** @type {DragEvent} */event) {
       // Only call onDragOver for the innermost hovered drop zones.
-      if (!event.defaultPrevented && onDragOverRef.current) {
-        onDragOverRef.current(event);
+      if (!event.defaultPrevented && _onDragOver) {
+        onDragOverEvent(event);
       }
 
       // Prevent the browser default while also signalling to parent
       // drop zones that `onDragOver` is already handled.
       event.preventDefault();
     }
-    function onDragLeave( /** @type {DragEvent} */event) {
+    function onDragLeave(/** @type {DragEvent} */event) {
       // The `dragleave` event will also fire when leaving child
       // elements, but we only want to call `onDragLeave` when
       // leaving the drop zone, which means the `relatedTarget`
@@ -5680,11 +5660,11 @@ function useDropZone({
       if (isElementInZone(event.relatedTarget)) {
         return;
       }
-      if (onDragLeaveRef.current) {
-        onDragLeaveRef.current(event);
+      if (_onDragLeave) {
+        onDragLeaveEvent(event);
       }
     }
-    function onDrop( /** @type {DragEvent} */event) {
+    function onDrop(/** @type {DragEvent} */event) {
       // Don't handle drop if an inner drop zone already handled it.
       if (event.defaultPrevented) {
         return;
@@ -5699,23 +5679,23 @@ function useDropZone({
       // not recognized.
       // eslint-disable-next-line no-unused-expressions
       event.dataTransfer && event.dataTransfer.files.length;
-      if (onDropRef.current) {
-        onDropRef.current(event);
+      if (_onDrop) {
+        onDropEvent(event);
       }
       maybeDragEnd(event);
     }
-    function maybeDragEnd( /** @type {MouseEvent} */event) {
+    function maybeDragEnd(/** @type {MouseEvent} */event) {
       if (!isDragging) {
         return;
       }
       isDragging = false;
       ownerDocument.removeEventListener('dragend', maybeDragEnd);
       ownerDocument.removeEventListener('mousemove', maybeDragEnd);
-      if (onDragEndRef.current) {
-        onDragEndRef.current(event);
+      if (_onDragEnd) {
+        onDragEndEvent(event);
       }
     }
-    element.dataset.isDropZone = 'true';
+    element.setAttribute('data-is-drop-zone', 'true');
     element.addEventListener('drop', onDrop);
     element.addEventListener('dragenter', onDragEnter);
     element.addEventListener('dragover', onDragOver);
@@ -5724,7 +5704,7 @@ function useDropZone({
     // the document.
     ownerDocument.addEventListener('dragenter', maybeDragStart);
     return () => {
-      delete element.dataset.isDropZone;
+      element.removeAttribute('data-is-drop-zone');
       element.removeEventListener('drop', onDrop);
       element.removeEventListener('dragenter', onDragEnter);
       element.removeEventListener('dragover', onDragOver);
@@ -5832,7 +5812,7 @@ function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
     visibleItems: initWindowSize,
     start: 0,
     end: initWindowSize,
-    itemInView: ( /** @type {number} */index) => {
+    itemInView: (/** @type {number} */index) => {
       return index >= 0 && index <= initWindowSize;
     }
   });
@@ -5841,7 +5821,7 @@ function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
       return;
     }
     const scrollContainer = (0,external_wp_dom_namespaceObject.getScrollContainer)(elementRef.current);
-    const measureWindow = ( /** @type {boolean | undefined} */initRender) => {
+    const measureWindow = (/** @type {boolean | undefined} */initRender) => {
       var _options$windowOversc;
       if (!scrollContainer) {
         return;
@@ -5857,7 +5837,7 @@ function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
           visibleItems,
           start,
           end,
-          itemInView: ( /** @type {number} */index) => {
+          itemInView: (/** @type {number} */index) => {
             return start <= index && index <= end;
           }
         };
@@ -5884,7 +5864,7 @@ function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
       return;
     }
     const scrollContainer = (0,external_wp_dom_namespaceObject.getScrollContainer)(elementRef.current);
-    const handleKeyDown = ( /** @type {KeyboardEvent} */event) => {
+    const handleKeyDown = (/** @type {KeyboardEvent} */event) => {
       switch (event.keyCode) {
         case external_wp_keycodes_namespaceObject.HOME:
           {

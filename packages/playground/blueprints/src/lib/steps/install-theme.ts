@@ -1,7 +1,8 @@
-import { StepHandler } from '.';
-import { InstallAssetOptions, installAsset } from './install-asset';
+import type { StepHandler } from '.';
+import type { InstallAssetOptions } from './install-asset';
+import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
-import { Directory } from '../resources';
+import type { Directory } from '../resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
@@ -40,7 +41,7 @@ export interface InstallThemeStep<FileResource, DirectoryResource>
 	 */
 	themeData: FileResource | DirectoryResource;
 	/**
-	 * @deprecated. Use `themeData` instead.
+	 * @deprecated. Use 'themeData' instead.
 	 */
 	themeZipFile?: FileResource;
 	/**
@@ -85,7 +86,8 @@ export const installTheme: StepHandler<
 		);
 	}
 
-	const targetFolderName = 'targetFolderName' in options ? options.targetFolderName : '';
+	const targetFolderName =
+		'targetFolderName' in options ? options.targetFolderName : '';
 	let assetFolderName = '';
 	let assetNiceName = '';
 	if (themeData instanceof File) {
@@ -98,7 +100,7 @@ export const installTheme: StepHandler<
 			ifAlreadyInstalled,
 			zipFile: themeData,
 			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-			targetFolderName: targetFolderName
+			targetFolderName: targetFolderName,
 		});
 		assetFolderName = assetResult.assetFolderName;
 	} else {

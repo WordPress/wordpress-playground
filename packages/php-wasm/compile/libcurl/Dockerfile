@@ -59,7 +59,7 @@ RUN CPPFLAGS="-I/root/lib/include " \
 RUN if [ "$JSPI" = "1" ]; then \
     source /root/emsdk/emsdk_env.sh && \
     EMCC_SKIP="-lc -lz -lcurl -lssl " \
-    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make || true; \
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make || true; \
 fi
 
 RUN if [ "$JSPI" != "1" ]; then \
@@ -77,11 +77,11 @@ fi
 RUN if [ "$JSPI" != "1" ]; then \
     source /root/emsdk/emsdk_env.sh && \
     EMCC_SKIP="-lc -lz -lcurl -lssl " \
-    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make -i || true; \
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Wl,--wrap=select " emmake make -i || true; \
 fi
 
 RUN if [ "$JSPI" != "1" ]; then \
     source /root/emsdk/emsdk_env.sh && \
     EMCC_SKIP="-lc -lz -lcurl -lssl " \
-    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make install -i || true; \
+    EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Wl,--wrap=select " emmake make install -i || true; \
 fi

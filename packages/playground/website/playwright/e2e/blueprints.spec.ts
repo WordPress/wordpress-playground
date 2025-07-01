@@ -1,5 +1,5 @@
 import { test, expect } from '../playground-fixtures';
-import { Blueprint } from '@wp-playground/blueprints';
+import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
 test('Base64-encoded Blueprints should work', async ({
@@ -14,6 +14,69 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('?blueprint-url=... should work with simple blueprints', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should accept data URLs', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const blueprintUrl = encodeURIComponent(
+		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should work with ZIP bundles', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
+});
+
+test('?blueprint-url=... should work with JSON blueprints referring bundled resources', async ({
+	page,
+	website,
+	wordpress,
+}) => {
+	await website.goto('/');
+	const websiteUrl = page.url();
+	const blueprintUrl = encodeURIComponent(
+		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
+	);
+	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'PREFACE TO PYGMALION'
+	);
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
@@ -133,6 +196,58 @@ test('wp-cli step should create a post', async ({ website, wordpress }) => {
 	).toBeVisible();
 });
 
+test('Intl functions should be disabled by default', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/intl-test.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/intl-test.php',
+				data: `<?php
+					$functions = get_extension_funcs('intl');
+					var_dump(
+						count(
+							$functions
+						)
+					);
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('int(0)');
+});
+
+test('Intl functions should work when intl is enabled', async ({
+	website,
+	wordpress,
+}, testInfo) => {
+	if (testInfo.project.name === 'chromium') {
+		test.skip(true, 'Skipping this test on Chromium due to unknown issues');
+	}
+	const blueprint: Blueprint = {
+		landingPage: '/intl-test.php',
+		features: { intl: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/intl-test.php',
+				data: `<?php
+					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('$100.00100,00\xA0€');
+});
+
 test('HTTPS requests via curl_exec() should work', async ({
 	website,
 	wordpress,
@@ -180,6 +295,7 @@ test('HTTPS requests via curl_exec() should fail when networking is disabled', a
 }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/curl-test.php',
+		features: { networking: false },
 		steps: [
 			{
 				step: 'writeFile',
@@ -257,6 +373,7 @@ test('HTTPS requests via file_get_contents() should fail when networking is disa
 }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/https-test.php',
+		features: { networking: false },
 		steps: [
 			{
 				step: 'writeFile',
@@ -432,15 +549,15 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 	await expect(wordpress.locator('body')).toContainText('General Settings');
 });
 
-['latest', 'nightly', 'beta'].forEach((version) => {
-	test(`should translate WP-admin to Spanish for the ${version} WordPress build`, async ({
+['latest', 'nightly', 'beta'].forEach((wpVersion) => {
+	test(`should translate WP-admin to Spanish for the ${wpVersion} WordPress build`, async ({
 		website,
 		wordpress,
 	}) => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/',
 			preferredVersions: {
-				wp: 'nightly',
+				wp: wpVersion,
 			},
 			steps: [{ step: 'setSiteLanguage', language: 'es_ES' }],
 		};

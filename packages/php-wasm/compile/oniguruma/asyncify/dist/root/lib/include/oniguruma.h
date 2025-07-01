@@ -4,7 +4,7 @@
   oniguruma.h - Oniguruma (regular expression library)
 **********************************************************************/
 /*-
- * Copyright (c) 2002-2024  K.Kosako
+ * Copyright (c) 2002-2025  K.Kosako
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,9 +36,9 @@ extern "C" {
 #define ONIGURUMA
 #define ONIGURUMA_VERSION_MAJOR   6
 #define ONIGURUMA_VERSION_MINOR   9
-#define ONIGURUMA_VERSION_TEENY   9
+#define ONIGURUMA_VERSION_TEENY   10
 
-#define ONIGURUMA_VERSION_INT     60909
+#define ONIGURUMA_VERSION_INT     60910
 
 #ifndef P_
 #if defined(__STDC__) || defined(_WIN32)
@@ -534,6 +534,7 @@ ONIG_EXTERN OnigSyntaxType*   OnigDefaultSyntax;
 #define ONIG_SYN_PYTHON                          (1U<<12)  /* \UHHHHHHHH */
 #define ONIG_SYN_WHOLE_OPTIONS                   (1U<<13)  /* (?Ie) */
 #define ONIG_SYN_BRE_ANCHOR_AT_EDGE_OF_SUBEXP    (1U<<14)  /* \(^abc$\) */
+#define ONIG_SYN_ESC_P_WITH_ONE_CHAR_PROP        (1U<<15)  /* \pL */
 
 /* syntax (behavior) in char class [...] */
 #define ONIG_SYN_NOT_NEWLINE_IN_NEGATIVE_CC      (1U<<20) /* [^...] */

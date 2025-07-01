@@ -1,4 +1,3 @@
-import axios from 'axios';
 import type { IncomingMessage, ServerResponse } from 'http';
 
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -7,6 +6,7 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 export const oAuthMiddleware = async (
 	req: IncomingMessage,
 	res: ServerResponse,
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 	next: Function
 ) => {
 	if (!req.url?.startsWith('/oauth.php')) {
@@ -30,19 +30,35 @@ export const oAuthMiddleware = async (
 		res.end();
 	} else if (query.has('code')) {
 		try {
-			const response = await axios.post(
+			const fetchResponse = await fetch(
 				'https://github.com/login/oauth/access_token',
 				{
-					client_id: CLIENT_ID,
-					client_secret: CLIENT_SECRET,
-					code: query.get('code'),
-				},
-				{
+					method: 'POST',
 					headers: {
 						Accept: 'application/json',
+						'Content-Type': 'application/json',
 					},
+					body: JSON.stringify({
+						client_id: CLIENT_ID,
+						client_secret: CLIENT_SECRET,
+						code: query.get('code'),
+					}),
 				}
 			);
+
+			const responseData = await fetchResponse.json();
+
+			if (!fetchResponse.ok) {
+				// Attempt to get a specific error message from GitHub's response
+				const errorMessage =
+					responseData?.error_description ||
+					responseData?.error ||
+					`Request failed with status ${fetchResponse.status}`;
+				throw new Error(errorMessage);
+			}
+
+			// Mimic the axios response structure for the existing code below
+			const response = { data: responseData };
 			if (response.data.error) {
 				throw new Error(response.data.error_description);
 			}

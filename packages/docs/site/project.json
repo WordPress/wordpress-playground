@@ -83,7 +83,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/docs/site/**/*.ts"]
+				"lintFilePatterns": ["packages/docs/site/**/*.ts"],
+				"maxWarnings": 0
 			}
 		}
 	},

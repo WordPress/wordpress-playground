@@ -207,44 +207,13 @@ const errorNotices = (state = {}, action) => {
 
 ;// external ["wp","blockEditor"]
 const external_wp_blockEditor_namespaceObject = window["wp"]["blockEditor"];
-;// ./node_modules/@wordpress/block-directory/build-module/store/utils/has-block-type.js
-/**
- * Check if a block list contains a specific block type. Recursively searches
- * through `innerBlocks` if they exist.
- *
- * @param {Object}   blockType A block object to search for.
- * @param {Object[]} blocks    The list of blocks to look through.
- *
- * @return {boolean} Whether the blockType is found.
- */
-function hasBlockType(blockType, blocks = []) {
-  if (!blocks.length) {
-    return false;
-  }
-  if (blocks.some(({
-    name
-  }) => name === blockType.name)) {
-    return true;
-  }
-  for (let i = 0; i < blocks.length; i++) {
-    if (hasBlockType(blockType, blocks[i].innerBlocks)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 ;// ./node_modules/@wordpress/block-directory/build-module/store/selectors.js
 /**
  * WordPress dependencies
  */
 
 
-
-/**
- * Internal dependencies
- */
-
+const EMPTY_ARRAY = [];
 
 /**
  * Returns true if application is requesting for downloadable blocks.
@@ -269,7 +238,7 @@ function isRequestingDownloadableBlocks(state, filterValue) {
  */
 function getDownloadableBlocks(state, filterValue) {
   var _state$downloadableBl2;
-  return (_state$downloadableBl2 = state.downloadableBlocks[filterValue]?.results) !== null && _state$downloadableBl2 !== void 0 ? _state$downloadableBl2 : [];
+  return (_state$downloadableBl2 = state.downloadableBlocks[filterValue]?.results) !== null && _state$downloadableBl2 !== void 0 ? _state$downloadableBl2 : EMPTY_ARRAY;
 }
 
 /**
@@ -293,10 +262,22 @@ function getInstalledBlockTypes(state) {
  * @return {Array} Block type items.
  */
 const getNewBlockTypes = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => (0,external_wp_data_namespaceObject.createSelector)(state => {
-  const usedBlockTree = select(external_wp_blockEditor_namespaceObject.store).getBlocks();
   const installedBlockTypes = getInstalledBlockTypes(state);
-  return installedBlockTypes.filter(blockType => hasBlockType(blockType, usedBlockTree));
-}, state => [getInstalledBlockTypes(state), select(external_wp_blockEditor_namespaceObject.store).getBlocks()]));
+  if (!installedBlockTypes.length) {
+    return EMPTY_ARRAY;
+  }
+  const {
+    getBlockName,
+    getClientIdsWithDescendants
+  } = select(external_wp_blockEditor_namespaceObject.store);
+  const installedBlockNames = installedBlockTypes.map(blockType => blockType.name);
+  const foundBlockNames = getClientIdsWithDescendants().flatMap(clientId => {
+    const blockName = getBlockName(clientId);
+    return installedBlockNames.includes(blockName) ? blockName : [];
+  });
+  const newBlockTypes = installedBlockTypes.filter(blockType => foundBlockNames.includes(blockType.name));
+  return newBlockTypes.length > 0 ? newBlockTypes : EMPTY_ARRAY;
+}, state => [getInstalledBlockTypes(state), select(external_wp_blockEditor_namespaceObject.store).getClientIdsWithDescendants()]));
 
 /**
  * Returns the block types that have been installed on the server but are not
@@ -307,10 +288,22 @@ const getNewBlockTypes = (0,external_wp_data_namespaceObject.createRegistrySelec
  * @return {Array} Block type items.
  */
 const getUnusedBlockTypes = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => (0,external_wp_data_namespaceObject.createSelector)(state => {
-  const usedBlockTree = select(external_wp_blockEditor_namespaceObject.store).getBlocks();
   const installedBlockTypes = getInstalledBlockTypes(state);
-  return installedBlockTypes.filter(blockType => !hasBlockType(blockType, usedBlockTree));
-}, state => [getInstalledBlockTypes(state), select(external_wp_blockEditor_namespaceObject.store).getBlocks()]));
+  if (!installedBlockTypes.length) {
+    return EMPTY_ARRAY;
+  }
+  const {
+    getBlockName,
+    getClientIdsWithDescendants
+  } = select(external_wp_blockEditor_namespaceObject.store);
+  const installedBlockNames = installedBlockTypes.map(blockType => blockType.name);
+  const foundBlockNames = getClientIdsWithDescendants().flatMap(clientId => {
+    const blockName = getBlockName(clientId);
+    return installedBlockNames.includes(blockName) ? blockName : [];
+  });
+  const unusedBlockTypes = installedBlockTypes.filter(blockType => !foundBlockNames.includes(blockType.name));
+  return unusedBlockTypes.length > 0 ? unusedBlockTypes : EMPTY_ARRAY;
+}, state => [getInstalledBlockTypes(state), select(external_wp_blockEditor_namespaceObject.store).getClientIdsWithDescendants()]));
 
 /**
  * Returns true if a block plugin install is in progress.
@@ -971,10 +964,19 @@ var __setModuleDefault = Object.create ? (function(o, v) {
   o["default"] = v;
 };
 
+var ownKeys = function(o) {
+  ownKeys = Object.getOwnPropertyNames || function (o) {
+    var ar = [];
+    for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+    return ar;
+  };
+  return ownKeys(o);
+};
+
 function __importStar(mod) {
   if (mod && mod.__esModule) return mod;
   var result = {};
-  if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+  if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
   __setModuleDefault(result, mod);
   return result;
 }
@@ -1055,12 +1057,25 @@ function __disposeResources(env) {
   return next();
 }
 
+function __rewriteRelativeImportExtension(path, preserveJsx) {
+  if (typeof path === "string" && /^\.\.?\//.test(path)) {
+      return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function (m, tsx, d, ext, cm) {
+          return tsx ? preserveJsx ? ".jsx" : ".js" : d && (!ext || !cm) ? m : (d + ext + "." + cm.toLowerCase() + "js");
+      });
+  }
+  return path;
+}
+
 /* harmony default export */ const tslib_es6 = ({
   __extends,
   __assign,
   __rest,
   __decorate,
   __param,
+  __esDecorate,
+  __runInitializers,
+  __propKey,
+  __setFunctionName,
   __metadata,
   __awaiter,
   __generator,
@@ -1083,6 +1098,7 @@ function __disposeResources(env) {
   __classPrivateFieldIn,
   __addDisposableResource,
   __disposeResources,
+  __rewriteRelativeImportExtension,
 });
 
 ;// ./node_modules/lower-case/dist.es2015/index.js
@@ -1231,7 +1247,9 @@ const resolvers_getDownloadableBlocks = filterValue => async ({
     });
     const blocks = results.map(result => Object.fromEntries(Object.entries(result).map(([key, value]) => [camelCase(key), value])));
     dispatch(receiveDownloadableBlocks(blocks, filterValue));
-  } catch {}
+  } catch {
+    dispatch(receiveDownloadableBlocks([], filterValue));
+  }
 };
 
 ;// ./node_modules/@wordpress/block-directory/build-module/store/index.js
@@ -1335,7 +1353,7 @@ const external_wp_htmlEntities_namespaceObject = window["wp"]["htmlEntities"];
  * Return an SVG icon.
  *
  * @param {IconProps}                                 props icon is the SVG component to render
- *                                                          size is a number specifiying the icon size in pixels
+ *                                                          size is a number specifying the icon size in pixels
  *                                                          Other props will be passed to wrapped SVG component
  * @param {import('react').ForwardedRef<HTMLElement>} ref   The forwarded ref to the SVG element.
  *
@@ -1413,7 +1431,6 @@ const starEmpty = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(
 
 
 
-
 function Stars({
   rating
 }) {
@@ -1422,7 +1439,7 @@ function Stars({
   const halfStarCount = Math.ceil(rating - fullStarCount);
   const emptyStarCount = 5 - (fullStarCount + halfStarCount);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("span", {
-    "aria-label": (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %s: number of stars. */
+    "aria-label": (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %s: number of stars. */
     (0,external_wp_i18n_namespaceObject.__)('%s out of 5 stars'), stars),
     children: [Array.from({
       length: fullStarCount
@@ -1497,7 +1514,6 @@ function DownloadableBlockIcon({
  */
 
 
-
 const DownloadableBlockNotice = ({
   block
 }) => {
@@ -1541,8 +1557,6 @@ const DownloadableBlockNotice = ({
 
 // Return the appropriate block item label, given the block data and status.
 
-
-
 function getDownloadableBlockLabel({
   title,
   rating,
@@ -1571,7 +1585,7 @@ function getDownloadableBlockLabel({
     /* translators: %s: block title */
     return (0,external_wp_i18n_namespaceObject.sprintf)('Install %s.', (0,external_wp_htmlEntities_namespaceObject.decodeEntities)(title));
   }
-  return (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: 1: block title, 2: average rating, 3: total ratings count. */
+  return (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: 1: block title, 2: average rating, 3: total ratings count. */
   (0,external_wp_i18n_namespaceObject._n)('Install %1$s. %2$s stars with %3$s review.', 'Install %1$s. %2$s stars with %3$s reviews.', ratingCount), (0,external_wp_htmlEntities_namespaceObject.decodeEntities)(title), stars, ratingCount);
 }
 function DownloadableBlockListItem({
@@ -1644,7 +1658,7 @@ function DownloadableBlockListItem({
         className: "block-directory-downloadable-block-list-item__details",
         children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
           className: "block-directory-downloadable-block-list-item__title",
-          children: (0,external_wp_element_namespaceObject.createInterpolateElement)((0,external_wp_i18n_namespaceObject.sprintf)( /* translators: 1: block title. 2: author name. */
+          children: (0,external_wp_element_namespaceObject.createInterpolateElement)((0,external_wp_i18n_namespaceObject.sprintf)(/* translators: 1: block title. 2: author name. */
           (0,external_wp_i18n_namespaceObject.__)('%1$s <span>by %2$s</span>'), (0,external_wp_htmlEntities_namespaceObject.decodeEntities)(title), author), {
             span: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("span", {
               className: "block-directory-downloadable-block-list-item__author"
@@ -1732,8 +1746,6 @@ const external_wp_a11y_namespaceObject = window["wp"]["a11y"];
 
 
 
-
-
 function DownloadableBlocksInserterPanel({
   children,
   downloadableItems,
@@ -1741,7 +1753,7 @@ function DownloadableBlocksInserterPanel({
 }) {
   const count = downloadableItems.length;
   (0,external_wp_element_namespaceObject.useEffect)(() => {
-    (0,external_wp_a11y_namespaceObject.speak)((0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %d: number of available blocks. */
+    (0,external_wp_a11y_namespaceObject.speak)((0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %d: number of available blocks. */
     (0,external_wp_i18n_namespaceObject._n)('%d additional block is available to install.', '%d additional blocks are available to install.', count), count));
   }, [count]);
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
@@ -1767,21 +1779,6 @@ function DownloadableBlocksInserterPanel({
 }
 /* harmony default export */ const inserter_panel = (DownloadableBlocksInserterPanel);
 
-;// ./node_modules/@wordpress/icons/build-module/library/block-default.js
-/**
- * WordPress dependencies
- */
-
-
-const blockDefault = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_primitives_namespaceObject.SVG, {
-  xmlns: "http://www.w3.org/2000/svg",
-  viewBox: "0 0 24 24",
-  children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_primitives_namespaceObject.Path, {
-    d: "M19 8h-1V6h-5v2h-2V6H6v2H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2zm.5 10c0 .3-.2.5-.5.5H5c-.3 0-.5-.2-.5-.5v-8c0-.3.2-.5.5-.5h14c.3 0 .5.2.5.5v8z"
-  })
-});
-/* harmony default export */ const block_default = (blockDefault);
-
 ;// ./node_modules/@wordpress/block-directory/build-module/components/downloadable-blocks-panel/no-results.js
 /**
  * WordPress dependencies
@@ -1789,19 +1786,13 @@ const blockDefault = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.js
 
 
 
-
-
-
 function DownloadableBlocksNoResults() {
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
-    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)("div", {
+    children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
       className: "block-editor-inserter__no-results",
-      children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(icon, {
-        className: "block-editor-inserter__no-results-icon",
-        icon: block_default
-      }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("p", {
+      children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("p", {
         children: (0,external_wp_i18n_namespaceObject.__)('No results found.')
-      })]
+      })
     }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
       className: "block-editor-inserter__tips",
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_components_namespaceObject.Tip, {
@@ -1833,9 +1824,7 @@ function DownloadableBlocksNoResults() {
 
 
 
-
-
-const EMPTY_ARRAY = [];
+const downloadable_blocks_panel_EMPTY_ARRAY = [];
 const useDownloadableBlocks = filterValue => (0,external_wp_data_namespaceObject.useSelect)(select => {
   const {
     getDownloadableBlocks,
@@ -1843,7 +1832,7 @@ const useDownloadableBlocks = filterValue => (0,external_wp_data_namespaceObject
     getInstalledBlockTypes
   } = select(store);
   const hasPermission = select(external_wp_coreData_namespaceObject.store).canUser('read', 'block-directory/search');
-  let downloadableBlocks = EMPTY_ARRAY;
+  let downloadableBlocks = downloadable_blocks_panel_EMPTY_ARRAY;
   if (hasPermission) {
     downloadableBlocks = getDownloadableBlocks(filterValue);
 
@@ -1868,7 +1857,7 @@ const useDownloadableBlocks = filterValue => (0,external_wp_data_namespaceObject
 
     // Return identical empty array when there are no blocks
     if (downloadableBlocks.length === 0) {
-      downloadableBlocks = EMPTY_ARRAY;
+      downloadableBlocks = downloadable_blocks_panel_EMPTY_ARRAY;
     }
   }
   return {
@@ -1976,7 +1965,6 @@ function InserterMenuDownloadableBlocksPanel() {
  */
 
 
-
 function CompactList({
   items
 }) {
@@ -2002,7 +1990,7 @@ function CompactList({
           children: title
         }), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)("div", {
           className: "block-directory-compact-list__item-author",
-          children: (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %s: Name of the block author. */
+          children: (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %s: Name of the block author. */
           (0,external_wp_i18n_namespaceObject.__)('By %s'), author)
         })]
       })]
@@ -2018,11 +2006,9 @@ function CompactList({
 
 
 
-
 /**
  * Internal dependencies
  */
-
 
 
 
@@ -2032,7 +2018,6 @@ function InstalledBlocksPrePublishPanel() {
     return null;
   }
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_wp_editor_namespaceObject.PluginPrePublishPanel, {
-    icon: block_default,
     title: (0,external_wp_i18n_namespaceObject.sprintf)(
     // translators: %d: number of blocks (number).
     (0,external_wp_i18n_namespaceObject._n)('Added: %d block', 'Added: %d blocks', newBlockTypes.length), newBlockTypes.length),
@@ -2088,7 +2073,7 @@ function InstallButton({
     disabled: isInstallingBlock,
     isBusy: isInstallingBlock,
     variant: "primary",
-    children: (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %s: block name */
+    children: (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %s: block name */
     (0,external_wp_i18n_namespaceObject.__)('Install %s'), block.title)
   });
 }
@@ -2108,7 +2093,6 @@ function InstallButton({
 /**
  * Internal dependencies
  */
-
 
 
 
@@ -2170,7 +2154,7 @@ const ModifiedWarning = ({
     } = select(external_wp_blockEditor_namespaceObject.store);
     return canInsertBlockType('core/html', getBlockRootClientId(clientId));
   }, [clientId]);
-  let messageHTML = (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %s: block name */
+  let messageHTML = (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %s: block name */
   (0,external_wp_i18n_namespaceObject.__)('Your site doesn’t include support for the %s block. You can try installing the block or remove it entirely.'), originalBlock.title || originalName);
   const actions = [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(InstallButton, {
     block: originalBlock,
@@ -2178,9 +2162,9 @@ const ModifiedWarning = ({
     clientId: props.clientId
   }, "install")];
   if (hasContent && hasHTMLBlock) {
-    messageHTML = (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %s: block name */
+    messageHTML = (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %s: block name */
     (0,external_wp_i18n_namespaceObject.__)('Your site doesn’t include support for the %s block. You can try installing the block, convert it to a Custom HTML block, or remove it entirely.'), originalBlock.title || originalName);
-    actions.push( /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
+    actions.push(/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Button, {
       __next40pxDefaultSize: true,
       onClick: convertToHTML,
       variant: "tertiary",
@@ -2214,9 +2198,10 @@ const ModifiedWarning = ({
 
 
 
-
-
 (0,external_wp_plugins_namespaceObject.registerPlugin)('block-directory', {
+  // The icon is explicitly set to undefined to prevent PluginPrePublishPanel
+  // from rendering the fallback icon pluginIcon.
+  icon: undefined,
   render() {
     return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
       children: [/*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(AutoBlockUninstaller, {}), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(inserter_menu_downloadable_blocks_panel, {}), /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(InstalledBlocksPrePublishPanel, {})]

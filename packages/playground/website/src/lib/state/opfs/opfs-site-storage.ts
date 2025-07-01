@@ -6,10 +6,12 @@
  */
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
-import { createSiteMetadata, SiteMetadata } from '../../site-metadata';
-import { SiteInfo } from '../redux/slice-sites';
+import type { SiteMetadata } from '../../site-metadata';
+import { createSiteMetadata } from '../../site-metadata';
+import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { getBlueprintDeclaration } from '@wp-playground/blueprints';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -42,17 +44,23 @@ try {
 			create: true,
 		});
 	}
-} catch (e) {
+} catch {
 	// Ignore. OPFS is not supported in this environment.
 }
 
 class OpfsSiteStorage {
-	constructor(private readonly root: FileSystemDirectoryHandle) {}
+	private readonly root: FileSystemDirectoryHandle;
+	constructor(root: FileSystemDirectoryHandle) {
+		this.root = root;
+	}
 
 	async create(slug: string, metadata: SiteMetadata): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		if (await opfsChildExists(this.root, newSiteDirName)) {
-			throw new Error(`Site with slug '${slug}' already exists.`);
+			const dir = await this.root.getDirectoryHandle(newSiteDirName);
+			if (await opfsChildExists(dir, SITE_METADATA_FILENAME)) {
+				throw new Error(`Site with slug '${slug}' already exists.`);
+			}
 		}
 
 		await this.root.getDirectoryHandle(newSiteDirName, {
@@ -60,7 +68,7 @@ class OpfsSiteStorage {
 		});
 		await opfsWriteFile(
 			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
-			metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata)
 		);
 	}
 
@@ -72,7 +80,7 @@ class OpfsSiteStorage {
 
 		await opfsWriteFile(
 			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
-			metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata)
 		);
 	}
 
@@ -140,7 +148,7 @@ class OpfsSiteStorage {
 				const legacyPath = joinPaths('/', entry.name);
 				await opfsWriteFile(
 					joinPaths(legacyPath, SITE_METADATA_FILENAME),
-					metadataToStoredFormat(slug, newMetadata)
+					await metadataToStoredFormat(slug, newMetadata)
 				);
 				const legacySite = await this.readSiteFromDirHandle(entry);
 				// Relay legacy OPFS path so knowledge of the path is only needed here.
@@ -199,8 +207,19 @@ export function getDirectoryNameForSlug(slug: string) {
 	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
 }
 
-function metadataToStoredFormat(slug: string, metadata: SiteMetadata): string {
-	return JSON.stringify({ slug, ...metadata }, undefined, '  ');
+async function metadataToStoredFormat(
+	slug: string,
+	{ originalBlueprint, ...metadata }: SiteMetadata
+): Promise<string> {
+	return JSON.stringify(
+		{
+			slug,
+			originalBlueprint: await getBlueprintDeclaration(originalBlueprint),
+			...metadata,
+		},
+		undefined,
+		'  '
+	);
 }
 
 function storedFormatToMetadata(data: string) {
@@ -219,11 +238,11 @@ async function opfsChildExists(
 	try {
 		await handle.getDirectoryHandle(name);
 		return true;
-	} catch (e) {
+	} catch {
 		try {
 			await handle.getFileHandle(name);
 			return true;
-		} catch (e) {
+		} catch {
 			return false;
 		}
 	}

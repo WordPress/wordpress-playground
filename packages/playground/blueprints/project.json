@@ -5,6 +5,19 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/blueprints/README.md dist/packages/playground/blueprints"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/playground/blueprints/tsconfig.lib.json",
@@ -51,6 +64,10 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite"]
@@ -76,7 +93,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

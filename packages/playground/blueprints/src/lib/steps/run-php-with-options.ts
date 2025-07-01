@@ -1,5 +1,5 @@
-import { StepHandler } from '.';
-import { PHPRunOptions } from '@php-wasm/universal';
+import type { StepHandler } from '.';
+import type { PHPRunOptions } from '@php-wasm/universal';
 
 /**
  * @inheritDoc runPHP

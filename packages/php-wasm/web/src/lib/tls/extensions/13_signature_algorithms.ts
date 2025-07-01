@@ -76,7 +76,8 @@ export class SignatureAlgorithmsExtension {
 			const hash = reader.readUint8();
 			const algorithm = reader.readUint8();
 			if (!SignatureAlgorithmsNames[algorithm]) {
-				logger.warn(`Unknown signature algorithm: ${algorithm}`);
+				// Unknown signature algorithm. It's fine, the client just supports
+				// more algorithms than the server.
 				continue;
 			}
 			if (!HashAlgorithmsNames[hash]) {

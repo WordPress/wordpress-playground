@@ -11,6 +11,6 @@
 			"@types/wicg-file-system-access"
 		]
 	},
-	"include": ["src/**/*.ts"],
+	"include": ["src/**/*.ts", "tests/filesystems.spec.ts"],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

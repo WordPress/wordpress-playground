@@ -1,6 +1,6 @@
 import {
 	MinifiedWordPressVersions,
-	getSqliteDatabaseModule,
+	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -24,7 +24,7 @@ describe('Test WP version detection', async () => {
 				wordPressZip: await getWordPressModule(
 					expectedWordPressVersion
 				),
-				sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 			});
 			const loadedWordPressVersion = await getLoadedWordPressVersion(
 				handler
@@ -39,7 +39,7 @@ describe('Test WP version detection', async () => {
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		const php = await handler.getPrimaryPhp();
 
@@ -57,7 +57,7 @@ describe('Test WP version detection', async () => {
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		const php = await handler.getPrimaryPhp();
 

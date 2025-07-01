@@ -1,6 +1,7 @@
 import { createServer } from 'net';
-import { WebSocketServer, WebSocket } from 'ws';
-import { debugLog } from './utils.js';
+import type { WebSocketServer } from 'ws';
+import { WebSocket } from 'ws';
+import { debugLog } from './utils';
 function log(...args: any[]) {
 	debugLog('[TCP Server]', ...args);
 }

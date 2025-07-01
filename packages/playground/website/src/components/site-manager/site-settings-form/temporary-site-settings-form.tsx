@@ -4,10 +4,8 @@ import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import { redirectTo, PlaygroundRoute } from '../../../lib/state/url/router';
-import {
-	SiteFormData,
-	UnconnectedSiteSettingsForm,
-} from './unconnected-site-settings-form';
+import type { SiteFormData } from './unconnected-site-settings-form';
+import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
 
 export function TemporarySiteSettingsForm({
 	siteSlug,

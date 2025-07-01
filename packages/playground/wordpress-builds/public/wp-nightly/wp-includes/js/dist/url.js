@@ -659,7 +659,7 @@ const PHONE_REGEXP = /^(tel:)?(\+)?\d{6,15}$/;
  * @return {boolean} Whether or not it looks like a phone number.
  */
 function isPhoneNumber(phoneNumber) {
-  // Remove any seperator from phone number.
+  // Remove any separator from phone number.
   phoneNumber = phoneNumber.replace(/[-.() ]/g, '');
   return PHONE_REGEXP.test(phoneNumber);
 }
@@ -1078,6 +1078,7 @@ function getQueryArgs(url) {
 
 
 
+
 /**
  * Appends arguments as querystring to the provided URL. If the URL already
  * includes query arguments, the arguments are merged with (and take precedent
@@ -1099,7 +1100,8 @@ function addQueryArgs(url = '', args) {
   if (!args || !Object.keys(args).length) {
     return url;
   }
-  let baseUrl = url;
+  const fragment = getFragment(url) || '';
+  let baseUrl = url.replace(fragment, '');
 
   // Determine whether URL already had query arguments.
   const queryStringIndex = url.indexOf('?');
@@ -1110,7 +1112,7 @@ function addQueryArgs(url = '', args) {
     // Change working base URL to omit previous query arguments.
     baseUrl = baseUrl.substr(0, queryStringIndex);
   }
-  return baseUrl + '?' + buildQueryString(args);
+  return baseUrl + '?' + buildQueryString(args) + fragment;
 }
 
 ;// ./node_modules/@wordpress/url/build-module/get-query-arg.js
@@ -1188,15 +1190,18 @@ function hasQueryArg(url, arg) {
  * @return {string} Updated URL.
  */
 function removeQueryArgs(url, ...args) {
+  const fragment = url.replace(/^[^#]*/, '');
+  url = url.replace(/#.*/, '');
   const queryStringIndex = url.indexOf('?');
   if (queryStringIndex === -1) {
-    return url;
+    return url + fragment;
   }
   const query = getQueryArgs(url);
   const baseURL = url.substr(0, queryStringIndex);
   args.forEach(arg => delete query[arg]);
   const queryString = buildQueryString(query);
-  return queryString ? baseURL + '?' + queryString : baseURL;
+  const updatedUrl = queryString ? baseURL + '?' + queryString : baseURL;
+  return updatedUrl + fragment;
 }
 
 ;// ./node_modules/@wordpress/url/build-module/prepend-http.js
@@ -1381,9 +1386,9 @@ function getFilename(url) {
  * @return {string} Normalized path.
  */
 function normalizePath(path) {
-  const splitted = path.split('?');
-  const query = splitted[1];
-  const base = splitted[0];
+  const split = path.split('?');
+  const query = split[1];
+  const base = split[0];
   if (!query) {
     return base;
   }

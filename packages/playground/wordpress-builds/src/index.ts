@@ -1,7 +1,10 @@
 export { getWordPressModuleDetails } from './wordpress/get-wordpress-module-details';
 export { getWordPressModule } from './wordpress/get-wordpress-module';
-export * as sqliteDatabaseIntegrationModuleDetails from './sqlite-database-integration/get-sqlite-database-plugin-details';
-export { getSqliteDatabaseModule } from './sqlite-database-integration/get-sqlite-database-module';
+export {
+	getSqliteDriverModule,
+	LatestSqliteDriverVersion,
+} from './sqlite-database-integration/get-sqlite-driver-module';
+export { getSqliteDriverModuleDetails } from './sqlite-database-integration/get-sqlite-driver-module-details';
 import MinifiedWordPressVersions from './wordpress/wp-versions.json';
 
 export { MinifiedWordPressVersions };

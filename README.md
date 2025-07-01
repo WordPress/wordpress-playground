@@ -113,11 +113,17 @@ npx nx start php-wasm-cli
 # Build latest WordPress releases
 npx nx bundle-wordpress:all playground-wordpress-builds
 
-# Recompile PHP 7.0 - 8.3 releases to .wasm for web
+# Recompile PHP 7.0 - 8.4 releases to .wasm for web
 npx nx recompile-php:all php-wasm-web
 
-# Recompile PHP 7.0 - 8.3 releases to .wasm for node
+# Recompile PHP 7.0 - 8.4 releases to .wasm for node
 npx nx recompile-php:all php-wasm-node
+
+## Recompile with DWARF debug info for debugging
+npx nx recompile-php:all php-wasm-node --WITH_DEBUG=yes
+
+## Recompile with source maps for debugging
+npx nx recompile-php:all php-wasm-node --WITH_SOURCEMAPS=yes
 
 # Builds the documentation site
 npx nx build docs-site

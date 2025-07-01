@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { rm } from './rm';
 import { phpVars, randomFilename } from '@php-wasm/util';
 

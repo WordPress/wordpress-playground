@@ -87,8 +87,10 @@ class EventEmitter {
 export class ProcessApi extends EventEmitter {
 	private exited = false;
 	private stdinData: Uint8Array[] | null = [];
-	constructor(private childProcess: ChildProcess) {
+	private childProcess: ChildProcess;
+	constructor(childProcess: ChildProcess) {
 		super();
+		this.childProcess = childProcess;
 		childProcess.on('stdin', (data: Uint8Array) => {
 			if (this.stdinData) {
 				// Need to clone the data buffer as it's reused by PHP
@@ -117,6 +119,9 @@ export class ProcessApi extends EventEmitter {
 	stderrEnd() {
 		this.childProcess.stderr.emit('end', {});
 	}
+	notifySpawn() {
+		this.childProcess.emit('spawn', true);
+	}
 	exit(code: number) {
 		if (!this.exited) {
 			this.exited = true;
@@ -142,10 +147,12 @@ export class ChildProcess extends EventEmitter {
 	stdout: EventEmitter = new EventEmitter();
 	stderr: EventEmitter = new EventEmitter();
 	stdin: StdIn;
-	constructor(public pid = lastPid++) {
+	pid: number;
+	constructor(pid = lastPid++) {
 		super();
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;
+		this.pid = pid;
 		this.stdin = {
 			write: (data: string) => {
 				self.emit('stdin', data);

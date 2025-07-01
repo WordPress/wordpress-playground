@@ -2,29 +2,26 @@ import css from './style.module.css';
 
 import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
-import {
-	useAppSelector,
-	useAppDispatch,
+import type {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 } from '../../lib/state/redux/store';
+import { useAppSelector, useAppDispatch } from '../../lib/state/redux/store';
 import { addCrashListener, logger } from '@php-wasm/logger';
-import { Blueprint } from '@wp-playground/blueprints';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
-import {
-	ExportFormValues,
-	asPullRequestAction,
-} from '../../github/github-export-form/form';
+import type { ExportFormValues } from '../../github/github-export-form/form';
+import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GithubImportModal } from '../../github/github-import-form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import { asContentType } from '../../github/import-from-github';
 import { ErrorReportModal } from '../error-report-modal';
 import { LogModal } from '../log-modal';
 import { StartErrorModal } from '../start-error-modal';
+import type { DisplayMode } from '../playground-viewport';
 import {
-	DisplayMode,
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
@@ -114,7 +111,7 @@ export function Layout() {
  * over other modals (e.g. connect to GitHub). Discuss whether modals should be declared at the
  * top level, like here, or contextual to where the "Show modal" button is rendered.
  */
-function Modals(blueprint: Blueprint) {
+function Modals(blueprint: BlueprintDeclaration) {
 	const dispatch: PlaygroundDispatch = useAppDispatch();
 
 	const query = new URL(document.location.href).searchParams;

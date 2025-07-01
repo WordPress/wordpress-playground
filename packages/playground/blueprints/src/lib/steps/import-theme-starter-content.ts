@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { phpVar } from '@php-wasm/util';
 
 /**

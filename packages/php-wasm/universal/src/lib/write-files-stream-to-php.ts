@@ -1,5 +1,5 @@
 import { dirname, joinPaths } from '@php-wasm/util';
-import { UniversalPHP } from './universal-php';
+import type { UniversalPHP } from './universal-php';
 
 /**
  * Writes streamed files to PHP filesystem.

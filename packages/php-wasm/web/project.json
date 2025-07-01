@@ -64,9 +64,7 @@
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -91,9 +89,7 @@
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/asyncify",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/php/asyncify"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/asyncify"
 				],
 				"parallel": false
 			}
@@ -106,11 +102,16 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

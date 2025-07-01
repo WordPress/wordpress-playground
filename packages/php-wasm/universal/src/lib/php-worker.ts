@@ -1,15 +1,15 @@
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { PHP } from './php';
-import { PHPRequestHandler } from './php-request-handler';
-import { PHPResponse } from './php-response';
-import {
+import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { PHP } from './php';
+import type { PHPRequestHandler } from './php-request-handler';
+import type { PHPResponse } from './php-response';
+import type {
 	PHPRequest,
 	PHPRunOptions,
 	MessageListener,
 	PHPEvent,
 	PHPEventListener,
 } from './universal-php';
-import { RmDirOptions, ListFilesOptions } from './fs-helpers';
+import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
 
 const _private = new WeakMap<
 	PHPWorker,
@@ -48,7 +48,7 @@ export type LimitedPHPApi = Pick<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class PHPWorker implements LimitedPHPApi {
+export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
 	absoluteUrl = '';
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
@@ -252,5 +252,9 @@ export class PHPWorker implements LimitedPHPApi {
 		listener: PHPEventListener
 	): void {
 		_private.get(this)!.php!.removeEventListener(eventType, listener);
+	}
+
+	async [Symbol.asyncDispose]() {
+		await _private.get(this)!.requestHandler?.[Symbol.asyncDispose]();
 	}
 }

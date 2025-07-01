@@ -1,4 +1,5 @@
-import { test as base, FrameLocator } from '@playwright/test';
+import type { FrameLocator } from '@playwright/test';
+import { test as base } from '@playwright/test';
 import { WebsitePage } from './website-page';
 
 type WordPressFixtures = {

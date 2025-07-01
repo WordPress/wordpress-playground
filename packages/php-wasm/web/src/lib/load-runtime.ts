@@ -1,19 +1,19 @@
-import {
-	EmscriptenOptions,
-	loadPHPRuntime,
-	PHPLoaderModule,
+import type {
 	SupportedPHPVersion,
+	EmscriptenOptions,
+	PHPLoaderModule,
 } from '@php-wasm/universal';
+import { loadPHPRuntime } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
-import {
-	TCPOverFetchOptions,
-	tcpOverFetchWebsocket,
-} from './tcp-over-fetch-websocket';
+import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
+import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
+import { withICUData } from './with-icu-data';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
+	withICU?: boolean;
 }
 
 /**
@@ -28,7 +28,7 @@ const fakeWebsocket = () => {
 					constructor() {
 						try {
 							super();
-						} catch (e) {
+						} catch {
 							// pass
 						}
 					}
@@ -44,15 +44,30 @@ const fakeWebsocket = () => {
 
 export async function loadWebRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: LoaderOptions = {}
+	loaderOptions: LoaderOptions = {}
 ) {
-	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-	options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
-	const websocketExtension = options.tcpOverFetch
-		? tcpOverFetchWebsocket(options.tcpOverFetch)
-		: fakeWebsocket();
-	return await loadPHPRuntime(phpLoaderModule, {
-		...(options.emscriptenOptions || {}),
-		...websocketExtension,
-	});
+	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
+		...fakeWebsocket(),
+		...(loaderOptions.emscriptenOptions || {}),
+	};
+
+	if (loaderOptions.tcpOverFetch) {
+		emscriptenOptions = tcpOverFetchWebsocket(
+			emscriptenOptions,
+			loaderOptions.tcpOverFetch
+		);
+	}
+
+	if (loaderOptions.withICU) {
+		emscriptenOptions = withICUData(emscriptenOptions);
+	}
+
+	const [phpLoaderModule, options] = await Promise.all([
+		getPHPLoaderModule(phpVersion),
+		emscriptenOptions,
+	]);
+
+	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
+
+	return await loadPHPRuntime(phpLoaderModule, options);
 }

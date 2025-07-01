@@ -3,7 +3,6 @@
 	"compilerOptions": {
 		"allowJs": true,
 		"outDir": "../../../dist/out-tsc",
-		"module": "commonjs",
 		"types": ["cypress", "node"],
 		"sourceMap": false
 	},

@@ -3,7 +3,8 @@ import css from './terminal.module.css';
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { PlaygroundClient, phpVar } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
+import { phpVar } from '@wp-playground/client';
 
 interface TerminalComponentProps {
 	playground: PlaygroundClient;

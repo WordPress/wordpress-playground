@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, normalizePath } from '@php-wasm/util';
 
 export type IterateFilesOptions = {

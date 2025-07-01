@@ -1,5 +1,5 @@
 import { test, expect } from '../playground-fixtures.ts';
-import { Blueprint } from '@wp-playground/blueprints';
+import type { Blueprint } from '@wp-playground/blueprints';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -128,15 +128,6 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 });
 
 SupportedPHPVersions.forEach(async (version) => {
-	/**
-	 * WordPress 6.6 dropped support for PHP 7.0 and 7.1 and won't load on these versions.
-	 * Therefore, we're skipping the test for these versions.
-	 * @see https://make.wordpress.org/core/2024/04/08/dropping-support-for-php-7-1/
-	 */
-	if (['7.0', '7.1'].includes(version)) {
-		return;
-	}
-
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
 		await website.goto(`./`);
 		await website.ensureSiteManagerIsOpen();
@@ -177,12 +168,10 @@ Object.keys(MinifiedWordPressVersions)
 		});
 	});
 
-test('should display networking as inactive by default', async ({
-	website,
-}) => {
+test('should display networking as active by default', async ({ website }) => {
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
-	await expect(website.page.getByLabel('Network access')).not.toBeChecked();
+	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
 test('should display networking as active when networking is enabled', async ({

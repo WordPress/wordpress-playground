@@ -47,6 +47,8 @@ Blueprints fetch any resources you declare for you. You don't have to worry abou
 
 Because Blueprints can be pasted in the URL, you can embed or link to a Playground with a specific configuration. For example, clicking this button will open a Playground with PHP 7.4 and a pendant theme installed:
 
+import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
+
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
 		"php": "7.4",

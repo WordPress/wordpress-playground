@@ -1,11 +1,14 @@
 import { normalizePath } from '@php-wasm/util';
-import { FileTree } from './git-sparse-checkout';
+import type { GitFileTree } from './git-sparse-checkout';
 
-export function listDescendantFiles(files: FileTree[], selectedPath: string) {
+export function listDescendantFiles(
+	files: GitFileTree[],
+	selectedPath: string
+) {
 	selectedPath = normalizePath(selectedPath);
 	const isRoot = ['', '.', '/'].includes(selectedPath);
 
-	let currentTree: FileTree[] | null = files;
+	let currentTree: GitFileTree[] | null = files;
 	if (isRoot) {
 		selectedPath = '';
 	} else {
@@ -13,7 +16,7 @@ export function listDescendantFiles(files: FileTree[], selectedPath: string) {
 		for (const segment of segments) {
 			const file = currentTree?.find(
 				(file) => file.name === segment
-			) as FileTree;
+			) as GitFileTree;
 			if (file?.type === 'folder') {
 				currentTree = file.children;
 			} else if (file) {
@@ -29,7 +32,7 @@ export function listDescendantFiles(files: FileTree[], selectedPath: string) {
 	const stack = [{ tree: currentTree, path: selectedPath }];
 	while (stack.length > 0) {
 		const { tree, path } = stack.pop() as {
-			tree: FileTree[];
+			tree: GitFileTree[];
 			path: string;
 		};
 		for (const file of tree) {

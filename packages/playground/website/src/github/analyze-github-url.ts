@@ -10,7 +10,7 @@ export function staticAnalyzeGitHubURL(url: string): GitHubURLInformation {
 	let urlObj;
 	try {
 		urlObj = new URL(url);
-	} catch (e) {
+	} catch {
 		return {
 			type: 'unknown',
 		};

@@ -1,5 +1,5 @@
-import { SyncMiddleware } from '.';
-import { SQLJournalEntry } from '../sql';
+import type { SyncMiddleware } from '.';
+import type { SQLJournalEntry } from '../sql';
 
 export const pruneSQLQueriesMiddleware = (): SyncMiddleware => ({
 	beforeSend: (envelope) => ({

@@ -44,19 +44,16 @@
   border-radius:9999px;
   display:block;
   height:auto;
-  transition:transform .1s ease;
 }
-@media (prefers-reduced-motion:reduce){
+@media not (prefers-reduced-motion){
   .wp-block-social-link{
-    transition-delay:0s;
-    transition-duration:0s;
+    transition:transform .1s ease;
   }
 }
 .wp-block-social-link a{
   align-items:center;
   display:flex;
   line-height:0;
-  transition:transform .1s ease;
 }
 .wp-block-social-link:hover{
   transform:scale(1.1);
@@ -98,6 +95,10 @@
 }
 :where(.wp-block-social-links:not(.is-style-logos-only)) .wp-social-link-deviantart{
   background-color:#02e49b;
+  color:#fff;
+}
+:where(.wp-block-social-links:not(.is-style-logos-only)) .wp-social-link-discord{
+  background-color:#5865f2;
   color:#fff;
 }
 :where(.wp-block-social-links:not(.is-style-logos-only)) .wp-social-link-dribbble{
@@ -279,6 +280,9 @@
 :where(.wp-block-social-links.is-style-logos-only) .wp-social-link-deviantart{
   color:#02e49b;
 }
+:where(.wp-block-social-links.is-style-logos-only) .wp-social-link-discord{
+  color:#5865f2;
+}
 :where(.wp-block-social-links.is-style-logos-only) .wp-social-link-dribbble{
   color:#e94c89;
 }
@@ -408,8 +412,8 @@
 }
 
 :root :where(.wp-block-social-links.is-style-pill-shape .wp-social-link a){
-  padding-left:.66667em;
-  padding-right:.66667em;
+  padding-left:.6666666667em;
+  padding-right:.6666666667em;
 }
 
 .wp-block-social-links:not(.has-icon-color):not(.has-icon-background-color) .wp-social-link-snapchat .wp-block-social-link-label{

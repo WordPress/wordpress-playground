@@ -1,11 +1,11 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
-	getSqliteDatabaseModule,
+	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { setSiteOptions } from './site-data';
-import { PHPRequestHandler } from '@php-wasm/universal';
+import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 
@@ -19,7 +19,7 @@ describe('Blueprint step setSiteOptions()', () => {
 			siteUrl: 'http://playground-domain/',
 
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
 	});
