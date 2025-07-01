@@ -83,9 +83,9 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 20
-              env:
-                  NODE_OPTIONS: '--max_old_space_size=8192'
-            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
+            - run: |
+                  export NODE_OPTIONS="--max_old_space_size=9216"
+                  node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }} -- --threads=false
               env:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user

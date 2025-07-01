@@ -86,7 +86,7 @@ export default defineConfig(function () {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.
 				forks: {
-					execArgv: ['--expose-gc', '--max-old-space-size=8192'],
+					execArgv: ['--expose-gc', '--max-old-space-size=9216'],
 				},
 			},
 			environment: 'node',
