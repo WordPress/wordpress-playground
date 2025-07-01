@@ -26,7 +26,6 @@ jobs:
     test-unit-asyncify:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
-        if: false # TODO: Re-enable this once the tests are fixed
         strategy:
             fail-fast: false
             matrix:
@@ -107,7 +106,6 @@ jobs:
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
-        if: false # TODO: Re-enable this once the tests are fixed
         # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v4
