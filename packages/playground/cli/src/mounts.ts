@@ -118,7 +118,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 	const newArgs = {
 		...args,
 		mount,
-		mountBeforeInstall,
+		'mount-before-install': mountBeforeInstall,
 		'additional-blueprint-steps': [
 			...(args['additional-blueprint-steps'] || []),
 		],
