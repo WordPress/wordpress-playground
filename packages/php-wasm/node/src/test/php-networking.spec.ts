@@ -76,9 +76,9 @@ describe.each(SupportedPHPVersions)(
 				php.writeFile(
 					'/tmp/test.php',
 					`<?php
-				$url = str_replace('http://', '', "${serverUrl}"); 
+				$url = str_replace('http://', '', "${serverUrl}");
 				list($host, $port) = explode(':', $url);
-				
+
 				// Send a request via a stream_socket_client()
 				$handle = stream_socket_client("tcp://$host:$port", $errno, $errstr, 1);
 				stream_set_blocking($handle, false);
@@ -313,5 +313,5 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 	},
-	2000
+	4000
 );

@@ -65,6 +65,7 @@ describe.each(configsForRequestTests)(
 
 		afterEach(async () => {
 			php?.[Symbol.dispose]?.();
+			await handler?.[Symbol.asyncDispose]?.();
 		});
 
 		it('should execute a PHP file', async () => {

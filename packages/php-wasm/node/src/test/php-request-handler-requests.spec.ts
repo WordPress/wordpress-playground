@@ -67,6 +67,7 @@ describe.each(configsForRequestTests)(
 
 		afterEach(async () => {
 			php?.[Symbol.dispose]?.();
+			await handler?.[Symbol.asyncDispose]?.();
 		});
 
 		const fileNotFoundFallbackTestUris = [
@@ -314,6 +315,7 @@ describe.each(configsForRequestTests)(
 				getFileNotFoundActionForTest =
 					getFileNotFoundActionForWordPress;
 			});
+
 			it('should delegate request for non-existent PHP file to /index.php with query args', async () => {
 				php.writeFile(
 					joinPaths(docRoot, 'index.php'),
