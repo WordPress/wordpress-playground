@@ -2101,10 +2101,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
 				method: 'POST',
-				body: new TextEncoder().encode(`--boundary
-	Content-Disposition: form-data; name="foo"
-
-	bar`),
+				body: new TextEncoder().encode(
+					`--boundary\r\n` +
+						`Content-Disposition: form-data; name="foo"\r\n` +
+						`\r\n` +
+						`bar\r\n` +
+						`--boundary--\r\n`
+				),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
@@ -2120,12 +2123,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 							"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
 						));`,
 				method: 'POST',
-				body: new TextEncoder().encode(`--boundary
-	Content-Disposition: form-data; name="myFile"; filename="text.txt"
-	Content-Type: text/plain
-
-	bar
-	--boundary--`),
+				body: new TextEncoder().encode(
+					`--boundary\r\n` +
+						`Content-Disposition: form-data; name="myFile"; filename="text.txt"\r\n` +
+						`Content-Type: text/plain\r\n` +
+						`\r\n` +
+						`bar\r\n` +
+						`--boundary--\r\n`
+				),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},

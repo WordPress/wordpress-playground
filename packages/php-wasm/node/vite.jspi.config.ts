@@ -10,6 +10,7 @@ export default defineConfig((env) =>
 					forks: {
 						execArgv: [
 							'--expose-gc',
+							'--max-old-space-size=8192',
 							'--experimental-wasm-stack-switching',
 							'--experimental-wasm-jspi',
 						],
