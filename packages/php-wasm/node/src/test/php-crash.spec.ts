@@ -22,6 +22,10 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 			process.on('unhandledRejection', unhandledRejectionHandler);
 		});
 
+		afterEach(async () => {
+			php?.[Symbol.dispose]?.();
+		});
+
 		function unhandledRejectionHandler(error: any) {
 			unhandledRejection = error;
 		}

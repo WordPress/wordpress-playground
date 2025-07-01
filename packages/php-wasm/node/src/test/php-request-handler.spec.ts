@@ -22,6 +22,10 @@ describe.each(SupportedPHPVersions)(
 			php.mkdirTree('/var/www');
 		});
 
+		afterEach(async () => {
+			await handler?.[Symbol.asyncDispose]?.();
+		});
+
 		it.each([
 			['/index.php', '/index.php'],
 			['/index.php?foo=bar', '/index.php'],
