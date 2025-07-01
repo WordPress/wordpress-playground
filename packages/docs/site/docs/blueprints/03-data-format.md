@@ -70,12 +70,12 @@ The `preferredVersions` property declares your preferred PHP and WordPress versi
 
 You can use the `features` property to turn on or off certain features of the Playground instance. It can contain the following properties:
 
--   `networking`: Defaults to `false`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes.
+-   `networking`: Defaults to `true`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes.
 
 ```js
 {
 	"features": {
-		"networking": true
+		"networking": false
 	},
 }
 ```

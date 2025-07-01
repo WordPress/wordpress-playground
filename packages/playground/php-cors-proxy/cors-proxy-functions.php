@@ -411,6 +411,8 @@ function should_respond_with_cors_headers($host, $origin) {
         'https://playground.wordpress.net',
         'http://localhost',
         'http://127.0.0.1',
+        'http://127.0.0.1:5400',
+        'http://localhost:5400',
     );
     if (
         defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS') &&

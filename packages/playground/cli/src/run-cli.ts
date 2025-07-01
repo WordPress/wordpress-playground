@@ -1,30 +1,31 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type {
 	PHPRequest,
-	PHPRequestHandler,
+	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { PHPResponse } from '@php-wasm/universal';
+import { PHPResponse, consumeAPI, exposeAPI } from '@php-wasm/universal';
 import type {
-	BlueprintDeclaration,
 	BlueprintBundle,
+	BlueprintDeclaration,
 } from '@wp-playground/blueprints';
 import {
 	compileBlueprint,
-	runBlueprintSteps,
 	isBlueprintBundle,
+	runBlueprintSteps,
 } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import {
-	bootWordPress,
-	resolveWordPressRelease,
-} from '@wp-playground/wordpress';
+	RecommendedPHPVersion,
+	unzipFile,
+	zipDirectory,
+} from '@wp-playground/common';
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { rootCertificates } from 'tls';
+import { Worker } from 'worker_threads';
+// @ts-ignore
+import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { expandAutoMounts } from './cli-auto-mount';
 import {
 	CACHE_FOLDER,
@@ -33,7 +34,236 @@ import {
 	readAsFile,
 } from './download';
 import { startServer } from './server';
-import { type Mount, mountResources } from './mount';
+import type { Mount, PlaygroundCliWorker } from './worker-thread';
+// @ts-ignore
+import importedWorkerUrlString from './worker-thread?worker&url';
+// @ts-ignore
+import { FileLockManagerForNode } from '@php-wasm/node';
+import { LoadBalancer } from './load-balancer';
+/* eslint-disable no-console */
+import { SupportedPHPVersions } from '@php-wasm/universal';
+import { cpus } from 'os';
+import { jspi } from 'wasm-feature-detect';
+import yargs from 'yargs';
+import { isValidWordPressSlug } from './is-valid-wordpress-slug';
+import {
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mount';
+import { ReportableError } from './reportable-error';
+import { resolveBlueprint } from './resolve-blueprint';
+
+export async function parseOptionsAndRunCLI() {
+	/**
+	 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
+	 *       Perhaps the two could be handled by the same code?
+	 */
+	const yargsObject = yargs(process.argv.slice(2))
+		.usage('Usage: wp-playground <command> [options]')
+		.positional('command', {
+			describe: 'Command to run',
+			choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
+			demandOption: true,
+		})
+		.option('outfile', {
+			describe: 'When building, write to this output file.',
+			type: 'string',
+			default: 'wordpress.zip',
+		})
+		.option('port', {
+			describe: 'Port to listen on when serving.',
+			type: 'number',
+			default: 9400,
+		})
+		.option('php', {
+			describe: 'PHP version to use.',
+			type: 'string',
+			default: RecommendedPHPVersion,
+			choices: SupportedPHPVersions,
+		})
+		.option('wp', {
+			describe: 'WordPress version to use.',
+			type: 'string',
+			default: 'latest',
+		})
+		// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
+		// ReadOnlyNODEFS, or by copying the files into MEMFS
+		.option('mount', {
+			describe:
+				'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
+			type: 'array',
+			string: true,
+			coerce: parseMountWithDelimiterArguments,
+		})
+		.option('mount-before-install', {
+			describe:
+				'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
+			type: 'array',
+			string: true,
+			coerce: parseMountWithDelimiterArguments,
+		})
+		.option('mount-dir', {
+			describe:
+				'Mount a directory to the PHP runtime (can be used multiple times). Format: "/host/path" "/vfs/path"',
+			type: 'array',
+			nargs: 2,
+			array: true,
+			// coerce: parseMountDirArguments,
+		})
+		.option('mount-dir-before-install', {
+			describe:
+				'Mount a directory before WordPress installation (can be used multiple times). Format: "/host/path" "/vfs/path"',
+			type: 'string',
+			nargs: 2,
+			array: true,
+			coerce: parseMountDirArguments,
+		})
+		.option('login', {
+			describe: 'Should log the user in',
+			type: 'boolean',
+			default: false,
+		})
+		.option('blueprint', {
+			describe: 'Blueprint to execute.',
+			type: 'string',
+		})
+		.option('blueprint-may-read-adjacent-files', {
+			describe:
+				'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('skip-wordpress-setup', {
+			describe:
+				'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('skip-sqlite-setup', {
+			describe:
+				'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('quiet', {
+			describe: 'Do not output logs and progress messages.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('debug', {
+			describe:
+				'Print PHP error log content if an error occurs during Playground boot.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('auto-mount', {
+			describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
+			type: 'boolean',
+			default: false,
+		})
+		.option('follow-symlinks', {
+			describe:
+				'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
+			type: 'boolean',
+			default: false,
+		})
+		.option('experimentalTrace', {
+			describe:
+				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
+			type: 'boolean',
+			default: false,
+			// Hide this option because we want to replace with a more general log-level flag.
+			hidden: true,
+		})
+		// TODO: Should we make this a hidden flag?
+		.option('experimentalMultiWorker', {
+			describe:
+				'Enable experimental multi-worker support which requires JSPI ' +
+				'and a /wordpress directory backed by a real filesystem. ' +
+				'Pass a positive number to specify the number of workers to use. ' +
+				'Otherwise, default to the number of CPUs minus 1.',
+			type: 'number',
+			coerce: (value?: number) => value ?? cpus().length - 1,
+		})
+		.showHelpOnFail(false)
+		.check(async (args) => {
+			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
+				try {
+					// Check if is valid URL
+					new URL(args.wp);
+				} catch {
+					throw new Error(
+						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+					);
+				}
+			}
+
+			if (args.experimentalMultiWorker !== undefined) {
+				if (args.experimentalMultiWorker <= 1) {
+					throw new Error(
+						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
+					);
+				}
+
+				if (!(await jspi())) {
+					throw new Error(
+						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
+					);
+				}
+
+				const isMountingWordPressDir = (mount: Mount) =>
+					mount.vfsPath === '/wordpress';
+				if (
+					!args.mount?.some(isMountingWordPressDir) &&
+					!(args['mountBeforeInstall'] as any)?.some(
+						isMountingWordPressDir
+					)
+				) {
+					throw new Error(
+						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
+					);
+				}
+			}
+			return true;
+		});
+
+	yargsObject.wrap(yargsObject.terminalWidth());
+	const args = await yargsObject.argv;
+
+	const command = args._[0] as string;
+
+	if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {
+		yargsObject.showHelp();
+		process.exit(1);
+	}
+
+	const cliArgs = {
+		...args,
+		command,
+		blueprint: await resolveBlueprint({
+			sourceString: args.blueprint,
+			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
+		}),
+		mount: [...(args.mount || []), ...(args.mountDir || [])],
+		mountBeforeInstall: [
+			...(args.mountBeforeInstall || []),
+			...(args.mountDirBeforeInstall || []),
+		],
+	} as RunCLIArgs;
+
+	try {
+		return runCLI(cliArgs);
+	} catch (e) {
+		const reportableCause = ReportableError.getReportableCause(e);
+		if (reportableCause) {
+			console.log('');
+			console.log(reportableCause.message);
+			process.exit(1);
+		} else {
+			throw e;
+		}
+	}
+}
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
@@ -51,14 +281,25 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: boolean;
 	followSymlinks?: boolean;
+	experimentalMultiWorker?: number;
+	experimentalTrace?: boolean;
 }
 
-export interface RunCLIServer {
-	requestHandler: PHPRequestHandler;
+export interface RunCLIServer extends AsyncDisposable {
+	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
+	[Symbol.asyncDispose](): Promise<void>;
 }
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+	let loadBalancer: LoadBalancer;
+	let playground: RemoteAPI<PlaygroundCliWorker>;
+
+	const playgroundsToCleanUp: {
+		playground: RemoteAPI<PlaygroundCliWorker>;
+		worker: Worker;
+	}[] = [];
+
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps
 	 * when running in auto-mount mode.
@@ -73,35 +314,28 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 *       app.
 	 */
 	async function zipSite(outfile: string) {
-		// Fake URL for the build
-		const { php, reap } =
-			await requestHandler.processManager.acquirePHPInstance();
-		try {
-			await php.run({
-				code: `<?php
-				$zip = new ZipArchive();
-				if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
-					throw new Exception('Failed to create ZIP');
+		await playground.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
+				throw new Exception('Failed to create ZIP');
+			}
+			$files = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator('/wordpress')
+			);
+			foreach ($files as $file) {
+				echo $file . PHP_EOL;
+				if (!$file->isFile()) {
+					continue;
 				}
-				$files = new RecursiveIteratorIterator(
-					new RecursiveDirectoryIterator('/wordpress')
-				);
-				foreach ($files as $file) {
-					echo $file . PHP_EOL;
-					if (!$file->isFile()) {
-						continue;
-					}
-					$zip->addFile($file->getPathname(), $file->getPathname());
-				}
-				$zip->close();
+				$zip->addFile($file->getPathname(), $file->getPathname());
+			}
+			$zip->close();
 
-			`,
-			});
-			const zip = php.readFileAsBuffer('/tmp/build.zip');
-			fs.writeFileSync(outfile, zip);
-		} finally {
-			reap();
-		}
+		`,
+		});
+		const zip = await playground.readFileAsBuffer('/tmp/build.zip');
+		fs.writeFileSync(outfile, zip);
 	}
 
 	async function compileInputBlueprint() {
@@ -185,6 +419,53 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		}
 	}
 
+	/**
+	 * Spawns a new Worker Thread.
+	 *
+	 * @param  workerUrl The absolute URL of the worker script.
+	 * @returns The spawned Worker Thread.
+	 */
+	async function spawnPHPWorkerThread(workerUrl: URL) {
+		const worker = new Worker(workerUrl);
+
+		return new Promise<Worker>((resolve, reject) => {
+			function onMessage(event: string) {
+				// Let the worker confirm it has initialized.
+				// We could use the 'online' event to detect start of JS execution,
+				// but that would miss initialization errors.
+				if (event === 'worker-script-initialized') {
+					resolve(worker);
+					worker.off('message', onMessage);
+				}
+			}
+			function onError(e: Error) {
+				const error = new Error(
+					`Worker failed to load at ${workerUrl}. ${
+						e.message ? `Original error: ${e.message}` : ''
+					}`
+				);
+				(error as any).filename = workerUrl;
+				reject(error);
+				worker.off('error', onError);
+			}
+			worker.on('message', onMessage);
+			worker.on('error', onError);
+		});
+	}
+
+	function spawnWorkerThreads(count: number): Promise<Worker[]> {
+		const moduleWorkerUrl = new URL(
+			importedWorkerUrlString,
+			import.meta.url
+		);
+
+		const promises = [];
+		for (let i = 0; i < count; i++) {
+			promises.push(spawnPHPWorkerThread(moduleWorkerUrl));
+		}
+		return Promise.all(promises);
+	}
+
 	if (args.quiet) {
 		// @ts-ignore
 		logger.handlers = [];
@@ -192,7 +473,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	const compiledBlueprint = await compileInputBlueprint();
 
-	let requestHandler: PHPRequestHandler;
+	// Declare file lock manager outside scope of startServer
+	// so we can look at it when debugging request handling.
+	const fileLockManager = new FileLockManagerForNode();
+
 	let wordPressReady = false;
 
 	logger.log('Starting a PHP server...');
@@ -201,6 +485,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
+
+			// Kick off worker threads now to save time later.
+			// There is no need to wait for other async processes to complete.
+			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
+			const promisedWorkers = spawnWorkerThreads(totalWorkerCount);
 
 			logger.log(`Setting up WordPress ${args.wp}`);
 			let wpDetails: any = undefined;
@@ -235,10 +524,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}) as any);
 
 				wpDetails = await resolveWordPressRelease(args.wp);
+				logger.log(
+					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+				);
 			}
-			logger.log(
-				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-			);
 
 			const preinstalledWpContentPath =
 				wpDetails &&
@@ -256,48 +545,56 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						monitor
 				  );
 
-			const constants: Record<string, string | number | boolean | null> =
-				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
-				};
+			logger.log(`Fetching SQLite integration plugin...`);
+			const sqliteIntegrationPluginZip = args.skipSqliteSetup
+				? undefined
+				: await fetchSqliteIntegration(monitor);
 
-			logger.log(`Booting WordPress...`);
-			requestHandler = await bootWordPress({
-				siteUrl: absoluteUrl,
-				createPhpRuntime: async () =>
-					await loadNodeRuntime(compiledBlueprint.versions.php, {
-						followSymlinks: args.followSymlinks === true,
-					}),
-				wordPressZip,
-				sqliteIntegrationPluginZip: args.skipSqliteSetup
-					? undefined
-					: fetchSqliteIntegration(monitor),
-				sapiName: 'cli',
-				createFiles: {
-					'/internal/shared/ca-bundle.crt':
-						rootCertificates.join('\n'),
-				},
-				constants,
-				phpIniEntries: {
-					'openssl.cafile': '/internal/shared/ca-bundle.crt',
-					allow_url_fopen: '1',
-					disable_functions: '',
-				},
-				hooks: {
-					async beforeWordPressFiles(php) {
-						if (args.mountBeforeInstall) {
-							mountResources(php, args.mountBeforeInstall);
-						}
-					},
-				},
-				cookieStore: false,
-			});
-			logger.log(`Booted!`);
-
-			const php = await requestHandler.getPrimaryPhp();
+			const followSymlinks = args.followSymlinks === true;
+			const trace = args.experimentalTrace === true;
 			try {
+				const mountsBeforeWpInstall = args.mountBeforeInstall || [];
+				const mountsAfterWpInstall = args.mount || [];
+
+				const [initialWorker, ...additionalWorkers] =
+					await promisedWorkers;
+
+				playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
+				playgroundsToCleanUp.push({
+					playground,
+					worker: initialWorker,
+				});
+
+				await playground.isConnected();
+
+				exposeAPI(fileLockManager, undefined, initialWorker);
+
+				logger.log(`Booting WordPress...`);
+
+				// Each additional worker needs a separate process ID space
+				// for file locking to work properly because locks are associated
+				// with individual processes. To accommodate this, we split the safe
+				// integers into a range for each worker.
+				const processIdSpaceLength = Math.floor(
+					Number.MAX_SAFE_INTEGER / totalWorkerCount
+				);
+
+				await playground.boot({
+					phpVersion: compiledBlueprint.versions.php,
+					wpVersion: compiledBlueprint.versions.wp,
+					absoluteUrl,
+					mountsBeforeWpInstall,
+					mountsAfterWpInstall,
+					wordPressZip:
+						wordPressZip && (await wordPressZip!.arrayBuffer()),
+					sqliteIntegrationPluginZip:
+						await sqliteIntegrationPluginZip!.arrayBuffer(),
+					firstProcessId: 0,
+					processIdSpaceLength,
+					followSymlinks,
+					trace,
+				});
+
 				if (
 					wpDetails &&
 					!args.mountBeforeInstall &&
@@ -308,27 +605,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					);
 					fs.writeFileSync(
 						preinstalledWpContentPath,
-						await zipDirectory(php, '/wordpress')
+						await zipDirectory(playground, '/wordpress')
 					);
 					logger.log(`Cached!`);
 				}
 
-				if (args.mount) {
-					mountResources(php, args.mount);
-				}
+				loadBalancer = new LoadBalancer(playground);
 
+				await playground.isReady();
 				wordPressReady = true;
+				logger.log(`Booted!`);
 
 				if (compiledBlueprint) {
-					const { php, reap } =
-						await requestHandler.processManager.acquirePHPInstance();
-					try {
-						logger.log(`Running the Blueprint...`);
-						await runBlueprintSteps(compiledBlueprint, php);
-						logger.log(`Finished running the blueprint`);
-					} finally {
-						reap();
-					}
+					logger.log(`Running the Blueprint...`);
+					await runBlueprintSteps(compiledBlueprint, playground);
+					logger.log(`Finished running the blueprint`);
 				}
 
 				if (args.command === 'build-snapshot') {
@@ -338,16 +629,102 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				} else if (args.command === 'run-blueprint') {
 					logger.log(`Blueprint executed`);
 					process.exit(0);
-				} else {
-					logger.log(`WordPress is running on ${absoluteUrl}`);
 				}
 
-				return { requestHandler, server };
+				if (
+					args.experimentalMultiWorker &&
+					args.experimentalMultiWorker > 1
+				) {
+					logger.log(`Preparing additional workers...`);
+
+					// Save /internal directory from initial worker so we can replicate it
+					// in each additional worker.
+					const internalZip = await zipDirectory(
+						playground,
+						'/internal'
+					);
+
+					// Boot additional workers
+					const initialWorkerProcessIdSpace = processIdSpaceLength;
+					await Promise.all(
+						additionalWorkers.map(async (worker, index) => {
+							const additionalPlayground =
+								consumeAPI<PlaygroundCliWorker>(worker);
+							playgroundsToCleanUp.push({
+								playground: additionalPlayground,
+								worker,
+							});
+
+							await additionalPlayground.isConnected();
+							exposeAPI(fileLockManager, undefined, worker);
+
+							const firstProcessId =
+								initialWorkerProcessIdSpace +
+								index * processIdSpaceLength;
+
+							await additionalPlayground.boot({
+								phpVersion: compiledBlueprint.versions.php,
+								absoluteUrl,
+								mountsBeforeWpInstall,
+								mountsAfterWpInstall,
+								// Skip WordPress zip because we share the /wordpress directory
+								// populated by the initial worker.
+								wordPressZip: undefined,
+								// Skip SQLite integration plugin for now because we
+								// will copy it from primary's `/internal` directory.
+								sqliteIntegrationPluginZip: undefined,
+								dataSqlPath:
+									'/wordpress/wp-content/database/.ht.sqlite',
+								firstProcessId,
+								processIdSpaceLength,
+								followSymlinks,
+								trace,
+							});
+							await additionalPlayground.isReady();
+
+							// Replicate the Blueprint-initialized /internal directory
+							await additionalPlayground.writeFile(
+								'/tmp/internal.zip',
+								internalZip
+							);
+							await unzipFile(
+								additionalPlayground,
+								'/tmp/internal.zip',
+								'/internal'
+							);
+							await additionalPlayground.unlink(
+								'/tmp/internal.zip'
+							);
+
+							loadBalancer.addWorker(additionalPlayground);
+						})
+					);
+
+					logger.log(`Ready!`);
+				}
+
+				logger.log(`WordPress is running on ${absoluteUrl}`);
+
+				return {
+					playground,
+					server,
+					[Symbol.asyncDispose]: async function disposeCLI() {
+						await Promise.all(
+							playgroundsToCleanUp.map(
+								async ({ playground, worker }) => {
+									await playground.dispose();
+									await worker.terminate();
+								}
+							)
+						);
+						await new Promise((resolve) => server.close(resolve));
+					},
+				};
 			} catch (error) {
 				if (!args.debug) {
 					throw error;
 				}
-				const phpLogs = php.readFileAsText(errorLogPath);
+				const phpLogs = await playground.readFileAsText(errorLogPath);
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
@@ -358,7 +735,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					'WordPress is not ready yet'
 				);
 			}
-			return await requestHandler.request(request);
+			return await loadBalancer.handleRequest(request);
 		},
 	});
 }

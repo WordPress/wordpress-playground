@@ -37,7 +37,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -55,6 +55,7 @@ import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
+import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -104,6 +105,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	loadedWordPressVersion: string | undefined;
 
 	unmounts: Record<string, () => any> = {};
+
+	private networkTransport: WordPressFetchNetworkTransport | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -175,7 +178,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		phpVersion = '8.0',
 		sapiName = 'cli',
 		withICU = false,
-		withNetworking = false,
+		withNetworking = true,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
 	}: WorkerBootOptions) {
@@ -297,7 +300,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					.filter((n) => n)
 					.join(',');
 			}
-			const requestHandler = await bootWordPress({
+
+			this.networkTransport = new WordPressFetchNetworkTransport({
+				corsProxyUrl: corsProxyUrl,
+			});
+
+			const requestHandlerPromise = bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
@@ -334,6 +342,19 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 							});
 						},
 					});
+				},
+				onPHPInstanceCreated: async (php: PHP) => {
+					/**
+					 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
+					 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
+					 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
+					 * instances without a network call handler.
+					 *
+					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
+					 */
+					if (withNetworking) {
+						await this.networkTransport!.setupMessageHandler(php);
+					}
 				},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
@@ -403,10 +424,24 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					};
 				},
 			});
+			const requestHandler = await requestHandlerPromise;
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+
+			/**
+			 * Pre-fetch the slow initial burst of wp_update_* requests to greatly
+			 * improve the first wp-admin load time.
+			 */
+			if (withNetworking) {
+				/**
+				 * Only setup the network transport after WordPress have been installed. Otherwise,
+				 * the installer may send a network request to /wp-cron.php, which will fail because
+				 * the entire setup around network, SQLite, etc. is not complete yet.
+				 */
+				await this.networkTransport!.setEnabled(primaryPhp, true);
+			}
 
 			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
 			// from browser storage is the default version when it is actually something else.
@@ -470,6 +505,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async prefetchUpdateChecks() {
+		const primaryPhp = this.__internal_getPHP()!;
+		await this.networkTransport!.prefetchUpdateChecks(primaryPhp);
 	}
 
 	// These methods are only here for the time traveling Playground demo.

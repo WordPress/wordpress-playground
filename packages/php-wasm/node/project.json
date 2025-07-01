@@ -283,6 +283,30 @@
 				"testFiles": ["php-asyncify-mysqli.spec.ts"]
 			}
 		},
+		"test-php-asyncify-sqlite3": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-asyncify-sqlite3.spec.ts"]
+			}
+		},
+		"test-php-asyncify-all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"test-php-asyncify-file-get-contents-http",
+				"test-php-asyncify-file-get-contents-https",
+				"test-php-asyncify-fopen-http",
+				"test-php-asyncify-fopen-https",
+				"test-php-asyncify-fsockopen-http",
+				"test-php-asyncify-fsockopen-https",
+				"test-php-asyncify-gethostbyname-http",
+				"test-php-asyncify-gethostbyname-https",
+				"test-php-asyncify-mysqli-http",
+				"test-php-asyncify-mysqli-https",
+				"test-php-asyncify-sqlite3"
+			]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
