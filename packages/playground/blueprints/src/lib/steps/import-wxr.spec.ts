@@ -75,5 +75,5 @@ describe('Blueprint step importWxr', () => {
 
 		expect(json.post_content).toEqual(expectedPostContent);
 		expect(json.post_title).toEqual(`"Issue\\Issue"`);
-	}, 20_000);
+	});
 });
