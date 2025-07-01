@@ -1,6 +1,6 @@
 {
 	"name": "docusaurus-classic-typescript",
-	"version": "1751036065",
+	"version": "0.0.0",
 	"private": true,
 	"scripts": {
 		"docusaurus": "docusaurus",

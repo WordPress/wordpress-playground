@@ -1,10 +1,6 @@
 {
 	"name": "@wp-playground/wordpress",
-<<<<<<< HEAD
-	"version": "1751036065",
-=======
-	"version": "1.1.5",
->>>>>>> trunk
+	"version": "1.1.4",
 	"description": "WordPress-related plumbing for WordPress Playground",
 	"repository": {
 		"type": "git",

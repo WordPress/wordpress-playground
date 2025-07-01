@@ -1,10 +1,6 @@
 {
 	"name": "@php-wasm/util",
-<<<<<<< HEAD
-	"version": "1751036065",
-=======
-	"version": "1.1.5",
->>>>>>> trunk
+	"version": "1.1.4",
 	"type": "module",
 	"types": "index.d.ts",
 	"typedoc": {
