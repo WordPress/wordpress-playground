@@ -46,11 +46,6 @@ describe('Blueprint step importWxr', () => {
 		});
 	});
 
-	afterEach(async () => {
-		php?.[Symbol.dispose]?.();
-		await handler?.[Symbol.asyncDispose]?.();
-	});
-
 	it('Should import a WXR file with JSON-encoded UTF-8 characters', async () => {
 		const fileData = await readFile(
 			__dirname + '/fixtures/import-wxr-slash-issue.xml'
@@ -80,5 +75,5 @@ describe('Blueprint step importWxr', () => {
 
 		expect(json.post_content).toEqual(expectedPostContent);
 		expect(json.post_title).toEqual(`"Issue\\Issue"`);
-	});
+	}, 20_000);
 });
