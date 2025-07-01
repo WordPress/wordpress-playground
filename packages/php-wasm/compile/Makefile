@@ -1,3 +1,9 @@
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
+
+# Remove trailing slash if present
+MAKEFILE_DIR := $(patsubst %/,%,$(MAKEFILE_DIR))
+
 base-image: base-image/.ready
 base-image/.ready:
 	cd base-image; docker build -f ./Dockerfile -t playground-php-wasm:base .
@@ -142,19 +148,34 @@ libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/1.1.1/root/lib
 
+WITH_DEBUG ?= no
+
 libsqlite3_asyncify: libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a
 libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a: base-image libz_asyncify
 	mkdir -p ./libsqlite3/asyncify/dist/root/lib
-	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 .
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
+		--build-arg WITH_DEBUG=${WITH_DEBUG} \
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3
+		--progress=plain
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/asyncify/dist/root/lib
+	@if [ "${WITH_DEBUG}" = "yes" ]; then \
+		docker cp $$(docker create playground-php-wasm:libsqlite3):/root/sqlite-src ./libsqlite3/; \
+	fi
 
 libsqlite3_jspi: libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a
 libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a: base-image libz_jspi
 	mkdir -p ./libsqlite3/jspi/dist/root/lib
-	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . --build-arg JSPI=1
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
+		--build-arg JSPI=1 \
+		--build-arg WITH_DEBUG=${WITH_DEBUG} \
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3
+		--progress=plain
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/jspi/dist/root/lib
+	@if [ "${WITH_DEBUG}" = "yes" ]; then \
+		docker cp $$(docker create playground-php-wasm:libsqlite3):/root/sqlite-src ./libsqlite3/; \
+	fi
 
 libiconv_asyncify: libiconv/asyncify/dist/root/lib/lib/libiconv.a
 libiconv/asyncify/dist/root/lib/lib/libiconv.a: base-image libz_asyncify

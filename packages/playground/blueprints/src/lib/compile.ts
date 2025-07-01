@@ -322,10 +322,10 @@ function compileBlueprintJson(
 			wp: blueprint.preferredVersions?.wp || 'latest',
 		},
 		features: {
-			// Disable intl by default
+			// Disable intl by default to reduce the transfer size
 			intl: blueprint.features?.intl ?? false,
-			// Disable networking by default
-			networking: blueprint.features?.networking ?? false,
+			// Enable network access by default
+			networking: blueprint.features?.networking ?? true,
 		},
 		extraLibraries: blueprint.extraLibraries || [],
 		run: async (playground: UniversalPHP) => {

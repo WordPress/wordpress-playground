@@ -168,12 +168,10 @@ Object.keys(MinifiedWordPressVersions)
 		});
 	});
 
-test('should display networking as inactive by default', async ({
-	website,
-}) => {
+test('should display networking as active by default', async ({ website }) => {
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
-	await expect(website.page.getByLabel('Network access')).not.toBeChecked();
+	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
 test('should display networking as active when networking is enabled', async ({
