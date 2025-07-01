@@ -131,20 +131,6 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 <ThisIsQueryApi />
 
-:::info プラグインディレクトリは WordPress Playground では機能しません
-
-WordPress サイトはインターネットにデータを送信しないため、プラグインは手動でインストールする必要があります。`/wp-admin/`内の WordPress プラグインディレクトリにアクセスすることはできません。 Query API メソッドは一見矛盾しているように見えますが、実際にはプラグインのアップロードフォームと同じものを使用しています。
-
-:::
-
-<!--
-:::info Plugin directory doesn't work in WordPress Playground
-
-Plugins must be installed manually because your WordPress site doesn't send any data to the internet. You won't be able to navigate the WordPress plugin directory inside `/wp-admin/`. The Query API method may seem to contradict that, but behind the scenes it uses the same plugin upload form as you would.
-
-:::
- -->
-
 ## サイトを保存する
 
 <!--

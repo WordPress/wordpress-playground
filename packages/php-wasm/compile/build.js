@@ -239,9 +239,18 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_SOURCEMAPS'),
 		'--build-arg',
-		`OUTPUT_DIR_FOR_SOURCE_MAP_BASE=${outputDir}`,
+		// Relay output directory so we can create source maps and DWARF debug
+		// info containing correct paths.
+		`OUTPUT_DIR_ON_HOST=${outputDir}`,
 		'--build-arg',
 		getArg('WITH_DEBUG'),
+		// This directory path allows us to set what the DWARF file references
+		// are relative to so step debugging source files works correctly.
+		'--build-arg',
+		`DEBUG_DWARF_COMPILATION_DIR=${path.resolve(
+			import.meta.dirname,
+			'..'
+		)}`,
 		'--build-arg',
 		getArg('WITH_ICONV'),
 		'--build-arg',

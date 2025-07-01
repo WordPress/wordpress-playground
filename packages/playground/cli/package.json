@@ -1,6 +1,10 @@
 {
 	"name": "@wp-playground/cli",
+<<<<<<< HEAD
 	"version": "1751036065",
+=======
+	"version": "1.1.5",
+>>>>>>> trunk
 	"description": "WordPress Playground CLI",
 	"repository": {
 		"type": "git",
