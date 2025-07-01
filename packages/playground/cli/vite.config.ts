@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { join } from 'path';
-import { PluginOption, defineConfig } from 'vite';
+import { type PluginOption, defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -61,12 +61,10 @@ const plugins = [
 	{
 		name: 'build-phars-as-URL-modules-not-data-imports',
 
-		transform(code, id, options) {
+		transform(code, id) {
 			if (id?.includes('.phar')) {
-				console.log({ id, options });
 				// @TODO don't hardcode it
 				// @TODO use URL on the web and path on Node.js
-				// @TODO use import.url in ESM and __dirname in CJS
 				return {
 					code: `
 						import { fileURLToPath } from 'url';

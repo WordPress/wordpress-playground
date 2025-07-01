@@ -90,36 +90,31 @@ export async function getV2Runner(): Promise<File> {
 	 * This breaks the offline mode as the static assets list is not yet updated to accommodate
 	 * for the new .phar file.
 	 */
-	try {
-		// @ts-ignore
-		const v2_runner_url = (await import('../public/blueprints.phar?url'))
-			.default;
+	// @ts-ignore
+	const v2_runner_url = (await import('../public/blueprints.phar?url'))
+		.default;
 
-		/**
-		 * Only load the v2 runner via node:fs when running in Node.js.
-		 */
-		if (typeof process !== 'undefined' && process.versions?.node) {
-			let path = v2_runner_url;
-			if (path.startsWith('/@fs/')) {
-				path = path.slice('/@fs'.length);
-			}
-			if (path.startsWith('file://')) {
-				path = path.slice('file://'.length);
-			}
-
-			const { readFile } = await import('node:fs/promises');
-			data = await readFile(path);
-		} else {
-			const response = await fetch(v2_runner_url);
-			data = await response.blob();
+	/**
+	 * Only load the v2 runner via node:fs when running in Node.js.
+	 */
+	if (typeof process !== 'undefined' && process.versions?.node) {
+		let path = v2_runner_url;
+		if (path.startsWith('/@fs/')) {
+			path = path.slice('/@fs'.length);
 		}
-		return new File([data], `blueprints.phar`, {
-			type: 'application/zip',
-		});
-	} catch (e) {
-		console.log('e', e);
-		throw e;
+		if (path.startsWith('file://')) {
+			path = path.slice('file://'.length);
+		}
+
+		const { readFile } = await import('node:fs/promises');
+		data = await readFile(path);
+	} else {
+		const response = await fetch(v2_runner_url);
+		data = await response.blob();
 	}
+	return new File([data], `blueprints.phar`, {
+		type: 'application/zip',
+	});
 }
 
 export async function runBlueprintV2(

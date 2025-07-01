@@ -23,7 +23,8 @@ const list = [
 	(globalThis as any).AssertionError,
 	(globalThis as any).SystemError,
 ]
-	// Non-native Errors are used with `globalThis` because they might be missing. This filter drops them when undefined.
+	// Non-native Errors are used with `globalThis` because they might be missing. This filter drops
+	// them when undefined.
 	.filter(Boolean)
 	.map((constructor) => [constructor.name, constructor]);
 
@@ -197,7 +198,9 @@ const destroyCircular = ({
 			// Gracefully handle non-configurable errors like `DOMException`.
 			try {
 				to[key] = value;
-			} catch {}
+			} catch {
+				// ignore
+			}
 
 			continue;
 		}
@@ -288,7 +291,8 @@ export function isErrorLike(value: any) {
 	);
 }
 
-// Used as a weak check for immediately-passed objects, whereas `isErrorLike` is used for nested values to avoid bad detection
+// Used as a weak check for immediately-passed objects, whereas `isErrorLike` is used for nested
+// values to avoid bad detection
 function isMinimumViableSerializedError(value: any) {
 	// @ts-ignore
 	return (

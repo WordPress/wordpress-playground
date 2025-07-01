@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/sync",
-	"version": "0.0.1",
+	"version": "1751036065",
 	"description": "Sync changes across multiple WordPress Playground clients.",
 	"repository": {
 		"type": "git",
