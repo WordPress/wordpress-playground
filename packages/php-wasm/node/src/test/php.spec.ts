@@ -540,7 +540,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		// due to a new patch that replaces the use of
 		// EMULATE_FUNCTION_POINTER_CASTS option.
 		if (['7.3', '7.4'].includes(phpVersion)) {
-			it.only('resolves without crashing with unknown function signature mismatch', async () => {
+			it('resolves without crashing with unknown function signature mismatch', async () => {
 				const promise = php.runStream({
 					code: `<?php
 					$descriptorspec = array(
