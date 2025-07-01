@@ -638,6 +638,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "__fwritex",\
 "__netlink_enumerate",\
 "__overflow",\
+"__synccall",\
 "__toread",\
 "__uflow",\
 "__vfprintf_internal",\
@@ -985,6 +986,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "iter_wrapper_get_gc",\
 "lex_scan",\
 "list_entry_destructor",\
+"zend_hash_index_del",\
+"zend_list_free",\
 "lockBtree",\
 "lockTrace",\
 "main",\
@@ -1578,6 +1581,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_call_known_instance_method_with_2_params",\
 "zend_call_method_if_exists",\
 "zend_call_method",\
+"zend_close_rsrc",\
 "zend_close_rsrc_list",\
 "ZEND_COUNT_SPEC_CV_UNUSED_HANDLER",\
 "zend_deactivate",\
