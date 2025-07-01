@@ -119,7 +119,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		await this.bootRequestHandler(args);
 
 		const primaryPhp = this.__internal_getPHP()!;
-		await mountResources(primaryPhp, args.mountBeforeInstall || []);
+		await mountResources(primaryPhp, args['mount-before-install'] || []);
 
 		if (args.mode === 'mount-only') {
 			await mountResources(primaryPhp, args.mount || []);
@@ -133,7 +133,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		await this.bootRequestHandler(args);
 		const php = this.__internal_getPHP()!;
 		// When secondary workers are spawned, WordPress is already installed.
-		await mountResources(php, args.mountBeforeInstall || []);
+		await mountResources(php, args['mount-before-install'] || []);
 		await mountResources(php, args.mount || []);
 	}
 
@@ -186,7 +186,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 				php,
 				blueprint: args.blueprint,
 				blueprintOverrides: {
-					additionalSteps: args.additionalBlueprintSteps,
+					additionalSteps: args['additional-blueprint-steps'],
 					wordpressVersion: args.wp,
 				},
 				cliArgs,

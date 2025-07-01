@@ -226,7 +226,7 @@ describe.skip('cli-run', () => {
 				php: '8.0',
 				command: 'server',
 				// quiet: true,
-				mountBeforeInstall: [
+				'mount-before-install': [
 					{
 						hostPath: wordpressDir,
 						vfsPath: '/wordpress',

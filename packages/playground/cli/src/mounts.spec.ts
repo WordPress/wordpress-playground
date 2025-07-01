@@ -34,7 +34,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress/wp-content/plugins/plugin',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([
+			expect(result['additional-blueprint-steps']).toEqual([
 				{
 					step: 'activatePlugin',
 					pluginPath: '/wordpress/wp-content/plugins/plugin',
@@ -60,7 +60,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([]);
+			expect(result['additional-blueprint-steps']).toEqual([]);
 		});
 	});
 
@@ -79,7 +79,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress/wp-content/themes/theme',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([
+			expect(result['additional-blueprint-steps']).toEqual([
 				{
 					step: 'activateTheme',
 					themeDirectoryName: 'theme',
@@ -105,7 +105,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([]);
+			expect(result['additional-blueprint-steps']).toEqual([]);
 		});
 	});
 
@@ -134,7 +134,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress/wp-content/themes',
 				},
 			]);
-			const steps = result.additionalBlueprintSteps;
+			const steps = result['additional-blueprint-steps'];
 			expect(steps).toHaveLength(1);
 			expect(steps![0]).toEqual({
 				step: 'runPHP',
@@ -200,7 +200,7 @@ describe('expandAutoMounts', () => {
 			const result = expandAutoMounts(args);
 
 			// Should mount individual files except wp-content
-			expect(result.mountBeforeInstall || []).toEqual(
+			expect(result['mount-before-install'] || []).toEqual(
 				expect.arrayContaining([
 					{
 						hostPath: path.join(
@@ -212,7 +212,7 @@ describe('expandAutoMounts', () => {
 				])
 			);
 			expect(result.mode).toBe('apply-to-existing-site');
-			const steps = result.additionalBlueprintSteps;
+			const steps = result['additional-blueprint-steps'];
 			expect(steps).toHaveLength(1);
 			expect(steps![0]).toEqual({
 				step: 'runPHP',
@@ -242,7 +242,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([]);
+			expect(result['additional-blueprint-steps']).toEqual([]);
 			expect(result.mode).toBe('mount-only');
 		});
 
@@ -260,7 +260,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([]);
+			expect(result['additional-blueprint-steps']).toEqual([]);
 			expect(result.mode).toBe('mount-only');
 		});
 
@@ -281,7 +281,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress',
 				},
 			]);
-			expect(result.additionalBlueprintSteps).toEqual([]);
+			expect(result['additional-blueprint-steps']).toEqual([]);
 			expect(result.mode).toBe('mount-only');
 		});
 	});
@@ -325,7 +325,7 @@ describe('expandAutoMounts', () => {
 
 			const args: RunCLIArgs = {
 				...createBasicArgs(),
-				mountBeforeInstall: [
+				'mount-before-install': [
 					{
 						hostPath: '/existing/before-mount',
 						vfsPath: '/existing/before-vfs',
@@ -334,7 +334,7 @@ describe('expandAutoMounts', () => {
 			};
 			const result = expandAutoMounts(args);
 
-			expect(result.mountBeforeInstall || []).toEqual(
+			expect(result['mount-before-install'] || []).toEqual(
 				expect.arrayContaining([
 					{
 						hostPath: '/existing/before-mount',
@@ -343,7 +343,9 @@ describe('expandAutoMounts', () => {
 				])
 			);
 			// Should also contain the auto-detected mounts
-			expect((result.mountBeforeInstall || []).length).toBeGreaterThan(1);
+			expect(
+				(result['mount-before-install'] || []).length
+			).toBeGreaterThan(1);
 		});
 
 		test('should preserve existing blueprint steps', () => {
@@ -353,7 +355,7 @@ describe('expandAutoMounts', () => {
 
 			const args: RunCLIArgs = {
 				...createBasicArgs(),
-				additionalBlueprintSteps: [
+				'additional-blueprint-steps': [
 					{
 						step: 'setSiteOptions',
 						options: { blogname: 'Test Blog' },
@@ -362,7 +364,7 @@ describe('expandAutoMounts', () => {
 			};
 			const result = expandAutoMounts(args);
 
-			expect(result.additionalBlueprintSteps).toEqual([
+			expect(result['additional-blueprint-steps']).toEqual([
 				{
 					step: 'setSiteOptions',
 					options: { blogname: 'Test Blog' },
@@ -384,7 +386,7 @@ describe('expandAutoMounts', () => {
 			const args: RunCLIArgs = {
 				...createBasicArgs(),
 				mount: undefined,
-				mountBeforeInstall: undefined,
+				'mount-before-install': undefined,
 			};
 			const result = expandAutoMounts(args);
 
@@ -397,7 +399,7 @@ describe('expandAutoMounts', () => {
 					vfsPath: '/wordpress/wp-content/plugins/plugin',
 				},
 			]);
-			expect(result.mountBeforeInstall).toEqual([]);
+			expect(result['mount-before-install']).toEqual([]);
 		});
 
 		test('should handle undefined blueprint', () => {
@@ -411,7 +413,7 @@ describe('expandAutoMounts', () => {
 			};
 			const result = expandAutoMounts(args);
 
-			expect(result.additionalBlueprintSteps).toEqual([
+			expect(result['additional-blueprint-steps']).toEqual([
 				{
 					step: 'activatePlugin',
 					pluginPath: '/wordpress/wp-content/plugins/plugin',

@@ -113,13 +113,15 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 	const path = process.cwd();
 
 	const mount = [...(args.mount || [])];
-	const mountBeforeInstall = [...(args.mountBeforeInstall || [])];
+	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
 
 	const newArgs = {
 		...args,
 		mount,
 		mountBeforeInstall,
-		additionalBlueprintSteps: [...(args.additionalBlueprintSteps || [])],
+		'additional-blueprint-steps': [
+			...(args['additional-blueprint-steps'] || []),
+		],
 	};
 
 	if (isPluginFilename(path)) {
@@ -128,7 +130,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			hostPath: path,
 			vfsPath: `/wordpress/wp-content/plugins/${pluginName}`,
 		});
-		newArgs.additionalBlueprintSteps.push({
+		newArgs['additional-blueprint-steps'].push({
 			step: 'activatePlugin',
 			pluginPath: `/wordpress/wp-content/plugins/${basename(path)}`,
 		});
@@ -138,7 +140,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			hostPath: path,
 			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
 		});
-		newArgs.additionalBlueprintSteps.push({
+		newArgs['additional-blueprint-steps'].push({
 			step: 'activateTheme',
 			themeDirectoryName: themeName,
 		});
@@ -161,11 +163,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				vfsPath: `/wordpress/wp-content/${file}`,
 			});
 		}
-		newArgs.additionalBlueprintSteps.push(ACTIVATE_FIRST_THEME_STEP);
+		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 	} else if (containsFullWordPressInstallation(path)) {
 		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
 		newArgs.mode = 'apply-to-existing-site';
-		newArgs.additionalBlueprintSteps.push(ACTIVATE_FIRST_THEME_STEP);
+		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 	} else {
 		/**
 		 * By default, mount the current working directory as the Playground root.
