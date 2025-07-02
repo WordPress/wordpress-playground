@@ -7,6 +7,7 @@
  */
 'use strict';
 
+// TODO: Make sure these Asyncify.handleSleep() calls work for JSPI or are conditional somehow
 // TODO: Make all these overrides conditional on the existence of PHPLoader.fileLockManager.
 
 const LibraryForFileLocking = {
@@ -114,7 +115,7 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: function __syscall_fcntl64(fd, cmd, varargs) {
-		return Asyncify.handleAsync(async () => {
+		return Asyncify.handleSleep((wakeUp) => {
 			// Necessary to use varargs accessor
 			SYSCALLS.varargs = varargs;
 
@@ -287,7 +288,7 @@ const LibraryForFileLocking = {
 							vfsPath,
 							errno
 						);
-						return -ERRNO_CODES.EBADF;
+						return wakeUp(-ERRNO_CODES.EBADF);
 					}
 
 					if (!locking.is_path_to_shared_fs(vfsPath)) {
@@ -302,14 +303,14 @@ const LibraryForFileLocking = {
 						update_flock_struct(flockStructAddr, {
 							l_type: F_UNLCK,
 						});
-						return 0;
+						return wakeUp(0);
 					}
 
 					const flockStructAddr = syscallGetVarargP();
 					const flockStruct = read_flock_struct(flockStructAddr);
 
 					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-						return -ERRNO_CODES.EINVAL;
+						return wakeUp(-ERRNO_CODES.EINVAL);
 					}
 
 					errno = locking.check_lock_params(fd, flockStruct.l_type);
@@ -320,7 +321,7 @@ const LibraryForFileLocking = {
 							vfsPath,
 							errno
 						);
-						return -ERRNO_CODES.EINVAL;
+						return wakeUp(-ERRNO_CODES.EINVAL);
 					}
 
 					const requestedLockType =
@@ -338,13 +339,13 @@ const LibraryForFileLocking = {
 							vfsPath,
 							errno
 						);
-						return -ERRNO_CODES.EINVAL;
+						return wakeUp(-ERRNO_CODES.EINVAL);
 					}
 
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
 
-					return PHPLoader.fileLockManager
+					PHPLoader.fileLockManager
 						.findFirstConflictingByteRangeLock(nativeFilePath, {
 							type: requestedLockType,
 							start: absoluteStartOffset,
@@ -364,7 +365,7 @@ const LibraryForFileLocking = {
 								update_flock_struct(flockStructAddr, {
 									l_type: F_UNLCK,
 								});
-								return 0;
+								return wakeUp(0);
 							}
 
 							_js_wasm_trace(
@@ -386,7 +387,7 @@ const LibraryForFileLocking = {
 								l_len: conflictingLock.end - conflictingLock.start,
 								l_pid: conflictingLock.pid,
 							});
-							return 0;
+							return wakeUp(0);
 						})
 						.catch((e) => {
 							_js_wasm_trace(
@@ -395,7 +396,7 @@ const LibraryForFileLocking = {
 								vfsPath,
 								e
 							);
-							return -ERRNO_CODES.EINVAL;
+							return wakeUp(-ERRNO_CODES.EINVAL);
 						});
 				}
 				case emscripten_F_SETLK: {
@@ -410,7 +411,7 @@ const LibraryForFileLocking = {
 							vfsPath,
 							errno
 						);
-						return -errno;
+						return wakeUp(-errno);
 					}
 
 					if (!locking.is_path_to_shared_fs(vfsPath)) {
@@ -422,7 +423,7 @@ const LibraryForFileLocking = {
 
 						// If not a NodeFS path, we can't lock it.
 						// Default to succeeding as Emscripten does.
-						return 0;
+						return wakeUp(0);
 					}
 
 					var flockStructAddr = syscallGetVarargP();
@@ -441,7 +442,7 @@ const LibraryForFileLocking = {
 							vfsPath,
 							errno
 						);
-						return -errno;
+						return wakeUp(-errno);
 					}
 
 					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
@@ -451,7 +452,7 @@ const LibraryForFileLocking = {
 							vfsPath,
 							flockStruct.l_type
 						);
-						return -ERRNO_CODES.EINVAL;
+						return wakeUp(-ERRNO_CODES.EINVAL);
 					}
 
 					errno = locking.check_lock_params(fd, flockStruct.l_type);
@@ -462,7 +463,7 @@ const LibraryForFileLocking = {
 							vfsPath,
 							errno
 						);
-						return -errno;
+						return wakeUp(-errno);
 					}
 
 					locking.maybeLockedFds.add(fd);
@@ -484,7 +485,7 @@ const LibraryForFileLocking = {
 						vfsPath,
 						rangeLock
 					);
-					return PHPLoader.fileLockManager
+					PHPLoader.fileLockManager
 						.lockFileByteRange(nativeFilePath, rangeLock)
 						.then((succeeded) => {
 							_js_wasm_trace(
@@ -494,7 +495,7 @@ const LibraryForFileLocking = {
 								succeeded,
 								rangeLock
 							);
-							return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
+							return wakeUp(succeeded ? 0 : -ERRNO_CODES.EAGAIN);
 						})
 						.catch((e) => {
 							_js_wasm_trace(
@@ -504,7 +505,7 @@ const LibraryForFileLocking = {
 								e,
 								rangeLock
 							);
-							return -ERRNO_CODES.EINVAL;
+							return wakeUp(-ERRNO_CODES.EINVAL);
 						});
 				}
 				// @TODO: Implement waiting for lock
@@ -512,10 +513,10 @@ const LibraryForFileLocking = {
 					// We do not yet support the blocking form of flock().
 					// We respond with EDEADLK to indicate failure
 					// because it is a known errno for a failed F_SETLKW command.
-					return -ERRNO_CODES.EDEADLK;
+					return wakeUp(-ERRNO_CODES.EDEADLK);
 				}
 				default:
-					return _builtin_fcntl64(fd, cmd, varargs);
+					return wakeUp(_builtin_fcntl64(fd, cmd, varargs));
 			}
 		});
 	},
@@ -556,7 +557,7 @@ const LibraryForFileLocking = {
 					vfsPath,
 					errno
 				);
-				return -errno;
+				return wakeUp(-errno);
 			}
 
 			if (!locking.is_path_to_shared_fs(vfsPath)) {
@@ -568,7 +569,7 @@ const LibraryForFileLocking = {
 				);
 				// If not a NodeFS path, we can't lock it.
 				// Default to succeeding as Emscripten does.
-				return 0;
+				return wakeUp(0);
 			}
 
 			errno = locking.check_lock_params(fd, op);
@@ -579,7 +580,7 @@ const LibraryForFileLocking = {
 					op,
 					errno
 				);
-				return -errno;
+				return wakeUp(-errno);
 			}
 
 			// @TODO: Consider supporting blocking mode of flock()
@@ -592,7 +593,7 @@ const LibraryForFileLocking = {
 				// We do not yet support the blocking form of flock().
 				// We respond with EINVAL to indicate failure
 				// because it is a known errno for a failed blocking flock().
-				return -ERRNO_CODES.EINVAL;
+				return wakeUp(-ERRNO_CODES.EINVAL);
 			}
 
 			const maskedOp =
@@ -605,7 +606,7 @@ const LibraryForFileLocking = {
 					fd,
 					op
 				);
-				return -ERRNO_CODES.EINVAL;
+				return wakeUp(-ERRNO_CODES.EINVAL);
 			}
 
 			const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
@@ -624,7 +625,7 @@ const LibraryForFileLocking = {
 				vfsPath,
 				obtainedLock
 			);
-			return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
+			return wakeUp(obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK);
 		});
 	},
 
@@ -638,7 +639,7 @@ const LibraryForFileLocking = {
 	 * @returns Zero on success, or a negative errno on failure.
 	 */
 	fd_close(fd) {
-		return Asyncify.handleAsync(async () => {
+		return Asyncify.handleSleep((wakeUp) => {
 			_js_wasm_trace('fd_close(%d)', fd);
 
 			const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
@@ -648,7 +649,7 @@ const LibraryForFileLocking = {
 					fd,
 					pathResolutionErrno
 				);
-				return -ERRNO_CODES.EBADF;
+				return wakeUp(-ERRNO_CODES.EBADF);
 			}
 
 			const result = _builtin_fd_close(fd);
@@ -656,7 +657,7 @@ const LibraryForFileLocking = {
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
 
-				return PHPLoader.fileLockManager
+				PHPLoader.fileLockManager
 					.releaseLocksForProcessFd(
 						PHPLoader.processId,
 						fd,
@@ -674,10 +675,11 @@ const LibraryForFileLocking = {
 					})
 					.finally(() => {
 						locking.maybeLockedFds.delete(fd);
-					});
+					})
+					.then(wakeUp);
 			} else {
 				_js_wasm_trace('fd_close(%d) result %d', fd, result);
-				return result;
+				wakeUp(result);
 			}
 		});
 	},
@@ -689,17 +691,18 @@ const LibraryForFileLocking = {
 	 * This function should be called at the end of each PHP request.
 	 */
 	js_release_file_locks: function js_release_file_locks() {
-		return Asyncify.handleAsync(async () => {
+		return Asyncify.handleSleep((wakeUp) => {
 			_js_wasm_trace('js_release_file_locks()');
 			const pid = PHPLoader.processId;
-			return await PHPLoader.fileLockManager
+			PHPLoader.fileLockManager
 				.releaseLocksForProcess(pid)
 				.then(() => {
 					_js_wasm_trace('js_release_file_locks succeeded');
 				})
 				.catch((e) => {
 					_js_wasm_trace('js_release_file_locks error %s', e);
-				});
+				})
+				.finally(wakeUp);
 		});
 	},
 };
