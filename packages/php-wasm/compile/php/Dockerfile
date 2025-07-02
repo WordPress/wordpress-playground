@@ -10,6 +10,9 @@ ARG WITH_JSPI="no"
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION
 
+# TODO: Remove or adjust this overwhelming warning setting
+ENV WASM_WARNING_FLAGS=" -Weverything -fdiagnostics-show-option "
+
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION   \
@@ -483,6 +486,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
 		$JSPI_FLAGS \
+		$WASM_WARNING_FLAGS \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ \
 		-fdebug-prefix-map=/emsdk/emscripten/==${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ \
@@ -2115,6 +2119,7 @@ RUN set -euxo pipefail; \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
+	$WASM_WARNING_FLAGS \
 	-s EXPORT_NAME="'PHPLoader'"
 	# Emscripten complains it can't find some Asyncify functions
 	# listed in ASYNCIFY_IMPORTS. The culprit is those functions
