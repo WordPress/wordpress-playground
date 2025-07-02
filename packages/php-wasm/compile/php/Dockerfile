@@ -630,7 +630,7 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "js_flock",\n\
 "js_fd_read",\n\
 "_js_fd_read",\n\
-"_fd_close",\n\
+"fd_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
