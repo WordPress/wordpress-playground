@@ -15,7 +15,8 @@
 		"../../php-wasm/web/src/lib/tls/1_2/connection.ts",
 		"../../php-wasm/web/src/lib/tls/certificates.ts",
 		"../common/src/create-memoized-fetch.spec.ts",
-		"../common/src/create-memoized-fetch.ts"
+		"../common/src/create-memoized-fetch.ts",
+		"src/lib/wordpress-fetch-network-transport.ts"
 	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

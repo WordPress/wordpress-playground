@@ -12,5 +12,6 @@
 __pycache__
 *.timestamp-1678999213403.mjs
 .local
-.vscode
 .nx
+.vscode
+rollup.d.ts

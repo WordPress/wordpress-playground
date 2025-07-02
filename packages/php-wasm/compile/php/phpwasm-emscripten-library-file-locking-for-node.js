@@ -40,13 +40,21 @@ const LibraryForFileLocking = {
 			}
 
 			// Handle PROXYFS nodes which wrap other nodes.
-			if (!node?.mount?.opts?.fs?.lookupPath) {
+			if (!node?.mount?.opts?.fs?.lookupPath || !node?.mount?.type?.realPath) {
 				return false;
 			}
 
-			const vfsPath = NODEFS.realPath(node);
-			const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
-			return !!underlyingNode?.isSharedFS;
+			// Only NODEFS can be shared between workers at the moment.
+			if (node.mount.type !== NODEFS) {
+				return false;
+			}
+			const vfsPath = node.mount.type.realPath(node);
+			try {
+				const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
+				return !!underlyingNode?.isSharedFS;
+			} catch (e) {
+				return false;
+			}
 		},
 		is_path_to_shared_fs(path) {
 			const { node } = FS.lookupPath(path);
@@ -675,14 +683,17 @@ const LibraryForFileLocking = {
 	js_release_file_locks: async function js_release_file_locks() {
 		_js_wasm_trace('js_release_file_locks()');
 		const pid = PHPLoader.processId;
-		return await PHPLoader.fileLockManager
-			.releaseLocksForProcess(pid)
-			.then(() => {
-				_js_wasm_trace('js_release_file_locks succeeded');
-			})
-			.catch((e) => {
-				_js_wasm_trace('js_release_file_locks error %s', e);
-			});
+		if(pid && PHPLoader.fileLockManager)
+		{
+			return await PHPLoader.fileLockManager
+				.releaseLocksForProcess(pid)
+				.then(() => {
+					_js_wasm_trace('js_release_file_locks succeeded');
+				})
+				.catch((e) => {
+					_js_wasm_trace('js_release_file_locks error %s', e);
+				});
+		}
 	},
 };
 

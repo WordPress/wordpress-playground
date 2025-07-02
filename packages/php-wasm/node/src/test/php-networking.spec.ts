@@ -9,76 +9,73 @@ import { rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
 import http from 'http';
 
-// describe.each(SupportedPHPVersions)(
-describe.each(SupportedPHPVersions)(
-	'PHP %s',
-	(phpVersion) => {
-		let server: any;
-		async function startServer() {
-			const app = express();
-			app.use('/', async (req: any, res: any) => {
-				res.end('response from express');
-			});
-
-			app.use('/redirect', async (req: any, res: any) => {
-				res.redirect('/');
-			});
-
-			server = await new Promise<any>((resolve) => {
-				const _server = app.listen(() => {
-					resolve(_server);
-				});
-			});
-
-			return 'http://127.0.0.1:' + server.address().port;
-		}
-		async function stopServer(server: any) {
-			if (server) {
-				await new Promise((resolve) => {
-					server.close(resolve);
-				});
-				server = undefined;
-			}
-		}
-
-		it('should be able to make a request to a server', async () => {
-			try {
-				const serverUrl = await startServer();
-				const php = new PHP(await loadNodeRuntime(phpVersion));
-				await setPhpIniEntries(php, {
-					allow_url_fopen: 1,
-					disable_functions: '',
-				});
-				php.writeFile(
-					'/tmp/test.php',
-					`<?php
-				echo file_get_contents("${serverUrl}");
-				`
-				);
-				const { text } = await php.run({
-					scriptPath: '/tmp/test.php',
-				});
-				expect(text).toEqual('response from express');
-			} finally {
-				await stopServer(server);
-			}
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+	let server: any;
+	async function startServer() {
+		const app = express();
+		app.use('/', async (req: any, res: any) => {
+			res.end('response from express');
 		});
 
-		it('should support fopen() and fread() until EOF', async () => {
-			try {
-				const serverUrl = await startServer();
-				const php = new PHP(await loadNodeRuntime(phpVersion));
-				await setPhpIniEntries(php, {
-					allow_url_fopen: 1,
-					disable_functions: '',
-				});
+		app.use('/redirect', async (req: any, res: any) => {
+			res.redirect('/');
+		});
 
-				php.writeFile(
-					'/tmp/test.php',
-					`<?php
-				$url = str_replace('http://', '', "${serverUrl}"); 
+		server = await new Promise<any>((resolve) => {
+			const _server = app.listen(() => {
+				resolve(_server);
+			});
+		});
+
+		return 'http://127.0.0.1:' + server.address().port;
+	}
+	async function stopServer(server: any) {
+		if (server) {
+			await new Promise((resolve) => {
+				server.close(resolve);
+			});
+			server = undefined;
+		}
+	}
+
+	it('should be able to make a request to a server', async () => {
+		try {
+			const serverUrl = await startServer();
+			const php = new PHP(await loadNodeRuntime(phpVersion));
+			await setPhpIniEntries(php, {
+				allow_url_fopen: 1,
+				disable_functions: '',
+			});
+			php.writeFile(
+				'/tmp/test.php',
+				`<?php
+				echo file_get_contents("${serverUrl}");
+				`
+			);
+			const { text } = await php.run({
+				scriptPath: '/tmp/test.php',
+			});
+			expect(text).toEqual('response from express');
+		} finally {
+			await stopServer(server);
+		}
+	});
+
+	it('should support fopen() and fread() until EOF', async () => {
+		try {
+			const serverUrl = await startServer();
+			const php = new PHP(await loadNodeRuntime(phpVersion));
+			await setPhpIniEntries(php, {
+				allow_url_fopen: 1,
+				disable_functions: '',
+			});
+
+			php.writeFile(
+				'/tmp/test.php',
+				`<?php
+				$url = str_replace('http://', '', "${serverUrl}");
 				list($host, $port) = explode(':', $url);
-				
+
 				// Send a request via a stream_socket_client()
 				$handle = stream_socket_client("tcp://$host:$port", $errno, $errstr, 1);
 				stream_set_blocking($handle, false);
@@ -129,28 +126,28 @@ describe.each(SupportedPHPVersions)(
 				echo "Stream select result: $result\n";
 				fclose($handle);
 				`
-				);
-				const { text } = await php.run({
-					scriptPath: '/tmp/test.php',
-				});
-				expect(text).toContain('Stream select result: 1');
-			} finally {
-				await stopServer(server);
-			}
-		}, 10000);
+			);
+			const { text } = await php.run({
+				scriptPath: '/tmp/test.php',
+			});
+			expect(text).toContain('Stream select result: 1');
+		} finally {
+			await stopServer(server);
+		}
+	}, 10000);
 
-		describe('cURL', () => {
-			it('should support single handle requests', async () => {
-				try {
-					const serverUrl = await startServer();
-					const php = new PHP(await loadNodeRuntime(phpVersion));
-					await setPhpIniEntries(php, {
-						allow_url_fopen: 1,
-						disable_functions: '',
-					});
-					php.writeFile(
-						'/tmp/test.php',
-						`<?php
+	describe('cURL', () => {
+		it('should support single handle requests', async () => {
+			try {
+				const serverUrl = await startServer();
+				const php = new PHP(await loadNodeRuntime(phpVersion));
+				await setPhpIniEntries(php, {
+					allow_url_fopen: 1,
+					disable_functions: '',
+				});
+				php.writeFile(
+					'/tmp/test.php',
+					`<?php
 						$ch = curl_init();
 						curl_setopt($ch, CURLOPT_URL, "${serverUrl}");
 						curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
@@ -158,27 +155,27 @@ describe.each(SupportedPHPVersions)(
 						echo curl_exec($ch);
 						curl_close($ch);
 				`
-					);
-					const { text } = await php.run({
-						scriptPath: '/tmp/test.php',
-					});
-					expect(text).toEqual('response from express');
-				} finally {
-					await stopServer(server);
-				}
-			});
+				);
+				const { text } = await php.run({
+					scriptPath: '/tmp/test.php',
+				});
+				expect(text).toEqual('response from express');
+			} finally {
+				await stopServer(server);
+			}
+		});
 
-			it('should support multi handle requests', async () => {
-				try {
-					const serverUrl = await startServer();
-					const php = new PHP(await loadNodeRuntime(phpVersion));
-					await setPhpIniEntries(php, {
-						allow_url_fopen: 1,
-						disable_functions: '',
-					});
-					php.writeFile(
-						'/tmp/test.php',
-						`<?php
+		it('should support multi handle requests', async () => {
+			try {
+				const serverUrl = await startServer();
+				const php = new PHP(await loadNodeRuntime(phpVersion));
+				await setPhpIniEntries(php, {
+					allow_url_fopen: 1,
+					disable_functions: '',
+				});
+				php.writeFile(
+					'/tmp/test.php',
+					`<?php
 						$ch1 = curl_init();
 						curl_setopt($ch1, CURLOPT_URL, "${serverUrl}");
 						curl_setopt($ch1, CURLOPT_TCP_NODELAY, 0);
@@ -202,29 +199,29 @@ describe.each(SupportedPHPVersions)(
 						curl_close($ch1);
 						curl_close($ch2);
 				`
-					);
-					const { text } = await php.run({
-						scriptPath: '/tmp/test.php',
-					});
-					expect(text).toEqual(
-						'response from express\nresponse from express'
-					);
-				} finally {
-					await stopServer(server);
-				}
-			});
+				);
+				const { text } = await php.run({
+					scriptPath: '/tmp/test.php',
+				});
+				expect(text).toEqual(
+					'response from express\nresponse from express'
+				);
+			} finally {
+				await stopServer(server);
+			}
+		});
 
-			it('should follow redirects', async () => {
-				try {
-					const serverUrl = await startServer();
-					const php = new PHP(await loadNodeRuntime(phpVersion));
-					await setPhpIniEntries(php, {
-						allow_url_fopen: 1,
-						disable_functions: '',
-					});
-					php.writeFile(
-						'/tmp/test.php',
-						`<?php
+		it('should follow redirects', async () => {
+			try {
+				const serverUrl = await startServer();
+				const php = new PHP(await loadNodeRuntime(phpVersion));
+				await setPhpIniEntries(php, {
+					allow_url_fopen: 1,
+					disable_functions: '',
+				});
+				php.writeFile(
+					'/tmp/test.php',
+					`<?php
 						$ch = curl_init();
 						curl_setopt($ch, CURLOPT_URL, "${serverUrl}/redirect");
 						curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
@@ -232,17 +229,19 @@ describe.each(SupportedPHPVersions)(
 						echo curl_exec($ch);
 						curl_close($ch);
 				`
-					);
-					const { text } = await php.run({
-						scriptPath: '/tmp/test.php',
-					});
-					expect(text).toEqual('response from express');
-				} finally {
-					await stopServer(server);
-				}
-			});
+				);
+				const { text } = await php.run({
+					scriptPath: '/tmp/test.php',
+				});
+				expect(text).toEqual('response from express');
+			} finally {
+				await stopServer(server);
+			}
+		});
 
-			it('should support HTTPS requests', async () => {
+		it(
+			'should support HTTPS requests',
+			async () => {
 				const php = new PHP(await loadNodeRuntime(phpVersion));
 				await setPhpIniEntries(php, {
 					'openssl.cafile': '/tmp/ca-bundle.crt',
@@ -266,9 +265,13 @@ describe.each(SupportedPHPVersions)(
 					`,
 				});
 				expect(text).toContain('bool(true)');
-			});
+			},
+			{ timeout: 4000 }
+		);
 
-			it('should support HTTPS requests when certificate verification is disabled', async () => {
+		it(
+			'should support HTTPS requests when certificate verification is disabled',
+			async () => {
 				const php = new PHP(await loadNodeRuntime(phpVersion));
 				await setPhpIniEntries(php, {
 					allow_url_fopen: 1,
@@ -289,29 +292,27 @@ describe.each(SupportedPHPVersions)(
 					`,
 				});
 				expect(text).toContain('bool(true)');
+			},
+			{ timeout: 4000 }
+		);
+
+		it('should close server when runtime is exited', async () => {
+			const id = await loadNodeRuntime(phpVersion);
+			const php = new PHP(id);
+			const rt = getLoadedRuntime(id);
+
+			expect(rt.outboundNetworkProxyServer).toBeDefined();
+			expect(rt.outboundNetworkProxyServer).toBeInstanceOf(http.Server);
+
+			expect(rt.outboundNetworkProxyServer.listening).toBe(true);
+			php.exit();
+
+			// Wait for the server to close
+			await new Promise((resolve) => {
+				rt.outboundNetworkProxyServer.on('close', resolve);
 			});
 
-			it('should close server when runtime is exited', async () => {
-				const id = await loadNodeRuntime(phpVersion);
-				const php = new PHP(id);
-				const rt = getLoadedRuntime(id);
-
-				expect(rt.outboundNetworkProxyServer).toBeDefined();
-				expect(rt.outboundNetworkProxyServer).toBeInstanceOf(
-					http.Server
-				);
-
-				expect(rt.outboundNetworkProxyServer.listening).toBe(true);
-				php.exit();
-
-				// Wait for the server to close
-				await new Promise((resolve) => {
-					rt.outboundNetworkProxyServer.on('close', resolve);
-				});
-
-				expect(rt.outboundNetworkProxyServer.listening).toBe(false);
-			});
+			expect(rt.outboundNetworkProxyServer.listening).toBe(false);
 		});
-	},
-	2000
-);
+	});
+});

@@ -335,7 +335,8 @@ export abstract class FetchResource extends Resource<File> {
 			let response = await fetchWithCorsProxy(
 				url,
 				undefined,
-				this.corsProxy
+				this.corsProxy,
+				await this.playground?.absoluteUrl
 			);
 			if (!response.ok) {
 				throw new Error(`Could not download "${url}"`);
