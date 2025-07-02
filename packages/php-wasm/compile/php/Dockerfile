@@ -643,7 +643,15 @@ RUN export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"__fseeko_unlocked",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"__stdio_close",\
+"zend_stream_stdio_closer",\
+"zend_destroy_file_handle",\
+"php_init_config",\
+"zend_register_ini_entries_ex",\
+"php_module_startup",\
+"wasm_sapi_module_startup",\
+"__fseeko_unlocked",\
 "__ftello_unlocked",\
 "__funcs_on_exit",\
 "__fwritex",\
