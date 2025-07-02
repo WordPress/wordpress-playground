@@ -8,9 +8,11 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import InitialDockerfile from '../../../compile/php/Dockerfile?raw';
 import { loadNodeRuntime } from '../lib';
+import { jspi } from 'wasm-feature-detect';
 
-// TODO: Re-enable this after troubleshooting all the GH Actions unexpected terminations.
-describe.skip(`SQLite3 – asyncify`, () => {
+const runtimeMode = (await jspi()) ? 'jspi' : 'asyncify';
+
+describe(`SQLite3 – ${runtimeMode}`, () => {
 	const phpVersions =
 		'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
@@ -267,7 +269,7 @@ describe.skip(`SQLite3 – asyncify`, () => {
 		$drivers = PDO::getAvailableDrivers();
 	`;
 
-	describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
+	describe.each(phpVersions)(`PHP %s – ${runtimeMode}`, (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
@@ -296,6 +298,7 @@ describe.skip(`SQLite3 – asyncify`, () => {
 				if (
 					'FIX_DOCKERFILE' in process.env &&
 					process.env['FIX_DOCKERFILE'] === 'true' &&
+					runtimeMode == 'asyncify' &&
 					'functionsMaybeMissingFromAsyncify' in php
 				) {
 					const missingCandidates = (

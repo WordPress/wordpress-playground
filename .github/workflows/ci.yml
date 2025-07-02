@@ -30,38 +30,22 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/16)
+                    - name: test-unit-asyncify (1/8)
                       target: test
-                    - name: test-unit-asyncify (2/16)
-                      target: test-php
-                    - name: test-unit-asyncify (3/16)
-                      target: test-php-networking
-                    - name: test-unit-asyncify (4/16)
-                      target: test-php-request-handler-files
-                    - name: test-unit-asyncify (5/16)
-                      target: test-php-request-handler-requests
-                    - name: test-unit-asyncify (6/16)
-                      target: test-php-asyncify-file-get-contents-http
-                    - name: test-unit-asyncify (7/16)
-                      target: test-php-asyncify-file-get-contents-https
-                    - name: test-unit-asyncify (8/16)
-                      target: test-php-asyncify-fopen-http
-                    - name: test-unit-asyncify (9/16)
-                      target: test-php-asyncify-fopen-https
-                    - name: test-unit-asyncify (10/16)
-                      target: test-php-asyncify-fsockopen-http
-                    - name: test-unit-asyncify (11/16)
-                      target: test-php-asyncify-fsockopen-https
-                    - name: test-unit-asyncify (12/16)
-                      target: test-php-asyncify-gethostbyname-http
-                    - name: test-unit-asyncify (13/16)
-                      target: test-php-asyncify-gethostbyname-https
-                    - name: test-unit-asyncify (14/16)
-                      target: test-php-asyncify-mysqli-http
-                    - name: test-unit-asyncify (15/16)
-                      target: test-php-asyncify-mysqli-https
-                    - name: test-unit-asyncify (16/16)
-                      target: test-php-asyncify-sqlite3
+                    - name: test-unit-asyncify (2/8)
+                      target: test-asyncify
+                    - name: test-unit-asyncify (3/8)
+                      target: test-php-file-get-contents-asyncify
+                    - name: test-unit-asyncify (4/8)
+                      target: test-php-fopen-asyncify
+                    - name: test-unit-asyncify (5/8)
+                      target: test-php-fsockopen-asyncify
+                    - name: test-unit-asyncify (6/8)
+                      target: test-php-gethostbyname-asyncify
+                    - name: test-unit-asyncify (7/8)
+                      target: test-php-mysqli-asyncify
+                    - name: test-unit-asyncify (8/8)
+                      target: test-php-sqlite3-asyncify
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -97,40 +81,20 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-jspi (1/17)
+                    - name: test-unit-jspi (1/7)
                       target: test-jspi
-                    - name: test-unit-jspi (2/17)
-                      target: test-php-jspi
-                    - name: test-unit-jspi (3/17)
-                      target: test-php-dynamic-loading-jspi
-                    - name: test-unit-jspi (4/17)
-                      target: test-php-networking-jspi
-                    - name: test-unit-jspi (5/17)
-                      target: test-php-request-handler-files-jspi
-                    - name: test-unit-jspi (6/17)
-                      target: test-php-request-handler-requests-jspi
-                    - name: test-unit-jspi (7/17)
-                      target: test-php-asyncify-file-get-contents-http-jspi
-                    - name: test-unit-jspi (8/17)
-                      target: test-php-asyncify-file-get-contents-https-jspi
-                    - name: test-unit-jspi (9/17)
-                      target: test-php-asyncify-fopen-http-jspi
-                    - name: test-unit-jspi (10/17)
-                      target: test-php-asyncify-fopen-https-jspi
-                    - name: test-unit-jspi (11/17)
-                      target: test-php-asyncify-fsockopen-http-jspi
-                    - name: test-unit-jspi (12/17)
-                      target: test-php-asyncify-fsockopen-https-jspi
-                    - name: test-unit-jspi (13/17)
-                      target: test-php-asyncify-gethostbyname-http-jspi
-                    - name: test-unit-jspi (14/17)
-                      target: test-php-asyncify-gethostbyname-https-jspi
-                    - name: test-unit-jspi (15/17)
-                      target: test-php-asyncify-mysqli-http-jspi
-                    - name: test-unit-jspi (16/17)
-                      target: test-php-asyncify-mysqli-https-jspi
-                    - name: test-unit-sqlite3 (17/17)
-                      target: test-php-asyncify-sqlite3-jspi
+                    - name: test-unit-jspi (2/7)
+                      target: test-php-file-get-contents-jspi
+                    - name: test-unit-jspi (3/7)
+                      target: test-php-fopen-jspi
+                    - name: test-unit-jspi (4/7)
+                      target: test-php-fsockopen-jspi
+                    - name: test-unit-jspi (5/7)
+                      target: test-php-gethostbyname-jspi
+                    - name: test-unit-jspi (6/7)
+                      target: test-php-mysqli-jspi
+                    - name: test-unit-jspi (7/7)
+                      target: test-php-sqlite3-jspi
         name: ${{ matrix.name }}
         services:
             mysql:
