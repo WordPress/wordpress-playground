@@ -5254,19 +5254,26 @@ export function init(RuntimeName, PHPLoader) {
 				.filter(Boolean)
 				.join(':');
 
+			function mkdirIfMissing(path) {
+				try {
+					FS.mkdir(path);
+				} catch (e) {
+					if (e.errno != 20) throw e;
+				}
+			}
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
-			FS.mkdir('/internal');
+			mkdirIfMissing('/internal');
 			// The files from the shared directory are shared between all the
 			// PHP processes managed by PHPProcessManager.
-			FS.mkdir('/internal/shared');
+			mkdirIfMissing('/internal/shared');
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
-			FS.mkdir('/internal/shared/preload');
+			mkdirIfMissing('/internal/shared/preload');
 			// Platform-level bin directory for a fallback `php` binary. Without it,
 			// PHP may not populate the PHP_BINARY constant.
-			FS.mkdir('/internal/shared/bin');
+			mkdirIfMissing('/internal/shared/bin');
 			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
 			Module['onRuntimeInitialized'] = () => {
 				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
