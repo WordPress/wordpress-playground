@@ -480,7 +480,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		.catch(() => {
 			logger.warn(
 				'The fs-ext package is not installed. ' +
-					'File locking will not be integrated with ' +
+					'Internal file locking will not be integrated with ' +
 					'host OS file locking.'
 			);
 			return undefined;
