@@ -13,7 +13,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		afterEach(async () => {
-			php?.[Symbol.dispose]?.();
+			php.exit();
 		});
 
 		it('does not load dynamically by default', async () => {

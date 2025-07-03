@@ -91,8 +91,7 @@ describe.each(configsForRequestTests)(
 		});
 
 		afterEach(async () => {
-			php?.[Symbol.dispose]?.();
-			await handler?.[Symbol.asyncDispose]?.();
+			php.exit();
 		});
 
 		it('should execute a PHP file', async () => {
@@ -687,7 +686,7 @@ describe.each(SupportedPHPVersions)(
 		});
 
 		afterEach(async () => {
-			await handler?.[Symbol.asyncDispose]?.();
+			(await handler.getPrimaryPhp()).exit();
 		});
 
 		it.each([

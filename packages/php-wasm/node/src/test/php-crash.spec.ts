@@ -24,7 +24,7 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 		});
 
 		afterEach(async () => {
-			php?.[Symbol.dispose]?.();
+			php.exit();
 		});
 
 		function unhandledRejectionHandler(error: any) {

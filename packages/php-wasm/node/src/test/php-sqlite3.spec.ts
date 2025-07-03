@@ -277,7 +277,7 @@ describe(`SQLite3 – ${runtimeMode}`, () => {
 		});
 
 		afterEach(async () => {
-			php?.[Symbol.dispose]?.();
+			php.exit();
 		});
 
 		describe.each(Object.keys(topOfTheStack))('%s', (networkCallKey) => {

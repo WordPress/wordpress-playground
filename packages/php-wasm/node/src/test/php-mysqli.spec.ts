@@ -129,7 +129,7 @@ const httpsServer = https.createServer(
 			});
 
 			afterEach(async () => {
-				php?.[Symbol.dispose]?.();
+				php.exit();
 			});
 
 			describe.each(Object.keys(topOfTheStack))(

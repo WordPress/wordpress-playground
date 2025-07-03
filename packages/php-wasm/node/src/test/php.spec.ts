@@ -88,12 +88,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		await setPhpIniEntries(php, { disable_functions: '' });
 	});
 	afterEach(async () => {
-		// Clean up
-		try {
-			php.exit(0);
-		} catch {
-			// ignore exit-related exceptions
-		}
+		php.exit();
 	});
 
 	describe('php.runStream()', () => {
