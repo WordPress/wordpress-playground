@@ -26,6 +26,12 @@ export type PrimaryWorkerBootOptions = {
 	dataSqlPath?: string;
 	followSymlinks: boolean;
 	trace: boolean;
+	/**
+	 * Disable internal cookie handling. When true, Playground will not manage cookies internally,
+	 * which can be useful when cookies are handled externally (e.g., by a browser in Node.js environments).
+	 * By default, Playground uses an internal HttpCookieStore that persists cookies across requests.
+	 */
+	disableCookieStore?: boolean;
 };
 
 function mountResources(php: PHP, mounts: Mount[]) {
@@ -70,6 +76,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		dataSqlPath,
 		followSymlinks,
 		trace,
+		disableCookieStore,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -137,7 +144,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 						mountResources(php, mountsBeforeWpInstall);
 					},
 				},
-				cookieStore: false,
+				cookieStore: disableCookieStore ? false : undefined,
 				dataSqlPath,
 			});
 			this.__internal_setRequestHandler(requestHandler);
