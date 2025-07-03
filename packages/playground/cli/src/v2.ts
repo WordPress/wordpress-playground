@@ -200,6 +200,7 @@ export async function runBlueprintV2(
 	await php?.writeFile(
 		'/tmp/run-blueprints.php',
 		`<?php
+echo "PHP Version: " . phpversion() . "\\n";
 function playground_http_client_factory() {
 	return new WordPress\\HttpClient\\Client([
 		// sockets transport is somehow faster than curl in Playground. Maybe
