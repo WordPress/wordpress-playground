@@ -30,35 +30,37 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/15)
+                    - name: test-unit-asyncify (1/16)
                       target: test
-                    - name: test-unit-asyncify (2/15)
+                    - name: test-unit-asyncify (2/16)
                       target: test-php
-                    - name: test-unit-asyncify (3/15)
+                    - name: test-unit-asyncify (3/16)
+                      target: test-php-networking
+                    - name: test-unit-asyncify (4/16)
                       target: test-php-request-handler-files
-                    - name: test-unit-asyncify (4/15)
+                    - name: test-unit-asyncify (5/16)
                       target: test-php-request-handler-requests
-                    - name: test-unit-asyncify (5/15)
+                    - name: test-unit-asyncify (6/16)
                       target: test-php-asyncify-file-get-contents-http
-                    - name: test-unit-asyncify (6/15)
+                    - name: test-unit-asyncify (7/16)
                       target: test-php-asyncify-file-get-contents-https
-                    - name: test-unit-asyncify (7/15)
+                    - name: test-unit-asyncify (8/16)
                       target: test-php-asyncify-fopen-http
-                    - name: test-unit-asyncify (8/15)
+                    - name: test-unit-asyncify (9/16)
                       target: test-php-asyncify-fopen-https
-                    - name: test-unit-asyncify (9/15)
+                    - name: test-unit-asyncify (10/16)
                       target: test-php-asyncify-fsockopen-http
-                    - name: test-unit-asyncify (10/15)
+                    - name: test-unit-asyncify (11/16)
                       target: test-php-asyncify-fsockopen-https
-                    - name: test-unit-asyncify (11/15)
+                    - name: test-unit-asyncify (12/16)
                       target: test-php-asyncify-gethostbyname-http
-                    - name: test-unit-asyncify (12/15)
+                    - name: test-unit-asyncify (13/16)
                       target: test-php-asyncify-gethostbyname-https
-                    - name: test-unit-asyncify (13/15)
+                    - name: test-unit-asyncify (14/16)
                       target: test-php-asyncify-mysqli-http
-                    - name: test-unit-asyncify (14/15)
+                    - name: test-unit-asyncify (15/16)
                       target: test-php-asyncify-mysqli-https
-                    - name: test-unit-sqlite3 (15/15)
+                    - name: test-unit-asyncify (16/16)
                       target: test-php-asyncify-sqlite3
         name: ${{ matrix.name }}
         services:
@@ -88,6 +90,24 @@ jobs:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
+    test-unit-jspi:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: test-unit-jspi (1/1)
+                      target: test-php-dynamic-loading-jspi
+        name: ${{ matrix.name }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 23
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
     # Most of these tests pass locally but the process is crashing
     # on the CI runner.
     #

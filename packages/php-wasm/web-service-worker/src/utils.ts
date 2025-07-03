@@ -87,8 +87,19 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 			phpResponse.httpStatusCode
 		);
 	}
-
-	return new Response(phpResponse.bytes, {
+	/**
+	 * Make sure we don't pass an actual body string to new Response()
+	 * if the status is a null body status (101, 103, 204, 205, or 304).
+	 * new Response() throws a TypeError in that case, as the fetch() spec
+	 * requires.
+	 *
+	 * @see https://fetch.spec.whatwg.org/#statuses
+	 */
+	const isNullBodyCode = [101, 103, 204, 205, 304].includes(
+		phpResponse.httpStatusCode
+	);
+	const responseBody = isNullBodyCode ? null : phpResponse.bytes;
+	return new Response(responseBody, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});

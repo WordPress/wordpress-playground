@@ -93,6 +93,10 @@ describe(`${protocol} protocol – asyncify`, () => {
 			await setPhpIniEntries(php, { allow_url_fopen: 1 });
 		});
 
+		afterEach(async () => {
+			php?.[Symbol.dispose]?.();
+		});
+
 		describe.each(Object.keys(topOfTheStack))('%s', (networkCallKey) => {
 			const networkCall = topOfTheStack[networkCallKey];
 			test('Direct call', () => assertNoCrash(networkCall));
