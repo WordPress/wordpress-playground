@@ -1,6 +1,17 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
-import { flockSync as nativeFlockSync } from 'fs-ext';
+
+type NativeFlockSync = (
+	fd: number,
+	flags: 'sh' | 'ex' | 'shnb' | 'exnb' | 'un'
+) => void;
+const nativeFlockSync: NativeFlockSync = await import('fs-ext').then(
+	(m) => m.flockSync,
+	() =>
+		function flockSyncNoOp() {
+			/* do nothing */
+		}
+);
 
 import type {
 	FileLockManager,
