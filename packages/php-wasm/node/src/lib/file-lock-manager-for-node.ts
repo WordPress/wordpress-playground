@@ -7,7 +7,7 @@ type NativeFlockSync = (
 	flags: 'sh' | 'ex' | 'shnb' | 'exnb' | 'un'
 ) => void;
 const nativeFlockSync: NativeFlockSync = (() => {
-	const require = createRequire(import.meta.url);
+	const require = createRequire(import.meta.filename);
 	try {
 		return require('fs-ext').flockSync;
 	} catch {
