@@ -43,7 +43,10 @@ const LibraryForFileLocking = {
 			}
 
 			// Handle PROXYFS nodes which wrap other nodes.
-			if (!node?.mount?.opts?.fs?.lookupPath || !node?.mount?.type?.realPath) {
+			if (
+				!node?.mount?.opts?.fs?.lookupPath ||
+				!node?.mount?.type?.realPath
+			) {
 				return false;
 			}
 
@@ -53,7 +56,8 @@ const LibraryForFileLocking = {
 			}
 			const vfsPath = node.mount.type.realPath(node);
 			try {
-				const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
+				const underlyingNode =
+					node.mount.opts.fs.lookupPath(vfsPath)?.node;
 				return !!underlyingNode?.isSharedFS;
 			} catch (e) {
 				return false;
@@ -141,21 +145,22 @@ const LibraryForFileLocking = {
 			 */
 			function read_flock_struct(flockStructAddress) {
 				/*
-				* NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
-				* we need to adjust offsets to address the word size of each HEAP.
-				*
-				* For example, an offset of 64 bytes is the following for each HEAP:
-				* - HEAP8: 64  (the 64th byte)
-				* - HEAP16: 32 (the 32nd 16-bit word)
-				* - HEAP32: 16 (the 16th 32-bit word)
-				* - HEAP64: 8  (the 8th 64-bit word)
-				*
-				* We get a word offset by dividing the byte offset by the word size.
-				*/
+				 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+				 * we need to adjust offsets to address the word size of each HEAP.
+				 *
+				 * For example, an offset of 64 bytes is the following for each HEAP:
+				 * - HEAP8: 64  (the 64th byte)
+				 * - HEAP16: 32 (the 32nd 16-bit word)
+				 * - HEAP32: 16 (the 16th 32-bit word)
+				 * - HEAP64: 8  (the 8th 64-bit word)
+				 *
+				 * We get a word offset by dividing the byte offset by the word size.
+				 */
 				return {
 					l_type: HEAP16[
 						// Shift right by 1 to divide by 2^1.
-						(flockStructAddress + emscripten_flock_l_type_offset) >> 1
+						(flockStructAddress + emscripten_flock_l_type_offset) >>
+							1
 					],
 					l_whence:
 						HEAP16[
@@ -173,11 +178,13 @@ const LibraryForFileLocking = {
 						],
 					l_len: HEAP64[
 						// Shift right by 3 to divide by 2^3.
-						(flockStructAddress + emscripten_flock_l_len_offset) >> 3
+						(flockStructAddress + emscripten_flock_l_len_offset) >>
+							3
 					],
 					l_pid: HEAP32[
 						// Shift right by 2 to divide by 2^2.
-						(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
+						(flockStructAddress + emscripten_flock_l_pid_offset) >>
+							2
 					],
 				};
 			}
@@ -190,45 +197,52 @@ const LibraryForFileLocking = {
 			 */
 			function update_flock_struct(flockStructAddress, fields) {
 				/*
-				* NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
-				* we need to adjust offsets to address the word size of each HEAP.
-				*
-				* For example, an offset of 64 bytes is the following for each HEAP:
-				* - HEAP8: 64  (the 64th byte)
-				* - HEAP16: 32 (the 32nd 16-bit word)
-				* - HEAP32: 16 (the 16th 32-bit word)
-				* - HEAP64: 8  (the 8th 64-bit word)
-				*
-				* We get a word offset by dividing the byte offset by the word size.
-				*/
+				 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+				 * we need to adjust offsets to address the word size of each HEAP.
+				 *
+				 * For example, an offset of 64 bytes is the following for each HEAP:
+				 * - HEAP8: 64  (the 64th byte)
+				 * - HEAP16: 32 (the 32nd 16-bit word)
+				 * - HEAP32: 16 (the 16th 32-bit word)
+				 * - HEAP64: 8  (the 8th 64-bit word)
+				 *
+				 * We get a word offset by dividing the byte offset by the word size.
+				 */
 				if (fields.l_type !== undefined) {
 					HEAP16[
 						// Shift right by 1 to divide by 2^1.
-						(flockStructAddress + emscripten_flock_l_type_offset) >> 1
+						(flockStructAddress + emscripten_flock_l_type_offset) >>
+							1
 					] = fields.l_type;
 				}
 				if (fields.l_whence !== undefined) {
 					HEAP16[
 						// Shift right by 1 to divide by 2^1.
-						(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
+						(flockStructAddress +
+							emscripten_flock_l_whence_offset) >>
+							1
 					] = fields.l_whence;
 				}
 				if (fields.l_start !== undefined) {
 					HEAP64[
 						// Shift right by 3 to divide by 2^3.
-						(flockStructAddress + emscripten_flock_l_start_offset) >> 3
+						(flockStructAddress +
+							emscripten_flock_l_start_offset) >>
+							3
 					] = fields.l_start;
 				}
 				if (fields.l_len !== undefined) {
 					HEAP64[
 						// Shift right by 3 to divide by 2^3.
-						(flockStructAddress + emscripten_flock_l_len_offset) >> 3
+						(flockStructAddress + emscripten_flock_l_len_offset) >>
+							3
 					] = fields.l_len;
 				}
 				if (fields.l_pid !== undefined) {
 					HEAP32[
 						// Shift right by 2 to divide by 2^2.
-						(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
+						(flockStructAddress + emscripten_flock_l_pid_offset) >>
+							2
 					] = fields.l_pid;
 				}
 			}
@@ -384,7 +398,8 @@ const LibraryForFileLocking = {
 								l_type: fcntlLockState,
 								l_whence: emscripten_SEEK_SET,
 								l_start: conflictingLock.start,
-								l_len: conflictingLock.end - conflictingLock.start,
+								l_len:
+									conflictingLock.end - conflictingLock.start,
 								l_pid: conflictingLock.pid,
 							});
 							return wakeUp(0);
@@ -597,7 +612,8 @@ const LibraryForFileLocking = {
 			}
 
 			const maskedOp =
-				op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
+				op &
+				(emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
 
 			const lockOpType = flockToLockOpType[maskedOp];
 			if (lockOpType === undefined) {
@@ -609,7 +625,8 @@ const LibraryForFileLocking = {
 				return wakeUp(-ERRNO_CODES.EINVAL);
 			}
 
-			const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
 			const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
 				nativeFilePath,
 				{
@@ -642,7 +659,8 @@ const LibraryForFileLocking = {
 		return Asyncify.handleSleep((wakeUp) => {
 			_js_wasm_trace('fd_close(%d)', fd);
 
-			const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
+			const [vfsPath, pathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
 			if (pathResolutionErrno !== 0) {
 				_js_wasm_trace(
 					'fd_close(%d) get_vfs_path_from_fd error %d',
@@ -664,7 +682,10 @@ const LibraryForFileLocking = {
 						nativeFilePath
 					)
 					.then(() => {
-						_js_wasm_trace('fd_close(%d) release locks success', fd);
+						_js_wasm_trace(
+							'fd_close(%d) release locks success',
+							fd
+						);
 					})
 					.catch((e) => {
 						_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
@@ -694,15 +715,17 @@ const LibraryForFileLocking = {
 		return Asyncify.handleSleep((wakeUp) => {
 			_js_wasm_trace('js_release_file_locks()');
 			const pid = PHPLoader.processId;
-			PHPLoader.fileLockManager
-				.releaseLocksForProcess(pid)
-				.then(() => {
-					_js_wasm_trace('js_release_file_locks succeeded');
-				})
-				.catch((e) => {
-					_js_wasm_trace('js_release_file_locks error %s', e);
-				})
-				.finally(wakeUp);
+			if (pid && PHPLoader.fileLockManager) {
+				PHPLoader.fileLockManager
+					.releaseLocksForProcess(pid)
+					.then(() => {
+						_js_wasm_trace('js_release_file_locks succeeded');
+					})
+					.catch((e) => {
+						_js_wasm_trace('js_release_file_locks error %s', e);
+					})
+					.finally(wakeUp);
+			}
 		});
 	},
 };

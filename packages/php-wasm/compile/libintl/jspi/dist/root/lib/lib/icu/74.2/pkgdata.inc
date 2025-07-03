@@ -4,9 +4,9 @@ SOBJ=so
 A=a
 LIBPREFIX=lib
 LIB_EXT_ORDER=.74.2
-COMPILE=/root/emsdk/upstream/emscripten/emcc -ffunction-sections -fdata-sections -D_REENTRANT  -DU_HAVE_ELF_H=1 -DU_HAVE_STRTOD_L=1 -DU_HAVE_XLOCALE_H=1 -DU_HAVE_STRING_VIEW=1  -DU_ATTRIBUTE_DEPRECATED= -O2 -std=c11 -Wall -pedantic -Wshadow -Wpointer-arith -Wmissing-prototypes -Wwrite-strings   -c
+COMPILE=/root/emsdk/upstream/emscripten/emcc -ffunction-sections -fdata-sections -D_REENTRANT  -DU_HAVE_ELF_H=1 -DU_HAVE_STRTOD_L=1 -DU_HAVE_XLOCALE_H=1 -DU_HAVE_STRING_VIEW=1  -DU_ATTRIBUTE_DEPRECATED= -fPIC -std=c11 -Wall -pedantic -Wshadow -Wpointer-arith -Wmissing-prototypes -Wwrite-strings   -c
 LIBFLAGS=-I/root/lib/include -DPIC -fPIC
-GENLIB=/root/emsdk/upstream/emscripten/emcc -O2 -std=c11 -Wall -pedantic -Wshadow -Wpointer-arith -Wmissing-prototypes -Wwrite-strings   -Wl,--gc-sections  -shared -Wl,-Bsymbolic
+GENLIB=/root/emsdk/upstream/emscripten/emcc -fPIC -std=c11 -Wall -pedantic -Wshadow -Wpointer-arith -Wmissing-prototypes -Wwrite-strings   -Wl,--gc-sections  -shared -Wl,-Bsymbolic
 LDICUDTFLAGS=-nodefaultlibs -nostdlib
 LD_SONAME=-Wl,-soname -Wl,
 RPATH_FLAGS=

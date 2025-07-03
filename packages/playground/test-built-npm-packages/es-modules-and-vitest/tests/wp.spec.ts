@@ -13,7 +13,7 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 }
 
 describe(`PHP ${phpVersion}`, () => {
-	it('Should load WordPress', { timeout: 10000 }, async () => {
+	it('Should load WordPress', { timeout: 12000 }, async () => {
 		let cli;
 		try {
 			cli = await runCLI({

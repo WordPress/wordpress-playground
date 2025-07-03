@@ -1908,7 +1908,7 @@ extern pid_t js_getpid();
  *   We provide our own getpid() implementation to return a distinct ID
  *   for the purpose of file locking.
  */
-EMSCRIPTEN_KEEPALIVE pid_t getpid() {
+EMSCRIPTEN_KEEPALIVE pid_t __wrap_getpid() {
 	// The process ID is provided in JS as a PHPLoader option,
 	// so we ask JS for it here.
 	return js_getpid();

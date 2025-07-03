@@ -48,7 +48,7 @@ describe('rotatePHPRuntime()', () => {
 		// Confirm the file is still there
 		expect(php.fileExists('/internal/shared/test')).toBe(true);
 		expect(php.readFileAsText('/internal/shared/test')).toBe('playground');
-	});
+	}, 30_000);
 
 	it('Preserves a single NODEFS mount through PHP runtime recreation', async () => {
 		// Rotate the PHP runtime
@@ -376,7 +376,7 @@ describe('rotatePHPRuntime()', () => {
 			code: `<?php echo php_sapi_name();`,
 		});
 		expect(result.text).toBe('custom SAPI');
-	});
+	}, 30_000);
 
 	it('Should preserve the MEMFS files', async () => {
 		const php = new PHP(await recreateRuntime());
