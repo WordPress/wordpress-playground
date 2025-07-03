@@ -27,9 +27,10 @@ export type PrimaryWorkerBootOptions = {
 	followSymlinks: boolean;
 	trace: boolean;
 	/**
-	 * Disable internal cookie handling. When true, Playground will not manage cookies internally,
-	 * which can be useful when cookies are handled externally (e.g., by a browser in Node.js environments).
-	 * By default, Playground uses an internal HttpCookieStore that persists cookies across requests.
+	 * Disable internal cookie handling. When true, Playground will not manage
+	 * cookies internally, which can be useful when cookies are handled externally
+	 * (e.g., by a browser in Node.js environments). By default, Playground uses
+	 * an internal HttpCookieStore that persists cookies across requests.
 	 */
 	disableCookieStore?: boolean;
 };
