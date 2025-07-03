@@ -31,7 +31,6 @@ export async function withICUData(
 					`${phpRuntime.ENV.ICU_DATA}/${fileName}`
 				)
 			) {
-				phpRuntime.FS.mkdirTree(phpRuntime.ENV.ICU_DATA);
 				phpRuntime.FS.writeFile(
 					`${phpRuntime.ENV.ICU_DATA}/${fileName}`,
 					new Uint8Array(ICUData)

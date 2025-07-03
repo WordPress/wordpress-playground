@@ -360,7 +360,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		 * @param  workerUrl The absolute URL of the worker script.
 		 * @returns The spawned Worker Thread.
 		 */
-		async function spawnPHPWorkerThread(workerUrl: URL) {
+		async function spawnPHPWorkerThread(
+			workerUrl: URL,
+			onExit: (code: number) => void
+		) {
 			const worker = new Worker(workerUrl);
 
 			return new Promise<Worker>((resolve, reject) => {
@@ -385,6 +388,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 				worker.on('message', onMessage);
 				worker.on('error', onError);
+				worker.on('exit', onExit);
 			});
 		}
 
@@ -396,7 +400,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			const promises = [];
 			for (let i = 0; i < count; i++) {
-				promises.push(spawnPHPWorkerThread(moduleWorkerUrl));
+				promises.push(
+					spawnPHPWorkerThread(moduleWorkerUrl, (code) => {
+						if (code !== 0) {
+							process.stderr.write(
+								`Worker ${i} exited with code ${code}\n`
+							);
+							// If the primary worker crashes, exit the entire process.
+							if (i === 0) {
+								process.exit(1);
+							}
+						}
+					})
+				);
 			}
 			return Promise.all(promises);
 		}

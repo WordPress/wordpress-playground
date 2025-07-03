@@ -280,7 +280,19 @@ export class FSHelpers {
 	 * @param  path - The directory path to create.
 	 */
 	static mkdir(FS: Emscripten.RootFS, path: string) {
-		FS.mkdirTree(path);
+		try {
+			FS.mkdirTree(path);
+		} catch (e) {
+			// errno 20 means the directory already exists – we can ignore those errors.
+			if (
+				e !== null &&
+				typeof e === 'object' &&
+				'errno' in e &&
+				e.errno !== 20
+			) {
+				throw e;
+			}
+		}
 	}
 
 	static copyRecursive(

@@ -21,10 +21,20 @@ import { parentPort } from 'worker_threads';
 import type { Mount } from './mounts';
 import type { RunCLIArgs } from './run-cli';
 
-function mountResources(php: PHP, mounts: Mount[]) {
+async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
-		php.mkdir(mount.vfsPath);
-		php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
+		try {
+			php.mkdir(mount.vfsPath);
+			await php.mount(
+				mount.vfsPath,
+				createNodeFsMountHandler(mount.hostPath)
+			);
+		} catch {
+			output.stderr(
+				`\x1b[31m\x1b[1mError mounting path ${mount.hostPath} at ${mount.vfsPath}\x1b[0m\n`
+			);
+			process.exit(1);
+		}
 	}
 }
 
@@ -131,10 +141,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 	async bootAsSecondaryWorker(args: WorkerBootArgs) {
 		await this.bootRequestHandler(args);
-		const php = this.__internal_getPHP()!;
+		const primaryPhp = this.__internal_getPHP()!;
 		// When secondary workers are spawned, WordPress is already installed.
-		await mountResources(php, args['mount-before-install'] || []);
-		await mountResources(php, args.mount || []);
+		await mountResources(primaryPhp, args['mount-before-install'] || []);
+		await mountResources(primaryPhp, args.mount || []);
 	}
 
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
@@ -146,11 +156,11 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 		// Mount the current working directory to the PHP runtime for the purposes of
 		// Blueprint resolution.
+		const primaryPhp = this.__internal_getPHP()!;
 		let unmountCwd = () => {};
 		if (typeof args.blueprint === 'string') {
 			const blueprintPath = path.resolve(process.cwd(), args.blueprint);
 			if (existsSync(blueprintPath)) {
-				const primaryPhp = this.__internal_getPHP()!;
 				primaryPhp.mkdir('/internal/shared/cwd');
 				unmountCwd = await primaryPhp.mount(
 					'/internal/shared/cwd',
@@ -194,7 +204,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 					switch (message.type) {
 						case 'blueprint.target_resolved': {
 							if (!afterBlueprintTargetResolvedCalled) {
-								await mountResources(php, args.mount || []);
+								await mountResources(
+									primaryPhp,
+									args.mount || []
+								);
 								afterBlueprintTargetResolvedCalled = true;
 							}
 							break;
