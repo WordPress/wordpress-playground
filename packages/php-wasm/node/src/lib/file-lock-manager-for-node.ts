@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
-import { createRequire } from 'module';
 
 type NativeFlockSync = (
 	fd: number,
