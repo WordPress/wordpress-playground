@@ -6,6 +6,8 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
+ARG WITH_JSPI
+
 # Install Bison, required to build PHP
 RUN mkdir -p /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
