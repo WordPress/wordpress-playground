@@ -27,6 +27,37 @@ export function init(RuntimeName, PHPLoader) {
 	// can continue to use Module afterwards as well.
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
 
+	/**
+	 * If the trailing component (i.e., basename) of pathname is a
+	 * symbolic link, then the open fails, with the error ELOOP.
+	 * Symbolic links in earlier components of the pathname will
+	 * still be followed.  (Note that the ELOOP error that can
+	 * occur in this case is indistinguishable from the case where
+	 * an open fails because there are too many symbolic links
+	 * found while resolving components in the prefix part of the
+	 * pathname.)
+	 *
+	 * This flag is a FreeBSD extension, which was added in Linux
+	 * 2.1.126, and has subsequently been standardized in
+	 * POSIX.1-2008.
+	 *
+	 * See also O_PATH below.
+	 */
+	const O_NOFOLLOW = 0o100000;
+	// File status flags
+	const O_APPEND = 0o002000;
+	const O_DSYNC = 0o010000;
+	const O_NONBLOCK = 0o004000;
+	const O_SYNC = 0o4000000 | O_DSYNC;
+
+	// File access mode mask
+	const O_ACCMODE = 0o000003;
+
+	// File access mode flags
+	const O_RDONLY = 0o000000;
+	const O_RDWR = 0o000002;
+	const O_WRONLY = 0o000001;
+
 	// Determine the runtime environment we are in. You can customize this by
 	// setting the ENVIRONMENT setting at compile time (see settings.js).
 
@@ -6978,7 +7009,8 @@ export function init(RuntimeName, PHPLoader) {
 					return stream.flags;
 				case 4: {
 					var arg = syscallGetVarargI();
-					stream.flags |= arg;
+					// stream.flags |= arg;
+					stream.flags = arg;
 					return 0;
 				}
 				case 12: {
@@ -7090,8 +7122,8 @@ export function init(RuntimeName, PHPLoader) {
 		SYSCALLS.varargs = varargs;
 
 		// These constants are replaced by Emscripten during the build process
-		const emscripten_F_GETFL = Number('3');
-		const emscripten_F_SETFL = Number('4');
+		const emscripten_F_GETFL = Number('3'); /* Get file status flags.  */
+		const emscripten_F_SETFL = Number('4'); /* Set file status flags.  */
 		const emscripten_F_GETLK = Number('12');
 		const emscripten_F_SETLK = Number('13');
 		const emscripten_F_SETLKW = Number('14');
@@ -7480,21 +7512,38 @@ export function init(RuntimeName, PHPLoader) {
 						return -ERRNO_CODES.EINVAL;
 					});
 			}
-			case emscripten_F_GETFL: {
-				if (fd in PHPWASM.child_proc_by_fd) {
-					return PHPWASM.child_proc_by_fd[fd].fcntl_lock_args;
-				}
-				return -ERRNO_CODES.EINVAL;
-			}
-			case emscripten_F_SETFL: {
-				// console.log({emscripten_F_SETFL, fd, varargs})
-				if (fd in PHPWASM.child_proc_by_fd) {
-					PHPWASM.child_proc_by_fd[fd].fcntl_lock_args = varargs;
-					// console.log({fd, cmd, varargs, fcntl_lock_args: PHPWASM.child_proc_by_fd[fd].fcntl_lock_args});
-					return 0;
-				}
-				return -ERRNO_CODES.EINVAL;
-			}
+			// case emscripten_F_GETFL: {
+			// 	if (fd in PHPWASM.child_proc_by_fd) {
+
+			// 		try {
+			// 			const stream = SYSCALLS.getStreamFromFD(fd);
+			// 			console.log('emscripten_F_GETFL', {fd, varargs, flags: stream.flags})
+			// 			return stream.flags;
+			// 		} catch (e) {}
+			// 		// return PHPWASM.child_proc_by_fd[fd].fcntl_lock_args;
+			// 	}
+			// 	return -ERRNO_CODES.EINVAL;
+			// }
+			// case emscripten_F_SETFL: {
+			// 	if (fd in PHPWASM.child_proc_by_fd) {
+			// 		var newFlags = syscallGetVarargI();
+			// 		// const flockStruct = read_flock_struct(flockStructAddr);
+			// 		console.log('emscripten_F_SETFL', {
+			// 			fd,
+			// 			newFlags
+			// 		})
+			// 		try {
+			// 			const stream = SYSCALLS.getStreamFromFD(fd);
+			// 			stream.flags = varargs;
+			// 		} catch (e) {
+			// 			console.error(e);
+			// 		 }
+			// 		// PHPWASM.child_proc_by_fd[fd].fcntl_lock_args = varargs;
+			// 		// console.log({fd, cmd, varargs, fcntl_lock_args: PHPWASM.child_proc_by_fd[fd].fcntl_lock_args});
+			// 		return 0;
+			// 	}
+			// 	return -ERRNO_CODES.EINVAL;
+			// }
 			// @TODO: Implement waiting for lock
 			case emscripten_F_SETLKW: {
 				// We do not yet support the blocking form of flock().
@@ -31318,7 +31367,8 @@ export function init(RuntimeName, PHPLoader) {
 			return returnCallback((wakeUp) => {
 				// console.log('Poll', socketd);
 				const polls = [];
-				if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+				const stream = FS.getStream(socketd);
+				if (FS.isSocket(stream?.node.mode)) {
 					const sock = getSocketFromFD(socketd);
 					if (!sock) {
 						wakeUp(0);
@@ -31368,7 +31418,7 @@ export function init(RuntimeName, PHPLoader) {
 					}
 				} else if (socketd in PHPWASM.child_proc_by_fd) {
 					const procInfo = PHPWASM.child_proc_by_fd[socketd];
-					const O_NONBLOCK = 1;
+
 					// console.log({socketd, procInfo}, FS.getStream(socketd))
 					// console.log({socketd, events, timeout, fcntl_lock_args: PHPWASM.child_proc_by_fd[socketd].fcntl_lock_args,
 					// 	O_NONBLOCK: PHPWASM.child_proc_by_fd[socketd].fcntl_lock_args & O_NONBLOCK
@@ -31377,19 +31427,8 @@ export function init(RuntimeName, PHPLoader) {
 						wakeUp(0);
 						return;
 					}
+
 					polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-					// If it's a non-blocking read, don't wait.
-					if (
-						1 ||
-						PHPWASM.child_proc_by_fd[socketd].fcntl_lock_args &
-							O_NONBLOCK
-					) {
-						// console.log('wakeup from poll now');
-						polls.forEach(([, clear]) => clear());
-						wakeUp(1);
-						return;
-						timeout = 0;
-					}
 				} else {
 					setTimeout(function () {
 						wakeUp(1);
@@ -31407,6 +31446,15 @@ export function init(RuntimeName, PHPLoader) {
 					}, timeout);
 					return;
 				}
+
+				// If it's a non-blocking read, short-circuit without waiting.
+				if (stream.flags & O_NONBLOCK) {
+					// Should we set timeout to 0 on non-blocking sockets
+					// if we were actually ask to poll them? I think this
+					// is called from stream_select() so.. probably?
+					// timeout = 0;
+				}
+
 				const promises = polls.map(([promise]) => promise);
 				const clearPolling = () =>
 					polls.forEach(([, clear]) => clear());
@@ -31507,23 +31555,16 @@ export function init(RuntimeName, PHPLoader) {
 								? 0
 								: returnCode
 						);
+					} else if (
+						returnCode === ERRNO_CODES.EWOULDBLOCK &&
+						stream.flags & O_NONBLOCK
+					) {
+						HEAPU32[pnum >> 2] = 0;
+						wakeUp(returnCode);
 					} else {
-						if (fd in PHPWASM.child_proc_by_fd) {
-							// @TODO: Normalize this before merging.
-							//        This assumes every read from a process-related fd is
-							//        non-blocking. In reality, we need to store the fcntl
-							//        information we get from PHP and use that to decide.
-							//        Without this, these fread($output_file, 1024) blocks
-							//        until the child process writes some bytes to the output file.
-							//        This breaks Symfony UnixPipe->readAndWrite() – it's called
-							//        after the process is spawned and, if it's not correclty marked
-							//        as non-blocking, it prevents the ImportContentStep from
-							//        proceeding until the child process **finishes**.
-							HEAPU32[pnum >> 2] = 0;
-							wakeUp(ERRNO_CODES.EWOULDBLOCK);
-						} else {
-							setTimeout(poll, interval);
-						}
+						// Blocking stream with no data available yet.
+						// Let's poll up to a timeout.
+						setTimeout(poll, interval);
 					}
 				}
 				poll();
