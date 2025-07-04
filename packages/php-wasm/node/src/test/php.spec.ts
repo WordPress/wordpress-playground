@@ -88,12 +88,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		await setPhpIniEntries(php, { disable_functions: '' });
 	});
 	afterEach(async () => {
-		// Clean up
-		try {
-			php.exit(0);
-		} catch {
-			// ignore exit-related exceptions
-		}
+		php.exit();
 	});
 
 	describe('php.runStream()', () => {
@@ -1853,6 +1848,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Should have access to raw request data via the php://input stream', async () => {
 			const response = await php.run({
+				headers: { 'Content-Type': 'application/json' },
 				method: 'POST',
 				body: new TextEncoder().encode('{"foo": "bar"}'),
 				code: `<?php echo file_get_contents('php://input');`,

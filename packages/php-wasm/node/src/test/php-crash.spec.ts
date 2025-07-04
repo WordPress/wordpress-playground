@@ -6,11 +6,12 @@ import {
 	PHP,
 } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
+import { jspi } from 'wasm-feature-detect';
 
 // @TODO Prevent crash on PHP versions 5.6, 7.2, 8.2
 describe.each(['7.3', '7.4', '8.0', '8.1'])(
 	'PHP %s – process crash',
-	(phpVersion) => {
+	async (phpVersion) => {
 		let php: PHP;
 		let unhandledRejection: any;
 		beforeEach(async () => {
@@ -23,7 +24,7 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 		});
 
 		afterEach(async () => {
-			php?.[Symbol.dispose]?.();
+			php.exit();
 		});
 
 		function unhandledRejectionHandler(error: any) {
@@ -37,50 +38,52 @@ describe.each(['7.3', '7.4', '8.0', '8.1'])(
 			process.off('unhandledRejection', unhandledRejectionHandler);
 		});
 
-		it('Does not crash due to an unhandled Asyncify error ', async () => {
-			let caughtError;
+		if (!(await jspi())) {
+			it('Does not crash due to an unhandled Asyncify error ', async () => {
+				let caughtError;
 
-			try {
-				/**
-				 * PHP is intentionally built without network support for __clone()
-				 * because it's an extremely unlikely place for any network activity
-				 * and not supporting it allows us to test the error handling here.
-				 *
-				 * `clone $x` will throw an asynchronous error out when attempting
-				 * to do a network call ("unreachable" WASM instruction executed).
-				 * This test should gracefully catch and handle that error.
-				 *
-				 * A failure to do so will crash the entire process
-				 */
-				await php.run({
-					code: `<?php
-				class Top {
-					function __clone() {
-						file_get_contents("http://127.0.0.1");
+				try {
+					/**
+					 * PHP is intentionally built without network support for __clone()
+					 * because it's an extremely unlikely place for any network activity
+					 * and not supporting it allows us to test the error handling here.
+					 *
+					 * `clone $x` will throw an asynchronous error out when attempting
+					 * to do a network call ("unreachable" WASM instruction executed).
+					 * This test should gracefully catch and handle that error.
+					 *
+					 * A failure to do so will crash the entire process
+					 */
+					await php.run({
+						code: `<?php
+					class Top {
+						function __clone() {
+							file_get_contents("http://127.0.0.1");
+						}
+					}
+					$x = new Top();
+					clone $x;
+					`,
+					});
+				} catch (error: unknown) {
+					caughtError = error;
+					if (error instanceof Error) {
+						expect(
+							(error as any).cause?.message || error.message
+						).toMatch(
+							/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+						);
 					}
 				}
-				$x = new Top();
-				clone $x;
-				`,
-				});
-			} catch (error: unknown) {
-				caughtError = error;
-				if (error instanceof Error) {
-					expect(
-						(error as any).cause?.message || error.message
-					).toMatch(
-						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+
+				// Accept either a caught error or an unhandled rejection
+				if (!caughtError && !unhandledRejection) {
+					expect.fail(
+						'php.run should have thrown an error or caused an unhandled rejection'
 					);
 				}
-			}
-
-			// Accept either a caught error or an unhandled rejection
-			if (!caughtError && !unhandledRejection) {
-				expect.fail(
-					'php.run should have thrown an error or caused an unhandled rejection'
-				);
-			}
-		});
+			});
+		}
 
 		it('Does not crash due to an unhandled non promise error ', async () => {
 			// Tolerate an unhandled rejections

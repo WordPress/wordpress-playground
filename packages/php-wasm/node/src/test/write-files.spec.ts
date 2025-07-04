@@ -13,7 +13,7 @@ describe('writeFiles', () => {
 	});
 
 	afterEach(async () => {
-		php?.[Symbol.dispose]?.();
+		php.exit();
 	});
 
 	it('removes the previous directory contents', async () => {
