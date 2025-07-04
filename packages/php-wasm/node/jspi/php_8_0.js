@@ -7512,38 +7512,6 @@ export function init(RuntimeName, PHPLoader) {
 						return -ERRNO_CODES.EINVAL;
 					});
 			}
-			// case emscripten_F_GETFL: {
-			// 	if (fd in PHPWASM.child_proc_by_fd) {
-
-			// 		try {
-			// 			const stream = SYSCALLS.getStreamFromFD(fd);
-			// 			console.log('emscripten_F_GETFL', {fd, varargs, flags: stream.flags})
-			// 			return stream.flags;
-			// 		} catch (e) {}
-			// 		// return PHPWASM.child_proc_by_fd[fd].fcntl_lock_args;
-			// 	}
-			// 	return -ERRNO_CODES.EINVAL;
-			// }
-			// case emscripten_F_SETFL: {
-			// 	if (fd in PHPWASM.child_proc_by_fd) {
-			// 		var newFlags = syscallGetVarargI();
-			// 		// const flockStruct = read_flock_struct(flockStructAddr);
-			// 		console.log('emscripten_F_SETFL', {
-			// 			fd,
-			// 			newFlags
-			// 		})
-			// 		try {
-			// 			const stream = SYSCALLS.getStreamFromFD(fd);
-			// 			stream.flags = varargs;
-			// 		} catch (e) {
-			// 			console.error(e);
-			// 		 }
-			// 		// PHPWASM.child_proc_by_fd[fd].fcntl_lock_args = varargs;
-			// 		// console.log({fd, cmd, varargs, fcntl_lock_args: PHPWASM.child_proc_by_fd[fd].fcntl_lock_args});
-			// 		return 0;
-			// 	}
-			// 	return -ERRNO_CODES.EINVAL;
-			// }
 			// @TODO: Implement waiting for lock
 			case emscripten_F_SETLKW: {
 				// We do not yet support the blocking form of flock().

@@ -250,21 +250,21 @@ export class PlaygroundCliWorker extends PHPWorker {
 				streamedResponse!.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							process.stdout.write(
-								`\n1chunk: ${typeof chunk} ${
-									chunk.length
-								} ${new TextDecoder().decode(chunk)}`
-							);
+							// process.stdout.write(
+							// 	`\n1chunk: ${typeof chunk} ${
+							// 		chunk.length
+							// 	} ${new TextDecoder().decode(chunk)}`
+							// );
 						},
 					})
 				);
 				streamedResponse!.stderr.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							process.stderr.write(`\n2chunk: `);
-							process.stderr.write(typeof chunk);
-							process.stderr.write(`${chunk.length}`);
-							process.stderr.write(chunk);
+							// process.stderr.write(`\n2chunk: `);
+							// process.stderr.write(typeof chunk);
+							// process.stderr.write(`${chunk.length}`);
+							// process.stderr.write(chunk);
 						},
 					})
 				);
