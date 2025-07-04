@@ -168,7 +168,7 @@ export async function runBlueprintV2(
 
 	const unbindMessageListener = await php.onMessage(async (message) => {
 		try {
-			console.log({ message });
+			// console.log({ message });
 			const parsed =
 				typeof message === 'string' ? JSON.parse(message) : message;
 			if (!parsed) {
@@ -193,7 +193,7 @@ export async function runBlueprintV2(
 		} catch (e) {
 			logger.warn('Failed to parse message as JSON:', message, e);
 			if (message === 'blueprints.a_message') {
-				globalThis.tracestdout = true;
+				// globalThis.tracestdout = true;
 				// globalThis.traceFdRead = true;
 			}
 		}

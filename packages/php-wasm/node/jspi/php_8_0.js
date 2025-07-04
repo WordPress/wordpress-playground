@@ -5461,6 +5461,7 @@ export function init(RuntimeName, PHPLoader) {
 								);
 						}
 						ws = new WebSocketConstructor(url, opts);
+						ws.setMaxListeners(100);
 						ws.binaryType = 'arraybuffer';
 					} catch (e) {
 						throw new FS.ErrnoError(23);
@@ -6624,11 +6625,11 @@ export function init(RuntimeName, PHPLoader) {
 				write: (stream, buffer, offset, length, pos) => {
 					const chunk = buffer.subarray(offset, offset + length);
 					if (globalThis.tracestdout) {
-						console.log(
-							'stdout write ',
-							length,
-							new TextDecoder().decode(chunk)
-						);
+						// console.log(
+						// 	'stdout write ',
+						// 	length,
+						// 	new TextDecoder().decode(chunk)
+						// );
 					}
 					PHPWASM.onStdout(chunk);
 					return length;
@@ -6823,6 +6824,7 @@ export function init(RuntimeName, PHPLoader) {
 			};
 			const promise = new Promise(function (_resolve) {
 				resolve = _resolve;
+				ws.setMaxListeners(100);
 				ws.once(event, listener);
 			});
 			const cancel = () => {
@@ -17549,7 +17551,7 @@ export function init(RuntimeName, PHPLoader) {
 				let stdoutAt = 0;
 				cp.stdout.on('data', function (data) {
 					if (globalThis.tracestdout) {
-						console.log('got stdout data');
+						// console.log('got stdout data');
 					}
 					ProcInfo.stdout.emit('data', data);
 					stdoutStream.stream_ops.write(
@@ -17641,10 +17643,10 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(ProcInfo.pid);
 				return;
 			} finally {
-				console.log('=====> Process started!');
-				console.log('=====> Process started!');
-				console.log('=====> Process started!');
-				console.log('=====> Process started!');
+				// console.log('=====> Process started!');
+				// console.log('=====> Process started!');
+				// console.log('=====> Process started!');
+				// console.log('=====> Process started!');
 			}
 
 			// Now we want to pass data from the STDIN source supplied by PHP
@@ -30802,7 +30804,7 @@ export function init(RuntimeName, PHPLoader) {
 	var _wasm_recv = function (sockfd, buffer, size, flags) {
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
-				console.log('[wasm] poll()');
+				// console.log('[wasm] poll()');
 				let newl = ___syscall_recvfrom(
 					sockfd,
 					buffer,
@@ -31314,7 +31316,7 @@ export function init(RuntimeName, PHPLoader) {
 			const POLLHUP = 0x0010;
 			const POLLNVAL = 0x0020;
 			return returnCallback((wakeUp) => {
-				console.log('Poll', socketd);
+				// console.log('Poll', socketd);
 				const polls = [];
 				if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
 					const sock = getSocketFromFD(socketd);
@@ -31382,7 +31384,8 @@ export function init(RuntimeName, PHPLoader) {
 						PHPWASM.child_proc_by_fd[socketd].fcntl_lock_args &
 							O_NONBLOCK
 					) {
-						console.log('wakeup from poll now');
+						// console.log('wakeup from poll now');
+						polls.forEach(([, clear]) => clear());
 						wakeUp(1);
 						return;
 						timeout = 0;
