@@ -10,6 +10,7 @@ export async function withICUData(
 	const ICUData = fs.readFileSync(filePath);
 
 	return {
+		...options,
 		ENV: {
 			...options.ENV,
 			ICU_DATA: '/internal/shared',
@@ -31,6 +32,7 @@ export async function withICUData(
 					`${phpRuntime.ENV.ICU_DATA}/${fileName}`
 				)
 			) {
+				phpRuntime.FS.mkdirTree(phpRuntime.ENV.ICU_DATA);
 				phpRuntime.FS.writeFile(
 					`${phpRuntime.ENV.ICU_DATA}/${fileName}`,
 					new Uint8Array(ICUData)

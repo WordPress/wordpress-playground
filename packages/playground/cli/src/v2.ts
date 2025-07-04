@@ -168,6 +168,7 @@ export async function runBlueprintV2(
 
 	const unbindMessageListener = await php.onMessage(async (message) => {
 		try {
+			console.log({ message });
 			const parsed =
 				typeof message === 'string' ? JSON.parse(message) : message;
 			if (!parsed) {
@@ -184,13 +185,17 @@ export async function runBlueprintV2(
 			// This is a workaround to ensure that the message is emitted after the stdout data is processed.
 			// @TODO: Remove this workaround. Find the root cause why stdout data is delayed and address it
 			//        directly.
-			await new Promise((resolve) => setTimeout(resolve, 0));
+			// await new Promise((resolve) => setTimeout(resolve, 0));
 
 			if (parsed.type.startsWith('blueprint.')) {
 				await onMessage(parsed);
 			}
 		} catch (e) {
 			logger.warn('Failed to parse message as JSON:', message, e);
+			if (message === 'blueprints.a_message') {
+				globalThis.tracestdout = true;
+				// globalThis.traceFdRead = true;
+			}
 		}
 	});
 
@@ -205,7 +210,13 @@ function playground_http_client_factory() {
 	return new WordPress\\HttpClient\\Client([
 		// sockets transport is somehow faster than curl in Playground. Maybe
 		// it uses a larger chunk size?
-		'transport' => 'sockets',
+		/**
+		 * A filesystem-related Playground bug in PHP < 8.0 prevents us from using the sockets transport.
+		 * See LINK @TODO for more details.
+		 */
+		'transport' => 'sockets', //version_compare(phpversion(), '8.0', '<') ? 'curl' : 'sockets',
+		// 'cache_dir' => '/tmp',
+		'timeout_ms' => 50000,
 	]);
 }
 playground_add_filter('blueprint.http_client', 'playground_http_client_factory');
@@ -278,6 +289,7 @@ function playground_progress_reporter() {
 		public function close(): void {}
 
 		private function writeJsonMessage(array $data): void {
+			var_dump("Before post_message_to_js: \n" . json_encode($data) . "\n");
 			post_message_to_js(json_encode($data));
 		}
 	}

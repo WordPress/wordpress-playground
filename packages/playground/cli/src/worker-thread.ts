@@ -62,8 +62,8 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
  * causing every progress bar update to be printed in a new line instead of updating the
  * same line.
  */
-Object.defineProperty(process.stdout, 'isTTY', { value: true });
-Object.defineProperty(process.stderr, 'isTTY', { value: true });
+// Object.defineProperty(process.stdout, 'isTTY', { value: true });
+// Object.defineProperty(process.stderr, 'isTTY', { value: true });
 
 /**
  * Output writer that ensures that progress bars are not printed on the same line as other output.
@@ -201,6 +201,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 				},
 				cliArgs,
 				onMessage: async (message: BlueprintMessage) => {
+					// console.log("onMessage", message);
 					switch (message.type) {
 						case 'blueprint.target_resolved': {
 							if (!afterBlueprintTargetResolvedCalled) {
@@ -249,13 +250,20 @@ export class PlaygroundCliWorker extends PHPWorker {
 				streamedResponse!.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							process.stdout.write(chunk);
+							process.stdout.write(
+								`\n1chunk: ${typeof chunk} ${
+									chunk.length
+								} ${new TextDecoder().decode(chunk)}`
+							);
 						},
 					})
 				);
 				streamedResponse!.stderr.pipeTo(
 					new WritableStream({
 						write(chunk) {
+							process.stderr.write(`\n2chunk: `);
+							process.stderr.write(typeof chunk);
+							process.stderr.write(`${chunk.length}`);
 							process.stderr.write(chunk);
 						},
 					})
@@ -287,6 +295,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 			(error as any).phpLogs = phpLogs;
 			throw error;
 		} finally {
+			console.log('Reaping finally');
 			reap();
 			unmountCwd();
 		}
@@ -372,6 +381,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 	}
 }
 
+setInterval(() => {
+	console.log('worker still alive');
+}, 5000);
+
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
 	undefined,
@@ -380,3 +393,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 // Confirm that the worker script has initialized.
 parentPort!.postMessage('worker-script-initialized');
+process.on('exit', () => {
+	console.log('exit');
+	process.stderr.write('exit');
+});

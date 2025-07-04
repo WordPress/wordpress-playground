@@ -7,6 +7,30 @@
  *   devtools console which is only needed for debugging. The HTML makes for the UI.
  *   In CLI, the console and the UI are the same thing. Perhaps we actually need to
  *   separate what we print for UI reasons from what we print for debugging?
+ * * When PHP is spawning a child process to import content, it's polling for its
+ *   output as follows:
+ * 
+ * 		$output = $import_process->getOutputStream(Process::OUTPUT_FILE);
+		foreach ( $this->output_lines( $output ) as $line ) {
+			$next_chunk_stdout = $stdout->pull(1024);
+			$next_stdout = $stdout->consume($next_chunk_stdout);
+
+	 Unfortunately, that child process is actually running in the same Node.js
+	 process and is doing a lot of work. Even though it uses async operations and
+	 and frequently yields back to the event loop, the parent process seems to not
+	 notice the output until much later. "Importing WXR file 84%" can easily be the
+	 last noticed message for 20 seconds, even though the child process has a lot
+	 of network activity going on.
+
+	 Adding additional echos in the child process doesn't help. It's either as if
+	 the output is buffered somewhere, or the parent process is not getting the
+	 control until after the child process does a lot of work.
+
+	 It is probably not getting the control back. I tried calling post_message_to_js()
+	 in the parent process, but the onMessage callback in PHP was not even called. In fact,
+	 If I crashed the parent on purpose, that was also only visible after the assets were
+	 frontloaded.
+ * * https://github.com/WordPress/wordpress-playground/issues/2324
  */
 
 import { logger } from '@php-wasm/logger';
@@ -136,6 +160,8 @@ export async function parseOptionsAndRunCLI() {
 
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
+			// @TODO: Reduce this to a single set of mount/mount-before-install before merging.
+			//        Consider explicit mount-before-install and mount-after-install names
 			.option('mount', {
 				describe:
 					'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
@@ -387,6 +413,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					worker.off('error', onError);
 				}
 				worker.on('message', onMessage);
+				worker.on('messageerror', (e) => {
+					console.error(e);
+				});
 				worker.on('error', onError);
 				worker.on('exit', onExit);
 			});
@@ -402,13 +431,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			for (let i = 0; i < count; i++) {
 				promises.push(
 					spawnPHPWorkerThread(moduleWorkerUrl, (code) => {
+						process.stderr.write(
+							`Worker ${i} exited with code ${code}\n`
+						);
 						if (code !== 0) {
-							process.stderr.write(
-								`Worker ${i} exited with code ${code}\n`
-							);
 							// If the primary worker crashes, exit the entire process.
 							if (i === 0) {
-								process.exit(1);
+								// Give it some time to notice and log all the output.
+								setTimeout(() => {
+									process.exit(1);
+								}, 1000);
 							}
 						}
 					})
@@ -481,6 +513,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					await initialWorker.terminate();
 					throw e;
 				}
+				initialWorker.stdout.pipe(process.stdout, { end: false });
+				initialWorker.stderr.pipe(process.stderr, { end: false });
 
 				if (args.login) {
 					// @TODO: Do we need this in all the workers? Or just in the primary one?

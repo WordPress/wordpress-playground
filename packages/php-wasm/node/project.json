@@ -155,7 +155,6 @@
 					"php-crash.spec.ts",
 					"php-ini.spec.ts",
 					"php-memory.spec.ts",
-					"php-networking.spec.ts",
 					"php-process-manager.spec.ts",
 					"php-request-handler.spec.ts",
 					"php-vars.spec.ts",
@@ -173,16 +172,22 @@
 				"testFiles": ["php.spec.ts"]
 			}
 		},
-		"test-php-asyncify-all": {
-			"executor": "nx:noop",
-			"dependsOn": [
-				"test-php-asyncify-file-get-contents",
-				"test-php-asyncify-fopen",
-				"test-php-asyncify-fsockopen",
-				"test-php-asyncify-gethostbyname",
-				"test-php-asyncify-mysqli",
-				"test-php-asyncify-sqlite3"
-			]
+		"test-php-networking": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-networking.spec.ts"]
+			}
+		},
+		"test-php-dynamic-loading-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-dynamic-loading.spec.ts"]
+			}
 		},
 		"test-php-request-handler-files": {
 			"executor": "@nx/vite:test",
@@ -292,6 +297,22 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": ["php-asyncify-sqlite3.spec.ts"]
 			}
+		},
+		"test-php-asyncify-all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"test-php-asyncify-file-get-contents-http",
+				"test-php-asyncify-file-get-contents-https",
+				"test-php-asyncify-fopen-http",
+				"test-php-asyncify-fopen-https",
+				"test-php-asyncify-fsockopen-http",
+				"test-php-asyncify-fsockopen-https",
+				"test-php-asyncify-gethostbyname-http",
+				"test-php-asyncify-gethostbyname-https",
+				"test-php-asyncify-mysqli-http",
+				"test-php-asyncify-mysqli-https",
+				"test-php-asyncify-sqlite3"
+			]
 		},
 		"lint": {
 			"executor": "@nx/linter:eslint",

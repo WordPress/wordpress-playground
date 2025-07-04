@@ -712,7 +712,7 @@ int wasm_socket_has_data(php_socket_t fd);
  * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
  */
 EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
-{
+{	
 	php_pollfd p;
 	int n;
 

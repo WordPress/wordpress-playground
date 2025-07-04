@@ -121,6 +121,35 @@ const nativeNodeModulesPlugin = {
 	},
 };
 
+/**
+ * This is a plugin for handling imports ending with ?url.
+ */
+const importUrlPlugin = {
+	name: 'import-url',
+	setup(build) {
+		build.onResolve({ filter: /\?url$/ }, ({ path: filePath }) => {
+			const fixedPath = filePath.replace(/^(\.\.\/)+/, './');
+
+			return {
+				path: fixedPath,
+				namespace: 'import-url',
+			};
+		});
+		build.onLoad(
+			{ filter: /\?url$/, namespace: 'import-url' },
+			({ path: filePath }) => {
+				const defaultPath = filePath.replace('?url', '');
+
+				return {
+					contents: `import path from 'path';
+					export default path.resolve(__dirname, ${JSON.stringify(defaultPath)});`,
+					loader: 'js',
+				};
+			}
+		);
+	},
+};
+
 async function build() {
 	await esbuild.build({
 		entryPoints: [
@@ -136,6 +165,7 @@ async function build() {
 		assetNames: '[name]',
 		chunkNames: '[name]',
 		logOverride: {
+			'direct-eval': 'silent',
 			'commonjs-variable-in-esm': 'silent',
 		},
 		format: 'cjs',
@@ -147,7 +177,7 @@ async function build() {
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin, nativeNodeModulesPlugin],
+		plugins: [dirnamePlugin, nativeNodeModulesPlugin, importUrlPlugin],
 	});
 
 	await esbuild.build({
@@ -167,6 +197,7 @@ const __dirname = import.meta.dirname;
 		assetNames: '[name]',
 		chunkNames: '[name]',
 		logOverride: {
+			'direct-eval': 'silent',
 			'commonjs-variable-in-esm': 'silent',
 		},
 		packages: 'external',
@@ -183,7 +214,7 @@ const __dirname = import.meta.dirname;
 			'.ini': 'file',
 			'.wasm': 'file',
 		},
-		plugins: [dirnamePlugin, nativeNodeModulesPlugin],
+		plugins: [dirnamePlugin, nativeNodeModulesPlugin, importUrlPlugin],
 	});
 
 	fs.copyFileSync(

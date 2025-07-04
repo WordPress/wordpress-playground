@@ -907,6 +907,13 @@ export class PHP implements Disposable {
 			if (streamsClosed) {
 				return;
 			}
+			if ((globalThis as any).tracestdout) {
+				console.log(
+					'received a write to stdout ',
+					chunk.byteLength,
+					new TextDecoder().decode(chunk)
+				);
+			}
 			stdout.controller.enqueue(chunk.slice());
 		};
 

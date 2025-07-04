@@ -71,6 +71,9 @@ export function sandboxedSpawnHandlerFactory(
 				result.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
+							if ((globalThis as any).tracestdout) {
+								console.log('result.stdout.pipeTo got a thing');
+							}
 							processApi.stdout(chunk);
 						},
 					})
