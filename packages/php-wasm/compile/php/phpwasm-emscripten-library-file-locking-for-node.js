@@ -23,6 +23,20 @@ const LibraryForFileLocking = {
 		F_RDLCK: 0,
 		F_WRLCK: 1,
 		F_UNLCK: 2,
+		/**
+		 * @see fcntl.c:
+		 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L37
+		 */
+		O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+		O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+		SETFL_MASK:
+			Number('{{{cDefs.O_APPEND}}}') |
+			Number('{{{cDefs.O_NONBLOCK}}}')
+			// These macros are not defined in Emscripten at the time of writing:
+			// emscripten_O_NDELAY |
+			// emscripten_O_DIRECT |
+			// emscripten_O_NOATIME
+		,
 		lockStateToFcntl: {
 			shared: 0,
 			exclusive: 1,
@@ -126,21 +140,7 @@ const LibraryForFileLocking = {
 		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
 		const emscripten_SEEK_SET = Number('{{{cDefs.SEEK_SET}}}');
 
-		/**
-		 * @see fcntl.c:
-		 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L37
-		 */
-		const emscripten_O_APPEND = Number('{{{cDefs.O_APPEND}}}');
-		const emscripten_O_NONBLOCK = Number('{{{cDefs.O_NONBLOCK}}}');
-		const emscripten_O_NDELAY = Number('{{{cDefs.O_NDELAY}}}');
-		const emscripten_O_DIRECT = Number('{{{cDefs.O_DIRECT}}}');
-		const emscripten_O_NOATIME = Number('{{{cDefs.O_NOATIME}}}');
-		const emscripten_SETFL_MASK =
-			emscripten_O_APPEND |
-			emscripten_O_NONBLOCK |
-			emscripten_O_NDELAY |
-			emscripten_O_DIRECT |
-			emscripten_O_NOATIME;
+
 
 		// NOTE: With the exception of l_type, these offsets are not exposed to
 		// JS by Emscripten, so we hardcode them here.
@@ -560,7 +560,7 @@ const LibraryForFileLocking = {
 				// so we skip this validation
 				
 				// Update the stream flags
-				stream.flags = (arg & emscripten_SETFL_MASK) | (currentFlags & ~emscripten_SETFL_MASK);
+				stream.flags = (arg & locking.SETFL_MASK) | (currentFlags & ~locking.SETFL_MASK);
 				
 				return 0;
 			}

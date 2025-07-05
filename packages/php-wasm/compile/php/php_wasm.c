@@ -364,7 +364,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 wakeUp(returnCode === 6 ? 0 : returnCode);
             } else if (
                 returnCode === ERRNO_CODES.EWOULDBLOCK &&
-                stream.flags & Number({{{cDefs.O_NONBLOCK}}})
+                stream.flags & locking.O_NONBLOCK
             ) {
                 // Non-blocking stream with no data available yet – return immediately.
                 HEAPU32[pnum >> 2] = 0;
