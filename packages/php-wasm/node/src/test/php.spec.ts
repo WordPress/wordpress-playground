@@ -80,7 +80,9 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+const phpVersions =
+	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
+describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	let php: PHP;
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(phpVersion as any));
@@ -865,6 +867,142 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 
 			expect(result.text).toEqual('Hello World!\nHello again!');
+		});
+
+		it('Non-blocking file descriptors do not wait for asynchronous data', async () => {
+			const handler = createSpawnHandler(
+				(command: string[], processApi: any) => {
+					processApi.flushStdin();
+					// Send initial data immediately
+					processApi.stdout(
+						new TextEncoder().encode('Initial data\n')
+					);
+
+					// Send more data after a delay
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Delayed data\n')
+						);
+						processApi.exit(0);
+					}, 500);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "fetch", $descriptorspec, $pipes );
+			
+			// Make the stream non-blocking
+			stream_set_blocking($pipes[1], false);
+			
+			// First read should get initial data immediately
+			$data1 = fread($pipes[1], 1024);
+			echo "First read: " . json_encode($data1) . "\\n";
+			
+			// Second read should return empty string immediately (non-blocking)
+			$data2 = fread($pipes[1], 1024);
+			echo "Second read (immediate): " . json_encode($data2) . "\\n";
+			
+			// Wait a bit and try again - should get the delayed data
+			usleep(600000); // 600ms
+			$data3 = fread($pipes[1], 1024);
+			echo "Third read (after delay): " . json_encode($data3) . "\\n";
+			
+			// Fourth read should be empty again
+			$data4 = fread($pipes[1], 1024);
+			echo "Fourth read: " . json_encode($data4) . "\\n";
+			
+			proc_close( $proc );
+			`,
+			});
+
+			expect(result.text).toEqual(
+				[
+					`First read: "Initial data\\n"`,
+					`Second read (immediate): ""`,
+					`Third read (after delay): "Delayed data\\n"`,
+					`Fourth read: ""`,
+					'',
+				].join('\n')
+			);
+		});
+
+		it('Can poll non-blocking streams until data arrives', async () => {
+			const handler = createSpawnHandler(
+				(command: string[], processApi: any) => {
+					processApi.flushStdin();
+
+					// Send data in chunks with delays
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Chunk 1\n')
+						);
+					}, 200);
+
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Chunk 2\n')
+						);
+					}, 400);
+
+					setTimeout(() => {
+						processApi.exit(0);
+					}, 600);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "fetch", $descriptorspec, $pipes );
+			
+			// Make the stream non-blocking
+			stream_set_blocking($pipes[1], false);
+			
+			$chunks = array();
+			$attempts = 0;
+			$maxAttempts = 20;
+			
+			// Poll until we get all data or reach max attempts
+			while ($attempts < $maxAttempts && !feof($pipes[1])) {
+				$data = fread($pipes[1], 1024);
+				if ($data !== "") {
+					$chunks[] = $data;
+					echo "Got chunk: " . json_encode($data) . "\\n";
+				} else {
+					echo "No data available, attempt " . ($attempts + 1) . "\\n";
+				}
+				$attempts++;
+				usleep(100000); // 100ms between attempts
+			}
+			
+			echo "Total chunks received: " . count($chunks) . "\\n";
+			echo "Combined data: " . json_encode(implode("", $chunks)) . "\\n";
+			
+			proc_close( $proc );
+			`,
+			});
+
+			// The exact output may vary due to timing, but we should see:
+			// - Multiple "No data available" messages
+			// - Two chunks of data received
+			// - Total of 2 chunks
+			expect(result.text).toContain('Got chunk: "Chunk 1\\n"');
+			expect(result.text).toContain('Got chunk: "Chunk 2\\n"');
+			expect(result.text).toContain('Total chunks received: 2');
+			expect(result.text).toContain(
+				'Combined data: "Chunk 1\\nChunk 2\\n"'
+			);
+			expect(result.text).toContain('No data available');
 		});
 
 		it('feof() returns true when exhausted the synchronous data', async () => {
