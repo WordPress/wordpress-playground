@@ -40,7 +40,10 @@ const LibraryForFileLocking = {
 			}
 
 			// Handle PROXYFS nodes which wrap other nodes.
-			if (!node?.mount?.opts?.fs?.lookupPath || !node?.mount?.type?.realPath) {
+			if (
+				!node?.mount?.opts?.fs?.lookupPath ||
+				!node?.mount?.type?.realPath
+			) {
 				return false;
 			}
 
@@ -50,7 +53,8 @@ const LibraryForFileLocking = {
 			}
 			const vfsPath = node.mount.type.realPath(node);
 			try {
-				const underlyingNode = node.mount.opts.fs.lookupPath(vfsPath)?.node;
+				const underlyingNode =
+					node.mount.opts.fs.lookupPath(vfsPath)?.node;
 				return !!underlyingNode?.isSharedFS;
 			} catch (e) {
 				return false;
@@ -116,10 +120,27 @@ const LibraryForFileLocking = {
 		SYSCALLS.varargs = varargs;
 
 		// These constants are replaced by Emscripten during the build process
+		const emscripten_F_SETFL = Number('{{{cDefs.F_SETFL}}}');
 		const emscripten_F_GETLK = Number('{{{cDefs.F_GETLK}}}');
 		const emscripten_F_SETLK = Number('{{{cDefs.F_SETLK}}}');
 		const emscripten_F_SETLKW = Number('{{{cDefs.F_SETLKW}}}');
 		const emscripten_SEEK_SET = Number('{{{cDefs.SEEK_SET}}}');
+
+		/**
+		 * @see fcntl.c:
+		 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L37
+		 */
+		const emscripten_O_APPEND = Number('{{{cDefs.O_APPEND}}}');
+		const emscripten_O_NONBLOCK = Number('{{{cDefs.O_NONBLOCK}}}');
+		const emscripten_O_NDELAY = Number('{{{cDefs.O_NDELAY}}}');
+		const emscripten_O_DIRECT = Number('{{{cDefs.O_DIRECT}}}');
+		const emscripten_O_NOATIME = Number('{{{cDefs.O_NOATIME}}}');
+		const emscripten_SETFL_MASK =
+			emscripten_O_APPEND |
+			emscripten_O_NONBLOCK |
+			emscripten_O_NDELAY |
+			emscripten_O_DIRECT |
+			emscripten_O_NOATIME;
 
 		// NOTE: With the exception of l_type, these offsets are not exposed to
 		// JS by Emscripten, so we hardcode them here.
@@ -510,6 +531,38 @@ const LibraryForFileLocking = {
 				// We respond with EDEADLK to indicate failure
 				// because it is a known errno for a failed F_SETLKW command.
 				return -ERRNO_CODES.EDEADLK;
+			}
+			case emscripten_F_SETFL: {
+				/**
+				 * Overrides the core Emscripten implementation to reflect what
+				 * fcntl does in linux kernel. This implementation is still missing
+				 * a bunch of nuance, but, unlike the core Emscripten implementation,
+				 * it overrides the stream flags while preserving non-stream flags.
+				 * 
+				 * @see fcntl.c:
+				 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L39
+				 */
+				const arg = SYSCALLS.get();
+				const stream = SYSCALLS.getStreamFromFD(fd);
+				
+				// Get current flags
+				const currentFlags = stream.flags;
+								
+				// Required for strict SunOS emulation
+				if (emscripten_O_NONBLOCK !== emscripten_O_NDELAY) {
+					if (arg & emscripten_O_NDELAY) {
+						arg |= emscripten_O_NONBLOCK;
+					}
+				}
+				
+				// Pipe packetized mode is controlled by O_DIRECT flag
+				// We don't have S_ISFIFO or FMODE_CAN_ODIRECT checks in our implementation
+				// so we skip this validation
+				
+				// Update the stream flags
+				stream.flags = (arg & emscripten_SETFL_MASK) | (currentFlags & ~emscripten_SETFL_MASK);
+				
+				return 0;
 			}
 			default:
 				return _builtin_fcntl64(fd, cmd, varargs);
