@@ -11,6 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
+import { FileLockManagerForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import path from 'path';
@@ -72,10 +73,22 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	);
 	chmodSync(`${tempDir}/php`, 0o755);
 
+	const fileLockManagerSync = new FileLockManagerForNode();
+	const fileLockManager = new Proxy(fileLockManagerSync, {
+		get(target, prop) {
+			const value = target[prop as keyof typeof target];
+			if (typeof value === 'function') {
+				return (...args: any[]) =>
+					Promise.resolve(value.apply(target, args));
+			}
+			return value;
+		},
+	});
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
+				fileLockManager: fileLockManager as any,
 				ENV: {
 					...envVariables,
 					TMPDIR: sysTempDir,
