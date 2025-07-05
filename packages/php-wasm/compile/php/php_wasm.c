@@ -344,6 +344,8 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
             }
 
             const success = returnCode === 0;
+            // @TODO: Do not reason about child_proc_by_fd. Just use pipes and detect
+            //        when the other end of the pipe is closed.
             const failure = (
                 ++retries > maxRetries ||
                 !(fd in PHPWASM.child_proc_by_fd) ||
@@ -360,7 +362,16 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 // If the failure is due to a timeout, return 0 to indicate that we
                 // reached EOF. Otherwise, propagate the error code.
                 wakeUp(returnCode === 6 ? 0 : returnCode);
+            } else if (
+                returnCode === ERRNO_CODES.EWOULDBLOCK &&
+                stream.flags & Number({{{cDefs.O_NONBLOCK}}})
+            ) {
+                // Non-blocking stream with no data available yet – return immediately.
+                HEAPU32[pnum >> 2] = 0;
+                wakeUp(returnCode);
             } else {
+                // It's a blocking stream and we Blocking stream with no data available yet.
+                // Let's poll up to a timeout.
                 setTimeout(poll, interval);
             }
         }
