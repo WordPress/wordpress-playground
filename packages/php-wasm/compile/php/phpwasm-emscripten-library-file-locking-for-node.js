@@ -132,15 +132,15 @@ const LibraryForFileLocking = {
 		 */
 		const emscripten_O_APPEND = Number('{{{cDefs.O_APPEND}}}');
 		const emscripten_O_NONBLOCK = Number('{{{cDefs.O_NONBLOCK}}}');
-		// O_NDELAY was not declared in Emscripten core at the time of writing.
-		// const emscripten_O_NDELAY = Number('{ { {cDefs.O_NDELAY} } }');
-		const emscripten_O_DIRECT = Number('{{{cDefs.O_DIRECT}}}');
+		// These macros are not defined in Emscripten at the time of writing:
+		// const emscripten_O_NDELAY = Number('{ { { cDefs.O_NDELAY } } }');
+		// const emscripten_O_DIRECT = Number('{ { { cDefs.O_DIRECT } } }');
 		const emscripten_O_NOATIME = Number('{{{cDefs.O_NOATIME}}}');
 		const emscripten_SETFL_MASK =
 			emscripten_O_APPEND |
 			emscripten_O_NONBLOCK |
 			// emscripten_O_NDELAY |
-			emscripten_O_DIRECT |
+			// emscripten_O_DIRECT |
 			emscripten_O_NOATIME;
 
 		// NOTE: With the exception of l_type, these offsets are not exposed to
