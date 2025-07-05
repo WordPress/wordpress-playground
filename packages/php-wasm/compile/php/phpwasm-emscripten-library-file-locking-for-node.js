@@ -138,7 +138,7 @@ const LibraryForFileLocking = {
 		// const emscripten_O_NOATIME = Number('{ { { cDefs.O_NOATIME } } }');
 		const emscripten_SETFL_MASK =
 			emscripten_O_APPEND |
-			emscripten_O_NONBLOCK |
+			emscripten_O_NONBLOCK
 			// emscripten_O_NDELAY |
 			// emscripten_O_DIRECT |
 			// emscripten_O_NOATIME
