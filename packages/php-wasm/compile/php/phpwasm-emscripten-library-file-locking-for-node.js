@@ -538,30 +538,30 @@ const LibraryForFileLocking = {
 				 * fcntl does in linux kernel. This implementation is still missing
 				 * a bunch of nuance, but, unlike the core Emscripten implementation,
 				 * it overrides the stream flags while preserving non-stream flags.
-				 * 
+				 *
 				 * @see fcntl.c:
 				 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L39
 				 */
 				const arg = SYSCALLS.get();
 				const stream = SYSCALLS.getStreamFromFD(fd);
-				
+
 				// Get current flags
 				const currentFlags = stream.flags;
-								
+
 				// Required for strict SunOS emulation
 				if (emscripten_O_NONBLOCK !== emscripten_O_NDELAY) {
 					if (arg & emscripten_O_NDELAY) {
 						arg |= emscripten_O_NONBLOCK;
 					}
 				}
-				
+
 				// Pipe packetized mode is controlled by O_DIRECT flag
 				// We don't have S_ISFIFO or FMODE_CAN_ODIRECT checks in our implementation
 				// so we skip this validation
-				
+
 				// Update the stream flags
 				stream.flags = (arg & locking.SETFL_MASK) | (currentFlags & ~locking.SETFL_MASK);
-				
+
 				return 0;
 			}
 			default:
@@ -736,14 +736,17 @@ const LibraryForFileLocking = {
 	js_release_file_locks: async function js_release_file_locks() {
 		_js_wasm_trace('js_release_file_locks()');
 		const pid = PHPLoader.processId;
-		return await PHPLoader.fileLockManager
-			.releaseLocksForProcess(pid)
-			.then(() => {
-				_js_wasm_trace('js_release_file_locks succeeded');
-			})
-			.catch((e) => {
-				_js_wasm_trace('js_release_file_locks error %s', e);
-			});
+		if(pid && PHPLoader.fileLockManager)
+		{
+			return await PHPLoader.fileLockManager
+				.releaseLocksForProcess(pid)
+				.then(() => {
+					_js_wasm_trace('js_release_file_locks succeeded');
+				})
+				.catch((e) => {
+					_js_wasm_trace('js_release_file_locks error %s', e);
+				});
+		}
 	},
 };
 
