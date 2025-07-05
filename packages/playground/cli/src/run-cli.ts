@@ -602,7 +602,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					processIdSpaceLength,
 					followSymlinks,
 					trace,
-					disableCookieStore: !args.internalCookieStore,
+					internalCookieStore: args.internalCookieStore,
 				});
 
 				if (
@@ -689,7 +689,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								processIdSpaceLength,
 								followSymlinks,
 								trace,
-								disableCookieStore: !args.internalCookieStore,
+								internalCookieStore: args.internalCookieStore,
 							});
 							await additionalPlayground.isReady();
 
