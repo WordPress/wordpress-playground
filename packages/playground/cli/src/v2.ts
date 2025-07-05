@@ -212,9 +212,11 @@ function playground_http_client_factory() {
 		// it uses a larger chunk size?
 		/**
 		 * A filesystem-related Playground bug in PHP < 8.0 prevents us from using the sockets transport.
-		 * See LINK @TODO for more details.
+		 * See (@TODO: LINK to the issue) for more details.
+		 * @TODO: Fix the sockets transport on PHP 7.2 - 7.4 – it being broken indicates a deeper issue with
+		 *        handling byte streams in those PHP versions.
 		 */
-		'transport' => 'sockets', //version_compare(phpversion(), '8.0', '<') ? 'curl' : 'sockets',
+		'transport' => version_compare(phpversion(), '8.0', '<') ? 'curl' : 'sockets',
 		// 'cache_dir' => '/tmp',
 		'timeout_ms' => 50000,
 	]);

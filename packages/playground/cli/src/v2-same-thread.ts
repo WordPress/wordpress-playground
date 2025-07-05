@@ -382,7 +382,9 @@ w.bootAsPrimaryWorker({
 	mode: 'create-new-site',
 	command: 'run-blueprint',
 	blueprint:
-		'/Users/cloudnik/www/Automattic/core/plugins/playground/tmp/test-cli-integration/blueprints/e1d73a3ac5a0be5e256de34f3a0608b2.json',
+		// '/Users/cloudnik/www/Automattic/core/plugins/playground/tmp/test-cli-integration/blueprints/e1d73a3ac5a0be5e256de34f3a0608b2.json',
+		// '/Users/cloudnik/www/Automattic/core/plugins/playground/tmp/test-cli-integration/blueprints/62cce46c572d2515a4a80be0724de2cb.json',
+		'/Users/cloudnik/www/Automattic/core/plugins/playground/tmp/test-cli-integration/blueprints/simple-page-ordering-blueprint.json',
 	debug: true,
 	php: '8.0',
 	allow: 'read-local-fs',
