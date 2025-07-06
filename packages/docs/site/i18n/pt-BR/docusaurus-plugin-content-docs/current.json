@@ -1,0 +1,54 @@
+{
+	"version.label": {
+		"message": "Próximo",
+		"description": "O rótulo para a versão atual"
+	},
+	"sidebar.mainSidebar.category.Documentation": {
+		"message": "Documentação",
+		"description": "O rótulo para a categoria Documentação na barra lateral mainSidebar"
+	},
+	"sidebar.mainSidebar.category.About Playground": {
+		"message": "Sobre o Playground",
+		"description": "O rótulo para a categoria Sobre o Playground na barra lateral mainSidebar"
+	},
+	"sidebar.mainSidebar.category.Guides": {
+		"message": "Guias",
+		"description": "O rótulo para a categoria Guias na barra lateral mainSidebar"
+	},
+	"sidebar.mainSidebar.category.Contributing": {
+		"message": "Contribuindo",
+		"description": "O rótulo para a categoria Contribuindo na barra lateral mainSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Blueprints": {
+		"message": "Blueprints",
+		"description": "O rótulo para a categoria Blueprints na barra lateral blueprintsSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Tutorial": {
+		"message": "Tutorial",
+		"description": "O rótulo para a categoria Tutorial na barra lateral blueprintsSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Steps": {
+		"message": "Passos",
+		"description": "O rótulo para a categoria Passos na barra lateral blueprintsSidebar"
+	},
+	"sidebar.developersSidebar.category.Developers": {
+		"message": "Desenvolvedores",
+		"description": "O rótulo para a categoria Desenvolvedores na barra lateral developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Local Development": {
+		"message": "Desenvolvimento Local",
+		"description": "O rótulo para a categoria Desenvolvimento Local na barra lateral developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Playground APIs": {
+		"message": "APIs do Playground",
+		"description": "O rótulo para a categoria APIs do Playground na barra lateral developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Javascript API": {
+		"message": "API JavaScript",
+		"description": "O rótulo para a categoria API JavaScript na barra lateral developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Architecture": {
+		"message": "Arquitetura",
+		"description": "O rótulo para a categoria Arquitetura na barra lateral developersSidebar"
+	}
+}

@@ -683,14 +683,17 @@ const LibraryForFileLocking = {
 	js_release_file_locks: async function js_release_file_locks() {
 		_js_wasm_trace('js_release_file_locks()');
 		const pid = PHPLoader.processId;
-		return await PHPLoader.fileLockManager
-			.releaseLocksForProcess(pid)
-			.then(() => {
-				_js_wasm_trace('js_release_file_locks succeeded');
-			})
-			.catch((e) => {
-				_js_wasm_trace('js_release_file_locks error %s', e);
-			});
+		if(pid && PHPLoader.fileLockManager)
+		{
+			return await PHPLoader.fileLockManager
+				.releaseLocksForProcess(pid)
+				.then(() => {
+					_js_wasm_trace('js_release_file_locks succeeded');
+				})
+				.catch((e) => {
+					_js_wasm_trace('js_release_file_locks error %s', e);
+				});
+		}
 	},
 };
 

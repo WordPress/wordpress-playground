@@ -352,7 +352,7 @@ const LibraryExample = {
 		},
 
 		/**
-		 * Shims unix shutdown(2) functionallity for asynchronous sockets:
+		 * Shims unix shutdown(2) functionality for asynchronous sockets:
 		 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 		 *
 		 * Does not support SHUT_RD or SHUT_WR.
@@ -752,7 +752,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix shutdown(2) functionallity for asynchronous:
+	 * Shims unix shutdown(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 	 *
 	 * Does not support SHUT_RD or SHUT_WR.
@@ -766,7 +766,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix close(2) functionallity for asynchronous:
+	 * Shims unix close(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/close.2.html
 	 *
 	 * @param {int} socketd
@@ -777,7 +777,38 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims setsockopt(2) functionallity for asynchronous websockets:
+	 * Shims recv(2) functionality for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/recv.2.html
+	 *
+	 * @param {int} sockfd Socket descriptor
+	 * @param {int} buffer Pointer to the stored message buffer
+	 * @param {int} size The maximum bytes to receive
+	 * @param {int} flags Flags to modify the behavior to recv call
+	 * @returns {Promise} Resolved with the number of bytes recieved
+	 */
+	wasm_recv : function (
+		sockfd,
+		buffer,
+		size,
+		flags
+	) {
+		return Asyncify.handleSleep((wakeUp) => {
+			const poll = function() {
+				let newl = ___syscall_recvfrom(sockfd, buffer, size, flags, null, null);
+				if(newl > 0) {
+					wakeUp(newl);
+				} else if ( newl === -6 ) {
+					setTimeout(poll, 20);
+				} else {
+					wakeUp(0);
+				}
+			};
+			poll();
+		});
+	},
+
+	/**
+	 * Shims setsockopt(2) functionality for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
 	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.
 	 *

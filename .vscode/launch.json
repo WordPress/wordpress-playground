@@ -65,6 +65,23 @@
         "autoAttachChildProcesses": true
       },
       {
+        "name": "Debug Playground CLI with DWARF Symbols",
+        "request": "launch",
+        "type": "node",
+        "runtimeVersion": "23",
+        "runtimeExecutable": "npx",
+        "runtimeArgs": [
+          "nx",
+          "debug",
+          "playground-cli",
+          "server",
+        ],
+        "args": "${input:playgroundCliCommand}",
+        "cwd": "${workspaceFolder}",
+        "autoAttachChildProcesses": true,
+        "enableDWARF": true
+      },
+      {
         "name": "Launch Chrome",
         "request": "launch",
         "type": "chrome",

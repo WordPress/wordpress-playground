@@ -475,7 +475,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
-	const fileLockManager = new FileLockManagerForNode();
+	const nativeFlockSync = await import('fs-ext')
+		.then((m) => m.flockSync)
+		.catch(() => {
+			logger.warn(
+				'The fs-ext package is not installed. ' +
+					'Internal file locking will not be integrated with ' +
+					'host OS file locking.'
+			);
+			return undefined;
+		});
+	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
 
 	let wordPressReady = false;
 
