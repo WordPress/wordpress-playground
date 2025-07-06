@@ -88,12 +88,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		await setPhpIniEntries(php, { disable_functions: '' });
 	});
 	afterEach(async () => {
-		// Clean up
-		try {
-			php.exit(0);
-		} catch {
-			// ignore exit-related exceptions
-		}
+		php.exit();
 	});
 
 	describe('php.runStream()', () => {
@@ -217,8 +212,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should isolate stderr from stdout', async () => {
 			const streamed = await php.runStream({
-				code: `<?php 
-					echo "stdout"; 
+				code: `<?php
+					echo "stdout";
 					file_put_contents("php://stderr", "stderr");
 				`,
 			});
@@ -230,7 +225,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should stream output progressively', async () => {
 			const streamed = await php.runStream({
-				code: `<?php 
+				code: `<?php
 				echo "first chunk";
 				flush();
 				sleep(1);
@@ -272,7 +267,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('should stream multiple small outputs progressively', async () => {
 			const streamed = await php.runStream({
-				code: `<?php 
+				code: `<?php
 				for ($i = 1; $i <= 3; $i++) {
 					echo "chunk $i ";
 					flush();
@@ -536,6 +531,37 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	});
 
 	describe('proc_open()', () => {
+		// This test applies only to these PHP versions
+		// due to a new patch that replaces the use of
+		// EMULATE_FUNCTION_POINTER_CASTS option.
+		if (['7.3', '7.4'].includes(phpVersion)) {
+			it('resolves without crashing with unknown function signature mismatch', async () => {
+				const promise = php.runStream({
+					code: `<?php
+					$descriptorspec = array(
+	 					1 => array("pipe","w")
+					);
+
+					$res = proc_open(
+						"echo 'Hello World!'",
+						$descriptorspec,
+						$pipes
+					);
+
+					$res = proc_open(
+						"echo 'Hello World!'",
+						$descriptorspec,
+						$pipes
+					);
+					`,
+				});
+
+				await expect(promise).resolves.not.toThrow(
+					/null function or function signature mismatch/
+				);
+			});
+		}
+
 		it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
@@ -1707,9 +1733,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 		it('should capture error data from stderr', async () => {
 			const code = `<?php
-			$stdErr = fopen('php://stderr', 'w');
-			fwrite($stdErr, "Hello from stderr!");
-			`;
+				$stdErr = fopen('php://stderr', 'w');
+				fwrite($stdErr, "Hello from stderr!");
+				`;
 			expect(await php.run({ code })).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
@@ -1720,15 +1746,15 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 		it('should provide response text through .text', async () => {
 			const code = `<?php
-			echo "Hello world!";
-			`;
+				echo "Hello world!";
+				`;
 			const response = await php.run({ code });
 			expect(response.text).toEqual('Hello world!');
 		});
 		it('should provide response JSON through .json', async () => {
 			const code = `<?php
-			echo json_encode(["hello" => "world"]);
-			`;
+				echo json_encode(["hello" => "world"]);
+				`;
 			const response = await php.run({ code });
 			expect(response.json).toEqual({ hello: 'world' });
 		});
@@ -1736,7 +1762,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 	describe('Interface', () => {
 		it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
-			expect(() => php.run({})).rejects.toThrowError(
+			await expect(() => php.run({})).rejects.toThrowError(
 				/The request object must have either a `code` or a `scriptPath` property/
 			);
 		});
@@ -1822,6 +1848,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Should have access to raw request data via the php://input stream', async () => {
 			const response = await php.run({
+				headers: { 'Content-Type': 'application/json' },
 				method: 'POST',
 				body: new TextEncoder().encode('{"foo": "bar"}'),
 				code: `<?php echo file_get_contents('php://input');`,
@@ -2070,10 +2097,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
 				method: 'POST',
-				body: new TextEncoder().encode(`--boundary
-Content-Disposition: form-data; name="foo"
-
-bar`),
+				body: new TextEncoder().encode(
+					`--boundary\r\n` +
+						`Content-Disposition: form-data; name="foo"\r\n` +
+						`\r\n` +
+						`bar\r\n` +
+						`--boundary--\r\n`
+				),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
@@ -2085,16 +2115,18 @@ bar`),
 		it('Should expose multipart POST files in $_FILES', async () => {
 			const response = await php.run({
 				code: `<?php echo json_encode(array(
-						"files" => $_FILES,
-						"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
-					));`,
+							"files" => $_FILES,
+							"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
+						));`,
 				method: 'POST',
-				body: new TextEncoder().encode(`--boundary
-Content-Disposition: form-data; name="myFile"; filename="text.txt"
-Content-Type: text/plain
-
-bar
---boundary--`),
+				body: new TextEncoder().encode(
+					`--boundary\r\n` +
+						`Content-Disposition: form-data; name="myFile"; filename="text.txt"\r\n` +
+						`Content-Type: text/plain\r\n` +
+						`\r\n` +
+						`bar\r\n` +
+						`--boundary--\r\n`
+				),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
@@ -2128,11 +2160,11 @@ bar
 				relativeUri: '/test.php?a=b',
 				method: 'POST',
 				body: new TextEncoder().encode(`--boundary
-Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
-Content-Type: text/plain
+	Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
+	Content-Type: text/plain
 
-bar1
---boundary--`),
+	bar1
+	--boundary--`),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 					Host: 'https://example.com:1235',
@@ -2179,13 +2211,13 @@ bar1
 		it('Should be able to create a database', async () => {
 			const response = await php.run({
 				code: `<?php
-					$db = new PDO('sqlite::memory:');
-					$db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
-					$db->exec('INSERT INTO test (name) VALUES ("This is a test")');
-					$result = $db->query('SELECT name FROM test');
-					$rows = $result->fetchAll(PDO::FETCH_COLUMN);
-					echo json_encode($rows);
-				?>`,
+						$db = new PDO('sqlite::memory:');
+						$db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+						$db->exec('INSERT INTO test (name) VALUES ("This is a test")');
+						$result = $db->query('SELECT name FROM test');
+						$rows = $result->fetchAll(PDO::FETCH_COLUMN);
+						echo json_encode($rows);
+					?>`,
 			});
 			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual(['This is a test']);
@@ -2194,15 +2226,15 @@ bar1
 		it('Should support modern libsqlite (ON CONFLICT)', async () => {
 			const response = await php.run({
 				code: `<?php
-					$db = new PDO('sqlite::memory:');
-					$db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
-					$db->exec('CREATE UNIQUE INDEX test_name ON test (name)');
-					$db->exec('INSERT INTO test (name) VALUES ("This is a test")');
-					$db->exec('INSERT INTO test (name) VALUES ("This is a test") ON CONFLICT DO NOTHING');
-					$result = $db->query('SELECT name FROM test');
-					$rows = $result->fetchAll(PDO::FETCH_COLUMN);
-					echo json_encode($rows);
-				?>`,
+						$db = new PDO('sqlite::memory:');
+						$db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+						$db->exec('CREATE UNIQUE INDEX test_name ON test (name)');
+						$db->exec('INSERT INTO test (name) VALUES ("This is a test")');
+						$db->exec('INSERT INTO test (name) VALUES ("This is a test") ON CONFLICT DO NOTHING');
+						$result = $db->query('SELECT name FROM test');
+						$rows = $result->fetchAll(PDO::FETCH_COLUMN);
+						echo json_encode($rows);
+					?>`,
 			});
 			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual(['This is a test']);
@@ -2217,12 +2249,12 @@ bar1
 		it('Should be able to hash a string', async () => {
 			const response = await php.run({
 				code: `<?php
-					echo json_encode([
-						'md5' => md5('test'),
-						'sha1' => sha1('test'),
-						'hash' => hash('sha256', 'test'),
-					]);
-				?>`,
+						echo json_encode([
+							'md5' => md5('test'),
+							'sha1' => sha1('test'),
+							'hash' => hash('sha256', 'test'),
+						]);
+					?>`,
 			});
 			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual({
@@ -2240,8 +2272,8 @@ bar1
 		it('Should be able to use mb_regex_encoding functions', async () => {
 			const promise = php.run({
 				code: `<?php
-					mb_regex_encoding('UTF-8');
-				?>`,
+						mb_regex_encoding('UTF-8');
+					?>`,
 			});
 			const response = await promise;
 			expect(response.errors).toBe('');
@@ -2259,11 +2291,11 @@ bar1
 		it('Should handle strtotime() correctly', async () => {
 			const response = await php.run({
 				code: `<?php
-				$timestamp = strtotime('2040-01-19 03:14:07');
-				echo json_encode([
-					'value' => $timestamp,
-					'type' => gettype($timestamp),
-				]);`,
+					$timestamp = strtotime('2040-01-19 03:14:07');
+					echo json_encode([
+						'value' => $timestamp,
+						'type' => gettype($timestamp),
+					]);`,
 			});
 			const result = JSON.parse(response.text);
 			expect(result.value).toEqual(2210555647);
@@ -2273,12 +2305,12 @@ bar1
 		it('Should handle adding 64 bit integers', async () => {
 			const response = await php.run({
 				code: `<?php
-				$product = 4611686018427387000 + 4611686018427387000;
-				echo json_encode([
-					'value' => $product,
-					'type' => gettype($product),
-				]);
-				`,
+					$product = 4611686018427387000 + 4611686018427387000;
+					echo json_encode([
+						'value' => $product,
+						'type' => gettype($product),
+					]);
+					`,
 			});
 			const result = JSON.parse(response.text);
 			expect(result.value + '').toEqual('9223372036854774000');
@@ -2288,12 +2320,12 @@ bar1
 		it('Should handle multiplying 64 bit integers', async () => {
 			const response = await php.run({
 				code: `<?php
-				$product = 2 * 4611686018427387000;
-				echo json_encode([
-					'value' => $product,
-					'type' => gettype($product),
-				]);
-				`,
+					$product = 2 * 4611686018427387000;
+					echo json_encode([
+						'value' => $product,
+						'type' => gettype($product),
+					]);
+					`,
 			});
 			const result = JSON.parse(response.text);
 			expect(result.value + '').toEqual('9223372036854774000');
@@ -2303,11 +2335,11 @@ bar1
 		it('Should handle large integer division', async () => {
 			const response = await php.run({
 				code: `<?php
-				$division = intdiv(9223372036854774000, 2);
-				echo json_encode([
-					'value' => $division,
-					'type' => gettype($division),
-				]);`,
+					$division = intdiv(9223372036854774000, 2);
+					echo json_encode([
+						'value' => $division,
+						'type' => gettype($division),
+					]);`,
 			});
 			const result = JSON.parse(response.text);
 			expect(result.value + '').toEqual('4611686018427387000');
@@ -2317,12 +2349,12 @@ bar1
 		it('Should handle PHP_MAX_INT', async () => {
 			const response = await php.run({
 				code: `<?php
-			$maxInt = PHP_INT_MAX;
-			echo json_encode([
-				'value' => $maxInt,
-				'type' => gettype($maxInt),
-			]);
-			`,
+				$maxInt = PHP_INT_MAX;
+				echo json_encode([
+					'value' => $maxInt,
+					'type' => gettype($maxInt),
+				]);
+				`,
 			});
 			const result = JSON.parse(response.text);
 			expect(result.value + '').toEqual('9223372036854776000');
@@ -2338,9 +2370,9 @@ bar1
 			await php.writeFile('/test.php', '<?php echo "Hello world!";');
 			const response = await php.run({
 				code: `<?php
-					$finfo = new finfo(FILEINFO_MIME_TYPE);
-					echo $finfo->file('/test.php');
-				?>`,
+						$finfo = new finfo(FILEINFO_MIME_TYPE);
+						echo $finfo->file('/test.php');
+					?>`,
 			});
 			expect(response.text).toEqual('text/x-php');
 		});
@@ -2396,8 +2428,8 @@ bar1
 		it('should be able to use exif_thumbnail', async () => {
 			const response = await php.run({
 				code: `<?php
-				var_dump(exif_thumbnail('/image.jpg'));
-				`,
+					var_dump(exif_thumbnail('/image.jpg'));
+					`,
 			});
 			expect(response.errors).toBe('');
 			// TODO: we could improve this by providing an image with a valid thumbnail
@@ -2412,11 +2444,11 @@ bar1
 		it('Should be able to use intl functions', async () => {
 			const response = await php.run({
 				code: `<?php
-					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
-					echo numfmt_format($formatter, 100.00);
-					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
-					echo numfmt_format($formatter, 100.00);
-				?>`,
+						$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+						echo numfmt_format($formatter, 100.00);
+						$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+						echo numfmt_format($formatter, 100.00);
+					?>`,
 			});
 			expect(response.text).toEqual('$100.00100,00\xA0€');
 		});
@@ -2430,8 +2462,8 @@ bar1
 			});
 			const out = await php.run({
 				code: `<?php
-				post_message_to_js('world');
-				`,
+					post_message_to_js('world');
+					`,
 			});
 			expect(out.errors).toBe('');
 			expect(messageReceived).toBe('world');

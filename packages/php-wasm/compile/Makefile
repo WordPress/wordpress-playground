@@ -264,7 +264,6 @@ libintl/asyncify/dist/root/lib/lib/libintl.a: base-image
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
 
-
 libintl_jspi: libintl/jspi/dist/root/lib/lib/libintl.a
 libintl/jspi/dist/root/lib/lib/libintl.a: base-image
 	mkdir -p ./libintl/jspi/dist/root/lib

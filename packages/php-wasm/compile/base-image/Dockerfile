@@ -67,6 +67,8 @@ RUN chmod a+x /root/replace.sh
 COPY ./replace-across-lines.sh /root/replace-across-lines.sh
 RUN chmod a+x /root/replace-across-lines.sh
 
+COPY ./emcc-for-php-wasm.sh /root/emcc-for-php-wasm.sh
+
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 #
 # We're compiling libraries statically using emscripten's -sSIDE_MODULE. It differs from the usual unix
@@ -85,17 +87,10 @@ RUN chmod a+x /root/replace-across-lines.sh
 #    │  skip those flags when │   │  add these flags when  │
 #    │      calling emcc      │   │    calling emcc        │
 #    └────────────────────────┘   └────────────────────────┘
-RUN cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2 && \
-    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py && \
-    echo $'#!/bin/bash\n\
-for arg do shift\n\
-    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\
-    set -- "$@" "$arg" \n\
-done\n\
-# Passing extra flags breaks the version check \n\
-if [[ "$@" == "-v" ]]; then\n\
-    export EMCC_FLAGS=""\n\
-fi\n\
-/root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
+RUN <<EOF
+    set -euo pipefail
+    cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2
+    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py
+    cp /root/emcc-for-php-wasm.sh /root/emsdk/upstream/emscripten/emcc
     chmod a+x /root/emsdk/upstream/emscripten/emcc
-
+EOF

@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 18511097;
+export const dependenciesTotalSize = 17697847;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -7010,7 +7010,6 @@ export function init(RuntimeName, PHPLoader) {
 			]
 				.filter(Boolean)
 				.join(':');
-
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
@@ -7032,7 +7031,7 @@ export function init(RuntimeName, PHPLoader) {
 					new TextEncoder().encode('#!/bin/sh\nphp "$@"')
 				);
 				// It must be executable to be used by PHP.
-				FS.chmod('/internal/shared/bin/php', 0o755);
+				FS.chmod('/internal/shared/bin/php', 493);
 				originalOnRuntimeInitialized();
 			};
 			// Create stdout and stderr devices. We can't just use Emscripten's
@@ -8028,7 +8027,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(_dlopen_js|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|_fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|js_release_file_locks|js_flock|js_fd_read|_js_fd_read|_fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
 					let isAsyncifyImport =
@@ -8999,6 +8998,31 @@ export function init(RuntimeName, PHPLoader) {
 			a4
 		));
 
+	var dynCall_iiiiiiiiii = (Module['dynCall_iiiiiiiiii'] = (
+		a0,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9
+	) =>
+		(dynCall_iiiiiiiiii = Module['dynCall_iiiiiiiiii'] = wasmExports['hc'])(
+			a0,
+			a1,
+			a2,
+			a3,
+			a4,
+			a5,
+			a6,
+			a7,
+			a8,
+			a9
+		));
+
 	var dynCall_viiiiiiiii = (Module['dynCall_viiiiiiiii'] = (
 		a0,
 		a1,
@@ -9011,7 +9035,7 @@ export function init(RuntimeName, PHPLoader) {
 		a8,
 		a9
 	) =>
-		(dynCall_viiiiiiiii = Module['dynCall_viiiiiiiii'] = wasmExports['hc'])(
+		(dynCall_viiiiiiiii = Module['dynCall_viiiiiiiii'] = wasmExports['ic'])(
 			a0,
 			a1,
 			a2,
@@ -9033,7 +9057,7 @@ export function init(RuntimeName, PHPLoader) {
 		a5,
 		a6
 	) =>
-		(dynCall_viiiiii = Module['dynCall_viiiiii'] = wasmExports['ic'])(
+		(dynCall_viiiiii = Module['dynCall_viiiiii'] = wasmExports['jc'])(
 			a0,
 			a1,
 			a2,
@@ -9053,7 +9077,7 @@ export function init(RuntimeName, PHPLoader) {
 		a6,
 		a7
 	) =>
-		(dynCall_iiiiiiii = Module['dynCall_iiiiiiii'] = wasmExports['jc'])(
+		(dynCall_iiiiiiii = Module['dynCall_iiiiiiii'] = wasmExports['kc'])(
 			a0,
 			a1,
 			a2,
@@ -9064,31 +9088,6 @@ export function init(RuntimeName, PHPLoader) {
 			a7
 		));
 
-	var dynCall_iiiiiiiiii = (Module['dynCall_iiiiiiiiii'] = (
-		a0,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9
-	) =>
-		(dynCall_iiiiiiiiii = Module['dynCall_iiiiiiiiii'] = wasmExports['kc'])(
-			a0,
-			a1,
-			a2,
-			a3,
-			a4,
-			a5,
-			a6,
-			a7,
-			a8,
-			a9
-		));
-
 	var dynCall_iiji = (Module['dynCall_iiji'] = (a0, a1, a2, a3) =>
 		(dynCall_iiji = Module['dynCall_iiji'] = wasmExports['lc'])(
 			a0,
@@ -9097,21 +9096,8 @@ export function init(RuntimeName, PHPLoader) {
 			a3
 		));
 
-	var dynCall_jii = (Module['dynCall_jii'] = (a0, a1, a2) =>
-		(dynCall_jii = Module['dynCall_jii'] = wasmExports['mc'])(a0, a1, a2));
-
-	var dynCall_viijii = (Module['dynCall_viijii'] = (a0, a1, a2, a3, a4, a5) =>
-		(dynCall_viijii = Module['dynCall_viijii'] = wasmExports['nc'])(
-			a0,
-			a1,
-			a2,
-			a3,
-			a4,
-			a5
-		));
-
 	var dynCall_iijiji = (Module['dynCall_iijiji'] = (a0, a1, a2, a3, a4, a5) =>
-		(dynCall_iijiji = Module['dynCall_iijiji'] = wasmExports['oc'])(
+		(dynCall_iijiji = Module['dynCall_iijiji'] = wasmExports['mc'])(
 			a0,
 			a1,
 			a2,
@@ -9121,10 +9107,10 @@ export function init(RuntimeName, PHPLoader) {
 		));
 
 	var dynCall_vji = (Module['dynCall_vji'] = (a0, a1, a2) =>
-		(dynCall_vji = Module['dynCall_vji'] = wasmExports['pc'])(a0, a1, a2));
+		(dynCall_vji = Module['dynCall_vji'] = wasmExports['nc'])(a0, a1, a2));
 
-	var dynCall_viidii = (Module['dynCall_viidii'] = (a0, a1, a2, a3, a4, a5) =>
-		(dynCall_viidii = Module['dynCall_viidii'] = wasmExports['qc'])(
+	var dynCall_viijii = (Module['dynCall_viijii'] = (a0, a1, a2, a3, a4, a5) =>
+		(dynCall_viijii = Module['dynCall_viijii'] = wasmExports['oc'])(
 			a0,
 			a1,
 			a2,
@@ -9132,6 +9118,19 @@ export function init(RuntimeName, PHPLoader) {
 			a4,
 			a5
 		));
+
+	var dynCall_viidii = (Module['dynCall_viidii'] = (a0, a1, a2, a3, a4, a5) =>
+		(dynCall_viidii = Module['dynCall_viidii'] = wasmExports['pc'])(
+			a0,
+			a1,
+			a2,
+			a3,
+			a4,
+			a5
+		));
+
+	var dynCall_jii = (Module['dynCall_jii'] = (a0, a1, a2) =>
+		(dynCall_jii = Module['dynCall_jii'] = wasmExports['qc'])(a0, a1, a2));
 
 	var _asyncify_start_unwind = (a0) =>
 		(_asyncify_start_unwind = wasmExports['rc'])(a0);

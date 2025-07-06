@@ -8,6 +8,31 @@
 				"commands": ["node packages/php-wasm/compile/build.js"],
 				"parallel": false
 			}
+		},
+		"xdebug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/xdebug/build.js --output-dir=packages/php-wasm/node/jspi"
+				],
+				"parallel": false
+			}
+		},
+		"xdebug:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=8.4",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=8.3",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=8.2",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=8.1",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=8.0",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=7.4",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=7.3",
+					"nx run php-wasm-compile:xdebug --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
 		}
 	},
 	"tags": []
