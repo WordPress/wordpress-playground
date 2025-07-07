@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 37056248;
+export const dependenciesTotalSize = 29140624;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12030112;
+	var ___heap_base = 12029792;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1011,7 +1011,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15224,
+		initial: 15223,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12030112;
+	var ___stack_high = 12029792;
 
-	var ___stack_low = 11964576;
+	var ___stack_low = 11964256;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12030112
+		12029792
 	);
 
 	var PATH = {
@@ -31223,13 +31223,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11104665: ($0) => {
+		11104617: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11104713: ($0) => {
+		11104665: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34299,37 +34299,6 @@ export function init(RuntimeName, PHPLoader) {
 			return originalHandleSleep(startAsync);
 		};
 	}
-
-	PHPLoader.isJSPIBuild = 'Suspending' in WebAssembly;
-
-	const UNASSIGNED_RETURN_VALUE_SYMBOL = Symbol('UNASSIGNED_RETURN_VALUE');
-	Asyncify.handleAsyncIfJSPI = function (startAsync) {
-		if (PHPLoader.isJSPIBuild) {
-			return Promise.resolve(Asyncify.handleSleepIfJSPI(startAsync)).then(
-				startAsync
-			);
-		}
-		return Asyncify.handleSleepIfJSPI((wakeUp) => {
-			const result = startAsync();
-			wakeUp(result);
-		});
-	};
-	Asyncify.handleSleepIfJSPI = function (startAsync) {
-		if (PHPLoader.isJSPIBuild) {
-			return Asyncify.handleSleep(startAsync);
-		}
-		let returnValue = UNASSIGNED_RETURN_VALUE_SYMBOL;
-		startAsync((value) => {
-			returnValue = value;
-		});
-		if (returnValue === UNASSIGNED_RETURN_VALUE_SYMBOL) {
-			throw new Error(
-				'Asyncify.handleSleepIfJSPI called with a function that did not call wakeUp() synchronously. ' +
-					'Double check the implementation of your function. It should be asynchronous with JSPI and synchronous with Asyncify.'
-			);
-		}
-		return returnValue;
-	};
 
 	/**
 	 * Data dependencies call removeRunDependency() when they are loaded.

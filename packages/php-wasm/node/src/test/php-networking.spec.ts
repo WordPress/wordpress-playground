@@ -239,21 +239,16 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			}
 		});
 
-		it(
-			'should support HTTPS requests',
-			async () => {
-				const php = new PHP(await loadNodeRuntime(phpVersion));
-				await setPhpIniEntries(php, {
-					'openssl.cafile': '/tmp/ca-bundle.crt',
-					allow_url_fopen: 1,
-					disable_functions: '',
-				});
-				php.writeFile(
-					'/tmp/ca-bundle.crt',
-					rootCertificates.join('\n')
-				);
-				const { text } = await php.run({
-					code: `<?php
+		it('should support HTTPS requests', async () => {
+			const php = new PHP(await loadNodeRuntime(phpVersion));
+			await setPhpIniEntries(php, {
+				'openssl.cafile': '/tmp/ca-bundle.crt',
+				allow_url_fopen: 1,
+				disable_functions: '',
+			});
+			php.writeFile('/tmp/ca-bundle.crt', rootCertificates.join('\n'));
+			const { text } = await php.run({
+				code: `<?php
 					$ch = curl_init();
 					curl_setopt($ch, CURLOPT_URL, "https://api.wordpress.org/stats/php/1.0/");
 					curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
@@ -263,22 +258,18 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$json = json_decode($result, true);
 					var_dump(array_key_exists('8.3', $json));
 					`,
-				});
-				expect(text).toContain('bool(true)');
-			},
-			{ timeout: 4000 }
-		);
+			});
+			expect(text).toContain('bool(true)');
+		}, 8000);
 
-		it(
-			'should support HTTPS requests when certificate verification is disabled',
-			async () => {
-				const php = new PHP(await loadNodeRuntime(phpVersion));
-				await setPhpIniEntries(php, {
-					allow_url_fopen: 1,
-					disable_functions: '',
-				});
-				const { text } = await php.run({
-					code: `<?php
+		it('should support HTTPS requests when certificate verification is disabled', async () => {
+			const php = new PHP(await loadNodeRuntime(phpVersion));
+			await setPhpIniEntries(php, {
+				allow_url_fopen: 1,
+				disable_functions: '',
+			});
+			const { text } = await php.run({
+				code: `<?php
 					$ch = curl_init();
 					curl_setopt($ch, CURLOPT_URL, "https://api.wordpress.org/stats/php/1.0/");
 					curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
@@ -290,11 +281,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$json = json_decode($result, true);
 					var_dump(array_key_exists('8.3', $json));
 					`,
-				});
-				expect(text).toContain('bool(true)');
-			},
-			{ timeout: 4000 }
-		);
+			});
+			expect(text).toContain('bool(true)');
+		}, 8000);
 
 		it('should close server when runtime is exited', async () => {
 			const id = await loadNodeRuntime(phpVersion);

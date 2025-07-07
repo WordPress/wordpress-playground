@@ -1,6 +1,10 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
-import { flockSync as nativeFlockSync } from 'fs-ext';
+
+type NativeFlockSync = (
+	fd: number,
+	flags: 'sh' | 'ex' | 'shnb' | 'exnb' | 'un'
+) => void;
 
 import type {
 	FileLockManager,
@@ -16,6 +20,7 @@ type LockMode = 'exclusive' | 'shared' | 'unlock';
 type NativeLock = {
 	fd: number;
 	mode: LockMode;
+	nativeFlockSync: NativeFlockSync;
 };
 
 type LockedRange = RequestedRangeLock & {
@@ -31,9 +36,20 @@ const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
  * It provides methods for locking and unlocking files, as well as finding conflicting locks.
  */
 export class FileLockManagerForNode implements FileLockManager {
+	nativeFlockSync: NativeFlockSync;
 	locks: Map<string, FileLock>;
 
-	constructor() {
+	/**
+	 * Create a new FileLockManagerForNode instance.
+	 *
+	 * @param nativeFlockSync A synchronous flock() function to lock files via the host OS.
+	 */
+	constructor(
+		nativeFlockSync: NativeFlockSync = function flockSyncNoOp() {
+			/* do nothing */
+		}
+	) {
+		this.nativeFlockSync = nativeFlockSync;
 		this.locks = new Map();
 	}
 
@@ -51,7 +67,11 @@ export class FileLockManagerForNode implements FileLockManager {
 				return true;
 			}
 
-			const maybeLock = FileLock.maybeCreate(path, op.type);
+			const maybeLock = FileLock.maybeCreate(
+				path,
+				op.type,
+				this.nativeFlockSync
+			);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -82,7 +102,11 @@ export class FileLockManagerForNode implements FileLockManager {
 				return true;
 			}
 
-			const maybeLock = FileLock.maybeCreate(path, requestedLock.type);
+			const maybeLock = FileLock.maybeCreate(
+				path,
+				requestedLock.type,
+				this.nativeFlockSync
+			);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -177,7 +201,8 @@ export class FileLock {
 	 */
 	static maybeCreate(
 		path: string,
-		mode: Exclude<WholeFileLock['type'], 'unlocked'>
+		mode: Exclude<WholeFileLock['type'], 'unlocked'>,
+		nativeFlockSync: NativeFlockSync
 	): FileLock | undefined {
 		let fd;
 		try {
@@ -186,7 +211,7 @@ export class FileLock {
 			const flockFlags = mode === 'exclusive' ? 'exnb' : 'shnb';
 			nativeFlockSync(fd, flockFlags);
 
-			const nativeLock: NativeLock = { fd, mode };
+			const nativeLock: NativeLock = { fd, mode, nativeFlockSync };
 			return new FileLock(nativeLock);
 		} catch {
 			if (fd !== undefined) {
@@ -586,7 +611,7 @@ export class FileLock {
 			'un';
 
 		try {
-			nativeFlockSync(this.nativeLock.fd, flockFlags);
+			this.nativeLock.nativeFlockSync(this.nativeLock.fd, flockFlags);
 			this.nativeLock.mode = requiredNativeLockType;
 			return true;
 		} catch {

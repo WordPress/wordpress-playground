@@ -82,6 +82,7 @@ export default defineConfig({
 				'readline',
 				'worker_threads',
 				'url',
+				'fs-ext',
 			],
 		},
 		lib: {
