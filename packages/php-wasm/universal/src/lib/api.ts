@@ -170,15 +170,16 @@ function setupTransferHandlers() {
 	});
 	// Luckily, this works both for require('worker_threads').MessagePort and
 	// for MessagePort from the DOM.
-	// Comlink.transferHandlers.set('MESSAGE_PORT', {
-	// 	canHandle: (obj: unknown): obj is MessagePort => obj instanceof MessagePort,
-	// 	serialize(port: MessagePort): [MessagePort, Transferable[]] {
-	// 		return [port, [port]];
-	// 	},
-	// 	deserialize(port: MessagePort): MessagePort {
-	// 		return port;
-	// 	},
-	// });
+	Comlink.transferHandlers.set('MESSAGE_PORT', {
+		canHandle: (obj: unknown): obj is MessagePort =>
+			obj instanceof MessagePort,
+		serialize(port: MessagePort): [MessagePort, Transferable[]] {
+			return [port, [port]];
+		},
+		deserialize(port: MessagePort): MessagePort {
+			return port;
+		},
+	});
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
 			typeof obj === 'object' &&

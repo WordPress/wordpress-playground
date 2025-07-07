@@ -567,8 +567,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				await playground.isConnected();
 
 				// Custom communication proxy
-				const { endpoint, fileLockManagerPort } =
-					FileLockManagerEndpoint.create();
+				const fileLockManagerPort =
+					exposeSyncRPCEndpoint(fileLockManager);
 				// @TODO: Cleanup endpoint at some point?
 
 				logger.log(`Booting WordPress...`);
@@ -581,7 +581,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					Number.MAX_SAFE_INTEGER / totalWorkerCount
 				);
 
-				// await playground.useFileLockManager(fileLockManagerPort);
+				await playground.useFileLockManager(fileLockManagerPort);
 				await playground.boot({
 					phpVersion: compiledBlueprint.versions.php,
 					wpVersion: compiledBlueprint.versions.wp,
@@ -664,6 +664,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								initialWorkerProcessIdSpace +
 								index * processIdSpaceLength;
 
+							const fileLockManagerPort =
+								exposeSyncRPCEndpoint(fileLockManager);
+							await additionalPlayground.useFileLockManager(
+								fileLockManagerPort
+							);
 							await additionalPlayground.boot({
 								phpVersion: compiledBlueprint.versions.php,
 								absoluteUrl,
@@ -742,28 +747,33 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	});
 }
 
-class FileLockManagerEndpoint {
-	static create() {
-		const channel = new MessageChannel();
-		channel.port1.on('message', (message) => {
-			console.log('message lock', message);
-		});
-		channel.port2.on('message', (message) => {
-			console.log('message lock', message);
-		});
-		return {
-			endpoint: new FileLockManagerEndpoint(channel.port1),
-			fileLockManagerPort: channel.port2,
-		};
-	}
+function exposeSyncRPCEndpoint(wrappedObject: any) {
+	const channel = new MessageChannel();
 
-	constructor(private port: MessagePort) {
-		this.port.on('message', (message) => {
-			console.log('message lock', message);
-		});
-	}
+	channel.port1.on('message', async (message) => {
+		const { functionName, args, notifySharedBuffer } = message;
 
-	async isConnected() {
-		return true;
-	}
+		if (!(functionName in wrappedObject)) {
+			throw new Error(`Unknown function: ${functionName}`);
+		}
+
+		let result = undefined;
+		try {
+			result = await wrappedObject[functionName](...args);
+		} catch (error) {
+			console.error('SyncRPC error', error);
+			throw error;
+		}
+
+		// Send the result back through the MessagePort
+		channel.port1.postMessage(result);
+
+		// Unpark the worker thread
+		const view = new Int32Array(notifySharedBuffer);
+		view.set([1], 0);
+		Atomics.notify(view, 0);
+	});
+
+	// @TODO: Should we clean up the channel eventually?
+	return channel.port2;
 }

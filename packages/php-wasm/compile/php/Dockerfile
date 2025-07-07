@@ -879,6 +879,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
 "php_sqlite3_object_free_storage",\
+"php_sqlite3_error",\
+"sqlite3_reset",\
 "php_stream_read_to_str",\
 "php_userstreamop_read",\
 "zif_fread",\
@@ -1687,6 +1689,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_hash_reverse_apply",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
 "zend_include_or_eval",\
+"compile_filename",\
 "zend_internal_type_error",\
 "zend_interrupt_helper_SPEC",\
 "zend_invalid_class_constant_type_error",\
@@ -1997,6 +2000,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zim_SQLite3_backup",\
 "zim_SQLite3_exec",\
 "zim_sqlite3_exec",\
+"zim_sqlite3_query",\
+"zim_sqlite3_querySingle",\
+"zim_sqlite3result_fetchArray",\
 "php_stdiop_close",\
 "zend_parse_ini_file",\
 "php_embed_startup",\
@@ -2092,7 +2098,7 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-	export OPTIMIZATION_FLAGS="-O3"; \
+	export OPTIMIZATION_FLAGS="-O0 -g2"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \

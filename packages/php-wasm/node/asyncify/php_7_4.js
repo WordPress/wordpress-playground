@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29670297;
+export const dependenciesTotalSize = 37872753;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12028672;
+	var ___heap_base = 12028928;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -994,7 +994,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15481,
+		initial: 15478,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1855,13 +1855,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12028672;
+	var ___stack_high = 12028928;
 
-	var ___stack_low = 11963136;
+	var ___stack_low = 11963392;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12028672
+		12028928
 	);
 
 	var PATH = {
@@ -7020,11 +7020,19 @@ export function init(RuntimeName, PHPLoader) {
 				locking.get_native_path_from_vfs_path(vfsPath);
 
 			try {
-				PHPLoader.fileLockManager.releaseLocksForProcessFdSync(
-					PHPLoader.processId,
-					fd,
-					nativeFilePath
-				);
+				// This call must be synchronous in Asyncify
+				// @TODO: Use asynchronous call in JSPI?
+				const retval =
+					PHPLoader.fileLockManager.releaseLocksForProcessFd(
+						PHPLoader.processId,
+						fd,
+						nativeFilePath
+					);
+				if ('then' in retval) {
+					throw new Error(
+						'fileLockManager.releaseLocksForProcessFd returned a promise. When PHP is running via Asyncify, that method must synchronously return a value.'
+					);
+				}
 				_js_wasm_trace('fd_close(%d) release locks success', fd);
 			} catch (e) {
 				_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
@@ -7178,7 +7186,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___syscall_fcntl64 = function __syscall_fcntl64(fd, cmd, varargs) {
+	function ___syscall_fcntl64(fd, cmd, varargs) {
 		if (!PHPLoader.fileLockManager) {
 			return _builtin_fcntl64(fd, cmd, varargs);
 		}
@@ -7422,13 +7430,17 @@ export function init(RuntimeName, PHPLoader) {
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
 
-					PHPLoader.fileLockManager
-						.findFirstConflictingByteRangeLock(nativeFilePath, {
-							type: requestedLockType,
-							start: absoluteStartOffset,
-							end: absoluteStartOffset + flockStruct.l_len,
-							pid,
-						})
+					Promise.resolve(
+						PHPLoader.fileLockManager.findFirstConflictingByteRangeLock(
+							nativeFilePath,
+							{
+								type: requestedLockType,
+								start: absoluteStartOffset,
+								end: absoluteStartOffset + flockStruct.l_len,
+								pid,
+							}
+						)
+					)
 						.then((conflictingLock) => {
 							if (conflictingLock === undefined) {
 								_js_wasm_trace(
@@ -7564,8 +7576,13 @@ export function init(RuntimeName, PHPLoader) {
 						vfsPath,
 						rangeLock
 					);
-					PHPLoader.fileLockManager
-						.lockFileByteRange(nativeFilePath, rangeLock)
+
+					Promise.resolve(
+						PHPLoader.fileLockManager.lockFileByteRange(
+							nativeFilePath,
+							rangeLock
+						)
+					)
 						.then((succeeded) => {
 							_js_wasm_trace(
 								'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
@@ -7599,7 +7616,7 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(_builtin_fcntl64(fd, cmd, varargs));
 			}
 		});
-	};
+	}
 	___syscall_fcntl64.sig = 'iiip';
 
 	function ___syscall_fdatasync(fd) {
@@ -17498,13 +17515,12 @@ export function init(RuntimeName, PHPLoader) {
 
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
-			const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
-				nativeFilePath,
-				{
+			const obtainedLock = await Promise.resolve(
+				PHPLoader.fileLockManager.lockWholeFile(nativeFilePath, {
 					type: lockOpType,
 					pid: PHPLoader.processId,
 					fd,
-				}
+				})
 			);
 			_js_wasm_trace(
 				'js_flock(%d, %d) lockWholeFile %s returned %d',
@@ -17820,8 +17836,9 @@ export function init(RuntimeName, PHPLoader) {
 			_js_wasm_trace('js_release_file_locks()');
 			const pid = PHPLoader.processId;
 			if (pid && PHPLoader.fileLockManager) {
-				PHPLoader.fileLockManager
-					.releaseLocksForProcess(pid)
+				Promise.resolve(
+					PHPLoader.fileLockManager.releaseLocksForProcess(pid)
+				)
 					.then(() => {
 						_js_wasm_trace('js_release_file_locks succeeded');
 					})
@@ -32071,13 +32088,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11104010: ($0) => {
+		11104058: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11104058: ($0) => {
+		11104106: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

@@ -61,62 +61,39 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-class RemoteFileLockManager implements FileLockManager {
-	constructor(private port: MessagePort) {
-		this.port.on('message', (message) => {
-			console.log(message);
-		});
-	}
+function consumeSyncRPC<T extends object>(port: MessagePort): T {
+	return new Proxy<T>({} as T, {
+		get(target, prop) {
+			return (...args: any[]) => {
+				const notifySharedBuffer = new SharedArrayBuffer(4);
+				const view = new Int32Array(notifySharedBuffer);
+				view.set([0], 0);
 
-	async isConnected() {
-		return true;
-	}
+				port.postMessage(
+					{
+						functionName: prop,
+						args,
+						notifySharedBuffer,
+					},
+					[]
+				);
 
-	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
-		console.log('lockWholeFile', path, op);
-		this.port.postMessage({
-			command: 'lockWholeFile',
-			path,
-			op,
-		});
-		return true;
-	}
+				// @TODO: Handle remote errors
 
-	lockFileByteRange(path: string, op: RequestedRangeLock): boolean {
-		console.log('lockFileByteRange', path, op);
-		this.port.postMessage({
-			command: 'lockFileByteRange',
-			path,
-			op,
-		});
-		return true;
-	}
+				// Block and wait for the result using receiveMessageOnPort
+				try {
+					Atomics.wait(view, 0, 0);
+				} catch (e) {
+					console.error('Error waiting for result', e);
+					throw e;
+				}
 
-	findFirstConflictingByteRangeLock(
-		path: string,
-		op: RequestedRangeLock
-	): RequestedRangeLock | undefined {
-		console.log('findFirstConflictingByteRangeLock', path, op);
-		return undefined;
-	}
+				const returnValue = receiveMessageOnPort(port);
 
-	releaseLocksForProcess(pid: number) {
-		console.log('releaseLocksForProcess', pid);
-		this.port.postMessage({
-			command: 'releaseLocksForProcess',
-			pid,
-		});
-	}
-
-	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
-		console.log('releaseLocksForProcessFd', pid, fd, nativePath);
-		this.port.postMessage({
-			command: 'releaseLocksForProcessFd',
-			pid,
-			fd,
-			nativePath,
-		});
-	}
+				return returnValue;
+			};
+		},
+	});
 }
 
 export class PlaygroundCliWorker extends PHPWorker {
@@ -134,7 +111,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
 	 */
 	async useFileLockManager(port: MessagePort) {
-		this.fileLockManager = new RemoteFileLockManager(port);
+		this.fileLockManager = consumeSyncRPC<FileLockManager>(port);
 	}
 
 	async getString() {
@@ -184,7 +161,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
-							// fileLockManager: this.fileLockManager!,
+							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 						},

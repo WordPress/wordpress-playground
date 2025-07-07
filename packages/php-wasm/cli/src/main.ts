@@ -73,34 +73,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	);
 	chmodSync(`${tempDir}/php`, 0o755);
 
-	const fileLockManagerSync = new FileLockManagerForNode();
-	const fileLockManager = {
-		lockWholeFile: async (...args: any[]) => {
-			return fileLockManagerSync.lockWholeFile(...args);
-		},
-		lockFileByteRange: async (...args: any[]) => {
-			return fileLockManagerSync.lockFileByteRange(...args);
-		},
-		releaseLocksForProcessFd: async (...args: any[]) => {
-			return fileLockManagerSync.releaseLocksForProcessFd(...args);
-		},
-		releaseLocksForProcessFdSync: (...args: any[]) => {
-			return fileLockManagerSync.releaseLocksForProcessFd(...args);
-		},
-		releaseLocksForProcess: async (...args: any[]) => {
-			return fileLockManagerSync.releaseLocksForProcess(...args);
-		},
-	};
-	const fileLockManagerAsync = new Proxy(fileLockManagerSync, {
-		get(target, prop) {
-			const value = target[prop as keyof typeof target];
-			if (typeof value === 'function') {
-				return (...args: any[]) =>
-					Promise.resolve(value.apply(target, args));
-			}
-			return value;
-		},
-	});
+	const fileLockManager = new FileLockManagerForNode();
 	// const fileLockManager = fileLockManagerSync;
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(

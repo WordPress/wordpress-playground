@@ -362,13 +362,14 @@ const LibraryForFileLocking = {
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
 
-					PHPLoader.fileLockManager
+					
+				Promise.resolve(PHPLoader.fileLockManager
 						.findFirstConflictingByteRangeLock(nativeFilePath, {
 							type: requestedLockType,
 							start: absoluteStartOffset,
 							end: absoluteStartOffset + flockStruct.l_len,
 							pid,
-						})
+						}))
 						.then((conflictingLock) => {
 							if (conflictingLock === undefined) {
 								_js_wasm_trace(
@@ -504,8 +505,11 @@ const LibraryForFileLocking = {
 						vfsPath,
 						rangeLock
 					);
-					PHPLoader.fileLockManager
-						.lockFileByteRange(nativeFilePath, rangeLock)
+					
+					Promise.resolve(
+						PHPLoader.fileLockManager
+							.lockFileByteRange(nativeFilePath, rangeLock)
+						)
 						.then((succeeded) => {
 							_js_wasm_trace(
 								'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
@@ -632,13 +636,15 @@ const LibraryForFileLocking = {
 
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
-			const obtainedLock = await PHPLoader.fileLockManager.lockWholeFile(
-				nativeFilePath,
-				{
-					type: lockOpType,
-					pid: PHPLoader.processId,
-					fd,
-				}
+			const obtainedLock = await Promise.resolve(
+				PHPLoader.fileLockManager.lockWholeFile(
+					nativeFilePath,
+					{
+						type: lockOpType,
+						pid: PHPLoader.processId,
+						fd,
+					}
+				)
 			);
 			_js_wasm_trace(
 				'js_flock(%d, %d) lockWholeFile %s returned %d',
@@ -678,12 +684,17 @@ const LibraryForFileLocking = {
 				locking.get_native_path_from_vfs_path(vfsPath);
 
 			try {
-				PHPLoader.fileLockManager
-					.releaseLocksForProcessFdSync(
+				// This call must be synchronous in Asyncify
+				// @TODO: Use asynchronous call in JSPI?
+				const retval = PHPLoader.fileLockManager
+					.releaseLocksForProcessFd(
 						PHPLoader.processId,
 						fd,
 						nativeFilePath
-					);
+				);
+				if ('then' in retval) {
+					throw new Error('fileLockManager.releaseLocksForProcessFd returned a promise. When PHP is running via Asyncify, that method must synchronously return a value.');
+				}
 				_js_wasm_trace(
 					'fd_close(%d) release locks success',
 					fd
@@ -709,8 +720,10 @@ const LibraryForFileLocking = {
 			_js_wasm_trace('js_release_file_locks()');
 			const pid = PHPLoader.processId;
 			if (pid && PHPLoader.fileLockManager) {
-				PHPLoader.fileLockManager
-					.releaseLocksForProcess(pid)
+				Promise.resolve(
+					PHPLoader.fileLockManager
+						.releaseLocksForProcess(pid)
+				)
 					.then(() => {
 						_js_wasm_trace('js_release_file_locks succeeded');
 					})
