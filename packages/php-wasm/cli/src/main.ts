@@ -96,44 +96,36 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		args.unshift('-c', defaultPhpIniPath);
 	}
 
-	try {
-		const response = await php.cli(['php', ...args]);
-		response.stderr.pipeTo(
-			new WritableStream({
-				write(chunk) {
-					process.stderr.write(chunk);
-				},
-			})
-		);
-		response.stdout.pipeTo(
-			new WritableStream({
-				write(chunk) {
-					process.stdout.write(chunk);
-				},
-			})
-		);
+	const response = await php.cli(['php', ...args]);
+	response.stderr.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				process.stderr.write(chunk);
+			},
+		})
+	);
+	response.stdout.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				process.stdout.write(chunk);
+			},
+		})
+	);
 
-		await response.exitCode
-			.catch((result) => {
-				console.log({ result });
+	await response.exitCode
+		.catch((result) => {
+			if (result.name === 'ExitStatus') {
+				process.exit(result.status === undefined ? 1 : result.status);
+			}
+			throw result;
+		})
+		.finally(() => {
+			setTimeout(() => {
 				process.exit(0);
-				if (result.name === 'ExitStatus') {
-					process.exit(
-						result.status === undefined ? 1 : result.status
-					);
-				}
-				throw result;
-			})
-			.finally(() => {
-				setTimeout(() => {
-					process.exit(0);
-					// 100 is an arbitrary number. It's there to give any child processes
-					// a chance to pass their output to JS before the main process exits.
-				}, 100);
-			});
-	} catch (e) {
-		console.log('A================>');
-	}
+				// 100 is an arbitrary number. It's there to give any child processes
+				// a chance to pass their output to JS before the main process exits.
+			}, 100);
+		});
 }
 
 run();

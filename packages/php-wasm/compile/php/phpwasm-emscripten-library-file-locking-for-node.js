@@ -7,9 +7,6 @@
  */
 'use strict';
 
-// TODO: Make sure these Asyncify.handleSleep() calls work for JSPI or are conditional somehow
-// TODO: Make all these overrides conditional on the existence of PHPLoader.fileLockManager.
-
 const LibraryForFileLocking = {
 	$locking: {
 		/*

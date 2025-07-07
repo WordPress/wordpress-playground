@@ -1,5 +1,25 @@
 /**
  * Comlink library protocol extension to use synchronous messaging.
+ *
+ * Debugging Asyncify is too much of a burden. This extension enables exchanging
+ * messages between threads synchronously so that we don't need to rely on Asyncify.
+ *
+ * Upsides:
+ *
+ * * Saves dozens-to-hundreds of hours on debugging Asyncify issues
+ * * Increased reliability
+ * * Useful stack traces when errors do happen.
+ *
+ * Downsides:
+ *
+ * * Fragmentation: Both synchronous and asynchronous handlers exist to get the best our of both Asyncify and JSPI.
+ * * Node.js-only: This extension does not implement a Safari-friendly transport. SharedArrayBuffer is an option, but
+ *                 it requires more restrictive CORP+COEP headers which breaks, e.g., YouTube embeds. Synchronous XHR
+ *                 might work if we really need Safari support for one of the new asynchronous features, but other than
+ *                 that let's just skip adding new asynchronous WASM features to Safari until WebKit supports stack switching.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/blob/9a9262cc62cc161d220a9992706b9ed2817f2eb5/packages/docs/site/docs/developers/23-architecture/07-wasm-asyncify.md
+ * @see https://github.com/adamziel/js-synchronous-messaging for additional ideas.
  */
 interface SyncMessage {
 	/** original Comlink envelope            */
@@ -200,7 +220,7 @@ export class NodeSABSyncReceiveMessageTransport {
 }
 
 /**
- * Original, unmodified Comlink library:
+ * Original, unmodified Comlink library from Google:
  *
  * @license
  * Copyright 2019 Google LLC

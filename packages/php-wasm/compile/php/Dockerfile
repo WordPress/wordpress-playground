@@ -10,9 +10,6 @@ ARG WITH_JSPI="no"
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION
 
-# TODO: Remove or adjust this overwhelming warning setting
-ENV WASM_WARNING_FLAGS=" -Weverything -fdiagnostics-show-option "
-
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION \
@@ -493,9 +490,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 		$JSPI_FLAGS \
 		$WASM_WARNING_FLAGS \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
-		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ \
-		-fdebug-prefix-map=/emsdk/emscripten/==${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ \
-		-fdebug-prefix-map=/root/emsdk/upstream/emscripten/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ " \
+		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	emmake make -j1
 
@@ -638,9 +633,6 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_asyncjs__fd_close",\n\
 "close",\n\
 "_close",\n\
-"stdio_close",\n\
-"_stdio_close",\n\
-"_asyncjs__fd_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
@@ -2099,7 +2091,7 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-	export OPTIMIZATION_FLAGS="-O0 -g2"; \
+	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
@@ -2132,9 +2124,6 @@ RUN set -euxo pipefail; \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s ASSERTIONS=0 \
-	-s VERBOSE=1 \
-	# TODO: Remove this super-high ASYNCIFY_STACK_SIZE before merge
-	-s ASYNCIFY_STACK_SIZE=999999 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
@@ -2148,7 +2137,6 @@ RUN set -euxo pipefail; \
 		$(cat /root/.emcc-php-wasm-sources) \
 	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
-	$WASM_WARNING_FLAGS \
 	-s EXPORT_NAME="'PHPLoader'"
 	# Emscripten complains it can't find some Asyncify functions
 	# listed in ASYNCIFY_IMPORTS. The culprit is those functions

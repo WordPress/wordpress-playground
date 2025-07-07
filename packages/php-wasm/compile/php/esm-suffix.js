@@ -20,35 +20,6 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
     }
 }
 
-PHPLoader.isJSPIBuild = 'Suspending' in WebAssembly;
-
-const UNASSIGNED_RETURN_VALUE_SYMBOL = Symbol('UNASSIGNED_RETURN_VALUE');
-Asyncify.handleAsyncIfJSPI = function (startAsync) {
-	if (PHPLoader.isJSPIBuild) {
-		return Promise.resolve(Asyncify.handleSleepIfJSPI(startAsync)).then(startAsync);
-	}
-	return Asyncify.handleSleepIfJSPI((wakeUp) => {
-		const result = startAsync();
-		wakeUp(result);
-	});
-};
-Asyncify.handleSleepIfJSPI = function (startAsync) {
-    if (PHPLoader.isJSPIBuild) {
-        return Asyncify.handleSleep(startAsync);
-	}
-	let returnValue = UNASSIGNED_RETURN_VALUE_SYMBOL;
-	startAsync((value) => {
-		returnValue = value;
-	});
-	if (returnValue === UNASSIGNED_RETURN_VALUE_SYMBOL) {
-		throw new Error(
-			'Asyncify.handleSleepIfJSPI called with a function that did not call wakeUp() synchronously. ' +
-			'Double check the implementation of your function. It should be asynchronous with JSPI and synchronous with Asyncify.'
-		);
-	}
-	return returnValue;
-}
-
 /**
  * Data dependencies call removeRunDependency() when they are loaded.
  * The synchronous call stack then continues to run. If an error occurs
