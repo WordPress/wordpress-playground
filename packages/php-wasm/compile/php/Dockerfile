@@ -2003,6 +2003,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zim_sqlite3_query",\
 "zim_sqlite3_querySingle",\
 "zim_sqlite3result_fetchArray",\
+"php_cli_startup",\
 "php_stdiop_close",\
 "zend_parse_ini_file",\
 "php_embed_startup",\
@@ -2131,6 +2132,7 @@ RUN set -euxo pipefail; \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s ASSERTIONS=0 \
+	-s VERBOSE=1 \
 	# TODO: Remove this super-high ASYNCIFY_STACK_SIZE before merge
 	-s ASYNCIFY_STACK_SIZE=999999 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
