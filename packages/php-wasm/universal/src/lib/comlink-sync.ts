@@ -1,3 +1,5 @@
+import type { MessagePort as NodeMessagePort } from 'worker_threads';
+
 /**
  * Comlink library protocol extension to use synchronous messaging.
  *
@@ -155,9 +157,7 @@ export function wrapSync<T>(
 
 /// Transport ///
 
-export type IsomorphicMessagePort =
-	| MessagePort
-	| import('worker_threads').MessagePort;
+export type IsomorphicMessagePort = MessagePort | NodeMessagePort;
 
 export class NodeSABSyncReceiveMessageTransport {
 	static receiveMessageOnPort: any;
@@ -246,13 +246,13 @@ export interface EventSource {
 	addEventListener(
 		type: string,
 		listener: EventListenerOrEventListenerObject,
-		options?: {}
+		options?: object
 	): void;
 
 	removeEventListener(
 		type: string,
 		listener: EventListenerOrEventListenerObject,
-		options?: {}
+		options?: object
 	): void;
 }
 
@@ -714,7 +714,7 @@ export function expose(
 					}
 				}
 			})
-			.catch((error) => {
+			.catch(() => {
 				// Send Serialization Error To Caller
 				const [wireValue, transferables] = toWireValue({
 					value: new TypeError('Unserializable return value'),
@@ -774,6 +774,7 @@ function releaseEndpoint(ep: Endpoint) {
 }
 
 interface FinalizationRegistry<T> {
+	// @ts-ignore
 	new (cb: (heldValue: T) => void): FinalizationRegistry<T>;
 	register(
 		weakItem: object,
@@ -782,7 +783,7 @@ interface FinalizationRegistry<T> {
 	): void;
 	unregister(unregisterToken: object): void;
 }
-declare var FinalizationRegistry: FinalizationRegistry<Endpoint>;
+declare const FinalizationRegistry: FinalizationRegistry<Endpoint>;
 
 const proxyCounter = new WeakMap<Endpoint, number>();
 const proxyFinalizers =
@@ -915,7 +916,7 @@ export function transfer<T>(obj: T, transfers: Transferable[]): T {
 	return obj;
 }
 
-export function proxy<T extends {}>(obj: T): T & ProxyMarked {
+export function proxy<T extends object>(obj: T): T & ProxyMarked {
 	return Object.assign(obj, { [proxyMarker]: true }) as any;
 }
 
@@ -996,12 +997,12 @@ export interface NodeEndpoint {
 	on(
 		type: string,
 		listener: EventListenerOrEventListenerObject,
-		options?: {}
+		options?: object
 	): void;
 	off(
 		type: string,
 		listener: EventListenerOrEventListenerObject,
-		options?: {}
+		options?: object
 	): void;
 	start?: () => void;
 }
