@@ -85,6 +85,33 @@ blueprint={{
 		]
 }} />
 
+## Running WP-CLI on Mounted Sites
+
+To run WP-CLI commands on a WordPress site mounted from your local filesystem, you need to ensure the SQLite database integration is properly configured. This Blueprint snippet installs and activates the necessary plugin:
+
+<BlueprintExample blueprint={{
+    "steps": [
+        {
+            "step": "installPlugin",
+            "pluginData": {
+                "resource": "wordpress.org/plugins",
+                "slug": "sqlite-database-integration"
+            }
+        },
+        {
+            "step": "cp",
+            "fromPath": "/wordpress/wp-content/plugins/sqlite-database-integration/db.copy",
+            "toPath": "/wordpress/wp-content/db.php"
+        },
+        {
+            "step": "activatePlugin",
+            "pluginPath": "/wordpress/wp-content/plugins/sqlite-database-integration"
+        }
+    ]
+}} />
+
+For a detailed explanation of why this is needed and how to use it, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
+
 ## Showcase a product demo
 
 <BlueprintExample noButton blueprint={{
