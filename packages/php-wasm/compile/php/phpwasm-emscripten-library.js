@@ -126,14 +126,6 @@ const LibraryExample = {
 						}
 				};
 
-			// Clean up the fd -> childProcess mapping when the fd is closed:
-			const originalClose = FS.close;
-			FS.close = function (stream) {
-				originalClose(stream);
-				delete PHPWASM.child_proc_by_fd[stream.fd];
-			};
-
-			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 
 			PHPWASM.input_devices = {};
@@ -339,7 +331,7 @@ const LibraryExample = {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
+					// timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -530,14 +522,6 @@ const LibraryExample = {
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
-			if (ProcInfo.stdoutChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
-			if (ProcInfo.stderrChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
-			if (ProcInfo.stdoutParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
-			if (ProcInfo.stderrParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {

@@ -913,11 +913,13 @@ export class PHP implements Disposable {
 				 */
 				const exit = await Promise.race([
 					executionFn(),
-					new Promise((_, reject) => {
+					new Promise((resolve, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							logger.error(e);
-							logger.error(e.error);
-							if (!isExitCode(e.error)) {
+							if (isExitCode(e.error) && e.error.status === 0) {
+								resolve(e.error.exitCode);
+							} else {
+								logger.error(e);
+								logger.error(e.error);
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
 								(rethrown as any).betterMessage = e.message;

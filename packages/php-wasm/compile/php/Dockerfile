@@ -712,6 +712,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "cli",\
 "close_stmt_and_copy_errors",\
 "close",\
+"__stdio_close",\
 "closeUnixFile",\
 "compile_file",\
 "createCollation",\
