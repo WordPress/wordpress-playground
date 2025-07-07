@@ -2,8 +2,37 @@
  * This file is an Emscripten "library" file. It is included in the
  * build "php-8.0.js" file and implements JavaScript functions that
  * called from C code.
- *
+ * 
  * @see https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#implement-a-c-api-in-javascript
+ */
+/**
+ * JSPI vs Asyncify
+ * -----------------
+ * 
+ * This file contains many fragments similar to this one:
+ *
+ *     #if ASYNCIFY == 2
+ *         return Asyncify.handleAsync(async () => {
+ *     #endif
+ *         // ..code..
+ *     #if ASYNCIFY == 2
+ *         });
+ *     #endif
+ *
+ * This is a way of making syscalls synchronous with Asyncify (to support Node < 23) and asynchronous with JSPI (to support web browsers).
+ * It is cumbersome, but it is much easier than using and debugging Asyncify.
+ * 
+ * When JSPI is available (ASYNCIFY == 2), we can safely use promises and async/await.
+ *
+ * When JSPI is not available (ASYNCIFY == 1), we still invoke methods from another worker, but we do so
+ * synchronously, blocking the execution of the calling thread until the result is available. In this mode,
+ * we do not call handleSleep() or handleAsync() to avoid saving and rewinding the stack around each syscall.
+ *
+ * See comlink-sync.ts for more details.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/pull/2317
+ * @see https://github.com/WordPress/wordpress-playground/blob/9a9262cc62cc161d220a9992706b9ed2817f2eb5/packages/docs/site/docs/developers/23-architecture/07-wasm-asyncify.md
+ * @see https://github.com/adamziel/js-synchronous-messaging for additional ideas.
  */
 'use strict';
 

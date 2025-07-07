@@ -20,8 +20,8 @@
  * * Message passing between workers is slow. Avoid using synchronous messaging for syscalls that are invoked frequently and
  *   handled asynchronously in the same worker.
  *
- * @see https://github.com/WordPress/wordpress-playground/blob/9a9262cc62cc161d220a9992706b9ed2817f2eb5/packages/docs/site/docs/developers/23-architecture/07-wasm-asyncify.md
  * @see https://github.com/adamziel/js-synchronous-messaging for additional ideas.
+ * @see https://github.com/WordPress/wordpress-playground/blob/9a9262cc62cc161d220a9992706b9ed2817f2eb5/packages/docs/site/docs/developers/23-architecture/07-wasm-asyncify.md
  */
 interface SyncMessage {
 	/** original Comlink envelope            */
