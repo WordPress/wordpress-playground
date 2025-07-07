@@ -935,7 +935,6 @@ export class PHP implements Disposable {
 				]);
 				return exit;
 			} catch (e) {
-				console.log('catch');
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
 				 * turn exit code errors into integers again.
@@ -1288,19 +1287,18 @@ export class PHP implements Disposable {
 			);
 		}
 
-		return await this.#executeWithErrorHandling(async () => {
-			const result = await this[__private__dont__use].ccall(
-				'run_cli',
-				null,
-				[],
-				[],
-				{
-					async: true,
-				}
-			);
-			console.log({ result });
-			return result;
-		}).then((response) => {
+		return await this.#executeWithErrorHandling(
+			async () =>
+				await this[__private__dont__use].ccall(
+					'run_cli',
+					null,
+					[],
+					[],
+					{
+						async: true,
+					}
+				)
+		).then((response) => {
 			response.exitCode.finally(release);
 			return response;
 		});
