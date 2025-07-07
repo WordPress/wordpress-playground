@@ -30,7 +30,8 @@ export async function withXdebug(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/* The extension file previously read
+			/**
+			 * The extension file previously read
 			 * is written inside the /extensions directory
 			 */
 			if (
