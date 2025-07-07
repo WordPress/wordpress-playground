@@ -12,7 +12,7 @@ import { sprintf } from '@php-wasm/util';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
-import { MessageChannel, MessagePort, parentPort } from 'worker_threads';
+import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 
 export interface Mount {
 	hostPath: string;
