@@ -7,15 +7,15 @@ slug: /developers/local-development/wp-playground-cli
 
 [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) is the new command-line tool designed to simplify the development and testing flow. It runs a WordPress instance locally with Playground, and with the CLI, it is possible to auto-mount an environment with a plugin, theme, or WordPress installation. But if you need flexibility, the CLI supports mounting commands to personalize your local environment.
 
-## Requirements
-
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the Node.js website.
-
 **Key features:**
 
 -   **Quick Setup**: Set up a local WordPress environment in seconds.
--   **Flexible**: Allows for configuration to adapt to different scenarios
--   **Simple Development Environment**: No extra configuration, just a compatible Node installation, and you are ready to use it.
+-   **Flexibility**: Allows for configuration to adapt to different scenarios
+-   **Simple Environment**: No extra configuration, just a compatible Node installation, and you are ready to use it.
+
+## Requirements
+
+The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the Node.js website.
 
 ## Quickstart
 
