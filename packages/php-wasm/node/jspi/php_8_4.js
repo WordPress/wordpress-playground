@@ -5624,7 +5624,12 @@ export function init(RuntimeName, PHPLoader) {
 				if (sock.type === 1 && sock.server) {
 					// listen sockets should only say they're available for reading
 					// if there are pending clients.
-					return sock.pending.length ? 64 | 1 : 0;
+					for (const client of sock.pending) {
+						if ((client.recv_queue || []).length > 0) {
+							return 1;
+						}
+					}
+					return 0;
 				}
 
 				var mask = 0;
@@ -5651,7 +5656,8 @@ export function init(RuntimeName, PHPLoader) {
 					!dest || // connection-less sockets are always ready to write
 					(dest && dest.socket.readyState === dest.socket.OPEN)
 				) {
-					mask |= 4;
+					// console.log('open!');
+					// mask |= 4;
 				}
 
 				if (
@@ -6694,14 +6700,6 @@ export function init(RuntimeName, PHPLoader) {
 						}
 				  };
 
-			// Clean up the fd -> childProcess mapping when the fd is closed:
-			const originalClose = FS.close;
-			FS.close = function (stream) {
-				originalClose(stream);
-				delete PHPWASM.child_proc_by_fd[stream.fd];
-			};
-
-			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 
 			PHPWASM.input_devices = {};
@@ -6849,7 +6847,6 @@ export function init(RuntimeName, PHPLoader) {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -17479,14 +17476,6 @@ export function init(RuntimeName, PHPLoader) {
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
-			if (ProcInfo.stdoutChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
-			if (ProcInfo.stderrChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
-			if (ProcInfo.stdoutParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
-			if (ProcInfo.stderrParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
@@ -31265,65 +31254,57 @@ export function init(RuntimeName, PHPLoader) {
 			const POLLHUP = 0x0010;
 			const POLLNVAL = 0x0020;
 			return returnCallback((wakeUp) => {
+				const stream = FS.getStream(socketd);
+
 				const polls = [];
-				if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
-					const sock = getSocketFromFD(socketd);
-					if (!sock) {
-						wakeUp(0);
+				if (stream.stream_ops?.poll) {
+					if (!stream) {
+						wakeUp(-1);
 						return;
 					}
-					const lookingFor = new Set();
-					if (events & POLLIN || events & POLLPRI) {
-						if (sock.server) {
-							for (const client of sock.pending) {
-								if ((client.recv_queue || []).length > 0) {
-									wakeUp(1);
-									return;
+					// Poll the stream for data.
+					let interrupted = false;
+					async function poll() {
+						try {
+							while (true) {
+								// Inlined ___syscall_poll
+								var mask = 32; // {{{ cDefine('POLLNVAL') }}};
+								mask = SYSCALLS.DEFAULT_POLLMASK;
+								if (stream.stream_ops?.poll) {
+									mask = stream.stream_ops.poll(stream, -1);
 								}
+
+								mask &= events | 8 | 16; // | {{{ cDefine('POLLERR') }}} | {{{ cDefine('POLLHUP') }}};
+								// console.log('polling', mask);
+								if (mask) {
+									// console.log(stream.node);
+									return mask;
+								}
+								if (interrupted) {
+									return 0;
+								}
+								await new Promise((resolve) =>
+									setTimeout(resolve, 10)
+								);
 							}
-						} else if ((sock.recv_queue || []).length > 0) {
-							wakeUp(1);
-							return;
+						} catch (e) {
+							if (
+								typeof FS == 'undefined' ||
+								!(e.name === 'ErrnoError')
+							)
+								throw e;
+							return -e.errno;
 						}
 					}
-					const webSockets = PHPWASM.getAllWebSockets(sock);
-					if (!webSockets.length) {
-						wakeUp(0);
-						return;
-					}
-					for (const ws of webSockets) {
-						if (events & POLLIN || events & POLLPRI) {
-							polls.push(PHPWASM.awaitData(ws));
-							lookingFor.add('POLLIN');
-						}
-						if (events & POLLOUT) {
-							polls.push(PHPWASM.awaitConnection(ws));
-							lookingFor.add('POLLOUT');
-						}
-						if (
-							events & POLLHUP ||
-							events & POLLIN ||
-							events & POLLOUT ||
-							events & POLLERR
-						) {
-							polls.push(PHPWASM.awaitClose(ws));
-							lookingFor.add('POLLHUP');
-						}
-						if (events & POLLERR || events & POLLNVAL) {
-							polls.push(PHPWASM.awaitError(ws));
-							lookingFor.add('POLLERR');
-						}
-					}
-				} else if (socketd in PHPWASM.child_proc_by_fd) {
-					const procInfo = PHPWASM.child_proc_by_fd[socketd];
-					if (procInfo.exited) {
-						wakeUp(0);
-						return;
-					}
-					polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+					polls.push([
+						poll(),
+						() => {
+							interrupted = true;
+						},
+					]);
 				} else {
 					setTimeout(function () {
-						wakeUp(1);
+						wakeUp(-1);
 					}, timeout);
 					return;
 				}
@@ -31378,8 +31359,7 @@ export function init(RuntimeName, PHPLoader) {
 				let num = 0;
 				try {
 					stream = SYSCALLS.getStreamFromFD(fd);
-					const num = doReadv(stream, iov, iovcnt);
-					HEAPU32[pnum >> 2] = num;
+					HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
 					return 0;
 				} catch (e) {
 					if (
@@ -31389,9 +31369,14 @@ export function init(RuntimeName, PHPLoader) {
 						throw e;
 					}
 					if (
-						e.errno !== 6 ||
-						!(stream?.fd in PHPWASM.child_proc_by_fd)
+						!(stream.flags & locking.O_NONBLOCK) &&
+						e.errno === ERRNO_CODES.EWOULDBLOCK &&
+						(!('pipe' in stream.node) ||
+							stream.node.pipe.refcnt === 2)
 					) {
+						// Blocking fd that waits for data? Fall through to polling.
+					} else {
+						// Otherwise that's an error.
 						HEAPU32[pnum >> 2] = 0;
 						return returnCode;
 					}
@@ -31405,7 +31390,7 @@ export function init(RuntimeName, PHPLoader) {
 				function poll() {
 					var returnCode;
 					var stream;
-					let num;
+					let num = 0;
 					try {
 						stream = SYSCALLS.getStreamFromFD(fd);
 						num = doReadv(stream, iov, iovcnt);
@@ -31418,23 +31403,33 @@ export function init(RuntimeName, PHPLoader) {
 							console.error(e);
 							throw e;
 						}
+
 						returnCode = e.errno;
 					}
-					const success = returnCode === 0;
-					const failure =
-						++retries > maxRetries ||
-						!(fd in PHPWASM.child_proc_by_fd) ||
-						PHPWASM.child_proc_by_fd[fd]?.exited ||
-						FS.isClosed(stream);
-					if (success) {
+
+					// read succeeded!
+					if (returnCode === 0) {
 						HEAPU32[pnum >> 2] = num;
-						wakeUp(0);
-					} else if (failure) {
-						HEAPU32[pnum >> 2] = 0;
-						wakeUp(returnCode === 6 ? 0 : returnCode);
-					} else {
-						setTimeout(poll, interval);
+						return wakeUp(0);
 					}
+
+					if (
+						// Too many retries? That's an error, too!
+						++retries > maxRetries ||
+						// Stream closed? That's an error.
+						!stream ||
+						FS.isClosed(stream) ||
+						// Error different than EWOULDBLOCK – propagate it to the caller.
+						returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+						// Broken pipe
+						('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+					) {
+						HEAPU32[pnum >> 2] = num;
+						return wakeUp(returnCode);
+					}
+
+					// Otherwise, keep trying.
+					setTimeout(poll, interval);
 				}
 				poll();
 			});

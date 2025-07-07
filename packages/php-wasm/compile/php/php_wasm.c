@@ -154,8 +154,14 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
          * Check for socket-ness first. We don't clean up child_proc_by_fd yet and
          * sometimes get duplicate entries. isSocket is more reliable out of the two –
          * let's check for it first.
+		 *
+		 * @TODO: Remove this code branch entirely and poll sockets using the same poll()
+	     *        syscall as we use for other streams. The only reason this wasn't done is
+		 *        that the original PR was focusing on removing child process-related special
+		 *        casing and did not want to increase the risk of breaking other code.
          */
-        if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+		const stream = FS.getStream(socketd);
+        if (FS.isSocket(stream?.node.mode)) {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {
@@ -208,15 +214,44 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 					lookingFor.add('POLLERR');
 				}
             }
-        } else if (socketd in PHPWASM.child_proc_by_fd) {
-            // This is a child process-related socket.
-            const procInfo = PHPWASM.child_proc_by_fd[socketd];
-            if (procInfo.exited) {
-                wakeUp(0);
-                return;
-            }
-            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-        } else {
+		} else if (stream?.stream_ops?.poll) {
+			if (!stream) {
+				wakeUp(-1);
+				return;
+			}
+			// Poll the stream for data.
+			let interrupted = false;
+			async function poll() {
+				try {
+					while (true) {
+						// Inlined ___syscall_poll
+						var mask = 32; // {{{ cDefine('POLLNVAL') }}};
+						mask = SYSCALLS.DEFAULT_POLLMASK;
+						if (stream.stream_ops?.poll) {
+							mask = stream.stream_ops.poll(stream, -1);
+						}
+						
+						mask &= events | 8 | 16; // | {{{ cDefine('POLLERR') }}} | {{{ cDefine('POLLHUP') }}};
+						if (mask) {
+							return mask;
+						}
+						if (interrupted) {
+							return 0;
+						}
+						await new Promise(resolve => setTimeout(resolve, 10));
+					}
+				} catch (e) {
+					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+					return -e.errno;
+				}
+			}
+			polls.push([
+				poll(),
+				() => {
+					interrupted = true;
+				}
+			]);
+		} else {
 			setTimeout(function () {
 				wakeUp(1);
 			}, timeout);
@@ -278,15 +313,14 @@ EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *i
 EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
+	const node =
 	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
-		var returnCode;
 		var stream;
-		let num = 0;
 		try
 		{
 			stream = SYSCALLS.getStreamFromFD(fd);
-			const num = doReadv(stream, iov, iovcnt);
-			HEAPU32[pnum >> 2] = num;
+			// How many bytes did we read?
+			HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
 			return 0;
 		}
 		catch (e)
@@ -296,26 +330,36 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 			{
 				throw e;
 			}
-			// Only return synchronously if this isn't an asynchronous pipe.
-			// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
-			// We also need to distinguish between a process pipe and a file pipe, otherwise
-			// reading from an empty file would block until the timeout.
-			if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd))
-			{
-				// On failure, yield 0 bytes read to indicate EOF.
+			const isBlockingFdThatWaitsForData = (
+				// is blocking?
+				!(stream.flags & locking.O_NONBLOCK) &&
+				// is waiting for data?
+				e.errno === ERRNO_CODES.EWOULDBLOCK &&
+				// if it's a pipe, does it have a living other end?
+				(!('pipe' in stream.node) || stream.node.pipe.refcnt >= 2)
+			)
+			/**
+			 * The only reason to fall through to polling is if we're processing
+			 * a blocking pipe that's still waiting for data.
+			 *
+			 * In every other case, we should tell the caller we've ran into an error.
+			 */
+			if(!isBlockingFdThatWaitsForData) {
+				// Indicate 0 bytes read.
 				HEAPU32[pnum >> 2] = 0;
-				return returnCode
+				return e.errno;
 			}
 		}
 	}
 
-    // At this point we know we have to poll.
-    // You might wonder why we duplicate the code here instead of always using
+    // At this point we're certain we need to poll.
+	//
+    // You might wonder why we duplicate the code here instead of just reusing
     // Asyncify.handleSleep(). The reason is performance. Most of the time,
     // the read operation will work synchronously and won't require yielding
     // back to JS. In these cases we don't want to pay the Asyncify overhead,
     // save the stack, yield back to JS, restore the stack etc.
-    return returnCallback((wakeUp) => {
+    return returnCallback(async (wakeUp) => {
         var retries = 0;
         var interval = 50;
         var timeout = 5000;
@@ -324,7 +368,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
         // to, say, block the entire PHPUnit test suite without any visible
         // feedback.
         var maxRetries = timeout / interval;
-        function poll() {
+        while(true) {
             var returnCode;
             var stream;
             let num;
@@ -343,39 +387,30 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 returnCode = e.errno;
             }
 
-            const success = returnCode === 0;
-            // @TODO: Do not reason about child_proc_by_fd. Just use pipes and detect
-            //        when the other end of the pipe is closed.
-            const failure = (
-                ++retries > maxRetries ||
-                !(fd in PHPWASM.child_proc_by_fd) ||
-                PHPWASM.child_proc_by_fd[fd]?.exited ||
-                FS.isClosed(stream)
-            );
-
-            if (success) {
+            // read succeeded!
+            if (returnCode === 0) {
                 HEAPU32[pnum >> 2] = num;
-                wakeUp(0);
-            } else if (failure) {
-                // On failure, yield 0 bytes read to indicate EOF.
-                HEAPU32[pnum >> 2] = 0;
-                // If the failure is due to a timeout, return 0 to indicate that we
-                // reached EOF. Otherwise, propagate the error code.
-                wakeUp(returnCode === 6 ? 0 : returnCode);
-            } else if (
-                returnCode === ERRNO_CODES.EWOULDBLOCK &&
-                stream.flags & locking.O_NONBLOCK
-            ) {
-                // Non-blocking stream with no data available yet – return immediately.
-                HEAPU32[pnum >> 2] = 0;
-                wakeUp(returnCode);
-            } else {
-                // It's a blocking stream and we Blocking stream with no data available yet.
-                // Let's poll up to a timeout.
-                setTimeout(poll, interval);
+                return wakeUp(0);
             }
+
+            if (
+                // Too many retries? That's an error, too!
+                ++retries > maxRetries ||
+                // Stream closed? That's an error.
+                !stream || FS.isClosed(stream) ||
+                // Error different than EWOULDBLOCK – propagate it to the caller.
+                returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+                // Broken pipe
+                ('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+            ) {
+                HEAPU32[pnum >> 2] = num;
+                return wakeUp(returnCode);
+            }
+            
+            // It's a blocking stream and we Blocking stream with no data available yet.
+            // Let's poll up to a timeout.
+            await new Promise(resolve => setTimeout(resolve, interval));
         }
-        poll();
     })
 });
 extern int __wasi_syscall_ret(__wasi_errno_t code);
