@@ -636,6 +636,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "fd_close",\n\
 "_fd_close",\n\
 "_asyncjs__fd_close",\n\
+"close",\n\
+"_close",\n\
+"stdio_close",\n\
+"_stdio_close",\n\
+"_asyncjs__fd_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
@@ -873,6 +878,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_stream_select",\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
+"php_sqlite3_object_free_storage",\
 "php_stream_read_to_str",\
 "php_userstreamop_read",\
 "zif_fread",\
@@ -882,6 +888,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_fwrite",\
 "php_stdiop_write",\
 "zif_array_filter",\
+"zend_unclean_zval_ptr_dtor",\
 "zend_call_known_instance_method_with_2_params",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -1989,6 +1996,10 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zim_sqlite3_backup",\
 "zim_SQLite3_backup",\
 "zim_SQLite3_exec",\
+"zim_sqlite3_exec",\
+"php_stdiop_close",\
+"zend_parse_ini_file",\
+"php_embed_startup",\
 "zip_source_file_common_new",\
 "zip_source_function_create",\
 "zip_source_layered_create",\

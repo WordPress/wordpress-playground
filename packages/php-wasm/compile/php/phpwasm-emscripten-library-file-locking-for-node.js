@@ -119,6 +119,9 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: function __syscall_fcntl64(fd, cmd, varargs) {
+		if (!PHPLoader.fileLockManager) {
+			return _builtin_fcntl64(fd, cmd, varargs);
+		}
 		return Asyncify.handleSleep((wakeUp) => {
 			// Necessary to use varargs accessor
 			SYSCALLS.varargs = varargs;
@@ -413,6 +416,7 @@ const LibraryForFileLocking = {
 							);
 							return wakeUp(-ERRNO_CODES.EINVAL);
 						});
+					return;
 				}
 				case emscripten_F_SETLK: {
 					_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
@@ -522,6 +526,7 @@ const LibraryForFileLocking = {
 							);
 							return wakeUp(-ERRNO_CODES.EINVAL);
 						});
+					return;
 				}
 				// @TODO: Implement waiting for lock
 				case emscripten_F_SETLKW: {
@@ -655,54 +660,42 @@ const LibraryForFileLocking = {
 	 * @param {number} fd - the file descriptor
 	 * @returns Zero on success, or a negative errno on failure.
 	 */
-	fd_close(fd) {
-		return Asyncify.handleSleep((wakeUp) => {
-			_js_wasm_trace('fd_close(%d)', fd);
+	fd_close(fd) {  
+		const [vfsPath, pathResolutionErrno] =
+			locking.get_vfs_path_from_fd(fd);
+		if (pathResolutionErrno !== 0) {
+			_js_wasm_trace(
+				'fd_close(%d) get_vfs_path_from_fd error %d',
+				fd,
+				pathResolutionErrno
+			);
+			return -ERRNO_CODES.EBADF;
+		}
 
-			const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-			if (pathResolutionErrno !== 0) {
-				_js_wasm_trace(
-					'fd_close(%d) get_vfs_path_from_fd error %d',
-					fd,
-					pathResolutionErrno
-				);
-				return wakeUp(-ERRNO_CODES.EBADF);
-			}
+		const result = _builtin_fd_close(fd);
+		if (result === 0 && locking.maybeLockedFds.has(fd)) {
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
 
-			const result = _builtin_fd_close(fd);
-			if (result === 0 && locking.maybeLockedFds.has(fd)) {
-				const nativeFilePath =
-					locking.get_native_path_from_vfs_path(vfsPath);
-
+			try {
 				PHPLoader.fileLockManager
-					.releaseLocksForProcessFd(
+					.releaseLocksForProcessFdSync(
 						PHPLoader.processId,
 						fd,
 						nativeFilePath
-					)
-					.then(() => {
-						_js_wasm_trace(
-							'fd_close(%d) release locks success',
-							fd
-						);
-					})
-					.catch((e) => {
-						_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
-					})
-					.then(() => {
-						_js_wasm_trace('fd_close(%d) result %d', fd, result);
-						return result;
-					})
-					.finally(() => {
-						locking.maybeLockedFds.delete(fd);
-					})
-					.then(wakeUp);
-			} else {
-				_js_wasm_trace('fd_close(%d) result %d', fd, result);
-				wakeUp(result);
+					);
+				_js_wasm_trace(
+					'fd_close(%d) release locks success',
+					fd
+				);
+			} catch(e) {
+				_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
+			} finally {
+				locking.maybeLockedFds.delete(fd);
 			}
-		});
+		}
+		_js_wasm_trace('fd_close(%d) result %d', fd, result);
+		return result;
 	},
 	fd_close__deps: ['builtin_fd_close', 'js_wasm_trace'],
 
@@ -725,6 +718,9 @@ const LibraryForFileLocking = {
 						_js_wasm_trace('js_release_file_locks error %s', e);
 					})
 					.finally(wakeUp);
+			} else {
+				_js_wasm_trace('js_release_file_locks no pid or file lock manager');
+				wakeUp(0);
 			}
 		});
 	},

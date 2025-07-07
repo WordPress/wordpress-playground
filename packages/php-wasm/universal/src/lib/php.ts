@@ -913,11 +913,14 @@ export class PHP implements Disposable {
 				 */
 				const exit = await Promise.race([
 					executionFn(),
-					new Promise((_, reject) => {
+					new Promise((resolve, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							logger.error(e);
-							logger.error(e.error);
-							if (!isExitCode(e.error)) {
+							console.log('errorListener', e);
+							if (isExitCode(e.error) && e.error.status === 0) {
+								resolve(e.error.exitCode);
+							} else {
+								logger.error(e);
+								logger.error(e.error);
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
 								(rethrown as any).betterMessage = e.message;
@@ -933,6 +936,7 @@ export class PHP implements Disposable {
 				]);
 				return exit;
 			} catch (e) {
+				console.log('catch');
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
 				 * turn exit code errors into integers again.
@@ -1285,10 +1289,18 @@ export class PHP implements Disposable {
 			);
 		}
 
-		return await this.#executeWithErrorHandling(() => {
-			return this[__private__dont__use].ccall('run_cli', null, [], [], {
-				async: true,
-			});
+		return await this.#executeWithErrorHandling(async () => {
+			const result = await this[__private__dont__use].ccall(
+				'run_cli',
+				null,
+				[],
+				[],
+				{
+					async: true,
+				}
+			);
+			console.log({ result });
+			return result;
 		}).then((response) => {
 			response.exitCode.finally(release);
 			return response;

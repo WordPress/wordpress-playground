@@ -74,7 +74,24 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	chmodSync(`${tempDir}/php`, 0o755);
 
 	const fileLockManagerSync = new FileLockManagerForNode();
-	const fileLockManager = new Proxy(fileLockManagerSync, {
+	const fileLockManager = {
+		lockWholeFile: async (...args: any[]) => {
+			return fileLockManagerSync.lockWholeFile(...args);
+		},
+		lockFileByteRange: async (...args: any[]) => {
+			return fileLockManagerSync.lockFileByteRange(...args);
+		},
+		releaseLocksForProcessFd: async (...args: any[]) => {
+			return fileLockManagerSync.releaseLocksForProcessFd(...args);
+		},
+		releaseLocksForProcessFdSync: (...args: any[]) => {
+			return fileLockManagerSync.releaseLocksForProcessFd(...args);
+		},
+		releaseLocksForProcess: async (...args: any[]) => {
+			return fileLockManagerSync.releaseLocksForProcess(...args);
+		},
+	};
+	const fileLockManagerAsync = new Proxy(fileLockManagerSync, {
 		get(target, prop) {
 			const value = target[prop as keyof typeof target];
 			if (typeof value === 'function') {
@@ -84,11 +101,15 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			return value;
 		},
 	});
+	// const fileLockManager = fileLockManagerSync;
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
-				fileLockManager: fileLockManager as any,
+				// fileLockManager: fileLockManagerSync, //fileLockManager as any,
+				// fileLockManager: fileLockManagerAsync, //fileLockManager as any,
+				fileLockManager: fileLockManager, //fileLockManager as any,
+				processId: 1,
 				ENV: {
 					...envVariables,
 					TMPDIR: sysTempDir,
@@ -106,36 +127,44 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		args.unshift('-c', defaultPhpIniPath);
 	}
 
-	const response = await php.cli(['php', ...args]);
-	response.stderr.pipeTo(
-		new WritableStream({
-			write(chunk) {
-				process.stderr.write(chunk);
-			},
-		})
-	);
-	response.stdout.pipeTo(
-		new WritableStream({
-			write(chunk) {
-				process.stdout.write(chunk);
-			},
-		})
-	);
+	try {
+		const response = await php.cli(['php', ...args]);
+		response.stderr.pipeTo(
+			new WritableStream({
+				write(chunk) {
+					process.stderr.write(chunk);
+				},
+			})
+		);
+		response.stdout.pipeTo(
+			new WritableStream({
+				write(chunk) {
+					process.stdout.write(chunk);
+				},
+			})
+		);
 
-	response.exitCode
-		.catch((result) => {
-			if (result.name === 'ExitStatus') {
-				process.exit(result.status === undefined ? 1 : result.status);
-			}
-			throw result;
-		})
-		.finally(() => {
-			setTimeout(() => {
+		await response.exitCode
+			.catch((result) => {
+				console.log({ result });
 				process.exit(0);
-				// 100 is an arbitrary number. It's there to give any child processes
-				// a chance to pass their output to JS before the main process exits.
-			}, 100);
-		});
+				if (result.name === 'ExitStatus') {
+					process.exit(
+						result.status === undefined ? 1 : result.status
+					);
+				}
+				throw result;
+			})
+			.finally(() => {
+				setTimeout(() => {
+					process.exit(0);
+					// 100 is an arbitrary number. It's there to give any child processes
+					// a chance to pass their output to JS before the main process exits.
+				}, 100);
+			});
+	} catch (e) {
+		console.log('A================>');
+	}
 }
 
 run();

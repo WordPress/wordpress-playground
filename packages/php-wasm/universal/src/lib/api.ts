@@ -118,7 +118,12 @@ export function exposeAPI<Methods, PipedAPI>(
 	if (targetWorker) {
 		// NOTE: If there are other target types, we could expand this later,
 		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
+		endpoint = nodeEndpoint(
+			/**
+			 * Comlink's TypeScript types expect a
+			 */
+			targetWorker //as any
+		);
 	} else {
 		endpoint =
 			typeof window !== 'undefined'
@@ -163,6 +168,17 @@ function setupTransferHandlers() {
 			return Comlink.wrap(port);
 		},
 	});
+	// Luckily, this works both for require('worker_threads').MessagePort and
+	// for MessagePort from the DOM.
+	// Comlink.transferHandlers.set('MESSAGE_PORT', {
+	// 	canHandle: (obj: unknown): obj is MessagePort => obj instanceof MessagePort,
+	// 	serialize(port: MessagePort): [MessagePort, Transferable[]] {
+	// 		return [port, [port]];
+	// 	},
+	// 	deserialize(port: MessagePort): MessagePort {
+	// 		return port;
+	// 	},
+	// });
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
 			typeof obj === 'object' &&

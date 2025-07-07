@@ -23,7 +23,7 @@ import {
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { Worker } from 'worker_threads';
+import { Worker, MessageChannel, MessagePort } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { expandAutoMounts } from './cli-auto-mount';
@@ -44,6 +44,7 @@ import { LoadBalancer } from './load-balancer';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { cpus } from 'os';
 import { jspi } from 'wasm-feature-detect';
+import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import {
@@ -422,32 +423,33 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	async function spawnPHPWorkerThread(workerUrl: URL) {
 		const worker = new Worker(workerUrl);
 
-		return new Promise<Worker>((resolve, reject) => {
-			function onMessage(event: string) {
-				// Let the worker confirm it has initialized.
-				// We could use the 'online' event to detect start of JS execution,
-				// but that would miss initialization errors.
-				if (event === 'worker-script-initialized') {
-					resolve(worker);
-					worker.off('message', onMessage);
-				}
+		return new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
+			(resolve, reject) => {
+				worker.once('message', function (message: any) {
+					// Let the worker confirm it has initialized.
+					// We could use the 'online' event to detect start of JS execution,
+					// but that would miss initialization errors.
+					if (message.command === 'worker-script-initialized') {
+						resolve({ worker, phpPort: message.phpPort });
+					}
+				});
+				worker.once('error', function (e: Error) {
+					console.error(e);
+					const error = new Error(
+						`Worker failed to load at ${workerUrl}. ${
+							e.message ? `Original error: ${e.message}` : ''
+						}`
+					);
+					(error as any).filename = workerUrl;
+					reject(error);
+				});
 			}
-			function onError(e: Error) {
-				const error = new Error(
-					`Worker failed to load at ${workerUrl}. ${
-						e.message ? `Original error: ${e.message}` : ''
-					}`
-				);
-				(error as any).filename = workerUrl;
-				reject(error);
-				worker.off('error', onError);
-			}
-			worker.on('message', onMessage);
-			worker.on('error', onError);
-		});
+		);
 	}
 
-	function spawnWorkerThreads(count: number): Promise<Worker[]> {
+	function spawnWorkerThreads(
+		count: number
+	): Promise<{ worker: Worker; phpPort: NodeMessagePort }[]> {
 		const moduleWorkerUrl = new URL(
 			importedWorkerUrlString,
 			import.meta.url
@@ -553,15 +555,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				const [initialWorker, ...additionalWorkers] =
 					await promisedWorkers;
 
-				playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
+				playground = consumeAPI<PlaygroundCliWorker>(
+					initialWorker.phpPort
+				);
 				playgroundsToCleanUp.push({
 					playground,
-					worker: initialWorker,
+					worker: initialWorker.worker,
 				});
 
+				// Comlink communication proxy
 				await playground.isConnected();
 
-				exposeAPI(fileLockManager, undefined, initialWorker);
+				// Custom communication proxy
+				const { endpoint, fileLockManagerPort } =
+					FileLockManagerEndpoint.create();
+				// @TODO: Cleanup endpoint at some point?
 
 				logger.log(`Booting WordPress...`);
 
@@ -573,6 +581,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					Number.MAX_SAFE_INTEGER / totalWorkerCount
 				);
 
+				// await playground.useFileLockManager(fileLockManagerPort);
 				await playground.boot({
 					phpVersion: compiledBlueprint.versions.php,
 					wpVersion: compiledBlueprint.versions.wp,
@@ -643,14 +652,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					await Promise.all(
 						additionalWorkers.map(async (worker, index) => {
 							const additionalPlayground =
-								consumeAPI<PlaygroundCliWorker>(worker);
+								consumeAPI<PlaygroundCliWorker>(worker.phpPort);
 							playgroundsToCleanUp.push({
 								playground: additionalPlayground,
-								worker,
+								worker: worker.worker,
 							});
 
 							await additionalPlayground.isConnected();
-							exposeAPI(fileLockManager, undefined, worker);
 
 							const firstProcessId =
 								initialWorkerProcessIdSpace +
@@ -732,4 +740,30 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			return await loadBalancer.handleRequest(request);
 		},
 	});
+}
+
+class FileLockManagerEndpoint {
+	static create() {
+		const channel = new MessageChannel();
+		channel.port1.on('message', (message) => {
+			console.log('message lock', message);
+		});
+		channel.port2.on('message', (message) => {
+			console.log('message lock', message);
+		});
+		return {
+			endpoint: new FileLockManagerEndpoint(channel.port1),
+			fileLockManagerPort: channel.port2,
+		};
+	}
+
+	constructor(private port: MessagePort) {
+		this.port.on('message', (message) => {
+			console.log('message lock', message);
+		});
+	}
+
+	async isConnected() {
+		return true;
+	}
 }

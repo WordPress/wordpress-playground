@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29667998;
+export const dependenciesTotalSize = 29670297;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -7003,55 +7003,38 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	var _fd_close = function fd_close(fd) {
-		return Asyncify.handleSleep((wakeUp) => {
-			_js_wasm_trace('fd_close(%d)', fd);
+	function _fd_close(fd) {
+		const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
+		if (pathResolutionErrno !== 0) {
+			_js_wasm_trace(
+				'fd_close(%d) get_vfs_path_from_fd error %d',
+				fd,
+				pathResolutionErrno
+			);
+			return -ERRNO_CODES.EBADF;
+		}
 
-			const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-			if (pathResolutionErrno !== 0) {
-				_js_wasm_trace(
-					'fd_close(%d) get_vfs_path_from_fd error %d',
+		const result = _builtin_fd_close(fd);
+		if (result === 0 && locking.maybeLockedFds.has(fd)) {
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
+
+			try {
+				PHPLoader.fileLockManager.releaseLocksForProcessFdSync(
+					PHPLoader.processId,
 					fd,
-					pathResolutionErrno
+					nativeFilePath
 				);
-				return wakeUp(-ERRNO_CODES.EBADF);
+				_js_wasm_trace('fd_close(%d) release locks success', fd);
+			} catch (e) {
+				_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
+			} finally {
+				locking.maybeLockedFds.delete(fd);
 			}
-
-			const result = _builtin_fd_close(fd);
-			if (result === 0 && locking.maybeLockedFds.has(fd)) {
-				const nativeFilePath =
-					locking.get_native_path_from_vfs_path(vfsPath);
-
-				PHPLoader.fileLockManager
-					.releaseLocksForProcessFd(
-						PHPLoader.processId,
-						fd,
-						nativeFilePath
-					)
-					.then(() => {
-						_js_wasm_trace(
-							'fd_close(%d) release locks success',
-							fd
-						);
-					})
-					.catch((e) => {
-						_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
-					})
-					.then(() => {
-						_js_wasm_trace('fd_close(%d) result %d', fd, result);
-						return result;
-					})
-					.finally(() => {
-						locking.maybeLockedFds.delete(fd);
-					})
-					.then(wakeUp);
-			} else {
-				_js_wasm_trace('fd_close(%d) result %d', fd, result);
-				wakeUp(result);
-			}
-		});
-	};
+		}
+		_js_wasm_trace('fd_close(%d) result %d', fd, result);
+		return result;
+	}
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -7196,6 +7179,9 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	var ___syscall_fcntl64 = function __syscall_fcntl64(fd, cmd, varargs) {
+		if (!PHPLoader.fileLockManager) {
+			return _builtin_fcntl64(fd, cmd, varargs);
+		}
 		return Asyncify.handleSleep((wakeUp) => {
 			// Necessary to use varargs accessor
 			SYSCALLS.varargs = varargs;
@@ -7490,6 +7476,7 @@ export function init(RuntimeName, PHPLoader) {
 							);
 							return wakeUp(-ERRNO_CODES.EINVAL);
 						});
+					return;
 				}
 				case emscripten_F_SETLK: {
 					_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
@@ -7599,6 +7586,7 @@ export function init(RuntimeName, PHPLoader) {
 							);
 							return wakeUp(-ERRNO_CODES.EINVAL);
 						});
+					return;
 				}
 				// @TODO: Implement waiting for lock
 				case emscripten_F_SETLKW: {
@@ -17841,6 +17829,11 @@ export function init(RuntimeName, PHPLoader) {
 						_js_wasm_trace('js_release_file_locks error %s', e);
 					})
 					.finally(wakeUp);
+			} else {
+				_js_wasm_trace(
+					'js_release_file_locks no pid or file lock manager'
+				);
+				wakeUp(0);
 			}
 		});
 	};
@@ -18309,7 +18302,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|stdio_close|_stdio_close|_asyncjs__fd_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
 
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {

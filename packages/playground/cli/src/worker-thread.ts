@@ -1,11 +1,21 @@
 import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
-import { PHPWorker, consumeAPI, exposeAPI } from '@php-wasm/universal';
-import type { FileLockManager } from '@php-wasm/node';
+import { PHPWorker, exposeAPI } from '@php-wasm/universal';
+import * as Comlink from 'comlink';
+import type {
+	FileLockManager,
+	RequestedRangeLock,
+	WholeFileLockOp,
+} from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { sprintf } from '@php-wasm/util';
-import { parentPort } from 'worker_threads';
+import {
+	parentPort,
+	MessageChannel,
+	MessagePort,
+	receiveMessageOnPort,
+} from 'worker_threads';
 import { rootCertificates } from 'tls';
 
 export interface Mount {
@@ -51,11 +61,84 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
+class RemoteFileLockManager implements FileLockManager {
+	constructor(private port: MessagePort) {
+		this.port.on('message', (message) => {
+			console.log(message);
+		});
+	}
+
+	async isConnected() {
+		return true;
+	}
+
+	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
+		console.log('lockWholeFile', path, op);
+		this.port.postMessage({
+			command: 'lockWholeFile',
+			path,
+			op,
+		});
+		return true;
+	}
+
+	lockFileByteRange(path: string, op: RequestedRangeLock): boolean {
+		console.log('lockFileByteRange', path, op);
+		this.port.postMessage({
+			command: 'lockFileByteRange',
+			path,
+			op,
+		});
+		return true;
+	}
+
+	findFirstConflictingByteRangeLock(
+		path: string,
+		op: RequestedRangeLock
+	): RequestedRangeLock | undefined {
+		console.log('findFirstConflictingByteRangeLock', path, op);
+		return undefined;
+	}
+
+	releaseLocksForProcess(pid: number) {
+		console.log('releaseLocksForProcess', pid);
+		this.port.postMessage({
+			command: 'releaseLocksForProcess',
+			pid,
+		});
+	}
+
+	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
+		console.log('releaseLocksForProcessFd', pid, fd, nativePath);
+		this.port.postMessage({
+			command: 'releaseLocksForProcessFd',
+			pid,
+			fd,
+			nativePath,
+		});
+	}
+}
+
 export class PlaygroundCliWorker extends PHPWorker {
 	booted = false;
+	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
+	}
+
+	/**
+	 * Call this method before boot() to use file locking.
+	 *
+	 * This method is separate from boot() to simplify the related Comlink.transferHandlers
+	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
+	 */
+	async useFileLockManager(port: MessagePort) {
+		this.fileLockManager = new RemoteFileLockManager(port);
+	}
+
+	async getString() {
+		return 'a';
 	}
 
 	async boot({
@@ -78,8 +161,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 		let nextProcessId = firstProcessId;
 		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
-		const fileLockManager = consumeAPI<FileLockManager>(parentPort!);
-		await fileLockManager.isConnected();
 
 		try {
 			const constants: Record<string, string | number | boolean | null> =
@@ -103,7 +184,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
-							fileLockManager,
+							// fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 						},
@@ -160,11 +241,18 @@ export class PlaygroundCliWorker extends PHPWorker {
 	}
 }
 
+const phpChannel = new MessageChannel();
+
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
 	undefined,
-	parentPort!
+	phpChannel.port1
 );
 
-// Confirm that the worker script has initialized.
-parentPort!.postMessage('worker-script-initialized');
+parentPort!.postMessage(
+	{
+		command: 'worker-script-initialized',
+		phpPort: phpChannel.port2,
+	},
+	[phpChannel.port2 as any]
+);
