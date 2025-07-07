@@ -488,7 +488,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
 		$JSPI_FLAGS \
-		$WASM_WARNING_FLAGS \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
