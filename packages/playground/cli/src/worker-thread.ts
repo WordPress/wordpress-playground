@@ -79,11 +79,30 @@ export class PlaygroundCliWorker extends PHPWorker {
 	 *
 	 * This method is separate from boot() to simplify the related Comlink.transferHandlers
 	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
+	 *
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	async useFileLockManager(port: MessagePort) {
 		if (await jspi()) {
+			/**
+			 * If JSPI is available, php.js supports both synchronous and asynchronous locking syscalls.
+			 * Web browsers, however, only support asynchronous message passing so let's use the
+			 * asynchronous API. Every method call will return a promise.
+			 *
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
+			 */
 			this.fileLockManager = consumeAPI<FileLockManager>(port);
 		} else {
+			/**
+			 * If JSPI is not available, php.js only supports synchronous locking syscalls.
+			 * Let's use the synchronous API. Every method call will block this thread
+			 * until the result is available.
+			 *
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
+			 */
 			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 		}
 	}

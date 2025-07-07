@@ -480,19 +480,28 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	/**
 	 * Expose the file lock manager API on a MessagePort and return it.
+	 *
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	async function exposeFileLockManager() {
 		const { port1, port2 } = new MessageChannel();
 		if (await jspi()) {
 			/**
-			 * If JSPI is available, use the asynchronous API.
+			 * When JSPI is available, the worker thread expects an asynchronous API.
+			 *
+			 * @see worker-thread.ts
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
 			 */
 			exposeAPI(fileLockManager, null, port1);
 		} else {
 			/**
-			 * If JSPI is not available, use the synchronous API. Asyncify
-			 * is extremely difficult to debug so we avoid it by using synchronous
-			 * messaging.
+			 * When JSPI is not available, the worker thread expects a synchronous API.
+			 *
+			 * @see worker-thread.ts
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
 			 */
 			await exposeSyncAPI(fileLockManager, port1);
 		}
