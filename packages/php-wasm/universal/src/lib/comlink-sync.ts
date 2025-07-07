@@ -17,6 +17,8 @@
  *                 it requires more restrictive CORP+COEP headers which breaks, e.g., YouTube embeds. Synchronous XHR
  *                 might work if we really need Safari support for one of the new asynchronous features, but other than
  *                 that let's just skip adding new asynchronous WASM features to Safari until WebKit supports stack switching.
+ * * Message passing between workers is slow. Avoid using synchronous messaging for syscalls that are invoked frequently and
+ *   handled asynchronously in the same worker.
  *
  * @see https://github.com/WordPress/wordpress-playground/blob/9a9262cc62cc161d220a9992706b9ed2817f2eb5/packages/docs/site/docs/developers/23-architecture/07-wasm-asyncify.md
  * @see https://github.com/adamziel/js-synchronous-messaging for additional ideas.
