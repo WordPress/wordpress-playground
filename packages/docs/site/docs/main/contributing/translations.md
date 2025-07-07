@@ -20,7 +20,7 @@ Check the [How can I contribute?](/contributing/documentation#how-can-i-contribu
 Check the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of Docusaurus Docs to learn more about translations management in a Docusaurus website (the engine behind Playground Docs).
 :::
 
-Languages available for the Docs site are defined on `docusaurus.config.js`. For example:
+Languages available for the Docs site are defined on `packages/docs/site/docusaurus.config.js`. For example:
 
 ```
 i18n: {
