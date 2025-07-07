@@ -1,3 +1,6 @@
+import type { FileLockManager } from '@php-wasm/node';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP, RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
@@ -5,23 +8,11 @@ import {
 	consumeAPISync,
 	exposeAPI,
 } from '@php-wasm/universal';
-import type {
-	FileLockManager,
-	RequestedRangeLock,
-	WholeFileLockOp,
-} from '@php-wasm/node';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { bootWordPress } from '@wp-playground/wordpress';
 import { sprintf } from '@php-wasm/util';
-import {
-	parentPort,
-	MessageChannel,
-	MessagePort,
-	receiveMessageOnPort,
-} from 'worker_threads';
+import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
+import { MessageChannel, MessagePort, parentPort } from 'worker_threads';
 
 export interface Mount {
 	hostPath: string;

@@ -28,7 +28,7 @@ import {
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { Worker, MessageChannel, MessagePort } from 'worker_threads';
+import { Worker, MessageChannel } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { expandAutoMounts } from './cli-auto-mount';
