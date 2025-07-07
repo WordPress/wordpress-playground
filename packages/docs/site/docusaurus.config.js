@@ -33,7 +33,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja', 'pt-BR'],
+		locales: ['en', 'es', 'fr', 'ja', 'pt-BR', 'tl'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -54,6 +54,10 @@ const config = {
 			'pt-BR': {
 				label: 'Português (BR)',
 				path: 'pt-BR',
+			},
+			tl: {
+				label: 'Tagalog',
+				path: 'tl',
 			},
 		},
 	},
