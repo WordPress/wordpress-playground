@@ -918,8 +918,6 @@ export class PHP implements Disposable {
 							if (isExitCode(e.error) && e.error.status === 0) {
 								resolve(e.error.exitCode);
 							} else {
-								logger.error(e);
-								logger.error(e.error);
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
 								(rethrown as any).betterMessage = e.message;

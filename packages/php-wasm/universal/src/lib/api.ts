@@ -192,8 +192,6 @@ function setupTransferHandlers() {
 			return Comlink.wrap(port);
 		},
 	});
-	// Luckily, this works both for require('worker_threads').MessagePort and
-	// for MessagePort from the DOM.
 	Comlink.transferHandlers.set('MESSAGE_PORT', {
 		canHandle: (obj: unknown): obj is MessagePort =>
 			obj instanceof MessagePort,
