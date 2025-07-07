@@ -5,13 +5,25 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/remote/README.md dist/packages/playground/remote"
+				]
+			},
+			"dependsOn": ["build:vite"]
+		},
+		"build:vite": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/playground/remote",
 				"main": "packages/playground/remote/remote.html",
-				"tsConfig": "packages/playground/remote/tsconfig.lib.json",
-				"assets": ["packages/playground/remote/*.md"]
+				"tsConfig": "packages/playground/remote/tsconfig.lib.json"
 			}
 		},
 		"dev": {
@@ -53,16 +65,21 @@
 		"publish": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node tools/scripts/publish.mjs playground {args.ver} {args.tag}",
+				"command": "node tools/scripts/publish.mjs playground-remote {args.ver} {args.tag}",
 				"parallel": false
 			},
+			"dependsOn": ["build"]
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
 			"dependsOn": ["build"]
 		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/remote/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/remote/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

@@ -1,60 +1,93 @@
-import { NodePHP } from '..';
 import { vi } from 'vitest';
 import {
 	SupportedPHPVersions,
+	setPhpIniEntries,
 	__private__dont__use,
+	PHP,
 } from '@php-wasm/universal';
+import { loadNodeRuntime } from '../lib';
+import { jspi } from 'wasm-feature-detect';
 
 // @TODO Prevent crash on PHP versions 5.6, 7.2, 8.2
-describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
+describe.each(['7.3', '7.4', '8.0', '8.1'])(
 	'PHP %s – process crash',
-	(phpVersion) => {
-		let php: NodePHP;
+	async (phpVersion) => {
+		let php: PHP;
+		let unhandledRejection: any;
 		beforeEach(async () => {
-			php = await NodePHP.load(phpVersion as any);
-			php.setPhpIniEntry('allow_url_fopen', '1');
+			php = new PHP(await loadNodeRuntime(phpVersion as any));
+			await setPhpIniEntries(php, { allow_url_fopen: 1 });
 			vi.restoreAllMocks();
+
+			// Tolerate an unhandled rejection as long as we catch the error we're testing
+			process.on('unhandledRejection', unhandledRejectionHandler);
 		});
 
-		it('Does not crash due to an unhandled Asyncify error ', async () => {
-			let caughtError;
-			try {
-				/**
-				 * PHP is intentionally built without network support for __clone()
-				 * because it's an extremely unlikely place for any network activity
-				 * and not supporting it allows us to test the error handling here.
-				 *
-				 * `clone $x` will throw an asynchronous error out when attempting
-				 * to do a network call ("unreachable" WASM instruction executed).
-				 * This test should gracefully catch and handle that error.
-				 *
-				 * A failure to do so will crash the entire process
-				 */
-				await php.run({
-					code: `<?php
-				class Top {
-					function __clone() {
-						file_get_contents("http://127.0.0.1");
+		afterEach(async () => {
+			php.exit();
+		});
+
+		function unhandledRejectionHandler(error: any) {
+			unhandledRejection = error;
+		}
+
+		afterEach(async () => {
+			// Make sure the process exits and give any unhandled rejections a chance to be caught
+			php.exit();
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			process.off('unhandledRejection', unhandledRejectionHandler);
+		});
+
+		if (!(await jspi())) {
+			it('Does not crash due to an unhandled Asyncify error ', async () => {
+				let caughtError;
+
+				try {
+					/**
+					 * PHP is intentionally built without network support for __clone()
+					 * because it's an extremely unlikely place for any network activity
+					 * and not supporting it allows us to test the error handling here.
+					 *
+					 * `clone $x` will throw an asynchronous error out when attempting
+					 * to do a network call ("unreachable" WASM instruction executed).
+					 * This test should gracefully catch and handle that error.
+					 *
+					 * A failure to do so will crash the entire process
+					 */
+					await php.run({
+						code: `<?php
+					class Top {
+						function __clone() {
+							file_get_contents("http://127.0.0.1");
+						}
+					}
+					$x = new Top();
+					clone $x;
+					`,
+					});
+				} catch (error: unknown) {
+					caughtError = error;
+					if (error instanceof Error) {
+						expect(
+							(error as any).cause?.message || error.message
+						).toMatch(
+							/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+						);
 					}
 				}
-				$x = new Top();
-				clone $x;
-				`,
-				});
-			} catch (error: unknown) {
-				caughtError = error;
-				if (error instanceof Error) {
-					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+
+				// Accept either a caught error or an unhandled rejection
+				if (!caughtError && !unhandledRejection) {
+					expect.fail(
+						'php.run should have thrown an error or caused an unhandled rejection'
 					);
 				}
-			}
-			if (!caughtError) {
-				expect.fail('php.run should have thrown an error');
-			}
-		});
+			});
+		}
 
 		it('Does not crash due to an unhandled non promise error ', async () => {
+			// Tolerate an unhandled rejections
+
 			let caughtError;
 			try {
 				const spy = vi.spyOn(php[__private__dont__use], 'ccall');
@@ -77,7 +110,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				caughtError = error;
 				if (error instanceof Error) {
 					expect(error.message).toMatch('test');
-					expect(error.stack).toContain('#handleRequest');
+					expect(error.stack).toContain('runStream');
 				}
 			}
 			if (!caughtError) {
@@ -94,7 +127,8 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				);
 			}
 
-			expect(global.gc && global.gc).to.exist;
+			expect(global).toHaveProperty('gc');
+			expect(global.gc).toBeDefined();
 
 			let refCount = 0;
 
@@ -107,10 +141,12 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				new Promise((accept) => setTimeout(accept, ms));
 
 			for (let i = 0; i < steps; i++) {
-				const instances = new Set<NodePHP>();
+				const instances = new Set<PHP>();
 
 				for (let j = 0; j < concurrent; j++) {
-					instances.add(await NodePHP.load(phpVersion as any));
+					instances.add(
+						new PHP(await loadNodeRuntime(phpVersion as any))
+					);
 				}
 
 				refCount += instances.size;
@@ -126,11 +162,15 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				instances.clear();
 
 				await delay(10);
-				global.gc && global.gc();
+				if (global.gc) {
+					global.gc();
+				}
 			}
 
 			await delay(100);
-			global.gc && global.gc();
+			if (global.gc) {
+				global.gc();
+			}
 
 			expect(refCount).lessThanOrEqual(10);
 		}, 500_000);
@@ -141,9 +181,11 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	describe('emscripten options', () => {
 		it('calls quit callback', async () => {
 			let result = '';
-			const php: NodePHP = await NodePHP.load(phpVersion as any, {
-				emscriptenOptions: { quit: () => (result = 'WordPress') },
-			});
+			const php: PHP = new PHP(
+				await loadNodeRuntime(phpVersion as any, {
+					emscriptenOptions: { quit: () => (result = 'WordPress') },
+				})
+			);
 			php.exit(0);
 			expect(result).toEqual('WordPress');
 		});

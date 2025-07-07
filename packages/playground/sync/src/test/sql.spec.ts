@@ -1,23 +1,32 @@
-import { NodePHP } from '@php-wasm/node';
+import type { PHP } from '@php-wasm/universal';
+import type { SQLJournalEntry } from '../sql';
+import { installSqlSyncMuPlugin, journalSQLQueries } from '../sql';
 import {
-	SQLJournalEntry,
-	installSqlSyncMuPlugin,
-	journalSQLQueries,
-} from '../sql';
-import {
-	RecommendedPHPVersion,
+	getSqliteDriverModule,
 	getWordPressModule,
-} from '@wp-playground/wordpress';
-import { unzip } from '@wp-playground/blueprints';
+} from '@wp-playground/wordpress-builds';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { bootWordPress } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Sync tests', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion);
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
+		const handler = await bootWordPress({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(
+				// The new AST-based SQLite driver doesn't expose query information
+				// via the "sqlite_last_insert_id", "sqlite_translated_query_executed",
+				// and "sqlite_transaction_query_executed" hooks.
+				// We need to use the old driver here.
+				'v2.1.16'
+			),
 		});
+		php = await handler.getPrimaryPhp();
 	});
 	it('Loads WordPress', async () => {
 		expect(php.listFiles('/')).toContain('wordpress');

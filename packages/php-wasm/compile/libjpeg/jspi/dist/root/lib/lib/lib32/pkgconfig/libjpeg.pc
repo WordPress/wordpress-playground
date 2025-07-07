@@ -1,0 +1,10 @@
+prefix=/root/lib
+exec_prefix=/root/lib
+libdir=/root/lib/lib
+includedir=/root/lib/include
+
+Name: libjpeg
+Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
+Version: 3.0.3
+Libs: -L${libdir} -ljpeg
+Cflags: -I${includedir}

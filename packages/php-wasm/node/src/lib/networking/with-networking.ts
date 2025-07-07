@@ -1,10 +1,10 @@
-import { EmscriptenOptions } from '@php-wasm/universal';
+import type { EmscriptenOptions } from '@php-wasm/universal';
 import {
 	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,
-} from './outbound-ws-to-tcp-proxy.js';
-import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy.js';
-import { findFreePorts } from './utils.js';
+} from './outbound-ws-to-tcp-proxy';
+import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
+import { findFreePorts } from './utils';
 
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}
@@ -12,10 +12,13 @@ export async function withNetworking(
 	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
 		await findFreePorts(2);
 
-	await initOutboundWebsocketProxyServer(outboundProxyWsServerPort);
+	const outboundNetworkProxyServer = await initOutboundWebsocketProxyServer(
+		outboundProxyWsServerPort
+	);
 
 	return {
 		...phpModuleArgs,
+		outboundNetworkProxyServer,
 		websocket: {
 			...(phpModuleArgs['websocket'] || {}),
 			url: (_: any, host: string, port: string) => {

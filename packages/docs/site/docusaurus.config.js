@@ -5,6 +5,7 @@ const path = require('path');
 const lightCodeTheme = require('prism-react-renderer/themes/github');
 const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const typedoc = require('../../../typedoc.js');
+const redirections = require('./redirections.js');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -31,7 +32,30 @@ const config = {
 	// to replace "en" with "zh-Hans".
 	i18n: {
 		defaultLocale: 'en',
-		locales: ['en'],
+		path: 'i18n',
+		locales: ['en', 'es', 'fr', 'ja', 'pt-BR'],
+		localeConfigs: {
+			en: {
+				label: 'English',
+				path: 'en',
+			},
+			es: {
+				label: 'Español',
+				path: 'es',
+			},
+			fr: {
+				label: 'French',
+				path: 'fr',
+			},
+			ja: {
+				label: 'Japanese',
+				path: 'ja',
+			},
+			'pt-BR': {
+				label: 'Português (BR)',
+				path: 'pt-BR',
+			},
+		},
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
 	plugins: [
@@ -54,6 +78,7 @@ const config = {
 						to: '/',
 						from: '/docs/start-here',
 					},
+					...redirections,
 				],
 				createRedirects(existingPath) {
 					if (!existingPath.startsWith('/docs')) {
@@ -103,7 +128,7 @@ const config = {
 				schedule: 'every 1 day',
 			},
 			navbar: {
-				title: 'Playground',
+				title: 'WordPress Playground',
 				logo: {
 					alt: 'WordPress Playground',
 					src: 'img/wordpress.svg',
@@ -112,26 +137,42 @@ const config = {
 				items: [
 					{
 						type: 'docSidebar',
-						sidebarId: 'tutorialSidebar',
+						sidebarId: 'mainSidebar',
 						position: 'left',
 						label: 'Documentation',
+					},
+					{
+						type: 'docSidebar',
+						sidebarId: 'blueprintsSidebar',
+						position: 'left',
+						label: 'Blueprints',
+					},
+					{
+						type: 'docSidebar',
+						sidebarId: 'developersSidebar',
+						position: 'left',
+						label: 'Developers',
 					},
 					{
 						to: 'api',
 						label: 'API Reference',
 						position: 'left',
 					},
-					{
-						href: 'https://playground.wordpress.net/gutenberg.html',
-						label: 'Gutenberg PR Previewer',
-						position: 'right',
-					},
+					// {
+					// 	href: 'https://playground.wordpress.net/gutenberg.html',
+					// 	label: 'Gutenberg PR Previewer',
+					// 	position: 'right',
+					// },
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
 					},
+					// {
+					// 	type: 'localeDropdown',
+					// 	position: 'right',
+					// },
 				],
 			},
 			footer: {
@@ -149,6 +190,14 @@ const config = {
 							{
 								label: 'Documentation',
 								to: '/',
+							},
+							{
+								label: 'Blueprints',
+								to: '/blueprints',
+							},
+							{
+								label: 'Developers',
+								to: '/developers',
 							},
 							{
 								label: 'API Reference',
@@ -203,13 +252,6 @@ function getDocusaurusPluginTypedocApiConfig() {
 		options.entryPoints = packages.map((entry) =>
 			path.join(projectRoot, entry)
 		);
-		options.plugin = [
-			'typedoc-plugin-resolve-crossmodule-references',
-			// This plugin somehow doesn't work with docusaurus-plugin-typedoc-api.
-			// @TODO: Fix it
-			'typedoc-plugin-mdn-links',
-		];
-
 		return old.call(this, options);
 	};
 

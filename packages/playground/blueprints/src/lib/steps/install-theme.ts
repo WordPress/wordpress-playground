@@ -1,7 +1,13 @@
-import { StepHandler } from '.';
-import { InstallAssetOptions, installAsset } from './install-asset';
+import type { StepHandler } from '.';
+import type { InstallAssetOptions } from './install-asset';
+import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
+import type { Directory } from '../resources';
+import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
+import { writeFiles } from '@php-wasm/universal';
+import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc installTheme
@@ -12,35 +18,36 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * <code>
  * {
  * 		"step": "installTheme",
- * 		"themeZipFile": {
+ * 		"themeData": {
  * 			"resource": "wordpress.org/themes",
  * 			"slug": "pendant"
  * 		},
  * 		"options": {
- * 			"activate": true
+ * 			"activate": true,
+ * 			"importStarterContent": true
  * 		}
  * }
  * </code>
  */
-export interface InstallThemeStep<ResourceType>
+export interface InstallThemeStep<FileResource, DirectoryResource>
 	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
 	 */
 	step: 'installTheme';
 	/**
-	 * The theme zip file to install.
+	 * The theme files to install. It can be either a theme zip file, or a
+	 * directory containing all the theme files at its root.
 	 */
-	themeZipFile: ResourceType;
+	themeData: FileResource | DirectoryResource;
+	/**
+	 * @deprecated. Use 'themeData' instead.
+	 */
+	themeZipFile?: FileResource;
 	/**
 	 * Optional installation options.
 	 */
-	options?: {
-		/**
-		 * Whether to activate the theme after installing it.
-		 */
-		activate?: boolean;
-	};
+	options?: InstallThemeOptions;
 }
 
 export interface InstallThemeOptions {
@@ -48,6 +55,14 @@ export interface InstallThemeOptions {
 	 * Whether to activate the theme after installing it.
 	 */
 	activate?: boolean;
+	/**
+	 * Whether to import the theme's starter content after installing it.
+	 */
+	importStarterContent?: boolean;
+	/**
+	 * The name of the folder to install the theme to. Defaults to guessing from themeData
+	 */
+	targetFolderName?: string;
 }
 
 /**
@@ -57,19 +72,52 @@ export interface InstallThemeOptions {
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
-export const installTheme: StepHandler<InstallThemeStep<File>> = async (
+export const installTheme: StepHandler<
+	InstallThemeStep<File, Directory>
+> = async (
 	playground,
-	{ themeZipFile, ifAlreadyInstalled, options = {} },
+	{ themeData, themeZipFile, ifAlreadyInstalled, options = {} },
 	progress
 ) => {
-	const zipNiceName = zipNameToHumanName(themeZipFile.name);
+	if (themeZipFile) {
+		themeData = themeZipFile;
+		logger.warn(
+			'The "themeZipFile" option is deprecated. Use "themeData" instead.'
+		);
+	}
 
-	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
-	const { assetFolderName } = await installAsset(playground, {
-		ifAlreadyInstalled,
-		zipFile: themeZipFile,
-		targetPath: `${await playground.documentRoot}/wp-content/themes`,
-	});
+	const targetFolderName =
+		'targetFolderName' in options ? options.targetFolderName : '';
+	let assetFolderName = '';
+	let assetNiceName = '';
+	if (themeData instanceof File) {
+		// @TODO: Consider validating whether this is a zip file?
+		const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
+		assetNiceName = zipNameToHumanName(zipFileName);
+
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
+		const assetResult = await installAsset(playground, {
+			ifAlreadyInstalled,
+			zipFile: themeData,
+			targetPath: `${await playground.documentRoot}/wp-content/themes`,
+			targetFolderName: targetFolderName,
+		});
+		assetFolderName = assetResult.assetFolderName;
+	} else {
+		assetNiceName = themeData.name;
+		assetFolderName = targetFolderName || assetNiceName;
+
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
+		const themeDirectoryPath = joinPaths(
+			await playground.documentRoot,
+			'wp-content',
+			'themes',
+			assetFolderName
+		);
+		await writeFiles(playground, themeDirectoryPath, themeData.files, {
+			rmRoot: true,
+		});
+	}
 
 	const activate = 'activate' in options ? options.activate : true;
 	if (activate) {
@@ -77,6 +125,20 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			playground,
 			{
 				themeFolderName: assetFolderName,
+			},
+			progress
+		);
+	}
+
+	const importStarterContent =
+		'importStarterContent' in options
+			? options.importStarterContent
+			: false;
+	if (importStarterContent) {
+		await importThemeStarterContent(
+			playground,
+			{
+				themeSlug: assetFolderName,
 			},
 			progress
 		);

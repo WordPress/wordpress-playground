@@ -1,0 +1,91 @@
+name: Release self-hosted packages
+
+on:
+    workflow_dispatch:
+        # Require a version bump (patch, minor, major) and an optional dist tag
+        inputs:
+            should_bump_version:
+                type: boolean
+                description: 'Bump version?'
+                required: true
+                default: true
+            version_bump:
+                description: 'Version bump (patch, minor, or major)'
+                required: true
+                default: 'patch'
+
+jobs:
+    publish:
+        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'ashfame' ||
+                github.actor == 'janjakes'
+            )
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: self-hosted-packages
+        steps:
+            - name: Install dependencies
+              run: sudo apt-get install sshpass
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.ref }}
+                  clean: true
+                  persist-credentials: false
+                  submodules: true
+            - name: Config git user
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}
+            - uses: ./.github/actions/prepare-playground
+            # Version bump, release, tag a new version on GitHub
+            - name: Bump package versions
+              shell: bash
+              if: inputs.should_bump_version == true
+              run: npx lerna@6.6.2 version ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose
+            - name: Set up deployment environment vars
+              run: |
+                  export LATEST_PACKAGE_VERSION=$(cat packages/php-wasm/universal/package.json | jq -r '.version')
+                  echo "LATEST_PACKAGE_VERSION=$LATEST_PACKAGE_VERSION" >> $GITHUB_ENV
+                  echo "LATEST_PACKAGE_VERSION_TAG=v$LATEST_PACKAGE_VERSION" >> $GITHUB_ENV
+                  export HOSTING_BASE_URL='https://${{ vars.HOSTING_DOMAIN }}/${{ vars.HOSTING_SUBDIR }}'
+                  echo "HOSTING_BASE_URL='$HOSTING_BASE_URL'" >> $GITHUB_ENV
+                  echo "PACKAGE_SOURCE_DIR=dist/packages-for-self-hosting/$(echo "\"$HOSTING_BASE_URL\"" | jq -r @uri)/v${LATEST_PACKAGE_VERSION}" >> $GITHUB_ENV
+                  echo "PACKAGE_TARGET_DIR=/srv/htdocs/${{ vars.HOSTING_SUBDIR }}/v${LATEST_PACKAGE_VERSION}" >> $GITHUB_ENV
+
+            - name: Check out latest version
+              run: |
+                  git fetch --depth 1 origin tag "$LATEST_PACKAGE_VERSION_TAG" --no-tags
+                  git checkout "$LATEST_PACKAGE_VERSION_TAG"
+            - name: Build JS packages for self-hosting
+              env:
+                  ADDITIONAL_REMOTE_ORIGINS: 'https://wordpress-playground.atomicsites.blog'
+              shell: bash
+              run: npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$HOSTING_BASE_URL"
+            - name: Build source tarball
+              run: |
+                  mkdir -p "$PACKAGE_SOURCE_DIR"
+                  tools/scripts/package-source.sh "$LATEST_PACKAGE_VERSION_TAG" "$PACKAGE_SOURCE_DIR/playground-sources-${LATEST_PACKAGE_VERSION}.tar.gz"
+            - name: Deploy self-hosted packages
+              env:
+                  SSH_PASSPHRASE: '${{ secrets.TARGET_SSH_PASSPHRASE }}'
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "${{ secrets.TARGET_SSH_HOST_KEY }}" >> ~/.ssh/known_hosts
+                  echo "${{ secrets.TARGET_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+                  chmod 0600 ~/.ssh/*
+                  ssh -i ~/.ssh/id_ed25519 \
+                    ${{ secrets.TARGET_SSH_USER }}@${{ secrets.TARGET_SSH_HOST }} \
+                    -tt -C "mkdir -p $PACKAGE_TARGET_DIR"
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" \
+                    --delete "$PACKAGE_SOURCE_DIR/" \
+                    "${{ secrets.TARGET_SSH_USER }}@${{ secrets.TARGET_SSH_HOST }}:$PACKAGE_TARGET_DIR"

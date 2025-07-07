@@ -1,17 +1,18 @@
 /* eslint-disable @nx/enforce-module-boundaries */
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
+import type { FilesystemOperation } from '../lib/fs-journal';
 import {
-	FilesystemOperation,
 	journalFSEvents,
 	normalizeFilesystemOperations,
 	recordExistingPath,
 } from '../lib/fs-journal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Journal MemFS', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(LatestSupportedPHPVersion);
+		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
 	});
 	it('Can recreate an existing directory structure', async () => {
 		php.mkdir('/test-ref');
@@ -181,6 +182,30 @@ describe('Journal MemFS', () => {
 });
 
 describe('normalizeFilesystemOperations()', () => {
+	it('Normalizes CREATE and WRITE + multiple WRITE file ops to a single WRITE', () => {
+		const expected = [
+			{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+		];
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+			])
+		).toEqual(expected);
+	});
 	it('Normalizes CREATE and RENAME to a single CREATE (file)', () => {
 		expect(
 			normalizeFilesystemOperations([
@@ -193,6 +218,49 @@ describe('normalizeFilesystemOperations()', () => {
 				},
 			])
 		).toEqual([{ operation: 'CREATE', path: '/test2', nodeType: 'file' }]);
+	});
+	it('Normalizes CREATE and RENAME with WRITEs to a single WRITE (file)', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+				{ operation: 'WRITE', path: '/test2', nodeType: 'file' },
+			])
+		).toEqual([{ operation: 'WRITE', path: '/test2', nodeType: 'file' }]);
 	});
 	it('Normalizes CREATE and RENAME to a single CREATE (directory)', () => {
 		expect(
@@ -272,6 +340,56 @@ describe('normalizeFilesystemOperations()', () => {
 				{
 					operation: 'DELETE',
 					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([]);
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'WRITE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test/file1.txt',
+					toPath: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([]);
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test/file1.txt',
+					toPath: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'WRITE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test/file2.txt',
 					nodeType: 'file',
 				},
 			])

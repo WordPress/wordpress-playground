@@ -1,7 +1,9 @@
-import { BasePHP } from './base-php';
+import type { PHP } from './php';
+import type { PHPEvent } from './universal-php';
 
-export interface RotateOptions<T extends BasePHP> {
-	php: T;
+export interface RotateOptions {
+	php: PHP;
+	cwd: string;
 	recreateRuntime: () => Promise<number> | number;
 	maxRequests: number;
 }
@@ -22,27 +24,51 @@ export interface RotateOptions<T extends BasePHP> {
  *
  * @return cleanup function to restore
  */
-export function rotatePHPRuntime<T extends BasePHP>({
+export function rotatePHPRuntime({
 	php,
+	cwd,
 	recreateRuntime,
-	maxRequests,
-}: RotateOptions<T>) {
-	let handledCalls = 0;
+	/*
+	 * 400 is an arbitrary number that should trigger a rotation
+	 * way before the memory gets too fragmented. If it doesn't,
+	 * let's explore:
+	 * * Rotating based on an actual memory usage and
+	 *   fragmentation.
+	 * * Resetting HEAP to its initial value.
+	 */
+	maxRequests = 400,
+}: RotateOptions) {
+	let runtimeRequestCount = 0;
 	async function rotateRuntime() {
-		if (++handledCalls < maxRequests) {
-			return;
-		}
-		handledCalls = 0;
-
 		const release = await php.semaphore.acquire();
 		try {
-			php.hotSwapPHPRuntime(await recreateRuntime());
+			await php.hotSwapPHPRuntime(await recreateRuntime(), cwd);
+
+			// A new runtime has handled zero requests.
+			runtimeRequestCount = 0;
 		} finally {
 			release();
 		}
 	}
-	php.addEventListener('request.end', rotateRuntime);
+
+	async function rotateRuntimeAfterMaxRequests() {
+		if (++runtimeRequestCount < maxRequests) {
+			return;
+		}
+		await rotateRuntime();
+	}
+
+	async function rotateRuntimeForPhpWasmError(event: PHPEvent) {
+		if (event.type === 'request.error' && event.source === 'php-wasm') {
+			await rotateRuntime();
+		}
+	}
+
+	php.addEventListener('request.error', rotateRuntimeForPhpWasmError);
+	php.addEventListener('request.end', rotateRuntimeAfterMaxRequests);
+
 	return function () {
-		php.removeEventListener('request.end', rotateRuntime);
+		php.removeEventListener('request.error', rotateRuntimeForPhpWasmError);
+		php.removeEventListener('request.end', rotateRuntimeAfterMaxRequests);
 	};
 }

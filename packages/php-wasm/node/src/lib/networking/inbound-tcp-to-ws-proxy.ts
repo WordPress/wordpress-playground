@@ -1,6 +1,7 @@
 import { createServer } from 'net';
-import { WebSocketServer, WebSocket } from 'ws';
-import { debugLog } from './utils.js';
+import type { WebSocketServer } from 'ws';
+import { WebSocket } from 'ws';
+import { debugLog } from './utils';
 function log(...args: any[]) {
 	debugLog('[TCP Server]', ...args);
 }
@@ -56,6 +57,7 @@ export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
 				'WS->TCP message:',
 				new TextDecoder().decode(e.data as ArrayBuffer)
 			);
+			// @ts-ignore-next-line
 			tcpSource.write(Buffer.from(e.data as ArrayBuffer));
 		});
 		wsTarget.addEventListener('close', () => {

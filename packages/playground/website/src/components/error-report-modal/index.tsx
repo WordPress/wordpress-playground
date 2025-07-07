@@ -1,15 +1,22 @@
-import { useEffect, useState } from 'react';
-import Modal from '../modal';
-import { addCrashListener, logger } from '@php-wasm/logger';
-import { Button, TextareaControl, TextControl } from '@wordpress/components';
+import React, { useEffect, useState } from 'react';
+import { logger } from '@php-wasm/logger';
+import { TextareaControl, TextControl } from '@wordpress/components';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import { useDispatch } from 'react-redux';
+import type {
+	PlaygroundDispatch,
+	PlaygroundReduxState,
+} from '../../lib/state/redux/store';
+import { useAppSelector } from '../../lib/state/redux/store';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { Modal } from '../../components/modal';
+import ModalButtons from '../modal/modal-buttons';
 
-import css from './style.module.css';
-
-import { usePlaygroundContext } from '../../playground-context';
-import { Blueprint } from '@wp-playground/blueprints';
-
-export function ErrorReportModal(props: { blueprint: Blueprint }) {
-	const { showErrorModal, setShowErrorModal } = usePlaygroundContext();
+export function ErrorReportModal(props: { blueprint: BlueprintDeclaration }) {
+	const activeModal = useAppSelector(
+		(state: PlaygroundReduxState) => state.ui.activeModal
+	);
+	const dispatch: PlaygroundDispatch = useDispatch();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
@@ -18,21 +25,10 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [submitError, setSubmitError] = useState('');
 
 	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				setShowErrorModal(true);
-			}
-		});
-	}, [setShowErrorModal]);
-
-	useEffect(() => {
 		resetForm();
-		if (showErrorModal) {
-			setLogs(logger.getLogs().join(''));
-			setUrl(window.location.href);
-		}
-	}, [showErrorModal, setShowErrorModal, logs, setLogs]);
+		setLogs(logger.getLogs().join('\n'));
+		setUrl(window.location.href);
+	}, [activeModal, logs, setLogs]);
 
 	function resetForm() {
 		setText('');
@@ -46,7 +42,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	function onClose() {
-		setShowErrorModal(false);
+		dispatch(setActiveModal(null));
 		resetForm();
 		resetSubmission();
 	}
@@ -56,7 +52,6 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 			...props.blueprint.preferredVersions,
 			userAgent: navigator.userAgent,
 			...((window.performance as any)?.memory ?? {}),
-			...logger.getContext(),
 			window: {
 				width: window.innerWidth,
 				height: window.innerHeight,
@@ -123,7 +118,11 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 				<>
 					We were unable to submit the error report. Please try again
 					or open an{' '}
-					<a href="https://github.com/WordPress/wordpress-playground/issues/">
+					<a
+						href="https://github.com/WordPress/wordpress-playground/issues/"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						issue on GitHub.
 					</a>
 				</>
@@ -132,7 +131,11 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 			return (
 				<>
 					Your report has been submitted to the{' '}
-					<a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">
+					<a
+						href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						Making WordPress #playground-logs Slack channel
 					</a>{' '}
 					and will be reviewed by the team.
@@ -142,7 +145,8 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	/**
-	 * Show the form if the error has not been submitted or if there was an error submitting it.
+	 * Show the form if the error has not been submitted or if there was an error
+	 * submitting it.
 	 *
 	 * @return {boolean}
 	 */
@@ -151,46 +155,32 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	return (
-		<Modal isOpen={showErrorModal} onRequestClose={onClose}>
-			<header className={css.errorReportModalHeader}>
-				<h2>{getTitle()}</h2>
-				<p>{getContent()}</p>
-			</header>
+		<Modal title={getTitle()} onRequestClose={onClose} small>
+			<p>{getContent()}</p>
 			{showForm() && (
 				<>
-					<main>
-						<TextareaControl
-							label="How can we recreate this error?"
-							help="Describe what caused the error and how can we recreate it."
-							value={text}
-							onChange={setText}
-							className={css.errorReportModalTextarea}
-							required={true}
-						/>
-						<TextareaControl
-							label="Logs"
-							value={logs}
-							onChange={setLogs}
-							className={css.errorReportModalTextarea}
-						/>
+					<TextareaControl
+						label="How can we recreate this error?"
+						help="Describe what caused the error and how can we recreate it."
+						value={text}
+						onChange={setText}
+						required={true}
+					/>
+					<TextareaControl
+						label="Logs"
+						value={logs}
+						onChange={setLogs}
+					/>
 
-						<TextControl
-							label="Url"
-							value={url}
-							onChange={setUrl}
-						/>
-					</main>
-					<footer className={css.errorReportModalFooter}>
-						<Button
-							variant="primary"
-							onClick={onSubmit}
-							isBusy={loading}
-							disabled={loading || !text}
-						>
-							Report error
-						</Button>
-						<Button onClick={onClose}>Cancel</Button>
-					</footer>
+					<TextControl label="Url" value={url} onChange={setUrl} />
+
+					<ModalButtons
+						areBusy={loading}
+						areDisabled={loading || !text}
+						onCancel={onClose}
+						onSubmit={onSubmit}
+						submitText="Report error"
+					/>
 				</>
 			)}
 		</Modal>

@@ -1,4 +1,4 @@
-import { TransportEnvelope } from '../transports';
+import type { TransportEnvelope } from '../transports';
 
 export type SyncMiddleware = {
 	beforeSend: (

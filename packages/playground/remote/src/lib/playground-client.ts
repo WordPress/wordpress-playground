@@ -1,12 +1,15 @@
 /**
  * Imports required for the Playground Client.
  */
-import { ProgressReceiver } from '@php-wasm/progress';
-import { UniversalPHP } from '@php-wasm/universal';
-import { RemoteAPI } from '@php-wasm/web';
-import { ProgressBarOptions } from './progress-bar';
-import type { PlaygroundWorkerEndpoint } from './worker-thread';
-import type { SyncProgressCallback } from './opfs/bind-opfs';
+import type { ProgressReceiver } from '@php-wasm/progress';
+import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
+import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
+import type { ProgressBarOptions } from './progress-bar';
+import type {
+	PlaygroundWorkerEndpoint,
+	MountDescriptor,
+	WorkerBootOptions,
+} from './worker-thread';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -48,25 +51,30 @@ export interface WebClientMixin extends ProgressReceiver {
 	 */
 	onDownloadProgress: PlaygroundWorkerEndpoint['onDownloadProgress'];
 
-	setSpawnHandler: PlaygroundWorkerEndpoint['setSpawnHandler'];
-
 	journalFSEvents: PlaygroundWorkerEndpoint['journalFSEvents'];
 	replayFSJournal: PlaygroundWorkerEndpoint['replayFSJournal'];
 	addEventListener: PlaygroundWorkerEndpoint['addEventListener'];
 	removeEventListener: PlaygroundWorkerEndpoint['removeEventListener'];
+	backfillStaticFilesRemovedFromMinifiedBuild: PlaygroundWorkerEndpoint['backfillStaticFilesRemovedFromMinifiedBuild'];
+	hasCachedStaticFilesRemovedFromMinifiedBuild: PlaygroundWorkerEndpoint['hasCachedStaticFilesRemovedFromMinifiedBuild'];
 
 	/** @inheritDoc @php-wasm/universal!UniversalPHP.onMessage */
-	onMessage: PlaygroundWorkerEndpoint['onMessage'];
+	onMessage(listener: MessageListener): Promise<() => Promise<void>>;
 
-	bindOpfs(
-		opfs: FileSystemDirectoryHandle,
+	mountOpfs(
+		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	): Promise<void>;
+
+	unmountOpfs(mountpoint: string): Promise<void>;
+
+	boot(options: WorkerBootOptions): Promise<void>;
 }
 
 /**
  * The Playground Client interface.
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface PlaygroundClient
 	extends RemoteAPI<PlaygroundWorkerEndpoint & WebClientMixin> {}
 

@@ -1,0 +1,432 @@
+{
+	"theme.ErrorPageContent.title": {
+		"message": "このページはクラッシュしました。",
+		"description": "ページがクラッシュした際のフォールバックページのタイトル"
+	},
+	"theme.NotFound.title": {
+		"message": "ページが見つかりません",
+		"description": "404ページのタイトル"
+	},
+	"theme.NotFound.p1": {
+		"message": "お探しのものが見つかりませんでした。",
+		"description": "404ページの最初の段落"
+	},
+	"theme.NotFound.p2": {
+		"message": "元のURLにリンクしていたサイトの所有者に連絡し、リンクが切れていることを伝えてください。",
+		"description": "404ページの2番目の段落"
+	},
+	"theme.admonition.note": {
+		"message": "注記",
+		"description": "注釈 (:::note) に使用されるデフォルトのラベル"
+	},
+	"theme.admonition.tip": {
+		"message": "ヒント",
+		"description": "ヒント (:::tip) に使用されるデフォルトのラベル"
+	},
+	"theme.admonition.danger": {
+		"message": "危険",
+		"description": "危険 (:::danger) に使用されるデフォルトのラベル"
+	},
+	"theme.admonition.info": {
+		"message": "情報",
+		"description": "情報 (:::info) に使用されるデフォルトのラベル"
+	},
+	"theme.admonition.caution": {
+		"message": "注意",
+		"description": "注意 (:::caution) に使用されるデフォルトのラベル"
+	},
+	"theme.BackToTopButton.buttonAriaLabel": {
+		"message": "トップへスクロール",
+		"description": "トップへ戻るボタンのARIAラベル"
+	},
+	"theme.blog.archive.title": {
+		"message": "アーカイブ",
+		"description": "ブログアーカイブページのページとヒーロータイトル"
+	},
+	"theme.blog.archive.description": {
+		"message": "アーカイブ",
+		"description": "ブログアーカイブページのページとヒーローの説明"
+	},
+	"theme.blog.paginator.navAriaLabel": {
+		"message": "ブログリストページのナビゲーション",
+		"description": "ブログのページネーションのARIAラベル"
+	},
+	"theme.blog.paginator.newerEntries": {
+		"message": "新しい記事",
+		"description": "新しいブログ記事のページ（前のページ）へ移動するために使用されるラベル"
+	},
+	"theme.blog.paginator.olderEntries": {
+		"message": "古い記事",
+		"description": "古いブログ記事のページ（次のページ）へ移動するために使用されるラベル"
+	},
+	"theme.blog.post.paginator.navAriaLabel": {
+		"message": "ブログ記事ページのナビゲーション",
+		"description": "ブログ記事のページネーションのARIAラベル"
+	},
+	"theme.blog.post.paginator.newerPost": {
+		"message": "新しい記事",
+		"description": "新しい/前の記事へ移動するためのブログ記事ボタンのラベル"
+	},
+	"theme.blog.post.paginator.olderPost": {
+		"message": "古い記事",
+		"description": "古い/次の記事へ移動するためのブログ記事ボタンのラベル"
+	},
+	"theme.blog.post.plurals": {
+		"message": "1件の記事|{count}件の記事",
+		"description": "\"{count}件の記事\" の複数形ラベル。言語がサポートする限りの複数形（\"|\" で区切る）を使用してください（https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html を参照）"
+	},
+	"theme.blog.tagTitle": {
+		"message": "\"{tagName}\" タグの付いた記事 {nPosts} 件",
+		"description": "ブログタグのページのタイトル"
+	},
+	"theme.tags.tagsPageLink": {
+		"message": "すべてのタグを表示",
+		"description": "タグリストページをターゲットとするリンクのラベル"
+	},
+	"theme.colorToggle.ariaLabel": {
+		"message": "ダークモードとライトモードを切り替え (現在 {mode})",
+		"description": "ナビゲーションバーのカラーモード切り替えのARIAラベル"
+	},
+	"theme.colorToggle.ariaLabel.mode.dark": {
+		"message": "ダークモード",
+		"description": "ダークカラーモードの名前"
+	},
+	"theme.colorToggle.ariaLabel.mode.light": {
+		"message": "ライトモード",
+		"description": "ライトカラーモードの名前"
+	},
+	"theme.docs.breadcrumbs.navAriaLabel": {
+		"message": "パンくずリスト",
+		"description": "パンくずリストのARIAラベル"
+	},
+	"theme.docs.DocCard.categoryDescription": {
+		"message": "{count} 項目",
+		"description": "生成されたインデックス内のカテゴリカードの、このカテゴリに含まれる項目数に関するデフォルトの説明"
+	},
+	"theme.docs.paginator.navAriaLabel": {
+		"message": "ドキュメントページ",
+		"description": "ドキュメントのページネーションのARIAラベル"
+	},
+	"theme.docs.paginator.previous": {
+		"message": "前へ",
+		"description": "前のドキュメントへ移動するために使用されるラベル"
+	},
+	"theme.docs.paginator.next": {
+		"message": "次へ",
+		"description": "次のドキュメントへ移動するために使用されるラベル"
+	},
+	"theme.docs.tagDocListPageTitle.nDocsTagged": {
+		"message": "タグ \"{tagName}\" の付いたドキュメント 1 件|タグ \"{tagName}\" の付いたドキュメント {count} 件",
+		"description": "\"{count} 件のタグ付きドキュメント\" の複数形ラベル。言語がサポートする限りの複数形（\"|\" で区切る）を使用してください（https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html を参照）"
+	},
+	"theme.docs.tagDocListPageTitle": {
+		"message": "\"{tagName}\" タグの付いたドキュメント {nDocsTagged} 件",
+		"description": "ドキュメントタグのページのタイトル"
+	},
+	"theme.docs.versionBadge.label": {
+		"message": "バージョン: {versionLabel}"
+	},
+	"theme.docs.versions.unreleasedVersionLabel": {
+		"message": "これは {siteTitle} {versionLabel} バージョンの未リリースドキュメントです。",
+		"description": "ユーザーが未リリースのドキュメントバージョンを閲覧していることを伝えるために使用されるラベル"
+	},
+	"theme.docs.versions.unmaintainedVersionLabel": {
+		"message": "これは {siteTitle} {versionLabel} のドキュメントですが、現在は積極的にメンテナンスされていません。",
+		"description": "ユーザーがメンテナンスされていないドキュメントバージョンを閲覧していることを伝えるために使用されるラベル"
+	},
+	"theme.docs.versions.latestVersionSuggestionLabel": {
+		"message": "最新のドキュメントについては、{latestVersionLink} ({versionLabel}) をご覧ください。",
+		"description": "ユーザーに最新バージョンを確認するように促すために使用されるラベル"
+	},
+	"theme.docs.versions.latestVersionLinkLabel": {
+		"message": "最新バージョン",
+		"description": "最新バージョン提案リンクのラベルに使用されるラベル"
+	},
+	"theme.common.editThisPage": {
+		"message": "このページを編集",
+		"description": "現在のページを編集するためのリンクラベル"
+	},
+	"theme.common.headingLinkTitle": {
+		"message": "{heading} への直接リンク",
+		"description": "見出しへのリンクのタイトル"
+	},
+	"theme.lastUpdated.atDate": {
+		"message": " {date} に",
+		"description": "ページが最後に更新された日付を説明するために使用される単語"
+	},
+	"theme.lastUpdated.byUser": {
+		"message": " {user} によって",
+		"description": "ページが最後に更新された人物を説明するために使用される単語"
+	},
+	"theme.lastUpdated.lastUpdatedAtBy": {
+		"message": "最終更新{atDate}{byUser}",
+		"description": "ページが最後にいつ、誰によって更新されたかを表示するために使用される文"
+	},
+	"theme.navbar.mobileVersionsDropdown.label": {
+		"message": "バージョン",
+		"description": "モバイルビューのナビゲーションバーのバージョンズドロップダウンのラベル"
+	},
+	"theme.tags.tagsListLabel": {
+		"message": "タグ:",
+		"description": "タグリストの横のラベル"
+	},
+	"theme.AnnouncementBar.closeButtonAriaLabel": {
+		"message": "閉じる",
+		"description": "お知らせバーの閉じるボタンのARIAラベル"
+	},
+	"theme.blog.sidebar.navAriaLabel": {
+		"message": "ブログの最近の投稿のナビゲーション",
+		"description": "ブログのサイドバーの最近の投稿のARIAラベル"
+	},
+	"theme.CodeBlock.copied": {
+		"message": "コピー済み",
+		"description": "コードブロックのコピー済みボタンのラベル"
+	},
+	"theme.CodeBlock.copyButtonAriaLabel": {
+		"message": "コードをクリップボードにコピー",
+		"description": "コードブロックのコピーボタンのARIAラベル"
+	},
+	"theme.CodeBlock.copy": {
+		"message": "コピー",
+		"description": "コードブロックのコピーボタンのラベル"
+	},
+	"theme.CodeBlock.wordWrapToggle": {
+		"message": "ワードラップの切り替え",
+		"description": "コードブロック行のワードラップ切り替えボタンのタイトル属性"
+	},
+	"theme.DocSidebarItem.toggleCollapsedCategoryAriaLabel": {
+		"message": "折りたたみ可能なサイドバーカテゴリ '{label}' を切り替え",
+		"description": "折りたたみ可能なサイドバーカテゴリを切り替えるためのARIAラベル"
+	},
+	"theme.NavBar.navAriaLabel": {
+		"message": "メイン",
+		"description": "メインナビゲーションのARIAラベル"
+	},
+	"theme.navbar.mobileLanguageDropdown.label": {
+		"message": "言語",
+		"description": "モバイル言語スイッチャードロップダウンのラベル"
+	},
+	"theme.TOCCollapsible.toggleButtonLabel": {
+		"message": "このページ内",
+		"description": "折りたたみ可能なTOCコンポーネントのボタンで使用されるラベル"
+	},
+	"theme.blog.post.readMore": {
+		"message": "続きを読む",
+		"description": "完全なブログ記事へのリンクとしてブログ記事の抜粋で使用されるラベル"
+	},
+	"theme.blog.post.readMoreLabel": {
+		"message": "{title} についてもっと読む",
+		"description": "抜粋から完全なブログ記事へのリンクのARIAラベル"
+	},
+	"theme.blog.post.readingTime.plurals": {
+		"message": "1分で読める|{readingTime}分で読める",
+		"description": "\"{readingTime}分で読める\" の複数形ラベル。言語がサポートする限りの複数形（\"|\" で区切る）を使用してください（https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html を参照）"
+	},
+	"theme.docs.breadcrumbs.home": {
+		"message": "ホームページ",
+		"description": "パンくずリストのホームページのARIAラベル"
+	},
+	"theme.docs.sidebar.collapseButtonTitle": {
+		"message": "サイドバーを折りたたむ",
+		"description": "ドキュメントサイドバーの折りたたみボタンのタイトル属性"
+	},
+	"theme.docs.sidebar.collapseButtonAriaLabel": {
+		"message": "サイドバーを折りたたむ",
+		"description": "ドキュメントサイドバーの折りたたみボタンのタイトル属性"
+	},
+	"theme.docs.sidebar.navAriaLabel": {
+		"message": "ドキュメントのサイドバー",
+		"description": "サイドバーナビゲーションのARIAラベル"
+	},
+	"theme.docs.sidebar.closeSidebarButtonAriaLabel": {
+		"message": "ナビゲーションバーを閉じる",
+		"description": "モバイルサイドバーの閉じるボタンのARIAラベル"
+	},
+	"theme.navbar.mobileSidebarSecondaryMenu.backButtonLabel": {
+		"message": "← メインメニューに戻る",
+		"description": "モバイルナビゲーションバーのサイドバー二次メニュー内（特にドキュメントサイドバーを表示する際に使用）のメインメニューに戻るボタンのラベル"
+	},
+	"theme.docs.sidebar.toggleSidebarButtonAriaLabel": {
+		"message": "ナビゲーションバーを切り替え",
+		"description": "モバイルナビゲーションのハンバーガーメニューボタンのARIAラベル"
+	},
+	"theme.docs.sidebar.expandButtonTitle": {
+		"message": "サイドバーを展開",
+		"description": "ドキュメントサイドバーの展開ボタンのARIAラベルとタイトル属性"
+	},
+	"theme.docs.sidebar.expandButtonAriaLabel": {
+		"message": "サイドバーを展開",
+		"description": "ドキュメントサイドバーの展開ボタンのARIAラベルとタイトル属性"
+	},
+	"theme.SearchBar.seeAll": {
+		"message": "{count} 件の結果をすべて表示"
+	},
+	"theme.SearchPage.documentsFound.plurals": {
+		"message": "ドキュメント 1 件が見つかりました|{count} 件のドキュメントが見つかりました",
+		"description": "\"{count} 件のドキュメントが見つかりました\" の複数形ラベル。言語がサポートする限りの複数形（\"|\" で区切る）を使用してください（https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html を参照）"
+	},
+	"theme.SearchPage.existingResultsTitle": {
+		"message": "\"{query}\" の検索結果",
+		"description": "空でないクエリの検索ページのタイトル"
+	},
+	"theme.SearchPage.emptyResultsTitle": {
+		"message": "ドキュメントを検索",
+		"description": "空のクエリの検索ページのタイトル"
+	},
+	"theme.SearchPage.inputPlaceholder": {
+		"message": "ここに検索語句を入力",
+		"description": "検索ページ入力のプレースホルダー"
+	},
+	"theme.SearchPage.inputLabel": {
+		"message": "検索",
+		"description": "検索ページ入力のARIAラベル"
+	},
+	"theme.SearchPage.algoliaLabel": {
+		"message": "Algoliaによる検索",
+		"description": "Algolia言及のARIAラベル"
+	},
+	"theme.SearchPage.noResultsText": {
+		"message": "結果が見つかりませんでした",
+		"description": "空の検索結果の段落"
+	},
+	"theme.SearchPage.fetchingNewResults": {
+		"message": "新しい結果を取得中...",
+		"description": "新しい検索結果を取得するための段落"
+	},
+	"theme.SearchBar.label": {
+		"message": "検索",
+		"description": "検索ボタンのARIAラベルとプレースホルダー"
+	},
+	"theme.SearchModal.searchBox.resetButtonTitle": {
+		"message": "クエリをクリア",
+		"description": "検索ボックスのリセットボタンのラベルとARIAラベル"
+	},
+	"theme.SearchModal.searchBox.cancelButtonText": {
+		"message": "キャンセル",
+		"description": "検索ボックスのキャンセルボタンのラベルとARIAラベル"
+	},
+	"theme.SearchModal.startScreen.recentSearchesTitle": {
+		"message": "最近",
+		"description": "最近の検索のタイトル"
+	},
+	"theme.SearchModal.startScreen.noRecentSearchesText": {
+		"message": "最近の検索はありません",
+		"description": "最近の検索がない場合のテキスト"
+	},
+	"theme.SearchModal.startScreen.saveRecentSearchButtonTitle": {
+		"message": "この検索を保存",
+		"description": "最近の検索を保存するボタンのラベル"
+	},
+	"theme.SearchModal.startScreen.removeRecentSearchButtonTitle": {
+		"message": "履歴からこの検索を削除",
+		"description": "最近の検索を削除するボタンのラベル"
+	},
+	"theme.SearchModal.startScreen.favoriteSearchesTitle": {
+		"message": "お気に入り",
+		"description": "お気に入りの検索のタイトル"
+	},
+	"theme.SearchModal.startScreen.removeFavoriteSearchButtonTitle": {
+		"message": "お気に入りからこの検索を削除",
+		"description": "お気に入りの検索を削除するボタンのラベル"
+	},
+	"theme.SearchModal.errorScreen.titleText": {
+		"message": "結果を取得できませんでした",
+		"description": "検索モーダルのエラー画面のタイトル"
+	},
+	"theme.SearchModal.errorScreen.helpText": {
+		"message": "ネットワーク接続を確認してください。",
+		"description": "検索モーダルのエラー画面のヘルプテキスト"
+	},
+	"theme.SearchModal.footer.selectText": {
+		"message": "選択するには",
+		"description": "Enterキーのアクションの説明テキスト"
+	},
+	"theme.SearchModal.footer.selectKeyAriaLabel": {
+		"message": "Enterキー",
+		"description": "選択を行うEnterキーボタンのARIAラベル"
+	},
+	"theme.SearchModal.footer.navigateText": {
+		"message": "移動するには",
+		"description": "上矢印キーと下矢印キーのアクションの説明テキスト"
+	},
+	"theme.SearchModal.footer.navigateUpKeyAriaLabel": {
+		"message": "上矢印キー",
+		"description": "ナビゲーションを行う上矢印キーボタンのARIAラベル"
+	},
+	"theme.SearchModal.footer.navigateDownKeyAriaLabel": {
+		"message": "下矢印キー",
+		"description": "ナビゲーションを行う下矢印キーボタンのARIAラベル"
+	},
+	"theme.SearchModal.footer.closeText": {
+		"message": "閉じるには",
+		"description": "Escapeキーのアクションの説明テキスト"
+	},
+	"theme.SearchModal.footer.closeKeyAriaLabel": {
+		"message": "Escapeキー",
+		"description": "モーダルを閉じるEscapeキーボタンのARIAラベル"
+	},
+	"theme.SearchModal.footer.searchByText": {
+		"message": "検索方法:",
+		"description": "検索がAlgoliaによって行われていることを説明するテキスト"
+	},
+	"theme.SearchModal.noResultsScreen.noResultsText": {
+		"message": "検索結果はありません",
+		"description": "以下の検索に対して結果がないことを説明するテキスト"
+	},
+	"theme.SearchModal.noResultsScreen.suggestedQueryText": {
+		"message": "次の検索を試してください:",
+		"description": "以下の検索で結果が見つからなかった場合に表示される推奨クエリのテキスト"
+	},
+	"theme.SearchModal.noResultsScreen.reportMissingResultsText": {
+		"message": "このクエリで結果が返ってくるはずだと思いますか？",
+		"description": "ユーザーが結果が不足していると考えている場合の質問のテキスト"
+	},
+	"theme.SearchModal.noResultsScreen.reportMissingResultsLinkText": {
+		"message": "お知らせください。",
+		"description": "不足している結果を報告するためのリンクのテキスト"
+	},
+	"theme.SearchModal.placeholder": {
+		"message": "ドキュメントを検索",
+		"description": "DocSearchポップアップモーダルの入力のプレースホルダー"
+	},
+	"theme.IdealImageMessage.loading": {
+		"message": "読み込み中...",
+		"description": "フルスケールの画像を読み込んでいるとき"
+	},
+	"theme.IdealImageMessage.load": {
+		"message": "クリックして読み込む{sizeMessage}",
+		"description": "フル画像を読み込むようにユーザーに促します。sizeMessageは括弧で囲まれたサイズです。"
+	},
+	"theme.IdealImageMessage.offline": {
+		"message": "ブラウザはオフラインです。画像は読み込まれませんでした",
+		"description": "ユーザーがオフラインのドキュメントを表示しているとき"
+	},
+	"theme.IdealImageMessage.404error": {
+		"message": "404. 画像が見つかりません",
+		"description": "画像が見つからないとき"
+	},
+	"theme.IdealImageMessage.error": {
+		"message": "エラー。クリックして再読み込み",
+		"description": "不明なエラーで画像の読み込みに失敗したとき"
+	},
+	"theme.Playground.result": {
+		"message": "結果",
+		"description": "ライブコードブロックの結果ラベル"
+	},
+	"theme.Playground.liveEditor": {
+		"message": "ライブエディター",
+		"description": "ライブコードブロックのライブエディターラベル"
+	},
+	"theme.ErrorPageContent.tryAgain": {
+		"message": "再試行",
+		"description": "Reactのエラー境界がエラーを捕捉したときに、レンダリングを再試行するためのボタンのラベル"
+	},
+	"theme.common.skipToMainContent": {
+		"message": "メインコンテンツへスキップ",
+		"description": "アクセシビリティのために使用されるコンテンツスキップラベル。キーボードのタブ/エンターナビゲーションでメインコンテンツへ素早く移動できます"
+	},
+	"theme.tags.tagsPageTitle": {
+		"message": "タグ",
+		"description": "タグリストページのタイトル"
+	}
+}

@@ -1,8 +1,7 @@
-import { joinPaths, phpVars } from '@php-wasm/util';
-import { StepHandler } from '.';
-/** @ts-ignore */
-import rewriteWpConfigToDefineConstants from './rewrite-wp-config-to-define-constants.php?raw';
-import { UniversalPHP } from '@php-wasm/universal';
+import { joinPaths } from '@php-wasm/util';
+import type { StepHandler } from '.';
+import type { UniversalPHP } from '@php-wasm/universal';
+import { defineWpConfigConstants } from '@wp-playground/wordpress';
 
 /**
  * @inheritDoc defineWpConfigConsts
@@ -23,13 +22,14 @@ export interface DefineWpConfigConstsStep {
 	/** The constants to define */
 	consts: Record<string, unknown>;
 	/**
-	 * The method of defining the constants. Possible values are:
+	 * The method of defining the constants in wp-config.php. Possible values are:
 	 *
 	 * - rewrite-wp-config: Default. Rewrites the wp-config.php file to
 	 *                      explicitly call define() with the requested
 	 *                      name and value. This method alters the file
 	 *                      on the disk, but it doesn't conflict with
 	 *                      existing define() calls in wp-config.php.
+	 *
 	 * - define-before-run: Defines the constant before running the requested
 	 *                      script. It doesn't alter any files on the disk, but
 	 *                      constants defined this way may conflict with existing
@@ -45,7 +45,7 @@ export interface DefineWpConfigConstsStep {
 }
 
 /**
- * Defines constants in a wp-config.php file.
+ * Defines constants in a [`wp-config.php`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/) file.
  *
  * This step can be called multiple times, and the constants will be merged.
  *
@@ -54,7 +54,7 @@ export interface DefineWpConfigConstsStep {
  */
 export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
-> = async (playground, { consts, method = 'rewrite-wp-config' }) => {
+> = async (playground, { consts, method = 'define-before-run' }) => {
 	switch (method) {
 		case 'define-before-run':
 			await defineBeforeRun(playground, consts);
@@ -62,13 +62,12 @@ export const defineWpConfigConsts: StepHandler<
 		case 'rewrite-wp-config': {
 			const documentRoot = await playground.documentRoot;
 			const wpConfigPath = joinPaths(documentRoot, '/wp-config.php');
-			const wpConfig = await playground.readFileAsText(wpConfigPath);
-			const updatedWpConfig = await rewriteDefineCalls(
+			await defineWpConfigConstants(
 				playground,
-				wpConfig,
-				consts
+				wpConfigPath,
+				consts,
+				'rewrite'
 			);
-			await playground.writeFile(wpConfigPath, updatedWpConfig);
 			break;
 		}
 		default:
@@ -83,24 +82,4 @@ export async function defineBeforeRun(
 	for (const key in consts) {
 		await playground.defineConstant(key, consts[key] as string);
 	}
-}
-
-export async function rewriteDefineCalls(
-	playground: UniversalPHP,
-	phpCode: string,
-	consts: Record<string, unknown>
-): Promise<string> {
-	await playground.writeFile('/tmp/code.php', phpCode);
-	const js = phpVars({
-		consts,
-	});
-	await playground.run({
-		code: `${rewriteWpConfigToDefineConstants}
-	$wp_config_path = '/tmp/code.php';
-	$wp_config = file_get_contents($wp_config_path);
-	$new_wp_config = rewrite_wp_config_to_define_constants($wp_config, ${js.consts});
-	file_put_contents($wp_config_path, $new_wp_config);
-	`,
-	});
-	return await playground.readFileAsText('/tmp/code.php');
 }

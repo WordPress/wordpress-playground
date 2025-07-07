@@ -20,7 +20,6 @@ export async function runDemo(iframe: HTMLIFrameElement) {
 				networking: true,
 			},
 			landingPage: '/',
-			phpExtensionBundles: ['kitchen-sink'],
 			steps: [{ step: 'login', username: 'admin', password: 'password' }],
 		},
 		sapiName: 'cli',

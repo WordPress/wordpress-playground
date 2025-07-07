@@ -30,7 +30,8 @@ describe('File.stream() method', () => {
 		const reader = stream.getReader();
 
 		const firstRead = await reader.read();
-		expect(firstRead.value).toEqual(inputBytes);
+		// Compare strings to avoid failures with Uint8Array comparison in jsdom environment.
+		expect(firstRead.value?.toString()).toEqual(inputBytes.toString());
 		expect(firstRead.done).toBe(false);
 
 		const secondRead = await reader.read();
@@ -43,11 +44,17 @@ describe('File.stream() method', () => {
 		const reader = stream.getReader({ mode: 'byob' });
 
 		const firstRead = await reader.read(new Uint8Array(3));
-		expect(firstRead.value).toEqual(inputBytes.slice(0, 3));
+		// Compare strings to avoid failures with Uint8Array comparison in jsdom environment.
+		expect(firstRead.value?.toString()).toEqual(
+			inputBytes.slice(0, 3).toString()
+		);
 		expect(firstRead.done).toBe(false);
 
 		const secondRead = await reader.read(new Uint8Array(2));
-		expect(secondRead.value).toEqual(inputBytes.slice(3));
+		// Compare strings to avoid failures with Uint8Array comparison in jsdom environment.
+		expect(secondRead.value?.toString()).toEqual(
+			inputBytes.slice(3).toString()
+		);
 		expect(secondRead.done).toBe(false);
 
 		const thirdRead = await reader.read(new Uint8Array(2));

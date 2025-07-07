@@ -12,6 +12,8 @@ packages/php-wasm/node/src/test/__test*
 packages/docs/site/src/model.json
 .docusaurus
 dist.zip
+rollup.d.ts
+.phpunit.cache
 
 # dependencies
 node_modules
@@ -55,3 +57,11 @@ Thumbs.db
 
 # Playground artifacts
 php.js.bak
+**/test-results/
+**/playwright-report/
+**/blob-report/
+
+# @php-wasm/cli saves this file to disk so PHP has access to it.
+# Since it is dynamically generated from the Node.js TLS module,
+# we do not want to commit it to the repository.
+packages/php-wasm/cli/src/ca-bundle.crt

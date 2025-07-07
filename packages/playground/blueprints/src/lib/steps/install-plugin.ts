@@ -1,7 +1,13 @@
-import { StepHandler } from '.';
-import { InstallAssetOptions, installAsset } from './install-asset';
+import type { StepHandler } from '.';
+import type { InstallAssetOptions } from './install-asset';
+import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
+import { writeFile } from './write-file';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
+import type { Directory } from '../resources';
+import { joinPaths } from '@php-wasm/util';
+import { writeFiles } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc installPlugin
@@ -12,8 +18,8 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  *
  * <code>
  * {
- * 	    "step": "installPlugin",
- * 		"pluginZipFile": {
+ * 		"step": "installPlugin",
+ * 		"pluginData": {
  * 			"resource": "wordpress.org/plugins",
  * 			"slug": "gutenberg"
  * 		},
@@ -22,17 +28,41 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * 		}
  * }
  * </code>
+ *
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "installPlugin",
+ * 		"pluginData": {
+ * 			"resource": "git:directory",
+ * 			"url": "https://github.com/wordpress/wordpress-playground.git",
+ * 				"ref": "HEAD",
+ * 				"path": "wp-content/plugins/hello-dolly"
+ * 		},
+ * 		"options": {
+ * 			"activate": true
+ * 		}
+ * }
+ * </code>
  */
-export interface InstallPluginStep<ResourceType>
+export interface InstallPluginStep<FileResource, DirectoryResource>
 	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
 	 */
 	step: 'installPlugin';
 	/**
-	 * The plugin zip file to install.
+	 * The plugin files to install. It can be a plugin zip file, a single PHP
+	 * file, or a directory containing all the plugin files at its root.
 	 */
-	pluginZipFile: ResourceType;
+	pluginData: FileResource | DirectoryResource;
+
+	/**
+	 * @deprecated. Use 'pluginData' instead.
+	 */
+	pluginZipFile?: FileResource;
+
 	/**
 	 * Optional installation options.
 	 */
@@ -44,29 +74,107 @@ export interface InstallPluginOptions {
 	 * Whether to activate the plugin after installing it.
 	 */
 	activate?: boolean;
+	/**
+	 * The name of the folder to install the plugin to. Defaults to guessing from pluginData
+	 */
+	targetFolderName?: string;
 }
 
 /**
  * Installs a WordPress plugin in the Playground.
  *
  * @param playground The playground client.
- * @param pluginZipFile The plugin zip file.
+ * @param pluginData The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
-export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
+export const installPlugin: StepHandler<
+	InstallPluginStep<File, Directory>
+> = async (
 	playground,
-	{ pluginZipFile, ifAlreadyInstalled, options = {} },
+	{ pluginData, pluginZipFile, ifAlreadyInstalled, options = {} },
 	progress?
 ) => {
-	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
-	const zipNiceName = zipNameToHumanName(zipFileName);
+	if (pluginZipFile) {
+		pluginData = pluginZipFile;
+		logger.warn(
+			'The "pluginZipFile" option is deprecated. Use "pluginData" instead.'
+		);
+	}
 
-	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
-	const { assetFolderPath } = await installAsset(playground, {
-		ifAlreadyInstalled,
-		zipFile: pluginZipFile,
-		targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-	});
+	const pluginsDirectoryPath = joinPaths(
+		await playground.documentRoot,
+		'wp-content',
+		'plugins'
+	);
+	const targetFolderName =
+		'targetFolderName' in options ? options.targetFolderName : '';
+	let assetFolderPath = '';
+	let assetNiceName = '';
+
+	const looksLikeZipFile = async (file: File): Promise<boolean> => {
+		if (file.name.toLowerCase().endsWith('.zip')) {
+			return true;
+		}
+
+		const filePrefix = new Uint8Array(await file.arrayBuffer(), 0, 4);
+		// Check against the signature for non-empty, non-spanned zip files.
+		const matchesZipSignature =
+			filePrefix[0] === 0x50 &&
+			filePrefix[1] === 0x4b &&
+			filePrefix[2] === 0x03 &&
+			filePrefix[3] === 0x04;
+		return matchesZipSignature;
+	};
+
+	if (pluginData instanceof File) {
+		if (await looksLikeZipFile(pluginData)) {
+			// Assume any other file is a zip file
+			// @TODO: Consider validating whether this is a zip file?
+			const zipFileName =
+				pluginData.name.split('/').pop() || 'plugin.zip';
+			assetNiceName = zipNameToHumanName(zipFileName);
+
+			progress?.tracker.setCaption(
+				`Installing the ${assetNiceName} plugin`
+			);
+			const assetResult = await installAsset(playground, {
+				ifAlreadyInstalled,
+				zipFile: pluginData,
+				targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+				targetFolderName: targetFolderName,
+			});
+			assetFolderPath = assetResult.assetFolderPath;
+			assetNiceName = assetResult.assetFolderName;
+		} else if (pluginData.name.endsWith('.php')) {
+			const destinationFilePath = joinPaths(
+				pluginsDirectoryPath,
+				pluginData.name
+			);
+			await writeFile(playground, {
+				path: destinationFilePath,
+				data: pluginData,
+			});
+			assetFolderPath = pluginsDirectoryPath;
+			assetNiceName = pluginData.name;
+		} else {
+			throw new Error(
+				'pluginData looks like a file ' +
+					'but does not look like a .zip or .php file.'
+			);
+		}
+	} else if (pluginData) {
+		assetNiceName = pluginData.name;
+		progress?.tracker.setCaption(`Installing the ${assetNiceName} plugin`);
+
+		const pluginDirectoryPath = joinPaths(
+			pluginsDirectoryPath,
+			targetFolderName || pluginData.name
+		);
+		await writeFiles(playground, pluginDirectoryPath, pluginData.files, {
+			rmRoot: true,
+		});
+		assetFolderPath = pluginDirectoryPath;
+	}
 
 	// Activate
 	const activate = 'activate' in options ? options.activate : true;
@@ -76,7 +184,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			playground,
 			{
 				pluginPath: assetFolderPath,
-				pluginName: zipNiceName,
+				pluginName: assetNiceName,
 			},
 			progress
 		);

@@ -12,7 +12,7 @@ import * as util from 'node:util';
 import * as net from 'net';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';
-import { debugLog } from './utils.js';
+import { debugLog } from './utils';
 
 function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);
@@ -35,7 +35,7 @@ function prependByte(
 		buffer.set(new Uint8Array(chunk), 1);
 		chunk = buffer.buffer;
 	} else {
-		console.log({ chunk });
+		log({ chunk });
 		throw new Error('Unsupported chunk type: ' + typeof chunk);
 	}
 	return chunk;
@@ -118,7 +118,7 @@ export function initOutboundWebsocketProxyServer(
 
 // Handle new WebSocket client
 async function onWsConnect(client: any, request: http.IncomingMessage) {
-	const clientAddr = client._socket.remoteAddress;
+	const clientAddr = client?._socket?.remoteAddress || client.url;
 	const clientLog = function (...args: any[]) {
 		log(' ' + clientAddr + ': ', ...args);
 	};
@@ -204,7 +204,8 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
 		} catch (e) {
 			clientLog("can't resolve " + reqTargetHost + ' due to:', e);
-			// Send empty binary data to notify requester that connection was initiated
+			// Send empty binary data to notify requester that connection was
+			// initiated
 			client.send([]);
 			client.close(3000);
 			return;
@@ -226,7 +227,7 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		// );
 		try {
 			client.send(data);
-		} catch (e) {
+		} catch {
 			clientLog('Client closed, cleaning up target');
 			target.end();
 		}

@@ -12,9 +12,9 @@ WordPress Playground exists to make WordPress instantly accessible for users, le
 
 Playground aims to facilitate:
 
-– Learning WordPress Through Exploration
-– Learning WordPress Development Through Writing Code
-– Instant access to WordPress ecosystem
+-   Learning WordPress Through Exploration
+-   Learning WordPress Development Through Writing Code
+-   Instant access to WordPress ecosystem
 
 Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525).
 
@@ -51,7 +51,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 				},
 				{
 					step: 'installPlugin',
-					pluginZipFile: {
+					pluginData: {
 						resource: 'wordpress.org/plugins',
 						slug: 'friends',
 					},
@@ -84,7 +84,7 @@ The vanilla `git clone` command will take ages. Here's a faster alternative that
 only pull the latest revision of the trunk branch:
 
 ```
-git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
 ```
 
 ## Running WordPress Playground locally
@@ -92,7 +92,7 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 You also can run WordPress Playground locally as follows:
 
 ```bash
-git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
 cd wordpress-playground
 npm install
 npm run dev
@@ -104,32 +104,66 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
-And here's a few more interesting CLI commands, which expect that you have `nx` installed globally:
+And here's a few more interesting CLI commands you can run in this repo:
 
 ```bash
 # Build and run PHP.wasm CLI
-nx start php-wasm-cli
+npx nx start php-wasm-cli
 
 # Build latest WordPress releases
-nx bundle-wordpress:all playground-wordpress
+npx nx bundle-wordpress:all playground-wordpress-builds
 
-# Recompile PHP 5.6 - 8.2 releases to .wasm for web
-nx recompile-php:all php-wasm-web
+# Recompile PHP 7.0 - 8.4 releases to .wasm for web
+npx nx recompile-php:all php-wasm-web
 
-# Recompile PHP 5.6 - 8.2 releases to .wasm for node
-nx recompile-php:all php-wasm-node
+# Recompile PHP 7.0 - 8.4 releases to .wasm for node
+npx nx recompile-php:all php-wasm-node
+
+## Recompile with DWARF debug info for debugging
+npx nx recompile-php:all php-wasm-node --WITH_DEBUG=yes
+
+## Recompile with source maps for debugging
+npx nx recompile-php:all php-wasm-node --WITH_SOURCEMAPS=yes
 
 # Builds the documentation site
-nx build docs-site
+npx nx build docs-site
 
 # Builds the Playground Client npm package
-nx build playground-client
+npx nx build playground-client
 
 # Bonus: Run PHP.wasm in your local CLI:
 npx @php-wasm/cli -v
 PHP=7.4 npx @php-wasm/cli -v
 npx @php-wasm/cli phpcbf
 ```
+
+### Test offline support
+
+To test the offline support you need to build the website and run a local server:
+
+```bash
+PLAYGROUND_URL=http://localhost:9999 npx nx run playground-website:build:wasm-wordpress-net
+```
+
+Then you can run a local server:
+
+```bash
+php -S localhost:9999 -t dist/packages/playground/wasm-wordpress-net
+```
+
+or using Docker:
+
+```bash
+docker run --rm -p 9999:80 -v $(pwd)/dist/packages/playground/wasm-wordpress-net:/usr/share/nginx/html:ro nginx:alpine
+```
+
+#### Using the browser to test the offline support
+
+1. Open the browser and go to `http://localhost:9999`.
+2. Open the browser's developer tools.
+3. Go to the "Network" tab.
+4. Select "Offline" in the throttling dropdown menu.
+5. Refresh the page.
 
 ## How can I contribute?
 
@@ -139,13 +173,14 @@ Here's a few quickstart guides to get you started:
 
 -   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
 -   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
--   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing).
+-   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
+-   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
 -   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
 -   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 
 ## WordCamp Contributor Day
 
-If you're participating in a WordCamp Contributor Day, you can use the following instructions to get started: [WordCamp Contributor Day](https://wordpress.github.io/wordpress-playground/docs/wordcamp-contributor-day/).
+If you're participating in a WordCamp Contributor Day, you can use the following instructions to get started: [WordCamp Contributor Day](https://wordpress.github.io/wordpress-playground/contributing/contributor-day/).
 
 ## Backwards compatibility
 

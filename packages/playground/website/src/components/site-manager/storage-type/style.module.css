@@ -1,0 +1,9 @@
+.storage-type {
+	display: inline;
+
+	& :global(svg) {
+		display: inline;
+		vertical-align: text-bottom;
+		margin-right: 6px;
+	}
+}

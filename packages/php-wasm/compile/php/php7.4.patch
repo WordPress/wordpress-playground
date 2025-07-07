@@ -15,9 +15,11 @@ index 4d10e688b5..ca50261b8a 100644
 +			php_pollfd_for(data->fd, POLLIN, NULL);
 +			ret = read(data->fd, buf,  PLAIN_WRAP_BUF_SIZE(count));
 +		}
- 
+
  		if (ret == (size_t)-1 && errno == EINTR) {
  			/* Read was interrupted, retry once,
+
+
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c
 +++ b/php-src/ext/standard/file.c
@@ -56,3 +58,32 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  	}
 
  	switch (php_stream_stat_path_ex(dest, PHP_STREAM_URL_STAT_QUIET | PHP_STREAM_URL_STAT_NOCACHE, &dest_s, ctx)) {
+
+
+diff --git a/php-src/Zend/zend_variables.c b/php-src/Zend/zend_variables.c
+index 810866a1be2..fdd1c80fea5 100644
+--- a/php-src/Zend/zend_variables.c
++++ b/php-src/Zend/zend_variables.c
+@@ -36,6 +36,13 @@ static void ZEND_FASTCALL zend_empty_destroy(zend_reference *ref);
+
+ typedef void (ZEND_FASTCALL *zend_rc_dtor_func_t)(zend_refcounted *p);
+
++static void zend_list_free_wrapper(zend_refcounted *p) {
++    zend_resource *res = (zend_resource*)p;
++    zval zv;
++    ZVAL_RES(&zv, res);
++    zend_list_free(&zv);
++}
++
+ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+ 	/* IS_UNDEF        */ (zend_rc_dtor_func_t)zend_empty_destroy,
+ 	/* IS_NULL         */ (zend_rc_dtor_func_t)zend_empty_destroy,
+@@ -46,7 +53,7 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+ 	/* IS_STRING       */ (zend_rc_dtor_func_t)zend_string_destroy,
+ 	/* IS_ARRAY        */ (zend_rc_dtor_func_t)zend_array_destroy,
+ 	/* IS_OBJECT       */ (zend_rc_dtor_func_t)zend_objects_store_del,
+-	/* IS_RESOURCE     */ (zend_rc_dtor_func_t)zend_list_free,
++	/* IS_RESOURCE     */ zend_list_free_wrapper,
+ 	/* IS_REFERENCE    */ (zend_rc_dtor_func_t)zend_reference_destroy,
+ 	/* IS_CONSTANT_AST */ (zend_rc_dtor_func_t)zend_ast_ref_destroy
+ };

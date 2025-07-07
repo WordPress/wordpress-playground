@@ -5,7 +5,9 @@ import dts from 'vite-plugin-dts';
 import { join } from 'path';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-scope',
@@ -14,6 +16,7 @@ export default defineConfig({
 		dts({
 			entryRoot: 'src',
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
 		}),
 
 		viteTsConfigPaths({
@@ -29,11 +32,12 @@ export default defineConfig({
 			entry: 'src/index.ts',
 			name: 'php-wasm-scope',
 			fileName: 'index',
-			formats: ['es'],
+			formats: ['es', 'cjs'],
 		},
+		sourcemap: true,
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 
@@ -42,7 +46,8 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

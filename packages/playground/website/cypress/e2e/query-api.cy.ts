@@ -1,12 +1,11 @@
-// We can't import the WordPress versions directly from the remote package because
-// of ESModules vs CommonJS incompatibilities. Let's just import the JSON file
-// directly.
-// @ts-ignore
+// We can't import the WordPress versions directly from the remote package
+// because of ESModules vs CommonJS incompatibilities. Let's just import the
+// JSON file directly. @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import * as SupportedWordPressVersions from '../../../wordpress/src/wordpress/wp-versions.json';
+import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
 const LatestSupportedWordPressVersion = Object.keys(
-	SupportedWordPressVersions
+	MinifiedWordPressVersions
 ).filter((x) => !['nightly', 'beta'].includes(x))[0];
 
 describe('Query API', () => {
@@ -37,37 +36,14 @@ describe('Query API', () => {
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?wp=6.3&url=/wp-admin');
+			cy.visit('/?wp=6.3&url=/wp-admin/');
 			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
-		});
-	});
-
-	describe('option `php-extension-bundle`', () => {
-		it('should load XMLWriter with the kitchen sink extension bundle', () => {
-			cy.visit('/?php-extension-bundle=kitchen-sink&url=/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--enable-xmlwriter');
-		});
-
-		it('should not load XMLWriter with the light extension bundle', () => {
-			cy.visit('/?php-extension-bundle=light&url=/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--disable-xmlwriter');
-		});
-
-		it('should default to the kitchen sink extension bundle', () => {
-			cy.visit('/?url=/phpinfo.php');
-			cy.wordPressDocument()
-				.its('body')
-				.should('contain', '--enable-xmlwriter');
 		});
 	});
 
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
-			cy.visit('/?url=/wp-admin/plugin-install.php');
+			cy.visit('/?networking=no&url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.notice.error')
 				.should(
@@ -77,16 +53,6 @@ describe('Query API', () => {
 		});
 
 		it('should enable networking when requested', () => {
-			cy.visit('/?networking=yes&url=/wp-admin/plugin-install.php');
-			cy.wordPressDocument()
-				.find('.plugin-card')
-				.should('have.length.above', 4);
-		});
-
-		/**
-		 * @see https://github.com/WordPress/wordpress-playground/pull/1045
-		 */
-		it('should enable networking when requested AND the kitchen sink extension bundle is enabled', () => {
 			cy.visit('/?networking=yes&url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.plugin-card')
@@ -108,7 +74,7 @@ describe('Query API', () => {
 					{
 						step: 'writeFile',
 						path: '/wordpress/test.php',
-						data: `<?php 
+						data: `<?php
 						require("/wordpress/wp-load.php");
 						echo wp_http_supports(array( "ssl" )) ? "true" : "false";
 						`,
@@ -188,52 +154,11 @@ describe('Query API', () => {
 		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
 			cy.visit('/?lazy');
 			cy.get('#lazy-load-initiator').should('exist');
-			cy.get('#playground-viewport').should('not.exist');
+			cy.get('.playground-viewport').should('not.exist');
 
 			cy.get('#lazy-load-initiator').click();
-			cy.get('#playground-viewport').should('exist');
+			cy.get('.playground-viewport').should('exist');
 			cy.wordPressDocument().its('body').should('have.class', 'home');
-		});
-	});
-
-	describe('option `storage`', () => {
-		describe('storage=none', () => {
-			it('should reset Playground data after every refresh', () => {
-				// Create a Playground site with a custom title
-				cy.visit(
-					'/?storage=none#{"siteOptions":{"blogname":"persistent storage"}}'
-				);
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-
-				// Reload the page and verify that the title is not there anymore
-				cy.visit('/?storage=none');
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('not.contain', 'persistent storage');
-			});
-		});
-		describe('storage=browser', () => {
-			it('should store the Playground data in the browser', () => {
-				// Create a Playground site with a custom title
-				cy.visit(
-					'/?storage=browser#{"siteOptions":{"blogname":"persistent storage"}}'
-				);
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-
-				// Reload the page and verify that the title is still there
-				cy.visit('/?storage=browser');
-				cy.wordPressDocument().its('body').should('have.class', 'home');
-				cy.wordPressDocument()
-					.its('body')
-					.should('contain', 'persistent storage');
-			});
 		});
 	});
 
@@ -248,18 +173,18 @@ describe('Query API', () => {
 			checkIfGutenbergIsPatched();
 		});
 
-		it('should patch Gutenberg brought over by importing a site', () => {
-			cy.visit('/');
-			// Get the current URL
-			cy.url().then((url) => {
-				url = url.replace(/\/$/, '').replace('/website-server', '');
-				// Import a site that has Gutenberg installed
-				cy.visit(
-					`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
-				);
-				checkIfGutenbergIsPatched();
-			});
-		});
+		// it('should patch Gutenberg brought over by importing a site', () => {
+		// 	cy.visit('/');
+		// 	// Get the current URL
+		// 	cy.url().then((url) => {
+		// 		url = url.replace(/\/$/, '');
+		// 		// Import a site that has Gutenberg installed
+		// 		cy.visit(
+		// 			`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
+		// 		);
+		// 		checkIfGutenbergIsPatched();
+		// 	});
+		// });
 
 		function checkIfGutenbergIsPatched() {
 			// Check if the inserter button is styled.

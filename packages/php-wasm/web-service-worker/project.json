@@ -5,6 +5,19 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/web-service-worker/README.md dist/packages/php-wasm/web-service-worker"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/php-wasm/web-service-worker/tsconfig.lib.json",
@@ -13,15 +26,16 @@
 			}
 		},
 		"build:bundle": {
-			"executor": "@nx/js:tsc",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"outputPath": "dist/packages/php-wasm/web-service-worker",
-				"main": "packages/php-wasm/web-service-worker/src/index.ts",
-				"tsConfig": "packages/php-wasm/web-service-worker/tsconfig.lib.json",
-				"assets": ["packages/php-wasm/web-service-worker/*.md"],
-				"updateBuildableProjectDepsInPackageJson": true
+				"emptyOutDir": false,
+				"outputPath": "dist/packages/php-wasm/web-service-worker"
 			}
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
 		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
@@ -29,7 +43,8 @@
 			"options": {
 				"lintFilePatterns": [
 					"packages/php-wasm/web-service-worker/**/*.ts"
-				]
+				],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

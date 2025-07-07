@@ -1,10 +1,26 @@
-export * from './api';
-export type { WithAPIState as WithIsReady } from './api';
-export type { PHPWebLoaderOptions } from './web-php';
+export type { LoaderOptions as PHPWebLoaderOptions } from './load-runtime';
 
-export { WebPHP } from './web-php';
-export { WebPHPEndpoint } from './web-php-endpoint';
+export { loadWebRuntime } from './load-runtime';
 export { getPHPLoaderModule } from './get-php-loader-module';
-export { registerServiceWorker } from './register-service-worker';
+export { setupPostMessageRelay } from './setup-post-message-relay';
 
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
+export { createDirectoryHandleMountHandler } from './directory-handle-mount';
+export type {
+	MountDevice,
+	MountOptions,
+	SyncProgress,
+	SyncProgressCallback,
+} from './directory-handle-mount';
+
+export * from './tls/certificates';
+export type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
+export { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+export {
+	consumeAPI,
+	exposeAPI,
+	type RemoteAPI,
+	type PublicAPI,
+	type WithAPIState,
+	type WithIsReady,
+} from '@php-wasm/universal';

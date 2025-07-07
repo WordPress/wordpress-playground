@@ -1,35 +1,43 @@
-import { ProgressTracker } from '@php-wasm/progress';
-import { UniversalPHP } from '@php-wasm/universal';
-import { FileReference } from '../resources';
-import { ActivatePluginStep } from './activate-plugin';
-import { DefineSiteUrlStep } from './define-site-url';
-import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
-import { InstallThemeStep, InstallThemeOptions } from './install-theme';
-import { LoginStep } from './login';
-import {
+import type { ProgressTracker } from '@php-wasm/progress';
+import type { UniversalPHP } from '@php-wasm/universal';
+import type {
+	FileReference,
+	DirectoryReference,
+	Directory,
+} from '../resources';
+import type { ActivatePluginStep } from './activate-plugin';
+import type { DefineSiteUrlStep } from './define-site-url';
+import type { InstallPluginStep, InstallPluginOptions } from './install-plugin';
+import type { InstallThemeStep, InstallThemeOptions } from './install-theme';
+import type { LoginStep } from './login';
+import type {
 	RunWpInstallationWizardStep,
 	WordPressInstallationOptions,
 } from './run-wp-installation-wizard';
-import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
-import { RmStep } from './rm';
-import { CpStep } from './cp';
-import { RmdirStep } from './rmdir';
-import { RunSqlStep } from './run-sql';
-import { MkdirStep } from './mkdir';
-import { MvStep } from './mv';
-import { RunPHPStep } from './run-php';
-import { RunPHPWithOptionsStep } from './run-php-with-options';
-import { RequestStep } from './request';
-import { WriteFileStep } from './write-file';
-import { DefineWpConfigConstsStep } from './define-wp-config-consts';
-import { ActivateThemeStep } from './activate-theme';
-import { UnzipStep } from './unzip';
-import { ImportWordPressFilesStep } from './import-wordpress-files';
-import { ImportWxrStep } from './import-wxr';
-import { EnableMultisiteStep } from './enable-multisite';
-import { WPCLIStep } from './wp-cli';
+import type { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
+import type { RmStep } from './rm';
+import type { CpStep } from './cp';
+import type { RmdirStep } from './rmdir';
+import type { RunSqlStep } from './run-sql';
+import type { MkdirStep } from './mkdir';
+import type { MvStep } from './mv';
+import type { RunPHPStep } from './run-php';
+import type { RunPHPWithOptionsStep } from './run-php-with-options';
+import type { RequestStep } from './request';
+import type { WriteFileStep } from './write-file';
+import type { WriteFilesStep } from './write-files';
+import type { DefineWpConfigConstsStep } from './define-wp-config-consts';
+import type { ActivateThemeStep } from './activate-theme';
+import type { UnzipStep } from './unzip';
+import type { ImportWordPressFilesStep } from './import-wordpress-files';
+import type { ImportThemeStarterContentStep } from './import-theme-starter-content';
+import type { ImportWxrStep } from './import-wxr';
+import type { EnableMultisiteStep } from './enable-multisite';
+import type { WPCLIStep } from './wp-cli';
+import type { ResetDataStep } from './reset-data';
+import type { SetSiteLanguageStep } from './set-site-language';
 
-export type Step = GenericStep<FileReference>;
+export type Step = GenericStep<FileReference, DirectoryReference>;
 export type StepDefinition = Step & {
 	progress?: {
 		weight?: number;
@@ -43,32 +51,36 @@ export { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excl
  * If you add a step here, make sure to also
  * add it to the exports below.
  */
-export type GenericStep<Resource> =
+export type GenericStep<FileResource, DirectoryResource> =
 	| ActivatePluginStep
 	| ActivateThemeStep
 	| CpStep
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| EnableMultisiteStep
-	| ImportWxrStep<Resource>
-	| ImportWordPressFilesStep<Resource>
-	| InstallPluginStep<Resource>
-	| InstallThemeStep<Resource>
+	| ImportWxrStep<FileResource>
+	| ImportThemeStarterContentStep
+	| ImportWordPressFilesStep<FileResource>
+	| InstallPluginStep<FileResource, DirectoryResource>
+	| InstallThemeStep<FileResource, DirectoryResource>
 	| LoginStep
 	| MkdirStep
 	| MvStep
+	| ResetDataStep
 	| RequestStep
 	| RmStep
 	| RmdirStep
 	| RunPHPStep
 	| RunPHPWithOptionsStep
 	| RunWpInstallationWizardStep
-	| RunSqlStep<Resource>
+	| RunSqlStep<FileResource>
 	| SetSiteOptionsStep
-	| UnzipStep<Resource>
+	| UnzipStep<FileResource>
 	| UpdateUserMetaStep
-	| WriteFileStep<Resource>
-	| WPCLIStep;
+	| WriteFileStep<FileResource>
+	| WriteFilesStep<DirectoryResource>
+	| WPCLIStep
+	| SetSiteLanguageStep;
 
 export type {
 	ActivatePluginStep,
@@ -78,6 +90,7 @@ export type {
 	DefineSiteUrlStep,
 	EnableMultisiteStep,
 	ImportWxrStep,
+	ImportThemeStarterContentStep,
 	ImportWordPressFilesStep,
 	InstallPluginStep,
 	InstallPluginOptions,
@@ -86,6 +99,7 @@ export type {
 	LoginStep,
 	MkdirStep,
 	MvStep,
+	ResetDataStep,
 	RequestStep,
 	RmStep,
 	RmdirStep,
@@ -98,7 +112,9 @@ export type {
 	UnzipStep,
 	UpdateUserMetaStep,
 	WriteFileStep,
+	WriteFilesStep,
 	WPCLIStep,
+	SetSiteLanguageStep,
 };
 
 /**
@@ -109,7 +125,10 @@ export type StepProgress = {
 	initialCaption?: string;
 };
 
-export type StepHandler<S extends GenericStep<File>, Return = any> = (
+export type StepHandler<
+	S extends GenericStep<File, Directory>,
+	Return = any
+> = (
 	/**
 	 * A PHP instance or Playground client.
 	 */

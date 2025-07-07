@@ -1,0 +1,81 @@
+body {
+	margin: 0;
+	overflow: hidden;
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#mindmap {
+	width: 100vw;
+	height: 100dvh;
+	background: white;
+}
+
+.node {
+	cursor: pointer;
+	rect {
+		stroke-width: 2;
+		rx: 5;
+		ry: 5;
+		fill: white;
+		stroke: white;
+	}
+	text {
+		text-overflow: ellipsis;
+	}
+}
+
+.node.open rect {
+	fill: white;
+	stroke: rgb(31, 136, 61);
+}
+
+.node.closed {
+	rect {
+		/* fill: rgb(130, 80, 223); */
+		stroke: rgb(130, 80, 223);
+	}
+	text {
+		fill: rgb(130, 80, 223);
+	}
+}
+
+.node:hover rect {
+	fill: #f0f0f0; /* Lighter color on hover */
+}
+
+.node.highlighted rect {
+	stroke: lightgreen;
+}
+.node.highlighted-main rect {
+	fill: lightgreen;
+}
+.node.highlighted-main text {
+	font-weight: bold;
+}
+
+.node.dimmed rect {
+	fill: #f0f0f0; /* Dimmed color */
+	stroke: #f3f3f3;
+}
+
+.node text {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif;
+	font-size: 12px;
+	fill: #333;
+}
+
+.link {
+	stroke: #ccc;
+	stroke-width: 2; /* Thicker edges */
+}
+
+.popup {
+	position: absolute;
+	background: white;
+	border: 1px solid #ccc;
+	padding: 5px;
+	display: none;
+	z-index: 10;
+	pointer-events: none;
+}

@@ -1,10 +1,7 @@
-import {
-	BasePHP,
-	UniversalPHP,
-	__private__dont__use,
-} from '@php-wasm/universal';
-import type { IsomorphicLocalPHP } from '@php-wasm/universal';
+import type { PHP, UniversalPHP } from '@php-wasm/universal';
+import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 export type EmscriptenFS = any;
 
@@ -112,7 +109,7 @@ export type FilesystemOperation =
 	| RenameOperation;
 
 export function journalFSEvents(
-	php: BasePHP,
+	php: PHP,
 	fsRoot: string,
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
@@ -142,6 +139,7 @@ export function journalFSEvents(
 		 * We could use a Proxy object here if the Emscripten JavaScript module
 		 * did not use hard-coded references to the FS object.
 		 */
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 		const originalFunctions: Record<string, Function> = {};
 		for (const [name] of Object.entries(FSHooks)) {
 			originalFunctions[name] = FS[name];
@@ -261,7 +259,7 @@ const createFSHooks = (
 				path: oldLookup.path,
 				toPath: joinPaths(newParentPath, basename(new_path)),
 			});
-		} catch (e) {
+		} catch {
 			// We're running a bunch of FS lookups that may fail at this point.
 			// Let's ignore the failures and let the actual rename operation
 			// fail if it needs to.
@@ -275,7 +273,7 @@ const createFSHooks = (
  * @param php
  * @param entries
  */
-export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
+export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 	// We need to restore the original functions to the FS object
 	// before proceeding, or each replayed FS operation will be journaled.
 	//
@@ -309,7 +307,7 @@ export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
 }
 
 export function* recordExistingPath(
-	php: IsomorphicLocalPHP,
+	php: PHP,
 	fromPath: string,
 	toPath: string
 ): Generator<FilesystemOperation> {
@@ -380,8 +378,8 @@ export function normalizeFilesystemOperations(
 				latter.operation === 'RENAME' &&
 				former.operation === 'RENAME'
 			) {
-				// Normalizing a double rename is a complex scenario so let's just give up.
-				// There's just too many possible scenarios to handle.
+				// Normalizing a double rename is a complex scenario so let's just give
+				// up. There's just too many possible scenarios to handle.
 				//
 				// For example, the following scenario may not be possible to normalize:
 				// RENAME /dir_a /dir_b
@@ -399,9 +397,9 @@ export function normalizeFilesystemOperations(
 				// CREATE_DIR /dir_b
 				// CREATE_FILE /dir_b/file_2
 				//
-				// But that's not a straightforward transformation so let's just not handle
-				// it for now.
-				console.warn(
+				// But that's not a straightforward transformation so let's just not
+				// handle it for now.
+				logger.warn(
 					'[FS Journal] Normalizing a double rename is not yet supported:',
 					{
 						current: latter,
@@ -414,8 +412,8 @@ export function normalizeFilesystemOperations(
 			if (former.operation === 'CREATE' || former.operation === 'WRITE') {
 				if (latter.operation === 'RENAME') {
 					if (formerType === 'same_node') {
-						// Creating a node and then renaming it is equivalent to creating it in
-						// the new location.
+						// Creating a node and then renaming it is equivalent to creating
+						// it in the new location.
 						substitutions[j] = [];
 						substitutions[i] = [
 							{
@@ -425,8 +423,8 @@ export function normalizeFilesystemOperations(
 							...(substitutions[i] || []),
 						];
 					} else if (formerType === 'descendant') {
-						// Creating a node and then renaming its parent directory is equivalent
-						// to creating it in the new location.
+						// Creating a node and then renaming its parent directory is
+						// equivalent to creating it in the new location.
 						substitutions[j] = [];
 						substitutions[i] = [
 							{
@@ -450,13 +448,19 @@ export function normalizeFilesystemOperations(
 					latter.operation === 'DELETE' &&
 					formerType === 'same_node'
 				) {
-					// Creating a node and then deleting it is equivalent to doing nothing.
+					// A CREATE/WRITE followed by a DELETE on the same node.
+					// The CREATE/WRITE is redundant.
 					substitutions[j] = [];
-					substitutions[i] = [];
+
+					// The DELETE is redundant only if the node was created
+					// in this journal.
+					if (former.operation === 'CREATE') {
+						substitutions[i] = [];
+					}
 				}
 			}
 		}
-		// Any substiturions? Apply them and and start over.
+		// Any substitutions? Apply them and start over.
 		// We can't just continue as the current operation may
 		// have been replaced.
 		if (Object.entries(substitutions).length > 0) {
@@ -547,11 +551,11 @@ async function hydrateOp(php: UniversalPHP, op: UpdateFileOperation) {
 		op.data = await php.readFileAsBuffer(op.path);
 	} catch (e) {
 		// Log the error but don't throw.
-		console.warn(
+		logger.warn(
 			`Journal failed to hydrate a file on flush: the ` +
 				`path ${op.path} no longer exists`
 		);
-		console.error(e);
+		logger.error(e);
 	}
 
 	release();

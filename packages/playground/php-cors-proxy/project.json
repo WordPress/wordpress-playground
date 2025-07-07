@@ -1,0 +1,24 @@
+{
+	"name": "playground-php-cors-proxy",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/php-cors-proxy",
+	"projectType": "library",
+	"targets": {
+		"start": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT=true php -S 127.0.0.1:5263"
+				],
+				"cwd": "packages/playground/php-cors-proxy"
+			}
+		},
+		"test": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["bash test.sh"],
+				"cwd": "packages/playground/php-cors-proxy"
+			}
+		}
+	}
+}

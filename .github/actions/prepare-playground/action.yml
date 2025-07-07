@@ -1,21 +1,30 @@
 name: Clone the repository, install dependencies, and configures nx variables
 
+inputs:
+    node-version:
+        type: string
+        required: true
+        description: 'Node.js version to use'
+        default: '20'
+
 runs:
     using: 'composite'
     steps:
         - name: Fetch trunk
           shell: bash
-          run: git fetch origin trunk --depth=1
-        - uses: actions/setup-node@v3
+          run: git fetch origin trunk --depth=1 --recurse-submodules
+        - uses: actions/setup-node@v4
+          with:
+              node-version: ${{ inputs.node-version }}
         - name: Cache node modules
           id: cache-nodemodules
-          uses: actions/cache@v2
+          uses: actions/cache@v4
           env:
               cache-name: cache-node-modules
           with:
               # caching node_modules
               path: node_modules
-              key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
+              key: ${{ runner.os }}-${{ runner.arch }}-node-${{ inputs.node-version }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
               restore-keys: |
                   ${{ runner.os }}-build-${{ env.cache-name }}-
                   ${{ runner.os }}-build-
@@ -30,3 +39,6 @@ runs:
         - name: Set NX_HEAD
           shell: bash
           run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        - name: Reset NX cache
+          shell: bash
+          run: npx nx reset

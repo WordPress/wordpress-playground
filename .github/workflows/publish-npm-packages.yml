@@ -12,16 +12,21 @@ on:
                 description: 'Dist tag (latest, next, etc.)'
                 required: false
                 default: 'latest'
+    schedule:
+        # Auto-publish every Monday
+        - cron: '0 9 * * 1'
 
 jobs:
     release:
-        # Only run this workflow from the trunk branch and when it's triggered by dmsnell OR adamziel
+        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.actor == 'adamziel' ||
                 github.actor == 'dmsnell' ||
                 github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton'
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes'
             )
 
         # Specify runner + deployment step
@@ -30,13 +35,14 @@ jobs:
             name: npm
         env:
             NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  fetch-depth: 0
                   persist-credentials: false
+                  submodules: true
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"
@@ -52,4 +58,4 @@ jobs:
             # Version bump, release, tag a new version on GitHub
             - name: Release new version of NPM packages
               shell: bash
-              run: npx lerna@6.6.2 publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
+              run: npx lerna@6.6.2 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}

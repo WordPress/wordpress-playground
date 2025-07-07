@@ -24,12 +24,15 @@
 		"src/**/*.jsx",
 		"src/**/*.ts",
 		"src/**/*.tsx",
+		"builder/**/*.ts",
+		"builder/**/*.tsx",
 		"demos/github.ts",
 		"demos/time-traveling.tsx",
 		"demos/peer.ts",
 		"demos/terminal.ts",
 		"demos/terminal-component.tsx",
 		"demos/php-blueprints.ts",
-		"./cypress.config.ts"
+		"./cypress.config.ts",
+		"../components/src/icons.tsx"
 	]
 }

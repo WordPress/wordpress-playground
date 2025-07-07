@@ -102,21 +102,17 @@ export function getEmscriptenFsError(e: any) {
 }
 
 export function rethrowFileSystemError(messagePrefix = '') {
-	return function catchFileSystemError(
-		target: any,
-		methodName: string,
-		descriptor: PropertyDescriptor
-	) {
-		const method = descriptor.value;
-		descriptor.value = function (...args: any[]) {
+	return function catchFileSystemError(value: (...args: any[]) => any) {
+		return function (...args: any[]) {
 			try {
-				return method.apply(this, args);
+				// @ts-expect-error Parameter 'this' implicitly has an 'any' type.ts(7006)
+				return value.apply(this, args);
 			} catch (e) {
 				const errno =
 					typeof e === 'object' ? ((e as any)?.errno as any) : null;
 				if (errno in FileErrorCodes) {
 					const errmsg = FileErrorCodes[errno];
-					const path = typeof args[0] === 'string' ? args[0] : null;
+					const path = typeof args[1] === 'string' ? args[1] : null;
 					const formattedPrefix =
 						path !== null
 							? messagePrefix.replaceAll('{path}', path)

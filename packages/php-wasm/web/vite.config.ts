@@ -4,7 +4,9 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig(({ command }) => {
 	return {
@@ -17,12 +19,25 @@ export default defineConfig(({ command }) => {
 			dts({
 				entryRoot: 'src',
 				tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+				pathsToAliases: false,
 			}),
 			{
 				name: 'ignore-wasm-imports',
 
 				load(id: string): any {
 					if (id?.endsWith('.wasm')) {
+						return {
+							code: 'export default {}',
+							map: null,
+						};
+					}
+				},
+			},
+			{
+				name: 'ignore-data-imports',
+
+				load(id: string): any {
+					if (id?.endsWith('.dat')) {
 						return {
 							code: 'export default {}',
 							map: null,
@@ -37,14 +52,16 @@ export default defineConfig(({ command }) => {
 			 * This workaround replaces the actual php_5_6.js modules paths used
 			 * in the dev mode with their filenames. Then, the filenames are marked
 			 * as external further down in this config. As a result, the final
-			 * bundle contains literal `import('php_5_6.js')` and `import('php_5_6.wasm')`
-			 * statements which allows the consumers to use their own loaders.
+			 * bundle contains literal `import('php_5_6.js')` and
+			 * `import('php_5_6.wasm')` statements which allows the consumers to use
+			 * their own loaders.
 			 *
 			 * This keeps the dev mode working AND avoids inlining 5mb of
 			 * wasm via base64 in the final bundle.
 			 */
 			{
 				name: 'preserve-php-loaders-imports',
+
 				resolveDynamicImport(specifier): string | void {
 					if (
 						command === 'build' &&
@@ -53,12 +70,34 @@ export default defineConfig(({ command }) => {
 					) {
 						/**
 						 * The ../ is weird but necessary to make the final build say
-						 * import("./php_8_2.js")
+						 * import("./php/jspi/php_8_2.js")
 						 * and not
-						 * import("php_8_2.js")
+						 * import("php/jspi/php_8_2.js")
 						 *
-						 * The slice(-2) will ensure the 'kitchen-sink' or 'light'
+						 * The slice(-3) will ensure the 'php/jspi/`
 						 * portion of the path is preserved.
+						 */
+						return '../' + specifier.split('/').slice(-3).join('/');
+					}
+				},
+			},
+			{
+				name: 'preserve-data-loaders-imports',
+
+				resolveDynamicImport(specifier): string | void {
+					if (
+						command === 'build' &&
+						typeof specifier === 'string' &&
+						specifier.match(/icudt74l\.js$/)
+					) {
+						/**
+						 * The ../ is weird but necessary to make the final build say
+						 * import("./shared/icudt74l.js")
+						 * and not
+						 * import("shared/icudt74l.js")
+						 *
+						 * The slice(-2) will ensure the 'public/`
+						 * portion is removed.
 						 */
 						return '../' + specifier.split('/').slice(-2).join('/');
 					}
@@ -74,16 +113,17 @@ export default defineConfig(({ command }) => {
 				entry: 'src/index.ts',
 				name: 'php-wasm-web',
 				fileName: 'index',
-				formats: ['es'],
+				formats: ['es', 'cjs'],
 			},
+			sourcemap: true,
 			rollupOptions: {
 				// Don't bundle the PHP loaders in the final build. See
 				// the preserve-php-loaders-imports plugin above.
-				external: [/php_\d_\d.js$/],
-				output: {
-					// Ensure the PHP loaders are not hashed in the final build.
-					entryFileNames: '[name].js',
-				},
+				external: [
+					/php_\d_\d.js$/,
+					/icudt74l.js$/,
+					...getExternalModules(),
+				],
 			},
 		},
 
@@ -92,8 +132,9 @@ export default defineConfig(({ command }) => {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'jsdom',
+			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
 	};
 });

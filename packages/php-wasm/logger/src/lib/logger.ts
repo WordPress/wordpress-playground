@@ -1,9 +1,22 @@
-/// <reference lib="WebWorker" />
-
+import { logEvent } from './handlers/log-event';
 import {
-	PHPRequestErrorEvent,
-	UniversalPHP,
-} from '@php-wasm/universal/src/lib/universal-php';
+	logToMemory,
+	logToConsole,
+	logs,
+	type LogHandler,
+} from './log-handlers';
+
+export { logEventType } from './handlers/log-event';
+
+export { errorLogPath } from './collectors/collect-php-logs';
+
+export type Log = {
+	message: any;
+	severity?: LogSeverity;
+	prefix?: LogPrefix;
+	raw?: boolean;
+};
+
 /**
  * Log severity levels.
  */
@@ -12,227 +25,23 @@ export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
 /**
  * Log prefix.
  */
-export type LogPrefix = 'Playground' | 'PHP-WASM';
+export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
 
 /**
  * A logger for Playground.
  */
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
+	private readonly handlers: LogHandler[];
 
-	/**
-	 * Log messages
-	 */
-	private logs: string[] = [];
-
-	/**
-	 * Whether the window events are connected.
-	 */
-	private windowConnected = false;
-
-	/**
-	 * The length of the last PHP log.
-	 */
-	private lastPHPLogLength = 0;
-
-	/**
-	 * Context data
-	 */
-	private context: Record<string, any> = {};
-
-	/**
-	 * The path to the error log file.
-	 */
-	private errorLogPath = '/wordpress/wp-content/debug.log';
-
-	constructor(errorLogPath?: string) {
+	// constructor
+	constructor(
+		// Log handlers
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+		handlers: LogHandler[] = []
+	) {
 		super();
-		if (errorLogPath) {
-			this.errorLogPath = errorLogPath;
-		}
-	}
-
-	/**
-	 * Read the WordPress debug.log file and return its content.
-	 *
-	 * @param UniversalPHP playground instance
-	 * @returns string The content of the debug.log file
-	 */
-	private async getRequestPhpErrorLog(playground: UniversalPHP) {
-		if (!(await playground.fileExists(this.errorLogPath))) {
-			return '';
-		}
-		return await playground.readFileAsText(this.errorLogPath);
-	}
-
-	/**
-	 * Log Windows errors.
-	 *
-	 * @param ErrorEvent event
-	 */
-	private logWindowError(event: ErrorEvent) {
-		this.log(
-			`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-			'Error'
-		);
-	}
-
-	/**
-	 * Log unhandled promise rejections.
-	 *
-	 * @param PromiseRejectionEvent event
-	 */
-	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		// No reason was provided, so we can't log anything.
-		if (!event?.reason) {
-			return;
-		}
-		const message = event?.reason.stack ?? event.reason;
-		this.log(message, 'Error');
-	}
-
-	/**
-	 * Register a listener for the window error events and log the data.
-	 */
-	public addWindowErrorListener() {
-		// Ensure that the window events are connected only once.
-		if (this.windowConnected) {
-			return;
-		}
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		window.addEventListener('error', this.logWindowError.bind(this));
-		window.addEventListener(
-			'unhandledrejection',
-			this.logUnhandledRejection.bind(this)
-		);
-		window.addEventListener(
-			'rejectionhandled',
-			this.logUnhandledRejection.bind(this)
-		);
-		this.windowConnected = true;
-	}
-
-	/**
-	 * Register a listener for service worker messages and log the data.
-	 * The service worker will send the number of open Playground tabs.
-	 */
-	public addServiceWorkerMessageListener() {
-		navigator.serviceWorker.addEventListener('message', (event) => {
-			if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
-				this.addContext({
-					numberOfOpenPlaygroundTabs:
-						event.data.numberOfOpenPlaygroundTabs,
-				});
-			}
-		});
-	}
-
-	/**
-	 * Register a listener for the request.end event and log the data.
-	 * @param UniversalPHP playground instance
-	 */
-	public addPlaygroundRequestEndListener(playground: UniversalPHP) {
-		playground.addEventListener('request.end', async () => {
-			const log = await this.getRequestPhpErrorLog(playground);
-			if (log.length > this.lastPHPLogLength) {
-				this.logRaw(log.substring(this.lastPHPLogLength));
-				this.lastPHPLogLength = log.length;
-			}
-		});
-		playground.addEventListener('request.error', (event) => {
-			event = event as PHPRequestErrorEvent;
-			if (event.error) {
-				this.log(
-					`${event.error.message} ${event.error.stack}`,
-					'Fatal',
-					'PHP-WASM'
-				);
-				this.dispatchEvent(
-					new CustomEvent(this.fatalErrorEvent, {
-						detail: {
-							logs: this.getLogs(),
-							source: event.source,
-						},
-					})
-				);
-			}
-		});
-	}
-
-	/**
-	 * Get UTC date in the PHP log format https://github.com/php/php-src/blob/master/main/main.c#L849
-	 *
-	 * @param date
-	 * @returns string
-	 */
-	private formatLogDate(date: Date): string {
-		const formattedDate = new Intl.DateTimeFormat('en-GB', {
-			year: 'numeric',
-			month: 'short',
-			day: '2-digit',
-			timeZone: 'UTC',
-		})
-			.format(date)
-			.replace(/ /g, '-');
-
-		const formattedTime = new Intl.DateTimeFormat('en-GB', {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit',
-			hour12: false,
-			timeZone: 'UTC',
-			timeZoneName: 'short',
-		}).format(date);
-		return formattedDate + ' ' + formattedTime;
-	}
-
-	/**
-	 * Format log message and severity and log it.
-	 * @param string message
-	 * @param LogSeverity severity
-	 * @param string prefix
-	 */
-	public formatMessage(
-		message: string,
-		severity: LogSeverity,
-		prefix: string
-	): string {
-		const now = this.formatLogDate(new Date());
-		return `[${now}] ${prefix} ${severity}: ${message}`;
-	}
-
-	/**
-	 * Log message with severity and timestamp.
-	 * @param string message
-	 * @param LogSeverity severity
-	 * @param string prefix
-	 */
-	public log(
-		message: string,
-		severity?: LogSeverity,
-		prefix?: LogPrefix
-	): void {
-		if (severity === undefined) {
-			severity = 'Info';
-		}
-		const log = this.formatMessage(
-			message,
-			severity,
-			prefix ?? 'Playground'
-		);
-		this.logRaw(log);
-	}
-
-	/**
-	 * Log message without severity and timestamp.
-	 * @param string log
-	 */
-	public logRaw(log: string): void {
-		this.logs.push(log);
-		console.debug(log);
+		this.handlers = handlers;
 	}
 
 	/**
@@ -240,93 +49,181 @@ export class Logger extends EventTarget {
 	 * @returns string[]
 	 */
 	public getLogs(): string[] {
-		return [...this.logs];
+		if (!this.handlers.includes(logToMemory)) {
+			this
+				.error(`Logs aren't stored because the logToMemory handler isn't registered.
+				If you're using a custom logger instance, make sure to register logToMemory handler.
+			`);
+			return [];
+		}
+		return [...logs];
 	}
 
 	/**
-	 * Add context data.
+	 * Log message with severity.
+	 *
+	 * @param message any
+	 * @param severity LogSeverity
+	 * @param raw boolean
+	 * @param args any
 	 */
-	public addContext(data: Record<string, any>): void {
-		this.context = { ...this.context, ...data };
+	public logMessage(log: Log, ...args: any[]): void {
+		for (const handler of this.handlers) {
+			handler(log, ...args);
+		}
 	}
 
 	/**
-	 * Get context data.
+	 * Log message
+	 *
+	 * @param message any
+	 * @param args any
 	 */
-	public getContext(): Record<string, any> {
-		return { ...this.context };
+	public log(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: undefined,
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log debug message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public debug(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Debug',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log info message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public info(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Info',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log warning message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public warn(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Warn',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
+	}
+
+	/**
+	 * Log error message
+	 *
+	 * @param message any
+	 * @param args any
+	 */
+	public error(message: any, ...args: any[]): void {
+		this.logMessage(
+			{
+				message,
+				severity: 'Error',
+				prefix: 'JavaScript',
+				raw: false,
+			},
+			...args
+		);
 	}
 }
+
+const getDefaultHandlers = () => {
+	try {
+		if (process.env['NODE_ENV'] === 'test') {
+			return [logToMemory, logEvent];
+		}
+	} catch {
+		// Process.env is not available in the browser
+	}
+	return [logToMemory, logToConsole, logEvent];
+};
 
 /**
  * The logger instance.
  */
-export const logger: Logger = new Logger();
+export const logger: Logger = new Logger(getDefaultHandlers());
 
-/**
- * Collect errors from JavaScript window events like error and log them.
- * @param loggerInstance The logger instance
- */
-export function collectWindowErrors(loggerInstance: Logger) {
-	loggerInstance.addWindowErrorListener();
-	loggerInstance.addServiceWorkerMessageListener();
-}
+export const prepareLogMessage = (message: string) => {
+	return message.replace(/\t/g, '');
+};
 
-/**
- * Collect PHP logs from the error_log file and log them.
- * @param UniversalPHP playground instance
- * @param loggerInstance The logger instance
- */
-export function collectPhpLogs(
-	loggerInstance: Logger,
-	playground: UniversalPHP
-) {
-	loggerInstance.addPlaygroundRequestEndListener(playground);
-}
+export const formatLogEntry = (
+	message: string,
+	severity: LogSeverity,
+	prefix: string
+): string => {
+	const date = new Date();
+	const formattedDate = new Intl.DateTimeFormat('en-GB', {
+		year: 'numeric',
+		month: 'short',
+		day: '2-digit',
+		timeZone: 'UTC',
+	})
+		.format(date)
+		.replace(/ /g, '-');
 
-/**
- * **Call this inside a service worker.**
- *
- * Reports service worker metrics.
- * Allows the logger to request metrics from the service worker by sending a message.
- * The service worker will respond with the number of open Playground tabs.
- *
- * @param worker The service worker
- */
-export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
-	worker.addEventListener('activate', () => {
-		worker.clients.matchAll().then((clients) => {
-			const metrics = {
-				numberOfOpenPlaygroundTabs: clients.filter(
-					// Only count top-level frames to get the number of tabs.
-					(c) => c.frameType === 'top-level'
-				).length,
-			};
-			worker.clients
-				.matchAll({
-					// We don't claim the clients, so we need to include uncontrolled clients to inform all tabs.
-					includeUncontrolled: true,
-				})
-				.then((clients) => {
-					for (const client of clients) {
-						client.postMessage(metrics);
-					}
-				});
-		});
-	});
-}
+	const formattedTime = new Intl.DateTimeFormat('en-GB', {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false,
+		timeZone: 'UTC',
+		timeZoneName: 'short',
+	}).format(date);
+	const now = formattedDate + ' ' + formattedTime;
+	message = prepareLogMessage(message);
+	return `[${now}] ${prefix} ${severity}: ${message}`;
+};
 
 /**
  * Add a listener for the Playground crashes.
  * These crashes include Playground errors like Asyncify errors.
- * The callback function will receive an Event object with logs in the detail property.
+ * The callback function will receive an Event object with logs in the detail
+ * property.
  *
  * @param loggerInstance The logger instance
  * @param callback The callback function
  */
-export function addCrashListener(
+export const addCrashListener = (
 	loggerInstance: Logger,
 	callback: EventListenerOrEventListenerObject
-) {
+) => {
 	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
-}
+};

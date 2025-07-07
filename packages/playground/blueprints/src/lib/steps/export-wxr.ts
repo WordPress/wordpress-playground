@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * Exports the WordPress database as a WXR file using

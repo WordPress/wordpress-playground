@@ -7,9 +7,10 @@
 			"node",
 			"vite/client",
 			"@nx/react/typings/cssmodule.d.ts",
-			"@nx/react/typings/image.d.ts"
+			"@nx/react/typings/image.d.ts",
+			"@types/wicg-file-system-access"
 		]
 	},
-	"include": ["src/**/*.ts"],
+	"include": ["src/**/*.ts", "tests/filesystems.spec.ts"],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

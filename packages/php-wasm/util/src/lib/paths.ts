@@ -28,14 +28,18 @@
  * @returns A joined path
  */
 export function joinPaths(...paths: string[]) {
+	function hasTrailingSlash(p: string) {
+		return p.substring(p.length - 1) === '/';
+	}
+
 	let path = paths.join('/');
 	const isAbsolute = path[0] === '/';
-	const trailingSlash = path.substring(path.length - 1) === '/';
+	const trailingSlash = hasTrailingSlash(path);
 	path = normalizePath(path);
 	if (!path && !isAbsolute) {
 		path = '.';
 	}
-	if (path && trailingSlash) {
+	if (path && trailingSlash && !hasTrailingSlash(path)) {
 		path += '/';
 	}
 	return path;
@@ -108,8 +112,8 @@ export function normalizePath(path: string) {
  *
  * For example:
  *
- * > normalizePathsArray(['wordpress', 'wp-content', '..', '', '.', 'wp-includes'])
- * ['wordpress', 'wp-includes']
+ * > normalizePathsArray(['wordpress', 'wp-content', '..', '', '.',
+ * 'wp-includes']) ['wordpress', 'wp-includes']
  *
  * @param parts parts of the path to normalize
  * @param allowAboveRoot allow paths above the root
@@ -135,4 +139,20 @@ export function normalizePathsArray(parts: string[], allowAboveRoot: boolean) {
 		}
 	}
 	return parts;
+}
+
+/**
+ * Checks if the given parent path is an ancestor of the given child path.
+ *
+ * @param parent The parent path to check.
+ * @param child The child path to verify against the parent.
+ * @returns Whether the `parent` path is an ancestor of the `child` path.
+ */
+export function isParentOf(parent: string, child: string) {
+	if (parent === '/') {
+		return true;
+	}
+	parent = normalizePath(parent);
+	child = normalizePath(child);
+	return child.startsWith(parent + '/') || child === parent;
 }

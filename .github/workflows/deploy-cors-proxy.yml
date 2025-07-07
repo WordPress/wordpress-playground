@@ -1,0 +1,96 @@
+name: Deploy CORS proxy
+
+on:
+    workflow_dispatch:
+
+concurrency:
+    group: cors-proxy-deployment
+
+jobs:
+    build_and_deploy:
+        # Only run this workflow from the trunk branch and when it's triggered by a maintainer listed below
+        # TODO: Can we check for group membership?
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.event_name == 'workflow_run' ||
+                github.event_name == 'workflow_dispatch' ||
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'akirk' ||
+                github.actor == 'janjakes'
+            )
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: cors-proxy-wp-cloud
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: |
+                      packages/playground/php-cors-proxy
+                      packages/playground/php-cors-proxy-deployment
+                  sparse-checkout-cone-mode: false
+
+            - name: Observe working directory contents
+              shell: bash
+              run: |
+                  pwd
+                  ls -laR
+
+            - name: Deploy to CORS proxy server
+              shell: bash
+              env:
+                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ secrets.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
+                  echo "${{ secrets.DEPLOY_CORS_PROXY_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+                  chmod 0600 ~/.ssh/*
+
+                  # CORS proxy files
+                  rsync --verbose --archive --compress -e "ssh -i ~/.ssh/id_ed25519" \
+                    --exclude 'tests/' --include '*/' --include '*.php' --exclude '*' \
+                    --delete --delete-excluded --prune-empty-dirs \
+                    packages/playground/php-cors-proxy/ \
+                    ${{ secrets.DEPLOY_CORS_PROXY_TARGET_USER }}@${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST }}:'~/updated-proxy-files'
+
+                  # Host-specific deployment scripts and server config
+                  rsync --verbose --archive --compress -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    packages/playground/php-cors-proxy-deployment/ \
+                    ${{ secrets.DEPLOY_CORS_PROXY_TARGET_USER }}@${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST }}:'~/cors-proxy-deployment'
+
+                  # Apply update
+                  ssh -i ~/.ssh/id_ed25519 \
+                    ${{ secrets.DEPLOY_CORS_PROXY_TARGET_USER }}@${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST }} \
+                    -tt -C '~/cors-proxy-deployment/apply-update.sh'
+
+                  # If configured, support CORS responses for a custom list of origins
+                  if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}" ]]; then
+                    CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
+
+                    for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
+                      if ! (
+                        [[ $origin =~ ^https?://([a-zA-Z0-9-]+\.)*[a-zA-Z]{2,}$ ]] ||
+                        [[ $origin =~ ^https?://([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] ||
+                        [[ $origin =~ ^https?://^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]]
+                      ); then
+                        echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED"
+                        echo "Invalid origin: '$origin'"
+                        exit -1;
+                      fi
+
+                      echo "Adding custom supported origin: '$origin'"
+                      CUSTOM_ORIGINS_PHP+="'$origin', "
+                    done
+
+                    CUSTOM_ORIGINS_PHP+='));'
+
+                    echo "$CUSTOM_ORIGINS_PHP" > custom-redirects.php
+                    rsync -avz -e "ssh -i ~/.ssh/id_ed25519" \
+                      custom-redirects.php \
+                      ${{ secrets.DEPLOY_CORS_PROXY_TARGET_USER }}@${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST }}:'~/htdocs/'
+                  fi

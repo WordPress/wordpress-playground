@@ -1,4 +1,4 @@
-import { DownloadProgress } from './emscripten-download-monitor';
+import type { DownloadProgress } from './emscripten-download-monitor';
 
 export type ProgressMode =
 	/**

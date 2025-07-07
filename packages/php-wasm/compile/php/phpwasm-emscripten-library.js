@@ -1,7 +1,7 @@
 /**
  * This file is an Emscripten "library" file. It is included in the
- * build "php-8.0.js" file and implements JavaScript functions that
- * called from C code.
+ * build "php_<major>_<minor>.js" files and implements JavaScript functions
+ * that can be called from C code.
  *
  * @see https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#implement-a-c-api-in-javascript
  */
@@ -16,55 +16,185 @@ const LibraryExample = {
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
 		init: function () {
+			Module['ENV'] = Module['ENV'] || {};
+			// Ensure a platform-level bin directory for a fallback `php` binary.
+			Module['ENV']['PATH'] = [Module['ENV']['PATH'], '/internal/shared/bin']
+				.filter(Boolean)
+				.join(':');
+			
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
-			FS.mkdir("/internal");
+			FS.mkdir('/internal');
+			// The files from the shared directory are shared between all the
+			// PHP processes managed by PHPProcessManager.
+			FS.mkdir('/internal/shared');
+			// The files from the preload directory are preloaded using the
+			// auto_prepend_file php.ini directive.
+			FS.mkdir('/internal/shared/preload');
+			// Platform-level bin directory for a fallback `php` binary. Without it,
+			// PHP may not populate the PHP_BINARY constant.
+			FS.mkdir('/internal/shared/bin');
+			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
+			Module['onRuntimeInitialized'] = () => {
+				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
+				FS.writeFile('/internal/shared/bin/php', new TextEncoder().encode('#!/bin/sh\nphp "$@"'));
+				// It must be executable to be used by PHP.
+				FS.chmod('/internal/shared/bin/php', 0o755);
+				originalOnRuntimeInitialized();
+			}
 
+			// Create stdout and stderr devices. We can't just use Emscripten's
+			// default stdout and stderr devices because they stop processing data
+			// on the first null byte. However, when dealing with binary data,
+			// null bytes are valid and common.
+			FS.registerDevice(FS.makedev(64, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStdout(chunk);
+					return length;
+				}
+			});
+			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
+
+			FS.registerDevice(FS.makedev(63, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStderr(chunk);
+					return length;
+				}
+			});
+			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
+
+			FS.registerDevice(FS.makedev(62, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onHeaders(chunk);
+					return length;
+				}
+			});
+			FS.mkdev('/internal/headers', FS.makedev(62, 0));
+
+			// Handle events.
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
-					constructor() {
-						this.listeners = {};
-					}
-					emit(eventName, data) {
-						if (this.listeners[eventName]) {
-							this.listeners[eventName].forEach(
-								(callback) => {
-									callback(data);
-								}
-							);
-						}
-					}
-					once(eventName, callback) {
-						const self = this;
-						function removedCallback() {
-							callback(...arguments);
-							self.removeListener(eventName, removedCallback);
-						}
-						this.on(eventName, removedCallback);
-					}
-					removeAllListeners(eventName) {
-						if (eventName) {
-							delete this.listeners[eventName];
-						} else {
+						constructor() {
 							this.listeners = {};
 						}
-					}
-					removeListener(eventName, callback) {
-						if (this.listeners[eventName]) {
-							const idx =
-								this.listeners[eventName].indexOf(callback);
-							if (idx !== -1) {
-								this.listeners[eventName].splice(idx, 1);
+						emit(eventName, data) {
+							if (this.listeners[eventName]) {
+								this.listeners[eventName].forEach(
+									(callback) => {
+										callback(data);
+									}
+								);
 							}
 						}
-					}
+						once(eventName, callback) {
+							const self = this;
+							function removedCallback() {
+								callback(...arguments);
+								self.removeListener(eventName, removedCallback);
+							}
+							this.on(eventName, removedCallback);
+						}
+						removeAllListeners(eventName) {
+							if (eventName) {
+								delete this.listeners[eventName];
+							} else {
+								this.listeners = {};
+							}
+						}
+						removeListener(eventName, callback) {
+							if (this.listeners[eventName]) {
+								const idx =
+									this.listeners[eventName].indexOf(callback);
+								if (idx !== -1) {
+									this.listeners[eventName].splice(idx, 1);
+								}
+							}
+						}
 				};
+
+			// Clean up the fd -> childProcess mapping when the fd is closed:
+			const originalClose = FS.close;
+			FS.close = function (stream) {
+				originalClose(stream);
+				delete PHPWASM.child_proc_by_fd[stream.fd];
+			};
+
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
+
 			PHPWASM.input_devices = {};
+			const originalWrite = TTY.stream_ops.write;
+			TTY.stream_ops.write = function (stream, ...rest) {
+				const retval = originalWrite(stream, ...rest);
+				// Implicit flush since PHP's fflush() doesn't seem to trigger the fsync event
+				// @TODO: Fix this at the wasm level
+				stream.tty.ops.fsync(stream.tty);
+				return retval;
+			};
+			const originalPutChar = TTY.stream_ops.put_char;
+			TTY.stream_ops.put_char = function (tty, val) {
+				/**
+				 * Buffer newlines that Emscripten normally ignores.
+				 *
+				 * Emscripten doesn't do it by default because its default
+				 * print function is console.log that implicitly adds a newline. We are overwriting
+				 * it with an environment-specific function that outputs exaclty what it was given,
+				 * e.g. in Node.js it's process.stdout.write(). Therefore, we need to mak sure
+				 * all the newlines make it to the output buffer.
+				 */
+				if (val === 10) tty.output.push(val);
+				return originalPutChar(tty, val);
+			};
 		},
+
+		// Default output stream handlers.
+		// @TODO Consider using Emscripten's default print and printErr instead.
+		onHeaders: function (chunk) {
+			if (Module['onHeaders']) {
+				Module['onHeaders'](chunk);
+				return;
+			}
+			console.log('headers', { chunk });
+		},
+
+		onStdout: function (chunk) {
+			if (Module['onStdout']) {
+				Module['onStdout'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stdout.write(chunk);
+			} else {
+				console.log('stdout', { chunk });
+			}
+		},
+
+		onStderr: function (chunk) {
+			if (Module['onStderr']) {
+				Module['onStderr'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stderr.write(chunk);
+			} else {
+				console.warn('stderr', { chunk });
+			}
+		},
+
 		/**
 		 * A utility function to get all websocket objects associated
 		 * with an Emscripten file descriptor.
@@ -185,11 +315,15 @@ const LibraryExample = {
 			};
 			return [promise, cancel];
 		},
-		noop: function () { },
+		noop: function () {},
 
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](command, args, options);
+				const spawnedPromise = Module['spawnProcess'](
+					command,
+					args,
+					options
+				);
 				return Promise.resolve(spawnedPromise).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
@@ -210,15 +344,15 @@ const LibraryExample = {
 			}
 			const e = new Error(
 				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
-				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-				'and similar functions via php.ini.'
+					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+					'and similar functions via php.ini.'
 			);
 			e.code = 'SPAWN_UNSUPPORTED';
 			throw e;
 		},
 
 		/**
-		 * Shims unix shutdown(2) functionallity for asynchronous sockets:
+		 * Shims unix shutdown(2) functionality for asynchronous sockets:
 		 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 		 *
 		 * Does not support SHUT_RD or SHUT_WR.
@@ -261,7 +395,7 @@ const LibraryExample = {
 		const device = FS.createDevice(
 			'/dev',
 			filename,
-			function () { },
+			function () {},
 			function (byte) {
 				try {
 					dataBuffer.push(byte);
@@ -329,7 +463,7 @@ const LibraryExample = {
 			}
 		}
 
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+ 		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd()
 		let envObject = null;
 
 		if (envLength) {
@@ -407,6 +541,21 @@ const LibraryExample = {
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
+				for (const fd of [
+					// The child process exited. Let's clean up its output streams:
+					ProcInfo.stdoutChildFd,
+					ProcInfo.stderrChildFd,
+					// Note we're not closing stdinFd as the parent still might be holding on to it.
+
+					// We won't close these because the parent process is responsible for that:
+					// ProcInfo.stdoutParentFd,
+					// ProcInfo.stderrParentFd,
+				]) {
+					if(FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
+						FS.close(FS.streams[fd]);
+					}
+				}
+
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 				// Emit events for the wasm_poll_socket function.
@@ -461,12 +610,54 @@ const LibraryExample = {
 			 */
 			try {
 				await new Promise((resolve, reject) => {
-					cp.on('spawn', resolve);
-					cp.on('error', reject);
+					/**
+					 * There was no `await` between the `spawnProcess` call
+					 * and the `await` below so the process haven't had a chance
+					 * to run any of the exit-related callbacks yet.
+					 *
+					 * Good.
+					 *
+					 * Let's listen to all the lifecycle events and resolve
+					 * the promise when the process starts or immediately crashes.
+					 */
+					let resolved = false;
+					cp.on('spawn', () => {
+						if (resolved) return;
+						resolved = true;
+						resolve();
+					});
+					cp.on('error', (e) => {
+						if (resolved) return;
+						resolved = true;
+						reject(e);
+					});
+					cp.on('exit', function (code) {
+						if (resolved) return;
+						resolved = true;
+						if (code === 0) {
+							resolve();
+						} else {
+							reject(
+								new Error(`Process exited with code ${code}`)
+							);
+						}
+					});
+					/**
+					 * If the process haven't even started after 5 seconds, something
+					 * is wrong. Perhaps we're missing an event listener, or perhaps
+					 * the `spawnProcess` implementation failed to dispatch the relevant
+					 * event. Either way, let's crash to avoid blocking the proc_open()
+					 * call indefinitely.
+					 */
+					setTimeout(() => {
+						if (resolved) return;
+						resolved = true;
+						reject(new Error('Process timed out'));
+					}, 5000);
 				});
 			} catch (e) {
 				console.error(e);
-				wakeUp(1);
+				wakeUp(ProcInfo.pid);
 				return;
 			}
 
@@ -480,6 +671,9 @@ const LibraryExample = {
 				// Let's listen to anything it outputs and pass it to the child process.
 				PHPWASM.input_devices[ProcInfo.stdinFd].onData(function (data) {
 					if (!data) return;
+					if (typeof data === 'number') {
+						data = new Uint8Array([data]);
+					}
 					const dataStr = new TextDecoder('utf-8').decode(data);
 					cp.stdin.write(dataStr);
 				});
@@ -533,13 +727,11 @@ const LibraryExample = {
 			return -1;
 		}
 		if (PHPWASM.child_proc_by_pid[pid].exited) {
-			HEAPU32[exitCodePtr >> 2] =
-				PHPWASM.child_proc_by_pid[pid].exitCode;
+			HEAPU32[exitCodePtr >> 2] = PHPWASM.child_proc_by_pid[pid].exitCode;
 			return 1;
 		}
 		return 0;
 	},
-
 
 	js_waitpid: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
@@ -560,128 +752,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims poll(2) functionallity for asynchronous websockets:
-	 * https://man7.org/linux/man-pages/man2/poll.2.html
-	 *
-	 * The semantics don't line up exactly with poll(2) but
-	 * the intent does. This function is called in php_pollfd_for()
-	 * to await a websocket-related event.
-	 *
-	 * @param {int} socketd The socket descriptor
-	 * @param {int} events  The events to wait for
-	 * @param {int} timeout The timeout in milliseconds
-	 * @returns {int} 1 if any event was triggered, 0 if the timeout expired
-	 */
-	wasm_poll_socket: function (socketd, events, timeout) {
-		if (typeof Asyncify === 'undefined') {
-			return 0;
-		}
-
-		const POLLIN = 0x0001; /* There is data to read */
-		const POLLPRI = 0x0002; /* There is urgent data to read */
-		const POLLOUT = 0x0004; /* Writing now will not block */
-		const POLLERR = 0x0008; /* Error condition */
-		const POLLHUP = 0x0010; /* Hung up */
-		const POLLNVAL = 0x0020; /* Invalid request: fd not open */
-
-		return Asyncify.handleSleep((wakeUp) => {
-			const polls = [];
-			if (socketd in PHPWASM.child_proc_by_fd) {
-				// This is a child process-related socket.
-				const procInfo = PHPWASM.child_proc_by_fd[socketd];
-				if (procInfo.exited) {
-					wakeUp(0);
-					return;
-				}
-				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-			} else {
-				// This is, most likely, a websocket. Let's make sure.
-				const sock = getSocketFromFD(socketd);
-				if (!sock) {
-					wakeUp(0);
-					return;
-				}
-				const lookingFor = new Set();
-
-				if (events & POLLIN || events & POLLPRI) {
-					if (sock.server) {
-						for (const client of sock.pending) {
-							if ((client.recv_queue || []).length > 0) {
-								wakeUp(1);
-								return;
-							}
-						}
-					} else if ((sock.recv_queue || []).length > 0) {
-						wakeUp(1);
-						return;
-					}
-				}
-
-				const webSockets = PHPWASM.getAllWebSockets(sock);
-				if (!webSockets.length) {
-					wakeUp(0);
-					return;
-				}
-				for (const ws of webSockets) {
-					if (events & POLLIN || events & POLLPRI) {
-						polls.push(PHPWASM.awaitData(ws));
-						lookingFor.add('POLLIN');
-					}
-					if (events & POLLOUT) {
-						polls.push(PHPWASM.awaitConnection(ws));
-						lookingFor.add('POLLOUT');
-					}
-					if (events & POLLHUP) {
-						polls.push(PHPWASM.awaitClose(ws));
-						lookingFor.add('POLLHUP');
-					}
-					if (events & POLLERR || events & POLLNVAL) {
-						polls.push(PHPWASM.awaitError(ws));
-						lookingFor.add('POLLERR');
-					}
-				}
-			}
-			if (polls.length === 0) {
-				console.warn(
-					'Unsupported poll event ' +
-						events +
-						', defaulting to setTimeout().'
-				);
-				setTimeout(function () {
-					wakeUp(0);
-				}, timeout);
-				return;
-			}
-
-			const promises = polls.map(([promise]) => promise);
-			const clearPolling = () => polls.forEach(([, clear]) => clear());
-			let awaken = false;
-			let timeoutId;
-			Promise.race(promises).then(function (results) {
-				if (!awaken) {
-					awaken = true;
-					wakeUp(1);
-					if (timeoutId) {
-						clearTimeout(timeoutId);
-					}
-					clearPolling();
-				}
-			});
-
-			if (timeout !== -1) {
-				timeoutId = setTimeout(function () {
-					if (!awaken) {
-						awaken = true;
-						wakeUp(0);
-						clearPolling();
-					}
-				}, timeout);
-			}
-		});
-	},
-
-	/**
-	 * Shims unix shutdown(2) functionallity for asynchronous:
+	 * Shims unix shutdown(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 	 *
 	 * Does not support SHUT_RD or SHUT_WR.
@@ -695,7 +766,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix close(2) functionallity for asynchronous:
+	 * Shims unix close(2) functionality for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/close.2.html
 	 *
 	 * @param {int} socketd
@@ -706,7 +777,38 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims setsockopt(2) functionallity for asynchronous websockets:
+	 * Shims recv(2) functionality for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/recv.2.html
+	 *
+	 * @param {int} sockfd Socket descriptor
+	 * @param {int} buffer Pointer to the stored message buffer
+	 * @param {int} size The maximum bytes to receive
+	 * @param {int} flags Flags to modify the behavior to recv call
+	 * @returns {Promise} Resolved with the number of bytes recieved
+	 */
+	wasm_recv : function (
+		sockfd,
+		buffer,
+		size,
+		flags
+	) {
+		return Asyncify.handleSleep((wakeUp) => {
+			const poll = function() {
+				let newl = ___syscall_recvfrom(sockfd, buffer, size, flags, null, null);
+				if(newl > 0) {
+					wakeUp(newl);
+				} else if ( newl === -6 ) {
+					setTimeout(poll, 20);
+				} else {
+					wakeUp(0);
+				}
+			};
+			poll();
+		});
+	},
+
+	/**
+	 * Shims setsockopt(2) functionality for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
 	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.
 	 *
@@ -750,212 +852,34 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims read(2) functionallity.
-	 * Enables reading from blocking pipes. By default, Emscripten
-	 * will throw an EWOULDBLOCK error when trying to read from a
-	 * blocking pipe. This function overrides that behavior and
-	 * instead waits for the pipe to become readable.
+	 * Returns the assigned process ID of the current process or 42 if not available.
 	 *
-	 * @see https://github.com/WordPress/wordpress-playground/issues/951
-	 * @see https://github.com/emscripten-core/emscripten/issues/13214
+	 * Emscripten's built-in getpid() always returns 42,
+	 * but we will provide our assigned process ID if available.
+	 * Using distinct IDs allows us to associate trace messages with their php-wasm process.
 	 */
-	js_fd_read: function (fd, iov, iovcnt, pnum) {
-		// Only run the read operation on a regular call,
-		// never when rewinding the stack.
-        if (Asyncify.state === Asyncify.State.Normal) {
-            var returnCode;
-            var stream;
-			let num = 0;
-            try {
-                stream = SYSCALLS.getStreamFromFD(fd);
-                const num = doReadv(stream, iov, iovcnt);
-                HEAPU32[pnum >> 2] = num;
-				return 0;
-			} catch (e) {
-				// Rethrow any unexpected non-filesystem errors.
-				if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
-					throw e;
-				}
-                // Only return synchronously if this isn't an asynchronous pipe.
-				// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
-				// We also need to distinguish between a process pipe and a file pipe, otherwise
-				// reading from an empty file would block until the timeout.
-				if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
-					// On failure, yield 0 bytes read to indicate EOF.
-					HEAPU32[pnum >> 2] = 0;
-					return returnCode
-				}
-            }
-		}
-
-		// At this point we know we have to poll.
-		// You might wonder why we duplicate the code here instead of always using
-		// Asyncify.handleSleep(). The reason is performance. Most of the time,
-		// the read operation will work synchronously and won't require yielding
-		// back to JS. In these cases we don't want to pay the Asyncify overhead,
-		// save the stack, yield back to JS, restore the stack etc.
-		return Asyncify.handleSleep(function (wakeUp) {
-			var retries = 0;
-			var interval = 50;
-			var timeout = 5000;
-			// We poll for data and give up after a timeout.
-			// We can't simply rely on PHP timeout here because we don't want
-			// to, say, block the entire PHPUnit test suite without any visible
-			// feedback.
-			var maxRetries = timeout / interval;
-			function poll() {
-				var returnCode;
-				var stream;
-				let num;
-				try {
-					stream = SYSCALLS.getStreamFromFD(fd);
-					num = doReadv(stream, iov, iovcnt);
-					returnCode = 0;
-				} catch (e) {
-					if (
-						typeof FS == 'undefined' ||
-						!(e.name === 'ErrnoError')
-					) {
-						console.error(e);
-						throw e;
-					}
-					returnCode = e.errno;
-				}
-
-				const success = returnCode === 0;
-				const failure = (
-					++retries > maxRetries ||
-					!(fd in PHPWASM.child_proc_by_fd) ||
-					PHPWASM.child_proc_by_fd[fd]?.exited ||
-					FS.isClosed(stream)
-				);
-
-				if (success) {
-					HEAPU32[pnum >> 2] = num;
-					wakeUp(0);
-				} else if (failure) {
-					// On failure, yield 0 bytes read to indicate EOF.
-					HEAPU32[pnum >> 2] = 0;
-					// If the failure is due to a timeout, return 0 to indicate that we
-					// reached EOF. Otherwise, propagate the error code.
-					wakeUp(returnCode === 6 ? 0 : returnCode);
-				} else {
-					setTimeout(poll, interval);
-				}
-			}
-			poll();
-		});
+	js_getpid() {
+		return PHPLoader.processId ?? 42;
 	},
 
 	/**
-	 * Shims popen(3) functionallity:
-	 * https://man7.org/linux/man-pages/man3/popen.3.html
+	 * Relays a trace message if a PHPLoader.trace function is provided.
 	 *
-	 * Uses the same PHPWASM.spawnProcess callback as js_open_process,
-	 * but waits for the process to exit and returns a path to a file
-	 * with all the output bufferred.
+	 * This is a printf-style API that supports:
+	 * - Basic format specifiers: %s, %d, %f, %x, %%
+	 * - Bigint integer values
 	 *
-	 * @TODO: get rid of this function and only rely on js_open_process
-	 * instead.
-	 *
-	 * @param {int} command Command to execute
-	 * @param {int} mode Mode to open the command in
-	 * @param {int} exitCodePtr Pointer to the exit code
-	 * @returns {int} File descriptor of the command output
+	 * @param {string} format The format string
+	 * @param {...any} args The arguments to the format string
 	 */
-	js_popen_to_file: function (command, mode, exitCodePtr) {
-		// Parse args
-		if (!command) return 1; // shell is available
-
-		const cmdstr = UTF8ToString(command);
-		if (!cmdstr.length) return 0; // this is what glibc seems to do (shell works test?)
-
-		const modestr = UTF8ToString(mode);
-		if (!modestr.length) return 0; // this is what glibc seems to do (shell works test?)
-		if (modestr === 'w') {
-			console.error('popen($cmd, "w") is not implemented yet');
-		}
-
-		return Asyncify.handleSleep(async (wakeUp) => {
-			let cp;
-			try {
-				cp = PHPWASM.spawnProcess(cmdstr, []);
-				if (cp instanceof Promise) {
-					cp = await cp;
-				}
-			} catch (e) {
-				console.error(e);
-				if (e.code === 'SPAWN_UNSUPPORTED') {
-					return 1;
-				}
-				throw e;
-			}
-
-			const outByteArrays = [];
-			cp.stdout.on('data', function (data) {
-				outByteArrays.push(data);
-			});
-
-			const outputPath = '/tmp/popen_output';
-			cp.on('exit', function (exitCode) {
-				// Concat outByteArrays, an array of UInt8Arrays
-				// into a single Uint8Array.
-				const outBytes = new Uint8Array(
-					outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
-				);
-				let offset = 0;
-				for (const byteArray of outByteArrays) {
-					outBytes.set(byteArray, offset);
-					offset += byteArray.length;
-				}
-
-				FS.writeFile(outputPath, outBytes);
-
-				HEAPU8[exitCodePtr] = exitCode;
-				wakeUp(allocateUTF8OnStack(outputPath)); // 2 is SIGINT
-			});
-		});
-	},
-
-	js_module_onMessage: function (data, bufPtr) {
-		if (typeof Asyncify === 'undefined') {
-			return;
-		}
-
-		if (Module['onMessage']) {
-			const dataStr = UTF8ToString(data);
-
-			return Asyncify.handleSleep((wakeUp) => {
-				Module['onMessage'](dataStr)
-					.then((response) => {
-						const responseBytes =
-							typeof response === 'string'
-								? new TextEncoder().encode(response)
-								: response;
-
-						// Copy the response bytes to heap
-						const responseSize = responseBytes.byteLength;
-						const responsePtr = _malloc(responseSize + 1);
-						HEAPU8.set(responseBytes, responsePtr);
-						HEAPU8[responsePtr + responseSize] = 0;
-						HEAPU8[bufPtr] = responsePtr;
-						HEAPU8[bufPtr + 1] = responsePtr >> 8;
-						HEAPU8[bufPtr + 2] = responsePtr >> 16;
-						HEAPU8[bufPtr + 3] = responsePtr >> 24;
-
-						wakeUp(responseSize);
-					})
-					.catch((e) => {
-						// Log the error and return NULL. Message passing
-						// separates JS context from the PHP context so we
-						// don't let PHP crash here.
-						console.error(e);
-						wakeUp(-1);
-					});
-			});
+	js_wasm_trace: function (format, ...args) {
+		if (PHPLoader.trace instanceof Function) {
+			PHPLoader.trace(_js_getpid(), format, ...args);
 		}
 	},
+	js_wasm_trace__deps: ['js_getpid'],
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');
+autoAddDeps(LibraryExample, 'js_wasm_trace');
 mergeInto(LibraryManager.library, LibraryExample);

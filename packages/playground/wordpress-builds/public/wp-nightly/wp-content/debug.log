@@ -1,0 +1,52 @@
+[17-Jun-2024 08:03:49 UTC] WordPress database error <div style="clear:both">&nbsp;</div>
+<div class="queries" style="clear:both;margin-bottom:2px;border:red dotted thin;">
+<p>MySQL query:</p>
+<p>SELECT   wp_posts.ID
+					 FROM wp_posts 
+					 WHERE 1=1  AND ( 
+  0 = 1
+) AND wp_posts.post_type = 'wp_global_styles' AND ((wp_posts.post_status = 'publish'))
+					 GROUP BY wp_posts.ID
+					 ORDER BY wp_posts.post_date DESC
+					 LIMIT 0, 1</p>
+<p>Queries made or created this session were:</p>
+<ol>
+<li>Executing: BEGIN | (no parameters)</li>
+<li>Executing: SELECT   wp_posts.ID
+					 FROM wp_posts 
+					 WHERE 1=1  AND ( 
+  0 = 1
+) AND wp_posts.post_type = :param0  AND ((wp_posts.post_status = :param1 ))
+					 GROUP BY wp_posts.ID
+					 ORDER BY wp_posts.post_date DESC
+					 LIMIT 0, 1 | parameters: wp_global_styles, publish</li>
+<li>Executing: ROLLBACK | (no parameters)</li>
+</ol>
+</div>
+<div style="clear:both;margin-bottom:2px;border:red dotted thin;" class="error_message" style="border-bottom:dotted blue thin;">
+Error occurred at line 3786 in Function <code>handle_error</code>. Error message was: SQLSTATE[HY000]: General error: 1 no such table: wp_posts.
+</div>
+<p>Backtrace:</p>
+<pre>#0 /internal/shared/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php(287): WP_SQLite_Translator->get_error_message()
+#1 /wordpress/wp-includes/class-wpdb.php(3102): WP_SQLite_DB->query('SELECT   wp_pos...')
+#2 /wordpress/wp-includes/class-wp-query.php(3357): wpdb->get_col('SELECT   wp_pos...')
+#3 /wordpress/wp-includes/class-wp-query.php(3852): WP_Query->get_posts()
+#4 /wordpress/wp-includes/class-wp-theme-json-resolver.php(461): WP_Query->query(Array)
+#5 /wordpress/wp-includes/class-wp-theme-json-resolver.php(500): WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles(Object(WP_Theme))
+#6 /wordpress/wp-includes/block-supports/block-style-variations.php(496): WP_Theme_JSON_Resolver::get_user_data()
+#7 /wordpress/wp-includes/class-wp-hook.php(324): wp_register_block_style_variations_from_theme('')
+#8 /wordpress/wp-includes/class-wp-hook.php(348): WP_Hook->apply_filters(NULL, Array)
+#9 /wordpress/wp-includes/plugin.php(517): WP_Hook->do_action(Array)
+#10 /wordpress/wp-settings.php(700): do_action('init')
+#11 /wordpress/wp-config.php(96): require_once('/wordpress/wp-s...')
+#12 /wordpress/wp-load.php(50): require_once('/wordpress/wp-c...')
+#13 /wordpress/wp-admin/install.php(36): require_once('/wordpress/wp-l...')
+#14 {main}</pre>
+ for query SELECT   wp_posts.ID
+					 FROM wp_posts 
+					 WHERE 1=1  AND ( 
+  0 = 1
+) AND wp_posts.post_type = 'wp_global_styles' AND ((wp_posts.post_status = 'publish'))
+					 GROUP BY wp_posts.ID
+					 ORDER BY wp_posts.post_date DESC
+					 LIMIT 0, 1 made by require_once('wp-load.php'), require_once('wp-config.php'), require_once('wp-settings.php'), do_action('init'), WP_Hook->do_action, WP_Hook->apply_filters, wp_register_block_style_variations_from_theme, WP_Theme_JSON_Resolver::get_user_data, WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles, WP_Query->query, WP_Query->get_posts, WP_SQLite_DB->query, WP_SQLite_DB->print_error

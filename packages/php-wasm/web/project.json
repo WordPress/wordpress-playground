@@ -1,13 +1,13 @@
 {
 	"name": "php-wasm-web",
-	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/web/src",
 	"projectType": "library",
 	"implicitDependencies": ["php-wasm-compile"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -34,67 +34,62 @@
 				"outputPath": "dist/packages/php-wasm/web"
 			}
 		},
-		"build:rollup-declarations": {
+		"recompile-php:all": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx dts-bundle-generator -o packages/php-wasm/web/src/rollup.d.ts -- packages/php-wasm/web/src/index.ts",
-					"rimraf dist/packages/php-wasm/web/lib/*.d.ts",
-					"rimraf dist/packages/php-wasm/web/*.d.ts",
-					"mv packages/php-wasm/web/src/rollup.d.ts dist/packages/php-wasm/web/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
-		},
-		"recompile-php:light": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --output-dir=packages/php-wasm/web/public/light"
+					"nx run php-wasm-web:recompile-php:jspi:all",
+					"nx run php-wasm-web:recompile-php:asyncify:all"
 				],
 				"parallel": false
 			}
 		},
-		"recompile-php:light:all": {
+		"recompile-php:jspi": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/light"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
 		},
-		"recompile-php:kitchen-sink": {
+		"recompile-php:jspi:all": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --output-dir=packages/php-wasm/web/public/kitchen-sink"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
 		},
-		"recompile-php:kitchen-sink:all": {
+		"recompile-php:asyncify": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/kitchen-sink",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-kitchen-sink --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/kitchen-sink"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/asyncify"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:asyncify:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/asyncify"
 				],
 				"parallel": false
 			}
@@ -107,11 +102,16 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

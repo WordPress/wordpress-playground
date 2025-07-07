@@ -19,8 +19,6 @@ const playground = await startPlaygroundWeb({
 		},
 		// landingPage: '/wp-content/index.php',
 		landingPage: '/',
-		// Required for the PHP library to run:
-		phpExtensionBundles: ['kitchen-sink'],
 	},
 });
 
@@ -77,7 +75,7 @@ try {
 		 * > "check-requirements": false,
 		 * Then requiring it breaks http and https requests:
 		 *
-		 * > echo file_get_contents('http://localhost:5400/website-server/');
+		 * > echo file_get_contents('http://127.0.0.1:5400/website-server/');
 		 * > <b>Warning</b>:  PHP Request Startup: Failed to open stream: Operation timed out in <b>php-wasm run script</b> on line <b>13</b><br />
 		 *
 		 * The check is therefore disabled for now.

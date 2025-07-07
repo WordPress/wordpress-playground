@@ -1,8 +1,9 @@
 import * as net from 'net';
+import { logger } from '@php-wasm/logger';
 
-export function debugLog(...args: any[]) {
+export function debugLog(message: any, ...args: any[]) {
 	if (process.env['DEV'] && !process.env['TEST']) {
-		console.log(...args);
+		logger.log(message, ...args);
 	}
 }
 

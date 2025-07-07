@@ -11,6 +11,7 @@ export const wpContentFilesExcludedFromExport = [
 	'mu-plugins/sqlite-database-integration',
 	'mu-plugins/playground-includes',
 	'mu-plugins/0-playground.php',
+	'mu-plugins/0-sqlite.php',
 
 	/*
 	 * Listing core themes like that here isn't ideal, especially since

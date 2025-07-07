@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { rm } from './rm';
 import { phpVars, randomFilename } from '@php-wasm/util';
 
@@ -59,19 +59,15 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		require_once ${js.docroot} . '/wp-load.php';
 
 		$handle = fopen(${js.sqlFilename}, 'r');
-		$buffer = '';
 
 		global $wpdb;
 
-		while ($bytes = fgets($handle)) {
-			$buffer .= $bytes;
-
-			if (!feof($handle) && substr($buffer, -1, 1) !== "\n") {
+		while ($line = fgets($handle)) {
+			if(trim($line, " \n;") === '') {
 				continue;
 			}
 
-			$wpdb->query($buffer);
-			$buffer = '';
+			$wpdb->query($line);
 		}
 	`,
 	});

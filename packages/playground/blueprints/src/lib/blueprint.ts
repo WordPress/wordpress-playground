@@ -1,11 +1,29 @@
-import {
-	SupportedPHPExtensionBundle,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
-import { StepDefinition } from './steps';
-import { FileReference } from './resources';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { StepDefinition } from './steps';
+import type { FileReference } from './resources';
+import type { StreamedFile } from '@php-wasm/stream-compression';
+import type { Filesystem } from '@wp-playground/storage';
 
-export interface Blueprint {
+export type ExtraLibrary =
+	// Install WP-CLI during boot.
+	'wp-cli';
+
+export type PHPConstants = Record<string, string | boolean | number>;
+
+export type StreamBundledFile = (relativePath: string) => Promise<StreamedFile>;
+
+export type Blueprint = BlueprintBundle | BlueprintDeclaration;
+
+/**
+ * A filesystem structure containing a /blueprint.json file and any
+ * resources referenced by that blueprint.
+ */
+export type BlueprintBundle = Filesystem;
+
+/**
+ * The Blueprint declaration, typically stored in a blueprint.json file.
+ */
+export type BlueprintDeclaration = {
 	/**
 	 * The URL to navigate to after the blueprint has been run.
 	 */
@@ -35,7 +53,8 @@ export interface Blueprint {
 		 */
 		author: string;
 		/**
-		 * Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org.
+		 * Relevant categories to help users find your Blueprint in the future
+		 * Blueprints section on WordPress.org.
 		 */
 		categories?: string[];
 	};
@@ -55,28 +74,28 @@ export interface Blueprint {
 		wp: string | 'latest';
 	};
 	features?: {
+		intl?: boolean;
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking?: boolean;
 	};
 
 	/**
-	 * PHP Constants to define on every request
-	 * @deprecated This experimental option will change without warning.
-	 *             Use `steps` instead.
+	 * Extra libraries to preload into the Playground instance.
 	 */
-	constants?: Record<string, string>;
+	extraLibraries?: ExtraLibrary[];
+
+	/**
+	 * PHP Constants to define on every request
+	 */
+	constants?: PHPConstants;
 
 	/**
 	 * WordPress plugins to install and activate
-	 * @deprecated This experimental option will change without warning.
-	 *             Use `steps` instead.
 	 */
 	plugins?: Array<string | FileReference>;
 
 	/**
 	 * WordPress site options to define
-	 * @deprecated This experimental option will change without warning.
-	 *             Use `steps` instead.
 	 */
 	siteOptions?: Record<string, string> & {
 		/** The site title */
@@ -95,12 +114,12 @@ export interface Blueprint {
 		  };
 
 	/**
-	 * The PHP extensions to use.
+	 * @deprecated No longer used. Feel free to remove it from your Blueprint.
 	 */
-	phpExtensionBundles?: SupportedPHPExtensionBundle[];
+	phpExtensionBundles?: any;
 	/**
 	 * The steps to run after every other operation in this Blueprint was
 	 * executed.
 	 */
 	steps?: Array<StepDefinition | string | undefined | false | null>;
-}
+};

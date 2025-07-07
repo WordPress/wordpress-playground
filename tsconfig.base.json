@@ -4,18 +4,17 @@
 		"rootDir": ".",
 		"sourceMap": true,
 		"declaration": false,
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"esModuleInterop": true,
-		"emitDecoratorMetadata": true,
-		"experimentalDecorators": true,
 		"importHelpers": true,
 		"resolveJsonModule": true,
 		"jsx": "react",
 		"target": "ES2021",
 		"module": "esnext",
-		"lib": ["ES2022", "dom"],
+		"lib": ["ES2022", "esnext.disposable", "dom"],
 		"skipLibCheck": true,
 		"skipDefaultLibCheck": true,
+		"noPropertyAccessFromIndexSignature": false,
 		"baseUrl": ".",
 		"paths": {
 			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],
@@ -42,10 +41,16 @@
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
+			"@wp-playground/cli": ["packages/playground/cli/src/cli.ts"],
 			"@wp-playground/client": [
 				"packages/playground/client/src/index.ts"
 			],
-			"@wp-playground/node": ["packages/playground/node/src/index.ts"],
+			"@wp-playground/common": [
+				"packages/playground/common/src/index.ts"
+			],
+			"@wp-playground/components": [
+				"packages/playground/components/src/index.ts"
+			],
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],
@@ -64,7 +69,11 @@
 			],
 			"@wp-playground/wordpress": [
 				"packages/playground/wordpress/src/index.ts"
-			]
+			],
+			"@wp-playground/wordpress-builds": [
+				"packages/playground/wordpress-builds/src/index.ts"
+			],
+			"isomorphic-git": ["./isomorphic-git"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]

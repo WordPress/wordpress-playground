@@ -1,11 +1,19 @@
-import { LatestSupportedPHPVersion, writeFiles } from '@php-wasm/universal';
-import { NodePHP } from '..';
+import {
+	LatestSupportedPHPVersion,
+	PHP,
+	writeFiles,
+} from '@php-wasm/universal';
+import { loadNodeRuntime } from '../lib';
 
 describe('writeFiles', () => {
-	let php: NodePHP;
+	let php: PHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(LatestSupportedPHPVersion);
+		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
 		php.mkdir('/test');
+	});
+
+	afterEach(async () => {
+		php.exit();
 	});
 
 	it('removes the previous directory contents', async () => {

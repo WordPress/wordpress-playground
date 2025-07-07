@@ -20,6 +20,7 @@ describe('joinPaths', () => {
 		expect(joinPaths('wordpress', '..', '..', 'wp-content')).toEqual(
 			'../wp-content'
 		);
+		expect(joinPaths('/', '/')).toEqual('/');
 	});
 });
 

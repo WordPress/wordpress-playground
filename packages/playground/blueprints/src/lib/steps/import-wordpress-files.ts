@@ -1,7 +1,8 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
+import { ensureWpConfig } from '@wp-playground/wordpress';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
 
@@ -34,9 +35,9 @@ export interface ImportWordPressFilesStep<ResourceType> {
 
 /**
  * Imports top-level WordPress files from a given zip file into
- * the documentRoot. For example, if a zip file contains the
+ * the `documentRoot`. For example, if a zip file contains the
  * `wp-content` and `wp-includes` directories, they will replace
- * the corresponding directories in Playground's documentRoot.
+ * the corresponding directories in Playground's `documentRoot`.
  *
  * Any files that Playground recognizes as "excluded from the export"
  * will carry over from the existing document root into the imported
@@ -108,6 +109,9 @@ export const importWordPressFiles: StepHandler<
 
 	// Remove the directory where we unzipped the imported zip file.
 	await playground.rmdir(importPath);
+
+	// Ensure required constants are defined in wp-config.php.
+	await ensureWpConfig(playground, documentRoot);
 
 	// Adjust the site URL
 	await defineSiteUrl(playground, {

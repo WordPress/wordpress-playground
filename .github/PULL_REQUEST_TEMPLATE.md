@@ -1,7 +1,5 @@
-## What is this PR doing?
+## Motivation for the change, related issues
 
-## What problem is it solving?
+## Implementation details
 
-## How is the problem addressed?
-
-## Testing Instructions
+## Testing Instructions (or ideally a Blueprint)

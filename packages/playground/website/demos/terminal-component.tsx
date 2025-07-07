@@ -3,7 +3,8 @@ import css from './terminal.module.css';
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { PlaygroundClient, phpVar } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
+import { phpVar } from '@wp-playground/client';
 
 interface TerminalComponentProps {
 	playground: PlaygroundClient;
@@ -11,8 +12,8 @@ interface TerminalComponentProps {
 
 /**
  * Naive shell command parser.
- * Ensures that commands like `wp option set blogname "My blog name"` are split into
- * `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
+ * Ensures that commands like `wp option set blogname "My blog name"` are split
+ * into `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
  * `['wp', 'option', 'set', 'blogname', 'My', 'blog', 'name']`.
  *
  * @param command

@@ -1,26 +1,22 @@
 import React from 'react';
 import { useState } from 'react';
 import { Notice, Button as WPButton } from '@wordpress/components';
-import { PlaygroundClient } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import {
-	GitHubURLInformation,
-	staticAnalyzeGitHubURL,
-} from '../analyze-github-url';
-import {
-	GetFilesProgress,
-	GithubClient,
-	createClient,
-	getFilesFromDirectory,
-} from '@wp-playground/storage';
+import type { GitHubURLInformation } from '../analyze-github-url';
+import { staticAnalyzeGitHubURL } from '../analyze-github-url';
+import type { GetFilesProgress, GithubClient } from '@wp-playground/storage';
+import { createClient, getFilesFromDirectory } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
-import { ContentType, importFromGitHub } from '../import-from-github';
+import type { ContentType } from '../import-from-github';
+import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { basename, normalizePath } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
@@ -85,7 +81,7 @@ export default function GitHubImportForm({
 					url: 'This URL is not supported',
 				});
 			}
-			console.log(info);
+			logger.log(info);
 			setUrlInformation(info);
 			const octokit = getClient();
 			setIsAnalyzing(true);
@@ -100,7 +96,7 @@ export default function GitHubImportForm({
 				setContentType(await guessContentType(octokit, info));
 				return;
 			} catch (e: any) {
-				console.error(e);
+				logger.error(e);
 				// Handle the "Bad Credentials" error
 				if (e && e.status) {
 					switch (e.status) {
@@ -175,10 +171,7 @@ export default function GitHubImportForm({
 	return (
 		<GitHubOAuthGuard>
 			<form id="import-playground-form" onSubmit={handleSubmit}>
-				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
-					Import from GitHub
-				</h2>
-				<p className={css.modalText}>
+				<p>
 					You may import WordPress plugins, themes, and entire
 					wp-content directories from any public GitHub repository.
 				</p>

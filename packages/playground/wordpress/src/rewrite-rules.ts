@@ -5,7 +5,7 @@ import type { RewriteRule } from '@php-wasm/universal';
  */
 export const wordPressRewriteRules: RewriteRule[] = [
 	{
-		match: /^\/(.*?)(\/wp-(content|admin|includes).*)/g,
+		match: /^\/(.*?)(\/wp-(content|admin|includes)\/.*)/g,
 		replacement: '$2',
 	},
 ];

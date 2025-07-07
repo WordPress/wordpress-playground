@@ -1,0 +1,153 @@
+{
+	"name": "playground-cli",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/cli/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/cli/README.md dist/packages/playground/cli"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/cli/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/cli",
+				"buildTarget": "playground-cli:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"main": "dist/packages/playground/cli/src/cli.js",
+				"outputPath": "dist/packages/playground/cli"
+			},
+			"defaultConfiguration": "production",
+			"configurations": {
+				"development": {
+					"minify": false
+				},
+				"production": {
+					"minify": true
+				}
+			}
+		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun --watch ./packages/playground/cli/src/cli.ts",
+				"tty": true
+			}
+		},
+		"dev-node": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"debug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"start": {
+			"executor": "@wp-playground/nx-extensions:built-script",
+			"options": {
+				"scriptPath": "dist/packages/playground/cli/wp-playground.js"
+			},
+			"dependsOn": ["build"]
+		},
+		"unbuilt-asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"unbuilt-jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 23) { console.error('Node.js version 23 or greater is required for JSPI support'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-wasm-jspi --experimental-strip-types --experimental-transform-types  --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node tools/scripts/publish.mjs php-wasm-cli {args.ver} {args.tag}"
+			},
+			"dependsOn": ["build"]
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/playground/cli/**/*.ts"],
+				"maxWarnings": 0
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/cli"
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/playground/cli/tsconfig.lib.json --noEmit",
+					"tsc -p packages/playground/cli/tsconfig.spec.json --noEmit"
+				]
+			}
+		}
+	},
+	"tags": ["scope:php-wasm-public"]
+}

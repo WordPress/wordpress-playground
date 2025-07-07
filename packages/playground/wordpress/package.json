@@ -1,7 +1,7 @@
 {
 	"name": "@wp-playground/wordpress",
-	"version": "0.0.1",
-	"description": "WordPress Compilation Pipeline for the WordPress Playground",
+	"version": "1.2.1",
+	"description": "WordPress-related plumbing for WordPress Playground",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground"
@@ -15,17 +15,24 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"main": "./index.js",
-	"module": "./index.mjs",
-	"typings": "./index.d.ts",
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"private": true,
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"types": "index.d.ts",
 	"engines": {
-		"node": ">=18.18.0",
-		"npm": ">=8.11.0"
+		"node": ">=20.18.3",
+		"npm": ">=10.1.0"
 	},
-	"dependencies": {
-		"@php-wasm/universal": "^0.6.6"
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/wordpress"
 	}
 }

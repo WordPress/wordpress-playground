@@ -1,23 +1,27 @@
-import { NodePHP } from '@php-wasm/node';
+import type { PHP } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
-	RecommendedPHPVersion,
+	getSqliteDriverModule,
 	getWordPressModule,
-} from '@wp-playground/wordpress';
+} from '@wp-playground/wordpress-builds';
 import { setSiteOptions } from './site-data';
-import { unzip } from './unzip';
+import type { PHPRequestHandler } from '@php-wasm/universal';
+import { bootWordPress } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step setSiteOptions()', () => {
-	let php: NodePHP;
+	let php: PHP;
+	let handler: PHPRequestHandler;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		handler = await bootWordPress({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
-		});
+		php = await handler.getPrimaryPhp();
 	});
 
 	it('should set the site option', async () => {

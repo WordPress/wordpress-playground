@@ -6,3 +6,27 @@
 	margin: 0;
 	padding: 0;
 }
+
+.site-error {
+	height: 100%;
+	padding: 15px 40px;
+	background: #f1f1f1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+	line-height: 1.4;
+}
+
+.site-error-content {
+	max-width: 500px;
+
+	h1 {
+		text-align: center;
+	}
+}
+
+.hidden {
+	display: none;
+}

@@ -6,8 +6,10 @@ import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [
@@ -17,6 +19,7 @@ const plugins = [
 	dts({
 		entryRoot: 'src',
 		tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+		pathsToAliases: false,
 	}),
 	/**
 	 * Copy the `.htaccess` file to the `dist` directory.
@@ -32,17 +35,18 @@ const plugins = [
 			}
 		},
 	} as Plugin,
+	buildVersionPlugin('remote-config'),
 ];
 export default defineConfig({
-	assetsInclude: ['**/*.wasm', '*.zip'],
+	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
 	cacheDir: '../../../node_modules/.vite/playground',
 	// Bundled WordPress files live in a separate dependency-free `wordpress`
 	// package so that every package may use them without causing circular
 	// dependencies.
 	// Other than that, the `remote` package has no public assets of its own.
-	// Therefore, let's just point the `remote` public directory to the `wordpress`
-	// package to make WordPress assets available.
-	publicDir: path('../wordpress/public'),
+	// Therefore, let's just point the `remote` public directory to the
+	// `wordpress` package to make WordPress assets available.
+	publicDir: path('../wordpress-builds/public'),
 
 	css: {
 		modules: {
@@ -68,7 +72,7 @@ export default defineConfig({
 
 	worker: {
 		format: 'es',
-		plugins,
+		plugins: () => plugins,
 		rollupOptions: {
 			output: {
 				// Ensure the service worker always has the same name
@@ -89,6 +93,7 @@ export default defineConfig({
 		//            in the app mode.
 		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
+		sourcemap: true,
 		rollupOptions: {
 			input: {
 				wordpress: path('/remote.html'),
@@ -101,7 +106,8 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

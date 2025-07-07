@@ -1,7 +1,9 @@
-import { PHPRequest, PHPResponse } from '@php-wasm/universal';
-import { StepHandler } from '.';
+import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
+import type { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
+ * @private
  * @inheritDoc request
  * @needsLogin
  * @hasRunnableExample
@@ -24,21 +26,25 @@ import { StepHandler } from '.';
 export interface RequestStep {
 	step: 'request';
 	/**
-	 * Request details (See /wordpress-playground/api/universal/interface/PHPRequest)
+	 * Request details (See
+	 * /wordpress-playground/api/universal/interface/PHPRequest)
 	 */
 	request: PHPRequest;
 }
 
 /**
- * Sends a HTTP request to the Playground.
+ * Sends a HTTP request to Playground.
  */
 export const request: StepHandler<RequestStep, Promise<PHPResponse>> = async (
 	playground,
 	{ request }
 ) => {
-	const response = await playground.request(request);
+	logger.warn(
+		'Deprecated: The Blueprint step "request" is deprecated and will be removed in a future release.'
+	);
+	const response = await (playground as any).request(request);
 	if (response.httpStatusCode > 399 || response.httpStatusCode < 200) {
-		console.warn('WordPress response was', { response });
+		logger.warn('WordPress response was', { response });
 		throw new Error(
 			`Request failed with status ${response.httpStatusCode}`
 		);

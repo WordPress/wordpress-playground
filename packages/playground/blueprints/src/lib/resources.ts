@@ -1,17 +1,31 @@
+import type { ProgressTracker } from '@php-wasm/progress';
 import {
 	cloneResponseMonitorProgress,
-	ProgressTracker,
+	cloneStreamMonitorProgress,
 } from '@php-wasm/progress';
-import { UniversalPHP } from '@php-wasm/universal';
-import { Semaphore } from '@php-wasm/util';
+import type { FileTree, UniversalPHP } from '@php-wasm/universal';
+import type { Semaphore } from '@php-wasm/util';
+import { dirname } from '@php-wasm/util';
+import {
+	listDescendantFiles,
+	listGitFiles,
+	resolveCommitHash,
+	sparseCheckout,
+} from '@wp-playground/storage';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
+import { fetchWithCorsProxy } from '@php-wasm/web';
+import { StreamedFile } from '@php-wasm/stream-compression';
+import type { StreamBundledFile } from './blueprint';
 
+export type { FileTree };
 export const ResourceTypes = [
 	'vfs',
 	'literal',
 	'wordpress.org/themes',
 	'wordpress.org/plugins',
 	'url',
+	'git:directory',
+	'bundled',
 ] as const;
 
 export type VFSReference = {
@@ -48,15 +62,45 @@ export type UrlReference = {
 	/** Optional caption for displaying a progress message */
 	caption?: string;
 };
+export type GitDirectoryReference = {
+	/** Identifies the file resource as a git directory */
+	resource: 'git:directory';
+	/** The URL of the git repository */
+	url: string;
+	/** The branch of the git repository */
+	ref: string;
+	/** The path to the directory in the git repository */
+	path: string;
+};
+export interface Directory {
+	files: FileTree;
+	name: string;
+}
+export type DirectoryLiteralReference = Directory & {
+	/** Identifies the file resource as a git directory */
+	resource: 'literal:directory';
+};
+
+export type BundledReference = {
+	/** Identifies the file resource as a Blueprint file */
+	resource: 'bundled';
+	/** The path to the file in the Blueprint */
+	path: string;
+};
 
 export type FileReference =
 	| VFSReference
 	| LiteralReference
 	| CoreThemeReference
 	| CorePluginReference
-	| UrlReference;
+	| UrlReference
+	| BundledReference;
 
-export function isFileReference(ref: any): ref is FileReference {
+export type DirectoryReference =
+	| GitDirectoryReference
+	| DirectoryLiteralReference;
+
+export function isResourceReference(ref: any): ref is FileReference {
 	return (
 		ref &&
 		typeof ref === 'object' &&
@@ -65,18 +109,33 @@ export function isFileReference(ref: any): ref is FileReference {
 	);
 }
 
-export interface ResourceOptions {
-	/** Optional semaphore to limit concurrent downloads */
-	semaphore?: Semaphore;
-	progress?: ProgressTracker;
-}
-export abstract class Resource {
+export abstract class Resource<T extends File | Directory> {
 	/** Optional progress tracker to monitor progress */
-	public abstract progress?: ProgressTracker;
-	/** A Promise that resolves to the file contents */
-	protected promise?: Promise<File>;
+	protected _progress?: ProgressTracker;
+	get progress() {
+		return this._progress;
+	}
+	set progress(value) {
+		this._progress = value;
+	}
 
+	/** A Promise that resolves to the file contents */
+	protected promise?: Promise<T>;
 	protected playground?: UniversalPHP;
+
+	setPlayground(playground: UniversalPHP) {
+		this.playground = playground;
+	}
+
+	abstract resolve(): Promise<T>;
+
+	/** The name of the referenced file */
+	abstract get name(): string;
+
+	/** Whether this Resource is loaded asynchronously */
+	get isAsync(): boolean {
+		return false;
+	}
 
 	/**
 	 * Creates a new Resource based on the given file reference
@@ -86,10 +145,21 @@ export abstract class Resource {
 	 * @returns A new Resource instance
 	 */
 	static create(
-		ref: FileReference,
-		{ semaphore, progress }: ResourceOptions
-	): Resource {
-		let resource: Resource;
+		ref: FileReference | DirectoryReference,
+		{
+			semaphore,
+			progress,
+			corsProxy,
+			streamBundledFile,
+		}: {
+			/** Optional semaphore to limit concurrent downloads */
+			semaphore?: Semaphore;
+			progress?: ProgressTracker;
+			corsProxy?: string;
+			streamBundledFile?: StreamBundledFile;
+		}
+	): Resource<File | Directory> {
+		let resource: Resource<File | Directory>;
 		switch (ref.resource) {
 			case 'vfs':
 				resource = new VFSResource(ref, progress);
@@ -104,53 +174,97 @@ export abstract class Resource {
 				resource = new CorePluginResource(ref, progress);
 				break;
 			case 'url':
-				resource = new UrlResource(ref, progress);
+				resource = new UrlResource(ref, progress, { corsProxy });
+				break;
+			case 'git:directory':
+				resource = new GitDirectoryResource(ref, progress, {
+					corsProxy,
+				});
+				break;
+			case 'literal:directory':
+				resource = new LiteralDirectoryResource(ref, progress);
+				break;
+			case 'bundled':
+				if (!streamBundledFile) {
+					throw new Error(
+						'Filesystem is required for blueprint resources'
+					);
+				}
+				resource = new BundledResource(
+					ref,
+					streamBundledFile,
+					progress
+				);
 				break;
 			default:
-				throw new Error(`Invalid resource: ${ref}`);
+				throw new Error(
+					`Unknown resource type: ${(ref as any).resource}`
+				);
 		}
-		resource = new CachedResource(resource);
 
 		if (semaphore) {
 			resource = new SemaphoreResource(resource, semaphore);
 		}
 
-		return resource;
-	}
-
-	setPlayground(playground: UniversalPHP) {
-		this.playground = playground;
-	}
-
-	/**
-	 * Resolves the file contents
-	 * @returns The resolved file.
-	 */
-	abstract resolve(): Promise<File>;
-
-	/** The name of the referenced file */
-	abstract get name(): string;
-
-	/** Whether this Resource is loaded asynchronously */
-	get isAsync(): boolean {
-		return false;
+		return new CachedResource(resource);
 	}
 }
+
+export abstract class ResourceDecorator<
+	T extends File | Directory
+> extends Resource<T> {
+	protected resource: Resource<T>;
+	constructor(resource: Resource<T>) {
+		super();
+		this.resource = resource;
+	}
+
+	/** @inheritDoc */
+	override get progress() {
+		return this.resource.progress;
+	}
+
+	/** @inheritDoc */
+	override set progress(value) {
+		this.resource.progress = value;
+	}
+
+	/** @inheritDoc */
+	abstract override resolve(): Promise<T>;
+
+	/** @inheritDoc */
+	get name(): string {
+		return this.resource.name;
+	}
+
+	/** @inheritDoc */
+	override get isAsync(): boolean {
+		return this.resource.isAsync;
+	}
+
+	/** @inheritDoc */
+	override setPlayground(playground: UniversalPHP): void {
+		this.resource.setPlayground(playground);
+	}
+}
+
 /**
- * A `Resource` that represents a file in the VFS (virtual file system) of the playground.
+ * A `Resource` that represents a file in the VFS (virtual file system) of the
+ * playground.
  */
-export class VFSResource extends Resource {
+export class VFSResource extends Resource<File> {
+	private resource: VFSReference;
+
 	/**
 	 * Creates a new instance of `VFSResource`.
 	 * @param playground The playground client.
 	 * @param resource The VFS reference.
 	 * @param progress The progress tracker.
 	 */
-	constructor(
-		private resource: VFSReference,
-		public override progress?: ProgressTracker
-	) {
+	constructor(resource: VFSReference, _progress?: ProgressTracker) {
 		super();
+		this.resource = resource;
+		this._progress = _progress;
 	}
 
 	/** @inheritDoc */
@@ -171,17 +285,18 @@ export class VFSResource extends Resource {
 /**
  * A `Resource` that represents a literal file.
  */
-export class LiteralResource extends Resource {
+export class LiteralResource extends Resource<File> {
+	private resource: LiteralReference;
+
 	/**
 	 * Creates a new instance of `LiteralResource`.
 	 * @param resource The literal reference.
 	 * @param progress The progress tracker.
 	 */
-	constructor(
-		private resource: LiteralReference,
-		public override progress?: ProgressTracker
-	) {
+	constructor(resource: LiteralReference, _progress?: ProgressTracker) {
 		super();
+		this.resource = resource;
+		this._progress = _progress;
 	}
 
 	/** @inheritDoc */
@@ -199,28 +314,70 @@ export class LiteralResource extends Resource {
 /**
  * A base class for `Resource`s that require fetching data from a remote URL.
  */
-export abstract class FetchResource extends Resource {
+export abstract class FetchResource extends Resource<File> {
+	private corsProxy?: string;
+
 	/**
 	 * Creates a new instance of `FetchResource`.
 	 * @param progress The progress tracker.
 	 */
-	constructor(public override progress?: ProgressTracker) {
+	constructor(_progress?: ProgressTracker, corsProxy?: string) {
 		super();
+		this._progress = _progress;
+		this.corsProxy = corsProxy;
 	}
 
 	/** @inheritDoc */
 	async resolve() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
-		let response = await fetch(url);
-		response = await cloneResponseMonitorProgress(
-			response,
-			this.progress?.loadingListener ?? noop
-		);
-		if (response.status !== 200) {
-			throw new Error(`Could not download "${url}"`);
+		try {
+			let response = await fetchWithCorsProxy(
+				url,
+				undefined,
+				this.corsProxy,
+				await this.playground?.absoluteUrl
+			);
+			if (!response.ok) {
+				throw new Error(`Could not download "${url}"`);
+			}
+			response = await cloneResponseMonitorProgress(
+				response,
+				this.progress?.loadingListener ?? noop
+			);
+			if (response.status !== 200) {
+				throw new Error(`Could not download "${url}"`);
+			}
+			return new File([await response.blob()], this.name);
+		} catch (e) {
+			throw new Error(
+				`Could not download "${url}".
+				Check if the URL is correct and the server is reachable.
+				If it is reachable, the server might be blocking the request.
+				Check the browser console and network tabs for more information.
+
+				## Does the console show the error "No 'Access-Control-Allow-Origin' header"?
+
+				This means the server that hosts your file does not allow requests from other sites
+				(cross-origin requests, or CORS).	You need to move the asset to a server that allows
+				cross-origin file downloads. Learn more about CORS at
+				https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS.
+
+				If your file is on GitHub, load it from "raw.githubusercontent.com".
+				Here's how to do that:
+
+				1. Start with the original GitHub URL of the file. For example:
+				https://github.com/username/repository/blob/branch/filename.
+				2. Replace "github.com" with "raw.githubusercontent.com".
+				3. Remove the "/blob/" part of the URL.
+
+				The resulting URL should look like this:
+				https://raw.githubusercontent.com/username/repository/branch/filename
+
+				Error:
+				${e}`
+			);
 		}
-		return new File([await response.blob()], this.name);
 	}
 
 	/**
@@ -243,7 +400,7 @@ export abstract class FetchResource extends Resource {
 			return new URL(this.getURL(), 'http://example.com').pathname
 				.split('/')
 				.pop()!;
-		} catch (e) {
+		} catch {
 			return this.getURL();
 		}
 	}
@@ -261,13 +418,72 @@ const noop = (() => {}) as any;
  * A `Resource` that represents a file available from a URL.
  */
 export class UrlResource extends FetchResource {
+	private resource: UrlReference;
+	private options?: { corsProxy?: string };
+
 	/**
 	 * Creates a new instance of `UrlResource`.
 	 * @param resource The URL reference.
 	 * @param progress The progress tracker.
 	 */
-	constructor(private resource: UrlReference, progress?: ProgressTracker) {
-		super(progress);
+	constructor(
+		resource: UrlReference,
+		progress?: ProgressTracker,
+		options?: { corsProxy?: string }
+	) {
+		super(progress, options?.corsProxy);
+		this.resource = resource;
+		this.options = options;
+		/**
+		 * Translates GitHub URLs into raw.githubusercontent.com URLs.
+		 *
+		 * Example:
+		 * https://github.com/WordPress/wordpress-develop/blob/trunk/src/wp-includes/version.php
+		 *
+		 * Becomes
+		 * https://raw.githubusercontent.com/WordPress/wordpress-develop/trunk/src/wp-includes/version.php
+		 *
+		 * There's virtually a zero chance you actually want to refer to the HTML response served
+		 * by GitHub.com, with the GitHub UI, file preview, etc. in it. Almost certainly, you want
+		 * to download the raw file.
+		 *
+		 * This often confuses Blueprint authors when the GitHub URL they've used in their Blueprint
+		 * does not work. There's plenty of issues in the Playground repository asking specifically
+		 * about that. Well, GitHub.com response is not what they want, and even if it was, GitHub
+		 * does not provide the necessary CORS headers.
+		 *
+		 * While the URL rewriting might confuse advanced developers, they're in a good
+		 * position to figure it out. This feature shouldn't do any harm.
+		 *
+		 * Note the rewriting is implemented in UrlResource, which is used in all Playground
+		 * implementations, e.g. the browser, the CLI, Studio, etc. While most of them don't
+		 * need to worry about CORS, we still want ot make sure the same Blueprints will work
+		 * in all Playground runtimes.
+		 *
+		 * ## Caveats
+		 *
+		 * Directory URLs are not supported. For example, a URL such as
+		 * https://github.com/WordPress/blueprints/tree/trunk/blueprints would be rewritten to
+		 * https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints, which
+		 * yields `404: Not Found`.
+		 *
+		 * There's no way to distinguish between a file and a directory based just on its GitHub.com
+		 * URL. If this starts coming up a lot in Playground issues, let's explore consulting the
+		 * repository contents and rewriting the URL resource as a git directory resource.
+		 *
+		 * @see https://github.com/WordPress/wordpress-playground/pull/1793
+		 */
+		if (this.resource.url.startsWith('https://github.com/')) {
+			const match = this.resource.url.match(
+				/^https:\/\/github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/blob\/(?<branch>[^/]+)\/(?<path>.+[^/])$/
+			);
+			if (match?.groups) {
+				this.resource = {
+					...this.resource,
+					url: `https://raw.githubusercontent.com/${match.groups['owner']}/${match.groups['repo']}/${match.groups['branch']}/${match.groups['path']}`,
+				};
+			}
+		}
 	}
 
 	/** @inheritDoc */
@@ -282,14 +498,98 @@ export class UrlResource extends FetchResource {
 }
 
 /**
+ * A `Resource` that represents a git directory.
+ */
+export class GitDirectoryResource extends Resource<Directory> {
+	private reference: GitDirectoryReference;
+	private options?: { corsProxy?: string };
+
+	constructor(
+		reference: GitDirectoryReference,
+		_progress?: ProgressTracker,
+		options?: { corsProxy?: string }
+	) {
+		super();
+		this.reference = reference;
+		this._progress = _progress;
+		this.options = options;
+	}
+
+	async resolve() {
+		const repoUrl = this.options?.corsProxy
+			? `${this.options.corsProxy}${this.reference.url}`
+			: this.reference.url;
+
+		const commitHash = await resolveCommitHash(repoUrl, {
+			value: this.reference.ref,
+			type: 'infer',
+		});
+		const allFiles = await listGitFiles(repoUrl, commitHash);
+
+		const requestedPath = this.reference.path.replace(/^\/+/, '');
+		const filesToClone = listDescendantFiles(allFiles, requestedPath);
+		let files = await sparseCheckout(repoUrl, commitHash, filesToClone);
+
+		// Remove the path prefix from the cloned file names.
+		files = mapKeys(files, (name) =>
+			name.substring(requestedPath.length).replace(/^\/+/, '')
+		);
+		return {
+			name:
+				dirname(this.reference.path) ||
+				this.reference.url
+					.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
+					.replaceAll(/-+/g, '-'),
+			files,
+		};
+	}
+
+	/** @inheritDoc */
+	get name() {
+		return this.reference.path.split('/').pop()!;
+	}
+}
+
+function mapKeys(obj: Record<string, any>, fn: (key: string) => string) {
+	return Object.fromEntries(
+		Object.entries(obj).map(([key, value]) => [fn(key), value])
+	);
+}
+
+/**
+ * A `Resource` that represents a git directory.
+ */
+export class LiteralDirectoryResource extends Resource<Directory> {
+	private reference: DirectoryLiteralReference;
+
+	constructor(
+		reference: DirectoryLiteralReference,
+		_progress?: ProgressTracker
+	) {
+		super();
+		this.reference = reference;
+		this._progress = _progress;
+	}
+
+	async resolve() {
+		return this.reference;
+	}
+
+	/** @inheritDoc */
+	get name() {
+		return this.reference.name;
+	}
+}
+
+/**
  * A `Resource` that represents a WordPress core theme.
  */
 export class CoreThemeResource extends FetchResource {
-	constructor(
-		private resource: CoreThemeReference,
-		progress?: ProgressTracker
-	) {
+	private resource: CoreThemeReference;
+
+	constructor(resource: CoreThemeReference, progress?: ProgressTracker) {
 		super(progress);
+		this.resource = resource;
 	}
 	override get name() {
 		return zipNameToHumanName(this.resource.slug);
@@ -304,11 +604,11 @@ export class CoreThemeResource extends FetchResource {
  * A resource that fetches a WordPress plugin from wordpress.org.
  */
 export class CorePluginResource extends FetchResource {
-	constructor(
-		private resource: CorePluginReference,
-		progress?: ProgressTracker
-	) {
+	private resource: CorePluginReference;
+
+	constructor(resource: CorePluginReference, progress?: ProgressTracker) {
 		super(progress);
+		this.resource = resource;
 	}
 
 	/** @inheritDoc */
@@ -339,74 +639,122 @@ export function toDirectoryZipName(rawInput: string) {
 }
 
 /**
- * A decorator for a resource that adds functionality such as progress tracking and caching.
- */
-export class DecoratedResource<T extends Resource> extends Resource {
-	constructor(private resource: T) {
-		super();
-	}
-
-	/** @inheritDoc */
-	async resolve() {
-		return this.resource.resolve();
-	}
-
-	/** @inheritDoc */
-	override async setPlayground(playground: UniversalPHP) {
-		return this.resource.setPlayground(playground);
-	}
-
-	/** @inheritDoc */
-	get progress() {
-		return this.resource.progress;
-	}
-
-	/** @inheritDoc */
-	set progress(value) {
-		this.resource.progress = value;
-	}
-
-	/** @inheritDoc */
-	get name() {
-		return this.resource.name;
-	}
-
-	/** @inheritDoc */
-	override get isAsync() {
-		return this.resource.isAsync;
-	}
-}
-
-/**
  * A decorator for a resource that adds caching functionality.
  */
-export class CachedResource<T extends Resource> extends DecoratedResource<T> {
-	protected override promise?: Promise<File>;
+export class CachedResource<
+	T extends File | Directory
+> extends ResourceDecorator<T> {
+	protected override promise?: Promise<T>;
 
 	/** @inheritDoc */
 	override async resolve() {
 		if (!this.promise) {
-			this.promise = super.resolve();
+			this.promise = this.resource.resolve();
 		}
 		return this.promise;
 	}
 }
 
 /**
- * A decorator for a resource that adds concurrency control functionality through a semaphore.
+ * A decorator for a resource that adds concurrency control functionality
+ * through a semaphore.
  */
 export class SemaphoreResource<
-	T extends Resource
-> extends DecoratedResource<T> {
-	constructor(resource: T, private readonly semaphore: Semaphore) {
+	T extends File | Directory
+> extends ResourceDecorator<T> {
+	private readonly semaphore: Semaphore;
+	constructor(resource: Resource<T>, semaphore: Semaphore) {
 		super(resource);
+		this.semaphore = semaphore;
 	}
 
 	/** @inheritDoc */
 	override async resolve() {
 		if (!this.isAsync) {
-			return super.resolve();
+			return this.resource.resolve();
 		}
-		return this.semaphore.run(() => super.resolve());
+		return this.semaphore.run(() => this.resource.resolve());
+	}
+}
+
+/**
+ * A `Resource` that represents a file bundled with the Blueprint.
+ */
+export class BundledResource extends Resource<File> {
+	private resource: BundledReference;
+	private streamBundledFile: StreamBundledFile;
+
+	/**
+	 * Creates a new instance of `BlueprintResource`.
+	 * @param resource The blueprint reference.
+	 * @param filesystem The filesystem to read from.
+	 * @param progress The progress tracker.
+	 */
+	constructor(
+		resource: BundledReference,
+		streamBundledFile: StreamBundledFile,
+		_progress?: ProgressTracker
+	) {
+		if (!streamBundledFile) {
+			throw new Error(
+				`You are trying to run a Blueprint that refers to a bundled file ("blueprint" resource type), ` +
+					`but you did not provide the rest of the bundle. This Blueprint won't work as a standalone JSON file. ` +
+					`You'll need to load the entire bundle, e.g. a blueprint.zip file. Alternatively, you may try loading it ` +
+					`directly from a URL or a local directory and Playground will try (with your permission) to source the missing ` +
+					`files from paths relative to the blueprint file.`
+			);
+		}
+		super();
+		this.resource = resource;
+		this.streamBundledFile = streamBundledFile;
+		this._progress = _progress;
+	}
+
+	/** @inheritDoc */
+	async resolve() {
+		this.progress?.set(0);
+
+		try {
+			// Get the file stream from the filesystem
+			const file = await this.streamBundledFile(this.resource.path);
+			const length = file.filesize;
+			if (!length) {
+				this.progress?.set(100);
+				return file;
+			}
+			const progressStream = cloneStreamMonitorProgress(
+				file.stream(),
+				length,
+				(event) => {
+					this.progress?.set(
+						(event.detail.loaded / event.detail.total) * 100
+					);
+				}
+			);
+			return new StreamedFile(progressStream, this.name, {
+				filesize: length,
+			});
+		} catch (error: unknown) {
+			this.progress?.set(100);
+			throw new Error(
+				`Failed to read file from blueprint. This Blueprint refers to a resource of type "bundled" with path "${this.resource.path}" that was not available. ` +
+					`Please ensure that the entire bundle, such as a blueprint.zip file, is loaded. If you are trying to load the Blueprint ` +
+					`directly from a URL or a local directory, make sure that all the necessary files are accessible and located relative ` +
+					`to the blueprint file. \n\nError details: ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+				{ cause: error }
+			);
+		}
+	}
+
+	/** @inheritDoc */
+	get name() {
+		return this.resource.path.split('/').pop() || '';
+	}
+
+	/** @inheritDoc */
+	override get isAsync(): boolean {
+		return true;
 	}
 }

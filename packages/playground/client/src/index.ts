@@ -6,39 +6,33 @@ export type {
 	PHPRequest,
 	PHPResponse,
 	UniversalPHP,
-	IsomorphicRemotePHP,
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
-	PHPBrowser,
 	PHPRequestHandler,
 	PHPRequestHandlerConfiguration,
 	PHPRequestHeaders,
-	PHPBrowserConfiguration,
 	SupportedPHPVersion,
 	RmDirOptions,
-	RequestHandler,
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
+	setPhpIniEntries,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
-export type { PlaygroundClient } from '@wp-playground/remote';
-
 export { phpVar, phpVars } from '@php-wasm/util';
+export type { PlaygroundClient, MountDescriptor };
 
-import {
-	Blueprint,
-	compileBlueprint,
-	OnStepCompleted,
-	runBlueprintSteps,
-} from '@wp-playground/blueprints';
+import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
-import { PlaygroundClient } from '@wp-playground/remote';
+import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
+import { additionalRemoteOrigins } from './additional-remote-origins';
+
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
@@ -60,6 +54,40 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
+	/**
+	 * Called before the blueprint steps are run,
+	 * allows the caller to delay the Blueprint execution
+	 * once the Playground is booted.
+	 *
+	 * @returns
+	 */
+	onBeforeBlueprint?: () => Promise<void>;
+	mounts?: Array<MountDescriptor>;
+	shouldInstallWordPress?: boolean;
+	/**
+	 * The string prefix used in the site URL served by the currently
+	 * running remote.html. E.g. for a prefix like `/scope:playground/`,
+	 * the scope would be `playground`. See the `@php-wasm/scopes` package
+	 * for more details.
+	 */
+	scope?: string;
+	/**
+	 * Proxy URL to use for cross-origin requests.
+	 *
+	 * For example, if corsProxy is set to "https://cors.wordpress.net/proxy.php",
+	 * then the CORS requests to https://github.com/WordPress/wordpress-playground.git would actually
+	 * be made to https://cors.wordpress.net/proxy.php?https://github.com/WordPress/wordpress-playground.git.
+	 *
+	 * The Blueprints library will arbitrarily choose which requests to proxy. If you need
+	 * to proxy every single request, do not use this option. Instead, you should preprocess
+	 * your Blueprint to replace all cross-origin URLs with the proxy URL.
+	 */
+	corsProxy?: string;
+	/**
+	 * The version of the SQLite driver to use.
+	 * Defaults to the latest development version.
+	 */
+	sqliteDriverVersion?: string;
 }
 
 /**
@@ -78,56 +106,92 @@ export async function startPlaygroundWeb({
 	onBlueprintStepCompleted,
 	onClientConnected = () => {},
 	sapiName,
+	onBeforeBlueprint,
+	mounts,
+	scope,
+	corsProxy,
+	shouldInstallWordPress,
+	sqliteDriverVersion,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
-	assertValidRemote(remoteUrl);
+	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
 	});
 	progressTracker.setCaption('Preparing WordPress');
+
+	// Set a default blueprint if none is provided.
 	if (!blueprint) {
-		const playground = await doStartPlaygroundWeb(
-			iframe,
-			setQueryParams(remoteUrl, {
-				['php-extension']: 'kitchen-sink',
-			}),
-			progressTracker
-		);
-		onClientConnected(playground);
-		return playground;
+		blueprint = {};
 	}
-	const compiled = compileBlueprint(blueprint, {
+
+	const compiled = await compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
+		corsProxy,
 	});
-	const playground = await doStartPlaygroundWeb(
-		iframe,
-		setQueryParams(remoteUrl, {
-			php: compiled.versions.php,
-			wp: compiled.versions.wp,
-			['sapi-name']: sapiName,
-			['php-extension']: compiled.phpExtensions,
-			['networking']: compiled.features.networking ? 'yes' : 'no',
-		}),
-		progressTracker
-	);
+
+	await new Promise((resolve) => {
+		iframe.src = remoteUrl;
+		iframe.addEventListener('load', resolve, false);
+	});
+
+	// Connect the Comlink API client to the remote worker,
+	// boot the playground, and run the blueprint steps.
+	const playground = consumeAPI<PlaygroundClient>(
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
+	) as PlaygroundClient;
+	await playground.isConnected();
+	progressTracker.pipe(playground);
+	const downloadPHPandWP = progressTracker.stage();
+	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+	await playground.boot({
+		mounts,
+		sapiName,
+		scope: scope ?? Math.random().toFixed(16),
+		shouldInstallWordPress,
+		phpVersion: compiled.versions.php,
+		wpVersion: compiled.versions.wp,
+		withICU: compiled.features.intl,
+		withNetworking: compiled.features.networking,
+		corsProxyUrl: corsProxy,
+		sqliteDriverVersion,
+	});
+	await playground.isReady();
+	downloadPHPandWP.finish();
+
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
+
+	if (onBeforeBlueprint) {
+		await onBeforeBlueprint();
+	}
+
 	await runBlueprintSteps(compiled, playground);
+	/**
+	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/pull/2295
+	 */
+	if (compiled.features.networking) {
+		await playground.prefetchUpdateChecks();
+	}
 	progressTracker.finish();
 
 	return playground;
 }
 
 /**
- * Chrome does not allow Service Workers to be registered from cross-origin iframes
- * when third-party cookies are disabled unless `requestStorageAccess()` is called
- * and the user grants storage access.
+ * Chrome does not allow Service Workers to be registered from cross-origin
+ * iframes when third-party cookies are disabled unless
+ * `requestStorageAccess()` is called and the user grants storage access.
  *
  * However, sandboxed <iframe>s cannot be granted storage access by default for
- * security reasons. Therefore, we need to add the `allow-storage-access-by-user-activation`
- * flag to the iframe's sandbox attribute if it is not already present.
+ * security reasons. Therefore, we need to add the
+ * `allow-storage-access-by-user-activation` flag to the iframe's sandbox
+ * attribute if it is not already present.
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/Storage_Access_API
  */
@@ -140,49 +204,42 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 	}
 }
 
-/**
- * Internal function to connect an iframe to the playground remote.
- *
- * @param iframe
- * @param remoteUrl
- * @param progressTracker
- * @returns
- */
-async function doStartPlaygroundWeb(
-	iframe: HTMLIFrameElement,
-	remoteUrl: string,
-	progressTracker: ProgressTracker
-) {
-	await new Promise((resolve) => {
-		iframe.src = remoteUrl;
-		iframe.addEventListener('load', resolve, false);
-	});
-
-	// Connect the Comlink client and wait until the
-	// playground is ready.
-	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await playground.isConnected();
-	progressTracker.pipe(playground);
-	const downloadPHPandWP = progressTracker.stage();
-	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
-	await playground.isReady();
-	downloadPHPandWP.finish();
-	return playground;
-}
-
 const officialRemoteOrigin = 'https://playground.wordpress.net';
-function assertValidRemote(remoteHtmlUrl: string) {
+const validRemoteOrigins = [
+	officialRemoteOrigin,
+	// Allow hosting remote from same origin
+	location.origin,
+	'http://localhost',
+	'https://localhost',
+	'http://127.0.0.1',
+	'https://127.0.0.1',
+	...additionalRemoteOrigins,
+];
+/**
+ * Assert that the remote origin is likely compatible with this client library.
+ *
+ * Prior to this assertion, there were cases where folks used the client library
+ * from playground.wordpress.net with other origins and eventually ran into
+ * compatibility issues when the two sides went out of sync. This way,
+ * we discourage that practice which is likely to lead to breakage for the
+ * embedding app.
+ *
+ * @param remoteHtmlUrl The URL for remote.html
+ */
+function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
-	if (
-		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
-		url.pathname !== '/remote.html'
-	) {
+
+	const validRemote =
+		validRemoteOrigins.includes(url.origin) &&
+		url.pathname === '/remote.html';
+
+	if (!validRemote) {
 		throw new Error(
 			`Invalid remote URL: ${url}. ` +
-				`Expected origin to be ${officialRemoteOrigin}/remote.html.`
+				'Expected remote URL to have a path of "/remote.html" based ' +
+				`on one of the following origins:\n ${validRemoteOrigins.join(
+					'\n'
+				)}`
 		);
 	}
 }
@@ -203,33 +260,4 @@ function setQueryParams(url: string, params: Record<string, unknown>) {
 	}
 	urlObject.search = qs.toString();
 	return urlObject.toString();
-}
-
-/**
- * @deprecated Use `startPlayground` instead.
- *
- * @param iframe Any iframe with Playground's remote.html loaded.
- * @param options Optional. If `loadRemote` is set, the iframe's `src` will be set to that URL.
- *                In other words, use this option if your iframe doesn't have remote.html already
- * 				  loaded.
- */
-export async function connectPlayground(
-	iframe: HTMLIFrameElement,
-	options?: { loadRemote?: string }
-): Promise<PlaygroundClient> {
-	console.warn(
-		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
-	);
-	if (options?.loadRemote) {
-		return startPlaygroundWeb({
-			iframe,
-			remoteUrl: options.loadRemote,
-		});
-	}
-	const client = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await client.isConnected();
-	return client;
 }

@@ -1,8 +1,8 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$ref": "#/definitions/Blueprint",
+	"$ref": "#/definitions/BlueprintDeclaration",
 	"definitions": {
-		"Blueprint": {
+		"BlueprintDeclaration": {
 			"type": "object",
 			"properties": {
 				"landingPage": {
@@ -68,6 +68,9 @@
 				"features": {
 					"type": "object",
 					"properties": {
+						"intl": {
+							"type": "boolean"
+						},
 						"networking": {
 							"type": "boolean",
 							"description": "Should boot with support for network request via wp_safe_remote_get?"
@@ -75,13 +78,16 @@
 					},
 					"additionalProperties": false
 				},
-				"constants": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "string"
+				"extraLibraries": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/ExtraLibrary"
 					},
-					"description": "PHP Constants to define on every request",
-					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+					"description": "Extra libraries to preload into the Playground instance."
+				},
+				"constants": {
+					"$ref": "#/definitions/PHPConstants",
+					"description": "PHP Constants to define on every request"
 				},
 				"plugins": {
 					"type": "array",
@@ -95,8 +101,7 @@
 							}
 						]
 					},
-					"description": "WordPress plugins to install and activate",
-					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+					"description": "WordPress plugins to install and activate"
 				},
 				"siteOptions": {
 					"type": "object",
@@ -109,8 +114,7 @@
 							"description": "The site title"
 						}
 					},
-					"description": "WordPress site options to define",
-					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+					"description": "WordPress site options to define"
 				},
 				"login": {
 					"anyOf": [
@@ -134,11 +138,7 @@
 					"description": "User to log in as. If true, logs the user in as admin/password."
 				},
 				"phpExtensionBundles": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/SupportedPHPExtensionBundle"
-					},
-					"description": "The PHP extensions to use."
+					"deprecated": "No longer used. Feel free to remove it from your Blueprint."
 				},
 				"steps": {
 					"type": "array",
@@ -168,21 +168,22 @@
 					"type": "string"
 				}
 			},
-			"additionalProperties": false
+			"additionalProperties": false,
+			"description": "The Blueprint declaration, typically stored in a blueprint.json file."
 		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": [
-				"8.3",
-				"8.2",
-				"8.1",
-				"8.0",
-				"7.4",
-				"7.3",
-				"7.2",
-				"7.1",
-				"7.0"
-			]
+			"enum": ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4", "7.3", "7.2"]
+		},
+		"ExtraLibrary": {
+			"type": "string",
+			"const": "wp-cli"
+		},
+		"PHPConstants": {
+			"type": "object",
+			"additionalProperties": {
+				"type": ["string", "boolean", "number"]
+			}
 		},
 		"FileReference": {
 			"anyOf": [
@@ -200,6 +201,9 @@
 				},
 				{
 					"$ref": "#/definitions/UrlReference"
+				},
+				{
+					"$ref": "#/definitions/BundledReference"
 				}
 			]
 		},
@@ -332,9 +336,21 @@
 			"required": ["resource", "url"],
 			"additionalProperties": false
 		},
-		"SupportedPHPExtensionBundle": {
-			"type": "string",
-			"enum": ["kitchen-sink", "light"]
+		"BundledReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "bundled",
+					"description": "Identifies the file resource as a Blueprint file"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the file in the Blueprint"
+				}
+			},
+			"required": ["resource", "path"],
+			"additionalProperties": false
 		},
 		"StepDefinition": {
 			"type": "object",
@@ -460,7 +476,7 @@
 						"method": {
 							"type": "string",
 							"enum": ["rewrite-wp-config", "define-before-run"],
-							"description": "The method of defining the constants. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+							"description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
 						},
 						"virtualize": {
 							"type": "boolean",
@@ -515,6 +531,10 @@
 						"step": {
 							"type": "string",
 							"const": "enableMultisite"
+						},
+						"wpCliPath": {
+							"type": "string",
+							"description": "wp-cli.phar path"
 						}
 					},
 					"required": ["step"]
@@ -542,9 +562,43 @@
 						"file": {
 							"$ref": "#/definitions/FileReference",
 							"description": "The file to import"
+						},
+						"importer": {
+							"type": "string",
+							"enum": ["data-liberation", "default"],
+							"description": "The importer to use. Possible values:\n\n- `default`: The importer from https://github.com/humanmade/WordPress-Importer\n- `data-liberation`: The experimental Data Liberation WXR importer developed at                      https://github.com/WordPress/wordpress-playground/issues/1894\n\nThis option is deprecated. The syntax will not be removed, but once the Data Liberation importer matures, it will become the only supported importer and the `importer` option will be ignored.",
+							"deprecated": true
 						}
 					},
 					"required": ["file", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "importThemeStarterContent",
+							"description": "The step identifier."
+						},
+						"themeSlug": {
+							"type": "string",
+							"description": "The name of the theme to import content from."
+						}
+					},
+					"required": ["step"]
 				},
 				{
 					"type": "object",
@@ -603,16 +657,27 @@
 							"const": "installPlugin",
 							"description": "The step identifier."
 						},
+						"pluginData": {
+							"anyOf": [
+								{
+									"$ref": "#/definitions/FileReference"
+								},
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								}
+							],
+							"description": "The plugin files to install. It can be a plugin zip file, a single PHP file, or a directory containing all the plugin files at its root."
+						},
 						"pluginZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"description": "The plugin zip file to install."
+							"deprecated": ". Use 'pluginData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallPluginOptions",
 							"description": "Optional installation options."
 						}
 					},
-					"required": ["pluginZipFile", "step"]
+					"required": ["pluginData", "step"]
 				},
 				{
 					"type": "object",
@@ -640,23 +705,27 @@
 							"const": "installTheme",
 							"description": "The step identifier."
 						},
+						"themeData": {
+							"anyOf": [
+								{
+									"$ref": "#/definitions/FileReference"
+								},
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								}
+							],
+							"description": "The theme files to install. It can be either a theme zip file, or a directory containing all the theme files at its root."
+						},
 						"themeZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"description": "The theme zip file to install."
+							"deprecated": ". Use 'themeData' instead."
 						},
 						"options": {
-							"type": "object",
-							"properties": {
-								"activate": {
-									"type": "boolean",
-									"description": "Whether to activate the theme after installing it."
-								}
-							},
-							"additionalProperties": false,
+							"$ref": "#/definitions/InstallThemeOptions",
 							"description": "Optional installation options."
 						}
 					},
-					"required": ["step", "themeZipFile"]
+					"required": ["step", "themeData"]
 				},
 				{
 					"type": "object",
@@ -684,7 +753,7 @@
 						},
 						"password": {
 							"type": "string",
-							"description": "The password to log in with. Defaults to 'password'."
+							"deprecated": "The password field is deprecated and will be removed in a future version.\nOnly the username field is required for user authentication."
 						}
 					},
 					"required": ["step"]
@@ -746,6 +815,29 @@
 						}
 					},
 					"required": ["fromPath", "step", "toPath"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "resetData"
+						}
+					},
+					"required": ["step"]
 				},
 				{
 					"type": "object",
@@ -878,7 +970,7 @@
 						},
 						"options": {
 							"$ref": "#/definitions/PHPRunOptions",
-							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions)"
+							"description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))"
 						}
 					},
 					"required": ["options", "step"]
@@ -936,37 +1028,6 @@
 						}
 					},
 					"required": ["sql", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
-							"const": "setPhpIniEntry"
-						},
-						"key": {
-							"type": "string",
-							"description": "Entry name e.g. \"display_errors\""
-						},
-						"value": {
-							"type": "string",
-							"description": "Entry value as a string e.g. \"1\""
-						}
-					},
-					"required": ["key", "step", "value"]
 				},
 				{
 					"type": "object",
@@ -1158,6 +1219,37 @@
 						},
 						"step": {
 							"type": "string",
+							"const": "writeFiles"
+						},
+						"writeToPath": {
+							"type": "string",
+							"description": "The path of the file to write to"
+						},
+						"filesTree": {
+							"$ref": "#/definitions/DirectoryReference",
+							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
+						}
+					},
+					"required": ["filesTree", "step", "writeToPath"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
 							"const": "wp-cli",
 							"description": "The step identifier."
 						},
@@ -1181,8 +1273,101 @@
 						}
 					},
 					"required": ["command", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "setSiteLanguage"
+						},
+						"language": {
+							"type": "string",
+							"description": "The language to set, e.g. 'en_US'"
+						}
+					},
+					"required": ["language", "step"]
 				}
 			]
+		},
+		"DirectoryReference": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/GitDirectoryReference"
+				},
+				{
+					"$ref": "#/definitions/DirectoryLiteralReference"
+				}
+			]
+		},
+		"GitDirectoryReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "git:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"url": {
+					"type": "string",
+					"description": "The URL of the git repository"
+				},
+				"ref": {
+					"type": "string",
+					"description": "The branch of the git repository"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the directory in the git repository"
+				}
+			},
+			"required": ["resource", "url", "ref", "path"],
+			"additionalProperties": false
+		},
+		"DirectoryLiteralReference": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "literal:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"files": {
+					"$ref": "#/definitions/FileTree"
+				},
+				"name": {
+					"type": "string"
+				}
+			},
+			"required": ["files", "name", "resource"]
+		},
+		"FileTree": {
+			"type": "object",
+			"additionalProperties": {
+				"anyOf": [
+					{
+						"$ref": "#/definitions/FileTree"
+					},
+					{
+						"type": ["object", "string"]
+					}
+				]
+			},
+			"properties": {}
 		},
 		"InstallPluginOptions": {
 			"type": "object",
@@ -1190,6 +1375,28 @@
 				"activate": {
 					"type": "boolean",
 					"description": "Whether to activate the plugin after installing it."
+				},
+				"targetFolderName": {
+					"type": "string",
+					"description": "The name of the folder to install the plugin to. Defaults to guessing from pluginData"
+				}
+			},
+			"additionalProperties": false
+		},
+		"InstallThemeOptions": {
+			"type": "object",
+			"properties": {
+				"activate": {
+					"type": "boolean",
+					"description": "Whether to activate the theme after installing it."
+				},
+				"importStarterContent": {
+					"type": "boolean",
+					"description": "Whether to import the theme's starter content after installing it."
+				},
+				"targetFolderName": {
+					"type": "string",
+					"description": "The name of the folder to install the theme to. Defaults to guessing from themeData"
 				}
 			},
 			"additionalProperties": false
@@ -1417,6 +1624,13 @@
 						"type": "string"
 					},
 					"description": "Environment variables to set for this run."
+				},
+				"$_SERVER": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"description": "$_SERVER entries to set for this run."
 				},
 				"code": {
 					"type": "string",

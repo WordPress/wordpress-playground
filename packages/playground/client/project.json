@@ -6,7 +6,25 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/client/README.md dist/packages/playground/client"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/client/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/client",
+				"buildTarget": "playground-client:build:bundle:production"
+			},
+			"dependsOn": ["build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {
 			"executor": "nx:run-commands",
@@ -15,18 +33,9 @@
 					"npx dts-bundle-generator -o packages/playground/client/src/rollup.d.ts -- packages/playground/client/src/index.ts",
 					"rimraf dist/packages/playground/client/lib/*.d.ts",
 					"rimraf dist/packages/playground/client/*.d.ts",
-					"mv packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
+					"cp packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
 				],
 				"parallel": false
-			},
-			"dependsOn": ["build:bundle"]
-		},
-		"build:README": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"cp packages/playground/client/README.md dist/packages/playground/client"
-				]
 			},
 			"dependsOn": ["build:bundle"]
 		},
@@ -37,7 +46,6 @@
 				"outputPath": "dist/packages/playground/client",
 				"main": "packages/playground/client/index.html",
 				"tsConfig": "packages/playground/client/tsconfig.lib.json",
-				"assets": ["packages/playground/client/*.md"],
 				"minify": true
 			},
 			"defaultConfiguration": "production",
@@ -55,8 +63,7 @@
 			"defaultConfiguration": "development",
 			"options": {
 				"buildTarget": "playground-client:build",
-				"tsConfig": "packages/playground/client/tsconfig.lib.json",
-				"assets": ["packages/playground/client/*.md"]
+				"tsConfig": "packages/playground/client/tsconfig.lib.json"
 			}
 		},
 		"publish": {
@@ -67,11 +74,16 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/client/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/client/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

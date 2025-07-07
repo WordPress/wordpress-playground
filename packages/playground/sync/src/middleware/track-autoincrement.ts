@@ -1,4 +1,4 @@
-import { SyncMiddleware } from '.';
+import type { SyncMiddleware } from '.';
 
 export const trackAutoincrementMiddleware = (
 	onAutoincrementChange: (table: string, value: number) => void

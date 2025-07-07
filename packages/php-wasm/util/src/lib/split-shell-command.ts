@@ -1,7 +1,7 @@
 /**
  * Naive shell command parser.
- * Ensures that commands like `wp option set blogname "My blog name"` are split into
- * `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
+ * Ensures that commands like `wp option set blogname "My blog name"` are split
+ * into `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
  * `['wp', 'option', 'set', 'blogname', 'My', 'blog', 'name']`.
  *
  * @param command
@@ -20,9 +20,8 @@ export function splitShellCommand(command: string) {
 		const char = command[i];
 		if (char === '\\') {
 			// Escaped quotes are treated as normal characters
-			// This is a very naive approach to escaping, but it's good enough for now.
-			// @TODO: Iterate on this later, perhaps using bun shell.
-			// @see https://github.com/WordPress/wordpress-playground/issues/1062
+			// This is a very naive approach to escaping, but it's good enough for
+			// now. @TODO: Iterate on this later, perhaps using bun shell. @see https://github.com/WordPress/wordpress-playground/issues/1062
 			if (command[i + 1] === '"' || command[i + 1] === "'") {
 				i++;
 			}

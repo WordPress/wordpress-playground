@@ -1,0 +1,72 @@
+name: Update CHANGELOG.md
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version to document in the changelog (unreleased, current, 0.7.0)'
+                required: true
+                default: 'current'
+    workflow_run:
+        workflows: [Release NPM packages, Release self-hosted packages]
+        types:
+            - completed
+
+jobs:
+    release:
+        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.event.workflow_run.conclusion == 'success' ||
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes'
+            )
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: wordpress-assets
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_OWNER: ${{ github.repository_owner }}
+            GITHUB_REPO: ${{ github.repository }}
+        steps:
+            - name: 'Prune owner from repo name'
+              run: |
+                  echo "GITHUB_REPO=${GITHUB_REPO#$GITHUB_OWNER/}" >> $GITHUB_ENV
+            - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+                  ref: trunk
+                  clean: true
+                  persist-credentials: true
+            - name: 'Install bun (for the changelog)'
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
+            - name: '✏️ Generate release changelog'
+              run: |
+                  ls ./
+                  if [ -z "${{ inputs.version }}" ]; then
+                      VERSION=current
+                  else
+                      VERSION=${{ inputs.version }}
+                  fi
+                  PATH="${PATH}:${HOME}/.bun/bin" npm run changelog -- --version=$VERSION
+                  PATH="${PATH}:${HOME}/.bun/bin" bun packages/docs/site/bin/refresh-changelog.ts
+            - name: '📦 Commit and push changelog'
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
+                      git commit -m "chore: update changelog" \
+                          CHANGELOG.md \
+                          packages/docs/site/docs/*changelog*.md
+                      git pull --depth=1 --rebase origin "$(git branch --show-current)"
+                      git push
+                  else
+                      echo "No changes in CHANGELOG.md. Skipping commit and push."
+                  fi

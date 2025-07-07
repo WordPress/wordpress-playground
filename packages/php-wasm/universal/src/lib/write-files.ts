@@ -1,5 +1,9 @@
 import { dirname, joinPaths } from '@php-wasm/util';
-import { UniversalPHP } from './universal-php';
+import type { UniversalPHP } from './universal-php';
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface FileTree
+	extends Record<string, Uint8Array | string | FileTree> {}
 
 export interface WriteFilesOptions {
 	/**
@@ -29,7 +33,7 @@ export interface WriteFilesOptions {
 export async function writeFiles(
 	php: UniversalPHP,
 	root: string,
-	newFiles: Record<string, Uint8Array | string>,
+	newFiles: FileTree,
 	{ rmRoot = false }: WriteFilesOptions = {}
 ) {
 	if (rmRoot) {
@@ -42,6 +46,10 @@ export async function writeFiles(
 		if (!(await php.fileExists(dirname(filePath)))) {
 			await php.mkdir(dirname(filePath));
 		}
-		await php.writeFile(filePath, content);
+		if (content instanceof Uint8Array || typeof content === 'string') {
+			await php.writeFile(filePath, content);
+		} else {
+			await writeFiles(php, filePath, content);
+		}
 	}
 }

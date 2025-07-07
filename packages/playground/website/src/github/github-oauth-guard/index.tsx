@@ -2,10 +2,10 @@ import { Icon, Spinner } from '@wordpress/components';
 import { oAuthState } from '../state';
 import { GitHubIcon } from '../github';
 import css from './style.module.css';
-import { useContext, useState } from 'react';
-import { PlaygroundContext } from '../../playground-context';
-import Modal, { defaultStyles } from '../../components/modal';
+import { useState } from 'react';
 import classNames from 'classnames';
+import { useActiveSite } from '../../lib/state/redux/store';
+import { Modal } from '../../components/modal';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
@@ -18,13 +18,13 @@ export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 		return null;
 	}
 
+	if (!isModalOpen) {
+		return null;
+	}
+
 	return (
 		<Modal
-			style={{
-				...defaultStyles,
-				content: { ...defaultStyles.content, width: 600 },
-			}}
-			isOpen={isModalOpen}
+			title="Connect to GitHub"
 			onRequestClose={() => {
 				setIsModalOpen(false);
 			}}
@@ -77,7 +77,8 @@ function Authenticate({
 	authenticateUrl,
 	mayLoseProgress = undefined,
 }: AuthenticateProps) {
-	const { storage } = useContext(PlaygroundContext);
+	const storage = useActiveSite()?.metadata?.storage;
+
 	if (mayLoseProgress === undefined) {
 		mayLoseProgress = storage === 'none';
 	}
@@ -87,9 +88,6 @@ function Authenticate({
 	});
 	return (
 		<div>
-			<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
-				Connect to GitHub
-			</h2>
 			<p>
 				Importing plugins, themes, and wp-content directories directly
 				from your public GitHub repositories.
@@ -112,7 +110,8 @@ function Authenticate({
 							checked={exported}
 							onChange={() => setExported(!exported)}
 						/>
-						I exported my Playground as zip.
+						I understand, and I have exported my Playground as a zip
+						if needed.
 					</label>
 				</>
 			) : null}

@@ -70,16 +70,18 @@ export interface ProgressReceiver {
 const PROGRESS_EPSILON = 0.00001;
 
 /**
- * The ProgressTracker class is a tool for tracking progress in an operation that is
- * divided into multiple stages. It allows you to create sub-trackers for each stage,
- * with individual weights and captions. The main tracker automatically calculates the
- * progress based on the weighted sum of each sub-tracker's progress. This makes it easy
- * to keep track of a complex, multi-stage process and report progress in a user-friendly way.
+ * The ProgressTracker class is a tool for tracking progress in an operation
+ * that is divided into multiple stages. It allows you to create sub-trackers
+ * for each stage, with individual weights and captions. The main tracker
+ * automatically calculates the progress based on the weighted sum of each
+ * sub-tracker's progress. This makes it easy to keep track of a complex,
+ * multi-stage process and report progress in a user-friendly way.
  *
- * After creating the sub-trackers, you can call the set() method to update the progress
- * of the current stage. You can also call the finish() method to mark the current stage
- * as complete and move on to the next one. Alternatively, you can call the fillSlowly()
- * method to simulate progress filling up slowly to 100% before calling finish().
+ * After creating the sub-trackers, you can call the set() method to update the
+ * progress of the current stage. You can also call the finish() method to mark
+ * the current stage as complete and move on to the next one. Alternatively,
+ * you can call the fillSlowly() method to simulate progress filling up slowly
+ * to 100% before calling finish().
  *
  * @example
  * ```ts

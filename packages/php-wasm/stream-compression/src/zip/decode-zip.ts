@@ -1,17 +1,17 @@
 /**
  * Reads files from a stream of zip file bytes.
  */
-import { IterableReadableStream } from '../utils/iterable-stream-polyfill';
+import type { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
+import type { CompressionMethod } from './types';
 import {
 	SIGNATURE_FILE,
 	SIGNATURE_CENTRAL_DIRECTORY,
 	SIGNATURE_CENTRAL_DIRECTORY_END,
 	FILE_HEADER_SIZE,
 	COMPRESSION_DEFLATE,
-	CompressionMethod,
 } from './types';
-import {
+import type {
 	CentralDirectoryEntry,
 	FileEntry,
 	ZipEntry,
@@ -174,7 +174,7 @@ export async function readFileEntry(
 		/**
 		 * We want to write raw deflate-compressed bytes into our
 		 * final ZIP file. CompressionStream supports "deflate-raw"
-		 * compression, but not on Node.js v18.
+		 * compression, but not on Node.js v20, it's available since v21.2.0.
 		 *
 		 * As a workaround, we use the "gzip" compression and add
 		 * the header and footer bytes. It works, because "gzip"

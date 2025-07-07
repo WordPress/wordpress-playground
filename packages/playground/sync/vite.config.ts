@@ -1,8 +1,12 @@
 /// <reference types="vitest" />
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import ignoreDataImports from '../ignore-data-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default {
 	base: '/',
@@ -20,6 +24,7 @@ export default {
 			root: '../../../',
 		}),
 		ignoreWasmImports(),
+		ignoreDataImports(),
 	],
 
 	// Configuration for building your library.
@@ -34,9 +39,10 @@ export default {
 			// Don't forgot to update your package.json as well.
 			formats: ['es', 'cjs'],
 		},
+		sourcemap: true,
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 
@@ -45,7 +51,8 @@ export default {
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'jsdom',
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 };

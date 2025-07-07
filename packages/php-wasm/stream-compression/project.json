@@ -5,11 +5,37 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/stream-compression/README.md dist/packages/php-wasm/stream-compression"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/stream-compression/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/stream-compression",
+				"buildTarget": "php-wasm-stream-compression:build:bundle:production"
+			}
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
+				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/stream-compression"
 			}
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
 		},
 		"test": {
 			"executor": "@nx/vite:test",
@@ -26,7 +52,8 @@
 				"lintFilePatterns": [
 					"packages/php-wasm/stream-compression/**/*.ts",
 					"packages/php-wasm/stream-compression/package.json"
-				]
+				],
+				"maxWarnings": 0
 			}
 		}
 	},

@@ -1,8 +1,7 @@
 export class PhpWasmError extends Error {
-	constructor(message: string, public userFriendlyMessage?: string) {
+	userFriendlyMessage?: string;
+	constructor(message: string, userFriendlyMessage?: string) {
 		super(message);
-		if (!this.userFriendlyMessage) {
-			this.userFriendlyMessage = message;
-		}
+		this.userFriendlyMessage = userFriendlyMessage ?? message;
 	}
 }

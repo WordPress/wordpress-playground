@@ -3,6 +3,8 @@ import { join } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-node-polyfills',
@@ -14,6 +16,7 @@ export default defineConfig({
 		dts({
 			entryRoot: 'src',
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
 		}),
 	],
 
@@ -34,9 +37,10 @@ export default defineConfig({
 			// Don't forget to update your package.json as well.
 			formats: ['es', 'cjs'],
 		},
+		sourcemap: true,
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: [],
+			external: getExternalModules(),
 		},
 	},
 
@@ -48,5 +52,6 @@ export default defineConfig({
 		environment:
 			'Run this task with either "node" or "jsdom" configuration, e.g. nx run php-wasm-node-polyfills:test:node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

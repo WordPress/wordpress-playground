@@ -1,12 +1,10 @@
-import { signal } from '@preact/signals-react';
-import { usePlaygroundContext } from '../../components/playground-viewport/context';
-import Modal, { defaultStyles } from '../../components/modal';
-import GitHubExportForm, { GitHubExportFormProps } from './form';
-
-const query = new URLSearchParams(window.location.search);
-export const isGitHubExportModalOpen = signal(
-	query.get('state') === 'github-export'
-);
+import type { GitHubExportFormProps } from './form';
+import GitHubExportForm from './form';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
+import type { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { useDispatch } from 'react-redux';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { Modal } from '../../components/modal';
 
 interface GithubExportModalProps {
 	allowZipExport: GitHubExportFormProps['allowZipExport'];
@@ -14,37 +12,21 @@ interface GithubExportModalProps {
 	initialFilesBeforeChanges?: GitHubExportFormProps['initialFilesBeforeChanges'];
 	initialValues?: GitHubExportFormProps['initialValues'];
 }
-export function closeModal() {
-	isGitHubExportModalOpen.value = false;
-	// Remove ?state=github-export from the URL.
-	const url = new URL(window.location.href);
-	url.searchParams.delete('state');
-	window.history.replaceState({}, '', url.href);
-}
-export function openModal() {
-	isGitHubExportModalOpen.value = true;
-	// Add a ?state=github-export to the URL so that the user can refresh the page
-	// and still see the modal.
-	const url = new URL(window.location.href);
-	url.searchParams.set('state', 'github-export');
-	window.history.replaceState({}, '', url.href);
-}
 export function GithubExportModal({
 	onExported,
 	allowZipExport,
 	initialValues,
 	initialFilesBeforeChanges,
 }: GithubExportModalProps) {
-	const { playground } = usePlaygroundContext();
+	const dispatch: PlaygroundDispatch = useDispatch();
+	const playground = usePlaygroundClient();
+
+	const closeModal = () => {
+		dispatch(setActiveModal(null));
+	};
+
 	return (
-		<Modal
-			style={{
-				...defaultStyles,
-				content: { ...defaultStyles.content, width: 600 },
-			}}
-			isOpen={isGitHubExportModalOpen.value}
-			onRequestClose={closeModal}
-		>
+		<Modal title="Export to GitHub" onRequestClose={closeModal}>
 			<GitHubExportForm
 				onClose={closeModal}
 				onExported={onExported}

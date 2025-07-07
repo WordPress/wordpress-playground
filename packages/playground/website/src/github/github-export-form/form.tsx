@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
+import type { PlaygroundClient } from '@wp-playground/client';
 import {
-	PlaygroundClient,
 	wpContentFilesExcludedFromExport,
 	zipWpContent,
 } from '@wp-playground/client';
@@ -10,10 +10,12 @@ import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
 import { staticAnalyzeGitHubURL } from '../analyze-github-url';
-import {
+import type {
 	Changeset,
 	FileEntry,
 	GithubClient,
+} from '@wp-playground/storage';
+import {
 	changeset,
 	createClient,
 	createCommit,
@@ -28,7 +30,7 @@ import {
 import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { ContentType } from '../import-from-github';
+import type { ContentType } from '../import-from-github';
 import { joinPaths } from '@php-wasm/util';
 import MultiplePathsInput from './multiple-paths-input';
 
@@ -102,7 +104,7 @@ export default function GitHubExportForm({
 					formValues.repoUrl
 				);
 				return { owner: owner!, repo: repo! };
-			} catch (e) {
+			} catch {
 				// Ignore
 			}
 		}
@@ -231,7 +233,7 @@ export default function GitHubExportForm({
 			} else if (formValues.contentType === 'plugin') {
 				updatedValues['toPathInRepo'] = `/${formValues.plugin}`;
 			} else {
-				updatedValues['toPathInRepo'] = '/playground';
+				updatedValues['toPathInRepo'] = '/';
 			}
 			setFormValues({
 				...formValues,
@@ -279,7 +281,7 @@ export default function GitHubExportForm({
 						defaultBranch,
 						toPathInRepo
 					));
-			} catch (e) {
+			} catch {
 				// ignore
 			}
 			const ghComparableFiles = filesListToObject(ghRawFiles);
@@ -293,16 +295,12 @@ export default function GitHubExportForm({
 				relativeExportPaths = ['/wp-content'];
 				prTitle = 'Update wp-content';
 			} else if (formValues.contentType === 'theme') {
-				fromPlaygroundRoot = docroot;
-				relativeExportPaths = [
-					`${docroot}/wp-content/themes/${formValues.theme}`,
-				];
+				fromPlaygroundRoot = `${docroot}/wp-content/themes/${formValues.theme}`;
+				relativeExportPaths = [`./`];
 				prTitle = `Update theme ${formValues.theme}`;
 			} else if (formValues.contentType === 'plugin') {
-				fromPlaygroundRoot = docroot;
-				relativeExportPaths = [
-					`${docroot}/wp-content/plugins/${formValues.plugin}`,
-				];
+				fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
+				relativeExportPaths = [`./`];
 				prTitle = `Update plugin ${formValues.plugin}`;
 			} else if (formValues.contentType === 'custom-paths') {
 				fromPlaygroundRoot = formValues.fromPlaygroundRoot;
@@ -314,6 +312,10 @@ export default function GitHubExportForm({
 				throw new Error(
 					`Unknown content type ${formValues.contentType}`
 				);
+			}
+
+			if (relativeExportPaths.length === 0) {
+				relativeExportPaths = ['/'];
 			}
 
 			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
@@ -380,15 +382,12 @@ export default function GitHubExportForm({
 					allPlaygroundFiles.push({
 						path: joinPaths(
 							toPathInRepo,
-							file.path.substring(
-								formValues.fromPlaygroundRoot.length
-							)
+							file.path.substring(fromPlaygroundRoot.length)
 						),
 						read: file.read,
 					});
 				}
 			}
-
 			const changes = await changeset(
 				new Map(Object.entries(ghComparableFiles)),
 				allPlaygroundFiles
@@ -436,7 +435,7 @@ export default function GitHubExportForm({
 	if (pushResult) {
 		return (
 			<form id="export-playground-form" onSubmit={handleSubmit}>
-				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
+				<h2>
 					Pull Request{' '}
 					{formValues.prAction === 'create' ? 'created' : 'updated'}!
 				</h2>
@@ -452,15 +451,13 @@ export default function GitHubExportForm({
 					</a>
 				</p>
 
-				{pushResult.forked ? (
+				{pushResult.forked && (
 					<p>
 						Because of access restrictions set by your organization,
 						these changes could not be submitted directly to the
 						repository. Instead, they were submitted to your fork of
 						the repository.
 					</p>
-				) : (
-					false
 				)}
 
 				<div className={forms.submitRow}>
@@ -475,10 +472,7 @@ export default function GitHubExportForm({
 	return (
 		<GitHubOAuthGuard>
 			<form id="export-playground-form" onSubmit={handleSubmit}>
-				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
-					Export to GitHub
-				</h2>
-				<p className={css.modalText}>
+				<p>
 					You may export WordPress plugins, themes, and entire
 					wp-content directories as pull requests to any public GitHub
 					repository.
@@ -867,7 +861,7 @@ async function pushToGithub(
 		>['data'];
 		if (shouldCreateNewPR) {
 			const { data: branch } = await octokit.rest.repos.getBranch({
-				owner,
+				owner: pushToOwner,
 				repo,
 				branch: againstBranch,
 			});

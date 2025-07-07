@@ -2,14 +2,9 @@
  * Spawns a new Worker Thread.
  *
  * @param  workerUrl The absolute URL of the worker script.
- * @param  config
  * @returns The spawned Worker Thread.
  */
-export async function spawnPHPWorkerThread(
-	workerUrl: string,
-	startupOptions: Record<string, string | string[]> = {}
-) {
-	workerUrl = addQueryParams(workerUrl, startupOptions);
+export async function spawnPHPWorkerThread(workerUrl: string) {
 	const worker = new Worker(workerUrl, { type: 'module' });
 	return new Promise<Worker>((resolve, reject) => {
 		worker.onerror = (e) => {
@@ -31,24 +26,4 @@ export async function spawnPHPWorkerThread(
 		}
 		worker.addEventListener('message', onStartup);
 	});
-}
-
-function addQueryParams(
-	url: string | URL,
-	searchParams: Record<string, string | string[]>
-): string {
-	if (!Object.entries(searchParams).length) {
-		return url + '';
-	}
-	const urlWithOptions = new URL(url);
-	for (const [key, value] of Object.entries(searchParams)) {
-		if (Array.isArray(value)) {
-			for (const item of value) {
-				urlWithOptions.searchParams.append(key, item);
-			}
-		} else {
-			urlWithOptions.searchParams.set(key, value);
-		}
-	}
-	return urlWithOptions.toString();
 }

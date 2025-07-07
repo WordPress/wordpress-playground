@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <head>
 	<title>Gutenberg PR Previewer</title>
 	<meta charset="utf-8" />
@@ -21,7 +22,20 @@
 		href="https://fonts.googleapis.com/css?family=Noto+Serif:400,700"
 	/>
 	<link rel="stylesheet" href="./previewer.css" />
+	<script
+		async
+		src="https://www.googletagmanager.com/gtag/js?id=G-SVTNFCP8T7"
+	></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag() {
+			dataLayer.push(arguments);
+		}
+		gtag('js', new Date());
+		gtag('config', 'G-SVTNFCP8T7');
+	</script>
 </head>
+
 <body>
 	<div id="main">
 		<!--
@@ -72,7 +86,7 @@
 		>
 		and the
 		<a
-			href="https://wordpress.github.io/wordpress-playground/docs/build-your-first-app#preview-pull-requests-from-your-repository"
+			href="https://wordpress.github.io/wordpress-playground/developers/build-your-first-app/#preview-pull-requests-from-your-repository"
 		>
 			documentation page</a
 		>.
@@ -86,7 +100,7 @@
 		 * Learn more at:
 		 *
 		 * * https://wordpress.github.io/wordpress-playground/
-		 * * https://wordpress.github.io/wordpress-playground/docs/build-your-first-app#preview-pull-requests-from-your-repository
+		 * * https://wordpress.github.io/wordpress-playground/developers/build-your-first-app/#preview-pull-requests-from-your-repository
 		 */
 
 		let submitting = false;
@@ -142,66 +156,38 @@
 			// Redirect to the Playground site with the Blueprint to download and apply the PR
 			const blueprint = {
 				landingPage: '/wp-admin/',
+				features: {
+					networking: true,
+				},
 				steps: [
 					{
 						step: 'login',
 						username: 'admin',
 						password: 'password',
-					},
-					{
-						step: 'mkdir',
-						path: '/wordpress/pr',
-					},
-					/*
-					 * This is the most important step.
-					 * It download the built plugin zip file exposed by GitHub CI.
-					 *
-					 * Because the zip file is not publicly accessible, we use the
-					 * plugin-proxy API endpoint to download it. The source code of
-					 * that endpoint is available at:
-					 * https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/plugin-proxy.php
-					 */
-					{
-						step: 'writeFile',
-						path: '/wordpress/pr/pr.zip',
-						data: {
-							resource: 'url',
-							url: zipArtifactUrl,
-							caption: `Downloading Gutenberg PR ${prNumber}`,
-						},
-						progress: {
-							weight: 2,
-							caption: `Applying Gutenberg PR ${prNumber}`,
-						},
-					},
-					/**
-					 * GitHub CI artifacts are doubly zipped:
-					 *
-					 * pr.zip
-					 *    gutenberg.zip
-					 *       gutenberg.php
-					 *       ... other files ...
-					 *
-					 * This step extracts the inner zip file so that we get
-					 * access directly to gutenberg.zip and can use it to
-					 * install the plugin.
-					 */
-					{
-						step: 'unzip',
-						zipPath: '/wordpress/pr/pr.zip',
-						extractToPath: '/wordpress/pr',
-					},
-					{
-						step: 'installPlugin',
-						pluginZipFile: {
-							resource: 'vfs',
-							path: '/wordpress/pr/gutenberg.zip',
-						},
-					},
+					}
 				],
 			};
+			// If there's a import-site query parameter, pass that to the blueprint
+			const urlParams = new URLSearchParams(window.location.search);
+			try {
+				const importSite = new URL(urlParams.get('import-site'));
+				if (importSite) {
+					// Add it as the first step in the blueprint
+					blueprint.steps.unshift({
+						step: 'importWordPressFiles',
+						wordPressFilesZip: {
+							resource: 'url',
+							url: importSite.origin + importSite.pathname,
+						},
+					});
+				}
+			} catch {
+				console.error('Invalid import-site URL');
+			}
+
 			const encoded = JSON.stringify(blueprint);
-			window.location = '/#' + encodeURI(encoded);
+			window.location =
+				'./?gutenberg-pr=' + prNumber + '#' + encodeURI(encoded);
 		}
 	</script>
 </body>

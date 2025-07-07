@@ -1,25 +1,33 @@
-import { NodePHP } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
 import {
 	compileBlueprint,
 	runBlueprintSteps,
 	validateBlueprint,
 } from './compile';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { PHPRequestHandler } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+import { expect, describe, it, beforeEach, test } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import { ZipFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 
 describe('Blueprints', () => {
-	let php: NodePHP;
+	let php: PHP;
+	let requestHandler: PHPRequestHandler;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/',
-			},
+		requestHandler = new PHPRequestHandler({
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
+			documentRoot: '/',
 		});
+		php = await requestHandler.getPrimaryPhp();
 	});
 
 	it('should run a basic blueprint', async () => {
 		await runBlueprintSteps(
-			compileBlueprint({
+			await compileBlueprint({
 				steps: [
 					{
 						step: 'writeFile',
@@ -57,22 +65,79 @@ describe('Blueprints', () => {
 			'/index.php',
 			'<?php require "/wp-config.php"; echo TEST_CONST;'
 		);
-		let result = await php.request({ url: '/index.php' });
+		let result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text).toBe('test_value');
 
 		php.writeFile(
 			'/index.php',
 			'<?php require "/wp-config.php"; echo SITE_URL;'
 		);
-		result = await php.request({ url: '/index.php' });
+		result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text).toBe('http://test.url');
 
 		php.writeFile(
 			'/index.php',
 			'<?php require "/wp-config.php"; var_dump(WP_AUTO_UPDATE_CORE);'
 		);
-		result = await php.request({ url: '/index.php' });
+		result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text.trim()).toBe('bool(false)');
+	});
+
+	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
+		await runBlueprintSteps(
+			await compileBlueprint({
+				extraLibraries: ['wp-cli'],
+			}),
+			php
+		);
+		expect(php.fileExists('/tmp/wp-cli.phar')).toBe(true);
+	});
+
+	it('should compile and run a zip-based blueprint', async () => {
+		// Load the real zip file from the test directory
+		const zipPath = path.resolve(
+			__dirname,
+			'../../tests/fixtures/blueprint.zip'
+		);
+		const zipData = fs.readFileSync(zipPath).buffer;
+		const zipBundle = ZipFilesystem.fromArrayBuffer(zipData);
+		const compiledBlueprint = await compileBlueprint(zipBundle);
+
+		await runBlueprintSteps(compiledBlueprint, php);
+
+		expect(php.fileExists('/index.php')).toBe(true);
+		expect(php.readFileAsText('/index.php')).toContain('<?php echo');
+
+		expect(php.fileExists('/pygmalion.txt')).toBe(true);
+		expect(php.readFileAsText('/pygmalion.txt')).toContain(
+			'PREFACE TO PYGMALION.'
+		);
+	});
+
+	it('should compile and run a file-tree-based blueprint', async () => {
+		const fileTreeBundle = new InMemoryFilesystem({
+			'pygmalion.txt': 'PREFACE TO PYGMALION.',
+			'blueprint.json': JSON.stringify({
+				steps: [
+					{
+						step: 'writeFile',
+						path: '/text_file.txt',
+						data: {
+							resource: 'bundled',
+							path: 'pygmalion.txt',
+						},
+					},
+				],
+			}),
+		});
+		const compiledBlueprint = await compileBlueprint(fileTreeBundle);
+
+		await runBlueprintSteps(compiledBlueprint, php);
+
+		expect(php.fileExists('/text_file.txt')).toBe(true);
+		expect(php.readFileAsText('/text_file.txt')).toContain(
+			'PREFACE TO PYGMALION.'
+		);
 	});
 
 	describe('Validation', () => {
@@ -150,10 +215,9 @@ describe('Blueprints', () => {
 							instancePath: '/steps/0',
 							keyword: 'required',
 							params: {
-								missingProperty: 'themeZipFile',
+								missingProperty: 'themeData',
 							},
-							message:
-								"must have required property 'themeZipFile'",
+							message: "must have required property 'themeData'",
 							schemaPath: expect.any(String),
 						},
 					],

@@ -1,9 +1,151 @@
 /* Global styles. Use CSS modules for everything else. */
 
 @import url('../../../../node_modules/@wordpress/components/build-style/style.css');
+@import url('../../../../node_modules/@wordpress/dataviews/build-style/style.css');
+
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html,
+body,
+div,
+span,
+applet,
+object,
+iframe,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+pre,
+a,
+abbr,
+acronym,
+address,
+big,
+cite,
+code,
+del,
+dfn,
+em,
+img,
+ins,
+kbd,
+q,
+s,
+samp,
+small,
+strike,
+strong,
+sub,
+sup,
+tt,
+var,
+b,
+u,
+i,
+center,
+dl,
+dt,
+dd,
+ol,
+ul,
+li,
+fieldset,
+form,
+label,
+legend,
+table,
+caption,
+tbody,
+tfoot,
+thead,
+tr,
+th,
+td,
+article,
+aside,
+canvas,
+details,
+embed,
+figure,
+figcaption,
+footer,
+header,
+hgroup,
+menu,
+nav,
+output,
+ruby,
+section,
+summary,
+time,
+mark,
+audio,
+video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+hgroup,
+menu,
+nav,
+section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol,
+ul {
+	list-style: none;
+}
+blockquote,
+q {
+	quotes: none;
+}
+blockquote:before,
+blockquote:after,
+q:before,
+q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+/**
+ * Playground styles
+ */
 
 * {
 	box-sizing: border-box;
+}
+
+:root {
+	--color-gray-200: #ddd;
+	--color-gray-600: #6a6a6a;
+	--color-gray-900: #1e1e1e;
+	--color-alert-red: #cc1818;
 }
 
 html,
@@ -11,9 +153,71 @@ body {
 	margin: 0;
 	padding: 0;
 	height: 100%;
-	font-size: 16px;
-	font-family: Arial, Helvetica, sans-serif;
+	/* The same font settings as in wp-admin */
+	font-size: 13px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 	line-height: 1.3;
+	font-weight: 300;
+}
+
+:root {
+	--wp-admin-theme-color: #007cba;
+	--wp-admin-theme-color--rgb: 0, 124, 186;
+	--wp-admin-theme-color-darker-10: #006ba1;
+	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
+	--wp-admin-theme-color-darker-20: #005a87;
+	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
+}
+
+.components-button.is-link {
+	text-decoration: none !important;
+}
+
+.components-modal__header-heading-container .components-modal__header-heading {
+	font-size: 20px;
+	font-style: normal;
+	font-weight: 300;
+	line-height: 28px;
+}
+
+p {
+	line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-weight: 400;
+}
+
+h1 {
+	font-size: 24px;
+}
+
+h2 {
+	font-size: 20px;
+}
+
+h3 {
+	font-size: 16px;
+}
+
+h4 {
+	font-size: 14px;
+}
+
+.sr-only:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
 }
 
 #root {
@@ -49,4 +253,8 @@ body {
 	background-color: #387c3b; /* An even darker shade of green for active click */
 	box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.4); /* Less shadow during active click */
 	transform: translateY(2px); /* Button is pressed down a bit */
+}
+
+.typography p {
+	margin: 10px 0;
 }

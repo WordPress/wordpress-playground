@@ -26,6 +26,9 @@
 #include "SAPI.h"
 #include "proc_open.h"
 
+// Created by Dockerfile:
+#include "php_wasm_asyncify.h"
+
 unsigned int wasm_sleep(unsigned int time)
 {
 	emscripten_sleep(time * 1000); // emscripten_sleep takes time in milliseconds
@@ -33,13 +36,338 @@ unsigned int wasm_sleep(unsigned int time)
 }
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
-extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+
+static int redirect_stream_to_file(FILE *stream, char *file_path);
+static void restore_stream_handler(FILE *original_stream, int replacement_stream);
+
+/**
+ * Shims popen(3) functionallity:
+ * https://man7.org/linux/man-pages/man3/popen.3.html
+ *
+ * Uses the same PHPWASM.spawnProcess callback as js_open_process,
+ * but waits for the process to exit and returns a path to a file
+ * with all the output bufferred.
+ *
+ * @TODO: get rid of this function and only rely on js_open_process
+ * instead.
+ *
+ * @param {int} command Command to execute
+ * @param {int} mode Mode to open the command in
+ * @param {int} exitCodePtr Pointer to the exit code
+ * @returns {int} File descriptor of the command output
+ */
+#ifdef PLAYGROUND_JSPI
+EM_ASYNC_JS(char*, js_popen_to_file, (const char *command, const char *mode, uint8_t *exitCodePtr), {
+	const returnCallback = (resolver) => new Promise(resolver);
+#else
+EM_JS(char*, js_popen_to_file, (const char *command, const char *mode, uint8_t *exitCodePtr), {
+	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+#endif
+	// Parse args
+	if (!command)
+		return 1; // shell is available
+
+	const cmdstr = UTF8ToString(command);
+	if (!cmdstr.length)
+		return 0; // this is what glibc seems to do (shell works test?)
+
+	const modestr = UTF8ToString(mode);
+	if (!modestr.length)
+		return 0; // this is what glibc seems to do (shell works test?)
+	if (modestr === 'w')
+	{
+		console.error('popen($cmd, "w") is not implemented yet');
+	}
+
+	return returnCallback(async (wakeUp) => {
+		let cp;
+		try {
+			cp = PHPWASM.spawnProcess(cmdstr, []);
+			if (cp instanceof Promise) {
+				cp = await cp;
+			}
+		} catch (e) {
+			console.error(e);
+			if (e.code === 'SPAWN_UNSUPPORTED') {
+				return 1;
+			}
+			throw e;
+		}
+
+		const outByteArrays = [];
+		cp.stdout.on('data', function (data) {
+			outByteArrays.push(data);
+		});
+
+		const outputPath = '/tmp/popen_output';
+		cp.on('exit', function (exitCode) {
+			// Concat outByteArrays, an array of UInt8Arrays
+			// into a single Uint8Array.
+			const outBytes = new Uint8Array(
+				outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
+			);
+			let offset = 0;
+			for (const byteArray of outByteArrays) {
+				outBytes.set(byteArray, offset);
+				offset += byteArray.length;
+			}
+
+			FS.writeFile(outputPath, outBytes);
+
+			HEAPU8[exitCodePtr] = exitCode;
+			wakeUp(allocateUTF8OnStack(outputPath)); // 2 is SIGINT
+		});
+	});
+});
+
+
+/**
+ * Shims poll(2) functionallity for asynchronous websockets:
+ * https://man7.org/linux/man-pages/man2/poll.2.html
+ *
+ * The semantics don't line up exactly with poll(2) but
+ * the intent does. This function is called in php_pollfd_for()
+ * to await a websocket-related event.
+ *
+ * @param {int} socketd The socket descriptor
+ * @param {int} events  The events to wait for
+ * @param {int} timeout The timeout in milliseconds
+ * @returns {int} 1 if any event was triggered, 0 if the timeout expired
+ */
+#ifdef PLAYGROUND_JSPI
+EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
+	const returnCallback = (resolver) => new Promise(resolver);
+#else
+EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
+	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+#endif
+    const POLLIN = 0x0001; /* There is data to read */
+    const POLLPRI = 0x0002; /* There is urgent data to read */
+    const POLLOUT = 0x0004; /* Writing now will not block */
+    const POLLERR = 0x0008; /* Error condition */
+    const POLLHUP = 0x0010; /* Hung up */
+    const POLLNVAL = 0x0020; /* Invalid request: fd not open */
+
+    return returnCallback((wakeUp) => {
+        const polls = [];
+        /**
+         * Check for socket-ness first. We don't clean up child_proc_by_fd yet and
+         * sometimes get duplicate entries. isSocket is more reliable out of the two –
+         * let's check for it first.
+         */
+        if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+            // This is, most likely, a websocket. Let's make sure.
+            const sock = getSocketFromFD(socketd);
+            if (!sock) {
+                wakeUp(0);
+                return;
+            }
+            const lookingFor = new Set();
+
+            if (events & POLLIN || events & POLLPRI) {
+                if (sock.server) {
+                    for (const client of sock.pending) {
+                        if ((client.recv_queue || []).length > 0) {
+                            wakeUp(1);
+                            return;
+                        }
+                    }
+                } else if ((sock.recv_queue || []).length > 0) {
+                    wakeUp(1);
+                    return;
+                }
+            }
+
+            const webSockets = PHPWASM.getAllWebSockets(sock);
+            if (!webSockets.length) {
+                wakeUp(0);
+                return;
+            }
+            for (const ws of webSockets) {
+				if (events & POLLIN || events & POLLPRI) {
+					polls.push(PHPWASM.awaitData(ws));
+					lookingFor.add('POLLIN');
+				}
+				if (events & POLLOUT) {
+					polls.push(PHPWASM.awaitConnection(ws));
+					lookingFor.add('POLLOUT');
+				}
+				// Notify the user the socket is now closed even if the only requested
+				// in or out events.
+				if (
+					events & POLLHUP ||
+					events & POLLIN ||
+					events & POLLOUT ||
+					events & POLLERR
+				) {
+					polls.push(PHPWASM.awaitClose(ws));
+					lookingFor.add('POLLHUP');
+				}
+				if (events & POLLERR || events & POLLNVAL) {
+					polls.push(PHPWASM.awaitError(ws));
+					lookingFor.add('POLLERR');
+				}
+            }
+        } else if (socketd in PHPWASM.child_proc_by_fd) {
+            // This is a child process-related socket.
+            const procInfo = PHPWASM.child_proc_by_fd[socketd];
+            if (procInfo.exited) {
+                wakeUp(0);
+                return;
+            }
+            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+        } else {
+			setTimeout(function () {
+				wakeUp(1);
+			}, timeout);
+			return;
+        }
+        if (polls.length === 0) {
+            console.warn(
+                'Unsupported poll event ' +
+                    events +
+                    ', defaulting to setTimeout().'
+            );
+            setTimeout(function () {
+                wakeUp(0);
+            }, timeout);
+            return;
+        }
+
+        const promises = polls.map(([promise]) => promise);
+        const clearPolling = () => polls.forEach(([, clear]) => clear());
+        let awaken = false;
+        let timeoutId;
+        Promise.race(promises).then(function (results) {
+            if (!awaken) {
+                awaken = true;
+                wakeUp(1);
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                clearPolling();
+            }
+        });
+
+        if (timeout !== -1) {
+            timeoutId = setTimeout(function () {
+                if (!awaken) {
+                    awaken = true;
+                    wakeUp(0);
+                    clearPolling();
+                }
+            }, timeout);
+        }
+    });
+});
+
+/**
+ * Shims read(2) functionallity.
+ * Enables reading from blocking pipes. By default, Emscripten
+ * will throw an EWOULDBLOCK error when trying to read from a
+ * blocking pipe. This function overrides that behavior and
+ * instead waits for the pipe to become readable.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/951
+ * @see https://github.com/emscripten-core/emscripten/issues/13214
+ */
+#ifdef PLAYGROUND_JSPI
+EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
+	const returnCallback = (resolver) => new Promise(resolver);
+#else
+EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
+	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+#endif
+	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
+		var returnCode;
+		var stream;
+		let num = 0;
+		try
+		{
+			stream = SYSCALLS.getStreamFromFD(fd);
+			const num = doReadv(stream, iov, iovcnt);
+			HEAPU32[pnum >> 2] = num;
+			return 0;
+		}
+		catch (e)
+		{
+			// Rethrow any unexpected non-filesystem errors.
+			if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
+			{
+				throw e;
+			}
+			// Only return synchronously if this isn't an asynchronous pipe.
+			// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
+			// We also need to distinguish between a process pipe and a file pipe, otherwise
+			// reading from an empty file would block until the timeout.
+			if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd))
+			{
+				// On failure, yield 0 bytes read to indicate EOF.
+				HEAPU32[pnum >> 2] = 0;
+				return returnCode
+			}
+		}
+	}
+
+    // At this point we know we have to poll.
+    // You might wonder why we duplicate the code here instead of always using
+    // Asyncify.handleSleep(). The reason is performance. Most of the time,
+    // the read operation will work synchronously and won't require yielding
+    // back to JS. In these cases we don't want to pay the Asyncify overhead,
+    // save the stack, yield back to JS, restore the stack etc.
+    return returnCallback((wakeUp) => {
+        var retries = 0;
+        var interval = 50;
+        var timeout = 5000;
+        // We poll for data and give up after a timeout.
+        // We can't simply rely on PHP timeout here because we don't want
+        // to, say, block the entire PHPUnit test suite without any visible
+        // feedback.
+        var maxRetries = timeout / interval;
+        function poll() {
+            var returnCode;
+            var stream;
+            let num;
+            try {
+                stream = SYSCALLS.getStreamFromFD(fd);
+                num = doReadv(stream, iov, iovcnt);
+                returnCode = 0;
+            } catch (e) {
+                if (
+                    typeof FS == 'undefined' ||
+                    !(e.name === 'ErrnoError')
+                ) {
+                    console.error(e);
+                    throw e;
+                }
+                returnCode = e.errno;
+            }
+
+            const success = returnCode === 0;
+            const failure = (
+                ++retries > maxRetries ||
+                !(fd in PHPWASM.child_proc_by_fd) ||
+                PHPWASM.child_proc_by_fd[fd]?.exited ||
+                FS.isClosed(stream)
+            );
+
+            if (success) {
+                HEAPU32[pnum >> 2] = num;
+                wakeUp(0);
+            } else if (failure) {
+                // On failure, yield 0 bytes read to indicate EOF.
+                HEAPU32[pnum >> 2] = 0;
+                // If the failure is due to a timeout, return 0 to indicate that we
+                // reached EOF. Otherwise, propagate the error code.
+                wakeUp(returnCode === 6 ? 0 : returnCode);
+            } else {
+                setTimeout(poll, interval);
+            }
+        }
+        poll();
+    })
+});
 extern int __wasi_syscall_ret(__wasi_errno_t code);
-extern __wasi_errno_t js_fd_read(
-	__wasi_fd_t fd,
-	const __wasi_iovec_t *iovs,
-	size_t iovs_len,
-	__wasi_size_t *nread);
 
 // Exit code of the last exited child process call.
 int wasm_pclose_ret = -1;
@@ -61,7 +389,38 @@ int wasm_pclose_ret = -1;
  * to handle exceptions and errors gracefully within the function to ensure
  * the stability of the system.
  */
-extern size_t js_module_onMessage(const char *data, char **response_buffer);
+EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buffer), {
+	if (Module['onMessage']) {
+		const dataStr = UTF8ToString(data);
+
+		return Module['onMessage'](dataStr)
+			.then((response) => {
+				const responseBytes =
+					typeof response === 'string'
+						? new TextEncoder().encode(response)
+						: response;
+
+				// Copy the response bytes to heap
+				const responseSize = responseBytes.byteLength;
+				const responsePtr = _malloc(responseSize + 1);
+				HEAPU8.set(responseBytes, responsePtr);
+				HEAPU8[responsePtr + responseSize] = 0;
+				HEAPU8[response_buffer] = responsePtr;
+				HEAPU8[response_buffer + 1] = responsePtr >> 8;
+				HEAPU8[response_buffer + 2] = responsePtr >> 16;
+				HEAPU8[response_buffer + 3] = responsePtr >> 24;
+
+				return responseSize;
+			})
+			.catch((e) => {
+				// Log the error and return NULL. Message passing
+				// separates JS context from the PHP context so we
+				// don't let PHP crash here.
+				console.error(e);
+				return -1;
+			});
+	}
+});
 
 // popen() shim
 // -----------------------------------------------------------
@@ -347,7 +706,6 @@ err:
 // -----------------------------------------------------------
 
 int wasm_socket_has_data(php_socket_t fd);
-int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
 
 /* hybrid select(2)/poll(2) for a single descriptor.
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
@@ -375,52 +733,14 @@ EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, stru
 	return n;
 }
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
-ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
-/* Enable PHP to exchange messages with JavaScript */
-PHP_FUNCTION(post_message_to_js)
-{
-	char *data;
-	int data_len;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-	{
-		return;
-	}
-
-	char *response;
-	size_t response_len = js_module_onMessage(data, &response);
-	if (response_len != -1)
-	{
-		zend_string *return_string = zend_string_init(response, response_len, 0);
-		free(response);
-		RETURN_NEW_STR(return_string);
-	}
-	else
-	{
-		RETURN_NULL();
-	}
-}
-
-#if WITH_CLI_SAPI == 1
-#include "sapi/cli/php_cli_process_title.h"
-#if PHP_MAJOR_VERSION >= 8
-#include "sapi/cli/php_cli_process_title_arginfo.h"
-#endif
-
-extern int wasm_shutdown(int sockfd, int how);
-extern int wasm_close(int sockfd);
-
 /**
- * select(2) shim for PHP dev server.
+ * select(2).
  */
-EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
+EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
 {
 	emscripten_sleep(0); // always yield to JS event loop
 	int timeoutms = php_tvtoto(timeouttv);
@@ -431,64 +751,18 @@ EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write
 		{
 			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
 		}
-		else if (FD_ISSET(i, write_fds))
+		if (FD_ISSET(i, write_fds))
 		{
 			n += wasm_poll_socket(i, POLLOUT, timeoutms);
+		}
+		if (FD_ISSET(i, except_fds))
+		{
+			n += wasm_poll_socket(i, POLLERR, timeoutms);
+			FD_CLR(i, except_fds);
 		}
 	}
 	return n;
 }
-
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
-
-typedef struct wasm_cli_arg
-{
-	char *value;
-	struct wasm_cli_arg *next;
-} wasm_cli_arg_t;
-
-int cli_argc = 0;
-wasm_cli_arg_t *cli_argv;
-void wasm_add_cli_arg(char *arg)
-{
-	++cli_argc;
-	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
-	ll_entry->value = strdup(arg);
-	ll_entry->next = cli_argv;
-	cli_argv = ll_entry;
-}
-
-/**
- * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
- * The file is provided by the linker and the main() function is not
- * exported from the final .wasm file at the moment.
- */
-int main(int argc, char *argv[]);
-int run_cli()
-{
-	// Convert the argv linkedlist to an array:
-	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
-	wasm_cli_arg_t *current_arg = cli_argv;
-	int i = 0;
-	while (current_arg != NULL)
-	{
-		cli_argv_array[cli_argc - i - 1] = current_arg->value;
-		++i;
-		current_arg = current_arg->next;
-	}
-
-	return main(cli_argc, cli_argv_array);
-}
-
-#else
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
-#endif
 
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
@@ -505,25 +779,6 @@ static const zend_function_entry additional_functions[] = {
 #if !defined(TSRMLS_FETCH)
 #define TSRMLS_FETCH()
 #endif
-
-// Lowest precedence ini rules. May be overwritten by a /usr/local/etc/php.ini file:
-const char WASM_HARDCODED_INI[] =
-	"error_reporting = E_ALL\n"
-	"display_errors = 1\n"
-	"html_errors = 1\n"
-	"display_startup_errors = On\n"
-	"log_errors = 1\n"
-	"always_populate_raw_post_data = -1\n"
-	"upload_max_filesize = 2000M\n"
-	"post_max_size = 2000M\n"
-	"disable_functions = curl_exec,curl_multi_exec\n"
-	"allow_url_fopen = Off\n"
-	"allow_url_include = Off\n"
-	"session.save_path = /home/web_user\n"
-	"implicit_flush = 1\n"
-	"output_buffering = 0\n"
-	"max_execution_time = 0\n"
-	"max_input_time = -1\n\0";
 
 typedef struct wasm_array_entry
 {
@@ -542,9 +797,6 @@ typedef struct wasm_uploaded_file
 	struct wasm_uploaded_file *next;
 } wasm_uploaded_file_t;
 
-const int MODE_EVAL_CODE = 1;
-const int MODE_EXECUTE_SCRIPT = 2;
-
 typedef struct
 {
 	char *document_root,
@@ -555,15 +807,13 @@ typedef struct
 		*request_host,
 		*content_type,
 		*request_body,
-		*cookies,
-		*php_code;
+		*cookies;
 
 	struct wasm_array_entry *server_array_entries;
 	struct wasm_array_entry *env_array_entries;
 
 	int content_length,
 		request_port,
-		execution_mode,
 		skip_shebang;
 } wasm_server_context_t;
 
@@ -591,7 +841,6 @@ static char *wasm_sapi_read_cookies(TSRMLS_D);
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
 void wasm_init_server_context();
 static char *int_to_string(int i);
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
 
 
 #if (PHP_MAJOR_VERSION >= 8)
@@ -619,7 +868,11 @@ static char *wasm_sapi_getenv(char *name, unsigned long name_len)
 
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	"wasm",			 /* name */
-	"PHP WASM SAPI", /* pretty name */
+#ifdef PLAYGROUND_JSPI
+	"PHP WASM SAPI (JSPI)", /* pretty name */
+#else
+	"PHP WASM SAPI (Asyncify)", /* pretty name */
+#endif
 
 	wasm_sapi_module_startup,	/* startup */
 	wasm_sapi_shutdown_wrapper, /* shutdown */
@@ -666,12 +919,103 @@ void wasm_set_phpini_path(char *path)
 	phpini_path_override = strdup(path);
 }
 
-char *additional_phpini_entries = NULL;
-void wasm_set_phpini_entries(char *ini_entries)
+int stdout_replacement;
+int stderr_replacement;
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
+extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
+
+static const zend_function_entry additional_functions[] = {
+ZEND_FE(dl, arginfo_dl)
+PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
+PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+{NULL, NULL, NULL}
+};
+
+
+
+typedef struct wasm_cli_arg
 {
-	free(additional_phpini_entries);
-	additional_phpini_entries = strdup(ini_entries);
+	char *value;
+	struct wasm_cli_arg *next;
+} wasm_cli_arg_t;
+
+int cli_argc = 0;
+wasm_cli_arg_t *cli_argv;
+void wasm_add_cli_arg(char *arg)
+{
+	++cli_argc;
+	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
+	ll_entry->value = strdup(arg);
+	ll_entry->next = cli_argv;
+	cli_argv = ll_entry;
 }
+
+/**
+ * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
+ * The file is provided by the linker and the main() function is not
+ * exported from the final .wasm file at the moment.
+ */
+int main(int argc, char *argv[]);
+int run_cli()
+{
+	// See wasm_sapi_request_init() for details on why we need to redirect stdout and stderr.
+	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
+	if (stdout_replacement == -1 || stderr_replacement == -1)
+	{
+		return -1;
+	}
+
+	// Set the environment variables
+	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
+	while (current_env_entry != NULL) {
+		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
+		sprintf(env_string, "%s=%s", current_env_entry->key, current_env_entry->value);
+		putenv(env_string);
+		current_env_entry = current_env_entry->next;
+	}
+
+	// Convert the argv linkedlist to an array:
+	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
+	wasm_cli_arg_t *current_arg = cli_argv;
+	int i = 0;
+	while (current_arg != NULL)
+	{
+		cli_argv_array[cli_argc - i - 1] = current_arg->value;
+		++i;
+		current_arg = current_arg->next;
+	}
+
+	int result = main(cli_argc, cli_argv_array);
+
+	// Clear the environment variables
+	while (current_env_entry != NULL) {
+		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
+		sprintf(env_string, "%s=", current_env_entry->key);
+		putenv(env_string);
+		current_env_entry = current_env_entry->next;
+	}
+
+	restore_stream_handler(stdout, stdout_replacement);
+	restore_stream_handler(stderr, stderr_replacement);
+
+	free(cli_argv_array);
+
+	return result;
+}
+
+#else
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+};
+#endif
 
 void wasm_init_server_context()
 {
@@ -686,8 +1030,6 @@ void wasm_init_server_context()
 	wasm_server_context->request_port = -1;
 	wasm_server_context->request_body = NULL;
 	wasm_server_context->cookies = NULL;
-	wasm_server_context->php_code = NULL;
-	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
 	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
 	wasm_server_context->env_array_entries = NULL;
@@ -726,10 +1068,6 @@ void wasm_destroy_server_context()
 	if (wasm_server_context->cookies != NULL)
 	{
 		free(wasm_server_context->cookies);
-	}
-	if (wasm_server_context->php_code != NULL)
-	{
-		free(wasm_server_context->php_code);
 	}
 
 	// Free wasm_server_context->server_array_entries
@@ -916,21 +1254,6 @@ void wasm_set_cookies(char *cookies)
 }
 
 /**
- * Function: wasm_set_php_code
- * ----------------------------
- *  Sets the PHP code to run during the next request. If set,
- *  the script at the path specified by wasm_set_path_translated()
- *  will be represented in $_SERVER but will not be executed.
- *
- *  code: the PHP code, e.g. "echo 'Hello World!';"
- */
-void wasm_set_php_code(char *code)
-{
-	wasm_server_context->php_code = strdup(code);
-	wasm_server_context->execution_mode = MODE_EVAL_CODE;
-}
-
-/**
  * Function: wasm_set_request_port
  * ----------------------------
  *  Sets the request port for the next request.
@@ -960,7 +1283,7 @@ void wasm_set_request_port(int port)
  */
 static int redirect_stream_to_file(FILE *stream, char *file_path)
 {
-	int out = open(file_path, O_TRUNC | O_WRONLY | O_CREAT, 0600);
+	int out = open(file_path, O_WRONLY);
 	if (-1 == out)
 	{
 		return -1;
@@ -991,9 +1314,6 @@ static void restore_stream_handler(FILE *original_stream, int replacement_stream
 	dup2(replacement_stream, fileno(original_stream));
 	close(replacement_stream);
 }
-
-int stdout_replacement;
-int stderr_replacement;
 
 /*
  * Function: wasm_sapi_read_cookies
@@ -1179,11 +1499,9 @@ int wasm_sapi_request_init()
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	// We'll use the /internal directory instead of /tmp, because a child process sharing
-	// the same filesystem and /tmp mount would write to the same stdout and stderr files
-	// and produce unreadable output intertwined with the parent process output. The /internal
-	// directory should always stay in per-process MEMFS space and never be shared with
-	// any other process.
+	// We use our custom Emscripten-defined /internal/std* devices and handle the output in JavaScript.
+	// These /internal devices are not thread-safe and should always stay in per-process MEMFS space.
+	// Sharing them between PHP instances may cause intertwined output.
 	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
 	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
@@ -1226,9 +1544,10 @@ int wasm_sapi_request_init()
 #endif
 
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
-
 	return SUCCESS;
 }
+
+extern void js_release_file_locks();
 
 /**
  * Function: wasm_sapi_request_shutdown
@@ -1254,6 +1573,11 @@ void wasm_sapi_request_shutdown()
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
 
+#ifdef PHP_WASM_FILE_LOCKING_SUPPORT
+	// Release any locks still held by this process
+	js_release_file_locks();
+#endif
+
 	// Prepare a fresh request context
 	wasm_init_server_context();
 }
@@ -1261,8 +1585,7 @@ void wasm_sapi_request_shutdown()
 /**
  * Function: wasm_sapi_handle_request
  * ----------------------------
- *   Runs the PHP code snippet set up with wasm_set_php_code or,
- *   if missing, executes the PHP file set up with wasm_set_path_translated.
+ *   Executes the PHP file set up with wasm_set_path_translated.
  */
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 {
@@ -1272,61 +1595,55 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 		result = -1;
 		goto wasm_request_done;
 	}
-	
+
 	EG(exit_status) = 0;
 
 	TSRMLS_FETCH();
-	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)
-	{
-		zend_file_handle file_handle;
+	zend_file_handle file_handle;
 
-		file_handle.type = ZEND_HANDLE_FILENAME;
+	file_handle.type = ZEND_HANDLE_FILENAME;
 #if PHP_MAJOR_VERSION >= 8
-		zend_string *filename = zend_string_init(
-			SG(request_info).path_translated,
-			strlen(SG(request_info).path_translated),
-			1);
-		file_handle.filename = filename;
+	zend_string *filename = zend_string_init(
+		SG(request_info).path_translated,
+		strlen(SG(request_info).path_translated),
+		1);
+	file_handle.filename = filename;
 #else
-		file_handle.filename = SG(request_info).path_translated;
+	file_handle.filename = SG(request_info).path_translated;
 #endif
 #if PHP_MAJOR_VERSION < 8
-		file_handle.free_filename = 0;
-		file_handle.opened_path = NULL;
+	file_handle.free_filename = 0;
+	file_handle.opened_path = NULL;
 #endif
 
-		// https://bugs.php.net/bug.php?id=77561
-		// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
-		// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
-		// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
-		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE)
-		{
-			zend_try
-			{
-				if (errno == EACCES)
-				{
-					SG(sapi_headers).http_response_code = 403;
-					PUTS("Access denied.\n");
-				}
-				else
-				{
-					SG(sapi_headers).http_response_code = 404;
-					PUTS("No input file specified.\n");
-				}
-			}
-			zend_catch
-			{
-			}
-			zend_end_try();
-			goto wasm_request_done;
-		}
-
-		php_execute_script(&file_handle TSRMLS_CC);
-	}
-	else
+	// https://bugs.php.net/bug.php?id=77561
+	// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
+	// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
+	// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
+	if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE)
 	{
-		run_php(wasm_server_context->php_code);
+		zend_try
+		{
+			if (errno == EACCES)
+			{
+				SG(sapi_headers).http_response_code = 403;
+				PUTS("Access denied.\n");
+			}
+			else
+			{
+				SG(sapi_headers).http_response_code = 404;
+				PUTS("No input file specified.\n");
+			}
+		}
+		zend_catch
+		{
+		}
+		zend_end_try();
+		goto wasm_request_done;
 	}
+
+	php_execute_script(&file_handle TSRMLS_CC);
+
 	result = EG(exit_status);
 wasm_request_done:
 	wasm_sapi_request_shutdown();
@@ -1444,7 +1761,7 @@ FILE *headers_file;
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
-	headers_file = fopen("/internal/headers.json", "w");
+	headers_file = fopen("/internal/headers", "w");
 	if (headers_file == NULL)
 	{
 		return FAILURE;
@@ -1483,8 +1800,7 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 {
 	if (sapi_header == NULL)
 	{
-		fseek(headers_file, ftell(headers_file) - 2, SEEK_SET);
-		fwrite(&"  ", sizeof(char), 2, headers_file);
+		fwrite(&"\"__terminator__\"", sizeof(char), 16, headers_file);
 		return;
 	}
 	_fwrite(headers_file, "\"");
@@ -1537,21 +1853,6 @@ int php_wasm_init()
 		php_wasm_sapi_module.php_ini_path_override = phpini_path_override;
 	}
 
-	if (additional_phpini_entries != NULL)
-	{
-		int ini_entries_len = strlen(additional_phpini_entries);
-		additional_phpini_entries = realloc(additional_phpini_entries, ini_entries_len + sizeof(WASM_HARDCODED_INI));
-		memmove(additional_phpini_entries + sizeof(WASM_HARDCODED_INI) - 2, additional_phpini_entries, ini_entries_len + 1);
-		memcpy(additional_phpini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI) - 2);
-		php_wasm_sapi_module.ini_entries = strdup(additional_phpini_entries);
-		free(additional_phpini_entries);
-	}
-	else
-	{
-		php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
-		memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
-	}
-
 	php_sapi_started = 1;
 	php_wasm_sapi_module.additional_functions = additional_functions;
 	if (php_wasm_sapi_module.startup(&php_wasm_sapi_module) == FAILURE)
@@ -1562,61 +1863,89 @@ int php_wasm_init()
 }
 
 /*
- * Function: phpwasm_run
+ * Function: wasm_free
  * ----------------------------
- *   Runs a PHP script. Writes the output to stdout and stderr,
+ *   Frees a pointer. Emscripten does not export the `free` function when using
+ *   JSPI, so we need to define our own.
  *
- *   code: The PHP code to run.
- *
- *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
+ *   @see https://man7.org/linux/man-pages/man3/free.3.html
  */
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
-{
-	zend_try
-	{
-		zend_eval_string(code, NULL, "php-wasm run script");
-
-		if (EG(exception))
-		{
-			zend_exception_error(EG(exception), E_ERROR);
-		}
-	}
-	zend_catch
-	{
-	}
-	zend_end_try();
-
-	return EG(exit_status);
+void wasm_free(void *_Nullable ptr) {
+	free(ptr);
 }
 
-#ifdef WITH_VRZNO
-#include "../php-src/ext/vrzno/php_vrzno.h"
-
+#ifdef PHP_WASM_FILE_LOCKING_SUPPORT
 /*
- * Function: exec_callback
+ * Function: wasm_get_end_offset
  * ----------------------------
- *   Required by the VRZNO module.
+ *   Returns the end offset of the file descriptor.
  *
- *   @see https://github.com/seanmorris/vrzno
+ *   Useful to determine the base address when file locking
+ *   with flock.l_whence == SEEK_END.
  */
-int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
-{
-	int retVal = vrzno_exec_callback(fptr);
-
-	fflush(stdout);
-
-	return retVal;
+EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
+	struct stat s;
+	int result = fstat(fd, &s);
+	if (result == -1) {
+		return -1;
+	}
+	off_t eof_offset = (off_t)s.st_size;
+	if (eof_offset < 0) {
+		// Guard against overflow, which we do not expect
+		return -1;
+	}
+	return eof_offset;
 }
 
-/*
- * Function: del_callback
+extern pid_t js_getpid();
+
+/**
+ * Function: getpid
  * ----------------------------
- *   Required by the VRZNO module.
+ *   Returns the process ID of the current process.
  *
- *   @see https://github.com/seanmorris/vrzno
+ *   As of 2025-06-19, Emscripten's built-in getpid() always returns 42.
+ *   We provide our own getpid() implementation to return a distinct ID
+ *   for the purpose of file locking.
  */
-int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
-{
-	return vrzno_del_callback(fptr);
+EMSCRIPTEN_KEEPALIVE pid_t __wrap_getpid() {
+	// The process ID is provided in JS as a PHPLoader option,
+	// so we ask JS for it here.
+	return js_getpid();
+}
+
+extern int js_flock(int fd, int op);
+/**
+ * Function: flock
+ * ----------------------------
+ *   Emscripten's built-in flock() function is a no-op that pretends to succeed.
+ *
+ *   We provide a real flock() implementation that performs whole-file locking
+ *   amongst php-wasm processes and the host platform.
+ */
+EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
+	return js_flock(fd, op);
 }
 #endif
+
+extern void js_wasm_trace(const char *msg);
+
+/**
+ * Function: wasm_trace
+ * ----------------------------
+ *   This is a printf()-style function that forwards trace messages to JS.
+ *   It is provided as a utility that can be used while debugging native code.
+ */
+EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	char buf[1024];
+	// NOTE: It would be better and more efficient to just pass varargs to JS,
+	// but AFAIK, this is not a good way to do that directly.
+	// Perhaps we could devise something later, but this is good enough for now.
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	char traceBuf[1024];
+	js_wasm_trace(traceBuf);
+}

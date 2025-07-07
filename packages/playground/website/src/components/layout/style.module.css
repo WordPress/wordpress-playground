@@ -1,0 +1,162 @@
+:root {
+	--site-manager-site-list-width: 320px;
+	--site-manager-site-info-min-width: 555px;
+	--site-manager-width-desktop: calc(
+		var(--site-manager-site-list-width) +
+		var(--site-manager-site-info-min-width) +
+		2 * var(--site-manager-border-width)
+	);
+	--site-view-min-width: 320px;
+	--site-manager-background-color: #1e1e1e;
+	--site-manager-border-width: 12px;
+	--site-manager-border-radius: 12px;
+}
+
+@media screen and (max-width: 890px) {
+	:root {
+		--site-manager-site-info-min-width: 60%;
+	}
+}
+
+body {
+	background-color: var(--site-manager-background-color);
+}
+
+.layout {
+	display: flex;
+	width: 100vw;
+	height: 100dvh;
+	overflow: hidden;
+}
+
+.site-view {
+	height: 100%;
+}
+
+.site-manager-wrapper {
+	max-width: var(--site-manager-width-desktop);
+	@media (max-width: 875px) {
+		min-width: 0;
+		width: 100%;
+	}
+}
+
+.site-manager-wrapper-enter {
+	opacity: 0;
+	max-width: 0;
+}
+
+.site-manager-wrapper-exit,
+.site-manager-wrapper-enter-active {
+	opacity: 1;
+	transform: none;
+	max-width: var(--site-manager-width-desktop);
+	@media (max-width: 875px) {
+		width: 100%;
+	}
+}
+
+/*
+ * Repeated rule to ensure it's more specific than
+ * .site-manager-wrapper-exit
+ */
+.site-manager-wrapper-exit-active {
+	opacity: 0;
+	max-width: 0;
+}
+
+.site-manager-wrapper-exit-active,
+.site-manager-wrapper-enter-active {
+	transition:
+		/*
+		 * Workaround: Animate max-width to allow `width: auto`
+		 * The `width` property needs to be `auto` to ensure the
+		 * site manager panel expands and shrinks with its content.
+		 * Unfortunately, we can't animate width from `0` to `auto`.
+		 * Therefore, we animate the `max-width` property instead.
+		 * We assign a large enough number (1300px) to make sure it won't
+		 * interfere with regular use cases, and give it more time to animate
+		 * so that it hits its `auto` width approximately around the same time
+		 * as the `opacity` transition finishes.
+		 */ max-width
+			450ms,
+		opacity 300ms;
+}
+
+.site-view {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: var(--site-view-min-width);
+	height: 100dvh;
+	border: 0px solid var(--site-manager-background-color);
+	transition: border-radius 300ms ease, border-width 300ms ease,
+		transform 300ms ease;
+	border-radius: 0;
+	border-width: 0;
+}
+
+.site-manager-wrapper + .site-view {
+	position: relative;
+	border-width: var(--site-manager-border-width);
+	border-left-width: 0;
+	.site-view-content {
+		border-radius: var(--site-manager-border-radius);
+	}
+}
+
+.site-manager-wrapper:not(
+		.site-manager-wrapper-exit-active,
+		.site-manager-wrapper-enter-active
+	)
+	+ .site-view:hover {
+	transform: scale(1.01);
+}
+
+.site-manager-wrapper-exit-active + .site-view {
+	border-radius: 0;
+	border-width: 0;
+	.site-view-content {
+		border-radius: 0;
+	}
+}
+
+.site-view-content {
+	overflow: hidden;
+	transition: border-radius 300ms;
+	height: 100%;
+}
+
+.site-view-overlay {
+	content: '';
+	display: block;
+	width: 100%;
+	height: 100dvh;
+	background-color: transparent;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1;
+	cursor: pointer;
+}
+
+/*
+ * Unfortunately we cannot use calc() in media queries.
+ *
+ * 1166px = --site-manager-width + --site-view-min-width
+ *
+ * This manual calculation ensures the site view gets hidden
+ * on smaller screens and never overflows out of the screen.
+ */
+@media (max-width: 1126px) {
+	.site-manager-wrapper + .site-view {
+		display: none;
+	}
+	.site-manager-wrapper,
+	.site-manager-wrapper-exit,
+	.site-manager-wrapper-enter-active {
+		width: 100%;
+	}
+	.site-manager-wrapper-exit-active + .site-view {
+		display: block;
+	}
+}

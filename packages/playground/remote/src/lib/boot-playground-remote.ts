@@ -1,18 +1,21 @@
+import type { MessageListener } from '@php-wasm/universal';
+import type { SyncProgressCallback } from '@php-wasm/web';
 import {
-	LatestSupportedPHPVersion,
-	MessageListener,
-	SupportedPHPExtensionsList,
-} from '@php-wasm/universal';
-import {
-	registerServiceWorker,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
+	setupPostMessageRelay,
 } from '@php-wasm/web';
 
-import type { PlaygroundWorkerEndpoint } from './worker-thread';
+import type {
+	PlaygroundWorkerEndpoint,
+	WorkerBootOptions,
+	MountDescriptor,
+} from './worker-thread';
+export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
-import ProgressBar, { ProgressBarOptions } from './progress-bar';
+import type { ProgressBarOptions } from './progress-bar';
+import ProgressBar from './progress-bar';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
@@ -26,10 +29,10 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress';
-import type { SyncProgressCallback } from './opfs/bind-opfs';
-import { FilesystemOperation } from '@php-wasm/fs-journal';
-import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { logger } from '@php-wasm/logger';
+import { PhpWasmError } from '@php-wasm/util';
+import { responseTo } from '@php-wasm/web-service-worker';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -54,51 +57,61 @@ export async function bootPlaygroundRemote() {
 		bar = new ProgressBar();
 		document.body.prepend(bar.element);
 	}
+	const sw = navigator.serviceWorker;
+	if (!sw) {
+		/**
+		 * Service workers may only run in secure contexts.
+		 * See https://w3c.github.io/webappsec-secure-contexts/
+		 */
+		if (window.isSecureContext) {
+			throw new PhpWasmError(
+				'Service workers are not supported in your browser.'
+			);
+		} else {
+			throw new PhpWasmError(
+				'WordPress Playground uses service workers and may only work on HTTPS and http://localhost/ sites, but the current site is neither.'
+			);
+		}
+	}
 
-	const wpVersion = parseVersion(
-		query.get('wp'),
-		LatestSupportedWordPressVersion
-	);
-	const phpVersion = parseVersion(
-		query.get('php'),
-		LatestSupportedPHPVersion
-	);
-	const phpExtensions = parseList(
-		query.getAll('php-extension'),
-		SupportedPHPExtensionsList
-	);
-	const withNetworking = query.get('networking') === 'yes';
-	const sapiName = query.get('sapi-name') || undefined;
-	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl, {
-			wpVersion,
-			phpVersion,
-			['php-extension']: phpExtensions,
-			networking: withNetworking ? 'yes' : 'no',
-			storage: query.get('storage') || '',
-			...(sapiName ? { sapiName } : {}),
-		})
+	const registration = await sw.register(serviceWorkerUrl + '', {
+		type: 'module',
+		// Always bypass HTTP cache when fetching the new Service Worker script:
+		updateViaCache: 'none',
+	});
+
+	// Check if there's a new service worker available and, if so, enqueue
+	// the update:
+	try {
+		await registration.update();
+	} catch (e) {
+		// registration.update() throws if it can't reach the server.
+		// We're swallowing the error to keep the app working in offline mode
+		// or when playground.wordpress.net is down. We can be sure we have a
+		// functional service worker at this point because sw.register() succeeded.
+		logger.error('Failed to update service worker.', e);
+	}
+
+	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
+		await spawnPHPWorkerThread(workerUrl)
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const webApi: WebClientMixin = {
-		setSpawnHandler(fn) {
-			return workerApi.setSpawnHandler(fn);
-		},
+	const phpRemoteApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
-			return workerApi.onDownloadProgress(fn);
+			return phpWorkerApi.onDownloadProgress(fn);
 		},
 		async journalFSEvents(root: string, callback) {
-			return workerApi.journalFSEvents(root, callback);
+			return phpWorkerApi.journalFSEvents(root, callback);
 		},
 		async replayFSJournal(events: FilesystemOperation[]) {
-			return workerApi.replayFSJournal(events);
+			return phpWorkerApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await workerApi.addEventListener(event, listener);
+			return await phpWorkerApi.addEventListener(event, listener);
 		},
 		async removeEventListener(event, listener) {
-			return await workerApi.removeEventListener(event, listener);
+			return await phpWorkerApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
@@ -112,15 +125,56 @@ export async function bootPlaygroundRemote() {
 			}
 			bar.destroy();
 		},
+
+		/**
+		 * Listens to Playground navigation.
+		 *
+		 * @param fn The function to be called when a navigation event occurs.
+		 */
 		async onNavigation(fn) {
-			// Manage the address bar
+			/**
+			 * Note: We do not manually clear the event listener and the interval set in this function.
+			 *
+			 * This is because we're inside remote.html – a Playground instance-specific iframe.
+			 * When a Playground is stopped the iframe is destroyed and the resources – cleaned up.
+			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
+			 * We'll let the browser handle that.
+			 */
+			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
+					/**
+					 * When navigating to a page with %0A sequences (encoded newlines)
+					 * in the query string, the `location.href` property of the
+					 * iframe's content window doesn't seem to reflect them. Everything
+					 * else is in place, but not the %0A sequences.
+					 *
+					 * Weirdly, these sequences are available after the next event
+					 * loop tick – hence the `setTimeout(0)`.
+					 *
+					 * The exact cause is unclear at the moment of writing of this
+					 * comment. The WHATWG HTML Standard [1] has a few hints:
+					 *
+					 * * Current and active session history entries may get out of
+					 *   sync for iframes.
+					 * * Documents inside iframes have "is delaying load events" set
+					 *   to true.
+					 *
+					 * But there doesn't seem to be any concrete explanation and no
+					 * recommended remediation. If anyone has a clue, please share it
+					 * in a GitHub issue or start a new PR.
+					 *
+					 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+					 */
+					// Get the content window while e.currentTarget is available.
+					// It will be undefined on the next event loop tick.
+					const contentWindow = e.currentTarget!.contentWindow;
+					await new Promise((resolve) => setTimeout(resolve, 0));
 					const path = await playground.internalUrlToPath(
-						e.currentTarget!.contentWindow.location.href
+						contentWindow.location.href
 					);
 					fn(path);
-				} catch (e) {
+				} catch {
 					// @TODO: The above call can fail if the remote iframe
 					// is embedded in StackBlitz, or presumably, any other
 					// environment with restrictive CSP. Any error thrown
@@ -128,15 +182,48 @@ export async function bootPlaygroundRemote() {
 					// so let's ignore it for now and find a correct fix in time.
 				}
 			});
+
+			// Also propagate navigation changes twice a second for any
+			// updates we don't receive via the iframe load event.
+			//
+			// For more details on the challenges related to the load event,
+			// see:
+			//
+			// * https://github.com/WordPress/wordpress-playground/pull/1945
+			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
+			let lastPath: string | undefined;
+			setInterval(async () => {
+				try {
+					let href = '';
+					if (wpFrame.contentWindow) {
+						href = wpFrame.contentWindow.location.href;
+					} else {
+						href = wpFrame.src;
+					}
+					const path = await playground.internalUrlToPath(href);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore errors due to CORS or CSP restrictions
+				}
+			}, 500);
 		},
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
 			}
 			/**
-			 * People often forget to type the trailing slash at the end of
-			 * /wp-admin/ URL and end up with wrong relative hrefs. Let's
-			 * fix it for them.
+			 * Workaround for a Safari bug: navigating to `/wp-admin`
+			 * without the trailing slash causes the browser to hang.
+			 * Chrome and Firefox correctly navigate to `/wp-admin`,
+			 * get a 302 redirect from PHPRequestHandler, and then follow
+			 * it to `/wp-admin/`.
+			 *
+			 * Interestingly, opening pretty permalinks without the trailing slash
+			 * works correctly. For example, `/sample-page` works as expected.
 			 */
 			if (requestedPath === '/wp-admin') {
 				requestedPath = '/wp-admin/';
@@ -150,7 +237,7 @@ export async function bootPlaygroundRemote() {
 				try {
 					wpFrame.contentWindow.location.href = newUrl;
 					return;
-				} catch (e) {
+				} catch {
 					// The above call can fail if we're embedded in an
 					// environment with a restrictive CSP policy.
 				}
@@ -161,7 +248,7 @@ export async function bootPlaygroundRemote() {
 			let url = '';
 			try {
 				url = wpFrame.contentWindow!.location.href;
-			} catch (e) {
+			} catch {
 				// The above call can fail if we're embedded in an
 				// environment with a restrictive CSP policy.
 			}
@@ -191,23 +278,140 @@ export async function bootPlaygroundRemote() {
 		 * @returns
 		 */
 		async onMessage(callback: MessageListener) {
-			return await workerApi.onMessage(callback);
+			return await phpWorkerApi.onMessage(callback);
 		},
+
 		/**
 		 * Ditto for this function.
 		 * @see onMessage
 		 * @param callback
 		 * @returns
 		 */
-		async bindOpfs(
-			opfs: FileSystemDirectoryHandle,
+		async mountOpfs(
+			options: MountDescriptor,
 			onProgress?: SyncProgressCallback
 		) {
-			return await workerApi.bindOpfs(opfs, onProgress);
+			return await phpWorkerApi.mountOpfs(options, onProgress);
+		},
+
+		/**
+		 * Ditto for this function.
+		 * @see onMessage
+		 * @param mountpoint
+		 * @returns
+		 */
+		async unmountOpfs(mountpoint: string) {
+			return await phpWorkerApi.unmountOpfs(mountpoint);
+		},
+
+		/**
+		 * Download WordPress assets.
+		 * @see backfillStaticFilesRemovedFromMinifiedBuild in the worker-thread.ts
+		 */
+		async backfillStaticFilesRemovedFromMinifiedBuild() {
+			await phpWorkerApi.backfillStaticFilesRemovedFromMinifiedBuild();
+		},
+
+		/**
+		 * Checks whether we have the missing WordPress assets readily
+		 * available in the request cache.
+		 */
+		async hasCachedStaticFilesRemovedFromMinifiedBuild() {
+			return await phpWorkerApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
+		},
+
+		async boot(options) {
+			await phpWorkerApi.boot(options);
+
+			// Proxy the service worker messages to the web worker:
+			navigator.serviceWorker.addEventListener(
+				'message',
+				async function onMessage(event) {
+					/**
+					 * Ignore events meant for other PHP instances to
+					 * avoid handling the same event twice.
+					 *
+					 * This is important because the service worker posts the
+					 * same message to all application instances across all browser tabs.
+					 */
+					if (options.scope && event.data.scope !== options.scope) {
+						return;
+					}
+
+					// Wait for the PHP API client to be set by bootPlaygroundRemote
+					const args = event.data.args || [];
+					const method = event.data
+						.method as keyof PlaygroundWorkerEndpoint;
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+					const result = await (phpWorkerApi[method] as Function)(
+						...args
+					);
+					event.source!.postMessage(
+						responseTo(event.data.requestId, result)
+					);
+				}
+			);
+			sw.startMessages();
+
+			try {
+				await phpWorkerApi.isReady();
+
+				setupPostMessageRelay(
+					wpFrame,
+					getOrigin((await playground.absoluteUrl)!)
+				);
+
+				setAPIReady();
+			} catch (e) {
+				setAPIError(e as Error);
+				throw e;
+			}
+
+			/**
+			 * When we're running WordPress from a minified bundle, we're missing some static assets.
+			 * The section below backfills them if needed. It doesn't do anything if the assets are already
+			 * in place, or when WordPress is loaded from a non-minified bundle.
+			 *
+			 * Minified bundles are shipped without most static assets to reduce the bundle size and
+			 * the loading time. When WordPress loads for the first time, the browser parses all the
+			 * <script src="">, <link href="">, etc. tags and fetches the missing assets from the server.
+			 *
+			 * Unfortunately, fetching these assets on demand wouldn't work in an offline mode.
+			 *
+			 * Below we're downloading a zipped bundle of the missing assets.
+			 */
+			if (
+				await phpRemoteApi.hasCachedStaticFilesRemovedFromMinifiedBuild()
+			) {
+				/**
+				 * If we already have the static assets in the cache, the backfilling only
+				 * involves unzipping the archive. This is fast. Let's do it before the first
+				 * render.
+				 *
+				 * Why?
+				 *
+				 * Because otherwise the initial offline page render would lack CSS.
+				 * Without the static assets in /wordpress/wp-content, the browser would
+				 * attempt to fetch them from the server. However, we're in an offline mode
+				 * so nothing would be fetched.
+				 */
+				await phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
+			} else {
+				/**
+				 * If we don't have the static assets in the cache, we need to fetch them.
+				 *
+				 * Let's wait for the initial page load before we start the backfilling.
+				 * The static assets are 12MB+ in size. Starting the download before
+				 * Playground is loaded would noticeably delay the first paint.
+				 */
+				wpFrame.addEventListener('load', () => {
+					phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
+				});
+			}
 		},
 	};
 
-	await workerApi.isConnected();
+	await phpWorkerApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
@@ -216,25 +420,10 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
-
-	try {
-		await workerApi.isReady();
-		await registerServiceWorker(
-			workerApi,
-			await workerApi.scope,
-			serviceWorkerUrl + ''
-		);
-		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
-		if (withNetworking) {
-			await setupFetchNetworkTransport(workerApi);
-		}
-
-		setAPIReady();
-	} catch (e) {
-		setAPIError(e as Error);
-		throw e;
-	}
+	const [setAPIReady, setAPIError, playground] = exposeAPI(
+		phpRemoteApi,
+		phpWorkerApi
+	);
 
 	/*
 	 * An assertion to make sure Playground Client is compatible
@@ -245,55 +434,6 @@ export async function bootPlaygroundRemote() {
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
-}
-
-function setupPostMessageRelay(
-	wpFrame: HTMLIFrameElement,
-	expectedOrigin: string
-) {
-	// Relay Messages from WP to Parent
-	window.addEventListener('message', (event) => {
-		if (event.source !== wpFrame.contentWindow) {
-			return;
-		}
-
-		if (event.origin !== expectedOrigin) {
-			return;
-		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
-			return;
-		}
-
-		window.parent.postMessage(event.data, '*');
-	});
-
-	// Relay Messages from Parent to WP
-	window.addEventListener('message', (event) => {
-		if (event.source !== window.parent) {
-			return;
-		}
-
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
-			return;
-		}
-
-		wpFrame?.contentWindow?.postMessage(event.data);
-	});
-}
-
-function parseVersion<T>(value: string | undefined | null, latest: T) {
-	if (!value || value === 'latest') {
-		return latest as string;
-	}
-	return value;
-}
-
-function parseList<T>(value: string[], list: readonly T[]) {
-	if (!value) {
-		return [];
-	}
-	return value.filter((item) => list.includes(item as any));
 }
 
 /**
@@ -308,12 +448,13 @@ function assertNotInfiniteLoadingLoop() {
 		isBrowserInABrowser =
 			window.parent !== window &&
 			(window as any).parent.IS_WASM_WORDPRESS;
-	} catch (e) {
+	} catch {
 		// ignore
 	}
 	if (isBrowserInABrowser) {
 		throw new Error(
-			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-playground/issues'
+			`The service worker did not load correctly. This is a bug,
+			please report it on https://github.com/WordPress/wordpress-playground/issues`
 		);
 	}
 	(window as any).IS_WASM_WORDPRESS = true;

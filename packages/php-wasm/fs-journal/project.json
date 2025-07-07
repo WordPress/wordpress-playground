@@ -5,11 +5,37 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/fs-journal/README.md dist/packages/php-wasm/fs-journal"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/fs-journal/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/fs-journal",
+				"buildTarget": "php-wasm-fs-journal:build:bundle:production"
+			}
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
+				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/fs-journal"
 			}
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
 		},
 		"test": {
 			"executor": "nx:noop",
@@ -36,7 +62,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/fs-journal/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/fs-journal/**/*.ts"],
+				"maxWarnings": 0
 			}
 		}
 	},

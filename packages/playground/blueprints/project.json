@@ -6,10 +6,27 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/blueprints/README.md dist/packages/playground/blueprints"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/blueprints/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/blueprints",
+				"buildTarget": "playground-blueprints:build:bundle:production"
+			},
 			"dependsOn": [
-				"build:bundle",
 				"build:blueprint-schema",
-				"build:rollup-declarations"
+				"build:rollup-declarations-for-schema-generation"
 			]
 		},
 		"build:blueprint-schema": {
@@ -20,17 +37,14 @@
 				],
 				"parallel": false
 			},
-			"dependsOn": ["build:rollup-declarations"]
+			"dependsOn": ["build:rollup-declarations-for-schema-generation"]
 		},
-		"build:rollup-declarations": {
+		"build:rollup-declarations-for-schema-generation": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"mkdir -p dist/packages/playground/blueprints",
-					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts",
-					"rimraf dist/packages/playground/blueprints/lib/*.d.ts",
-					"rimraf dist/packages/playground/blueprints/*.d.ts",
-					"mv packages/playground/blueprints/src/rollup.d.ts dist/packages/playground/blueprints/index.d.ts"
+					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts"
 				],
 				"parallel": false
 			},
@@ -48,6 +62,10 @@
 			"options": {
 				"command": "node tools/scripts/publish.mjs playground-blueprints {args.ver} {args.tag}"
 			},
+			"dependsOn": ["build"]
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
 			"dependsOn": ["build"]
 		},
 		"test": {
@@ -75,7 +93,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {
