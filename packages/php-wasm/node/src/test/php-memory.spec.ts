@@ -16,7 +16,7 @@ describe.each(phpVersions)('PHP %s – memory allocation', (phpVersion) => {
 	});
 
 	afterEach(async () => {
-		php?.[Symbol.dispose]?.();
+		php.exit();
 	});
 
 	it('can concat large string out of many small strings without reaching Out-of-memory condition', async () => {

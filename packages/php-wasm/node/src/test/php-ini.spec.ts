@@ -23,7 +23,7 @@ custom_setting = true
 	});
 
 	afterEach(async () => {
-		php?.[Symbol.dispose]?.();
+		php.exit();
 	});
 
 	describe('getPhpIniEntries', () => {
