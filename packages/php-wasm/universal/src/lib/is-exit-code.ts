@@ -4,9 +4,9 @@
  * @param e The error to check
  * @returns True if the error appears to represent an exit code or status
  */
-export function isExitCode(e: any): e is { exitCode: number } {
+export function isExitCode(e: any): e is { status: number } {
 	if (!(e instanceof Error)) {
 		return false;
 	}
-	return 'exitCode' in e || (e?.name === 'ExitStatus' && 'status' in e);
+	return e?.name === 'ExitStatus' && 'status' in e;
 }
