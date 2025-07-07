@@ -915,7 +915,6 @@ export class PHP implements Disposable {
 					executionFn(),
 					new Promise((resolve, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							console.log('errorListener', e);
 							if (isExitCode(e.error) && e.error.status === 0) {
 								resolve(e.error.exitCode);
 							} else {

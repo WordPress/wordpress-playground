@@ -5,7 +5,12 @@ import type {
 	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { PHPResponse, consumeAPI, exposeAPI } from '@php-wasm/universal';
+import {
+	PHPResponse,
+	consumeAPI,
+	exposeAPI,
+	exposeSyncAPI,
+} from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintDeclaration,
@@ -473,6 +478,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	// so we can look at it when debugging request handling.
 	const fileLockManager = new FileLockManagerForNode();
 
+	/**
+	 * Expose the file lock manager API on a MessagePort and return it.
+	 */
+	async function exposeFileLockManager() {
+		const { port1, port2 } = new MessageChannel();
+		if (await jspi()) {
+			/**
+			 * If JSPI is available, use the asynchronous API.
+			 */
+			exposeAPI(fileLockManager, null, port1);
+		} else {
+			/**
+			 * If JSPI is not available, use the synchronous API. Asyncify
+			 * is extremely difficult to debug so we avoid it by using synchronous
+			 * messaging.
+			 */
+			await exposeSyncAPI(fileLockManager, port1);
+		}
+		return port2;
+	}
+
 	let wordPressReady = false;
 
 	logger.log('Starting a PHP server...');
@@ -566,10 +592,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				// Comlink communication proxy
 				await playground.isConnected();
 
-				// Custom communication proxy
-				const fileLockManagerPort =
-					exposeSyncRPCEndpoint(fileLockManager);
-				// @TODO: Cleanup endpoint at some point?
+				const fileLockManagerPort = await exposeFileLockManager();
 
 				logger.log(`Booting WordPress...`);
 
@@ -665,7 +688,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								index * processIdSpaceLength;
 
 							const fileLockManagerPort =
-								exposeSyncRPCEndpoint(fileLockManager);
+								await exposeFileLockManager();
 							await additionalPlayground.useFileLockManager(
 								fileLockManagerPort
 							);
@@ -745,35 +768,4 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			return await loadBalancer.handleRequest(request);
 		},
 	});
-}
-
-function exposeSyncRPCEndpoint(wrappedObject: any) {
-	const channel = new MessageChannel();
-
-	channel.port1.on('message', async (message) => {
-		const { functionName, args, notifySharedBuffer } = message;
-
-		if (!(functionName in wrappedObject)) {
-			throw new Error(`Unknown function: ${functionName}`);
-		}
-
-		let result = undefined;
-		try {
-			result = await wrappedObject[functionName](...args);
-		} catch (error) {
-			console.error('SyncRPC error', error);
-			throw error;
-		}
-
-		// Send the result back through the MessagePort
-		channel.port1.postMessage(result);
-
-		// Unpark the worker thread
-		const view = new Int32Array(notifySharedBuffer);
-		view.set([1], 0);
-		Atomics.notify(view, 0);
-	});
-
-	// @TODO: Should we clean up the channel eventually?
-	return channel.port2;
 }

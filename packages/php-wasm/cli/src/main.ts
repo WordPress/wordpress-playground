@@ -73,14 +73,11 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	);
 	chmodSync(`${tempDir}/php`, 0o755);
 
-	const fileLockManager = new FileLockManagerForNode();
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
-				// fileLockManager: fileLockManagerSync, //fileLockManager as any,
-				// fileLockManager: fileLockManagerAsync, //fileLockManager as any,
-				fileLockManager: fileLockManager, //fileLockManager as any,
+				fileLockManager: new FileLockManagerForNode(),
 				processId: 1,
 				ENV: {
 					...envVariables,

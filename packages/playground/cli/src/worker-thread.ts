@@ -1,6 +1,10 @@
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
-import { PHPWorker, exposeAPI } from '@php-wasm/universal';
-import * as Comlink from 'comlink';
+import type { PHP, RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	PHPWorker,
+	consumeAPI,
+	consumeAPISync,
+	exposeAPI,
+} from '@php-wasm/universal';
 import type {
 	FileLockManager,
 	RequestedRangeLock,
@@ -17,6 +21,7 @@ import {
 	receiveMessageOnPort,
 } from 'worker_threads';
 import { rootCertificates } from 'tls';
+import { jspi } from 'wasm-feature-detect';
 
 export interface Mount {
 	hostPath: string;
@@ -61,44 +66,9 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-function consumeSyncRPC<T extends object>(port: MessagePort): T {
-	return new Proxy<T>({} as T, {
-		get(target, prop) {
-			return (...args: any[]) => {
-				const notifySharedBuffer = new SharedArrayBuffer(4);
-				const view = new Int32Array(notifySharedBuffer);
-				view.set([0], 0);
-
-				port.postMessage(
-					{
-						functionName: prop,
-						args,
-						notifySharedBuffer,
-					},
-					[]
-				);
-
-				// @TODO: Handle remote errors
-
-				// Block and wait for the result using receiveMessageOnPort
-				try {
-					Atomics.wait(view, 0, 0);
-				} catch (e) {
-					console.error('Error waiting for result', e);
-					throw e;
-				}
-
-				const returnValue = receiveMessageOnPort(port);
-
-				return returnValue;
-			};
-		},
-	});
-}
-
 export class PlaygroundCliWorker extends PHPWorker {
 	booted = false;
-	fileLockManager: FileLockManager | undefined;
+	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -111,11 +81,11 @@ export class PlaygroundCliWorker extends PHPWorker {
 	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
 	 */
 	async useFileLockManager(port: MessagePort) {
-		this.fileLockManager = consumeSyncRPC<FileLockManager>(port);
-	}
-
-	async getString() {
-		return 'a';
+		if (await jspi()) {
+			this.fileLockManager = consumeAPI<FileLockManager>(port);
+		} else {
+			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
+		}
 	}
 
 	async boot({
