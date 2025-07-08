@@ -1,3 +1,6 @@
+// eslint-disable @typescript-eslint/no-unsafe-function-type
+// eslint-disable @typescript-eslint/no-misused-new
+// eslint-disable @typescript-eslint/no-empty-object-type
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 
 /**
@@ -280,7 +283,7 @@ export const enum WireValueType {
 export interface RawWireValue {
 	id?: string;
 	type: WireValueType.RAW;
-	value: {};
+	value: any;
 }
 
 export interface HandlerWireValue {
