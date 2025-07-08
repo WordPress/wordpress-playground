@@ -17,7 +17,7 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 
 ### WP-CLI: Error Establishing a Database Connection on Mounted Sites
 
-When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls.
+When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls.
 
 To resolve this, you need to explicitly install and configure the SQLite database integration plugin within your Blueprint.
 
