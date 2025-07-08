@@ -249,22 +249,24 @@ export interface Endpoint extends EventSource {
 	start?: () => void;
 }
 
-export const enum WireValueType {
-	RAW = 'RAW',
-	PROXY = 'PROXY',
-	THROW = 'THROW',
-	HANDLER = 'HANDLER',
-}
+export const WireValueType = {
+	RAW: 'RAW',
+	PROXY: 'PROXY',
+	THROW: 'THROW',
+	HANDLER: 'HANDLER',
+} as const;
+
+export type WireValueType = typeof WireValueType;
 
 export interface RawWireValue {
 	id?: string;
-	type: WireValueType.RAW;
+	type: WireValueType['RAW'];
 	value: any;
 }
 
 export interface HandlerWireValue {
 	id?: string;
-	type: WireValueType.HANDLER;
+	type: WireValueType['HANDLER'];
 	name: string;
 	value: unknown;
 }
@@ -273,50 +275,51 @@ export type WireValue = RawWireValue | HandlerWireValue;
 
 export type MessageID = string;
 
-export const enum MessageType {
-	GET = 'GET',
-	SET = 'SET',
-	APPLY = 'APPLY',
-	CONSTRUCT = 'CONSTRUCT',
-	ENDPOINT = 'ENDPOINT',
-	RELEASE = 'RELEASE',
-}
+export const MessageType = {
+	GET: 'GET',
+	SET: 'SET',
+	APPLY: 'APPLY',
+	CONSTRUCT: 'CONSTRUCT',
+	ENDPOINT: 'ENDPOINT',
+	RELEASE: 'RELEASE',
+} as const;
+export type MessageType = typeof MessageType;
 
 export interface GetMessage {
 	id?: MessageID;
-	type: MessageType.GET;
+	type: MessageType['GET'];
 	path: string[];
 }
 
 export interface SetMessage {
 	id?: MessageID;
-	type: MessageType.SET;
+	type: MessageType['SET'];
 	path: string[];
 	value: WireValue;
 }
 
 export interface ApplyMessage {
 	id?: MessageID;
-	type: MessageType.APPLY;
+	type: MessageType['APPLY'];
 	path: string[];
 	argumentList: WireValue[];
 }
 
 export interface ConstructMessage {
 	id?: MessageID;
-	type: MessageType.CONSTRUCT;
+	type: MessageType['CONSTRUCT'];
 	path: string[];
 	argumentList: WireValue[];
 }
 
 export interface EndpointMessage {
 	id?: MessageID;
-	type: MessageType.ENDPOINT;
+	type: MessageType['ENDPOINT'];
 }
 
 export interface ReleaseMessage {
 	id?: MessageID;
-	type: MessageType.RELEASE;
+	type: MessageType['RELEASE'];
 }
 
 export type Message =
