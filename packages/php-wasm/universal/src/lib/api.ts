@@ -1,9 +1,14 @@
 import type { PHPResponseData } from './php-response';
 import { PHPResponse } from './php-response';
-import type { Endpoint, IsomorphicMessagePort } from './comlink-sync';
 import * as Comlink from './comlink-sync';
-import { nodeEndpoint, type NodeEndpoint } from './comlink-sync';
-import { NodeSABSyncReceiveMessageTransport } from './comlink-sync';
+import {
+	NodeSABSyncReceiveMessageTransport,
+	nodeEndpoint,
+	type NodeEndpoint,
+	type Remote,
+	type Endpoint,
+	type IsomorphicMessagePort,
+} from './comlink-sync';
 
 export type WithAPIState = {
 	/**
@@ -17,7 +22,7 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & WithAPIState;
 
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
