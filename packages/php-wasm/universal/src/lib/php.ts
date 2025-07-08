@@ -918,8 +918,6 @@ export class PHP implements Disposable {
 							if (isExitCode(e.error) && e.error.status === 0) {
 								resolve(e.error.status);
 							} else {
-								logger.error(e);
-								logger.error(e.error);
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
 								(rethrown as any).betterMessage = e.message;
@@ -1287,11 +1285,18 @@ export class PHP implements Disposable {
 			);
 		}
 
-		return await this.#executeWithErrorHandling(() => {
-			return this[__private__dont__use].ccall('run_cli', null, [], [], {
-				async: true,
-			});
-		}).then((response) => {
+		return await this.#executeWithErrorHandling(
+			async () =>
+				await this[__private__dont__use].ccall(
+					'run_cli',
+					null,
+					[],
+					[],
+					{
+						async: true,
+					}
+				)
+		).then((response) => {
 			response.exitCode.finally(release);
 			return response;
 		});

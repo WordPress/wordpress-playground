@@ -1,9 +1,14 @@
 import type { PHPResponseData } from './php-response';
 import { PHPResponse } from './php-response';
-import type { Endpoint } from 'comlink';
-import * as Comlink from 'comlink';
-import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
-import nodeEndpoint from 'comlink/dist/esm/node-adapter';
+import * as Comlink from './comlink-sync';
+import {
+	NodeSABSyncReceiveMessageTransport,
+	nodeEndpoint,
+	type NodeEndpoint,
+	type Remote,
+	type Endpoint,
+	type IsomorphicMessagePort,
+} from './comlink-sync';
 
 export type WithAPIState = {
 	/**
@@ -17,7 +22,15 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & WithAPIState;
+
+export async function consumeAPISync<APIType>(
+	remote: IsomorphicMessagePort
+): Promise<APIType> {
+	setupTransferHandlers();
+	const transport = await NodeSABSyncReceiveMessageTransport.create();
+	return Comlink.wrapSync<APIType>(remote, transport);
+}
 
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeEndpoint,
@@ -84,11 +97,46 @@ async function runWithTimeout<T>(
 export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 	Methods & PipedAPI
 >;
+
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
 	targetWorker?: NodeEndpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
+	const { setReady, setFailed, exposedApi } = prepareForExpose(
+		apiMethods,
+		pipedApi
+	);
+	let endpoint: Endpoint | undefined;
+	if (targetWorker) {
+		// NOTE: If there are other target types, we could expand this later,
+		// but for now, we only need support for NodeEndpoints.
+		endpoint = nodeEndpoint(targetWorker);
+	} else {
+		endpoint =
+			typeof window !== 'undefined'
+				? Comlink.windowEndpoint(self.parent)
+				: undefined;
+	}
+	Comlink.expose(exposedApi, endpoint);
+	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
+}
+
+export async function exposeSyncAPI<Methods>(
+	apiMethods: Methods,
+	port: IsomorphicMessagePort
+): Promise<[() => void, (e: Error) => void, Methods]> {
+	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
+	const transport = await NodeSABSyncReceiveMessageTransport.create();
+	const endpoint = nodeEndpoint(port as any);
+	Comlink.exposeSync(exposedApi, endpoint, transport);
+	return [setReady, setFailed, exposedApi];
+}
+
+function prepareForExpose<Methods, PipedAPI>(
+	apiMethods?: Methods,
+	pipedApi?: PipedAPI
+) {
 	setupTransferHandlers();
 
 	const connected = Promise.resolve();
@@ -112,23 +160,9 @@ export function exposeAPI<Methods, PipedAPI>(
 			}
 			return (pipedApi as any)?.[prop];
 		},
-	}) as unknown as PublicAPI<Methods, PipedAPI>;
+	}) as unknown as Methods & PipedAPI;
 
-	let endpoint: Endpoint | undefined;
-	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
-	} else {
-		endpoint =
-			typeof window !== 'undefined'
-				? Comlink.windowEndpoint(self.parent)
-				: undefined;
-	}
-
-	Comlink.expose(exposedApi, endpoint);
-
-	return [setReady, setFailed, exposedApi];
+	return { setReady, setFailed, exposedApi };
 }
 
 let isTransferHandlersSetup = false;
@@ -161,6 +195,16 @@ function setupTransferHandlers() {
 		deserialize(port: any) {
 			port.start();
 			return Comlink.wrap(port);
+		},
+	});
+	Comlink.transferHandlers.set('MESSAGE_PORT', {
+		canHandle: (obj: unknown): obj is MessagePort =>
+			obj instanceof MessagePort,
+		serialize(port: MessagePort): [MessagePort, Transferable[]] {
+			return [port, [port]];
+		},
+		deserialize(port: MessagePort): MessagePort {
+			return port;
 		},
 	});
 	Comlink.transferHandlers.set('PHPResponse', {
