@@ -909,7 +909,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			echo "Second read (immediate): " . json_encode($data2) . "\\n";
 			
 			// Wait a bit and try again - should get the delayed data
-			usleep(600000); // 600ms
+			sleep(1);
 			$data3 = fread($pipes[1], 1024);
 			echo "Third read (after delay): " . json_encode($data3) . "\\n";
 			

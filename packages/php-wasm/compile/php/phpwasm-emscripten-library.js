@@ -15,6 +15,21 @@ const LibraryExample = {
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
+		/**
+		 * @see fcntl.c:
+		 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L37
+		 */
+		O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+		O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+		SETFL_MASK:
+			Number('{{{cDefs.O_APPEND}}}') |
+			Number('{{{cDefs.O_NONBLOCK}}}')
+			// These macros are not defined in Emscripten at the time of writing:
+			// emscripten_O_NDELAY |
+			// emscripten_O_DIRECT |
+			// emscripten_O_NOATIME
+		,
+
 		init: function () {
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
@@ -126,6 +141,14 @@ const LibraryExample = {
 						}
 				};
 
+			// Clean up the fd -> childProcess mapping when the fd is closed:
+			const originalClose = FS.close;
+			FS.close = function (stream) {
+				originalClose(stream);
+				delete PHPWASM.child_proc_by_fd[stream.fd];
+			};
+
+			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 
 			PHPWASM.input_devices = {};
@@ -331,7 +354,7 @@ const LibraryExample = {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
-					// timeout: 100,
+					timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -522,6 +545,14 @@ const LibraryExample = {
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
+			if (ProcInfo.stdoutChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
+			if (ProcInfo.stderrChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
+			if (ProcInfo.stdoutParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
+			if (ProcInfo.stderrParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {

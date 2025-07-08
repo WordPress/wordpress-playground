@@ -2098,6 +2098,7 @@ RUN set -euxo pipefail; \
 	-o /build/output/php.js \
 	-s EXIT_RUNTIME=1 \
 	-Wl,--wrap=select \
+	-Wl,--wrap=usleep \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
@@ -2158,6 +2159,9 @@ RUN set -euxo pipefail; \
 			/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
 		fi; \
 		fi; \
+		# PIPEFS: return 0 (success) instead of 6 (EWOULDBLOCK) when reached end of data
+		# and the other end of the pipe is closed.
+		/root/replace-across-lines.sh 's/if\s*\(\s*currentLength\s*==\s*0\s*\)\s*\{.{0,200}throw new FS.ErrnoError\(\s*6\s*\)/if(currentLength==0){if(pipe.refcnt<2){return 0;}throw new FS.ErrnoError(6)/sg' /root/output/php.js; \
 	# Add MSG_PEEK flag support in recvfrom
 		#
 		# Emscripten ignores the flags argument to ___syscall_recvfrom.

@@ -35,6 +35,18 @@ unsigned int wasm_sleep(unsigned int time)
 	return time;
 }
 
+/**
+ * Shims usleep(3) functionallity.
+ */
+EMSCRIPTEN_KEEPALIVE unsigned int __wrap_usleep(unsigned int time_microseconds)
+{
+	// We don't have access to microsecond granularity in JavaScript so let's
+	// settle for milliseconds.
+	int time_milliseconds = time_microseconds / 1000;
+	emscripten_sleep(time_milliseconds);
+	return time_microseconds;
+}
+
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
 static int redirect_stream_to_file(FILE *stream, char *file_path);
@@ -214,44 +226,15 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 					lookingFor.add('POLLERR');
 				}
             }
-		} else if (stream?.stream_ops?.poll) {
-			if (!stream) {
-				wakeUp(-1);
-				return;
-			}
-			// Poll the stream for data.
-			let interrupted = false;
-			async function poll() {
-				try {
-					while (true) {
-						// Inlined ___syscall_poll
-						var mask = 32; // {{{ cDefine('POLLNVAL') }}};
-						mask = SYSCALLS.DEFAULT_POLLMASK;
-						if (stream.stream_ops?.poll) {
-							mask = stream.stream_ops.poll(stream, -1);
-						}
-						
-						mask &= events | 8 | 16; // | {{{ cDefine('POLLERR') }}} | {{{ cDefine('POLLHUP') }}};
-						if (mask) {
-							return mask;
-						}
-						if (interrupted) {
-							return 0;
-						}
-						await new Promise(resolve => setTimeout(resolve, 10));
-					}
-				} catch (e) {
-					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-					return -e.errno;
-				}
-			}
-			polls.push([
-				poll(),
-				() => {
-					interrupted = true;
-				}
-			]);
-		} else {
+		} else if (socketd in PHPWASM.child_proc_by_fd) {
+            // This is a child process-related socket.
+            const procInfo = PHPWASM.child_proc_by_fd[socketd];
+            if (procInfo.exited) {
+                wakeUp(0);
+                return;
+            }
+            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+        } else {
 			setTimeout(function () {
 				wakeUp(1);
 			}, timeout);
@@ -313,7 +296,6 @@ EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *i
 EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
-	const node =
 	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
 		var stream;
 		try
@@ -332,12 +314,12 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 			}
 			const isBlockingFdThatWaitsForData = (
 				// is blocking?
-				!(stream.flags & locking.O_NONBLOCK) &&
+				!(stream.flags & PHPWASM.O_NONBLOCK) &&
 				// is waiting for data?
 				e.errno === ERRNO_CODES.EWOULDBLOCK &&
 				// if it's a pipe, does it have a living other end?
 				(!('pipe' in stream.node) || stream.node.pipe.refcnt >= 2)
-			)
+			);
 			/**
 			 * The only reason to fall through to polling is if we're processing
 			 * a blocking pipe that's still waiting for data.
