@@ -15,7 +15,7 @@ slug: /developers/local-development/wp-playground-cli
 
 ## Requirements
 
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the Node.js website.
+The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
 
 ## Quickstart
 
@@ -25,13 +25,15 @@ Running the Playground CLI is as simple as go to a command-line terminal and run
 npx @wp-playground/cli@latest server
 ```
 
+![Playground CLI in Action](./_assets/npx-wp-playground-server.gif)
+
 The previous command, you only get a fresh WordPress, instance to test. Most of the developers want to see their work running, If this is your case, test a plugin or a theme. You can run the CLI on your project folder and run the Playground CLI with the `--auto-mount` flag:
 
-``bash
+```bash
 cd my-plugin-or-theme-directory
 npx @wp-playground/cli@latest server --auto-mount
 
-````
+```
 
 ### Choosing a WordPress Version
 
@@ -39,7 +41,7 @@ By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due
 
 ```bash
 npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
-````
+```
 
 ### Mounting folders manually
 
