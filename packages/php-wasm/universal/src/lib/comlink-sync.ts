@@ -1,7 +1,6 @@
-// eslint-disable
-// eslint-disable @typescript-eslint/no-unsafe-function-type
-// eslint-disable @typescript-eslint/no-misused-new
-// eslint-disable @typescript-eslint/no-empty-object-type
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
+/* eslint-disable @typescript-eslint/no-misused-new */
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 
 /**
@@ -40,7 +39,7 @@ interface SyncMessage {
 }
 
 interface SyncTransport {
-	handleRequest(ev: MessageEvent, handler: (ev: MessageEvent) => void): void;
+	afterResponseSent(ev: MessageEvent): void;
 	send(
 		ep: IsomorphicMessagePort,
 		msg: Omit<SyncMessage, 'id' | 'notifyBuffer'>,
@@ -54,30 +53,7 @@ export function exposeSync(
 	transport: SyncTransport,
 	allowedOrigins: (string | RegExp)[] = ['*']
 ) {
-	return expose(
-		obj,
-		{
-			addEventListener: (event, callback, options) => {
-				ep.addEventListener(
-					event,
-					(ev: MessageEvent | any) => {
-						transport.handleRequest(ev, callback as any);
-					},
-					options
-				);
-			},
-			start: () => {
-				ep.start?.();
-			},
-			postMessage: (message, transferables) => {
-				ep.postMessage(message, transferables);
-			},
-			removeEventListener: (event, callback, options) => {
-				ep.removeEventListener(event, callback, options);
-			},
-		},
-		allowedOrigins
-	);
+	return expose(obj, ep, allowedOrigins, transport.afterResponseSent);
 }
 
 //////////////////////////////
@@ -164,7 +140,7 @@ export function wrapSync<T>(
 export type IsomorphicMessagePort = MessagePort | NodeMessagePort;
 
 export class NodeSABSyncReceiveMessageTransport {
-	static receiveMessageOnPort: any;
+	private static receiveMessageOnPort: any;
 
 	static async create() {
 		if (!NodeSABSyncReceiveMessageTransport.receiveMessageOnPort) {
@@ -178,16 +154,12 @@ export class NodeSABSyncReceiveMessageTransport {
 
 	private constructor() {}
 
-	handleRequest(ev: MessageEvent, handler: (ev: MessageEvent) => void) {
+	afterResponseSent(ev: MessageEvent) {
 		const { notifyBuffer } = ev.data as SyncMessage;
-		try {
-			handler(ev);
-		} finally {
-			if (notifyBuffer) {
-				const view = new Int32Array(notifyBuffer);
-				view[0] = 1;
-				Atomics.notify(view, 0);
-			}
+		if (notifyBuffer) {
+			const view = new Int32Array(notifyBuffer);
+			view[0] = 1;
+			Atomics.notify(view, 0);
 		}
 	}
 	send(
@@ -196,6 +168,7 @@ export class NodeSABSyncReceiveMessageTransport {
 		transferables?: Transferable[]
 	): WireValue {
 		// SharedArrayBuffer = one 32‑bit cell that starts at 0.
+		// The other worker will set this to 1 when it has sent the response.
 		const latch = new SharedArrayBuffer(4);
 		const view = new Int32Array(latch);
 		view[0] = 0;
@@ -206,22 +179,21 @@ export class NodeSABSyncReceiveMessageTransport {
 			transferables as any
 		);
 
-		// Synchronous pull; Node & browsers both expose this.
-		let data;
-		let i = 0;
+		// Synchronous pull; Node.js-only. Browsers don't support receiveMessageOnPort.
+		const timeoutMs = 5000;
+		const result = Atomics.wait(view, 0, 0, timeoutMs);
+		if (result === 'timed-out') {
+			throw new Error('Timeout waiting for response');
+		}
 		while (true) {
-			Atomics.wait(view, 0, 0, 10);
 			const res =
 				NodeSABSyncReceiveMessageTransport.receiveMessageOnPort(ep);
-			if (res && res.message.id === id) {
-				data = res.message;
-				break;
-			}
-			if (++i > 50000000) {
-				throw new Error('Timeout waiting for response');
+			if (res.message?.id === id) {
+				return res.message;
+			} else if (!res) {
+				throw new Error('No response received');
 			}
 		}
-		return data;
 	}
 }
 
@@ -635,7 +607,8 @@ function isAllowedOrigin(
 export function expose(
 	obj: any,
 	ep: Endpoint = globalThis as any,
-	allowedOrigins: (string | RegExp)[] = ['*']
+	allowedOrigins: (string | RegExp)[] = ['*'],
+	afterResponseSent?: (ev: MessageEvent) => void
 ) {
 	ep.addEventListener('message', function callback(ev: MessageEvent) {
 		if (!ev || !ev.data) {
@@ -725,6 +698,9 @@ export function expose(
 					[throwMarker]: 0,
 				});
 				ep.postMessage({ ...wireValue, id }, transferables);
+			})
+			.finally(() => {
+				afterResponseSent?.(ev);
 			});
 	} as any);
 	if (ep.start) {
