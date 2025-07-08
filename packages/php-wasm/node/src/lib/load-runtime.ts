@@ -35,8 +35,12 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 * An optional file lock manager to use for the PHP runtime.
 		 *
 		 * The lock manager is optional when running a single php-wasm process.
+		 *
+		 * When running with JSPI, both synchronous and asynchronous
+		 * file lock managers are supported.
+		 * When running with Asyncify, the file lock manager must be synchronous.
 		 */
-		fileLockManager?: RemoteAPI<FileLockManager>;
+		fileLockManager?: RemoteAPI<FileLockManager> | FileLockManager;
 
 		/**
 		 * An optional function to collect trace messages.

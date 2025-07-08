@@ -1,4 +1,4 @@
-import type { Remote } from 'comlink';
+import type { Remote } from './comlink-sync';
 import type { LimitedPHPApi } from './php-worker';
 
 /**
