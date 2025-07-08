@@ -336,7 +336,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 				e.errno === ERRNO_CODES.EWOULDBLOCK &&
 				// if it's a pipe, does it have a living other end?
 				(!('pipe' in stream.node) || stream.node.pipe.refcnt >= 2)
-			)
+			);
 			/**
 			 * The only reason to fall through to polling is if we're processing
 			 * a blocking pipe that's still waiting for data.

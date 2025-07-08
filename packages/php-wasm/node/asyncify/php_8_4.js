@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_4_0', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22582127;
+export const dependenciesTotalSize = 22582165;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -7142,13 +7142,6 @@ export function init(RuntimeName, PHPLoader) {
 							}
 						}
 				  };
-			// Clean up the fd -> childProcess mapping when the fd is closed:
-			const originalClose = FS.close;
-			FS.close = function (stream) {
-				originalClose(stream);
-				delete PHPWASM.child_proc_by_fd[stream.fd];
-			};
-			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
 			const originalWrite = TTY.stream_ops.write;
@@ -7299,7 +7292,6 @@ export function init(RuntimeName, PHPLoader) {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -7451,14 +7443,6 @@ export function init(RuntimeName, PHPLoader) {
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
-			if (ProcInfo.stdoutChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
-			if (ProcInfo.stderrChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
-			if (ProcInfo.stdoutParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
-			if (ProcInfo.stderrParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 			cp.on('exit', function (code) {
 				for (const fd of [
@@ -8458,7 +8442,8 @@ export function init(RuntimeName, PHPLoader) {
 		const POLLNVAL = 32;
 		return returnCallback((wakeUp) => {
 			const polls = [];
-			if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+			const stream = FS.getStream(socketd);
+			if (FS.isSocket(stream?.node.mode)) {
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
 					wakeUp(0);
@@ -8506,13 +8491,46 @@ export function init(RuntimeName, PHPLoader) {
 						lookingFor.add('POLLERR');
 					}
 				}
-			} else if (socketd in PHPWASM.child_proc_by_fd) {
-				const procInfo = PHPWASM.child_proc_by_fd[socketd];
-				if (procInfo.exited) {
-					wakeUp(0);
+			} else if (stream?.stream_ops?.poll) {
+				if (!stream) {
+					wakeUp(-1);
 					return;
 				}
-				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+				let interrupted = false;
+				async function poll() {
+					try {
+						while (true) {
+							var mask = 32;
+							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (stream.stream_ops?.poll) {
+								mask = stream.stream_ops.poll(stream, -1);
+							}
+							mask &= events | 8 | 16;
+							if (mask) {
+								return mask;
+							}
+							if (interrupted) {
+								return 0;
+							}
+							await new Promise((resolve) =>
+								setTimeout(resolve, 10)
+							);
+						}
+					} catch (e) {
+						if (
+							typeof FS == 'undefined' ||
+							!(e.name === 'ErrnoError')
+						)
+							throw e;
+						return -e.errno;
+					}
+				}
+				polls.push([
+					poll(),
+					() => {
+						interrupted = true;
+					},
+				]);
 			} else {
 				setTimeout(function () {
 					wakeUp(1);
@@ -8562,33 +8580,31 @@ export function init(RuntimeName, PHPLoader) {
 			Asyncify?.State?.Normal === undefined ||
 			Asyncify?.state === Asyncify?.State?.Normal
 		) {
-			var returnCode;
 			var stream;
-			let num = 0;
 			try {
 				stream = SYSCALLS.getStreamFromFD(fd);
-				const num = doReadv(stream, iov, iovcnt);
-				HEAPU32[pnum >> 2] = num;
+				HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
 				return 0;
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
 					throw e;
 				}
-				if (
-					e.errno !== 6 ||
-					!(stream?.fd in PHPWASM.child_proc_by_fd)
-				) {
+				const isBlockingFdThatWaitsForData =
+					!(stream.flags & locking.O_NONBLOCK) &&
+					e.errno === ERRNO_CODES.EWOULDBLOCK &&
+					(!('pipe' in stream.node) || stream.node.pipe.refcnt >= 2);
+				if (!isBlockingFdThatWaitsForData) {
 					HEAPU32[pnum >> 2] = 0;
-					return returnCode;
+					return e.errno;
 				}
 			}
 		}
-		return returnCallback((wakeUp) => {
+		return returnCallback(async (wakeUp) => {
 			var retries = 0;
 			var interval = 50;
 			var timeout = 5e3;
 			var maxRetries = timeout / interval;
-			function poll() {
+			while (true) {
 				var returnCode;
 				var stream;
 				let num;
@@ -8606,23 +8622,22 @@ export function init(RuntimeName, PHPLoader) {
 					}
 					returnCode = e.errno;
 				}
-				const success = returnCode === 0;
-				const failure =
-					++retries > maxRetries ||
-					!(fd in PHPWASM.child_proc_by_fd) ||
-					PHPWASM.child_proc_by_fd[fd]?.exited ||
-					FS.isClosed(stream);
-				if (success) {
+				if (returnCode === 0) {
 					HEAPU32[pnum >> 2] = num;
-					wakeUp(0);
-				} else if (failure) {
-					HEAPU32[pnum >> 2] = 0;
-					wakeUp(returnCode === 6 ? 0 : returnCode);
-				} else {
-					setTimeout(poll, interval);
+					return wakeUp(0);
 				}
+				if (
+					++retries > maxRetries ||
+					!stream ||
+					FS.isClosed(stream) ||
+					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+					('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+				) {
+					HEAPU32[pnum >> 2] = num;
+					return wakeUp(returnCode);
+				}
+				await new Promise((resolve) => setTimeout(resolve, interval));
 			}
-			poll();
 		});
 	}
 
