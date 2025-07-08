@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_2_34', 'php_7_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 28505344;
+export const dependenciesTotalSize = 28505825;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 11379360;
+	var ___heap_base = 11379488;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 11379360;
+	var ___stack_high = 11379488;
 
-	var ___stack_low = 11313824;
+	var ___stack_low = 11313952;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		11379360
+		11379488
 	);
 
 	var PATH = {
@@ -6577,6 +6577,9 @@ export function init(RuntimeName, PHPLoader) {
 	var allocateUTF8OnStack = stringToUTF8OnStack;
 
 	var PHPWASM = {
+		O_APPEND: 1024,
+		O_NONBLOCK: 2048,
+		SETFL_MASK: 3072,
 		init: function () {
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
@@ -7080,6 +7083,7 @@ export function init(RuntimeName, PHPLoader) {
 		SYSCALLS.varargs = varargs;
 
 		// These constants are replaced by Emscripten during the build process
+		const emscripten_F_SETFL = Number('4');
 		const emscripten_F_GETLK = Number('12');
 		const emscripten_F_SETLK = Number('13');
 		const emscripten_F_SETLKW = Number('14');
@@ -7474,6 +7478,26 @@ export function init(RuntimeName, PHPLoader) {
 				// We respond with EDEADLK to indicate failure
 				// because it is a known errno for a failed F_SETLKW command.
 				return -ERRNO_CODES.EDEADLK;
+			}
+			case emscripten_F_SETFL: {
+				/**
+				 * Overrides the core Emscripten implementation to reflect what
+				 * fcntl does in linux kernel. This implementation is still missing
+				 * a bunch of nuance, but, unlike the core Emscripten implementation,
+				 * it overrides the stream flags while preserving non-stream flags.
+				 *
+				 * @see fcntl.c:
+				 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L39
+				 */
+				const arg = SYSCALLS.get();
+				const stream = SYSCALLS.getStreamFromFD(fd);
+
+				// Update the stream flags
+				stream.flags =
+					(arg & $PHPWASM.SETFL_MASK) |
+					(stream.flags & ~$PHPWASM.SETFL_MASK);
+
+				return 0;
 			}
 			default:
 				return _builtin_fcntl64(fd, cmd, varargs);
@@ -7984,7 +8008,9 @@ export function init(RuntimeName, PHPLoader) {
 					return 0;
 				}
 				if (currentLength == 0) {
-					// Behave as if the read end is always non-blocking
+					if (pipe.refcnt < 2) {
+						return 0;
+					}
 					throw new FS.ErrnoError(6);
 				}
 				var toRead = Math.min(currentLength, length);
@@ -31188,13 +31214,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		10385049: ($0) => {
+		10385162: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10385097: ($0) => {
+		10385210: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31266,7 +31292,8 @@ export function init(RuntimeName, PHPLoader) {
 			const POLLNVAL = 0x0020;
 			return returnCallback((wakeUp) => {
 				const polls = [];
-				if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+				const stream = FS.getStream(socketd);
+				if (FS.isSocket(stream?.node.mode)) {
 					const sock = getSocketFromFD(socketd);
 					if (!sock) {
 						wakeUp(0);
@@ -31373,13 +31400,10 @@ export function init(RuntimeName, PHPLoader) {
 				Asyncify?.State?.Normal === undefined ||
 				Asyncify?.state === Asyncify?.State?.Normal
 			) {
-				var returnCode;
 				var stream;
-				let num = 0;
 				try {
 					stream = SYSCALLS.getStreamFromFD(fd);
-					const num = doReadv(stream, iov, iovcnt);
-					HEAPU32[pnum >> 2] = num;
+					HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
 					return 0;
 				} catch (e) {
 					if (
@@ -31388,21 +31412,23 @@ export function init(RuntimeName, PHPLoader) {
 					) {
 						throw e;
 					}
-					if (
-						e.errno !== 6 ||
-						!(stream?.fd in PHPWASM.child_proc_by_fd)
-					) {
+					const isBlockingFdThatWaitsForData =
+						!(stream.flags & PHPWASM.O_NONBLOCK) &&
+						e.errno === ERRNO_CODES.EWOULDBLOCK &&
+						(!('pipe' in stream.node) ||
+							stream.node.pipe.refcnt >= 2);
+					if (!isBlockingFdThatWaitsForData) {
 						HEAPU32[pnum >> 2] = 0;
-						return returnCode;
+						return e.errno;
 					}
 				}
 			}
-			return returnCallback((wakeUp) => {
+			return returnCallback(async (wakeUp) => {
 				var retries = 0;
 				var interval = 50;
 				var timeout = 5000;
 				var maxRetries = timeout / interval;
-				function poll() {
+				while (true) {
 					var returnCode;
 					var stream;
 					let num;
@@ -31420,23 +31446,24 @@ export function init(RuntimeName, PHPLoader) {
 						}
 						returnCode = e.errno;
 					}
-					const success = returnCode === 0;
-					const failure =
-						++retries > maxRetries ||
-						!(fd in PHPWASM.child_proc_by_fd) ||
-						PHPWASM.child_proc_by_fd[fd]?.exited ||
-						FS.isClosed(stream);
-					if (success) {
+					if (returnCode === 0) {
 						HEAPU32[pnum >> 2] = num;
-						wakeUp(0);
-					} else if (failure) {
-						HEAPU32[pnum >> 2] = 0;
-						wakeUp(returnCode === 6 ? 0 : returnCode);
-					} else {
-						setTimeout(poll, interval);
+						return wakeUp(0);
 					}
+					if (
+						++retries > maxRetries ||
+						!stream ||
+						FS.isClosed(stream) ||
+						returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+						('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+					) {
+						HEAPU32[pnum >> 2] = num;
+						return wakeUp(returnCode);
+					}
+					await new Promise((resolve) =>
+						setTimeout(resolve, interval)
+					);
 				}
-				poll();
 			});
 		});
 	}
@@ -34012,6 +34039,9 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['php_pollfd_for'])(a0, a1, a2));
 	var ___cxa_throw = (a0, a1, a2) =>
 		(___cxa_throw = wasmExports['__cxa_throw'])(a0, a1, a2);
+	var ___wrap_usleep = (Module['___wrap_usleep'] = (a0) =>
+		(___wrap_usleep = Module['___wrap_usleep'] =
+			wasmExports['__wrap_usleep'])(a0));
 	var ___wrap_select = (Module['___wrap_select'] = (a0, a1, a2, a3, a4) =>
 		(___wrap_select = Module['___wrap_select'] =
 			wasmExports['__wrap_select'])(a0, a1, a2, a3, a4));

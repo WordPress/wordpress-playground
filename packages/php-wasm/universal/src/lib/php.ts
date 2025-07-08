@@ -916,7 +916,7 @@ export class PHP implements Disposable {
 					new Promise((resolve, reject) => {
 						errorListener = (e: ErrorEvent) => {
 							if (isExitCode(e.error) && e.error.status === 0) {
-								resolve(e.error.exitCode);
+								resolve(e.error.status);
 							} else {
 								logger.error(e);
 								logger.error(e.error);
@@ -940,7 +940,7 @@ export class PHP implements Disposable {
 				 * turn exit code errors into integers again.
 				 */
 				if (isExitCode(e)) {
-					return e.exitCode;
+					return e.status;
 				}
 
 				stdout.controller.error(e);

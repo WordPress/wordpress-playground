@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_4_0', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 36201888;
+export const dependenciesTotalSize = 36202048;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 17317280;
+	var ___heap_base = 17317344;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 17317280;
+	var ___stack_high = 17317344;
 
-	var ___stack_low = 17251744;
+	var ___stack_low = 17251808;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		17317280
+		17317344
 	);
 
 	var PATH = {
@@ -5624,12 +5624,7 @@ export function init(RuntimeName, PHPLoader) {
 				if (sock.type === 1 && sock.server) {
 					// listen sockets should only say they're available for reading
 					// if there are pending clients.
-					for (const client of sock.pending) {
-						if ((client.recv_queue || []).length > 0) {
-							return 1;
-						}
-					}
-					return 0;
+					return sock.pending.length ? 64 | 1 : 0;
 				}
 
 				var mask = 0;
@@ -5656,8 +5651,7 @@ export function init(RuntimeName, PHPLoader) {
 					!dest || // connection-less sockets are always ready to write
 					(dest && dest.socket.readyState === dest.socket.OPEN)
 				) {
-					// console.log('open!');
-					// mask |= 4;
+					mask |= 4;
 				}
 
 				if (
@@ -6583,6 +6577,9 @@ export function init(RuntimeName, PHPLoader) {
 	var allocateUTF8OnStack = stringToUTF8OnStack;
 
 	var PHPWASM = {
+		O_APPEND: 1024,
+		O_NONBLOCK: 2048,
+		SETFL_MASK: 3072,
 		init: function () {
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
@@ -6700,6 +6697,14 @@ export function init(RuntimeName, PHPLoader) {
 						}
 				  };
 
+			// Clean up the fd -> childProcess mapping when the fd is closed:
+			const originalClose = FS.close;
+			FS.close = function (stream) {
+				originalClose(stream);
+				delete PHPWASM.child_proc_by_fd[stream.fd];
+			};
+
+			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 
 			PHPWASM.input_devices = {};
@@ -6847,6 +6852,7 @@ export function init(RuntimeName, PHPLoader) {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
+					timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -7077,6 +7083,7 @@ export function init(RuntimeName, PHPLoader) {
 		SYSCALLS.varargs = varargs;
 
 		// These constants are replaced by Emscripten during the build process
+		const emscripten_F_SETFL = Number('4');
 		const emscripten_F_GETLK = Number('12');
 		const emscripten_F_SETLK = Number('13');
 		const emscripten_F_SETLKW = Number('14');
@@ -7471,6 +7478,26 @@ export function init(RuntimeName, PHPLoader) {
 				// We respond with EDEADLK to indicate failure
 				// because it is a known errno for a failed F_SETLKW command.
 				return -ERRNO_CODES.EDEADLK;
+			}
+			case emscripten_F_SETFL: {
+				/**
+				 * Overrides the core Emscripten implementation to reflect what
+				 * fcntl does in linux kernel. This implementation is still missing
+				 * a bunch of nuance, but, unlike the core Emscripten implementation,
+				 * it overrides the stream flags while preserving non-stream flags.
+				 *
+				 * @see fcntl.c:
+				 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L39
+				 */
+				const arg = SYSCALLS.get();
+				const stream = SYSCALLS.getStreamFromFD(fd);
+
+				// Update the stream flags
+				stream.flags =
+					(arg & $PHPWASM.SETFL_MASK) |
+					(stream.flags & ~$PHPWASM.SETFL_MASK);
+
+				return 0;
 			}
 			default:
 				return _builtin_fcntl64(fd, cmd, varargs);
@@ -7981,7 +8008,9 @@ export function init(RuntimeName, PHPLoader) {
 					return 0;
 				}
 				if (currentLength == 0) {
-					// Behave as if the read end is always non-blocking
+					if (pipe.refcnt < 2) {
+						return 0;
+					}
 					throw new FS.ErrnoError(6);
 				}
 				var toRead = Math.min(currentLength, length);
@@ -17476,6 +17505,14 @@ export function init(RuntimeName, PHPLoader) {
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
+			if (ProcInfo.stdoutChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
+			if (ProcInfo.stderrChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
+			if (ProcInfo.stdoutParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
+			if (ProcInfo.stderrParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
@@ -31177,13 +31214,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		16318729: ($0) => {
+		16318842: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		16318777: ($0) => {
+		16318890: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31254,57 +31291,66 @@ export function init(RuntimeName, PHPLoader) {
 			const POLLHUP = 0x0010;
 			const POLLNVAL = 0x0020;
 			return returnCallback((wakeUp) => {
-				const stream = FS.getStream(socketd);
-
 				const polls = [];
-				if (stream.stream_ops?.poll) {
-					if (!stream) {
-						wakeUp(-1);
+				const stream = FS.getStream(socketd);
+				if (FS.isSocket(stream?.node.mode)) {
+					const sock = getSocketFromFD(socketd);
+					if (!sock) {
+						wakeUp(0);
 						return;
 					}
-					// Poll the stream for data.
-					let interrupted = false;
-					async function poll() {
-						try {
-							while (true) {
-								// Inlined ___syscall_poll
-								var mask = 32; // {{{ cDefine('POLLNVAL') }}};
-								mask = SYSCALLS.DEFAULT_POLLMASK;
-								if (stream.stream_ops?.poll) {
-									mask = stream.stream_ops.poll(stream, -1);
+					const lookingFor = new Set();
+					if (events & POLLIN || events & POLLPRI) {
+						if (sock.server) {
+							for (const client of sock.pending) {
+								if ((client.recv_queue || []).length > 0) {
+									wakeUp(1);
+									return;
 								}
-
-								mask &= events | 8 | 16; // | {{{ cDefine('POLLERR') }}} | {{{ cDefine('POLLHUP') }}};
-								// console.log('polling', mask);
-								if (mask) {
-									// console.log(stream.node);
-									return mask;
-								}
-								if (interrupted) {
-									return 0;
-								}
-								await new Promise((resolve) =>
-									setTimeout(resolve, 10)
-								);
 							}
-						} catch (e) {
-							if (
-								typeof FS == 'undefined' ||
-								!(e.name === 'ErrnoError')
-							)
-								throw e;
-							return -e.errno;
+						} else if ((sock.recv_queue || []).length > 0) {
+							wakeUp(1);
+							return;
 						}
 					}
-					polls.push([
-						poll(),
-						() => {
-							interrupted = true;
-						},
-					]);
+					const webSockets = PHPWASM.getAllWebSockets(sock);
+					if (!webSockets.length) {
+						wakeUp(0);
+						return;
+					}
+					for (const ws of webSockets) {
+						if (events & POLLIN || events & POLLPRI) {
+							polls.push(PHPWASM.awaitData(ws));
+							lookingFor.add('POLLIN');
+						}
+						if (events & POLLOUT) {
+							polls.push(PHPWASM.awaitConnection(ws));
+							lookingFor.add('POLLOUT');
+						}
+						if (
+							events & POLLHUP ||
+							events & POLLIN ||
+							events & POLLOUT ||
+							events & POLLERR
+						) {
+							polls.push(PHPWASM.awaitClose(ws));
+							lookingFor.add('POLLHUP');
+						}
+						if (events & POLLERR || events & POLLNVAL) {
+							polls.push(PHPWASM.awaitError(ws));
+							lookingFor.add('POLLERR');
+						}
+					}
+				} else if (socketd in PHPWASM.child_proc_by_fd) {
+					const procInfo = PHPWASM.child_proc_by_fd[socketd];
+					if (procInfo.exited) {
+						wakeUp(0);
+						return;
+					}
+					polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
 				} else {
 					setTimeout(function () {
-						wakeUp(-1);
+						wakeUp(1);
 					}, timeout);
 					return;
 				}
@@ -31354,9 +31400,7 @@ export function init(RuntimeName, PHPLoader) {
 				Asyncify?.State?.Normal === undefined ||
 				Asyncify?.state === Asyncify?.State?.Normal
 			) {
-				var returnCode;
 				var stream;
-				let num = 0;
 				try {
 					stream = SYSCALLS.getStreamFromFD(fd);
 					HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
@@ -31368,29 +31412,26 @@ export function init(RuntimeName, PHPLoader) {
 					) {
 						throw e;
 					}
-					if (
-						!(stream.flags & locking.O_NONBLOCK) &&
+					const isBlockingFdThatWaitsForData =
+						!(stream.flags & PHPWASM.O_NONBLOCK) &&
 						e.errno === ERRNO_CODES.EWOULDBLOCK &&
 						(!('pipe' in stream.node) ||
-							stream.node.pipe.refcnt === 2)
-					) {
-						// Blocking fd that waits for data? Fall through to polling.
-					} else {
-						// Otherwise that's an error.
+							stream.node.pipe.refcnt >= 2);
+					if (!isBlockingFdThatWaitsForData) {
 						HEAPU32[pnum >> 2] = 0;
-						return returnCode;
+						return e.errno;
 					}
 				}
 			}
-			return returnCallback((wakeUp) => {
+			return returnCallback(async (wakeUp) => {
 				var retries = 0;
 				var interval = 50;
 				var timeout = 5000;
 				var maxRetries = timeout / interval;
-				function poll() {
+				while (true) {
 					var returnCode;
 					var stream;
-					let num = 0;
+					let num;
 					try {
 						stream = SYSCALLS.getStreamFromFD(fd);
 						num = doReadv(stream, iov, iovcnt);
@@ -31403,35 +31444,26 @@ export function init(RuntimeName, PHPLoader) {
 							console.error(e);
 							throw e;
 						}
-
 						returnCode = e.errno;
 					}
-
-					// read succeeded!
 					if (returnCode === 0) {
 						HEAPU32[pnum >> 2] = num;
 						return wakeUp(0);
 					}
-
 					if (
-						// Too many retries? That's an error, too!
 						++retries > maxRetries ||
-						// Stream closed? That's an error.
 						!stream ||
 						FS.isClosed(stream) ||
-						// Error different than EWOULDBLOCK – propagate it to the caller.
 						returnCode !== ERRNO_CODES.EWOULDBLOCK ||
-						// Broken pipe
 						('pipe' in stream.node && stream.node.pipe.refcnt < 2)
 					) {
 						HEAPU32[pnum >> 2] = num;
 						return wakeUp(returnCode);
 					}
-
-					// Otherwise, keep trying.
-					setTimeout(poll, interval);
+					await new Promise((resolve) =>
+						setTimeout(resolve, interval)
+					);
 				}
-				poll();
 			});
 		});
 	}
@@ -34007,6 +34039,9 @@ export function init(RuntimeName, PHPLoader) {
 			a1,
 			a2
 		));
+	var ___wrap_usleep = (Module['___wrap_usleep'] = (a0) =>
+		(___wrap_usleep = Module['___wrap_usleep'] =
+			wasmExports['__wrap_usleep'])(a0));
 	var ___wrap_select = (Module['___wrap_select'] = (a0, a1, a2, a3, a4) =>
 		(___wrap_select = Module['___wrap_select'] =
 			wasmExports['__wrap_select'])(a0, a1, a2, a3, a4));
