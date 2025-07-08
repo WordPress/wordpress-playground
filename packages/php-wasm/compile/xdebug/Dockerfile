@@ -119,6 +119,10 @@ RUN set -euxo pipefail; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -O3"; \
 
-	export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
+	if [ "$WITH_JSPI" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_IMPORTS=wasm_recv -sASYNCIFY_EXPORTS=wasm_recv"; \
+	fi; \
 
 	emmake make -j1

@@ -1620,6 +1620,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_execute_script",\
 "zend_execute_scripts",\
 "zend_execute",\
+"zend_extension_statement_handler",\
+"ZEND_EXT_STMT_SPEC_HANDLER",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_fe_reset_iterator",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
@@ -1699,6 +1701,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_objects_store_del_ref",\
 "zend_objects_store_del",\
 "zend_objects_store_free_object_storage",\
+"zend_observer_fcall_begin_prechecked",\
+"zend_observer_fcall_begin",\
 "zend_observer_fcall_end",\
 "zend_parse_arg_number_or_str_slow",\
 "zend_parse_arg_str_weak",\
@@ -2062,14 +2066,16 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
-	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dynamic-linking.js"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+		if [ "$WITH_JSPI" = "yes" ]; then \
+			PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
+			PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
+		fi; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -s MAIN_MODULE"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
+	--js-library /root/phpwasm-emscripten-library-dynamic-linking.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
 	$PLATFORM_SPECIFIC_ARGS \
 	-I .  \
