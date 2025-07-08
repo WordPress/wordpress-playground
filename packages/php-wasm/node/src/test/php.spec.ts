@@ -81,7 +81,7 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 const phpVersions =
-	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
+	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	let php: PHP;
 	beforeEach(async () => {

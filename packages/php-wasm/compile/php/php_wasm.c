@@ -313,7 +313,6 @@ EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *i
 EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
-	const node =
 	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
 		var stream;
 		try
