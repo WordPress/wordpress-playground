@@ -17,6 +17,11 @@ const argParser = yargs(process.argv.slice(2))
 			description: 'The output directory',
 			required: true,
 		},
+		WITH_DEBUG: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with DWARF debug information.',
+		},
 		WITH_JSPI: {
 			type: 'boolean',
 			default: false,
@@ -29,6 +34,7 @@ const args = argParser.argv;
 const platformDefaults = {
 	all: {
 		PHP_VERSION: '8.0.24',
+		WITH_DEBUG: 'no',
 		WITH_JSPI: 'no',
 	},
 };
@@ -74,6 +80,8 @@ await asyncSpawn(
 		'--progress=plain',
 		'--build-arg',
 		getArg('PHP_VERSION'),
+		'--build-arg',
+		getArg('WITH_DEBUG'),
 		'--build-arg',
 		getArg('WITH_JSPI'),
 	],
