@@ -17,12 +17,15 @@ import type { MessagePort as NodeMessagePort } from 'worker_threads';
  *
  * Downsides:
  *
- * * Fragmentation: Both synchronous and asynchronous handlers exist to get the best our of both Asyncify and JSPI.
- * * Node.js-only: This extension does not implement a Safari-friendly transport. SharedArrayBuffer is an option, but
- *                 it requires more restrictive CORP+COEP headers which breaks, e.g., YouTube embeds. Synchronous XHR
- *                 might work if we really need Safari support for one of the new asynchronous features, but other than
- *                 that let's just skip adding new asynchronous WASM features to Safari until WebKit supports stack switching.
- * * Message passing between workers is slow. Avoid using synchronous messaging for syscalls that are invoked frequently and
+ * * Fragmentation: Both synchronous and asynchronous handlers exist to get the best our of both
+ * Asyncify and JSPI. * Node.js-only: This extension does not implement a Safari-friendly
+ * transport. SharedArrayBuffer is an option, but
+ *                 it requires more restrictive CORP+COEP headers which breaks, e.g., YouTube
+ *                 embeds. Synchronous XHR might work if we really need Safari support for one of
+ *                 the new asynchronous features, but other than that let's just skip adding new
+ *                 asynchronous WASM features to Safari until WebKit supports stack switching.
+ * * Message passing between workers is slow. Avoid using synchronous messaging for syscalls that
+ * are invoked frequently and
  *   handled asynchronously in the same worker.
  *
  * @see https://github.com/adamziel/js-synchronous-messaging for additional ideas.
@@ -348,7 +351,8 @@ type Promisify<T> = T extends Promise<unknown> ? T : Promise<T>;
 type Unpromisify<P> = P extends Promise<infer T> ? T : P;
 
 /**
- * Takes the raw type of a remote property and returns the type that is visible to the local thread on the proxy.
+ * Takes the raw type of a remote property and returns the type that is visible to the local thread
+ * on the proxy.
  *
  * Note: This needs to be its own type alias, otherwise it will not distribute over unions.
  * See https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
@@ -360,8 +364,8 @@ type RemoteProperty<T> =
 	T extends Function | ProxyMarked ? Remote<T> : Promisify<T>;
 
 /**
- * Takes the raw type of a property as a remote thread would see it through a proxy (e.g. when passed in as a function
- * argument) and returns the type that the local thread has to supply.
+ * Takes the raw type of a property as a remote thread would see it through a proxy (e.g. when
+ * passed in as a function argument) and returns the type that the local thread has to supply.
  *
  * This is the inverse of `RemoteProperty<T>`.
  *
@@ -373,7 +377,8 @@ type LocalProperty<T> = T extends Function | ProxyMarked
 	: Unpromisify<T>;
 
 /**
- * Proxies `T` if it is a `ProxyMarked`, clones it otherwise (as handled by structured cloning and transfer handlers).
+ * Proxies `T` if it is a `ProxyMarked`, clones it otherwise (as handled by structured cloning and
+ * transfer handlers).
  */
 export type ProxyOrClone<T> = T extends ProxyMarked ? Remote<T> : T;
 /**
@@ -384,8 +389,8 @@ export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
 	: T;
 
 /**
- * Takes the raw type of a remote object in the other thread and returns the type as it is visible to the local thread
- * when proxied with `Comlink.proxy()`.
+ * Takes the raw type of a remote object in the other thread and returns the type as it is visible
+ * to the local thread when proxied with `Comlink.proxy()`.
  *
  * This does not handle call signatures, which is handled by the more general `Remote<T>` type.
  *
@@ -393,8 +398,8 @@ export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
  */
 export type RemoteObject<T> = { [P in keyof T]: RemoteProperty<T[P]> };
 /**
- * Takes the type of an object as a remote thread would see it through a proxy (e.g. when passed in as a function
- * argument) and returns the type that the local thread has to supply.
+ * Takes the type of an object as a remote thread would see it through a proxy (e.g. when passed in
+ * as a function argument) and returns the type that the local thread has to supply.
  *
  * This does not handle call signatures, which is handled by the more general `Local<T>` type.
  *
@@ -413,8 +418,9 @@ export interface ProxyMethods {
 }
 
 /**
- * Takes the raw type of a remote object, function or class in the other thread and returns the type as it is visible to
- * the local thread from the proxy return value of `Comlink.wrap()` or `Comlink.proxy()`.
+ * Takes the raw type of a remote object, function or class in the other thread and returns the
+ * type as it is visible to the local thread from the proxy return value of `Comlink.wrap()` or
+ * `Comlink.proxy()`.
  */
 export type Remote<T> =
 	// Handle properties
@@ -449,8 +455,9 @@ export type Remote<T> =
 type MaybePromise<T> = Promise<T> | T;
 
 /**
- * Takes the raw type of a remote object, function or class as a remote thread would see it through a proxy (e.g. when
- * passed in as a function argument) and returns the type the local thread has to supply.
+ * Takes the raw type of a remote object, function or class as a remote thread would see it through
+ * a proxy (e.g. when passed in as a function argument) and returns the type the local thread has
+ * to supply.
  *
  * This is the inverse of `Remote<T>`. It takes a `Remote<T>` and returns its original input `T`.
  */
@@ -615,6 +622,7 @@ export function expose(
 			return;
 		}
 		if (!isAllowedOrigin(allowedOrigins, ev.origin)) {
+			// eslint-disable-next-line no-console
 			console.warn(`Invalid origin '${ev.origin}' for comlink proxy`);
 			return;
 		}
