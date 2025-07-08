@@ -1,3 +1,4 @@
+// eslint-disable
 // eslint-disable @typescript-eslint/no-unsafe-function-type
 // eslint-disable @typescript-eslint/no-misused-new
 // eslint-disable @typescript-eslint/no-empty-object-type
