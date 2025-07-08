@@ -13,7 +13,9 @@ describe('Comlink Sync Communication Tests', () => {
 	});
 
 	describe('Real Multi-Worker Synchronous Communication', () => {
-		async function createInlineWorker(workerCode: string): Promise<Worker> {
+		async function createInlineWorker(
+			workerCode: string
+		): Promise<NodeWorker> {
 			// Create a worker from inline code to avoid import path issues
 			const worker = new NodeWorker(workerCode, {
 				eval: true,
@@ -57,7 +59,7 @@ describe('Comlink Sync Communication Tests', () => {
 		}
 
 		async function setupWorkerWithPort(
-			worker: Worker,
+			worker: NodeWorker,
 			port: MessageChannel['port1']
 		): Promise<void> {
 			worker.postMessage({ type: 'setup', port }, [port]);
