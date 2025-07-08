@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { MessageChannel, Worker as NodeWorker } from 'worker_threads';
 import { NodeSABSyncReceiveMessageTransport } from './comlink-sync';
 
-describe('Comlink Sync Communication Tests', () => {
+// Node.js < 23 does not support TypeScript and won't run this test.
+const nodeVersion = parseInt(process.version.slice(1).split('.')[0], 10);
+
+describe.skipIf(nodeVersion < 23)('Comlink Sync Communication Tests', () => {
 	describe('Basic Infrastructure', () => {
 		it('should create transport successfully', async () => {
 			const transport = await NodeSABSyncReceiveMessageTransport.create();
