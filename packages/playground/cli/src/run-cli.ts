@@ -181,6 +181,14 @@ export async function parseOptionsAndRunCLI() {
 			// Hide this option because we want to replace with a more general log-level flag.
 			hidden: true,
 		})
+		.option('internal-cookie-store', {
+			describe:
+				'Enable internal cookie handling. When enabled, Playground will manage cookies internally using ' +
+				'an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled ' +
+				'externally (e.g., by a browser in Node.js environments).',
+			type: 'boolean',
+			default: false,
+		})
 		// TODO: Should we make this a hidden flag?
 		.option('experimentalMultiWorker', {
 			describe:
@@ -283,6 +291,7 @@ export interface RunCLIArgs {
 	followSymlinks?: boolean;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
+	internalCookieStore?: boolean;
 }
 
 export interface RunCLIServer extends AsyncDisposable {
@@ -638,6 +647,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					processIdSpaceLength,
 					followSymlinks,
 					trace,
+					internalCookieStore: args.internalCookieStore,
 				});
 
 				if (
@@ -728,6 +738,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								processIdSpaceLength,
 								followSymlinks,
 								trace,
+								internalCookieStore: args.internalCookieStore,
 							});
 							await additionalPlayground.isReady();
 

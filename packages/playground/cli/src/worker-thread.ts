@@ -32,6 +32,14 @@ export type PrimaryWorkerBootOptions = {
 	dataSqlPath?: string;
 	followSymlinks: boolean;
 	trace: boolean;
+	/**
+	 * When true, Playground will not send cookies to the client but will manage
+	 * them internally. This can be useful in environments that can't store cookies,
+	 * e.g. VS Code WebView.
+	 *
+	 * Default: false.
+	 */
+	internalCookieStore?: boolean;
 };
 
 function mountResources(php: PHP, mounts: Mount[]) {
@@ -110,6 +118,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		dataSqlPath,
 		followSymlinks,
 		trace,
+		internalCookieStore,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -175,7 +184,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 						mountResources(php, mountsBeforeWpInstall);
 					},
 				},
-				cookieStore: false,
+				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
 			});
 			this.__internal_setRequestHandler(requestHandler);

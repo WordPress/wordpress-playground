@@ -161,6 +161,7 @@
 					"symlinks.spec.ts",
 					"write-files.spec.ts",
 					"php-networking.spec.ts",
+					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts"
 				]
