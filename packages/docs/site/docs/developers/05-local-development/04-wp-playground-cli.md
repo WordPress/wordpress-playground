@@ -32,10 +32,9 @@ The previous command, you only get a fresh WordPress, instance to test. Most of 
 ```bash
 cd my-plugin-or-theme-directory
 npx @wp-playground/cli@latest server --auto-mount
-
 ```
 
-### Choosing a WordPress Version
+### Choosing a WordPress and PHP Version
 
 By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
@@ -43,17 +42,11 @@ By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due
 npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
 ```
 
-### Mounting folders manually
-
-Some projects have a specific structure that requires a custom configuration, for example, your repo contains all the files from the `/wp-content/` folder. So this scenario you can specify to the Plaground CLI you will mount your project from that folder using the flag `--mount`.
-
-```bash
-npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/
-```
-
 ### Loading Blueprints
 
-A way to bring the CLI playground to the next level is to integrate with Blueprints, which allows developers to set up the initial state from their WordPress instance. With the flag `--blueprint` the developer will be capable run a Playground with a custom inital state.
+One way to take your Playground CLI development experience to the next level is to integrate with [Blueprints](/blueprints/getting-started/). For those unfamiliar with this technology, it allows developers to configure the initial state for their WordPress Playground instances.
+
+Using the `--blueprint=<blueprint-address>` flag, developers can run a Playground with a custom initial state. We’ll use the example below to do this.
 
 **(my-blueprint.json)**
 
@@ -80,9 +73,31 @@ A way to bring the CLI playground to the next level is to integrate with Bluepri
 }
 ```
 
+CLI command loading a blueprint:
+
 ```bash
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
+
+### Mounting folders manually
+
+Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.
+
+```bash
+npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/
+```
+
+### Mounting before WordPress installation
+
+Consider mounting your WordPress project files before the WordPress installation begins. This approach is beneficial if you have local files with custom functionalities, like a `SQLite` database, or if you're connecting Playground with `WP-CLI`. The `--mount-before-install` flag supports this process.
+
+```bash
+npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
+```
+
+:::info
+On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format`"/host/path"` `"/vfs/path"`.
+:::
 
 ## Command and Arguments
 
@@ -99,7 +114,7 @@ The `server` command supports the following optional arguments:
 -   `--outfile`: When building, write to this output file.
 -   `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
 -   `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
--   `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: /host/path:/vfs/path
+-   `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 -   `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 -   `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
 -   `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`
