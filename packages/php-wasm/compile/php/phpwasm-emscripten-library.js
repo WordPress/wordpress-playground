@@ -21,6 +21,7 @@ const LibraryExample = {
 		 */
 		O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
 		O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+		POLLHUP: Number('{{{cDefs.POLLHUP}}}'),
 		SETFL_MASK:
 			Number('{{{cDefs.O_APPEND}}}') | Number('{{{cDefs.O_NONBLOCK}}}'),
 		// These macros are not defined in Emscripten at the time of writing:
@@ -413,12 +414,14 @@ const LibraryExample = {
 		envLength
 	) {
 		if (!command) {
-			return 1;
+			setErrNo(ERRNO_CODES.EINVAL);
+			return -1;
 		}
 
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			return 0;
+			setErrNo(ERRNO_CODES.EINVAL);
+			return -1;
 		}
 
 		let argsArray = [];
@@ -465,7 +468,7 @@ const LibraryExample = {
 			}
 		}
 
-		return Asyncify.handleSleep(async (wakeUp) => {
+		return Asyncify.handleAsync(async () => {
 			let cp;
 			try {
 				const options = {};
@@ -481,12 +484,12 @@ const LibraryExample = {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					wakeUp(1);
-					return;
+					setErrNo(ERRNO_CODES.ENOSYS);
+					return -1;
 				}
-				console.error(e);
-				wakeUp(1);
-				throw e;
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+				setErrNo(e.code);
+				return -1;
 			}
 
 			const ProcInfo = {
@@ -614,9 +617,10 @@ const LibraryExample = {
 					}, 5000);
 				});
 			} catch (e) {
+				// Process already started. Even if it exited early, PHP still
+				// needs to know about the pid and clean up the resources.
 				console.error(e);
-				wakeUp(ProcInfo.pid);
-				return;
+				return ProcInfo.pid;
 			}
 
 			// Now we want to pass data from the STDIN source supplied by PHP
@@ -631,10 +635,12 @@ const LibraryExample = {
 				let stdinStream;
 				try {
 					stdinStream = SYSCALLS.getStreamFromFD(stdinParentFd);
-				} catch (e) { }
-				if (!stdinStream) {
-					// @TODO: Error handling. Return error info to the C proc_open() call.
-					throw new Error('Failed to get stream from fd');
+				} catch (e) {
+					setErrNo(ERRNO_CODES.EBADF);
+					return ProcInfo.pid;
+				}
+				if (!stdinStream?.node) {
+					return ProcInfo.pid;
 				}
 
 				const originalClose = stdinStream.stream_ops.close;
@@ -674,83 +680,110 @@ const LibraryExample = {
 					},
 				};
 			} else if (stdinChildFd) {
-				// This is a PHP resource, e.g. an open file. We are responsible
-				// for pumping the data into the child process in the JS code as
-				// there is no C-level code that could handle that for us. Good
-				// thing is we can handle both blocking and non-blocking resources.
+				// This is a PHP resource, e.g. an open file. 
 				//
-				// Note nothing will ever read from the stdinChildFd so we don't
-				// need to bother with overriding the stream_ops.
+				// js_open_process is a kernel function and it is responsible for pumping
+				// the data into from that file descriptor into the child process. There
+				// is no C-level code that could handle that for us. In this case, nothing
+				// will ever read from the stdinChildFd so overriding stream_ops makes no
+				// sense. Instead, let's periodically read from the file descriptor as
+				// it becomes available.
 				let stdinStream;
 				try {
 					stdinStream = SYSCALLS.getStreamFromFD(stdinChildFd);
-				} catch (e) {}
-				if (!stdinStream) {
-					// @TODO: Error handling. Return error info to the C proc_open() call.
-					throw new Error('Failed to get stream from fd');
+				} catch (e) {
+					setErrNo(ERRNO_CODES.EBADF);
+					return ProcInfo.pid;
 				}
-				if (stdinStream?.node) {
-					// Pipe the entire stdinStream to cp.stdin
-					const CHUNK_SIZE = 1024;
+				if (!stdinStream?.node) {
+					return ProcInfo.pid;
+				}
 
-					const buffer = _malloc(CHUNK_SIZE);
-					const iov = _malloc(16); // Space for iovec structure
-					const pnum = _malloc(4); // Space for number of bytes read
+				// Pipe the entire stdinStream to cp.stdin
+				const CHUNK_SIZE = 1024;
 
-					let offset = 0;
+				const iov = _malloc(16); // Space for iovec structure
+				const pnum = _malloc(4); // Space for number of bytes read
+				const buffer = _malloc(CHUNK_SIZE);
+
+				// Set up iovec structure pointing to our buffer
+				HEAPU32[iov >> 2] = buffer; // iov_base
+				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
+
+				function pump() {
 					try {
-						// @TODO: Run this in setInterval() until the stream is closed or
-						//        the process exits.
 						while (true) {
-							try {
-								// Set up iovec structure pointing to our buffer
-								HEAPU32[iov >> 2] = buffer; // iov_base
-								HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
+							if (cp.killed) {
+								stopPumpingAndCloseStdin();
+								return;
+							}
 
-								const result = js_fd_read(
-									stdinChildFd,
-									iov,
-									1,
-									pnum,
-									// Don't ever poll asynchronously here.
-									false
+							const result = js_fd_read(
+								stdinChildFd,
+								iov,
+								1,
+								pnum,
+								false
+							);
+							const bytesRead = HEAPU32[pnum >> 2];
+							if (result === 0 && bytesRead > 0) {
+								const wrote = HEAPU8.subarray(
+									buffer,
+									buffer + bytesRead
 								);
-								const bytesRead = HEAPU32[pnum >> 2];
-								if (result === 0 && bytesRead > 0) {
-									const wrote = HEAPU8.subarray(
-										buffer,
-										buffer + bytesRead
-									);
-									cp.stdin.write(wrote);
-									offset += bytesRead;
-								} else if (result === 6) {
-									return result;
-								} else if (result === 0 && bytesRead === 0) {
-									cp.stdin.end();
-									return result;
-								} else {
-									// @TODO: Error handling.
-									throw new Error(`js_fd_read failed: ${result}`);
-								}
-							} catch (e) {
-								if (
-									typeof FS == 'undefined' ||
-									!(e.name === 'ErrnoError')
-								) {
-									throw e;
-								}
-								return e.errno;
+								cp.stdin.write(wrote);
+								// We've read some data. Let the next iteration decide
+								// how to break out of the loop.
+							} else if (result === 0 && bytesRead === 0) {
+								// result === 0 and bytesRead === 0 means the file descriptor
+								// is at EOF. Let's close the stdin stream and clean up.
+								stopPumpingAndCloseStdin();
+								break;
+							} else if (result === ERRNO_CODES.EAGAIN) {
+								// The file descriptor is not ready for reading.
+								// Let's break out of the loop. setInterval will invoke
+								// this function again soon.
+								break;
+							} else {
+								throw new FS.ErrnoError(result);
 							}
 						}
-					} finally {
-						_free(buffer);
-						_free(iov);
-						_free(pnum);
+					} catch (e) {
+						if (
+							typeof FS == 'undefined' ||
+							!(e.name === 'ErrnoError')
+						) {
+							throw e;
+						}
+						setErrNo(e.errno);
+						stopPumpingAndCloseStdin();
 					}
+				};
+				function stopPumpingAndCloseStdin() {
+					clearInterval(interval);
+					if (!cp.stdin.closed) {
+						cp.stdin.end();
+					}
+					_free(buffer);
+					_free(iov);
+					_free(pnum);
 				}
+
+				// pump() can never alter the result of this function.
+				// Even when it fails, we still return the pid.
+				// Why?
+				// Because the process already started. We wouldn't backtrack
+				// with fork(), we won't backtrack here. Let's give PHP the pid,
+				// and let it think it's the parent process. It will clean up the
+				// resources as needed.
+
+				// stdin may be non-blocking – let's check for updates periodically.
+				// If we exhaust it at any point, pump() will self-terminate.
+				const interval = setInterval(pump, 20);
+				pump();
 			}
 
-			wakeUp(ProcInfo.pid);
+			return ProcInfo.pid;
 		});
 	},
 

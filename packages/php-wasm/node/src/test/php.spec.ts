@@ -564,7 +564,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			});
 		}
 
-		it.only('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
+		it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', '');
@@ -578,8 +578,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 				proc_close($res);
-
-                sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");

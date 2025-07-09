@@ -608,6 +608,11 @@ PHP_FUNCTION(proc_open)
 	);
     // }}}
 
+	if(child <= 0) {
+		php_error_docref(NULL, E_WARNING, "proc_open() failed - %s", strerror(errno));
+		goto exit_fail;
+	}
+
 	/* we forked/spawned and this is the parent */
 
 	pipes = zend_try_array_init(pipes);
