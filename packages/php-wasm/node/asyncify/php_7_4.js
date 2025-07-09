@@ -16522,7 +16522,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   			// to the child process.
   
   			// PHP will write STDIN data to a device.
-  			if (stdinParentFd && stdinChildFd) {
+  			if (0 && stdinParentFd && stdinChildFd) {
   				// This is a pipe. We only need to make sure writing to parent
   				// end pushes the data to the child process. The child end is 
   				// useless for us – we are in the child code right now. It's 

@@ -1073,6 +1073,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						},
 						stdin: {
 							write: () => {},
+							end: () => {},
 						},
 						on: (evt: string, callback: () => void) => {
 							if (evt === 'spawn') {
