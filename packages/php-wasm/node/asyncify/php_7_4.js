@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 29674866; 
+export const dependenciesTotalSize = 29674871; 
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
 // include: shell.js
@@ -16520,69 +16520,16 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   
   			// Now we want to pass data from the STDIN source supplied by PHP
   			// to the child process.
-  
-  			// PHP will write STDIN data to a device.
-  			if (0 && stdinParentFd && stdinChildFd) {
-  				// This is a pipe. We only need to make sure writing to parent
-  				// end pushes the data to the child process. The child end is 
-  				// useless for us – we are in the child code right now. It's 
-  				// not handled at the C level.
-  				let stdinStream;
-  				try {
-  					stdinStream = SYSCALLS.getStreamFromFD(stdinParentFd);
-  				} catch (e) {
-  					setErrNo(ERRNO_CODES.EBADF);
-  					return ProcInfo.pid;
-  				}
-  				if (!stdinStream?.node) {
-  					return ProcInfo.pid;
-  				}
-  
-  				const originalClose = stdinStream.stream_ops.close;
-  				stdinStream.stream_ops = {
-  					...stdinStream.stream_ops,
-  					close: (...args) => {
-  						let retval = undefined;
-  
-  						try {
-  							if (originalClose) {
-  								retval = originalClose(...args);
-  							}
-  						} catch (e) { }
-  
-  						try {
-  							cp.stdin.end();
-  						} catch (e) { }
-  						return retval;
-  					},
-  					write(stream, buffer, offset, length, pos) {
-  						let i = 0;
-  						try {
-  							const wrote = buffer.subarray(
-  								offset,
-  								offset + length
-  							);
-  							cp.stdin.write(new Uint8Array(wrote))
-  							i = wrote.length;
-  						} catch (e) {
-  							throw new FS.ErrnoError(29);
-  						}
-  						if (length) {
-  							stream.node.mtime = stream.node.ctime =
-  								Date.now();
-  						}
-  						return i;
-  					},
-  				};
-  			} else if (stdinChildFd) {
-  				// This is a PHP resource, e.g. an open file. 
+  			if (stdinChildFd) {
+  				// We're in a kernel function used instead of fork().
   				//
-  				// js_open_process is a kernel function and it is responsible for pumping
-  				// the data into from that file descriptor into the child process. There
-  				// is no C-level code that could handle that for us. In this case, nothing
-  				// will ever read from the stdinChildFd so overriding stream_ops makes no
-  				// sense. Instead, let's periodically read from the file descriptor as
-  				// it becomes available.
+  				// We are the ones responsible for pumping the data from the stdinChildFd
+  				// into the child process. There is no concurrent task operating on the
+  				// piped data or polling the file descriptors, etc. Nothing will ever
+  				// read from the stdinChildFd if we don't do it here.
+  				//
+  				// Well, let's do it! We'll periodically read from the child end of the
+  				// data pipe and push what we get into the child process.
   				let stdinStream;
   				try {
   					stdinStream = SYSCALLS.getStreamFromFD(stdinChildFd);
@@ -16619,7 +16566,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   								1,
   								pnum,
   								false
-							);
+  							);
   							const bytesRead = HEAPU32[pnum >> 2];
   							if (result === 0 && bytesRead > 0) {
   								const wrote = HEAPU8.subarray(
@@ -16664,7 +16611,6 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   					_free(pnum);
   				}
   
-  				const interval = setInterval(pump, 20);
   				// pump() can never alter the result of this function.
   				// Even when it fails, we still return the pid.
   				// Why?
@@ -16672,6 +16618,17 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   				// with fork(), we won't backtrack here. Let's give PHP the pid,
   				// and let it think it's the parent process. It will clean up the
   				// resources as needed.
+  
+  				// stdin may be non-blocking – let's check for updates periodically.
+  				// If we exhaust it at any point, pump() will self-terminate.
+  				//
+  				// Note handling any failures, closing the descriptor, etc. will not
+  				// happen synchronously when PHP calls fclose($pipes[0]) or proc_close().
+  				// It will all happen asynchronously on the next tick. It seems off,
+  				// but there doesn't seem to be a better way: cp.stdin.write() and
+  				// cp.stdin.end() are both async APIs and they both accept onCompleted
+  				// callbacks.
+  				const interval = setInterval(pump, 20);
   				pump();
   			}
   
