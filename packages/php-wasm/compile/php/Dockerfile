@@ -1681,6 +1681,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_hash_graceful_reverse_destroy",\
 "zend_hash_reverse_apply",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_OBSERVER_HANDLER",\
 "zend_include_or_eval",\
 "compile_filename",\
 "zend_internal_type_error",\
@@ -1823,6 +1824,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_use_undef_in_read_context_helper_SPEC",\
 "zend_user_it_get_current_data",\
 "zend_user_it_get_new_iterator",\
+"ZEND_USER_OPCODE_SPEC_HANDLER",\
 "zend_value_error",\
 "zend_verify_ref_array_assignable",\
 "zend_vm_stack_extend",\

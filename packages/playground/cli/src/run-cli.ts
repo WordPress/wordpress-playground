@@ -189,6 +189,11 @@ export async function parseOptionsAndRunCLI() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('xdebug', {
+			describe: 'Enable Xdebug.',
+			type: 'boolean',
+			default: false,
+		})
 		// TODO: Should we make this a hidden flag?
 		.option('experimentalMultiWorker', {
 			describe:
@@ -292,6 +297,7 @@ export interface RunCLIArgs {
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
+	xdebug?: boolean;
 }
 
 export interface RunCLIServer extends AsyncDisposable {
@@ -648,6 +654,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					followSymlinks,
 					trace,
 					internalCookieStore: args.internalCookieStore,
+					withXdebug: args.xdebug,
 				});
 
 				if (
@@ -739,6 +746,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								followSymlinks,
 								trace,
 								internalCookieStore: args.internalCookieStore,
+								withXdebug: args.xdebug,
 							});
 							await additionalPlayground.isReady();
 
