@@ -1,4 +1,4 @@
-import type { MountHandler } from '@php-wasm/universal';
+import type { ErrnoError, MountHandler } from '@php-wasm/universal';
 import { statSync } from 'fs';
 import { dirname } from 'path';
 
@@ -21,7 +21,11 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		try {
 			lookup = FS.lookupPath(vfsMountPoint);
 		} catch (e) {
-			// FS.lookupPath will throw an error if the path doesn't exist.
+			const err = e as ErrnoError;
+			// FS.lookupPath will throw an error with errno 44 if the path doesn't exist.
+			if (err.errno !== 44) {
+				throw e;
+			}
 			if (statSync(localPath).isFile()) {
 				FS.writeFile(vfsMountPoint, '');
 			} else if (statSync(localPath).isDirectory()) {

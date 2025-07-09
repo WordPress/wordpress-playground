@@ -1,5 +1,5 @@
 import { createNodeFsMountHandler, loadNodeRuntime } from '..';
-import { __private__dont__use, PHP } from '@php-wasm/universal';
+import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import path from 'path';
 import fs from 'fs';
