@@ -532,7 +532,13 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
-	describe.only('proc_open()', () => {
+	describe('proc_open()', () => {
+		// × cat: stdin=file, stdout=file, stderr=file, file_get_contents 5176ms
+		// × Pipe pygmalion from a file to STDOUT through a synchronous JavaScript callback
+		// × Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback 2194ms
+		// × Pipe pygmalion from a file to STDOUT through "cat" 5167ms
+
+
 		// This test applies only to these PHP versions
 		// due to a new patch that replaces the use of
 		// EMULATE_FUNCTION_POINTER_CASTS option.
@@ -696,7 +702,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		it('Passes the cwd and env arguments', async () => {
+		it.only('Passes the cwd and env arguments', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any, options: any) => {
 					console.log('Stdout writing');
@@ -1272,11 +1278,15 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							),
 							$pipes
 						);
+						// This will block – it's a blocking pipe and will never
+						// output any data.
+						fread($pipes[1], 1024);
 					`,
 					});
 					// Should not reach here
 					expect(false).toBe(true);
-				} catch {
+				} catch (e) {
+					console.log(e);
 					const elapsed = Date.now() - startTime;
 					// Should timeout around 5 seconds (allowing some margin)
 					expect(elapsed).toBeGreaterThan(4500);

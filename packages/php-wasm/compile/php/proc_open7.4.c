@@ -476,18 +476,13 @@ PHP_FUNCTION(proc_open)
 				// stdin is a special case – we need an Emscripten device
 				// to provide a callback that will feed the data back into
 				// the process.
-				if (descriptors[ndesc].index == 0) {
+				if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
 					descriptors[ndesc].parentend = newpipe[1];
 					descriptors[ndesc].childend = newpipe[0];
+					descriptors[ndesc].mode |= DESC_PARENT_MODE_WRITE;
 				} else {
-					if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
-						descriptors[ndesc].parentend = newpipe[1];
-						descriptors[ndesc].childend = newpipe[0];
-						descriptors[ndesc].mode |= DESC_PARENT_MODE_WRITE;
-					} else {
-						descriptors[ndesc].parentend = newpipe[0];
-						descriptors[ndesc].childend = newpipe[1];
-					}
+					descriptors[ndesc].parentend = newpipe[0];
+					descriptors[ndesc].childend = newpipe[1];
 				}
 
 				descriptors[ndesc].mode_flags = descriptors[ndesc].mode & DESC_PARENT_MODE_WRITE ? O_WRONLY : O_RDONLY;
