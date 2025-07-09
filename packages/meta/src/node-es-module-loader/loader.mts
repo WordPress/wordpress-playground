@@ -171,10 +171,10 @@ export async function load(
 		urlObj.search = '';
 		return {
 			format: 'module',
-			source: `export default ${JSON.stringify(urlObj.href)};`,
-			// TODO: Consider which is preferable and discuss with @adamziel.
-			// He implemented the pathname version.
-			//source: `export default ${JSON.stringify(urlObj.pathname)};`,
+			source: `export default ${JSON.stringify(urlObj.pathname)};`,
+			// As mentioned in
+			// https://github.com/WordPress/wordpress-playground/pull/2318
+			// using pathname is preferred over href.
 			shortCircuit: true,
 		};
 	}

@@ -33,7 +33,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja', 'pt-BR'],
+		locales: ['en', 'es', 'fr', 'ja', 'pt-br'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -51,7 +51,7 @@ const config = {
 				label: 'Japanese',
 				path: 'ja',
 			},
-			'pt-BR': {
+			'pt-br': {
 				label: 'Português (BR)',
 				path: 'pt-BR',
 			},
