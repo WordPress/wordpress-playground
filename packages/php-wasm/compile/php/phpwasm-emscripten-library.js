@@ -144,15 +144,7 @@ const LibraryExample = {
 						}
 				  };
 
-			// Clean up the fd -> childProcess mapping when the fd is closed:
-			const originalClose = FS.close;
-			FS.close = function (stream) {
-				originalClose(stream);
-				delete PHPWASM.child_proc_by_fd[stream.fd];
-			};
-
-			PHPWASM.child_proc_by_fd = {};
-			PHPWASM.child_proc_by_pid = {};
+			PHPWASM.processTable = {};
 
 			PHPWASM.input_devices = {};
 			const originalWrite = TTY.stream_ops.write;
@@ -499,37 +491,28 @@ const LibraryExample = {
 
 			const ProcInfo = {
 				pid: cp.pid,
-				exited: false,
-				stdinParentFd: std[0]?.parent,
-				stdinChildFd: std[0]?.child,
-				stdoutChildFd: std[1]?.child,
-				stdoutParentFd: std[1]?.parent,
-				stderrChildFd: std[2]?.child,
-				stderrParentFd: std[2]?.parent,
-				stdout: new PHPWASM.EventEmitter(),
-				stderr: new PHPWASM.EventEmitter(),
+				exited: false
 			};
-			if (ProcInfo.stdoutChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
-			if (ProcInfo.stderrChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
-			if (ProcInfo.stdoutParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
-			if (ProcInfo.stderrParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
-			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
+			PHPWASM.processTable[ProcInfo.pid] = ProcInfo;
+
+			const stdinParentFd = std[0]?.parent,
+				stdinChildFd = std[0]?.child,
+				stdoutChildFd = std[1]?.child,
+				stdoutParentFd = std[1]?.parent,
+				stderrChildFd = std[2]?.child,
+				stderrParentFd = std[2]?.parent;
 
 			cp.on('exit', function (code) {
 				for (const fd of [
 					// The child process exited. Let's clean up its output streams:
-					ProcInfo.stdoutChildFd,
-					ProcInfo.stderrChildFd,
-					ProcInfo.stdinChildFd,
-					ProcInfo.stdinParentFd,
+					stdoutChildFd,
+					stderrChildFd,
+					stdinChildFd,
 
-					// We won't close these because the parent process is responsible for that:
-					// ProcInfo.stdoutParentFd,
-					// ProcInfo.stderrParentFd,
+					// We won't close these because the PHP already handles that in the parent process:
+					// stdoutParentFd,
+					// stderrParentFd,
+					// stdinParentFd,
 				]) {
 					if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
 						FS.close(FS.streams[fd]);
@@ -538,19 +521,15 @@ const LibraryExample = {
 
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
-				// Emit events for the wasm_poll_socket function.
-				ProcInfo.stdout.emit('data');
-				ProcInfo.stderr.emit('data');
 			});
 
 			// Pass data from child process's stdout to PHP's end of the stdout pipe.
-			if (ProcInfo.stdoutChildFd) {
+			if (stdoutChildFd) {
 				const stdoutStream = SYSCALLS.getStreamFromFD(
-					ProcInfo.stdoutChildFd
+					stdoutChildFd
 				);
 				let stdoutAt = 0;
 				cp.stdout.on('data', function (data) {
-					ProcInfo.stdout.emit('data', data);
 					stdoutStream.stream_ops.write(
 						stdoutStream,
 						data,
@@ -563,13 +542,12 @@ const LibraryExample = {
 			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
-			if (ProcInfo.stderrChildFd) {
+			if (stderrChildFd) {
 				const stderrStream = SYSCALLS.getStreamFromFD(
-					ProcInfo.stderrChildFd
+					stderrChildFd
 				);
 				let stderrAt = 0;
 				cp.stderr.on('data', function (data) {
-					ProcInfo.stderr.emit('data', data);
 					stderrStream.stream_ops.write(
 						stderrStream,
 						data,
@@ -645,14 +623,14 @@ const LibraryExample = {
 			// to the child process.
 
 			// PHP will write STDIN data to a device.
-			if (ProcInfo.stdinParentFd && ProcInfo.stdinChildFd) {
+			if (stdinParentFd && stdinChildFd) {
 				// This is a pipe. We only need to make sure writing to parent
 				// end pushes the data to the child process. The child end is 
 				// useless for us – we are in the child code right now. It's 
 				// not handled at the C level.
 				let stdinStream;
 				try {
-					stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinParentFd);
+					stdinStream = SYSCALLS.getStreamFromFD(stdinParentFd);
 				} catch (e) { }
 				if (!stdinStream) {
 					// @TODO: Error handling. Return error info to the C proc_open() call.
@@ -663,10 +641,6 @@ const LibraryExample = {
 				stdinStream.stream_ops = {
 					...stdinStream.stream_ops,
 					close: (...args) => {
-						try {
-							pump();
-						} catch (e) { }
-
 						let retval = undefined;
 
 						try {
@@ -687,10 +661,8 @@ const LibraryExample = {
 								offset,
 								offset + length
 							);
-							cp.stdin.write(new Uint8Array(wrote), null, (error) => {
-								// console.log('write callback', error);
-							})
-							i = length;
+							cp.stdin.write(new Uint8Array(wrote))
+							i = wrote.length;
 						} catch (e) {
 							throw new FS.ErrnoError(29);
 						}
@@ -701,7 +673,7 @@ const LibraryExample = {
 						return i;
 					},
 				};
-			} else if (ProcInfo.stdinChildFd) {
+			} else if (stdinChildFd) {
 				// This is a PHP resource, e.g. an open file. We are responsible
 				// for pumping the data into the child process in the JS code as
 				// there is no C-level code that could handle that for us. Good
@@ -711,86 +683,70 @@ const LibraryExample = {
 				// need to bother with overriding the stream_ops.
 				let stdinStream;
 				try {
-					stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinChildFd);
+					stdinStream = SYSCALLS.getStreamFromFD(stdinChildFd);
 				} catch (e) {}
 				if (!stdinStream) {
 					// @TODO: Error handling. Return error info to the C proc_open() call.
 					throw new Error('Failed to get stream from fd');
 				}
 				if (stdinStream?.node) {
-					let first = true;
-					function pump() {
+					// Pipe the entire stdinStream to cp.stdin
+					const CHUNK_SIZE = 1024;
 
-						// Pipe the entire stdinStream to cp.stdin
-						const CHUNK_SIZE = 1024;
+					const buffer = _malloc(CHUNK_SIZE);
+					const iov = _malloc(16); // Space for iovec structure
+					const pnum = _malloc(4); // Space for number of bytes read
 
-						const buffer = _malloc(CHUNK_SIZE);
-						const iov = _malloc(16); // Space for iovec structure
-						const pnum = _malloc(4); // Space for number of bytes read
+					let offset = 0;
+					try {
+						// @TODO: Run this in setInterval() until the stream is closed or
+						//        the process exits.
+						while (true) {
+							try {
+								// Set up iovec structure pointing to our buffer
+								HEAPU32[iov >> 2] = buffer; // iov_base
+								HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
-						let offset = 0;
-						try {
-							while (true) {
-								try {
-									// Set up iovec structure pointing to our buffer
-									HEAPU32[iov >> 2] = buffer; // iov_base
-									HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
-
-									const result = js_fd_read(
-										ProcInfo.stdinChildFd,
-										iov,
-										1,
-										pnum
+								const result = js_fd_read(
+									stdinChildFd,
+									iov,
+									1,
+									pnum,
+									// Don't ever poll asynchronously here.
+									false
+								);
+								const bytesRead = HEAPU32[pnum >> 2];
+								if (result === 0 && bytesRead > 0) {
+									const wrote = HEAPU8.subarray(
+										buffer,
+										buffer + bytesRead
 									);
-									const bytesRead = HEAPU32[pnum >> 2];
-									if (result === 0 && bytesRead > 0) {
-										const wrote = HEAPU8.subarray(
-											buffer,
-											buffer + bytesRead
-										);
-										cp.stdin.write(wrote);
-										offset += bytesRead;
-									} else if (result === 6) {
-										return result;
-									} else if (result === 0 && bytesRead === 0) {
-										cp.stdin.end();
-										return result;
-									} else {
-										// @TODO: Error handling.
-										throw new Error(`js_fd_read failed: ${result}`);
-									}
-								} catch (e) {
-									if (
-										typeof FS == 'undefined' ||
-										!(e.name === 'ErrnoError')
-									) {
-										throw e;
-									}
-									return e.errno;
+									cp.stdin.write(wrote);
+									offset += bytesRead;
+								} else if (result === 6) {
+									return result;
+								} else if (result === 0 && bytesRead === 0) {
+									cp.stdin.end();
+									return result;
+								} else {
+									// @TODO: Error handling.
+									throw new Error(`js_fd_read failed: ${result}`);
 								}
+							} catch (e) {
+								if (
+									typeof FS == 'undefined' ||
+									!(e.name === 'ErrnoError')
+								) {
+									throw e;
+								}
+								return e.errno;
 							}
-						} finally {
-							// @TODO: How to free the memory?
-							_free(buffer);
-							_free(iov);
-							_free(pnum);
 						}
+					} finally {
+						_free(buffer);
+						_free(iov);
+						_free(pnum);
 					}
-					/**
-					 * pump() call here is needed when stdin is a file – that moves the
-					 * data from the file to the child process. There is nothing at the
-					 * C level that would fread(ProcInfo.stdinChildFd) – we're in the
-					 * handler code right now.
-					 * 
-					 * pump() call here is deadly when stdin is a pipe – the write override
-					 * below already handles that. pump only messes up the pipe.
-					 * 
-					 * Shouldn't php figure out how to read from a file?
-					 */
-					pump();
-					// @TODO: When parent stdout is polled, and we deal with an asynchronous
-					// fd, run pump() again.
-					// @TODO: Remove support for non-blocking resources for now.
 				}
 			}
 
@@ -799,25 +755,25 @@ const LibraryExample = {
 	},
 
 	js_process_status: function (pid, exitCodePtr) {
-		if (!PHPWASM.child_proc_by_pid[pid]) {
+		if (!PHPWASM.processTable[pid]) {
 			return -1;
 		}
-		if (PHPWASM.child_proc_by_pid[pid].exited) {
-			HEAPU32[exitCodePtr >> 2] = PHPWASM.child_proc_by_pid[pid].exitCode;
+		if (PHPWASM.processTable[pid].exited) {
+			HEAPU32[exitCodePtr >> 2] = PHPWASM.processTable[pid].exitCode;
 			return 1;
 		}
 		return 0;
 	},
 
 	js_waitpid: function (pid, exitCodePtr) {
-		if (!PHPWASM.child_proc_by_pid[pid]) {
+		if (!PHPWASM.processTable[pid]) {
 			return -1;
 		}
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
-				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
+				if (PHPWASM.processTable[pid]?.exited) {
 					HEAPU32[exitCodePtr >> 2] =
-						PHPWASM.child_proc_by_pid[pid].exitCode;
+						PHPWASM.processTable[pid].exitCode;
 					wakeUp(pid);
 				} else {
 					setTimeout(poll, 50);

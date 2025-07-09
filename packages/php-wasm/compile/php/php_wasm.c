@@ -163,14 +163,13 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
     return returnCallback((wakeUp) => {
         const polls = [];
         /**
-         * Check for socket-ness first. We don't clean up child_proc_by_fd yet and
-         * sometimes get duplicate entries. isSocket is more reliable out of the two –
-         * let's check for it first.
+		 * Special semantics for polling sockets.
 		 *
-		 * @TODO: Remove this code branch entirely and poll sockets using the same poll()
-	     *        syscall as we use for other streams. The only reason this wasn't done is
-		 *        that the original PR was focusing on removing child process-related special
-		 *        casing and did not want to increase the risk of breaking other code.
+		 * @TODO: Remove this code branch entirely and poll sockets using the second if/else
+		 *        branch below. The only reason this wasn't done yet is that the original PR
+		 *        was focusing on removing child process-related special casing and did not
+		 *        want to increase the risk of breaking other code, especially around listening
+		 *        network sockets.
          */
 		const stream = FS.getStream(socketd);
         if (FS.isSocket(stream?.node.mode)) {
@@ -226,14 +225,40 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 					lookingFor.add('POLLERR');
 				}
             }
-		} else if (socketd in PHPWASM.child_proc_by_fd) {
-            // This is a child process-related socket.
-            const procInfo = PHPWASM.child_proc_by_fd[socketd];
-            if (procInfo.exited) {
-                wakeUp(0);
-                return;
-            }
-            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+		} else if (stream?.stream_ops?.poll) {
+			// Poll the stream for data.
+			// @TODO: Consider reusing the polling implementation in js_fd_read().
+			let interrupted = false;
+			async function poll() {
+				try {
+					// Inlined ___syscall_poll with added await support:
+					while (true) {
+						var mask = POLLNVAL;
+						mask = SYSCALLS.DEFAULT_POLLMASK;
+						if (stream.stream_ops?.poll) {
+							mask = stream.stream_ops.poll(stream, -1);
+						}
+						
+						mask &= events | POLLERR | POLLHUP;
+						if (mask) {
+							return mask;
+						}
+						if (interrupted) {
+							return ERRNO_CODES.ETIMEDOUT;
+						}
+						await new Promise(resolve => setTimeout(resolve, 10));
+					}
+				} catch (e) {
+					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+					return -e.errno;
+				}
+			}
+			polls.push([
+				poll(),
+				() => {
+					interrupted = true;
+				}
+			]);
         } else {
 			setTimeout(function () {
 				wakeUp(1);
@@ -296,6 +321,7 @@ EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *i
 EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
+	const pollAsync = arguments[4] === undefined ? true : arguments[4];
 	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
 		var stream;
 		try
@@ -327,6 +353,13 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 
 			// Otherwise, fallthrough to polling.
 		}
+	}
+
+	// Allow the caller to disable polling.
+	// @TODO: Check if we should even poll here, or is it up to the caller to decide
+	//        and call poll() on their own.
+	if (false === pollAsync) {
+		return ERRNO_CODES.EWOULDBLOCK;
 	}
 
     // At this point we're certain we need to poll.
