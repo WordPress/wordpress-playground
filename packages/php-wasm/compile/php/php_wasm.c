@@ -312,25 +312,20 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 			{
 				throw e;
 			}
-			const isBlockingFdThatWaitsForData = (
-				// is blocking?
-				!(stream.flags & PHPWASM.O_NONBLOCK) &&
-				// is waiting for data?
-				e.errno === ERRNO_CODES.EWOULDBLOCK &&
-				// if it's a pipe, does it have a living other end?
-				(!('pipe' in stream.node) || stream.node.pipe.refcnt >= 2)
-			);
-			/**
-			 * The only reason to fall through to polling is if we're processing
-			 * a blocking pipe that's still waiting for data.
-			 *
-			 * In every other case, we should tell the caller we've ran into an error.
-			 */
-			if(!isBlockingFdThatWaitsForData) {
-				// Indicate 0 bytes read.
-				HEAPU32[pnum >> 2] = 0;
+
+			// Propagate all errors except ones indicating that the stream is waiting for
+			// more data.
+			if (e.errno !== ERRNO_CODES.EWOULDBLOCK && e.errno !== ERRNO_CODES.EAGAIN) {
 				return e.errno;
 			}
+
+			// If the stream is non-blocking, we can return immediately.
+			const nonBlocking = stream.flags & PHPWASM.O_NONBLOCK;
+			if (nonBlocking) {
+				return e.errno;
+			}
+
+			// Otherwise, fallthrough to polling.
 		}
 	}
 
@@ -475,15 +470,18 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 	}
 	else if (*mode == 'w')
 	{
-		int current_procopen_call_id = ++procopen_call_id;
-		char *device_path = js_create_input_device(current_procopen_call_id);
-		int stdin_childend = current_procopen_call_id;
-		fp = fopen(device_path, mode);
-
+		php_file_descriptor_t stdin_pipe[2];
 		php_file_descriptor_t stdout_pipe[2];
 		php_file_descriptor_t stderr_pipe[2];
-		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe))
+		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe) || 0 != pipe(stdin_pipe))
 		{
+			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
+			errno = EINVAL;
+			return 0;
+		}
+
+		fp = fdopen(stdin_pipe[1], "w");  // or "w", depending on direction
+		if (!fp) {
 			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
 			errno = EINVAL;
 			return 0;
@@ -494,8 +492,8 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		int *stderr = safe_emalloc(sizeof(int), 3, 0);
 
 		stdin[0] = 0;
-		stdin[1] = stdin_childend;
-		stdin[2] = (int) NULL;
+		stdin[1] = stdin_pipe[1];
+		stdin[2] = stdin_pipe[0];
 
 		stdout[0] = 1;
 		stdout[1] = stdout_pipe[0];
@@ -510,7 +508,6 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		descv[0] = stdin;
 		descv[1] = stdout;
 		descv[2] = stderr;
-
 
 		// the wasm way {{{
 		js_open_process(

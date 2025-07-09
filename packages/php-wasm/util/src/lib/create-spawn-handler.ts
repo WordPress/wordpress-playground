@@ -1,4 +1,6 @@
+import { EventEmitterPolyfill } from './event-emitter-polyfill';
 import { splitShellCommand } from './split-shell-command';
+import { WritablePolyfill, WriteCallback } from './writable-polyfill';
 
 type Listener = (...args: any[]) => any;
 
@@ -67,24 +69,7 @@ export function createSpawnHandler(
 	};
 }
 
-class EventEmitter {
-	listeners: Record<string, Listener[]> = {};
-	emit(eventName: string, data: any) {
-		if (this.listeners[eventName]) {
-			this.listeners[eventName].forEach(function (listener) {
-				listener(data);
-			});
-		}
-	}
-	on(eventName: string, listener: Listener) {
-		if (!this.listeners[eventName]) {
-			this.listeners[eventName] = [];
-		}
-		this.listeners[eventName].push(listener);
-	}
-}
-
-export class ProcessApi extends EventEmitter {
+export class ProcessApi extends EventEmitterPolyfill {
 	private exited = false;
 	private stdinData: Uint8Array[] | null = [];
 	private childProcess: ChildProcess;
@@ -92,32 +77,29 @@ export class ProcessApi extends EventEmitter {
 		super();
 		this.childProcess = childProcess;
 		childProcess.on('stdin', (data: Uint8Array) => {
-			if (this.stdinData) {
-				// Need to clone the data buffer as it's reused by PHP
-				// and the next data chunk will overwrite the previous one.
-				this.stdinData.push(data.slice());
-			} else {
-				this.emit('stdin', data);
-			}
+			this.pushStdinData(data);
 		});
 	}
-	stdout(data: string | ArrayBuffer) {
-		if (typeof data === 'string') {
-			data = new TextEncoder().encode(data);
+	stdinEnd() {
+		if (!this.childProcess.stdin.ended) {
+			this.childProcess.stdin.end();
 		}
-		this.childProcess.stdout.emit('data', data);
+	}
+	stdout(data: string | ArrayBuffer) {
+		this.childProcess.stdout.write(data);
 	}
 	stdoutEnd() {
-		this.childProcess.stdout.emit('end', {});
+		if (!this.childProcess.stdout.ended) {
+			this.childProcess.stdout.end();
+		}
 	}
 	stderr(data: string | ArrayBuffer) {
-		if (typeof data === 'string') {
-			data = new TextEncoder().encode(data);
-		}
-		this.childProcess.stderr.emit('data', data);
+		this.childProcess.stderr.write(data);
 	}
 	stderrEnd() {
-		this.childProcess.stderr.emit('end', {});
+		if (!this.childProcess.stderr.ended) {
+			this.childProcess.stderr.end();
+		}
 	}
 	notifySpawn() {
 		this.childProcess.emit('spawn', true);
@@ -125,38 +107,77 @@ export class ProcessApi extends EventEmitter {
 	exit(code: number) {
 		if (!this.exited) {
 			this.exited = true;
+			this.stdinEnd();
+			this.stdoutEnd();
+			this.stderrEnd();
 			this.childProcess.emit('exit', code);
 		}
 	}
-	flushStdin() {
-		if (this.stdinData) {
+	override on(eventName: string, listener: Listener) {
+		console.trace('ProcessApi.on(stdin) called', eventName);
+		super.on(eventName, listener);
+		/**
+		 * If it's the first stdin listener, flush all the data we've
+		 * buffered so far.
+		 */
+		if (eventName === 'stdin' && this.stdinData) {
+			console.trace('flushing buffered stdin data');
 			for (let i = 0; i < this.stdinData.length; i++) {
-				this.emit('stdin', this.stdinData[i]);
+				listener(this.stdinData[i]);
+				// this.emit('stdin', this.stdinData[i]);
 			}
+			this.stdinData = null;
 		}
-		this.stdinData = null;
+	}
+	/**
+	 * Do not use outside of this class! This method moves the stdin
+	 * data to the consumer.
+	 *
+	 * @param data
+	 */
+	private pushStdinData(data: Uint8Array) {
+		console.log('pushStdinData called');
+		console.log('childProcess.on(stdin) called');
+		if (this.stdinData) {
+			console.log('buffering stdin data');
+			// Need to clone the data buffer as it's reused by PHP
+			// and the next data chunk will overwrite the previous one.
+			this.stdinData.push(data.slice());
+		} else {
+			console.log('emiting stdin data');
+			this.emit('stdin', data);
+		}
 	}
 }
 
-export type StdIn = {
-	write: (data: string) => void;
-};
-
 let lastPid = 9743;
-export class ChildProcess extends EventEmitter {
-	stdout: EventEmitter = new EventEmitter();
-	stderr: EventEmitter = new EventEmitter();
-	stdin: StdIn;
+export class ChildProcess extends EventEmitterPolyfill {
+	stdout: WritablePolyfill;
+	stderr: WritablePolyfill;
+	stdin: WritablePolyfill;
 	pid: number;
 	constructor(pid = lastPid++) {
 		super();
+		this.pid = pid;
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;
-		this.pid = pid;
-		this.stdin = {
-			write: (data: string) => {
-				self.emit('stdin', data);
+		this.stdout = new WritablePolyfill({
+			write(data: any, encoding: BufferEncoding, cb: WriteCallback) {
+				self.stdout.emit('data', data);
+				cb();
 			},
-		};
+		});
+		this.stderr = new WritablePolyfill({
+			write: (data: any, encoding: BufferEncoding, cb: WriteCallback) => {
+				self.stderr.emit('data', data);
+				cb();
+			},
+		});
+		this.stdin = new WritablePolyfill({
+			write: (data: any, encoding: BufferEncoding, cb: WriteCallback) => {
+				self.emit('stdin', data);
+				cb();
+			},
+		});
 	}
 }

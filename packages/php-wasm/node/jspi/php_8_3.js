@@ -7511,8 +7511,8 @@ export function init(RuntimeName, PHPLoader) {
 
 					// Update the stream flags
 					stream.flags =
-						(arg & $PHPWASM.SETFL_MASK) |
-						(stream.flags & ~$PHPWASM.SETFL_MASK);
+						(arg & PHPWASM.SETFL_MASK) |
+						(stream.flags & ~PHPWASM.SETFL_MASK);
 
 					return 0;
 				}

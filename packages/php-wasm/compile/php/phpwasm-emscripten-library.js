@@ -22,21 +22,21 @@ const LibraryExample = {
 		O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
 		O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
 		SETFL_MASK:
-			Number('{{{cDefs.O_APPEND}}}') |
-			Number('{{{cDefs.O_NONBLOCK}}}')
-			// These macros are not defined in Emscripten at the time of writing:
-			// emscripten_O_NDELAY |
-			// emscripten_O_DIRECT |
-			// emscripten_O_NOATIME
-		,
-
+			Number('{{{cDefs.O_APPEND}}}') | Number('{{{cDefs.O_NONBLOCK}}}'),
+		// These macros are not defined in Emscripten at the time of writing:
+		// emscripten_O_NDELAY |
+		// emscripten_O_DIRECT |
+		// emscripten_O_NOATIME
 		init: function () {
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
-			Module['ENV']['PATH'] = [Module['ENV']['PATH'], '/internal/shared/bin']
+			Module['ENV']['PATH'] = [
+				Module['ENV']['PATH'],
+				'/internal/shared/bin',
+			]
 				.filter(Boolean)
 				.join(':');
-			
+
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
@@ -53,11 +53,14 @@ const LibraryExample = {
 			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
 			Module['onRuntimeInitialized'] = () => {
 				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
-				FS.writeFile('/internal/shared/bin/php', new TextEncoder().encode('#!/bin/sh\nphp "$@"'));
+				FS.writeFile(
+					'/internal/shared/bin/php',
+					new TextEncoder().encode('#!/bin/sh\nphp "$@"')
+				);
 				// It must be executable to be used by PHP.
 				FS.chmod('/internal/shared/bin/php', 0o755);
 				originalOnRuntimeInitialized();
-			}
+			};
 
 			// Create stdout and stderr devices. We can't just use Emscripten's
 			// default stdout and stderr devices because they stop processing data
@@ -71,7 +74,7 @@ const LibraryExample = {
 					const chunk = buffer.subarray(offset, offset + length);
 					PHPWASM.onStdout(chunk);
 					return length;
-				}
+				},
 			});
 			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
 
@@ -83,7 +86,7 @@ const LibraryExample = {
 					const chunk = buffer.subarray(offset, offset + length);
 					PHPWASM.onStderr(chunk);
 					return length;
-				}
+				},
 			});
 			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
 
@@ -95,7 +98,7 @@ const LibraryExample = {
 					const chunk = buffer.subarray(offset, offset + length);
 					PHPWASM.onHeaders(chunk);
 					return length;
-				}
+				},
 			});
 			FS.mkdev('/internal/headers', FS.makedev(62, 0));
 
@@ -139,7 +142,7 @@ const LibraryExample = {
 								}
 							}
 						}
-				};
+				  };
 
 			// Clean up the fd -> childProcess mapping when the fd is closed:
 			const originalClose = FS.close;
@@ -354,7 +357,6 @@ const LibraryExample = {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -397,49 +399,6 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Creates an emscripten input device for the purposes of PHP's
-	 * proc_open() function.
-	 *
-	 * @param {int} deviceId
-	 * @returns {int} The path of the input devicex (string pointer).
-	 */
-	js_create_input_device: function (deviceId) {
-		let dataBuffer = [];
-		let dataCallback;
-		const filename = 'proc_id_' + deviceId;
-		const device = FS.createDevice(
-			'/dev',
-			filename,
-			function () {},
-			function (byte) {
-				try {
-					dataBuffer.push(byte);
-					if (dataCallback) {
-						dataCallback(new Uint8Array(dataBuffer));
-						dataBuffer = [];
-					}
-				} catch (e) {
-					console.error(e);
-					throw e;
-				}
-			}
-		);
-
-		const devicePath = '/dev/' + filename;
-		PHPWASM.input_devices[deviceId] = {
-			devicePath: devicePath,
-			onData: function (cb) {
-				dataCallback = cb;
-				dataBuffer.forEach(function (data) {
-					cb(data);
-				});
-				dataBuffer.length = 0;
-			},
-		};
-		return allocateUTF8OnStack(devicePath);
-	},
-
-	/**
 	 * Enables the C code to spawn a Node.js child process for the
 	 * purposes of PHP's proc_open() function.
 	 *
@@ -478,7 +437,7 @@ const LibraryExample = {
 			}
 		}
 
- 		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd()
+		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
 		let envObject = null;
 
 		if (envLength) {
@@ -536,8 +495,8 @@ const LibraryExample = {
 			const ProcInfo = {
 				pid: cp.pid,
 				exited: false,
-				stdinFd: std[0]?.child,
-				stdinIsDevice: std[0]?.child in PHPWASM.input_devices,
+				stdinParentFd: std[0]?.parent,
+				stdinChildFd: std[0]?.child,
 				stdoutChildFd: std[1]?.child,
 				stdoutParentFd: std[1]?.parent,
 				stderrChildFd: std[2]?.child,
@@ -560,13 +519,14 @@ const LibraryExample = {
 					// The child process exited. Let's clean up its output streams:
 					ProcInfo.stdoutChildFd,
 					ProcInfo.stderrChildFd,
-					// Note we're not closing stdinFd as the parent still might be holding on to it.
+					ProcInfo.stdinChildFd,
+					ProcInfo.stdinParentFd,
 
 					// We won't close these because the parent process is responsible for that:
 					// ProcInfo.stdoutParentFd,
 					// ProcInfo.stderrParentFd,
 				]) {
-					if(FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
+					if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
 						FS.close(FS.streams[fd]);
 					}
 				}
@@ -680,56 +640,109 @@ const LibraryExample = {
 			// to the child process.
 
 			// PHP will write STDIN data to a device.
-			if (ProcInfo.stdinIsDevice) {
-				// We use Emscripten devices as pipes. This is a bit of a hack
-				// but it works as we get a callback when the device is written to.
-				// Let's listen to anything it outputs and pass it to the child process.
-				PHPWASM.input_devices[ProcInfo.stdinFd].onData(function (data) {
-					if (!data) return;
-					if (typeof data === 'number') {
-						data = new Uint8Array([data]);
+			const stdinFd = ProcInfo.stdinParentFd || ProcInfo.stdinChildFd;
+			if (stdinFd) {
+				let stdinStream;
+				try {
+					stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
+				} catch (e) {}
+				if (stdinStream?.node) {
+					function pump() {
+						// Pipe the entire stdinStream to cp.stdin
+						const CHUNK_SIZE = 1024;
+
+						const buffer = _malloc(CHUNK_SIZE);
+						const iov = _malloc(16); // Space for iovec structure
+						const pnum = _malloc(4); // Space for number of bytes read
+
+						let offset = 0;
+						let i = 0;
+						while (true) {
+							i++;
+							try {
+								// Set up iovec structure pointing to our buffer
+								HEAPU32[iov >> 2] = buffer; // iov_base
+								HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
+
+								const result = js_fd_read(
+									stdinFd,
+									iov,
+									1,
+									pnum
+								);
+								const bytesRead = HEAPU32[pnum >> 2];
+								if (result === 0 && bytesRead > 0) {
+									const wrote = HEAPU8.subarray(
+										buffer,
+										buffer + bytesRead
+									);
+									cp.stdin.write(wrote);
+									offset += bytesRead;
+								} else if (result === 6) {
+									return result;
+								} else {
+									cp.stdin.end();
+									return result;
+								}
+							} catch (e) {
+								if (
+									typeof FS == 'undefined' ||
+									!(e.name === 'ErrnoError')
+								) {
+									throw e;
+								}
+								console.error('js_fd_read failed:', e);
+								return e.errno;
+							} finally {
+								_free(buffer);
+								_free(iov);
+								_free(pnum);
+							}
+						}
 					}
-					const dataStr = new TextDecoder('utf-8').decode(data);
-					cp.stdin.write(dataStr);
-				});
-				wakeUp(ProcInfo.pid);
-				return;
-			}
+					pump();
 
-			if (ProcInfo.stdinFd) {
-				// PHP will write STDIN data to a file descriptor.
-				const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
-				if (stdinStream.node) {
-					// Pipe the entire stdinStream to cp.stdin
-					const CHUNK_SIZE = 1024;
-					const buffer = new Uint8Array(CHUNK_SIZE);
-					let offset = 0;
+					const originalClose = stdinStream.stream_ops.close;
+					stdinStream.stream_ops = {
+						...stdinStream.stream_ops,
+						close: (...args) => {
+							try {
+								pump();
+							} catch (e) {}
 
-					while (true) {
-						const bytesRead = stdinStream.stream_ops.read(
-							stdinStream,
-							buffer,
-							0,
-							CHUNK_SIZE,
-							offset
-						);
-						if (bytesRead === null || bytesRead === 0) {
-							break;
-						}
-						try {
-							cp.stdin.write(buffer.subarray(0, bytesRead));
-						} catch (e) {
-							console.error(e);
-							return 1;
-						}
-						if (bytesRead < CHUNK_SIZE) {
-							break;
-						}
-						offset += bytesRead;
-					}
+							let retval = undefined;
 
-					wakeUp(ProcInfo.pid);
-					return;
+							try {
+								if (originalClose) {
+									retval = originalClose(...args);
+								}
+							} catch (e) {}
+
+							try {
+								cp.stdin.end();
+							} catch (e) {}
+							return retval;
+						},
+						write(stream, buffer, offset, length, pos) {
+							let i = 0;
+							try {
+								const wrote = buffer.subarray(
+									offset,
+									offset + length
+								);
+								cp.stdin.write(new Uint8Array(wrote));
+								i = length;
+							} catch (e) {
+								console.error(e);
+								throw new FS.ErrnoError(29);
+							}
+							if (length) {
+								stream.node.mtime = stream.node.ctime =
+									Date.now();
+							}
+							return i;
+						},
+					};
 				}
 			}
 
@@ -801,18 +814,20 @@ const LibraryExample = {
 	 * @param {int} flags Flags to modify the behavior to recv call
 	 * @returns {Promise} Resolved with the number of bytes recieved
 	 */
-	wasm_recv : function (
-		sockfd,
-		buffer,
-		size,
-		flags
-	) {
+	wasm_recv: function (sockfd, buffer, size, flags) {
 		return Asyncify.handleSleep((wakeUp) => {
-			const poll = function() {
-				let newl = ___syscall_recvfrom(sockfd, buffer, size, flags, null, null);
-				if(newl > 0) {
+			const poll = function () {
+				let newl = ___syscall_recvfrom(
+					sockfd,
+					buffer,
+					size,
+					flags,
+					null,
+					null
+				);
+				if (newl > 0) {
 					wakeUp(newl);
-				} else if ( newl === -6 ) {
+				} else if (newl === -6) {
 					setTimeout(poll, 20);
 				} else {
 					wakeUp(0);

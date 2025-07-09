@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29674538;
+export const dependenciesTotalSize = 29674255;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12028736;
+	var ___heap_base = 12028672;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1855,13 +1855,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12028736;
+	var ___stack_high = 12028672;
 
-	var ___stack_low = 11963200;
+	var ___stack_low = 11963136;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12028736
+		12028672
 	);
 
 	var PATH = {
@@ -6965,7 +6965,6 @@ export function init(RuntimeName, PHPLoader) {
 					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
-					timeout: 100,
 				});
 			}
 			const e = new Error(
@@ -7606,8 +7605,8 @@ export function init(RuntimeName, PHPLoader) {
 
 				// Update the stream flags
 				stream.flags =
-					(arg & $PHPWASM.SETFL_MASK) |
-					(stream.flags & ~$PHPWASM.SETFL_MASK);
+					(arg & PHPWASM.SETFL_MASK) |
+					(stream.flags & ~PHPWASM.SETFL_MASK);
 
 				return 0;
 			}
@@ -17395,42 +17394,6 @@ export function init(RuntimeName, PHPLoader) {
 	};
 	_getprotobynumber.sig = 'pi';
 
-	function _js_create_input_device(deviceId) {
-		let dataBuffer = [];
-		let dataCallback;
-		const filename = 'proc_id_' + deviceId;
-		const device = FS.createDevice(
-			'/dev',
-			filename,
-			function () {},
-			function (byte) {
-				try {
-					dataBuffer.push(byte);
-					if (dataCallback) {
-						dataCallback(new Uint8Array(dataBuffer));
-						dataBuffer = [];
-					}
-				} catch (e) {
-					console.error(e);
-					throw e;
-				}
-			}
-		);
-
-		const devicePath = '/dev/' + filename;
-		PHPWASM.input_devices[deviceId] = {
-			devicePath: devicePath,
-			onData: function (cb) {
-				dataCallback = cb;
-				dataBuffer.forEach(function (data) {
-					cb(data);
-				});
-				dataBuffer.length = 0;
-			},
-		};
-		return allocateUTF8OnStack(devicePath);
-	}
-
 	function _js_flock(fd, op) {
 		_js_wasm_trace('js_flock(%d, %d)', fd, op);
 		// Emscripten does not expose these constants to JS, so we hardcode them here.
@@ -17626,8 +17589,8 @@ export function init(RuntimeName, PHPLoader) {
 			const ProcInfo = {
 				pid: cp.pid,
 				exited: false,
-				stdinFd: std[0]?.child,
-				stdinIsDevice: std[0]?.child in PHPWASM.input_devices,
+				stdinParentFd: std[0]?.parent,
+				stdinChildFd: std[0]?.child,
 				stdoutChildFd: std[1]?.child,
 				stdoutParentFd: std[1]?.parent,
 				stderrChildFd: std[2]?.child,
@@ -17650,7 +17613,8 @@ export function init(RuntimeName, PHPLoader) {
 					// The child process exited. Let's clean up its output streams:
 					ProcInfo.stdoutChildFd,
 					ProcInfo.stderrChildFd,
-					// Note we're not closing stdinFd as the parent still might be holding on to it.
+					ProcInfo.stdinChildFd,
+					ProcInfo.stdinParentFd,
 
 					// We won't close these because the parent process is responsible for that:
 					// ProcInfo.stdoutParentFd,
@@ -17675,6 +17639,7 @@ export function init(RuntimeName, PHPLoader) {
 				);
 				let stdoutAt = 0;
 				cp.stdout.on('data', function (data) {
+					console.log('stdout', data);
 					ProcInfo.stdout.emit('data', data);
 					stdoutStream.stream_ops.write(
 						stdoutStream,
@@ -17770,56 +17735,108 @@ export function init(RuntimeName, PHPLoader) {
 			// to the child process.
 
 			// PHP will write STDIN data to a device.
-			if (ProcInfo.stdinIsDevice) {
-				// We use Emscripten devices as pipes. This is a bit of a hack
-				// but it works as we get a callback when the device is written to.
-				// Let's listen to anything it outputs and pass it to the child process.
-				PHPWASM.input_devices[ProcInfo.stdinFd].onData(function (data) {
-					if (!data) return;
-					if (typeof data === 'number') {
-						data = new Uint8Array([data]);
+			const stdinFd = ProcInfo.stdinParentFd || ProcInfo.stdinChildFd;
+			if (stdinFd) {
+				let stdinStream;
+				try {
+					stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
+				} catch (e) {}
+				if (stdinStream?.node) {
+					function pump() {
+						// Pipe the entire stdinStream to cp.stdin
+						const CHUNK_SIZE = 1024;
+
+						const buffer = _malloc(CHUNK_SIZE);
+						const iov = _malloc(16); // Space for iovec structure
+						const pnum = _malloc(4); // Space for number of bytes read
+
+						let offset = 0;
+						let i = 0;
+						while (true) {
+							i++;
+							try {
+								// Set up iovec structure pointing to our buffer
+								HEAPU32[iov >> 2] = buffer; // iov_base
+								HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
+
+								const result = js_fd_read(
+									stdinFd,
+									iov,
+									1,
+									pnum
+								);
+								const bytesRead = HEAPU32[pnum >> 2];
+								if (result === 0 && bytesRead > 0) {
+									const wrote = HEAPU8.subarray(
+										buffer,
+										buffer + bytesRead
+									);
+									cp.stdin.write(wrote);
+									offset += bytesRead;
+								} else if (result === 6) {
+									return result;
+								} else {
+									cp.stdin?.end();
+									return result;
+								}
+							} catch (e) {
+								if (
+									typeof FS == 'undefined' ||
+									!(e.name === 'ErrnoError')
+								)
+									throw e;
+								console.error('js_fd_read failed:', e);
+								return e.errno;
+							} finally {
+								// _free(buffer);
+								// _free(iov);
+								// _free(pnum);
+							}
+						}
 					}
-					const dataStr = new TextDecoder('utf-8').decode(data);
-					cp.stdin.write(dataStr);
-				});
-				wakeUp(ProcInfo.pid);
-				return;
-			}
+					console.log('pump', pump());
 
-			if (ProcInfo.stdinFd) {
-				// PHP will write STDIN data to a file descriptor.
-				const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
-				if (stdinStream.node) {
-					// Pipe the entire stdinStream to cp.stdin
-					const CHUNK_SIZE = 1024;
-					const buffer = new Uint8Array(CHUNK_SIZE);
-					let offset = 0;
+					const originalClose = stdinStream.stream_ops.close;
+					stdinStream.stream_ops = {
+						...stdinStream.stream_ops,
+						close: (...args) => {
+							try {
+								pump();
+							} catch (e) {}
 
-					while (true) {
-						const bytesRead = stdinStream.stream_ops.read(
-							stdinStream,
-							buffer,
-							0,
-							CHUNK_SIZE,
-							offset
-						);
-						if (bytesRead === null || bytesRead === 0) {
-							break;
-						}
-						try {
-							cp.stdin.write(buffer.subarray(0, bytesRead));
-						} catch (e) {
-							console.error(e);
-							return 1;
-						}
-						if (bytesRead < CHUNK_SIZE) {
-							break;
-						}
-						offset += bytesRead;
-					}
+							let retval = undefined;
 
-					wakeUp(ProcInfo.pid);
-					return;
+							try {
+								if (originalClose) {
+									retval = originalClose(...args);
+								}
+							} catch (e) {}
+
+							try {
+								cp.stdin.end();
+							} catch (e) {}
+							return retval;
+						},
+						write(stream, buffer, offset, length, pos) {
+							let i = 0;
+							try {
+								const wrote = buffer.subarray(
+									offset,
+									offset + length
+								);
+								cp.stdin.write(new Uint8Array(wrote));
+								i = length;
+							} catch (e) {
+								console.error(e);
+								throw new FS.ErrnoError(29);
+							}
+							if (length) {
+								stream.node.mtime = stream.node.ctime =
+									Date.now();
+							}
+							return i;
+						},
+					};
 				}
 			}
 
@@ -32087,13 +32104,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11104123: ($0) => {
+		11104052: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11104171: ($0) => {
+		11104100: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -32273,12 +32290,14 @@ export function init(RuntimeName, PHPLoader) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
 					throw e;
 				}
-				const isBlockingFdThatWaitsForData =
-					!(stream.flags & PHPWASM.O_NONBLOCK) &&
-					e.errno === ERRNO_CODES.EWOULDBLOCK &&
-					(!('pipe' in stream.node) || stream.node.pipe.refcnt >= 2);
-				if (!isBlockingFdThatWaitsForData) {
-					HEAPU32[pnum >> 2] = 0;
+				if (
+					e.errno !== ERRNO_CODES.EWOULDBLOCK &&
+					e.errno !== ERRNO_CODES.EAGAIN
+				) {
+					return e.errno;
+				}
+				const nonBlocking = stream.flags & PHPWASM.O_NONBLOCK;
+				if (nonBlocking) {
 					return e.errno;
 				}
 			}
@@ -34842,8 +34861,6 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_vji,
 		/** @export */
-		js_create_input_device: _js_create_input_device,
-		/** @export */
 		js_fd_read,
 		/** @export */
 		js_flock: _js_flock,
@@ -34953,9 +34970,6 @@ export function init(RuntimeName, PHPLoader) {
 			a1,
 			a2
 		));
-	var _php_pollfd_for = (Module['_php_pollfd_for'] = (a0, a1, a2) =>
-		(_php_pollfd_for = Module['_php_pollfd_for'] =
-			wasmExports['php_pollfd_for'])(a0, a1, a2));
 	var _fflush = (a0) => (_fflush = wasmExports['fflush'])(a0);
 	var _flock = (Module['_flock'] = (a0, a1) =>
 		(_flock = Module['_flock'] = wasmExports['flock'])(a0, a1));
@@ -34967,6 +34981,9 @@ export function init(RuntimeName, PHPLoader) {
 	var _wasm_php_exec = (Module['_wasm_php_exec'] = (a0, a1, a2, a3) =>
 		(_wasm_php_exec = Module['_wasm_php_exec'] =
 			wasmExports['wasm_php_exec'])(a0, a1, a2, a3));
+	var _php_pollfd_for = (Module['_php_pollfd_for'] = (a0, a1, a2) =>
+		(_php_pollfd_for = Module['_php_pollfd_for'] =
+			wasmExports['php_pollfd_for'])(a0, a1, a2));
 	var _htons = (a0) => (_htons = wasmExports['htons'])(a0);
 	var _ntohs = (a0) => (_ntohs = wasmExports['ntohs'])(a0);
 	var _htonl = (a0) => (_htonl = wasmExports['htonl'])(a0);

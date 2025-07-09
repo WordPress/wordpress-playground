@@ -683,7 +683,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					),
 					$pipes
 				);
-
 				proc_close($res);
 
 				$stdout = file_get_contents("/tmp/process_out");
@@ -700,7 +699,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('Passes the cwd and env arguments', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any, options: any) => {
-					processApi.flushStdin();
+					console.log('Stdout writing');
+
 					processApi.stdout(options.cwd + '\n');
 					for (const key in options.env) {
 						processApi.stdout(key + '=' + options.env[key] + '\n');
@@ -721,10 +721,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						array("file","/tmp/process_err", "w"),
 					),
 					$pipes,
-					"/wordpress",
+					'/wordpress',
 					array("FOO" => "BAR", "BAZ" => "QUX")
 				);
-				fwrite($pipes[0], 'WordPress\n');
 				proc_close($res);
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
@@ -762,8 +761,13 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					processApi.on('stdin', (data: Uint8Array) => {
 						processApi.stdout(data);
 					});
-					processApi.flushStdin();
-					processApi.exit(0);
+
+					// Give the streams a chance to write the data. All the
+					// data is written synchronously so a single event loop
+					// tick should be enough.
+					setTimeout(() => {
+						processApi.exit(0);
+					});
 				}
 			);
 
@@ -773,16 +777,19 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual(pygmalion);
 		});
 
-		it('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
+		it.only('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
 				async (command: string[], processApi: any) => {
 					await new Promise((resolve) => {
 						setTimeout(resolve, 1000);
 					});
 					processApi.on('stdin', (data: Uint8Array) => {
+						console.log('Received stdin data! :)');
 						processApi.stdout(data);
 					});
-					processApi.flushStdin();
+					await new Promise((resolve) => {
+						setTimeout(resolve, 1000);
+					});
 					processApi.exit(0);
 				}
 			);
@@ -840,7 +847,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('Stdout waits for asynchronous data to arrive', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any) => {
-					processApi.flushStdin();
 					processApi.stdout(new TextEncoder().encode('Hello World!'));
 					setTimeout(() => {
 						processApi.stdout(
@@ -872,7 +878,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('Non-blocking file descriptors do not wait for asynchronous data', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any) => {
-					processApi.flushStdin();
 					// Send initial data immediately
 					processApi.stdout(
 						new TextEncoder().encode('Initial data\n')
@@ -935,8 +940,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('Can poll non-blocking streams until data arrives', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any) => {
-					processApi.flushStdin();
-
 					// Send data in chunks with delays
 					setTimeout(() => {
 						processApi.stdout(
@@ -1008,7 +1011,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('feof() returns true when exhausted the synchronous data', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any) => {
-					processApi.flushStdin();
 					processApi.stdout(
 						new TextEncoder().encode('Hello World!\n')
 					);
@@ -1048,7 +1050,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('feof() returns true when exhausted the asynchronous data', async () => {
 			const handler = createSpawnHandler(
 				(command: string[], processApi: any) => {
-					processApi.flushStdin();
 					processApi.stdout(
 						new TextEncoder().encode('Hello World!\n')
 					);

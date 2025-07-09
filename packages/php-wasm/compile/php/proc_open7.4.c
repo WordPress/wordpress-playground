@@ -477,10 +477,8 @@ PHP_FUNCTION(proc_open)
 				// to provide a callback that will feed the data back into
 				// the process.
 				if (descriptors[ndesc].index == 0) {
-					char *device_path = js_create_input_device(current_procopen_call_id);
-					// printf("ndesc: %d, index: %d, nindex: %u, device_path: %s\n", ndesc, descriptors[ndesc].index, nindex, device_path);
-					descriptors[ndesc].childend = current_procopen_call_id;
-					descriptors[ndesc].parentend = open(device_path, O_WRONLY);
+					descriptors[ndesc].parentend = newpipe[1];
+					descriptors[ndesc].childend = newpipe[0];
 				} else {
 					if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
 						descriptors[ndesc].parentend = newpipe[1];
