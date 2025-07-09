@@ -206,10 +206,8 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			clientLog("can't resolve " + reqTargetHost + ' due to:', e);
 			// Send empty binary data to notify requester that connection was
 			// initiated
-			setTimeout(() => {
-				client.send([]);
-				client.close(3000);
-			});
+			client.send([]);
+			client.close(3000);
 			return;
 		}
 	} else {
@@ -240,12 +238,7 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	});
 	target.on('error', function (e: any) {
 		clientLog('target connection error', e);
-		setTimeout(() => {
-			client.send([]);
-			client.close(3000);
-			if (target) {
-				target.end();
-			}
-		});
+		target.end();
+		client.close(3000);
 	});
 }
