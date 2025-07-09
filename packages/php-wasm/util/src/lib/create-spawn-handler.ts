@@ -51,6 +51,14 @@ export function createSpawnHandler(
 			}
 			try {
 				let promise = program(commandArray, processApi, options);
+				if ( processApi.exited ) {
+					throw new Error(
+						`The program callback passed to createSpawnHandler() exited synchronously. It indicates there's a bug in your code. ` +
+						`The callback must return a promise. PHP cannot interact with program that synchronously exists at the end of the proc_open() ` +
+						`call. All the streams would be closed already. Make sure to put an "await new Promise(resolve => setTimeout(resolve, 1))` +
+						`before calling processApi.exit(0) in your callback to let PHP catch up with the stdout data.`
+					);
+				}
 				childProcess.emit('spawn', true);
 				await promise;
 			} catch (e) {
@@ -71,7 +79,7 @@ export function createSpawnHandler(
 }
 
 export class ProcessApi extends EventEmitterPolyfill {
-	private exited = false;
+	public exited = false;
 	/**
 	 * Keeps track of the data that was written to stdin before the
 	 * first listener was registered.

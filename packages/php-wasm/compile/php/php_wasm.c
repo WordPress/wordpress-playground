@@ -492,8 +492,8 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		int *stderr = safe_emalloc(sizeof(int), 3, 0);
 
 		stdin[0] = 0;
-		stdin[1] = stdin_pipe[1];
-		stdin[2] = stdin_pipe[0];
+		stdin[1] = stdin_pipe[0];
+		stdin[2] = stdin_pipe[1];
 
 		stdout[0] = 1;
 		stdout[1] = stdout_pipe[0];

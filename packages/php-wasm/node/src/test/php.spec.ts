@@ -533,12 +533,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	});
 
 	describe('proc_open()', () => {
-		// × cat: stdin=file, stdout=file, stderr=file, file_get_contents 5176ms
-		// × Pipe pygmalion from a file to STDOUT through a synchronous JavaScript callback
-		// × Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback 2194ms
-		// × Pipe pygmalion from a file to STDOUT through "cat" 5167ms
-
-
 		// This test applies only to these PHP versions
 		// due to a new patch that replaces the use of
 		// EMULATE_FUNCTION_POINTER_CASTS option.
@@ -702,15 +696,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		it.only('Passes the cwd and env arguments', async () => {
+		it('Passes the cwd and env arguments', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any, options: any) => {
+				async (command: string[], processApi: any, options: any) => {
 					console.log('Stdout writing');
 
 					processApi.stdout(options.cwd + '\n');
 					for (const key in options.env) {
 						processApi.stdout(key + '=' + options.env[key] + '\n');
 					}
+
+					// Go async for a moment to let PHP catch up with the stdout
+					// data. Otherwise, exit(0) will close the streams before
+					// the synchronous code has a chance to read them.
+					await new Promise((resolve) => setTimeout(resolve, 1));
 					processApi.exit(0);
 				}
 			);

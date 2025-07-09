@@ -397,8 +397,19 @@ const LibraryExample = {
 			}
 		},
 	},
-	
-	_js_open_process: function (
+
+	/**
+	 * Enables the C code to spawn a Node.js child process for the
+	 * purposes of PHP's proc_open() function.
+	 *
+	 * @param {int} command Command to execute (string pointer).
+	 * @param {int} argsPtr Arguments linked with command (string array pointer).
+	 * @param {int} argsLength Number of arguments.
+	 * @param {int} descriptorsPtr Descriptor specs (int array pointer, [ number, child, parent ] ).
+	 * @param {int} descriptorsLength Number of descriptors.
+	 * @returns {int} 0 on success, 1 on failure.
+	 */
+	js_open_process: function (
 		command,
 		argsPtr,
 		argsLength,
@@ -409,7 +420,6 @@ const LibraryExample = {
 		envPtr,
 		envLength
 	) {
-		console.log("js_open_process");
 		if (!command) {
 			return 1;
 		}
@@ -571,8 +581,6 @@ const LibraryExample = {
 				});
 			}
 
-			console.log("Before waiting for process to spawn");
-
 			/**
 			 * Wait until the child process has been spawned.
 			 * Unfortunately there is no Node.js API to check whether
@@ -614,12 +622,6 @@ const LibraryExample = {
 							);
 						}
 					});
-					cp.on('drain', () => {
-						console.log('cp drain');
-					});
-					cp.stdin.on('drain', () => {
-						console.log('main drain');
-					});
 					/**
 					 * If the process haven't even started after 5 seconds, something
 					 * is wrong. Perhaps we're missing an event listener, or perhaps
@@ -639,12 +641,6 @@ const LibraryExample = {
 				return;
 			}
 
-			console.log("After waiting for process to spawn");
-			console.log('Piping stdin to child process', {
-				stdinFd: ProcInfo.stdinChildFd,
-				parentFd: ProcInfo.stdinParentFd,
-				childFd: ProcInfo.stdinChildFd,
-			});
 			// Now we want to pass data from the STDIN source supplied by PHP
 			// to the child process.
 
@@ -657,11 +653,8 @@ const LibraryExample = {
 				let stdinStream;
 				try {
 					stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinParentFd);
-				} catch (e) {
-					console.error(e);
-				}
+				} catch (e) { }
 				if (!stdinStream) {
-					console.log({stdinStream})
 					// @TODO: Error handling. Return error info to the C proc_open() call.
 					throw new Error('Failed to get stream from fd');
 				}
@@ -670,11 +663,7 @@ const LibraryExample = {
 				stdinStream.stream_ops = {
 					...stdinStream.stream_ops,
 					close: (...args) => {
-						console.log('[stdinStream.stream_ops] closing the stdin fd stream');
 						try {
-							console.log(
-								SYSCALLS.getStreamFromFD(ProcInfo.stdinParentFd).node.pipe.buckets[0]
-							);
 							pump();
 						} catch (e) { }
 
@@ -698,22 +687,11 @@ const LibraryExample = {
 								offset,
 								offset + length
 							);
-							console.log('exited', cp.killed);
-							console.log('exited', cp.stdin.ended);
-							console.log('write', wrote.toString());
-							console.log(
-								'write returned',
-								cp.stdin.write(new Uint8Array(wrote), null, (error) => {
-									console.log('write callback', error);
-								})
-							);
-							cp.stdin.on('drain', () => {
-								console.log('drain');
-							});
+							cp.stdin.write(new Uint8Array(wrote), null, (error) => {
+								// console.log('write callback', error);
+							})
 							i = length;
 						} catch (e) {
-							console.log('Exception!');
-							console.error(e);
 							throw new FS.ErrnoError(29);
 						}
 						if (length) {
@@ -734,11 +712,8 @@ const LibraryExample = {
 				let stdinStream;
 				try {
 					stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinChildFd);
-				} catch (e) {
-					console.error(e);
-				}
+				} catch (e) {}
 				if (!stdinStream) {
-					console.log({stdinStream})
 					// @TODO: Error handling. Return error info to the C proc_open() call.
 					throw new Error('Failed to get stream from fd');
 				}
@@ -754,70 +729,51 @@ const LibraryExample = {
 						const pnum = _malloc(4); // Space for number of bytes read
 
 						let offset = 0;
-						let i = 0;
-						while (true) {
-							i++;
-							try {
-								// Set up iovec structure pointing to our buffer
-								HEAPU32[iov >> 2] = buffer; // iov_base
-								HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
+						try {
+							while (true) {
+								try {
+									// Set up iovec structure pointing to our buffer
+									HEAPU32[iov >> 2] = buffer; // iov_base
+									HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
-								const result = js_fd_read(
-									ProcInfo.stdinChildFd,
-									iov,
-									1,
-									pnum
-								);
-								const bytesRead = HEAPU32[pnum >> 2];
-								console.log(
-									'[pump()] result',
-									{ result, bytesRead }
-								);
-								if (result === 0 && bytesRead > 0) {
-									const wrote = HEAPU8.subarray(
-										buffer,
-										buffer + bytesRead
+									const result = js_fd_read(
+										ProcInfo.stdinChildFd,
+										iov,
+										1,
+										pnum
 									);
-									console.log(
-										'[pump()] Writing',
-										wrote.toString()
-									);
-									console.log(
-										'[pump()] write returned',
-										cp.stdin.write(wrote)
-									);
-									offset += bytesRead;
-								} else if (result === 6) {
-									return result;
-								} else {
-									console.log(
-										'[pump()] ending the stdin stream',
-										{ stdinFd: ProcInfo.stdinChildFd, result, bytesRead }
-									);
-									if (first) {
-										first = false;
+									const bytesRead = HEAPU32[pnum >> 2];
+									if (result === 0 && bytesRead > 0) {
+										const wrote = HEAPU8.subarray(
+											buffer,
+											buffer + bytesRead
+										);
+										cp.stdin.write(wrote);
+										offset += bytesRead;
+									} else if (result === 6) {
+										return result;
+									} else if (result === 0 && bytesRead === 0) {
+										cp.stdin.end();
+										return result;
 									} else {
+										// @TODO: Error handling.
+										throw new Error(`js_fd_read failed: ${result}`);
 									}
-									cp.stdin.end();
-									return result;
+								} catch (e) {
+									if (
+										typeof FS == 'undefined' ||
+										!(e.name === 'ErrnoError')
+									) {
+										throw e;
+									}
+									return e.errno;
 								}
-							} catch (e) {
-								console.log(
-									'[pump()] exception',
-									e
-								);
-								if (
-									typeof FS == 'undefined' ||
-									!(e.name === 'ErrnoError')
-								)
-									throw e;
-								console.error('js_fd_read failed:', e);
-								return e.errno;
-							} finally {
-								// _free(buffer);
-								// _free(iov);
-								// _free(pnum);
 							}
+						} finally {
+							// @TODO: How to free the memory?
+							_free(buffer);
+							_free(iov);
+							_free(pnum);
 						}
 					}
 					/**
@@ -835,357 +791,6 @@ const LibraryExample = {
 					// @TODO: When parent stdout is polled, and we deal with an asynchronous
 					// fd, run pump() again.
 					// @TODO: Remove support for non-blocking resources for now.
-				}
-			}
-
-			wakeUp(ProcInfo.pid);
-		});
-	},
-	/**
-	 * Enables the C code to spawn a Node.js child process for the
-	 * purposes of PHP's proc_open() function.
-	 *
-	 * @param {int} command Command to execute (string pointer).
-	 * @param {int} argsPtr Arguments linked with command (string array pointer).
-	 * @param {int} argsLength Number of arguments.
-	 * @param {int} descriptorsPtr Descriptor specs (int array pointer, [ number, child, parent ] ).
-	 * @param {int} descriptorsLength Number of descriptors.
-	 * @returns {int} 0 on success, 1 on failure.
-	 */
-	js_open_process_old: function (
-		command,
-		argsPtr,
-		argsLength,
-		descriptorsPtr,
-		descriptorsLength,
-		cwdPtr,
-		cwdLength,
-		envPtr,
-		envLength
-	) {
-		if (!command) {
-			return 1;
-		}
-
-		const cmdstr = UTF8ToString(command);
-		if (!cmdstr.length) {
-			return 0;
-		}
-
-		let argsArray = [];
-		if (argsLength) {
-			for (var i = 0; i < argsLength; i++) {
-				const charPointer = argsPtr + i * 4;
-				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
-			}
-		}
-
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
-		let envObject = null;
-
-		if (envLength) {
-			envObject = {};
-			for (var i = 0; i < envLength; i++) {
-				const envPointer = envPtr + i * 4;
-				const envEntry = UTF8ToString(HEAPU32[envPointer >> 2]);
-				const splitAt = envEntry.indexOf('=');
-				if (splitAt === -1) {
-					continue;
-				}
-				const key = envEntry.substring(0, splitAt);
-				const value = envEntry.substring(splitAt + 1);
-				envObject[key] = value;
-			}
-		}
-
-		var std = {};
-		// Extracts an array of available descriptors that should be dispatched to streams.
-		// On the C side, the descriptors are expressed as `**int` so we must go read
-		// each of the `descriptorsLength` `*int` pointers and convert the associated data into
-		// a JavaScript object { descriptor : { child : fd, parent : fd } }.
-		for (var i = 0; i < descriptorsLength; i++) {
-			const descriptorPtr = HEAPU32[(descriptorsPtr + i * 4) >> 2];
-			std[HEAPU32[descriptorPtr >> 2]] = {
-				child: HEAPU32[(descriptorPtr + 4) >> 2],
-				parent: HEAPU32[(descriptorPtr + 8) >> 2],
-			};
-		}
-
-		return Asyncify.handleSleep(async (wakeUp) => {
-			let cp;
-			try {
-				const options = {};
-				if (cwdstr !== null) {
-					options.cwd = cwdstr;
-				}
-				if (envObject !== null) {
-					options.env = envObject;
-				}
-				cp = PHPWASM.spawnProcess(cmdstr, argsArray, options);
-				if (cp instanceof Promise) {
-					cp = await cp;
-				}
-			} catch (e) {
-				if (e.code === 'SPAWN_UNSUPPORTED') {
-					wakeUp(1);
-					return;
-				}
-				console.error(e);
-				wakeUp(1);
-				throw e;
-			}
-
-			const ProcInfo = {
-				pid: cp.pid,
-				exited: false,
-				stdinParentFd: std[0]?.parent,
-				stdinChildFd: std[0]?.child,
-				stdoutChildFd: std[1]?.child,
-				stdoutParentFd: std[1]?.parent,
-				stderrChildFd: std[2]?.child,
-				stderrParentFd: std[2]?.parent,
-				stdout: new PHPWASM.EventEmitter(),
-				stderr: new PHPWASM.EventEmitter(),
-			};
-			if (ProcInfo.stdoutChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
-			if (ProcInfo.stderrChildFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
-			if (ProcInfo.stdoutParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
-			if (ProcInfo.stderrParentFd)
-				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
-			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
-
-			cp.on('exit', function (code) {
-				for (const fd of [
-					// The child process exited. Let's clean up its output streams:
-					ProcInfo.stdoutChildFd,
-					ProcInfo.stderrChildFd,
-					ProcInfo.stdinChildFd,
-					ProcInfo.stdinParentFd,
-
-					// We won't close these because the parent process is responsible for that:
-					// ProcInfo.stdoutParentFd,
-					// ProcInfo.stderrParentFd,
-				]) {
-					if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
-						FS.close(FS.streams[fd]);
-					}
-				}
-
-				ProcInfo.exitCode = code;
-				ProcInfo.exited = true;
-				// Emit events for the wasm_poll_socket function.
-				ProcInfo.stdout.emit('data');
-				ProcInfo.stderr.emit('data');
-			});
-
-			// Pass data from child process's stdout to PHP's end of the stdout pipe.
-			if (ProcInfo.stdoutChildFd) {
-				const stdoutStream = SYSCALLS.getStreamFromFD(
-					ProcInfo.stdoutChildFd
-				);
-				let stdoutAt = 0;
-				cp.stdout.on('data', function (data) {
-					ProcInfo.stdout.emit('data', data);
-					stdoutStream.stream_ops.write(
-						stdoutStream,
-						data,
-						0,
-						data.length,
-						stdoutAt
-					);
-					stdoutAt += data.length;
-				});
-			}
-
-			// Pass data from child process's stderr to PHP's end of the stdout pipe.
-			if (ProcInfo.stderrChildFd) {
-				const stderrStream = SYSCALLS.getStreamFromFD(
-					ProcInfo.stderrChildFd
-				);
-				let stderrAt = 0;
-				cp.stderr.on('data', function (data) {
-					ProcInfo.stderr.emit('data', data);
-					stderrStream.stream_ops.write(
-						stderrStream,
-						data,
-						0,
-						data.length,
-						stderrAt
-					);
-					stderrAt += data.length;
-				});
-			}
-
-			/**
-			 * Wait until the child process has been spawned.
-			 * Unfortunately there is no Node.js API to check whether
-			 * the process has already been spawned. We can only listen
-			 * to the 'spawn' event and if it has already been spawned,
-			 * listen to the 'exit' event.
-			 */
-			try {
-				await new Promise((resolve, reject) => {
-					/**
-					 * There was no `await` between the `spawnProcess` call
-					 * and the `await` below so the process haven't had a chance
-					 * to run any of the exit-related callbacks yet.
-					 *
-					 * Good.
-					 *
-					 * Let's listen to all the lifecycle events and resolve
-					 * the promise when the process starts or immediately crashes.
-					 */
-					let resolved = false;
-					cp.on('spawn', () => {
-						if (resolved) return;
-						resolved = true;
-						resolve();
-					});
-					cp.on('error', (e) => {
-						if (resolved) return;
-						resolved = true;
-						reject(e);
-					});
-					cp.on('exit', function (code) {
-						if (resolved) return;
-						resolved = true;
-						if (code === 0) {
-							resolve();
-						} else {
-							reject(
-								new Error(`Process exited with code ${code}`)
-							);
-						}
-					});
-					/**
-					 * If the process haven't even started after 5 seconds, something
-					 * is wrong. Perhaps we're missing an event listener, or perhaps
-					 * the `spawnProcess` implementation failed to dispatch the relevant
-					 * event. Either way, let's crash to avoid blocking the proc_open()
-					 * call indefinitely.
-					 */
-					setTimeout(() => {
-						if (resolved) return;
-						resolved = true;
-						reject(new Error('Process timed out'));
-					}, 5000);
-				});
-			} catch (e) {
-				console.error(e);
-				wakeUp(ProcInfo.pid);
-				return;
-			}
-
-			// Now we want to pass data from the STDIN source supplied by PHP
-			// to the child process.
-
-			// PHP will write STDIN data to a device.
-			const stdinFd = ProcInfo.stdinParentFd || ProcInfo.stdinChildFd;
-			if (stdinFd) {
-				let stdinStream;
-				try {
-					stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
-				} catch (e) {}
-				if (stdinStream?.node) {
-					function pump() {
-						// Pipe the entire stdinStream to cp.stdin
-						const CHUNK_SIZE = 1024;
-
-						const buffer = _malloc(CHUNK_SIZE);
-						const iov = _malloc(16); // Space for iovec structure
-						const pnum = _malloc(4); // Space for number of bytes read
-
-						let offset = 0;
-						let i = 0;
-						while (true) {
-							i++;
-							try {
-								// Set up iovec structure pointing to our buffer
-								HEAPU32[iov >> 2] = buffer; // iov_base
-								HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
-
-								const result = js_fd_read(
-									stdinFd,
-									iov,
-									1,
-									pnum
-								);
-								const bytesRead = HEAPU32[pnum >> 2];
-								if (result === 0 && bytesRead > 0) {
-									const wrote = HEAPU8.subarray(
-										buffer,
-										buffer + bytesRead
-									);
-									cp.stdin.write(wrote);
-									offset += bytesRead;
-								} else if (result === 6) {
-									return result;
-								} else {
-									cp.stdin.end();
-									return result;
-								}
-							} catch (e) {
-								if (
-									typeof FS == 'undefined' ||
-									!(e.name === 'ErrnoError')
-								) {
-									throw e;
-								}
-								console.error('js_fd_read failed:', e);
-								return e.errno;
-							} finally {
-								_free(buffer);
-								_free(iov);
-								_free(pnum);
-							}
-						}
-					}
-					pump();
-
-					const originalClose = stdinStream.stream_ops.close;
-					stdinStream.stream_ops = {
-						...stdinStream.stream_ops,
-						close: (...args) => {
-							try {
-								pump();
-							} catch (e) {}
-
-							let retval = undefined;
-
-							try {
-								if (originalClose) {
-									retval = originalClose(...args);
-								}
-							} catch (e) {}
-
-							try {
-								cp.stdin.end();
-							} catch (e) {}
-							return retval;
-						},
-						write(stream, buffer, offset, length, pos) {
-							let i = 0;
-							try {
-								const wrote = buffer.subarray(
-									offset,
-									offset + length
-								);
-								cp.stdin.write(new Uint8Array(wrote));
-								i = length;
-							} catch (e) {
-								console.error(e);
-								throw new FS.ErrnoError(29);
-							}
-							if (length) {
-								stream.node.mtime = stream.node.ctime =
-									Date.now();
-							}
-							return i;
-						},
-					};
 				}
 			}
 
