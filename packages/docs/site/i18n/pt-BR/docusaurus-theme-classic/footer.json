@@ -27,9 +27,9 @@
 		"message": "GitHub",
 		"description": "O rótulo do link do rodapé com rótulo=GitHub linkando para https://github.com/WordPress/wordpress-playground"
 	},
-	"link.item.label.#meta-playground on Slack": {
-		"message": "#meta-playground no Slack",
-		"description": "O rótulo do link do rodapé com rótulo=#meta-playground on Slack linkando para https://make.wordpress.org/chat"
+	"link.item.label.#playground on Slack": {
+		"message": "#playground no Slack",
+		"description": "O rótulo do link do rodapé com rótulo=#playground on Slack linkando para https://make.wordpress.org/chat"
 	},
 	"copyright": {
 		"message": "Copyright © 2025 WordPress Playground, Inc. Built with Docusaurus.",
