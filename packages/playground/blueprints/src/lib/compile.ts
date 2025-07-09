@@ -56,6 +56,7 @@ export interface CompiledBlueprint {
 		networking: boolean;
 	};
 	extraLibraries: ExtraLibrary[];
+	landingPage: string;
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -329,6 +330,7 @@ function compileBlueprintJson(
 			),
 			wp: blueprint.preferredVersions?.wp || 'latest',
 		},
+		landingPage: blueprint.landingPage || '/',
 		features: {
 			// Disable intl by default to reduce the transfer size
 			intl: blueprint.features?.intl ?? false,
@@ -372,22 +374,6 @@ function compileBlueprintJson(
 					}
 				}
 			} finally {
-				try {
-					await (playground as any).goTo(
-						blueprint.landingPage || '/'
-					);
-				} catch {
-					/**
-					 * Redirecting to the landing page is a browser-only feature for now.
-					 *
-					 * The playground object only exposes the `goTo` method when
-					 * it's a Comlink proxy object running in the browser.
-					 *
-					 * Let's tolerate any errors thrown in other runtimes.
-					 *
-					 * @TODO: Handle "landingPage" in a PHP plugin to make it work in all environments.
-					 */
-				}
 				progress.finish();
 			}
 		},

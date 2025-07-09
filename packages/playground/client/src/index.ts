@@ -171,6 +171,11 @@ export async function startPlaygroundWeb({
 
 	await runBlueprintSteps(compiled, playground);
 	/**
+	 * @TODO: Handle "landingPage" in a PHP plugin to make it work in all environments.
+	 */
+	await (playground as any).goTo(compiled.landingPage || '/');
+
+	/**
 	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 	 *
 	 * @see https://github.com/WordPress/wordpress-playground/pull/2295

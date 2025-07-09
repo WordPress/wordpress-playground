@@ -341,6 +341,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
 
 	let wordPressReady = false;
+	let isFirstRequest = true;
 
 	logger.log('Starting a PHP server...');
 
@@ -535,6 +536,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				return PHPResponse.forHttpCode(
 					502,
 					'WordPress is not ready yet'
+				);
+			}
+			// Clear the playground_auto_login_already_happened cookie on the first request.
+			// Otherwise the first Playground CLI server started on the machine will set it,
+			// all the subsequent runs will get the stale cookie, and the auto-login will
+			// assume they don't have to auto-login again.
+			if (isFirstRequest) {
+				isFirstRequest = false;
+				const headers: Record<string, string[]> = {
+					'Content-Type': ['text/plain'],
+					'Content-Length': ['0'],
+					Location: [compiledBlueprint.landingPage],
+				};
+				if (
+					request.headers?.['cookie']?.includes(
+						'playground_auto_login_already_happened'
+					)
+				) {
+					headers['Set-Cookie'] = [
+						'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
+					];
+				}
+				return new PHPResponse(
+					302,
+					{
+						'Content-Length': ['0'],
+						Location: [compiledBlueprint.landingPage],
+					},
+					new Uint8Array()
 				);
 			}
 			return await loadBalancer.handleRequest(request);
