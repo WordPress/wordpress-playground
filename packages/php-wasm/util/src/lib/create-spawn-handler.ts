@@ -50,7 +50,9 @@ export function createSpawnHandler(
 				throw new Error('Invalid command ', command);
 			}
 			try {
-				await program(commandArray, processApi, options);
+				let promise = program(commandArray, processApi, options);
+				childProcess.emit('spawn', true);
+				await promise;
 			} catch (e) {
 				childProcess.emit('error', e);
 				if (
@@ -63,7 +65,6 @@ export function createSpawnHandler(
 				}
 				processApi.exit(1);
 			}
-			childProcess.emit('spawn', true);
 		});
 		return childProcess;
 	};
@@ -71,13 +72,23 @@ export function createSpawnHandler(
 
 export class ProcessApi extends EventEmitterPolyfill {
 	private exited = false;
-	private stdinData: Uint8Array[] | null = [];
+	/**
+	 * Keeps track of the data that was written to stdin before the
+	 * first listener was registered.
+	 */
+	private stdinBuffer: Uint8Array[] | null = [];
 	private childProcess: ChildProcess;
 	constructor(childProcess: ChildProcess) {
 		super();
 		this.childProcess = childProcess;
 		childProcess.on('stdin', (data: Uint8Array) => {
-			this.pushStdinData(data);
+			if (this.stdinBuffer) {
+				// Need to clone the data buffer as it's reused by PHP
+				// and the next data chunk will overwrite the previous one.
+				this.stdinBuffer.push(data.slice());
+			} else {
+				this.emit('stdin', data);
+			}
 		});
 	}
 	stdinEnd() {
@@ -114,38 +125,16 @@ export class ProcessApi extends EventEmitterPolyfill {
 		}
 	}
 	override on(eventName: string, listener: Listener) {
-		console.trace('ProcessApi.on(stdin) called', eventName);
 		super.on(eventName, listener);
 		/**
 		 * If it's the first stdin listener, flush all the data we've
 		 * buffered so far.
 		 */
-		if (eventName === 'stdin' && this.stdinData) {
-			console.trace('flushing buffered stdin data');
-			for (let i = 0; i < this.stdinData.length; i++) {
-				listener(this.stdinData[i]);
-				// this.emit('stdin', this.stdinData[i]);
+		if (eventName === 'stdin' && this.stdinBuffer) {
+			for (let i = 0; i < this.stdinBuffer.length; i++) {
+				this.emit('stdin', this.stdinBuffer[i]);
 			}
-			this.stdinData = null;
-		}
-	}
-	/**
-	 * Do not use outside of this class! This method moves the stdin
-	 * data to the consumer.
-	 *
-	 * @param data
-	 */
-	private pushStdinData(data: Uint8Array) {
-		console.log('pushStdinData called');
-		console.log('childProcess.on(stdin) called');
-		if (this.stdinData) {
-			console.log('buffering stdin data');
-			// Need to clone the data buffer as it's reused by PHP
-			// and the next data chunk will overwrite the previous one.
-			this.stdinData.push(data.slice());
-		} else {
-			console.log('emiting stdin data');
-			this.emit('stdin', data);
+			this.stdinBuffer = null;
 		}
 	}
 }

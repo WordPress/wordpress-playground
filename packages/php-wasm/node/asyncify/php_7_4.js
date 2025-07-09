@@ -17639,7 +17639,6 @@ export function init(RuntimeName, PHPLoader) {
 				);
 				let stdoutAt = 0;
 				cp.stdout.on('data', function (data) {
-					console.log('stdout', data);
 					ProcInfo.stdout.emit('data', data);
 					stdoutStream.stream_ops.write(
 						stdoutStream,
@@ -17794,7 +17793,6 @@ export function init(RuntimeName, PHPLoader) {
 							}
 						}
 					}
-					console.log('pump', pump());
 
 					const originalClose = stdinStream.stream_ops.close;
 					stdinStream.stream_ops = {

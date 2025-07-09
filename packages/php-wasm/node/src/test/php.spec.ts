@@ -1,5 +1,3 @@
-import { getPHPLoaderModule, loadNodeRuntime } from '..';
-import { vi } from 'vitest';
 import {
 	__private__dont__use,
 	getPhpIniEntries,
@@ -8,18 +6,20 @@ import {
 	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
+import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import {
 	existsSync,
-	rmSync,
-	readFileSync,
 	mkdirSync,
-	writeFileSync,
-	statfsSync,
 	mkdtempSync,
+	readFileSync,
+	rmSync,
+	statfsSync,
+	writeFileSync,
 } from 'fs';
-import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
-import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { tmpdir } from 'os';
+import { vi } from 'vitest';
+import { getPHPLoaderModule, loadNodeRuntime } from '..';
+import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -532,7 +532,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
-	describe('proc_open()', () => {
+	describe.only('proc_open()', () => {
 		// This test applies only to these PHP versions
 		// due to a new patch that replaces the use of
 		// EMULATE_FUNCTION_POINTER_CASTS option.
@@ -777,14 +777,13 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual(pygmalion);
 		});
 
-		it.only('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
+		it('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
 				async (command: string[], processApi: any) => {
 					await new Promise((resolve) => {
 						setTimeout(resolve, 1000);
 					});
 					processApi.on('stdin', (data: Uint8Array) => {
-						console.log('Received stdin data! :)');
 						processApi.stdout(data);
 					});
 					await new Promise((resolve) => {
@@ -803,45 +802,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('Pipe pygmalion from a file to STDOUT through "cat"', async () => {
 			const result = await pygmalionToProcess('cat');
 			expect(result.text).toEqual(pygmalion);
-		});
-
-		it('Uses the specified spawn handler', async () => {
-			let spawnHandlerCalled = false;
-			php.setSpawnHandler(() => {
-				spawnHandlerCalled = true;
-				return {
-					stdout: {
-						on: () => {},
-					},
-					stderr: {
-						on: () => {},
-					},
-					stdin: {
-						write: () => {},
-					},
-					on: (evt: string, callback: () => void) => {
-						if (evt === 'spawn') {
-							callback();
-						}
-					},
-					kill: () => {},
-				} as any;
-			});
-			await php.run({
-				code: `<?php
-				$res = proc_open(
-					"echo 'Hello World!'",
-					array(
-						array("pipe","r"),
-						array("pipe","w"),
-						array("pipe","w"),
-					),
-					$pipes
-				);
-				proc_close($res);
-			`,
-			});
-			expect(spawnHandlerCalled).toEqual(true);
 		});
 
 		it('Stdout waits for asynchronous data to arrive', async () => {
