@@ -341,7 +341,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
 
 	let wordPressReady = false;
-	let isFirstRequest = false; // Set to true after booting WordPress
+	let isFirstRequest = true;
+	let isSecondRequest = false;
 
 	logger.log('Starting a PHP server...');
 
@@ -422,7 +423,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				await playground.isReady();
 				wordPressReady = true;
-				isFirstRequest = true;
 				logger.log(`Booted!`);
 
 				loadBalancer = new LoadBalancer(playground);
@@ -545,10 +545,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// assume they don't have to auto-login again.
 			if (isFirstRequest) {
 				isFirstRequest = false;
+				isSecondRequest = true;
 				const headers: Record<string, string[]> = {
 					'Content-Type': ['text/plain'],
 					'Content-Length': ['0'],
-					Location: [compiledBlueprint.landingPage],
+					Location: ['/'],
 				};
 				if (
 					request.headers?.['cookie']?.includes(
@@ -559,14 +560,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
 					];
 				}
-				return new PHPResponse(
-					302,
-					{
-						'Content-Length': ['0'],
-						Location: [compiledBlueprint.landingPage],
-					},
-					new Uint8Array()
-				);
+				return new PHPResponse(302, headers, new Uint8Array());
 			}
 			return await loadBalancer.handleRequest(request);
 		},
