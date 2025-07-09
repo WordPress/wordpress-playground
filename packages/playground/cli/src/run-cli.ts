@@ -341,7 +341,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
 
 	let wordPressReady = false;
-	let isFirstRequest = true;
+	let isFirstRequest = false; // Set to true after booting WordPress
 
 	logger.log('Starting a PHP server...');
 
@@ -422,6 +422,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				await playground.isReady();
 				wordPressReady = true;
+				isFirstRequest = true;
 				logger.log(`Booted!`);
 
 				loadBalancer = new LoadBalancer(playground);
