@@ -18,6 +18,7 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		 * PHP-WASM source: https://github.com/WordPress/wordpress-playground/blob/5821cee231f452d050fd337b99ad0b26ebda487e/packages/php-wasm/compile/php/Dockerfile#L2148
 		 */
 		let lookup;
+		let unlinkPath: string | undefined;
 		try {
 			lookup = FS.lookupPath(vfsMountPoint);
 		} catch (e) {
@@ -27,10 +28,11 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 				throw e;
 			}
 			if (statSync(localPath).isFile()) {
+				unlinkPath = vfsMountPoint;
 				FS.writeFile(vfsMountPoint, '');
 			} else if (statSync(localPath).isDirectory()) {
-				FS.mkdirTree(dirname(vfsMountPoint));
 				FS.mkdirTree(vfsMountPoint);
+				unlinkPath = vfsMountPoint;
 			} else {
 				throw new Error(
 					'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
@@ -44,8 +46,14 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		}
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
 		return () => {
-			// TODO: Delete the mount point if was created during the mount.
 			FS!.unmount(vfsMountPoint);
+			if (unlinkPath) {
+				if (FS.isDir(lookup.node.mode)) {
+					FS.rmdir(unlinkPath);
+				} else {
+					FS.unlink(unlinkPath);
+				}
+			}
 		};
 	};
 }
