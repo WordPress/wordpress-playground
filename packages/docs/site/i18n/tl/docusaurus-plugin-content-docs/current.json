@@ -1,22 +1,22 @@
 {
 	"version.label": {
-		"message": "Next",
+		"message": "Susunod",
 		"description": "The label for version current"
 	},
 	"sidebar.mainSidebar.category.Documentation": {
-		"message": "Documentation",
+		"message": "Dokumentasyon",
 		"description": "The label for category Documentation in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.About Playground": {
-		"message": "About Playground",
+		"message": "Tungkol sa Playground",
 		"description": "The label for category About Playground in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Guides": {
-		"message": "Guides",
+		"message": "Mga Gabay",
 		"description": "The label for category Guides in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Contributing": {
-		"message": "Contributing",
+		"message": "Kontribusyon",
 		"description": "The label for category Contributing in sidebar mainSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Blueprints": {
@@ -28,7 +28,7 @@
 		"description": "The label for category Tutorial in sidebar blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Steps": {
-		"message": "Steps",
+		"message": "Hakbang",
 		"description": "The label for category Steps in sidebar blueprintsSidebar"
 	},
 	"sidebar.developersSidebar.category.Developers": {
