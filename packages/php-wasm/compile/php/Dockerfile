@@ -1644,6 +1644,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_execute_script",\
 "zend_execute_scripts",\
 "zend_execute",\
+"zend_extension_statement_handler",\
+"ZEND_EXT_STMT_SPEC_HANDLER",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_fe_reset_iterator",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
@@ -1724,6 +1726,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_objects_store_del_ref",\
 "zend_objects_store_del",\
 "zend_objects_store_free_object_storage",\
+"zend_observer_fcall_begin_prechecked",\
+"zend_observer_fcall_begin",\
 "zend_observer_fcall_end",\
 "zend_parse_arg_number_or_str_slow",\
 "zend_parse_arg_str_weak",\
