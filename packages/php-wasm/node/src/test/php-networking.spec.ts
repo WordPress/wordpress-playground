@@ -3,7 +3,7 @@ import {
 	SupportedPHPVersions,
 	setPhpIniEntries,
 	getLoadedRuntime,
-	SupportedPHPVersion,
+	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
