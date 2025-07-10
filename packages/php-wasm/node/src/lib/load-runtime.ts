@@ -91,6 +91,28 @@ export async function loadNodeRuntime(
 			 * for the path and Emscripten will accept it as if it was the real link path.
 			 */
 			if (options?.followSymlinks === true) {
+				/**
+				 * PHP might call `lookupPath` with `follow: false`.
+				 * When this happens Emscripten will not follow the symlink when it's the final path component.
+				 * This happens for example during a is_dir check or lstat.
+				 *
+				 * To work around this, we override the `lookupPath` function to always follow the symlink.
+				 *
+				 * TODO:
+				 * - Understand why we must override follow: false when it's explicitly required by the caller.
+				 * - Find a way to set follow: true as the default behavior, but allow the caller to override it.
+				 */
+				const lookupPath = phpRuntime.FS.lookupPath;
+				phpRuntime.FS.lookupPath = (
+					path: string,
+					options: any = {}
+				) => {
+					return lookupPath(path, {
+						...options,
+						follow: true, // TODO: This should be overridable by options.follow.
+					});
+				};
+
 				phpRuntime.FS.filesystems.NODEFS.node_ops.readlink = (
 					node: any
 				) => {
