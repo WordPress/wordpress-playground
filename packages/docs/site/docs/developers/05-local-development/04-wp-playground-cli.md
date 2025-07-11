@@ -11,7 +11,7 @@ Playground CLI supports auto-mounting a directory with a plugin, theme, or WordP
 **Key features:**
 
 -   **Quick Setup**: Set up a local WordPress environment in seconds.
--   **Flexibility**: Allows for configuration to adapt to different scenarios
+-   **Flexibility**: Allows for configuration to adapt to different scenarios.
 -   **Simple Environment**: No extra configuration, just a compatible Node installation, and you are ready to use it.
 
 ## Requirements
