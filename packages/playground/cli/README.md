@@ -96,7 +96,7 @@ The `server` command supports the following optional arguments:
 -   `--quiet`: Do not output logs and progress messages.
 -   `--debug`: Print the PHP error log if an error occurs during boot.
 -   `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. ⚠️ Warning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.
--   `--experimentalMultiWorker`: Enables experimental multi-worker support. It needs JSPI and a /wordpress directory on a real filesystem. You can pass a positive number to use a specific number of workers, otherwise, it defaults to the number of CPUs minus one.
+-   `--experimental-multi-worker`: Enables experimental multi-worker support. It needs JSPI and a /wordpress directory on a real filesystem. You can pass a positive number to use a specific number of workers, otherwise, it defaults to the number of CPUs minus one.
 -   `--internal-cookie-store`: Enables Playground's internal cookie handling. When active, Playground uses an HttpCookieStore to manage and persist cookies across requests. If disabled, cookies are handled externally, like by a browser in Node.js.
 
 ## Need some help with the CLI?
