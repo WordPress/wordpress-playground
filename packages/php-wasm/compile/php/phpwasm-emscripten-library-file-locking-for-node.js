@@ -745,6 +745,13 @@ const LibraryForFileLocking = {
 	 */
 	fd_close(fd) {
 #if ASYNCIFY == 2
+		// For some reason, with JSPI, returning a promise here for the
+		// initial php.ini read causes a zend_mm_heap corruption.
+		// @TODO: Figure this out before merging
+		if (!PHPWASM.isFirstFdClose) {
+			PHPWASM.isFirstFdClose = true;
+			return _builtin_fd_close(fd);
+		}
 		return Asyncify.handleAsync(async () => {
 #endif
 			const [vfsPath, pathResolutionErrno] =

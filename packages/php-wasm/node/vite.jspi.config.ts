@@ -10,6 +10,7 @@ export default defineConfig((env) =>
 					forks: {
 						execArgv: [
 							'--expose-gc',
+							'--stack-trace-limit=100',
 							'--experimental-wasm-stack-switching',
 							'--experimental-wasm-jspi',
 						],

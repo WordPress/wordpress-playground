@@ -51,7 +51,18 @@ export function createSpawnHandler(
 			}
 			try {
 				const promise = program(commandArray, processApi, options);
-				if (processApi.exited) {
+				if (
+					typeof promise !== 'object' ||
+					promise === null ||
+					!('then' in promise)
+				) {
+					throw new Error(
+						`The program callback passed to createSpawnHandler() did not return a promise. It indicates there's a bug in your code. ` +
+							`The callback must return a promise. PHP cannot interact with program that synchronously exists at the end of the proc_open() ` +
+							`call. All the streams would be closed already. Make sure to put an "await new Promise(resolve => setTimeout(resolve, 1))` +
+							`before calling processApi.exit(0) in your callback to let PHP catch up with the stdout data.`
+					);
+				} else if (processApi.exited) {
 					throw new Error(
 						`The program callback passed to createSpawnHandler() exited synchronously. It indicates there's a bug in your code. ` +
 							`The callback must return a promise. PHP cannot interact with program that synchronously exists at the end of the proc_open() ` +

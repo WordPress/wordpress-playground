@@ -314,11 +314,10 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
  * @see https://github.com/WordPress/wordpress-playground/issues/951
  * @see https://github.com/emscripten-core/emscripten/issues/13214
  */
+EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 #ifdef PLAYGROUND_JSPI
-EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => new Promise(resolver);
 #else
-EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
 	const pollAsync = arguments[4] === undefined ? true : !!arguments[4];

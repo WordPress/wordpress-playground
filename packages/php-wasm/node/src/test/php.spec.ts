@@ -697,8 +697,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('Passes the cwd and env arguments', async () => {
 			const handler = createSpawnHandler(
 				async (command: string[], processApi: any, options: any) => {
-					console.log('Stdout writing');
-
 					processApi.stdout(options.cwd + '\n');
 					for (const key in options.env) {
 						processApi.stdout(key + '=' + options.env[key] + '\n');
@@ -760,7 +758,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		it('Pipe pygmalion from a file to STDOUT through a synchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					processApi.on('stdin', (data: Uint8Array) => {
 						processApi.stdout(data);
 					});
@@ -768,8 +766,11 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					// Give the streams a chance to write the data. All the
 					// data is written synchronously so a single event loop
 					// tick should be enough.
-					setTimeout(() => {
-						processApi.exit(0);
+					await new Promise((resolve) => {
+						setTimeout(() => {
+							processApi.exit(0);
+							resolve(undefined);
+						});
 					});
 				}
 			);
@@ -809,14 +810,17 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		it('Stdout waits for asynchronous data to arrive', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					processApi.stdout(new TextEncoder().encode('Hello World!'));
-					setTimeout(() => {
-						processApi.stdout(
-							new TextEncoder().encode('Hello again!')
-						);
-						processApi.exit(0);
-					}, 1000);
+					await new Promise((resolve) => {
+						setTimeout(() => {
+							processApi.stdout(
+								new TextEncoder().encode('Hello again!')
+							);
+							processApi.exit(0);
+							resolve(undefined);
+						}, 1000);
+					});
 				}
 			);
 
@@ -830,7 +834,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			$proc = proc_open( "fetch", $descriptorspec, $pipes );
 			echo fread($pipes[1], 1024);
 			echo "\\n";
-			echo fread($pipes[1], 1024);;
+			// This makes the test pass with JSPI:
+			echo fread($pipes[1], 1024);
 			proc_close( $proc );
 			`,
 			});
@@ -840,19 +845,18 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		it('Non-blocking file descriptors do not wait for asynchronous data', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					// Send initial data immediately
 					processApi.stdout(
 						new TextEncoder().encode('Initial data\n')
 					);
 
 					// Send more data after a delay
-					setTimeout(() => {
-						processApi.stdout(
-							new TextEncoder().encode('Delayed data\n')
-						);
-						processApi.exit(0);
-					}, 500);
+					await new Promise((resolve) => setTimeout(resolve, 500));
+					processApi.stdout(
+						new TextEncoder().encode('Delayed data\n')
+					);
+					processApi.exit(0);
 				}
 			);
 
@@ -902,23 +906,16 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		it('Can poll non-blocking streams until data arrives', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					// Send data in chunks with delays
-					setTimeout(() => {
-						processApi.stdout(
-							new TextEncoder().encode('Chunk 1\n')
-						);
-					}, 200);
+					await new Promise((resolve) => setTimeout(resolve, 200));
+					processApi.stdout(new TextEncoder().encode('Chunk 1\n'));
 
-					setTimeout(() => {
-						processApi.stdout(
-							new TextEncoder().encode('Chunk 2\n')
-						);
-					}, 400);
+					await new Promise((resolve) => setTimeout(resolve, 400));
+					processApi.stdout(new TextEncoder().encode('Chunk 2\n'));
 
-					setTimeout(() => {
-						processApi.exit(0);
-					}, 600);
+					await new Promise((resolve) => setTimeout(resolve, 600));
+					processApi.exit(0);
 				}
 			);
 
@@ -973,7 +970,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		it('feof() returns true when exhausted the synchronous data', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					processApi.stdout(
 						new TextEncoder().encode('Hello World!\n')
 					);
@@ -1012,18 +1009,16 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		it('feof() returns true when exhausted the asynchronous data', async () => {
 			const handler = createSpawnHandler(
-				(command: string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					processApi.stdout(
 						new TextEncoder().encode('Hello World!\n')
 					);
-					setTimeout(() => {
-						processApi.stdout(
-							new TextEncoder().encode('Hello Again!\n')
-						);
-						setTimeout(() => {
-							processApi.exit(0);
-						}, 100);
-					}, 500);
+					await new Promise((resolve) => setTimeout(resolve, 200));
+					processApi.stdout(
+						new TextEncoder().encode('Hello Again!\n')
+					);
+					await new Promise((resolve) => setTimeout(resolve, 400));
+					processApi.exit(0);
 				}
 			);
 
@@ -1220,9 +1215,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					// Avoid the timeout by reporting that the process has been spawned
 					processApi.notifySpawn();
 					// Take 6 seconds to exit
-					setTimeout(() => {
-						processApi.exit(0);
-					}, 6000);
+					await new Promise((resolve) => setTimeout(resolve, 6000));
+					processApi.exit(0);
 				}
 			);
 

@@ -17649,6 +17649,10 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[iov >> 2] = buffer; // iov_base
 				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
+				if (typeof js_fd_read === 'undefined') {
+					globalThis.js_fd_read = __asyncjs__js_fd_read;
+				}
+
 				function pump() {
 					try {
 						while (true) {
