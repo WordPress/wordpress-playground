@@ -25,7 +25,7 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 
 #### Prerequisites
 
-`@wp-playground/cli` requires Node.js 20.18 or superior and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
 
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
 
