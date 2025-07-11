@@ -71,7 +71,7 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 WordPress Playground es un proyecto open-source y todas las aportaciones al mismo son bienvenidas, desde código hasta diseño, desde documentación hasta organización de tareas del proyecto. No te preocupes, ¡_no necesitas saber de WebAssembly_ para contribuir al proyecto!
 
 -   Echa un vistazo al [Contributors Handbook](/contributing/) para todo lo que necesitas saber para contribuir al proyecto.
--   Únete al canal de Slack `#meta-playground` (en la página [WordPress Slack](https://make.wordpress.org/chat/) encontrarás la información sobre como acceder al Slack de WordPress)
+-   Únete al canal de Slack `#playground` (en la página [WordPress Slack](https://make.wordpress.org/chat/) encontrarás la información sobre como acceder al Slack de WordPress)
 
 Como con todos los proyectos de WordPress, queremos asegurar en entorno seguro y acogedor para todos. Con esto en mente, se espera de todos los contribuidores que cumplan con nuestro [código de conducta](https://make.wordpress.org/handbook/community-code-of-conduct/).
 

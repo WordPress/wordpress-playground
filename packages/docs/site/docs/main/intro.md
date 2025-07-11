@@ -71,7 +71,7 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. Don't worry, _you don't need to know WebAssembly_ to contribute!
 
 -   See the [Contributors Handbook](/contributing) for all the details on how you can contribute.
--   Join us in the `#meta-playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
+-   Join us in the `#playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
 
 As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 
