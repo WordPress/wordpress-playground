@@ -6,6 +6,10 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
+ARG WITH_JSPI
+
+ARG WITH_DEBUG
+
 # Install Bison, required to build PHP
 RUN mkdir -p /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
@@ -115,8 +119,18 @@ RUN set -euxo pipefail; \
 	# with the main module.
 	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
 
-	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -O3"; \
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
 
-	export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
+	if [ "$WITH_DEBUG" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
+	fi; \
+
+	if [ "$WITH_JSPI" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE -sASYNCIFY_IMPORTS=wasm_recv -sASYNCIFY_EXPORTS=wasm_recv"; \
+	fi; \
 
 	emmake make -j1

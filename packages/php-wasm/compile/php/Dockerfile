@@ -523,8 +523,10 @@ RUN set -euxo pipefail; \
 		export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
 		echo -n " -fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ " \
 			"-fdebug-prefix-map=/root/php_wasm.c=${DEBUG_DWARF_COMPILATION_DIR}/compile/php/php_wasm.c " \
-			"-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/  " \
-			"-fdebug-prefix-map=./=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/  " \
+			"-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
+			"-fdebug-prefix-map=./=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
+			"-fdebug-prefix-map=/emsdk/emscripten/==${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ " \
+			"-fdebug-prefix-map=/root/emsdk/upstream/emscripten/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ " \
 			>> /root/.emcc-php-wasm-flags; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 			echo -n ' -gsource-map' >> /root/.emcc-php-wasm-flags; \
@@ -615,11 +617,21 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
 "__syscall_fcntl64",\n\
+"___syscall_fcntl64",\n\
+"_asyncjs___syscall_fcntl64",\n\
 "js_release_file_locks",\n\
+"_js_release_file_locks",\n\
+"_async_js_release_file_locks",\n\
 "js_flock",\n\
+"_js_flock",\n\
+"_async_js_flock",\n\
 "js_fd_read",\n\
 "_js_fd_read",\n\
+"fd_close",\n\
 "_fd_close",\n\
+"_asyncjs__fd_close",\n\
+"close",\n\
+"_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
@@ -632,7 +644,15 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"__fseeko_unlocked",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"__stdio_close",\
+"zend_stream_stdio_closer",\
+"zend_destroy_file_handle",\
+"php_init_config",\
+"zend_register_ini_entries_ex",\
+"php_module_startup",\
+"wasm_sapi_module_startup",\
+"__fseeko_unlocked",\
 "__ftello_unlocked",\
 "__funcs_on_exit",\
 "__fwritex",\
@@ -849,6 +869,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_stream_select",\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
+"php_sqlite3_object_free_storage",\
+"php_sqlite3_error",\
+"sqlite3_reset",\
 "php_stream_read_to_str",\
 "php_userstreamop_read",\
 "zif_fread",\
@@ -858,6 +881,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_fwrite",\
 "php_stdiop_write",\
 "zif_array_filter",\
+"zend_unclean_zval_ptr_dtor",\
 "zend_call_known_instance_method_with_2_params",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -1620,6 +1644,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_execute_script",\
 "zend_execute_scripts",\
 "zend_execute",\
+"zend_extension_statement_handler",\
+"ZEND_EXT_STMT_SPEC_HANDLER",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_fe_reset_iterator",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
@@ -1656,6 +1682,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_hash_reverse_apply",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
 "zend_include_or_eval",\
+"compile_filename",\
 "zend_internal_type_error",\
 "zend_interrupt_helper_SPEC",\
 "zend_invalid_class_constant_type_error",\
@@ -1699,6 +1726,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_objects_store_del_ref",\
 "zend_objects_store_del",\
 "zend_objects_store_free_object_storage",\
+"zend_observer_fcall_begin_prechecked",\
+"zend_observer_fcall_begin",\
 "zend_observer_fcall_end",\
 "zend_parse_arg_number_or_str_slow",\
 "zend_parse_arg_str_weak",\
@@ -1965,6 +1994,14 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zim_sqlite3_backup",\
 "zim_SQLite3_backup",\
 "zim_SQLite3_exec",\
+"zim_sqlite3_exec",\
+"zim_sqlite3_query",\
+"zim_sqlite3_querySingle",\
+"zim_sqlite3result_fetchArray",\
+"php_cli_startup",\
+"php_stdiop_close",\
+"zend_parse_ini_file",\
+"php_embed_startup",\
 "zip_source_file_common_new",\
 "zip_source_function_create",\
 "zip_source_layered_create",\
@@ -2062,7 +2099,7 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
-	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dynamic-linking.js"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
@@ -2240,6 +2277,9 @@ RUN set -euxo pipefail; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 			# Make PHP source available for use with step debugger
 			rm -rf /root/php-src/.git; \
-			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
-			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
+			cp -r /root/php-src /root/output/"${PHP_VERSION_ESCAPED}"/php-src; \
+			# Copy emscripten source files
+			mkdir -p /root/output/"${PHP_VERSION_ESCAPED}"/emscripten; \
+			cp -r /root/emsdk/upstream/emscripten/cache /root/output/"${PHP_VERSION_ESCAPED}"/emscripten/; \
+			cp -r /root/emsdk/upstream/emscripten/system /root/output/"${PHP_VERSION_ESCAPED}"/emscripten/; \
 		fi;

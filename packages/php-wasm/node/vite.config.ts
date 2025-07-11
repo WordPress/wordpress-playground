@@ -23,7 +23,7 @@ export default defineConfig(function () {
 				enforce: 'pre',
 
 				resolveId(id: string, importer: string): any {
-					if (id.startsWith('\0import-url:')) {
+					if (id.startsWith('import-url:')) {
 						return id;
 					}
 
@@ -32,15 +32,15 @@ export default defineConfig(function () {
 							path.dirname(importer),
 							id
 						);
-						return `\0import-url:${filepath}`;
+						return `import-url:${filepath}`;
 					}
 
 					return null;
 				},
 
 				load(id: string): any {
-					if (id.startsWith('\0import-url:')) {
-						const encodedPath = id.slice('\0import-url:'.length);
+					if (id.startsWith('import-url:')) {
+						const encodedPath = id.slice('import-url:'.length);
 						const filePath = encodedPath.replace('?url', '');
 
 						return {

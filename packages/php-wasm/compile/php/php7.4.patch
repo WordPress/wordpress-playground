@@ -61,24 +61,27 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 
 
 diff --git a/php-src/Zend/zend_variables.c b/php-src/Zend/zend_variables.c
-index 810866a1be2..fdd1c80fea5 100644
+index 810866a1be2..0cc2a95dcf2 100644
 --- a/php-src/Zend/zend_variables.c
 +++ b/php-src/Zend/zend_variables.c
-@@ -36,6 +36,13 @@ static void ZEND_FASTCALL zend_empty_destroy(zend_reference *ref);
+@@ -36,6 +36,16 @@ static void ZEND_FASTCALL zend_empty_destroy(zend_reference *ref);
 
  typedef void (ZEND_FASTCALL *zend_rc_dtor_func_t)(zend_refcounted *p);
 
++// Note: zend_list_free_wrapper function is required because active streams
++// would otherwise cause a function signature mismatch. zend_list_free
++// returns an int, while zend_rc_dtor_func_t expects a void return type.
 +static void zend_list_free_wrapper(zend_refcounted *p) {
-+    zend_resource *res = (zend_resource*)p;
-+    zval zv;
-+    ZVAL_RES(&zv, res);
-+    zend_list_free(&zv);
++	zend_resource *res = (zend_resource*)p;
++	zval zv;
++	ZVAL_RES(&zv, res);
++	zend_list_free(&zv);
 +}
 +
  static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
  	/* IS_UNDEF        */ (zend_rc_dtor_func_t)zend_empty_destroy,
  	/* IS_NULL         */ (zend_rc_dtor_func_t)zend_empty_destroy,
-@@ -46,7 +53,7 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+@@ -46,7 +56,7 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
  	/* IS_STRING       */ (zend_rc_dtor_func_t)zend_string_destroy,
  	/* IS_ARRAY        */ (zend_rc_dtor_func_t)zend_array_destroy,
  	/* IS_OBJECT       */ (zend_rc_dtor_func_t)zend_objects_store_del,

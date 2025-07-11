@@ -165,11 +165,11 @@ WordPress Playground is an open-source project and welcomes all contributors fro
  -->
 
 -   貢献方法の詳細については、[貢献者ハンドブック](/contributing) をご覧ください。
--   Slack の `#meta-playground` チャンネルにご参加ください（サインアップ情報については、[WordPress Slack ページ](https://make.wordpress.org/chat/) をご覧ください）。
+-   Slack の `#playground` チャンネルにご参加ください（サインアップ情報については、[WordPress Slack ページ](https://make.wordpress.org/chat/) をご覧ください）。
 
 <!--
 -   See the [Contributors Handbook](/contributing) for all the details on how you can contribute.
--   Join us in the `#meta-playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
+-   Join us in the `#playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
  -->
 
 すべての WordPress プロジェクトと同様に、私たちはすべての人にとって歓迎される環境を確保したいと考えています。そのため、すべての貢献者は私たちの [行動規範](https://make.wordpress.org/handbook/community-code-of-conduct/) に従うことが期待されます。

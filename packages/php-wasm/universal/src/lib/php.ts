@@ -913,11 +913,11 @@ export class PHP implements Disposable {
 				 */
 				const exit = await Promise.race([
 					executionFn(),
-					new Promise((_, reject) => {
+					new Promise((resolve, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							logger.error(e);
-							logger.error(e.error);
-							if (!isExitCode(e.error)) {
+							if (isExitCode(e.error) && e.error.status === 0) {
+								resolve(e.error.status);
+							} else {
 								const rethrown = new Error('Rethrown');
 								rethrown.cause = e.error;
 								(rethrown as any).betterMessage = e.message;
@@ -938,7 +938,7 @@ export class PHP implements Disposable {
 				 * turn exit code errors into integers again.
 				 */
 				if (isExitCode(e)) {
-					return e.exitCode;
+					return e.status;
 				}
 
 				stdout.controller.error(e);
@@ -1285,11 +1285,18 @@ export class PHP implements Disposable {
 			);
 		}
 
-		return await this.#executeWithErrorHandling(() => {
-			return this[__private__dont__use].ccall('run_cli', null, [], [], {
-				async: true,
-			});
-		}).then((response) => {
+		return await this.#executeWithErrorHandling(
+			async () =>
+				await this[__private__dont__use].ccall(
+					'run_cli',
+					null,
+					[],
+					[],
+					{
+						async: true,
+					}
+				)
+		).then((response) => {
 			response.exitCode.finally(release);
 			return response;
 		});
