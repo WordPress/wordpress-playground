@@ -5,7 +5,8 @@ slug: /developers/local-development/wp-playground-cli
 
 # Playground CLI
 
-[@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) is the new command-line tool designed to simplify the development and testing flow. It runs a WordPress instance locally with Playground, and with the CLI, it is possible to auto-mount an environment with a plugin, theme, or WordPress installation. But if you need flexibility, the CLI supports mounting commands to personalize your local environment.
+[@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) is a command-line tool that simplifies the WordPress development and testing flow.
+Playground CLI supports auto-mounting a directory with a plugin, theme, or WordPress installation. But if you need flexibility, the CLI supports mounting commands to personalize your local environment.
 
 **Key features:**
 
