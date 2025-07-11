@@ -54,22 +54,10 @@ Using the `--blueprint=<blueprint-address>` flag, developers can run a Playgroun
 ```bash
 {
   "landingPage": "/wp-admin/options-general.php?page=akismet-key-config",
-  "steps": [
-    {
-      "step": "installPlugin",
-      "pluginData": {
-        "resource": "wordpress.org/plugins",
-        "slug": "akismet"
-      },
-      "options": {
-        "activate": true
-      }
-    },
-    {
-      "step": "login",
-      "username": "admin",
-      "password": "password"
-    },
+  "login": true, 
+  "plugins": [
+    "hello-dolly",
+    "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
   ]
 }
 ```
