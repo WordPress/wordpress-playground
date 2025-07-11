@@ -4,7 +4,7 @@ slug: /developers/local-development/wp-now
 ---
 
 :::caution Package deprecated
-The NPM package wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.  
+The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.  
 :::
 
 # wp-now NPM package
