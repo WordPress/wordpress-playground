@@ -213,7 +213,7 @@ const config = {
 								href: 'https://github.com/WordPress/wordpress-playground',
 							},
 							{
-								label: '#meta-playground on Slack',
+								label: '#playground on Slack',
 								href: 'https://make.wordpress.org/chat',
 							},
 						],
