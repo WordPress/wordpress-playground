@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29141063;
+export const dependenciesTotalSize = 29141120;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 17207584;
+	var ___heap_base = 12030304;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 17207584;
+	var ___stack_high = 12030304;
 
-	var ___stack_low = 11964704;
+	var ___stack_low = 11964768;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		17207584
+		12030304
 	);
 
 	var PATH = {
@@ -6885,16 +6885,15 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	var _fd_close = function fd_close(fd) {
+	function _fd_close(fd) {
 		// For some reason, with JSPI, returning a promise here for the
 		// initial php.ini read causes a zend_mm_heap corruption.
-		// @TODO:L Figure out before merging
-		if (!PHPWASM.initialIniScanDone) {
-			PHPWASM.initialIniScanDone = true;
+		// @TODO: Figure this out before merging
+		if (!PHPWASM.isFirstFdClose) {
+			PHPWASM.isFirstFdClose = true;
 			return _builtin_fd_close(fd);
 		}
 		return Asyncify.handleAsync(async () => {
-			const stream = SYSCALLS.getStreamFromFD(fd);
 			const [vfsPath, pathResolutionErrno] =
 				locking.get_vfs_path_from_fd(fd);
 			if (pathResolutionErrno !== 0) {
@@ -6928,7 +6927,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return result;
 		});
-	};
+	}
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -17653,10 +17652,6 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[iov >> 2] = buffer; // iov_base
 				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
-				if (typeof js_fd_read === 'undefined') {
-					globalThis.js_fd_read = __asyncjs__js_fd_read;
-				}
-
 				function pump() {
 					try {
 						while (true) {
@@ -19339,7 +19334,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 5242880;
+	var STACK_SIZE = 65536;
 
 	var STACK_ALIGN = 16;
 
@@ -31268,13 +31263,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11105081: ($0) => {
+		11105127: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11105129: ($0) => {
+		11105175: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31335,144 +31330,147 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	}
 	__asyncjs__js_popen_to_file.sig = 'iiii';
-	function wasm_poll_socket(socketd, events, timeout) {
-		const returnCallback = (resolver) => new Promise(resolver);
-		const POLLIN = 0x0001;
-		const POLLPRI = 0x0002;
-		const POLLOUT = 0x0004;
-		const POLLERR = 0x0008;
-		const POLLHUP = 0x0010;
-		const POLLNVAL = 0x0020;
-		return returnCallback((wakeUp) => {
-			const polls = [];
-			const stream = FS.getStream(socketd);
-			if (FS.isSocket(stream?.node.mode)) {
-				const sock = getSocketFromFD(socketd);
-				if (!sock) {
-					wakeUp(0);
-					return;
-				}
-				const lookingFor = new Set();
-				if (events & POLLIN || events & POLLPRI) {
-					if (sock.server) {
-						for (const client of sock.pending) {
-							if ((client.recv_queue || []).length > 0) {
-								wakeUp(1);
-								return;
-							}
-						}
-					} else if ((sock.recv_queue || []).length > 0) {
-						wakeUp(1);
+	function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
+		return Asyncify.handleAsync(async () => {
+			const returnCallback = (resolver) => new Promise(resolver);
+			const POLLIN = 0x0001;
+			const POLLPRI = 0x0002;
+			const POLLOUT = 0x0004;
+			const POLLERR = 0x0008;
+			const POLLHUP = 0x0010;
+			const POLLNVAL = 0x0020;
+			return returnCallback((wakeUp) => {
+				const polls = [];
+				const stream = FS.getStream(socketd);
+				if (FS.isSocket(stream?.node.mode)) {
+					const sock = getSocketFromFD(socketd);
+					if (!sock) {
+						wakeUp(0);
 						return;
 					}
-				}
-				const webSockets = PHPWASM.getAllWebSockets(sock);
-				if (!webSockets.length) {
-					wakeUp(0);
+					const lookingFor = new Set();
+					if (events & POLLIN || events & POLLPRI) {
+						if (sock.server) {
+							for (const client of sock.pending) {
+								if ((client.recv_queue || []).length > 0) {
+									wakeUp(1);
+									return;
+								}
+							}
+						} else if ((sock.recv_queue || []).length > 0) {
+							wakeUp(1);
+							return;
+						}
+					}
+					const webSockets = PHPWASM.getAllWebSockets(sock);
+					if (!webSockets.length) {
+						wakeUp(0);
+						return;
+					}
+					for (const ws of webSockets) {
+						if (events & POLLIN || events & POLLPRI) {
+							polls.push(PHPWASM.awaitData(ws));
+							lookingFor.add('POLLIN');
+						}
+						if (events & POLLOUT) {
+							polls.push(PHPWASM.awaitConnection(ws));
+							lookingFor.add('POLLOUT');
+						}
+						if (
+							events & POLLHUP ||
+							events & POLLIN ||
+							events & POLLOUT ||
+							events & POLLERR
+						) {
+							polls.push(PHPWASM.awaitClose(ws));
+							lookingFor.add('POLLHUP');
+						}
+						if (events & POLLERR || events & POLLNVAL) {
+							polls.push(PHPWASM.awaitError(ws));
+							lookingFor.add('POLLERR');
+						}
+					}
+				} else if (stream?.stream_ops?.poll) {
+					let interrupted = false;
+					async function poll() {
+						try {
+							while (true) {
+								var mask = POLLNVAL;
+								mask = SYSCALLS.DEFAULT_POLLMASK;
+								if (stream.stream_ops?.poll) {
+									mask = stream.stream_ops.poll(stream, -1);
+								}
+								mask &= events | POLLERR | POLLHUP;
+								if (mask) {
+									return mask;
+								}
+								if (interrupted) {
+									return ERRNO_CODES.ETIMEDOUT;
+								}
+								await new Promise((resolve) =>
+									setTimeout(resolve, 10)
+								);
+							}
+						} catch (e) {
+							if (
+								typeof FS == 'undefined' ||
+								!(e.name === 'ErrnoError')
+							)
+								throw e;
+							return -e.errno;
+						}
+					}
+					polls.push([
+						poll(),
+						() => {
+							interrupted = true;
+						},
+					]);
+				} else {
+					setTimeout(function () {
+						wakeUp(1);
+					}, timeout);
 					return;
 				}
-				for (const ws of webSockets) {
-					if (events & POLLIN || events & POLLPRI) {
-						polls.push(PHPWASM.awaitData(ws));
-						lookingFor.add('POLLIN');
-					}
-					if (events & POLLOUT) {
-						polls.push(PHPWASM.awaitConnection(ws));
-						lookingFor.add('POLLOUT');
-					}
-					if (
-						events & POLLHUP ||
-						events & POLLIN ||
-						events & POLLOUT ||
-						events & POLLERR
-					) {
-						polls.push(PHPWASM.awaitClose(ws));
-						lookingFor.add('POLLHUP');
-					}
-					if (events & POLLERR || events & POLLNVAL) {
-						polls.push(PHPWASM.awaitError(ws));
-						lookingFor.add('POLLERR');
-					}
+				if (polls.length === 0) {
+					console.warn(
+						'Unsupported poll event ' +
+							events +
+							', defaulting to setTimeout().'
+					);
+					setTimeout(function () {
+						wakeUp(0);
+					}, timeout);
+					return;
 				}
-			} else if (stream?.stream_ops?.poll) {
-				let interrupted = false;
-				async function poll() {
-					try {
-						while (true) {
-							var mask = POLLNVAL;
-							mask = SYSCALLS.DEFAULT_POLLMASK;
-							if (stream.stream_ops?.poll) {
-								mask = stream.stream_ops.poll(stream, -1);
-							}
-							mask &= events | POLLERR | POLLHUP;
-							if (mask) {
-								return mask;
-							}
-							if (interrupted) {
-								return ERRNO_CODES.ETIMEDOUT;
-							}
-							await new Promise((resolve) =>
-								setTimeout(resolve, 10)
-							);
-						}
-					} catch (e) {
-						if (
-							typeof FS == 'undefined' ||
-							!(e.name === 'ErrnoError')
-						)
-							throw e;
-						return -e.errno;
-					}
-				}
-				polls.push([
-					poll(),
-					() => {
-						interrupted = true;
-					},
-				]);
-			} else {
-				setTimeout(function () {
-					wakeUp(1);
-				}, timeout);
-				return;
-			}
-			if (polls.length === 0) {
-				console.warn(
-					'Unsupported poll event ' +
-						events +
-						', defaulting to setTimeout().'
-				);
-				setTimeout(function () {
-					wakeUp(0);
-				}, timeout);
-				return;
-			}
-			const promises = polls.map(([promise]) => promise);
-			const clearPolling = () => polls.forEach(([, clear]) => clear());
-			let awaken = false;
-			let timeoutId;
-			Promise.race(promises).then(function (results) {
-				if (!awaken) {
-					awaken = true;
-					wakeUp(1);
-					if (timeoutId) {
-						clearTimeout(timeoutId);
-					}
-					clearPolling();
-				}
-			});
-			if (timeout !== -1) {
-				timeoutId = setTimeout(function () {
+				const promises = polls.map(([promise]) => promise);
+				const clearPolling = () =>
+					polls.forEach(([, clear]) => clear());
+				let awaken = false;
+				let timeoutId;
+				Promise.race(promises).then(function (results) {
 					if (!awaken) {
 						awaken = true;
-						wakeUp(0);
+						wakeUp(1);
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+						}
 						clearPolling();
 					}
-				}, timeout);
-			}
+				});
+				if (timeout !== -1) {
+					timeoutId = setTimeout(function () {
+						if (!awaken) {
+							awaken = true;
+							wakeUp(0);
+							clearPolling();
+						}
+					}, timeout);
+				}
+			});
 		});
 	}
-	wasm_poll_socket.sig = 'iiii';
+	__asyncjs__wasm_poll_socket.sig = 'iiii';
 	function js_fd_read(fd, iov, iovcnt, pnum) {
 		const returnCallback = (resolver) => new Promise(resolver);
 		const pollAsync = arguments[4] === undefined ? true : !!arguments[4];
@@ -32005,6 +32003,8 @@ export function init(RuntimeName, PHPLoader) {
 		__asyncjs__js_module_onMessage,
 		/** @export */
 		__asyncjs__js_popen_to_file,
+		/** @export */
+		__asyncjs__wasm_poll_socket,
 		/** @export */
 		__c_longjmp: ___c_longjmp,
 		/** @export */
@@ -34064,8 +34064,6 @@ export function init(RuntimeName, PHPLoader) {
 		uuid_variant: _uuid_variant,
 		/** @export */
 		wasm_close: _wasm_close,
-		/** @export */
-		wasm_poll_socket,
 		/** @export */
 		wasm_recv: _wasm_recv,
 		/** @export */

@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_2_10', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31311841;
+export const dependenciesTotalSize = 31311784;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13258720;
+	var ___heap_base = 13258656;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13258720;
+	var ___stack_high = 13258656;
 
-	var ___stack_low = 13193184;
+	var ___stack_low = 13193120;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13258720
+		13258656
 	);
 
 	var PATH = {
@@ -6885,7 +6885,14 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	var _fd_close = function fd_close(fd) {
+	function _fd_close(fd) {
+		// For some reason, with JSPI, returning a promise here for the
+		// initial php.ini read causes a zend_mm_heap corruption.
+		// @TODO: Figure this out before merging
+		if (!PHPWASM.isFirstFdClose) {
+			PHPWASM.isFirstFdClose = true;
+			return _builtin_fd_close(fd);
+		}
 		return Asyncify.handleAsync(async () => {
 			const [vfsPath, pathResolutionErrno] =
 				locking.get_vfs_path_from_fd(fd);
@@ -6920,7 +6927,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return result;
 		});
-	};
+	}
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -17649,10 +17656,6 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[iov >> 2] = buffer; // iov_base
 				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
-				if (typeof js_fd_read === 'undefined') {
-					globalThis.js_fd_read = __asyncjs__js_fd_read;
-				}
-
 				function pump() {
 					try {
 						while (true) {
@@ -18238,7 +18241,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(js_open_process|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|invoke_.*|__asyncjs__.*)$/;
+				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|fd_close|invoke_.*|__asyncjs__.*)$/;
 
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
@@ -18255,7 +18258,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 		instrumentWasmExports(exports) {
 			var exportPattern =
-				/^(wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|main|__main_argc_argv)$/;
+				/^(php_wasm_init|fd_close|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|main|__main_argc_argv)$/;
 			Asyncify.asyncExports = new Set();
 			var ret = {};
 			for (let [x, original] of Object.entries(exports)) {
@@ -31260,13 +31263,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12264837: ($0) => {
+		12264791: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12264885: ($0) => {
+		12264839: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31468,87 +31471,79 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	}
 	__asyncjs__wasm_poll_socket.sig = 'iiii';
-	function __asyncjs__js_fd_read(fd, iov, iovcnt, pnum) {
-		return Asyncify.handleAsync(async () => {
-			const returnCallback = (resolver) => new Promise(resolver);
-			const pollAsync =
-				arguments[4] === undefined ? true : !!arguments[4];
-			if (
-				Asyncify?.State?.Normal === undefined ||
-				Asyncify?.state === Asyncify?.State?.Normal
-			) {
+	function js_fd_read(fd, iov, iovcnt, pnum) {
+		const returnCallback = (resolver) => new Promise(resolver);
+		const pollAsync = arguments[4] === undefined ? true : !!arguments[4];
+		if (
+			Asyncify?.State?.Normal === undefined ||
+			Asyncify?.state === Asyncify?.State?.Normal
+		) {
+			var stream;
+			try {
+				stream = SYSCALLS.getStreamFromFD(fd);
+				HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
+				return 0;
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					throw e;
+				}
+				if (
+					e.errno !== ERRNO_CODES.EWOULDBLOCK &&
+					e.errno !== ERRNO_CODES.EAGAIN
+				) {
+					return e.errno;
+				}
+				const nonBlocking = stream.flags & PHPWASM.O_NONBLOCK;
+				if (nonBlocking) {
+					return e.errno;
+				}
+			}
+		}
+		if (false === pollAsync) {
+			return ERRNO_CODES.EWOULDBLOCK;
+		}
+		return returnCallback(async (wakeUp) => {
+			var retries = 0;
+			var interval = 50;
+			var timeout = 5000;
+			var maxRetries = timeout / interval;
+			while (true) {
+				var returnCode;
 				var stream;
+				let num;
 				try {
 					stream = SYSCALLS.getStreamFromFD(fd);
-					HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
-					return 0;
+					num = doReadv(stream, iov, iovcnt);
+					returnCode = 0;
 				} catch (e) {
 					if (
 						typeof FS == 'undefined' ||
 						!(e.name === 'ErrnoError')
 					) {
+						console.error(e);
 						throw e;
 					}
-					if (
-						e.errno !== ERRNO_CODES.EWOULDBLOCK &&
-						e.errno !== ERRNO_CODES.EAGAIN
-					) {
-						return e.errno;
-					}
-					const nonBlocking = stream.flags & PHPWASM.O_NONBLOCK;
-					if (nonBlocking) {
-						return e.errno;
-					}
+					returnCode = e.errno;
 				}
-			}
-			if (false === pollAsync) {
-				return ERRNO_CODES.EWOULDBLOCK;
-			}
-			return returnCallback(async (wakeUp) => {
-				var retries = 0;
-				var interval = 50;
-				var timeout = 5000;
-				var maxRetries = timeout / interval;
-				while (true) {
-					var returnCode;
-					var stream;
-					let num;
-					try {
-						stream = SYSCALLS.getStreamFromFD(fd);
-						num = doReadv(stream, iov, iovcnt);
-						returnCode = 0;
-					} catch (e) {
-						if (
-							typeof FS == 'undefined' ||
-							!(e.name === 'ErrnoError')
-						) {
-							console.error(e);
-							throw e;
-						}
-						returnCode = e.errno;
-					}
-					if (returnCode === 0) {
-						HEAPU32[pnum >> 2] = num;
-						return wakeUp(0);
-					}
-					if (
-						++retries > maxRetries ||
-						!stream ||
-						FS.isClosed(stream) ||
-						returnCode !== ERRNO_CODES.EWOULDBLOCK ||
-						('pipe' in stream.node && stream.node.pipe.refcnt < 2)
-					) {
-						HEAPU32[pnum >> 2] = num;
-						return wakeUp(returnCode);
-					}
-					await new Promise((resolve) =>
-						setTimeout(resolve, interval)
-					);
+				if (returnCode === 0) {
+					HEAPU32[pnum >> 2] = num;
+					return wakeUp(0);
 				}
-			});
+				if (
+					++retries > maxRetries ||
+					!stream ||
+					FS.isClosed(stream) ||
+					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+					('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+				) {
+					HEAPU32[pnum >> 2] = num;
+					return wakeUp(returnCode);
+				}
+				await new Promise((resolve) => setTimeout(resolve, interval));
+			}
 		});
 	}
-	__asyncjs__js_fd_read.sig = 'iiiii';
+	js_fd_read.sig = 'iiiii';
 	function __asyncjs__js_module_onMessage(data, response_buffer) {
 		return Asyncify.handleAsync(async () => {
 			if (Module['onMessage']) {
@@ -32004,8 +31999,6 @@ export function init(RuntimeName, PHPLoader) {
 		__asctime_r: ___asctime_r,
 		/** @export */
 		__assert_fail: ___assert_fail,
-		/** @export */
-		__asyncjs__js_fd_read,
 		/** @export */
 		__asyncjs__js_module_onMessage,
 		/** @export */
@@ -33995,6 +33988,8 @@ export function init(RuntimeName, PHPLoader) {
 		glutSwapBuffers: _glutSwapBuffers,
 		/** @export */
 		glutTimerFunc: _glutTimerFunc,
+		/** @export */
+		js_fd_read,
 		/** @export */
 		js_flock: _js_flock,
 		/** @export */
