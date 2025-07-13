@@ -14,6 +14,11 @@ export { FSHelpers } from './fs-helpers';
 export type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 export { PHPWorker } from './php-worker';
 export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
+export {
+	printDebugDetails,
+	prettyPrintFullStackTrace,
+	printResponseDebugDetails,
+} from './error-reporting';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';
