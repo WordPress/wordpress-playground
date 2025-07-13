@@ -952,7 +952,7 @@ export class PHP implements Disposable {
 				 * turn exit code errors into integers again.
 				 */
 				if (isExitCode(e)) {
-					return e.exitCode ?? (e as any).status;
+					return e.status;
 				}
 
 				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
