@@ -206,128 +206,6 @@ const LibraryExample = {
 			}
 		},
 
-		/**
-		 * A utility function to get all websocket objects associated
-		 * with an Emscripten file descriptor.
-		 *
-		 * @param {int} socketd Socket descriptor
-		 * @returns WebSocket[]
-		 */
-		getAllWebSockets: function (sock) {
-			const webSockets = /* @__PURE__ */ new Set();
-			if (sock.server) {
-				sock.server.clients.forEach((ws) => {
-					webSockets.add(ws);
-				});
-			}
-			for (const peer of PHPWASM.getAllPeers(sock)) {
-				webSockets.add(peer.socket);
-			}
-			return Array.from(webSockets);
-		},
-
-		/**
-		 * A utility function to get all Emscripten Peer objects
-		 * associated with a given Emscripten file descriptor.
-		 *
-		 * @param {int} socketd Socket descriptor
-		 * @returns WebSocket[]
-		 */
-		getAllPeers: function (sock) {
-			const peers = new Set();
-			if (sock.server) {
-				sock.pending
-					.filter((pending) => pending.peers)
-					.forEach((pending) => {
-						for (const peer of Object.values(pending.peers)) {
-							peers.add(peer);
-						}
-					});
-			}
-			if (sock.peers) {
-				for (const peer of Object.values(sock.peers)) {
-					peers.add(peer);
-				}
-			}
-			return Array.from(peers);
-		},
-
-		/**
-		 * Waits for inbound data on a websocket.
-		 *
-		 * @param {WebSocket} ws Websocket object
-		 * @returns {[Promise, function]} A promise and a function to cancel the promise
-		 */
-		awaitData: function (ws) {
-			return PHPWASM.awaitEvent(ws, 'message');
-		},
-
-		/**
-		 * Waits for opening a websocket connection.
-		 *
-		 * @param {WebSocket} ws Websocket object
-		 * @returns {[Promise, function]} A promise and a function to cancel the promise
-		 */
-		awaitConnection: function (ws) {
-			if (ws.OPEN === ws.readyState) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'open');
-		},
-
-		/**
-		 * Waits for closing a websocket connection.
-		 *
-		 * @param {WebSocket} ws Websocket object
-		 * @returns {[Promise, function]} A promise and a function to cancel the promise
-		 */
-		awaitClose: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'close');
-		},
-
-		/**
-		 * Waits for an error on a websocket connection.
-		 *
-		 * @param {WebSocket} ws Websocket object
-		 * @returns {[Promise, function]} A promise and a function to cancel the promise
-		 */
-		awaitError: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'error');
-		},
-
-		/**
-		 * Waits for an event.
-		 *
-		 * @param {EventEmitter} emitter Event emitter object
-		 * @param {string} event The event to wait for.
-		 * @returns {[Promise, function]} A promise and a function to cancel the promise
-		 */
-		awaitEvent: function (ws, event) {
-			let resolve;
-			const listener = () => {
-				resolve();
-			};
-			const promise = new Promise(function (_resolve) {
-				resolve = _resolve;
-				ws.once(event, listener);
-			});
-			const cancel = () => {
-				ws.removeListener(event, listener);
-				// Rejecting the promises bubbles up and kills the entire
-				// node process. Let's resolve them on the next tick instead
-				// to give the caller some space to unbind any handlers.
-				setTimeout(resolve);
-			};
-			return [promise, cancel];
-		},
-		noop: function () {},
-
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawnedPromise = Module['spawnProcess'](
@@ -864,7 +742,7 @@ const LibraryExample = {
 			);
 			return -1;
 		}
-		const ws = PHPWASM.getAllWebSockets(socketd)[0];
+		const ws = Object.values(socketd?.peers || {})[0];
 		if (!ws) {
 			return -1;
 		}

@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29141120;
+export const dependenciesTotalSize = 29139883;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12030304;
+	var ___heap_base = 12029088;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12030304;
+	var ___stack_high = 12029088;
 
-	var ___stack_low = 11964768;
+	var ___stack_low = 11963552;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12030304
+		12029088
 	);
 
 	var PATH = {
@@ -6753,76 +6753,6 @@ export function init(RuntimeName, PHPLoader) {
 				console.warn('stderr', { chunk });
 			}
 		},
-		getAllWebSockets: function (sock) {
-			const webSockets = /* @__PURE__ */ new Set();
-			if (sock.server) {
-				sock.server.clients.forEach((ws) => {
-					webSockets.add(ws);
-				});
-			}
-			for (const peer of PHPWASM.getAllPeers(sock)) {
-				webSockets.add(peer.socket);
-			}
-			return Array.from(webSockets);
-		},
-		getAllPeers: function (sock) {
-			const peers = new Set();
-			if (sock.server) {
-				sock.pending
-					.filter((pending) => pending.peers)
-					.forEach((pending) => {
-						for (const peer of Object.values(pending.peers)) {
-							peers.add(peer);
-						}
-					});
-			}
-			if (sock.peers) {
-				for (const peer of Object.values(sock.peers)) {
-					peers.add(peer);
-				}
-			}
-			return Array.from(peers);
-		},
-		awaitData: function (ws) {
-			return PHPWASM.awaitEvent(ws, 'message');
-		},
-		awaitConnection: function (ws) {
-			if (ws.OPEN === ws.readyState) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'open');
-		},
-		awaitClose: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'close');
-		},
-		awaitError: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'error');
-		},
-		awaitEvent: function (ws, event) {
-			let resolve;
-			const listener = () => {
-				resolve();
-			};
-			const promise = new Promise(function (_resolve) {
-				resolve = _resolve;
-				ws.once(event, listener);
-			});
-			const cancel = () => {
-				ws.removeListener(event, listener);
-				// Rejecting the promises bubbles up and kills the entire
-				// node process. Let's resolve them on the next tick instead
-				// to give the caller some space to unbind any handlers.
-				setTimeout(resolve);
-			};
-			return [promise, cancel];
-		},
-		noop: function () {},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
 				const spawnedPromise = Module['spawnProcess'](
@@ -6885,7 +6815,7 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function _fd_close(fd) {
+	var _fd_close = function fd_close(fd) {
 		return Asyncify.handleAsync(async () => {
 			const [vfsPath, pathResolutionErrno] =
 				locking.get_vfs_path_from_fd(fd);
@@ -6920,7 +6850,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return result;
 		});
-	}
+	};
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -18203,7 +18133,7 @@ export function init(RuntimeName, PHPLoader) {
 			);
 			return -1;
 		}
-		const ws = PHPWASM.getAllWebSockets(socketd)[0];
+		const ws = Object.values(socketd?.peers || {})[0];
 		if (!ws) {
 			return -1;
 		}
@@ -31256,13 +31186,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11105127: ($0) => {
+		11103890: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11105175: ($0) => {
+		11103938: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31372,7 +31302,6 @@ export function init(RuntimeName, PHPLoader) {
 				const clearPolling = () => {
 					interrupted = true;
 				};
-
 				let awaken = false;
 				let timeoutId;
 				pollPromise.then(function (results) {

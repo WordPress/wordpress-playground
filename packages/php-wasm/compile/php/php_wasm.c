@@ -172,8 +172,6 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 		 *        network sockets.
          */
 		const stream = FS.getStream(socketd);
-		
-		const stream = FS.getStream(socketd);
 		if (!stream?.stream_ops?.poll) {
 			wakeUp(-ERRNO_CODES.EINVAL);
 			return;
