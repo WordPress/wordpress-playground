@@ -159,9 +159,6 @@ export async function loadPHPRuntime(
 
 	const id = ++lastRuntimeId;
 
-	// TODO: Ask @adamziel why this is here.
-	// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- why is this here?
-	PHPRuntime.FS;
 	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
