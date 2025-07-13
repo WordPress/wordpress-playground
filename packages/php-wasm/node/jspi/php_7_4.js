@@ -31335,113 +31335,47 @@ export function init(RuntimeName, PHPLoader) {
 			return returnCallback((wakeUp) => {
 				const polls = [];
 				const stream = FS.getStream(socketd);
-				if (FS.isSocket(stream?.node.mode)) {
-					const sock = getSocketFromFD(socketd);
-					if (!sock) {
-						wakeUp(0);
-						return;
-					}
-					const lookingFor = new Set();
-					if (events & POLLIN || events & POLLPRI) {
-						if (sock.server) {
-							for (const client of sock.pending) {
-								if ((client.recv_queue || []).length > 0) {
-									wakeUp(1);
-									return;
-								}
+				if (!stream?.stream_ops?.poll) {
+					wakeUp(-ERRNO_CODES.EINVAL);
+					return;
+				}
+				let interrupted = false;
+				async function poll() {
+					try {
+						while (true) {
+							var mask = POLLNVAL;
+							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (stream.stream_ops?.poll) {
+								mask = stream.stream_ops.poll(stream, -1);
 							}
-						} else if ((sock.recv_queue || []).length > 0) {
-							wakeUp(1);
-							return;
+							mask &= events | POLLERR | POLLHUP;
+							if (mask) {
+								return mask;
+							}
+							if (interrupted) {
+								return ERRNO_CODES.ETIMEDOUT;
+							}
+							await new Promise((resolve) =>
+								setTimeout(resolve, 10)
+							);
 						}
-					}
-					const webSockets = PHPWASM.getAllWebSockets(sock);
-					if (!webSockets.length) {
-						wakeUp(0);
-						return;
-					}
-					for (const ws of webSockets) {
-						if (events & POLLIN || events & POLLPRI) {
-							polls.push(PHPWASM.awaitData(ws));
-							lookingFor.add('POLLIN');
-						}
-						if (events & POLLOUT) {
-							polls.push(PHPWASM.awaitConnection(ws));
-							lookingFor.add('POLLOUT');
-						}
+					} catch (e) {
 						if (
-							events & POLLHUP ||
-							events & POLLIN ||
-							events & POLLOUT ||
-							events & POLLERR
-						) {
-							polls.push(PHPWASM.awaitClose(ws));
-							lookingFor.add('POLLHUP');
-						}
-						if (events & POLLERR || events & POLLNVAL) {
-							polls.push(PHPWASM.awaitError(ws));
-							lookingFor.add('POLLERR');
-						}
+							typeof FS == 'undefined' ||
+							!(e.name === 'ErrnoError')
+						)
+							throw e;
+						return -e.errno;
 					}
-				} else if (stream?.stream_ops?.poll) {
-					let interrupted = false;
-					async function poll() {
-						try {
-							while (true) {
-								var mask = POLLNVAL;
-								mask = SYSCALLS.DEFAULT_POLLMASK;
-								if (stream.stream_ops?.poll) {
-									mask = stream.stream_ops.poll(stream, -1);
-								}
-								mask &= events | POLLERR | POLLHUP;
-								if (mask) {
-									return mask;
-								}
-								if (interrupted) {
-									return ERRNO_CODES.ETIMEDOUT;
-								}
-								await new Promise((resolve) =>
-									setTimeout(resolve, 10)
-								);
-							}
-						} catch (e) {
-							if (
-								typeof FS == 'undefined' ||
-								!(e.name === 'ErrnoError')
-							)
-								throw e;
-							return -e.errno;
-						}
-					}
-					polls.push([
-						poll(),
-						() => {
-							interrupted = true;
-						},
-					]);
-				} else {
-					setTimeout(function () {
-						wakeUp(1);
-					}, timeout);
-					return;
 				}
-				if (polls.length === 0) {
-					console.warn(
-						'Unsupported poll event ' +
-							events +
-							', defaulting to setTimeout().'
-					);
-					setTimeout(function () {
-						wakeUp(0);
-					}, timeout);
-					return;
-				}
-				const promises = polls.map(([promise]) => promise);
-				const clearPolling = () =>
-					polls.forEach(([, clear]) => clear());
+				const pollPromise = poll();
+				const clearPolling = () => {
+					interrupted = true;
+				};
+
 				let awaken = false;
 				let timeoutId;
-				Promise.race(promises).then(function (results) {
+				pollPromise.then(function (results) {
 					if (!awaken) {
 						awaken = true;
 						wakeUp(1);

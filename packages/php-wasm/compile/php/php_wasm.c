@@ -172,135 +172,71 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 		 *        network sockets.
          */
 		const stream = FS.getStream(socketd);
-        if (FS.isSocket(stream?.node.mode)) {
-            // This is, most likely, a websocket. Let's make sure.
-            const sock = getSocketFromFD(socketd);
-            if (!sock) {
-                wakeUp(0);
-                return;
-            }
-            const lookingFor = new Set();
-
-            if (events & POLLIN || events & POLLPRI) {
-                if (sock.server) {
-                    for (const client of sock.pending) {
-                        if ((client.recv_queue || []).length > 0) {
-                            wakeUp(1);
-                            return;
-                        }
-                    }
-                } else if ((sock.recv_queue || []).length > 0) {
-                    wakeUp(1);
-                    return;
-                }
-            }
-
-            const webSockets = PHPWASM.getAllWebSockets(sock);
-            if (!webSockets.length) {
-                wakeUp(0);
-                return;
-            }
-            for (const ws of webSockets) {
-				if (events & POLLIN || events & POLLPRI) {
-					polls.push(PHPWASM.awaitData(ws));
-					lookingFor.add('POLLIN');
-				}
-				if (events & POLLOUT) {
-					polls.push(PHPWASM.awaitConnection(ws));
-					lookingFor.add('POLLOUT');
-				}
-				// Notify the user the socket is now closed even if the only requested
-				// in or out events.
-				if (
-					events & POLLHUP ||
-					events & POLLIN ||
-					events & POLLOUT ||
-					events & POLLERR
-				) {
-					polls.push(PHPWASM.awaitClose(ws));
-					lookingFor.add('POLLHUP');
-				}
-				if (events & POLLERR || events & POLLNVAL) {
-					polls.push(PHPWASM.awaitError(ws));
-					lookingFor.add('POLLERR');
-				}
-            }
-		} else if (stream?.stream_ops?.poll) {
-			// Poll the stream for data.
-			// @TODO: Consider reusing the polling implementation in js_fd_read().
-			let interrupted = false;
-			async function poll() {
-				try {
-					// Inlined ___syscall_poll with added await support:
-					while (true) {
-						var mask = POLLNVAL;
-						mask = SYSCALLS.DEFAULT_POLLMASK;
-						if (stream.stream_ops?.poll) {
-							mask = stream.stream_ops.poll(stream, -1);
-						}
-						
-						mask &= events | POLLERR | POLLHUP;
-						if (mask) {
-							return mask;
-						}
-						if (interrupted) {
-							return ERRNO_CODES.ETIMEDOUT;
-						}
-						await new Promise(resolve => setTimeout(resolve, 10));
-					}
-				} catch (e) {
-					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-					return -e.errno;
-				}
-			}
-			polls.push([
-				poll(),
-				() => {
-					interrupted = true;
-				}
-			]);
-        } else {
-			setTimeout(function () {
-				wakeUp(1);
-			}, timeout);
+		
+		const stream = FS.getStream(socketd);
+		if (!stream?.stream_ops?.poll) {
+			wakeUp(-ERRNO_CODES.EINVAL);
 			return;
-        }
-        if (polls.length === 0) {
-            console.warn(
-                'Unsupported poll event ' +
-                    events +
-                    ', defaulting to setTimeout().'
-            );
-            setTimeout(function () {
-                wakeUp(0);
-            }, timeout);
-            return;
-        }
+		}
+		// Poll the stream for data.
+		// @TODO: Consider reusing the polling implementation in js_fd_read().
+		let interrupted = false;
+		async function poll() {
+			// Inlined ___syscall_poll with added await support:
+			try {
+				while (true) {
+					var mask = POLLNVAL;
+					mask = SYSCALLS.DEFAULT_POLLMASK;
+					if (stream.stream_ops?.poll) {
+						mask = stream.stream_ops.poll(stream, -1);
+					}
+					mask &= events | POLLERR | POLLHUP;
+					if (mask) {
+						return mask;
+					}
+					if (interrupted) {
+						return ERRNO_CODES.ETIMEDOUT;
+					}
+					await new Promise((resolve) =>
+						setTimeout(resolve, 10)
+					);
+				}
+			} catch (e) {
+				if (
+					typeof FS == 'undefined' ||
+					!(e.name === 'ErrnoError')
+				)
+					throw e;
+				return -e.errno;
+			}
+		}
+		const pollPromise = poll();
+		const clearPolling = () => {
+			interrupted = true;
+		};
 
-        const promises = polls.map(([promise]) => promise);
-        const clearPolling = () => polls.forEach(([, clear]) => clear());
-        let awaken = false;
-        let timeoutId;
-        Promise.race(promises).then(function (results) {
-            if (!awaken) {
-                awaken = true;
-                wakeUp(1);
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-                clearPolling();
-            }
-        });
-
-        if (timeout !== -1) {
-            timeoutId = setTimeout(function () {
-                if (!awaken) {
-                    awaken = true;
-                    wakeUp(0);
-                    clearPolling();
-                }
-            }, timeout);
-        }
+		let awaken = false;
+		let timeoutId;
+		pollPromise.then(function (results) {
+			if (!awaken) {
+				awaken = true;
+				wakeUp(1);
+				if (timeoutId) {
+					clearTimeout(timeoutId);
+				}
+				clearPolling();
+			}
+		});
+		// Try up to a timeout
+		if (timeout !== -1) {
+			timeoutId = setTimeout(function () {
+				if (!awaken) {
+					awaken = true;
+					wakeUp(0);
+					clearPolling();
+				}
+			}, timeout);
+		}
     });
 });
 
