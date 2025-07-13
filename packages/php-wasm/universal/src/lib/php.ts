@@ -539,70 +539,75 @@ export class PHP implements Disposable {
 		 */
 		const release = await this.semaphore.acquire();
 		let heapBodyPointer: number | undefined;
-		const streamedResponsePromise = this.#executeWithErrorHandling(() => {
-			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
-				this.#webSapiInitialized = true;
-			}
-			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
-				throw new Error(
-					`The script path "${request.scriptPath}" does not exist.`
+		const streamedResponsePromise = this.#executeWithErrorHandling(
+			async () => {
+				if (!this.#webSapiInitialized) {
+					await this.#initWebRuntime();
+					this.#webSapiInitialized = true;
+				}
+				if (
+					request.scriptPath &&
+					!this.fileExists(request.scriptPath)
+				) {
+					throw new Error(
+						`The script path "${request.scriptPath}" does not exist.`
+					);
+				}
+				this.#setRelativeRequestUri(request.relativeUri || '');
+				this.#setRequestMethod(request.method || 'GET');
+				const requestHeaders = normalizeHeaders(request.headers || {});
+				const host = requestHeaders['host'] || 'example.com:443';
+
+				const port = this.#inferPortFromHostAndProtocol(
+					host,
+					request.protocol || 'http'
+				);
+				this.#setRequestHost(host);
+				this.#setRequestPort(port);
+				this.#setRequestHeaders(requestHeaders);
+				if (request.body) {
+					heapBodyPointer = this.#setRequestBody(request.body);
+				}
+				if (typeof request.code === 'string') {
+					this.writeFile('/internal/eval.php', request.code);
+					this.#setScriptPath('/internal/eval.php');
+				} else if (typeof request.scriptPath === 'string') {
+					this.#setScriptPath(request.scriptPath || '');
+				} else {
+					throw new TypeError(
+						'The request object must have either a `code` or a ' +
+							'`scriptPath` property.'
+					);
+				}
+
+				const $_SERVER = this.#prepareServerEntries(
+					request.$_SERVER,
+					requestHeaders,
+					port
+				);
+				for (const key in $_SERVER) {
+					this.#setServerGlobalEntry(key, $_SERVER[key]);
+				}
+
+				const env = request.env || {};
+				for (const key in env) {
+					this.#setEnv(key, env[key]);
+				}
+
+				if (!this.#webSapiInitialized) {
+					await this.#initWebRuntime();
+					this.#webSapiInitialized = true;
+				}
+
+				return await this[__private__dont__use].ccall(
+					'wasm_sapi_handle_request',
+					NUMBER,
+					[],
+					[],
+					{ async: true }
 				);
 			}
-			this.#setRelativeRequestUri(request.relativeUri || '');
-			this.#setRequestMethod(request.method || 'GET');
-			const requestHeaders = normalizeHeaders(request.headers || {});
-			const host = requestHeaders['host'] || 'example.com:443';
-
-			const port = this.#inferPortFromHostAndProtocol(
-				host,
-				request.protocol || 'http'
-			);
-			this.#setRequestHost(host);
-			this.#setRequestPort(port);
-			this.#setRequestHeaders(requestHeaders);
-			if (request.body) {
-				heapBodyPointer = this.#setRequestBody(request.body);
-			}
-			if (typeof request.code === 'string') {
-				this.writeFile('/internal/eval.php', request.code);
-				this.#setScriptPath('/internal/eval.php');
-			} else if (typeof request.scriptPath === 'string') {
-				this.#setScriptPath(request.scriptPath || '');
-			} else {
-				throw new TypeError(
-					'The request object must have either a `code` or a ' +
-						'`scriptPath` property.'
-				);
-			}
-
-			const $_SERVER = this.#prepareServerEntries(
-				request.$_SERVER,
-				requestHeaders,
-				port
-			);
-			for (const key in $_SERVER) {
-				this.#setServerGlobalEntry(key, $_SERVER[key]);
-			}
-
-			const env = request.env || {};
-			for (const key in env) {
-				this.#setEnv(key, env[key]);
-			}
-
-			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
-				this.#webSapiInitialized = true;
-			}
-
-			return this[__private__dont__use].ccall(
-				'wasm_sapi_handle_request',
-				NUMBER,
-				[],
-				[],
-				{ async: true }
-			);
-		});
+		);
 
 		// Free up resources when the response is done
 		await streamedResponsePromise
@@ -662,8 +667,10 @@ export class PHP implements Disposable {
 		return $_SERVER;
 	}
 
-	#initWebRuntime() {
-		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
+	async #initWebRuntime() {
+		await this[__private__dont__use].ccall('php_wasm_init', null, [], [], {
+			async: true,
+		});
 	}
 
 	#setRelativeRequestUri(uri: string) {
