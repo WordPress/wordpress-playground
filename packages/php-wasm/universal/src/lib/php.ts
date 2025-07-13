@@ -547,9 +547,9 @@ export class PHP implements Disposable {
 		 */
 		const release = await this.semaphore.acquire();
 		let heapBodyPointer: number | undefined;
-		const streamedResponsePromise = this.#executeWithErrorHandling(() => {
+		const streamedResponsePromise = this.#executeWithErrorHandling(async () => {
 			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
+				await this.#initWebRuntime();
 				this.#webSapiInitialized = true;
 			}
 			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
@@ -598,12 +598,7 @@ export class PHP implements Disposable {
 				this.#setEnv(key, env[key]);
 			}
 
-			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
-				this.#webSapiInitialized = true;
-			}
-
-			return this[__private__dont__use].ccall(
+			return await this[__private__dont__use].ccall(
 				'wasm_sapi_handle_request',
 				NUMBER,
 				[],
@@ -682,7 +677,7 @@ export class PHP implements Disposable {
 	}
 
 	#initWebRuntime() {
-		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
+		return this[__private__dont__use].ccall('php_wasm_init', null, [], [], { isAsync: true });
 	}
 
 	#setRelativeRequestUri(uri: string) {
