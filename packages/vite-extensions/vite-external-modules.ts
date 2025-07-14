@@ -3,6 +3,7 @@ import packageJson from '../../package.json';
 const deps = [
 	...Object.keys(packageJson.dependencies || {}),
 	...Object.keys(packageJson.devDependencies || {}),
+	...Object.keys(packageJson.optionalDependencies || {}),
 ];
 export const getExternalModules = () => {
 	return [
@@ -13,7 +14,6 @@ export const getExternalModules = () => {
 		'net',
 		'fs',
 		'fs/promises',
-		'fs-ext',
 		'node:fs',
 		'node:fs/promises',
 		'fs-extra',
