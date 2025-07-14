@@ -35,6 +35,18 @@ unsigned int wasm_sleep(unsigned int time)
 	return time;
 }
 
+/**
+ * Shims usleep(3) functionallity.
+ */
+EMSCRIPTEN_KEEPALIVE unsigned int __wrap_usleep(unsigned int time_microseconds)
+{
+	// We don't have access to microsecond granularity in JavaScript so let's
+	// settle for milliseconds.
+	int time_milliseconds = time_microseconds / 1000;
+	emscripten_sleep(time_milliseconds);
+	return time_microseconds;
+}
+
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
 static int redirect_stream_to_file(FILE *stream, char *file_path);
@@ -151,11 +163,16 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
     return returnCallback((wakeUp) => {
         const polls = [];
         /**
-         * Check for socket-ness first. We don't clean up child_proc_by_fd yet and
-         * sometimes get duplicate entries. isSocket is more reliable out of the two –
-         * let's check for it first.
+		 * Special semantics for polling sockets.
+		 *
+		 * @TODO: Remove this code branch entirely and poll sockets using the second if/else
+		 *        branch below. The only reason this wasn't done yet is that the original PR
+		 *        was focusing on removing child process-related special casing and did not
+		 *        want to increase the risk of breaking other code, especially around listening
+		 *        network sockets.
          */
-        if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+		const stream = FS.getStream(socketd);
+        if (FS.isSocket(stream?.node.mode)) {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {
@@ -208,14 +225,40 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 					lookingFor.add('POLLERR');
 				}
             }
-        } else if (socketd in PHPWASM.child_proc_by_fd) {
-            // This is a child process-related socket.
-            const procInfo = PHPWASM.child_proc_by_fd[socketd];
-            if (procInfo.exited) {
-                wakeUp(0);
-                return;
-            }
-            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+		} else if (stream?.stream_ops?.poll) {
+			// Poll the stream for data.
+			// @TODO: Consider reusing the polling implementation in js_fd_read().
+			let interrupted = false;
+			async function poll() {
+				try {
+					// Inlined ___syscall_poll with added await support:
+					while (true) {
+						var mask = POLLNVAL;
+						mask = SYSCALLS.DEFAULT_POLLMASK;
+						if (stream.stream_ops?.poll) {
+							mask = stream.stream_ops.poll(stream, -1);
+						}
+						
+						mask &= events | POLLERR | POLLHUP;
+						if (mask) {
+							return mask;
+						}
+						if (interrupted) {
+							return ERRNO_CODES.ETIMEDOUT;
+						}
+						await new Promise(resolve => setTimeout(resolve, 10));
+					}
+				} catch (e) {
+					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+					return -e.errno;
+				}
+			}
+			polls.push([
+				poll(),
+				() => {
+					interrupted = true;
+				}
+			]);
         } else {
 			setTimeout(function () {
 				wakeUp(1);
@@ -271,22 +314,20 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
  * @see https://github.com/WordPress/wordpress-playground/issues/951
  * @see https://github.com/emscripten-core/emscripten/issues/13214
  */
+EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 #ifdef PLAYGROUND_JSPI
-EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => new Promise(resolver);
 #else
-EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
+	const pollAsync = arguments[4] === undefined ? true : !!arguments[4];
 	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
-		var returnCode;
 		var stream;
-		let num = 0;
 		try
 		{
 			stream = SYSCALLS.getStreamFromFD(fd);
-			const num = doReadv(stream, iov, iovcnt);
-			HEAPU32[pnum >> 2] = num;
+			// How many bytes did we read?
+			HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
 			return 0;
 		}
 		catch (e)
@@ -296,26 +337,38 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 			{
 				throw e;
 			}
-			// Only return synchronously if this isn't an asynchronous pipe.
-			// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
-			// We also need to distinguish between a process pipe and a file pipe, otherwise
-			// reading from an empty file would block until the timeout.
-			if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd))
-			{
-				// On failure, yield 0 bytes read to indicate EOF.
-				HEAPU32[pnum >> 2] = 0;
-				return returnCode
+
+			// Propagate all errors except ones indicating that the stream is waiting for
+			// more data.
+			if (e.errno !== ERRNO_CODES.EWOULDBLOCK && e.errno !== ERRNO_CODES.EAGAIN) {
+				return e.errno;
 			}
+
+			// If the stream is non-blocking, we can return immediately.
+			const nonBlocking = stream.flags & PHPWASM.O_NONBLOCK;
+			if (nonBlocking) {
+				return e.errno;
+			}
+
+			// Otherwise, fallthrough to polling.
 		}
 	}
 
-    // At this point we know we have to poll.
-    // You might wonder why we duplicate the code here instead of always using
+	// Allow the caller to disable polling.
+	// @TODO: Check if we should even poll here, or is it up to the caller to decide
+	//        and call poll() on their own.
+	if (false === pollAsync) {
+		return ERRNO_CODES.EWOULDBLOCK;
+	}
+
+    // At this point we're certain we need to poll.
+	//
+    // You might wonder why we duplicate the code here instead of just reusing
     // Asyncify.handleSleep(). The reason is performance. Most of the time,
     // the read operation will work synchronously and won't require yielding
     // back to JS. In these cases we don't want to pay the Asyncify overhead,
     // save the stack, yield back to JS, restore the stack etc.
-    return returnCallback((wakeUp) => {
+    return returnCallback(async (wakeUp) => {
         var retries = 0;
         var interval = 50;
         var timeout = 5000;
@@ -324,7 +377,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
         // to, say, block the entire PHPUnit test suite without any visible
         // feedback.
         var maxRetries = timeout / interval;
-        function poll() {
+        while(true) {
             var returnCode;
             var stream;
             let num;
@@ -343,28 +396,30 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 returnCode = e.errno;
             }
 
-            const success = returnCode === 0;
-            const failure = (
-                ++retries > maxRetries ||
-                !(fd in PHPWASM.child_proc_by_fd) ||
-                PHPWASM.child_proc_by_fd[fd]?.exited ||
-                FS.isClosed(stream)
-            );
-
-            if (success) {
+            // read succeeded!
+            if (returnCode === 0) {
                 HEAPU32[pnum >> 2] = num;
-                wakeUp(0);
-            } else if (failure) {
-                // On failure, yield 0 bytes read to indicate EOF.
-                HEAPU32[pnum >> 2] = 0;
-                // If the failure is due to a timeout, return 0 to indicate that we
-                // reached EOF. Otherwise, propagate the error code.
-                wakeUp(returnCode === 6 ? 0 : returnCode);
-            } else {
-                setTimeout(poll, interval);
+                return wakeUp(0);
             }
+
+            if (
+                // Too many retries? That's an error, too!
+                ++retries > maxRetries ||
+                // Stream closed? That's an error.
+                !stream || FS.isClosed(stream) ||
+                // Error different than EWOULDBLOCK – propagate it to the caller.
+                returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+                // Broken pipe
+                ('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+            ) {
+                HEAPU32[pnum >> 2] = num;
+                return wakeUp(returnCode);
+            }
+            
+            // It's a blocking stream and we Blocking stream with no data available yet.
+            // Let's poll up to a timeout.
+            await new Promise(resolve => setTimeout(resolve, interval));
         }
-        poll();
     })
 });
 extern int __wasi_syscall_ret(__wasi_errno_t code);
@@ -447,15 +502,18 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 	}
 	else if (*mode == 'w')
 	{
-		int current_procopen_call_id = ++procopen_call_id;
-		char *device_path = js_create_input_device(current_procopen_call_id);
-		int stdin_childend = current_procopen_call_id;
-		fp = fopen(device_path, mode);
-
+		php_file_descriptor_t stdin_pipe[2];
 		php_file_descriptor_t stdout_pipe[2];
 		php_file_descriptor_t stderr_pipe[2];
-		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe))
+		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe) || 0 != pipe(stdin_pipe))
 		{
+			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
+			errno = EINVAL;
+			return 0;
+		}
+
+		fp = fdopen(stdin_pipe[1], "w");  // or "w", depending on direction
+		if (!fp) {
 			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
 			errno = EINVAL;
 			return 0;
@@ -466,8 +524,8 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		int *stderr = safe_emalloc(sizeof(int), 3, 0);
 
 		stdin[0] = 0;
-		stdin[1] = stdin_childend;
-		stdin[2] = (int) NULL;
+		stdin[1] = stdin_pipe[0];
+		stdin[2] = stdin_pipe[1];
 
 		stdout[0] = 1;
 		stdout[1] = stdout_pipe[0];
@@ -482,7 +540,6 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		descv[0] = stdin;
 		descv[1] = stdout;
 		descv[2] = stderr;
-
 
 		// the wasm way {{{
 		js_open_process(

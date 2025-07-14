@@ -33,7 +33,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja', 'pt-BR', 'tl'],
+		locales: ['en', 'es', 'fr', 'ja', 'pt-br', 'tl'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -51,7 +51,7 @@ const config = {
 				label: 'Japanese',
 				path: 'ja',
 			},
-			'pt-BR': {
+			'pt-br': {
 				label: 'Português (BR)',
 				path: 'pt-BR',
 			},
@@ -217,7 +217,7 @@ const config = {
 								href: 'https://github.com/WordPress/wordpress-playground',
 							},
 							{
-								label: '#meta-playground on Slack',
+								label: '#playground on Slack',
 								href: 'https://make.wordpress.org/chat',
 							},
 						],

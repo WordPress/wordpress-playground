@@ -80,7 +80,7 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 						throw e;
 					}
 
-					if (!isExitCode(e) || e.exitCode !== 0) {
+					if (!isExitCode(e) || e.status !== 0) {
 						showCriticalErrorBox(clearMessage);
 					}
 					throw e;

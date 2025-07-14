@@ -12,7 +12,8 @@ export {
 export { createSpawnHandler } from './create-spawn-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
-
+export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
+export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export * from './php-vars';
 
 export * from './sprintf';
@@ -30,5 +31,5 @@ export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 }
 
 export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b))).buffer;
+	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b))).buffer as ArrayBuffer;
 }
