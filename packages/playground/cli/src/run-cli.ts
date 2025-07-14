@@ -31,7 +31,11 @@ import path from 'path';
 import { Worker, MessageChannel } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { expandAutoMounts } from './cli-auto-mount';
+import {
+	expandAutoMounts,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mount';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -52,10 +56,6 @@ import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import {
-	parseMountDirArguments,
-	parseMountWithDelimiterArguments,
-} from './mount';
 import { ReportableError } from './reportable-error';
 import { resolveBlueprint } from './resolve-blueprint';
 
