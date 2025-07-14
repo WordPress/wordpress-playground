@@ -17,7 +17,7 @@ Via [Query Params](/developers/apis/query-api/) we can directly load in the Play
 
 From the Playground website, some toolbars are also available to customize your playground instance and provide quick access to some resources and utilities.
 
-![Playground Toolbar Snapshot](./_assets/toolbar-playground.webp)
+![Playground Toolbar Snapshot](@site/static/img/about/toolbar-playground.webp)
 
 ## Customize Playground
 
@@ -28,7 +28,7 @@ On the toolbar, you'll find:
 
 ### Playground Settings
 
-![snapshot of customize playground window at playground instance](./_assets/playground-settings-panel.webp)
+![snapshot of customize playground window at playground instance](@site/static/img/about/playground-settings-panel.webp)
 
 The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
 
@@ -40,17 +40,17 @@ The options available from the **Playground Settings Panel**, correspond to the 
 
 ## Playground Manager
 
-![Playground settings panel allow users to manage multiple instances](./_assets/playground-manager-panel.webp)
+![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
 
 This panel allows users to manage the Playground instances. it contains a list of saved Playgrounds, access to the current playground Settings, with a **Save Button** to store your examples on your browser, allowing you to reload it any time.
 
-![Save Playground Button](./_assets/playground-manager-save-instance.webp)
+![Save Playground Button](@site/static/img/about/playground-manager-save-instance.webp)
 
 Once you click on save, an instance will be stored with a generated name to be revisited anytime. The Playground Manager also has options to export(Additional actions menu) and import(Import actions menu) WordPress Playground instances:
 
 ### Additional actions menu
 
-![Additional actions Menu](./_assets/playground-manager-additional-actions.webp)
+![Additional actions Menu](@site/static/img/about/playground-manager-additional-actions.webp)
 
 -   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
 -   **Download as zip**: It creates a `.zip` with the setup of the Playground instance, including any themes or plugins installed. This `.zip` won't include content and database changes.
@@ -59,11 +59,11 @@ Once you click on save, an instance will be stored with a generated name to be r
 
 <span id="edit-the-blueprint"></span>
 
-[![snapshot of Builder mode of WordPress Playground](./_assets/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
+[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
 
 ### Import actions menu
 
-![Import actions Menu](./_assets/playground-manager-import-actions.webp)
+![Import actions Menu](@site/static/img/about/playground-manager-import-actions.webp)
 
 -   **Import from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option.
 -   **Preview a Gutenberg PR**: Allow testers run branches from the Gutenberg repository to test pull requests instantly.
