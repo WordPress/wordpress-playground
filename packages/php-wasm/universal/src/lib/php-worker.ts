@@ -254,6 +254,17 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		_private.get(this)!.php!.removeEventListener(eventType, listener);
 	}
 
+	/**
+	 * @internal
+	 * @deprecated
+	 * Do not use this method directly in the code consuming
+	 * the web API. It will change or even be removed without
+	 * a warning.
+	 */
+	protected __internal_getRequestHandler(): PHPRequestHandler {
+		return _private.get(this)!.requestHandler!;
+	}
+
 	async [Symbol.asyncDispose]() {
 		await _private.get(this)!.requestHandler?.[Symbol.asyncDispose]();
 	}

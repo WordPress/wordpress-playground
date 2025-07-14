@@ -665,7 +665,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					);
 					fs.writeFileSync(
 						preinstalledWpContentPath,
-						await zipDirectory(playground, '/wordpress')
+						(await zipDirectory(playground, '/wordpress'))!
 					);
 					logger.log(`Cached!`);
 				}
@@ -750,7 +750,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							// Replicate the Blueprint-initialized /internal directory
 							await additionalPlayground.writeFile(
 								'/tmp/internal.zip',
-								internalZip
+								internalZip!
 							);
 							await unzipFile(
 								additionalPlayground,
