@@ -30,36 +30,22 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/15)
+                    - name: test-unit-asyncify (1/8)
                       target: test
-                    - name: test-unit-asyncify (2/15)
-                      target: test-php
-                    - name: test-unit-asyncify (3/15)
-                      target: test-php-request-handler-files
-                    - name: test-unit-asyncify (4/15)
-                      target: test-php-request-handler-requests
-                    - name: test-unit-asyncify (5/15)
-                      target: test-php-asyncify-file-get-contents-http
-                    - name: test-unit-asyncify (6/15)
-                      target: test-php-asyncify-file-get-contents-https
-                    - name: test-unit-asyncify (7/15)
-                      target: test-php-asyncify-fopen-http
-                    - name: test-unit-asyncify (8/15)
-                      target: test-php-asyncify-fopen-https
-                    - name: test-unit-asyncify (9/15)
-                      target: test-php-asyncify-fsockopen-http
-                    - name: test-unit-asyncify (10/15)
-                      target: test-php-asyncify-fsockopen-https
-                    - name: test-unit-asyncify (11/15)
-                      target: test-php-asyncify-gethostbyname-http
-                    - name: test-unit-asyncify (12/15)
-                      target: test-php-asyncify-gethostbyname-https
-                    - name: test-unit-asyncify (13/15)
-                      target: test-php-asyncify-mysqli-http
-                    - name: test-unit-asyncify (14/15)
-                      target: test-php-asyncify-mysqli-https
-                    - name: test-unit-sqlite3 (15/15)
-                      target: test-php-asyncify-sqlite3
+                    - name: test-unit-asyncify (2/8)
+                      target: test-asyncify
+                    - name: test-unit-asyncify (3/8)
+                      target: test-php-file-get-contents-asyncify
+                    - name: test-unit-asyncify (4/8)
+                      target: test-php-fopen-asyncify
+                    - name: test-unit-asyncify (5/8)
+                      target: test-php-fsockopen-asyncify
+                    - name: test-unit-asyncify (6/8)
+                      target: test-php-gethostbyname-asyncify
+                    - name: test-unit-asyncify (7/8)
+                      target: test-php-mysqli-asyncify
+                    - name: test-unit-asyncify (8/8)
+                      target: test-php-sqlite3-asyncify
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -88,21 +74,55 @@ jobs:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
-    # Most of these tests pass locally but the process is crashing
-    # on the CI runner.
-    #
-    # test-unit-jspi:
-    #     runs-on: ubuntu-latest
-    #     needs: [lint-and-typecheck]
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with:
-    #               submodules: true
-    #         - uses: ./.github/actions/prepare-playground
-    #           with:
-    #               # @TODO: Switch to the production version once it's released
-    #               node-version: 23.0.0-nightly2024100909d10b50dc
-    #         - run: node --experimental-wasm-jspi --experimental-wasm-stack-switching --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
+    test-unit-jspi:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: test-unit-jspi (1/7)
+                      target: test-jspi
+                    - name: test-unit-jspi (2/7)
+                      target: test-php-file-get-contents-jspi
+                    - name: test-unit-jspi (3/7)
+                      target: test-php-fopen-jspi
+                    - name: test-unit-jspi (4/7)
+                      target: test-php-fsockopen-jspi
+                    - name: test-unit-jspi (5/7)
+                      target: test-php-gethostbyname-jspi
+                    - name: test-unit-jspi (6/7)
+                      target: test-php-mysqli-jspi
+                    - name: test-unit-jspi (7/7)
+                      target: test-php-sqlite3-jspi
+        name: ${{ matrix.name }}
+        services:
+            mysql:
+                image: mysql:5.7
+                env:
+                    MYSQL_DATABASE: test_db
+                    MYSQL_USER: user
+                    MYSQL_PASSWORD: password
+                    MYSQL_ROOT_PASSWORD: rootpassword
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping --silent"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 23
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
+              env:
+                  MYSQL_DATABASE: test_db
+                  MYSQL_USER: user
+                  MYSQL_PASSWORD: password
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
@@ -207,8 +227,8 @@ jobs:
               run: |
                   VERSION=$(date +%s)
                   for package in packages/*/*/package.json; do
-                    jq --arg version "$VERSION" '.version = $version' "$package" > "$package.tmp"
-                    mv "$package.tmp" "$package"
+                  jq --arg version "$VERSION" '.version = $version' "$package" > "$package.tmp"
+                  mv "$package.tmp" "$package"
                   done
             - name: Package repository and start a local node package registry server
               run: |
@@ -220,56 +240,58 @@ jobs:
                   from urllib.parse import unquote
 
                   class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-                      def do_GET(self):
-                          if self.path.startswith('/${{ env.VERSION }}/'):
-                              self.path = self.path[len('/${{ env.VERSION }}'):]
-                          elif self.path == '/${{ env.VERSION }}':
-                              self.path = '/'
-                          super().do_GET()
+                    def do_GET(self):
+                      if self.path.startswith('/${{ env.VERSION }}/'):
+                        self.path = self.path[len('/${{ env.VERSION }}'):]
+                      elif self.path == '/${{ env.VERSION }}':
+                        self.path = '/'
+                      super().do_GET()
 
                   with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
-                      httpd.serve_forever()
+                    httpd.serve_forever()
                   " &
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do
-                      curl_output=$(curl -v $PACKAGE_URL 2>&1)
-                      if [ $? -eq 0 ]; then
-                          break
-                      fi
-                      sleep 1
+                    curl_output=$(curl -v $PACKAGE_URL 2>&1)
+                    if [ $? -eq 0 ]; then
+                      break
+                    fi
+                    sleep 1
                   done
-            - name: Run integration tests in an ES Modules project
+            - name: Prepare integration tests
               run: |
                   cp -r packages/playground/test-built-npm-packages/es-modules-and-vitest /tmp/es-modules-test
-                  cd /tmp/es-modules-test
+                  cp -r packages/playground/test-built-npm-packages/commonjs-and-jest /tmp/commonjs-test
+                  rm -rf packages
+            - name: Run integration tests in an ES Modules project
+              working-directory: /tmp/es-modules-test
+              run: |
                   jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
                   mv package.json.tmp package.json
                   npm install
                   INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
                   if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
-                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
-                    echo "Expected: $VERSION"
-                    echo "Installed: $INSTALLED_VERSION"
-                    exit 1
+                  echo "The installed version of @wp-playground/cli is not the same as the expected version."
+                  echo "Expected: $VERSION"
+                  echo "Installed: $INSTALLED_VERSION"
+                  exit 1
                   fi
                   npm run test
             - name: Run integration tests in a CommonJS project
+              working-directory: /tmp/commonjs-test
               run: |
-                  cp -r packages/playground/test-built-npm-packages/commonjs-and-jest /tmp/commonjs-test
-                  cd /tmp/commonjs-test
                   jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
                   mv package.json.tmp package.json
                   npm install
                   INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
                   if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
-                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
-                    echo "Expected: $VERSION"
-                    echo "Installed: $INSTALLED_VERSION"
-                    exit 1
+                  echo "The installed version of @wp-playground/cli is not the same as the expected version."
+                  echo "Expected: $VERSION"
+                  echo "Installed: $INSTALLED_VERSION"
+                  exit 1
                   fi
                   npm run test
-
     test-running-unbuilt-playground-cli:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
