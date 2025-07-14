@@ -72,10 +72,8 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					);
 
 					if (target.hasListeners()) {
-						const event = new ErrorEvent('error', {
-							error: e,
-							message: clearMessage,
-						});
+						e.message = clearMessage;
+						const event = new ErrorEvent('error', { error: e });
 						target.dispatchEvent(event);
 						throw e;
 					}
@@ -105,7 +103,7 @@ export function clarifyErrorMessage(
 		if (!asyncifyStack) {
 			betterMessage +=
 				`\n\nThis stack trace is lacking. For a better one initialize \n` +
-				`the PHP runtime with { debug: true }, e.g. PHPNode.load('8.1', { debug: true }).\n\n`;
+				`the PHP runtime with debug: true, e.g. loadNodeRuntime('8.1', { emscriptenOptions: { debug: true } }).\n\n`;
 		}
 
 		// Extract all the PHP functions from the entire error chain.
@@ -126,6 +124,8 @@ export function clarifyErrorMessage(
 		for (const fn of uniqueFunctions) {
 			betterMessage += `    * ${fn}\n`;
 		}
+
+		betterMessage += `Original error message: ${crypticError.message}\n`;
 
 		return betterMessage;
 	}

@@ -11,6 +11,7 @@ import {
 	PHPRequestHandler,
 	proxyFileSystem,
 	rotatePHPRuntime,
+	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
 	writeFiles,
@@ -190,6 +191,7 @@ export async function bootWordPress(options: BootOptions) {
 }
 
 export async function bootRequestHandler(options: BootOptions) {
+	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
 		requestHandler: PHPRequestHandler,
 		isPrimary: boolean
@@ -233,9 +235,9 @@ export async function bootRequestHandler(options: BootOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (options.spawnHandler) {
+		if (spawnHandler) {
 			await php.setSpawnHandler(
-				options.spawnHandler(requestHandler.processManager)
+				spawnHandler(requestHandler.processManager)
 			);
 		}
 
