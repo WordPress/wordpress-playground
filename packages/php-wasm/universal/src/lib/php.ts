@@ -72,6 +72,8 @@ export class PHP implements Disposable {
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	requestHandler?: PHPRequestHandler;
+	private cliCalled = false;
+	private runStreamCalled = false;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -324,6 +326,15 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Changes the permissions of a file or directory.
+	 * @param path - The path to the file or directory.
+	 * @param mode - The new permissions.
+	 */
+	chmod(path: string, mode: number) {
+		this[__private__dont__use].FS.chmod(path, mode);
+	}
+
+	/**
 	 * Do not use. Use new PHPRequestHandler() instead.
 	 * @deprecated
 	 */
@@ -416,25 +427,14 @@ export class PHP implements Disposable {
 		);
 
 		if (syncResponse.exitCode !== 0) {
-			logger.warn(`PHP.run() output was:`, syncResponse.text);
-			const error = new PHPExecutionFailureError(
-				`PHP.run() failed with exit code ${syncResponse.exitCode} and the following output: ` +
-					syncResponse.errors +
-					'\n\n' +
-					syncResponse.text,
+			// Legacy behavior: throw if PHP exited with a non-zero exit code.
+			// It could be a WASM crash, but it could be a PHP userland error such
+			// as "Fatal error: Uncaught Error: Call to undefined function no_such_function()".
+			throw new PHPExecutionFailureError(
+				`PHP.run() failed with exit code ${syncResponse.exitCode}. \n\n=== Stdout ===\n ${syncResponse.text}\n\n=== Stderr ===\n ${syncResponse.errors}`,
 				syncResponse,
 				'request'
 			) as PHPExecutionFailureError;
-			logger.error(error);
-			this.dispatchEvent({
-				type: 'request.error',
-				error: new Error(
-					'PHP.run() failed with exit code ' + syncResponse.exitCode
-				),
-				// Distinguish between PHP request and PHP-wasm errors
-				source: 'request',
-			});
-			throw error;
 		}
 
 		return syncResponse;
@@ -531,6 +531,14 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		if (this.cliCalled) {
+			throw new Error(
+				'php.runStream() can only be called if php.cli() was not called before. The two methods set a conflicting ' +
+					'C-level global state.'
+			);
+		}
+		this.runStreamCalled = true;
+
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -539,80 +547,87 @@ export class PHP implements Disposable {
 		 */
 		const release = await this.semaphore.acquire();
 		let heapBodyPointer: number | undefined;
-		const streamedResponsePromise = this.#executeWithErrorHandling(() => {
-			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
-				this.#webSapiInitialized = true;
-			}
-			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
-				throw new Error(
-					`The script path "${request.scriptPath}" does not exist.`
+		const streamedResponsePromise = this.#executeWithErrorHandling(
+			async () => {
+				if (!this.#webSapiInitialized) {
+					await this.#initWebRuntime();
+					this.#webSapiInitialized = true;
+				}
+				if (
+					request.scriptPath &&
+					!this.fileExists(request.scriptPath)
+				) {
+					throw new Error(
+						`The script path "${request.scriptPath}" does not exist.`
+					);
+				}
+				this.#setRelativeRequestUri(request.relativeUri || '');
+				this.#setRequestMethod(request.method || 'GET');
+				const requestHeaders = normalizeHeaders(request.headers || {});
+				const host = requestHeaders['host'] || 'example.com:443';
+
+				const port = this.#inferPortFromHostAndProtocol(
+					host,
+					request.protocol || 'http'
+				);
+				this.#setRequestHost(host);
+				this.#setRequestPort(port);
+				this.#setRequestHeaders(requestHeaders);
+				if (request.body) {
+					heapBodyPointer = this.#setRequestBody(request.body);
+				}
+				if (typeof request.code === 'string') {
+					this.writeFile('/internal/eval.php', request.code);
+					this.#setScriptPath('/internal/eval.php');
+				} else if (typeof request.scriptPath === 'string') {
+					this.#setScriptPath(request.scriptPath || '');
+				} else {
+					throw new TypeError(
+						'The request object must have either a `code` or a ' +
+							'`scriptPath` property.'
+					);
+				}
+
+				const $_SERVER = this.#prepareServerEntries(
+					request.$_SERVER,
+					requestHeaders,
+					port
+				);
+				for (const key in $_SERVER) {
+					this.#setServerGlobalEntry(key, $_SERVER[key]);
+				}
+
+				const env = request.env || {};
+				for (const key in env) {
+					this.#setEnv(key, env[key]);
+				}
+
+				return await this[__private__dont__use].ccall(
+					'wasm_sapi_handle_request',
+					NUMBER,
+					[],
+					[],
+					{ async: true }
 				);
 			}
-			this.#setRelativeRequestUri(request.relativeUri || '');
-			this.#setRequestMethod(request.method || 'GET');
-			const requestHeaders = normalizeHeaders(request.headers || {});
-			const host = requestHeaders['host'] || 'example.com:443';
-
-			const port = this.#inferPortFromHostAndProtocol(
-				host,
-				request.protocol || 'http'
-			);
-			this.#setRequestHost(host);
-			this.#setRequestPort(port);
-			this.#setRequestHeaders(requestHeaders);
-			if (request.body) {
-				heapBodyPointer = this.#setRequestBody(request.body);
-			}
-			if (typeof request.code === 'string') {
-				this.writeFile('/internal/eval.php', request.code);
-				this.#setScriptPath('/internal/eval.php');
-			} else if (typeof request.scriptPath === 'string') {
-				this.#setScriptPath(request.scriptPath || '');
-			} else {
-				throw new TypeError(
-					'The request object must have either a `code` or a ' +
-						'`scriptPath` property.'
-				);
-			}
-
-			const $_SERVER = this.#prepareServerEntries(
-				request.$_SERVER,
-				requestHeaders,
-				port
-			);
-			for (const key in $_SERVER) {
-				this.#setServerGlobalEntry(key, $_SERVER[key]);
-			}
-
-			const env = request.env || {};
-			for (const key in env) {
-				this.#setEnv(key, env[key]);
-			}
-
-			if (!this.#webSapiInitialized) {
-				this.#initWebRuntime();
-				this.#webSapiInitialized = true;
-			}
-
-			return this[__private__dont__use].ccall(
-				'wasm_sapi_handle_request',
-				NUMBER,
-				[],
-				[],
-				{ async: true }
-			);
-		});
+		);
 
 		// Free up resources when the response is done
 		await streamedResponsePromise
 			.catch((error) => {
+				/**
+				 * Dispatch a request.error event for any global crash handlers. For example,
+				 * Playground web uses this to automatically display a "Report crash" modal.
+				 */
 				this.dispatchEvent({
 					type: 'request.error',
 					error: error as Error,
 					// Distinguish between PHP request and PHP-wasm errors
 					source: (error as any).source ?? 'php-wasm',
 				});
+
+				// Rethrow the error. We don't want to swallow it.
+				throw error;
 			})
 			.finally(() => {
 				if (heapBodyPointer) {
@@ -621,6 +636,10 @@ export class PHP implements Disposable {
 			})
 			.finally(() => {
 				release();
+				/**
+				 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
+				 * another request.
+				 */
 				this.dispatchEvent({
 					type: 'request.end',
 				});
@@ -663,7 +682,9 @@ export class PHP implements Disposable {
 	}
 
 	#initWebRuntime() {
-		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
+		return this[__private__dont__use].ccall('php_wasm_init', null, [], [], {
+			isAsync: true,
+		});
 	}
 
 	#setRelativeRequestUri(uri: string) {
@@ -911,17 +932,12 @@ export class PHP implements Disposable {
 				 * get crashes and unhandled promise rejections without any useful error
 				 * messages or meaningful stack traces.
 				 */
-				const exit = await Promise.race([
+				const exitCode = await Promise.race([
 					executionFn(),
-					new Promise((resolve, reject) => {
+					new Promise((_, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							if (isExitCode(e.error) && e.error.status === 0) {
-								resolve(e.error.status);
-							} else {
-								const rethrown = new Error('Rethrown');
-								rethrown.cause = e.error;
-								(rethrown as any).betterMessage = e.message;
-								reject(rethrown);
+							if (!isExitCode(e.error)) {
+								reject(e.error);
 							}
 						};
 						this.#wasmErrorsTarget?.addEventListener(
@@ -931,7 +947,7 @@ export class PHP implements Disposable {
 						);
 					}),
 				]);
-				return exit;
+				return exitCode;
 			} catch (e) {
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
@@ -941,6 +957,7 @@ export class PHP implements Disposable {
 					return e.status;
 				}
 
+				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
 				stdout.controller.error(e);
 				stderr.controller.error(e);
 				headers.controller.error(e);
@@ -963,15 +980,7 @@ export class PHP implements Disposable {
 				(this as any).functionsMaybeMissingFromAsyncify =
 					getFunctionsMaybeMissingFromAsyncify();
 
-				const err = e as Error;
-				const message = (
-					'betterMessage' in err ? err.betterMessage : err.message
-				) as string;
-
-				const rethrown = new Error(message);
-				rethrown.cause = err;
-				logger.error(rethrown);
-				throw rethrown;
+				throw e;
 			} finally {
 				if (!streamsClosed) {
 					stdout.controller.close();
@@ -1268,6 +1277,18 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
 	): Promise<StreamedPHPResponse> {
+		if (this.cliCalled) {
+			throw new Error(
+				'php.cli() can only be called once. The method sets a C-level global state that does not allow repeated calls.'
+			);
+		}
+		if (this.runStreamCalled) {
+			throw new Error(
+				'php.cli() can only be called if php.runStream() was not called before. The two methods set a conflicting ' +
+					'C-level global state.'
+			);
+		}
+		this.cliCalled = true;
 		const release = await this.semaphore.acquire();
 
 		const env = options.env || {};
@@ -1285,18 +1306,11 @@ export class PHP implements Disposable {
 			);
 		}
 
-		return await this.#executeWithErrorHandling(
-			async () =>
-				await this[__private__dont__use].ccall(
-					'run_cli',
-					null,
-					[],
-					[],
-					{
-						async: true,
-					}
-				)
-		).then((response) => {
+		return await this.#executeWithErrorHandling(() => {
+			return this[__private__dont__use].ccall('run_cli', null, [], [], {
+				async: true,
+			});
+		}).then((response) => {
 			response.exitCode.finally(release);
 			return response;
 		});

@@ -30,6 +30,8 @@ jobs:
                   persist-credentials: true
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 23
             - name: 'Install bun'
               run: |
                   curl -fsSL https://bun.sh/install | bash

@@ -150,13 +150,13 @@ O WordPress Playground é um projeto de código aberto (open-source) e todas as 
 
 <!--
 -   See the [Contributors Handbook](/contributing) for all the details on how you can contribute.
--   Join us in the `#meta-playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
+-   Join us in the `#playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
 
 As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 -->
 
 -   Dê uma olhada no [Manual do Colaborador (Contributors Handbook)](/contributing/) para tudo o que você precisa saber para contribuir com o projeto.
--   Junte-se ao canal `#meta-playground` no Slack (na página do [Slack do WordPress](https://make.wordpress.org/chat/) você encontrará as informações sobre como acessar o Slack do WordPress)
+-   Junte-se ao canal `#playground` no Slack (na página do [Slack do WordPress](https://make.wordpress.org/chat/) você encontrará as informações sobre como acessar o Slack do WordPress)
 
 Como em todos os projetos do WordPress, queremos garantir um ambiente seguro e acolhedor para todos. Com isso em mente, espera-se que todos os contribuidores cumpram o nosso [código de conduta](https://make.wordpress.org/handbook/community-code-of-conduct/).
 

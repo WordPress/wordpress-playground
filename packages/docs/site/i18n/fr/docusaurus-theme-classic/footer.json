@@ -27,9 +27,9 @@
 		"message": "GitHub",
 		"description": "The label of footer link with label=GitHub linking to https://github.com/WordPress/wordpress-playground"
 	},
-	"link.item.label.#meta-playground on Slack": {
-		"message": "#meta-playground on Slack",
-		"description": "The label of footer link with label=#meta-playground on Slack linking to https://make.wordpress.org/chat"
+	"link.item.label.#playground on Slack": {
+		"message": "#playground on Slack",
+		"description": "The label of footer link with label=#playground on Slack linking to https://make.wordpress.org/chat"
 	},
 	"copyright": {
 		"message": "Copyright © 2024 WordPress Playground, Inc. Built with Docusaurus.",
