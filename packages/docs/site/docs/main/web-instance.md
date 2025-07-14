@@ -9,13 +9,13 @@ slug: /web-instance
 
 Some key features:
 
--   **Browser-based**: No need for a local server setup.
+-   **Browser-based**: No local server setup required.
 -   **Instant Setup**: Run WordPress with a single click.
 -   **Testing Environment**: Ideal for testing plugins and themes.
 
-Via [Query Params](/developers/apis/query-api/) we can directly load in the Playground instance things such as a specific version of WordPress, a theme, a plugin or a more complex setup via blueprints (check [here](/quick-start-guide#try-a-block-a-theme-or-a-plugin) some examples).
+The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
 
-From the Playground website, some toolbars are also available to customize your playground instance and provide quick access to some resources and utilities.
+From the Playground website, some toolbars are also available to customize your Playground instance and provide quick access to some resources and utilities.
 
 ![Playground Toolbar Snapshot](@site/static/img/about/toolbar-playground.webp)
 
@@ -28,7 +28,7 @@ On the toolbar, you'll find:
 
 ### Playground Settings
 
-![snapshot of customize playground window at playground instance](@site/static/img/about/playground-settings-panel.webp)
+![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
 
 The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
 
@@ -42,7 +42,7 @@ The options available from the **Playground Settings Panel**, correspond to the 
 
 ![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
 
-This panel allows users to manage the Playground instances. it contains a list of saved Playgrounds, access to the current playground Settings, with a **Save Button** to store your examples on your browser, allowing you to reload it any time.
+This panel enables users to manage Playground instances. It displays a list of saved Playgrounds and provides access to the current Playground's settings, along with a **Save Button** to store your configurations locally in your browser for later reloading.
 
 ![Save Playground Button](@site/static/img/about/playground-manager-save-instance.webp)
 
