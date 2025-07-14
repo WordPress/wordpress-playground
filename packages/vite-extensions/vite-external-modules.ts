@@ -13,6 +13,7 @@ export const getExternalModules = () => {
 		'net',
 		'fs',
 		'fs/promises',
+		'fs-ext',
 		'node:fs',
 		'node:fs/promises',
 		'fs-extra',
