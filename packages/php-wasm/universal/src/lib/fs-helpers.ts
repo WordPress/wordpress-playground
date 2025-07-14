@@ -301,6 +301,8 @@ export class FSHelpers {
 					joinPaths(toPath, filename)
 				);
 			}
+		} else if (FS.isLink(fromNode.mode)) {
+			FS.symlink(FS.readlink(fromPath), toPath);
 		} else {
 			FS.writeFile(toPath, FS.readFile(fromPath));
 		}

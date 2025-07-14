@@ -79,31 +79,6 @@ describe('Mounting', () => {
 		}
 	});
 
-	it('Should mount a symlink', async () => {
-		const symlinkPath = path.join(__dirname, 'test-data', 'symlink.txt');
-		const symlinkTarget = path.join(
-			__dirname,
-			'test-data',
-			'long-post-body.txt'
-		);
-		const vfsMountPoint = '/symlink.txt';
-		try {
-			fs.symlinkSync(symlinkTarget, symlinkPath, 'file');
-
-			await php.mount(
-				vfsMountPoint,
-				createNodeFsMountHandler(symlinkPath)
-			);
-
-			expect(php.isFile(vfsMountPoint)).toBe(true);
-			expect(php.readFileAsText(vfsMountPoint)).toEqual(
-				fs.readFileSync(symlinkTarget, 'utf8')
-			);
-		} finally {
-			fs.unlinkSync(symlinkPath);
-		}
-	});
-
 	it('Should unmount a file and remove created node from VFS', async () => {
 		const testFilePath = path.join(
 			__dirname,

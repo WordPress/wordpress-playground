@@ -1,5 +1,10 @@
 import { loadNodeRuntime } from '..';
-import { PHP, setPhpIniEntries } from '@php-wasm/universal';
+import {
+	__private__dont__use,
+	FSHelpers,
+	PHP,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
 import fs from 'fs';
 import path from 'path';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
@@ -60,7 +65,6 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 				);
 			}
 
-			await php.mkdir('/folder-with-symlinks');
 			await php.mount(
 				'/folder-with-symlinks',
 				createNodeFsMountHandler(
@@ -348,6 +352,57 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 					fs.rmSync(hardlinkPath);
 					fs.unlinkSync(symlinkPath);
 				}
+			});
+		});
+
+		describe('Test symlink file system operations', () => {
+			const symlinkPath = path.join(
+				__dirname,
+				'test-data',
+				'symlink.txt'
+			);
+			const symlinkTarget = path.join(
+				__dirname,
+				'test-data',
+				'long-post-body.txt'
+			);
+			const vfsMountPoint = '/symlink.txt';
+			beforeEach(async () => {
+				fs.symlinkSync(symlinkTarget, symlinkPath, 'file');
+
+				await php.mount(
+					vfsMountPoint,
+					createNodeFsMountHandler(symlinkPath)
+				);
+			});
+			afterEach(async () => {
+				fs.unlinkSync(symlinkPath);
+			});
+
+			it('Should mount a symlink', async () => {
+				expect(php.isFile(vfsMountPoint)).toBe(true);
+				expect(php.readFileAsText(vfsMountPoint)).toEqual(
+					fs.readFileSync(symlinkTarget, 'utf8')
+				);
+			});
+			it('Should be recognized as a symlink', async () => {
+				expect(php.fileExists(vfsMountPoint)).toBe(true);
+				expect(php.isSymlink(vfsMountPoint)).toBe(true);
+			});
+			it('Should copy a symlink', async () => {
+				const newVfsMountPoint = '/symlink-copy.txt';
+				FSHelpers.copyRecursive(
+					php[__private__dont__use].FS,
+					vfsMountPoint,
+					newVfsMountPoint
+				);
+				expect(php.fileExists(vfsMountPoint)).toBe(true);
+				expect(php.isSymlink(vfsMountPoint)).toBe(true);
+				expect(php.fileExists(newVfsMountPoint)).toBe(true);
+				expect(php.isSymlink(newVfsMountPoint)).toBe(true);
+				expect(php.readlink(newVfsMountPoint)).toBe(
+					php.readlink(vfsMountPoint)
+				);
 			});
 		});
 	});
