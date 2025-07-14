@@ -52,13 +52,17 @@ export type UniversalPHP = LimitedPHPApi | Remote<LimitedPHPApi>;
 export type MessageListener = (
 	data: string
 ) => Promise<string | Uint8Array | void> | string | void;
-interface EventEmitter {
+export interface EventEmitter {
 	on(event: string, listener: (...args: any[]) => void): this;
 	emit(event: string, ...args: any[]): boolean;
 }
-type ChildProcess = EventEmitter & {
+export type ChildProcess = EventEmitter & {
 	stdout: EventEmitter;
 	stderr: EventEmitter;
+	stdin: EventEmitter & {
+		write: (data: Uint8Array, encoding: string, cb: (err: Error | null) => void) => void;
+		end: () => void;
+	};
 };
 
 export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
