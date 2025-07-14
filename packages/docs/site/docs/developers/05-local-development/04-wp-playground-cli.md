@@ -54,7 +54,7 @@ Using the `--blueprint=<blueprint-address>` flag, developers can run a Playgroun
 ```bash
 {
   "landingPage": "/wp-admin/options-general.php?page=akismet-key-config",
-  "login": true, 
+  "login": true,
   "plugins": [
     "hello-dolly",
     "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
@@ -78,7 +78,7 @@ npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/MY-
 
 ### Mounting before WordPress installation
 
-Consider mounting your WordPress project files before the WordPress installation begins. This approach is beneficial if you have local files with custom functionalities, like a `SQLite` database, or if you're connecting Playground with `WP-CLI`. The `--mount-before-install` flag supports this process.
+Consider mounting your WordPress project files before the WordPress installation begins. This approach is beneficial if you want to override the Playground boot process, as it can help connect Playground with `WP-CLI`. The `--mount-before-install` flag supports this process.
 
 ```bash
 npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
