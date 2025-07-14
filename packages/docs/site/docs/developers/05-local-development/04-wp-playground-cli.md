@@ -20,7 +20,7 @@ The Playground CLI requires Node.js 20.18 or higher, which is the recommended Lo
 
 ## Quickstart
 
-Running the Playground CLI is as simple as go to a command-line terminal and running:
+Running the Playground CLI is as simple as go to a command-line and run:
 
 ```bash
 npx @wp-playground/cli@latest server
