@@ -121,6 +121,7 @@ const config = {
 	themeConfig:
 		/** @type {import('@docusaurus/preset-classic').ThemeConfig} */
 		({
+			image: 'img/playground-social-logo.png',
 			algolia: {
 				appId: 'EKWQ08DUQS',
 				apiKey: '2fcab4cf2c3596e775de8c4ab1fa065e',
@@ -131,8 +132,8 @@ const config = {
 				title: 'WordPress Playground',
 				logo: {
 					alt: 'WordPress Playground',
-					src: 'img/wordpress.svg',
-					srcDark: 'img/wordpress-dark.svg',
+					src: 'img/playground-logo.svg',
+					srcDark: 'img/playground-logo-dark.svg',
 				},
 				items: [
 					{

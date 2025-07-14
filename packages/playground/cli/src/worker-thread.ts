@@ -7,6 +7,7 @@ import {
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
+	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
 import { bootWordPress } from '@wp-playground/wordpress';
@@ -186,6 +187,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 				},
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
+				spawnHandler: sandboxedSpawnHandlerFactory,
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
