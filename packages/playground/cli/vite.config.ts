@@ -1,11 +1,44 @@
 /// <reference types="vitest" />
 import { join } from 'path';
-import { defineConfig } from 'vite';
+import { type PluginOption, defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
+/**
+ * @TODO: Consider rsbuild for this:
+ * import { defineConfig } from "@rsbuild/core";
+import { pluginReact } from "@rsbuild/plugin-react";
+
+export default defineConfig({
+  plugins: [pluginReact()],
+  source: {
+    assetsInclude: /\.dat$/,
+  },
+  output: {
+    dataUriLimit: 0,
+    chunkFormat: "commonjs",
+    target,
+  },
+  module: {
+    rules: [
+      {
+        test: /\.dat/,
+        use: [
+          {
+            loader: "url-loader",
+          },
+        ],
+        type: "asset/inline",
+      },
+    ],
+  },
+});
+
+ */
 const plugins = [
 	dts({
 		entryRoot: 'src',
@@ -16,6 +49,56 @@ const plugins = [
 	viteTsConfigPaths({
 		root: '../../../',
 	}),
+	/**
+	 * In library mode, Vite bundles all `?url` imports as JS modules with a single,
+	 * base64 export. blueprints.phar is too large for that. We need to preserve it
+	 * as an actual file.
+	 *
+	 * ... more comment tbd ...
+	 *
+	 * @see https://github.com/vitejs/vite/issues/3295
+	 */
+	{
+		name: 'build-phars-as-URL-modules-not-data-imports',
+
+		transform(code, id) {
+			if (id?.includes('.phar')) {
+				// @TODO don't hardcode it
+				// @TODO use URL on the web and path on Node.js
+				return {
+					code: `
+						import { fileURLToPath } from 'url';
+						import { dirname, join } from 'path';
+						
+						let pharPath;
+						if (typeof __dirname !== 'undefined') {
+							// CommonJS
+							pharPath = join(__dirname, "./blueprints.phar");
+						} else {
+							// ESM
+							pharPath = join(import.meta.dirname, "./blueprints.phar");
+						}
+						
+						export default pharPath;
+					`,
+					map: null,
+				};
+			}
+		},
+	},
+] as PluginOption[];
+
+const external = [
+	...getExternalModules(),
+	'@php-wasm/node',
+	'@php-wasm/web',
+	'@php-wasm/universal',
+	'@php-wasm/logger',
+	'@php-wasm/progress',
+	'@php-wasm/util',
+	'@wp-playground/wordpress',
+	'@wp-playground/common',
+	'@wp-playground/blueprints',
 ];
 
 export default defineConfig({
@@ -29,17 +112,7 @@ export default defineConfig({
 		format: 'es',
 		plugins: () => plugins,
 		rollupOptions: {
-			external: [
-				'@php-wasm/universal',
-				'@php-wasm/node',
-				'@php-wasm/progress',
-				'@wp-playground/common',
-				'@wp-playground/wordpress',
-				'@php-wasm/logger',
-				'net',
-				'tls',
-				'worker_threads',
-			],
+			external,
 			output: {
 				entryFileNames: (/* chunkInfo: any */) => {
 					return '[name]-[hash].js';
@@ -51,39 +124,12 @@ export default defineConfig({
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
+		assetsDir: '',
 		assetsInlineLimit: 0,
 		target: 'es2020',
 		sourcemap: true,
 		rollupOptions: {
-			external: [
-				'@php-wasm/node',
-				'@php-wasm/universal',
-				'@php-wasm/logger',
-				'@php-wasm/progress',
-				'@php-wasm/util',
-				'@wp-playground/wordpress',
-				'@wp-playground/common',
-				'@wp-playground/blueprints',
-				'yargs',
-				'express',
-				'crypto',
-				'os',
-				'net',
-				'fs',
-				'fs-extra',
-				'path',
-				'child_process',
-				'http',
-				'path',
-				'tls',
-				'util',
-				'dns',
-				'ws',
-				'readline',
-				'worker_threads',
-				'url',
-				'fs-ext',
-			],
+			external,
 		},
 		lib: {
 			entry: {
