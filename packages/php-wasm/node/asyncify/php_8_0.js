@@ -8078,6 +8078,9 @@ export function init(RuntimeName, PHPLoader) {
 				if ((stream.flags & 2097155) === 1) {
 					return 256 | 4;
 				}
+				if (!pipe.buckets) {
+					return 0;
+				}
 				for (var bucket of pipe.buckets) {
 					if (bucket.offset - bucket.roffset > 0) {
 						return 64 | 1;
@@ -31943,6 +31946,9 @@ export function init(RuntimeName, PHPLoader) {
 						while (true) {
 							var mask = POLLNVAL;
 							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (FS.isClosed(stream)) {
+								return ERRNO_CODES.EBADF;
+							}
 							if (stream.stream_ops?.poll) {
 								mask = stream.stream_ops.poll(stream, -1);
 							}
@@ -31961,8 +31967,9 @@ export function init(RuntimeName, PHPLoader) {
 						if (
 							typeof FS == 'undefined' ||
 							!(e.name === 'ErrnoError')
-						)
+						) {
 							throw e;
+						}
 						return -e.errno;
 					}
 				}
