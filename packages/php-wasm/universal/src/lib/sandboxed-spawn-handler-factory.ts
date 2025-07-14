@@ -45,9 +45,8 @@ export function sandboxedSpawnHandlerFactory(
 			processApi.exit(0);
 		} else if (binaryName === 'less') {
 			processApi.on('stdin', (data: Uint8Array) => {
-				processApi.stdout(data);
+				processApi.stdout(data.buffer as ArrayBuffer);
 			});
-			processApi.flushStdin();
 			processApi.exit(0);
 		} else if (binaryName === 'php') {
 			const { php, reap } = await processManager.acquirePHPInstance({
@@ -71,14 +70,14 @@ export function sandboxedSpawnHandlerFactory(
 				result.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							processApi.stdout(chunk);
+							processApi.stdout(chunk.buffer as ArrayBuffer);
 						},
 					})
 				);
 				result.stderr.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							processApi.stderr(chunk);
+							processApi.stderr(chunk.buffer as ArrayBuffer);
 						},
 					})
 				);
