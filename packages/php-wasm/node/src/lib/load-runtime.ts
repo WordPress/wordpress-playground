@@ -12,6 +12,7 @@ import type { FileLockManager } from './file-lock-manager';
 import { withICUData } from './data/with-icu-data';
 import { withXdebug } from './xdebug/with-xdebug';
 import { joinPaths } from '@php-wasm/util';
+import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -35,8 +36,12 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 * An optional file lock manager to use for the PHP runtime.
 		 *
 		 * The lock manager is optional when running a single php-wasm process.
+		 *
+		 * When running with JSPI, both synchronous and asynchronous
+		 * file lock managers are supported.
+		 * When running with Asyncify, the file lock manager must be synchronous.
 		 */
-		fileLockManager?: RemoteAPI<FileLockManager>;
+		fileLockManager?: RemoteAPI<FileLockManager> | FileLockManager;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -130,7 +135,17 @@ export async function loadNodeRuntime(
 						!FSHelpers.fileExists(phpRuntime.FS, symlinkPath) &&
 						fs.existsSync(absoluteSourcePath)
 					) {
-						phpRuntime.FS.mkdirTree(symlinkPath);
+						const sourceStat = fs.statSync(absoluteSourcePath);
+						if (sourceStat.isDirectory()) {
+							phpRuntime.FS.mkdirTree(symlinkPath);
+						} else if (sourceStat.isFile()) {
+							phpRuntime.FS.mkdirTree(dirname(symlinkPath));
+							phpRuntime.FS.writeFile(symlinkPath, '');
+						} else {
+							throw new Error(
+								'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
+							);
+						}
 						phpRuntime.FS.mount(
 							phpRuntime.FS.filesystems.NODEFS,
 							{ root: absoluteSourcePath },

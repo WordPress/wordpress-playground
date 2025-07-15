@@ -6,10 +6,17 @@
  * @see https://github.com/emscripten-core/emscripten/blob/38eedc630f17094b3202fd48ac0c2c585dbea31e/system/include/wasi/api.h#L336
  */
 
-export interface ErrnoError extends Error {
+export class ErrnoError extends Error {
+	constructor(errno: number, message?: string, options?: { cause?: any }) {
+		super(message);
+		this.name = 'ErrnoError';
+		this.errno = errno;
+		this.message = message ?? '';
+		this.cause = options?.cause;
+	}
+
 	node?: any;
 	errno: number;
-	message: string;
 }
 /**
  * @see https://github.com/emscripten-core/emscripten/blob/38eedc630f17094b3202fd48ac0c2c585dbea31e/system/include/wasi/api.h#L336
@@ -117,9 +124,13 @@ export function rethrowFileSystemError(messagePrefix = '') {
 						path !== null
 							? messagePrefix.replaceAll('{path}', path)
 							: messagePrefix;
-					throw new Error(`${formattedPrefix}: ${errmsg}`, {
-						cause: e,
-					});
+					throw new ErrnoError(
+						errno,
+						`${formattedPrefix}: ${errmsg}`,
+						{
+							cause: e,
+						}
+					);
 				}
 
 				throw e;

@@ -11,6 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
+import { FileLockManagerForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import path from 'path';
@@ -76,6 +77,8 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
+				fileLockManager: new FileLockManagerForNode(),
+				processId: 1,
 				ENV: {
 					...envVariables,
 					TMPDIR: sysTempDir,
@@ -109,7 +112,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		})
 	);
 
-	response.exitCode
+	await response.exitCode
 		.catch((result) => {
 			if (result.name === 'ExitStatus') {
 				process.exit(result.status === undefined ? 1 : result.status);

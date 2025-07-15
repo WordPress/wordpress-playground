@@ -5,7 +5,12 @@ import type {
 	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { PHPResponse, consumeAPI, exposeAPI } from '@php-wasm/universal';
+import {
+	PHPResponse,
+	consumeAPI,
+	exposeAPI,
+	exposeSyncAPI,
+} from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintDeclaration,
@@ -23,10 +28,14 @@ import {
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { Worker } from 'worker_threads';
+import { Worker, MessageChannel } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { expandAutoMounts } from './cli-auto-mount';
+import {
+	expandAutoMounts,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mounts';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -44,12 +53,9 @@ import { LoadBalancer } from './load-balancer';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { cpus } from 'os';
 import { jspi } from 'wasm-feature-detect';
+import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import {
-	parseMountDirArguments,
-	parseMountWithDelimiterArguments,
-} from './mount';
 import { ReportableError } from './reportable-error';
 import { resolveBlueprint } from './resolve-blueprint';
 
@@ -175,6 +181,14 @@ export async function parseOptionsAndRunCLI() {
 			// Hide this option because we want to replace with a more general log-level flag.
 			hidden: true,
 		})
+		.option('internal-cookie-store', {
+			describe:
+				'Enable internal cookie handling. When enabled, Playground will manage cookies internally using ' +
+				'an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled ' +
+				'externally (e.g., by a browser in Node.js environments).',
+			type: 'boolean',
+			default: false,
+		})
 		// TODO: Should we make this a hidden flag?
 		.option('experimentalMultiWorker', {
 			describe:
@@ -205,17 +219,11 @@ export async function parseOptionsAndRunCLI() {
 					);
 				}
 
-				if (!(await jspi())) {
-					throw new Error(
-						'JavaScript Promise Integration (JSPI) is not enabled. Please enable JSPI in your JavaScript runtime before using the --experimentalMultiWorker flag.'
-					);
-				}
-
 				const isMountingWordPressDir = (mount: Mount) =>
 					mount.vfsPath === '/wordpress';
 				if (
 					!args.mount?.some(isMountingWordPressDir) &&
-					!(args['mountBeforeInstall'] as any)?.some(
+					!(args['mount-before-install'] as any)?.some(
 						isMountingWordPressDir
 					)
 				) {
@@ -244,10 +252,10 @@ export async function parseOptionsAndRunCLI() {
 			sourceString: args.blueprint,
 			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
 		}),
-		mount: [...(args.mount || []), ...(args.mountDir || [])],
-		mountBeforeInstall: [
-			...(args.mountBeforeInstall || []),
-			...(args.mountDirBeforeInstall || []),
+		mount: [...(args.mount || []), ...(args['mount-dir'] || [])],
+		'mount-before-install': [
+			...(args['mount-before-install'] || []),
+			...(args['mount-dir-before-install'] || []),
 		],
 	} as RunCLIArgs;
 
@@ -271,7 +279,7 @@ export interface RunCLIArgs {
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
-	mountBeforeInstall?: Mount[];
+	'mount-before-install'?: Mount[];
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
@@ -283,6 +291,8 @@ export interface RunCLIArgs {
 	followSymlinks?: boolean;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
+	internalCookieStore?: boolean;
+	'additional-blueprint-steps'?: any[];
 }
 
 export interface RunCLIServer extends AsyncDisposable {
@@ -338,7 +348,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		fs.writeFileSync(outfile, zip);
 	}
 
-	async function compileInputBlueprint() {
+	async function compileInputBlueprint(additionalBlueprintSteps: any[]) {
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
@@ -389,6 +399,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		});
 		return await compileBlueprint(blueprint as BlueprintDeclaration, {
 			progress: tracker,
+			additionalSteps: additionalBlueprintSteps,
 		});
 	}
 
@@ -428,32 +439,33 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	async function spawnPHPWorkerThread(workerUrl: URL) {
 		const worker = new Worker(workerUrl);
 
-		return new Promise<Worker>((resolve, reject) => {
-			function onMessage(event: string) {
-				// Let the worker confirm it has initialized.
-				// We could use the 'online' event to detect start of JS execution,
-				// but that would miss initialization errors.
-				if (event === 'worker-script-initialized') {
-					resolve(worker);
-					worker.off('message', onMessage);
-				}
+		return new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
+			(resolve, reject) => {
+				worker.once('message', function (message: any) {
+					// Let the worker confirm it has initialized.
+					// We could use the 'online' event to detect start of JS execution,
+					// but that would miss initialization errors.
+					if (message.command === 'worker-script-initialized') {
+						resolve({ worker, phpPort: message.phpPort });
+					}
+				});
+				worker.once('error', function (e: Error) {
+					console.error(e);
+					const error = new Error(
+						`Worker failed to load at ${workerUrl}. ${
+							e.message ? `Original error: ${e.message}` : ''
+						}`
+					);
+					(error as any).filename = workerUrl;
+					reject(error);
+				});
 			}
-			function onError(e: Error) {
-				const error = new Error(
-					`Worker failed to load at ${workerUrl}. ${
-						e.message ? `Original error: ${e.message}` : ''
-					}`
-				);
-				(error as any).filename = workerUrl;
-				reject(error);
-				worker.off('error', onError);
-			}
-			worker.on('message', onMessage);
-			worker.on('error', onError);
-		});
+		);
 	}
 
-	function spawnWorkerThreads(count: number): Promise<Worker[]> {
+	function spawnWorkerThreads(
+		count: number
+	): Promise<{ worker: Worker; phpPort: NodeMessagePort }[]> {
 		const moduleWorkerUrl = new URL(
 			importedWorkerUrlString,
 			import.meta.url
@@ -471,7 +483,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		logger.handlers = [];
 	}
 
-	const compiledBlueprint = await compileInputBlueprint();
+	const compiledBlueprint = await compileInputBlueprint(
+		args['additional-blueprint-steps'] || []
+	);
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
@@ -486,6 +500,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			return undefined;
 		});
 	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
+
+	/**
+	 * Expose the file lock manager API on a MessagePort and return it.
+	 *
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 */
+	async function exposeFileLockManager() {
+		const { port1, port2 } = new MessageChannel();
+		if (await jspi()) {
+			/**
+			 * When JSPI is available, the worker thread expects an asynchronous API.
+			 *
+			 * @see worker-thread.ts
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
+			 */
+			exposeAPI(fileLockManager, null, port1);
+		} else {
+			/**
+			 * When JSPI is not available, the worker thread expects a synchronous API.
+			 *
+			 * @see worker-thread.ts
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
+			 */
+			await exposeSyncAPI(fileLockManager, port1);
+		}
+		return port2;
+	}
 
 	let wordPressReady = false;
 
@@ -563,21 +607,25 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const followSymlinks = args.followSymlinks === true;
 			const trace = args.experimentalTrace === true;
 			try {
-				const mountsBeforeWpInstall = args.mountBeforeInstall || [];
+				const mountsBeforeWpInstall =
+					args['mount-before-install'] || [];
 				const mountsAfterWpInstall = args.mount || [];
 
 				const [initialWorker, ...additionalWorkers] =
 					await promisedWorkers;
 
-				playground = consumeAPI<PlaygroundCliWorker>(initialWorker);
+				playground = consumeAPI<PlaygroundCliWorker>(
+					initialWorker.phpPort
+				);
 				playgroundsToCleanUp.push({
 					playground,
-					worker: initialWorker,
+					worker: initialWorker.worker,
 				});
 
+				// Comlink communication proxy
 				await playground.isConnected();
 
-				exposeAPI(fileLockManager, undefined, initialWorker);
+				const fileLockManagerPort = await exposeFileLockManager();
 
 				logger.log(`Booting WordPress...`);
 
@@ -589,6 +637,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					Number.MAX_SAFE_INTEGER / totalWorkerCount
 				);
 
+				await playground.useFileLockManager(fileLockManagerPort);
 				await playground.boot({
 					phpVersion: compiledBlueprint.versions.php,
 					wpVersion: compiledBlueprint.versions.wp,
@@ -603,11 +652,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					processIdSpaceLength,
 					followSymlinks,
 					trace,
+					internalCookieStore: args.internalCookieStore,
 				});
 
 				if (
 					wpDetails &&
-					!args.mountBeforeInstall &&
+					!args['mount-before-install'] &&
 					!fs.existsSync(preinstalledWpContentPath)
 				) {
 					logger.log(
@@ -659,19 +709,23 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					await Promise.all(
 						additionalWorkers.map(async (worker, index) => {
 							const additionalPlayground =
-								consumeAPI<PlaygroundCliWorker>(worker);
+								consumeAPI<PlaygroundCliWorker>(worker.phpPort);
 							playgroundsToCleanUp.push({
 								playground: additionalPlayground,
-								worker,
+								worker: worker.worker,
 							});
 
 							await additionalPlayground.isConnected();
-							exposeAPI(fileLockManager, undefined, worker);
 
 							const firstProcessId =
 								initialWorkerProcessIdSpace +
 								index * processIdSpaceLength;
 
+							const fileLockManagerPort =
+								await exposeFileLockManager();
+							await additionalPlayground.useFileLockManager(
+								fileLockManagerPort
+							);
 							await additionalPlayground.boot({
 								phpVersion: compiledBlueprint.versions.php,
 								absoluteUrl,
@@ -689,6 +743,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								processIdSpaceLength,
 								followSymlinks,
 								trace,
+								internalCookieStore: args.internalCookieStore,
 							});
 							await additionalPlayground.isReady();
 

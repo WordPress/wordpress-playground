@@ -11,6 +11,7 @@ import {
 	PHPRequestHandler,
 	proxyFileSystem,
 	rotatePHPRuntime,
+	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
 	writeFiles,
@@ -35,17 +36,9 @@ export interface Hooks {
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
-export interface BootOptions {
+export interface BootRequestHandlerOptions {
 	createPhpRuntime: () => Promise<number>;
 	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
-	/**
-	 * Mounting and Copying is handled via hooks for starters.
-	 *
-	 * In the future we could standardize the
-	 * browser-specific and node-specific mounts
-	 * in the future.
-	 */
-	hooks?: Hooks;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -58,12 +51,6 @@ export interface BootOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	/** SQL file to load instead of installing WordPress. */
-	dataSqlPath?: string;
-	/** Zip with the WordPress installation to extract in /wordpress. */
-	wordPressZip?: File | Promise<File> | undefined;
-	/** Preloaded SQLite integration plugin. */
-	sqliteIntegrationPluginZip?: File | Promise<File>;
 	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
@@ -115,6 +102,23 @@ export interface BootOptions {
 	cookieStore?: CookieStore | false;
 }
 
+export interface BootOptions extends BootRequestHandlerOptions {
+	/**
+	 * Mounting and Copying is handled via hooks for starters.
+	 *
+	 * In the future we could standardize the
+	 * browser-specific and node-specific mounts
+	 * in the future.
+	 */
+	hooks?: Hooks;
+	/** SQL file to load instead of installing WordPress. */
+	dataSqlPath?: string;
+	/** Zip with the WordPress installation to extract in /wordpress. */
+	wordPressZip?: File | Promise<File> | undefined;
+	/** Preloaded SQLite integration plugin. */
+	sqliteIntegrationPluginZip?: File | Promise<File>;
+}
+
 /**
  * Boots a WordPress instance with the given options.
  *
@@ -162,7 +166,6 @@ export async function bootWordPress(options: BootOptions) {
 	 * definitions for some of the necessary constants.
 	 */
 	await ensureWpConfig(php, requestHandler.documentRoot);
-
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
@@ -190,7 +193,8 @@ export async function bootWordPress(options: BootOptions) {
 	return requestHandler;
 }
 
-export async function bootRequestHandler(options: BootOptions) {
+export async function bootRequestHandler(options: BootRequestHandlerOptions) {
+	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
 		requestHandler: PHPRequestHandler,
 		isPrimary: boolean
@@ -234,9 +238,9 @@ export async function bootRequestHandler(options: BootOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (options.spawnHandler) {
+		if (spawnHandler) {
 			await php.setSpawnHandler(
-				options.spawnHandler(requestHandler.processManager)
+				spawnHandler(requestHandler.processManager)
 			);
 		}
 

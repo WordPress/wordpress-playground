@@ -63,7 +63,7 @@ export async function resolveBlueprint({
 	switch (extension) {
 		case '.zip':
 			return ZipFilesystem.fromArrayBuffer(
-				fs.readFileSync(blueprintPath)
+				fs.readFileSync(blueprintPath).buffer as ArrayBuffer
 			);
 		case '.json': {
 			const blueprintText = fs.readFileSync(blueprintPath, 'utf-8');

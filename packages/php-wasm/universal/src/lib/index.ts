@@ -14,7 +14,11 @@ export { FSHelpers } from './fs-helpers';
 export type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 export { PHPWorker } from './php-worker';
 export { getPhpIniEntries, setPhpIniEntries, withPHPIniValues } from './ini';
-
+export {
+	printDebugDetails,
+	prettyPrintFullStackTrace,
+	printResponseDebugDetails,
+} from './error-reporting';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
@@ -76,6 +80,7 @@ export {
 
 export { isExitCode } from './is-exit-code';
 export { proxyFileSystem } from './proxy-file-system';
+export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory';
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
