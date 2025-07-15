@@ -1,5 +1,6 @@
 import type { Emscripten } from './emscripten-types';
 import {
+	ErrnoError,
 	getEmscriptenFsError,
 	rethrowFileSystemError,
 } from './rethrow-file-system-error';
@@ -132,6 +133,18 @@ export class FSHelpers {
 		path: string,
 		options: RmDirOptions = { recursive: true }
 	) {
+		/**
+		 * Mount points cannot be removed and will throw a ErrnoError with
+		 * the code 10 (EBUSY).
+		 * To prevent the recursive option from removing internal files before
+		 * failing to remove the mount point, we need to check if the path is a
+		 * mount point and throw an error early.
+		 */
+		const mountPoint = FS.lookupPath(path).node.mount;
+		if (mountPoint.mountpoint === path) {
+			throw new ErrnoError(10);
+		}
+
 		if (options?.recursive) {
 			FSHelpers.listFiles(FS, path).forEach((file) => {
 				const filePath = `${path}/${file}`;

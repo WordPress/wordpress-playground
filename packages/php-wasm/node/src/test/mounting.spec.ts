@@ -1,5 +1,10 @@
 import { createNodeFsMountHandler, loadNodeRuntime } from '..';
-import { ErrnoError, PHP } from '@php-wasm/universal';
+import {
+	__private__dont__use,
+	ErrnoError,
+	FSHelpers,
+	PHP,
+} from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import path, { dirname } from 'path';
 import fs from 'fs';
@@ -18,7 +23,7 @@ describe('Mounting', () => {
 		php.exit();
 	});
 
-	describe('File operations', () => {
+	describe('Test mounted file operations', () => {
 		it('Should mount a file with exact content match', async () => {
 			const testFilePath = path.join(
 				__dirname,
@@ -193,7 +198,7 @@ describe('Mounting', () => {
 		});
 	});
 
-	describe('Directory operations', () => {
+	describe('Test mounted directory operations', () => {
 		it('Should mount nested directories with recursive structure matching', async () => {
 			const testDataPath = path.join(__dirname, 'test-data');
 			await php.mount(
@@ -243,6 +248,227 @@ describe('Mounting', () => {
 			}
 		});
 
+		it('Should throw an error when mounting to an existing directory', async () => {
+			const testDataPath = path.join(__dirname, 'test-data');
+			await php.mount(
+				'/nested-test',
+				createNodeFsMountHandler(testDataPath)
+			);
+
+			try {
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+			} catch (e: any) {
+				e = e as ErrnoError;
+				expect(e.name).toBe('ErrnoError');
+				expect(e.errno).toBe(10);
+			}
+		});
+
+		describe('Should be editable', async () => {
+			it('Should add a new directory', async () => {
+				const testDataPath = path.join(__dirname, 'test-data');
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+
+				await php.mkdir('/nested-test/new-dir');
+				expect(php.isDir('/nested-test/new-dir')).toBe(true);
+
+				await php.rmdir('/nested-test/new-dir');
+				expect(php.isDir('/nested-test/new-dir')).toBe(false);
+			});
+
+			it('Should move a directory', async () => {
+				const testDataPath = path.join(__dirname, 'test-data');
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+
+				await php.mv(
+					'/nested-test/nested-symlinked-folder',
+					'/nested-test/new-dir'
+				);
+				expect(php.isDir('/nested-test/new-dir')).toBe(true);
+				expect(php.isDir('/nested-test/nested-symlinked-folder')).toBe(
+					false
+				);
+
+				await php.mv(
+					'/nested-test/new-dir',
+					'/nested-test/nested-symlinked-folder'
+				);
+				expect(php.isDir('/nested-test/new-dir')).toBe(false);
+				expect(php.isDir('/nested-test/nested-symlinked-folder')).toBe(
+					true
+				);
+			});
+
+			it('Should remove a directory', async () => {
+				const testDataPath = path.join(__dirname, 'test-data');
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+
+				const backupDir = path.join(
+					__dirname,
+					'test-data',
+					'backup-nested-test'
+				);
+				await php.mkdir(backupDir);
+				await FSHelpers.copyRecursive(
+					php[__private__dont__use].FS,
+					'/nested-test/nested-symlinked-folder',
+					backupDir
+				);
+
+				await php.rmdir('/nested-test/nested-symlinked-folder');
+				expect(php.isDir('/nested-test/nested-symlinked-folder')).toBe(
+					false
+				);
+
+				await FSHelpers.copyRecursive(
+					php[__private__dont__use].FS,
+					backupDir,
+					'/nested-test/nested-symlinked-folder'
+				);
+				expect(php.isDir('/nested-test/nested-symlinked-folder')).toBe(
+					true
+				);
+			});
+
+			it('Should add a new file', async () => {
+				const testDataPath = path.join(__dirname, 'test-data');
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+
+				await php.writeFile(
+					'/nested-test/nested-symlinked-folder/new-file.txt',
+					'new file content'
+				);
+
+				expect(
+					await php.readFileAsText(
+						'/nested-test/nested-symlinked-folder/new-file.txt'
+					)
+				).toBe('new file content');
+
+				await php.unlink(
+					'/nested-test/nested-symlinked-folder/new-file.txt'
+				);
+				expect(
+					php.isFile(
+						'/nested-test/nested-symlinked-folder/new-file.txt'
+					)
+				).toBe(false);
+			});
+
+			it('Should edit a file', async () => {
+				const testDataPath = path.join(__dirname, 'test-data');
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+
+				const fileContent = await php.readFileAsText(
+					'/nested-test/nested-symlinked-folder/nested-document.txt'
+				);
+
+				await php.writeFile(
+					'/nested-test/nested-symlinked-folder/nested-document.txt',
+					'new file content'
+				);
+
+				expect(
+					await php.readFileAsText(
+						'/nested-test/nested-symlinked-folder/nested-document.txt'
+					)
+				).toBe('new file content');
+
+				await php.writeFile(
+					'/nested-test/nested-symlinked-folder/nested-document.txt',
+					fileContent
+				);
+				expect(
+					await php.readFileAsText(
+						'/nested-test/nested-symlinked-folder/nested-document.txt'
+					)
+				).toBe(fileContent);
+			});
+
+			it('Should delete a file', async () => {
+				const testDataPath = path.join(__dirname, 'test-data');
+				await php.mount(
+					'/nested-test',
+					createNodeFsMountHandler(testDataPath)
+				);
+
+				const fileContent = await php.readFileAsText(
+					'/nested-test/nested-symlinked-folder/nested-document.txt'
+				);
+
+				await php.unlink(
+					'/nested-test/nested-symlinked-folder/nested-document.txt'
+				);
+				expect(
+					php.isFile(
+						'/nested-test/nested-symlinked-folder/nested-document.txt'
+					)
+				).toBe(false);
+
+				await php.writeFile(
+					'/nested-test/nested-symlinked-folder/nested-document.txt',
+					fileContent
+				);
+				expect(
+					await php.readFileAsText(
+						'/nested-test/nested-symlinked-folder/nested-document.txt'
+					)
+				).toBe(fileContent);
+			});
+		});
+
+		it('Should not be deletable', async () => {
+			const testDataPath = path.join(__dirname, 'test-data');
+			await php.mount(
+				'/nested-test',
+				createNodeFsMountHandler(testDataPath)
+			);
+
+			try {
+				await php.rmdir('/nested-test');
+			} catch (e: any) {
+				e = e as Error;
+				expect(e.message).toContain(
+					'Could not remove directory "/nested-test": Device or resource busy.'
+				);
+			}
+		});
+
+		it('Should not be movable', async () => {
+			const testDataPath = path.join(__dirname, 'test-data');
+			await php.mount(
+				'/nested-test',
+				createNodeFsMountHandler(testDataPath)
+			);
+
+			try {
+				await php.mv('/nested-test', '/nested-test-moved');
+			} catch (e: any) {
+				e = e as Error;
+				expect(e.message).toContain(
+					'Could not move /nested-test to /nested-test-moved: Device or resource busy.'
+				);
+			}
+		});
+
 		it('Should unmount a directory and remove created node from VFS', async () => {
 			const testDataPath = path.join(__dirname, 'test-data');
 			const unmount = await php.mount(
@@ -268,6 +494,22 @@ describe('Mounting', () => {
 			expect(php.isDir('/nested-test')).toBe(true);
 
 			await unmount();
+			expect(php.isDir('/nested-test')).toBe(true);
+		});
+
+		it('Should remount after unmounting', async () => {
+			const testDataPath = path.join(__dirname, 'test-data');
+			const unmount = await php.mount(
+				'/nested-test',
+				createNodeFsMountHandler(testDataPath)
+			);
+
+			await unmount();
+			await php.mount(
+				'/nested-test',
+				createNodeFsMountHandler(testDataPath)
+			);
+
 			expect(php.isDir('/nested-test')).toBe(true);
 		});
 	});
