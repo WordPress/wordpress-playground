@@ -48,7 +48,6 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			lookup = FS.lookupPath(vfsMountPoint);
 		}
 		if (!lookup.node) {
-			// TODO: Improve error once I understand the limitations.
 			throw new Error('Unable to access the mount point in VFS.');
 		}
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
