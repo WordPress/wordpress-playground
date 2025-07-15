@@ -258,7 +258,9 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			client.close(3000);
 			try {
 				target.end();
-			} catch (e) {}
+			} catch {
+				// Ignore
+			}
 		});
 	});
 }
