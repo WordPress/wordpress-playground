@@ -95,7 +95,6 @@ export interface RunCLIArgs {
 	'db-name'?: string;
 	'db-path'?: string;
 	'truncate-new-site-directory'?: boolean;
-	allow?: string[];
 }
 
 export async function parseOptionsAndRunCLI() {
@@ -223,14 +222,14 @@ export async function parseOptionsAndRunCLI() {
 				type: 'number',
 				coerce: (value?: number) => value ?? cpus().length - 1,
 			})
-			.option('allow', {
-				describe: 'Allowed permissions (comma-separated)',
-				type: 'string',
-				coerce: (value) => value?.split(','),
-				choices: ['bundled-files', 'follow-symlinks'],
-			})
 
 			// v2-specific Blueprint CLI options – commented until a v2 worker is implemented
+			// .option('allow', {
+			// 	describe: 'Allowed permissions (comma-separated)',
+			// 	type: 'string',
+			// 	coerce: (value) => value?.split(','),
+			// 	choices: ['bundled-files', 'follow-symlinks'],
+			// })
 			// .option('mode', {
 			// 	describe: 'Execution mode',
 			// 	type: 'string',
@@ -279,27 +278,23 @@ export async function parseOptionsAndRunCLI() {
 					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
 				type: 'boolean',
 				default: false,
-				hidden: true,
 			})
 			.option('skip-sqlite-setup', {
 				describe:
 					'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
 				type: 'boolean',
 				default: false,
-				hidden: true,
 			})
 			.option('blueprint-may-read-adjacent-files', {
 				describe:
 					'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
 				type: 'boolean',
 				default: false,
-				hidden: true,
 			})
 			.option('follow-symlinks', {
 				describe:
 					'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
 				type: 'boolean',
-				default: false,
 			})
 
 			// Backward compatibility aliases (hidden)
@@ -365,27 +360,6 @@ export async function parseOptionsAndRunCLI() {
 				}
 				if (args.autoMount !== undefined) {
 					args['auto-mount'] = args.autoMount;
-				}
-
-				// Convert V1 arguments to V2 arguments
-				if (!args['allow']) {
-					args['allow'] = [];
-				}
-
-				if (args['follow-symlinks']) {
-					args['allow'].push('follow-symlinks');
-				}
-
-				if (args['blueprint-may-read-adjacent-files']) {
-					args['allow'].push('bundled-files');
-				}
-
-				if (args['skip-sqlite-setup']) {
-					args['db-engine'] = 'apply-to-existing-site';
-				}
-
-				if (args['skip-wordpress-setup']) {
-					args['mode'] = 'mount-only';
 				}
 
 				// Validation
@@ -751,8 +725,7 @@ class BlueprintsV1Handler {
 			? undefined
 			: await fetchSqliteIntegration(monitor);
 
-		const followSymlinks =
-			this.args.allow?.includes('follow-symlinks') === true;
+		const followSymlinks = this.args['follow-symlinks'] === true;
 		const trace = this.args['experimental-trace'] === true;
 
 		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
@@ -827,8 +800,7 @@ class BlueprintsV1Handler {
 			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
-			followSymlinks:
-				this.args['allow']?.includes('follow-symlinks') === true,
+			followSymlinks: this.args['follow-symlinks'] === true,
 			trace: this.args['experimental-trace'] === true,
 			// @TODO: Move this to the request handler or else every worker
 			//        will have a separate cookie store.
@@ -845,9 +817,7 @@ class BlueprintsV1Handler {
 				? await resolveBlueprint({
 						sourceString: args.blueprint,
 						blueprintMayReadAdjacentFiles:
-							args['allow']?.includes(
-								'blueprint-may-read-adjacent-files'
-							) === true,
+							args['blueprint-may-read-adjacent-files'] === true,
 				  })
 				: (args.blueprint as BlueprintDeclaration);
 		/**
