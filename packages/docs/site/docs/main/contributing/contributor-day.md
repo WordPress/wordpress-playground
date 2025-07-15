@@ -4,15 +4,11 @@ slug: /contributing/contributor-day
 
 # WordCamp Contributor Day
 
-The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
+The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
 
-Keep reading to learn how to use these tools for [local development](/developers/local-development/wp-now) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
+Keep reading to learn how to use these tools for [local development](/developers/local-development/wp-playground-cli) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
 
 ## Getting Started
-
-If you’re a visual learner, here’s a step-by-step video tutorial. If you prefer reading at your own pace, skip to the written instructions below.
-
-<iframe title="Getting Started with wp-now for WordPress development at Contributor Day" width="752" height="423" src="https://video.wordpress.com/embed/Gn7XOCAM?cover=1&amp;preloadContent=metadata&amp;useAverageColor=1&amp;hd=1&amp;metadata_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ3b3JkcHJlc3MuY29tIiwiaWF0IjoxNjg2MTQ4ODQ5LCJleHAiOjE2ODYzMjE2NDksImJsb2dfaWQiOiIyMDMxMjIxMTIiLCJndWlkIjoiR243WE9DQU0iLCJhdXRoIjoidmlkZW9wcmVzc19wbGF5YmFja190b2tlbiIsImFjY2VzcyI6InZpZGVvIiwiZXhwaXJlcyI6MTY4NjMyMTY0OX0.DJWVfePHl2nUKo8ziG81CK2VlG5Ui8vNg-dZJ7dOSq8" allow="fullscreen" loading="eager"></iframe>
 
 ### VS Code Playground extension
 
@@ -23,23 +19,23 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 3. To interact with Playground, click the new icon in the **Activity Bar** and hit the **Start WordPress Server** button.
 4. A new tab will open in your browser within seconds.
 
-### wp-now NPM package
+### @wp-playground/cli NPM package
 
-`@wp-now/wp-now` is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
+`@wp-playground/cli` is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
 
 #### Prerequisites
 
-`wp-now` requires Node.js and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
 
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
 
-#### Run wp-now
+#### Running `@wp-playground/cli`
 
-You don’t have to install `wp-now` on your device to use it. Navigate to your plugin or theme directory and start `wp-now` with the following commands:
+You don’t have to install `@wp-playground/cli` on your device to use it. Navigate to your plugin or theme directory and start `@wp-playground/cli` with the following commands:
 
 ```bash
 cd my-plugin-or-theme-directory
-npx @wp-now/wp-now start
+npx @wp-playground/cli@latest server --auto-mount
 ```
 
 ## Ideas for contributors
@@ -59,15 +55,15 @@ npm run dev
 
 :::info
 
-If you’re unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `wp-now` replaces `wp-env`.
+If you’re unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `@wp-playground/cli` replaces `wp-env`.
 
 :::
 
-Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `wp-now`:
+Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `@wp-playground/cli`:
 
 ```bash
 cd gutenberg
-npx @wp-now/wp-now start
+npx @wp-playground/cli@latest server --auto-mount
 ```
 
 When you’re ready, commit and push your changes to your forked repository on GitHub and open a Pull Request on the Gutenberg repository.
@@ -87,7 +83,7 @@ npm install
 npm run dev
 
 # In a different terminal inside the Gutenberg directory *
-npx @wp-now/wp-now start
+npx @wp-playground/cli@latest server --auto-mount
 ```
 
 #### Test a Gutenberg PR with Playground in the browser

@@ -235,6 +235,9 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 					while (true) {
 						var mask = POLLNVAL;
 						mask = SYSCALLS.DEFAULT_POLLMASK;
+						if (FS.isClosed(stream)) {
+							return ERRNO_CODES.EBADF;
+						}
 						if (stream.stream_ops?.poll) {
 							mask = stream.stream_ops.poll(stream, -1);
 						}
