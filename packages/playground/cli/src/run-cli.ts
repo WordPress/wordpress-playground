@@ -433,14 +433,7 @@ export async function parseOptionsAndRunCLI() {
 			await printDebugDetails(e, (e as any)?.streamedResponse);
 		}
 
-		const reportableCause = ReportableError.getReportableCause(e);
-		if (reportableCause) {
-			console.log('');
-			console.log(reportableCause.message);
-			process.exit(1);
-		} else {
-			throw e;
-		}
+		throw e;
 	}
 }
 
