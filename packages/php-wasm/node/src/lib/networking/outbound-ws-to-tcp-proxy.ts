@@ -216,7 +216,11 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			// Send empty binary data to notify requester that connection was
 			// initiated
 			client.send([]);
-			client.close(3000);
+			// Without this random timeout, PHP sometimes doesn't notice the socket
+			// disconnected. TODO: figure out why.
+			setTimeout(() => {
+				client.close(3000);
+			});
 			return;
 		}
 	} else {
@@ -248,9 +252,13 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	target.on('error', function (e: any) {
 		clientLog('target connection error', e);
 		client.send([]);
-		client.close(3000);
-		try {
-			target.end();
-		} catch (e) {}
+		// Without this random timeout, PHP sometimes doesn't notice the socket
+		// disconnected. TODO: figure out why.
+		setTimeout(() => {
+			client.close(3000);
+			try {
+				target.end();
+			} catch (e) {}
+		});
 	});
 }
