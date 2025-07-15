@@ -1,8 +1,4 @@
-import {
-	FSHelpers,
-	type ErrnoError,
-	type MountHandler,
-} from '@php-wasm/universal';
+import { type ErrnoError, type MountHandler } from '@php-wasm/universal';
 import { statSync } from 'fs';
 import { basename } from 'path';
 

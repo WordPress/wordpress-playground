@@ -1,10 +1,6 @@
 import { createNodeFsMountHandler, loadNodeRuntime } from '..';
-import {
-	__private__dont__use,
-	ErrnoError,
-	FSHelpers,
-	PHP,
-} from '@php-wasm/universal';
+import { __private__dont__use, PHP, FSHelpers } from '@php-wasm/universal';
+import { type ErrnoError } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import path, { dirname } from 'path';
 import fs from 'fs';
@@ -83,9 +79,9 @@ describe('Mounting', () => {
 						createNodeFsMountHandler(filePath)
 					);
 				} catch (e: any) {
-					e = e as ErrnoError;
-					expect(e.name).toBe('ErrnoError');
-					expect(e.errno).toBe(10);
+					const error = e as ErrnoError;
+					expect(error.name).toBe('ErrnoError');
+					expect(error.errno).toBe(10);
 				}
 			});
 
@@ -119,8 +115,8 @@ describe('Mounting', () => {
 				try {
 					await php.unlink(fileMountPoint);
 				} catch (e: any) {
-					e = e as Error;
-					expect(e.message).toContain(
+					const error = e as Error;
+					expect(error.message).toContain(
 						`Could not unlink "${fileMountPoint}": Device or resource busy.`
 					);
 				}
@@ -135,8 +131,8 @@ describe('Mounting', () => {
 				try {
 					await php.mv(fileMountPoint, '/single-file-moved.txt');
 				} catch (e: any) {
-					e = e as Error;
-					expect(e.message).toContain(
+					const error = e as Error;
+					expect(error.message).toContain(
 						`Could not move ${fileMountPoint} to /single-file-moved.txt: Device or resource busy.`
 					);
 				}
@@ -268,9 +264,9 @@ describe('Mounting', () => {
 						createNodeFsMountHandler(directoryPath)
 					);
 				} catch (e: any) {
-					e = e as ErrnoError;
-					expect(e.name).toBe('ErrnoError');
-					expect(e.errno).toBe(10);
+					const error = e as ErrnoError;
+					expect(error.name).toBe('ErrnoError');
+					expect(error.errno).toBe(10);
 				}
 			});
 
@@ -463,8 +459,8 @@ describe('Mounting', () => {
 				try {
 					await php.rmdir(directoryMountPoint);
 				} catch (e: any) {
-					e = e as Error;
-					expect(e.message).toContain(
+					const error = e as Error;
+					expect(error.message).toContain(
 						`Could not remove directory "${directoryMountPoint}": Device or resource busy.`
 					);
 				}
@@ -479,8 +475,8 @@ describe('Mounting', () => {
 				try {
 					await php.mv(directoryMountPoint, '/nested-test-moved');
 				} catch (e: any) {
-					e = e as Error;
-					expect(e.message).toContain(
+					const error = e as Error;
+					expect(error.message).toContain(
 						`Could not move ${directoryMountPoint} to /nested-test-moved: Device or resource busy.`
 					);
 				}
