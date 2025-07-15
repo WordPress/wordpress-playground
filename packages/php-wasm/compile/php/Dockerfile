@@ -1828,6 +1828,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_user_it_get_current_data",\
 "zend_user_it_get_new_iterator",\
 "ZEND_USER_OPCODE_SPEC_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_CONST_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_TMPVAR_HANDLER",\
 "zend_value_error",\
 "zend_verify_ref_array_assignable",\
 "zend_vm_stack_extend",\
