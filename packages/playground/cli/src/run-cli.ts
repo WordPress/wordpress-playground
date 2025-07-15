@@ -5,12 +5,12 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
+	PHPResponse,
+	SupportedPHPVersions,
 	consumeAPI,
 	exposeAPI,
 	exposeSyncAPI,
-	PHPResponse,
 	printDebugDetails,
-	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import {
 	compileBlueprint,
@@ -28,13 +28,12 @@ import { cpus } from 'os';
 import { jspi } from 'wasm-feature-detect';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import { ReportableError } from './reportable-error';
 // @ts-ignore
 import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 // @ts-ignore
 import {
-	Worker,
 	MessageChannel as NodeMessageChannel,
+	Worker,
 	type MessagePort as NodeMessagePort,
 } from 'worker_threads';
 import {
