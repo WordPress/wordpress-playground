@@ -3,7 +3,6 @@ import type { PHP } from '@php-wasm/universal';
 import fs, { existsSync } from 'fs';
 import path, { basename, join } from 'path';
 import type { RunCLIArgs } from './run-cli';
-import { RunCLIArgsV2 } from './run-cli-v2';
 
 export interface Mount {
 	hostPath: string;
@@ -110,9 +109,7 @@ const ACTIVATE_FIRST_THEME_STEP = {
 /**
  * Auto-mounts resolution logic:
  */
-export function expandAutoMounts<T extends RunCLIArgs | RunCLIArgsV2>(
-	args: T
-): T {
+export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 	const path = process.cwd();
 
 	const mount = [...(args.mount || [])];
@@ -182,7 +179,7 @@ export function expandAutoMounts<T extends RunCLIArgs | RunCLIArgsV2>(
 		// newArgs.mode = 'mount-only';
 	}
 
-	return newArgs as T;
+	return newArgs;
 }
 
 export function containsFullWordPressInstallation(path: string): boolean {

@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { MockInstance } from 'vitest';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { expandAutoMounts } from './mounts';
-import type { RunCLIArgs } from './run-cli';
+import type { RunCLIV1Args } from './run-cli-v1';
 
 describe('expandAutoMounts', () => {
 	afterEach(() => {
@@ -11,7 +11,7 @@ describe('expandAutoMounts', () => {
 		}
 	});
 
-	const createBasicArgs = (): RunCLIArgs => ({
+	const createBasicArgs = (): RunCLIV1Args => ({
 		command: 'server',
 		php: '8.0',
 	});
@@ -296,7 +296,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/plugin')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				mount: [
 					{
@@ -327,7 +327,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/wordpress')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				'mount-before-install': [
 					{
@@ -357,7 +357,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/plugin')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				'additional-blueprint-steps': [
 					{
@@ -387,7 +387,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/plugin')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				mount: undefined,
 				'mount-before-install': undefined,
@@ -411,7 +411,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/plugin')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				blueprint: undefined,
 			};
@@ -430,7 +430,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/plugin')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				blueprint: { plugins: ['gutenberg'] },
 			};
@@ -445,7 +445,7 @@ describe('expandAutoMounts', () => {
 				path.join(__dirname, 'test/mount-examples/plugin')
 			);
 
-			const args: RunCLIArgs = {
+			const args: RunCLIV1Args = {
 				...createBasicArgs(),
 				php: '8.1',
 				port: 3000,

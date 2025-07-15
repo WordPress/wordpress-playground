@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { runCLI } from '../run-cli';
-import type { RunCLIServer } from '../run-cli';
+import { runCLI } from '../run-cli-v1';
+import type { RunCLIServerV1 } from '../run-cli-v1';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -14,7 +14,7 @@ import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 // TODO: Fix or rework these tests because it is difficult to run them now that
 // runCLI() launches a Worker.
 describe.skip('cli-run', () => {
-	let cliServer: RunCLIServer;
+	let cliServer: RunCLIServerV1;
 
 	afterEach(async () => {
 		if (cliServer) {

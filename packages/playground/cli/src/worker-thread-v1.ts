@@ -43,10 +43,10 @@ export type PrimaryWorkerBootOptions = {
 	internalCookieStore?: boolean;
 };
 
-function mountResources(php: PHP, mounts: Mount[]) {
+async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
 		php.mkdir(mount.vfsPath);
-		php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
+		await php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
 	}
 }
 
@@ -66,7 +66,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-export class PlaygroundCliWorker extends PHPWorker {
+export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
 	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
 
@@ -182,7 +182,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 				},
 				hooks: {
 					async beforeWordPressFiles(php) {
-						mountResources(php, mountsBeforeWpInstall);
+						await mountResources(php, mountsBeforeWpInstall);
 					},
 				},
 				cookieStore: internalCookieStore ? undefined : false,
@@ -194,7 +194,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
 
-			mountResources(primaryPhp, mountsAfterWpInstall);
+			await mountResources(primaryPhp, mountsAfterWpInstall);
 
 			setApiReady();
 		} catch (e) {
@@ -212,7 +212,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 const phpChannel = new MessageChannel();
 
 const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
+	new PlaygroundCliBlueprintV1Worker(new EmscriptenDownloadMonitor()),
 	undefined,
 	phpChannel.port1
 );

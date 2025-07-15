@@ -1,19 +1,24 @@
-import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
+import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
 import type { Request } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
-import type { RunCLIServer } from './run-cli';
 
-export interface ServerOptions {
+export interface RunCLIServer<T> extends AsyncDisposable {
+	playground: T;
+	server: Server;
+	[Symbol.asyncDispose](): Promise<void>;
+}
+
+export interface ServerOptions<T> {
 	port: number;
-	onBind: (server: Server, port: number) => Promise<RunCLIServer>;
+	onBind: (server: Server, port: number) => Promise<RunCLIServer<T>>;
 	handleRequest: (request: PHPRequest) => Promise<PHPResponse>;
 }
 
-export async function startServer(
-	options: ServerOptions
-): Promise<RunCLIServer> {
+export async function startServer<T>(
+	options: ServerOptions<T>
+): Promise<RunCLIServer<T>> {
 	const app = express();
 
 	const server = await new Promise<

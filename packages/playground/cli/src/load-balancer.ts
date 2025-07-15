@@ -1,5 +1,6 @@
 import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
-import type { PlaygroundCliWorker } from './worker-thread';
+import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
+import type { PlaygroundCliBlueprintV2Worker } from './worker-thread-v2';
 
 // TODO: Let's merge worker management into PHPProcessManager
 // when we can have multiple workers in both CLI and web.
@@ -7,7 +8,9 @@ import type { PlaygroundCliWorker } from './worker-thread';
 
 // TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
 type WorkerLoad = {
-	worker: RemoteAPI<PlaygroundCliWorker>;
+	worker: RemoteAPI<
+		PlaygroundCliBlueprintV1Worker | PlaygroundCliBlueprintV2Worker
+	>;
 	activeRequests: Set<Promise<PHPResponse>>;
 };
 export class LoadBalancer {
@@ -19,12 +22,18 @@ export class LoadBalancer {
 		// Playground CLI initialization, as of 2025-06-11, requires that
 		// an initial worker is booted alone and initialized via Blueprint
 		// before additional workers are created based on the initialized worker.
-		initialWorker: RemoteAPI<PlaygroundCliWorker>
+		initialWorker: RemoteAPI<
+			PlaygroundCliBlueprintV1Worker | PlaygroundCliBlueprintV2Worker
+		>
 	) {
 		this.addWorker(initialWorker);
 	}
 
-	addWorker(worker: RemoteAPI<PlaygroundCliWorker>) {
+	addWorker(
+		worker: RemoteAPI<
+			PlaygroundCliBlueprintV1Worker | PlaygroundCliBlueprintV2Worker
+		>
+	) {
 		this.workerLoads.push({
 			worker,
 			activeRequests: new Set(),
