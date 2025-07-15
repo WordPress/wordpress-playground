@@ -466,7 +466,6 @@ export async function parseOptionsAndRunCLI() {
 			console.log(reportableCause.message);
 			process.exit(1);
 		} else {
-			// If we did not expect this error, print **all** the debug details we can get.
 			throw e;
 		}
 	}
