@@ -58,9 +58,8 @@ import {
 	readAsFile,
 } from './download';
 import { LoadBalancer } from './load-balancer';
-import { startServer } from './server';
+import { RunCLIServer, startServer } from './server';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
-import type { PlaygroundCliBlueprintV2Worker } from './worker-thread-v2';
 
 /* eslint-disable no-console */
 export interface RunCLIArgs {
@@ -80,7 +79,6 @@ export interface RunCLIArgs {
 
 	'experimental-multi-worker'?: number;
 	'experimental-trace'?: boolean;
-	'blueprint-version'?: 'v1' | 'v2' | 'auto';
 
 	// v1-specific options (hidden from help but supported for backward compatibility)
 	'skip-wordpress-setup'?: boolean;
@@ -208,63 +206,6 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-
-			// Blueprint version selection
-			.option('blueprint-version', {
-				describe: 'Blueprint version to use (auto-detected by default)',
-				type: 'string',
-				choices: ['v1', 'v2', 'auto'],
-				default: 'auto',
-			})
-
-			// v2-specific Blueprint CLI options
-			.option('mode', {
-				describe: 'Execution mode',
-				type: 'string',
-				default: 'create-new-site',
-				choices: [
-					'create-new-site',
-					'apply-to-existing-site',
-					'mount-only',
-				],
-			})
-			.option('db-engine', {
-				describe: 'Database engine',
-				type: 'string',
-				default: 'sqlite',
-				choices: ['mysql', 'sqlite'],
-			})
-			.option('db-host', {
-				describe: 'MySQL host',
-				type: 'string',
-			})
-			.option('db-user', {
-				describe: 'MySQL user',
-				type: 'string',
-			})
-			.option('db-pass', {
-				describe: 'MySQL password',
-				type: 'string',
-			})
-			.option('db-name', {
-				describe: 'MySQL database',
-				type: 'string',
-			})
-			.option('db-path', {
-				describe: 'SQLite file path',
-				type: 'string',
-			})
-			.option('truncate-new-site-directory', {
-				describe:
-					'Delete target directory if it exists before execution',
-				type: 'boolean',
-			})
-			.option('allow', {
-				describe: 'Allowed permissions (comma-separated)',
-				type: 'string',
-				coerce: (value) => value?.split(','),
-				choices: ['bundled-files', 'follow-symlinks'],
-			})
 			.option('experimental-trace', {
 				describe:
 					'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
@@ -283,9 +224,57 @@ export async function parseOptionsAndRunCLI() {
 				type: 'number',
 				coerce: (value?: number) => value ?? cpus().length - 1,
 			})
+			.option('allow', {
+				describe: 'Allowed permissions (comma-separated)',
+				type: 'string',
+				coerce: (value) => value?.split(','),
+				choices: ['bundled-files', 'follow-symlinks'],
+			})
 
-			// Legacy options, specific to Blueprints v1 (BC reasons only, they're hidden from
-			// the help message).
+			// v2-specific Blueprint CLI options – commented until a v2 worker is implemented
+			// .option('mode', {
+			// 	describe: 'Execution mode',
+			// 	type: 'string',
+			// 	default: 'create-new-site',
+			// 	choices: [
+			// 		'create-new-site',
+			// 		'apply-to-existing-site',
+			// 		'mount-only',
+			// 	],
+			// })
+			// .option('db-engine', {
+			// 	describe: 'Database engine',
+			// 	type: 'string',
+			// 	default: 'sqlite',
+			// 	choices: ['mysql', 'sqlite'],
+			// })
+			// .option('db-host', {
+			// 	describe: 'MySQL host',
+			// 	type: 'string',
+			// })
+			// .option('db-user', {
+			// 	describe: 'MySQL user',
+			// 	type: 'string',
+			// })
+			// .option('db-pass', {
+			// 	describe: 'MySQL password',
+			// 	type: 'string',
+			// })
+			// .option('db-name', {
+			// 	describe: 'MySQL database',
+			// 	type: 'string',
+			// })
+			// .option('db-path', {
+			// 	describe: 'SQLite file path',
+			// 	type: 'string',
+			// })
+			// .option('truncate-new-site-directory', {
+			// 	describe:
+			// 		'Delete target directory if it exists before execution',
+			// 	type: 'boolean',
+			// })
+
+			// Blueprints v1 (legacy) options. Internally, they're migrated to v2 notation.
 			.option('skip-wordpress-setup', {
 				describe:
 					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
@@ -483,15 +472,7 @@ export async function parseOptionsAndRunCLI() {
 	}
 }
 
-export interface RunCLIServer extends AsyncDisposable {
-	playground:
-		| RemoteAPI<PlaygroundCliBlueprintV1Worker>
-		| RemoteAPI<PlaygroundCliBlueprintV2Worker>;
-	server: Server;
-	[Symbol.asyncDispose](): Promise<void>;
-}
-
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+export async function runCLI(args: RunCLIArgs) {
 	let loadBalancer: LoadBalancer | undefined = undefined;
 
 	const playgroundsToCleanUp: {
