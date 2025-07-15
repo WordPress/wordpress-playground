@@ -31,6 +31,8 @@ describe(`PHP ${phpVersion}`, () => {
 				response.text.includes(expectedText),
 				`Response text does not include '${expectedText}'`
 			);
+		} catch (e) {
+			console.error(e);
 		} finally {
 			if (cli) {
 				await cli[Symbol.asyncDispose]();

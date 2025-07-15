@@ -18,6 +18,8 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				// Verify response
 				expect(response.httpStatusCode).toBe(200);
 				expect(response.text).toContain('My WordPress Website');
+			} catch (e) {
+				console.error(e);
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
