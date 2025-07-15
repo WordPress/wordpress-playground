@@ -207,8 +207,6 @@ describe('Mounting', () => {
 					createNodeFsMountHandler(directoryPath)
 				);
 
-				console.log('vfsFiles', php.listFiles(directoryMountPoint));
-
 				// Recursively compare directory structure
 				const compareDirectories = (
 					vfsPath: string,
@@ -217,9 +215,7 @@ describe('Mounting', () => {
 					if (!fs.existsSync(localPath)) return;
 
 					const localFiles = fs.readdirSync(localPath);
-					console.log('localFiles', localPath, localFiles);
 					const vfsFiles = php.listFiles(vfsPath);
-					console.log('vfsFiles', vfsPath, vfsFiles);
 					expect(vfsFiles.sort()).toEqual(localFiles.sort());
 
 					localFiles.forEach((file) => {
