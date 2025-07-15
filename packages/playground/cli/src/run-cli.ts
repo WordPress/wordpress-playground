@@ -14,7 +14,6 @@ import {
 } from '@php-wasm/universal';
 import {
 	compileBlueprint,
-	type CompiledBlueprint,
 	isBlueprintBundle,
 	type BlueprintBundle,
 	type BlueprintDeclaration,
@@ -58,7 +57,7 @@ import {
 	readAsFile,
 } from './download';
 import { LoadBalancer } from './load-balancer';
-import { RunCLIServer, startServer } from './server';
+import { startServer } from './server';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 
 /* eslint-disable no-console */
