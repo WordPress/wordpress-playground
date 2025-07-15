@@ -150,7 +150,7 @@ describe('Mounting', () => {
 
 				expect(php.isFile(fileMountPoint)).toBe(true);
 
-				await unmount();
+				unmount();
 				expect(php.isFile(fileMountPoint)).toBe(false);
 			});
 
@@ -160,7 +160,7 @@ describe('Mounting', () => {
 					createNodeFsMountHandler(filePath)
 				);
 
-				await unmount();
+				unmount();
 				await php.mount(
 					fileMountPoint,
 					createNodeFsMountHandler(filePath)
@@ -184,7 +184,7 @@ describe('Mounting', () => {
 
 				expect(php.isFile(mountPoint)).toBe(true);
 
-				await unmount();
+				unmount();
 				expect(php.isDir(dirname(mountPoint))).toBe(true);
 			});
 		});
@@ -498,7 +498,7 @@ describe('Mounting', () => {
 
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 
-				await unmount();
+				unmount();
 				expect(php.isDir(directoryMountPoint)).toBe(false);
 			});
 
@@ -511,7 +511,7 @@ describe('Mounting', () => {
 
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 
-				await unmount();
+				unmount();
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 			});
 
@@ -521,7 +521,7 @@ describe('Mounting', () => {
 					createNodeFsMountHandler(directoryPath)
 				);
 
-				await unmount();
+				unmount();
 				await php.mount(
 					directoryMountPoint,
 					createNodeFsMountHandler(directoryPath)
