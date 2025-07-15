@@ -73,6 +73,14 @@ export default defineConfig({
 			external: getExternalModules(),
 		},
 	},
+	resolve: {
+		// @ts-ignore
+		alias: {
+			// This makes sure Vite doesn't stub it
+			fs: false,
+			'fs/promises': false,
+		},
+	},
 
 	test: {
 		globals: true,
