@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_4_0', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 36763254;
+export const dependenciesTotalSize = 36763309;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 17316672;
+	var ___heap_base = 17316736;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1853,13 +1853,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 17316672;
+	var ___stack_high = 17316736;
 
-	var ___stack_low = 17251136;
+	var ___stack_low = 17251200;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		17316672
+		17316736
 	);
 
 	var PATH = {
@@ -3912,10 +3912,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -17745,10 +17741,6 @@ export function init(RuntimeName, PHPLoader) {
 				// Set up iovec structure pointing to our buffer
 				HEAPU32[iov >> 2] = buffer; // iov_base
 				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
-
-				if (typeof js_fd_read === 'undefined') {
-					globalThis.js_fd_read = __asyncjs__js_fd_read;
-				}
 
 				function pump() {
 					try {
@@ -31815,13 +31807,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		16318662: ($0) => {
+		16318717: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		16318710: ($0) => {
+		16318765: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
