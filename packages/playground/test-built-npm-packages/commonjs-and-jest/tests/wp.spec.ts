@@ -20,6 +20,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				expect(response.text).toContain('My WordPress Website');
 			} catch (e) {
 				console.error(e);
+				throw e;
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}

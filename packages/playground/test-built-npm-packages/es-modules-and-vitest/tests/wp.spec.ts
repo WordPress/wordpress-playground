@@ -33,6 +33,7 @@ describe(`PHP ${phpVersion}`, () => {
 			);
 		} catch (e) {
 			console.error(e);
+			throw e;
 		} finally {
 			if (cli) {
 				await cli[Symbol.asyncDispose]();
