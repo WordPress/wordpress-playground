@@ -207,6 +207,8 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 const officialRemoteOrigin = 'https://playground.wordpress.net';
 const validRemoteOrigins = [
 	officialRemoteOrigin,
+	// An older origin that's still used by some plugins.
+	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
 	location.origin,
 	'http://localhost',

@@ -81,6 +81,10 @@ export interface CompileBlueprintOptions {
 	 * A filesystem to use for the blueprint.
 	 */
 	streamBundledFile?: StreamBundledFile;
+	/**
+	 * Additional steps to add to the blueprint.
+	 */
+	additionalSteps?: any[];
 }
 
 export async function compileBlueprint(
@@ -135,6 +139,7 @@ function compileBlueprintJson(
 		onStepCompleted = () => {},
 		corsProxy,
 		streamBundledFile,
+		additionalSteps,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = structuredClone(blueprint);
@@ -145,6 +150,9 @@ function compileBlueprintJson(
 			.filter(isStepDefinition)
 			.filter(isStepStillSupported),
 	};
+
+	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
+
 	for (const step of blueprint.steps!) {
 		if (!step || typeof step !== 'object') {
 			continue;

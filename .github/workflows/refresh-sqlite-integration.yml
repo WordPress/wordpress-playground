@@ -32,6 +32,8 @@ jobs:
                   persist-credentials: false
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 23
             - name: 'Refresh the SQLite bundle'
               shell: bash
               run: npx nx bundle-sqlite-database playground-wordpress-builds

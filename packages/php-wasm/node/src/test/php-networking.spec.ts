@@ -3,13 +3,18 @@ import {
 	SupportedPHPVersions,
 	setPhpIniEntries,
 	getLoadedRuntime,
+	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
 import http from 'http';
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+const phpVersions =
+	'PHP' in process.env
+		? [process.env['PHP']! as SupportedPHPVersion]
+		: SupportedPHPVersions;
+describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	let server: any;
 	async function startServer() {
 		const app = express();

@@ -1,12 +1,19 @@
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
-import { PHPWorker, consumeAPI, exposeAPI } from '@php-wasm/universal';
 import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { bootWordPress } from '@wp-playground/wordpress';
+import type { PHP, RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	PHPWorker,
+	consumeAPI,
+	consumeAPISync,
+	exposeAPI,
+	sandboxedSpawnHandlerFactory,
+} from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
-import { parentPort } from 'worker_threads';
+import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
+import { jspi } from 'wasm-feature-detect';
+import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 
 export interface Mount {
 	hostPath: string;
@@ -26,6 +33,14 @@ export type PrimaryWorkerBootOptions = {
 	dataSqlPath?: string;
 	followSymlinks: boolean;
 	trace: boolean;
+	/**
+	 * When true, Playground will not send cookies to the client but will manage
+	 * them internally. This can be useful in environments that can't store cookies,
+	 * e.g. VS Code WebView.
+	 *
+	 * Default: false.
+	 */
+	internalCookieStore?: boolean;
 };
 
 function mountResources(php: PHP, mounts: Mount[]) {
@@ -53,9 +68,43 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 
 export class PlaygroundCliWorker extends PHPWorker {
 	booted = false;
+	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
+	}
+
+	/**
+	 * Call this method before boot() to use file locking.
+	 *
+	 * This method is separate from boot() to simplify the related Comlink.transferHandlers
+	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
+	 *
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 */
+	async useFileLockManager(port: MessagePort) {
+		if (await jspi()) {
+			/**
+			 * If JSPI is available, php.js supports both synchronous and asynchronous locking syscalls.
+			 * Web browsers, however, only support asynchronous message passing so let's use the
+			 * asynchronous API. Every method call will return a promise.
+			 *
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
+			 */
+			this.fileLockManager = consumeAPI<FileLockManager>(port);
+		} else {
+			/**
+			 * If JSPI is not available, php.js only supports synchronous locking syscalls.
+			 * Let's use the synchronous API. Every method call will block this thread
+			 * until the result is available.
+			 *
+			 * @see comlink-sync.ts
+			 * @see phpwasm-emscripten-library-file-locking-for-node.js
+			 */
+			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
+		}
 	}
 
 	async boot({
@@ -70,6 +119,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		dataSqlPath,
 		followSymlinks,
 		trace,
+		internalCookieStore,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -78,8 +128,6 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 		let nextProcessId = firstProcessId;
 		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
-		const fileLockManager = consumeAPI<FileLockManager>(parentPort!);
-		await fileLockManager.isConnected();
 
 		try {
 			const constants: Record<string, string | number | boolean | null> =
@@ -103,7 +151,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
-							fileLockManager,
+							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 						},
@@ -137,8 +185,9 @@ export class PlaygroundCliWorker extends PHPWorker {
 						mountResources(php, mountsBeforeWpInstall);
 					},
 				},
-				cookieStore: false,
+				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
+				spawnHandler: sandboxedSpawnHandlerFactory,
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -160,11 +209,18 @@ export class PlaygroundCliWorker extends PHPWorker {
 	}
 }
 
+const phpChannel = new MessageChannel();
+
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
 	undefined,
-	parentPort!
+	phpChannel.port1
 );
 
-// Confirm that the worker script has initialized.
-parentPort!.postMessage('worker-script-initialized');
+parentPort!.postMessage(
+	{
+		command: 'worker-script-initialized',
+		phpPort: phpChannel.port2,
+	},
+	[phpChannel.port2 as any]
+);
