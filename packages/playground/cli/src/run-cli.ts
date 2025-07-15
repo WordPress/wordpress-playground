@@ -49,7 +49,7 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { Server } from 'http';
+import type { Server } from 'http';
 import path from 'path';
 import {
 	CACHE_FOLDER,
@@ -284,7 +284,8 @@ export async function parseOptionsAndRunCLI() {
 				coerce: (value?: number) => value ?? cpus().length - 1,
 			})
 
-			// Legacy options, specific to Blueprints v1 (BC reasons only, they're hidden from the help message).
+			// Legacy options, specific to Blueprints v1 (BC reasons only, they're hidden from
+			// the help message).
 			.option('skip-wordpress-setup', {
 				describe:
 					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',

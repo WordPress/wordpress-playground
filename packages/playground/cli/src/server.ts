@@ -1,4 +1,4 @@
-import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
+import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
 import type { Request } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
