@@ -745,6 +745,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
+"curl_multi_wait",\
 "Curl_multi_wait",\
 "Curl_ossl_connect_nonblocking",\
 "Curl_ossl_seed",\
@@ -966,6 +967,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
 "wasm_sapi_request_shutdown",\
+"execute_internal",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
@@ -2134,6 +2136,11 @@ RUN set -euxo pipefail; \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
 	-s INVOKE_RUN=0 \
+	-s STACK_SIZE=5MB \
+	# XDebug breaks without a high ASYNCIFY_STACK_SIZE. 50k is excessive, but
+	# it's difficult to determine the exact value.
+	# @see https://github.com/justjake/quickjs-emscripten/pull/114
+	-s ASYNCIFY_STACK_SIZE=50000 \
 	-o /build/output/php.js \
 	-s EXIT_RUNTIME=1 \
 	-Wl,--wrap=select \

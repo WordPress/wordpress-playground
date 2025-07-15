@@ -117,8 +117,31 @@ RUN set -euxo pipefail; \
 	# XDebug linking fails to produce a shared lib because libm is missing.
 	# Let's explicitly skip libm in the understanding that it is provided by Emscripten
 	# with the main module.
-	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
+	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile;
 
+RUN cat > /root/asyncify_functions.json <<'EOF'
+[
+	"xdebug_fd_read_line_delim",
+	"xdebug_dbgp_cmdloop",
+	"xdebug_dbgp_init",
+	"xdebug_init_debugger",
+	"xdebug_debug_init_if_requested_at_startup",
+	"xdebug_execute_user_code_begin",
+	"xdebug_execute_ex",
+	"xdebug_execute_internal",
+	"zm_post_zend_deactivate_xdebug",
+	"xdebug_debugger_post_deactivate",
+	"xdebug_dbgp_deinit",
+	"xdebug_execute_begin",
+	"xdebug_statement_call",
+	"xdebug_debugger_statement_call",
+	"xdebug_dbgp_breakpoint"
+]
+EOF
+
+RUN set -euxo pipefail; \
+	cd xdebug; \
+    source /root/emsdk/emsdk_env.sh; \
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
 
 	if [ "$WITH_DEBUG" = "yes" ]; then \
@@ -127,10 +150,13 @@ RUN set -euxo pipefail; \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
 
+	# Define asyncify functions list
+	export ASYNCIFY_FUNCTIONS=$(cat /root/asyncify_functions.json | tr -d '\n' | sed 's/\s*//g'); \
+
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
 	else \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE -sASYNCIFY_IMPORTS=wasm_recv -sASYNCIFY_EXPORTS=wasm_recv"; \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADD=${ASYNCIFY_FUNCTIONS} -sASYNCIFY_ADVISE -sASYNCIFY_IMPORTS=wasm_recv,execute_internal -sASYNCIFY_EXPORTS=wasm_recv"; \
 	fi; \
 
 	emmake make -j1
