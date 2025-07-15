@@ -404,6 +404,15 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 					php.readlink(vfsMountPoint)
 				);
 			});
+
+			it.skip('Should move a symlink', async () => {
+				// Symlinks can't be moved because of a Resource busy error.
+				// TODO: Compare POSIX and Emscripten behavior.
+				const newVfsMountPoint = '/symlink-moved.txt';
+				php.mv(vfsMountPoint, newVfsMountPoint);
+				expect(php.fileExists(vfsMountPoint)).toBe(false);
+				expect(php.fileExists(newVfsMountPoint)).toBe(true);
+			});
 		});
 	});
 });
