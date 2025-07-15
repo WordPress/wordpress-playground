@@ -2,8 +2,9 @@ import { PHP } from '@php-wasm/universal';
 import { writeFiles } from './write-files';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
-const phpVersion = '8.0';
+const phpVersion = RecommendedPHPVersion;
 describe('writeFiles', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;

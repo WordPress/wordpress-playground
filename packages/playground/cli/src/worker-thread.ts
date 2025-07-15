@@ -10,6 +10,7 @@ import {
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
@@ -111,7 +112,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		absoluteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
-		phpVersion = '8.0',
+		phpVersion = RecommendedPHPVersion,
 		wordPressZip,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
