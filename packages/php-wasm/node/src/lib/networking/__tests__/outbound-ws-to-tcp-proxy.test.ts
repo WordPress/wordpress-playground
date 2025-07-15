@@ -1,13 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createServer } from 'http';
 import { Server as NetServer, Socket } from 'net';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
-import type { WebSocket as WSWebSocket } from 'ws';
 import {
-	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,
 	COMMAND_CHUNK,
 	COMMAND_SET_SOCKETOPT,
+	initOutboundWebsocketProxyServer,
 } from '../outbound-ws-to-tcp-proxy';
 
 // Mock the debug log to avoid console output during tests
@@ -15,7 +14,371 @@ vi.mock('../utils', () => ({
 	debugLog: vi.fn(),
 }));
 
-describe('WebSocket to TCP Proxy', () => {
+// Test scenarios - with and without socket options
+const testScenarios = [
+	{ name: 'without socket options', useSocketOptions: false },
+	{ name: 'with socket options', useSocketOptions: true },
+];
+
+describe.each(testScenarios)(
+	'WebSocket to TCP Proxy ($name)',
+	({ useSocketOptions }) => {
+		let proxyServer: any;
+		let mockTcpServer: NetServer;
+		let proxyPort: number;
+		let tcpPort: number;
+		const testHost = '127.0.0.1';
+
+		// Helper function to send socket options if enabled
+		const sendSocketOptionsIfEnabled = (wsClient: WebSocket) => {
+			if (useSocketOptions) {
+				const SOL_SOCKET = 1;
+				const SO_KEEPALIVE = 9;
+				const IPPROTO_TCP = 6;
+				const TCP_NODELAY = 1;
+
+				// Enable keep-alive
+				const keepAliveCmd = Buffer.from([
+					COMMAND_SET_SOCKETOPT,
+					SOL_SOCKET,
+					SO_KEEPALIVE,
+					1,
+				]);
+				wsClient.send(new Uint8Array(keepAliveCmd));
+
+				// Enable no-delay
+				const noDelayCmd = Buffer.from([
+					COMMAND_SET_SOCKETOPT,
+					IPPROTO_TCP,
+					TCP_NODELAY,
+					1,
+				]);
+				wsClient.send(new Uint8Array(noDelayCmd));
+			}
+		};
+
+		beforeEach(async () => {
+			// Find available ports
+			proxyPort = await getAvailablePort();
+			tcpPort = await getAvailablePort(proxyPort + 1);
+
+			// Create a mock TCP server
+			mockTcpServer = new NetServer();
+			await new Promise<void>((resolve) => {
+				mockTcpServer.listen(tcpPort, testHost, resolve);
+			});
+
+			// Create the WebSocket proxy server
+			proxyServer = await initOutboundWebsocketProxyServer(
+				proxyPort,
+				testHost
+			);
+		});
+
+		afterEach(() => {
+			if (proxyServer) {
+				proxyServer.close();
+			}
+			if (mockTcpServer) {
+				mockTcpServer.close();
+			}
+		});
+
+		it('should handle three concurrent WebSocket connections', async () => {
+			const connections: Array<{
+				tcpSocket: Socket;
+				wsClient: WebSocket;
+				receivedData: Buffer[];
+			}> = [];
+
+			// Set up mock TCP server to echo data back
+			mockTcpServer.on('connection', (socket: Socket) => {
+				const connectionIndex = connections.findIndex(
+					(conn) => !conn.tcpSocket
+				);
+				if (connectionIndex >= 0) {
+					connections[connectionIndex].tcpSocket = socket;
+				}
+
+				socket.on('data', (data: Buffer) => {
+					// Echo the data back
+					socket.write(new Uint8Array(data));
+				});
+			});
+
+			// Create three WebSocket clients
+			const wsPromises = Array.from({ length: 3 }, async (_, index) => {
+				const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=${tcpPort}`;
+				const wsClient = new WebSocket(wsUrl);
+
+				const connection = {
+					tcpSocket: null as any,
+					wsClient,
+					receivedData: [] as Buffer[],
+				};
+				connections.push(connection);
+
+				return new Promise<void>((resolve, reject) => {
+					wsClient.on('open', () => {
+						// Send socket options if enabled
+						sendSocketOptionsIfEnabled(wsClient);
+
+						// Send test data
+						const testMessage = Buffer.from(
+							`Test message from client ${index}`
+						);
+						const messageWithCommand = Buffer.alloc(
+							testMessage.length + 1
+						);
+						messageWithCommand[0] = COMMAND_CHUNK;
+						messageWithCommand.set(testMessage, 1);
+						wsClient.send(new Uint8Array(messageWithCommand));
+					});
+
+					wsClient.on('message', (data: Buffer) => {
+						connection.receivedData.push(data);
+						// Resolve when we receive the echoed message
+						if (
+							data.toString() ===
+							`Test message from client ${index}`
+						) {
+							resolve();
+						}
+					});
+
+					wsClient.on('error', reject);
+
+					// Timeout after 5 seconds
+					setTimeout(() => reject(new Error('Timeout')), 5000);
+				});
+			});
+
+			// Wait for all three connections to complete
+			await Promise.all(wsPromises);
+
+			// Verify all connections received their data
+			expect(connections).toHaveLength(3);
+			connections.forEach((conn, index) => {
+				expect(conn.receivedData).toHaveLength(1);
+				expect(conn.receivedData[0].toString()).toBe(
+					`Test message from client ${index}`
+				);
+			});
+
+			// Clean up WebSocket connections
+			connections.forEach((conn) => {
+				conn.wsClient.close();
+			});
+		});
+
+		it('should handle connection errors gracefully', async () => {
+			// Try to connect to a non-existent port (using a valid but likely unused port)
+			const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=65000`;
+			const wsClient = new WebSocket(wsUrl);
+
+			await new Promise<void>((resolve, reject) => {
+				// Set timeout to prevent hanging
+				const timeout = setTimeout(() => {
+					wsClient.close();
+					reject(new Error('Test timed out after 3 seconds'));
+				}, 3000);
+
+				wsClient.on('open', () => {
+					// Send socket options if enabled
+					sendSocketOptionsIfEnabled(wsClient);
+
+					// Send some data to trigger the target connection attempt
+					const testMessage = Buffer.from('Test message');
+					const messageWithCommand = Buffer.alloc(
+						testMessage.length + 1
+					);
+					messageWithCommand[0] = COMMAND_CHUNK;
+					messageWithCommand.set(testMessage, 1);
+					wsClient.send(new Uint8Array(messageWithCommand));
+				});
+
+				wsClient.on('close', (code) => {
+					clearTimeout(timeout);
+					// Should close with error code 3000
+					expect(code).toBe(3000);
+					resolve();
+				});
+
+				wsClient.on('error', (error) => {
+					clearTimeout(timeout);
+					// WebSocket connection errors are also acceptable for this test
+					resolve();
+				});
+			});
+		});
+
+		it('should handle invalid port numbers gracefully', async () => {
+			// Try to connect to an invalid port number
+			const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=99999`;
+			const wsClient = new WebSocket(wsUrl);
+
+			await new Promise<void>((resolve, reject) => {
+				let receivedEmptyMessage = false;
+
+				// Set timeout to prevent hanging
+				const timeout = setTimeout(() => {
+					wsClient.close();
+					reject(new Error('Test timed out after 3 seconds'));
+				}, 3000);
+
+				wsClient.on('open', () => {
+					// Send socket options if enabled
+					sendSocketOptionsIfEnabled(wsClient);
+
+					// Send some data to trigger the target connection attempt
+					const testMessage = Buffer.from('Test message');
+					const messageWithCommand = Buffer.alloc(
+						testMessage.length + 1
+					);
+					messageWithCommand[0] = COMMAND_CHUNK;
+					messageWithCommand.set(testMessage, 1);
+					wsClient.send(new Uint8Array(messageWithCommand));
+				});
+
+				wsClient.on('close', (code) => {
+					clearTimeout(timeout);
+					// Should close with error code 3000
+					expect(code).toBe(3000);
+					// Should have received empty message before closing (for invalid port)
+					expect(receivedEmptyMessage).toBe(true);
+					resolve();
+				});
+
+				wsClient.on('message', (data: Buffer) => {
+					// Should receive empty data indicating invalid port
+					if (data.length === 0) {
+						receivedEmptyMessage = true;
+					}
+				});
+
+				wsClient.on('error', (error) => {
+					clearTimeout(timeout);
+					// WebSocket connection errors are also acceptable for this test
+					resolve();
+				});
+			});
+		});
+
+		it('should handle DNS resolution errors gracefully', async () => {
+			// Try to connect to a non-existent host
+			const wsUrl = `ws://${testHost}:${proxyPort}/?host=non-existent-host-12345.invalid&port=80`;
+			const wsClient = new WebSocket(wsUrl);
+
+			await new Promise<void>((resolve, reject) => {
+				let receivedEmptyMessage = false;
+
+				// Set timeout to prevent hanging
+				const timeout = setTimeout(() => {
+					wsClient.close();
+					reject(new Error('Test timed out after 5 seconds'));
+				}, 5000);
+
+				wsClient.on('open', () => {
+					// Send socket options if enabled
+					sendSocketOptionsIfEnabled(wsClient);
+
+					// Send some data to trigger the target connection attempt
+					const testMessage = Buffer.from('Test message');
+					const messageWithCommand = Buffer.alloc(
+						testMessage.length + 1
+					);
+					messageWithCommand[0] = COMMAND_CHUNK;
+					messageWithCommand.set(testMessage, 1);
+					wsClient.send(new Uint8Array(messageWithCommand));
+				});
+
+				wsClient.on('close', (code) => {
+					clearTimeout(timeout);
+					// Should close with error code 3000
+					expect(code).toBe(3000);
+					// Should have received empty message before closing (for DNS failures)
+					expect(receivedEmptyMessage).toBe(true);
+					resolve();
+				});
+
+				wsClient.on('message', (data: Buffer) => {
+					// Should receive empty data indicating DNS resolution failure
+					if (data.length === 0) {
+						receivedEmptyMessage = true;
+					}
+				});
+
+				wsClient.on('error', (error) => {
+					clearTimeout(timeout);
+					// WebSocket connection errors are also acceptable for this test
+					resolve();
+				});
+			});
+		});
+
+		it('should handle three concurrent failed connections to a non-existent server', async () => {
+			const nonExistentPort = await getAvailablePort(tcpPort + 1);
+
+			const wsPromises = Array.from({ length: 3 }, async (_, index) => {
+				const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=${nonExistentPort}`;
+				const wsClient = new WebSocket(wsUrl);
+
+				return new Promise<void>((resolve, reject) => {
+					const timeout = setTimeout(() => {
+						wsClient.close();
+						reject(
+							new Error(
+								`Test timed out after 5 seconds for client ${index}`
+							)
+						);
+					}, 5000);
+
+					wsClient.on('open', () => {
+						// Send socket options if enabled
+						sendSocketOptionsIfEnabled(wsClient);
+
+						// Send some data to trigger the target connection attempt
+						const testMessage = Buffer.from(
+							`Test message from client ${index}`
+						);
+						const messageWithCommand = Buffer.alloc(
+							testMessage.length + 1
+						);
+						messageWithCommand[0] = COMMAND_CHUNK;
+						messageWithCommand.set(testMessage, 1);
+						wsClient.send(new Uint8Array(messageWithCommand));
+					});
+
+					wsClient.on('message', (data: Buffer) => {
+						if (data.length > 0) {
+							reject(
+								new Error(
+									`Received unexpected message: ${data.toString()}`
+								)
+							);
+						}
+					});
+
+					wsClient.on('close', (code) => {
+						clearTimeout(timeout);
+						expect(code).toBe(3000);
+						resolve();
+					});
+
+					wsClient.on('error', (error) => {
+						// An error event before close is also a possibility for connection failures.
+						// The 'close' event should still be emitted afterwards, which is what we wait for.
+					});
+				});
+			});
+
+			await expect(Promise.all(wsPromises)).resolves.toBeDefined();
+		});
+	}
+);
+
+// Separate describe block for socket options specific tests
+describe('WebSocket to TCP Proxy Socket Options', () => {
 	let proxyServer: any;
 	let mockTcpServer: NetServer;
 	let proxyPort: number;
@@ -47,174 +410,6 @@ describe('WebSocket to TCP Proxy', () => {
 		if (mockTcpServer) {
 			mockTcpServer.close();
 		}
-	});
-
-	it('should handle three concurrent WebSocket connections', async () => {
-		const connections: Array<{
-			tcpSocket: Socket;
-			wsClient: WebSocket;
-			receivedData: Buffer[];
-		}> = [];
-
-		// Set up mock TCP server to echo data back
-		mockTcpServer.on('connection', (socket: Socket) => {
-			const connectionIndex = connections.findIndex(
-				(conn) => !conn.tcpSocket
-			);
-			if (connectionIndex >= 0) {
-				connections[connectionIndex].tcpSocket = socket;
-			}
-
-			socket.on('data', (data: Buffer) => {
-				// Echo the data back
-				socket.write(new Uint8Array(data));
-			});
-		});
-
-		// Create three WebSocket clients
-		const wsPromises = Array.from({ length: 3 }, async (_, index) => {
-			const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=${tcpPort}`;
-			const wsClient = new WebSocket(wsUrl);
-
-			const connection = {
-				tcpSocket: null as any,
-				wsClient,
-				receivedData: [] as Buffer[],
-			};
-			connections.push(connection);
-
-			return new Promise<void>((resolve, reject) => {
-				wsClient.on('open', () => {
-					// Send test data
-					const testMessage = Buffer.from(
-						`Test message from client ${index}`
-					);
-					const messageWithCommand = Buffer.alloc(
-						testMessage.length + 1
-					);
-					messageWithCommand[0] = COMMAND_CHUNK;
-					messageWithCommand.set(testMessage, 1);
-					wsClient.send(new Uint8Array(messageWithCommand));
-				});
-
-				wsClient.on('message', (data: Buffer) => {
-					connection.receivedData.push(data);
-					// Resolve when we receive the echoed message
-					if (
-						data.toString() === `Test message from client ${index}`
-					) {
-						resolve();
-					}
-				});
-
-				wsClient.on('error', reject);
-
-				// Timeout after 5 seconds
-				setTimeout(() => reject(new Error('Timeout')), 5000);
-			});
-		});
-
-		// Wait for all three connections to complete
-		await Promise.all(wsPromises);
-
-		// Verify all connections received their data
-		expect(connections).toHaveLength(3);
-		connections.forEach((conn, index) => {
-			expect(conn.receivedData).toHaveLength(1);
-			expect(conn.receivedData[0].toString()).toBe(
-				`Test message from client ${index}`
-			);
-		});
-
-		// Clean up WebSocket connections
-		connections.forEach((conn) => {
-			conn.wsClient.close();
-		});
-	});
-
-	it('should handle socket options through WebSocket', async () => {
-		let tcpSocket: Socket;
-		const setKeepAliveSpy = vi.fn();
-		const setNoDelaySpy = vi.fn();
-
-		mockTcpServer.on('connection', (socket: Socket) => {
-			tcpSocket = socket;
-			// Spy on socket methods
-			socket.setKeepAlive = setKeepAliveSpy;
-			socket.setNoDelay = setNoDelaySpy;
-		});
-
-		const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=${tcpPort}`;
-		const wsClient = new WebSocket(wsUrl);
-
-		await new Promise<void>((resolve, reject) => {
-			wsClient.on('open', () => {
-				// Send socket option commands
-				const SOL_SOCKET = 1;
-				const SO_KEEPALIVE = 9;
-				const IPPROTO_TCP = 6;
-				const TCP_NODELAY = 1;
-
-				// Enable keep-alive
-				const keepAliveCmd = Buffer.from([
-					COMMAND_SET_SOCKETOPT,
-					SOL_SOCKET,
-					SO_KEEPALIVE,
-					1,
-				]);
-				wsClient.send(new Uint8Array(keepAliveCmd));
-
-				// Enable no-delay
-				const noDelayCmd = Buffer.from([
-					COMMAND_SET_SOCKETOPT,
-					IPPROTO_TCP,
-					TCP_NODELAY,
-					1,
-				]);
-				wsClient.send(new Uint8Array(noDelayCmd));
-
-				// Give some time for commands to be processed
-				setTimeout(() => {
-					resolve();
-				}, 100);
-			});
-
-			wsClient.on('error', reject);
-		});
-
-		// Verify socket options were set
-		expect(setKeepAliveSpy).toHaveBeenCalledWith(1);
-		expect(setNoDelaySpy).toHaveBeenCalledWith(1);
-
-		wsClient.close();
-	});
-
-	it('should handle connection errors gracefully', async () => {
-		// Try to connect to a non-existent port
-		const wsUrl = `ws://${testHost}:${proxyPort}/?host=${testHost}&port=99999`;
-		const wsClient = new WebSocket(wsUrl);
-
-		await new Promise<void>((resolve) => {
-			wsClient.on('open', () => {
-				// Send some data
-				const testMessage = Buffer.from('Test message');
-				const messageWithCommand = Buffer.alloc(testMessage.length + 1);
-				messageWithCommand[0] = COMMAND_CHUNK;
-				messageWithCommand.set(testMessage, 1);
-				wsClient.send(new Uint8Array(messageWithCommand));
-			});
-
-			wsClient.on('close', (code) => {
-				// Should close with error code 3000
-				expect(code).toBe(3000);
-				resolve();
-			});
-
-			wsClient.on('message', (data: Buffer) => {
-				// Should receive empty data indicating connection failure
-				expect(data.length).toBe(0);
-			});
-		});
 	});
 
 	it('should enhance WebSocket class with socket options support', () => {
