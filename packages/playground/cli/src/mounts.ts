@@ -80,7 +80,6 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 
 export async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
-		php.mkdir(mount.vfsPath);
 		await php.mount(
 			mount.vfsPath,
 			createNodeFsMountHandler(mount.hostPath)

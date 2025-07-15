@@ -1,7 +1,7 @@
 import type { FileLockManager } from '@php-wasm/node';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { PHP, RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	consumeAPI,
@@ -14,6 +14,7 @@ import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import { mountResources } from './mounts';
 
 export interface Mount {
 	hostPath: string;
@@ -42,13 +43,6 @@ export type PrimaryWorkerBootOptions = {
 	 */
 	internalCookieStore?: boolean;
 };
-
-function mountResources(php: PHP, mounts: Mount[]) {
-	for (const mount of mounts) {
-		php.mkdir(mount.vfsPath);
-		php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
-	}
-}
 
 /**
  * Print trace messages from PHP-WASM.
