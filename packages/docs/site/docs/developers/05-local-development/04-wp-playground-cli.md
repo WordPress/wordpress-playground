@@ -26,7 +26,7 @@ Running the Playground CLI is as simple as go to a command-line and run:
 npx @wp-playground/cli@latest server
 ```
 
-![Playground CLI in Action](./_assets/npx-wp-playground-server.gif)
+![Playground CLI in Action](@site/static/img/npx-wp-playground-server.gif)
 
 With the previous command, you only get a fresh WordPress instance to test. Most of the developers want to see their work running. If this is your case, test a plugin or a theme. You can run the CLI on your project folder and run the Playground CLI with the `--auto-mount` flag:
 
