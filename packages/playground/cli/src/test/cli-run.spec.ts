@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { runCLI } from '../run-cli-v1';
-import type { RunCLIServerV1 } from '../run-cli-v1';
+import { runCLI } from '../run-cli';
+import type { RunCLIServer } from '../run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -14,7 +14,7 @@ import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 // TODO: Fix or rework these tests because it is difficult to run them now that
 // runCLI() launches a Worker.
 describe.skip('cli-run', () => {
-	let cliServer: RunCLIServerV1;
+	let cliServer: RunCLIServer;
 
 	afterEach(async () => {
 		if (cliServer) {
@@ -115,7 +115,7 @@ describe.skip('cli-run', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const phpResponse = await cliServer.playground.run({
 				code: `<?php
@@ -141,7 +141,7 @@ describe.skip('cli-run', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 
 			expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -162,7 +162,7 @@ describe.skip('cli-run', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.playground.request({
 				url: '/wp-login.php',
@@ -177,7 +177,7 @@ describe.skip('cli-run', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
@@ -193,7 +193,7 @@ describe.skip('cli-run', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
@@ -220,7 +220,7 @@ describe.skip('cli-run', () => {
 
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				'auto-mount': true,
 			});
 			const response = await cliServer.playground.request({
 				url: '/',

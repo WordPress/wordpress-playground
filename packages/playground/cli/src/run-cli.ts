@@ -548,9 +548,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number) => {
 			const siteUrl = `http://127.0.0.1:${port}`;
-			const handler = new V1Handler(args, {
+			const handler = new BlueprintsV1Handler(args, {
 				siteUrl,
-				totalWorkerCount,
 				processIdSpaceLength,
 			});
 
@@ -676,18 +675,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	});
 }
 
-class V1Handler {
+/**
+ * Boots Playground CLI workers using Blueprint version 1.
+ *
+ * Progress tracking, downloads, steps, and all other features are
+ * implemented in TypeScript and orchestrated by this class.
+ */
+class BlueprintsV1Handler {
+	private phpVersion: SupportedPHPVersion | undefined;
 	private lastProgressMessage = '';
 
-	private playgroundsToCleanUp: {
-		playground: RemoteAPI<PlaygroundCliBlueprintV1Worker>;
-		worker: Worker;
-	}[] = [];
-
-	private compiledBlueprint: CompiledBlueprint | undefined;
-
 	private siteUrl: string;
-	private totalWorkerCount: number;
 	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
 
@@ -695,13 +693,11 @@ class V1Handler {
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
-			totalWorkerCount: number;
 			processIdSpaceLength: number;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
-		this.totalWorkerCount = options.totalWorkerCount;
 		this.processIdSpaceLength = options.processIdSpaceLength;
 	}
 
@@ -713,9 +709,10 @@ class V1Handler {
 		phpPort: NodeMessagePort,
 		fileLockManagerPort: NodeMessagePort
 	) {
-		this.compiledBlueprint = await this.compileInputBlueprint(
+		const compiledBlueprint = await this.compileInputBlueprint(
 			this.args['additional-blueprint-steps'] || []
 		);
+		this.phpVersion = compiledBlueprint.versions.php;
 
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
@@ -791,8 +788,8 @@ class V1Handler {
 
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.boot({
-			phpVersion: this.compiledBlueprint!.versions.php,
-			wpVersion: this.compiledBlueprint!.versions.wp,
+			phpVersion: this.phpVersion,
+			wpVersion: compiledBlueprint.versions.wp,
 			absoluteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
@@ -834,15 +831,11 @@ class V1Handler {
 		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 			worker.phpPort
 		);
-		this.playgroundsToCleanUp.push({
-			playground: additionalPlayground,
-			worker: worker.worker,
-		});
 
 		await additionalPlayground.isConnected();
 		await additionalPlayground.useFileLockManager(fileLockManagerPort);
 		await additionalPlayground.boot({
-			phpVersion: this.compiledBlueprint!.versions.php,
+			phpVersion: this.phpVersion,
 			absoluteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
@@ -956,15 +949,6 @@ class V1Handler {
 			// Fall back to writing one line per progress update
 			writeStream.write(`${message}\n`);
 		}
-	}
-
-	async [Symbol.asyncDispose]() {
-		await Promise.all(
-			this.playgroundsToCleanUp.map(async ({ playground, worker }) => {
-				await playground.dispose();
-				await worker.terminate();
-			})
-		);
 	}
 }
 
