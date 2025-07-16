@@ -1,8 +1,4 @@
-import {
-	FSHelpers,
-	type ErrnoError,
-	type MountHandler,
-} from '@php-wasm/universal';
+import { FSHelpers, type MountHandler } from '@php-wasm/universal';
 import { statSync } from 'fs';
 import { basename } from 'path';
 
@@ -21,7 +17,7 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		 * To work around this, the PHP-wasm compile removes the directory check.
 		 * PHP-WASM source: https://github.com/WordPress/wordpress-playground/blob/5821cee231f452d050fd337b99ad0b26ebda487e/packages/php-wasm/compile/php/Dockerfile#L2148
 		 */
-		let removeVfsNode: boolean = false;
+		let removeVfsNode = false;
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
 			if (statSync(localPath).isSymbolicLink()) {
 				(FS as any).createNode(
