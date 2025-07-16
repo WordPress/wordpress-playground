@@ -29,7 +29,7 @@ import { jspi } from 'wasm-feature-detect';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 // @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
+import importedWorkerV1UrlString from './worker-thread?worker&url';
 // @ts-ignore
 import {
 	MessageChannel as NodeMessageChannel,
