@@ -113,8 +113,12 @@ export async function loadNodeRuntime(
 					options: any = {}
 				) => {
 					return lookupPath(path, {
-						follow: true,
 						...options,
+						/**
+						 * If follow is true, a symlinked plugin will successfully be mounted during boot.
+						 * But that would break POSIX compatibility because callers need to be able to not follow symlinks.
+						 */
+						// follow: true,
 					});
 				};
 
@@ -151,6 +155,7 @@ export async function loadNodeRuntime(
 							{ root: absoluteSourcePath },
 							symlinkPath
 						);
+						console.log('\n[DEBUG] readlink mounted symlinked path', absoluteSourcePath, '->', symlinkPath);
 					}
 					return symlinkPath;
 				};

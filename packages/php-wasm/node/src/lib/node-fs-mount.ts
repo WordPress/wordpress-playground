@@ -43,6 +43,13 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			throw new Error('Unable to access the mount point in VFS.');
 		}
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
+		console.log('[DEBUG] createNodeFsMountHandler mounted local path', localPath, 'to', vfsMountPoint);
+
+		php.run({
+			code: `<?php echo json_encode(file_exists('${vfsMountPoint}'));`,
+		}).then((result) => {
+			console.log('[DEBUG] createNodeFsMountHandler mounted plugin path exists', result.json);
+		});
 		return () => {
 			FS!.unmount(vfsMountPoint);
 			if (removeVfsNode) {

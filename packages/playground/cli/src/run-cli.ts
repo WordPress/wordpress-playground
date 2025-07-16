@@ -676,6 +676,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				wordPressReady = true;
 				logger.log(`Booted!`);
 
+				playground.run({
+					code: `<?php echo json_encode(file_exists('/wordpress/wp-content/plugins/plugin'));`,
+				}).then((result) => {
+					console.log('\n[DEBUG] runCLI mounted plugin path exists', result.json);
+				});
+
 				if (compiledBlueprint) {
 					logger.log(`Running the Blueprint...`);
 					await runBlueprintSteps(compiledBlueprint, playground);
