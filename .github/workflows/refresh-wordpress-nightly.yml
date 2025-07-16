@@ -32,12 +32,9 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 23
-            - name: 'Install bun'
-              run: |
-                  curl -fsSL https://bun.sh/install | bash
             - name: 'Recompile WordPress'
               shell: bash
-              run: PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:nightly playground-wordpress-builds
+              run: npx nx bundle-wordpress:nightly playground-wordpress-builds
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"
