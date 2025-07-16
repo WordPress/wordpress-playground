@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_2_10', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31861931;
+export const dependenciesTotalSize = 31864374;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13257536;
+	var ___heap_base = 18434880;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1855,13 +1855,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13257536;
+	var ___stack_high = 18434880;
 
 	var ___stack_low = 13192000;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13257536
+		18434880
 	);
 
 	var PATH = {
@@ -18371,7 +18371,7 @@ export function init(RuntimeName, PHPLoader) {
 			Disabled: 3,
 		},
 		state: 0,
-		StackSize: 4096,
+		StackSize: 50000,
 		currData: null,
 		handleSleepReturnValue: 0,
 		exportCallStack: [],
@@ -19618,7 +19618,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 65536;
+	var STACK_SIZE = 5242880;
 
 	var STACK_ALIGN = 16;
 
