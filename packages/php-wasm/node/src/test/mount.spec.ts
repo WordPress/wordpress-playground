@@ -459,6 +459,7 @@ describe('Mounting', () => {
 				try {
 					await php.rmdir(directoryMountPoint);
 				} catch (e: any) {
+					console.log(e);
 					const error = e as Error;
 					expect(error.message).toContain(
 						`Could not remove directory "${directoryMountPoint}": Device or resource busy.`
