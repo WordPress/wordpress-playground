@@ -83,7 +83,7 @@ npm install
 npm run dev
 
 # In a different terminal inside the Gutenberg directory *
-npx @wp-playground/cli@latest server --auto-mount
+npx @wp-now/wp-now start
 ```
 
 #### Test a Gutenberg PR with Playground in the browser
