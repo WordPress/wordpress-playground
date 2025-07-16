@@ -7,12 +7,10 @@
  */
 
 export class ErrnoError extends Error {
-	constructor(errno: number, message?: string, options?: { cause?: any }) {
-		super(message);
+	constructor(errno: number, message?: string, options?: any) {
+		super(message, options);
 		this.name = 'ErrnoError';
 		this.errno = errno;
-		this.message = message ?? '';
-		this.cause = options?.cause;
 	}
 
 	node?: any;
