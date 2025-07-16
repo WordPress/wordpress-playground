@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 16881344;
+	var ___heap_base = 11704000;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1855,13 +1855,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 16881344;
+	var ___stack_high = 11704000;
 
 	var ___stack_low = 11638464;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		16881344
+		11704000
 	);
 
 	var PATH = {
@@ -18359,7 +18359,7 @@ export function init(RuntimeName, PHPLoader) {
 			Disabled: 3,
 		},
 		state: 0,
-		StackSize: 50000,
+		StackSize: 4096,
 		currData: null,
 		handleSleepReturnValue: 0,
 		exportCallStack: [],
@@ -19606,7 +19606,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 5242880;
+	var STACK_SIZE = 65536;
 
 	var STACK_ALIGN = 16;
 
