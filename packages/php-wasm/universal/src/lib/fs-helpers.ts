@@ -139,9 +139,13 @@ export class FSHelpers {
 		 * To prevent the recursive option from removing internal files before
 		 * failing to remove the mount point, we need to check if the path is a
 		 * mount point and throw an error early.
+		 *
+		 * Because a mountpoint can be a symlink, we should not follow it.
+		 * Otherwise, a mounted sylink would point to the symlinked path,
+		 * instead of the mountpoint.
 		 */
-		const mountPoint = FS.lookupPath(path).node.mount;
-		if (mountPoint.mountpoint === path) {
+		const mountPoint = FS.lookupPath(path, { follow: false });
+		if (mountPoint?.node.mount.mountpoint === path) {
 			throw new ErrnoError(10);
 		}
 
