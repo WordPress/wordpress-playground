@@ -1,0 +1,18 @@
+{
+    "preferredVersions": {
+		"php": "8.0",
+		"wp": "6.7"
+	},
+    "steps": [
+        {
+            "step": "defineWpConfigConsts",
+            "consts": {
+                "DISABLE_WP_CRON": false
+            }
+        },
+        {
+            "step": "activatePlugin",
+            "pluginPath": "/wordpress/wp-content/plugins/plugin"
+        }
+    ]
+}
