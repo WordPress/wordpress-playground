@@ -57,7 +57,7 @@ import {
 } from './download';
 import { LoadBalancer } from './load-balancer';
 import { startServer } from './server';
-import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
+import type { PlaygroundCliBlueprintV1Worker } from './worker-thread';
 
 /* eslint-disable no-console */
 export interface RunCLIArgs {
