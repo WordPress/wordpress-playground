@@ -10,11 +10,11 @@ const LatestSupportedWordPressVersion = Object.keys(
 
 describe('Query API', () => {
 	describe('option `php`', () => {
-		it('should load PHP 8.0 by default', () => {
+		it('should load PHP 8.3 by default', () => {
 			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
 				.find('h1')
-				.should('contain', 'PHP Version 8.0');
+				.should('contain', 'PHP Version 8.3');
 		});
 
 		it('should load PHP 7.4 when requested', () => {

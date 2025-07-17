@@ -4,6 +4,44 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.2.2] (2025-07-14) 
+
+### Enhancements
+
+- Add --internal-cookie-store option for Playground CLI. ([#2323](https://github.com/WordPress/wordpress-playground/pull/2323))
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- [ php-wasm ] Add `xdebug` shared extension to @php-wasm/node ASYNCIFY. ([#2326](https://github.com/WordPress/wordpress-playground/pull/2326))
+
+### Documentation
+
+- Add Japanese translations to  Using Blueprints. ([#2330](https://github.com/WordPress/wordpress-playground/pull/2330))
+- Add Japanese translations to Blueprint data Format. ([#2340](https://github.com/WordPress/wordpress-playground/pull/2340))
+- Adding new videos about WordPress Playground. ([#2348](https://github.com/WordPress/wordpress-playground/pull/2348))
+- Translate How to contribute pages to Brazilian Portuguese. ([#2329](https://github.com/WordPress/wordpress-playground/pull/2329))
+- Updating Translation Guide. ([#2342](https://github.com/WordPress/wordpress-playground/pull/2342))
+- Updating slack channel from #meta-playground to #playground. ([#2345](https://github.com/WordPress/wordpress-playground/pull/2345))
+
+### PHP WebAssembly
+
+- Support multiple workers for NODEFS /wordpress mounts – Asyncify. ([#2317](https://github.com/WordPress/wordpress-playground/pull/2317))
+- [PHP] Support non-blocking read streams. ([#2339](https://github.com/WordPress/wordpress-playground/pull/2339))
+
+### Bug Fixes
+
+- Fix: Set an explicit path for docsaurus.config.js. ([#2335](https://github.com/WordPress/wordpress-playground/pull/2335))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @mho22 @rollybueno @shimotmk
+
+
 ## [v1.0.38] (2025-05-22)
 
 ### Various

@@ -3,7 +3,32 @@ import util from 'util';
 import fs from 'fs';
 const rmAsync = util.promisify(fs.rm);
 import { spawn } from 'child_process';
-import { phpVersions } from '../supported-php-versions.mjs';
+import { phpVersions, lastRefreshed } from '../supported-php-versions.mjs';
+
+// Refresh PHP versions if they need updating (if last refreshed more than 24 hours ago)
+const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+const lastRefreshedDate = new Date(lastRefreshed);
+
+if (lastRefreshedDate < twentyFourHoursAgo) {
+	console.log(
+		'📅 PHP versions data is older than 24 hours, checking for updates...'
+	);
+	try {
+		const { updatePHPVersions } = await import('./update-php-versions.mjs');
+		await updatePHPVersions();
+
+		// Reload the supported-php-versions.mjs module to get the updated versions
+		const { phpVersions: updatedPhpVersions } = await import(
+			'../supported-php-versions.mjs?' + Date.now()
+		);
+		// Replace the original phpVersions with the updated ones
+		phpVersions.length = 0;
+		phpVersions.push(...updatedPhpVersions);
+	} catch (error) {
+		console.warn('⚠️  Failed to update PHP versions:', error.message);
+		process.exit(1);
+	}
+}
 
 // yargs parse
 import yargs from 'yargs';
