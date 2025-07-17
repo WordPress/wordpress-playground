@@ -31,7 +31,11 @@ import path from 'path';
 import { Worker, MessageChannel } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import { expandAutoMounts } from './cli-auto-mount';
+import {
+	expandAutoMounts,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mounts';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -52,10 +56,6 @@ import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import {
-	parseMountDirArguments,
-	parseMountWithDelimiterArguments,
-} from './mount';
 import { ReportableError } from './reportable-error';
 import { resolveBlueprint } from './resolve-blueprint';
 
@@ -228,7 +228,7 @@ export async function parseOptionsAndRunCLI() {
 					mount.vfsPath === '/wordpress';
 				if (
 					!args.mount?.some(isMountingWordPressDir) &&
-					!(args['mountBeforeInstall'] as any)?.some(
+					!(args['mount-before-install'] as any)?.some(
 						isMountingWordPressDir
 					)
 				) {
@@ -257,10 +257,10 @@ export async function parseOptionsAndRunCLI() {
 			sourceString: args.blueprint,
 			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
 		}),
-		mount: [...(args.mount || []), ...(args.mountDir || [])],
-		mountBeforeInstall: [
-			...(args.mountBeforeInstall || []),
-			...(args.mountDirBeforeInstall || []),
+		mount: [...(args.mount || []), ...(args['mount-dir'] || [])],
+		'mount-before-install': [
+			...(args['mount-before-install'] || []),
+			...(args['mount-dir-before-install'] || []),
 		],
 	} as RunCLIArgs;
 
@@ -284,7 +284,7 @@ export interface RunCLIArgs {
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
-	mountBeforeInstall?: Mount[];
+	'mount-before-install'?: Mount[];
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
@@ -297,6 +297,7 @@ export interface RunCLIArgs {
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
+	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
 }
 
@@ -353,7 +354,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		fs.writeFileSync(outfile, zip);
 	}
 
-	async function compileInputBlueprint() {
+	async function compileInputBlueprint(additionalBlueprintSteps: any[]) {
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
@@ -404,6 +405,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		});
 		return await compileBlueprint(blueprint as BlueprintDeclaration, {
 			progress: tracker,
+			additionalSteps: additionalBlueprintSteps,
 		});
 	}
 
@@ -487,7 +489,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		logger.handlers = [];
 	}
 
-	const compiledBlueprint = await compileInputBlueprint();
+	const compiledBlueprint = await compileInputBlueprint(
+		args['additional-blueprint-steps'] || []
+	);
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
@@ -609,7 +613,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const followSymlinks = args.followSymlinks === true;
 			const trace = args.experimentalTrace === true;
 			try {
-				const mountsBeforeWpInstall = args.mountBeforeInstall || [];
+				const mountsBeforeWpInstall =
+					args['mount-before-install'] || [];
 				const mountsAfterWpInstall = args.mount || [];
 
 				const [initialWorker, ...additionalWorkers] =
@@ -659,7 +664,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				if (
 					wpDetails &&
-					!args.mountBeforeInstall &&
+					!args['mount-before-install'] &&
 					!fs.existsSync(preinstalledWpContentPath)
 				) {
 					logger.log(

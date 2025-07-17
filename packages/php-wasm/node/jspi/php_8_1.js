@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_23', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 30963537;
+export const dependenciesTotalSize = 30963592;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +847,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13228576;
+	var ___heap_base = 13228640;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1742,13 +1742,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13228576;
+	var ___stack_high = 13228640;
 
-	var ___stack_low = 13163040;
+	var ___stack_low = 13163104;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13228576
+		13228640
 	);
 
 	var PATH = {
@@ -3801,10 +3801,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -6885,7 +6881,7 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function _fd_close(fd) {
+	var _fd_close = function fd_close(fd) {
 		return Asyncify.handleAsync(async () => {
 			const [vfsPath, pathResolutionErrno] =
 				locking.get_vfs_path_from_fd(fd);
@@ -6920,7 +6916,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return result;
 		});
-	}
+	};
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -31256,13 +31252,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12233191: ($0) => {
+		12233246: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12233239: ($0) => {
+		12233294: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31390,6 +31386,9 @@ export function init(RuntimeName, PHPLoader) {
 							while (true) {
 								var mask = POLLNVAL;
 								mask = SYSCALLS.DEFAULT_POLLMASK;
+								if (FS.isClosed(stream)) {
+									return ERRNO_CODES.EBADF;
+								}
 								if (stream.stream_ops?.poll) {
 									mask = stream.stream_ops.poll(stream, -1);
 								}

@@ -79,3 +79,5 @@ There's a set of redirections in place to make it easier the access to some of t
 -   [Discovering Playground, the demo tool(in Spanish)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) by Alex Cuadra
 -   [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
 -   [Playground: A throwaway WordPress within your browser at WordCamp Madrid 2025(in Spanish)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) by Álvaro Gómez Velasco
+-   [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
+-   [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki

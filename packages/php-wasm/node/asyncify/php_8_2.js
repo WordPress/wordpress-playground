@@ -6,9 +6,9 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_2_10', 'php_8_2.wasm');
+const dependencyFilename = path.join(__dirname, '8_2_29', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31864374;
+export const dependenciesTotalSize = 31899652;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13257536;
+	var ___heap_base = 13265728;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -994,7 +994,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15952,
+		initial: 15973,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1855,13 +1855,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13257536;
+	var ___stack_high = 13265728;
 
-	var ___stack_low = 13192000;
+	var ___stack_low = 13200192;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13257536
+		13265728
 	);
 
 	var PATH = {
@@ -3914,10 +3914,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -32094,13 +32090,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12264230: ($0) => {
+		12272317: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12264278: ($0) => {
+		12272365: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -32222,6 +32218,9 @@ export function init(RuntimeName, PHPLoader) {
 						while (true) {
 							var mask = POLLNVAL;
 							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (FS.isClosed(stream)) {
+								return ERRNO_CODES.EBADF;
+							}
 							if (stream.stream_ops?.poll) {
 								mask = stream.stream_ops.poll(stream, -1);
 							}

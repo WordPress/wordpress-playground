@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29677191;
+export const dependenciesTotalSize = 29677246;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12029184;
+	var ___heap_base = 12029248;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1855,13 +1855,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12029184;
+	var ___stack_high = 12029248;
 
-	var ___stack_low = 11963648;
+	var ___stack_low = 11963712;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12029184
+		12029248
 	);
 
 	var PATH = {
@@ -3914,10 +3914,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -32094,13 +32090,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11104566: ($0) => {
+		11104621: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11104614: ($0) => {
+		11104669: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -32222,6 +32218,9 @@ export function init(RuntimeName, PHPLoader) {
 						while (true) {
 							var mask = POLLNVAL;
 							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (FS.isClosed(stream)) {
+								return ERRNO_CODES.EBADF;
+							}
 							if (stream.stream_ops?.poll) {
 								mask = stream.stream_ops.poll(stream, -1);
 							}
