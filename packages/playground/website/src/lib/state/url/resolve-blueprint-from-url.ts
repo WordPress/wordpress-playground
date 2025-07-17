@@ -11,6 +11,7 @@ import {
 } from '@wp-playground/client';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export type BlueprintSource =
 	| {
@@ -129,7 +130,9 @@ function applyQueryOverrides(
 		blueprint.preferredVersions = {} as any;
 	}
 	blueprint.preferredVersions!.php =
-		(query.get('php') as any) || blueprint.preferredVersions!.php || '8.0';
+		(query.get('php') as any) ||
+		blueprint.preferredVersions!.php ||
+		RecommendedPHPVersion;
 	blueprint.preferredVersions!.wp =
 		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 

@@ -868,27 +868,27 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				1 => array("pipe","w")
 			);
 			$proc = proc_open( "fetch", $descriptorspec, $pipes );
-			
+
 			// Make the stream non-blocking
 			stream_set_blocking($pipes[1], false);
-			
+
 			// First read should get initial data immediately
 			$data1 = fread($pipes[1], 1024);
 			echo "First read: " . json_encode($data1) . "\\n";
-			
+
 			// Second read should return empty string immediately (non-blocking)
 			$data2 = fread($pipes[1], 1024);
 			echo "Second read (immediate): " . json_encode($data2) . "\\n";
-			
+
 			// Wait a bit and try again - should get the delayed data
 			sleep(1);
 			$data3 = fread($pipes[1], 1024);
 			echo "Third read (after delay): " . json_encode($data3) . "\\n";
-			
+
 			// Fourth read should be empty again
 			$data4 = fread($pipes[1], 1024);
 			echo "Fourth read: " . json_encode($data4) . "\\n";
-			
+
 			proc_close( $proc );
 			`,
 			});
@@ -927,14 +927,14 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				1 => array("pipe","w")
 			);
 			$proc = proc_open( "fetch", $descriptorspec, $pipes );
-			
+
 			// Make the stream non-blocking
 			stream_set_blocking($pipes[1], false);
-			
+
 			$chunks = array();
 			$attempts = 0;
 			$maxAttempts = 20;
-			
+
 			// Poll until we get all data or reach max attempts
 			while ($attempts < $maxAttempts && !feof($pipes[1])) {
 				$data = fread($pipes[1], 1024);
@@ -947,10 +947,10 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				$attempts++;
 				usleep(100000); // 100ms between attempts
 			}
-			
+
 			echo "Total chunks received: " . count($chunks) . "\\n";
 			echo "Combined data: " . json_encode(implode("", $chunks)) . "\\n";
-			
+
 			proc_close( $proc );
 			`,
 			});
@@ -1395,7 +1395,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				__dirname + '/test-data/mount-contents/a/b/test.txt',
 				'contents'
 			);
-			php.mkdir('/nodefs');
 			php.mount(
 				'/nodefs',
 				createNodeFsMountHandler(
@@ -1430,7 +1429,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('mv() from MEMFS to NODEFS should work', () => {
-			php.mkdir('/nodefs');
 			php.mount(
 				'/nodefs',
 				createNodeFsMountHandler(

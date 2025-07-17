@@ -2182,6 +2182,9 @@ RUN set -euxo pipefail; \
 		# stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
 		# tolerate a null stream.stream_ops value.
 		/root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
+	# Emscripten allows only directories to be mounted, but in Playground we support mounting files, directories, and symlinks.
+		# For file mounting to work, we need to remove the directory check.
+		/root/replace-across-lines.sh 's/(\s+)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s+throw\s+new\s+FS\.ErrnoError\(54\)\s*;\s+\}(\s+)/$1$2/s' /root/output/php.js; \
 	# Make Emscripten websockets configurable
 		# Emscripten makes the Websocket proxy connect to a fixed URL.
 		# This assumes the traffic is always forwarded to the same target.
@@ -2192,9 +2195,9 @@ RUN set -euxo pipefail; \
 		# Enable custom WebSocket constructors to support socket options.
 		/root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-		if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-			/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
-		fi; \
+			if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+				/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+			fi; \
 		fi; \
 		# PIPEFS: return 0 (success) instead of 6 (EWOULDBLOCK) when reached end of data
 		# and the other end of the pipe is closed.

@@ -76,7 +76,7 @@ These tools include:
 
 -   [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
 -   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
--   [wp-now](https://github.com/WordPress/playground-tools/tree/trunk/packages/wp-now/#readme) CLI local development environment.
+-   [@wp-playground/cli](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/cli#readme) CLI local development environment.
 
 ## Cloning WordPress Playground repo
 

@@ -1,5 +1,6 @@
 import type { Emscripten } from './emscripten-types';
 import {
+	ErrnoError,
 	getEmscriptenFsError,
 	rethrowFileSystemError,
 } from './rethrow-file-system-error';
@@ -132,6 +133,22 @@ export class FSHelpers {
 		path: string,
 		options: RmDirOptions = { recursive: true }
 	) {
+		/**
+		 * Mount points cannot be removed and will throw a ErrnoError with
+		 * the code 10 (EBUSY).
+		 * To prevent the recursive option from removing internal files before
+		 * failing to remove the mount point, we need to check if the path is a
+		 * mount point and throw an error early.
+		 *
+		 * Because a mountpoint can be a symlink, we should not follow it.
+		 * Otherwise, a mounted sylink would point to the symlinked path,
+		 * instead of the mountpoint.
+		 */
+		const mountPoint = FS.lookupPath(path, { follow: false });
+		if (mountPoint?.node.mount.mountpoint === path) {
+			throw new ErrnoError(10);
+		}
+
 		if (options?.recursive) {
 			FSHelpers.listFiles(FS, path).forEach((file) => {
 				const filePath = `${path}/${file}`;
@@ -301,6 +318,8 @@ export class FSHelpers {
 					joinPaths(toPath, filename)
 				);
 			}
+		} else if (FS.isLink(fromNode.mode)) {
+			FS.symlink(FS.readlink(fromPath), toPath);
 		} else {
 			FS.writeFile(toPath, FS.readFile(fromPath));
 		}

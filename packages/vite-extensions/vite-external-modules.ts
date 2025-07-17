@@ -3,6 +3,7 @@ import packageJson from '../../package.json';
 const deps = [
 	...Object.keys(packageJson.dependencies || {}),
 	...Object.keys(packageJson.devDependencies || {}),
+	...Object.keys(packageJson.optionalDependencies || {}),
 ];
 export const getExternalModules = () => {
 	return [
