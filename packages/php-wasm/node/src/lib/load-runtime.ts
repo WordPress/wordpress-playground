@@ -96,30 +96,38 @@ export async function loadNodeRuntime(
 			 * for the path and Emscripten will accept it as if it was the real link path.
 			 */
 			if (options?.followSymlinks === true) {
-				/**
-				 * By default, Emscripten will not follow symlinks when it's the final path component.
-				 * This behavior can cause issues in PHP-wasm when the caller requires the symlink to be followed,
-				 * but the PHP-wasm call to lookupPath didn't explicitly set follow to true.
-				 *
-				 * To ensure symlinks are followed by default when symlink following is enabled in PHP-wasm,
-				 * we override the `lookupPath` function and set follow to true.
-				 *
-				 * PHP and Emscripten functions can still override the default behavior
-				 * by setting follow to false which is required for function calls like lstat.
-				 */
-				const lookupPath = phpRuntime.FS.lookupPath;
-				phpRuntime.FS.lookupPath = (
-					path: string,
-					options: any = {}
-				) => {
-					return lookupPath(path, {
-						...options,
+				const fsStat = phpRuntime.FS.stat;
+				phpRuntime.FS.stat = (path: string, dontFollow: boolean) => {
+					if (dontFollow === true && path.includes('woocommerce')) {
+						const obj: any = {};
+						if ('captureStackTrace' in Error) {
+							Error.captureStackTrace(obj);
+						}
+						const stack = obj.stack.split('\n');
+						const lastStackLine = stack[stack.length - 1];
+						const functionName = lastStackLine.trim().split(' ')[1];
+
 						/**
-						 * If follow is true, a symlinked plugin will successfully be mounted during boot.
-						 * But that would break POSIX compatibility because callers need to be able to not follow symlinks.
+						 * One of these functions is called with dontFollow set to true
+						 * and causes plugin activation to fail with a "Plugin file does not exist" error.
+						 *
+						 * Potentially related to https://core.trac.wordpress.org/ticket/16953
 						 */
-						// follow: true,
-					});
+						if (
+							[
+								'php.wasm.php_stat',
+								'php.wasm.__fstatat',
+								'php.wasm.tsrm_realpath_r',
+							].includes(functionName)
+						) {
+							console.log(
+								`[DEBUG] dontFollow override for function ${functionName} for path ${path}`,
+								obj.stack
+							);
+							dontFollow = false;
+						}
+					}
+					return fsStat(path, dontFollow);
 				};
 
 				phpRuntime.FS.filesystems.NODEFS.node_ops.readlink = (
@@ -155,7 +163,12 @@ export async function loadNodeRuntime(
 							{ root: absoluteSourcePath },
 							symlinkPath
 						);
-						console.log('\n[DEBUG] readlink mounted symlinked path', absoluteSourcePath, '->', symlinkPath);
+						console.log(
+							'\n[DEBUG] readlink mounted symlinked path',
+							absoluteSourcePath,
+							'->',
+							symlinkPath
+						);
 					}
 					return symlinkPath;
 				};
