@@ -75,7 +75,5 @@ jobs:
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
               with:
-                  # TODO: Switch back to build-website.yml before merging to public repo
-                  #workflow: build-website.yml
-                  workflow: deploy-private-website.yml
+                  workflow: build-website.yml
                   token: ${{ secrets.GITHUB_TOKEN }}
