@@ -39,9 +39,14 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		let lookup: Emscripten.FS.Lookup | undefined;
 		try {
 			lookup = FS.lookupPath(vfsMountPoint);
-		} catch {}
-		if (!lookup?.node) {
-			throw new Error('Unable to access the mount point in VFS.');
+		} catch (e) {
+			const error = e as Emscripten.FS.ErrnoError;
+			if (error.errno === 44) {
+				throw new Error(
+					`Unable to access the mount point ${vfsMountPoint} in VFS after attempting to create it.`
+				);
+			}
+			throw e;
 		}
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
 		return () => {
