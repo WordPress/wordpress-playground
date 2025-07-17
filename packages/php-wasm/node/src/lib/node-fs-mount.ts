@@ -1,5 +1,5 @@
 import { FSHelpers, type MountHandler } from '@php-wasm/universal';
-import { statSync } from 'fs';
+import { lstatSync, readlinkSync, statSync } from 'fs';
 import { basename, dirname } from 'path';
 
 export function createNodeFsMountHandler(localPath: string): MountHandler {
@@ -19,17 +19,18 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		 */
 		let removeVfsNode = false;
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
-			if (statSync(localPath).isSymbolicLink()) {
+			const lstat = lstatSync(localPath);
+			if (lstat.isSymbolicLink()) {
 				FS.mkdirTree(dirname(vfsMountPoint));
 				(FS as any).createNode(
 					FS.lookupPath(vfsMountPoint, { parent: true }).node,
 					basename(localPath),
 					110000
 				);
-			} else if (statSync(localPath).isFile()) {
+			} else if (lstat.isFile()) {
 				FS.mkdirTree(dirname(vfsMountPoint));
 				FS.writeFile(vfsMountPoint, '');
-			} else if (statSync(localPath).isDirectory()) {
+			} else if (lstat.isDirectory()) {
 				FS.mkdirTree(vfsMountPoint);
 			} else {
 				throw new Error(
