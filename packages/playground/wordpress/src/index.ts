@@ -529,20 +529,50 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		}
 	}
 
-	if (
-		php.isDir(php.documentRoot) &&
-		isCleanDirContainingSiteMetadata(php.documentRoot, php)
-	) {
-		// We cannot mv the directory over a non-empty directory,
-		// but we can move the children one by one.
-		for (const file of php.listFiles(wpPath)) {
-			const sourcePath = joinPaths(wpPath, file);
-			const targetPath = joinPaths(php.documentRoot, file);
-			php.mv(sourcePath, targetPath);
+	// TODO: Consider moving this to a shared location and add a unit test if this isn't going to be immediately replaced by Blueprints v2 execution.
+	const moveRecursively = (source: string, target: string, php: PHP) => {
+		if (php.fileExists(target)) {
+			/*
+			 * Something exists at the target path.
+			 * Let's check to make sure we aren't copying conflicting types.
+			 *
+			 * In this context, if the source path points to a file and the
+			 * target path points to a directory, we do not intend for the file
+			 * to be moved into the directory.
+			 */
+
+			if (!php.isDir(source) && php.isDir(target)) {
+				throw new Error(
+					`The target ${target} is a directory but the source ${source} is not. This is not supported.`
+				);
+			}
+			if (php.isDir(source) && !php.isDir(target)) {
+				throw new Error(
+					`The source ${source} is a directory but the target ${target} is not. This is not supported.`
+				);
+			}
 		}
-		php.rmdir(wpPath, { recursive: true });
-	} else {
-		php.mv(wpPath, php.documentRoot);
+
+		if (isNonEmptyDir(target, php)) {
+			// We cannot move a directory over a non-empty directory,
+			// so we move the children one by one.
+			for (const file of php.listFiles(source)) {
+				const sourcePath = joinPaths(source, file);
+				const targetPath = joinPaths(target, file);
+				moveRecursively(sourcePath, targetPath, php);
+			}
+		} else {
+			php.mv(source, target);
+		}
+	};
+	try {
+		moveRecursively(wpPath, php.documentRoot, php);
+		// Remove any directories left because there were existing dirs at the target path.
+		if (php.fileExists(wpPath)) {
+			php.rmdir(wpPath, { recursive: true });
+		}
+	} catch (e) {
+		throw e;
 	}
 
 	if (
@@ -558,21 +588,12 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	}
 }
 
-function isCleanDirContainingSiteMetadata(path: string, php: PHP) {
+function isNonEmptyDir(path: string, php: PHP) {
+	if (!php.isDir(path)) {
+		return false;
+	}
 	const files = php.listFiles(path);
-	if (files.length === 0) {
-		return true;
-	}
-
-	if (
-		files.length === 1 &&
-		// TODO: use a constant from a site storage package
-		files[0] === 'playground-site-metadata.json'
-	) {
-		return true;
-	}
-
-	return false;
+	return files.length > 0;
 }
 
 const memoizedFetch = createMemoizedFetch(fetch);
