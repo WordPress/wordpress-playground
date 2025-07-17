@@ -84,7 +84,7 @@ would not suffer fools gladly.`;
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{ withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
 
 phpLoaderOptions.forEach((options) => {
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
