@@ -10,7 +10,8 @@ import {
 import { phpVars } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import InitialDockerfile from '../../../compile/php/Dockerfile?raw';
-import { loadNodeRuntime, PHPLoaderOptions } from '../lib';
+import { loadNodeRuntime } from '../lib';
+import type { PHPLoaderOptions } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
 const runtimeMode = (await jspi()) ? 'jspi' : 'asyncify';
