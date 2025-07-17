@@ -8,6 +8,7 @@ interface SiteNameFormProps {
 	onSubmit: (newName: string) => void;
 	isBusy: boolean;
 	siteName: string;
+	autoFocusNameInput?: boolean;
 }
 
 export default function SiteNameForm({
@@ -15,6 +16,7 @@ export default function SiteNameForm({
 	onSubmit,
 	isBusy,
 	siteName,
+	autoFocusNameInput = false,
 }: SiteNameFormProps) {
 	const [newName, setNewName] = useState<string>(siteName);
 
@@ -32,6 +34,7 @@ export default function SiteNameForm({
 				value={newName}
 				onChange={setNewName}
 				onKeyDown={submitOnEnter}
+				autoFocus={autoFocusNameInput}
 			/>
 
 			<ModalButtons

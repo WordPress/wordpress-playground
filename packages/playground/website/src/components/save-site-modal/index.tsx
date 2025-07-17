@@ -55,6 +55,7 @@ export const SaveSiteModal = ({ storageType, onClose }: SaveSiteModalProps) => {
 				onSubmit={handleSubmit}
 				isBusy={isSaving}
 				siteName={activeSite?.metadata.name ?? ''}
+				autoFocusNameInput={true}
 			/>
 		</Modal>
 	);

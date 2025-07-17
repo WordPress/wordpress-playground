@@ -48,6 +48,7 @@ export const RenameSiteModal = () => {
 				onSubmit={handleSubmit}
 				isBusy={isUpdating}
 				siteName={activeSite?.metadata.name ?? ''}
+				autoFocusNameInput={true}
 			/>
 		</Modal>
 	);
