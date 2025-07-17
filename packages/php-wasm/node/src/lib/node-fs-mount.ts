@@ -3,8 +3,8 @@ import {
 	FSHelpers,
 	type MountHandler,
 } from '@php-wasm/universal';
-import { lstatSync, readlinkSync, statSync } from 'fs';
-import { basename, dirname } from 'path';
+import { lstatSync } from 'fs';
+import { dirname } from 'path';
 
 export function createNodeFsMountHandler(localPath: string): MountHandler {
 	return function (php, FS, vfsMountPoint) {
