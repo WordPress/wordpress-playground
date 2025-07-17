@@ -12,7 +12,7 @@ import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availabi
 import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
 import { useState } from 'react';
 import { SaveSiteModal } from '../../save-site-modal';
-import type { SiteStorageType } from '../../../lib/site-metadata';
+import type { PersistedSiteStorageType } from '../../../lib/site-metadata';
 
 export function SitePersistButton({
 	siteSlug,
@@ -21,20 +21,16 @@ export function SitePersistButton({
 }: {
 	siteSlug: string;
 	children: React.ReactNode;
-	storage?: Extract<SiteStorageType, 'opfs' | 'local-fs'> | null;
+	storage?: PersistedSiteStorageType | null;
 }) {
-	const [selectedStorageType, setSelectedStorageType] = useState<Extract<
-		SiteStorageType,
-		'opfs' | 'local-fs'
-	> | null>(null);
+	const [selectedStorageType, setSelectedStorageType] =
+		useState<PersistedSiteStorageType | null>(null);
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, siteSlug)
 	);
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 
-	const persistSiteClick = (
-		storageType: Extract<SiteStorageType, 'opfs' | 'local-fs'>
-	) => {
+	const persistSiteClick = (storageType: PersistedSiteStorageType) => {
 		setSelectedStorageType(storageType);
 	};
 

@@ -17,7 +17,7 @@ export default function ModalButtons({
 	onSubmit,
 }: ModalButtonsProps) {
 	return (
-		<Flex justify="end" className={css.modalButtons}>
+		<Flex justify="end" gap={4} className={css.modalButtons}>
 			<Button
 				disabled={areDisabled || areBusy}
 				variant="link"

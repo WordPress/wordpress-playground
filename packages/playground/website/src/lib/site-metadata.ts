@@ -27,6 +27,10 @@ import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url'
  */
 export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
 export type SiteStorageType = (typeof SiteStorageTypes)[number];
+export type PersistedSiteStorageType = Extract<
+	SiteStorageType,
+	'opfs' | 'local-fs'
+>;
 
 /**
  * The site logo data.

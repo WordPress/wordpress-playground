@@ -1,10 +1,11 @@
 import { useDispatch } from 'react-redux';
 import SiteNameForm from '../site-name-form';
 import { Modal } from '../modal';
-import { PlaygroundDispatch, useActiveSite } from '../../lib/state/redux/store';
+import type { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { useActiveSite } from '../../lib/state/redux/store';
 import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
 import { useState } from 'react';
-import { SiteStorageType } from '../../lib/site-metadata';
+import type { SiteStorageType } from '../../lib/site-metadata';
 import { persistTemporarySite } from '../../lib/state/redux/persist-temporary-site';
 
 interface SaveSiteModalProps {

@@ -2,7 +2,8 @@ import { useDispatch } from 'react-redux';
 import SiteNameForm from '../site-name-form';
 import { Modal } from '../modal';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { PlaygroundDispatch, useActiveSite } from '../../lib/state/redux/store';
+import type { PlaygroundDispatch } from '../../lib/state/redux/store';
+import { useActiveSite } from '../../lib/state/redux/store';
 import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
 import { useState } from 'react';
 
