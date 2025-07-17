@@ -34,7 +34,7 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: true
+                  persist-credentials: false
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
@@ -63,6 +63,7 @@ jobs:
                   sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Recompile WordPress major and beta versions"
                   git pull --rebase
