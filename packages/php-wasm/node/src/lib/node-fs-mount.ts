@@ -1,4 +1,8 @@
-import { FSHelpers, type MountHandler } from '@php-wasm/universal';
+import {
+	type Emscripten,
+	FSHelpers,
+	type MountHandler,
+} from '@php-wasm/universal';
 import { lstatSync, readlinkSync, statSync } from 'fs';
 import { basename, dirname } from 'path';
 
@@ -20,14 +24,7 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		let removeVfsNode = false;
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
 			const lstat = lstatSync(localPath);
-			if (lstat.isSymbolicLink()) {
-				FS.mkdirTree(dirname(vfsMountPoint));
-				(FS as any).createNode(
-					FS.lookupPath(vfsMountPoint, { parent: true }).node,
-					basename(localPath),
-					110000
-				);
-			} else if (lstat.isFile()) {
+			if (lstat.isFile() || lstat.isSymbolicLink()) {
 				FS.mkdirTree(dirname(vfsMountPoint));
 				FS.writeFile(vfsMountPoint, '');
 			} else if (lstat.isDirectory()) {
@@ -39,8 +36,11 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			}
 			removeVfsNode = true;
 		}
-		const lookup = FS.lookupPath(vfsMountPoint);
-		if (!lookup.node) {
+		let lookup: Emscripten.FS.Lookup | undefined;
+		try {
+			lookup = FS.lookupPath(vfsMountPoint);
+		} catch {}
+		if (!lookup?.node) {
 			throw new Error('Unable to access the mount point in VFS.');
 		}
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
