@@ -25,7 +25,6 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 #include "proc_open.h"
-#include "dns_polyfill.h"
 
 // Created by Dockerfile:
 #include "php_wasm_asyncify.h"
@@ -36,7 +35,22 @@ unsigned int wasm_sleep(unsigned int time)
 	return time;
 }
 
+/**
+ * Shims usleep(3) functionallity.
+ */
+EMSCRIPTEN_KEEPALIVE unsigned int __wrap_usleep(unsigned int time_microseconds)
+{
+	// We don't have access to microsecond granularity in JavaScript so let's
+	// settle for milliseconds.
+	int time_milliseconds = time_microseconds / 1000;
+	emscripten_sleep(time_milliseconds);
+	return time_microseconds;
+}
+
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
+
+static int redirect_stream_to_file(FILE *stream, char *file_path);
+static void restore_stream_handler(FILE *original_stream, int replacement_stream);
 
 /**
  * Shims popen(3) functionallity:
@@ -148,15 +162,17 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 
     return returnCallback((wakeUp) => {
         const polls = [];
-        if (socketd in PHPWASM.child_proc_by_fd) {
-            // This is a child process-related socket.
-            const procInfo = PHPWASM.child_proc_by_fd[socketd];
-            if (procInfo.exited) {
-                wakeUp(0);
-                return;
-            }
-            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-        } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
+        /**
+		 * Special semantics for polling sockets.
+		 *
+		 * @TODO: Remove this code branch entirely and poll sockets using the second if/else
+		 *        branch below. The only reason this wasn't done yet is that the original PR
+		 *        was focusing on removing child process-related special casing and did not
+		 *        want to increase the risk of breaking other code, especially around listening
+		 *        network sockets.
+         */
+		const stream = FS.getStream(socketd);
+        if (FS.isSocket(stream?.node.mode)) {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {
@@ -185,23 +201,67 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
                 return;
             }
             for (const ws of webSockets) {
-                if (events & POLLIN || events & POLLPRI) {
-                    polls.push(PHPWASM.awaitData(ws));
-                    lookingFor.add('POLLIN');
-                }
-                if (events & POLLOUT) {
-                    polls.push(PHPWASM.awaitConnection(ws));
-                    lookingFor.add('POLLOUT');
-                }
-                if (events & POLLHUP) {
-                    polls.push(PHPWASM.awaitClose(ws));
-                    lookingFor.add('POLLHUP');
-                }
-                if (events & POLLERR || events & POLLNVAL) {
-                    polls.push(PHPWASM.awaitError(ws));
-                    lookingFor.add('POLLERR');
-                }
+				if (events & POLLIN || events & POLLPRI) {
+					polls.push(PHPWASM.awaitData(ws));
+					lookingFor.add('POLLIN');
+				}
+				if (events & POLLOUT) {
+					polls.push(PHPWASM.awaitConnection(ws));
+					lookingFor.add('POLLOUT');
+				}
+				// Notify the user the socket is now closed even if the only requested
+				// in or out events.
+				if (
+					events & POLLHUP ||
+					events & POLLIN ||
+					events & POLLOUT ||
+					events & POLLERR
+				) {
+					polls.push(PHPWASM.awaitClose(ws));
+					lookingFor.add('POLLHUP');
+				}
+				if (events & POLLERR || events & POLLNVAL) {
+					polls.push(PHPWASM.awaitError(ws));
+					lookingFor.add('POLLERR');
+				}
             }
+		} else if (stream?.stream_ops?.poll) {
+			// Poll the stream for data.
+			// @TODO: Consider reusing the polling implementation in js_fd_read().
+			let interrupted = false;
+			async function poll() {
+				try {
+					// Inlined ___syscall_poll with added await support:
+					while (true) {
+						var mask = POLLNVAL;
+						mask = SYSCALLS.DEFAULT_POLLMASK;
+						if (FS.isClosed(stream)) {
+							return ERRNO_CODES.EBADF;
+						}
+						if (stream.stream_ops?.poll) {
+							mask = stream.stream_ops.poll(stream, -1);
+						}
+						
+						mask &= events | POLLERR | POLLHUP;
+						if (mask) {
+							return mask;
+						}
+						if (interrupted) {
+							return ERRNO_CODES.ETIMEDOUT;
+						}
+						await new Promise(resolve => setTimeout(resolve, 10));
+					}
+				} catch (e) {
+					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+					return -e.errno;
+				}
+			}
+			polls.push([
+				poll(),
+				() => {
+					interrupted = true;
+				}
+			]);
         } else {
 			setTimeout(function () {
 				wakeUp(1);
@@ -257,22 +317,20 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
  * @see https://github.com/WordPress/wordpress-playground/issues/951
  * @see https://github.com/emscripten-core/emscripten/issues/13214
  */
+EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 #ifdef PLAYGROUND_JSPI
-EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => new Promise(resolver);
 #else
-EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
 #endif
+	const pollAsync = arguments[4] === undefined ? true : !!arguments[4];
 	if (Asyncify?.State?.Normal === undefined || Asyncify?.state === Asyncify?.State?.Normal) {
-		var returnCode;
 		var stream;
-		let num = 0;
 		try
 		{
 			stream = SYSCALLS.getStreamFromFD(fd);
-			const num = doReadv(stream, iov, iovcnt);
-			HEAPU32[pnum >> 2] = num;
+			// How many bytes did we read?
+			HEAPU32[pnum >> 2] = doReadv(stream, iov, iovcnt);
 			return 0;
 		}
 		catch (e)
@@ -282,26 +340,38 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
 			{
 				throw e;
 			}
-			// Only return synchronously if this isn't an asynchronous pipe.
-			// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
-			// We also need to distinguish between a process pipe and a file pipe, otherwise
-			// reading from an empty file would block until the timeout.
-			if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd))
-			{
-				// On failure, yield 0 bytes read to indicate EOF.
-				HEAPU32[pnum >> 2] = 0;
-				return returnCode
+
+			// Propagate all errors except ones indicating that the stream is waiting for
+			// more data.
+			if (e.errno !== ERRNO_CODES.EWOULDBLOCK && e.errno !== ERRNO_CODES.EAGAIN) {
+				return e.errno;
 			}
+
+			// If the stream is non-blocking, we can return immediately.
+			const nonBlocking = stream.flags & PHPWASM.O_NONBLOCK;
+			if (nonBlocking) {
+				return e.errno;
+			}
+
+			// Otherwise, fallthrough to polling.
 		}
 	}
 
-    // At this point we know we have to poll.
-    // You might wonder why we duplicate the code here instead of always using
+	// Allow the caller to disable polling.
+	// @TODO: Check if we should even poll here, or is it up to the caller to decide
+	//        and call poll() on their own.
+	if (false === pollAsync) {
+		return ERRNO_CODES.EWOULDBLOCK;
+	}
+
+    // At this point we're certain we need to poll.
+	//
+    // You might wonder why we duplicate the code here instead of just reusing
     // Asyncify.handleSleep(). The reason is performance. Most of the time,
     // the read operation will work synchronously and won't require yielding
     // back to JS. In these cases we don't want to pay the Asyncify overhead,
     // save the stack, yield back to JS, restore the stack etc.
-    return returnCallback((wakeUp) => {
+    return returnCallback(async (wakeUp) => {
         var retries = 0;
         var interval = 50;
         var timeout = 5000;
@@ -310,7 +380,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
         // to, say, block the entire PHPUnit test suite without any visible
         // feedback.
         var maxRetries = timeout / interval;
-        function poll() {
+        while(true) {
             var returnCode;
             var stream;
             let num;
@@ -329,28 +399,30 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 returnCode = e.errno;
             }
 
-            const success = returnCode === 0;
-            const failure = (
-                ++retries > maxRetries ||
-                !(fd in PHPWASM.child_proc_by_fd) ||
-                PHPWASM.child_proc_by_fd[fd]?.exited ||
-                FS.isClosed(stream)
-            );
-
-            if (success) {
+            // read succeeded!
+            if (returnCode === 0) {
                 HEAPU32[pnum >> 2] = num;
-                wakeUp(0);
-            } else if (failure) {
-                // On failure, yield 0 bytes read to indicate EOF.
-                HEAPU32[pnum >> 2] = 0;
-                // If the failure is due to a timeout, return 0 to indicate that we
-                // reached EOF. Otherwise, propagate the error code.
-                wakeUp(returnCode === 6 ? 0 : returnCode);
-            } else {
-                setTimeout(poll, interval);
+                return wakeUp(0);
             }
+
+            if (
+                // Too many retries? That's an error, too!
+                ++retries > maxRetries ||
+                // Stream closed? That's an error.
+                !stream || FS.isClosed(stream) ||
+                // Error different than EWOULDBLOCK – propagate it to the caller.
+                returnCode !== ERRNO_CODES.EWOULDBLOCK ||
+                // Broken pipe
+                ('pipe' in stream.node && stream.node.pipe.refcnt < 2)
+            ) {
+                HEAPU32[pnum >> 2] = num;
+                return wakeUp(returnCode);
+            }
+            
+            // It's a blocking stream and we Blocking stream with no data available yet.
+            // Let's poll up to a timeout.
+            await new Promise(resolve => setTimeout(resolve, interval));
         }
-        poll();
     })
 });
 extern int __wasi_syscall_ret(__wasi_errno_t code);
@@ -433,15 +505,18 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 	}
 	else if (*mode == 'w')
 	{
-		int current_procopen_call_id = ++procopen_call_id;
-		char *device_path = js_create_input_device(current_procopen_call_id);
-		int stdin_childend = current_procopen_call_id;
-		fp = fopen(device_path, mode);
-
+		php_file_descriptor_t stdin_pipe[2];
 		php_file_descriptor_t stdout_pipe[2];
 		php_file_descriptor_t stderr_pipe[2];
-		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe))
+		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe) || 0 != pipe(stdin_pipe))
 		{
+			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
+			errno = EINVAL;
+			return 0;
+		}
+
+		fp = fdopen(stdin_pipe[1], "w");  // or "w", depending on direction
+		if (!fp) {
 			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
 			errno = EINVAL;
 			return 0;
@@ -452,8 +527,8 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		int *stderr = safe_emalloc(sizeof(int), 3, 0);
 
 		stdin[0] = 0;
-		stdin[1] = stdin_childend;
-		stdin[2] = (int) NULL;
+		stdin[1] = stdin_pipe[0];
+		stdin[2] = stdin_pipe[1];
 
 		stdout[0] = 1;
 		stdout[1] = stdout_pipe[0];
@@ -468,7 +543,6 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		descv[0] = stdin;
 		descv[1] = stdout;
 		descv[2] = stderr;
-
 
 		// the wasm way {{{
 		js_open_process(
@@ -719,40 +793,9 @@ EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, stru
 	return n;
 }
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
-ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
-
-
-
-/* Enable PHP to exchange messages with JavaScript */
-PHP_FUNCTION(post_message_to_js)
-{
-	char *data;
-	int data_len;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
-	{
-		return;
-	}
-
-	char *response;
-	size_t response_len = js_module_onMessage(data, &response);
-	if (response_len != -1)
-	{
-		zend_string *return_string = zend_string_init(response, response_len, 0);
-		free(response);
-		RETURN_NEW_STR(return_string);
-	}
-	else
-	{
-		RETURN_NULL();
-	}
-}
 
 /**
  * select(2).
@@ -780,79 +823,6 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 	}
 	return n;
 }
-
-#if WITH_CLI_SAPI == 1
-#include "sapi/cli/php_cli_process_title.h"
-#if PHP_MAJOR_VERSION >= 8
-#include "sapi/cli/php_cli_process_title_arginfo.h"
-#endif
-
-extern int wasm_shutdown(int sockfd, int how);
-extern int wasm_close(int sockfd);
-
-
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
-	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
-	ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
-	ZEND_FE(dns_check_record, arginfo_dns_check_record)
-	ZEND_FE(dns_get_record, arginfo_dns_get_record)
-	PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-	PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
-};
-
-typedef struct wasm_cli_arg
-{
-	char *value;
-	struct wasm_cli_arg *next;
-} wasm_cli_arg_t;
-
-int cli_argc = 0;
-wasm_cli_arg_t *cli_argv;
-void wasm_add_cli_arg(char *arg)
-{
-	++cli_argc;
-	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
-	ll_entry->value = strdup(arg);
-	ll_entry->next = cli_argv;
-	cli_argv = ll_entry;
-}
-
-/**
- * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
- * The file is provided by the linker and the main() function is not
- * exported from the final .wasm file at the moment.
- */
-int main(int argc, char *argv[]);
-int run_cli()
-{
-	// Convert the argv linkedlist to an array:
-	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
-	wasm_cli_arg_t *current_arg = cli_argv;
-	int i = 0;
-	while (current_arg != NULL)
-	{
-		cli_argv_array[cli_argc - i - 1] = current_arg->value;
-		++i;
-		current_arg = current_arg->next;
-	}
-
-	return main(cli_argc, cli_argv_array);
-}
-
-#else
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
-	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
-	ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
-	ZEND_FE(dns_check_record, arginfo_dns_check_record)
-	ZEND_FE(dns_get_record, arginfo_dns_get_record)
-	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
-};
-#endif
 
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
@@ -1009,6 +979,103 @@ void wasm_set_phpini_path(char *path)
 	phpini_path_override = strdup(path);
 }
 
+int stdout_replacement;
+int stderr_replacement;
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
+extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
+
+static const zend_function_entry additional_functions[] = {
+ZEND_FE(dl, arginfo_dl)
+PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
+PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+{NULL, NULL, NULL}
+};
+
+
+
+typedef struct wasm_cli_arg
+{
+	char *value;
+	struct wasm_cli_arg *next;
+} wasm_cli_arg_t;
+
+int cli_argc = 0;
+wasm_cli_arg_t *cli_argv;
+void wasm_add_cli_arg(char *arg)
+{
+	++cli_argc;
+	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t *)malloc(sizeof(wasm_cli_arg_t));
+	ll_entry->value = strdup(arg);
+	ll_entry->next = cli_argv;
+	cli_argv = ll_entry;
+}
+
+/**
+ * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
+ * The file is provided by the linker and the main() function is not
+ * exported from the final .wasm file at the moment.
+ */
+int main(int argc, char *argv[]);
+int run_cli()
+{
+	// See wasm_sapi_request_init() for details on why we need to redirect stdout and stderr.
+	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
+	if (stdout_replacement == -1 || stderr_replacement == -1)
+	{
+		return -1;
+	}
+
+	// Set the environment variables
+	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
+	while (current_env_entry != NULL) {
+		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
+		sprintf(env_string, "%s=%s", current_env_entry->key, current_env_entry->value);
+		putenv(env_string);
+		current_env_entry = current_env_entry->next;
+	}
+
+	// Convert the argv linkedlist to an array:
+	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc));
+	wasm_cli_arg_t *current_arg = cli_argv;
+	int i = 0;
+	while (current_arg != NULL)
+	{
+		cli_argv_array[cli_argc - i - 1] = current_arg->value;
+		++i;
+		current_arg = current_arg->next;
+	}
+
+	int result = main(cli_argc, cli_argv_array);
+
+	// Clear the environment variables
+	while (current_env_entry != NULL) {
+		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
+		sprintf(env_string, "%s=", current_env_entry->key);
+		putenv(env_string);
+		current_env_entry = current_env_entry->next;
+	}
+
+	restore_stream_handler(stdout, stdout_replacement);
+	restore_stream_handler(stderr, stderr_replacement);
+
+	free(cli_argv_array);
+
+	return result;
+}
+
+#else
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+};
+#endif
 
 void wasm_init_server_context()
 {
@@ -1276,7 +1343,7 @@ void wasm_set_request_port(int port)
  */
 static int redirect_stream_to_file(FILE *stream, char *file_path)
 {
-	int out = open(file_path, O_TRUNC | O_WRONLY | O_CREAT, 0600);
+	int out = open(file_path, O_WRONLY);
 	if (-1 == out)
 	{
 		return -1;
@@ -1307,9 +1374,6 @@ static void restore_stream_handler(FILE *original_stream, int replacement_stream
 	dup2(replacement_stream, fileno(original_stream));
 	close(replacement_stream);
 }
-
-int stdout_replacement;
-int stderr_replacement;
 
 /*
  * Function: wasm_sapi_read_cookies
@@ -1495,11 +1559,9 @@ int wasm_sapi_request_init()
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	// We'll use the /internal directory instead of /tmp, because a child process sharing
-	// the same filesystem and /tmp mount would write to the same stdout and stderr files
-	// and produce unreadable output intertwined with the parent process output. The /internal
-	// directory should always stay in per-process MEMFS space and never be shared with
-	// any other process.
+	// We use our custom Emscripten-defined /internal/std* devices and handle the output in JavaScript.
+	// These /internal devices are not thread-safe and should always stay in per-process MEMFS space.
+	// Sharing them between PHP instances may cause intertwined output.
 	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
 	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
@@ -1545,6 +1607,8 @@ int wasm_sapi_request_init()
 	return SUCCESS;
 }
 
+extern void js_release_file_locks();
+
 /**
  * Function: wasm_sapi_request_shutdown
  * ----------------------------
@@ -1568,6 +1632,11 @@ void wasm_sapi_request_shutdown()
 	// Restore the regular stdout and stderr stream handlers
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
+
+#ifdef PHP_WASM_FILE_LOCKING_SUPPORT
+	// Release any locks still held by this process
+	js_release_file_locks();
+#endif
 
 	// Prepare a fresh request context
 	wasm_init_server_context();
@@ -1752,7 +1821,7 @@ FILE *headers_file;
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
-	headers_file = fopen("/internal/headers.json", "w");
+	headers_file = fopen("/internal/headers", "w");
 	if (headers_file == NULL)
 	{
 		return FAILURE;
@@ -1791,8 +1860,7 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 {
 	if (sapi_header == NULL)
 	{
-		fseek(headers_file, ftell(headers_file) - 2, SEEK_SET);
-		fwrite(&"  ", sizeof(char), 2, headers_file);
+		fwrite(&"\"__terminator__\"", sizeof(char), 16, headers_file);
 		return;
 	}
 	_fwrite(headers_file, "\"");
@@ -1864,4 +1932,80 @@ int php_wasm_init()
  */
 void wasm_free(void *_Nullable ptr) {
 	free(ptr);
+}
+
+#ifdef PHP_WASM_FILE_LOCKING_SUPPORT
+/*
+ * Function: wasm_get_end_offset
+ * ----------------------------
+ *   Returns the end offset of the file descriptor.
+ *
+ *   Useful to determine the base address when file locking
+ *   with flock.l_whence == SEEK_END.
+ */
+EMSCRIPTEN_KEEPALIVE off_t wasm_get_end_offset(int fd) {
+	struct stat s;
+	int result = fstat(fd, &s);
+	if (result == -1) {
+		return -1;
+	}
+	off_t eof_offset = (off_t)s.st_size;
+	if (eof_offset < 0) {
+		// Guard against overflow, which we do not expect
+		return -1;
+	}
+	return eof_offset;
+}
+
+extern pid_t js_getpid();
+
+/**
+ * Function: getpid
+ * ----------------------------
+ *   Returns the process ID of the current process.
+ *
+ *   As of 2025-06-19, Emscripten's built-in getpid() always returns 42.
+ *   We provide our own getpid() implementation to return a distinct ID
+ *   for the purpose of file locking.
+ */
+EMSCRIPTEN_KEEPALIVE pid_t __wrap_getpid() {
+	// The process ID is provided in JS as a PHPLoader option,
+	// so we ask JS for it here.
+	return js_getpid();
+}
+
+extern int js_flock(int fd, int op);
+/**
+ * Function: flock
+ * ----------------------------
+ *   Emscripten's built-in flock() function is a no-op that pretends to succeed.
+ *
+ *   We provide a real flock() implementation that performs whole-file locking
+ *   amongst php-wasm processes and the host platform.
+ */
+EMSCRIPTEN_KEEPALIVE int flock(int fd, int op) {
+	return js_flock(fd, op);
+}
+#endif
+
+extern void js_wasm_trace(const char *msg);
+
+/**
+ * Function: wasm_trace
+ * ----------------------------
+ *   This is a printf()-style function that forwards trace messages to JS.
+ *   It is provided as a utility that can be used while debugging native code.
+ */
+EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	char buf[1024];
+	// NOTE: It would be better and more efficient to just pass varargs to JS,
+	// but AFAIK, this is not a good way to do that directly.
+	// Perhaps we could devise something later, but this is good enough for now.
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	char traceBuf[1024];
+	js_wasm_trace(traceBuf);
 }

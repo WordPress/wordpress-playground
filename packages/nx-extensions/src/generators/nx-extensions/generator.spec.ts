@@ -1,8 +1,9 @@
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
-import { Tree, readProjectConfiguration } from '@nx/devkit';
+import type { Tree } from '@nx/devkit';
+import { readProjectConfiguration } from '@nx/devkit';
 
 import generator from './generator';
-import { NxExtensionsGeneratorSchema } from './schema';
+import type { NxExtensionsGeneratorSchema } from './schema';
 
 describe('nx-extensions generator', () => {
 	let appTree: Tree;

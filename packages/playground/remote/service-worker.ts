@@ -219,7 +219,7 @@ self.addEventListener('fetch', (event) => {
 	let referrerUrl;
 	try {
 		referrerUrl = new URL(event.request.referrer);
-	} catch (e) {
+	} catch {
 		// ignore
 	}
 

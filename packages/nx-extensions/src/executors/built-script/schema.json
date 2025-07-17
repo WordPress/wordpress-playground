@@ -8,7 +8,15 @@
 		"scriptPath": {
 			"type": "string",
 			"description": "Path of the script to run.",
-			"x-prompt": "What script would you like to run?"
+			"x-prompt": "What script would you like to run?",
+			"required": true
+		},
+		"nodeArg": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"description": "Arguments to pass to the node command."
+			}
 		},
 		"__unparsed__": {
 			"hidden": true,

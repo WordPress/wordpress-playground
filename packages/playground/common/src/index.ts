@@ -9,12 +9,12 @@
  * Let's always consider these questions before adding new code here.
  */
 
-import { UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 
 export { createMemoizedFetch } from './create-memoized-fetch';
 
-export const RecommendedPHPVersion = '8.0';
+export const RecommendedPHPVersion = '8.3';
 
 /**
  * Unzip a zip file inside Playground.

@@ -1,5 +1,5 @@
-import { PHPRequest, PHPResponse } from '@php-wasm/universal';
-import { StepHandler } from '.';
+import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
+import type { StepHandler } from '.';
 import { logger } from '@php-wasm/logger';
 
 /**

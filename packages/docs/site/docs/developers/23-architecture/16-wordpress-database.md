@@ -2,7 +2,7 @@
 title: How does it work?
 ---
 
-## Database is supported via MySQL<->SQLite translation layer
+## Database is supported via MySQL\<\-\>SQLite translation layer
 
 WordPress requires MySQL. However, there isn't a WebAssembly version of MySQL you could run in the browser. WordPress Playground therefore ships PHP with the [native SQLite driver](https://www.php.net/manual/en/ref.pdo-sqlite.php) and leans on SQLite.
 

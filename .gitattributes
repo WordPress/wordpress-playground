@@ -12,3 +12,16 @@ packages/playground/remote/src/wordpress linguist-generated=true -diff
 packages/playground/wordpress-builds/src/wordpress linguist-generated=true -diff
 packages/playground/wordpress-builds/src/public linguist-generated=true -diff
 packages/playground/blueprints/public/ linguist-generated=true
+
+# Avoid large non-essential files in release archives
+packages/playground/wordpress-builds/public/**/* export-ignore
+packages/playground/wordpress-builds/src/wordpress/**/*.zip export-ignore
+packages/php-wasm/web/public/php/**/*.wasm export-ignore
+packages/php-wasm/node/**/*.wasm export-ignore
+packages/playground/website/playwright/**/* export-ignore
+**/test/**/* export-ignore
+**/tests/**/* export-ignore
+**/test-fixtures/**/* export-ignore
+#*.so.* export-ignore
+#*.a export-ignore
+packages/playground/website/demos/* export-ignore

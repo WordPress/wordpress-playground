@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 
 /**
  * @inheritDoc login
@@ -39,5 +39,6 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
+	// TODO: Make defineConstant apply to all workers
 	playground.defineConstant('PLAYGROUND_AUTO_LOGIN_AS_USER', username);
 };

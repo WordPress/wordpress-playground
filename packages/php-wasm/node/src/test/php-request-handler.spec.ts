@@ -1,15 +1,39 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
-import { getFileNotFoundActionForWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '..';
-import {
+import type {
+	CookieStore,
 	FileNotFoundGetActionCallback,
+} from '@php-wasm/universal';
+import {
+	HttpCookieStore,
 	PHP,
 	PHPRequestHandler,
 	PHPResponse,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths } from '@php-wasm/util';
+
+/*
+ * This is a copy-paste from "@wp-playground/wordpress" in the "boot.ts" file
+ * to avoid adding a dependency on "@wp-playground/wordpress" and causing
+ * circular dependency linter errors.
+ *
+ * TODO: Remove this when we enable ciruclar deps in test files; after the
+ *       package dependency refactor PR is merged:
+ *         https://github.com/Automattic/wordpress-playground-private/pull/148
+ */
+export function getFileNotFoundActionForWordPress(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- maintain consistent FileNotFoundGetActionCallback signature
+	relativeUri: string
+) {
+	// Delegate unresolved requests to WordPress. This makes WP magic possible,
+	// like pretty permalinks and dynamically generated sitemaps.
+	return {
+		type: 'internal-redirect',
+		uri: '/index.php',
+	} as const;
+}
 
 interface ConfigForRequestTests {
 	phpVersion: (typeof SupportedPHPVersions)[number];
@@ -64,6 +88,10 @@ describe.each(configsForRequestTests)(
 			});
 			php = await handler.getPrimaryPhp();
 			php.mkdir(docRoot);
+		});
+
+		afterEach(async () => {
+			php.exit();
 		});
 
 		it('should execute a PHP file', async () => {
@@ -602,6 +630,7 @@ describe.each(configsForRequestTests)(
 				getFileNotFoundActionForTest =
 					getFileNotFoundActionForWordPress;
 			});
+
 			it('should delegate request for non-existent PHP file to /index.php with query args', async () => {
 				php.writeFile(
 					joinPaths(docRoot, 'index.php'),
@@ -656,6 +685,10 @@ describe.each(SupportedPHPVersions)(
 			php.mkdirTree('/var/www');
 		});
 
+		afterEach(async () => {
+			(await handler.getPrimaryPhp()).exit();
+		});
+
 		it.each([
 			['/index.php', '/index.php'],
 			['/index.php?foo=bar', '/index.php'],
@@ -688,6 +721,17 @@ describe.each(SupportedPHPVersions)(
 			});
 			expect(response.text).toEqual('/subdir/index.php');
 		});
+
+		it('should assign the correct cwd', async () => {
+			const php = await handler.getPrimaryPhp();
+			php.writeFile('/var/www/index.php', `<?php echo getcwd();`);
+
+			const response = await handler.request({
+				url: '/index.php',
+			});
+
+			expect(response.text).toEqual('/var/www');
+		});
 	}
 );
 
@@ -710,6 +754,7 @@ describe('PHPRequestHandler – Loopback call', () => {
 						scriptPath: args[1],
 						env: options.env,
 					});
+					// @ts-ignore
 					processApi.stdout(result.bytes);
 					processApi.stderr(result.errors);
 					processApi.exit(result.exitCode);
@@ -742,6 +787,7 @@ describe('PHPRequestHandler – Loopback call', () => {
 					const result = await handler.request({
 						url: '/second.php',
 					});
+					// @ts-ignore
 					processApi.stdout(result.bytes);
 					processApi.stderr(result.errors);
 					processApi.exit(result.exitCode);
@@ -763,5 +809,100 @@ describe('PHPRequestHandler – Loopback call', () => {
 			url: '/first.php',
 		});
 		expect(response.text).toEqual('Starting: Ran second.php! Done');
+	});
+});
+
+describe('PHPRequestHandler – Cookie store', () => {
+	const prepareHandler = async (cookieStore?: CookieStore | false) => {
+		const handler = new PHPRequestHandler({
+			documentRoot: '/',
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
+			maxPhpInstances: 1,
+			cookieStore,
+		});
+		const php = await handler.getPrimaryPhp();
+		php.writeFile(
+			'/set-cookie.php',
+			`<?php setcookie("my-cookie", "where-is-my-cookie", time() + 3600, "/");`
+		);
+		php.writeFile('/get-cookie.php', `<?php echo json_encode($_COOKIE);`);
+		return handler;
+	};
+	it('should persist cookies internally when not defining a strategy', async () => {
+		const handler = await prepareHandler();
+
+		// Cookies return in the response
+		let response = await handler.request({
+			url: '/set-cookie.php',
+		});
+		const cookies = response.headers['set-cookie'];
+		expect(cookies).toHaveLength(1);
+		expect(cookies[0]).toMatch(
+			/my-cookie=where-is-my-cookie; expires=.*; Max-Age=3600; path=\//
+		);
+
+		// Cookies are persisted internally in the request handler.
+		// Note that we are not passing cookies in the header of the response.
+		response = await handler.request({
+			url: '/get-cookie.php',
+		});
+		expect(response.text).toEqual(
+			JSON.stringify({ 'my-cookie': 'where-is-my-cookie' })
+		);
+	});
+
+	it('should persist cookies internally with the HttpCookieStore', async () => {
+		const handler = await prepareHandler(new HttpCookieStore());
+
+		// Cookies return in the response
+		let response = await handler.request({
+			url: '/set-cookie.php',
+		});
+		const cookies = response.headers['set-cookie'];
+		expect(cookies).toHaveLength(1);
+		expect(cookies[0]).toMatch(
+			/my-cookie=where-is-my-cookie; expires=.*; Max-Age=3600; path=\//
+		);
+
+		// Cookies are persisted internally in the request handler.
+		// Note that we are not passing cookies in the header of the response.
+		response = await handler.request({
+			url: '/get-cookie.php',
+		});
+		expect(response.text).toEqual(
+			JSON.stringify({ 'my-cookie': 'where-is-my-cookie' })
+		);
+	});
+
+	it('should not persist cookies internally when the cookie store is false', async () => {
+		const handler = await prepareHandler(false);
+
+		// Cookies return in the response
+		let response = await handler.request({
+			url: '/set-cookie.php',
+		});
+		const cookies = response.headers['set-cookie'];
+		expect(cookies).toHaveLength(1);
+		expect(cookies[0]).toMatch(
+			/my-cookie=where-is-my-cookie; expires=.*; Max-Age=3600; path=\//
+		);
+
+		// No cookies are persisted internally.
+		// Note that we are not passing cookies in the header of the response.
+		response = await handler.request({
+			url: '/get-cookie.php',
+		});
+		expect(response.text).toEqual(JSON.stringify([]));
+
+		// Cookies are available in the PHP environment when passed in the
+		// request.
+		response = await handler.request({
+			url: '/get-cookie.php',
+			headers: { Cookie: 'my-cookie=where-is-my-cookie' },
+		});
+		expect(response.text).toEqual(
+			JSON.stringify({ 'my-cookie': 'where-is-my-cookie' })
+		);
 	});
 });

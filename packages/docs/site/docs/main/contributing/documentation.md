@@ -6,7 +6,7 @@ slug: /contributing/documentation
 
 [WordPress Playground's documentation site](/) is maintained by volunteers like you, who'd love your help.
 
-All documentation-related issues are labeled [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Documentation) or [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Developer%20Documentation) in the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
+All documentation-related issues are labeled [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22) or [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) in the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 
 ## How can I contribute?
 
@@ -21,7 +21,7 @@ If you are familiar with markdown, you can [fork](https://docs.github.com/en/pul
 The process of creating a branch to open new PRs with translated pages on the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository is the same than contributing to other WordPress repositories such as gutenberg:
 https://developer.wordpress.org/block-editor/contributors/code/git-workflow/
 
-The documentation files (`.md` files) are stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs).
+The documentation files (`.md` files) are stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs) for English and [`/packages/docs/site/i18n`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/i18n) for other languages.
 
 ### Edit in the browser
 

@@ -50,6 +50,10 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite"]
@@ -66,7 +70,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/common/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/common/**/*.ts"],
+				"maxWarnings": 0
 			}
 		}
 	},

@@ -15,7 +15,7 @@ describe('generateCertificate', () => {
 		tempDir = join(tmpdir(), 'cert-test');
 		try {
 			mkdirSync(tempDir);
-		} catch (error) {
+		} catch {
 			// Ignore error if directory already exists
 		}
 		caKeyPath = join(tempDir, 'ca_key.pem');

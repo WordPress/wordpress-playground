@@ -1,10 +1,10 @@
-import { MessageListener } from '@php-wasm/universal';
+import type { MessageListener } from '@php-wasm/universal';
+import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
 	setupPostMessageRelay,
-	SyncProgressCallback,
 } from '@php-wasm/web';
 
 import type {
@@ -14,7 +14,8 @@ import type {
 } from './worker-thread';
 export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
-import ProgressBar, { ProgressBarOptions } from './progress-bar';
+import type { ProgressBarOptions } from './progress-bar';
+import ProgressBar from './progress-bar';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
@@ -28,8 +29,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { FilesystemOperation } from '@php-wasm/fs-journal';
-import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
@@ -125,8 +125,22 @@ export async function bootPlaygroundRemote() {
 			}
 			bar.destroy();
 		},
+
+		/**
+		 * Listens to Playground navigation.
+		 *
+		 * @param fn The function to be called when a navigation event occurs.
+		 */
 		async onNavigation(fn) {
-			// Manage the address bar
+			/**
+			 * Note: We do not manually clear the event listener and the interval set in this function.
+			 *
+			 * This is because we're inside remote.html – a Playground instance-specific iframe.
+			 * When a Playground is stopped the iframe is destroyed and the resources – cleaned up.
+			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
+			 * We'll let the browser handle that.
+			 */
+			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
 					/**
@@ -160,7 +174,7 @@ export async function bootPlaygroundRemote() {
 						contentWindow.location.href
 					);
 					fn(path);
-				} catch (e) {
+				} catch {
 					// @TODO: The above call can fail if the remote iframe
 					// is embedded in StackBlitz, or presumably, any other
 					// environment with restrictive CSP. Any error thrown
@@ -168,6 +182,34 @@ export async function bootPlaygroundRemote() {
 					// so let's ignore it for now and find a correct fix in time.
 				}
 			});
+
+			// Also propagate navigation changes twice a second for any
+			// updates we don't receive via the iframe load event.
+			//
+			// For more details on the challenges related to the load event,
+			// see:
+			//
+			// * https://github.com/WordPress/wordpress-playground/pull/1945
+			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
+			let lastPath: string | undefined;
+			setInterval(async () => {
+				try {
+					let href = '';
+					if (wpFrame.contentWindow) {
+						href = wpFrame.contentWindow.location.href;
+					} else {
+						href = wpFrame.src;
+					}
+					const path = await playground.internalUrlToPath(href);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore errors due to CORS or CSP restrictions
+				}
+			}, 500);
 		},
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
@@ -195,7 +237,7 @@ export async function bootPlaygroundRemote() {
 				try {
 					wpFrame.contentWindow.location.href = newUrl;
 					return;
-				} catch (e) {
+				} catch {
 					// The above call can fail if we're embedded in an
 					// environment with a restrictive CSP policy.
 				}
@@ -206,7 +248,7 @@ export async function bootPlaygroundRemote() {
 			let url = '';
 			try {
 				url = wpFrame.contentWindow!.location.href;
-			} catch (e) {
+			} catch {
 				// The above call can fail if we're embedded in an
 				// environment with a restrictive CSP policy.
 			}
@@ -300,6 +342,7 @@ export async function bootPlaygroundRemote() {
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 					const result = await (phpWorkerApi[method] as Function)(
 						...args
 					);
@@ -317,12 +360,6 @@ export async function bootPlaygroundRemote() {
 					wpFrame,
 					getOrigin((await playground.absoluteUrl)!)
 				);
-
-				if (options.withNetworking) {
-					await setupFetchNetworkTransport(phpWorkerApi, {
-						corsProxyUrl: options.corsProxyUrl,
-					});
-				}
 
 				setAPIReady();
 			} catch (e) {
@@ -411,7 +448,7 @@ function assertNotInfiniteLoadingLoop() {
 		isBrowserInABrowser =
 			window.parent !== window &&
 			(window as any).parent.IS_WASM_WORDPRESS;
-	} catch (e) {
+	} catch {
 		// ignore
 	}
 	if (isBrowserInABrowser) {

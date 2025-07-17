@@ -1,5 +1,6 @@
-import { LogHandler } from '../log-handlers';
-import { Log, logger } from '../logger';
+import type { LogHandler } from '../log-handlers';
+import type { Log } from '../logger';
+import { logger } from '../logger';
 
 export const logEventType = 'playground-log';
 

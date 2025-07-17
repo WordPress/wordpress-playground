@@ -271,7 +271,7 @@ const FORMATTING_METHODS = {
  * @param {keyof FORMATTING_METHODS}  representation Type of representation
  *                                                   (display, raw, ariaLabel).
  *
- * @return {string?} Shortcut representation.
+ * @return {?string} Shortcut representation.
  */
 function getKeyCombinationRepresentation(shortcut, representation) {
   if (!shortcut) {
@@ -361,7 +361,7 @@ function getShortcutKeyCombination(state, name) {
  * };
  *```
  *
- * @return {string?} Shortcut representation.
+ * @return {?string} Shortcut representation.
  */
 function getShortcutRepresentation(state, name, representation = 'display') {
   const shortcut = getShortcutKeyCombination(state, name);
@@ -394,7 +394,7 @@ function getShortcutRepresentation(state, name, representation = 'display') {
  *     );
  * };
  *```
- * @return {string?} Shortcut description.
+ * @return {?string} Shortcut description.
  */
 function getShortcutDescription(state, name) {
   return state[name] ? state[name].description : null;

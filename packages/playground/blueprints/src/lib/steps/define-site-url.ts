@@ -1,4 +1,4 @@
-import { StepHandler } from '.';
+import type { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 
 /**

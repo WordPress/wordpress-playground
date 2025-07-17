@@ -1,4 +1,5 @@
-import { defineConfig, devices, PlaywrightTestConfig } from '@playwright/test';
+import type { PlaywrightTestConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 const baseURL =
 	process.env.PLAYWRIGHT_TEST_BASE_URL ||
@@ -25,7 +26,7 @@ export const playwrightConfig: PlaywrightTestConfig = {
 	},
 
 	timeout: 300000,
-	expect: { timeout: 45000 },
+	expect: { timeout: 60000 },
 
 	/* Configure projects for major browsers */
 	projects: [

@@ -5,6 +5,19 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/scopes/README.md dist/packages/php-wasm/scopes"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/php-wasm/scopes/tsconfig.lib.json",
@@ -19,11 +32,16 @@
 				"outputPath": "dist/packages/php-wasm/scopes"
 			}
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/scopes/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/scopes/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {

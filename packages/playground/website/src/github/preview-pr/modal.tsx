@@ -1,7 +1,7 @@
 import { Modal } from '../../components/modal';
 import PreviewPRForm from './form';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { PlaygroundDispatch } from '../../lib/state/redux/store';
+import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
 
 interface PreviewPRModalProps {

@@ -12,8 +12,9 @@ import {
 	__experimentalItem as Item,
 	Flex,
 	DropdownMenu,
+	Button,
 } from '@wordpress/components';
-import { moreVertical, page } from '@wordpress/icons';
+import { moreVertical, page, close } from '@wordpress/icons';
 import { ClockIcon, WordPressIcon } from '@wp-playground/components';
 import {
 	setActiveSite,
@@ -21,7 +22,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/state/redux/store';
-import { SiteLogo } from '../../../lib/site-metadata';
+import type { SiteLogo } from '../../../lib/site-metadata';
 import {
 	selectSortedSites,
 	selectTemporarySite,
@@ -36,8 +37,10 @@ import { GithubImportMenuItem } from '../../toolbar-buttons/github-import-menu-i
 export function Sidebar({
 	className,
 	afterSiteClick,
+	mobileUi,
 }: {
 	className?: string;
+	mobileUi?: boolean;
 	afterSiteClick?: (slug: string) => void;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -100,8 +103,21 @@ export function Sidebar({
 			>
 				<h1 className="sr-only">WordPress Playground</h1>
 				<div className={css.sidebarHeader}>
-					{/* Remove Playground logo because branding isn't finalized. */}
-					{/* <Logo className={css.sidebarLogoButton} /> */}
+					{mobileUi && (
+						<Button
+							className={css.closeButton}
+							onClick={() => {
+								if (temporarySite) {
+									onSiteClick(temporarySite.slug);
+									return;
+								}
+								redirectTo(PlaygroundRoute.newTemporarySite());
+							}}
+							icon={close}
+							label="Close sidebar"
+							showTooltip={true}
+						/>
+					)}
 				</div>
 				<DropdownMenu
 					className={css.componentsDropdown}

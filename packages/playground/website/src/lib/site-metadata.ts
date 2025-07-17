@@ -7,11 +7,13 @@
  * Playground CLI, Studio, WP-ENV, hosted environment etc.
  */
 
-import {
+import type {
 	Blueprint,
+	BlueprintDeclaration,
 	PHPConstants,
-	compileBlueprint,
 } from '@wp-playground/blueprints';
+import { compileBlueprint } from '@wp-playground/blueprints';
+import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
 /**
@@ -53,12 +55,13 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: Pick<
-		Required<Blueprint>,
+		Required<BlueprintDeclaration>,
 		'features' | 'extraLibraries' | 'preferredVersions'
 	> & {
 		constants?: PHPConstants;
 	};
 	originalBlueprint: Blueprint;
+	originalBlueprintSource: BlueprintSource;
 }
 
 export async function createSiteMetadata(
@@ -66,16 +69,27 @@ export async function createSiteMetadata(
 		name: string;
 	} & Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>
 ): Promise<SiteMetadata> {
-	const { name, originalBlueprint, ...remainingMetadata } = initialMetadata;
+	const {
+		name,
+		originalBlueprint,
+		originalBlueprintSource,
+		...remainingMetadata
+	} = initialMetadata;
 
-	const blueprint: Blueprint =
-		originalBlueprint ??
+	let blueprint: Blueprint | undefined = originalBlueprint;
+	let blueprintSource: BlueprintSource | undefined = originalBlueprintSource;
+	if (!blueprint) {
 		// TODO: This is a hack because we are just abusing a URL-oriented
 		// function to create a completely default Blueprint. Let's fix this by
 		// making default creation first-class.
-		(await resolveBlueprintFromURL(new URL('https://w.org')));
+		const resolvedBlueprint = await resolveBlueprintFromURL(
+			new URL('https://w.org')
+		);
+		blueprint = resolvedBlueprint.blueprint;
+		blueprintSource = resolvedBlueprint.source;
+	}
 
-	const compiledBlueprint = compileBlueprint(blueprint);
+	const compiledBlueprint = await compileBlueprint(blueprint);
 
 	return {
 		name,
@@ -83,6 +97,7 @@ export async function createSiteMetadata(
 		whenCreated: Date.now(),
 		storage: 'none',
 		originalBlueprint: blueprint,
+		originalBlueprintSource: blueprintSource!,
 
 		...remainingMetadata,
 

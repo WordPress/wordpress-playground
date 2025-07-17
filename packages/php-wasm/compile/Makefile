@@ -1,3 +1,9 @@
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
+
+# Remove trailing slash if present
+MAKEFILE_DIR := $(patsubst %/,%,$(MAKEFILE_DIR))
+
 base-image: base-image/.ready
 base-image/.ready:
 	cd base-image; docker build -f ./Dockerfile -t playground-php-wasm:base .
@@ -142,19 +148,34 @@ libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/1.1.1/root/lib
 
+WITH_DEBUG ?= no
+
 libsqlite3_asyncify: libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a
 libsqlite3/asyncify/dist/root/lib/lib/libsqlite3.a: base-image libz_asyncify
 	mkdir -p ./libsqlite3/asyncify/dist/root/lib
-	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 .
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
+		--build-arg WITH_DEBUG=${WITH_DEBUG} \
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3
+		--progress=plain
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/asyncify/dist/root/lib
+	@if [ "${WITH_DEBUG}" = "yes" ]; then \
+		docker cp $$(docker create playground-php-wasm:libsqlite3):/root/sqlite-src ./libsqlite3/; \
+	fi
 
 libsqlite3_jspi: libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a
 libsqlite3/jspi/dist/root/lib/lib/libsqlite3.a: base-image libz_jspi
 	mkdir -p ./libsqlite3/jspi/dist/root/lib
-	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . --build-arg JSPI=1
+	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . \
+		--build-arg JSPI=1 \
+		--build-arg WITH_DEBUG=${WITH_DEBUG} \
+		--build-arg DEBUG_DWARF_COMPILATION_DIR=${MAKEFILE_DIR}/libsqlite3
+		--progress=plain
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/jspi/dist/root/lib
+	@if [ "${WITH_DEBUG}" = "yes" ]; then \
+		docker cp $$(docker create playground-php-wasm:libsqlite3):/root/sqlite-src ./libsqlite3/; \
+	fi
 
 libiconv_asyncify: libiconv/asyncify/dist/root/lib/lib/libiconv.a
 libiconv/asyncify/dist/root/lib/lib/libiconv.a: base-image libz_asyncify
@@ -222,22 +243,38 @@ oniguruma/jspi/dist/root/lib/lib/libonig.a: base-image
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/jspi/dist/root/lib/
 
 libcurl_asyncify: libcurl/asyncify/dist/root/lib/lib/libcurl.a
-libcurl/asyncify/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
+libcurl/asyncify/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_asyncify
 	mkdir -p ./libcurl/asyncify/dist/root/lib
 	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl . --progress=plain
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/asyncify/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/asyncify/dist/root/lib
 
 libcurl_jspi: libcurl/jspi/dist/root/lib/lib/libcurl.a
-libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
+libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_jspi
 	mkdir -p ./libcurl/jspi/dist/root/lib
 	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl . --progress=plain --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/jspi/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/jspi/dist/root/lib
 
+libintl_asyncify: libintl/asyncify/dist/root/lib/lib/libintl.a
+libintl/asyncify/dist/root/lib/lib/libintl.a: base-image
+	mkdir -p ./libintl/asyncify/dist/root/lib
+	docker build -f ./libintl/Dockerfile -t playground-php-wasm:libintl . --progress=plain
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/lib ./libintl/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
+
+libintl_jspi: libintl/jspi/dist/root/lib/lib/libintl.a
+libintl/jspi/dist/root/lib/lib/libintl.a: base-image
+	mkdir -p ./libintl/jspi/dist/root/lib
+	docker build -f ./libintl/Dockerfile -t playground-php-wasm:libintl . --progress=plain --build-arg JSPI=1
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/lib ./libintl/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/include ./libintl/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
+
 all: all_jspi all_asyncify
-all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi
-all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify
+all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi
+all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify libintl_asyncify
 
 clean:
 	rm -rf ./libz/jspi/dist
@@ -261,3 +298,5 @@ clean:
 	rm -rf ./bison2.7/dist
 	rm -rf ./oniguruma/jspi/dist
 	rm -rf ./oniguruma/asyncify/dist
+	rm -rf ./libintl/jspi/dist
+	rm -rf ./libintl/asyncify/dist

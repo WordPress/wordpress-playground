@@ -1,5 +1,5 @@
 import { ErrorEvent } from './error-event-polyfill';
-import { isExitCodeZero } from './is-exit-code-zero';
+import { isExitCode } from './is-exit-code';
 import { logger } from '@php-wasm/logger';
 
 type Runtime = {
@@ -9,13 +9,29 @@ type Runtime = {
 
 export class UnhandledRejectionsTarget extends EventTarget {
 	listenersCount = 0;
-	override addEventListener(type: unknown, callback: unknown): void {
+	override addEventListener(
+		type: unknown,
+		callback: unknown,
+		options?: boolean | AddEventListenerOptions
+	): void {
 		++this.listenersCount;
-		super.addEventListener(type as string, callback as EventListener);
+		super.addEventListener(
+			type as string,
+			callback as EventListener,
+			options
+		);
 	}
-	override removeEventListener(type: unknown, callback: unknown): void {
+	override removeEventListener(
+		type: unknown,
+		callback: unknown,
+		options?: boolean | EventListenerOptions
+	): void {
 		--this.listenersCount;
-		super.removeEventListener(type as string, callback as EventListener);
+		super.removeEventListener(
+			type as string,
+			callback as EventListener,
+			options
+		);
 	}
 	hasListeners() {
 		return this.listenersCount > 0;
@@ -45,26 +61,24 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					if (!(e instanceof Error)) {
 						throw e;
 					}
-					const clearMessage = clarifyErrorMessage(
-						e,
-						runtime.lastAsyncifyStackSource?.stack
-					);
 
 					if (runtime.lastAsyncifyStackSource) {
 						e.cause = runtime.lastAsyncifyStackSource;
 					}
 
+					const clearMessage = clarifyErrorMessage(
+						e,
+						runtime.lastAsyncifyStackSource?.stack
+					);
+
 					if (target.hasListeners()) {
-						target.dispatchEvent(
-							new ErrorEvent('error', {
-								error: e,
-								message: clearMessage,
-							})
-						);
-						return;
+						e.message = clearMessage;
+						const event = new ErrorEvent('error', { error: e });
+						target.dispatchEvent(event);
+						throw e;
 					}
 
-					if (!isExitCodeZero(e)) {
+					if (!isExitCode(e) || e.status !== 0) {
 						showCriticalErrorBox(clearMessage);
 					}
 					throw e;
@@ -89,14 +103,30 @@ export function clarifyErrorMessage(
 		if (!asyncifyStack) {
 			betterMessage +=
 				`\n\nThis stack trace is lacking. For a better one initialize \n` +
-				`the PHP runtime with { debug: true }, e.g. PHPNode.load('8.1', { debug: true }).\n\n`;
+				`the PHP runtime with debug: true, e.g. loadNodeRuntime('8.1', { emscriptenOptions: { debug: true } }).\n\n`;
 		}
-		functionsMaybeMissingFromAsyncify = extractPHPFunctionsFromStack(
-			asyncifyStack || crypticError.stack || ''
+
+		// Extract all the PHP functions from the entire error chain.
+		const uniqueFunctions = new Set<string>(
+			extractPHPFunctionsFromStack(asyncifyStack || '')
 		);
-		for (const fn of functionsMaybeMissingFromAsyncify) {
+		let lastError = crypticError;
+		do {
+			for (const fn of extractPHPFunctionsFromStack(
+				lastError.stack || ''
+			)) {
+				uniqueFunctions.add(fn);
+			}
+			lastError = lastError.cause as Error;
+		} while (lastError);
+		functionsMaybeMissingFromAsyncify = Array.from(uniqueFunctions);
+
+		for (const fn of uniqueFunctions) {
 			betterMessage += `    * ${fn}\n`;
 		}
+
+		betterMessage += `Original error message: ${crypticError.message}\n`;
+
 		return betterMessage;
 	}
 	return crypticError.message;
@@ -157,7 +187,7 @@ function extractPHPFunctionsFromStack(stack: string) {
 				const parts = line.trim().substring('at '.length).split(' ');
 				return {
 					fn: parts.length >= 2 ? parts[0] : '<unknown>',
-					isWasm: line.includes('wasm://'),
+					isWasm: line.includes('wasm:/'),
 				};
 			})
 			.filter(
@@ -168,7 +198,7 @@ function extractPHPFunctionsFromStack(stack: string) {
 			)
 			.map(({ fn }) => fn);
 		return Array.from(new Set(names));
-	} catch (err) {
+	} catch {
 		return [];
 	}
 }

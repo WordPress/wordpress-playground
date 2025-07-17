@@ -277,8 +277,6 @@ const external_wp_coreData_namespaceObject = window["wp"]["coreData"];
  * @return {import('react').ComponentType} The menu control or null.
  */
 
-
-
 function ReusableBlockConvertButton({
   clientIds,
   rootClientId,
@@ -426,8 +424,6 @@ const external_wp_url_namespaceObject = window["wp"]["url"];
  */
 
 
-
-
 function ReusableBlocksManageButton({
   clientId
 }) {
@@ -493,8 +489,6 @@ function ReusableBlocksManageButton({
 /**
  * Internal dependencies
  */
-
-
 
 
 

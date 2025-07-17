@@ -1,13 +1,10 @@
-import {
-	Emscripten,
-	FSHelpers,
-	MountHandler,
-	PHP,
-	__private__dont__use,
-} from '@php-wasm/universal';
-import { Semaphore, joinPaths } from '@php-wasm/util';
+import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
+import { FSHelpers, __private__dont__use } from '@php-wasm/universal';
+import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { normalizeFilesystemOperations } from '@php-wasm/fs-journal';
+import { journalFSEvents } from '@php-wasm/fs-journal';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
@@ -254,7 +251,7 @@ async function overwriteOpfsFile(
 		buffer = FS.readFile(memfsPath, {
 			encoding: 'binary',
 		});
-	} catch (e) {
+	} catch {
 		// File was removed, ignore
 		return;
 	}
@@ -286,12 +283,30 @@ export function journalFSEventsToOpfs(
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
 
 	async function flushJournal() {
+		if (journal.length === 0) {
+			return;
+		}
+
 		const release = await php.semaphore.acquire();
+
+		// Concurrency safety note
+		// As I understand it, journal is specific to a PHP instance,
+		// so it's not possible to have concurrency push of entries to journal
+		// But this can change in future so it doesn't hurt to read from journal
+		// in a concurrent safe way, which is what we are doing here.
+
+		// We first copy it to a new array
+		const journalEntries = [...journal];
+		// and then only delete however many entries we were able to grab
+		// since with concurrent writes there could have been more insertions
+		journal.splice(0, journalEntries.length);
+
+		const compressedJournal = normalizeFilesystemOperations(journalEntries);
 		try {
 			// @TODO This is way too slow in practice, we need to batch the
 			// changes into groups of parallelizable operations.
-			while (journal.length) {
-				await rewriter.processEntry(journal.shift()!);
+			for (const entry of compressedJournal) {
+				await rewriter.processEntry(entry);
 			}
 		} finally {
 			release();
@@ -308,12 +323,12 @@ type JournalEntry = FilesystemOperation;
 
 class OpfsRewriter {
 	private memfsRoot: string;
+	private php: PHP;
+	private opfs: FileSystemDirectoryHandle;
 
-	constructor(
-		private php: PHP,
-		private opfs: FileSystemDirectoryHandle,
-		memfsRoot: string
-	) {
+	constructor(php: PHP, opfs: FileSystemDirectoryHandle, memfsRoot: string) {
+		this.php = php;
+		this.opfs = opfs;
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
 	}
 
@@ -341,7 +356,7 @@ class OpfsRewriter {
 					await opfsParent.removeEntry(name, {
 						recursive: true,
 					});
-				} catch (e) {
+				} catch {
 					// If the directory already doesn't exist, it's fine
 				}
 			} else if (entry.operation === 'CREATE') {
@@ -370,7 +385,6 @@ class OpfsRewriter {
 					this.opfs,
 					opfsTargetPath
 				);
-				const targetName = getFilename(opfsTargetPath);
 
 				if (entry.nodeType === 'directory') {
 					const opfsDir = await opfsTargetParent.getDirectoryHandle(
@@ -391,8 +405,41 @@ class OpfsRewriter {
 						recursive: true,
 					});
 				} else {
-					const file = await opfsParent.getFileHandle(name);
-					file.move(opfsTargetParent, targetName);
+					/**
+					 * Delete the old file and creating a new one.
+					 *
+					 * We cannot use the OPFS move() method here. Imagine pulling from
+					 * a Git repository – each pulled object is first buffered in a
+					 * file called ".tmp" and then renamed to its final name. However,
+					 * the WRITE operation does not store the written bytes, only the
+					 * path.
+					 *
+					 * By the time the filesystem journal is flushed, we cannot
+					 * assume that the "rename from" path still contains the same bytes
+					 * as it did when the WRITE operation was executed. Therefore, it's
+					 * safer to delete the old file and create a new one.
+					 *
+					 * It is still possible that the new file was already deleted
+					 * or renamed to another location. That's fine. A later stage
+					 * of replaying the journal will take care of that.
+					 *
+					 * Ideally, PHP.wasm would not use journaling at all, but
+					 * a native WASMFS layer for handling OPFS.
+					 *
+					 * See https://github.com/WordPress/wordpress-playground/pull/1878
+					 * for more details.
+					 */
+					try {
+						await opfsParent.removeEntry(name);
+					} catch {
+						// If the directory already doesn't exist, it's fine
+					}
+					await overwriteOpfsFile(
+						opfsTargetParent,
+						basename(opfsTargetPath),
+						this.php[__private__dont__use].FS,
+						entry.toPath
+					);
 				}
 			}
 		} catch (e) {

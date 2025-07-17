@@ -10,9 +10,9 @@ import css from './style.module.css';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
 import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
-import { SiteStorageType } from '../../../lib/site-metadata';
 import { useState } from 'react';
 import { SaveSiteModal } from '../../save-site-modal';
+import type { SiteStorageType } from '../../../lib/site-metadata';
 
 export function SitePersistButton({
 	siteSlug,

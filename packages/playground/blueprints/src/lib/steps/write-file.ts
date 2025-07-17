@@ -1,4 +1,5 @@
-import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
+import type { StepHandler } from '.';
 
 /**
  * @inheritDoc writeFile
@@ -31,6 +32,26 @@ export const writeFile: StepHandler<WriteFileStep<File>> = async (
 ) => {
 	if (data instanceof File) {
 		data = new Uint8Array(await data.arrayBuffer());
+	}
+	if (!path.startsWith('/')) {
+		logger.error(
+			`
+The writeFile() step in your Blueprint refers to a relative path.
+
+Playground recently changed the working directory from '/' to '/wordpress' to better mimic 
+how real web servers work. This means relative paths that used to work may no longer 
+point to the correct location.
+
+Playground automatically updated the path for you, but at one point path rewriting will be removed. Please
+update your code to use an absolute path instead:
+
+Instead of:  writeFile({ path: 'wordpress/wp-load.php', data: '<?php echo "Hello World!"; ?>' });
+Use:         writeFile({ path: '/wordpress/wp-load.php', data: '<?php echo "Hello World!"; ?>' });
+
+This will ensure your code works reliably regardless of the current working directory.
+		`.trim()
+		);
+		path = `/${path}`;
 	}
 	/**
 	 * PR #1426 removed the mu-plugins directory from the default

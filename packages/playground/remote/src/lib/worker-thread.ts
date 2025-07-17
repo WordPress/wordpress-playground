@@ -1,8 +1,10 @@
-import {
+import type {
 	GeneratedCertificate,
 	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+} from '@php-wasm/web';
+import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
@@ -12,9 +14,10 @@ import { joinPaths } from '@php-wasm/util';
 import { wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
+	getSqliteDriverModuleDetails,
 	LatestMinifiedWordPressVersion,
+	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
-	sqliteDatabaseIntegrationModuleDetails,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
@@ -25,22 +28,22 @@ import {
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { createMemoizedFetch } from '@wp-playground/common';
 import {
-	FilesystemOperation,
-	journalFSEvents,
-	replayFSJournal,
-} from '@php-wasm/fs-journal';
+	createMemoizedFetch,
+	RecommendedPHPVersion,
+} from '@wp-playground/common';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
-	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -51,6 +54,11 @@ import {
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 import { generateCertificate, certificateToPEM } from '@php-wasm/web';
+import {
+	intlDisabledFunctions,
+	networkingDisabledFunctions,
+} from './disabled-functions';
+import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -69,9 +77,11 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	sqliteDriverVersion?: string;
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
+	withICU: boolean;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -98,6 +108,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	loadedWordPressVersion: string | undefined;
 
 	unmounts: Record<string, () => any> = {};
+
+	private networkTransport: WordPressFetchNetworkTransport | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -165,9 +177,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		scope,
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
-		phpVersion = '8.0',
+		sqliteDriverVersion = LatestSqliteDriverVersion,
+		phpVersion = RecommendedPHPVersion,
 		sapiName = 'cli',
-		withNetworking = false,
+		withICU = false,
+		withNetworking = true,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
 	}: WorkerBootOptions) {
@@ -212,12 +226,13 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				}
 			}
 
+			const sqliteDriverModuleDetails =
+				getSqliteDriverModuleDetails(sqliteDriverVersion);
 			downloadMonitor.expectAssets({
-				[sqliteDatabaseIntegrationModuleDetails.url]:
-					sqliteDatabaseIntegrationModuleDetails.size,
+				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
 			});
 			const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-				fetch(sqliteDatabaseIntegrationModuleDetails.url)
+				fetch(sqliteDriverModuleDetails.url)
 			);
 
 			const constants: Record<string, any> = shouldInstallWordPress
@@ -240,10 +255,19 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const phpIniEntries: Record<string, string> = {
-				'openssl.cafile': '/internal/ca-bundle.crt',
+				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			};
 			let CAroot: false | GeneratedCertificate = false;
 			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
+			if (!withICU) {
+				phpIniEntries['disable_functions'] = (
+					phpIniEntries['disable_functions'] ?? ''
+				)
+					.split(',')
+					.concat(intlDisabledFunctions)
+					.filter((n) => n)
+					.join(',');
+			}
 			if (withNetworking) {
 				/**
 				 * Generate a self-signed CA certificate and tell PHP to trust it.
@@ -271,15 +295,26 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				// Calling curl_exec() with networking disabled causes PHP to
 				// enter an infinite loop. Let's disable it completely to
 				// throw a fatal error instead.
-				phpIniEntries['disable_functions'] =
-					'curl_exec,curl_multi_exec';
+				phpIniEntries['disable_functions'] = (
+					phpIniEntries['disable_functions'] ?? ''
+				)
+					.split(',')
+					.concat(networkingDisabledFunctions)
+					.filter((n) => n)
+					.join(',');
 			}
-			const requestHandler = await bootWordPress({
+
+			this.networkTransport = new WordPressFetchNetworkTransport({
+				corsProxyUrl: corsProxyUrl,
+			});
+
+			const requestHandlerPromise = bootWordPress({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
 					return await loadWebRuntime(phpVersion, {
 						tcpOverFetch,
+						withICU,
 						emscriptenOptions: {
 							instantiateWasm(imports, receiveInstance) {
 								// Using .then because Emscripten typically returns an empty
@@ -310,6 +345,19 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 							});
 						},
 					});
+				},
+				onPHPInstanceCreated: async (php: PHP) => {
+					/**
+					 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
+					 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
+					 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
+					 * instances without a network call handler.
+					 *
+					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
+					 */
+					if (withNetworking) {
+						await this.networkTransport!.setupMessageHandler(php);
+					}
 				},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
@@ -345,7 +393,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 				phpIniEntries,
 				createFiles: {
-					'/internal/ca-bundle.crt': CAroot
+					'/internal/shared/ca-bundle.crt': CAroot
 						? certificateToPEM(CAroot.certificate)
 						: '',
 					'/internal/shared/mu-plugins': {
@@ -379,10 +427,24 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					};
 				},
 			});
+			const requestHandler = await requestHandlerPromise;
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+
+			/**
+			 * Pre-fetch the slow initial burst of wp_update_* requests to greatly
+			 * improve the first wp-admin load time.
+			 */
+			if (withNetworking) {
+				/**
+				 * Only setup the network transport after WordPress have been installed. Otherwise,
+				 * the installer may send a network request to /wp-cron.php, which will fail because
+				 * the entire setup around network, SQLite, etc. is not complete yet.
+				 */
+				await this.networkTransport!.setEnabled(primaryPhp, true);
+			}
 
 			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
 			// from browser storage is the default version when it is actually something else.
@@ -425,7 +487,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						res.text()
 					);
 					primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-				} catch (e) {
+				} catch {
 					logger.warn(
 						`Failed to fetch remote asset paths from ${listUrl}`
 					);
@@ -446,6 +508,11 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async prefetchUpdateChecks() {
+		const primaryPhp = this.__internal_getPHP()!;
+		await this.networkTransport!.prefetchUpdateChecks(primaryPhp);
 	}
 
 	// These methods are only here for the time traveling Playground demo.

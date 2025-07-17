@@ -4,7 +4,7 @@ diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/
 @@ -299,7 +299,7 @@ static int pdo_sqlite_stmt_describe(pdo_stmt_t *stmt, int colno)
  	return 1;
  }
- 
+
 -static int pdo_sqlite_stmt_get_col(pdo_stmt_t *stmt, int colno, char **ptr, zend_ulong *len, int *caller_frees)
 +static int pdo_sqlite_stmt_get_col(pdo_stmt_t *stmt, int colno, char **ptr, size_t *len, int *caller_frees)
  {
@@ -19,7 +19,7 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  	php_stream *srcstream = NULL, *deststream = NULL;
  	int ret = FAILURE;
  	php_stream_statbuf src_s, dest_s;
- 
+
  	switch (php_stream_stat_path_ex(src, 0, &src_s, ctx)) {
  		case -1:
  			/* non-statable stream */
@@ -48,6 +48,8 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  		php_error_docref(NULL, E_WARNING, "The first argument to copy() function cannot be a directory");
  		return FAILURE;
  	}
+
+
 diff --git a/php-src/main/streams/cast.c b/php-src/main/streams/cast.c
 --- a/php-src/main/streams/cast.c
 +++ b/php-src/main/streams/cast.c
@@ -58,9 +60,42 @@ diff --git a/php-src/main/streams/cast.c b/php-src/main/streams/cast.c
 -static int stream_cookie_seeker(void *cookie, zend_off_t position, int whence)
 +static int stream_cookie_seeker(void *cookie, long long *position, int whence)
  {
- 
+
 -	return php_stream_seek((php_stream *)cookie, position, whence);
 +	return php_stream_seek((php_stream *)cookie, *position, whence);
  }
  # endif
- 
+
+
+diff --git a/php-src/Zend/zend_variables.c b/php-src/Zend/zend_variables.c
+index c2594274dd4..2c3a01ece57 100644
+--- a/php-src/Zend/zend_variables.c
++++ b/php-src/Zend/zend_variables.c
+@@ -44,6 +44,16 @@ static void ZEND_FASTCALL zend_ast_ref_destroy_wrapper(zend_ast_ref *ast);
+
+ typedef void (ZEND_FASTCALL *zend_rc_dtor_func_t)(zend_refcounted *p);
+
++// Note: zend_list_free_wrapper function is required because active streams
++// would otherwise cause a function signature mismatch. zend_list_free
++// returns an int, while zend_rc_dtor_func_t expects a void return type.
++static void zend_list_free_wrapper(zend_refcounted *p) {
++	zend_resource *res = (zend_resource*)p;
++	zval zv;
++	ZVAL_RES(&zv, res);
++	zend_list_free(&zv);
++}
++
+ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+ 	/* IS_UNDEF        */ (zend_rc_dtor_func_t)zend_empty_destroy,
+ 	/* IS_NULL         */ (zend_rc_dtor_func_t)zend_empty_destroy,
+@@ -54,7 +64,9 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+ 	/* IS_STRING       */ (zend_rc_dtor_func_t)zend_string_destroy,
+ 	/* IS_ARRAY        */ (zend_rc_dtor_func_t)zend_array_destroy_wrapper,
+ 	/* IS_OBJECT       */ (zend_rc_dtor_func_t)zend_object_destroy_wrapper,
+-	/* IS_RESOURCE     */ (zend_rc_dtor_func_t)zend_resource_destroy_wrapper,
++	// Note: zend_resource_destroy_wrapper is an alias for zend_list_free
++	// https://github.com/php/php-src/blob/PHP-7.3.33/Zend/zend_variables.c#L41
++	/* IS_RESOURCE     */ zend_list_free_wrapper,
+ 	/* IS_REFERENCE    */ (zend_rc_dtor_func_t)zend_reference_destroy,
+ 	/* IS_CONSTANT_AST */ (zend_rc_dtor_func_t)zend_ast_ref_destroy_wrapper
+ };

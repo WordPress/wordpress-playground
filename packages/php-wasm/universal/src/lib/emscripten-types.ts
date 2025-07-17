@@ -5,6 +5,7 @@
  * Typescript
  */
 
+// @ts-ignore: erasableSyntaxOnly conflict: Node.js can handle type-only namespaces like this.
 export namespace Emscripten {
 	export interface RootFS extends Emscripten.FileSystemInstance {
 		filesystems: Record<string, Emscripten.FileSystemType>;
@@ -127,6 +128,7 @@ export namespace Emscripten {
 		T extends EmscriptenModule = EmscriptenModule
 	> = (moduleOverrides?: Partial<T>) => Promise<T>;
 
+	// @ts-ignore: erasableSyntaxOnly conflict: Node.js can handle type-only namespaces like this.
 	export namespace FS {
 		export interface Lookup {
 			path: string;

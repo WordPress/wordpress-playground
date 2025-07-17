@@ -4,3 +4,4 @@ export * from './lib/playground';
 export * from './lib/browser-fs';
 export * from './lib/git-sparse-checkout';
 export * from './lib/paths';
+export * from './lib/filesystems';

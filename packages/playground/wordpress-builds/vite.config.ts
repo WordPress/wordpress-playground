@@ -9,7 +9,7 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
-	assetsInclude: ['**/*.wasm', '*.zip'],
+	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
 	cacheDir: '../../../node_modules/.vite/playground-wordpress-builds',
 	plugins: [
 		viteTsConfigPaths({
@@ -77,5 +77,6 @@ export default defineConfig({
 		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

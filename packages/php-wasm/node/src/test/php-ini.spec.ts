@@ -22,6 +22,10 @@ custom_setting = true
 		);
 	});
 
+	afterEach(async () => {
+		php.exit();
+	});
+
 	describe('getPhpIniEntries', () => {
 		it('returns the correct values', async () => {
 			const result = await getPhpIniEntries(php, [

@@ -5,6 +5,19 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/cli/README.md dist/packages/playground/cli"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/playground/cli/tsconfig.lib.json",
@@ -32,7 +45,36 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun --watch ./packages/playground/cli/src/cli.ts"
+				"command": "bun --watch ./packages/playground/cli/src/cli.ts",
+				"tty": true
+			}
+		},
+		"dev-node": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"debug": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
 			}
 		},
 		"start": {
@@ -42,6 +84,34 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"unbuilt-asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
+		"unbuilt-jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{
+						"command": "node -e \"if (parseInt(process.versions.node) < 23) { console.error('Node.js version 23 or greater is required for JSPI support'); process.exit(1); }\"",
+						"forwardAllArgs": false
+					},
+					"node --experimental-wasm-jspi --experimental-strip-types --experimental-transform-types  --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts"
+				],
+				"tty": true,
+				"parallel": false
+			}
+		},
 		"publish": {
 			"executor": "nx:run-commands",
 			"options": {
@@ -49,25 +119,24 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/cli/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/cli/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
-				"jestConfig": "packages/playground/cli/jest.config.ts",
-				"passWithNoTests": true
-			},
-			"configurations": {
-				"ci": {
-					"ci": true,
-					"codeCoverage": true
-				}
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/cli"
 			}
 		},
 		"typecheck": {

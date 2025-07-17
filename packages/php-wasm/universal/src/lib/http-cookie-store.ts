@@ -1,9 +1,9 @@
 import { logger } from '@php-wasm/logger';
-
+import type { CookieStore } from './php-request-handler';
 /**
  * @public
  */
-export class HttpCookieStore {
+export class HttpCookieStore implements CookieStore {
 	cookies: Record<string, string> = {};
 
 	rememberCookiesFromResponseHeaders(headers: Record<string, string[]>) {

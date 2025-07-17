@@ -9,7 +9,7 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
-	assetsInclude: ['**/*.wasm', '*.zip'],
+	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
 	cacheDir: '../../../node_modules/.vite/playground-wordpress',
 	plugins: [
 		viteTsConfigPaths({
@@ -43,30 +43,18 @@ export default defineConfig({
 	],
 
 	build: {
-		target: 'esnext',
-		// Important: Vite does not extract static assets as separate files
-		//            in the library mode. assetsInlineLimit: 0 only works
-		//            in the app mode.
-		// @see https://github.com/vitejs/vite/issues/3295
-		assetsInlineLimit: 0,
+		lib: {
+			// Could also be a dictionary or array of multiple entry points.
+			entry: 'src/index.ts',
+			name: 'playground-wordpress',
+			fileName: 'index',
+			// Change this to the formats you want to support.
+			// Don't forgot to update your package.json as well.
+			formats: ['es', 'cjs'],
+		},
 		sourcemap: true,
 		rollupOptions: {
-			input: path('src/index.ts'),
 			external: getExternalModules(),
-			// These additional options are required to preserve
-			// all the exports from the entry point. Otherwise,
-			// vite only preserves the ones it considers to be used.
-			output: {
-				name: 'exportsFromEntryPoint',
-				// Ensure the main entry point always gets output as index.js
-				entryFileNames: (chunkInfo: any) => {
-					if (chunkInfo.name === 'index') {
-						return 'index.js';
-					}
-					return '[name]-[hash].js';
-				},
-			},
-			preserveEntrySignatures: 'strict',
 		},
 	},
 
@@ -75,7 +63,9 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
+		testTimeout: 10000,
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		reporters: ['default'],
 	},
 });

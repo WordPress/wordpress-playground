@@ -1,13 +1,17 @@
-import {
+import type {
+	CookieStore,
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHP,
 	PHPProcessManager,
-	PHPRequestHandler,
 	SpawnHandler,
+} from '@php-wasm/universal';
+import {
+	PHP,
+	PHPRequestHandler,
 	proxyFileSystem,
 	rotatePHPRuntime,
+	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
 	writeFiles,
@@ -19,8 +23,9 @@ import {
 	unzipWordPress,
 	wordPressRewriteRules,
 } from '.';
-import { joinPaths } from '@php-wasm/util';
+import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { ensureWpConfig } from './rewrite-wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -31,16 +36,9 @@ export interface Hooks {
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
-export interface BootOptions {
+export interface BootRequestHandlerOptions {
 	createPhpRuntime: () => Promise<number>;
-	/**
-	 * Mounting and Copying is handled via hooks for starters.
-	 *
-	 * In the future we could standardize the
-	 * browser-specific and node-specific mounts
-	 * in the future.
-	 */
-	hooks?: Hooks;
+	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -53,12 +51,6 @@ export interface BootOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	/** SQL file to load instead of installing WordPress. */
-	dataSqlPath?: string;
-	/** Zip with the WordPress installation to extract in /wordpress. */
-	wordPressZip?: File | Promise<File> | undefined;
-	/** Preloaded SQLite integration plugin. */
-	sqliteIntegrationPluginZip?: File | Promise<File>;
 	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
@@ -92,6 +84,39 @@ export interface BootOptions {
 	 * given request URI.
 	 */
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
+
+	/**
+	 * The CookieStore instance to use.
+	 *
+	 * If not provided, Playground will use the HttpCookieStore by default.
+	 * The HttpCookieStore persists cookies in an internal store and includes
+	 * them in following requests.
+	 *
+	 * If you don't want Playground to handle cookies, set the cookie store
+	 * to `false`. This is useful for the Node version of Playground, where
+	 * cookies can be handled by the browser.
+	 *
+	 * You can also provide a custom CookieStore implementation by implementing
+	 * the CookieStore interface.
+	 */
+	cookieStore?: CookieStore | false;
+}
+
+export interface BootOptions extends BootRequestHandlerOptions {
+	/**
+	 * Mounting and Copying is handled via hooks for starters.
+	 *
+	 * In the future we could standardize the
+	 * browser-specific and node-specific mounts
+	 * in the future.
+	 */
+	hooks?: Hooks;
+	/** SQL file to load instead of installing WordPress. */
+	dataSqlPath?: string;
+	/** Zip with the WordPress installation to extract in /wordpress. */
+	wordPressZip?: File | Promise<File> | undefined;
+	/** Preloaded SQLite integration plugin. */
+	sqliteIntegrationPluginZip?: File | Promise<File>;
 }
 
 /**
@@ -109,8 +134,67 @@ export interface BootOptions {
  * @param options Boot configuration options
  * @return PHPRequestHandler instance with WordPress installed.
  */
-
 export async function bootWordPress(options: BootOptions) {
+	const requestHandler = await bootRequestHandler(options);
+
+	const php = await requestHandler.getPrimaryPhp();
+	if (options.hooks?.beforeWordPressFiles) {
+		await options.hooks.beforeWordPressFiles(php);
+	}
+
+	if (options.wordPressZip) {
+		await unzipWordPress(php, await options.wordPressZip);
+	}
+
+	if (options.constants) {
+		for (const key in options.constants) {
+			php.defineConstant(key, options.constants[key] as string);
+		}
+	}
+
+	if (options.dataSqlPath) {
+		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
+		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
+	}
+
+	php.defineConstant('WP_HOME', options.siteUrl);
+	php.defineConstant('WP_SITEURL', options.siteUrl);
+
+	/*
+	 * Add required constants to "wp-config.php" if they are not already defined.
+	 * This is needed, because some WordPress backups and exports may not include
+	 * definitions for some of the necessary constants.
+	 */
+	await ensureWpConfig(php, requestHandler.documentRoot);
+	// Run "before database" hooks to mount/copy more files in
+	if (options.hooks?.beforeDatabaseSetup) {
+		await options.hooks.beforeDatabaseSetup(php);
+	}
+
+	// @TODO Assert WordPress core files are in place
+
+	if (options.sqliteIntegrationPluginZip) {
+		await preloadSqliteIntegration(
+			php,
+			await options.sqliteIntegrationPluginZip
+		);
+	}
+
+	if (!options.dataSqlPath) {
+		if (!(await isWordPressInstalled(php))) {
+			await installWordPress(php);
+		}
+
+		if (!(await isWordPressInstalled(php))) {
+			throw new Error('WordPress installation has failed.');
+		}
+	}
+
+	return requestHandler;
+}
+
+export async function bootRequestHandler(options: BootRequestHandlerOptions) {
+	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
 		requestHandler: PHPRequestHandler,
 		isPrimary: boolean
@@ -154,9 +238,9 @@ export async function bootWordPress(options: BootOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (options.spawnHandler) {
+		if (spawnHandler) {
 			await php.setSpawnHandler(
-				options.spawnHandler(requestHandler.processManager)
+				spawnHandler(requestHandler.processManager)
 			);
 		}
 
@@ -169,6 +253,10 @@ export async function bootWordPress(options: BootOptions) {
 			maxRequests: 400,
 		});
 
+		if (options.onPHPInstanceCreated) {
+			await options.onPHPInstanceCreated(php);
+		}
+
 		return php;
 	}
 
@@ -180,63 +268,33 @@ export async function bootWordPress(options: BootOptions) {
 		rewriteRules: wordPressRewriteRules,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
+		cookieStore: options.cookieStore,
 	});
-
-	const php = await requestHandler.getPrimaryPhp();
-
-	if (options.hooks?.beforeWordPressFiles) {
-		await options.hooks.beforeWordPressFiles(php);
-	}
-
-	if (options.wordPressZip) {
-		await unzipWordPress(php, await options.wordPressZip);
-	}
-
-	if (options.constants) {
-		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
-		}
-	}
-
-	php.defineConstant('WP_HOME', options.siteUrl);
-	php.defineConstant('WP_SITEURL', options.siteUrl);
-
-	// Run "before database" hooks to mount/copy more files in
-	if (options.hooks?.beforeDatabaseSetup) {
-		await options.hooks.beforeDatabaseSetup(php);
-	}
-
-	// @TODO Assert WordPress core files are in place
-
-	if (options.sqliteIntegrationPluginZip) {
-		await preloadSqliteIntegration(
-			php,
-			await options.sqliteIntegrationPluginZip
-		);
-	}
-
-	if (!(await isWordPressInstalled(php))) {
-		await installWordPress(php);
-	}
-
-	if (!(await isWordPressInstalled(php))) {
-		throw new Error('WordPress installation has failed.');
-	}
 
 	return requestHandler;
 }
 
-async function isWordPressInstalled(php: PHP) {
+/**
+ * Checks if WordPress is installed by checking if the wp-load.php file exists
+ * and if the blog is installed.
+ *
+ * @param php - The PHP instance to check.
+ * @returns True if WordPress is installed, false otherwise.
+ */
+export async function isWordPressInstalled(php: PHP) {
 	const result = await php.run({
 		code: `<?php
-$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-if (!file_exists($wp_load)) {
-	echo '0';
-	exit;
-}
-require $wp_load;
-echo is_blog_installed() ? '1' : '0';
-`,
+			ob_start();
+			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+			if (!file_exists($wp_load)) {
+				echo '-1';
+				exit;
+			}
+			require $wp_load;
+			ob_clean();
+			echo is_blog_installed() ? '1' : '0';
+			ob_end_flush();
+		`,
 		env: {
 			DOCUMENT_ROOT: php.documentRoot,
 		},
@@ -274,18 +332,21 @@ async function installWordPress(php: PHP) {
 
 	const defaultedToPrettyPermalinks = await php.run({
 		code: `<?php
-$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
-if (!file_exists($wp_load)) {
-	echo '0';
-	exit;
-}
-require $wp_load;
-$option_result = update_option(
-	'permalink_structure',
-	'/%year%/%monthnum%/%day%/%postname%/'
-);
-echo $option_result ? '1' : '0';
-`,
+			ob_start();
+			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+			if (!file_exists($wp_load)) {
+				echo '0';
+				exit;
+			}
+			require $wp_load;
+			$option_result = update_option(
+				'permalink_structure',
+				'/%year%/%monthnum%/%day%/%postname%/'
+			);
+			ob_clean();
+			echo $option_result ? '1' : '0';
+			ob_end_flush();
+		`,
 		env: {
 			DOCUMENT_ROOT: php.documentRoot,
 		},

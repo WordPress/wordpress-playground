@@ -1,15 +1,16 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-	getSqliteDatabaseModule,
+	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
-const phpVersion = '8.0';
+const phpVersion = RecommendedPHPVersion;
 describe('Blueprint step wpCLI', () => {
 	let php: PHP;
 
@@ -20,10 +21,10 @@ describe('Blueprint step wpCLI', () => {
 			sapiName: 'cli',
 
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDatabaseModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 			createFiles: {
 				'/tmp/wp-cli.phar': readFileSync(
-					join(__dirname, '../../test/wp-cli.phar')
+					join(__dirname, '../../../tests/fixtures/wp-cli.phar')
 				),
 			},
 		});

@@ -1,0 +1,15 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"version": 2,
+	"title": "PackageForSelfHosting executor",
+	"description": "",
+	"type": "object",
+	"properties": {
+		"hostingBaseUrl": {
+			"type": "string",
+			"description": "Base URL of the hosted package. Example: https://example.com/packages/",
+			"x-prompt": "What base URL would you like to use for hosting a build of this package?"
+		}
+	},
+	"required": ["hostingBaseUrl"]
+}

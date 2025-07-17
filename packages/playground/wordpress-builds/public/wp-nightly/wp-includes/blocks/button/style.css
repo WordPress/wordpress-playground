@@ -1,7 +1,9 @@
 .wp-block-button__link{
+  align-content:center;
   box-sizing:border-box;
   cursor:pointer;
   display:inline-block;
+  height:100%;
   text-align:center;
   word-break:break-word;
 }

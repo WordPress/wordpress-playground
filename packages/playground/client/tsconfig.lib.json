@@ -10,5 +10,12 @@
 		"../blueprints/src/lib/steps/activate-plugin.ts",
 		"../blueprints/src/lib/compile.ts"
 	],
-	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+	"exclude": [
+		"src/**/*.spec.ts",
+		"src/**/*.test.ts",
+		// Avoid generating types for this file during the build.
+		// The module is not included in bundled build output,
+		// so its type definition should be excluded as well.
+		"src/additional-remote-origins.ts"
+	]
 }

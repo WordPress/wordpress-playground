@@ -1,4 +1,4 @@
-import { PlaygroundClient } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
 import { useState, useEffect } from 'react';
 
 export type LocalFsAvailability =

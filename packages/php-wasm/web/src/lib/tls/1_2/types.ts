@@ -4,13 +4,15 @@
  * https://datatracker.ietf.org/doc/html/rfc5246#section-6.2
  */
 
-import { ParsedExtension } from '../extensions/parse-extensions';
+import type { ParsedExtension } from '../extensions/parse-extensions';
 import { flipObject } from '../utils';
 
-export const enum CompressionMethod {
-	Null = 0,
-	Deflate = 1,
-}
+export const CompressionMethod = {
+	Null: 0,
+	Deflate: 1,
+} as const;
+export type CompressionMethod =
+	(typeof CompressionMethod)[keyof typeof CompressionMethod];
 
 /**
  * TLS 1.2 Record layer types defined after the structs
@@ -126,19 +128,19 @@ export const ContentTypes = {
 } as const;
 export type ContentType = (typeof ContentTypes)[keyof typeof ContentTypes];
 
-export const enum HandshakeType {
-	HelloRequest = 0,
-	ClientHello = 1,
-	ServerHello = 2,
-	Certificate = 11,
-	ServerKeyExchange = 12,
-	CertificateRequest = 13,
-	ServerHelloDone = 14,
-	CertificateVerify = 15,
-	ClientKeyExchange = 16,
-
-	Finished = 20,
-}
+export const HandshakeType = {
+	HelloRequest: 0,
+	ClientHello: 1,
+	ServerHello: 2,
+	Certificate: 11,
+	ServerKeyExchange: 12,
+	CertificateRequest: 13,
+	ServerHelloDone: 14,
+	CertificateVerify: 15,
+	ClientKeyExchange: 16,
+	Finished: 20,
+} as const;
+export type HandshakeType = (typeof HandshakeType)[keyof typeof HandshakeType];
 
 export type HandshakeMessageBody =
 	| HelloRequest
@@ -161,6 +163,7 @@ export interface HandshakeMessage<Body extends HandshakeMessageBody> {
 }
 
 // Specific Handshake Message Types
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface HelloRequest {} // Empty for TLS 1.2
 
 /**
@@ -252,6 +255,7 @@ export interface CertificateRequest {
 	certificate_authorities: Uint8Array;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ServerHelloDone {} // Empty for TLS 1.2
 
 export interface CertificateVerify {

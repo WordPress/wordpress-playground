@@ -23,13 +23,13 @@ import * as __WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__ from "
 /************************************************************************/
 var __webpack_exports__ = {};
 
-;// CONCATENATED MODULE: external "@wordpress/interactivity"
+;// external "@wordpress/interactivity"
 var x = (y) => {
 	var x = {}; __webpack_require__.d(x, y); return x
 } 
 var y = (x) => (() => (x))
-const interactivity_namespaceObject = x({ ["getContext"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getContext), ["getElement"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getElement), ["store"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.store) });
-;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/image/view.js
+const interactivity_namespaceObject = x({ ["getContext"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getContext), ["getElement"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getElement), ["store"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.store), ["withSyncEvent"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.withSyncEvent) });
+;// ./node_modules/@wordpress/block-library/build-module/image/view.js
 /**
  * WordPress dependencies
  */
@@ -147,7 +147,7 @@ const {
         }, 450);
       }
     },
-    handleKeydown(event) {
+    handleKeydown: (0,interactivity_namespaceObject.withSyncEvent)(event => {
       if (state.overlayEnabled) {
         // Focuses the close button when the user presses the tab key.
         if (event.key === 'Tab') {
@@ -162,8 +162,8 @@ const {
           actions.hideLightbox();
         }
       }
-    },
-    handleTouchMove(event) {
+    }),
+    handleTouchMove: (0,interactivity_namespaceObject.withSyncEvent)(event => {
       // On mobile devices, prevents triggering the scroll event because
       // otherwise the page jumps around when it resets the scroll position.
       // This also means that closing the lightbox requires that a user
@@ -173,7 +173,7 @@ const {
       if (state.overlayEnabled) {
         event.preventDefault();
       }
-    },
+    }),
     handleTouchStart() {
       isTouching = true;
     },
@@ -337,7 +337,6 @@ const {
       // adding 1 pixel to the container width and height solves the problem,
       // though this can be removed if the issue is fixed in the future.
       state.overlayStyles = `
-				:root {
 					--wp--lightbox-initial-top-position: ${screenPosY}px;
 					--wp--lightbox-initial-left-position: ${screenPosX}px;
 					--wp--lightbox-container-width: ${containerWidth + 1}px;
@@ -346,8 +345,7 @@ const {
 					--wp--lightbox-image-height: ${lightboxImgHeight}px;
 					--wp--lightbox-scale: ${containerScale};
 					--wp--lightbox-scrollbar-width: ${window.innerWidth - document.documentElement.clientWidth}px;
-				}
-			`;
+				`;
     },
     setButtonStyles() {
       const {

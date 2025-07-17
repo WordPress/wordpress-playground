@@ -12,7 +12,7 @@ import * as util from 'node:util';
 import * as net from 'net';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';
-import { debugLog } from './utils.js';
+import { debugLog } from './utils';
 
 function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);
@@ -227,7 +227,7 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		// );
 		try {
 			client.send(data);
-		} catch (e) {
+		} catch {
 			clientLog('Client closed, cleaning up target');
 			target.end();
 		}

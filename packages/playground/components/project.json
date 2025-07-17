@@ -5,6 +5,19 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/components/README.md dist/packages/playground/components"
+				]
+			},
+			"dependsOn": ["build:vite"]
+		},
+		"build:vite": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
@@ -21,6 +34,10 @@
 				}
 			},
 			"dependsOn": ["^build"]
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
 		},
 		"dev": {
 			"executor": "@nx/vite:dev-server",
@@ -64,7 +81,8 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/playground/components/**/*.ts"]
+				"lintFilePatterns": ["packages/playground/components/**/*.ts"],
+				"maxWarnings": 0
 			}
 		},
 		"typecheck": {

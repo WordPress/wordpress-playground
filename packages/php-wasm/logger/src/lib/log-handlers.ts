@@ -1,4 +1,4 @@
-import { Log } from './logger';
+import type { Log } from './logger';
 
 export interface LogHandler {
 	(log: Log, ...args: any[]): void;
@@ -6,3 +6,4 @@ export interface LogHandler {
 
 export * from './handlers/log-to-console';
 export * from './handlers/log-to-memory';
+export * from './handlers/log-event';

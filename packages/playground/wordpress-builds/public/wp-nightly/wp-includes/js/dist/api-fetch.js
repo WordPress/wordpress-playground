@@ -186,11 +186,28 @@ function createPreloadingMiddleware(preloadedData) {
  * @return {Promise<any>} Promise with the response.
  */
 function prepareResponse(responseData, parse) {
-  return Promise.resolve(parse ? responseData.body : new window.Response(JSON.stringify(responseData.body), {
-    status: 200,
-    statusText: 'OK',
-    headers: responseData.headers
-  }));
+  if (parse) {
+    return Promise.resolve(responseData.body);
+  }
+  try {
+    return Promise.resolve(new window.Response(JSON.stringify(responseData.body), {
+      status: 200,
+      statusText: 'OK',
+      headers: responseData.headers
+    }));
+  } catch {
+    // See: https://github.com/WordPress/gutenberg/issues/67358#issuecomment-2621163926.
+    Object.entries(responseData.headers).forEach(([key, value]) => {
+      if (key.toLowerCase() === 'link') {
+        responseData.headers[key] = value.replace(/<([^>]+)>/, (/** @type {any} */_, /** @type {string} */url) => `<${encodeURI(url)}>`);
+      }
+    });
+    return Promise.resolve(parse ? responseData.body : new window.Response(JSON.stringify(responseData.body), {
+      status: 200,
+      statusText: 'OK',
+      headers: responseData.headers
+    }));
+  }
 }
 /* harmony default export */ const preloading = (createPreloadingMiddleware);
 
@@ -739,7 +756,7 @@ function apiFetch(options) {
   // ```
   // opts1 => m1( opts1, opts2 => m2( opts2, opts3 => m3( opts3, fetchHandler ) ) );
   // ```
-  const enhancedHandler = middlewares.reduceRight(( /** @type {FetchHandler} */next, middleware) => {
+  const enhancedHandler = middlewares.reduceRight((/** @type {FetchHandler} */next, middleware) => {
     return workingOptions => middleware(workingOptions, next);
   }, fetchHandler);
   return enhancedHandler(options).catch(error => {

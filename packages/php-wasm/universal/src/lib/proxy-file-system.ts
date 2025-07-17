@@ -1,4 +1,4 @@
-import { PHP } from './php';
+import type { PHP } from './php';
 
 /**
  * Proxy specific paths to the parent's MEMFS instance.

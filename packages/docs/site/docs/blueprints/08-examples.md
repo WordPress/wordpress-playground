@@ -241,3 +241,58 @@ To specify the latest commit of a particular branch, you can change the referenc
 		"wp": "https://playground.wordpress.net/plugin-proxy.php?build-ref=trunk"
 	}
 }} />
+
+## Using Blueprint Bundles
+
+Here's an example of a Blueprint that uses bundled resources from a Blueprint bundle:
+
+```json
+{
+	"landingPage": "/",
+	"preferredVersions": {
+		"php": "8.0",
+		"wp": "latest"
+	},
+	"steps": [
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "bundled",
+				"path": "/my-theme.zip"
+			},
+			"activate": true
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "bundled",
+				"path": "/my-plugin.zip"
+			},
+			"activate": true
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/custom-page.html",
+			"data": {
+				"resource": "bundled",
+				"path": "/assets/custom-page.html"
+			}
+		}
+	]
+}
+```
+
+This Blueprint bundle would be zip file containing the following files:
+
+-   `/blueprint.json` - The blueprint declaration outlined above
+-   `/my-theme.zip` - A theme package
+-   `/my-plugin.zip` - A plugin package
+-   `/assets/custom-page.html` - A custom HTML file
+
+You can use this Blueprint bundle by:
+
+1. Creating a ZIP file with these files and the blueprint.json
+2. Hosting the ZIP file on a server
+3. Loading it with `?blueprint-url=https://example.com/my-blueprint-bundle.zip`
+
+For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation.

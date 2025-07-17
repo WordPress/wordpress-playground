@@ -1,5 +1,5 @@
-import { FilesystemOperation } from '@php-wasm/fs-journal';
-import { SQLJournalEntry } from './sql';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import type { SQLJournalEntry } from './sql';
 
 export type TransportEnvelope = {
 	fs: FilesystemOperation[];

@@ -19,7 +19,7 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install');
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("Allow: GET, POST, OPTIONS");

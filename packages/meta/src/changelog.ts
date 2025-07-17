@@ -99,6 +99,8 @@ const UNKNOWN_FEATURE_FALLBACK_NAME = 'Uncategorized';
  * Options for the WPChangelogCommand.
  */
 type WPChangelogCommandOptions = {
+	owner?: string;
+	repo?: string;
 	version?: string;
 	token?: string;
 	unreleased?: boolean;
@@ -497,6 +499,17 @@ function addTrailingPeriod(text: string): string {
 }
 
 /**
+ * Given a text string, escape HTML to be rendered literally in Markdown.
+ *
+ * @param {string} text Original text.
+ *
+ * @return Text minimally escaped HTML tags.
+ */
+function escapeHtmlForMarkdown(text: string) {
+	return text.replace('<', '&lt;').replace('>', '&gt;');
+}
+
+/**
  * Given a text string, replaces reworded terms.
  *
  * @param text Original text.
@@ -635,6 +648,7 @@ const TITLE_NORMALIZATIONS: Array<WPChangelogNormalization> = [
 	reword,
 	capitalizeAfterColonSeparatedPrefix,
 	addTrailingPeriod,
+	escapeHtmlForMarkdown,
 ];
 
 /**
@@ -671,16 +685,13 @@ function getNormalizedTitle(
  * @return Formatted changelog entry, or undefined to omit.
  */
 function getEntry(issue: IssuesListForRepoResponseItem): string | undefined {
-	const title = getNormalizedTitle(issue.title, issue);
+	let title = getNormalizedTitle(issue.title, issue);
+	if (title === undefined) {
+		return undefined;
+	}
 
-	return title === undefined
-		? title
-		: '- ' +
-				getFormattedItemDescription(
-					title,
-					issue.number,
-					issue.html_url
-				);
+	title = formatTitleWithLinkToPR(title, issue.number, issue.html_url);
+	return `- ${title}`;
 }
 
 /**
@@ -692,7 +703,7 @@ function getEntry(issue: IssuesListForRepoResponseItem): string | undefined {
  * @param url    the URL of the Github Issue/PR.
  * @return the formatted item
  */
-function getFormattedItemDescription(
+function formatTitleWithLinkToPR(
 	title: string,
 	number: number,
 	url: string
@@ -952,16 +963,15 @@ function getContributorPropsMarkdownList(
 	ftcPRs: IssuesListForRepoResponseItem[]
 ): string {
 	return ftcPRs.reduce((markdownList, pr) => {
-		const title = getNormalizedTitle(pr.title, pr) || '';
+		let title = getNormalizedTitle(pr.title, pr) || '';
 
-		const formattedTitle = getFormattedItemDescription(
+		title = formatTitleWithLinkToPR(
 			title,
 			pr.number,
 			pr.pull_request.html_url
 		);
 
-		markdownList +=
-			'- ' + '@' + pr.user.login + ': ' + formattedTitle + '\n';
+		markdownList += '- ' + '@' + pr.user.login + ': ' + title + '\n';
 		return markdownList;
 	}, '');
 }
@@ -1147,8 +1157,8 @@ async function getReleaseChangelog(
 	options: Omit<WPChangelogCommandOptions, 'unreleased'>
 ) {
 	return await createChangelog({
-		owner: config.githubRepositoryOwner,
-		repo: config.githubRepositoryName,
+		owner: options.owner ?? config.githubRepositoryOwner,
+		repo: options.repo ?? config.githubRepositoryName,
 		token: options.token,
 		version: options.version,
 		unreleased: !options.version,
@@ -1169,7 +1179,7 @@ export {
 	sortGroup,
 	getTypesByLabels,
 	getTypesByTitle,
-	getFormattedItemDescription,
+	formatTitleWithLinkToPR,
 	getContributorProps,
 	getContributorsList,
 	getChangelog,

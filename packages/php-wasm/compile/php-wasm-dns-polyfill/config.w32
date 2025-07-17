@@ -1,0 +1,5 @@
+ARG_ENABLE("dns_polyfill", "Enable dns_polyfill support", "no");
+
+if (PHP_WASM_DNS_POLYFILL == "yes") {
+    EXTENSION("dns_polyfill", "dns_polyfill.c");
+}

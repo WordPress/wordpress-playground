@@ -1,8 +1,8 @@
 {
 	"$schema": "http://json-schema.org/schema",
-	"$ref": "#/definitions/Blueprint",
+	"$ref": "#/definitions/BlueprintDeclaration",
 	"definitions": {
-		"Blueprint": {
+		"BlueprintDeclaration": {
 			"type": "object",
 			"properties": {
 				"landingPage": {
@@ -68,6 +68,9 @@
 				"features": {
 					"type": "object",
 					"properties": {
+						"intl": {
+							"type": "boolean"
+						},
 						"networking": {
 							"type": "boolean",
 							"description": "Should boot with support for network request via wp_safe_remote_get?"
@@ -165,22 +168,12 @@
 					"type": "string"
 				}
 			},
-			"additionalProperties": false
+			"additionalProperties": false,
+			"description": "The Blueprint declaration, typically stored in a blueprint.json file."
 		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": [
-				"8.4",
-				"8.3",
-				"8.2",
-				"8.1",
-				"8.0",
-				"7.4",
-				"7.3",
-				"7.2",
-				"7.1",
-				"7.0"
-			]
+			"enum": ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4", "7.3", "7.2"]
 		},
 		"ExtraLibrary": {
 			"type": "string",
@@ -208,6 +201,9 @@
 				},
 				{
 					"$ref": "#/definitions/UrlReference"
+				},
+				{
+					"$ref": "#/definitions/BundledReference"
 				}
 			]
 		},
@@ -338,6 +334,22 @@
 				}
 			},
 			"required": ["resource", "url"],
+			"additionalProperties": false
+		},
+		"BundledReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "bundled",
+					"description": "Identifies the file resource as a Blueprint file"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the file in the Blueprint"
+				}
+			},
+			"required": ["resource", "path"],
 			"additionalProperties": false
 		},
 		"StepDefinition": {
@@ -658,7 +670,7 @@
 						},
 						"pluginZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"deprecated": ". Use `pluginData` instead."
+							"deprecated": ". Use 'pluginData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallPluginOptions",
@@ -706,7 +718,7 @@
 						},
 						"themeZipFile": {
 							"$ref": "#/definitions/FileReference",
-							"deprecated": ". Use `themeData` instead."
+							"deprecated": ". Use 'themeData' instead."
 						},
 						"options": {
 							"$ref": "#/definitions/InstallThemeOptions",
@@ -1215,7 +1227,7 @@
 						},
 						"filesTree": {
 							"$ref": "#/definitions/DirectoryReference",
-							"description": "The data to write"
+							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
 						}
 					},
 					"required": ["filesTree", "step", "writeToPath"]

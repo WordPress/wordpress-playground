@@ -1,10 +1,12 @@
-import { PlaygroundClient } from '@wp-playground/remote';
+import type { PlaygroundClient } from '@wp-playground/remote';
 import { installSqlSyncMuPlugin, overrideAutoincrementSequences } from './sql';
 import { journalFSOperations } from './fs';
-import { SQLJournalEntry, journalSQLQueries, replaySQLJournal } from './sql';
-import { PlaygroundSyncTransport, TransportEnvelope } from './transports';
-import { FilesystemOperation } from '@php-wasm/fs-journal';
-import { SyncMiddleware, marshallSiteURLMiddleware } from './middleware';
+import type { SQLJournalEntry } from './sql';
+import { journalSQLQueries, replaySQLJournal } from './sql';
+import type { PlaygroundSyncTransport, TransportEnvelope } from './transports';
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import type { SyncMiddleware } from './middleware';
+import { marshallSiteURLMiddleware } from './middleware';
 import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
 import { hydrateFsWritesMiddleware } from './middleware/hydrate-fs-writes';
 
@@ -57,6 +59,7 @@ export async function setupPlaygroundSync(
 		transport.sendChanges(flushedChanges);
 	};
 
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 	const loopAfterInterval = async (f: Function, ms: number) => {
 		await f();
 		setTimeout(loopAfterInterval, ms, f, ms);

@@ -1,0 +1,42 @@
+{
+	"link.title.Docs": {
+		"message": "Docs",
+		"description": "O título da coluna de links do rodapé com título=Docs no rodapé"
+	},
+	"link.title.Community": {
+		"message": "Comunidade",
+		"description": "O título da coluna de links do rodapé com título=Community no rodapé"
+	},
+	"link.item.label.Documentation": {
+		"message": "Documentação",
+		"description": "O rótulo do link do rodapé com rótulo=Documentation linkando para /"
+	},
+	"link.item.label.Blueprints": {
+		"message": "Blueprints",
+		"description": "O rótulo do link do rodapé com rótulo=Blueprints linkando para /blueprints"
+	},
+	"link.item.label.Developers": {
+		"message": "Desenvolvedores",
+		"description": "O rótulo do link do rodapé com rótulo=Developers linkando para /developers"
+	},
+	"link.item.label.API Reference": {
+		"message": "Referências da API",
+		"description": "O rótulo do link do rodapé com rótulo=API Reference linkando para /api"
+	},
+	"link.item.label.GitHub": {
+		"message": "GitHub",
+		"description": "O rótulo do link do rodapé com rótulo=GitHub linkando para https://github.com/WordPress/wordpress-playground"
+	},
+	"link.item.label.#playground on Slack": {
+		"message": "#playground no Slack",
+		"description": "O rótulo do link do rodapé com rótulo=#playground on Slack linkando para https://make.wordpress.org/chat"
+	},
+	"copyright": {
+		"message": "Copyright © 2025 WordPress Playground, Inc. Built with Docusaurus.",
+		"description": "O copyright do rodapé"
+	},
+	"logo.alt": {
+		"message": "Código é poesia",
+		"description": "O texto alternativo do logo do rodapé"
+	}
+}

@@ -8,6 +8,56 @@
 				"commands": ["node packages/php-wasm/compile/build.js"],
 				"parallel": false
 			}
+		},
+		"xdebug:asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/xdebug/build.js --output-dir=packages/php-wasm/node/asyncify"
+				],
+				"parallel": false
+			}
+		},
+		"xdebug:asyncify:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=8.4",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=8.3",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=8.2",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=8.1",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=8.0",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=7.4",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=7.3",
+					"nx run php-wasm-compile:xdebug:asyncify --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
+		},
+		"xdebug:jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/xdebug/build.js --output-dir=packages/php-wasm/node/jspi --WITH_JSPI=yes"
+				],
+				"parallel": false
+			}
+		},
+		"xdebug:jspi:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=7.4",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=7.3",
+					"nx run php-wasm-compile:xdebug:jspi --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
 		}
 	},
 	"tags": []

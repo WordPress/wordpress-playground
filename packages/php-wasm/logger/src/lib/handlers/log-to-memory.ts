@@ -1,5 +1,6 @@
-import { LogHandler } from '../log-handlers';
-import { formatLogEntry, Log } from '../logger';
+import type { LogHandler } from '../log-handlers';
+import type { Log } from '../logger';
+import { formatLogEntry } from '../logger';
 
 const prepareLogMessage = (logMessage: object): string => {
 	if (logMessage instanceof Error) {

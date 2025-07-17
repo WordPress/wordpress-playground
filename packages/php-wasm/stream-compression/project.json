@@ -33,6 +33,10 @@
 				"outputPath": "dist/packages/php-wasm/stream-compression"
 			}
 		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{options.reportsDirectory}"],
@@ -48,7 +52,8 @@
 				"lintFilePatterns": [
 					"packages/php-wasm/stream-compression/**/*.ts",
 					"packages/php-wasm/stream-compression/package.json"
-				]
+				],
+				"maxWarnings": 0
 			}
 		}
 	},

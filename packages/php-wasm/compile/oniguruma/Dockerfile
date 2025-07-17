@@ -16,7 +16,7 @@ RUN cd oniguruma && \
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \
         export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
-        EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make;
+        EMCC_SKIP="-lz" EMCC_FLAGS=" -D__x86_64__  -sSIDE_MODULE $JSPI_FLAGS" emmake make;
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \

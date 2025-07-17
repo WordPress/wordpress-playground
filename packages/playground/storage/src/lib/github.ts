@@ -1,6 +1,6 @@
 import { Semaphore } from '@php-wasm/util';
 import { Octokit } from 'octokit';
-import { Changeset } from './changeset';
+import type { Changeset } from './changeset';
 
 export type GithubClient = ReturnType<typeof createClient>;
 
@@ -361,7 +361,7 @@ export async function createTreeNode(
 					content: stringContent,
 					mode: '100644',
 				};
-			} catch (e) {
+			} catch {
 				// If an error occurs, the byteArray is not valid UTF-8 and we must
 				// create a blob first
 				const {
@@ -415,7 +415,7 @@ export async function deleteFile(
 			mode: '100644',
 			sha: null,
 		};
-	} catch (error) {
+	} catch {
 		// Pass
 		return undefined;
 	} finally {

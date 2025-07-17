@@ -1,10 +1,7 @@
-import {
-	createSlice,
-	createEntityAdapter,
-	PayloadAction,
-} from '@reduxjs/toolkit';
-import { MountDevice, SyncProgress } from '@php-wasm/web';
-import { PlaygroundClient } from '@wp-playground/remote';
+import type { PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
+import type { MountDevice, SyncProgress } from '@php-wasm/web';
+import type { PlaygroundClient } from '@wp-playground/remote';
 
 export type OpfsSync =
 	| {

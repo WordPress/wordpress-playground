@@ -123,10 +123,10 @@ const brush = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(exte
 const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
 ;// external ["wp","element"]
 const external_wp_element_namespaceObject = window["wp"]["element"];
-;// external ["wp","data"]
-const external_wp_data_namespaceObject = window["wp"]["data"];
 ;// external ["wp","coreData"]
 const external_wp_coreData_namespaceObject = window["wp"]["coreData"];
+;// external ["wp","data"]
+const external_wp_data_namespaceObject = window["wp"]["data"];
 ;// ./node_modules/@wordpress/widgets/build-module/blocks/legacy-widget/edit/widget-type-selector.js
 /**
  * WordPress dependencies
@@ -184,7 +184,6 @@ function WidgetTypeSelector({
 
 ;// ./node_modules/@wordpress/widgets/build-module/blocks/legacy-widget/edit/inspector-card.js
 
-
 function InspectorCard({
   name,
   description
@@ -219,7 +218,7 @@ var external_wp_apiFetch_default = /*#__PURE__*/__webpack_require__.n(external_w
 /**
  * An API for creating and loading a widget control (a <div class="widget">
  * element) that is compatible with most third party widget scripts. By not
- * using React for this, we ensure that we have complete contorl over the DOM
+ * using React for this, we ensure that we have complete control over the DOM
  * and do not accidentally remove any elements that a third party widget script
  * has attached an event listener to.
  *
@@ -266,7 +265,7 @@ class Control {
   }
 
   /**
-   * Clean up the control so that it can be garabge collected.
+   * Clean up the control so that it can be garbage collected.
    *
    * @access public
    */
@@ -637,7 +636,6 @@ function serializeForm(form) {
  */
 
 
-
 function Form({
   title,
   isVisible,
@@ -677,7 +675,7 @@ function Form({
       onChangeHasPreview,
       onError(error) {
         window.console.error(error);
-        createNotice('error', (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: %s: the name of the affected block. */
+        createNotice('error', (0,external_wp_i18n_namespaceObject.sprintf)(/* translators: %s: the name of the affected block. */
         (0,external_wp_i18n_namespaceObject.__)('The "%s" block was affected by errors and may not function properly. Check the developer tools for more details.'), idBase || id));
       }
     });
@@ -733,8 +731,6 @@ function Form({
 /**
  * WordPress dependencies
  */
-
-
 
 
 
@@ -849,7 +845,6 @@ function Preview({
  */
 
 
-
 function NoPreview({
   name
 }) {
@@ -914,12 +909,9 @@ function ConvertToBlocksButton({
 
 
 
-
 /**
  * Internal dependencies
  */
-
-
 
 
 
@@ -1011,7 +1003,6 @@ function NotEmpty({
     record: widgetType,
     hasResolved: hasResolvedWidgetType
   } = (0,external_wp_coreData_namespaceObject.useEntityRecord)('root', 'widgetType', widgetTypeId);
-  const isNavigationMode = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_blockEditor_namespaceObject.store).isNavigationMode(), []);
   const setInstance = (0,external_wp_element_namespaceObject.useCallback)(nextInstance => {
     setAttributes({
       instance: nextInstance
@@ -1031,7 +1022,7 @@ function NotEmpty({
       children: /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_components_namespaceObject.Spinner, {})
     });
   }
-  const mode = idBase && (isNavigationMode || !isSelected) ? 'preview' : 'edit';
+  const mode = idBase && !isSelected ? 'preview' : 'edit';
   return /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsxs)(external_ReactJSXRuntime_namespaceObject.Fragment, {
     children: [idBase === 'text' && /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(external_wp_blockEditor_namespaceObject.BlockControls, {
       group: "other",
@@ -1354,8 +1345,6 @@ const group = /*#__PURE__*/(0,external_ReactJSXRuntime_namespaceObject.jsx)(exte
 
 
 
-
-
 function edit_Edit(props) {
   const {
     clientId
@@ -1418,8 +1407,6 @@ function PreviewContent({
  */
 
 
-
-
 function save({
   attributes
 }) {
@@ -1439,8 +1426,6 @@ function save({
 /**
  * WordPress dependencies
  */
-
-
 
 
 const v1 = {

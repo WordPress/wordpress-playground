@@ -37,6 +37,8 @@ This docs hub is focused on Blueprints info and is divided into the following ma
 
 -   [Steps](/blueprints/steps): API Reference of all the available steps that can be set in a blueprint to run tasks such as login, plugin/theme activation, file operations, and more.
 
+-   [Blueprint Bundles](/blueprints/bundles): Learn how to create and use Blueprint bundles - self-contained packages that include a Blueprint and all its resources.
+
 -   [Examples](/blueprints/examples): Compilation of Blueprint examples for various WordPress Playground setups, including installing themes/plugins, running PHP code, enabling features, and loading specific WordPress versions.
 
 -   [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug): Tips and tools for troubleshooting and debugging Blueprints.
