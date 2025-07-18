@@ -184,9 +184,17 @@
 					"write-files.spec.ts",
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
-					"php-request-handler.spec.ts",
-					"php.spec.ts"
+					"php-request-handler.spec.ts"
 				]
+			}
+		},
+		"test-jspi-imagick": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["imagick.spec.ts"]
 			}
 		},
 		"test-php-file-get-contents-asyncify": {
