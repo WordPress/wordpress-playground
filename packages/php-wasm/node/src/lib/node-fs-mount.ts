@@ -1,6 +1,10 @@
-import { FSHelpers, type MountHandler } from '@php-wasm/universal';
-import { statSync } from 'fs';
-import { basename, dirname } from 'path';
+import {
+	type Emscripten,
+	FSHelpers,
+	type MountHandler,
+} from '@php-wasm/universal';
+import { lstatSync } from 'fs';
+import { dirname } from 'path';
 
 export function createNodeFsMountHandler(localPath: string): MountHandler {
 	return function (php, FS, vfsMountPoint) {
@@ -19,17 +23,11 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		 */
 		let removeVfsNode = false;
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
-			if (statSync(localPath).isSymbolicLink()) {
-				FS.mkdirTree(dirname(vfsMountPoint));
-				(FS as any).createNode(
-					FS.lookupPath(vfsMountPoint, { parent: true }).node,
-					basename(localPath),
-					110000
-				);
-			} else if (statSync(localPath).isFile()) {
+			const lstat = lstatSync(localPath);
+			if (lstat.isFile() || lstat.isSymbolicLink()) {
 				FS.mkdirTree(dirname(vfsMountPoint));
 				FS.writeFile(vfsMountPoint, '');
-			} else if (statSync(localPath).isDirectory()) {
+			} else if (lstat.isDirectory()) {
 				FS.mkdirTree(vfsMountPoint);
 			} else {
 				throw new Error(
@@ -38,17 +36,33 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			}
 			removeVfsNode = true;
 		}
-		const lookup = FS.lookupPath(vfsMountPoint);
-		if (!lookup.node) {
-			throw new Error('Unable to access the mount point in VFS.');
+		let lookup: Emscripten.FS.Lookup | undefined;
+		try {
+			lookup = FS.lookupPath(vfsMountPoint);
+		} catch (e) {
+			const error = e as Emscripten.FS.ErrnoError;
+			if (error.errno === 44) {
+				throw new Error(
+					`Unable to access the mount point ${vfsMountPoint} in VFS after attempting to create it.`
+				);
+			}
+			throw e;
 		}
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
-		console.log('[DEBUG] createNodeFsMountHandler mounted local path', localPath, 'to', vfsMountPoint);
+		console.log(
+			'[DEBUG] createNodeFsMountHandler mounted local path',
+			localPath,
+			'to',
+			vfsMountPoint
+		);
 
 		php.run({
 			code: `<?php echo json_encode(file_exists('${vfsMountPoint}'));`,
 		}).then((result) => {
-			console.log('[DEBUG] createNodeFsMountHandler mounted plugin path exists', result.json);
+			console.log(
+				'[DEBUG] createNodeFsMountHandler mounted plugin path exists',
+				result.json
+			);
 		});
 		return () => {
 			FS!.unmount(vfsMountPoint);

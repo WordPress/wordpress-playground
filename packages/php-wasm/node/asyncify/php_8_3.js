@@ -6,9 +6,9 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_3_0', 'php_8_3.wasm');
+const dependencyFilename = path.join(__dirname, '8_3_23', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 32949468;
+export const dependenciesTotalSize = 32986917;
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +830,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 14207872;
+	var ___heap_base = 14217728;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -994,7 +994,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 16005,
+		initial: 16017,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1853,13 +1853,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 14207872;
+	var ___stack_high = 14217728;
 
-	var ___stack_low = 14142336;
+	var ___stack_low = 14152192;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		14207872
+		14217728
 	);
 
 	var PATH = {
@@ -31807,13 +31807,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		13214269: ($0) => {
+		13224061: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		13214317: ($0) => {
+		13224109: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

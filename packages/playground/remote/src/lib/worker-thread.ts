@@ -28,7 +28,10 @@ import {
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { createMemoizedFetch } from '@wp-playground/common';
+import {
+	createMemoizedFetch,
+	RecommendedPHPVersion,
+} from '@wp-playground/common';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
@@ -175,7 +178,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
 		sqliteDriverVersion = LatestSqliteDriverVersion,
-		phpVersion = '8.0',
+		phpVersion = RecommendedPHPVersion,
 		sapiName = 'cli',
 		withICU = false,
 		withNetworking = true,

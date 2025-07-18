@@ -745,6 +745,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
+"curl_multi_wait",\
 "Curl_multi_wait",\
 "Curl_ossl_connect_nonblocking",\
 "Curl_ossl_seed",\
@@ -966,6 +967,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
 "wasm_sapi_request_shutdown",\
+"execute_internal",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
@@ -1627,6 +1629,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_DO_ICALL_SPEC_HANDLER",\
 "ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER",\
 "ZEND_DO_ICALL_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER",\
 "zend_emit_op_tmp",\
 "zend_emit_op",\
@@ -1682,6 +1685,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_hash_graceful_reverse_destroy",\
 "zend_hash_reverse_apply",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_OBSERVER_HANDLER",\
 "zend_include_or_eval",\
 "compile_filename",\
 "zend_internal_type_error",\
@@ -1824,6 +1828,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_use_undef_in_read_context_helper_SPEC",\
 "zend_user_it_get_current_data",\
 "zend_user_it_get_new_iterator",\
+"ZEND_USER_OPCODE_SPEC_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_CONST_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_TMPVAR_HANDLER",\
 "zend_value_error",\
 "zend_verify_ref_array_assignable",\
 "zend_vm_stack_extend",\

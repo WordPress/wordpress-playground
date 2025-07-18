@@ -10,11 +10,11 @@ const LatestSupportedWordPressVersion = Object.keys(
 	MinifiedWordPressVersions
 ).filter((x) => !['nightly', 'beta'].includes(x))[0];
 
-test('should load PHP 8.0 by default', async ({ website, wordpress }) => {
+test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
 	await website.goto('./?url=/phpinfo.php');
 	await expect(wordpress.locator('h1.p').first()).toContainText(
-		'PHP Version 8.0'
+		'PHP Version 8.3'
 	);
 });
 
@@ -127,8 +127,8 @@ test('should retain encoded control characters in the URL', async ({
 	test.skip(
 		browserName === 'firefox' || browserName === 'webkit',
 		`It's unclear why this test fails in Firefox and Safari. The actual feature seems to be working in manual testing. ` +
-		`Let's figure this out and re-enable the test at one point. The upsides of merging the original PR sill ` +
-		`outweighted the downsides of disabling the test on FF.`
+			`Let's figure this out and re-enable the test at one point. The upsides of merging the original PR sill ` +
+			`outweighted the downsides of disabling the test on FF.`
 	);
 	const path =
 		'/wp-admin/admin.php?page=html-api-debugger&html=%3Cdiv%3E%0A1%0A2%0A3%0A%3C%2Fdiv%3E';

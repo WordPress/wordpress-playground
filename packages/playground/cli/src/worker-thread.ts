@@ -10,6 +10,7 @@ import {
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
@@ -42,6 +43,7 @@ export type PrimaryWorkerBootOptions = {
 	 * Default: false.
 	 */
 	internalCookieStore?: boolean;
+	withXdebug?: boolean;
 };
 
 /**
@@ -105,7 +107,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		absoluteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
-		phpVersion = '8.0',
+		phpVersion = RecommendedPHPVersion,
 		wordPressZip,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
@@ -114,6 +116,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		followSymlinks,
 		trace,
 		internalCookieStore,
+		withXdebug,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -150,6 +153,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 							trace: trace ? tracePhpWasm : undefined,
 						},
 						followSymlinks,
+						withXdebug,
 					});
 				},
 				wordPressZip:

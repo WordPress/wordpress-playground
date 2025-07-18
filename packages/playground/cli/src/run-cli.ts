@@ -189,6 +189,11 @@ export async function parseOptionsAndRunCLI() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('xdebug', {
+			describe: 'Enable Xdebug.',
+			type: 'boolean',
+			default: false,
+		})
 		// TODO: Should we make this a hidden flag?
 		.option('experimentalMultiWorker', {
 			describe:
@@ -293,6 +298,7 @@ export interface RunCLIArgs {
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
+	xdebug?: boolean;
 }
 
 export interface RunCLIServer extends AsyncDisposable {
@@ -653,6 +659,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					followSymlinks,
 					trace,
 					internalCookieStore: args.internalCookieStore,
+					withXdebug: args.xdebug,
 				});
 
 				if (
@@ -676,11 +683,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				wordPressReady = true;
 				logger.log(`Booted!`);
 
-				playground.run({
-					code: `<?php echo json_encode(file_exists('/wordpress/wp-content/plugins/plugin'));`,
-				}).then((result) => {
-					console.log('\n[DEBUG] runCLI mounted plugin path exists', result.json);
-				});
+				playground
+					.run({
+						code: `<?php echo json_encode(file_exists('/wordpress/wp-content/plugins/plugin'));`,
+					})
+					.then((result) => {
+						console.log(
+							'\n[DEBUG] runCLI mounted plugin path exists',
+							result.json
+						);
+					});
 
 				if (compiledBlueprint) {
 					logger.log(`Running the Blueprint...`);
@@ -750,6 +762,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								followSymlinks,
 								trace,
 								internalCookieStore: args.internalCookieStore,
+								withXdebug: args.xdebug,
 							});
 							await additionalPlayground.isReady();
 
