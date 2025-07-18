@@ -302,6 +302,14 @@
 				"test-php-sqlite3-asyncify"
 			]
 		},
+		"test-opcache": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-opcache.spec.ts"]
+			}
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],

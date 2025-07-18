@@ -2009,3 +2009,14 @@ EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 	char traceBuf[1024];
 	js_wasm_trace(traceBuf);
 }
+
+/**
+ * Function: initgroups
+ * ----------------------------
+ *   Dummy implementation of initgroups() since it's not needed in WASM environment.
+ *   Used by ZendAccelerator.
+ *   Always returns success (0).
+ */
+EMSCRIPTEN_KEEPALIVE int initgroups(const char *user, gid_t group) {
+	return 0;
+}
