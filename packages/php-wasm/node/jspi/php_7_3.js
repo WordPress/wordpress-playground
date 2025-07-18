@@ -3803,10 +3803,6 @@ export function init(RuntimeName, PHPLoader) {
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
 				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
-				}
 			}
 
 			var mount = {
