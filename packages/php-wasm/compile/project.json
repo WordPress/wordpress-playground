@@ -58,6 +58,15 @@
 				],
 				"parallel": false
 			}
+		},
+		"imagick:jspi:8.3": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/imagick/build.js --output-dir=packages/php-wasm/node/jspi --WITH_JSPI=yes --PHP_VERSION=8.3"
+				],
+				"parallel": false
+			}
 		}
 	},
 	"tags": []
