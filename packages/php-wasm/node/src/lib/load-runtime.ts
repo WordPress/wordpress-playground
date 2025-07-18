@@ -13,11 +13,13 @@ import { withICUData } from './data/with-icu-data';
 import { withXdebug } from './xdebug/with-xdebug';
 import { joinPaths } from '@php-wasm/util';
 import { dirname } from 'path';
+import { withImagick } from './imagick/with-imagick';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
 	withXdebug?: boolean;
+	withImagick?: boolean;
 }
 
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -182,6 +184,9 @@ export async function loadNodeRuntime(
 
 	if (options?.withXdebug === true) {
 		emscriptenOptions = await withXdebug(phpVersion, emscriptenOptions);
+	}
+	if (options?.withImagick === true) {
+		emscriptenOptions = await withImagick(phpVersion, emscriptenOptions);
 	}
 
 	emscriptenOptions = await withICUData(emscriptenOptions);
