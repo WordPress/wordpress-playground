@@ -131,7 +131,7 @@ RUN cd /root/ ; \
         emconfigure ./configure \
             --disable-static \
             --enable-shared; \
-		export EMCC_FLAGS="-sSIDE_MODULE"; \
+		export EMCC_FLAGS="-sSIDE_MODULE=2"; \
         emmake make -j1
 
 

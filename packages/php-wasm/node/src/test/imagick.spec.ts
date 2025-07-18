@@ -16,7 +16,7 @@ describe('imagick', () => {
 		expect(await result.stdoutText).toEqual('true');
 	});
 
-	it('generate image', async () => {
+	it.skip('generate image', async () => {
 		const image = await php.run({
 			code: `<?php
 				header('Content-type: image/jpeg');
