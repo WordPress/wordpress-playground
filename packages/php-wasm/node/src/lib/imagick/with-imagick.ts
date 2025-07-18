@@ -48,6 +48,22 @@ export async function withImagick(
 					new Uint8Array(extension)
 				);
 			}
+			/* The extension has its share of ini entries
+			 * to write in a separate ini file
+			 */
+			if (
+				!FSHelpers.fileExists(
+					phpRuntime.FS,
+					'/internal/shared/extensions/imagick.ini'
+				)
+			) {
+				phpRuntime.FS.writeFile(
+					'/internal/shared/extensions/imagick.ini',
+					[`extension=/internal/shared/extensions/${fileName}`].join(
+						'\n'
+					)
+				);
+			}
 			/* The extension needs to mount the current
 			 * working directory in order to sync with
 			 * the debugger.

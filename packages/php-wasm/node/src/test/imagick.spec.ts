@@ -5,9 +5,15 @@ describe('imagick', () => {
 	let php: PHP;
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime('8.3', { withImagick: true }));
-		setPhpIniEntries(php, {
-			extension: '/internal/shared/extensions/imagick.so',
+	});
+
+	it('supports dynamic loading', async () => {
+		const result = await php.runStream({
+			code: `<?php
+                echo json_encode(extension_loaded('imagick'));`,
 		});
+
+		expect(await result.stdoutText).toEqual('true');
 	});
 
 	it('generate image', async () => {
