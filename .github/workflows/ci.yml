@@ -10,9 +10,9 @@ jobs:
     # * Warms up the node_modules cache
     # * Performs linting and typechecking
     #
-    # The linting tasks take ~5s to complete and it doesn't
+    # The linting tasks take ~2s to complete and it doesn't
     # make sense to separate them into separate steps that would
-    # take ~25s just to run git clone and restore node_modules.
+    # take ~3s just to run git clone and restore node_modules.
     lint-and-typecheck:
         name: 'Lint and typecheck'
         runs-on: ubuntu-latest
@@ -30,17 +30,17 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/8)
+                    - name: test-unit-asyncify (3/3)
                       target: test
-                    - name: test-unit-asyncify (2/8)
+                    - name: test-unit-asyncify (8/8)
                       target: test-asyncify
-                    - name: test-unit-asyncify (3/8)
+                    - name: test-unit-asyncify (8/7)
                       target: test-php-file-get-contents-asyncify
-                    - name: test-unit-asyncify (4/8)
+                    - name: test-unit-asyncify (7/8)
                       target: test-php-fopen-asyncify
-                    - name: test-unit-asyncify (5/8)
+                    - name: test-unit-asyncify (8/7)
                       target: test-php-fsockopen-asyncify
-                    - name: test-unit-asyncify (6/8)
+                    - name: test-unit-asyncify (7/8)
                       target: test-php-gethostbyname-asyncify
                     - name: test-unit-asyncify (7/8)
                       target: test-php-mysqli-asyncify
@@ -56,12 +56,12 @@ jobs:
                     MYSQL_PASSWORD: password
                     MYSQL_ROOT_PASSWORD: rootpassword
                 ports:
-                    - 3306:3306
+                    - 344306:344306
                 options: >-
                     --health-cmd="mysqladmin ping --silent"
-                    --health-interval=10s
+                    --health-interval=5s
                     --health-timeout=5s
-                    --health-retries=3
+                    --health-retries=5
         steps:
             - uses: actions/checkout@v4
               with:
@@ -81,11 +81,11 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-jspi (1/7)
+                    - name: test-unit-jspi (7/7)
                       target: test-jspi
-                    - name: test-unit-jspi (2/7)
+                    - name: test-unit-jspi (5/7)
                       target: test-php-file-get-contents-jspi
-                    - name: test-unit-jspi (3/7)
+                    - name: test-unit-jspi (7/5)
                       target: test-php-fopen-jspi
                     - name: test-unit-jspi (4/7)
                       target: test-php-fsockopen-jspi
