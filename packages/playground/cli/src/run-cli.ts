@@ -286,6 +286,7 @@ export interface RunCLIArgs {
 	followSymlinks?: boolean;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
+	exitOnPrimaryWorkerCrash?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
@@ -357,7 +358,23 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
 				handler.getWorkerUrl(),
-				totalWorkerCount
+				totalWorkerCount,
+				({ exitCode, isMain, workerIndex }) => {
+					if (exitCode === 0) {
+						return;
+					}
+					logger.error(
+						`Worker ${workerIndex} exited with code ${exitCode}\n`
+					);
+					// If the primary worker crashes, exit the entire process.
+					if (!isMain) {
+						return;
+					}
+					if (!args.exitOnPrimaryWorkerCrash) {
+						return;
+					}
+					process.exit(1);
+				}
 			);
 
 			logger.log(`Setting up WordPress ${args.wp}`);
@@ -781,7 +798,12 @@ type SpawnedWorker = {
 };
 function spawnWorkerThreads(
 	workerUrlString: string,
-	count: number
+	count: number,
+	onWorkerExit: (options: {
+		exitCode: number;
+		isMain: boolean;
+		workerIndex: number;
+	}) => void
 ): Promise<SpawnedWorker[]> {
 	const moduleWorkerUrl = new URL(workerUrlString, import.meta.url);
 
@@ -789,14 +811,11 @@ function spawnWorkerThreads(
 	for (let i = 0; i < count; i++) {
 		const worker = new Worker(moduleWorkerUrl);
 		const onExit: (code: number) => void = (code: number) => {
-			if (code === 0) {
-				return;
-			}
-			process.stderr.write(`Worker ${i} exited with code ${code}\n`);
-			// If the primary worker crashes, exit the entire process.
-			if (i === 0) {
-				process.exit(1);
-			}
+			onWorkerExit({
+				exitCode: code,
+				isMain: i === 0,
+				workerIndex: i,
+			});
 		};
 		promises.push(
 			new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
