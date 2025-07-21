@@ -265,18 +265,7 @@ export async function parseOptionsAndRunCLI() {
 		],
 	} as RunCLIArgs;
 
-	try {
-		return runCLI(cliArgs);
-	} catch (e) {
-		const reportableCause = ReportableError.getReportableCause(e);
-		if (reportableCause) {
-			console.log('');
-			console.log(reportableCause.message);
-			process.exit(1);
-		} else {
-			throw e;
-		}
-	}
+	return runCLI(cliArgs);
 }
 
 export interface RunCLIArgs {

@@ -14,7 +14,7 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 
 describe(`PHP ${phpVersion}`, () => {
 	it('Should load WordPress', { timeout: 12000 }, async () => {
-		let cli;
+		let cli: any;
 		try {
 			cli = await runCLI({
 				command: 'server',
@@ -31,6 +31,9 @@ describe(`PHP ${phpVersion}`, () => {
 				response.text.includes(expectedText),
 				`Response text does not include '${expectedText}'`
 			);
+		} catch (e) {
+			console.error(e);
+			throw e;
 		} finally {
 			if (cli) {
 				await cli[Symbol.asyncDispose]();
