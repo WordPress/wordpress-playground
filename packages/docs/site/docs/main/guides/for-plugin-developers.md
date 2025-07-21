@@ -193,7 +193,7 @@ Here’s an example of a **[plugin that generates Custom Post Types](https://raw
 
 From a plugins' folder in your local development environment, you can quickly load locally a Playground instance with that plugin loaded and activated.
 
-Use the [`wp-now` command](/developers/local-development/wp-now) from your plugin's root directory using your preferred command line program.
+Use the [`@wp-playground/cli` command](/developers/local-development/wp-playground-cli) from your plugin's root directory using your preferred command line program.
 
 With [Visual Studio Code](https://code.visualstudio.com/) IDE, you can also use the [Visual Studio Code extension](/developers/local-development/vscode-extension) while working in the root directory of your plugin.
 
@@ -202,7 +202,7 @@ For example:
 ```bash
 git clone git@github.com:wptrainingteam/devblog-dataviews-plugin.git
 cd devblog-dataviews-plugin
-npx @wp-now/wp-now start
+npx @wp-playground/cli server --auto-mount
 ```
 
 ### See your local changes in a Playground instance and directly create PRs in a GitHub repo with your changes

@@ -58,10 +58,10 @@ The process of creating a branch to open new PRs with translated pages on the [W
 https://developer.wordpress.org/block-editor/contributors/code/git-workflow/
 -->
 
-ドキュメント ファイル (`.md` ファイル) は、Playground の GitHub リポジトリの [`/packages/docs/site/docs` の下](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs) に保存されます。
+ドキュメント ファイル (`.md` ファイル) は、Playground の GitHub リポジトリに保存されています。英語の場合は [`/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs)、その他の言語の場合は [`/packages/docs/site/i18n`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/i18n) に保存されています。
 
 <!--
-The documentation files (`.md` files) are stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs).
+The documentation files (`.md` files) are stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs) for English and [`/packages/docs/site/i18n`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/i18n) for other languages.
 -->
 
 ### ブラウザで編集する

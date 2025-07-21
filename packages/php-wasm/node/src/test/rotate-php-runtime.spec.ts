@@ -68,7 +68,6 @@ describe('rotatePHPRuntime()', () => {
 		fs.writeFileSync(tempFile, 'playground');
 
 		// Mount the temporary directory
-		php.mkdir('/test-root');
 		await php.mount('/test-root', createNodeFsMountHandler(tempDir));
 
 		// Confirm the file is still there
@@ -111,14 +110,6 @@ describe('rotatePHPRuntime()', () => {
 		tempDirs.forEach((dir, i) => {
 			fs.writeFileSync(path.join(dir, 'test.php'), `plugin-${i}`);
 		});
-
-		// Create WordPress directory structure
-		php.mkdir('/wordpress/wp-content/plugins/data-liberation');
-		php.mkdir('/wordpress/wp-content/plugins/z-data-liberation-markdown');
-		php.mkdir(
-			'/wordpress/wp-content/plugins/z-data-liberation-static-files-editor'
-		);
-		php.mkdir('/wordpress/wp-content/uploads/static-pages');
 
 		// Mount the directories using WordPress paths
 		await php.mount(
@@ -416,7 +407,6 @@ describe('rotatePHPRuntime()', () => {
 
 		php.mkdir('/test-root');
 		php.writeFile('/test-root/index.php', 'test');
-		php.mkdir('/test-root/nodefs');
 
 		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
 		const tempFile = path.join(tempDir, 'file');

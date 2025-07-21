@@ -60,7 +60,11 @@ export type ChildProcess = EventEmitter & {
 	stdout: EventEmitter;
 	stderr: EventEmitter;
 	stdin: EventEmitter & {
-		write: (data: Uint8Array, encoding: string, cb: (err: Error | null) => void) => void;
+		write: (
+			data: Uint8Array,
+			encoding: string,
+			cb: (err: Error | null) => void
+		) => void;
 		end: () => void;
 	};
 };
