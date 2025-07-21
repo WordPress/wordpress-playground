@@ -45,7 +45,7 @@ export function sandboxedSpawnHandlerFactory(
 			processApi.exit(0);
 		} else if (binaryName === 'less') {
 			processApi.on('stdin', (data: Uint8Array) => {
-				processApi.stdout(data.buffer as ArrayBuffer);
+				processApi.stdout(data);
 			});
 			processApi.exit(0);
 		} else if (binaryName === 'php') {
@@ -70,14 +70,14 @@ export function sandboxedSpawnHandlerFactory(
 				result.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							processApi.stdout(chunk.buffer as ArrayBuffer);
+							processApi.stdout(chunk);
 						},
 					})
 				);
 				result.stderr.pipeTo(
 					new WritableStream({
 						write(chunk) {
-							processApi.stderr(chunk.buffer as ArrayBuffer);
+							processApi.stderr(chunk);
 						},
 					})
 				);

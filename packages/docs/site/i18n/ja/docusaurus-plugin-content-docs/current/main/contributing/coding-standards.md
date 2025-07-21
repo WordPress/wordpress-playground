@@ -14,10 +14,10 @@ slug: /contributing/coding-standards
 ## Error messages
 -->
 
-適切なエラーメッセージは、ユーザーに次に何をすべきかを伝えます。Playground の公開 API によってスローされるエラーに曖昧さがあると、開発者は問題をオープンすることになります。
+適切なエラーメッセージは、ユーザーに以下の手順を通知します。Playground の公開 API によってスローされるエラーに不明瞭な点があると、開発者は問題を報告する必要があります。
 
 <!--
-A good error message tells the user what to do next. Any ambiguity in errors thrown by Playground public APIs will prompt the developers to open issues.
+A good error message informs the user of the following steps to take. Any ambiguity in errors thrown by Playground public APIs will prompt the developers to open issues.
 -->
 
 たとえば、ネットワーク エラーを考えてみましょう。エラーの種類を推測し、次の手順をまとめた関連メッセージを表示できるでしょうか?
@@ -29,13 +29,13 @@ Consider a network error, for example—can we infer the type of error and displ
 -   **ネットワークエラー**: 「インターネット接続が不安定です。ページを再読み込みしてください。」
 -   **404**: 「ファイルが見つかりませんでした。」
 -   **403**: 「サーバーがファイルへのアクセスをブロックしました。」
--   **CORS**: ブラウザのセキュリティ機能であることを明確にし、詳細な説明へのリンク（ MDN などの信頼できる情報源）を追加します。ユーザーにファイルを raw.githubusercontent.com などの別の場所に移動することを提案し、サーバー上で CORS ヘッダーを設定する方法を説明したリソースへのリンクも提供します。
+-   **CORS**: ブラウザのセキュリティ機能であることを明確にし、詳細な説明へのリンク（MDN などの信頼できる情報源）を追加します。ユーザーにファイルを `raw.githubusercontent.com` などの別の場所に移動することを提案し、サーバー上で CORS ヘッダーを設定する方法を説明したリソースへのリンクを提供します。
 
 <!--
 -   **Network error**: "Your internet connection twitched. Try to reload the page.
 -   **404**: "Could not find the file".
 -   **403**: "The server blocked access to the file".
--   **CORS**: clarify it's a browser security feature and add a link to a detailed explanation (on MDN or another reliable source). Suggest the user move their file somewhere else, like raw.githubusercontent.com, and link to a resource explaining how to set up CORS headers on their servers.
+-   **CORS**: clarify it's a browser security feature and add a link to a detailed explanation (on MDN or another reliable source). Suggest the user move their file somewhere else, like `raw.githubusercontent.com`, and link to a resource explaining how to set up CORS headers on their servers.
 -->
 
 コードのフォーマットとリンティングは自動的に行われます。安心して入力し、あとは機械に任せましょう。
@@ -65,7 +65,7 @@ Public APIs are easy to add and hard to remove. It only takes one PR to introduc
 -   不要な関数、クラス、定数、その他のコンポーネントを公開しないでください。
 
 <!--
--   Don't expose unnecessary function, class, constant, or other components.
+-   Don't expose unnecessary functions, classes, constants, or other components.
 -->
 
 ## ブループリント

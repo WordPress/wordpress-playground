@@ -1,7 +1,7 @@
 import type { FileLockManager } from '@php-wasm/node';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { PHP, RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	consumeAPI,
@@ -10,10 +10,12 @@ import {
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import { mountResources } from './mounts';
 
 export interface Mount {
 	hostPath: string;
@@ -41,14 +43,8 @@ export type PrimaryWorkerBootOptions = {
 	 * Default: false.
 	 */
 	internalCookieStore?: boolean;
+	withXdebug?: boolean;
 };
-
-function mountResources(php: PHP, mounts: Mount[]) {
-	for (const mount of mounts) {
-		php.mkdir(mount.vfsPath);
-		php.mount(mount.vfsPath, createNodeFsMountHandler(mount.hostPath));
-	}
-}
 
 /**
  * Print trace messages from PHP-WASM.
@@ -111,7 +107,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		absoluteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
-		phpVersion = '8.0',
+		phpVersion = RecommendedPHPVersion,
 		wordPressZip,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
@@ -120,6 +116,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		followSymlinks,
 		trace,
 		internalCookieStore,
+		withXdebug,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -156,6 +153,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 							trace: trace ? tracePhpWasm : undefined,
 						},
 						followSymlinks,
+						withXdebug,
 					});
 				},
 				wordPressZip:

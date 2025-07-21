@@ -8,16 +8,16 @@ slug: /contributing/contributor-day
 # WordCamp Contributor Day
 -->
 
-[WordPress Playground VS Code 拡張機能](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) と [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) を使用すると、ローカルの WordPress 環境をセットアップするプロセスが効率化されます。WordPress Playground は両方をサポートしており、Docker、MySQL、Apache は必要ありません。
+[WordPress Playground VS Code 拡張機能](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) と [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) を使用すると、ローカルの WordPress 環境をセットアップするプロセスが効率化されます。WordPress Playground は両方をサポートしており、Docker、MySQL、Apache は必要ありません。
 
 <!--
-The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
+The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
 -->
 
-WordPress に貢献する際に、[ローカル開発](/developers/local-development/wp-now) でこれらのツールを使用する方法については、読み進めてください。拡張機能と NPM パッケージは現在開発中であり、すべての [Make WordPress チーム](https://make.wordpress.org/) が完全にサポートされているわけではないことにご注意ください。
+WordPress に貢献する際に、[ローカル開発](/developers/local-development/wp-playground-cli) でこれらのツールを使用する方法については、読み進めてください。拡張機能と NPM パッケージは現在開発中であり、すべての [Make WordPress チーム](https://make.wordpress.org/) が完全にサポートされているわけではないことにご注意ください。
 
 <!--
-Keep reading to learn how to use these tools for [local development](/developers/local-development/wp-now) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
+Keep reading to learn how to use these tools for [local development](/developers/local-development/wp-playground-cli) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
 -->
 
 ## はじめる
@@ -25,14 +25,6 @@ Keep reading to learn how to use these tools for [local development](/developer
 <!--
 ## Getting Started
 -->
-
-視覚的に学習するタイプなら、ステップバイステップのビデオチュートリアルをご覧ください。自分のペースで読み進めたい場合は、以下の説明に進んでください。
-
-<!--
-If you’re a visual learner, here’s a step-by-step video tutorial. If you prefer reading at your own pace, skip to the written instructions below.
--->
-
-<iframe title="Getting Started with wp-now for WordPress development at Contributor Day" width="752" height="423" src="https://video.wordpress.com/embed/Gn7XOCAM?cover=1&amp;preloadContent=metadata&amp;useAverageColor=1&amp;hd=1&amp;metadata_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ3b3JkcHJlc3MuY29tIiwiaWF0IjoxNjg2MTQ4ODQ5LCJleHAiOjE2ODYzMjE2NDksImJsb2dfaWQiOiIyMDMxMjIxMTIiLCJndWlkIjoiR243WE9DQU0iLCJhdXRoIjoidmlkZW9wcmVzc19wbGF5YmFja190b2tlbiIsImFjY2VzcyI6InZpZGVvIiwiZXhwaXJlcyI6MTY4NjMyMTY0OX0.DJWVfePHl2nUKo8ziG81CK2VlG5Ui8vNg-dZJ7dOSq8" allow="fullscreen" loading="eager"></iframe>
 
 ### VS Code プレイグラウンド拡張機能
 
@@ -58,16 +50,16 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 4. A new tab will open in your browser within seconds.
 -->
 
-### wp-now NPM パッケージ
+### @wp-playground/cli NPM パッケージ
 
 <!--
-### wp-now NPM package
+### @wp-playground/cli NPM package
 -->
 
-`@wp-now/wp-now` は、コマンド 1 つで WordPress サイトを起動できる CLI ツールです。Docker、MySQL、Apache は必要ありません。
+`@wp-playground/cli` は、コマンド 1 つで WordPress サイトを起動できる CLI ツールです。Docker、MySQL、Apache は必要ありません。
 
 <!--
-`@wp-now/wp-now` is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
+`@wp-playground/cli` is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
 -->
 
 #### 前提条件
@@ -76,10 +68,10 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 #### Prerequisites
 -->
 
-`wp-now` には Node.js と NPM が必要です。まだインストールしていない場合は、始める前に両方を[ダウンロードしてインストール](https://nodejs.org/en/download)してください。
+`@wp-playground/cli` には Node.js 20.18 以降と NPM が必要です。まだインストールしていない場合は、始める前に両方を[ダウンロードしてインストール](https://nodejs.org/en/download)してください。
 
 <!--
-`wp-now` requires Node.js and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
 -->
 
 参加する Make WordPress チームによっては、インストール済みのものとは異なるバージョンの Node.js が必要になる場合があります。Node Version Manager（NVM）を使用してバージョンを切り替えることができます。[インストールガイドはこちら](https://github.com/nvm-sh/nvm#installing-and-updating)。
@@ -88,21 +80,21 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
 -->
 
-#### wp-now を実行する
+#### `@wp-playground/cli` を実行しています
 
 <!--
-#### Run wp-now
+#### Running `@wp-playground/cli`
 -->
 
-`wp-now` を使用するためにデバイスにインストールする必要はありません。プラグインまたはテーマのディレクトリに移動し、以下のコマンドで `wp-now` を起動してください。
+`@wp-playground/cli` を使用するためにデバイスにインストールする必要はありません。プラグインまたはテーマのディレクトリに移動し、以下のコマンドで `@wp-playground/cli` を起動してください。
 
 <!--
-You don’t have to install `wp-now` on your device to use it. Navigate to your plugin or theme directory and start `wp-now` with the following commands:
+You don’t have to install `@wp-playground/cli` on your device to use it. Navigate to your plugin or theme directory and start `@wp-playground/cli` with the following commands:
 -->
 
 ```bash
 cd my-plugin-or-theme-directory
-npx @wp-now/wp-now start
+npx @wp-playground/cli@latest server --auto-mount
 ```
 
 ## 貢献者へのアイデア
@@ -136,27 +128,27 @@ npm run dev
 
 :::info
 
-上記の手順が不明な場合は、公式の [Gutenberg プロジェクト貢献者ガイド](https://developer.wordpress.org/block-editor/contributors/)をご覧ください。この場合、`wp-env` が `wp-now` に置き換えられることに注意してください。
+上記の手順が不明な場合は、公式の[Gutenberg プロジェクト貢献者ガイド](https://developer.wordpress.org/block-editor/contributors/)をご覧ください。この場合、`wp-env` が `@wp-playground/cli` に置き換えられることに注意してください。
 
 :::
 
 <!--
 :::info
 
-If you’re unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `wp-now` replaces `wp-env`.
+If you’re unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `@wp-playground/cli` replaces `wp-env`.
 
 :::
 -->
 
-新しいターミナルタブを開き、Gutenberg ディレクトリに移動して、`wp-now` を使用して WordPress を起動します。
+新しいターミナルタブを開き、Gutenberg ディレクトリに移動して、`@wp-playground/cli` を使用して WordPress を起動します。
 
 <!--
-Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `wp-now`:
+Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `@wp-playground/cli`:
 -->
 
 ```bash
 cd gutenberg
-npx @wp-now/wp-now start
+npx @wp-playground/cli@latest server --auto-mount
 ```
 
 準備ができたら、変更を GitHub 上のフォークしたリポジトリにコミットしてプッシュし、Gutenberg リポジトリでプル リクエストを開きます。

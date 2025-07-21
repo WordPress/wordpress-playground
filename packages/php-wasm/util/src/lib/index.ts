@@ -31,5 +31,6 @@ export function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 }
 
 export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b))).buffer as ArrayBuffer;
+	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b)))
+		.buffer as ArrayBuffer;
 }

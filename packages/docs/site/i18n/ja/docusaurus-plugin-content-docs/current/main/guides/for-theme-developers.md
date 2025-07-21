@@ -360,10 +360,10 @@ The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/bluepri
 ### Local theme development and testing with Playground
 -->
 
-ブロックテーマのコードのルートフォルダから、そのテーマが読み込まれ有効化された Playground インスタンスをローカルに素早く読み込むことができます。テーマディレクトリで、お好みのコマンドラインプログラムから[`wp-now`コマンド](/developers/local-development/wp-now)を実行するか、[Visual Studio Code](https://code.visualstudio.com/) IDE から[Visual Code Studio 拡張機能](/developers/local-development/vscode-extension)を起動することで実行できます。
+ブロックテーマのコードのルートフォルダから、そのテーマが読み込まれ有効化された Playground インスタンスをローカルに素早く読み込むことができます。テーマディレクトリで、お好みのコマンドラインプログラムから[`@wp-playground/cli`コマンド](/developers/local-development/wp-playground-cli)を実行するか、[Visual Studio Code](https://code.visualstudio.com/) IDE から[Visual Code Studio 拡張機能](/developers/local-development/vscode-extension)を実行することで実行できます。
 
 <!--
-From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated. You can do that by launching, in a theme directory, the [`wp-now` command](/developers/local-development/wp-now) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
+From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated. You can do that by launching, in a theme directory, the [`@wp-playground/cli` command](/developers/local-development/wp-playground-cli) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
 -->
 
 例えば：
@@ -375,7 +375,7 @@ For example:
 ```
 git clone git@github.com:WordPress/community-themes.git
 cd community-themes/blue-note
-npx @wp-now/wp-now start
+npx @wp-playground/cli server --auto-mount
 ```
 
 ### WordPress UI を使用してテーマをデザインし、変更をプルリクエストとして保存します
