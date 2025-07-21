@@ -136,7 +136,7 @@
 		"docusaurus-plugin-typedoc-api": "^4.4.0",
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "0.19.9",
-		"eslint": "8.57.1",
+		"eslint": "9.24.0",
 		"eslint-plugin-comment-length": "2.2.1",
 		"eslint-plugin-cypress": "4.3.0",
 		"eslint-plugin-erasable-syntax-only": "0.3.1",
