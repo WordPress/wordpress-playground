@@ -2225,7 +2225,7 @@ RUN set -euxo pipefail; \
 		/root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
 	# Emscripten allows only directories to be mounted, but in Playground we support mounting files, directories, and symlinks.
 		# For file mounting to work, we need to remove the directory check.
-		/root/replace-across-lines.sh 's/(\s+)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s+throw\s+new\s+FS\.ErrnoError\(54\)\s*;\s+\}(\s+)/$1$2/s' /root/output/php.js; \
+		/root/replace-across-lines.sh 's/(\s*)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s*throw\s*new\s*FS\.ErrnoError\(54\)\s*;?\s*\}(\s*)/$1$2/s' /root/output/php.js; \
 	# Make Emscripten websockets configurable
 		# Emscripten makes the Websocket proxy connect to a fixed URL.
 		# This assumes the traffic is always forwarded to the same target.
