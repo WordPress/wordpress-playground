@@ -1,5 +1,8 @@
 import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
-import type { PlaygroundCliWorker } from './worker-thread';
+import type { PlaygroundCliBlueprintV1Worker as PlaygroundCliWorkerV1 } from './worker-thread';
+import type { PlaygroundCliBlueprintV2Worker as PlaygroundCliWorkerV2 } from './worker-thread-v2';
+
+type PlaygroundCliWorker = PlaygroundCliWorkerV1 | PlaygroundCliWorkerV2;
 
 // TODO: Let's merge worker management into PHPProcessManager
 // when we can have multiple workers in both CLI and web.

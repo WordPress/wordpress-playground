@@ -22,7 +22,7 @@ export interface Mount {
 	vfsPath: string;
 }
 
-export type PrimaryWorkerBootOptions = {
+export type WorkerBootOptions = {
 	wpVersion?: string;
 	phpVersion?: SupportedPHPVersion;
 	absoluteUrl: string;
@@ -62,7 +62,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-export class PlaygroundCliWorker extends PHPWorker {
+export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
 	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
 
@@ -103,7 +103,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		}
 	}
 
-	async boot({
+	async bootAsPrimaryWorker({
 		absoluteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
@@ -117,7 +117,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 		trace,
 		internalCookieStore,
 		withXdebug,
-	}: PrimaryWorkerBootOptions) {
+	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
@@ -201,6 +201,10 @@ export class PlaygroundCliWorker extends PHPWorker {
 		}
 	}
 
+	async bootAsSecondaryWorker(args: WorkerBootOptions) {
+		return this.bootAsPrimaryWorker(args);
+	}
+
 	// Provide a named disposal method that can be invoked via comlink.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
@@ -210,7 +214,7 @@ export class PlaygroundCliWorker extends PHPWorker {
 const phpChannel = new MessageChannel();
 
 const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
+	new PlaygroundCliBlueprintV1Worker(new EmscriptenDownloadMonitor()),
 	undefined,
 	phpChannel.port1
 );

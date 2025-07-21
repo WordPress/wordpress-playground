@@ -136,6 +136,7 @@ export default defineConfig({
 				index: 'src/index.ts',
 				cli: 'src/cli.ts',
 				'worker-thread': 'src/worker-thread.ts',
+				'worker-thread-v2': 'src/worker-thread-v2.ts',
 			},
 			name: 'playground-cli',
 			formats: ['es', 'cjs'],
