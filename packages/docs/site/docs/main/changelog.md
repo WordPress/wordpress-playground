@@ -9,6 +9,73 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v1.2.3] (2025-07-21) 
+
+### Enhancements
+
+- [Playground CLI] Consolidate auto mounting logic. ([#2360](https://github.com/WordPress/wordpress-playground/pull/2360))
+- [Playground CLI] Move mounting code to mount.ts. ([#2362](https://github.com/WordPress/wordpress-playground/pull/2362))
+
+### Blueprints
+
+- [CLI] Move Blueprints v2 to Playground CLI package. ([#2364](https://github.com/WordPress/wordpress-playground/pull/2364))
+
+### Public API
+
+
+#### Blueprints
+
+- [Client] Accept wasm.wordpress.net as an official origin. ([#2368](https://github.com/WordPress/wordpress-playground/pull/2368))
+
+### Tools
+
+- Make PHP 8.3 the default version. ([#2371](https://github.com/WordPress/wordpress-playground/pull/2371))
+
+#### PHP WebAssembly
+
+- Add `--xdebug` option in php-wasm CLI and wp-playground CLI. ([#2346](https://github.com/WordPress/wordpress-playground/pull/2346))
+
+### Documentation
+
+- Adding Playground CLI page and removing wp-now references. ([#2337](https://github.com/WordPress/wordpress-playground/pull/2337))
+- Adding pt-br About and Launch Page. ([#2358](https://github.com/WordPress/wordpress-playground/pull/2358))
+- Adding three new flags on the CLI README file. ([#2325](https://github.com/WordPress/wordpress-playground/pull/2325))
+- Adding video content in Japanese to resources page. ([#2354](https://github.com/WordPress/wordpress-playground/pull/2354))
+- Updating web instance page documentation. ([#2365](https://github.com/WordPress/wordpress-playground/pull/2365))
+
+### PHP WebAssembly
+
+- [PHP-wasm Node] Remove unused node creation code from createNodeFsMountHandler. ([#2379](https://github.com/WordPress/wordpress-playground/pull/2379))
+- [PHP-wasm] File mounting in NODEFS. ([#2338](https://github.com/WordPress/wordpress-playground/pull/2338))
+- [PHP] Improve error logging. ([#2357](https://github.com/WordPress/wordpress-playground/pull/2357))
+- [PHP] Isomorphic, reusable spawn handler. ([#2359](https://github.com/WordPress/wordpress-playground/pull/2359))
+- [PHP] Refresh the latest PHP versions before recompiling. ([#2372](https://github.com/WordPress/wordpress-playground/pull/2372))
+- [php-wasm/universal] Try require() before dynamic imprt in comlink-sync.ts. ([#2363](https://github.com/WordPress/wordpress-playground/pull/2363))
+
+### Website
+
+- Deploy public web app after WP major/beta update. ([#2378](https://github.com/WordPress/wordpress-playground/pull/2378))
+
+### Bug Fixes
+
+- Allow the WP update and changelog workflows to commit to trunk again. ([#2377](https://github.com/WordPress/wordpress-playground/pull/2377))
+- Fix failing WP update workflows. ([#2376](https://github.com/WordPress/wordpress-playground/pull/2376))
+
+### Various
+
+- Add Japanese translations to Resources References. ([#2352](https://github.com/WordPress/wordpress-playground/pull/2352))
+- Add new logo and open graph image. ([#2350](https://github.com/WordPress/wordpress-playground/pull/2350))
+- Adding Portuguese version for Code Standards, Code, and Documentation.. ([#2343](https://github.com/WordPress/wordpress-playground/pull/2343))
+- Adding new icons and og:Image for the Playground Web instance. ([#2367](https://github.com/WordPress/wordpress-playground/pull/2367))
+- Update Japanese translations to main directory. ([#2375](https://github.com/WordPress/wordpress-playground/pull/2375))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @fellyph @mho22 @shimotmk
+
+
 ## [v1.2.2] (2025-07-14)
 
 ### Enhancements
