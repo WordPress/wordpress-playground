@@ -267,10 +267,6 @@ export async function parseOptionsAndRunCLI() {
 	const cliArgs = {
 		...args,
 		command,
-		blueprint: await resolveBlueprint({
-			sourceString: args.blueprint,
-			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
-		}),
 		mount: [...(args.mount || []), ...(args['mount-dir'] || [])],
 		'mount-before-install': [
 			...(args['mount-before-install'] || []),
@@ -381,15 +377,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				Number.MAX_SAFE_INTEGER / totalWorkerCount
 			);
 
-			const handler = args['experimental-blueprints-v2']
-				? new BlueprintsV2Handler(args, {
-						siteUrl: absoluteUrl,
-						processIdSpaceLength,
-				  })
-				: new BlueprintsV1Handler(args, {
-						siteUrl: absoluteUrl,
-						processIdSpaceLength,
-				  });
+			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
+			if (args['experimental-blueprints-v2']) {
+				handler = new BlueprintsV2Handler(args, {
+					siteUrl: absoluteUrl,
+					processIdSpaceLength,
+				});
+			} else {
+				handler = new BlueprintsV1Handler(args, {
+					siteUrl: absoluteUrl,
+					processIdSpaceLength,
+				});
+
+				if (typeof args.blueprint === 'string') {
+					args.blueprint = await resolveBlueprint({
+						sourceString: args.blueprint,
+						blueprintMayReadAdjacentFiles:
+							args['blueprint-may-read-adjacent-files'] === true,
+					});
+				}
+			}
 
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
@@ -856,14 +863,7 @@ class BlueprintsV1Handler {
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
 		const args = this.args;
-		const resolvedBlueprint =
-			typeof args.blueprint === 'string'
-				? await resolveBlueprint({
-						sourceString: args.blueprint,
-						blueprintMayReadAdjacentFiles:
-							args['blueprint-may-read-adjacent-files'] === true,
-				  })
-				: (args.blueprint as BlueprintDeclaration);
+		const resolvedBlueprint = args.blueprint as BlueprintDeclaration;
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
