@@ -9,6 +9,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 				cli = await runCLI({
 					command: 'server',
 					php: phpVersion as any,
+					exitOnPrimaryWorkerCrash: false,
 				});
 				// Make a request
 				const response = await cli.playground.request({

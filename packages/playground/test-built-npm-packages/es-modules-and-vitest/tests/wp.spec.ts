@@ -20,6 +20,7 @@ describe(`PHP ${phpVersion}`, () => {
 				command: 'server',
 				php: phpVersion,
 				quiet: true,
+				exitOnPrimaryWorkerCrash: false,
 			});
 			const response = await cli.playground.request({
 				method: 'GET',
@@ -31,9 +32,6 @@ describe(`PHP ${phpVersion}`, () => {
 				response.text.includes(expectedText),
 				`Response text does not include '${expectedText}'`
 			);
-		} catch (e) {
-			console.error(e);
-			throw e;
 		} finally {
 			if (cli) {
 				await cli[Symbol.asyncDispose]();
