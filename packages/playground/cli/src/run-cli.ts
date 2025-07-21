@@ -447,15 +447,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				loadBalancer = new LoadBalancer(playground);
 
-				// Compile and run the blueprint
-				const compiledBlueprint = await handler.compileInputBlueprint(
-					args['additional-blueprint-steps'] || []
-				);
+				if (!args['experimental-blueprints-v2-runner']) {
+					const compiledBlueprint = await (
+						handler as BlueprintsV1Handler
+					).compileInputBlueprint(
+						args['additional-blueprint-steps'] || []
+					);
 
-				if (compiledBlueprint) {
-					logger.log(`Running the Blueprint...`);
-					await runBlueprintSteps(compiledBlueprint, playground);
-					logger.log(`Finished running the blueprint`);
+					if (compiledBlueprint) {
+						logger.log(`Running the Blueprint...`);
+						await runBlueprintSteps(compiledBlueprint, playground);
+						logger.log(`Finished running the blueprint`);
+					}
 				}
 
 				if (args.command === 'build-snapshot') {
@@ -642,12 +645,6 @@ class BlueprintsV2Handler {
 		await playground.bootAsSecondaryWorker(workerBootArgs);
 
 		return playground;
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async compileInputBlueprint(..._args: any[]) {
-		// no-op for API compatibility with BlueprintV1Handler
-		return undefined;
 	}
 
 	writeProgressUpdate(
