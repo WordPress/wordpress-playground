@@ -28,20 +28,20 @@ import {
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { Worker, MessageChannel as NodeMessageChannel } from 'worker_threads';
+import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import {
-	expandAutoMounts,
-	parseMountDirArguments,
-	parseMountWithDelimiterArguments,
-} from './mounts';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
 	fetchSqliteIntegration,
 	readAsFile,
 } from './download';
+import {
+	expandAutoMounts,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mounts';
 import { startServer } from './server';
 import type { Mount, PlaygroundCliWorker } from './worker-thread';
 // @ts-ignore
@@ -56,7 +56,6 @@ import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import { ReportableError } from './reportable-error';
 import { resolveBlueprint } from './resolve-blueprint';
 
 export async function parseOptionsAndRunCLI() {
