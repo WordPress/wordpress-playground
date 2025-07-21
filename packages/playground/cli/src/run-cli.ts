@@ -296,7 +296,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
-	'experimental-blueprints-v2'?: boolean;
+	'experimental-blueprints-v2-runner'?: boolean;
 
 	// --------- Blueprint V1 args -----------
 	skipWordPressSetup?: boolean;
@@ -378,7 +378,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			);
 
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			if (args['experimental-blueprints-v2']) {
+			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl: absoluteUrl,
 					processIdSpaceLength,
