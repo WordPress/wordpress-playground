@@ -50,17 +50,11 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
-				"jestConfig": "packages/php-wasm/xdebug-bridge/jest.config.ts",
-				"passWithNoTests": true
-			},
-			"configurations": {
-				"ci": {
-					"ci": true,
-					"coverage": true
-				}
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": []
 			}
 		},
 		"lint": {
@@ -72,4 +66,4 @@
 		}
 	},
 	"tags": ["php-wasm"]
-} 
+}
