@@ -253,7 +253,7 @@ jobs:
 
                   with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
                       httpd.serve_forever()
-                  "
+                  "&
                   );
             - name: Wait for the package server to be ready
               run: |
