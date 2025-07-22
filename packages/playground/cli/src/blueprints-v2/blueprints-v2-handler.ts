@@ -5,7 +5,7 @@ import type {
 	WorkerBootArgs,
 } from './worker-thread-v2';
 // @ts-ignore
-import importedWorkerV2UrlString from '../worker-thread-v2?worker&url';
+import importedWorkerV2UrlString from './worker-thread-v2?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
 
