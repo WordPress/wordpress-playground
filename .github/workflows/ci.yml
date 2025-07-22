@@ -248,7 +248,7 @@ jobs:
                       --quiet& \
                     );
                     # Trigger the initial request that may result in a redirect.
-                    curl -s http://127.0.0.1:$PORT/;
+                    curl -s http://127.0.0.1:$PORT/ || true > /dev/null;
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do
