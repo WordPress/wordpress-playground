@@ -50,6 +50,9 @@ export type MountHandler = (
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
 
+export const USE_OPCACHE = true;
+const OPCACHE_FILE_FOLDER = '/internal/shared/opcache';
+
 type MountObject = {
 	mountHandler: MountHandler;
 	unmount: () => Promise<any>;
@@ -72,6 +75,8 @@ export class PHP implements Disposable {
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	requestHandler?: PHPRequestHandler;
+	private cliCalled = false;
+	private runStreamCalled = false;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -229,6 +234,42 @@ export class PHP implements Disposable {
 		);
 
 		if (!this.fileExists(PHP_INI_PATH)) {
+			const opcacheConfig = USE_OPCACHE
+				? [
+						// OPCache
+						'opcache.enable = 1',
+						'opcache.enable_cli = 1',
+						'opcache.jit = 0',
+						'opcache.interned_strings_buffer = 8',
+						'opcache.max_accelerated_files = 1000',
+						'opcache.memory_consumption = 64',
+						'opcache.max_wasted_percentage = 5',
+						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
+						// Always enable the file cache.
+						'opcache.file_cache_only = 1',
+						'opcache.file_cache_consistency_checks = 1',
+				  ]
+				: [];
+
+			/*if (
+				USE_OPCACHE &&
+				!(
+					runtime.phpVersion.major === 8 &&
+					runtime.phpVersion.minor === 4
+				)
+			) {
+				// Old versions of PHP are RAM hungry. By using the file cache, we can reduce
+				// the RAM usage during the first caching.
+				opcacheConfig.push(
+					'opcache.file_cache_only = 1',
+					'opcache.file_cache_consistency_checks = 1'
+				);
+			}*/
+
+			if (!this.fileExists(OPCACHE_FILE_FOLDER)) {
+				this.mkdir(OPCACHE_FILE_FOLDER);
+			}
+
 			this.writeFile(
 				PHP_INI_PATH,
 				[
@@ -250,6 +291,7 @@ export class PHP implements Disposable {
 					'output_buffering = 0',
 					'max_execution_time = 0',
 					'max_input_time = -1',
+					...opcacheConfig,
 				].join('\n')
 			);
 		}
@@ -321,6 +363,15 @@ export class PHP implements Disposable {
 	 */
 	chdir(path: string) {
 		this[__private__dont__use].FS.chdir(path);
+	}
+
+	/**
+	 * Changes the permissions of a file or directory.
+	 * @param path - The path to the file or directory.
+	 * @param mode - The new permissions.
+	 */
+	chmod(path: string, mode: number) {
+		this[__private__dont__use].FS.chmod(path, mode);
 	}
 
 	/**
@@ -416,25 +467,14 @@ export class PHP implements Disposable {
 		);
 
 		if (syncResponse.exitCode !== 0) {
-			logger.warn(`PHP.run() output was:`, syncResponse.text);
-			const error = new PHPExecutionFailureError(
-				`PHP.run() failed with exit code ${syncResponse.exitCode} and the following output: ` +
-					syncResponse.errors +
-					'\n\n' +
-					syncResponse.text,
+			// Legacy behavior: throw if PHP exited with a non-zero exit code.
+			// It could be a WASM crash, but it could be a PHP userland error such
+			// as "Fatal error: Uncaught Error: Call to undefined function no_such_function()".
+			throw new PHPExecutionFailureError(
+				`PHP.run() failed with exit code ${syncResponse.exitCode}. \n\n=== Stdout ===\n ${syncResponse.text}\n\n=== Stderr ===\n ${syncResponse.errors}`,
 				syncResponse,
 				'request'
 			) as PHPExecutionFailureError;
-			logger.error(error);
-			this.dispatchEvent({
-				type: 'request.error',
-				error: new Error(
-					'PHP.run() failed with exit code ' + syncResponse.exitCode
-				),
-				// Distinguish between PHP request and PHP-wasm errors
-				source: 'request',
-			});
-			throw error;
 		}
 
 		return syncResponse;
@@ -531,6 +571,14 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		if (this.cliCalled) {
+			throw new Error(
+				'php.runStream() can only be called if php.cli() was not called before. The two methods set a conflicting ' +
+					'C-level global state.'
+			);
+		}
+		this.runStreamCalled = true;
+
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -594,11 +642,6 @@ export class PHP implements Disposable {
 					this.#setEnv(key, env[key]);
 				}
 
-				if (!this.#webSapiInitialized) {
-					await this.#initWebRuntime();
-					this.#webSapiInitialized = true;
-				}
-
 				return await this[__private__dont__use].ccall(
 					'wasm_sapi_handle_request',
 					NUMBER,
@@ -612,12 +655,19 @@ export class PHP implements Disposable {
 		// Free up resources when the response is done
 		await streamedResponsePromise
 			.catch((error) => {
+				/**
+				 * Dispatch a request.error event for any global crash handlers. For example,
+				 * Playground web uses this to automatically display a "Report crash" modal.
+				 */
 				this.dispatchEvent({
 					type: 'request.error',
 					error: error as Error,
 					// Distinguish between PHP request and PHP-wasm errors
 					source: (error as any).source ?? 'php-wasm',
 				});
+
+				// Rethrow the error. We don't want to swallow it.
+				throw error;
 			})
 			.finally(() => {
 				if (heapBodyPointer) {
@@ -626,6 +676,10 @@ export class PHP implements Disposable {
 			})
 			.finally(() => {
 				release();
+				/**
+				 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
+				 * another request.
+				 */
 				this.dispatchEvent({
 					type: 'request.end',
 				});
@@ -667,9 +721,9 @@ export class PHP implements Disposable {
 		return $_SERVER;
 	}
 
-	async #initWebRuntime() {
-		await this[__private__dont__use].ccall('php_wasm_init', null, [], [], {
-			async: true,
+	#initWebRuntime() {
+		return this[__private__dont__use].ccall('php_wasm_init', null, [], [], {
+			isAsync: true,
 		});
 	}
 
@@ -918,17 +972,12 @@ export class PHP implements Disposable {
 				 * get crashes and unhandled promise rejections without any useful error
 				 * messages or meaningful stack traces.
 				 */
-				const exit = await Promise.race([
+				const exitCode = await Promise.race([
 					executionFn(),
-					new Promise((resolve, reject) => {
+					new Promise((_, reject) => {
 						errorListener = (e: ErrorEvent) => {
-							if (isExitCode(e.error) && e.error.status === 0) {
-								resolve(e.error.status);
-							} else {
-								const rethrown = new Error('Rethrown');
-								rethrown.cause = e.error;
-								(rethrown as any).betterMessage = e.message;
-								reject(rethrown);
+							if (!isExitCode(e.error)) {
+								reject(e.error);
 							}
 						};
 						this.#wasmErrorsTarget?.addEventListener(
@@ -938,7 +987,7 @@ export class PHP implements Disposable {
 						);
 					}),
 				]);
-				return exit;
+				return exitCode;
 			} catch (e) {
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
@@ -948,6 +997,7 @@ export class PHP implements Disposable {
 					return e.status;
 				}
 
+				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
 				stdout.controller.error(e);
 				stderr.controller.error(e);
 				headers.controller.error(e);
@@ -970,15 +1020,7 @@ export class PHP implements Disposable {
 				(this as any).functionsMaybeMissingFromAsyncify =
 					getFunctionsMaybeMissingFromAsyncify();
 
-				const err = e as Error;
-				const message = (
-					'betterMessage' in err ? err.betterMessage : err.message
-				) as string;
-
-				const rethrown = new Error(message);
-				rethrown.cause = err;
-				logger.error(rethrown);
-				throw rethrown;
+				throw e;
 			} finally {
 				if (!streamsClosed) {
 					stdout.controller.close();
@@ -1275,6 +1317,18 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
 	): Promise<StreamedPHPResponse> {
+		if (this.cliCalled) {
+			throw new Error(
+				'php.cli() can only be called once. The method sets a C-level global state that does not allow repeated calls.'
+			);
+		}
+		if (this.runStreamCalled) {
+			throw new Error(
+				'php.cli() can only be called if php.runStream() was not called before. The two methods set a conflicting ' +
+					'C-level global state.'
+			);
+		}
+		this.cliCalled = true;
 		const release = await this.semaphore.acquire();
 
 		const env = options.env || {};
@@ -1292,18 +1346,11 @@ export class PHP implements Disposable {
 			);
 		}
 
-		return await this.#executeWithErrorHandling(
-			async () =>
-				await this[__private__dont__use].ccall(
-					'run_cli',
-					null,
-					[],
-					[],
-					{
-						async: true,
-					}
-				)
-		).then((response) => {
+		return await this.#executeWithErrorHandling(() => {
+			return this[__private__dont__use].ccall('run_cli', null, [], [], {
+				async: true,
+			});
+		}).then((response) => {
 			response.exitCode.finally(release);
 			return response;
 		});

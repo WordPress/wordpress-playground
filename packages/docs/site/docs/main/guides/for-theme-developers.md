@@ -214,14 +214,14 @@ The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/bluepri
 
 ### Local theme development and testing with Playground
 
-From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated. You can do that by launching, in a theme directory, the [`wp-now` command](/developers/local-development/wp-now) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
+From the root folder of a block theme's code, you can quickly load locally a Playground instance with that theme loaded and activated. You can do that by launching, in a theme directory, the [`@wp-playground/cli` command](/developers/local-development/wp-playground-cli) from your preferred command line program or the [Visual Code Studio extension](/developers/local-development/vscode-extension) from the [Visual Studio Code](https://code.visualstudio.com/) IDE.
 
 For example:
 
 ```
 git clone git@github.com:WordPress/community-themes.git
 cd community-themes/blue-note
-npx @wp-now/wp-now start
+npx @wp-playground/cli server --auto-mount
 ```
 
 ### Design your theme using the WordPress UI and save your changes as Pull Requests

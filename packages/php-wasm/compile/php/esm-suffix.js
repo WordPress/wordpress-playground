@@ -82,6 +82,15 @@ if (typeof NODEFS === 'object') {
     };
 }
 
+/**
+ * Expose the PHP version so the PHP class can make version-specific
+ * adjustments to `php.ini`.
+ */
+PHPLoader['phpVersion'] = (() => {
+    const [ major, minor, patch ] = phpVersionString.split('.').map(Number);
+    return { major, minor, patch };
+})();
+
 return PHPLoader;
 
 // Close the opening bracket from esm-prefix.js:

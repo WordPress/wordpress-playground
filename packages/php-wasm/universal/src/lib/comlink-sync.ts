@@ -147,10 +147,15 @@ export class NodeSABSyncReceiveMessageTransport {
 
 	static async create() {
 		if (!NodeSABSyncReceiveMessageTransport.receiveMessageOnPort) {
-			NodeSABSyncReceiveMessageTransport.receiveMessageOnPort =
-				await import('worker_threads').then(
-					(m) => m.receiveMessageOnPort
-				);
+			try {
+				NodeSABSyncReceiveMessageTransport.receiveMessageOnPort =
+					require('worker_threads').receiveMessageOnPort;
+			} catch {
+				NodeSABSyncReceiveMessageTransport.receiveMessageOnPort =
+					await import('worker_threads').then(
+						(m) => m.receiveMessageOnPort
+					);
+			}
 		}
 		return new NodeSABSyncReceiveMessageTransport();
 	}

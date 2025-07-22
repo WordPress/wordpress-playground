@@ -38,6 +38,11 @@ async function run() {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
 	}
 
+	const hasXdebugOption = args.some((arg) => arg.startsWith('--xdebug'));
+	if (hasXdebugOption) {
+		args = args.filter((arg) => arg !== '--xdebug');
+	}
+
 	// npm scripts set the TMPDIR env variable
 	// PHP accepts a TMPDIR env variable and expects it to
 	// be a writable directory within the PHP filesystem.
@@ -86,6 +91,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
+			withXdebug: hasXdebugOption,
 		})
 	);
 

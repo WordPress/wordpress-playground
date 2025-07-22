@@ -6,9 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_1_23', 'php_8_1.wasm');
+const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31498814;
+export const dependenciesTotalSize = 31648487;
+const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13227456;
+	var ___heap_base = 14257088;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -994,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15711,
+		initial: 15836,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1853,13 +1854,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13227456;
+	var ___stack_high = 14257088;
 
-	var ___stack_low = 13161920;
+	var ___stack_low = 13208512;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13227456
+		14257088
 	);
 
 	var PATH = {
@@ -3912,10 +3913,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -17744,10 +17741,6 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[iov >> 2] = buffer; // iov_base
 				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
-				if (typeof js_fd_read === 'undefined') {
-					globalThis.js_fd_read = __asyncjs__js_fd_read;
-				}
-
 				function pump() {
 					try {
 						while (true) {
@@ -19609,7 +19602,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 65536;
+	var STACK_SIZE = 1048576;
 
 	var STACK_ALIGN = 16;
 
@@ -31815,13 +31808,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12232630: ($0) => {
+		12241821: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12232678: ($0) => {
+		12241869: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31943,6 +31936,9 @@ export function init(RuntimeName, PHPLoader) {
 						while (true) {
 							var mask = POLLNVAL;
 							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (FS.isClosed(stream)) {
+								return ERRNO_CODES.EBADF;
+							}
 							if (stream.stream_ops?.poll) {
 								mask = stream.stream_ops.poll(stream, -1);
 							}
@@ -34581,6 +34577,10 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_iijiji,
 		/** @export */
+		invoke_iijj,
+		/** @export */
+		invoke_ji,
+		/** @export */
 		invoke_jii,
 		/** @export */
 		invoke_jiii,
@@ -34737,6 +34737,11 @@ export function init(RuntimeName, PHPLoader) {
 	var _wasm_sleep = (Module['_wasm_sleep'] = (a0) =>
 		(_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'])(a0));
 	var _calloc = (a0, a1) => (_calloc = wasmExports['calloc'])(a0, a1);
+	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
+		(_initgroups = Module['_initgroups'] = wasmExports['initgroups'])(
+			a0,
+			a1
+		));
 	var ___wrap_usleep = (Module['___wrap_usleep'] = (a0) =>
 		(___wrap_usleep = Module['___wrap_usleep'] =
 			wasmExports['__wrap_usleep'])(a0));
@@ -35035,6 +35040,74 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_vji(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_vji'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_jii(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_jii'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_v(index) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_v'](index);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_ji(index, a1) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_ji'](index, a1);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_iijj(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iijj'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iij(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iij'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
 		var sp = stackSave();
 		try {
@@ -35088,32 +35161,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_v(index) {
-		var sp = stackSave();
-		try {
-			Module['dynCall_v'](index);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
 	function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
 		var sp = stackSave();
 		try {
 			return Module['dynCall_iiiiiii'](index, a1, a2, a3, a4, a5, a6);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vji(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			Module['dynCall_vji'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -35163,29 +35214,6 @@ export function init(RuntimeName, PHPLoader) {
 			if (e !== e + 0) throw e;
 			_setThrew(1, 0);
 			return 0n;
-		}
-	}
-
-	function invoke_jii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return Module['dynCall_jii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_iij(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return Module['dynCall_iij'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
 		}
 	}
 
@@ -35384,6 +35412,15 @@ export function init(RuntimeName, PHPLoader) {
 			return originalHashAddNode.apply(FS, arguments);
 		};
 	}
+
+	/**
+	 * Expose the PHP version so the PHP class can make version-specific
+	 * adjustments to `php.ini`.
+	 */
+	PHPLoader['phpVersion'] = (() => {
+		const [major, minor, patch] = phpVersionString.split('.').map(Number);
+		return { major, minor, patch };
+	})();
 
 	return PHPLoader;
 

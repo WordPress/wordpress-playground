@@ -8,7 +8,8 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_2_34', 'php_7_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29015588;
+export const dependenciesTotalSize = 29379158;
+const phpVersionString = '7.2.34';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 11378752;
+	var ___heap_base = 12423744;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -994,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15750,
+		initial: 15851,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1853,13 +1854,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 11378752;
+	var ___stack_high = 12423744;
 
-	var ___stack_low = 11313216;
+	var ___stack_low = 11375168;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		11378752
+		12423744
 	);
 
 	var PATH = {
@@ -3912,10 +3913,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -17742,10 +17739,6 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[iov >> 2] = buffer; // iov_base
 				HEAPU32[(iov + 4) >> 2] = CHUNK_SIZE; // iov_len
 
-				if (typeof js_fd_read === 'undefined') {
-					globalThis.js_fd_read = __asyncjs__js_fd_read;
-				}
-
 				function pump() {
 					try {
 						while (true) {
@@ -19599,7 +19592,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 65536;
+	var STACK_SIZE = 1048576;
 
 	var STACK_ALIGN = 16;
 
@@ -31815,13 +31808,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		10384966: ($0) => {
+		10409421: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10385014: ($0) => {
+		10409469: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31943,6 +31936,9 @@ export function init(RuntimeName, PHPLoader) {
 						while (true) {
 							var mask = POLLNVAL;
 							mask = SYSCALLS.DEFAULT_POLLMASK;
+							if (FS.isClosed(stream)) {
+								return ERRNO_CODES.EBADF;
+							}
 							if (stream.stream_ops?.poll) {
 								mask = stream.stream_ops.poll(stream, -1);
 							}
@@ -34816,6 +34812,11 @@ export function init(RuntimeName, PHPLoader) {
 			a0,
 			a1
 		));
+	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
+		(_initgroups = Module['_initgroups'] = wasmExports['initgroups'])(
+			a0,
+			a1
+		));
 	var _memcpy = (a0, a1, a2) => (_memcpy = wasmExports['memcpy'])(a0, a1, a2);
 	var ___funcs_on_exit = () =>
 		(___funcs_on_exit = wasmExports['__funcs_on_exit'])();
@@ -35031,6 +35032,40 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_vji(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_vji'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_jii(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_jii'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_v(index) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_v'](index);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
 		var sp = stackSave();
 		try {
@@ -35084,32 +35119,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_v(index) {
-		var sp = stackSave();
-		try {
-			Module['dynCall_v'](index);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
 	function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
 		var sp = stackSave();
 		try {
 			return Module['dynCall_iiiiiii'](index, a1, a2, a3, a4, a5, a6);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vji(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			Module['dynCall_vji'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -35154,18 +35167,6 @@ export function init(RuntimeName, PHPLoader) {
 		var sp = stackSave();
 		try {
 			return Module['dynCall_jiii'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_jii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return Module['dynCall_jii'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -35358,6 +35359,15 @@ export function init(RuntimeName, PHPLoader) {
 			return originalHashAddNode.apply(FS, arguments);
 		};
 	}
+
+	/**
+	 * Expose the PHP version so the PHP class can make version-specific
+	 * adjustments to `php.ini`.
+	 */
+	PHPLoader['phpVersion'] = (() => {
+		const [major, minor, patch] = phpVersionString.split('.').map(Number);
+		return { major, minor, patch };
+	})();
 
 	return PHPLoader;
 

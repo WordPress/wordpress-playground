@@ -235,6 +235,9 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 					while (true) {
 						var mask = POLLNVAL;
 						mask = SYSCALLS.DEFAULT_POLLMASK;
+						if (FS.isClosed(stream)) {
+							return ERRNO_CODES.EBADF;
+						}
 						if (stream.stream_ops?.poll) {
 							mask = stream.stream_ops.poll(stream, -1);
 						}
@@ -2005,4 +2008,15 @@ EMSCRIPTEN_KEEPALIVE void wasm_trace(const char *fmt, ...) {
 
 	char traceBuf[1024];
 	js_wasm_trace(traceBuf);
+}
+
+/**
+ * Function: initgroups
+ * ----------------------------
+ *   Dummy implementation of initgroups() since it's not needed in WASM environment.
+ *   Used by ZendAccelerator.
+ *   Always returns success (0).
+ */
+EMSCRIPTEN_KEEPALIVE int initgroups(const char *user, gid_t group) {
+	return 0;
 }
