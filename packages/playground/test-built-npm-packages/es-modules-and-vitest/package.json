@@ -19,6 +19,6 @@
 	},
 	"devDependencies": {
 		"@types/node": "^22.14.1",
-		"@wp-playground/cli": "https://wordpress-playground-packages.atomicsites.blog/packages/v1.0.36/@wp-playground-cli-1.0.36.tar.gz"
+		"@wp-playground/cli": "^1.2.3"
 	}
 }
