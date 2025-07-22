@@ -239,23 +239,22 @@ jobs:
                   nvm install 22;
                   cd $HOST_PATH
                   RUNNER_TRACKING_ID="" && ( \
-                    nohup python3 -c "
-                    import http.server
-                    import socketserver
-                    from urllib.parse import unquote
+                    nohup python3 -c "import http.server
+                  import socketserver
+                  from urllib.parse import unquote
 
-                    class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-                        def do_GET(self):
-                            if self.path.startswith('/${{ env.VERSION }}/'):
-                                self.path = self.path[len('/${{ env.VERSION }}'):]
-                            elif self.path == '/${{ env.VERSION }}':
-                                self.path = '/'
-                            super().do_GET()
+                  class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+                      def do_GET(self):
+                          if self.path.startswith('/${{ env.VERSION }}/'):
+                              self.path = self.path[len('/${{ env.VERSION }}'):]
+                          elif self.path == '/${{ env.VERSION }}':
+                              self.path = '/'
+                          super().do_GET()
 
-                    with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
-                        httpd.serve_forever()
-                    "
-                    );
+                  with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
+                      httpd.serve_forever()
+                  "
+                  );
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do
