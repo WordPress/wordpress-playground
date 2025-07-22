@@ -51,9 +51,11 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/php-wasm/xdebug-bridge"
+			],
 			"options": {
-				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/xdebug-bridge",
 				"testFiles": []
 			}
 		},

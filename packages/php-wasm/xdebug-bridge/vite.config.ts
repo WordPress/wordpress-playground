@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
@@ -26,7 +27,15 @@ export default defineConfig({
 		sourcemap: true,
 		target: 'node20',
 	},
+	test: {
+		globals: true,
+		cache: {
+			dir: '../../../node_modules/.vitest',
+		},
+		environment: 'node',
+		reporters: ['default'],
+	},
 	define: {
 		'import.meta.vitest': undefined,
 	},
-}); 
+});
