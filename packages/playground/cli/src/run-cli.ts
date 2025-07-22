@@ -342,7 +342,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
-	let isSecondRequest = false;
 
 	logger.log('Starting a PHP server...');
 
@@ -545,7 +544,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// assume they don't have to auto-login again.
 			if (isFirstRequest) {
 				isFirstRequest = false;
-				isSecondRequest = true;
 				const headers: Record<string, string[]> = {
 					'Content-Type': ['text/plain'],
 					'Content-Length': ['0'],
