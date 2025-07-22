@@ -12,6 +12,7 @@ interface CLIArgs {
 }
 
 function printHelp(): void {
+	// eslint-ignore-next-line
 	console.log(`
 XDebug Bridge Server CLI
 
@@ -63,7 +64,9 @@ function parseCliArgs(): CLIArgs {
 
 		if (values.protocol) {
 			if (values.protocol !== 'cdp' && values.protocol !== 'dap') {
-				throw new Error(`Invalid protocol: ${values.protocol}. Must be 'cdp' or 'dap'.`);
+				throw new Error(
+					`Invalid protocol: ${values.protocol}. Must be 'cdp' or 'dap'.`
+				);
 			}
 			args.protocol = values.protocol as 'cdp' | 'dap';
 		}
@@ -71,7 +74,9 @@ function parseCliArgs(): CLIArgs {
 		if (values.port) {
 			const port = parseInt(values.port, 10);
 			if (isNaN(port) || port < 1 || port > 65535) {
-				throw new Error(`Invalid port: ${values.port}. Must be a number between 1 and 65535.`);
+				throw new Error(
+					`Invalid port: ${values.port}. Must be a number between 1 and 65535.`
+				);
 			}
 			args.port = port;
 		}
@@ -90,7 +95,11 @@ function parseCliArgs(): CLIArgs {
 
 		return args;
 	} catch (error) {
-		console.error(`Error parsing arguments: ${error instanceof Error ? error.message : String(error)}`);
+		console.error(
+			`Error parsing arguments: ${
+				error instanceof Error ? error.message : String(error)
+			}`
+		);
 		process.exit(1);
 	}
 }
@@ -110,19 +119,26 @@ async function main(): Promise<void> {
 		verbose: args.verbose ?? true, // CLI defaults to verbose
 	};
 
+	// eslint-ignore-next-line
 	console.log('Starting XDebug Bridge Server...');
-	
+
 	const server = startXDebugBridge(config);
 
 	// Handle graceful shutdown
 	const shutdown = async (signal: string) => {
+		// eslint-ignore-next-line
 		console.log(`\nReceived ${signal}, shutting down gracefully...`);
 		try {
 			await server.stop();
+			// eslint-ignore-next-line
 			console.log('XDebug Bridge Server stopped.');
 			process.exit(0);
 		} catch (error) {
-			console.error(`Error during shutdown: ${error instanceof Error ? error.message : String(error)}`);
+			console.error(
+				`Error during shutdown: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
 			process.exit(1);
 		}
 	};
@@ -133,22 +149,32 @@ async function main(): Promise<void> {
 	// Start the server
 	try {
 		await server.start();
-		
+
 		const port = server.getPort();
 		const host = server.getHost();
-		
+
+		// eslint-ignore-next-line
 		console.log(`✅ XDebug Bridge Server is running on ${host}:${port}`);
+		// eslint-ignore-next-line
 		console.log(`📡 Protocol: ${config.protocol || 'cdp'}`);
+		// eslint-ignore-next-line
 		console.log('🔍 Waiting for XDebug connections...');
+		// eslint-ignore-next-line
 		console.log('Press Ctrl+C to stop the server');
 
 		// Set up event listeners for connection activity
 		server.on('connection', (socket) => {
-			console.log(`🔗 New XDebug connection established from ${socket.remoteAddress}:${socket.remotePort}`);
+			// eslint-ignore-next-line
+			console.log(
+				`🔗 New XDebug connection established from ${socket.remoteAddress}:${socket.remotePort}`
+			);
 		});
 
 		server.on('disconnection', (socket) => {
-			console.log(`❌ XDebug connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
+			// eslint-ignore-next-line
+			console.log(
+				`❌ XDebug connection closed from ${socket.remoteAddress}:${socket.remotePort}`
+			);
 		});
 
 		server.on('error', (error) => {
@@ -156,11 +182,16 @@ async function main(): Promise<void> {
 		});
 
 		server.on('socketError', ({ socket, error }) => {
-			console.error(`❌ Socket error from ${socket.remoteAddress}:${socket.remotePort}: ${error.message}`);
+			console.error(
+				`❌ Socket error from ${socket.remoteAddress}:${socket.remotePort}: ${error.message}`
+			);
 		});
-
 	} catch (error) {
-		console.error(`❌ Failed to start XDebug Bridge Server: ${error instanceof Error ? error.message : String(error)}`);
+		console.error(
+			`❌ Failed to start XDebug Bridge Server: ${
+				error instanceof Error ? error.message : String(error)
+			}`
+		);
 		process.exit(1);
 	}
 }
@@ -168,7 +199,11 @@ async function main(): Promise<void> {
 // Only run if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
 	main().catch((error) => {
-		console.error(`❌ Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+		console.error(
+			`❌ Unexpected error: ${
+				error instanceof Error ? error.message : String(error)
+			}`
+		);
 		process.exit(1);
 	});
-} 
+}
