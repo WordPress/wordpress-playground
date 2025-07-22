@@ -27,6 +27,7 @@ export default defineConfig({
 				'util',
 				'dns',
 				'ws',
+				'os',
 			],
 			input: 'packages/php-wasm/cli/src/main.ts',
 			output: {
@@ -44,5 +45,9 @@ export default defineConfig({
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
+	},
+
+	define: {
+		'process.env': 'process.env',
 	},
 });

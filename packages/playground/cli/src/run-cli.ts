@@ -28,24 +28,31 @@ import {
 import fs from 'fs';
 import type { Server } from 'http';
 import path from 'path';
-import { Worker, MessageChannel } from 'worker_threads';
+import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import {
-	expandAutoMounts,
-	parseMountDirArguments,
-	parseMountWithDelimiterArguments,
-} from './mounts';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
 	fetchSqliteIntegration,
 	readAsFile,
 } from './download';
+import {
+	expandAutoMounts,
+	parseMountDirArguments,
+	parseMountWithDelimiterArguments,
+} from './mounts';
 import { startServer } from './server';
-import type { Mount, PlaygroundCliWorker } from './worker-thread';
+import type { Mount, PlaygroundCliBlueprintV1Worker } from './worker-thread';
+import type {
+	PlaygroundCliBlueprintV2Worker,
+	WorkerBootArgs,
+} from './worker-thread-v2';
 // @ts-ignore
-import importedWorkerUrlString from './worker-thread?worker&url';
+import importedWorkerV1UrlString from './worker-thread?worker&url';
+// @ts-ignore
+import importedWorkerV2UrlString from './worker-thread-v2?worker&url';
+
 // @ts-ignore
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
@@ -56,7 +63,6 @@ import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-import { ReportableError } from './reportable-error';
 import { resolveBlueprint } from './resolve-blueprint';
 
 export async function parseOptionsAndRunCLI() {
@@ -189,6 +195,11 @@ export async function parseOptionsAndRunCLI() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('xdebug', {
+			describe: 'Enable Xdebug.',
+			type: 'boolean',
+			default: false,
+		})
 		// TODO: Should we make this a hidden flag?
 		.option('experimentalMultiWorker', {
 			describe:
@@ -198,6 +209,13 @@ export async function parseOptionsAndRunCLI() {
 				'Otherwise, default to the number of CPUs minus 1.',
 			type: 'number',
 			coerce: (value?: number) => value ?? cpus().length - 1,
+		})
+		.option('experimental-blueprint-v2', {
+			describe: 'Use the experimental Blueprint V2 runner.',
+			type: 'boolean',
+			default: false,
+			// Remove the "hidden" flag once Blueprint V2 is fully supported
+			hidden: true,
 		})
 		.showHelpOnFail(false)
 		.check(async (args) => {
@@ -228,7 +246,8 @@ export async function parseOptionsAndRunCLI() {
 					)
 				) {
 					throw new Error(
-						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag.'
+						'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag. For example: ' +
+							'--mount-dir-before-install ./empty-dir /wordpress'
 					);
 				}
 			}
@@ -248,10 +267,6 @@ export async function parseOptionsAndRunCLI() {
 	const cliArgs = {
 		...args,
 		command,
-		blueprint: await resolveBlueprint({
-			sourceString: args.blueprint,
-			blueprintMayReadAdjacentFiles: args.blueprintMayReadAdjacentFiles,
-		}),
 		mount: [...(args.mount || []), ...(args['mount-dir'] || [])],
 		'mount-before-install': [
 			...(args['mount-before-install'] || []),
@@ -259,18 +274,7 @@ export async function parseOptionsAndRunCLI() {
 		],
 	} as RunCLIArgs;
 
-	try {
-		return runCLI(cliArgs);
-	} catch (e) {
-		const reportableCause = ReportableError.getReportableCause(e);
-		if (reportableCause) {
-			console.log('');
-			console.log(reportableCause.message);
-			process.exit(1);
-		} else {
-			throw e;
-		}
-	}
+	return runCLI(cliArgs);
 }
 
 export interface RunCLIArgs {
@@ -284,16 +288,37 @@ export interface RunCLIArgs {
 	php?: SupportedPHPVersion;
 	port?: number;
 	quiet?: boolean;
-	skipWordPressSetup?: boolean;
-	skipSqliteSetup?: boolean;
 	wp?: string;
 	autoMount?: boolean;
-	followSymlinks?: boolean;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
+	exitOnPrimaryWorkerCrash?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
+	xdebug?: boolean;
+	'experimental-blueprints-v2-runner'?: boolean;
+
+	// --------- Blueprint V1 args -----------
+	skipWordPressSetup?: boolean;
+	skipSqliteSetup?: boolean;
+	followSymlinks?: boolean;
+	'blueprint-may-read-adjacent-files'?: boolean;
+
+	// --------- Blueprint V2 args (not available via CLI yet) -----------
+	mode?: 'mount-only' | 'create-new-site' | 'apply-to-existing-site';
+	'db-engine'?: 'sqlite' | 'mysql';
+	'db-host'?: string;
+	'db-user'?: string;
+	'db-pass'?: string;
+	'db-name'?: string;
+	'db-path'?: string;
+	'truncate-new-site-directory'?: boolean;
+	allow?: string;
 }
+
+type PlaygroundCliWorker =
+	| PlaygroundCliBlueprintV1Worker
+	| PlaygroundCliBlueprintV2Worker;
 
 export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
@@ -318,174 +343,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		args = expandAutoMounts(args);
 	}
 
-	/**
-	 * TODO: This exact feature will be provided in the PHP Blueprints library.
-	 *       Let's use it when it ships. Let's also use it in the web Playground
-	 *       app.
-	 */
-	async function zipSite(outfile: string) {
-		await playground.run({
-			code: `<?php
-			$zip = new ZipArchive();
-			if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
-				throw new Exception('Failed to create ZIP');
-			}
-			$files = new RecursiveIteratorIterator(
-				new RecursiveDirectoryIterator('/wordpress')
-			);
-			foreach ($files as $file) {
-				echo $file . PHP_EOL;
-				if (!$file->isFile()) {
-					continue;
-				}
-				$zip->addFile($file->getPathname(), $file->getPathname());
-			}
-			$zip->close();
-
-		`,
-		});
-		const zip = await playground.readFileAsBuffer('/tmp/build.zip');
-		fs.writeFileSync(outfile, zip);
-	}
-
-	async function compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		const blueprint: BlueprintDeclaration | BlueprintBundle =
-			isBlueprintBundle(args.blueprint)
-				? args.blueprint
-				: {
-						login: args.login,
-						...args.blueprint,
-						preferredVersions: {
-							php:
-								args.php ??
-								args?.blueprint?.preferredVersions?.php ??
-								RecommendedPHPVersion,
-							wp:
-								args.wp ??
-								args?.blueprint?.preferredVersions?.wp ??
-								'latest',
-							...(args.blueprint?.preferredVersions || {}),
-						},
-				  };
-
-		const tracker = new ProgressTracker();
-		let lastCaption = '';
-		let progressReached100 = false;
-		tracker.addEventListener('progress', (e: any) => {
-			if (progressReached100) {
-				return;
-			}
-			progressReached100 = e.detail.progress === 100;
-
-			// Use floor() so we don't report 100% until truly there.
-			const progressInteger = Math.floor(e.detail.progress);
-			lastCaption =
-				e.detail.caption || lastCaption || 'Running the Blueprint';
-			const message = `${lastCaption.trim()} – ${progressInteger}%`;
-			if (!args.quiet) {
-				writeProgressUpdate(
-					process.stdout,
-					message,
-					progressReached100
-				);
-			}
-		});
-		return await compileBlueprint(blueprint as BlueprintDeclaration, {
-			progress: tracker,
-			additionalSteps: additionalBlueprintSteps,
-		});
-	}
-
-	let lastProgressMessage = '';
-	function writeProgressUpdate(
-		writeStream: NodeJS.WriteStream,
-		message: string,
-		finalUpdate: boolean
-	) {
-		if (message === lastProgressMessage) {
-			// Avoid repeating the same message
-			return;
-		}
-		lastProgressMessage = message;
-
-		if (writeStream.isTTY) {
-			// Overwrite previous progress updates in-place for a quieter UX.
-			writeStream.cursorTo(0);
-			writeStream.write(message);
-			writeStream.clearLine(1);
-
-			if (finalUpdate) {
-				writeStream.write('\n');
-			}
-		} else {
-			// Fall back to writing one line per progress update
-			writeStream.write(`${message}\n`);
-		}
-	}
-
-	/**
-	 * Spawns a new Worker Thread.
-	 *
-	 * @param  workerUrl The absolute URL of the worker script.
-	 * @returns The spawned Worker Thread.
-	 */
-	async function spawnPHPWorkerThread(workerUrl: URL) {
-		const worker = new Worker(workerUrl);
-
-		return new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
-			(resolve, reject) => {
-				worker.once('message', function (message: any) {
-					// Let the worker confirm it has initialized.
-					// We could use the 'online' event to detect start of JS execution,
-					// but that would miss initialization errors.
-					if (message.command === 'worker-script-initialized') {
-						resolve({ worker, phpPort: message.phpPort });
-					}
-				});
-				worker.once('error', function (e: Error) {
-					console.error(e);
-					const error = new Error(
-						`Worker failed to load at ${workerUrl}. ${
-							e.message ? `Original error: ${e.message}` : ''
-						}`
-					);
-					(error as any).filename = workerUrl;
-					reject(error);
-				});
-			}
-		);
-	}
-
-	function spawnWorkerThreads(
-		count: number
-	): Promise<{ worker: Worker; phpPort: NodeMessagePort }[]> {
-		const moduleWorkerUrl = new URL(
-			importedWorkerUrlString,
-			import.meta.url
-		);
-
-		const promises = [];
-		for (let i = 0; i < count; i++) {
-			promises.push(spawnPHPWorkerThread(moduleWorkerUrl));
-		}
-		return Promise.all(promises);
-	}
-
 	if (args.quiet) {
 		// @ts-ignore
 		logger.handlers = [];
 	}
-
-	const compiledBlueprint = await compileInputBlueprint(
-		args['additional-blueprint-steps'] || []
-	);
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
@@ -501,36 +362,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		});
 	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
 
-	/**
-	 * Expose the file lock manager API on a MessagePort and return it.
-	 *
-	 * @see comlink-sync.ts
-	 * @see phpwasm-emscripten-library-file-locking-for-node.js
-	 */
-	async function exposeFileLockManager() {
-		const { port1, port2 } = new MessageChannel();
-		if (await jspi()) {
-			/**
-			 * When JSPI is available, the worker thread expects an asynchronous API.
-			 *
-			 * @see worker-thread.ts
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			exposeAPI(fileLockManager, null, port1);
-		} else {
-			/**
-			 * When JSPI is not available, the worker thread expects a synchronous API.
-			 *
-			 * @see worker-thread.ts
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			await exposeSyncAPI(fileLockManager, port1);
-		}
-		return port2;
-	}
-
 	let wordPressReady = false;
 
 	logger.log('Starting a PHP server...');
@@ -540,150 +371,98 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
 
-			// Kick off worker threads now to save time later.
-			// There is no need to wait for other async processes to complete.
+			// Create the blueprints handler
 			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
-			const promisedWorkers = spawnWorkerThreads(totalWorkerCount);
+			const processIdSpaceLength = Math.floor(
+				Number.MAX_SAFE_INTEGER / totalWorkerCount
+			);
 
-			logger.log(`Setting up WordPress ${args.wp}`);
-			let wpDetails: any = undefined;
-			// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
-			// about that class anymore.
-			const monitor = new EmscriptenDownloadMonitor();
-			if (!args.skipWordPressSetup) {
-				let progressReached100 = false;
-				monitor.addEventListener('progress', ((
-					e: CustomEvent<ProgressEvent & { finished: boolean }>
-				) => {
-					if (progressReached100) {
-						return;
-					}
+			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
+			if (args['experimental-blueprints-v2-runner']) {
+				handler = new BlueprintsV2Handler(args, {
+					siteUrl: absoluteUrl,
+					processIdSpaceLength,
+				});
+			} else {
+				handler = new BlueprintsV1Handler(args, {
+					siteUrl: absoluteUrl,
+					processIdSpaceLength,
+				});
 
-					// @TODO Every progress bar will want percentages. The
-					//       download monitor should just provide that.
-					const { loaded, total } = e.detail;
-					// Use floor() so we don't report 100% until truly there.
-					const percentProgress = Math.floor(
-						Math.min(100, (100 * loaded) / total)
-					);
-					progressReached100 = percentProgress === 100;
-
-					if (!args.quiet) {
-						writeProgressUpdate(
-							process.stdout,
-							`Downloading WordPress ${percentProgress}%...`,
-							progressReached100
-						);
-					}
-				}) as any);
-
-				wpDetails = await resolveWordPressRelease(args.wp);
-				logger.log(
-					`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-				);
+				if (typeof args.blueprint === 'string') {
+					args.blueprint = await resolveBlueprint({
+						sourceString: args.blueprint,
+						blueprintMayReadAdjacentFiles:
+							args['blueprint-may-read-adjacent-files'] === true,
+					});
+				}
 			}
 
-			const preinstalledWpContentPath =
-				wpDetails &&
-				path.join(
-					CACHE_FOLDER,
-					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-				);
-			const wordPressZip = !wpDetails
-				? undefined
-				: fs.existsSync(preinstalledWpContentPath)
-				? readAsFile(preinstalledWpContentPath)
-				: await cachedDownload(
-						wpDetails.releaseUrl,
-						`${wpDetails.version}.zip`,
-						monitor
-				  );
+			// Kick off worker threads now to save time later.
+			// There is no need to wait for other async processes to complete.
+			const promisedWorkers = spawnWorkerThreads(
+				handler.getWorkerUrl(),
+				totalWorkerCount,
+				({ exitCode, isMain, workerIndex }) => {
+					if (exitCode === 0) {
+						return;
+					}
+					logger.error(
+						`Worker ${workerIndex} exited with code ${exitCode}\n`
+					);
+					// If the primary worker crashes, exit the entire process.
+					if (!isMain) {
+						return;
+					}
+					if (!args.exitOnPrimaryWorkerCrash) {
+						return;
+					}
+					process.exit(1);
+				}
+			);
 
-			logger.log(`Fetching SQLite integration plugin...`);
-			const sqliteIntegrationPluginZip = args.skipSqliteSetup
-				? undefined
-				: await fetchSqliteIntegration(monitor);
+			logger.log(`Setting up WordPress ${args.wp}`);
 
-			const followSymlinks = args.followSymlinks === true;
-			const trace = args.experimentalTrace === true;
 			try {
-				const mountsBeforeWpInstall =
-					args['mount-before-install'] || [];
-				const mountsAfterWpInstall = args.mount || [];
-
 				const [initialWorker, ...additionalWorkers] =
 					await promisedWorkers;
 
-				playground = consumeAPI<PlaygroundCliWorker>(
-					initialWorker.phpPort
+				const fileLockManagerPort = await exposeFileLockManager(
+					fileLockManager
+				);
+
+				// Boot the primary worker using the handler
+				playground = await handler.bootPrimaryWorker(
+					initialWorker.phpPort,
+					fileLockManagerPort
 				);
 				playgroundsToCleanUp.push({
 					playground,
 					worker: initialWorker.worker,
 				});
 
-				// Comlink communication proxy
-				await playground.isConnected();
-
-				const fileLockManagerPort = await exposeFileLockManager();
-
-				logger.log(`Booting WordPress...`);
-
-				// Each additional worker needs a separate process ID space
-				// for file locking to work properly because locks are associated
-				// with individual processes. To accommodate this, we split the safe
-				// integers into a range for each worker.
-				const processIdSpaceLength = Math.floor(
-					Number.MAX_SAFE_INTEGER / totalWorkerCount
-				);
-
-				await playground.useFileLockManager(fileLockManagerPort);
-				await playground.boot({
-					phpVersion: compiledBlueprint.versions.php,
-					wpVersion: compiledBlueprint.versions.wp,
-					absoluteUrl,
-					mountsBeforeWpInstall,
-					mountsAfterWpInstall,
-					wordPressZip:
-						wordPressZip && (await wordPressZip!.arrayBuffer()),
-					sqliteIntegrationPluginZip:
-						await sqliteIntegrationPluginZip!.arrayBuffer(),
-					firstProcessId: 0,
-					processIdSpaceLength,
-					followSymlinks,
-					trace,
-					internalCookieStore: args.internalCookieStore,
-				});
-
-				if (
-					wpDetails &&
-					!args['mount-before-install'] &&
-					!fs.existsSync(preinstalledWpContentPath)
-				) {
-					logger.log(
-						`Caching preinstalled WordPress for the next boot...`
-					);
-					fs.writeFileSync(
-						preinstalledWpContentPath,
-						await zipDirectory(playground, '/wordpress')
-					);
-					logger.log(`Cached!`);
-				}
-
-				loadBalancer = new LoadBalancer(playground);
-
 				await playground.isReady();
 				wordPressReady = true;
 				logger.log(`Booted!`);
 
-				if (compiledBlueprint) {
-					logger.log(`Running the Blueprint...`);
-					await runBlueprintSteps(compiledBlueprint, playground);
-					logger.log(`Finished running the blueprint`);
+				loadBalancer = new LoadBalancer(playground);
+
+				if (!args['experimental-blueprints-v2-runner']) {
+					const compiledBlueprint = await (
+						handler as BlueprintsV1Handler
+					).compileInputBlueprint(
+						args['additional-blueprint-steps'] || []
+					);
+
+					if (compiledBlueprint) {
+						logger.log(`Running the Blueprint...`);
+						await runBlueprintSteps(compiledBlueprint, playground);
+						logger.log(`Finished running the blueprint`);
+					}
 				}
 
 				if (args.command === 'build-snapshot') {
-					await zipSite(args.outfile as string);
+					await zipSite(playground, args.outfile as string);
 					logger.log(`WordPress exported to ${args.outfile}`);
 					process.exit(0);
 				} else if (args.command === 'run-blueprint') {
@@ -704,48 +483,28 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						'/internal'
 					);
 
-					// Boot additional workers
+					// Boot additional workers using the handler
 					const initialWorkerProcessIdSpace = processIdSpaceLength;
 					await Promise.all(
 						additionalWorkers.map(async (worker, index) => {
-							const additionalPlayground =
-								consumeAPI<PlaygroundCliWorker>(worker.phpPort);
-							playgroundsToCleanUp.push({
-								playground: additionalPlayground,
-								worker: worker.worker,
-							});
-
-							await additionalPlayground.isConnected();
-
 							const firstProcessId =
 								initialWorkerProcessIdSpace +
 								index * processIdSpaceLength;
 
 							const fileLockManagerPort =
-								await exposeFileLockManager();
-							await additionalPlayground.useFileLockManager(
-								fileLockManagerPort
-							);
-							await additionalPlayground.boot({
-								phpVersion: compiledBlueprint.versions.php,
-								absoluteUrl,
-								mountsBeforeWpInstall,
-								mountsAfterWpInstall,
-								// Skip WordPress zip because we share the /wordpress directory
-								// populated by the initial worker.
-								wordPressZip: undefined,
-								// Skip SQLite integration plugin for now because we
-								// will copy it from primary's `/internal` directory.
-								sqliteIntegrationPluginZip: undefined,
-								dataSqlPath:
-									'/wordpress/wp-content/database/.ht.sqlite',
-								firstProcessId,
-								processIdSpaceLength,
-								followSymlinks,
-								trace,
-								internalCookieStore: args.internalCookieStore,
+								await exposeFileLockManager(fileLockManager);
+
+							const additionalPlayground =
+								await handler.bootSecondaryWorker({
+									worker,
+									fileLockManagerPort,
+									firstProcessId,
+								});
+
+							playgroundsToCleanUp.push({
+								playground: additionalPlayground,
+								worker: worker.worker,
 							});
-							await additionalPlayground.isReady();
 
 							// Replicate the Blueprint-initialized /internal directory
 							await additionalPlayground.writeFile(
@@ -803,4 +562,494 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			return await loadBalancer.handleRequest(request);
 		},
 	});
+}
+
+/**
+ * Boots Playground CLI workers using Blueprint version 2.
+ *
+ * Progress tracking, downloads, steps, and all other features are
+ * implemented in PHP and orchestrated by the worker thread.
+ */
+class BlueprintsV2Handler {
+	private phpVersion: SupportedPHPVersion;
+	private lastProgressMessage = '';
+
+	private siteUrl: string;
+	private processIdSpaceLength: number;
+	private args: RunCLIArgs;
+
+	constructor(
+		args: RunCLIArgs,
+		options: {
+			siteUrl: string;
+			processIdSpaceLength: number;
+		}
+	) {
+		this.args = args;
+		this.siteUrl = options.siteUrl;
+		this.processIdSpaceLength = options.processIdSpaceLength;
+		this.phpVersion = args.php as SupportedPHPVersion;
+	}
+
+	getWorkerUrl() {
+		return importedWorkerV2UrlString;
+	}
+
+	async bootPrimaryWorker(
+		phpPort: NodeMessagePort,
+		fileLockManagerPort: NodeMessagePort
+	) {
+		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
+			consumeAPI(phpPort);
+
+		await playground.useFileLockManager(fileLockManagerPort);
+
+		const workerBootArgs = {
+			...this.args,
+			php: this.phpVersion,
+			siteUrl: this.siteUrl,
+			firstProcessId: 1,
+			processIdSpaceLength: this.processIdSpaceLength,
+			trace: this.args.debug || false,
+			blueprint: this.args.blueprint!,
+		};
+
+		await playground.bootAsPrimaryWorker(workerBootArgs);
+		return playground;
+	}
+
+	async bootSecondaryWorker({
+		worker,
+		fileLockManagerPort,
+		firstProcessId,
+	}: {
+		worker: SpawnedWorker;
+		fileLockManagerPort: NodeMessagePort;
+		firstProcessId: number;
+	}) {
+		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
+			consumeAPI(worker.phpPort);
+
+		await playground.useFileLockManager(fileLockManagerPort);
+
+		const workerBootArgs: WorkerBootArgs = {
+			...this.args,
+			php: this.phpVersion!,
+			siteUrl: this.siteUrl,
+			firstProcessId,
+			processIdSpaceLength: this.processIdSpaceLength,
+			trace: this.args.debug || false,
+			blueprint: this.args.blueprint!,
+		};
+
+		await playground.bootAsSecondaryWorker(workerBootArgs);
+
+		return playground;
+	}
+
+	writeProgressUpdate(
+		writeStream: NodeJS.WriteStream,
+		message: string,
+		finalUpdate: boolean
+	) {
+		if (message === this.lastProgressMessage) {
+			// Avoid repeating the same message
+			return;
+		}
+		this.lastProgressMessage = message;
+
+		if (writeStream.isTTY) {
+			// Overwrite previous progress updates in-place for a quieter UX.
+			writeStream.cursorTo(0);
+			writeStream.write(message);
+			writeStream.clearLine(1);
+
+			if (finalUpdate) {
+				writeStream.write('\n');
+			}
+		} else {
+			// Fall back to writing one line per progress update
+			writeStream.write(`${message}\n`);
+		}
+	}
+}
+
+/**
+ * Boots Playground CLI workers using Blueprint version 1.
+ *
+ * Progress tracking, downloads, steps, and all other features are
+ * implemented in TypeScript and orchestrated by this class.
+ */
+class BlueprintsV1Handler {
+	private phpVersion: SupportedPHPVersion | undefined;
+	private lastProgressMessage = '';
+
+	private siteUrl: string;
+	private processIdSpaceLength: number;
+	private args: RunCLIArgs;
+
+	constructor(
+		args: RunCLIArgs,
+		options: {
+			siteUrl: string;
+			processIdSpaceLength: number;
+		}
+	) {
+		this.args = args;
+		this.siteUrl = options.siteUrl;
+		this.processIdSpaceLength = options.processIdSpaceLength;
+	}
+
+	getWorkerUrl() {
+		return importedWorkerV1UrlString;
+	}
+
+	async bootPrimaryWorker(
+		phpPort: NodeMessagePort,
+		fileLockManagerPort: NodeMessagePort
+	) {
+		const compiledBlueprint = await this.compileInputBlueprint(
+			this.args['additional-blueprint-steps'] || []
+		);
+		this.phpVersion = compiledBlueprint.versions.php;
+
+		let wpDetails: any = undefined;
+		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
+		// about that class anymore.
+		const monitor = new EmscriptenDownloadMonitor();
+		if (!this.args.skipWordPressSetup) {
+			let progressReached100 = false;
+			monitor.addEventListener('progress', ((
+				e: CustomEvent<ProgressEvent & { finished: boolean }>
+			) => {
+				if (progressReached100) {
+					return;
+				}
+
+				// @TODO Every progress bar will want percentages. The
+				//       download monitor should just provide that.
+				const { loaded, total } = e.detail;
+				// Use floor() so we don't report 100% until truly there.
+				const percentProgress = Math.floor(
+					Math.min(100, (100 * loaded) / total)
+				);
+				progressReached100 = percentProgress === 100;
+
+				if (!this.args.quiet) {
+					this.writeProgressUpdate(
+						process.stdout,
+						`Downloading WordPress ${percentProgress}%...`,
+						progressReached100
+					);
+				}
+			}) as any);
+
+			wpDetails = await resolveWordPressRelease(this.args.wp);
+			logger.log(
+				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+			);
+		}
+
+		const preinstalledWpContentPath =
+			wpDetails &&
+			path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+		const wordPressZip = !wpDetails
+			? undefined
+			: fs.existsSync(preinstalledWpContentPath)
+			? readAsFile(preinstalledWpContentPath)
+			: await cachedDownload(
+					wpDetails.releaseUrl,
+					`${wpDetails.version}.zip`,
+					monitor
+			  );
+
+		logger.log(`Fetching SQLite integration plugin...`);
+		const sqliteIntegrationPluginZip = this.args.skipSqliteSetup
+			? undefined
+			: await fetchSqliteIntegration(monitor);
+
+		const followSymlinks = this.args.followSymlinks === true;
+		const trace = this.args.experimentalTrace === true;
+
+		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
+		const mountsAfterWpInstall = this.args.mount || [];
+
+		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(phpPort);
+
+		// Comlink communication proxy
+		await playground.isConnected();
+
+		logger.log(`Booting WordPress...`);
+
+		await playground.useFileLockManager(fileLockManagerPort);
+		await playground.bootAsPrimaryWorker({
+			phpVersion: this.phpVersion,
+			wpVersion: compiledBlueprint.versions.wp,
+			absoluteUrl: this.siteUrl,
+			mountsBeforeWpInstall,
+			mountsAfterWpInstall,
+			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
+			sqliteIntegrationPluginZip:
+				await sqliteIntegrationPluginZip!.arrayBuffer(),
+			firstProcessId: 0,
+			processIdSpaceLength: this.processIdSpaceLength,
+			followSymlinks,
+			trace,
+			internalCookieStore: this.args.internalCookieStore,
+			withXdebug: this.args.xdebug,
+		});
+
+		if (
+			wpDetails &&
+			!this.args['mount-before-install'] &&
+			!fs.existsSync(preinstalledWpContentPath)
+		) {
+			logger.log(`Caching preinstalled WordPress for the next boot...`);
+			fs.writeFileSync(
+				preinstalledWpContentPath,
+				(await zipDirectory(playground, '/wordpress'))!
+			);
+			logger.log(`Cached!`);
+		}
+
+		return playground;
+	}
+
+	async bootSecondaryWorker({
+		worker,
+		fileLockManagerPort,
+		firstProcessId,
+	}: {
+		worker: SpawnedWorker;
+		fileLockManagerPort: NodeMessagePort;
+		firstProcessId: number;
+	}) {
+		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
+			worker.phpPort
+		);
+
+		await additionalPlayground.isConnected();
+		await additionalPlayground.useFileLockManager(fileLockManagerPort);
+		await additionalPlayground.bootAsSecondaryWorker({
+			phpVersion: this.phpVersion,
+			absoluteUrl: this.siteUrl,
+			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
+			mountsAfterWpInstall: this.args['mount'] || [],
+			// Skip WordPress zip because we share the /wordpress directory
+			// populated by the initial worker.
+			wordPressZip: undefined,
+			// Skip SQLite integration plugin for now because we
+			// will copy it from primary's `/internal` directory.
+			sqliteIntegrationPluginZip: undefined,
+			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
+			firstProcessId,
+			processIdSpaceLength: this.processIdSpaceLength,
+			followSymlinks: this.args.followSymlinks === true,
+			trace: this.args.experimentalTrace === true,
+			// @TODO: Move this to the request handler or else every worker
+			//        will have a separate cookie store.
+			internalCookieStore: this.args.internalCookieStore,
+			withXdebug: this.args.xdebug,
+		});
+		await additionalPlayground.isReady();
+		return additionalPlayground;
+	}
+
+	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
+		const args = this.args;
+		const resolvedBlueprint = args.blueprint as BlueprintDeclaration;
+		/**
+		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
+		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+		 *
+		 * 		 Also the Blueprint Builder tool does something similar.
+		 *       Perhaps all these cases could be handled by the same function?
+		 */
+		const blueprint: BlueprintDeclaration | BlueprintBundle =
+			isBlueprintBundle(resolvedBlueprint)
+				? resolvedBlueprint
+				: {
+						login: args.login,
+						...(resolvedBlueprint || {}),
+						preferredVersions: {
+							php:
+								args.php ??
+								resolvedBlueprint?.preferredVersions?.php ??
+								RecommendedPHPVersion,
+							wp:
+								args.wp ??
+								resolvedBlueprint?.preferredVersions?.wp ??
+								'latest',
+							...(resolvedBlueprint?.preferredVersions || {}),
+						},
+				  };
+
+		const tracker = new ProgressTracker();
+		let lastCaption = '';
+		let progressReached100 = false;
+		tracker.addEventListener('progress', (e: any) => {
+			if (progressReached100) {
+				return;
+			}
+			progressReached100 = e.detail.progress === 100;
+
+			// Use floor() so we don't report 100% until truly there.
+			const progressInteger = Math.floor(e.detail.progress);
+			lastCaption =
+				e.detail.caption || lastCaption || 'Running the Blueprint';
+			const message = `${lastCaption.trim()} – ${progressInteger}%`;
+			if (!args.quiet) {
+				this.writeProgressUpdate(
+					process.stdout,
+					message,
+					progressReached100
+				);
+			}
+		});
+		return await compileBlueprint(blueprint as BlueprintDeclaration, {
+			progress: tracker,
+			additionalSteps: additionalBlueprintSteps,
+		});
+	}
+
+	writeProgressUpdate(
+		writeStream: NodeJS.WriteStream,
+		message: string,
+		finalUpdate: boolean
+	) {
+		if (message === this.lastProgressMessage) {
+			// Avoid repeating the same message
+			return;
+		}
+		this.lastProgressMessage = message;
+
+		if (writeStream.isTTY) {
+			// Overwrite previous progress updates in-place for a quieter UX.
+			writeStream.cursorTo(0);
+			writeStream.write(message);
+			writeStream.clearLine(1);
+
+			if (finalUpdate) {
+				writeStream.write('\n');
+			}
+		} else {
+			// Fall back to writing one line per progress update
+			writeStream.write(`${message}\n`);
+		}
+	}
+}
+
+type SpawnedWorker = {
+	worker: Worker;
+	phpPort: NodeMessagePort;
+};
+function spawnWorkerThreads(
+	workerUrlString: string,
+	count: number,
+	onWorkerExit: (options: {
+		exitCode: number;
+		isMain: boolean;
+		workerIndex: number;
+	}) => void
+): Promise<SpawnedWorker[]> {
+	const moduleWorkerUrl = new URL(workerUrlString, import.meta.url);
+
+	const promises = [];
+	for (let i = 0; i < count; i++) {
+		const worker = new Worker(moduleWorkerUrl);
+		const onExit: (code: number) => void = (code: number) => {
+			onWorkerExit({
+				exitCode: code,
+				isMain: i === 0,
+				workerIndex: i,
+			});
+		};
+		promises.push(
+			new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
+				(resolve, reject) => {
+					worker.once('message', function (message: any) {
+						// Let the worker confirm it has initialized.
+						// We could use the 'online' event to detect start of JS execution,
+						// but that would miss initialization errors.
+						if (message.command === 'worker-script-initialized') {
+							resolve({ worker, phpPort: message.phpPort });
+						}
+					});
+					worker.once('error', function (e: Error) {
+						console.error(e);
+						const error = new Error(
+							`Worker failed to load at ${moduleWorkerUrl}. ${
+								e.message ? `Original error: ${e.message}` : ''
+							}`
+						);
+						(error as any).filename = moduleWorkerUrl;
+						reject(error);
+					});
+					worker.once('exit', onExit);
+				}
+			)
+		);
+	}
+	return Promise.all(promises);
+}
+
+/**
+ * Expose the file lock manager API on a MessagePort and return it.
+ *
+ * @see comlink-sync.ts
+ * @see phpwasm-emscripten-library-file-locking-for-node.js
+ */
+async function exposeFileLockManager(fileLockManager: FileLockManagerForNode) {
+	const { port1, port2 } = new NodeMessageChannel();
+	if (await jspi()) {
+		/**
+		 * When JSPI is available, the worker thread expects an asynchronous API.
+		 *
+		 * @see worker-thread.ts
+		 * @see comlink-sync.ts
+		 * @see phpwasm-emscripten-library-file-locking-for-node.js
+		 */
+		exposeAPI(fileLockManager, null, port1);
+	} else {
+		/**
+		 * When JSPI is not available, the worker thread expects a synchronous API.
+		 *
+		 * @see worker-thread.ts
+		 * @see comlink-sync.ts
+		 * @see phpwasm-emscripten-library-file-locking-for-node.js
+		 */
+		await exposeSyncAPI(fileLockManager, port1);
+	}
+	return port2;
+}
+
+async function zipSite(
+	playground: RemoteAPI<PlaygroundCliWorker>,
+	outfile: string
+) {
+	await playground.run({
+		code: `<?php
+		$zip = new ZipArchive();
+		if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
+			throw new Exception('Failed to create ZIP');
+		}
+		$files = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator('/wordpress')
+		);
+		foreach ($files as $file) {
+			echo $file . PHP_EOL;
+			if (!$file->isFile()) {
+				continue;
+			}
+			$zip->addFile($file->getPathname(), $file->getPathname());
+		}
+		$zip->close();
+
+	`,
+	});
+	const zip = await playground.readFileAsBuffer('/tmp/build.zip');
+	fs.writeFileSync(outfile, zip);
 }

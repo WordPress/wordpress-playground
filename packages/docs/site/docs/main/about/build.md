@@ -11,7 +11,7 @@ WordPress Playground can help you to create and learn WordPress quickly, even on
 
 ## Setting quickly a local WordPress environment
 
-You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-now) or [your preferred IDE.](/developers/local-development/vscode-extension)
+You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 
 ## Save changes done on a Block Theme and create Github Pull Requests
 
