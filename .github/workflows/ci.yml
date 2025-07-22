@@ -246,7 +246,9 @@ jobs:
                       --port=$PORT \
                       --mount="$HOST_PATH:/wordpress/$VERSION" \
                       --quiet& \
-                    )
+                    );
+                    # Trigger the initial request that may result in a redirect.
+                    curl -s http://127.0.0.1:$PORT/;
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do

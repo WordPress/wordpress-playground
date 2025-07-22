@@ -30,7 +30,7 @@ function test_playground_cli() {
 		echo "Playground CLI started successfully"
 		echo "Checking WordPress home page..."
 
-		HOME_PAGE_OUTPUT="$(curl -s http://127.0.0.1:9400 || echo 'No output')"
+		HOME_PAGE_OUTPUT="$(curl -sL http://127.0.0.1:9400 || echo 'No output')"
 		if [[ $HOME_PAGE_OUTPUT != *"My WordPress Website"* ]]; then
 			echo "Home page output: $HOME_PAGE_OUTPUT"
 			echo "Error: Home page did not contain 'My WordPress Website'"
