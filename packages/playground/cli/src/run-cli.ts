@@ -157,7 +157,7 @@ export async function parseOptionsAndRunCLI() {
 			type: 'boolean',
 			default: false,
 		})
-		.option('experimentalTrace', {
+		.option('experimental-trace', {
 			describe:
 				'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
 			type: 'boolean',
@@ -179,7 +179,7 @@ export async function parseOptionsAndRunCLI() {
 			default: false,
 		})
 		// TODO: Should we make this a hidden flag?
-		.option('experimentalMultiWorker', {
+		.option('experimental-multi-worker', {
 			describe:
 				'Enable experimental multi-worker support which requires JSPI ' +
 				'and a /wordpress directory backed by a real filesystem. ' +
@@ -188,7 +188,7 @@ export async function parseOptionsAndRunCLI() {
 			type: 'number',
 			coerce: (value?: number) => value ?? cpus().length - 1,
 		})
-		.option('experimental-blueprint-v2', {
+		.option('experimental-blueprints-v2-runner', {
 			describe: 'Use the experimental Blueprint V2 runner.',
 			type: 'boolean',
 			default: false,
@@ -208,8 +208,8 @@ export async function parseOptionsAndRunCLI() {
 				}
 			}
 
-			if (args.experimentalMultiWorker !== undefined) {
-				if (args.experimentalMultiWorker <= 1) {
+			if (args['experimental-multi-worker'] !== undefined) {
+				if (args['experimental-multi-worker'] <= 1) {
 					throw new Error(
 						'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
 					);
