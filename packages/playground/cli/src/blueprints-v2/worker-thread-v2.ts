@@ -16,17 +16,19 @@ import { sprintf } from '@php-wasm/util';
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
+} from './run-blueprint-v2';
+import {
 	type ParsedBlueprintV2Declaration,
-	type BlueprintV2Declaration,
-} from './v2';
+	type BlueprintV2Declaration
+} from './blueprint-v2-declaration';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import type { Mount } from './mounts';
+import type { Mount } from '../mounts';
 import { jspi } from 'wasm-feature-detect';
-import { type RunCLIArgs } from './run-cli';
+import { type RunCLIArgs } from '../run-cli';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {

@@ -15,7 +15,7 @@ import { bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import { mountResources } from './mounts';
+import { mountResources } from '../mounts';
 
 export interface Mount {
 	hostPath: string;

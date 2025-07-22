@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { runCLI } from '../run-cli';
-import type { RunCLIServer } from '../run-cli';
+import { runCLI } from '../src/run-cli';
+import type { RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';

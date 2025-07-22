@@ -4,7 +4,12 @@ import {
 	type UniversalPHP,
 } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import { getV2Runner } from './get-v2-runner';
+import {
+	type BlueprintV2Declaration,
+	type ParsedBlueprintV2Declaration,
+	parseBlueprintDeclaration,
+} from './blueprint-v2-declaration';
 
 export type PHPExceptionDetails = {
 	exception: string;
@@ -33,88 +38,6 @@ interface RunV2Options {
 		additionalSteps?: any[];
 	};
 	onMessage?: (message: BlueprintMessage) => void | Promise<void>;
-}
-
-export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
-export type ParsedBlueprintV2Declaration =
-	| { type: 'inline-file'; contents: string }
-	| { type: 'file-reference'; reference: string };
-
-export function parseBlueprintDeclaration(
-	source: BlueprintV2Declaration | ParsedBlueprintV2Declaration
-): ParsedBlueprintV2Declaration {
-	if (
-		typeof source === 'object' &&
-		'type' in source &&
-		['inline-file', 'file-reference'].includes(source.type)
-	) {
-		return source;
-	}
-	if (!source) {
-		return {
-			type: 'inline-file',
-			contents: '{}',
-		};
-	}
-	if (typeof source !== 'string') {
-		// If source is an object, assume it's a Blueprint declaration object and
-		// convert it to a JSON string.
-		return {
-			type: 'inline-file',
-			contents: JSON.stringify(source),
-		};
-	}
-	try {
-		// If source is valid JSON, return it as is.
-		JSON.parse(source);
-		return {
-			type: 'inline-file',
-			contents: source,
-		};
-	} catch {
-		return {
-			type: 'file-reference',
-			reference: source,
-		};
-	}
-}
-
-export async function getV2Runner(): Promise<File> {
-	let data = null;
-
-	/**
-	 * Avoid a static dependency for now.
-	 *
-	 * Playground.wordpress.net does not need to know about the new runner yet, and
-	 * a static import would force it to download the v2 runner even when it's not needed.
-	 * This breaks the offline mode as the static assets list is not yet updated to accommodate
-	 * for the new .phar file.
-	 */
-	// @ts-ignore
-	const v2_runner_url = (await import('../public/blueprints.phar?url'))
-		.default;
-
-	/**
-	 * Only load the v2 runner via node:fs when running in Node.js.
-	 */
-	if (typeof process !== 'undefined' && process.versions?.node) {
-		let path = v2_runner_url;
-		if (path.startsWith('/@fs/')) {
-			path = path.slice('/@fs'.length);
-		}
-		if (path.startsWith('file://')) {
-			path = path.slice('file://'.length);
-		}
-
-		const { readFile } = await import('node:fs/promises');
-		data = await readFile(path);
-	} else {
-		const response = await fetch(v2_runner_url);
-		data = await response.blob();
-	}
-	return new File([data], `blueprints.phar`, {
-		type: 'application/zip',
-	});
 }
 
 export async function runBlueprintV2(
