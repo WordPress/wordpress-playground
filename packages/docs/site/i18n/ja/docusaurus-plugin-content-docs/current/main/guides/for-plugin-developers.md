@@ -349,10 +349,10 @@ Here’s an example of a **[plugin that generates Custom Post Types](https://raw
 From a plugins' folder in your local development environment, you can quickly load locally a Playground instance with that plugin loaded and activated.
 -->
 
-お好みのコマンドライン プログラムを使用して、プラグインのルート ディレクトリから [`wp-now` コマンド](/developers/local-development/wp-now) を使用します。
+お好みのコマンドライン プログラムを使用して、プラグインのルート ディレクトリから [`@wp-playground/cli` コマンド](/developers/local-development/wp-playground-cli) を使用します。
 
 <!--
-Use the [`wp-now` command](/developers/local-development/wp-now) from your plugin's root directory using your preferred command line program.
+Use the [`@wp-playground/cli` command](/developers/local-development/wp-playground-cli) from your plugin's root directory using your preferred command line program.
 -->
 
 [Visual Studio Code](https://code.visualstudio.com/) IDE では、プラグインのルート ディレクトリで作業しているときに [Visual Studio Code 拡張機能](/developers/local-development/vscode-extension) を使用することもできます。
@@ -370,7 +370,7 @@ For example:
 ```bash
 git clone git@github.com:wptrainingteam/devblog-dataviews-plugin.git
 cd devblog-dataviews-plugin
-npx @wp-now/wp-now start
+npx @wp-playground/cli server --auto-mount
 ```
 
 ### Playground インスタンスでローカルの変更を確認し、変更を GitHub リポジトリに直接 PR を作成します

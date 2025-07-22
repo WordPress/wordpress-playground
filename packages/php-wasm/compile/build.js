@@ -162,6 +162,15 @@ const argParser = yargs(process.argv.slice(2))
 			description: 'OpenSSL version to use',
 			default: '1.1.0h',
 		},
+		WITH_OPCACHE: {
+			type: 'string',
+			description: 'Build with OPCache support',
+		},
+		STACK_SIZE: {
+			type: 'string',
+			description: 'The emscripten stack size to use for the build',
+			default: '1MB',
+		},
 	});
 
 const args = argParser.argv;
@@ -183,6 +192,8 @@ const platformDefaults = {
 		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
+		WITH_OPCACHE: 'yes',
+		STACK_SIZE: '1MB',
 	},
 	web: {},
 	node: {
@@ -286,6 +297,10 @@ await asyncSpawn(
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 		'--build-arg',
 		getArg('WITH_JSPI'),
+		'--build-arg',
+		getArg('WITH_OPCACHE'),
+		'--build-arg',
+		getArg('STACK_SIZE'),
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );

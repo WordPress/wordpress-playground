@@ -23,10 +23,10 @@ WordPress Playground can help you to create and learn WordPress quickly, even on
 ## Setting quickly a local WordPress environment
 -->
 
-Playground を開発ワークフローにシームレスに統合することで、ローカルの WordPress 環境を素早く起動し、コードをテストできます。[ターミナル](/developers/local-development/wp-now) または [お好みの IDE](/developers/local-development/vscode-extension) から直接実行できます。
+Playground を開発ワークフローにシームレスに統合することで、ローカルの WordPress 環境を素早く起動し、コードをテストできます。[ターミナル](/developers/local-development/wp-playground-cli) または [お好みの IDE](/developers/local-development/vscode-extension) から直接実行できます。
 
 <!--
-You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-now) or [your preferred IDE.](/developers/local-development/vscode-extension)
+You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
 ## ブロックテーマの変更を保存し、Github プルリクエストを作成します

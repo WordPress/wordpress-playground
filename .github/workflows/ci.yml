@@ -293,7 +293,7 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - run: packages/playground/cli/src/test/test-running-unbuilt-cli.sh
+            - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
     build:
         runs-on: ubuntu-latest

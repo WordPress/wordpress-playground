@@ -6,9 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_4_0', 'php_8_4.wasm');
+const dependencyFilename = path.join(__dirname, '8_4_10', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 36202477;
+export const dependenciesTotalSize = 36372438;
+const phpVersionString = '8.4.10';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +848,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 17317792;
+	var ___heap_base = 18314400;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1011,7 +1012,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 16487,
+		initial: 16555,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1742,13 +1743,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 17317792;
+	var ___stack_high = 18314400;
 
-	var ___stack_low = 17252256;
+	var ___stack_low = 17265824;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		17317792
+		18314400
 	);
 
 	var PATH = {
@@ -19331,7 +19332,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 65536;
+	var STACK_SIZE = 1048576;
 
 	var STACK_ALIGN = 16;
 
@@ -31252,13 +31253,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		16319278: ($0) => {
+		16328094: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		16319326: ($0) => {
+		16328142: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34099,6 +34100,11 @@ export function init(RuntimeName, PHPLoader) {
 		(___cxa_throw = wasmExports['__cxa_throw'])(a0, a1, a2);
 	var _flock = (Module['_flock'] = (a0, a1) =>
 		(_flock = Module['_flock'] = wasmExports['flock'])(a0, a1));
+	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
+		(_initgroups = Module['_initgroups'] = wasmExports['initgroups'])(
+			a0,
+			a1
+		));
 	var _wasm_read = (Module['_wasm_read'] = (a0, a1, a2) =>
 		(_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'])(
 			a0,
@@ -34423,6 +34429,15 @@ export function init(RuntimeName, PHPLoader) {
 			return originalHashAddNode.apply(FS, arguments);
 		};
 	}
+
+	/**
+	 * Expose the PHP version so the PHP class can make version-specific
+	 * adjustments to `php.ini`.
+	 */
+	PHPLoader['phpVersion'] = (() => {
+		const [major, minor, patch] = phpVersionString.split('.').map(Number);
+		return { major, minor, patch };
+	})();
 
 	return PHPLoader;
 
