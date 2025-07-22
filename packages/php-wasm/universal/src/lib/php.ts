@@ -245,10 +245,13 @@ export class PHP implements Disposable {
 						'opcache.memory_consumption = 64',
 						'opcache.max_wasted_percentage = 5',
 						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
+						// Always enable the file cache.
+						'opcache.file_cache_only = 1',
+						'opcache.file_cache_consistency_checks = 1',
 				  ]
 				: [];
 
-			if (
+			/*if (
 				USE_OPCACHE &&
 				!(
 					runtime.phpVersion.major === 8 &&
@@ -261,7 +264,7 @@ export class PHP implements Disposable {
 					'opcache.file_cache_only = 1',
 					'opcache.file_cache_consistency_checks = 1'
 				);
-			}
+			}*/
 
 			if (!this.fileExists(OPCACHE_FILE_FOLDER)) {
 				this.mkdir(OPCACHE_FILE_FOLDER);
