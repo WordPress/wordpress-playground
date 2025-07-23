@@ -237,16 +237,24 @@ jobs:
               run: |
                   source ~/.nvm/nvm.sh;
                   nvm install 22;
+                  cd $HOST_PATH
                   RUNNER_TRACKING_ID="" && ( \
-                    nohup node \
-                      --experimental-strip-types \
-                      --experimental-transform-types \
-                      --import ./packages/meta/src/node-es-module-loader/register.mts \
-                      ./packages/playground/cli/src/cli.ts server \
-                      --port=$PORT \
-                      --mount="$HOST_PATH:/wordpress/$VERSION" \
-                      --quiet& \
-                    )
+                    nohup python3 -c "import http.server
+                  import socketserver
+                  from urllib.parse import unquote
+
+                  class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+                      def do_GET(self):
+                          if self.path.startswith('/${{ env.VERSION }}/'):
+                              self.path = self.path[len('/${{ env.VERSION }}'):]
+                          elif self.path == '/${{ env.VERSION }}':
+                              self.path = '/'
+                          super().do_GET()
+
+                  with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
+                      httpd.serve_forever()
+                  "&
+                  );
             - name: Wait for the package server to be ready
               run: |
                   for i in {1..60}; do
@@ -293,7 +301,7 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - run: packages/playground/cli/src/test/test-running-unbuilt-cli.sh
+            - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
     build:
         runs-on: ubuntu-latest
