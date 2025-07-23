@@ -2,6 +2,12 @@
 
 XDebug bridge server for PHP.wasm that enables debugging connections between XDebug and debugging clients.
 
+## Installation
+
+```bash
+npm install @php-wasm/xdebug-bridge
+```
+
 ## Usage
 
 ### Programmatic API
@@ -28,13 +34,13 @@ await server.start();
 
 ```bash
 # Start with default settings
-nx run php-wasm-xdebug-bridge:dev
+npx xdebug-bridge
 
 # Custom port and verbose logging
-nx run php-wasm-xdebug-bridge:dev -- --port 9000 --verbose
+npx xdebug-bridge --port 9000 --verbose
 
 # Show help
-nx run php-wasm-xdebug-bridge:dev -- --help
+npx xdebug-bridge --help
 ```
 
 ## Configuration Options
