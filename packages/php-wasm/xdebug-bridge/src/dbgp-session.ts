@@ -4,10 +4,10 @@ import net from 'net';
 export class DbgpSession extends EventEmitter {
 	private server: net.Server;
 	private socket: net.Socket | null = null;
-	private buffer: string = '';
+	private buffer = '';
 	private expectedLength: number | null = null;
 
-	constructor(port: number = 9003) {
+	constructor(port = 9003) {
 		super();
 		this.server = net.createServer();
 		this.server.on('connection', (socket) => {

@@ -1,8 +1,7 @@
-// dbgpSession.ts - Handles DBGp protocol socket connection
 import path from 'path';
 import { parseStringPromise } from 'xml2js';
-import { DbgpSession } from '../dbgp-session';
-import { CDPServer } from './cdp-server';
+import type { DbgpSession } from '../dbgp-session';
+import type { CDPServer } from './cdp-server';
 
 interface PendingCommand {
 	cdpId?: number;
@@ -35,18 +34,17 @@ export interface XdebugCDPBridgeConfig {
 export class XdebugCDPBridge {
 	private dbgp: DbgpSession;
 	public cdp: CDPServer;
-	private nextTxnId: number = 1;
+	private nextTxnId = 1;
 	private pendingCommands: Map<string, PendingCommand> = new Map();
 	private breakpoints: Map<string, BreakpointInfo> = new Map(); // key: cdp breakpointId
 	private scriptIdByUrl: Map<string, string> = new Map();
-	private nextScriptId: number = 1;
+	private nextScriptId = 1;
 	private objectHandles: Map<string, ObjectHandle> = new Map();
-	private nextObjectId: number = 1;
+	private nextObjectId = 1;
 	private callFramesMap: Map<string, number> = new Map(); // callFrameId -> stack depth
-	private xdebugConnected: boolean = false;
-	private xdebugStatus: string = 'starting';
+	private xdebugConnected = false;
+	private xdebugStatus = 'starting';
 	private initFileUri: string | null = null;
-	private lastPaused: { callFrames: any[]; reason: string } | null = null;
 	private readPHPFile: (path: string) => string;
 	private remoteRoot: string;
 	private localRoot: string;
@@ -80,7 +78,7 @@ export class XdebugCDPBridge {
 					explicitArray: false,
 				});
 				await this.handleDbgpMessage(msgObj);
-			} catch (e) {
+			} catch {
 				// Parsing error, ignore or log
 			}
 		});
@@ -132,7 +130,7 @@ export class XdebugCDPBridge {
 		this.cdp.on('clientDisconnected', () => {
 			// If Xdebug still connected, detach from it
 			if (this.xdebugConnected) {
-				const txn = this.sendDbgpCommand(`detach`);
+				this.sendDbgpCommand(`detach`);
 				// After detach, Xdebug will likely close connection
 			}
 		});
@@ -333,8 +331,8 @@ export class XdebugCDPBridge {
 			}
 			case 'Runtime.evaluate':
 			case 'Debugger.evaluateOnCallFrame': {
-				let expression: string = params.expression || '';
-				let callFrameId: string | undefined = params.callFrameId;
+				const expression: string = params.expression || '';
+				const callFrameId: string | undefined = params.callFrameId;
 				// If evaluateOnCallFrame, check if supported frame
 				if (method === 'Debugger.evaluateOnCallFrame') {
 					if (
@@ -368,7 +366,6 @@ export class XdebugCDPBridge {
 				if (this.xdebugConnected) {
 					// Xdebug eval expects code in base64
 					const code = Buffer.from(expression).toString('base64');
-					const cmd = `eval -- ${code}`; // Note: -i will be appended in sendDbgpCommand
 					const txn = this.sendDbgpCommand('eval', `-- ${code}`);
 					this.pendingCommands.set(txn, {
 						cdpId: id,
@@ -538,7 +535,7 @@ export class XdebugCDPBridge {
 				case 'step_out': {
 					// These come when execution stops or ends
 					const status = attrs.status; // 'break' or 'stopping'
-					const reason = attrs.reason; // 'ok', 'breakpoint', 'exception', etc.
+					// const reason = attrs.reason; // 'ok', 'breakpoint', 'exception', etc. // Note: not currently needed
 					this.xdebugStatus = status;
 
 					// NEW: send scriptParsed for any newly discovered file
@@ -589,7 +586,12 @@ export class XdebugCDPBridge {
 							const type = property.$.type;
 							const encoding = property.$.encoding;
 							let valueStr: string | null = null;
-							if (property.hasOwnProperty('_')) {
+							if (
+								Object.prototype.hasOwnProperty.call(
+									property,
+									'_'
+								)
+							) {
 								valueStr = property._;
 							} else if (typeof property.$value !== 'undefined') {
 								// Some responses might carry value in attribute or differently, but usually in _ or in value tag
@@ -721,7 +723,6 @@ export class XdebugCDPBridge {
 									const objectId = String(
 										this.nextObjectId++
 									);
-									const fullname = prop.$.fullname || name;
 									// Store handle
 									const contextId =
 										pending.cdpMethod ===
@@ -906,7 +907,7 @@ export class XdebugCDPBridge {
 							});
 						}
 						// Send paused event to DevTools
-						let pauseReason: string = 'pause';
+						let pauseReason = 'pause';
 						// Determine reason from Xdebug if available
 						// (Xdebug 'reason' might be in the original run/step response we handled prior)
 						// We'll simplify: if any breakpoint matches top frame location, reason = breakpoint

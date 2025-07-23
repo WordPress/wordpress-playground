@@ -1,4 +1,4 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { CDPServer } from './cdp/cdp-server';

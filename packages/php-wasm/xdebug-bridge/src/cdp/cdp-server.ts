@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events';
-import { WebSocket, WebSocketServer } from 'ws';
+import { type WebSocket, WebSocketServer } from 'ws';
 
 export class CDPServer extends EventEmitter {
 	private wss: WebSocketServer;
 	private ws: WebSocket | null = null;
 
-	constructor(port: number = 9229) {
+	constructor(port = 9229) {
 		super();
 		this.wss = new WebSocketServer({ port: port });
 		this.wss.on('connection', (ws: WebSocket) => {
@@ -24,7 +24,7 @@ export class CDPServer extends EventEmitter {
 				let message: any;
 				try {
 					message = JSON.parse(data.toString());
-				} catch (e) {
+				} catch {
 					return;
 				}
 				this.emit('message', message);
