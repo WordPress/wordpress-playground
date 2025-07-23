@@ -79,10 +79,10 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	}
 
 	let rewrotePaths = false;
-	const wordpressArgs = args.map((arg) => {
+	const argsWithRewrittenPaths = args.map((arg) => {
 		if (arg.startsWith('wordpress/')) {
 			rewrotePaths = true;
-			// return `/${arg}`;
+			return `/${arg}`;
 		}
 		return arg;
 	});
@@ -137,7 +137,7 @@ This will ensure your code works reliably regardless of the current working dire
 		$GLOBALS['argv'] = array_merge([
 		  "/tmp/wp-cli.phar",
 		  "--path=${documentRoot}"
-		], ${phpVar(wordpressArgs)});
+		], ${phpVar(argsWithRewrittenPaths)});
 
 		// Provide stdin, stdout, stderr streams outside of
 		// the CLI SAPI.
