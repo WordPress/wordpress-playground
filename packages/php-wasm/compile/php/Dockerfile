@@ -10,6 +10,10 @@ ARG WITH_JSPI="no"
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION
 
+# Whether to build the opcache extension. The .m4 file is patched before the main
+# ./buildconf script is generated.
+ARG WITH_OPCACHE
+
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION \
@@ -24,6 +28,9 @@ COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
 # Polyfill for post_message_to_js functions
 COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+
+# Copy the dummy opcache_module.c and php_opcache.h files.
+COPY ./opcache/ /root/php-src/ext/opcache
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
@@ -80,6 +87,31 @@ RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		cp /root/builds/libsqlite3/\<7\.4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
 		cp /root/builds/libsqlite3/\<7\.4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
 	fi;
+
+# Patch OPcache config.m4 file if needed
+RUN if [ "$WITH_OPCACHE" = "yes" ]; \
+	then \
+		# Ensure mmap() shared memory is recognized, even if not true.
+		# This will #declare HAVE_SHM_MMAP_ANON 1 in php_config.h
+		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -eq "4" ]]; then \
+			# Name changed in 8.4. See https://github.com/php/php-src/commit/ca55603d8a27b4e1f9c12cf72acd0fd39a6ac059
+			/root/replace.sh 's/php_cv_shm_mmap_anon=no/php_cv_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
+		else \
+			/root/replace.sh 's/have_shm_mmap_anon=no/have_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
+			# PHP bug: PHP_NEW_EXTENSION do not read $ext_shared from the config.m4 file.
+			# https://github.com/php/php-src/blob/f35a22adba8a7ddf709c6cc98ecb57ba4dd8fe8c/ext/opcache/config.m4#L313
+			/root/replace.sh 's/shared,,/no,,/g' /root/php-src/ext/opcache/config.m4; \
+		fi; \
+		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
+		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
+		# Add the dummy opcache_module.c to the list of files to build.
+		/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		# Enable OPcache.
+		echo -n ' --enable-opcache --disable-opcache-jit --disable-huge-code-pages ' >> /root/.php-configure-flags; \
+	else \
+		# Be sure to disable OPcache if not needed.
+		echo -n ' --disable-opcache ' >> /root/.php-configure-flags; \
+	fi
 
 RUN cd php-src && ./buildconf --force
 
@@ -2063,6 +2095,7 @@ COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-ems
 COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
+ARG STACK_SIZE
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
@@ -2134,6 +2167,7 @@ RUN set -euxo pipefail; \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
+	-s STACK_SIZE="$STACK_SIZE" \
 	-s ASSERTIONS=0 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
 	-s NODEJS_CATCH_EXIT=0 \
@@ -2191,7 +2225,7 @@ RUN set -euxo pipefail; \
 		/root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
 	# Emscripten allows only directories to be mounted, but in Playground we support mounting files, directories, and symlinks.
 		# For file mounting to work, we need to remove the directory check.
-		/root/replace-across-lines.sh 's/(\s+)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s+throw\s+new\s+FS\.ErrnoError\(54\)\s*;\s+\}(\s+)/$1$2/s' /root/output/php.js; \
+		/root/replace-across-lines.sh 's/(\s*)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s*throw\s*new\s*FS\.ErrnoError\(54\)\s*;?\s*\}(\s*)/$1$2/s' /root/output/php.js; \
 	# Make Emscripten websockets configurable
 		# Emscripten makes the Websocket proxy connect to a fixed URL.
 		# This assumes the traffic is always forwarded to the same target.
@@ -2273,6 +2307,7 @@ RUN set -euxo pipefail; \
 		fi; \
 		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
+		echo "const phpVersionString = '$PHP_VERSION';" >> /root/output/php-module.js && \
 		cat /root/esm-prefix.js >> /root/output/php-module.js && \
 		cat /root/output/php.js >> /root/output/php-module.js && \
 		cat /root/esm-suffix.js >> /root/output/php-module.js && \

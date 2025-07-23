@@ -21,10 +21,10 @@ await server.start();
 
 // Start with custom configuration
 const server = startXDebugBridge({
-  protocol: 'cdp',           // or 'dap'
-  xdebugServerPort: 9003,    // XDebug connection port
-  xdebugServerHost: 'localhost',
-  verbose: false,            // Silent mode
+	protocol: 'cdp', // or 'dap'
+	xdebugServerPort: 9003, // XDebug connection port
+	xdebugServerHost: 'localhost',
+	verbose: false, // Silent mode
 });
 
 await server.start();
@@ -51,20 +51,20 @@ npx xdebug-bridge --help
 
 ## Configuration Options
 
-- `protocol`: Protocol to use ('cdp' or 'dap', default: 'cdp')
-- `xdebugServerPort`: Port to listen for XDebug connections (default: 9003)
-- `xdebugServerHost`: Host to bind to (default: 'localhost')
-- `verbose`: Enable verbose logging (default: false for API, true for CLI)
-- `logger`: Custom logger function
+-   `protocol`: Protocol to use ('cdp' or 'dap', default: 'cdp')
+-   `xdebugServerPort`: Port to listen for XDebug connections (default: 9003)
+-   `xdebugServerHost`: Host to bind to (default: 'localhost')
+-   `verbose`: Enable verbose logging (default: false for API, true for CLI)
+-   `logger`: Custom logger function
 
 ## Events
 
 The server emits events for monitoring connection activity:
 
-- `started`: Server has started
-- `stopped`: Server has stopped
-- `connection`: New XDebug connection established
-- `disconnection`: XDebug connection closed
-- `xdebugData`: Raw XDebug data received
-- `error`: Server error occurred
-- `socketError`: Socket-level error occurred 
+-   `started`: Server has started
+-   `stopped`: Server has stopped
+-   `connection`: New XDebug connection established
+-   `disconnection`: XDebug connection closed
+-   `xdebugData`: Raw XDebug data received
+-   `error`: Server error occurred
+-   `socketError`: Socket-level error occurred
