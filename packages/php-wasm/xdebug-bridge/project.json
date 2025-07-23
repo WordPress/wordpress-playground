@@ -29,7 +29,7 @@
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"main": "dist/packages/php-wasm/xdebug-bridge/index.js",
+				"main": "dist/packages/php-wasm/xdebug-bridge/src/cli.js",
 				"outputPath": "dist/packages/php-wasm/xdebug-bridge"
 			},
 			"defaultConfiguration": "production",
@@ -49,6 +49,17 @@
 				"tty": true
 			}
 		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/php-wasm/xdebug-bridge/**/*.ts"]
+			}
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "@nx/vite:test",
 			"outputs": [
@@ -59,13 +70,15 @@
 				"testFiles": ["tests/mock-test.spec.ts"]
 			}
 		},
-		"lint": {
-			"executor": "@nx/eslint:lint",
-			"outputs": ["{options.outputFile}"],
+		"typecheck": {
+			"executor": "nx:run-commands",
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/xdebug-bridge/**/*.ts"]
+				"commands": [
+					"tsc -p packages/php-wasm/xdebug-bridge/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/xdebug-bridge/tsconfig.spec.json --noEmit"
+				]
 			}
 		}
 	},
-	"tags": ["php-wasm"]
+	"tags": ["scope:php-binaries"]
 }

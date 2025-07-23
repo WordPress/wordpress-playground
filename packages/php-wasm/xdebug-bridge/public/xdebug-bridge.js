@@ -1,3 +1,2 @@
-import { main } from '../src/cli.ts';
-
-main();
+#!/usr/bin/env node
+import './index.js';

@@ -26,7 +26,7 @@
 	"type": "module",
 	"main": "./index.cjs",
 	"module": "./index.js",
-	"bin": "cli.js",
+	"bin": "xdebug-bridge.js",
 	"typedoc": {
 		"entryPoint": "./src/index.ts",
 		"readmeFile": "./README.md",
