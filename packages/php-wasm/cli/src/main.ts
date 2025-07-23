@@ -44,9 +44,9 @@ async function run() {
 		args = args.filter((arg) => arg !== '--xdebug');
 	}
 
-	const hasCDPOption = args.some((arg) => arg.startsWith('--cdp'));
+	const hasCDPOption = args.some((arg) => arg.startsWith('--devtools'));
 	if (hasXdebugOption) {
-		args = args.filter((arg) => arg !== '--cdp');
+		args = args.filter((arg) => arg !== '--devtools');
 	}
 
 	// npm scripts set the TMPDIR env variable
