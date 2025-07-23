@@ -269,10 +269,11 @@ export async function parseOptionsAndRunCLI() {
 			printDebugDetails(e);
 		} else {
 			const messageChain = [];
+			let currentError = e;
 			do {
-				messageChain.push(e.message);
-				e = e.cause;
-			} while (e instanceof Error);
+				messageChain.push(currentError.message);
+				currentError = currentError.cause as Error;
+			} while (currentError instanceof Error);
 			console.error(
 				'\x1b[1m' + messageChain.join(' caused by ') + '\x1b[0m'
 			);
