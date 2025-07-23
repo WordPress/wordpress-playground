@@ -1,3 +1,1 @@
-import { main } from './cli';
-
-main();
+export * from './lib';

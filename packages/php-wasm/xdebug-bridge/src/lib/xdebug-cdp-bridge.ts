@@ -1,6 +1,6 @@
 import path from 'path';
 import { parseStringPromise } from 'xml2js';
-import type { DbgpSession } from '../dbgp-session';
+import type { DbgpSession } from './dbgp-session';
 import type { CDPServer } from './cdp-server';
 
 interface PendingCommand {

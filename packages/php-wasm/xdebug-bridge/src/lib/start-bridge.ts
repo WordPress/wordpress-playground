@@ -1,9 +1,9 @@
 import type { PHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import { join } from 'path';
-import { CDPServer } from './cdp/cdp-server';
-import { XdebugCDPBridge } from './cdp/xdebug-cdp-bridge';
+import { CDPServer } from './cdp-server';
 import { DbgpSession } from './dbgp-session';
+import { XdebugCDPBridge } from './xdebug-cdp-bridge';
 
 export type StartBridgeConfig = {
 	cdpPort?: number;
