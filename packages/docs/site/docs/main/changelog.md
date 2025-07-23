@@ -9,6 +9,47 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.0] (2025-07-23)
+
+### Enhancements
+
+-   [Playground CLI] Improve error reporting. ([#2401](https://github.com/WordPress/wordpress-playground/pull/2401))
+-   [Playground CLI] Kebab-case yargs options declarations. ([#2399](https://github.com/WordPress/wordpress-playground/pull/2399))
+
+### Blueprints
+
+-   Expose Blueprints v2 runner in Playground CLI. ([#2394](https://github.com/WordPress/wordpress-playground/pull/2394))
+-   Extract Blueprint v1-specific parts of Playground CLI. ([#2392](https://github.com/WordPress/wordpress-playground/pull/2392))
+-   [Playground CLI] Separate Blueprints v1 and Blueprints v2 code paths. ([#2396](https://github.com/WordPress/wordpress-playground/pull/2396))
+
+### Tools
+
+-   [XDebug] Add a mock @php-wasm/xdebug-bridge package. ([#2398](https://github.com/WordPress/wordpress-playground/pull/2398))
+
+### Documentation
+
+-   Adding Brazilian Portuguese translation for developer documentation. ([#2391](https://github.com/WordPress/wordpress-playground/pull/2391))
+
+### Website
+
+-   [Remote] Use CORS proxy in embedded Playgrounds. ([#2369](https://github.com/WordPress/wordpress-playground/pull/2369))
+
+### Bug Fixes
+
+-   CLI: Fix --login option and "landingPage" Blueprint property. ([#2344](https://github.com/WordPress/wordpress-playground/pull/2344))
+
+### Various
+
+-   Add Japanese translations to steps and steps shorthands. ([#2386](https://github.com/WordPress/wordpress-playground/pull/2386))
+-   Add OPCache support. ([#2400](https://github.com/WordPress/wordpress-playground/pull/2400))
+-   [Node] Gracefully handle connection errors in the outbound network proxy. ([#2370](https://github.com/WordPress/wordpress-playground/pull/2370))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @shimotmk @zaerl
+
 ## [v1.2.3] (2025-07-21)
 
 ### Enhancements
