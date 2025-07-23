@@ -2,69 +2,62 @@
 
 XDebug bridge server for PHP.wasm that enables debugging connections between XDebug and debugging clients.
 
-## Installation
-
-```bash
-npm install @php-wasm/xdebug-bridge
-```
-
 ## Usage
 
 ### Programmatic API
 
 ```typescript
-import { startXDebugBridge } from '@php-wasm/xdebug-bridge';
+import { startBridge } from './xdebug-bridge/src/start-bridge';
 
 // Start with default settings
-const server = startXDebugBridge();
+const server = startBridge();
 await server.start();
 
 // Start with custom configuration
-const server = startXDebugBridge({
-	protocol: 'cdp', // or 'dap'
-	xdebugServerPort: 9003, // XDebug connection port
-	xdebugServerHost: 'localhost',
-	verbose: false, // Silent mode
+const server = startBridge({
+	cdpHost: 'localhost', // CDP connection host
+	cdpPort: 9229, // CDP connection port
+	dbgpPort: 9003, // XDebug connection port
+	phpRoot: './', // Root to directory
 });
 
 await server.start();
-
-// Stop the server
-await server.stop();
 ```
 
 ### CLI Usage
 
 ```bash
 # Start with default settings
-npx xdebug-bridge
+nx run php-wasm-xdebug-bridge:dev
 
 # Custom port and verbose logging
-npx xdebug-bridge --port 9000 --verbose
-
-# DAP protocol, bind to all interfaces
-npx xdebug-bridge --protocol dap --host 0.0.0.0
+nx run php-wasm-xdebug-bridge:dev -- --port 9000 --verbose
 
 # Show help
-npx xdebug-bridge --help
+nx run php-wasm-xdebug-bridge:dev -- --help
 ```
 
 ## Configuration Options
 
--   `protocol`: Protocol to use ('cdp' or 'dap', default: 'cdp')
--   `xdebugServerPort`: Port to listen for XDebug connections (default: 9003)
--   `xdebugServerHost`: Host to bind to (default: 'localhost')
--   `verbose`: Enable verbose logging (default: false for API, true for CLI)
--   `logger`: Custom logger function
+-   `cdpPort`: Port to listen for CDP connections (default: 9229)
+-   `cdpHost`: Host to bind to (default: 'localhost')
+-   `dbgpPort`: Port to listen for XDebug connections (default: 9003)
+-   `phpRoot`: Root path for php files;
+-   `remoteRoot`: Remote root path for php files;
+-   `localRoot`: Local root path for php files;
+-   `phpInstance`: PHP instance
+-   `getPHPFile`: Custom file listing function
 
 ## Events
 
-The server emits events for monitoring connection activity:
+The bridge listens to events for monitoring connection activity:
 
--   `started`: Server has started
--   `stopped`: Server has stopped
--   `connection`: New XDebug connection established
--   `disconnection`: XDebug connection closed
--   `xdebugData`: Raw XDebug data received
--   `error`: Server error occurred
--   `socketError`: Socket-level error occurred
+-   `connected`: Xdebug Server has started
+-   `close`: Xdebug Server has stopped
+-   `message`: Raw XDebug data received
+-   `error`: Xdebug Server error occurred
+
+-   `clientConnected`: Devtools client connected
+-   `clientDisconnected`: Devtools client disconnected
+-   `message`: Raw Devtools data received
+-   `error`: Devtools client error occurred
