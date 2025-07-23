@@ -44,8 +44,8 @@ async function run() {
 		args = args.filter((arg) => arg !== '--xdebug');
 	}
 
-	const hasCDPOption = args.some((arg) => arg.startsWith('--devtools'));
-	if (hasXdebugOption) {
+	const hasDevtoolsOption = args.some((arg) => arg.startsWith('--devtools'));
+	if (hasDevtoolsOption) {
 		args = args.filter((arg) => arg !== '--devtools');
 	}
 
@@ -103,7 +103,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 
 	useHostFilesystem(php);
 
-	if (hasCDPOption) {
+	if (hasDevtoolsOption) {
 		const bridge = await startBridge({});
 
 		bridge.start();
