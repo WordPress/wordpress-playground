@@ -50,7 +50,7 @@ export async function startBridge(config: StartBridgeConfig) {
 			if (stat && stat.isDirectory()) {
 				results.push(...getPhpFiles(filePath));
 			} else if (file.endsWith('.php')) {
-				results.push(`file:///${filePath}`);
+				results.push(`file://${filePath}`);
 			}
 		}
 		return results;

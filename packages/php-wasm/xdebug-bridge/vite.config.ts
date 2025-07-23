@@ -40,13 +40,14 @@ export default defineConfig({
 				'timers',
 				'url',
 				'util',
+				'ws',
 			],
 			output: {
 				exports: 'named',
 			},
 		},
 		sourcemap: false,
-		target: 'es2020',
+		target: 'node20',
 	},
 
 	test: {
