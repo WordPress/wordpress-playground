@@ -44,9 +44,11 @@ async function run() {
 		args = args.filter((arg) => arg !== '--xdebug');
 	}
 
-	const hasDevtoolsOption = args.some((arg) => arg.startsWith('--devtools'));
+	const hasDevtoolsOption = args.some((arg) =>
+		arg.startsWith('--experimental-devtools')
+	);
 	if (hasDevtoolsOption) {
-		args = args.filter((arg) => arg !== '--devtools');
+		args = args.filter((arg) => arg !== '--experimental-devtools');
 	}
 
 	// npm scripts set the TMPDIR env variable

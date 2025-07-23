@@ -47,7 +47,6 @@ import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
-import { startBridge } from '@php-wasm/xdebug-bridge';
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -541,15 +540,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 
 				logger.log(`WordPress is running on ${absoluteUrl}`);
-
-				if (args.devtools) {
-					const bridge = await startBridge({
-						getPHPFile: async (path: string) =>
-							await playground!.readFileAsText(path),
-					});
-
-					bridge.start();
-				}
 
 				return {
 					playground,
