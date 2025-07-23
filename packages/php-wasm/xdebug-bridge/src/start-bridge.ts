@@ -1,5 +1,5 @@
 import type { PHP } from '@php-wasm/universal';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync, lstatSync } from 'fs';
 import { join } from 'path';
 import { CDPServer } from './cdp/cdp-server';
 import { XdebugCDPBridge } from './cdp/xdebug-cdp-bridge';
@@ -46,7 +46,8 @@ export async function startBridge(config: StartBridgeConfig) {
 		const list = readdirSync(dir);
 		for (const file of list) {
 			const filePath = join(dir, file);
-			const stat = statSync(filePath);
+			// lstat avoids crashes when encountering symlinks
+			const stat = lstatSync(filePath);
 			if (stat && stat.isDirectory()) {
 				results.push(...getPhpFiles(filePath));
 			} else if (file.endsWith('.php')) {
