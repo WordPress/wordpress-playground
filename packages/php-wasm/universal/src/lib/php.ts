@@ -50,6 +50,9 @@ export type MountHandler = (
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
 
+export const USE_OPCACHE = true;
+const OPCACHE_FILE_FOLDER = '/internal/shared/opcache';
+
 type MountObject = {
 	mountHandler: MountHandler;
 	unmount: () => Promise<any>;
@@ -231,6 +234,42 @@ export class PHP implements Disposable {
 		);
 
 		if (!this.fileExists(PHP_INI_PATH)) {
+			const opcacheConfig = USE_OPCACHE
+				? [
+						// OPCache
+						'opcache.enable = 1',
+						'opcache.enable_cli = 1',
+						'opcache.jit = 0',
+						'opcache.interned_strings_buffer = 8',
+						'opcache.max_accelerated_files = 1000',
+						'opcache.memory_consumption = 64',
+						'opcache.max_wasted_percentage = 5',
+						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
+						// Always enable the file cache.
+						'opcache.file_cache_only = 1',
+						'opcache.file_cache_consistency_checks = 1',
+				  ]
+				: [];
+
+			/*if (
+				USE_OPCACHE &&
+				!(
+					runtime.phpVersion.major === 8 &&
+					runtime.phpVersion.minor === 4
+				)
+			) {
+				// Old versions of PHP are RAM hungry. By using the file cache, we can reduce
+				// the RAM usage during the first caching.
+				opcacheConfig.push(
+					'opcache.file_cache_only = 1',
+					'opcache.file_cache_consistency_checks = 1'
+				);
+			}*/
+
+			if (!this.fileExists(OPCACHE_FILE_FOLDER)) {
+				this.mkdir(OPCACHE_FILE_FOLDER);
+			}
+
 			this.writeFile(
 				PHP_INI_PATH,
 				[
@@ -252,6 +291,7 @@ export class PHP implements Disposable {
 					'output_buffering = 0',
 					'max_execution_time = 0',
 					'max_input_time = -1',
+					...opcacheConfig,
 				].join('\n')
 			);
 		}

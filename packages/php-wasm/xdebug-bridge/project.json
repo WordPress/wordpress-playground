@@ -1,0 +1,84 @@
+{
+	"name": "php-wasm-xdebug-bridge",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/xdebug-bridge/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/xdebug-bridge/README.md dist/packages/php-wasm/xdebug-bridge"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/xdebug-bridge/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/xdebug-bridge",
+				"buildTarget": "php-wasm-xdebug-bridge:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"main": "dist/packages/php-wasm/xdebug-bridge/src/cli.js",
+				"outputPath": "dist/packages/php-wasm/xdebug-bridge"
+			},
+			"defaultConfiguration": "production",
+			"configurations": {
+				"development": {
+					"minify": false
+				},
+				"production": {
+					"minify": true
+				}
+			}
+		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/php-wasm/xdebug-bridge/src/cli.ts",
+				"tty": true
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/php-wasm/xdebug-bridge/**/*.ts"]
+			}
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/php-wasm/xdebug-bridge"
+			],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/xdebug-bridge",
+				"testFiles": ["mock-test.spec.ts"]
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/xdebug-bridge/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/xdebug-bridge/tsconfig.spec.json --noEmit"
+				]
+			}
+		}
+	},
+	"tags": ["scope:php-binaries"]
+}
