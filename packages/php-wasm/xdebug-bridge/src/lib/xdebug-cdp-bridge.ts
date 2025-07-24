@@ -28,7 +28,7 @@ export interface XdebugCDPBridgeConfig {
 	knownScriptUrls: string[];
 	remoteRoot?: string;
 	localRoot?: string;
-	getPHPFile(path: string): Promise<string>;
+	getPHPFile(path: string): string;
 }
 
 export class XdebugCDPBridge {
@@ -45,7 +45,7 @@ export class XdebugCDPBridge {
 	private xdebugConnected = false;
 	private xdebugStatus = 'starting';
 	private initFileUri: string | null = null;
-	private readPHPFile: (path: string) => Promise<string>;
+	private readPHPFile: (path: string) => string;
 	private remoteRoot: string;
 	private localRoot: string;
 
@@ -212,7 +212,7 @@ export class XdebugCDPBridge {
 		return txnIdStr;
 	}
 
-	private async handleCdpMessage(message: any) {
+	private handleCdpMessage(message: any) {
 		const { id, method, params } = message;
 		let result: any = {};
 		let sendResponse = true;
@@ -423,9 +423,7 @@ export class XdebugCDPBridge {
 				)?.[0];
 				let scriptSource = '';
 				if (uri) {
-					scriptSource = await this.readPHPFile(
-						this.uriToRemotePath(uri)
-					);
+					scriptSource = this.readPHPFile(this.uriToRemotePath(uri));
 				}
 				result = { scriptSource };
 				break;

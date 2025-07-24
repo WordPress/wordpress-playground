@@ -184,11 +184,6 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('devtools', {
-				describe: 'Enable Browser Devtools.',
-				type: 'boolean',
-				default: false,
-			})
 			// TODO: Should we make this a hidden flag?
 			.option('experimental-multi-worker', {
 				describe:
@@ -306,7 +301,6 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
-	devtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
 	// --------- Blueprint V1 args -----------
