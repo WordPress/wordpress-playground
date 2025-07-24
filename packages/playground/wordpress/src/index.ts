@@ -577,14 +577,10 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 			php.mv(source, target);
 		}
 	};
-	try {
-		moveRecursively(wpPath, php.documentRoot, php);
-		// Remove any directories left because there were existing dirs at the target path.
-		if (php.fileExists(wpPath)) {
-			php.rmdir(wpPath, { recursive: true });
-		}
-	} catch (e) {
-		throw e;
+	moveRecursively(wpPath, php.documentRoot, php);
+	// Remove any directories left because there were existing dirs at the target path.
+	if (php.fileExists(wpPath)) {
+		php.rmdir(wpPath, { recursive: true });
 	}
 
 	if (
