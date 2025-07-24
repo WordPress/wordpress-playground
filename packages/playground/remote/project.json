@@ -78,6 +78,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/playground/remote/**/*.ts"],
 				"maxWarnings": 0
 			}

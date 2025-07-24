@@ -314,6 +314,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/php-wasm/node/**/*.ts"],
 				"maxWarnings": 0
 			}
