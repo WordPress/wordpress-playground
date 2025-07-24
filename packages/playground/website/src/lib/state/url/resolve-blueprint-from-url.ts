@@ -110,8 +110,6 @@ export async function resolveBlueprintFromURL(
 				type: 'remote-url',
 				url: defaultBlueprint,
 			};
-
-			console.log('blueprint', blueprint);
 		}
 
 		source = {
