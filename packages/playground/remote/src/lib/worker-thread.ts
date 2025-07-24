@@ -59,6 +59,8 @@ import {
 	networkingDisabledFunctions,
 } from './disabled-functions';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
+/* @ts-ignore */
+import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -187,6 +189,10 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
+		}
+
+		if (corsProxyUrl === undefined) {
+			corsProxyUrl = defaultCorsProxyUrl;
 		}
 
 		this.booted = true;

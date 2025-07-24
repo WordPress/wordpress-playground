@@ -10,8 +10,11 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import virtualModule from '../../vite-extensions/vite-virtual-module';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+
 const plugins = [
 	viteTsConfigPaths({
 		root: '../../../',
@@ -37,77 +40,96 @@ const plugins = [
 	} as Plugin,
 	buildVersionPlugin('remote-config'),
 ];
-export default defineConfig({
-	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
-	cacheDir: '../../../node_modules/.vite/playground',
-	// Bundled WordPress files live in a separate dependency-free `wordpress`
-	// package so that every package may use them without causing circular
-	// dependencies.
-	// Other than that, the `remote` package has no public assets of its own.
-	// Therefore, let's just point the `remote` public directory to the
-	// `wordpress` package to make WordPress assets available.
-	publicDir: path('../wordpress-builds/public'),
 
-	css: {
-		modules: {
-			localsConvention: 'camelCaseOnly',
+export default defineConfig(({ mode }) => {
+	const corsProxyUrl =
+		'CORS_PROXY_URL' in process.env
+			? process.env['CORS_PROXY_URL']
+			: mode === 'production'
+			? 'https://wordpress-playground-cors-proxy.net/?'
+			: 'http://127.0.0.1:5263/cors-proxy.php?';
+
+	plugins.push(
+		virtualModule({
+			name: 'cors-proxy-url',
+			content: `
+			export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
+		})
+	);
+
+	return {
+		assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
+		cacheDir: '../../../node_modules/.vite/playground',
+		// Bundled WordPress files live in a separate dependency-free `wordpress`
+		// package so that every package may use them without causing circular
+		// dependencies.
+		// Other than that, the `remote` package has no public assets of its own.
+		// Therefore, let's just point the `remote` public directory to the
+		// `wordpress` package to make WordPress assets available.
+		publicDir: path('../wordpress-builds/public'),
+
+		css: {
+			modules: {
+				localsConvention: 'camelCaseOnly',
+			},
 		},
-	},
 
-	preview: {
-		port: remoteDevServerPort - 100,
-		host: remoteDevServerHost,
-	},
-
-	server: {
-		port: remoteDevServerPort,
-		host: remoteDevServerHost,
-		fs: {
-			// Allow serving files from the 'packages' directory
-			allow: ['../../'],
+		preview: {
+			port: remoteDevServerPort - 100,
+			host: remoteDevServerHost,
 		},
-	},
 
-	plugins,
+		server: {
+			port: remoteDevServerPort,
+			host: remoteDevServerHost,
+			allowedHosts: ['playground.test'],
+			fs: {
+				// Allow serving files from the 'packages' directory
+				allow: ['../../'],
+			},
+		},
 
-	worker: {
-		format: 'es',
-		plugins: () => plugins,
-		rollupOptions: {
-			output: {
-				// Ensure the service worker always has the same name
-				entryFileNames: (chunkInfo: any) => {
-					if (chunkInfo.name === 'service-worker') {
-						return 'sw.js';
-					}
-					return '[name]-[hash].js';
+		plugins,
+
+		worker: {
+			format: 'es',
+			plugins: () => plugins,
+			rollupOptions: {
+				output: {
+					// Ensure the service worker always has the same name
+					entryFileNames: (chunkInfo: any) => {
+						if (chunkInfo.name === 'service-worker') {
+							return 'sw.js';
+						}
+						return '[name]-[hash].js';
+					},
 				},
 			},
 		},
-	},
 
-	build: {
-		target: 'esnext',
-		// Important: Vite does not extract static assets as separate files
-		//            in the library mode. assetsInlineLimit: 0 only works
-		//            in the app mode.
-		// @see https://github.com/vitejs/vite/issues/3295
-		assetsInlineLimit: 0,
-		sourcemap: true,
-		rollupOptions: {
-			input: {
-				wordpress: path('/remote.html'),
+		build: {
+			target: 'esnext',
+			// Important: Vite does not extract static assets as separate files
+			//            in the library mode. assetsInlineLimit: 0 only works
+			//            in the app mode.
+			// @see https://github.com/vitejs/vite/issues/3295
+			assetsInlineLimit: 0,
+			sourcemap: true,
+			rollupOptions: {
+				input: {
+					wordpress: path('/remote.html'),
+				},
 			},
 		},
-	},
 
-	test: {
-		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
+		test: {
+			globals: true,
+			cache: {
+				dir: '../../../node_modules/.vitest',
+			},
+			environment: 'node',
+			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			reporters: ['default'],
 		},
-		environment: 'node',
-		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-		reporters: ['default'],
-	},
+	};
 });

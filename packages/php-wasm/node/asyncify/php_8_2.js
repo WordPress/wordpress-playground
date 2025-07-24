@@ -6,9 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_2_10', 'php_8_2.wasm');
+const dependencyFilename = path.join(__dirname, '8_2_29', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31860545;
+export const dependenciesTotalSize = 32040568;
+const phpVersionString = '8.2.29';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -830,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13257600;
+	var ___heap_base = 14294272;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -994,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15952,
+		initial: 16087,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1853,13 +1854,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13257600;
+	var ___stack_high = 14294272;
 
-	var ___stack_low = 13192064;
+	var ___stack_low = 13245696;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13257600
+		14294272
 	);
 
 	var PATH = {
@@ -19603,7 +19604,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 65536;
+	var STACK_SIZE = 1048576;
 
 	var STACK_ALIGN = 16;
 
@@ -31807,13 +31808,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12264285: ($0) => {
+		12280477: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12264333: ($0) => {
+		12280525: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34576,6 +34577,8 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_iijiji,
 		/** @export */
+		invoke_ji,
+		/** @export */
 		invoke_jii,
 		/** @export */
 		invoke_jiii,
@@ -34601,6 +34604,8 @@ export function init(RuntimeName, PHPLoader) {
 		invoke_viiiiiiiii,
 		/** @export */
 		invoke_viijii,
+		/** @export */
+		invoke_vijj,
 		/** @export */
 		invoke_vji,
 		/** @export */
@@ -34726,6 +34731,11 @@ export function init(RuntimeName, PHPLoader) {
 	var _calloc = (a0, a1) => (_calloc = wasmExports['calloc'])(a0, a1);
 	var _flock = (Module['_flock'] = (a0, a1) =>
 		(_flock = Module['_flock'] = wasmExports['flock'])(a0, a1));
+	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
+		(_initgroups = Module['_initgroups'] = wasmExports['initgroups'])(
+			a0,
+			a1
+		));
 	var _wasm_read = (Module['_wasm_read'] = (a0, a1, a2) =>
 		(_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'])(
 			a0,
@@ -35030,6 +35040,74 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_vji(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_vji'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_jii(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_jii'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_v(index) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_v'](index);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_ji(index, a1) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_ji'](index, a1);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_vijj(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_vijj'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iij(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iij'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
 		var sp = stackSave();
 		try {
@@ -35083,32 +35161,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_v(index) {
-		var sp = stackSave();
-		try {
-			Module['dynCall_v'](index);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
 	function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
 		var sp = stackSave();
 		try {
 			return Module['dynCall_iiiiiii'](index, a1, a2, a3, a4, a5, a6);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vji(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			Module['dynCall_vji'](index, a1, a2);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -35158,29 +35214,6 @@ export function init(RuntimeName, PHPLoader) {
 			if (e !== e + 0) throw e;
 			_setThrew(1, 0);
 			return 0n;
-		}
-	}
-
-	function invoke_jii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return Module['dynCall_jii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_iij(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return Module['dynCall_iij'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
 		}
 	}
 
@@ -35379,6 +35412,15 @@ export function init(RuntimeName, PHPLoader) {
 			return originalHashAddNode.apply(FS, arguments);
 		};
 	}
+
+	/**
+	 * Expose the PHP version so the PHP class can make version-specific
+	 * adjustments to `php.ini`.
+	 */
+	PHPLoader['phpVersion'] = (() => {
+		const [major, minor, patch] = phpVersionString.split('.').map(Number);
+		return { major, minor, patch };
+	})();
 
 	return PHPLoader;
 

@@ -278,11 +278,22 @@ const throwTransferHandlerCustom: Comlink.TransferHandler<
 		if (serialized.isError) {
 			const error = ErrorSerializer.deserializeError(serialized.value);
 			/**
-			 * Rethrow to capture the stack trace of the original Comlink call.
+			 * The original error from the web worker does not include any call
+			 * stack from the Playground web app. Let's include that information
+			 * in the error chain.
+			 *
+			 * We'll place it at the bottom of the error chain. This way the API
+			 * consumer gets the original error object and not an opaque
+			 * "Comlink method call failed" error, but they can still inspect
+			 * it further to see the full call stack.
 			 */
-			throw new Error('Comlink method call failed', {
-				cause: error,
-			});
+			const additionalCallStack = new Error('Comlink method call failed');
+			let deepestError = error;
+			while (deepestError.cause) {
+				deepestError = deepestError.cause;
+			}
+			deepestError.cause = additionalCallStack;
+			throw error;
 		}
 		throw serialized.value;
 	},
