@@ -532,30 +532,8 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	}
 
 	const moveRecursively = (source: string, target: string, php: PHP) => {
-		if (php.fileExists(target)) {
-			/*
-			 * Something exists at the target path.
-			 * Let's check to make sure we aren't copying conflicting types.
-			 *
-			 * In this context, if the source path points to a file and the
-			 * target path points to a directory, we do not intend for the file
-			 * to be moved into the directory.
-			 */
-
-			if (!php.isDir(source) && php.isDir(target)) {
-				throw new Error(
-					`The target ${target} is a directory but the source ${source} is not. This is not supported.`
-				);
-			}
-			if (php.isDir(source) && !php.isDir(target)) {
-				throw new Error(
-					`The source ${source} is a directory but the target ${target} is not. This is not supported.`
-				);
-			}
-		}
-
-		if (isNonEmptyDir(target, php)) {
-			// We cannot move a directory over a non-empty directory,
+		if (php.isDir(source) && php.isDir(target)) {
+			// We cannot move a directory over another directory,
 			// so we move the children one by one.
 			for (const file of php.listFiles(source)) {
 				const sourcePath = joinPaths(source, file);
@@ -563,14 +541,14 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 				moveRecursively(sourcePath, targetPath, php);
 			}
 		} else {
-			if (php.fileExists(target) && !php.isDir(target)) {
+			if (php.fileExists(target)) {
 				// Refuse to overwrite existing files to avoid the chance of data loss.
 				const wpPath = source.replace(
 					/^\/tmp\/unzipped-wordpress\//,
 					'/'
 				);
 				logger.warn(
-					`Skipping ${wpPath} because a file exists at the target path.`
+					`Skipping ${wpPath} because something exists at the target path.`
 				);
 				return;
 			}
@@ -594,14 +572,6 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 			)
 		);
 	}
-}
-
-function isNonEmptyDir(path: string, php: PHP) {
-	if (!php.isDir(path)) {
-		return false;
-	}
-	const files = php.listFiles(path);
-	return files.length > 0;
 }
 
 const memoizedFetch = createMemoizedFetch(fetch);
