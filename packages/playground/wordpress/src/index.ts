@@ -1,6 +1,8 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
+import { logger } from '@php-wasm/logger';
+
 export {
 	bootWordPress,
 	bootRequestHandler,
@@ -529,20 +531,34 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		}
 	}
 
-	if (
-		php.isDir(php.documentRoot) &&
-		isCleanDirContainingSiteMetadata(php.documentRoot, php)
-	) {
-		// We cannot mv the directory over a non-empty directory,
-		// but we can move the children one by one.
-		for (const file of php.listFiles(wpPath)) {
-			const sourcePath = joinPaths(wpPath, file);
-			const targetPath = joinPaths(php.documentRoot, file);
-			php.mv(sourcePath, targetPath);
+	const moveRecursively = (source: string, target: string, php: PHP) => {
+		if (php.isDir(source) && php.isDir(target)) {
+			// We cannot move a directory over another directory,
+			// so we move the children one by one.
+			for (const file of php.listFiles(source)) {
+				const sourcePath = joinPaths(source, file);
+				const targetPath = joinPaths(target, file);
+				moveRecursively(sourcePath, targetPath, php);
+			}
+		} else {
+			if (php.fileExists(target)) {
+				// Refuse to overwrite existing files to avoid the chance of data loss.
+				const wpPath = source.replace(
+					/^\/tmp\/unzipped-wordpress\//,
+					'/'
+				);
+				logger.warn(
+					`Skipping ${wpPath} because something exists at the target path.`
+				);
+				return;
+			}
+			php.mv(source, target);
 		}
+	};
+	moveRecursively(wpPath, php.documentRoot, php);
+	// Remove any directories left because there were existing dirs at the target path.
+	if (php.fileExists(wpPath)) {
 		php.rmdir(wpPath, { recursive: true });
-	} else {
-		php.mv(wpPath, php.documentRoot);
 	}
 
 	if (
@@ -556,23 +572,6 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 			)
 		);
 	}
-}
-
-function isCleanDirContainingSiteMetadata(path: string, php: PHP) {
-	const files = php.listFiles(path);
-	if (files.length === 0) {
-		return true;
-	}
-
-	if (
-		files.length === 1 &&
-		// TODO: use a constant from a site storage package
-		files[0] === 'playground-site-metadata.json'
-	) {
-		return true;
-	}
-
-	return false;
 }
 
 const memoizedFetch = createMemoizedFetch(fetch);

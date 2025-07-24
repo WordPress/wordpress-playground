@@ -4,7 +4,12 @@ import type {
 	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { PHPResponse, exposeAPI, exposeSyncAPI } from '@php-wasm/universal';
+import {
+	PHPResponse,
+	exposeAPI,
+	exposeSyncAPI,
+	printDebugDetails,
+} from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintDeclaration,
@@ -261,9 +266,17 @@ export async function parseOptionsAndRunCLI() {
 		}
 		const debug = process.argv.includes('--debug');
 		if (debug) {
-			console.error(e);
+			printDebugDetails(e);
 		} else {
-			console.error(e.message);
+			const messageChain = [];
+			let currentError = e;
+			do {
+				messageChain.push(currentError.message);
+				currentError = currentError.cause as Error;
+			} while (currentError instanceof Error);
+			console.error(
+				'\x1b[1m' + messageChain.join(' caused by ') + '\x1b[0m'
+			);
 		}
 		process.exit(1);
 	}
@@ -541,7 +554,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				if (!args.debug) {
 					throw error;
 				}
-				const phpLogs = await playground.readFileAsText(errorLogPath);
+				let phpLogs = '';
+				if (await playground.fileExists(errorLogPath)) {
+					phpLogs = await playground.readFileAsText(errorLogPath);
+				}
 				throw new Error(phpLogs, { cause: error });
 			}
 		},

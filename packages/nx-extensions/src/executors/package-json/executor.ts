@@ -44,6 +44,17 @@ export default async function* packageJsonExecutor(
 	}
 
 	const monorepoDependencies = getMonorepoDependencies(context);
+
+	// Read optional dependencies from the original package.json
+	let originalOptionalDependencies: Record<string, string> | undefined;
+	const originalPackageJsonPath = `${context.root}/package.json`;
+	if (fs.existsSync(originalPackageJsonPath)) {
+		const originalPackageJson = JSON.parse(
+			fs.readFileSync(originalPackageJsonPath).toString()
+		);
+		originalOptionalDependencies = originalPackageJson.optionalDependencies;
+	}
+
 	for await (const event of startBuild(options, context)) {
 		if (!event.success) {
 			throw 'There was an error with the build. See above.';
@@ -54,7 +65,8 @@ export default async function* packageJsonExecutor(
 				options,
 				context,
 				helperDependencies,
-				monorepoDependencies
+				monorepoDependencies,
+				originalOptionalDependencies
 			);
 			if (built === false) {
 				return {
@@ -87,7 +99,8 @@ async function buildPackageJson(
 	options: PackageJsonExecutorSchema,
 	context: ExecutorContext,
 	helperDependencies: ProjectGraphDependency[],
-	monorepoDependencies: MonorepoDependency[]
+	monorepoDependencies: MonorepoDependency[],
+	originalOptionalDependencies?: Record<string, string>
 ) {
 	const packageJson = createPackageJson(
 		context.projectName,
@@ -116,6 +129,21 @@ async function buildPackageJson(
 
 	for (const dep of monorepoDependencies) {
 		packageJson.dependencies[dep.name] = dep.version;
+	}
+
+	// Preserve optionalDependencies from the original package.json
+	if (originalOptionalDependencies) {
+		packageJson.optionalDependencies = originalOptionalDependencies;
+
+		// Remove optional dependencies from regular dependencies to avoid duplication
+		for (const optionalDep of Object.keys(originalOptionalDependencies)) {
+			if (
+				packageJson.dependencies &&
+				packageJson.dependencies[optionalDep]
+			) {
+				delete packageJson.dependencies[optionalDep];
+			}
+		}
 	}
 
 	// make main relative to context root

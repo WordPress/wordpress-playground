@@ -2,6 +2,7 @@ import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import type { FileReference } from '../resources';
+import { logger } from '@php-wasm/logger';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';
 export const defaultWpCliResource: FileReference = {
@@ -77,6 +78,46 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		throw new Error(`The first argument must be "wp".`);
 	}
 
+	let rewrotePaths = false;
+	const argsWithRewrittenPaths = args.map((arg) => {
+		if (arg.startsWith('wordpress/')) {
+			rewrotePaths = true;
+			return `/${arg}`;
+		}
+		return arg;
+	});
+
+	if (rewrotePaths) {
+		logger.error(
+			`
+The wp-cli step in your Blueprint refers to a relative path.
+
+Playground recently changed the working directory from '/' to '/wordpress' to better mimic 
+how real web servers work. This means relative paths that used to work may no longer 
+point to the correct location.
+
+Playground automatically updated the path for you, but at one point path rewriting will be removed. Please
+update your code to use an absolute path instead:
+
+Instead of:
+
+        {
+            "step": "wp-cli",
+            "command": "wp media import wordpress/wp-content/Select-storage-method.png --post_id=4 --title='Select your storage method' --featured_image"
+        }
+
+Use:
+
+        {
+            "step": "wp-cli",
+            "command": "wp media import /wordpress/wp-content/Select-storage-method.png --post_id=4 --title='Select your storage method' --featured_image"
+        }
+
+This will ensure your code works reliably regardless of the current working directory.
+        `.trim()
+		);
+	}
+
 	const documentRoot = await playground.documentRoot;
 
 	await playground.writeFile('/tmp/stdout', '');
@@ -96,7 +137,7 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		$GLOBALS['argv'] = array_merge([
 		  "/tmp/wp-cli.phar",
 		  "--path=${documentRoot}"
-		], ${phpVar(args)});
+		], ${phpVar(argsWithRewrittenPaths)});
 
 		// Provide stdin, stdout, stderr streams outside of
 		// the CLI SAPI.

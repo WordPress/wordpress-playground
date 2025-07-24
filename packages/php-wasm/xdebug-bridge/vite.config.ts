@@ -1,41 +1,58 @@
 /// <reference types="vitest" />
+import { join } from 'path';
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import dts from 'vite-plugin-dts';
+
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 
 export default defineConfig({
-	plugins: [],
+	cacheDir: '../../../node_modules/.vite/php-wasm-xdebug-bridge',
+
+	plugins: [
+		dts({
+			entryRoot: 'src',
+			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
+		}),
+
+		viteTsConfigPaths({
+			root: '../../../',
+		}),
+	],
+
 	build: {
 		lib: {
 			entry: {
-				index: resolve(__dirname, 'src/index.ts'),
-				cli: resolve(__dirname, 'src/cli.ts'),
+				index: 'src/index.ts',
+				cli: 'src/cli.ts',
 			},
+			name: 'php-wasm-xdebug-bridge',
 			formats: ['es', 'cjs'],
-			fileName: (format, entryName) => {
-				if (format === 'es') {
-					return `${entryName}.js`;
-				}
-				return `${entryName}.cjs`;
-			},
 		},
 		rollupOptions: {
-			external: ['net', 'events', 'util'],
+			external: [
+				'assert',
+				'fs',
+				'net',
+				'path',
+				'stream',
+				'timers',
+				'url',
+				'util',
+				'ws',
+			],
 			output: {
 				exports: 'named',
 			},
 		},
-		sourcemap: true,
+		sourcemap: false,
 		target: 'node20',
 	},
+
 	test: {
-		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'node',
+		globals: true,
 		reporters: ['default'],
-	},
-	define: {
-		'import.meta.vitest': undefined,
 	},
 });

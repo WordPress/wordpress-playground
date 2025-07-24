@@ -45,7 +45,7 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun --watch ./packages/php-wasm/cli/src/main.ts",
+				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/php-wasm/cli/src/main.ts",
 				"tty": true
 			}
 		},

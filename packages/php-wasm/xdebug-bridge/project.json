@@ -29,7 +29,7 @@
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"main": "dist/packages/php-wasm/xdebug-bridge/index.js",
+				"main": "dist/packages/php-wasm/xdebug-bridge/src/cli.js",
 				"outputPath": "dist/packages/php-wasm/xdebug-bridge"
 			},
 			"defaultConfiguration": "production",
@@ -45,18 +45,8 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun --watch ./packages/php-wasm/xdebug-bridge/src/cli.ts",
+				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/php-wasm/xdebug-bridge/src/cli.ts",
 				"tty": true
-			}
-		},
-		"test": {
-			"executor": "@nx/vite:test",
-			"outputs": [
-				"{workspaceRoot}/coverage/packages/php-wasm/xdebug-bridge"
-			],
-			"options": {
-				"reportsDirectory": "../../../coverage/packages/php-wasm/xdebug-bridge",
-				"testFiles": ["tests/mock-test.spec.ts"]
 			}
 		},
 		"lint": {
@@ -65,7 +55,30 @@
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/xdebug-bridge/**/*.ts"]
 			}
+		},
+		"package-for-self-hosting": {
+			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
+			"dependsOn": ["build"]
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/php-wasm/xdebug-bridge"
+			],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/xdebug-bridge",
+				"testFiles": ["mock-test.spec.ts"]
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/xdebug-bridge/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/xdebug-bridge/tsconfig.spec.json --noEmit"
+				]
+			}
 		}
 	},
-	"tags": ["php-wasm"]
+	"tags": ["scope:php-binaries"]
 }
