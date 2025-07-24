@@ -47,6 +47,7 @@ import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -184,6 +185,11 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
+			.option('experimental-devtools', {
+				describe: 'Enable experimental browser development tools.',
+				type: 'boolean',
+				default: false,
+			})
 			// TODO: Should we make this a hidden flag?
 			.option('experimental-multi-worker', {
 				describe:
@@ -301,6 +307,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
+	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
 	// --------- Blueprint V1 args -----------
@@ -534,6 +541,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 
 				logger.log(`WordPress is running on ${absoluteUrl}`);
+
+				if (args.experimentalDevtools && args.xdebug) {
+					const bridge = await startBridge({
+						getPHPFile: async (path: string) =>
+							await playground!.readFileAsText(path),
+					});
+
+					bridge.start();
+				}
 
 				return {
 					playground,
