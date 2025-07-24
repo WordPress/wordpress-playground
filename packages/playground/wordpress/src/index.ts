@@ -1,6 +1,8 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
+import { logger } from '@php-wasm/logger';
+
 export {
 	bootWordPress,
 	bootRequestHandler,
@@ -529,7 +531,6 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		}
 	}
 
-	// TODO: Consider moving this to a shared location and add a unit test if this isn't going to be immediately replaced by Blueprints v2 execution.
 	const moveRecursively = (source: string, target: string, php: PHP) => {
 		if (php.fileExists(target)) {
 			/*
@@ -562,6 +563,17 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 				moveRecursively(sourcePath, targetPath, php);
 			}
 		} else {
+			if (php.fileExists(target) && !php.isDir(target)) {
+				// Refuse to overwrite existing files to avoid the chance of data loss.
+				const wpPath = source.replace(
+					/^\/tmp\/unzipped-wordpress\//,
+					'/'
+				);
+				logger.warn(
+					`Skipping ${wpPath} because a file exists at the target path.`
+				);
+				return;
+			}
 			php.mv(source, target);
 		}
 	};
