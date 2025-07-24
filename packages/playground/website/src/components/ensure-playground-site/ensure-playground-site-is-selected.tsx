@@ -168,9 +168,15 @@ async function createNewTemporarySite(
 	// Lean on the Query API parameters and the Blueprint API to
 	// create the new site.
 	const newUrl = new URL(window.location.href);
+	const defaultBlueprint =
+		'https://raw.githubusercontent.com/fellyph/blueprints-demos/refs/heads/main/demos/blueprint-import-wxr.json';
 	let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+
 	try {
-		resolvedBlueprint = await resolveBlueprintFromURL(newUrl);
+		resolvedBlueprint = await resolveBlueprintFromURL(
+			newUrl,
+			defaultBlueprint
+		);
 	} catch (e) {
 		logger.error('Error resolving blueprint:', e);
 	}
