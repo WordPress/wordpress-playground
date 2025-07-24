@@ -21,7 +21,7 @@ import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 // @ts-ignore
 import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
+import type { RunCLIArgs, WorkerAndMessagePort } from '../run-cli';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -172,7 +172,7 @@ export class BlueprintsV1Handler {
 		fileLockManagerPort,
 		firstProcessId,
 	}: {
-		worker: SpawnedWorker;
+		worker: WorkerAndMessagePort;
 		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
 	}) {

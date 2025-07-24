@@ -7,7 +7,7 @@ import type {
 // @ts-ignore
 import importedWorkerV2UrlString from './worker-thread-v2?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
+import type { RunCLIArgs, WorkerAndMessagePort } from '../run-cli';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -68,7 +68,7 @@ export class BlueprintsV2Handler {
 		fileLockManagerPort,
 		firstProcessId,
 	}: {
-		worker: SpawnedWorker;
+		worker: WorkerAndMessagePort;
 		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
 	}) {

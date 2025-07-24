@@ -104,7 +104,8 @@ export async function parseOptionsAndRunCLI() {
 				type: 'array',
 				nargs: 2,
 				array: true,
-				// coerce: parseMountDirArguments,
+				// TODO: Check with @adamziel if this should be commented out. It was commented out before this PR, but I think it may have been a mistake.
+				coerce: parseMountDirArguments,
 			})
 			.option('mount-dir-before-install', {
 				describe:
@@ -187,8 +188,8 @@ export async function parseOptionsAndRunCLI() {
 			// TODO: Should we make this a hidden flag?
 			.option('experimental-multi-worker', {
 				describe:
-					'Enable experimental multi-worker support which requires JSPI ' +
-					'and a /wordpress directory backed by a real filesystem. ' +
+					'Enable experimental multi-worker support which requires ' +
+					'a /wordpress directory backed by a real filesystem. ' +
 					'Pass a positive number to specify the number of workers to use. ' +
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
@@ -227,6 +228,10 @@ export async function parseOptionsAndRunCLI() {
 					if (
 						!args.mount?.some(isMountingWordPressDir) &&
 						!(args['mount-before-install'] as any)?.some(
+							isMountingWordPressDir
+						) &&
+						!args['mount-dir']?.some(isMountingWordPressDir) &&
+						!args['mount-dir-before-install']?.some(
 							isMountingWordPressDir
 						)
 					) {
@@ -336,8 +341,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
 	const playgroundsToCleanUp: {
-		playground: RemoteAPI<PlaygroundCliWorker>;
-		worker: Worker;
+		playground?: RemoteAPI<PlaygroundCliWorker>;
+		workerAndMessagePort: WorkerAndMessagePort;
 	}[] = [];
 
 	/**
@@ -430,8 +435,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			logger.log(`Setting up WordPress ${args.wp}`);
 
 			try {
-				const [initialWorker, ...additionalWorkers] =
-					await promisedWorkers;
+				const [promisedInitialWorker, ...promisedAdditionalWorkers] =
+					promisedWorkers;
+				const initialWorkerAndMessagePort = await promisedInitialWorker;
 
 				const fileLockManagerPort = await exposeFileLockManager(
 					fileLockManager
@@ -439,12 +445,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				// Boot the primary worker using the handler
 				playground = await handler.bootPrimaryWorker(
-					initialWorker.phpPort,
+					initialWorkerAndMessagePort.phpPort,
 					fileLockManagerPort
 				);
 				playgroundsToCleanUp.push({
 					playground,
-					worker: initialWorker.worker,
+					workerAndMessagePort: initialWorkerAndMessagePort,
 				});
 
 				await playground.isReady();
@@ -476,61 +482,74 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					process.exit(0);
 				}
 
-				if (
-					args.experimentalMultiWorker &&
-					args.experimentalMultiWorker > 1
-				) {
+				if (promisedAdditionalWorkers.length > 0) {
 					logger.log(`Preparing additional workers...`);
+					const initialWorkerProcessIdSpace = processIdSpaceLength;
 
 					// Save /internal directory from initial worker so we can replicate it
 					// in each additional worker.
-					const internalZip = await zipDirectory(
+					const promisedInternalZip = zipDirectory(
 						playground,
 						'/internal'
 					);
+					// TODO: Remove this before merging this PR.
+					// It is here to show how long it takes to zip /internal.
+					promisedInternalZip.finally(() => {
+						logger.log(
+							`Internal zip prepared for additional workers`
+						);
+					});
 
-					// Boot additional workers using the handler
-					const initialWorkerProcessIdSpace = processIdSpaceLength;
-					await Promise.all(
-						additionalWorkers.map(async (worker, index) => {
+					// NOTE: We intentionally do not wait until additional workers
+					// are configured because we want to make Playground CLI
+					// available to users as soon as possible.
+					promisedAdditionalWorkers.forEach(
+						async (promisedWorkerAndMessagePort, index) => {
 							const firstProcessId =
 								initialWorkerProcessIdSpace +
 								index * processIdSpaceLength;
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-
-							const additionalPlayground =
-								await handler.bootSecondaryWorker({
-									worker,
-									fileLockManagerPort,
-									firstProcessId,
-								});
-
-							playgroundsToCleanUp.push({
-								playground: additionalPlayground,
-								worker: worker.worker,
-							});
-
-							// Replicate the Blueprint-initialized /internal directory
-							await additionalPlayground.writeFile(
-								'/tmp/internal.zip',
-								internalZip
-							);
-							await unzipFile(
-								additionalPlayground,
-								'/tmp/internal.zip',
-								'/internal'
-							);
-							await additionalPlayground.unlink(
-								'/tmp/internal.zip'
-							);
-
-							loadBalancer.addWorker(additionalPlayground);
-						})
+							let internalZip: Uint8Array;
+							let workerAndMessagePort:
+								| WorkerAndMessagePort
+								| undefined;
+							let additionalPlayground:
+								| RemoteAPI<PlaygroundCliWorker>
+								| undefined;
+							try {
+								[internalZip, workerAndMessagePort] =
+									await Promise.all([
+										promisedInternalZip,
+										promisedWorkerAndMessagePort,
+									]);
+								const additionalPlayground =
+									await finishAdditionalWorkerSetup(
+										workerAndMessagePort,
+										internalZip,
+										firstProcessId,
+										fileLockManager,
+										handler
+									);
+								loadBalancer.addWorker(additionalPlayground);
+							} catch (error) {
+								if (workerAndMessagePort) {
+									workerAndMessagePort.phpPort.close();
+									await workerAndMessagePort.worker.terminate();
+								}
+								logger.error(
+									`Failed to setup additional worker ${index}: ${error}`
+								);
+							} finally {
+								if (workerAndMessagePort) {
+									// We at least have a worker so some cleanup is needed.
+									playgroundsToCleanUp.push({
+										playground: additionalPlayground,
+										workerAndMessagePort,
+									});
+								}
+							}
+						}
 					);
-
-					logger.log(`Ready!`);
 				}
 
 				logger.log(`WordPress is running on ${absoluteUrl}`);
@@ -541,9 +560,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					[Symbol.asyncDispose]: async function disposeCLI() {
 						await Promise.all(
 							playgroundsToCleanUp.map(
-								async ({ playground, worker }) => {
-									await playground.dispose();
-									await worker.terminate();
+								async ({
+									playground,
+									workerAndMessagePort,
+								}) => {
+									if (playground) {
+										await playground.dispose();
+									}
+									workerAndMessagePort.phpPort.close();
+									await workerAndMessagePort.worker.terminate();
 								}
 							)
 						);
@@ -595,7 +620,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	});
 }
 
-export type SpawnedWorker = {
+export type WorkerAndMessagePort = {
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
@@ -607,7 +632,7 @@ function spawnWorkerThreads(
 		isMain: boolean;
 		workerIndex: number;
 	}) => void
-): Promise<SpawnedWorker[]> {
+): Promise<WorkerAndMessagePort>[] {
 	const moduleWorkerUrl = new URL(workerUrlString, import.meta.url);
 
 	const promises = [];
@@ -646,7 +671,30 @@ function spawnWorkerThreads(
 			)
 		);
 	}
-	return Promise.all(promises);
+	return promises;
+}
+
+async function finishAdditionalWorkerSetup(
+	workerAndMessagePort: WorkerAndMessagePort,
+	internalZip: Uint8Array,
+	firstProcessId: number,
+	fileLockManager: FileLockManagerForNode,
+	handler: BlueprintsV1Handler | BlueprintsV2Handler
+): Promise<RemoteAPI<PlaygroundCliWorker>> {
+	const fileLockManagerPort = await exposeFileLockManager(fileLockManager);
+
+	const additionalPlayground = await handler.bootSecondaryWorker({
+		worker: workerAndMessagePort,
+		fileLockManagerPort,
+		firstProcessId,
+	});
+
+	// Replicate the Blueprint-initialized /internal directory
+	await additionalPlayground.writeFile('/tmp/internal.zip', internalZip);
+	await unzipFile(additionalPlayground, '/tmp/internal.zip', '/internal');
+	await additionalPlayground.unlink('/tmp/internal.zip');
+
+	return additionalPlayground;
 }
 
 /**
