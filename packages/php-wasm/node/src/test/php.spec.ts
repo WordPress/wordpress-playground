@@ -2405,7 +2405,7 @@ phpLoaderOptions.forEach((options) => {
 					await php.run({
 						code: `<?php throw new Error('mock error');`,
 					});
-				} catch (e) {
+				} catch {
 					// Ignore the thrown error
 				}
 				expect(spyListener).toHaveBeenCalledTimes(1);
@@ -2423,7 +2423,7 @@ phpLoaderOptions.forEach((options) => {
 						code: `<?php throw new Error('mock error');`,
 					});
 					await response.finished;
-				} catch (e) {
+				} catch {
 					// Ignore the thrown error
 				}
 				expect(spyListener).toHaveBeenCalledTimes(1);
