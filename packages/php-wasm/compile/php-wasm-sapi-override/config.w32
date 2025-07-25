@@ -1,0 +1,5 @@
+ARG_ENABLE("wasm_sapi_override", "Enable wasm_sapi_override support", "no");
+
+if (PHP_wasm_sapi_override == "yes") {
+    EXTENSION("wasm_sapi_override", "wasm_sapi_override.c");
+} 

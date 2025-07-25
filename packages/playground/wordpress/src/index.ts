@@ -321,6 +321,14 @@ export async function preloadPhpInfoRoute(
 	requestPath = '/phpinfo.php'
 ) {
 	await php.writeFile(
+		'/internal/shared/preload/0-sapi-name.php',
+		`<?php
+		if(defined('PLAYGROUND_SAPI_NAME')) {
+			set_sapi_name(PLAYGROUND_SAPI_NAME);
+		}
+    `
+	);
+	await php.writeFile(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
@@ -439,15 +447,6 @@ class Playground_SQLite_Integration_Loader {
         require_once ${phpVar(SQLITE_MUPLUGIN_PATH)};
     }
 }
-/**
- * The Query Monitor plugin short-circuits in the CLI SAPI. However, in Playground,
- * the SAPI is always "cli" at the moment. Let's set a constant to disable the CLI
- * detection.
- *
- * @see https://github.com/WordPress/sqlite-database-integration/pull/212
- * @see https://github.com/WordPress/sqlite-database-integration/pull/215
- */
-define('QM_TESTS', true);
 $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
 
 /**

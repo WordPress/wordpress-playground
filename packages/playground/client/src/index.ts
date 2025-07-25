@@ -176,7 +176,7 @@ export async function startPlaygroundWeb({
 	 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 	 */
 	if (compiled.features.networking) {
-		await playground.prefetchUpdateChecks();
+		// await playground.prefetchUpdateChecks();
 	}
 	progressTracker.finish();
 
