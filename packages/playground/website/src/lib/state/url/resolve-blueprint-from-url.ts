@@ -113,24 +113,6 @@ export async function resolveBlueprintFromURL(
 					} as StepDefinition),
 			].filter(Boolean),
 		};
-
-		if (
-			window.self === window.top &&
-			!blueprint.plugins?.length &&
-			!blueprint.steps?.length &&
-			defaultBlueprint
-		) {
-			// Load a default blueprint if one is provided and not other options are provided.
-			blueprint = await resolveRemoteBlueprint(defaultBlueprint);
-			source = {
-				type: 'remote-url',
-				url: defaultBlueprint,
-			};
-		}
-
-		source = {
-			type: 'none',
-		};
 	}
 
 	/**
