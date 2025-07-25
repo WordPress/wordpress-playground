@@ -34,6 +34,7 @@ export interface XdebugCDPBridgeConfig {
 	phpRoot?: string;
 	getPHPFile(path: string): string | Promise<string>;
 	breakOnFirstLine?: boolean;
+	excludedPaths?: string[];
 }
 
 export class XdebugCDPBridge {
@@ -51,6 +52,7 @@ export class XdebugCDPBridge {
 	private phpRoot: string;
 	private readPHPFile: (path: string) => string | Promise<string>;
 	private breakOnFirstLine;
+	private excludedPaths: string[];
 
 	constructor(
 		dbgp: DbgpSession,
@@ -61,6 +63,7 @@ export class XdebugCDPBridge {
 		this.cdp = cdp;
 		this.readPHPFile = config.getPHPFile;
 		this.phpRoot = config.phpRoot || '';
+		this.excludedPaths = config.excludedPaths || [];
 		for (const url of config.knownScriptUrls) {
 			this.scriptIdByUrl.set(url, this.getOrCreateScriptId(url));
 		}
@@ -253,6 +256,12 @@ export class XdebugCDPBridge {
 			this.scriptIdByUrl.set(url, scriptId);
 		}
 		return scriptId;
+	}
+
+	private isExcludedPath(fileUri: string): boolean {
+		return this.excludedPaths.some((prefix) =>
+			fileUri.startsWith(prefix)
+		);
 	}
 
 	// Utility: escape and quote Xdebug fullname for property_get
@@ -690,10 +699,15 @@ export class XdebugCDPBridge {
 						);
 
 						if (bridgeUri && !this.scriptIdByUrl.has(bridgeUri)) {
-							await this.sendScriptToCDP(
-								bridgeUri,
-								this.getOrCreateScriptId(bridgeUri)
-							);
+							if (this.isExcludedPath(bridgeUri)) {
+								this.sendDbgpCommand('step_over');
+								break;
+							} else {
+								await this.sendScriptToCDP(
+									bridgeUri,
+									this.getOrCreateScriptId(bridgeUri)
+								);
+							}
 						}
 					}
 					if (status === 'break') {
