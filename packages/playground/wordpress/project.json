@@ -74,6 +74,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/playground/wordpress/**/*.ts"],
 				"maxWarnings": 0
 			}

@@ -4,7 +4,12 @@ import type {
 	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { PHPResponse, exposeAPI, exposeSyncAPI } from '@php-wasm/universal';
+import {
+	PHPResponse,
+	exposeAPI,
+	exposeSyncAPI,
+	printDebugDetails,
+} from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintDeclaration,
@@ -42,6 +47,7 @@ import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -179,6 +185,11 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
+			.option('experimental-devtools', {
+				describe: 'Enable experimental browser development tools.',
+				type: 'boolean',
+				default: false,
+			})
 			// TODO: Should we make this a hidden flag?
 			.option('experimental-multi-worker', {
 				describe:
@@ -261,9 +272,17 @@ export async function parseOptionsAndRunCLI() {
 		}
 		const debug = process.argv.includes('--debug');
 		if (debug) {
-			console.error(e);
+			printDebugDetails(e);
 		} else {
-			console.error(e.message);
+			const messageChain = [];
+			let currentError = e;
+			do {
+				messageChain.push(currentError.message);
+				currentError = currentError.cause as Error;
+			} while (currentError instanceof Error);
+			console.error(
+				'\x1b[1m' + messageChain.join(' caused by ') + '\x1b[0m'
+			);
 		}
 		process.exit(1);
 	}
@@ -288,6 +307,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
+	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
 	// --------- Blueprint V1 args -----------
@@ -522,6 +542,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				logger.log(`WordPress is running on ${absoluteUrl}`);
 
+				if (args.experimentalDevtools && args.xdebug) {
+					const bridge = await startBridge({
+						getPHPFile: async (path: string) =>
+							await playground!.readFileAsText(path),
+					});
+
+					bridge.start();
+				}
+
 				return {
 					playground,
 					server,
@@ -541,7 +570,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				if (!args.debug) {
 					throw error;
 				}
-				const phpLogs = await playground.readFileAsText(errorLogPath);
+				let phpLogs = '';
+				if (await playground.fileExists(errorLogPath)) {
+					phpLogs = await playground.readFileAsText(errorLogPath);
+				}
 				throw new Error(phpLogs, { cause: error });
 			}
 		},

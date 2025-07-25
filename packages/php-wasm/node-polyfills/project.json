@@ -66,6 +66,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": [
 					"packages/php-wasm/node-polyfills/**/*.ts",
 					"packages/php-wasm/node-polyfills/package.json"

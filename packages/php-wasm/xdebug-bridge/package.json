@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/xdebug-bridge",
-	"version": "1.2.3",
+	"version": "2.0.3",
 	"description": "XDebug bridge server for PHP.wasm",
 	"repository": {
 		"type": "git",
@@ -26,7 +26,7 @@
 	"type": "module",
 	"main": "./index.cjs",
 	"module": "./index.js",
-	"bin": "cli.js",
+	"bin": "xdebug-bridge.js",
 	"typedoc": {
 		"entryPoint": "./src/index.ts",
 		"readmeFile": "./README.md",
