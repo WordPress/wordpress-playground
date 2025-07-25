@@ -59,19 +59,19 @@ export async function startBridge(config: StartBridgeConfig) {
 
 	const getPHPFile = config.phpInstance
 		? (path: string) =>
-				new Promise<string>(() =>
-					config.phpInstance!.readFileAsText(path)
+				new Promise<string>((resolve) =>
+					resolve(config.phpInstance!.readFileAsText(path))
 				)
 		: config.getPHPFile
 		? config.getPHPFile
 		: (path: string) =>
-				new Promise<string>(() => {
+				new Promise<string>((resolve) => {
 					// Default implementation: read from filesystem
 					// Convert file:/// URLs to local paths
 					const localPath = path.startsWith('file://')
 						? path.replace('file://', '')
 						: path;
-					return readFileSync(localPath, 'utf-8');
+					resolve(readFileSync(localPath, 'utf-8'));
 				});
 
 	const phpFiles = getPhpFiles(phpRoot);
