@@ -113,6 +113,9 @@ export async function resolveBlueprintFromURL(
 					} as StepDefinition),
 			].filter(Boolean),
 		};
+		source = {
+			type: 'none',
+		};
 	}
 
 	/**
