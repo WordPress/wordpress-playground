@@ -169,7 +169,7 @@ async function createNewTemporarySite(
 	// create the new site.
 	const newUrl = new URL(window.location.href);
 	const defaultBlueprint =
-		'https://raw.githubusercontent.com/fellyph/blueprints-demos/refs/heads/main/demos/blueprint-import-wxr.json';
+		'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 	let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 
 	try {
