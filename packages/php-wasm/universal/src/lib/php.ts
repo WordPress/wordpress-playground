@@ -467,9 +467,11 @@ export class PHP implements Disposable {
 		);
 
 		if (syncResponse.exitCode !== 0) {
-			// Legacy behavior: throw if PHP exited with a non-zero exit code.
+			// Legacy run() behavior: throw if PHP exited with a non-zero exit code.
 			// It could be a WASM crash, but it could be a PHP userland error such
 			// as "Fatal error: Uncaught Error: Call to undefined function no_such_function()".
+			//
+			// runStream() does not throw just because an exitCode is non-zero.
 			throw new PHPExecutionFailureError(
 				`PHP.run() failed with exit code ${syncResponse.exitCode}. \n\n=== Stdout ===\n ${syncResponse.text}\n\n=== Stderr ===\n ${syncResponse.errors}`,
 				syncResponse,
@@ -654,21 +656,6 @@ export class PHP implements Disposable {
 
 		// Free up resources when the response is done
 		await streamedResponsePromise
-			.catch((error) => {
-				/**
-				 * Dispatch a request.error event for any global crash handlers. For example,
-				 * Playground web uses this to automatically display a "Report crash" modal.
-				 */
-				this.dispatchEvent({
-					type: 'request.error',
-					error: error as Error,
-					// Distinguish between PHP request and PHP-wasm errors
-					source: (error as any).source ?? 'php-wasm',
-				});
-
-				// Rethrow the error. We don't want to swallow it.
-				throw error;
-			})
 			.finally(() => {
 				if (heapBodyPointer) {
 					this[__private__dont__use].free(heapBodyPointer);
@@ -989,6 +976,18 @@ export class PHP implements Disposable {
 				]);
 				return exitCode;
 			} catch (e) {
+				/**
+				 * Dispatch a request.error event for any global crash handlers. For example,
+				 * Playground web uses this to automatically display a "Report crash" modal.
+				 */
+				if (!isExitCode(e) || e.status !== 0) {
+					this.dispatchEvent({
+						type: 'request.error',
+						error: e as any as Error,
+						// Distinguish between PHP request and PHP-wasm errors
+						source: (e as any).source ?? 'php-wasm',
+					});
+				}
 				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
 				 * turn exit code errors into integers again.
