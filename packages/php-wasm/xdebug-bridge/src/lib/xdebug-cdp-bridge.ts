@@ -28,7 +28,7 @@ export interface XdebugCDPBridgeConfig {
 	knownScriptUrls: string[];
 	remoteRoot?: string;
 	localRoot?: string;
-	getPHPFile(path: string): Promise<string>;
+	getPHPFile(path: string): string | Promise<string>;
 }
 
 export class XdebugCDPBridge {
@@ -45,7 +45,7 @@ export class XdebugCDPBridge {
 	private xdebugConnected = false;
 	private xdebugStatus = 'starting';
 	private initFileUri: string | null = null;
-	private readPHPFile: (path: string) => Promise<string>;
+	private readPHPFile: (path: string) => string | Promise<string>;
 	private remoteRoot: string;
 	private localRoot: string;
 
@@ -688,7 +688,8 @@ export class XdebugCDPBridge {
 					if (pending && pending.cdpId !== undefined) {
 						// Handle variables or object properties retrieval
 						const props: any = [];
-						const responseProps = response.property;
+						const responseProps =
+							response.property?.property ?? response.property;
 						if (responseProps) {
 							const propertiesArray = Array.isArray(responseProps)
 								? responseProps
@@ -859,10 +860,12 @@ export class XdebugCDPBridge {
 							// Map callFrameId to depth for evaluate
 							this.callFramesMap.set(callFrameId, level);
 							// Prepare scope chain (local and global)
+
 							const scopes: any[] = [];
-							// Local scope
-							const localObjectId = String(this.nextObjectId++);
-							this.objectHandles.set(localObjectId, {
+
+							// locals
+							const localsId = String(this.nextObjectId++);
+							this.objectHandles.set(localsId, {
 								type: 'context',
 								contextId: 0,
 								depth: level,
@@ -870,14 +873,15 @@ export class XdebugCDPBridge {
 							scopes.push({
 								type: 'local',
 								object: {
-									objectId: localObjectId,
+									objectId: localsId,
 									className: 'Object',
-									description: 'Local',
+									description: 'Locals',
 								},
 							});
-							// Global scope (superglobals in PHP)
-							const globalObjectId = String(this.nextObjectId++);
-							this.objectHandles.set(globalObjectId, {
+
+							// super‑globals (Xdebug context‑id = 1)
+							const superId = String(this.nextObjectId++);
+							this.objectHandles.set(superId, {
 								type: 'context',
 								contextId: 1,
 								depth: level,
@@ -885,27 +889,23 @@ export class XdebugCDPBridge {
 							scopes.push({
 								type: 'global',
 								object: {
-									objectId: globalObjectId,
+									objectId: superId,
 									className: 'Object',
-									description: 'Global',
+									description: 'Superglobals',
 								},
 							});
-							// Build callFrame entry
+
+							// build the frame
 							callFrames.push({
-								callFrameId: callFrameId,
-								functionName: functionName,
+								callFrameId,
+								functionName,
 								location: {
-									scriptId: scriptId,
+									scriptId,
 									lineNumber: line - 1,
 									columnNumber: 0,
 								},
 								scopeChain: scopes,
-								this: {
-									type: 'object',
-									className: 'Object',
-									description: 'Object',
-									objectId: globalObjectId,
-								},
+								this: { type: 'undefined' },
 							});
 						}
 						// Send paused event to DevTools

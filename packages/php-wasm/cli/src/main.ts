@@ -16,6 +16,7 @@ import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
+import { cwd } from 'process';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -106,7 +107,9 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	useHostFilesystem(php);
 
 	if (hasDevtoolsOption && hasXdebugOption) {
-		const bridge = await startBridge({});
+		const bridge = await startBridge({
+			phpRoot: cwd(),
+		});
 
 		bridge.start();
 	}
