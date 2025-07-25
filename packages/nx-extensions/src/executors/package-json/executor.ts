@@ -156,6 +156,15 @@ async function buildPackageJson(
 	}
 	packageJson.main = main;
 
+	// Playground-client is a dependency-less package. Let's make sure it can be installed
+	// without bringing in any other packages.
+	if ('playground-client' === context.projectName) {
+		delete packageJson.overrides;
+		delete packageJson.dependencies;
+		delete packageJson.devDependencies;
+		delete packageJson.optionalDependencies;
+	}
+
 	fs.writeFileSync(
 		options.outputPath + '/package.json',
 		serializeJson(packageJson)
