@@ -23,6 +23,9 @@ RUN git clone https://github.com/php/php-src.git php-src \
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
+# Allow changing the SAPI name at runtime
+COPY ./php-wasm-sapi-override /root/php-src/ext/wasm_sapi_override
+
 # Polyfill for dns functions
 COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
@@ -412,6 +415,7 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 	--enable-ctype     \
 	--enable-tokenizer \
 	--enable-wasm_memory_storage \
+	--enable-wasm_sapi_override \
 	--enable-dns_polyfill \
 	--enable-post_message_to_js \
 	$(cat /root/.php-configure-flags)

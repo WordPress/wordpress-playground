@@ -68,7 +68,6 @@ type MountObject = {
  */
 export class PHP implements Disposable {
 	protected [__private__dont__use]: any;
-	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
@@ -77,6 +76,7 @@ export class PHP implements Disposable {
 	requestHandler?: PHPRequestHandler;
 	private cliCalled = false;
 	private runStreamCalled = false;
+	private sapiName = 'playground';
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -338,19 +338,8 @@ export class PHP implements Disposable {
 
 	/** @inheritDoc */
 	async setSapiName(newName: string) {
-		const result = this[__private__dont__use].ccall(
-			'wasm_set_sapi_name',
-			NUMBER,
-			[STRING],
-			[newName]
-		);
-		if (result !== 0) {
-			throw new Error(
-				'Could not set SAPI name. This can only be done before the PHP WASM module is initialized.' +
-					'Did you already dispatch any requests?'
-			);
-		}
-		this.#sapiName = newName;
+		this.sapiName = newName;
+		this.defineConstant('PLAYGROUND_SAPI_NAME', newName);
 	}
 
 	/**
@@ -591,6 +580,7 @@ export class PHP implements Disposable {
 			async () => {
 				if (!this.#webSapiInitialized) {
 					await this.#initWebRuntime();
+					this.setSapiName(this.sapiName);
 					this.#webSapiInitialized = true;
 				}
 				if (
@@ -1252,10 +1242,6 @@ export class PHP implements Disposable {
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
 
-		if (this.#sapiName) {
-			this.setSapiName(this.#sapiName);
-		}
-
 		// Copy the old /internal directory to the new filesystem
 		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
 
@@ -1346,14 +1332,20 @@ export class PHP implements Disposable {
 			);
 		}
 
+		const sapiNameBefore = this.sapiName;
+		this.sapiName = 'cli';
 		return await this.#executeWithErrorHandling(() => {
 			return this[__private__dont__use].ccall('run_cli', null, [], [], {
 				async: true,
 			});
-		}).then((response) => {
-			response.exitCode.finally(release);
-			return response;
-		});
+		})
+			.then((response) => {
+				response.exitCode.finally(release);
+				return response;
+			})
+			.finally(() => {
+				this.setSapiName(sapiNameBefore);
+			});
 	}
 
 	setSkipShebang(shouldSkip: boolean) {

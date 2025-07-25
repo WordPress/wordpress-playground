@@ -181,7 +181,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		wpVersion = LatestMinifiedWordPressVersion,
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion = RecommendedPHPVersion,
-		sapiName = 'cli',
+		sapiName,
 		withICU = false,
 		withNetworking = true,
 		shouldInstallWordPress = true,
