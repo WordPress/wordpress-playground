@@ -2661,6 +2661,76 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
+		/**
+		 * SAPI override support
+		 */
+		describe('SAPI override support', { skip: options.withXdebug }, () => {
+			it('defaults to "playground" SAPI name', async () => {
+				const response = await php.run({
+					code: `<?php
+						echo php_sapi_name() . "\n";
+					`,
+				});
+				expect(response.errors).toBe('');
+				expect(response.text).toBe('playground');
+			});
+
+			it('uses "cli" SAPI name with php.cli()', async () => {
+				const response = await php.cli([
+					'php',
+					'-r',
+					'echo php_sapi_name();',
+				]);
+				expect(await response.stdoutText).toBe('cli');
+			});
+
+			it('should be able to change SAPI name with set_sapi_name()', async () => {
+				const response = await php.run({
+					code: `<?php
+						echo php_sapi_name() . "\n";
+						echo PHP_SAPI . "\n";
+						set_sapi_name('custom');
+						echo php_sapi_name() . "\n";
+						echo PHP_SAPI . "\n";
+					`,
+				});
+				expect(response.errors).toBe('');
+				const lines = response.text.split('\n');
+				expect(lines[0]).toBe('embed'); // Original SAPI name
+				expect(lines[1]).toBe('embed'); // Original PHP_SAPI constant
+				expect(lines[2]).toBe('custom'); // New SAPI name
+				expect(lines[3]).toBe('custom'); // New PHP_SAPI constant
+			});
+
+			it('should handle multiple SAPI name changes', async () => {
+				const response = await php.run({
+					code: `<?php
+						set_sapi_name('first');
+						echo php_sapi_name() . "\n";
+						set_sapi_name('second');
+						echo php_sapi_name() . "\n";
+						set_sapi_name('third');
+						echo php_sapi_name() . "\n";
+					`,
+				});
+				expect(response.errors).toBe('');
+				const lines = response.text.split('\n');
+				expect(lines[0]).toBe('first');
+				expect(lines[1]).toBe('second');
+				expect(lines[2]).toBe('third');
+			});
+
+			it('should return true when successfully setting SAPI name', async () => {
+				const response = await php.run({
+					code: `<?php
+						var_dump(set_sapi_name('test'));
+					`,
+				});
+				expect(response.errors).toBe('');
+				expect(response.text).toBe('bool(true)\n');
+			});
+		});
+
 		describe('onMessage', { skip: options.withXdebug }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';

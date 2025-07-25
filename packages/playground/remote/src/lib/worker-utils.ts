@@ -70,8 +70,8 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
                 define('STDOUT', fopen('php://stdout', 'wb'));
                 define('STDERR', fopen('/tmp/stderr', 'wb'));
 
-				// Override the SAPI name to pass the check in wp-cli.
-				set_sapi_name('cli');
+                // Override the SAPI name to pass the check in wp-cli.
+                set_sapi_name('cli');
 
                 ${options.cwd ? 'chdir(getenv("DOCROOT")); ' : ''}
                 `;

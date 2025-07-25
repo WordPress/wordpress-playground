@@ -19,6 +19,8 @@
 #include "zend_constants.h"
 #include "ext/standard/info.h"
 #include "wasm_sapi_override.h"
+#include "ext/standard/php_string.h"
+#include "zend_smart_string.h"
 
 static char *set_sapi_name_original_name = NULL;
 static char *set_sapi_name_prev_allocated = NULL;
@@ -59,7 +61,11 @@ PHP_FUNCTION(set_sapi_name)
             zend_string *old = Z_STR(c->value);
             /* Only release if it's not interned (interned strings live for entire process) */
             if (!ZSTR_IS_INTERNED(old)) {
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION == 2)
+                zend_string_release(old);
+#else
                 zend_string_release_ex(old, 1);
+#endif
             }
         }
         ZVAL_STR(&c->value, new_zstr);
@@ -71,7 +77,11 @@ PHP_FUNCTION(set_sapi_name)
             .value         = zv,
         });
     }
-    zend_string_release_ex(const_name, 0);
+    #if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION == 2)
+        zend_string_release(const_name);
+    #else
+        zend_string_release_ex(const_name, 0);
+    #endif
 
     RETURN_TRUE;
 }

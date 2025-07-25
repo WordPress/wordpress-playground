@@ -553,6 +553,7 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 	test(`should translate WP-admin to Spanish for the ${wpVersion} WordPress build`, async ({
 		website,
 		wordpress,
+		browserName,
 	}) => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/',
