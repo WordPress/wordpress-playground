@@ -977,18 +977,6 @@ export class PHP implements Disposable {
 				return exitCode;
 			} catch (e) {
 				/**
-				 * Dispatch a request.error event for any global crash handlers. For example,
-				 * Playground web uses this to automatically display a "Report crash" modal.
-				 */
-				if (!isExitCode(e) || e.status !== 0) {
-					this.dispatchEvent({
-						type: 'request.error',
-						error: e as any as Error,
-						// Distinguish between PHP request and PHP-wasm errors
-						source: (e as any).source ?? 'php-wasm',
-					});
-				}
-				/**
 				 * Emscripten sometimes communicates program exit as an error. Let's
 				 * turn exit code errors into integers again.
 				 */
@@ -1034,7 +1022,40 @@ export class PHP implements Disposable {
 			}
 		};
 
-		const exitCodePromise = runExecutionFunction();
+		/**
+		 * Dispatch a request.error event for any global crash handlers. For example,
+		 * Playground web uses this to automatically display a "Report crash" modal.
+		 */
+		const exitCodePromise = runExecutionFunction().then(
+			(exitCode) => {
+				/**
+				 * Emit errors related to PHP script failures (exit code other than 0)
+				 */
+				if (exitCode !== 0) {
+					this.dispatchEvent({
+						type: 'request.error',
+						error: new Error(
+							`PHP.run() failed with exit code ${exitCode}.`
+						),
+						// Distinguish between PHP request and PHP-wasm errors
+						source: 'php-wasm',
+					});
+				}
+				return exitCode;
+			},
+			(error) => {
+				/**
+				 * Emit all other errors.
+				 */
+				this.dispatchEvent({
+					type: 'request.error',
+					error: error as any as Error,
+					// Distinguish between PHP request and PHP-wasm errors
+					source: (error as any).source ?? 'php-wasm',
+				});
+				throw error;
+			}
+		);
 
 		return new StreamedPHPResponse(
 			headers.stream,
