@@ -110,7 +110,7 @@ const sidebars = {
 						'blueprints/json-api-and-function-api',
 					],
 				},
-
+				'blueprints/bundles',
 				'blueprints/examples',
 				'blueprints/troubleshoot-and-debug-blueprints',
 			],
