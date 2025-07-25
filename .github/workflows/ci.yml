@@ -318,6 +318,22 @@ jobs:
                     exit 1
                   fi
                   npx nx affected --target=build --parallel=3 --verbose
+            - name: Confirm the built Playground client package.json file has no dependencies listed
+              run: |
+                  if [ ! -f dist/packages/playground/client/package.json ]; then
+                    echo "Error: dist/packages/playground/client/package.json not found"
+                    echo "This is a regression from https://github.com/WordPress/playground/pull/1000"
+                    exit 1
+                  fi
+
+                  DEPENDENCIES=$(jq '.dependencies // {}' dist/packages/playground/client/package.json)
+                  if [ "$DEPENDENCIES" != "{}" ]; then
+                    echo "Error: @wp-playground/client package.json has dependencies listed:"
+                    echo "$DEPENDENCIES"
+                    exit 1
+                  else
+                    echo "✓ @wp-playground/client package.json has no dependencies listed"
+                  fi
 
     # Deploy documentation job
     deploy_docs:
