@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_3_23', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 33146570;
+export const dependenciesTotalSize = 33146634;
 const phpVersionString = '8.3.23';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 15213504;
+	var ___heap_base = 15213568;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1856,13 +1856,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 15213504;
+	var ___stack_high = 15213568;
 
-	var ___stack_low = 14164928;
+	var ___stack_low = 14164992;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		15213504
+		15213568
 	);
 
 	var PATH = {
@@ -7350,6 +7350,8 @@ export function init(RuntimeName, PHPLoader) {
 					return -ERRNO_CODES.EBADF;
 				}
 
+				const flockStructAddr = syscallGetVarargP();
+
 				if (!locking.is_path_to_shared_fs(vfsPath)) {
 					_js_wasm_trace(
 						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
@@ -7365,7 +7367,6 @@ export function init(RuntimeName, PHPLoader) {
 					return 0;
 				}
 
-				const flockStructAddr = syscallGetVarargP();
 				const flockStruct = read_flock_struct(flockStructAddr);
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
@@ -32091,13 +32092,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		13232301: ($0) => {
+		13232365: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		13232349: ($0) => {
+		13232413: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

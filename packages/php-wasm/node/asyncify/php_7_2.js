@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_2_34', 'php_7_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29380527;
+export const dependenciesTotalSize = 29380543;
 const phpVersionString = '7.2.34';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7350,6 +7350,8 @@ export function init(RuntimeName, PHPLoader) {
 					return -ERRNO_CODES.EBADF;
 				}
 
+				const flockStructAddr = syscallGetVarargP();
+
 				if (!locking.is_path_to_shared_fs(vfsPath)) {
 					_js_wasm_trace(
 						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
@@ -7365,7 +7367,6 @@ export function init(RuntimeName, PHPLoader) {
 					return 0;
 				}
 
-				const flockStructAddr = syscallGetVarargP();
 				const flockStruct = read_flock_struct(flockStructAddr);
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
@@ -32091,13 +32092,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		10409693: ($0) => {
+		10409709: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10409741: ($0) => {
+		10409757: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

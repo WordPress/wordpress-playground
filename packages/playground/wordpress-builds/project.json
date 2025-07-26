@@ -116,6 +116,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": [
 					"packages/playground/wordpress-builds/**/*.ts",
 					"packages/playground/wordpress-builds/package.json"

@@ -28,7 +28,7 @@ export interface XdebugCDPBridgeConfig {
 	knownScriptUrls: string[];
 	remoteRoot?: string;
 	localRoot?: string;
-	getPHPFile(path: string): Promise<string>;
+	getPHPFile(path: string): string | Promise<string>;
 }
 
 export class XdebugCDPBridge {
@@ -45,7 +45,7 @@ export class XdebugCDPBridge {
 	private xdebugConnected = false;
 	private xdebugStatus = 'starting';
 	private initFileUri: string | null = null;
-	private readPHPFile: (path: string) => Promise<string>;
+	private readPHPFile: (path: string) => string | Promise<string>;
 	private remoteRoot: string;
 	private localRoot: string;
 

@@ -41,6 +41,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": [
 					"packages/nx-extensions/**/*.ts",
 					"packages/nx-extensions/generators.json",

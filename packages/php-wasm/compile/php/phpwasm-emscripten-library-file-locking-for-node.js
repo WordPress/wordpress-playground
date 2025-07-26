@@ -2,13 +2,13 @@
  * This file is an Emscripten "library" file. It is included in the
  * build "php-8.0.js" file and implements JavaScript functions that
  * called from C code.
- * 
+ *
  * @see https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#implement-a-c-api-in-javascript
  */
 /**
  * JSPI vs Asyncify
  * -----------------
- * 
+ *
  * This file contains many fragments similar to this one:
  *
  *     #if ASYNCIFY == 2
@@ -21,7 +21,7 @@
  *
  * This is a way of making syscalls synchronous with Asyncify (to support Node < 23) and asynchronous with JSPI (to support web browsers).
  * It is cumbersome, but it is much easier than using and debugging Asyncify.
- * 
+ *
  * When JSPI is available (ASYNCIFY == 2), we can safely use promises and async/await.
  *
  * When JSPI is not available (ASYNCIFY == 1), we still invoke methods from another worker, but we do so
@@ -338,6 +338,8 @@ const LibraryForFileLocking = {
 						return -ERRNO_CODES.EBADF;
 					}
 
+					const flockStructAddr = syscallGetVarargP();
+
 					if (!locking.is_path_to_shared_fs(vfsPath)) {
 						_js_wasm_trace(
 							"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
@@ -353,7 +355,6 @@ const LibraryForFileLocking = {
 						return 0;
 					}
 
-					const flockStructAddr = syscallGetVarargP();
 					const flockStruct = read_flock_struct(flockStructAddr);
 
 					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
@@ -540,7 +541,7 @@ const LibraryForFileLocking = {
 						vfsPath,
 						rangeLock
 					);
-						
+
 					try {
 						const succeeded = (
 #if ASYNCIFY == 2
@@ -552,7 +553,7 @@ const LibraryForFileLocking = {
 							)
 #endif
 						);
-						
+
 						_js_wasm_trace(
 							'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
 							fd,

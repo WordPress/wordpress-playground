@@ -9,15 +9,54 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v2.0.3] (2025-07-24) 
+## [v2.0.4] (2025-07-25)
+
+### Public API
+
+#### Blueprints
+
+-   Distribute @wp-playground/client without any package.json dependencies. ([#2426](https://github.com/WordPress/wordpress-playground/pull/2426))
 
 ### Tools
 
-- [ xdebug ] Add `--experimental-devtools` option in php-wasm CLI. ([#2408](https://github.com/WordPress/wordpress-playground/pull/2408))
+-   Fix ESLint 9 linting in VSCode. ([#2417](https://github.com/WordPress/wordpress-playground/pull/2417))
+-   [ xdebug ] Add `--experimental-devtools` option in Playground CLI. ([#2411](https://github.com/WordPress/wordpress-playground/pull/2411))
+
+### PHP WebAssembly
+
+-   [PHP] Dispatch request.error for all non-zero-exit request handler errors. ([#2429](https://github.com/WordPress/wordpress-playground/pull/2429))
+
+### Website
+
+-   Query Monitor plugin support. ([#2415](https://github.com/WordPress/wordpress-playground/pull/2415))
+
+### Internal
+
+-   Skip flaky end-to-end tests in Firefox and Webkit. ([#2425](https://github.com/WordPress/wordpress-playground/pull/2425))
 
 ### Bug Fixes
 
-- Playground CLI Allow /wordpress subdirs to be mounted before WP install. ([#2382](https://github.com/WordPress/wordpress-playground/pull/2382))
+-   [Xdebug Bridge] Correct error related to unresolved promises in bridge. ([#2422](https://github.com/WordPress/wordpress-playground/pull/2422))
+
+### Various
+
+-   Documentation add sidebar to blueprints bundles. ([#2397](https://github.com/WordPress/wordpress-playground/pull/2397))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @mho22 @shimotmk
+
+## [v2.0.3] (2025-07-24)
+
+### Tools
+
+-   [ xdebug ] Add `--experimental-devtools` option in php-wasm CLI. ([#2408](https://github.com/WordPress/wordpress-playground/pull/2408))
+
+### Bug Fixes
+
+-   Playground CLI Allow /wordpress subdirs to be mounted before WP install. ([#2382](https://github.com/WordPress/wordpress-playground/pull/2382))
 
 ### Contributors
 
@@ -25,30 +64,27 @@ The following contributors merged PRs in this release:
 
 @brandonpayton @mho22
 
-
-## [v2.0.2] (2025-07-23) 
+## [v2.0.2] (2025-07-23)
 
 ### Tools
 
-
 #### PHP WebAssembly
 
-- [ xdebug ] Bridge DBGP session with CDP server. ([#2402](https://github.com/WordPress/wordpress-playground/pull/2402))
+-   [ xdebug ] Bridge DBGP session with CDP server. ([#2402](https://github.com/WordPress/wordpress-playground/pull/2402))
 
 ### Internal
 
-- [Build] Preserve optionalDependencies in built package.json. ([#2410](https://github.com/WordPress/wordpress-playground/pull/2410))
+-   [Build] Preserve optionalDependencies in built package.json. ([#2410](https://github.com/WordPress/wordpress-playground/pull/2410))
 
-### 
+###
 
-- Comlink] Throw the original error in the error handler. ([#2407](https://github.com/WordPress/wordpress-playground/pull/2407))
+-   Comlink] Throw the original error in the error handler. ([#2407](https://github.com/WordPress/wordpress-playground/pull/2407))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel
-
 
 ## [v2.0.1] (2025-07-23)
 

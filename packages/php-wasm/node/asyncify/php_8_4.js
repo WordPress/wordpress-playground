@@ -7350,6 +7350,8 @@ export function init(RuntimeName, PHPLoader) {
 					return -ERRNO_CODES.EBADF;
 				}
 
+				const flockStructAddr = syscallGetVarargP();
+
 				if (!locking.is_path_to_shared_fs(vfsPath)) {
 					_js_wasm_trace(
 						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
@@ -7365,7 +7367,6 @@ export function init(RuntimeName, PHPLoader) {
 					return 0;
 				}
 
-				const flockStructAddr = syscallGetVarargP();
 				const flockStruct = read_flock_struct(flockStructAddr);
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
