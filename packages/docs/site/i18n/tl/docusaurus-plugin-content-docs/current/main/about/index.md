@@ -40,7 +40,7 @@ Tingnan ang [mga gabay section](/guides) upang malaman kung paano mas mapapakina
 
 ## Paano gumagana ang WordPress Playground?
 
-Kapag unang ginamit mo ang WordPress Playground, bibigyan ka ng hiwalay na espasyo kung saan maaari kang lumikha at mag-customize ng sarili mong WordPress website. Ang espasyong ito ay ganap na hiwalay sa iyong aktwal na website.
+Kapag unang beses mong ginamit ang WordPress Playground, bibigyan ka ng hiwalay na espasyo kung saan maaari kang lumikha at mag-customize ng sarili mong WordPress website. Ang espasyong ito ay ganap na hiwalay sa iyong aktwal na website.
 
 ### Streamed, hindi served
 

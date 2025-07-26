@@ -5,7 +5,7 @@ slug: /blueprints/getting-started
 
 # Magsimula sa paggamit ng Mga Blueprint
 
-Ang Mga Blueprint ay mga JSON file para i-setup ang iyong sariling WordPress Playground instance. Halimbawa:
+Ang mga Blueprint ay mga JSON file para i-setup ang iyong sariling WordPress Playground instance. Halimbawa:
 
 Mayroong tatlong paraan para gamitin ang Mga Blueprint:
 
@@ -33,8 +33,8 @@ Dahil puwedeng idikit ang Blueprint sa URL, maaari mong i-embed o i-link ang isa
 
 ### Pinagkakatiwalaan Nang Default
 
-Ang Mga Blueprint ay simpleng JSON. Hindi kailangan ng tiwala para patakbuhin ang Blueprint ng iba. Dahil hindi ito nakakapag-execute ng arbitrary JavaScript, limitado ang kaya nitong gawin.
+Ang mga Blueprint ay simpleng JSON. Hindi kailangan ng tiwala para patakbuhin ang Blueprint ng iba. Dahil hindi ito nakakapag-execute ng arbitrary JavaScript, limitado ang kaya nitong gawin.
 
 ### Isusulat Isang Beses at Magagamit Kahit Saan
 
-Gumagana ang Mga Blueprint sa web at sa Node.js. Maaari mo itong patakbuhin sa parehong JavaScript process o sa pamamagitan ng remote Playground client. Universal na wika ng configuration ang Mga Blueprint: kung saan mo man patakbuhin ang Playground, gagana rin ang Blueprint.
+Gumagana ang mga Blueprint sa web at sa Node.js. Maaari mo itong patakbuhin sa parehong JavaScript process o sa pamamagitan ng remote Playground client. Universal na wika ng configuration ang Mga Blueprint: kung saan mo man patakbuhin ang Playground, gagana rin ang Blueprint.
