@@ -145,6 +145,8 @@ This will ensure your code works reliably regardless of the current working dire
 		define('STDOUT', fopen('php://stdout', 'wb'));
 		define('STDERR', fopen('php://stderr', 'wb'));
 
+		set_sapi_name('cli');
+
 		require( ${phpVar(wpCliPath)} );
 		`
 	);
