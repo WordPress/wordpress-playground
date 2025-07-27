@@ -4,6 +4,47 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.4] (2025-07-25) 
+
+### Public API
+
+
+#### Blueprints
+
+- Distribute @wp-playground/client without any package.json dependencies. ([#2426](https://github.com/WordPress/wordpress-playground/pull/2426))
+
+### Tools
+
+- Fix ESLint 9 linting in VSCode. ([#2417](https://github.com/WordPress/wordpress-playground/pull/2417))
+- [ xdebug ] Add `--experimental-devtools` option in Playground CLI. ([#2411](https://github.com/WordPress/wordpress-playground/pull/2411))
+
+### PHP WebAssembly
+
+- [PHP] Dispatch request.error for all non-zero-exit request handler errors. ([#2429](https://github.com/WordPress/wordpress-playground/pull/2429))
+
+### Website
+
+- Query Monitor plugin support. ([#2415](https://github.com/WordPress/wordpress-playground/pull/2415))
+
+### Internal
+
+- Skip flaky end-to-end tests in Firefox and Webkit. ([#2425](https://github.com/WordPress/wordpress-playground/pull/2425))
+
+### Bug Fixes
+
+- [Xdebug Bridge] Correct error related to unresolved promises in bridge. ([#2422](https://github.com/WordPress/wordpress-playground/pull/2422))
+
+### Various
+
+- Documentation add sidebar to blueprints bundles. ([#2397](https://github.com/WordPress/wordpress-playground/pull/2397))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @mho22 @shimotmk
+
+
 ## [v2.0.3] (2025-07-24) 
 
 ### Tools
