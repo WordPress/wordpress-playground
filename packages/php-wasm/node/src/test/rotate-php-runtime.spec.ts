@@ -359,10 +359,10 @@ describe('rotatePHPRuntime()', () => {
 			recreateRuntime,
 			maxRequests: 1,
 		});
+
 		php.setSapiName('custom SAPI');
 
 		// Rotate the PHP runtime
-		await php.run({ code: `` });
 		const result = await php.run({
 			code: `<?php echo php_sapi_name();`,
 		});

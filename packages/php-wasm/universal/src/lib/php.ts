@@ -308,6 +308,10 @@ export class PHP implements Disposable {
 						}
 					}
 				}
+				// Set the SAPI name if it was set via setSapiName()
+				if(defined('PLAYGROUND_SAPI_NAME')) {
+					set_sapi_name(PLAYGROUND_SAPI_NAME);
+				}
 				// Preload all the files from /internal/shared/preload
 				foreach (glob('/internal/shared/preload/*.php') as $file) {
 					require_once $file;

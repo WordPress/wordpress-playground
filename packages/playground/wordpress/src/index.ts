@@ -321,14 +321,6 @@ export async function preloadPhpInfoRoute(
 	requestPath = '/phpinfo.php'
 ) {
 	await php.writeFile(
-		'/internal/shared/preload/0-sapi-name.php',
-		`<?php
-		if(defined('PLAYGROUND_SAPI_NAME')) {
-			set_sapi_name(PLAYGROUND_SAPI_NAME);
-		}
-    `
-	);
-	await php.writeFile(
 		'/internal/shared/preload/phpinfo.php',
 		`<?php
     // Render PHPInfo if the requested page is /phpinfo.php
