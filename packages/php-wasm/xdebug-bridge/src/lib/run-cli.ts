@@ -3,12 +3,12 @@ import { hideBin } from 'yargs/helpers';
 import { startBridge } from './start-bridge';
 
 interface CLIArgs {
-	protocol?: 'cdp' | 'dap';
 	port?: number;
 	host?: string;
+	phpRoot?: string;
+	quiet?: boolean;
 	verbose?: boolean;
 	help?: boolean;
-	phpRoot?: string;
 }
 
 function parseCliArgs(): CLIArgs {
@@ -37,6 +37,16 @@ Usage: xdebug-bridge [options]
 			description: 'Path to PHP root directory',
 			default: './',
 		})
+		.option('quiet', {
+			type: 'boolean',
+			describe: 'Do not output logs and progress messages.',
+			default: false,
+		})
+		.option('verbose', {
+			type: 'boolean',
+			describe: 'Output communication between DBGp and CDP.',
+			default: false,
+		})
 		.help()
 		.epilog(
 			`
@@ -56,13 +66,13 @@ export async function main(): Promise<void> {
 		return;
 	}
 
-	console.log('Starting XDebug Bridge...');
-
 	const bridge = await startBridge({
 		cdpPort: 9229,
 		cdpHost: args.host,
 		dbgpPort: args.port,
 		phpRoot: args.phpRoot,
+		quiet: args.quiet,
+		verbose: args.verbose,
 	});
 
 	bridge.start();

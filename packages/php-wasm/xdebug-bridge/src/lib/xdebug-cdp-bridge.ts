@@ -201,7 +201,6 @@ export class XdebugCDPBridge {
 	}
 
 	private sendDbgpCommand(command: string, data?: string): string {
-		console.log('\x1b[1;32m[XDebug][send]\x1b[0m', command, data);
 		const txnId = this.nextTxnId++;
 		const txnIdStr = txnId.toString();
 		let cmdStr = `${command} -i ${txnIdStr}`;

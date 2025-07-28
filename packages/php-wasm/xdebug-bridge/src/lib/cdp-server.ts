@@ -1,12 +1,15 @@
+import { logger } from '@php-wasm/logger';
 import { EventEmitter } from 'events';
 import { type WebSocket, WebSocketServer } from 'ws';
 
 export class CDPServer extends EventEmitter {
 	private wss: WebSocketServer;
 	private ws: WebSocket | null = null;
+	private verbose: boolean;
 
-	constructor(port = 9229) {
+	constructor(port = 9229, verbose?: boolean) {
 		super();
+		this.verbose = verbose || false;
 		this.wss = new WebSocketServer({ port: port });
 		this.wss.on('connection', (ws: WebSocket) => {
 			// Only one client at a time
@@ -17,10 +20,11 @@ export class CDPServer extends EventEmitter {
 			this.ws = ws;
 			this.emit('clientConnected');
 			ws.on('message', (data) => {
-				console.log(
-					'\x1b[1;32m[CDP][received]\x1b[0m',
-					data.toString()
-				);
+				if (this.verbose)
+					logger.log(
+						'\x1b[1;32m[CDP][received]\x1b[0m',
+						data.toString()
+					);
 				let message: any;
 				try {
 					message = JSON.parse(data.toString());
@@ -44,7 +48,7 @@ export class CDPServer extends EventEmitter {
 			return;
 		}
 		const json = JSON.stringify(message);
-		console.log('\x1b[1;32m[CDP][send]\x1b[0m', json);
+		if (this.verbose) logger.log('\x1b[1;32m[CDP][send]\x1b[0m', json);
 		this.ws.send(json);
 	}
 }

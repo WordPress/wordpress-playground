@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import { EventEmitter } from 'events';
 import net from 'net';
 
@@ -6,9 +7,11 @@ export class DbgpSession extends EventEmitter {
 	private socket: net.Socket | null = null;
 	private buffer = '';
 	private expectedLength: number | null = null;
+	private verbose: boolean;
 
-	constructor(port = 9003) {
+	constructor(port = 9003, verbose?: boolean) {
 		super();
+		this.verbose = verbose || false;
 		this.server = net.createServer();
 		this.server.on('connection', (socket) => {
 			// Only allow one connection (single-session)
@@ -33,7 +36,8 @@ export class DbgpSession extends EventEmitter {
 	}
 
 	private onData(data: string) {
-		console.log('\x1b[1;32m[XDebug][received]]\x1b[0m', data);
+		if (this.verbose)
+			logger.log('\x1b[1;32m[XDebug][received]]\x1b[0m', data);
 		this.buffer += data;
 		while (true) {
 			if (this.expectedLength === null) {
@@ -78,6 +82,8 @@ export class DbgpSession extends EventEmitter {
 	sendCommand(command: string) {
 		if (!this.socket) return;
 		// Commands must end with null terminator
+		if (this.verbose)
+			logger.log('\x1b[1;32m[XDebug][send]\x1b[0m', command);
 		this.socket.write(command + '\x00');
 	}
 }
