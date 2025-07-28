@@ -39,12 +39,12 @@ Usage: xdebug-bridge [options]
 		})
 		.option('quiet', {
 			type: 'boolean',
-			describe: 'Do not output logs and progress messages.',
+			describe: 'Do not output logs and progress messages',
 			default: false,
 		})
 		.option('verbose', {
 			type: 'boolean',
-			describe: 'Output communication between DBGp and CDP.',
+			describe: 'Output communication between DBGp and CDP',
 			default: false,
 		})
 		.help()
