@@ -23,7 +23,6 @@ import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import type { PHPLoaderOptions } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import type { FileLockManager } from '../lib/file-lock-manager';
-import type { Promised } from '@php-wasm/util';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 const testDirPath = '/__test987654321';
