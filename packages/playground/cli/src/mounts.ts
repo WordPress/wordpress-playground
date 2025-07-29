@@ -123,7 +123,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		],
 	};
 
-	if (isPluginFilename(path)) {
+	if (isPluginDirectory(path)) {
 		const pluginName = basename(path);
 		mount.push({
 			hostPath: path,
@@ -131,7 +131,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		});
 		newArgs['additional-blueprint-steps'].push({
 			step: 'activatePlugin',
-			pluginPath: `/wordpress/wp-content/plugins/${basename(path)}`,
+			pluginPath: `/wordpress/wp-content/plugins/${pluginName}`,
 		});
 	} else if (isThemeDirectory(path)) {
 		const themeName = basename(path);
@@ -210,14 +210,17 @@ export function isThemeDirectory(path: string): boolean {
 	return !!themeNameRegex.exec(styleCssContent);
 }
 
-export function isPluginFilename(path: string): boolean {
+export function isPluginDirectory(path: string): boolean {
+	return !!findPluginFilename(path);
+}
+
+export function findPluginFilename(path: string): string | undefined {
 	const files = fs.readdirSync(path);
 	const pluginNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
-	const pluginNameMatch = files
+	return files
 		.filter((file) => file.endsWith('.php'))
 		.find((file) => {
 			const fileContent = fs.readFileSync(join(path, file), 'utf8');
 			return !!pluginNameRegex.exec(fileContent);
 		});
-	return !!pluginNameMatch;
 }

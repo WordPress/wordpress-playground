@@ -26,6 +26,8 @@ import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
 import {
 	expandAutoMounts,
+	findPluginFilename,
+	isPluginDirectory,
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mounts';
@@ -48,6 +50,7 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
+import { basename } from 'path';
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -549,6 +552,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					});
 
 					bridge.start();
+
+					if (args.autoMount) {
+						const path = process.cwd();
+
+						if (isPluginDirectory(path)) {
+							const pluginName = basename(path);
+							const pluginFilename = findPluginFilename(path);
+							playground!.run({
+								scriptPath: `/wordpress/wp-content/plugins/${pluginName}/${pluginFilename}`,
+							});
+						}
+					}
 				}
 
 				return {
