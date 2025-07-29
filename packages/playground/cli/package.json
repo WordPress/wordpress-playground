@@ -31,6 +31,8 @@
 	"main": "./index.cjs",
 	"module": "./index.js",
 	"types": "index.d.ts",
-	"bin": "wp-playground.js",
+	"bin": {
+		"wp-playground-cli": "wp-playground.js"
+	},
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }
