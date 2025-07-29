@@ -1,7 +1,7 @@
 import { loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
-import { bootWordPress, isWordPressInstalled } from '../boot';
+import { bootWordPress } from '../boot';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { mkdirSync, rmdirSync } from 'fs';
