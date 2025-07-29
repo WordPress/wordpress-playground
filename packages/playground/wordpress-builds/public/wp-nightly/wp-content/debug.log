@@ -1,4 +1,4 @@
-[28-Jul-2025 08:05:50 UTC] WordPress database error <div style="clear:both">&nbsp;</div>
+[29-Jul-2025 08:05:35 UTC] WordPress database error <div style="clear:both">&nbsp;</div>
 <div class="queries" style="clear:both;margin-bottom:2px;border:red dotted thin;">
 <p>MySQL query:</p>
 <p>SELECT option_value FROM wp_options WHERE option_name = 'active_plugins' LIMIT 1</p>
