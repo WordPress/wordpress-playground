@@ -49,6 +49,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": [
 					"packages/php-wasm/stream-compression/**/*.ts",
 					"packages/php-wasm/stream-compression/package.json"

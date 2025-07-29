@@ -53,6 +53,7 @@
 			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/php-wasm/xdebug-bridge/**/*.ts"]
 			}
 		},

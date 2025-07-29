@@ -62,6 +62,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/php-wasm/fs-journal/**/*.ts"],
 				"maxWarnings": 0
 			}
