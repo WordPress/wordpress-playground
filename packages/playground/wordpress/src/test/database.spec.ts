@@ -35,7 +35,7 @@ describe('Test database', () => {
 		rmdirSync(tempDir, { recursive: true });
 	});
 
-	it('should not start WordPress without a working driver module', async () => {
+	it("should not start WordPress when SQLite ZIP not specified and SQLite driver directory doesn't exist", async () => {
 		await expect(async () => {
 			await bootWordPress({
 				createPhpRuntime: async () =>
@@ -44,10 +44,12 @@ describe('Test database', () => {
 				wordPressZip: await getWordPressModule(),
 				sqliteIntegrationPluginZip: undefined,
 			});
-		}).rejects.toThrow('SQLite integration plugin is not installed.');
+		}).rejects.toThrow(
+			'SQLite installation has been skipped and no SQLite mu-plugin has been found.'
+		);
 	});
 
-	it('should install WordPress with data but without specifying a driver module', async () => {
+	it('hould install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory', async () => {
 		const handler = await bootWordPress({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
@@ -64,7 +66,7 @@ describe('Test database', () => {
 		);
 	});
 
-	it('should fail if the SQLite integration plugin is specified but not installed', async () => {
+	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {
 		await expect(async () => {
 			await bootWordPress({
 				createPhpRuntime: async () =>
@@ -81,6 +83,6 @@ describe('Test database', () => {
 					},
 				},
 			});
-		}).rejects.toThrow('WordPress installation has failed.');
+		}).rejects.toThrow('Error connecting to the SQLite database.');
 	});
 });
