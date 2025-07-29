@@ -178,6 +178,17 @@ export async function bootWordPress(options: BootOptions) {
 			php,
 			await options.sqliteIntegrationPluginZip
 		);
+	} else {
+		// The user didn't provide a SQLite integration plugin, so we need to
+		// check if it's already installed.
+		const sqlitePluginPath = joinPaths(
+			requestHandler.documentRoot,
+			'wp-content/mu-plugins/sqlite-database-integration'
+		);
+
+		if (!php.isDir(sqlitePluginPath)) {
+			throw new Error('SQLite integration plugin is not installed.');
+		}
 	}
 
 	if (!options.dataSqlPath) {
