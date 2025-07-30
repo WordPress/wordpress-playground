@@ -27,7 +27,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 <BlueprintExample blueprint={{
 	"landingPage": "/wp-admin/",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	},
 	"features": {

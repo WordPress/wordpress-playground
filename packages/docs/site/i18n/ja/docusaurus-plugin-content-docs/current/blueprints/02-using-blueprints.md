@@ -49,7 +49,7 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }
@@ -70,7 +70,7 @@ JavaScript では、[`JSON.stringify`](https://developer.mozilla.org/en-US/docs/
 const blueprintJson = `{
 "$schema": "https://playground.wordpress.net/blueprint-schema.json",
 "preferredVersions": {
-"php": "7.4",
+"php": "8.3",
 "wp": "6.5"
 }
 }`;
@@ -88,7 +88,7 @@ Example:
 const blueprintJson = `{
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }`;
@@ -108,7 +108,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }} />
@@ -140,7 +140,7 @@ JavaScript では、グローバル関数 `btoa()` を使用して、任意の�
 const blueprintJson = `{
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }`;
@@ -159,7 +159,7 @@ Example:
 const blueprintJson = `{
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }`;
