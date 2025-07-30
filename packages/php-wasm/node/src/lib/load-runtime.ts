@@ -44,9 +44,7 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 */
 		fileLockManager?:
 			| RemoteAPI<FileLockManager>
-			// Allow promised type for testing.
-			// TODO: Can we just make the reference this instead of using RemoteAPI
-			// because we don't currently use RemoteAPI-specific members?
+			// Allow promised type for testing without providing true RemoteAPI.
 			| Promised<FileLockManager>
 			| FileLockManager;
 

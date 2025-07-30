@@ -16,6 +16,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
+import { jspi } from 'wasm-feature-detect';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
 const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
@@ -1501,18 +1502,21 @@ describe('FileLockManagerForNode', () => {
 			: SupportedPHPVersions;
 
 	phpVersionsToTest.forEach((phpVersion) => {
-		describe(`PHP ${phpVersion}: integration with primary and secondary runtimes`, () => {
+		describe(`PHP ${phpVersion}: integration with primary and secondary runtimes`, async () => {
+			const mockFnWithResult = (await jspi())
+				? // Use async mocks for JSPI to match the async FileLockManager
+				  // used by JSPI PHP builds.
+				  (value: any) => vi.fn().mockResolvedValue(value)
+				: (value: any) => vi.fn().mockReturnValue(value);
+
 			function createMockFileLockManager(): FileLockManager {
 				return {
-					lockWholeFile: vi.fn().mockReturnValue(true),
-					lockFileByteRange: vi.fn().mockReturnValue(true),
-					findFirstConflictingByteRangeLock: vi
-						.fn()
-						.mockReturnValue(undefined),
-					releaseLocksForProcessFd: vi
-						.fn()
-						.mockReturnValue(undefined),
-					releaseLocksForProcess: vi.fn().mockReturnValue(undefined),
+					lockWholeFile: mockFnWithResult(true),
+					lockFileByteRange: mockFnWithResult(true),
+					findFirstConflictingByteRangeLock:
+						mockFnWithResult(undefined),
+					releaseLocksForProcessFd: mockFnWithResult(undefined),
+					releaseLocksForProcess: mockFnWithResult(undefined),
 				};
 			}
 
