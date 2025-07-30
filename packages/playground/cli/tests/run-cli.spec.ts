@@ -11,9 +11,7 @@ import { readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 
-// TODO: Fix or rework these tests because it is difficult to run them now that
-// runCLI() launches a Worker.
-describe('run', () => {
+describe('run-cli', () => {
 	let cliServer: RunCLIServer;
 
 	afterEach(async () => {
@@ -85,6 +83,7 @@ describe('run', () => {
 		expect(response.text).toContain('<title>My Blog Name</title>');
 	});
 
+	// @TODO: Also test with Blueprints v2.
 	describe('auto-mount', () => {
 		const getDirectoryChecksum = async (dir: string) => {
 			const hash = createHash('sha256');
