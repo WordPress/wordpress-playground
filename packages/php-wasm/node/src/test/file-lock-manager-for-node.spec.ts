@@ -1501,7 +1501,7 @@ describe('FileLockManagerForNode', () => {
 			: SupportedPHPVersions;
 
 	phpVersionsToTest.forEach((phpVersion) => {
-		describe(`integration with primary and secondary PHP ${phpVersion} instances`, () => {
+		describe(`PHP ${phpVersion}: integration with primary and secondary runtimes`, () => {
 			function createMockFileLockManager(): FileLockManager {
 				return {
 					lockWholeFile: vi.fn().mockReturnValue(true),
@@ -1639,7 +1639,7 @@ describe('FileLockManagerForNode', () => {
 				).not.toHaveBeenCalled();
 			});
 
-			test.only(`regression test for https://github.com/WordPress/wordpress-playground/pull/2300`, async () => {
+			test(`regression test for https://github.com/WordPress/wordpress-playground/pull/2300`, async () => {
 				const opts = {
 					emscriptenOptions: { ENV: { DOCROOT: '/wordpress' } },
 				};
