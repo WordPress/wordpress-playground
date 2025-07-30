@@ -141,7 +141,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		});
 		newArgs['additional-blueprint-steps'].push({
 			step: 'activateTheme',
-			themeDirectoryName: themeName,
+			themeFolderName: themeName,
 		});
 	} else if (containsWpContentDirectories(path)) {
 		/**
