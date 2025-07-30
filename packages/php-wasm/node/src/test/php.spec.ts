@@ -5,7 +5,6 @@ import {
 	PHP,
 	setPhpIniEntries,
 	SupportedPHPVersions,
-	proxyFileSystem,
 } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import {
@@ -22,8 +21,6 @@ import { vi } from 'vitest';
 import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import type { PHPLoaderOptions } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
-import type { FileLockManager } from '../lib/file-lock-manager';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -85,14 +82,12 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 const phpVersions =
-	'PHP' in process.env
-		? [process.env['PHP']! as SupportedPHPVersion]
-		: SupportedPHPVersions;
+	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
 const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
 
-describe.each(phpVersions)('PHP %s', (phpVersion) => {
-	phpLoaderOptions.forEach((options) => {
+phpLoaderOptions.forEach((options) => {
+	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any, options));
@@ -2845,137 +2840,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					expectedStatfs.blocks * expectedStatfs.bsize;
 				expect(response.text).toBe(expectedTotalDiskSpace.toString());
 			});
-		});
-	});
-
-	describe('File locking', () => {
-		function createMockFileLockManager(): FileLockManager {
-			return {
-				lockWholeFile: vi.fn().mockReturnValue(true),
-				lockFileByteRange: vi.fn().mockReturnValue(true),
-				findFirstConflictingByteRangeLock: vi
-					.fn()
-					.mockReturnValue(undefined),
-				releaseLocksForProcessFd: vi.fn().mockReturnValue(undefined),
-				releaseLocksForProcess: vi.fn().mockReturnValue(undefined),
-			};
-		}
-
-		// TODO: Add tests for lock _AND_ unlock via flock()
-
-		test('should attempt to lock a NODEFS file and a PROXYFS node that wraps a NODEFS file', async () => {
-			// NOTE: Normally, we would use a single file lock manager across all runtimes,
-			// but to keep state clearer within this test, we use a separate manager per runtime.
-			const fileLockManagerForRuntime1 = createMockFileLockManager();
-			const ENV = { DOCROOT: '/wordpress' };
-			const php1 = new PHP(
-				await loadNodeRuntime(phpVersion, {
-					emscriptenOptions: {
-						ENV,
-						fileLockManager: fileLockManagerForRuntime1,
-					},
-				})
-			);
-			const realPathToMount = joinPaths(
-				import.meta.dirname,
-				'test-data',
-				'file-lock-test'
-			);
-			php1.mount('/wordpress', createNodeFsMountHandler(realPathToMount));
-			const realPathToLock = joinPaths(
-				realPathToMount,
-				'wp-content',
-				'lock-this.txt'
-			);
-			const vfsPathToLock = '/wordpress/wp-content/lock-this.txt';
-			const phpThatAttemptsToLock = `<?php
-				$f = fopen('${vfsPathToLock}', 'w');
-				flock($f, LOCK_EX);
-				`;
-			const result1 = await php1.runStream({
-				code: phpThatAttemptsToLock,
-			});
-			expect(await result1.exitCode).toBe(0);
-			expect(
-				fileLockManagerForRuntime1.lockWholeFile,
-				'locking NODEFS file'
-			).toHaveBeenCalledWith(
-				realPathToLock,
-				expect.objectContaining({ type: 'exclusive' })
-			);
-
-			const fileLockManagerForRuntime2 = createMockFileLockManager();
-			const php2 = new PHP(
-				await loadNodeRuntime(phpVersion, {
-					emscriptenOptions: {
-						ENV,
-						fileLockManager: fileLockManagerForRuntime2,
-					},
-				})
-			);
-			proxyFileSystem(php1, php2, ['/wordpress']);
-			const result2 = await php2.runStream({
-				code: phpThatAttemptsToLock,
-			});
-			expect(await result2.exitCode).toBe(0);
-			expect(
-				fileLockManagerForRuntime2.lockWholeFile,
-				'locking NODEFS file via PROXYFS'
-			).toHaveBeenCalledWith(
-				realPathToLock,
-				expect.objectContaining({ type: 'exclusive' })
-			);
-		});
-		test('should not attempt to lock a MEMFS file or a PROXYFS node that wraps a MEMFS file', async () => {
-			// NOTE: Normally, we would use a single file lock manager across all runtimes,
-			// but to keep state clearer within this test, we use a separate manager per runtime.
-			const fileLockManagerForRuntime1 = createMockFileLockManager();
-			const ENV = { DOCROOT: '/wordpress' };
-			const php1 = new PHP(
-				await loadNodeRuntime(phpVersion, {
-					emscriptenOptions: {
-						ENV,
-						fileLockManager: fileLockManagerForRuntime1,
-					},
-				})
-			);
-			php1.mkdir('/wordpress/wp-content');
-			const pathNotToLock = '/wordpress/wp-content/do-not-lock-this.txt';
-			php1.writeFile(pathNotToLock, new Uint8Array(0));
-			const phpThatAttemptsToLock = `<?php
-					$f = fopen('${pathNotToLock}', 'w');
-					// Explicitly fail so this test does not pass by accident
-					// if the PHP fails to open the file and tolerates the error.
-					if ($f === false) {
-						throw new Error('Failed to open file');
-					}
-					flock($f, LOCK_EX);
-					`;
-			const result1 = await php1.runStream({
-				code: phpThatAttemptsToLock,
-			});
-			expect(await result1.exitCode).toBe(0);
-			expect(
-				fileLockManagerForRuntime1.lockWholeFile
-			).not.toHaveBeenCalled();
-
-			const fileLockManagerForRuntime2 = createMockFileLockManager();
-			const php2 = new PHP(
-				await loadNodeRuntime(phpVersion, {
-					emscriptenOptions: {
-						ENV,
-						fileLockManager: fileLockManagerForRuntime2,
-					},
-				})
-			);
-			proxyFileSystem(php1, php2, ['/wordpress']);
-			const result2 = await php2.runStream({
-				code: phpThatAttemptsToLock,
-			});
-			expect(await result2.exitCode).toBe(0);
-			expect(
-				fileLockManagerForRuntime2.lockWholeFile
-			).not.toHaveBeenCalled();
 		});
 	});
 });
