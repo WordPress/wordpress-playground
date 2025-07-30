@@ -87,7 +87,7 @@ blueprint={{
 
 ## Running WP-CLI on Mounted Sites
 
-To run WP-CLI commands on a WordPress site mounted from your local filesystem, you need to ensure the SQLite database integration is properly configured. This Blueprint snippet installs and activates the necessary plugin:
+To run WP-CLI commands on a WordPress site mounted from your local filesystem, you need to ensure the SQLite database integration is properly configured and mount the entire folder `/wordpress/`. This Blueprint snippet installs and activates the necessary plugin:
 
 <BlueprintExample blueprint={{
     "steps": [
