@@ -1,0 +1,79 @@
+Now using node v23.11.1 (npm v10.9.2)
+
+> wp-playground@0.0.0 prepare
+> husky install
+
+husky - Git hooks installed
+
+added 3534 packages, and audited 3563 packages in 42s
+
+618 packages are looking for funding
+  run `npm fund` for details
+
+85 vulnerabilities (5 low, 68 moderate, 4 high, 8 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
+
+Running Playground CLI with Nx target: unbuilt-asyncify 
+Playground CLI started successfully
+Checking WordPress home page...
+Looks good!
+
+Running Playground CLI with Nx target: unbuilt-jspi 
+Warning: command "node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts server --php=8.3" exited with non-zero status codePlayground CLI started successfully
+Checking WordPress home page...
+Looks good!
+
+Running Playground CLI with Nx target: unbuilt-jspi --mountBeforeInstall=/Users/zaerl/playground-cli-multi-worker-wp:/wordpress --experimentalMultiWorker
+Warning: command "node --experimental-wasm-jspi --experimental-strip-types --experimental-transform-types  --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts server --php=8.3" exited with non-zero status codeSkipping /xmlrpc.php because something exists at the target path.
+[1mPHP.run() failed with exit code 255. 
+
+=== Stdout ===
+ <br />
+<b>Fatal error</b>:  Uncaught Error: Call to undefined function is_blog_installed() in /internal/eval.php:10
+Stack trace:
+#0 {main}
+  thrown in <b>/internal/eval.php</b> on line <b>10</b><br />
+
+
+=== Stderr ===
+ PHP Fatal error:  Uncaught Error: Call to undefined function is_blog_installed() in /internal/eval.php:10
+Stack trace:
+#0 {main}
+  thrown in /internal/eval.php on line 10
+ caused by Comlink method call failed[0m
+Warning: command "node --experimental-wasm-jspi --experimental-strip-types --experimental-transform-types  --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts server --php=8.3 --mountBeforeInstall=/Users/zaerl/playground-cli-multi-worker-wp:/wordpress --experimentalMultiWorker" exited with non-zero status code
+> nx run playground-cli:unbuilt-jspi server --php=8.3 --mountBeforeInstall=/Users/zaerl/playground-cli-multi-worker-wp:/wordpress --experimentalMultiWorker
+
+> node -e "if (parseInt(process.versions.node) < 23) { console.error('Node.js version 23 or greater is required for JSPI support'); process.exit(1); }"
+
+> node --experimental-wasm-jspi --experimental-strip-types --experimental-transform-types  --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts server --php=8.3 --mountBeforeInstall=/Users/zaerl/playground-cli-multi-worker-wp:/wordpress --experimentalMultiWorker
+
+Starting a PHP server...
+Setting up WordPress latest
+Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.8.2.zip
+Fetching SQLite integration plugin...
+Booting WordPress...
+
+
+
+ NX   Running target unbuilt-jspi for project playground-cli failed
+
+Failed tasks:
+
+- playground-cli:unbuilt-jspi
+
+Hint: run the command with --verbose for more details.
+
+
+Playground CLI failed to start
+./packages/playground/cli/tests/test-running-unbuilt-cli.sh: line 46: kill: (66583) - No such process
