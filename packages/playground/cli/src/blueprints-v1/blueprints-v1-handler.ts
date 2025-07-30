@@ -142,8 +142,7 @@ export class BlueprintsV1Handler {
 			mountsAfterWpInstall,
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
 			sqliteIntegrationPluginZip:
-				sqliteIntegrationPluginZip &&
-				(await sqliteIntegrationPluginZip!.arrayBuffer()),
+				await sqliteIntegrationPluginZip?.arrayBuffer(),
 			firstProcessId: 0,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks,
