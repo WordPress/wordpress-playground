@@ -19,7 +19,6 @@ import {
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 // @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
 
@@ -50,7 +49,7 @@ export class BlueprintsV1Handler {
 	}
 
 	getWorkerUrl() {
-		return importedWorkerV1UrlString;
+		return new URL('./worker-thread-v1.ts', import.meta.url).href;
 	}
 
 	async bootPrimaryWorker(

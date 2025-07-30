@@ -132,7 +132,7 @@
 				"maxWarnings": 0
 			}
 		},
-		"test": {
+		"test-for-node-22-and-above": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
