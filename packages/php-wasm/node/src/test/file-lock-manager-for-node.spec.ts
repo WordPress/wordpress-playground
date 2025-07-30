@@ -1520,7 +1520,7 @@ describe('FileLockManagerForNode', () => {
 				};
 			}
 
-			// TODO: Add tests for lock _AND_ unlock via flock()
+			// TODO: Add tests for fcntl()
 
 			test(`should attempt to lock a NODEFS file and a PROXYFS node that wraps a NODEFS file`, async () => {
 				// NOTE: Normally, we would use a single file lock manager across all runtimes,
