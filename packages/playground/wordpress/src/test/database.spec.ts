@@ -1,11 +1,14 @@
-import { loadNodeRuntime } from '@php-wasm/node';
+import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { getWordPressModule } from '@wp-playground/wordpress-builds';
-import { bootWordPress } from '../boot';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import {
+	getWordPressModule,
+	MinifiedWordPressVersions,
+} from '@wp-playground/wordpress-builds';
 import { mkdirSync, rmdirSync } from 'fs';
-import { createNodeFsMountHandler } from '@php-wasm/node';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { bootWordPress } from '../boot';
+import { getLoadedWordPressVersion } from '../version-detect';
 
 describe('Test database', () => {
 	let tempDir: string;
@@ -44,17 +47,21 @@ describe('Test database', () => {
 		}).rejects.toThrow('SQLite integration plugin is not installed.');
 	});
 
-	it('should not install WordPress with data but without a working driver module', async () => {
-		await expect(async () => {
-			await bootWordPress({
-				createPhpRuntime: async () =>
-					await loadNodeRuntime(RecommendedPHPVersion),
-				siteUrl: 'http://playground-domain/',
-				wordPressZip: await getWordPressModule(),
-				sqliteIntegrationPluginZip: undefined,
-				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
-			});
-		}).rejects.toThrow('SQLite integration plugin is not installed.');
+	it('should install WordPress with data but without specifying a driver module', async () => {
+		const handler = await bootWordPress({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: undefined,
+			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
+		});
+
+		const loadedWordPressVersion = await getLoadedWordPressVersion(handler);
+		expect(loadedWordPressVersion).toBeTruthy();
+		expect(Object.keys(MinifiedWordPressVersions)).toContain(
+			loadedWordPressVersion
+		);
 	});
 
 	it('should fail if the SQLite integration plugin is specified but not installed', async () => {
