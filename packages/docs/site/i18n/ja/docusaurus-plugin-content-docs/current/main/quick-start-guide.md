@@ -137,19 +137,27 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 ## Save your site
  -->
 
-WordPress Playground サイトを 1 回のブラウザ セッションよりも長く保持するには、zip ファイルとしてエクスポートできます。
+WordPress Playground サイトを 1 回のブラウザ セッションよりも長く保存するには、`.zip` ファイルとしてエクスポートできます。
 
 <!--
-To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
+To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
  -->
 
-上部バーの「エクスポート」ボタンを使用します。
+1. Playground サイト マネージャー パネルを開きます。
 
 <!--
-Use the "Export" button in the top bar:
+1. Open the Playground site manager panel:
  -->
 
-![Export button](@site/static/img/export-button.png)
+![Site Manager](@site/static/img/open-site-manager.webp)
+
+2. 追加アクションメニューの「.zip としてダウンロード」ボタンを使用します。
+
+<!--
+2. Use the "Download as .zip" button in the additional actions menu
+ -->
+
+![Export button](@site/static/img/site-manager-menu.webp)
 
 エクスポートされたファイルには、構築したサイト全体が含まれています。 PHP と SQLite をサポートするサーバーであればどこでもホストできます。 WordPress のコアファイル、プラグイン、テーマ、その他サイトに追加したすべてのファイルが含まれています。
 
@@ -169,13 +177,13 @@ The SQLite database file is also included in the export, you'll find it `wp-cont
 ## Restore a saved site
  -->
 
-WordPress Playground のインポートボタンを使用して、保存したサイトを復元できます。
+サイト管理パネルの「.zip からインポート」ボタンを使用して、保存したサイトを復元できます。
 
 <!--
-You can restore the site you saved by using the import button in WordPress Playground:
+You can restore the saved site using the "Import from .zip" button in the site management panel:
  -->
 
-![Import button](@site/static/img/import-button.png)
+![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp)
 
 ## 特定の WordPress または PHP バージョンを使用する
 

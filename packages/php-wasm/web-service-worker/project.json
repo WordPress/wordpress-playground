@@ -41,6 +41,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": [
 					"packages/php-wasm/web-service-worker/**/*.ts"
 				],

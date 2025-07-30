@@ -9,7 +9,7 @@ The `PlaygroundClient` object implements the `UniversalPHP` interface. All the m
 Broadly speaking, you can use the client to perform three types of operations:
 
 -   Running PHP code
--   Customizing PHP.ini
+-   Customizing `PHP.ini`
 -   Managing files and directories
 
 ## Running PHP code
@@ -21,19 +21,19 @@ The two methods you can use to run PHP code are:
 
 In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode.
 
-### The run() method
+### The `run()` method
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "run" ]} />
 
-### The request() method
+### The `request()` method
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "request" ]} />
 
-## Customizing PHP.ini
+## Customizing `PHP.ini`
 
-The API client also allows you to change the php.ini file:
+The API client also allows you to change the `php.ini` file:
 
 ```ts
 await setPhpIniEntries(client, {
@@ -67,7 +67,7 @@ await client.unlink('/wordpress/test/1');
 await client.goTo('/test/index.php');
 ```
 
-For a full list of these methods, consult the PlaygroundClient interface.
+For a complete list of these methods, refer to the `PlaygroundClient` interface.
 
 ## Sending messages to JavaScript
 
@@ -105,7 +105,7 @@ await php.run({
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```
 
-## The cli() method
+## The `cli()` method
 
 In Node.js, you also have access to the `cli()` method that runs PHP in a CLI mode:
 
@@ -115,4 +115,4 @@ client.cli(['-r', 'echo "Hello, world!";']);
 // Outputs "Hello, world!"
 ```
 
-Once cli() method finishes running, the PHP instance is no\* longer usable and should be discarded. This is because PHP internally cleans up all the resources and calls exit().
+Once `cli()` method finishes running, the PHP instance is no longer usable and should be discarded. This is because PHP internally cleans up all the resources and calls `exit()`.

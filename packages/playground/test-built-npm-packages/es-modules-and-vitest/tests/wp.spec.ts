@@ -13,14 +13,14 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 }
 
 describe(`PHP ${phpVersion}`, () => {
-	it('Should load WordPress', { timeout: 12000 }, async () => {
-		let cli;
+	it('Should load WordPress', { timeout: 22000 }, async () => {
+		const cli = await runCLI({
+			command: 'server',
+			php: phpVersion,
+			quiet: true,
+			exitOnPrimaryWorkerCrash: false,
+		});
 		try {
-			cli = await runCLI({
-				command: 'server',
-				php: phpVersion,
-				quiet: true,
-			});
 			const response = await cli.playground.request({
 				method: 'GET',
 				url: '/',

@@ -3,6 +3,7 @@
 	"eslint.validate": [
 		"json"
 	],
+	"eslint.useFlatConfig": false,
 	"files.associations": {
 		"*.embeddedhtml": "html",
 		"api-extractor-base.json": "jsonc",

@@ -110,6 +110,17 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		return _private.get(this)!.php;
 	}
 
+	/**
+	 * @internal
+	 * @deprecated
+	 * Do not use this method directly in the code consuming
+	 * the web API. It will change or even be removed without
+	 * a warning.
+	 */
+	protected __internal_getRequestHandler() {
+		return _private.get(this)!.requestHandler;
+	}
+
 	async setPrimaryPHP(php: PHP) {
 		_private.set(this, {
 			..._private.get(this)!,

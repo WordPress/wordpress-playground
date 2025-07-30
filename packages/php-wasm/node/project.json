@@ -161,6 +161,7 @@
 					"symlinks.spec.ts",
 					"write-files.spec.ts",
 					"php-networking.spec.ts",
+					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts"
 				]
@@ -301,10 +302,19 @@
 				"test-php-sqlite3-asyncify"
 			]
 		},
+		"test-opcache": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-opcache.spec.ts"]
+			}
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/php-wasm/node/**/*.ts"],
 				"maxWarnings": 0
 			}

@@ -3,6 +3,7 @@ import packageJson from '../../package.json';
 const deps = [
 	...Object.keys(packageJson.dependencies || {}),
 	...Object.keys(packageJson.devDependencies || {}),
+	...Object.keys(packageJson.optionalDependencies || {}),
 ];
 export const getExternalModules = () => {
 	return [
@@ -12,6 +13,9 @@ export const getExternalModules = () => {
 		'os',
 		'net',
 		'fs',
+		'fs/promises',
+		'node:fs',
+		'node:fs/promises',
 		'fs-extra',
 		'path',
 		'child_process',
@@ -21,6 +25,9 @@ export const getExternalModules = () => {
 		'util',
 		'dns',
 		'ws',
+		'readline',
+		'worker_threads',
+		'url',
 		/^@php-wasm\//,
 		/^@wp-playground\//,
 		...deps,

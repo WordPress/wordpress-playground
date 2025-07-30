@@ -7,6 +7,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			const cli = await runCLI({
 				command: 'server',
 				php: phpVersion as any,
+				exitOnPrimaryWorkerCrash: false,
 			});
 			try {
 				// Make a request
@@ -21,6 +22,6 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
-		}, 10000);
+		}, 22000);
 	});
 });

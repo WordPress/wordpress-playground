@@ -83,6 +83,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
+				"useFlatConfig": false,
 				"lintFilePatterns": ["packages/docs/site/**/*.ts"],
 				"maxWarnings": 0
 			}

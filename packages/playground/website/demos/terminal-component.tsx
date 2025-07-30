@@ -84,7 +84,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 					// TODO:
 					(
 						(await playground?.listFiles(args[0] || '/')) || []
-					).forEach((line) => {
+					).forEach((line: string) => {
 						terminalRef.current?.writeln(line);
 					});
 					break;
@@ -105,7 +105,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 									.slice(1, args.length)
 									.join(' ')} ?>`,
 							});
-							output.text.split('\n').forEach((line) => {
+							output.text.split('\n').forEach((line: string) => {
 								terminalRef.current?.writeln(line);
 							});
 						}
@@ -150,7 +150,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 						const stderr = await playground?.readFileAsText(
 							'/tmp/stderr'
 						);
-						stderr.split('\n').forEach((line) => {
+						stderr.split('\n').forEach((line: string) => {
 							if (line.includes('Warning')) {
 								return;
 							}
@@ -160,7 +160,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 						output.text
 							.split('\n')
 							.slice(1, output.text.length)
-							.forEach((line) => {
+							.forEach((line: string) => {
 								if (
 									line.includes('Warning') ||
 									line.includes('<br />')
