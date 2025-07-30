@@ -140,7 +140,7 @@ Para testar localmente um idioma existente você pode fazer:
 -   De `/packages/docs/site` execute a versão para o idioma que você gostaria de testar. Por exemplo, para testar `es`:
 
 ```
-npm run dev -- --locale es
+npm run dev:docs -- --locale es
 ```
 
 <!--
