@@ -6,10 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_4_10', 'php_8_4.wasm');
+const dependencyFilename = path.join(__dirname, '8_4_11', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 36942485;
-const phpVersionString = '8.4.10';
+export const dependenciesTotalSize = 36942530;
+const phpVersionString = '8.4.11';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -995,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 16954,
+		initial: 16955,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -7103,35 +7103,25 @@ export function init(RuntimeName, PHPLoader) {
 			1: 'exclusive',
 			2: 'unlocked',
 		},
-		is_shared_fs_node(node) {
-			if (node?.isSharedFS) {
-				return true;
-			}
-
-			// Handle PROXYFS nodes which wrap other nodes.
-			if (
-				!node?.mount?.opts?.fs?.lookupPath ||
-				!node?.mount?.type?.realPath
-			) {
-				return false;
-			}
-
-			// Only NODEFS can be shared between workers at the moment.
-			if (node.mount.type !== NODEFS) {
-				return false;
-			}
-			const vfsPath = node.mount.type.realPath(node);
-			try {
-				const underlyingNode =
-					node.mount.opts.fs.lookupPath(vfsPath)?.node;
-				return !!underlyingNode?.isSharedFS;
-			} catch (e) {
-				return false;
-			}
-		},
 		is_path_to_shared_fs(path) {
-			const { node } = FS.lookupPath(path);
-			return locking.is_shared_fs_node(node);
+			_js_wasm_trace('is_path_to_shared_fs(%s)', path);
+			const { node } = FS.lookupPath(path, { noent_okay: true });
+			if (node.mount.type !== PROXYFS) {
+				return !!node.isSharedFS;
+			}
+
+			// This looks like a PROXYFS node. Let's try a lookup.
+			const nodePath = PROXYFS.realPath(node);
+			const backingFs = node?.mount?.opts?.fs;
+			if (backingFs) {
+				// Tolerate ENOENT because looking up a MEMFS node by path always fails.
+				const { node: backingNode } = backingFs.lookupPath(nodePath, {
+					noent_okay: true,
+				});
+				return !!backingNode?.isSharedFS;
+			}
+
+			return false;
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('3');
@@ -7149,8 +7139,26 @@ export function init(RuntimeName, PHPLoader) {
 			}
 		},
 		get_native_path_from_vfs_path(vfsPath) {
-			const { node } = FS.lookupPath(vfsPath);
-			return NODEFS.realPath(node);
+			// TODO: Should there be a try/catch here?
+			const { node } = FS.lookupPath(vfsPath, {});
+			if (node.mount.type === NODEFS) {
+				return NODEFS.realPath(node);
+			} else if (node.mount.type === PROXYFS) {
+				// TODO: Tolerate ENOENT here?
+				const { node: backingNode, path: backingPath } =
+					node.mount.opts.fs.lookupPath(vfsPath);
+				_js_wasm_trace(
+					'backingNode for %s: %s',
+					vfsPath,
+					backingPath,
+					backingNode
+				);
+				return backingNode.mount.type.realPath(backingNode);
+			} else {
+				throw new Error(
+					`Unsupported filesystem type for path ${vfsPath}`
+				);
+			}
 		},
 		check_lock_params(fd, l_type) {
 			const emscripten_O_RDONLY = Number('0');
@@ -32092,13 +32100,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		16327533: ($0) => {
+		16327421: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		16327581: ($0) => {
+		16327469: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -35662,19 +35670,16 @@ export function init(RuntimeName, PHPLoader) {
 		// We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
 		// nodes. This way we can tell whether file-locking is needed and possible
 		// for an FS node, even if wrapped with PROXYFS.
-		const originalCreateNode = NODEFS.createNode;
+		const originalNodeFsCreateNode = NODEFS.createNode;
 		NODEFS.createNode = function createNodeWithSharedFlag() {
-			const node = originalCreateNode.apply(NODEFS, arguments);
+			const node = originalNodeFsCreateNode.apply(NODEFS, arguments);
 			node.isSharedFS = true;
 			return node;
 		};
 
 		var originalHashAddNode = FS.hashAddNode;
 		FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
-			if (
-				typeof locking === 'object' &&
-				locking?.is_shared_fs_node(node)
-			) {
+			if (node?.isSharedFS) {
 				// Avoid caching shared VFS nodes so multiple instances
 				// can access the same underlying filesystem without
 				// conflicting caches.
