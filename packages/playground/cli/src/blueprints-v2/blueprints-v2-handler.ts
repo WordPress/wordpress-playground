@@ -2,7 +2,7 @@ import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type {
 	PlaygroundCliBlueprintV2Worker,
-	WorkerBootArgs,
+	SecondaryWorkerBootArgs,
 } from './worker-thread-v2';
 // @ts-ignore
 import importedWorkerV2UrlString from './worker-thread-v2?worker&url';
@@ -55,7 +55,8 @@ export class BlueprintsV2Handler {
 
 	async bootPrimaryWorker(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort
+		fileLockManagerPort: NodeMessagePort,
+		nativeInternalDirPath: string
 	) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
 			consumeAPI(phpPort);
@@ -70,6 +71,7 @@ export class BlueprintsV2Handler {
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
 			blueprint: this.args.blueprint!,
+			nativeInternalDirPath,
 		};
 
 		await playground.bootAsPrimaryWorker(workerBootArgs);
@@ -80,24 +82,28 @@ export class BlueprintsV2Handler {
 		worker,
 		fileLockManagerPort,
 		firstProcessId,
+		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
+		nativeInternalDirPath: string;
 	}) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
 			consumeAPI(worker.phpPort);
 
 		await playground.useFileLockManager(fileLockManagerPort);
 
-		const workerBootArgs: WorkerBootArgs = {
+		const workerBootArgs: SecondaryWorkerBootArgs = {
 			...this.args,
 			php: this.phpVersion!,
 			siteUrl: this.siteUrl,
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
-			blueprint: this.args.blueprint!,
+			nativeInternalDirPath,
+			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
+			mountsAfterWpInstall: this.args.mount || [],
 		};
 
 		await playground.bootAsSecondaryWorker(workerBootArgs);

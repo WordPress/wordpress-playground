@@ -1364,6 +1364,7 @@ export class PHP implements Disposable {
 			this.setSapiName(this.#sapiName);
 		}
 
+		// TODO: Only copy the /internal directory if it's not a shared filesystem.
 		// Copy the old /internal directory to the new filesystem
 		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
 
