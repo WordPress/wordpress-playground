@@ -151,7 +151,10 @@ export default defineConfig({
 		environment: 'node',
 		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
-		testTimeout: 15000, // Increase timeout to ensure CLI tests can download WordPress
+		// Increase timeout to:
+		// - Ensure CLI tests can download WordPress
+		// - Ensure worker threads have time to boot
+		testTimeout: 30000,
 		poolOptions: {
 			forks: {
 				execArgv: [
