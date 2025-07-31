@@ -8,9 +8,9 @@
 'use strict';
 
 import * as dns from 'dns';
-import * as util from 'node:util';
-import * as net from 'net';
 import * as http from 'http';
+import * as net from 'net';
+import * as util from 'node:util';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils';
 
@@ -146,6 +146,15 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		return;
 	}
 
+	// Validate port range
+	if (reqTargetPort < 0 || reqTargetPort > 65535) {
+		clientLog('Invalid port number: ' + reqTargetPort);
+		// Send empty binary data to notify requester that connection failed
+		client.send([]);
+		client.close(3000);
+		return;
+	}
+
 	// eslint-disable-next-line prefer-const
 	let target: any;
 	const recvQueue: Buffer[] = [];
@@ -207,7 +216,11 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			// Send empty binary data to notify requester that connection was
 			// initiated
 			client.send([]);
-			client.close(3000);
+			// Without this random timeout, PHP sometimes doesn't notice the socket
+			// disconnected. TODO: figure out why.
+			setTimeout(() => {
+				client.close(3000);
+			});
 			return;
 		}
 	} else {
@@ -238,7 +251,16 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	});
 	target.on('error', function (e: any) {
 		clientLog('target connection error', e);
-		target.end();
-		client.close(3000);
+		client.send([]);
+		// Without this random timeout, PHP sometimes doesn't notice the socket
+		// disconnected. TODO: figure out why.
+		setTimeout(() => {
+			client.close(3000);
+			try {
+				target.end();
+			} catch {
+				// Ignore
+			}
+		});
 	});
 }

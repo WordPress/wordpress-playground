@@ -16,7 +16,7 @@ describe('phpVar', () => {
 	});
 
 	afterEach(async () => {
-		php?.[Symbol.dispose]?.();
+		php.exit();
 	});
 
 	const data = [

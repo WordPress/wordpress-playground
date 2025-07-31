@@ -7,6 +7,7 @@ import { Controller, useForm } from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -43,7 +44,7 @@ export function UnconnectedSiteSettingsForm({
 	},
 }: SiteSettingsFormProps) {
 	defaultValues = {
-		phpVersion: '8.0',
+		phpVersion: RecommendedPHPVersion,
 		wpVersion: 'latest',
 		language: '',
 		withNetworking: true,

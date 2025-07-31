@@ -3,8 +3,9 @@ import { phpVars } from '@php-wasm/util';
 import { runSql } from './run-sql';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
-const phpVersion = '8.0';
+const phpVersion = RecommendedPHPVersion;
 describe('Blueprint step runSql', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;

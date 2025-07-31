@@ -1,9 +1,15 @@
 import type { PHPResponseData } from './php-response';
 import { PHPResponse } from './php-response';
-import type { Endpoint } from 'comlink';
-import * as Comlink from 'comlink';
-import type { NodeEndpoint } from 'comlink/dist/esm/node-adapter';
-import nodeEndpoint from 'comlink/dist/esm/node-adapter';
+import * as Comlink from './comlink-sync';
+import {
+	NodeSABSyncReceiveMessageTransport,
+	nodeEndpoint,
+	type NodeEndpoint,
+	type Remote,
+	type Endpoint,
+	type IsomorphicMessagePort,
+} from './comlink-sync';
+import * as ErrorSerializer from './serialize-error';
 
 export type WithAPIState = {
 	/**
@@ -17,7 +23,15 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & WithAPIState;
+
+export async function consumeAPISync<APIType>(
+	remote: IsomorphicMessagePort
+): Promise<APIType> {
+	setupTransferHandlers();
+	const transport = await NodeSABSyncReceiveMessageTransport.create();
+	return Comlink.wrapSync<APIType>(remote, transport);
+}
 
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeEndpoint,
@@ -84,11 +98,46 @@ async function runWithTimeout<T>(
 export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 	Methods & PipedAPI
 >;
+
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
 	targetWorker?: NodeEndpoint
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
+	const { setReady, setFailed, exposedApi } = prepareForExpose(
+		apiMethods,
+		pipedApi
+	);
+	let endpoint: Endpoint | undefined;
+	if (targetWorker) {
+		// NOTE: If there are other target types, we could expand this later,
+		// but for now, we only need support for NodeEndpoints.
+		endpoint = nodeEndpoint(targetWorker);
+	} else {
+		endpoint =
+			typeof window !== 'undefined'
+				? Comlink.windowEndpoint(self.parent)
+				: undefined;
+	}
+	Comlink.expose(exposedApi, endpoint);
+	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
+}
+
+export async function exposeSyncAPI<Methods>(
+	apiMethods: Methods,
+	port: IsomorphicMessagePort
+): Promise<[() => void, (e: Error) => void, Methods]> {
+	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
+	const transport = await NodeSABSyncReceiveMessageTransport.create();
+	const endpoint = nodeEndpoint(port as any);
+	Comlink.exposeSync(exposedApi, endpoint, transport);
+	return [setReady, setFailed, exposedApi as Methods];
+}
+
+function prepareForExpose<Methods, PipedAPI>(
+	apiMethods?: Methods,
+	pipedApi?: PipedAPI
+) {
 	setupTransferHandlers();
 
 	const connected = Promise.resolve();
@@ -114,21 +163,7 @@ export function exposeAPI<Methods, PipedAPI>(
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
-	let endpoint: Endpoint | undefined;
-	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
-	} else {
-		endpoint =
-			typeof window !== 'undefined'
-				? Comlink.windowEndpoint(self.parent)
-				: undefined;
-	}
-
-	Comlink.expose(exposedApi, endpoint);
-
-	return [setReady, setFailed, exposedApi];
+	return { setReady, setFailed, exposedApi };
 }
 
 let isTransferHandlersSetup = false;
@@ -161,6 +196,16 @@ function setupTransferHandlers() {
 		deserialize(port: any) {
 			port.start();
 			return Comlink.wrap(port);
+		},
+	});
+	Comlink.transferHandlers.set('MESSAGE_PORT', {
+		canHandle: (obj: unknown): obj is MessagePort =>
+			obj instanceof MessagePort,
+		serialize(port: MessagePort): [MessagePort, Transferable[]] {
+			return [port, [port]];
+		},
+		deserialize(port: MessagePort): MessagePort {
+			return port;
 		},
 	});
 	Comlink.transferHandlers.set('PHPResponse', {
@@ -196,6 +241,65 @@ function setupTransferHandlers() {
 		return serialized;
 	};
 }
+
+// Augment Comlink's throw handler to include all the information carried by
+// the thrown object, including the cause, additional properties, etc.
+interface UnserializedError {
+	value: unknown;
+}
+type SerializedError =
+	| { isError: true; value: ErrorSerializer.ErrorObject }
+	| { isError: false; value: unknown };
+
+const throwTransferHandler = Comlink.transferHandlers.get(
+	'throw'
+) as Comlink.TransferHandler<UnserializedError, SerializedError>;
+
+const throwTransferHandlerCustom: Comlink.TransferHandler<
+	UnserializedError,
+	SerializedError
+> = {
+	canHandle: throwTransferHandler.canHandle,
+	serialize: ({ value }) => {
+		let serialized: SerializedError;
+		if (value instanceof Error) {
+			serialized = {
+				isError: true,
+				value: ErrorSerializer.serializeError(value),
+			};
+			// The error class name is not serialized by serialize-error, let's add it manually.
+			serialized.value['originalErrorClassName'] = value.constructor.name;
+		} else {
+			serialized = { isError: false, value };
+		}
+		return [serialized, []];
+	},
+	deserialize: (serialized) => {
+		if (serialized.isError) {
+			const error = ErrorSerializer.deserializeError(serialized.value);
+			/**
+			 * The original error from the web worker does not include any call
+			 * stack from the Playground web app. Let's include that information
+			 * in the error chain.
+			 *
+			 * We'll place it at the bottom of the error chain. This way the API
+			 * consumer gets the original error object and not an opaque
+			 * "Comlink method call failed" error, but they can still inspect
+			 * it further to see the full call stack.
+			 */
+			const additionalCallStack = new Error('Comlink method call failed');
+			let deepestError = error;
+			while (deepestError.cause) {
+				deepestError = deepestError.cause;
+			}
+			deepestError.cause = additionalCallStack;
+			throw error;
+		}
+		throw serialized.value;
+	},
+};
+
+Comlink.transferHandlers.set('throw', throwTransferHandlerCustom);
 
 function proxyClone(object: any): any {
 	return new Proxy(object, {

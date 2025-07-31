@@ -3,13 +3,19 @@ import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
 import fs from 'fs';
 import { createServer } from 'net';
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+const phpVersions =
+	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
+describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, { withXdebug: true })
 			);
+		});
+
+		afterEach(async () => {
+			php.exit();
 		});
 
 		it('does not load dynamically by default', async () => {

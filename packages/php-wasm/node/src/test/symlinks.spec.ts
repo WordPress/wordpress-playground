@@ -60,7 +60,6 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 				);
 			}
 
-			await php.mkdir('/folder-with-symlinks');
 			await php.mount(
 				'/folder-with-symlinks',
 				createNodeFsMountHandler(
@@ -73,15 +72,10 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 			}
 		});
 		afterEach(async () => {
-			// Clean up
-			try {
-				if (fs.existsSync(symlinkPath)) {
-					fs.unlinkSync(symlinkPath);
-				}
-				php.exit(0);
-			} catch {
-				// ignore exit-related exceptions
+			if (fs.existsSync(symlinkPath)) {
+				fs.unlinkSync(symlinkPath);
 			}
+			php.exit();
 		});
 
 		describe('Test symlinks', () => {

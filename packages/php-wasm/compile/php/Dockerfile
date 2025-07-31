@@ -10,6 +10,10 @@ ARG WITH_JSPI="no"
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION
 
+# Whether to build the opcache extension. The .m4 file is patched before the main
+# ./buildconf script is generated.
+ARG WITH_OPCACHE
+
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION \
@@ -24,6 +28,9 @@ COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
 # Polyfill for post_message_to_js functions
 COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+
+# Copy the dummy opcache_module.c and php_opcache.h files.
+COPY ./opcache/ /root/php-src/ext/opcache
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
@@ -80,6 +87,31 @@ RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 		cp /root/builds/libsqlite3/\<7\.4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
 		cp /root/builds/libsqlite3/\<7\.4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
 	fi;
+
+# Patch OPcache config.m4 file if needed
+RUN if [ "$WITH_OPCACHE" = "yes" ]; \
+	then \
+		# Ensure mmap() shared memory is recognized, even if not true.
+		# This will #declare HAVE_SHM_MMAP_ANON 1 in php_config.h
+		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -eq "4" ]]; then \
+			# Name changed in 8.4. See https://github.com/php/php-src/commit/ca55603d8a27b4e1f9c12cf72acd0fd39a6ac059
+			/root/replace.sh 's/php_cv_shm_mmap_anon=no/php_cv_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
+		else \
+			/root/replace.sh 's/have_shm_mmap_anon=no/have_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
+			# PHP bug: PHP_NEW_EXTENSION do not read $ext_shared from the config.m4 file.
+			# https://github.com/php/php-src/blob/f35a22adba8a7ddf709c6cc98ecb57ba4dd8fe8c/ext/opcache/config.m4#L313
+			/root/replace.sh 's/shared,,/no,,/g' /root/php-src/ext/opcache/config.m4; \
+		fi; \
+		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
+		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
+		# Add the dummy opcache_module.c to the list of files to build.
+		/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		# Enable OPcache.
+		echo -n ' --enable-opcache --disable-opcache-jit --disable-huge-code-pages ' >> /root/.php-configure-flags; \
+	else \
+		# Be sure to disable OPcache if not needed.
+		echo -n ' --disable-opcache ' >> /root/.php-configure-flags; \
+	fi
 
 RUN cd php-src && ./buildconf --force
 
@@ -523,8 +555,10 @@ RUN set -euxo pipefail; \
 		export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
 		echo -n " -fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ " \
 			"-fdebug-prefix-map=/root/php_wasm.c=${DEBUG_DWARF_COMPILATION_DIR}/compile/php/php_wasm.c " \
-			"-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/  " \
-			"-fdebug-prefix-map=./=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/  " \
+			"-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
+			"-fdebug-prefix-map=./=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
+			"-fdebug-prefix-map=/emsdk/emscripten/==${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ " \
+			"-fdebug-prefix-map=/root/emsdk/upstream/emscripten/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/emscripten/ " \
 			>> /root/.emcc-php-wasm-flags; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 			echo -n ' -gsource-map' >> /root/.emcc-php-wasm-flags; \
@@ -615,11 +649,21 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_js_popen_to_file",\n\
 "_asyncjs__js_popen_to_file",\n\
 "__syscall_fcntl64",\n\
+"___syscall_fcntl64",\n\
+"_asyncjs___syscall_fcntl64",\n\
 "js_release_file_locks",\n\
+"_js_release_file_locks",\n\
+"_async_js_release_file_locks",\n\
 "js_flock",\n\
+"_js_flock",\n\
+"_async_js_flock",\n\
 "js_fd_read",\n\
 "_js_fd_read",\n\
+"fd_close",\n\
 "_fd_close",\n\
+"_asyncjs__fd_close",\n\
+"close",\n\
+"_close",\n\
 "js_module_onMessage",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
@@ -632,7 +676,15 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_wasm_shutdown",\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
-	export ASYNCIFY_ONLY_UNPREFIXED=$'"__fseeko_unlocked",\
+	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"__stdio_close",\
+"zend_stream_stdio_closer",\
+"zend_destroy_file_handle",\
+"php_init_config",\
+"zend_register_ini_entries_ex",\
+"php_module_startup",\
+"wasm_sapi_module_startup",\
+"__fseeko_unlocked",\
 "__ftello_unlocked",\
 "__funcs_on_exit",\
 "__fwritex",\
@@ -712,6 +764,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "cli",\
 "close_stmt_and_copy_errors",\
 "close",\
+"__stdio_close",\
 "closeUnixFile",\
 "compile_file",\
 "createCollation",\
@@ -724,6 +777,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "Curl_is_connected",\
 "curl_multi_perform",\
 "curl_multi_poll",\
+"curl_multi_wait",\
 "Curl_multi_wait",\
 "Curl_ossl_connect_nonblocking",\
 "Curl_ossl_seed",\
@@ -849,6 +903,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_stream_select",\
 "_php_stream_fill_read_buffer",\
 "_php_stream_read",\
+"php_sqlite3_object_free_storage",\
+"php_sqlite3_error",\
+"sqlite3_reset",\
 "php_stream_read_to_str",\
 "php_userstreamop_read",\
 "zif_fread",\
@@ -858,6 +915,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_fwrite",\
 "php_stdiop_write",\
 "zif_array_filter",\
+"zend_unclean_zval_ptr_dtor",\
 "zend_call_known_instance_method_with_2_params",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -941,6 +999,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
 "wasm_sapi_request_shutdown",\
+"execute_internal",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
@@ -1602,6 +1661,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_DO_ICALL_SPEC_HANDLER",\
 "ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER",\
 "ZEND_DO_ICALL_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER",\
 "zend_emit_op_tmp",\
 "zend_emit_op",\
@@ -1620,6 +1680,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_execute_script",\
 "zend_execute_scripts",\
 "zend_execute",\
+"zend_extension_statement_handler",\
+"ZEND_EXT_STMT_SPEC_HANDLER",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_fe_reset_iterator",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
@@ -1655,7 +1717,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_hash_graceful_reverse_destroy",\
 "zend_hash_reverse_apply",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_OBSERVER_HANDLER",\
 "zend_include_or_eval",\
+"compile_filename",\
 "zend_internal_type_error",\
 "zend_interrupt_helper_SPEC",\
 "zend_invalid_class_constant_type_error",\
@@ -1699,6 +1763,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_objects_store_del_ref",\
 "zend_objects_store_del",\
 "zend_objects_store_free_object_storage",\
+"zend_observer_fcall_begin_prechecked",\
+"zend_observer_fcall_begin",\
 "zend_observer_fcall_end",\
 "zend_parse_arg_number_or_str_slow",\
 "zend_parse_arg_str_weak",\
@@ -1794,6 +1860,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_use_undef_in_read_context_helper_SPEC",\
 "zend_user_it_get_current_data",\
 "zend_user_it_get_new_iterator",\
+"ZEND_USER_OPCODE_SPEC_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_CONST_HANDLER",\
+"ZEND_INCLUDE_OR_EVAL_SPEC_TMPVAR_HANDLER",\
 "zend_value_error",\
 "zend_verify_ref_array_assignable",\
 "zend_vm_stack_extend",\
@@ -1965,6 +2034,14 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zim_sqlite3_backup",\
 "zim_SQLite3_backup",\
 "zim_SQLite3_exec",\
+"zim_sqlite3_exec",\
+"zim_sqlite3_query",\
+"zim_sqlite3_querySingle",\
+"zim_sqlite3result_fetchArray",\
+"php_cli_startup",\
+"php_stdiop_close",\
+"zend_parse_ini_file",\
+"php_embed_startup",\
 "zip_source_file_common_new",\
 "zip_source_function_create",\
 "zip_source_layered_create",\
@@ -2018,12 +2095,13 @@ COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-ems
 COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
+ARG STACK_SIZE
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv -sJSPI_EXPORTS=wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid,fd_close -sJSPI_EXPORTS=php_wasm_init,fd_close,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
@@ -2062,10 +2140,11 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
-	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dynamic-linking.js"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -s MAIN_MODULE"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
@@ -2083,12 +2162,12 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
-	-s MAIN_MODULE \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1 \
+	-s STACK_SIZE="$STACK_SIZE" \
 	-s ASSERTIONS=0 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=1 \
 	-s NODEJS_CATCH_EXIT=0 \
@@ -2097,6 +2176,7 @@ RUN set -euxo pipefail; \
 	-o /build/output/php.js \
 	-s EXIT_RUNTIME=1 \
 	-Wl,--wrap=select \
+	-Wl,--wrap=usleep \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
@@ -2143,6 +2223,9 @@ RUN set -euxo pipefail; \
 		# stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
 		# tolerate a null stream.stream_ops value.
 		/root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
+	# Emscripten allows only directories to be mounted, but in Playground we support mounting files, directories, and symlinks.
+		# For file mounting to work, we need to remove the directory check.
+		/root/replace-across-lines.sh 's/(\s*)if\s*\(\s*!FS\.isDir\(node\.mode\)\s*\)\s*\{\s*throw\s*new\s*FS\.ErrnoError\(54\)\s*;?\s*\}(\s*)/$1$2/s' /root/output/php.js; \
 	# Make Emscripten websockets configurable
 		# Emscripten makes the Websocket proxy connect to a fixed URL.
 		# This assumes the traffic is always forwarded to the same target.
@@ -2153,10 +2236,13 @@ RUN set -euxo pipefail; \
 		# Enable custom WebSocket constructors to support socket options.
 		/root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-		if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-			/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+			if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+				/root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+			fi; \
 		fi; \
-		fi; \
+		# PIPEFS: return 0 (success) instead of 6 (EWOULDBLOCK) when reached end of data
+		# and the other end of the pipe is closed.
+		/root/replace-across-lines.sh 's/if\s*\(\s*currentLength\s*==\s*0\s*\)\s*\{.{0,200}throw new FS.ErrnoError\(\s*6\s*\)/if(currentLength==0){if(pipe.refcnt<2){return 0;}throw new FS.ErrnoError(6)/sg' /root/output/php.js; \
 	# Add MSG_PEEK flag support in recvfrom
 		#
 		# Emscripten ignores the flags argument to ___syscall_recvfrom.
@@ -2221,6 +2307,7 @@ RUN set -euxo pipefail; \
 		fi; \
 		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
+		echo "const phpVersionString = '$PHP_VERSION';" >> /root/output/php-module.js && \
 		cat /root/esm-prefix.js >> /root/output/php-module.js && \
 		cat /root/output/php.js >> /root/output/php-module.js && \
 		cat /root/esm-suffix.js >> /root/output/php-module.js && \
@@ -2240,6 +2327,9 @@ RUN set -euxo pipefail; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 			# Make PHP source available for use with step debugger
 			rm -rf /root/php-src/.git; \
-			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
-			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
+			cp -r /root/php-src /root/output/"${PHP_VERSION_ESCAPED}"/php-src; \
+			# Copy emscripten source files
+			mkdir -p /root/output/"${PHP_VERSION_ESCAPED}"/emscripten; \
+			cp -r /root/emsdk/upstream/emscripten/cache /root/output/"${PHP_VERSION_ESCAPED}"/emscripten/; \
+			cp -r /root/emsdk/upstream/emscripten/system /root/output/"${PHP_VERSION_ESCAPED}"/emscripten/; \
 		fi;

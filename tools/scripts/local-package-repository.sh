@@ -36,7 +36,12 @@ printf "%s" "$VERSION" | pbcopy
 echo "Version number $VERSION copied to clipboard"
 echo "Use Ctrl+C to stop the server"
 
-bun ./packages/playground/cli/src/cli.ts server \
-    --port=$PORT \
-    --mount="$HOST_PATH:/wordpress/$VERSION" \
-    --quiet
+node \
+  --no-warnings \
+  --experimental-wasm-stack-switching \
+  --experimental-wasm-jspi \
+  --loader=./packages/meta/src/node-es-module-loader/loader.mts \
+  ./packages/playground/cli/src/cli.ts server \
+  --port=$PORT \
+  --mount="$HOST_PATH:/wordpress/$VERSION" \
+  --quiet

@@ -1,6 +1,10 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
-import { flockSync as nativeFlockSync } from 'fs-ext';
+
+type NativeFlockSync = (
+	fd: number,
+	flags: 'sh' | 'ex' | 'shnb' | 'exnb' | 'un'
+) => void;
 
 import type {
 	FileLockManager,
@@ -16,6 +20,7 @@ type LockMode = 'exclusive' | 'shared' | 'unlock';
 type NativeLock = {
 	fd: number;
 	mode: LockMode;
+	nativeFlockSync: NativeFlockSync;
 };
 
 type LockedRange = RequestedRangeLock & {
@@ -31,9 +36,20 @@ const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
  * It provides methods for locking and unlocking files, as well as finding conflicting locks.
  */
 export class FileLockManagerForNode implements FileLockManager {
+	nativeFlockSync: NativeFlockSync;
 	locks: Map<string, FileLock>;
 
-	constructor() {
+	/**
+	 * Create a new FileLockManagerForNode instance.
+	 *
+	 * @param nativeFlockSync A synchronous flock() function to lock files via the host OS.
+	 */
+	constructor(
+		nativeFlockSync: NativeFlockSync = function flockSyncNoOp() {
+			/* do nothing */
+		}
+	) {
+		this.nativeFlockSync = nativeFlockSync;
 		this.locks = new Map();
 	}
 
@@ -51,7 +67,11 @@ export class FileLockManagerForNode implements FileLockManager {
 				return true;
 			}
 
-			const maybeLock = FileLock.maybeCreate(path, op.type);
+			const maybeLock = FileLock.maybeCreate(
+				path,
+				op.type,
+				this.nativeFlockSync
+			);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -82,7 +102,11 @@ export class FileLockManagerForNode implements FileLockManager {
 				return true;
 			}
 
-			const maybeLock = FileLock.maybeCreate(path, requestedLock.type);
+			const maybeLock = FileLock.maybeCreate(
+				path,
+				requestedLock.type,
+				this.nativeFlockSync
+			);
 			if (maybeLock === undefined) {
 				return false;
 			}
@@ -177,7 +201,8 @@ export class FileLock {
 	 */
 	static maybeCreate(
 		path: string,
-		mode: Exclude<WholeFileLock['type'], 'unlocked'>
+		mode: Exclude<WholeFileLock['type'], 'unlocked'>,
+		nativeFlockSync: NativeFlockSync
 	): FileLock | undefined {
 		let fd;
 		try {
@@ -186,7 +211,7 @@ export class FileLock {
 			const flockFlags = mode === 'exclusive' ? 'exnb' : 'shnb';
 			nativeFlockSync(fd, flockFlags);
 
-			const nativeLock: NativeLock = { fd, mode };
+			const nativeLock: NativeLock = { fd, mode, nativeFlockSync };
 			return new FileLock(nativeLock);
 		} catch {
 			if (fd !== undefined) {
@@ -271,14 +296,7 @@ export class FileLock {
 			return true;
 		}
 
-		if (
-			this.doesAConflictingLockExist({
-				type: op.type,
-				start: 0n,
-				end: MAX_64BIT_OFFSET,
-				pid: op.pid,
-			})
-		) {
+		if (this.isThereAConflictWithRequestedWholeFileLock(op)) {
 			// The requested lock conflicts with an existing lock.
 			return false;
 		}
@@ -382,7 +400,7 @@ export class FileLock {
 			return true;
 		}
 
-		if (this.doesAConflictingLockExist(requestedLock)) {
+		if (this.isThereAConflictWithRequestedRangeLock(requestedLock)) {
 			// A conflicting lock exists.
 			return false;
 		}
@@ -586,7 +604,7 @@ export class FileLock {
 			'un';
 
 		try {
-			nativeFlockSync(this.nativeLock.fd, flockFlags);
+			this.nativeLock.nativeFlockSync(this.nativeLock.fd, flockFlags);
 			this.nativeLock.mode = requiredNativeLockType;
 			return true;
 		} catch {
@@ -595,15 +613,87 @@ export class FileLock {
 	}
 
 	/**
-	 * Check if a conflicting lock exists.
+	 * Check if a lock exists that conflicts with the requested range lock.
 	 *
 	 * @param requestedLock The desired byte range lock.
 	 * @returns True if a conflicting lock exists, false otherwise.
 	 */
-	private doesAConflictingLockExist(requestedLock: RequestedRangeLock) {
+	private isThereAConflictWithRequestedRangeLock(
+		requestedLock: RequestedRangeLock
+	) {
 		return (
 			this.findFirstConflictingByteRangeLock(requestedLock) !== undefined
 		);
+	}
+
+	/**
+	 * Check if a lock exists that conflicts with the requested whole-file lock.
+	 *
+	 * @param requestedLock The desired whole-file lock.
+	 * @returns True if a conflicting lock exists, false otherwise.
+	 */
+	private isThereAConflictWithRequestedWholeFileLock(
+		requestedLock: WholeFileLockOp
+	) {
+		if (requestedLock.type === 'exclusive') {
+			if (
+				this.wholeFileLock.type === 'exclusive' &&
+				(this.wholeFileLock.fd !== requestedLock.fd ||
+					this.wholeFileLock.pid !== requestedLock.pid)
+			) {
+				return true;
+			}
+			if (
+				this.wholeFileLock.type === 'shared' &&
+				Array.from(this.wholeFileLock.pidFds).some(
+					([pid]) => pid !== requestedLock.pid
+				)
+			) {
+				return true;
+			}
+
+			const overlappingLocks = this.rangeLocks.findOverlapping({
+				type: 'unlocked',
+				start: 0n,
+				end: MAX_64BIT_OFFSET,
+				pid: -1,
+			});
+			if (overlappingLocks.length > 0) {
+				// Any range lock, including one by the same process,
+				// conflict with an exclusive whole-file lock.
+				return true;
+			}
+
+			return false;
+		}
+
+		if (requestedLock.type === 'shared') {
+			if (
+				this.wholeFileLock.type === 'exclusive' &&
+				this.wholeFileLock.pid !== requestedLock.pid
+			) {
+				return true;
+			}
+
+			const overlappingLocks = this.rangeLocks.findOverlapping({
+				type: 'unlocked',
+				start: 0n,
+				end: MAX_64BIT_OFFSET,
+				pid: -1,
+			});
+			const exclusiveRangeLocks = overlappingLocks.filter(
+				(lock) => lock.type === 'exclusive'
+			);
+			if (exclusiveRangeLocks.length > 0) {
+				// Any exclusive range lock, including one by the same process,
+				// conflict with a shared whole-file lock.
+				return true;
+			}
+
+			return false;
+		}
+
+		return false;
 	}
 }
 
