@@ -48,6 +48,7 @@ export class XdebugCDPBridge {
 	private readPHPFile: (path: string) => string | Promise<string>;
 	private remoteRoot: string;
 	private localRoot: string;
+	private xdebugBreakpoints: Record<string, number[]> = {};
 
 	constructor(
 		dbgp: DbgpSession,
@@ -62,6 +63,15 @@ export class XdebugCDPBridge {
 		for (const url of config.knownScriptUrls) {
 			this.scriptIdByUrl.set(url, this.getOrCreateScriptId(url));
 		}
+	}
+
+	setXdebugBreakpoint(uri: string, line: number) {
+		if (
+			!this.xdebugBreakpoints[uri] ||
+			this.xdebugBreakpoints[uri].length == 0
+		)
+			this.xdebugBreakpoints[uri] = [];
+		this.xdebugBreakpoints[uri].push(line);
 	}
 
 	start() {
@@ -457,12 +467,26 @@ export class XdebugCDPBridge {
 		return p;
 	}
 
+	private formatXdebugBreakpointCommand(uri: string, line: number) {
+		return `breakpoint_set -t line -f ${this.formatPropertyFullName(
+			uri
+		)} -n ${line}`;
+	}
+
 	private async handleDbgpMessage(msgObj: any) {
 		if (msgObj.init) {
 			// Xdebug initial handshake
 			const initAttr = msgObj.init.$;
 			this.initFileUri = initAttr.fileuri || initAttr.fileuri;
 			this.xdebugStatus = 'starting';
+
+			Object.entries(this.xdebugBreakpoints).forEach(([uri, lines]) => {
+				lines.forEach((line) =>
+					this.sendDbgpCommand(
+						this.formatXdebugBreakpointCommand(uri, line)
+					)
+				);
+			});
 
 			const firstBreakTxn = this.sendDbgpCommand('step_into');
 			this.pendingCommands.set(firstBreakTxn, {
