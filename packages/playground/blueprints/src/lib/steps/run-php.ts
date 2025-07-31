@@ -40,7 +40,7 @@ export const runPHP: StepHandler<RunPHPStep, Promise<PHPResponse>> = async (
 	playground,
 	{ code }
 ) => {
-	const phpCodeString = typeof code === 'string' ? code : code.content;
+	let phpCodeString = typeof code === 'string' ? code : code.content;
 
 	if (
 		phpCodeString.includes('"wordpress/wp-load.php"') ||
@@ -63,11 +63,11 @@ Use:         require_once '/wordpress/wp-load.php';
 This will ensure your code works reliably regardless of the current working directory.
 		`.trim()
 		);
-		code = phpCodeString.replace(
+		phpCodeString = phpCodeString.replace(
 			"'wordpress/wp-load.php'",
 			"'/wordpress/wp-load.php'"
 		);
-		code = phpCodeString.replace(
+		phpCodeString = phpCodeString.replace(
 			'"wordpress/wp-load.php"',
 			'"/wordpress/wp-load.php"'
 		);
