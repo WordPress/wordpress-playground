@@ -1,4 +1,4 @@
-[30-Jul-2025 08:05:19 UTC] WordPress database error <div style="clear:both">&nbsp;</div>
+[31-Jul-2025 08:06:00 UTC] WordPress database error <div style="clear:both">&nbsp;</div>
 <div class="queries" style="clear:both;margin-bottom:2px;border:red dotted thin;">
 <p>MySQL query:</p>
 <p>SELECT option_value FROM wp_options WHERE option_name = 'active_plugins' LIMIT 1</p>
@@ -13,7 +13,7 @@
 SQLSTATE[HY000]: General error: 1 no such table: wp_options
 </div>
 <p>Backtrace:</p>
-<pre>#0 /internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-driver.php(739): WP_SQLite_Driver->new_driver_exception('SQLSTATE[HY000]...', 'HY000', Object(PDOException))
+<pre>#0 /internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-driver.php(719): WP_SQLite_Driver->new_driver_exception('SQLSTATE[HY000]...', 'HY000', Object(PDOException))
 #1 /internal/shared/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php(537): WP_SQLite_Driver->query('SELECT option_v...')
 #2 /internal/shared/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php(449): WP_SQLite_DB->_do_query('SELECT option_v...')
 #3 /wordpress/wp-includes/class-wpdb.php(3075): WP_SQLite_DB->query('SELECT option_v...')
