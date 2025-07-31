@@ -85,9 +85,13 @@ blueprint={{
 		]
 }} />
 
-## Running WP-CLI on Mounted Sites
+## How to work with WP-CLI on Playground
 
-To run WP-CLI commands on a WordPress site mounted from your local filesystem, you need to ensure the SQLite database integration is properly configured and mount the entire folder `/wordpress/`. This Blueprint snippet installs and activates the necessary plugin:
+To run WP-CLI commands on a Playground instance, you need to set up two things: mount the `/wordpress/` directory to your local filesystem and ensure the SQLite database integration is correctly configured. These steps allow WP-CLI to recognize the site as a valid WordPress installation and connect to its database.
+
+Playground uses an internal SQLite database integration that isn't persisted when the site is mounted. Therefore, you must explicitly install and configure this plugin in your Blueprint to ensure a database connection.
+
+The following Blueprint snippet handles this setup:
 
 <BlueprintExample blueprint={{
     "steps": [
@@ -110,7 +114,7 @@ To run WP-CLI commands on a WordPress site mounted from your local filesystem, y
     ]
 }} />
 
-For a detailed explanation of why this is needed and how to use it, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
+For a detailed explanation of why this is needed, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
 
 ## Showcase a product demo
 
