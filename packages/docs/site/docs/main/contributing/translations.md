@@ -67,7 +67,7 @@ To locally test an existing language, you can do:
 
 ```
 
-npm run dev:docs -- --locale es
+npm run dev -- --locale es
 
 ```
 
