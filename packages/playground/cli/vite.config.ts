@@ -135,8 +135,10 @@ export default defineConfig({
 			entry: {
 				index: 'src/index.ts',
 				cli: 'src/cli.ts',
-				'worker-thread-v1': 'src/blueprints-v1/worker-thread-v1.ts',
-				'worker-thread-v2': 'src/blueprints-v2/worker-thread-v2.ts',
+				// NOTE: Using .tsx here because otherwise Vite will inline .ts
+				// files as data URIs with a video MIME type like "video/m2ts"
+				'worker-thread-v1': 'src/blueprints-v1/worker-thread-v1.tsx',
+				'worker-thread-v2': 'src/blueprints-v2/worker-thread-v2.tsx',
 			},
 			name: 'playground-cli',
 			formats: ['es', 'cjs'],
