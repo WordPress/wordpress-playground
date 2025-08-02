@@ -36,9 +36,13 @@ export class BlueprintsV2Handler {
 	}
 
 	getWorkerUrl() {
-		// NOTE: Using .tsx here because otherwise Vite will inline .ts files
-		// as data URIs with a video MIME type like "video/m2ts"
-		return new URL('./worker-thread-v2.tsx', import.meta.url).href;
+		/*
+		 * NOTE: Using .js here because otherwise Vite will inline .ts files
+		 * as "video/m2ts" data URIs which cannot be executed.
+		 * We could use a `?url` import instead, but in our experience,
+		 * Vitest is not able to properly locate the worker script during test.
+		 */
+		return new URL('./load-worker-thread-v2.js', import.meta.url).href;
 	}
 
 	async bootPrimaryWorker(
