@@ -19,6 +19,7 @@ import {
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 // @ts-ignore
+import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
 
@@ -49,7 +50,19 @@ export class BlueprintsV1Handler {
 	}
 
 	getWorkerUrl() {
-		return new URL('./worker-thread-v1.ts', import.meta.url).href;
+		if (
+			process.env['VITEST'] &&
+			importedWorkerV1UrlString.startsWith('/src/')
+		) {
+			// Work around issue where Vitest cannot find the worker script.
+			return path.join(
+				import.meta.dirname,
+				'..',
+				'..',
+				importedWorkerV1UrlString
+			);
+		}
+		return importedWorkerV1UrlString;
 	}
 
 	async bootPrimaryWorker(

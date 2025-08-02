@@ -5,8 +5,10 @@ import type {
 	WorkerBootArgs,
 } from './worker-thread-v2';
 // @ts-ignore
+import importedWorkerV2UrlString from './worker-thread-v2?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
+import path from 'path';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -36,7 +38,19 @@ export class BlueprintsV2Handler {
 	}
 
 	getWorkerUrl() {
-		return new URL('./worker-thread-v2.ts', import.meta.url).href;
+		if (
+			process.env['VITEST'] &&
+			importedWorkerV2UrlString.startsWith('/src/')
+		) {
+			// Work around issue where Vitest cannot find the worker script.
+			return path.join(
+				import.meta.dirname,
+				'..',
+				'..',
+				importedWorkerV2UrlString
+			);
+		}
+		return importedWorkerV2UrlString;
 	}
 
 	async bootPrimaryWorker(
