@@ -36,9 +36,7 @@ export class BlueprintsV2Handler {
 	}
 
 	getWorkerUrl() {
-		// NOTE: Using .tsx here because otherwise Vite will inline .ts files
-		// as data URIs with a video MIME type like "video/m2ts"
-		return new URL('./worker-thread-v2.tsx', import.meta.url).href;
+		return new URL('./worker-thread-v2.ts', import.meta.url).href;
 	}
 
 	async bootPrimaryWorker(
