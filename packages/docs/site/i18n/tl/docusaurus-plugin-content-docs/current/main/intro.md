@@ -18,10 +18,10 @@ Ang Playground ay isang online na tool para subukan at pag-aralan ang WordPress.
 
 <p class="docs-hubs">Ang dokumentasyon ng WordPress Playground ay hinati sa apat na magkakahiwalay na hub (subsite):</p>
 
--   👉 [**Dokumentasyon**](/wordpress-playground/) (nandoon ka ngayon) – Panimula sa WP Playground, mga gabay para sa panimula, at iyong pasukan sa Dokumentasyon ng WP Playground.
--   [**Blueprints**](/wordpress-playground/blueprints) – Ang Blueprints ay mga JSON file para i-setup ang iyong WordPress Playground instance. Alamin ang mga ito sa Blueprint docs hub.
--   [**Para sa Developer**](/wordpress-playground/developers) – Ang WordPress Playground ay ginawa bilang isang programmable na tool. Tuklasin ang lahat ng magagawa mo gamit ang code sa Developer docs hub.
--   [**API Reference**](/wordpress-playground/api) – Lahat ng API na iniaalok ng WordPress Playground.
+-   👉 [**Dokumentasyon**](/) (nandoon ka ngayon) – Panimula sa WP Playground, mga gabay para sa panimula, at iyong pasukan sa Dokumentasyon ng WP Playground.
+-   [**Blueprints**](/blueprints) – Ang Blueprints ay mga JSON file para i-setup ang iyong WordPress Playground instance. Alamin ang mga ito sa Blueprint docs hub.
+-   [**Para sa Developer**](/developers) – Ang WordPress Playground ay ginawa bilang isang programmable na tool. Tuklasin ang lahat ng magagawa mo gamit ang code sa Developer docs hub.
+-   [**API Reference**](/api) – Lahat ng API na iniaalok ng WordPress Playground.
 
 ## Pag-navigate sa hub na ito ng dokumentasyon
 
