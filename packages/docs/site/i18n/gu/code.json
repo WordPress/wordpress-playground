@@ -1,0 +1,472 @@
+{
+	"theme.ErrorPageContent.title": {
+		"message": "આ પેજ ક્રેશ થઈ ગયું છે.",
+		"description": "The title of the fallback page when the page crashed"
+	},
+	"theme.BackToTopButton.buttonAriaLabel": {
+		"message": "ટોચ પર જાઓ",
+		"description": "The ARIA label for the back to top button"
+	},
+	"theme.blog.archive.title": {
+		"message": "આર્કાઇવ",
+		"description": "The page & hero title of the blog archive page"
+	},
+	"theme.blog.archive.description": {
+		"message": "આર્કાઇવ",
+		"description": "The page & hero description of the blog archive page"
+	},
+	"theme.blog.paginator.navAriaLabel": {
+		"message": "બ્લોગ યાદી પેજ નેવિગેશન",
+		"description": "The ARIA label for the blog pagination"
+	},
+	"theme.blog.paginator.newerEntries": {
+		"message": "નવી એન્ટ્રીઓ",
+		"description": "The label used to navigate to the newer blog posts page (previous page)"
+	},
+	"theme.blog.paginator.olderEntries": {
+		"message": "જૂની એન્ટ્રીઓ",
+		"description": "The label used to navigate to the older blog posts page (next page)"
+	},
+	"theme.blog.post.paginator.navAriaLabel": {
+		"message": "બ્લોગ પોસ્ટ પેજ નેવિગેશન",
+		"description": "The ARIA label for the blog posts pagination"
+	},
+	"theme.blog.post.paginator.newerPost": {
+		"message": "નવી પોસ્ટ",
+		"description": "The blog post button label to navigate to the newer/previous post"
+	},
+	"theme.blog.post.paginator.olderPost": {
+		"message": "જૂની પોસ્ટ",
+		"description": "The blog post button label to navigate to the older/next post"
+	},
+	"theme.tags.tagsPageLink": {
+		"message": "બધા ટેગ્સ જુઓ",
+		"description": "The label of the link targeting the tag list page"
+	},
+	"theme.colorToggle.ariaLabel": {
+		"message": "ડાર્ક/લાઇટ મોડ બદલો (હમણાં: {mode})",
+		"description": "The ARIA label for the navbar color mode toggle"
+	},
+	"theme.colorToggle.ariaLabel.mode.dark": {
+		"message": "ડાર્ક મોડ",
+		"description": "The name for the dark color mode"
+	},
+	"theme.colorToggle.ariaLabel.mode.light": {
+		"message": "લાઇટ મોડ",
+		"description": "The name for the light color mode"
+	},
+	"theme.docs.breadcrumbs.navAriaLabel": {
+		"message": "બ્રેડક્રમ્બ્સ",
+		"description": "The ARIA label for the breadcrumbs"
+	},
+	"theme.docs.DocCard.categoryDescription.plurals": {
+		"message": "1 વસ્તુ|{count} વસ્તુઓ",
+		"description": "The default description for a category card in the generated index about how many items this category includes"
+	},
+	"theme.docs.paginator.navAriaLabel": {
+		"message": "દસ્તાવેજોના પૃષ્ઠો",
+		"description": "The ARIA label for the docs pagination"
+	},
+	"theme.docs.paginator.previous": {
+		"message": "પહેલાં",
+		"description": "The label used to navigate to the previous doc"
+	},
+	"theme.docs.paginator.next": {
+		"message": "આગળ",
+		"description": "The label used to navigate to the next doc"
+	},
+	"theme.docs.tagDocListPageTitle.nDocsTagged": {
+		"message": "1 દસ્તાવેજ ટૅગ કર્યો|{count} દસ્તાવેજો ટૅગ કર્યા",
+		"description": "Pluralized label for \"{count} docs tagged\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+	},
+	"theme.docs.tagDocListPageTitle": {
+		"message": "\"{tagName}\" સાથે {nDocsTagged}",
+		"description": "The title of the page for a docs tag"
+	},
+	"theme.docs.versionBadge.label": {
+		"message": "આવૃત્તિ: {versionLabel}"
+	},
+	"theme.docs.versions.unreleasedVersionLabel": {
+		"message": "આ {siteTitle} ના {versionLabel} આવૃત્તિ માટેનું અપ્રકાશિત માર્ગદર્શિકા છે.",
+		"description": "The label used to tell the user that he's browsing an unreleased doc version"
+	},
+	"theme.docs.versions.unmaintainedVersionLabel": {
+		"message": "આ {siteTitle} {versionLabel} માટેનું માર્ગદર્શિકા છે, જે હવે સક્રિય રીતે જાળવવામાં આવતું નથી.",
+		"description": "The label used to tell the user that he's browsing an unmaintained doc version"
+	},
+	"theme.docs.versions.latestVersionSuggestionLabel": {
+		"message": "સૌથી નવી માર્ગદર્શિકા માટે, {latestVersionLink} ({versionLabel}) જુઓ.",
+		"description": "The label used to tell the user to check the latest version"
+	},
+	"theme.docs.versions.latestVersionLinkLabel": {
+		"message": "નવીનતમ આવૃત્તિ",
+		"description": "The label used for the latest version suggestion link label"
+	},
+	"theme.common.editThisPage": {
+		"message": "આ પૃષ્ઠ સંપાદિત કરો",
+		"description": "The link label to edit the current page"
+	},
+	"theme.common.headingLinkTitle": {
+		"message": "{heading} માટે સીધી લિંક",
+		"description": "Title for link to heading"
+	},
+	"theme.lastUpdated.atDate": {
+		"message": " {તારીખ}ના રોજ",
+		"description": "The words used to describe on which date a page has been last updated"
+	},
+	"theme.lastUpdated.byUser": {
+		"message": " {user} દ્વારા",
+		"description": "The words used to describe by who the page has been last updated"
+	},
+	"theme.lastUpdated.lastUpdatedAtBy": {
+		"message": "છેલ્લે અપડેટ થયું {atDate}{byUser} દ્વારા",
+		"description": "The sentence used to display when a page has been last updated, and by who"
+	},
+	"theme.NotFound.title": {
+		"message": "પૃષ્ઠ મળ્યું નથી",
+		"description": "The title of the 404 page"
+	},
+	"theme.navbar.mobileVersionsDropdown.label": {
+		"message": "આવૃત્તિઓ",
+		"description": "The label for the navbar versions dropdown on mobile view"
+	},
+	"theme.tags.tagsListLabel": {
+		"message": "ટેગ્સ:",
+		"description": "The label alongside a tag list"
+	},
+	"theme.AnnouncementBar.closeButtonAriaLabel": {
+		"message": "બંધ કરો",
+		"description": "The ARIA label for close button of announcement bar"
+	},
+	"theme.admonition.caution": {
+		"message": "સાવધાની",
+		"description": "The default label used for the Caution admonition (:::caution)"
+	},
+	"theme.admonition.danger": {
+		"message": "ખતરો",
+		"description": "The default label used for the Danger admonition (:::danger)"
+	},
+	"theme.admonition.info": {
+		"message": "માહિતી",
+		"description": "The default label used for the Info admonition (:::info)"
+	},
+	"theme.admonition.note": {
+		"message": "નોંધ",
+		"description": "The default label used for the Note admonition (:::note)"
+	},
+	"theme.admonition.tip": {
+		"message": "ટીપ",
+		"description": "The default label used for the Tip admonition (:::tip)"
+	},
+	"theme.admonition.warning": {
+		"message": "ચેતવણી",
+		"description": "The default label used for the Warning admonition (:::warning)"
+	},
+	"theme.blog.sidebar.navAriaLabel": {
+		"message": "બ્લોગના તાજેતરના પોસ્ટ્સની નાવિગેશન",
+		"description": "The ARIA label for recent posts in the blog sidebar"
+	},
+	"theme.CodeBlock.copied": {
+		"message": "કોપી કરેલ",
+		"description": "The copied button label on code blocks"
+	},
+	"theme.CodeBlock.copyButtonAriaLabel": {
+		"message": "કોડ ક્લિપબોર્ડ પર નકલ કરો",
+		"description": "The ARIA label for copy code blocks button"
+	},
+	"theme.CodeBlock.copy": {
+		"message": "કોપી કરો",
+		"description": "The copy button label on code blocks"
+	},
+	"theme.CodeBlock.wordWrapToggle": {
+		"message": "વર્ડ રેપ ટોગલ કરો",
+		"description": "The title attribute for toggle word wrapping button of code block lines"
+	},
+	"theme.DocSidebarItem.expandCategoryAriaLabel": {
+		"message": "સાઇડબાર કેટેગરી વિસ્તારો '{label}'",
+		"description": "The ARIA label to expand the sidebar category"
+	},
+	"theme.DocSidebarItem.collapseCategoryAriaLabel": {
+		"message": "સાઇડબાર કેટેગરી ઘટાવો '{label}'",
+		"description": "The ARIA label to collapse the sidebar category"
+	},
+	"theme.NotFound.p1": {
+		"message": "અમે જે શોધી રહ્યા હતા તે મળી શક્યું નથી.",
+		"description": "The first paragraph of the 404 page"
+	},
+	"theme.NotFound.p2": {
+		"message": "કૃપા કરીને તે સાઇટના માલિકને સંપર્ક કરો જે તમને મૂળ URL પર લિંક કરે છે અને તેમને જાણો કે તેમનું લિંક તૂટી ગયું છે.",
+		"description": "The 2nd paragraph of the 404 page"
+	},
+	"theme.navbar.mobileLanguageDropdown.label": {
+		"message": "ભાષાઓ",
+		"description": "The label for the mobile language switcher dropdown"
+	},
+	"theme.NavBar.navAriaLabel": {
+		"message": "મુખ્ય",
+		"description": "The ARIA label for the main navigation"
+	},
+	"theme.TOCCollapsible.toggleButtonLabel": {
+		"message": "આ પૃષ્ઠ પર",
+		"description": "The label used by the button on the collapsible TOC component"
+	},
+	"theme.blog.post.readMore": {
+		"message": "વધુ વાંચો",
+		"description": "The label used in blog post item excerpts to link to full blog posts"
+	},
+	"theme.blog.post.readMoreLabel": {
+		"message": "{title} વિશે વધુ વાંચો",
+		"description": "The ARIA label for the link to full blog posts from excerpts"
+	},
+	"theme.blog.post.readingTime.plurals": {
+		"message": "એક મિનિટ વાંચો|{readingTime} મિનિટ વાંચો",
+		"description": "Pluralized label for \"{readingTime} min read\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+	},
+	"theme.docs.sidebar.collapseButtonTitle": {
+		"message": "સાઇડબારને સંકુચિત કરો",
+		"description": "The title attribute for collapse button of doc sidebar"
+	},
+	"theme.docs.sidebar.collapseButtonAriaLabel": {
+		"message": "સાઇડબારને સંકુચિત કરો",
+		"description": "The title attribute for collapse button of doc sidebar"
+	},
+	"theme.docs.sidebar.navAriaLabel": {
+		"message": "ડોક્સ સાઇડબાર",
+		"description": "The ARIA label for the sidebar navigation"
+	},
+	"theme.docs.breadcrumbs.home": {
+		"message": "હોમ પેજ",
+		"description": "The ARIA label for the home page in the breadcrumbs"
+	},
+	"theme.docs.sidebar.closeSidebarButtonAriaLabel": {
+		"message": "નૅવિગેશન બાર બંધ કરો",
+		"description": "The ARIA label for close button of mobile sidebar"
+	},
+	"theme.navbar.mobileSidebarSecondaryMenu.backButtonLabel": {
+		"message": "← મુખ્ય મેનૂ પર પાછા જાઓ",
+		"description": "The label of the back button to return to main menu, inside the mobile navbar sidebar secondary menu (notably used to display the docs sidebar)"
+	},
+	"theme.docs.sidebar.toggleSidebarButtonAriaLabel": {
+		"message": "નૅવિગેશન બાર ચાલુ/બંધ કરો",
+		"description": "The ARIA label for hamburger menu button of mobile navigation"
+	},
+	"theme.docs.sidebar.expandButtonTitle": {
+		"message": "સાઇડબારને વિસ્તૃત કરો",
+		"description": "The ARIA label and title attribute for expand button of doc sidebar"
+	},
+	"theme.docs.sidebar.expandButtonAriaLabel": {
+		"message": "સાઇડબારને વિસ્તૃત કરો",
+		"description": "The ARIA label and title attribute for expand button of doc sidebar"
+	},
+	"theme.SearchBar.seeAll": {
+		"message": "બધા {count} પરિણામો જુઓ"
+	},
+	"theme.SearchPage.documentsFound.plurals": {
+		"message": "એક દસ્તાવેજ મળ્યો|{count} દસ્તાવેજો મળ્યા",
+		"description": "Pluralized label for \"{count} documents found\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+	},
+	"theme.SearchPage.existingResultsTitle": {
+		"message": "\"{query}\" માટે શોધ પરિણામો",
+		"description": "The search page title for non-empty query"
+	},
+	"theme.SearchPage.emptyResultsTitle": {
+		"message": "દસ્તાવેજો શોધો",
+		"description": "The search page title for empty query"
+	},
+	"theme.SearchPage.inputPlaceholder": {
+		"message": "તમારી શોધ અહીં ટાઇપ કરો",
+		"description": "The placeholder for search page input"
+	},
+	"theme.SearchPage.inputLabel": {
+		"message": "શોધો",
+		"description": "The ARIA label for search page input"
+	},
+	"theme.SearchPage.algoliaLabel": {
+		"message": "Algolia દ્વારા શોધો",
+		"description": "The ARIA label for Algolia mention"
+	},
+	"theme.SearchPage.noResultsText": {
+		"message": "કોઈ પરિણામો મળ્યા નથી",
+		"description": "The paragraph for empty search result"
+	},
+	"theme.SearchPage.fetchingNewResults": {
+		"message": "નવા પરિણામો લાવી રહ્યા છીએ...",
+		"description": "The paragraph for fetching new search results"
+	},
+	"theme.SearchBar.label": {
+		"message": "શોધો",
+		"description": "The ARIA label and placeholder for search button"
+	},
+	"theme.SearchModal.searchBox.resetButtonTitle": {
+		"message": "શોધ સાફ કરો",
+		"description": "The label and ARIA label for search box reset button"
+	},
+	"theme.SearchModal.searchBox.cancelButtonText": {
+		"message": "રદ કરો",
+		"description": "The label and ARIA label for search box cancel button"
+	},
+	"theme.SearchModal.startScreen.recentSearchesTitle": {
+		"message": "તાજેતરના શોધો",
+		"description": "The title for recent searches"
+	},
+	"theme.SearchModal.startScreen.noRecentSearchesText": {
+		"message": "કોઈ તાજેતરના શોધો નથી",
+		"description": "The text when no recent searches"
+	},
+	"theme.SearchModal.startScreen.saveRecentSearchButtonTitle": {
+		"message": "આ શોધને સાચવો",
+		"description": "The label for save recent search button"
+	},
+	"theme.SearchModal.startScreen.removeRecentSearchButtonTitle": {
+		"message": "આ શોધને ઇતિહાસમાંથી દૂર કરો",
+		"description": "The label for remove recent search button"
+	},
+	"theme.SearchModal.startScreen.favoriteSearchesTitle": {
+		"message": "પ્રિય શોધો",
+		"description": "The title for favorite searches"
+	},
+	"theme.SearchModal.startScreen.removeFavoriteSearchButtonTitle": {
+		"message": "આ શોધને પ્રિયમાંથી દૂર કરો",
+		"description": "The label for remove favorite search button"
+	},
+	"theme.SearchModal.errorScreen.titleText": {
+		"message": "અમે શોધ કરી શક્યા નથી",
+		"description": "The title for error screen of search modal"
+	},
+	"theme.SearchModal.errorScreen.helpText": {
+		"message": "તમારા નેટવર્ક કનેક્શનને ચકાસવા માટે તમે ઇચ્છતા હોઈ શકો છો.",
+		"description": "The help text for error screen of search modal"
+	},
+	"theme.SearchModal.footer.selectText": {
+		"message": "પ્રવેશ કરવા માટે પસંદ કરો",
+		"description": "The explanatory text of the action for the enter key"
+	},
+	"theme.SearchModal.footer.selectKeyAriaLabel": {
+		"message": "એન્ટર કી",
+		"description": "The ARIA label for the Enter key button that makes the selection"
+	},
+	"theme.SearchModal.footer.navigateText": {
+		"message": "નેવિગેટ કરવા માટે",
+		"description": "The explanatory text of the action for the Arrow up and Arrow down key"
+	},
+	"theme.SearchModal.footer.navigateUpKeyAriaLabel": {
+		"message": "એરો અપ",
+		"description": "The ARIA label for the Arrow up key button that makes the navigation"
+	},
+	"theme.SearchModal.footer.navigateDownKeyAriaLabel": {
+		"message": "એરો ડાઉન",
+		"description": "The ARIA label for the Arrow down key button that makes the navigation"
+	},
+	"theme.SearchModal.footer.closeText": {
+		"message": "બંધ કરવા માટે",
+		"description": "The explanatory text of the action for Escape key"
+	},
+	"theme.SearchModal.footer.closeKeyAriaLabel": {
+		"message": "એસ્કેપ કી",
+		"description": "The ARIA label for the Escape key button that close the modal"
+	},
+	"theme.SearchModal.footer.searchByText": {
+		"message": "આધારે શોધો",
+		"description": "The text explain that the search is making by Algolia"
+	},
+	"theme.SearchModal.noResultsScreen.noResultsText": {
+		"message": "કોઈ પરિણામો મળ્યા નથી",
+		"description": "The text explains that there are no results for the following search"
+	},
+	"theme.SearchModal.noResultsScreen.suggestedQueryText": {
+		"message": "આ શોધવાનો પ્રયાસ કરો",
+		"description": "The text for the suggested query when no results are found for the following search"
+	},
+	"theme.SearchModal.noResultsScreen.reportMissingResultsText": {
+		"message": "તમને લાગે છે કે આ ક્વેરી પરિણામો આપવી જોઈએ?",
+		"description": "The text for the question where the user thinks there are missing results"
+	},
+	"theme.SearchModal.noResultsScreen.reportMissingResultsLinkText": {
+		"message": "અમને જાણ કરો.",
+		"description": "The text for the link to report missing results"
+	},
+	"theme.SearchModal.placeholder": {
+		"message": "દસ્તાવેજો શોધો",
+		"description": "The placeholder of the input of the DocSearch pop-up modal"
+	},
+	"theme.IdealImageMessage.loading": {
+		"message": "લોડ થઈ રહ્યું છે...",
+		"description": "When the full-scale image is loading"
+	},
+	"theme.IdealImageMessage.load": {
+		"message": "લોડ કરવા માટે ક્લિક કરો{sizeMessage}",
+		"description": "To prompt users to load the full image. sizeMessage is a parenthesized size figure."
+	},
+	"theme.IdealImageMessage.offline": {
+		"message": "તમારો બ્રાઉઝર ઓફલાઇન છે. છબી લોડ થઈ નથી",
+		"description": "When the user is viewing an offline document"
+	},
+	"theme.IdealImageMessage.404error": {
+		"message": "404. છબી મળી નથી",
+		"description": "When the image is not found"
+	},
+	"theme.IdealImageMessage.error": {
+		"message": "Error. ફરીથી લોડ કરવા માટે ક્લિક કરો",
+		"description": "When the image fails to load for unknown error"
+	},
+	"theme.Playground.result": {
+		"message": "પરિણામ",
+		"description": "The result label of the live codeblocks"
+	},
+	"theme.Playground.liveEditor": {
+		"message": "લાઇવ એડિટર",
+		"description": "The live editor label of the live codeblocks"
+	},
+	"theme.blog.post.plurals": {
+		"message": "એક પોસ્ટ | {count} પોસ્ટ્સ",
+		"description": "Pluralized label for \"{count} posts\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+	},
+	"theme.blog.tagTitle": {
+		"message": "\"{tagName}\" સાથે ટૅગ કરેલી {nPosts} પોસ્ટ્સ",
+		"description": "The title of the page for a blog tag"
+	},
+	"theme.blog.author.pageTitle": {
+		"message": "{authorName} - {nPosts}",
+		"description": "The title of the page for a blog author"
+	},
+	"theme.blog.authorsList.pageTitle": {
+		"message": "લેખકો",
+		"description": "The title of the authors page"
+	},
+	"theme.blog.authorsList.viewAll": {
+		"message": "બધા લેખકો જુઓ",
+		"description": "The label of the link targeting the blog authors page"
+	},
+	"theme.blog.author.noPosts": {
+		"message": "આ લેખકે હજુ સુધી કોઈ પોસ્ટ લખી નથી.",
+		"description": "The text for authors with 0 blog post"
+	},
+	"theme.contentVisibility.unlistedBanner.title": {
+		"message": "અસૂચિબદ્ધ પેજ",
+		"description": "The unlisted content banner title"
+	},
+	"theme.contentVisibility.unlistedBanner.message": {
+		"message": "આ પેજ અસૂચિબદ્ધ છે. શોધ એન્જિન તેને સૂચિબદ્ધ કરશે નહીં, અને ફક્ત સીધી લિંક ધરાવતા વપરાશકર્તાઓ જ તેને ઍક્સેસ કરી શકશે.",
+		"description": "The unlisted content banner message"
+	},
+	"theme.contentVisibility.draftBanner.title": {
+		"message": "ડ્રાફ્ટ પેજ",
+		"description": "The draft content banner title"
+	},
+	"theme.contentVisibility.draftBanner.message": {
+		"message": "આ પેજ એક ડ્રાફ્ટ છે. તે ફક્ત ડેવલપમેન્ટમાં જ દેખાશે અને પ્રોડક્શન બિલ્ડમાંથી બહાર રાખવામાં આવશે.",
+		"description": "The draft content banner message"
+	},
+	"theme.ErrorPageContent.tryAgain": {
+		"message": "ફરીથી પ્રયાસ કરો",
+		"description": "The label of the button to try again rendering when the React error boundary captures an error"
+	},
+	"theme.common.skipToMainContent": {
+		"message": "મુખ્ય સામગ્રીને બાયપાસ કરો",
+		"description": "The skip to content label used for accessibility, allowing to rapidly navigate to main content with keyboard tab/enter navigation"
+	},
+	"theme.tags.tagsPageTitle": {
+		"message": "ટેગ્સ",
+		"description": "The title of the tag list page"
+	}
+}
