@@ -2,6 +2,7 @@ import type { PHPResponse } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import { logger } from '@php-wasm/logger';
 
+/* eslint-disable comment-length/limit-multi-line-comments */
 /**
  * @inheritDoc runPHP
  * @hasRunnableExample
@@ -10,12 +11,11 @@ import { logger } from '@php-wasm/logger';
  * <code>
  * {
  * 		"step": "runPHP",
- * 		"code": "<?php require_once 'wordpress/wp-load.php';
- * 		wp_insert_post(array('post_title' => 'wp-load.php required for WP
- * 		functionality', 'post_status' => 'publish')); ?>"
+ * 		"code": "<?php require_once 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'wp-load.php required for WP functionality', 'post_status' => 'publish')); ?>"
  * }
  * </code>
  */
+/* eslint-enable comment-length/limit-multi-line-comments */
 export interface RunPHPStep {
 	/** The step identifier. */
 	step: 'runPHP';

@@ -14,7 +14,7 @@ export type StartBridgeConfig = {
 	localRoot?: string;
 
 	phpInstance?: PHP;
-	getPHPFile?: (path: string) => string;
+	getPHPFile?: (path: string) => string | Promise<string>;
 };
 
 export async function startBridge(config: StartBridgeConfig) {

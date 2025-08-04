@@ -12,6 +12,7 @@ import type { FileLockManager } from './file-lock-manager';
 import { withICUData } from './data/with-icu-data';
 import { withXdebug } from './xdebug/with-xdebug';
 import { joinPaths } from '@php-wasm/util';
+import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
@@ -41,7 +42,11 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 * file lock managers are supported.
 		 * When running with Asyncify, the file lock manager must be synchronous.
 		 */
-		fileLockManager?: RemoteAPI<FileLockManager> | FileLockManager;
+		fileLockManager?:
+			| RemoteAPI<FileLockManager>
+			// Allow promised type for testing without providing true RemoteAPI.
+			| Promised<FileLockManager>
+			| FileLockManager;
 
 		/**
 		 * An optional function to collect trace messages.

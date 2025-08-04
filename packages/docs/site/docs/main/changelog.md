@@ -9,6 +9,124 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.6] (2025-08-04)
+
+### Documentation
+
+-   Adding Contribution pages Spanish translation. ([#2431](https://github.com/WordPress/wordpress-playground/pull/2431))
+
+### PHP WebAssembly
+
+-   Fix file locking for PROXYFS nodes that wrap NODEFS. ([#2437](https://github.com/WordPress/wordpress-playground/pull/2437))
+
+### Bug Fixes
+
+-   Translations: Fix command typo in docs. ([#2449](https://github.com/WordPress/wordpress-playground/pull/2449))
+
+### Various
+
+-   Add Japanese translations to Blueprint Bundles and API Consistency. ([#2438](https://github.com/WordPress/wordpress-playground/pull/2438))
+-   Translations: Clean up version from PR #2336. ([#2448](https://github.com/WordPress/wordpress-playground/pull/2448))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @fellyph @rollybueno @shimotmk @vipul0425
+
+## [v2.0.5] (2025-07-28)
+
+### Bug Fixes
+
+-   Fix fcntl() F_GETLK fatal due to undefined flock struct address. ([#2432](https://github.com/WordPress/wordpress-playground/pull/2432))
+
+### Various
+
+-   Add Japanese translations to contributing index and sidebar. ([#2434](https://github.com/WordPress/wordpress-playground/pull/2434))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @shimotmk
+
+## [v2.0.4] (2025-07-25)
+
+### Public API
+
+#### Blueprints
+
+-   Distribute @wp-playground/client without any package.json dependencies. ([#2426](https://github.com/WordPress/wordpress-playground/pull/2426))
+
+### Tools
+
+-   Fix ESLint 9 linting in VSCode. ([#2417](https://github.com/WordPress/wordpress-playground/pull/2417))
+-   [ xdebug ] Add `--experimental-devtools` option in Playground CLI. ([#2411](https://github.com/WordPress/wordpress-playground/pull/2411))
+
+### PHP WebAssembly
+
+-   [PHP] Dispatch request.error for all non-zero-exit request handler errors. ([#2429](https://github.com/WordPress/wordpress-playground/pull/2429))
+
+### Website
+
+-   Query Monitor plugin support. ([#2415](https://github.com/WordPress/wordpress-playground/pull/2415))
+
+### Internal
+
+-   Skip flaky end-to-end tests in Firefox and Webkit. ([#2425](https://github.com/WordPress/wordpress-playground/pull/2425))
+
+### Bug Fixes
+
+-   [Xdebug Bridge] Correct error related to unresolved promises in bridge. ([#2422](https://github.com/WordPress/wordpress-playground/pull/2422))
+
+### Various
+
+-   Documentation add sidebar to blueprints bundles. ([#2397](https://github.com/WordPress/wordpress-playground/pull/2397))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @mho22 @shimotmk
+
+## [v2.0.3] (2025-07-24)
+
+### Tools
+
+-   [ xdebug ] Add `--experimental-devtools` option in php-wasm CLI. ([#2408](https://github.com/WordPress/wordpress-playground/pull/2408))
+
+### Bug Fixes
+
+-   Playground CLI Allow /wordpress subdirs to be mounted before WP install. ([#2382](https://github.com/WordPress/wordpress-playground/pull/2382))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @mho22
+
+## [v2.0.2] (2025-07-23)
+
+### Tools
+
+#### PHP WebAssembly
+
+-   [ xdebug ] Bridge DBGP session with CDP server. ([#2402](https://github.com/WordPress/wordpress-playground/pull/2402))
+
+### Internal
+
+-   [Build] Preserve optionalDependencies in built package.json. ([#2410](https://github.com/WordPress/wordpress-playground/pull/2410))
+
+###
+
+-   Comlink] Throw the original error in the error handler. ([#2407](https://github.com/WordPress/wordpress-playground/pull/2407))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
 ## [v2.0.1] (2025-07-23)
 
 ### Blueprints

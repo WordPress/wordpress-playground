@@ -467,9 +467,11 @@ export class PHP implements Disposable {
 		);
 
 		if (syncResponse.exitCode !== 0) {
-			// Legacy behavior: throw if PHP exited with a non-zero exit code.
+			// Legacy run() behavior: throw if PHP exited with a non-zero exit code.
 			// It could be a WASM crash, but it could be a PHP userland error such
 			// as "Fatal error: Uncaught Error: Call to undefined function no_such_function()".
+			//
+			// runStream() does not throw just because an exitCode is non-zero.
 			throw new PHPExecutionFailureError(
 				`PHP.run() failed with exit code ${syncResponse.exitCode}. \n\n=== Stdout ===\n ${syncResponse.text}\n\n=== Stderr ===\n ${syncResponse.errors}`,
 				syncResponse,
@@ -654,21 +656,6 @@ export class PHP implements Disposable {
 
 		// Free up resources when the response is done
 		await streamedResponsePromise
-			.catch((error) => {
-				/**
-				 * Dispatch a request.error event for any global crash handlers. For example,
-				 * Playground web uses this to automatically display a "Report crash" modal.
-				 */
-				this.dispatchEvent({
-					type: 'request.error',
-					error: error as Error,
-					// Distinguish between PHP request and PHP-wasm errors
-					source: (error as any).source ?? 'php-wasm',
-				});
-
-				// Rethrow the error. We don't want to swallow it.
-				throw error;
-			})
 			.finally(() => {
 				if (heapBodyPointer) {
 					this[__private__dont__use].free(heapBodyPointer);
@@ -1035,7 +1022,40 @@ export class PHP implements Disposable {
 			}
 		};
 
-		const exitCodePromise = runExecutionFunction();
+		/**
+		 * Dispatch a request.error event for any global crash handlers. For example,
+		 * Playground web uses this to automatically display a "Report crash" modal.
+		 */
+		const exitCodePromise = runExecutionFunction().then(
+			(exitCode) => {
+				/**
+				 * Emit errors related to PHP script failures (exit code other than 0)
+				 */
+				if (exitCode !== 0) {
+					this.dispatchEvent({
+						type: 'request.error',
+						error: new Error(
+							`PHP.run() failed with exit code ${exitCode}.`
+						),
+						// Distinguish between PHP request and PHP-wasm errors
+						source: 'php-wasm',
+					});
+				}
+				return exitCode;
+			},
+			(error) => {
+				/**
+				 * Emit all other errors.
+				 */
+				this.dispatchEvent({
+					type: 'request.error',
+					error: error as any as Error,
+					// Distinguish between PHP request and PHP-wasm errors
+					source: (error as any).source ?? 'php-wasm',
+				});
+				throw error;
+			}
+		);
 
 		return new StreamedPHPResponse(
 			headers.stream,

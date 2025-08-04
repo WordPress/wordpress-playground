@@ -44,9 +44,11 @@ async function run() {
 		args = args.filter((arg) => arg !== '--xdebug');
 	}
 
-	const hasCDPOption = args.some((arg) => arg.startsWith('--devtools'));
-	if (hasXdebugOption) {
-		args = args.filter((arg) => arg !== '--devtools');
+	const hasDevtoolsOption = args.some((arg) =>
+		arg.startsWith('--experimental-devtools')
+	);
+	if (hasDevtoolsOption) {
+		args = args.filter((arg) => arg !== '--experimental-devtools');
 	}
 
 	// npm scripts set the TMPDIR env variable
@@ -103,7 +105,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 
 	useHostFilesystem(php);
 
-	if (hasCDPOption) {
+	if (hasDevtoolsOption && hasXdebugOption) {
 		const bridge = await startBridge({});
 
 		bridge.start();

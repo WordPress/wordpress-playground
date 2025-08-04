@@ -2397,6 +2397,44 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
+		describe('Event dispatching', () => {
+			it('Should emit a request.error event when PHP.run() exits with a non-zero exit code', async () => {
+				const spyListener = vi.fn();
+				php.addEventListener('request.error', spyListener);
+				try {
+					await php.run({
+						code: `<?php throw new Error('mock error');`,
+					});
+				} catch {
+					// Ignore the thrown error
+				}
+				expect(spyListener).toHaveBeenCalledTimes(1);
+				expect(spyListener).toHaveBeenCalledWith({
+					type: 'request.error',
+					error: new Error('PHP.run() failed with exit code 255.'),
+					source: 'php-wasm',
+				});
+			});
+			it('Should emit a request.error event when PHP.runStream() exits with a non-zero exit code', async () => {
+				const spyListener = vi.fn();
+				php.addEventListener('request.error', spyListener);
+				try {
+					const response = await php.runStream({
+						code: `<?php throw new Error('mock error');`,
+					});
+					await response.finished;
+				} catch {
+					// Ignore the thrown error
+				}
+				expect(spyListener).toHaveBeenCalledTimes(1);
+				expect(spyListener).toHaveBeenCalledWith({
+					type: 'request.error',
+					error: new Error('PHP.run() failed with exit code 255.'),
+					source: 'php-wasm',
+				});
+			});
+		});
+
 		/**
 		 * libsqlite3 path needs to be explicitly provided in Dockerfile
 		 * for PHP < 7.4 – let's make sure it works

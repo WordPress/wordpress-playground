@@ -8,7 +8,7 @@
 		"description": "The alt text of navbar logo"
 	},
 	"item.label.Documentation": {
-		"message": "Documentation",
+		"message": "Documentación",
 		"description": "Navbar item with label Documentation"
 	},
 	"item.label.Blueprints": {
@@ -16,11 +16,11 @@
 		"description": "Navbar item with label Blueprints"
 	},
 	"item.label.Developers": {
-		"message": "Developers",
+		"message": "Desarrolladores",
 		"description": "Navbar item with label Developers"
 	},
 	"item.label.API Reference": {
-		"message": "API Reference",
+		"message": "Referencia de API",
 		"description": "Navbar item with label API Reference"
 	}
 }

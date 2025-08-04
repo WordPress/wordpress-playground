@@ -32,7 +32,7 @@ export interface XdebugCDPBridgeConfig {
 	knownScriptUrls: string[];
 	remoteRoot?: string;
 	localRoot?: string;
-	getPHPFile(path: string): string;
+	getPHPFile(path: string): string | Promise<string>;
 }
 
 export class XdebugCDPBridge {
@@ -49,7 +49,7 @@ export class XdebugCDPBridge {
 	private xdebugConnected = false;
 	private xdebugStatus = 'starting';
 	private initFileUri: string | null = null;
-	private readPHPFile: (path: string) => string;
+	private readPHPFile: (path: string) => string | Promise<string>;
 	private remoteRoot: string;
 	private localRoot: string;
 
@@ -216,7 +216,7 @@ export class XdebugCDPBridge {
 		return txnIdStr;
 	}
 
-	private handleCdpMessage(message: any) {
+	private async handleCdpMessage(message: any) {
 		const { id, method, params } = message;
 		let result: any = {};
 		let sendResponse = true;
@@ -443,7 +443,9 @@ export class XdebugCDPBridge {
 				)?.[0];
 				let scriptSource = '';
 				if (uri) {
-					scriptSource = this.readPHPFile(this.uriToRemotePath(uri));
+					scriptSource = await this.readPHPFile(
+						this.uriToRemotePath(uri)
+					);
 				}
 				result = { scriptSource };
 				break;
@@ -718,7 +720,7 @@ export class XdebugCDPBridge {
 						const responseProps =
 							response.property?.property ?? response.property;
 
-						let currentProps: any[] = [];
+						const currentProps: any[] = [];
 						if (responseProps) {
 							const propertiesArray = Array.isArray(responseProps)
 								? responseProps
@@ -782,18 +784,21 @@ export class XdebugCDPBridge {
 										contextId: contextId,
 										fullname: prop.$.fullname || name,
 									});
-									currentProps.push({
-										name: prop.$.key || name,
-										value: {
-											type: 'object',
-											className: className,
-											description: className,
-											objectId: childObjectId,
-										},
-										writable: false,
-										configurable: false,
-										enumerable: true,
-									});
+
+									if (prop.$.page == 0) {
+										currentProps.push({
+											name: prop.$.key || name,
+											value: {
+												type: 'object',
+												className: className,
+												description: className,
+												objectId: childObjectId,
+											},
+											writable: false,
+											configurable: false,
+											enumerable: true,
+										});
+									}
 								} else {
 									// Primitive or null
 									let value: any;

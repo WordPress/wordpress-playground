@@ -40,10 +40,10 @@ WordPress Playground é uma ferramenta online onde podes testar e aprender mais 
 <p class="docs-hubs">A documentação do WordPress Playground está dividida em quatro hubs(subsites):</p>
 
 <!--
--   👉 [**Documentation**](/wordpress-playground/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
--   [**Blueprints**](/wordpress-playground/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
--   [**Developers**](/wordpress-playground/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
--   [**API Reference**](/wordpress-playground/api) – All the APIs exposed by WordPress Playground
+-   👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
+-   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
+-   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
+-   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
 -->
 
 -   👉 [**Documentação**](/) _(você está aqui)_ – Introdução a WordPress Playground, guia inicial e ponto de entrada para a documentação do WordPress Playuground.
@@ -64,7 +64,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 Este hub de documentação foca-se em ajudá-lo a começar a trabalhar com o WordPress Playground e está organizado nas seguintes seções:
 
 <!--
--   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
+-   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version).
 -   **[Playground web instance](/web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/
 -   **[About Playground](/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
     Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/launch) your products.

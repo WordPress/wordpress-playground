@@ -60,19 +60,16 @@ if (typeof NODEFS === 'object') {
     // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
     // nodes. This way we can tell whether file-locking is needed and possible
     // for an FS node, even if wrapped with PROXYFS.
-    const originalCreateNode = NODEFS.createNode;
+    const originalNodeFsCreateNode = NODEFS.createNode;
     NODEFS.createNode = function createNodeWithSharedFlag() {
-        const node = originalCreateNode.apply(NODEFS, arguments);
+        const node = originalNodeFsCreateNode.apply(NODEFS, arguments);
         node.isSharedFS = true;
         return node;
     };
 
     var originalHashAddNode = FS.hashAddNode;
     FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
-        if (
-            typeof locking === 'object' &&
-            locking?.is_shared_fs_node(node)
-        ) {
+        if (node?.isSharedFS) {
             // Avoid caching shared VFS nodes so multiple instances
             // can access the same underlying filesystem without
             // conflicting caches.
