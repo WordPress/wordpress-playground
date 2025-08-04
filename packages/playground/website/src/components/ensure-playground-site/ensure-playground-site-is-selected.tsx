@@ -159,7 +159,6 @@ function parseSearchParams(searchParams: URLSearchParams) {
 	}
 	return params;
 }
-
 async function createNewTemporarySite(
 	dispatch: ReturnType<typeof useAppDispatch>,
 	requestedSiteSlug?: string
