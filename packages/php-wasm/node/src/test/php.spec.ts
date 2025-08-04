@@ -189,7 +189,7 @@ phpLoaderOptions.forEach((options) => {
 				 * However, from the PHP process perspective, the status code is
 				 * still 200.
 				 */
-				expect(await exitCode1Http200.ok()).toBe(false);
+				expect(await exitCode1Http200.ok()).toBe(true);
 
 				const http500 = await php.runStream({
 					code: '<?php http_response_code(500); ',

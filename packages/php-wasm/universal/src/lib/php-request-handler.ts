@@ -568,6 +568,21 @@ export class PHPRequestHandler implements AsyncDisposable {
 					response.headers
 				);
 			}
+
+			/**
+			 * If the response is successful (HTTP status code 200-399) but the
+			 * exit code is non-zero, we – as the request handler – need to return
+			 * a 500 error. This is in line with Nginx's and Apache's behavior.
+			 */
+			if (response.ok() && response.exitCode !== 0) {
+				return new PHPResponse(
+					500,
+					response.headers,
+					response.bytes,
+					response.errors,
+					response.exitCode
+				);
+			}
 			return response;
 		} catch (error) {
 			const executionError = error as PHPExecutionFailureError;

@@ -289,6 +289,14 @@ export class PHPResponse implements PHPResponseData {
 		);
 	}
 
+	/**
+	 * True if the response is successful (HTTP status code 200-399),
+	 * false otherwise.
+	 */
+	ok(): boolean {
+		return this.httpStatusCode >= 200 && this.httpStatusCode < 400;
+	}
+
 	toRawData(): PHPResponseData {
 		return {
 			headers: this.headers,
