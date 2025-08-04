@@ -656,7 +656,11 @@ export class PHP implements Disposable {
 
 		const cleanup = () => {
 			if (heapBodyPointer) {
-				this[__private__dont__use].free(heapBodyPointer);
+				try {
+					this[__private__dont__use].free(heapBodyPointer);
+				} catch (e) {
+					logger.error(e);
+				}
 			}
 
 			// Release the "request in progress" semaphore.
