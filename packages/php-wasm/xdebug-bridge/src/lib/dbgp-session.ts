@@ -86,4 +86,8 @@ export class DbgpSession extends EventEmitter {
 			logger.log('\x1b[1;32m[XDebug][send]\x1b[0m', command);
 		this.socket.write(command + '\x00');
 	}
+
+	close() {
+		this.server.close();
+	}
 }

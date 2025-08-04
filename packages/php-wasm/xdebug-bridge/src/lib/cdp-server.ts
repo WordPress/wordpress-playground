@@ -51,4 +51,8 @@ export class CDPServer extends EventEmitter {
 		if (this.verbose) logger.log('\x1b[1;32m[CDP][send]\x1b[0m', json);
 		this.ws.send(json);
 	}
+
+	close() {
+		this.wss.close();
+	}
 }
