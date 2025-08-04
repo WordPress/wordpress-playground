@@ -217,6 +217,13 @@ export class WordPressFetchNetworkTransport {
 					delete_site_transient($php_transient_key);
 				}
 
+				// Suppress errors to avoid noise in the console. Otherwise, WordPress will
+				// log the following errors:
+				// * wp_update_plugins(): An unexpected error occurred. Something may be wrong with WordPress.org or this server
+				// * wp_update_themes(): An unexpected error occurred. Something may be wrong with WordPress.org or this server
+				// * wp_version_check(): An unexpected error occurred. Something may be wrong with WordPress.org or this server
+				$previous_error_reporting = error_reporting(0);
+
 				if (!$existing_transients['update_plugins']) {
 					wp_update_plugins();
 					delete_site_transient('update_plugins');
