@@ -182,26 +182,49 @@ export async function bootWordPress(options: BootOptions) {
 
 	if (!options.dataSqlPath) {
 		if (!(await isWordPressInstalled(php))) {
+			// Install WordPress if it's not installed.
 			await installWordPress(php);
 		}
 
 		if (!(await isWordPressInstalled(php))) {
-			const sqlitePluginPath = joinPaths(
-				requestHandler.documentRoot,
-				'wp-content/mu-plugins/sqlite-database-integration'
-			);
+			// Check if the SQLite core integration has been installed.
+			const validConnection = await isDatabaseConnectionValid(php);
 
-			// Check if a SQLite integration plugin has not been provided
-			// and if it's not installed.
-			if (
-				!options.sqliteIntegrationPluginZip &&
-				!php.isDir(sqlitePluginPath)
-			) {
-				throw new Error('SQLite integration plugin is not installed.');
+			if (validConnection) {
+				// The database connection is valid, but WordPress installation has failed.
+				// Throw a generic error.
+				throw new Error('WordPress installation has failed.');
+			} else {
+				if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
+					// The core SQLite integration has been installed, but the database connection is not valid.
+					throw new Error('Error connecting to the SQLite database.');
+				}
+
+				// Check if a SQLite integration plugin has not been provided.
+				if (!options.sqliteIntegrationPluginZip) {
+					const sqlitePluginPath = joinPaths(
+						requestHandler.documentRoot,
+						'wp-content/mu-plugins/sqlite-database-integration'
+					);
+
+					if (php.isDir(sqlitePluginPath)) {
+						// The mu-plugin has been installed, but the database connection is not valid.
+						throw new Error(
+							'Error connecting to the SQLite database.'
+						);
+					} else {
+						// The mu-plugin has not been installed.
+						throw new Error(
+							'SQLite installation has been skipped and no SQLite mu-plugin has been found.'
+						);
+					}
+				}
+
+				// 1. No core SQLite integration has been installed.
+				// 2. No valid SQLite integration plugin has been provided.
+				// The MySQL database connection is not valid.
+				throw new Error('Error connecting to the MySQL database.');
 			}
-
-			// Throw a generic error.
-			throw new Error('WordPress installation has failed.');
 		}
 	}
 
@@ -382,4 +405,25 @@ export function getFileNotFoundActionForWordPress(
 		type: 'internal-redirect',
 		uri: '/index.php',
 	};
+}
+
+async function isDatabaseConnectionValid(php: PHP) {
+	const result = await php.run({
+		code: `<?php
+			ob_start();
+			$wp_load = getenv('DOCUMENT_ROOT') . '/wp-load.php';
+			if (!file_exists($wp_load)) {
+				echo '-1';
+				exit;
+			}
+			require $wp_load;
+			ob_clean();
+			echo $wpdb->check_connection( false) ? '1' : '0';
+			ob_end_flush();
+		`,
+		env: {
+			DOCUMENT_ROOT: php.documentRoot,
+		},
+	});
+	return result.text === '1';
 }
