@@ -59,6 +59,10 @@ const config = {
 				label: 'Tagalog',
 				path: 'tl',
 			},
+			gu: {
+				label: 'Gujarati',
+				path: 'gu',
+			},
 		},
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
