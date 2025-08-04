@@ -187,12 +187,12 @@ export async function bootWordPress(options: BootOptions) {
 		}
 
 		if (!(await isWordPressInstalled(php))) {
-			// Check if the SQLite core integration has been installed.
+			// Check if the database connection (MySQL or SQLite) is up and running.
 			const validConnection = await isDatabaseConnectionValid(php);
 
 			if (validConnection) {
 				// The database connection is valid, but WordPress installation has failed.
-				// Throw a generic error.
+				// Throw a generic error, not related to the database connection.
 				throw new Error('WordPress installation has failed.');
 			} else {
 				if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
