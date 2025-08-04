@@ -1,10 +1,10 @@
 import { startBridge } from '../src/lib/start-bridge';
-import { logger, Log } from '../../logger/src';
-import type { LogHandler } from '../../logger/src/lib/log-handlers';
+import { type Log, logger } from '@php-wasm/logger/src';
+import type { LogHandler } from '@php-wasm/logger/src/lib/log-handlers';
 import { WebSocket } from 'ws';
 
 describe('startBridge logging', () => {
-	let port = 9229;
+	const port = 9229;
 	let output: string[];
 	let handlers: LogHandler[];
 
