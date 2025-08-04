@@ -178,6 +178,17 @@ phpLoaderOptions.forEach((options) => {
 				const exitCode1Http200 = await php.runStream({
 					code: '<?php trigger_error("Fatal error", E_USER_ERROR);',
 				});
+
+				/**
+				 * trigger_error does not affect the HTTP status code set by PHP.
+				 *
+				 * Some dev servers that buffer the response will notice the
+				 * HTTP status code is 200, the exit code is 1, and will replace
+				 * the HTTP status code with 500.
+				 *
+				 * However, from the PHP process perspective, the status code is
+				 * still 200.
+				 */
 				expect(await exitCode1Http200.ok()).toBe(false);
 
 				const http500 = await php.runStream({
