@@ -681,6 +681,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_stream_stdio_closer",\
 "zend_destroy_file_handle",\
 "php_init_config",\
+"zend_register_constant",\
 "zend_register_ini_entries_ex",\
 "php_module_startup",\
 "wasm_sapi_module_startup",\
@@ -951,7 +952,6 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_std_read_dimension",\
 "zend_fetch_dimension_address_read_R_slow",\
-"ZEND_FETCH_DIM_R_SPEC_CV_CONST_HANDLER",\
 "zend_call_method",\
 "zend_assign_to_object_dim",\
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
@@ -1019,7 +1019,6 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "do_cli_server",\
 "execute_ex",\
 "EVP_PKEY_encrypt",\
-"execute_ex",\
 "exif_error_docref",\
 "fclose",\
 "fcntl",\
@@ -1160,6 +1159,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "param_dtor",\
 "parentWrite",\
 "pcacheUnpin",\
+"persistent_stream_open_function",\
 "pdo_dbh_attribute_set",\
 "pdo_dbh_free_storage",\
 "pdo_dbstmt_free_storage",\
@@ -1205,6 +1205,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_exec",\
 "php_execute_script_ex",\
 "php_execute_script",\
+"php_fopen_primary_script",\
 "php_fsockopen_stream",\
 "php_getimagesize_from_any",\
 "php_if_fopen",\
@@ -1275,6 +1276,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_stream_flush",\
 "php_stream_notification_free",\
 "php_stream_notification_notify",\
+"php_stream_open_for_zend",\
 "php_stream_read_to_str",\
 "php_stream_temp_cast",\
 "php_stream_temp_flush",\
@@ -1670,6 +1672,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_error_va_list",\
 "zend_error_va",\
 "zend_error_zstr_at",\
+"zend_error_zstr",\
 "zend_error",\
 "zend_eval_const_expr",\
 "zend_eval_string_ex",\
@@ -1830,6 +1833,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_try_ct_eval_binary_op",\
 "zend_try_ct_eval_unary_op",\
 "zend_type_error",\
+"zend_undefined_index",\
 "ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
 "ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
 "ZEND_UNSET_DIM_SPEC_CV_CV_HANDLER",\
@@ -1893,6 +1897,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_curl_multi_select",\
 "zif_current",\
 "zif_debug_print_backtrace",\
+"zif_define",\
 "zif_end",\
 "zif_exec",\
 "zif_exif_imagetype",\
