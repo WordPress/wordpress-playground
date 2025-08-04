@@ -149,7 +149,7 @@ To locally test an existing language, you can do:
 -->
 
 ```
-npm run dev -- --locale es
+npm run dev:docs -- --locale es
 ```
 
 ## 言語スイッチャー - 言語を変更するための UI 要素
