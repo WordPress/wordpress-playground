@@ -39,46 +39,7 @@
 		"message": "Retour au début de la page",
 		"description": "The ARIA label for the back to top button"
 	},
-	"theme.blog.archive.title": {
-		"message": "Archive",
-		"description": "The page & hero title of the blog archive page"
-	},
-	"theme.blog.archive.description": {
-		"message": "Archive",
-		"description": "The page & hero description of the blog archive page"
-	},
-	"theme.blog.paginator.navAriaLabel": {
-		"message": "Pagination de la liste des articles du blog",
-		"description": "The ARIA label for the blog pagination"
-	},
-	"theme.blog.paginator.newerEntries": {
-		"message": "Nouvelles entrées",
-		"description": "The label used to navigate to the newer blog posts page (previous page)"
-	},
-	"theme.blog.paginator.olderEntries": {
-		"message": "Anciennes entrées",
-		"description": "The label used to navigate to the older blog posts page (next page)"
-	},
-	"theme.blog.post.paginator.navAriaLabel": {
-		"message": "Pagination des articles du blog",
-		"description": "The ARIA label for the blog posts pagination"
-	},
-	"theme.blog.post.paginator.newerPost": {
-		"message": "Article plus récent",
-		"description": "The blog post button label to navigate to the newer/previous post"
-	},
-	"theme.blog.post.paginator.olderPost": {
-		"message": "Article plus ancien",
-		"description": "The blog post button label to navigate to the older/next post"
-	},
-	"theme.blog.post.plurals": {
-		"message": "Un article|{count} articles",
-		"description": "Pluralized label for \"{count} posts\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
-	},
-	"theme.blog.tagTitle": {
-		"message": "{nPosts} tagués avec « {tagName} »",
-		"description": "The title of the page for a blog tag"
-	},
+
 	"theme.tags.tagsPageLink": {
 		"message": "Voir tous les tags",
 		"description": "The label of the link targeting the tag list page"
@@ -174,10 +135,7 @@
 		"message": "Fermer",
 		"description": "The ARIA label for close button of announcement bar"
 	},
-	"theme.blog.sidebar.navAriaLabel": {
-		"message": "Navigation article de blog récent",
-		"description": "The ARIA label for recent posts in the blog sidebar"
-	},
+
 	"theme.CodeBlock.copied": {
 		"message": "Copié",
 		"description": "The copied button label on code blocks"
@@ -206,18 +164,7 @@
 		"message": "Langues",
 		"description": "The label for the mobile language switcher dropdown"
 	},
-	"theme.blog.post.readMore": {
-		"message": "Lire plus",
-		"description": "The label used in blog post item excerpts to link to full blog posts"
-	},
-	"theme.blog.post.readMoreLabel": {
-		"message": "En savoir plus sur {title}",
-		"description": "The ARIA label for the link to full blog posts from excerpts"
-	},
-	"theme.blog.post.readingTime.plurals": {
-		"message": "Une minute de lecture|{readingTime} minutes de lecture",
-		"description": "Pluralized label for \"{readingTime} min read\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
-	},
+
 	"theme.docs.breadcrumbs.home": {
 		"message": "Page d'accueil",
 		"description": "The ARIA label for the home page in the breadcrumbs"

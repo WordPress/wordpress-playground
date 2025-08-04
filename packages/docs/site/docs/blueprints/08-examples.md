@@ -237,7 +237,7 @@ To specify the latest commit of a particular branch, you can change the referenc
     "landingPage": "/wp-admin",
 	"login" : true,
 	"preferredVersions" : {
-		"php": "8.0",
+		"php": "8.3",
 		"wp": "https://playground.wordpress.net/plugin-proxy.php?build-ref=trunk"
 	}
 }} />
@@ -250,7 +250,7 @@ Here's an example of a Blueprint that uses bundled resources from a Blueprint bu
 {
 	"landingPage": "/",
 	"preferredVersions": {
-		"php": "8.0",
+		"php": "8.3",
 		"wp": "latest"
 	},
 	"steps": [

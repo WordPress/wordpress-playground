@@ -462,7 +462,6 @@ wp-content/themes/twentytwentyfive/templates/page-no-title.html
 wp-content/themes/twentytwentyfive/templates/single.html
 wp-content/themes/twentytwentyfive/templates/home.html
 wp-content/themes/twentytwentyfive/templates/page.html
-wp-content/debug.log
 wp-content/database/.htaccess
 wp-includes/certificates/ca-bundle.crt
 wp-includes/block-i18n.json

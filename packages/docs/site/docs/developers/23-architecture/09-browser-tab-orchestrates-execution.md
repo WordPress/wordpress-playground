@@ -38,7 +38,7 @@ export async function startApp() {
 			workerUrl, // Valid Worker script URL
 			{
 				wpVersion: 'latest',
-				phpVersion: '7.4', // Startup options
+				phpVersion: '8.3', // Startup options
 			}
 		)
 	);

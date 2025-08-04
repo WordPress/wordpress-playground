@@ -92,12 +92,12 @@
 		"yargs": "17.7.2"
 	},
 	"devDependencies": {
-		"@docusaurus/core": "3.7.0",
-		"@docusaurus/plugin-client-redirects": "3.7.0",
-		"@docusaurus/plugin-ideal-image": "^3.7.0",
-		"@docusaurus/preset-classic": "3.7.0",
-		"@docusaurus/theme-live-codeblock": "^3.7.0",
-		"@docusaurus/tsconfig": "^3.7.0",
+		"@docusaurus/core": "3.8.1",
+		"@docusaurus/plugin-client-redirects": "3.8.1",
+		"@docusaurus/plugin-ideal-image": "3.8.1",
+		"@docusaurus/preset-classic": "3.8.1",
+		"@docusaurus/theme-live-codeblock": "3.8.1",
+		"@docusaurus/tsconfig": "3.8.1",
 		"@nx/cypress": "19.8.4",
 		"@nx/devkit": "19.8.4",
 		"@nx/eslint-plugin": "20.8.0",

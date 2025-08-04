@@ -9,6 +9,32 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.6] (2025-08-04) 
+
+### Documentation
+
+- Adding Contribution pages Spanish translation. ([#2431](https://github.com/WordPress/wordpress-playground/pull/2431))
+
+### PHP WebAssembly
+
+- Fix file locking for PROXYFS nodes that wrap NODEFS. ([#2437](https://github.com/WordPress/wordpress-playground/pull/2437))
+
+### Bug Fixes
+
+- Translations: Fix command typo in docs. ([#2449](https://github.com/WordPress/wordpress-playground/pull/2449))
+
+### Various
+
+- Add Japanese translations to Blueprint Bundles and API Consistency. ([#2438](https://github.com/WordPress/wordpress-playground/pull/2438))
+- Translations: Clean up version from PR #2336. ([#2448](https://github.com/WordPress/wordpress-playground/pull/2448))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @fellyph @rollybueno @shimotmk @vipul0425
+
+
 ## [v2.0.5] (2025-07-28) 
 
 ### Bug Fixes

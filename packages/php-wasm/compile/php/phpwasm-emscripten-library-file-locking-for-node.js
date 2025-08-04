@@ -63,36 +63,29 @@ const LibraryForFileLocking = {
 			[1]: 'exclusive',
 			[2]: 'unlocked',
 		},
-
-		is_shared_fs_node(node) {
-			if (node?.isSharedFS) {
-				return true;
-			}
-
-			// Handle PROXYFS nodes which wrap other nodes.
-			if (
-				!node?.mount?.opts?.fs?.lookupPath ||
-				!node?.mount?.type?.realPath
-			) {
-				return false;
-			}
-
-			// Only NODEFS can be shared between workers at the moment.
-			if (node.mount.type !== NODEFS) {
-				return false;
-			}
-			const vfsPath = node.mount.type.realPath(node);
-			try {
-				const underlyingNode =
-					node.mount.opts.fs.lookupPath(vfsPath)?.node;
-				return !!underlyingNode?.isSharedFS;
-			} catch (e) {
-				return false;
-			}
-		},
 		is_path_to_shared_fs(path) {
-			const { node } = FS.lookupPath(path);
-			return locking.is_shared_fs_node(node);
+			_js_wasm_trace('is_path_to_shared_fs(%s)', path);
+			const { node } = FS.lookupPath(
+				path,
+				{ noent_okay: true },
+			);
+			if (node.mount.type !== PROXYFS) {
+				return !!node.isSharedFS;
+			}
+
+			// This looks like a PROXYFS node. Let's try a lookup.
+			const nodePath = PROXYFS.realPath(node);
+			const backingFs = node?.mount?.opts?.fs;
+			if (backingFs) {
+				// Tolerate ENOENT because looking up a MEMFS node by path always fails.
+				const { node: backingNode } = backingFs.lookupPath(
+					nodePath,
+					{ noent_okay: true }
+				);
+				return !!backingNode?.isSharedFS;
+			}
+
+			return false;
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('{{{cDefs.F_GETFL}}}');
@@ -111,8 +104,18 @@ const LibraryForFileLocking = {
 		},
 
 		get_native_path_from_vfs_path(vfsPath) {
-			const { node } = FS.lookupPath(vfsPath);
-			return NODEFS.realPath(node);
+			// TODO: Should there be a try/catch here?
+			const { node } = FS.lookupPath(vfsPath, {});
+			if (node.mount.type === NODEFS) {
+				return NODEFS.realPath(node);
+			} else if (node.mount.type === PROXYFS) {
+				// TODO: Tolerate ENOENT here?
+				const { node: backingNode, path: backingPath } = node.mount.opts.fs.lookupPath(vfsPath);
+				_js_wasm_trace('backingNode for %s: %s', vfsPath, backingPath, backingNode);
+				return backingNode.mount.type.realPath(backingNode);
+			} else {
+				throw new Error(`Unsupported filesystem type for path ${vfsPath}`);
+			}
 		},
 
 		check_lock_params(fd, l_type) {

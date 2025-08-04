@@ -178,7 +178,18 @@ phpLoaderOptions.forEach((options) => {
 				const exitCode1Http200 = await php.runStream({
 					code: '<?php trigger_error("Fatal error", E_USER_ERROR);',
 				});
-				expect(await exitCode1Http200.ok()).toBe(false);
+
+				/**
+				 * trigger_error does not affect the HTTP status code set by PHP.
+				 *
+				 * Some dev servers that buffer the response will notice the
+				 * HTTP status code is 200, the exit code is 1, and will replace
+				 * the HTTP status code with 500.
+				 *
+				 * However, from the PHP process perspective, the status code is
+				 * still 200.
+				 */
+				expect(await exitCode1Http200.ok()).toBe(true);
 
 				const http500 = await php.runStream({
 					code: '<?php http_response_code(500); ',
@@ -348,6 +359,86 @@ phpLoaderOptions.forEach((options) => {
 				expect(decoder.decode(secondStderr.value)).toBe(
 					'stderr second'
 				);
+			});
+
+			/**
+			 * Guards against releasing the "request in progress" semaphore
+			 * too early in the php.runStream() call.
+			 *
+			 * ## Context
+			 *
+			 * A single PHP runtime can only handle one request at a time.
+			 * The PHP class calls a `wasm_sapi_handle_request` C function that
+			 * initializes the PHP runtime and starts the request. That function is
+			 * asynchronous and may yield back to the event loop before the request
+			 * is fully handled, the exit code known, and the runtime is cleaned up
+			 * and prepared for another request.
+			 *
+			 * The PHP class uses an async semaphore to protect against calling
+			 * `wasm_sapi_handle_request` again while a previous call is still
+			 * running.
+			 *
+			 * However, PR 2266 [1] introduced a regression where the semaphore
+			 * was released too early. As a result, it opened the runtime to a
+			 * race condition where a subsequent runStream() call tried to run
+			 * PHP code on a runtime that was in a middle of handling a request.
+			 *
+			 * This test ensures that two runStream() calls can be made without
+			 * crashing the runtime.
+			 *
+			 * [1] https://github.com/WordPress/wordpress-playground/pull/2266
+			 */
+			it('should stagger concurrent runStream() calls', async () => {
+				/**
+				 * Call runStream() twice without waiting for the first one to finish.
+				 */
+				const response1Promise = php.runStream({
+					code: `<?php
+					// Declare a new function to ensure a name collision if
+					// the second runStream() call actually runs before this
+					// one concludes.
+					function unique_fn_name(){};
+
+					// Yield back to the event loop.
+					sleep(3);
+
+					// Output some stdout information just to be extra sure the
+					// execution actually got here.
+					echo "response 1";`,
+				});
+				const response2Promise = php.runStream({
+					code: `<?php
+					// Ensure a name collision if the first PHP request haven't
+					// concluded yet and the symbol is already registered in the
+					// runtime.
+					function unique_fn_name(){};
+
+					// Yield back to the event loop. Technically we don't need to
+					// do that, but switching stacks catalyzes the crash.
+					sleep(1);
+
+					// Output some stdout information just to be extra sure the
+					// execution actually got here.
+					echo "response 2";`,
+				});
+
+				// Only now start awaiting things.
+				// First, the streaming response objects
+				const response1 = await response1Promise;
+				const response2 = await response2Promise;
+
+				// Then, wait for the requests to conclude.
+				await response1.finished;
+				await response2.finished;
+
+				console.log(await response1.stderrText);
+				// Ensure both requests succeeded.
+				expect(await response1.ok()).toBe(true);
+				expect(await response2.ok()).toBe(true);
+
+				// Confirm the STDOUT output.
+				expect(await response1.stdoutText).toBe('response 1');
+				expect(await response2.stdoutText).toBe('response 2');
 			});
 		});
 

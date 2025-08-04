@@ -91,8 +91,10 @@ const ACTIVATE_FIRST_THEME_STEP = {
 	step: 'runPHP',
 	code: {
 		filename: 'activate-theme.php',
+		// @TODO: Remove DOCROOT check after moving totally to Blueprints v2.
 		content: `<?php
-			require_once getenv('DOCROOT') . '/wp-load.php';
+			$docroot = getenv('DOCROOT') ? getenv('DOCROOT') : '/wordpress';
+			require_once "$docroot/wp-load.php";
 			$theme = wp_get_theme();
 			if (!$theme->exists()) {
 				$themes = wp_get_themes();
@@ -141,7 +143,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		});
 		newArgs['additional-blueprint-steps'].push({
 			step: 'activateTheme',
-			themeDirectoryName: themeName,
+			themeFolderName: themeName,
 		});
 	} else if (containsWpContentDirectories(path)) {
 		/**

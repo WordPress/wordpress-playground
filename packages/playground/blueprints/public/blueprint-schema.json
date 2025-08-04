@@ -942,7 +942,25 @@
 							"description": "The step identifier."
 						},
 						"code": {
-							"type": "string",
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "object",
+									"properties": {
+										"filename": {
+											"type": "string",
+											"description": "This property is ignored during Blueprint v1 execution but exists so the same runPHP step structure can be used for Blueprints v1 and v2."
+										},
+										"content": {
+											"type": "string"
+										}
+									},
+									"required": ["filename", "content"],
+									"additionalProperties": false
+								}
+							],
 							"description": "The PHP code to run."
 						}
 					},
