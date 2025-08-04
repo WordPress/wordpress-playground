@@ -212,11 +212,6 @@ export async function bootWordPress(options: BootOptions) {
 						throw new Error(
 							'Error connecting to the SQLite database.'
 						);
-					} else {
-						// The mu-plugin has not been installed.
-						throw new Error(
-							'SQLite installation has been skipped and no SQLite mu-plugin has been found.'
-						);
 					}
 				}
 

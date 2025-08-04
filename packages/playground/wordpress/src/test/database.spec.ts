@@ -35,7 +35,7 @@ describe('Test database', () => {
 		rmdirSync(tempDir, { recursive: true });
 	});
 
-	it("should not start WordPress when SQLite ZIP not specified and SQLite driver directory doesn't exist", async () => {
+	it("should not start WordPress when SQLite ZIP not specified, the SQLite driver directory doesn't exist and MySQL can't be used", async () => {
 		await expect(async () => {
 			await bootWordPress({
 				createPhpRuntime: async () =>
@@ -44,9 +44,7 @@ describe('Test database', () => {
 				wordPressZip: await getWordPressModule(),
 				sqliteIntegrationPluginZip: undefined,
 			});
-		}).rejects.toThrow(
-			'SQLite installation has been skipped and no SQLite mu-plugin has been found.'
-		);
+		}).rejects.toThrow('Error connecting to the MySQL database.');
 	});
 
 	it('hould install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory', async () => {
