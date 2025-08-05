@@ -307,6 +307,30 @@
 						</li>
 					</ul>
 
+					<h2>💡 Tips</h2>
+					<ul>
+						<li>
+							<strong>🌟 WordPress is available!</strong> Run
+							<code>require '/wordpress/wp-load.php';</code> to
+							load the latest WordPress release. For example:
+							<pre
+								style="
+									background: #f5f5f5;
+									padding: 8px;
+									margin: 8px 0;
+									border-radius: 4px;
+									font-size: 13px;
+									overflow-x: auto;
+								"
+							><code>&lt;?php
+require '/wordpress/wp-load.php';
+
+$html_processor = WP_HTML_Processor::create_fragment('&lt;p>&lt;span>Hey!&lt;/span>&lt;/p>');
+$html_processor->next_tag();
+var_dump($html_processor->get_tag());</code></pre>
+						</li>
+					</ul>
+
 					<p>
 						<strong
 							><a
