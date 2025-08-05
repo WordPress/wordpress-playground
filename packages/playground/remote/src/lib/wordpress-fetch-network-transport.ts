@@ -222,9 +222,10 @@ export class WordPressFetchNetworkTransport {
 				// * wp_update_themes(): An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/forums/">support forums</a>. (WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.) in /wordpress/wp-includes/functions.php on line 135
 				// * wp_version_check(): An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/forums/">support forums</a>. (WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.) in /wordpress/wp-includes/functions.php on line 135
 				$previous_error_handler = set_error_handler(function($errno, $errstr, $errfile, $errline) {
+					global $previous_error_handler;
 					if (
 						strpos($errstr, 'WordPress could not establish a secure connection to WordPress.org') !== false ||
-						strpos($errstr, 'An unexpected error occurred. Something may be wrong with WordPress.org') !== fals
+						strpos($errstr, 'An unexpected error occurred. Something may be wrong with WordPress.org') !== false
 					) {
 						return true;
 					}
