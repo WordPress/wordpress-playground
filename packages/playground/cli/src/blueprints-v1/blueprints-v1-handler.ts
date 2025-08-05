@@ -1,4 +1,4 @@
-import { logger } from '@php-wasm/logger';
+import { logger, LogVerbosity } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
@@ -84,7 +84,7 @@ export class BlueprintsV1Handler {
 				);
 				progressReached100 = percentProgress === 100;
 
-				if (!this.args.quiet) {
+				if (this.args.verbosity !== LogVerbosity.Quiet) {
 					this.writeProgressUpdate(
 						process.stdout,
 						`Downloading WordPress ${percentProgress}%...`,
@@ -250,7 +250,7 @@ export class BlueprintsV1Handler {
 			lastCaption =
 				e.detail.caption || lastCaption || 'Running the Blueprint';
 			const message = `${lastCaption.trim()} – ${progressInteger}%`;
-			if (!args.quiet) {
+			if (args.verbosity !== LogVerbosity.Quiet) {
 				this.writeProgressUpdate(
 					process.stdout,
 					message,

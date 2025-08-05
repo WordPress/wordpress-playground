@@ -17,7 +17,7 @@ describe(`PHP ${phpVersion}`, () => {
 		const cli = await runCLI({
 			command: 'server',
 			php: phpVersion,
-			quiet: true,
+			verbosity: 'quiet',
 			exitOnPrimaryWorkerCrash: false,
 		});
 		try {

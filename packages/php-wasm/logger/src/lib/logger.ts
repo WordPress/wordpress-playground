@@ -18,21 +18,47 @@ export type Log = {
 };
 
 /**
+ * Log verbosity levels
+ */
+export const LogVerbosity = {
+	Normal: 'normal',
+	Quiet: 'quiet',
+	Debug: 'debug',
+} as const;
+
+export type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity];
+
+/**
  * Log severity levels.
  */
-export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
+export const LogSeverity = {
+	Debug: 'debug',
+	Info: 'info',
+	Warn: 'warn',
+	Error: 'error',
+	Fatal: 'fatal',
+} as const;
+
+export type LogSeverity = (typeof LogSeverity)[keyof typeof LogSeverity];
 
 /**
  * Log prefix.
  */
-export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
+export const LogPrefix = {
+	WASM: 'Wasm Crash',
+	PHP: 'PHP',
+	JS: 'JavaScript',
+} as const;
+
+export type LogPrefix = (typeof LogPrefix)[keyof typeof LogPrefix];
 
 /**
  * A logger for Playground.
  */
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
-	private readonly handlers: LogHandler[];
+	private handlers: LogHandler[];
+	private filters: LogSeverity[];
 
 	// constructor
 	constructor(
@@ -41,6 +67,7 @@ export class Logger extends EventTarget {
 		handlers: LogHandler[] = []
 	) {
 		super();
+		this.filters = Object.values(LogSeverity);
 		this.handlers = handlers;
 	}
 
@@ -62,14 +89,39 @@ export class Logger extends EventTarget {
 	/**
 	 * Log message with severity.
 	 *
-	 * @param message any
-	 * @param severity LogSeverity
-	 * @param raw boolean
+	 * @param log Log
 	 * @param args any
 	 */
 	public logMessage(log: Log, ...args: any[]): void {
 		for (const handler of this.handlers) {
-			handler(log, ...args);
+			const isConsole = handler.name === 'logToConsole';
+			const isSeverityAllowed = log.severity
+				? this.filters.includes(log.severity)
+				: !!this.filters.length;
+
+			if (!isConsole || isSeverityAllowed) {
+				handler(log, ...args);
+			}
+		}
+	}
+
+	/**
+	 * Filter message based on verbosiy
+	 * @param verbosity LogVerbosity
+	 */
+	public filterByVerbosity(verbosity: LogVerbosity): void {
+		if (verbosity === LogVerbosity.Quiet) {
+			this.filters = [];
+		}
+
+		if (verbosity === LogVerbosity.Normal) {
+			this.filters = Object.values(LogSeverity).filter(
+				(severity) => severity !== LogSeverity.Debug
+			);
+		}
+
+		if (verbosity === LogVerbosity.Debug) {
+			this.filters = Object.values(LogSeverity);
 		}
 	}
 
@@ -84,7 +136,7 @@ export class Logger extends EventTarget {
 			{
 				message,
 				severity: undefined,
-				prefix: 'JavaScript',
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -101,8 +153,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Debug',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Debug,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -119,8 +171,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Info',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Info,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -137,8 +189,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Warn',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Warn,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -155,8 +207,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Error',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Error,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args

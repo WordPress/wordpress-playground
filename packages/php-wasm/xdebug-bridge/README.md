@@ -41,7 +41,7 @@ await server.start();
 npx xdebug-bridge
 
 # Custom port and verbose logging
-npx xdebug-bridge --port 9000 --verbose
+npx xdebug-bridge --port 9000 --verbosity debug
 
 # Show help
 npx xdebug-bridge --help
@@ -52,8 +52,7 @@ npx xdebug-bridge --help
 -   `port`: Xdebug port to listen on (default: 9003)
 -   `host`: Xdebug host to bind to (default: 'localhost')
 -   `php-root`: Path to PHP root directory (default: './')
--   `quiet`: Do not output logs and progress messages (default: false)
--   `verbose`: Output communication between DBGp and CDP (default: false)
+-   `verbosity`: Output logs and progress messages (default: 'normal')
 -   `help`: Display help
 
 ## Configuration Options (API)
@@ -62,8 +61,7 @@ npx xdebug-bridge --help
 -   `cdpHost`: Host to bind to (default: 'localhost')
 -   `dbgpPort`: Port to listen for XDebug connections (default: 9003)
 -   `phpRoot`: Root path for php files
--   `quiet`: Do not output logs and progress messages
--   `verbose`: Output communication between DBGp and CDP
+-   `verbosity`: Output logs and progress messages (default: 'normal')
 -   `remoteRoot`: Remote root path for php files
 -   `localRoot`: Local root path for php files
 -   `phpInstance`: PHP instance

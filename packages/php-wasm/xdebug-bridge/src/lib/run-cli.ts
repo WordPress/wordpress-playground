@@ -1,13 +1,13 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startBridge } from './start-bridge';
+import { LogVerbosity } from '@php-wasm/logger';
 
 interface CLIArgs {
 	port?: number;
 	host?: string;
 	phpRoot?: string;
-	quiet?: boolean;
-	verbose?: boolean;
+	verbosity?: LogVerbosity;
 	help?: boolean;
 }
 
@@ -37,25 +37,22 @@ Usage: xdebug-bridge [options]
 			description: 'Path to PHP root directory',
 			default: './',
 		})
-		.option('quiet', {
-			type: 'boolean',
-			describe: 'Do not output logs and progress messages',
-			default: false,
-		})
-		.option('verbose', {
-			type: 'boolean',
-			describe: 'Output communication between DBGp and CDP',
-			default: false,
+		.option('verbosity', {
+			type: 'string',
+			describe: 'Output logs',
+			choices: Object.values(LogVerbosity),
+			default: 'normal',
 		})
 		.help()
 		.epilog(
 			`
 Examples:
   xdebug-bridge                                    # Start with default settings
-  xdebug-bridge --port 9000 --verbose         # Custom port with verbose logging
-  xdebug-bridge --php-root /path/to/php/files       # Specify PHP root directory
+  xdebug-bridge --port 9000 --verbosity debug      # Custom port with debug logs
+  xdebug-bridge --php-root /path/to/php/files      # Specify PHP root directory
 		`
 		)
+		.wrap(null)
 		.parseSync() as CLIArgs;
 }
 
@@ -71,8 +68,7 @@ export async function main(): Promise<void> {
 		cdpHost: args.host,
 		dbgpPort: args.port,
 		phpRoot: args.phpRoot,
-		quiet: args.quiet,
-		verbose: args.verbose,
+		verbosity: args.verbosity,
 	});
 
 	bridge.start();

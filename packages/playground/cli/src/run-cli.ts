@@ -1,4 +1,4 @@
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { errorLogPath, logger, LogVerbosity } from '@php-wasm/logger';
 import type {
 	PHPRequest,
 	RemoteAPI,
@@ -142,10 +142,11 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('quiet', {
+			.option('verbosity', {
 				describe: 'Do not output logs and progress messages.',
-				type: 'boolean',
-				default: false,
+				type: 'string',
+				choices: Object.values(LogVerbosity),
+				default: 'normal',
 			})
 			.option('debug', {
 				describe:
@@ -298,7 +299,7 @@ export interface RunCLIArgs {
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
-	quiet?: boolean;
+	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: boolean;
 	experimentalMultiWorker?: number;
@@ -355,9 +356,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		args = expandAutoMounts(args);
 	}
 
-	if (args.quiet) {
-		// @ts-ignore
-		logger.handlers = [];
+	if (args.verbosity) {
+		logger.filterByVerbosity(args.verbosity);
 	}
 
 	// Declare file lock manager outside scope of startServer

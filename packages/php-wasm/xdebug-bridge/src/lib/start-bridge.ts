@@ -1,4 +1,4 @@
-import { logger } from '@php-wasm/logger';
+import { logger, type LogVerbosity } from '@php-wasm/logger';
 import type { PHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import { join } from 'path';
@@ -11,8 +11,7 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-	quiet?: boolean;
-	verbose?: boolean;
+	verbosity?: LogVerbosity;
 	remoteRoot?: string;
 	localRoot?: string;
 
@@ -26,15 +25,14 @@ export async function startBridge(config: StartBridgeConfig) {
 	const cdpHost = config.cdpHost ?? 'localhost';
 	const phpRoot = config.phpRoot ?? import.meta.dirname;
 
-	if (config.quiet) {
-		// @ts-ignore
-		logger.handlers = [];
+	if (config.verbosity) {
+		logger.filterByVerbosity(config.verbosity);
 	}
 
 	logger.log('Starting XDebug Bridge...');
 
 	// index.ts - Entry point to start the service
-	const cdpServer = new CDPServer(cdpPort, config.verbose);
+	const cdpServer = new CDPServer(cdpPort);
 
 	logger.log('Connect Chrome DevTools to CDP at:');
 	logger.log(
@@ -46,7 +44,7 @@ export async function startBridge(config: StartBridgeConfig) {
 
 	logger.log('Chrome connected! Initializing Xdebug receiver...');
 
-	const dbgpSession = new DbgpSession(dbgpPort, config.verbose);
+	const dbgpSession = new DbgpSession(dbgpPort);
 
 	logger.log(`XDebug receiver running on port ${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');

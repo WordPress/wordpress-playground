@@ -1,5 +1,5 @@
 import type { UniversalPHP, PHPRequestErrorEvent } from '../types';
-import type { Logger } from '../logger';
+import { type Logger, LogPrefix, LogSeverity } from '../logger';
 
 let lastPHPLogLength = 0;
 export const errorLogPath = '/wordpress/wp-content/debug.log';
@@ -42,8 +42,9 @@ export const collectPhpLogs = (
 		if (event.error) {
 			loggerInstance.logMessage({
 				message: `${event.error.message} ${event.error.stack}`,
-				severity: 'Fatal',
-				prefix: event.source === 'request' ? 'PHP' : 'WASM Crash',
+				severity: LogSeverity.Fatal,
+				prefix:
+					event.source === 'request' ? LogPrefix.PHP : LogPrefix.WASM,
 			});
 			loggerInstance.dispatchEvent(
 				new CustomEvent(loggerInstance.fatalErrorEvent, {
