@@ -84,8 +84,8 @@ RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then 
 # Related discussion: https://github.com/WordPress/wordpress-playground/pull/2248#issuecomment-2988044885
 # And 7.4 commit reference: https://github.com/php/php-src/commit/6083a38
 RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		cp /root/builds/libsqlite3/\<7\.4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
-		cp /root/builds/libsqlite3/\<7\.4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
+		cp /root/builds/libsqlite3/before_7_4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
+		cp /root/builds/libsqlite3/before_7_4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
 	fi;
 
 # Patch OPcache config.m4 file if needed
