@@ -7,8 +7,8 @@ import type { StepHandler } from '.';
  *
  * <code>
  * {
- * 	    "step": "login",
- * 		"username": "admin",
+ *     "step": "login",
+ *     "username": "admin"
  * }
  * </code>
  */

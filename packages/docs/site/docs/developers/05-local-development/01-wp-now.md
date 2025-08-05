@@ -40,7 +40,7 @@ You can also start `wp-now` from any `wp-content` folder. The following example 
 
 ```bash
 cd my-wordpress-folder/wp-content
-npx @wp-now/wp-now start --wp=6.4 --php=8.0 --blueprint=path/to/blueprint.json
+npx @wp-now/wp-now start --wp=6.4 --php=8.3 --blueprint=path/to/blueprint.json
 ```
 
 ## Install wp-now globally

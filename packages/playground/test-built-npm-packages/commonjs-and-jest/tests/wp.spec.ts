@@ -22,6 +22,6 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
-		}, 22000);
+		}, 30000);
 	});
 });

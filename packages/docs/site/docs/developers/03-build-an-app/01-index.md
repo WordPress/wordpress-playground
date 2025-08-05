@@ -161,7 +161,7 @@ A live plugin demo with a configurable PHP and WordPress makes an excellent comp
 With the Query API, you'd simply add the `php` and `wp` query parameters to the URL:
 
 ```html
-<iframe src="https://playground.wordpress.net/?php=7.4&wp=6.1"></iframe>
+<iframe src="https://playground.wordpress.net/?php=8.3&wp=6.1"></iframe>
 ```
 
 With JSON Blueprints, you'd use the `preferredVersions` property:
@@ -169,7 +169,7 @@ With JSON Blueprints, you'd use the `preferredVersions` property:
 ```json
 {
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.1"
 	}
 }

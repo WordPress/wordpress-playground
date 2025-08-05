@@ -123,6 +123,17 @@ jobs:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
+    test-playground-cli:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]

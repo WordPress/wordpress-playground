@@ -571,7 +571,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					throw error;
 				}
 				let phpLogs = '';
-				if (await playground.fileExists(errorLogPath)) {
+				if (await playground?.fileExists(errorLogPath)) {
 					phpLogs = await playground.readFileAsText(errorLogPath);
 				}
 				throw new Error(phpLogs, { cause: error });

@@ -654,24 +654,39 @@ export class PHP implements Disposable {
 			}
 		);
 
-		// Free up resources when the response is done
-		await streamedResponsePromise
-			.finally(() => {
-				if (heapBodyPointer) {
+		const cleanup = () => {
+			if (heapBodyPointer) {
+				try {
 					this[__private__dont__use].free(heapBodyPointer);
+				} catch (e) {
+					logger.error(e);
 				}
-			})
-			.finally(() => {
-				release();
-				/**
-				 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
-				 * another request.
-				 */
-				this.dispatchEvent({
-					type: 'request.end',
-				});
+			}
+
+			// Release the "request in progress" semaphore.
+			release();
+
+			/**
+			 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
+			 * another request.
+			 */
+			this.dispatchEvent({
+				type: 'request.end',
 			});
-		return streamedResponsePromise;
+		};
+
+		// Free up resources once the request is fully handled.
+		return streamedResponsePromise.then(
+			(streamedResponse) => {
+				streamedResponse.finished.finally(cleanup);
+				return streamedResponse;
+			},
+			(error) => {
+				// If we couldn't even get the response,
+				cleanup();
+				throw error;
+			}
+		);
 	}
 
 	/**
