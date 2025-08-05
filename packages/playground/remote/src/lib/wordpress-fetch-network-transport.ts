@@ -228,7 +228,8 @@ export class WordPressFetchNetworkTransport {
 				}
 
 				if (!$existing_transients['update_core']) {
-					wp_version_check();
+					// Silence warnings during wp_version_check() call
+					@wp_version_check();
 					delete_site_transient('update_core');
 				}
 			`,
