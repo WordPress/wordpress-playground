@@ -183,44 +183,26 @@ You can share your own Blueprint examples in [this dedicated wiki](https://githu
 
 ## Load an older WordPress version
 
-Playground only ships with a few recent WordPress releases. If you need to use an older version, this Blueprint can help you: change the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip"` from `5.9.9` to the release you want to load.
+Playground only ships with a few recent WordPress releases. If you need to use an older version, this Blueprint can help you: change the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip"` from `6.2.1` to the release you want to load.
 
-**Note:** the oldest supported WordPress version is `5.9.9`, following the SQLite integration plugin.
+**Note:** the oldest supported WordPress version is `6.2.1`, following the SQLite integration plugin.
 
 <BlueprintExample blueprint={{
-    "landingPage": "/wp-admin",
-    "steps": [
-        {
-            "step": "writeFile",
-            "path": "/tmp/wordpress.zip",
-            "data": {
-                "resource": "url",
-                "url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip",
-                "caption": "Downloading the WordPress Release"
-            }
-        },
-        {
-            "step": "importWordPressFiles",
-            "wordPressFilesZip": {
-                "resource": "vfs",
-                "path": "/tmp/wordpress.zip"
-            },
-            "pathInZip": "/wordpress",
-            "progress": {
-                "weight": 20,
-                "caption": "Importing the WordPress release"
-            }
-        },
-        {
-            "step": "runPHP",
-            "code": "<?php $_GET['step'] = 'upgrade_db'; require '/wordpress/wp-admin/upgrade.php'; "
-        },
-        {
-            "step": "login",
-            "username": "admin",
-            "password": "password"
-        }
-    ]
+  "landingPage": "/wp-admin",
+  "preferredVersions": {
+    "wp": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip",
+    "php": "8.3"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    }
+  ]
 }} />
 
 ## Run WordPress from trunk or a specific commit.
@@ -231,7 +213,7 @@ You can specify the reference in `"url": "https://playground.wordpress.net/plugi
 
 To specify the latest commit of a particular branch, you can change the reference to the branch version number, eg `6.6`. To run a specific commit, you can use the commit hash from [WordPress/WordPress](https://github.com/WordPress/WordPress), eg `7d7a52367dee9925337e7d901886c2e9b21f70b6`.
 
-**Note:** the oldest supported WordPress version is `5.9.9`, following the SQLite integration plugin.
+**Note:** the oldest supported WordPress version is `6.2.1`, following the SQLite integration plugin.
 
 <BlueprintExample blueprint={{
     "landingPage": "/wp-admin",
