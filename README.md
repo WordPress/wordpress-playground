@@ -68,7 +68,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 </script>
 ```
 
-## The Playground CLI (New Section Starts Here)
+## The Playground CLI
 
 For local development and testing, WordPress Playground offers a command-line interface (CLI) tool: [`@wp-playground/cli`](https://www.npmjs.com/package/@wp-playground/cli). This powerful tool simplifies setting up a local WordPress environment, leveraging the capabilities of WordPress Playground to create zero-setup instances. It's useful for developers, as it allows you to quickly spin up a WordPress site directly in your project directory without complex server configurations, and even switch PHP and WordPress versions with simple flags.
 
