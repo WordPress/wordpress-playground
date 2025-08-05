@@ -8,7 +8,7 @@
 
 ## Why is WordPress Playground useful?
 
-WordPress Playground aims to make WordPress instantly accessible for users, learners, extenders, and contributors. It does this by providing foundational software tools that enable developers to create interactive, zero-setup JavaScript applications with WordPress.
+WordPress Playground exists to make WordPress instantly accessible for users, learners, extenders, and contributors by building foundational software tools developers can use to create interactive, zero-setup, JavaScript applications with WordPress.
 
 Playground aims to facilitate:
 
