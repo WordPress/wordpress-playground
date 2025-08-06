@@ -275,6 +275,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @returns The absolute URL.
 	 */
 	pathToInternalUrl(path: string): string {
+		if (!path.startsWith('/')) {
+			path = `/${path}`;
+		}
 		return `${this.absoluteUrl}${path}`;
 	}
 
