@@ -10,6 +10,7 @@ import { exec } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
+import { type Log, logger } from '@php-wasm/logger';
 
 describe('run-cli', () => {
 	let cliServer: RunCLIServer;
@@ -234,6 +235,82 @@ describe('run-cli', () => {
 			 * Playground should not modify the mounted directory.
 			 */
 			expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
+		});
+	});
+
+	describe('verbosity', () => {
+		let output: string[];
+
+		function logToConsole(log: Log, arg?: string) {
+			output.push(`${log.message}${arg ? arg : ''}`);
+		}
+
+		beforeAll(() => {
+			// @ts-ignore
+			logger.handlers = [logToConsole];
+		});
+
+		beforeEach(() => {
+			output = [];
+		});
+
+		test('should output main logs by default', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+			});
+
+			expect(output).toEqual(
+				expect.arrayContaining([
+					'Starting a PHP server...',
+					'Setting up WordPress undefined',
+					expect.stringMatching(
+						/^Resolved WordPress release URL: https:\/\/downloads\.w\.org\/release\/wordpress-\d+\.\d+\.\d+\.zip$/
+					),
+					'Fetching SQLite integration plugin...',
+					'Booting WordPress...',
+					'Booted!',
+					'Running the Blueprint...',
+					'Finished running the blueprint',
+					expect.stringMatching(
+						/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
+					),
+				])
+			);
+		});
+
+		test('should not output debug logs with verbosity option set to normal', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				verbosity: 'normal',
+			});
+
+			const test = 'Debug log';
+
+			logger.debug(test);
+
+			expect(output).not.toContain(test);
+		});
+
+		test('should output debug logs bridge with verbosity option set to debug', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				verbosity: 'debug',
+			});
+
+			const test = 'Debug log';
+
+			logger.debug(test);
+
+			expect(output).toContain(test);
+		});
+
+		it('should not output logs when verbosity option set to quiet', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				verbosity: 'quiet',
+			});
+
+			expect(output).toEqual([]);
 		});
 	});
 });
