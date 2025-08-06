@@ -381,7 +381,7 @@ function compileBlueprintJson(
 					 */
 					const targetUrl = await (
 						playground as any
-					).internalUrlToPath(blueprint.landingPage || '/');
+					).pathToInternalUrl(blueprint.landingPage || '/');
 					await (playground as any).goTo(
 						'/index.php?playground-redirection-handler&next=' +
 							encodeURIComponent(targetUrl)

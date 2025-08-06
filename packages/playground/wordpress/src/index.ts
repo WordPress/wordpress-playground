@@ -234,7 +234,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		 * redirect the user to the landing page.
 		 */
 		function playground_auto_login_redirect_target() {
-			if(str_starts_with($_SERVER['REQUEST_URI'], '/index.php?playground-redirection-handler')) {
+			if(strpos($_SERVER['REQUEST_URI'], '?playground-redirection-handler') !== false) {
 				$next = $_GET['next'];
 				header('Location: ' . $next, true, 302);
 				exit;
