@@ -171,9 +171,6 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 */
 			if (headers_sent()) {
 				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
-			if(str_contains($_SERVER['REQUEST_URI'], 'customize.php')) {
-				die("A");
-			}
 				return;
 			}
 

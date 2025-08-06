@@ -628,7 +628,9 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 				step: 'writeFile',
 				path: '/wordpress/wp-content/mu-plugins/000-print-notice.php',
 				data: `<?php
+				add_action('init', function() {
 					echo 'This is a notice printed by an mu-plugin.';
+			    });
 				`,
 			},
 		],
