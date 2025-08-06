@@ -178,6 +178,28 @@ test('Landing page without the initial slash should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Plugins');
 });
 
+/**
+ * /wp-admin/customize.php, and potentially other pages in WordPress,
+ * run authorization checks before running the init hook. If they're
+ * set as the landing page of the Blueprint, the user will be redirected
+ * to wp-login.php?reauth=1 before we have a chance to set the
+ * authorization cookie.
+ *
+ * To avoid this, we redirect to an intermediate page that will
+ * redirect the user to the landing page.
+ */
+test('/wp-admin/customize.php should work as a landing page', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: 'wp-admin/customize.php',
+		login: true,
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('Customize');
+});
+
 test('wp-cli step should create a post', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/wp-admin/post.php',

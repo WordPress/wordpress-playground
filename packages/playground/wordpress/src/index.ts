@@ -171,6 +171,9 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 */
 			if (headers_sent()) {
 				_doing_it_wrong('playground_auto_login', 'Headers already sent, the Playground runtime will not auto-login the user', '1.0.0');
+			if(str_contains($_SERVER['REQUEST_URI'], 'customize.php')) {
+				die("A");
+			}
 				return;
 			}
 
@@ -199,6 +202,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * so we need to reload the page to ensure the cookies are set.
 			 */
 			$redirect_url = $_SERVER['REQUEST_URI'];
+
 			/**
 			 * Intentionally do not use wp_redirect() here. It removes
 			 * %0A and %0D sequences from the URL, which we don't want.
@@ -215,6 +219,28 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		 * The wp hook isn't triggered on
 		 **/
 		add_action('init', 'playground_auto_login', 1);
+
+		/**
+		 * Use an intermediate redirection step to ensure the login cookies
+		 * are set before we redirecting to the landing page.
+		 *
+		 * /wp-admin/customize.php, and potentially other pages in WordPress,
+		 * run authorization checks before running the init hook. If they're
+		 * set as the landing page of the Blueprint, the user will be redirected
+		 * to wp-login.php?reauth=1 before we have a chance to set the
+		 * authorization cookie.
+		 *
+		 * To avoid this, we redirect to an intermediate page that will
+		 * redirect the user to the landing page.
+		 */
+		function playground_auto_login_redirect_target() {
+			if(str_starts_with($_SERVER['REQUEST_URI'], '/index.php?playground-redirection-handler')) {
+				$next = $_GET['next'];
+				header('Location: ' . $next, true, 302);
+				exit;
+			}
+		}
+		add_action('init', 'playground_auto_login_redirect_target', 1);
 
 		/**
 		 * Disable the Site Admin Email Verification Screen for any session started

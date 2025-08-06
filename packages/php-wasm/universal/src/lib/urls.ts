@@ -17,6 +17,9 @@ export const DEFAULT_BASE_URL = 'http://example.com';
  * @returns The path, query, and fragment.
  */
 export function toRelativeUrl(url: URL): string {
+	if (url.origin === 'null') {
+		return url.toString();
+	}
 	return url.toString().substring(url.origin.length);
 }
 
