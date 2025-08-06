@@ -92,6 +92,32 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
+ * Adds target="_blank" to external links when clicked to open them in a new tab.
+ * This prevents users from loading non-Playground pages inside the Playground iframe.
+ */
+function playground_add_target_blank_to_external_links() {
+	// Only run on frontend and admin pages, not during AJAX requests or CLI
+	if (empty($_SERVER['REQUEST_URI']) || wp_doing_ajax() || wp_doing_cron()) {
+		return;
+	}
+	?>
+	<script>
+		document.addEventListener('click', e => {
+			const a = e.target.closest('a[href]');
+			if (!a) return;                                 // not a link
+			if (new URL(a.href, location).origin !== location.origin) {
+				a.target = '_blank';                        // open in new tab/window
+				a.rel ||= 'noopener';                       // cuts the opener reference
+			}
+		});
+	</script>
+
+	<?php
+}
+add_action('wp_head', 'playground_add_target_blank_to_external_links');
+add_action('admin_head', 'playground_add_target_blank_to_external_links');
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.
