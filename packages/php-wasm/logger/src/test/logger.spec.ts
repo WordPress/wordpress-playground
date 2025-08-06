@@ -5,7 +5,7 @@ describe('Logger', () => {
 	let output: string[];
 	let handlers: LogHandler[];
 
-	function logToConsole(log: Log, arg?: string) {
+	function logToVariable(log: Log, arg?: string) {
 		output.push(`${log.message}${arg ? arg : ''}`);
 	}
 
@@ -17,7 +17,7 @@ describe('Logger', () => {
 	beforeEach(() => {
 		output = [];
 		// @ts-ignore
-		logger.handlers = [...handlers, logToConsole];
+		logger.handlers = [...handlers, logToVariable];
 
 		clearMemoryLogs();
 	});
@@ -38,7 +38,31 @@ describe('Logger', () => {
 		expect(eventListener).toHaveBeenCalled();
 	});
 
-	it('outputs all logs by default', () => {
+	it('outputs main logs by default', () => {
+		logger.log('log');
+		logger.info('info');
+		logger.warn('warn');
+		logger.error('error');
+		logger.debug('debug');
+		const logs = logger.getLogs();
+		expect(logs.length).toBe(4);
+		expect(output).toEqual(['log', 'info', 'warn', 'error']);
+	});
+
+	it('outputs main logs when verbosity is set to normal', () => {
+		logger.filterByVerbosity(LogVerbosity.Normal);
+		logger.log('log');
+		logger.info('info');
+		logger.warn('warn');
+		logger.error('error');
+		logger.debug('debug');
+		const logs = logger.getLogs();
+		expect(logs.length).toBe(4);
+		expect(output).toEqual(['log', 'info', 'warn', 'error']);
+	});
+
+	it('outputs main and debug logs when verbosity is set to debug', () => {
+		logger.filterByVerbosity(LogVerbosity.Debug);
 		logger.log('log');
 		logger.info('info');
 		logger.warn('warn');
@@ -49,29 +73,15 @@ describe('Logger', () => {
 		expect(output).toEqual(['log', 'info', 'warn', 'error', 'debug']);
 	});
 
-	it('outputs main logs when verbosity is set to normal', () => {
-		logger.filterByVerbosity(LogVerbosity.Normal);
-		logger.log('log');
-		logger.debug('debug');
-		const logs = logger.getLogs();
-		expect(logs.length).toBe(2);
-		expect(output).toEqual(['log']);
-	});
-
-	it('outputs main and debug logs when verbosity is set to debug', () => {
-		logger.filterByVerbosity(LogVerbosity.Debug);
-		logger.log('log');
-		logger.debug('debug');
-		const logs = logger.getLogs();
-		expect(logs.length).toBe(2);
-		expect(output).toEqual(['log', 'debug']);
-	});
-
 	it('does not output logs when verbosity is set to quiet', () => {
 		logger.filterByVerbosity(LogVerbosity.Quiet);
 		logger.log('log');
+		logger.info('info');
+		logger.warn('warn');
+		logger.error('error');
+		logger.debug('debug');
 		const logs = logger.getLogs();
-		expect(logs.length).toBe(1);
+		expect(logs.length).toBe(0);
 		expect(output).toEqual([]);
 	});
 });

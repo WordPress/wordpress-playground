@@ -12,7 +12,7 @@ export { errorLogPath } from './collectors/collect-php-logs';
 
 export type Log = {
 	message: any;
-	severity?: LogSeverity;
+	severity: LogSeverity;
 	prefix?: LogPrefix;
 	raw?: boolean;
 };
@@ -32,11 +32,12 @@ export type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity];
  * Log severity levels.
  */
 export const LogSeverity = {
-	Debug: 'debug',
-	Info: 'info',
-	Warn: 'warn',
-	Error: 'error',
-	Fatal: 'fatal',
+	Log: { name: 'log', level: 1 },
+	Info: { name: 'info', level: 1 },
+	Warn: { name: 'warn', level: 1 },
+	Error: { name: 'error', level: 1 },
+	Fatal: { name: 'fatal', level: 1 },
+	Debug: { name: 'debug', level: 2 },
 } as const;
 
 export type LogSeverity = (typeof LogSeverity)[keyof typeof LogSeverity];
@@ -58,7 +59,7 @@ export type LogPrefix = (typeof LogPrefix)[keyof typeof LogPrefix];
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
 	private handlers: LogHandler[];
-	private filters: LogSeverity[];
+	private verbosity = 1;
 
 	// constructor
 	constructor(
@@ -67,7 +68,6 @@ export class Logger extends EventTarget {
 		handlers: LogHandler[] = []
 	) {
 		super();
-		this.filters = Object.values(LogSeverity);
 		this.handlers = handlers;
 	}
 
@@ -94,12 +94,7 @@ export class Logger extends EventTarget {
 	 */
 	public logMessage(log: Log, ...args: any[]): void {
 		for (const handler of this.handlers) {
-			const isConsole = handler.name === 'logToConsole';
-			const isSeverityAllowed = log.severity
-				? this.filters.includes(log.severity)
-				: !!this.filters.length;
-
-			if (!isConsole || isSeverityAllowed) {
+			if (log.severity.level <= this.verbosity) {
 				handler(log, ...args);
 			}
 		}
@@ -110,18 +105,16 @@ export class Logger extends EventTarget {
 	 * @param verbosity LogVerbosity
 	 */
 	public filterByVerbosity(verbosity: LogVerbosity): void {
-		if (verbosity === LogVerbosity.Quiet) {
-			this.filters = [];
-		}
-
-		if (verbosity === LogVerbosity.Normal) {
-			this.filters = Object.values(LogSeverity).filter(
-				(severity) => severity !== LogSeverity.Debug
-			);
-		}
-
-		if (verbosity === LogVerbosity.Debug) {
-			this.filters = Object.values(LogSeverity);
+		switch (verbosity) {
+			case LogVerbosity.Quiet:
+				this.verbosity = 0;
+				break;
+			case LogVerbosity.Normal:
+				this.verbosity = 1;
+				break;
+			case LogVerbosity.Debug:
+				this.verbosity = 2;
+				break;
 		}
 	}
 
@@ -135,7 +128,7 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: undefined,
+				severity: LogSeverity.Log,
 				prefix: LogPrefix.JS,
 				raw: false,
 			},
@@ -261,7 +254,7 @@ export const formatLogEntry = (
 	}).format(date);
 	const now = formattedDate + ' ' + formattedTime;
 	message = prepareLogMessage(message);
-	return `[${now}] ${prefix} ${severity}: ${message}`;
+	return `[${now}] ${prefix} ${severity.name}: ${message}`;
 };
 
 /**

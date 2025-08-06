@@ -241,13 +241,13 @@ describe('run-cli', () => {
 	describe('verbosity', () => {
 		let output: string[];
 
-		function logToConsole(log: Log, arg?: string) {
+		function logToVariable(log: Log, arg?: string) {
 			output.push(`${log.message}${arg ? arg : ''}`);
 		}
 
 		beforeAll(() => {
 			// @ts-ignore
-			logger.handlers = [logToConsole];
+			logger.handlers = [logToVariable];
 		});
 
 		beforeEach(() => {

@@ -1,25 +1,19 @@
 import { startBridge } from '../src/lib/start-bridge';
-import { type Log, logger, type LogHandler } from '@php-wasm/logger/src';
+import { type Log, logger } from '@php-wasm/logger/src';
 import { WebSocket } from 'ws';
 
-describe('Xdebug Bridge', () => {
+describe('verbosity', () => {
 	const port = 9229;
 	let output: string[];
-	let handlers: LogHandler[];
 
-	function logToConsole(log: Log, arg?: string) {
+	function logToVariable(log: Log, arg?: string) {
 		output.push(`${log.message}${arg ? arg : ''}`);
 	}
-
-	beforeAll(() => {
-		// @ts-ignore
-		handlers = logger.handlers;
-	});
 
 	beforeEach(() => {
 		output = [];
 		// @ts-ignore
-		logger.handlers = [...handlers, logToConsole];
+		logger.handlers = [logToVariable];
 	});
 
 	it('outputs main logs by default', async () => {

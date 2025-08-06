@@ -142,8 +142,15 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('verbosity', {
+			// Hidden - Deprecated in favor of verbosity
+			.option('quiet', {
 				describe: 'Do not output logs and progress messages.',
+				type: 'boolean',
+				default: false,
+				hidden: true,
+			})
+			.option('verbosity', {
+				describe: 'Output logs and progress messages.',
 				type: 'string',
 				choices: Object.values(LogVerbosity),
 				default: 'normal',
@@ -299,6 +306,7 @@ export interface RunCLIArgs {
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
+	quiet?: boolean;
 	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: boolean;
@@ -354,6 +362,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 */
 	if (args.autoMount) {
 		args = expandAutoMounts(args);
+	}
+
+	// Keeping 'quiet' option to preserve backward compatibility
+	if (args.quiet) {
+		logger.filterByVerbosity('quiet');
 	}
 
 	if (args.verbosity) {

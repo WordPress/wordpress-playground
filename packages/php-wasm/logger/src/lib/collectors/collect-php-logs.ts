@@ -32,6 +32,7 @@ export const collectPhpLogs = (
 			const currentLog = log.substring(lastPHPLogLength);
 			loggerInstance.logMessage({
 				message: currentLog,
+				severity: LogSeverity.Log,
 				raw: true,
 			});
 			lastPHPLogLength = log.length;

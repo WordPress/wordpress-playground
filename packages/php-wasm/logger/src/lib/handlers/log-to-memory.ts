@@ -1,5 +1,5 @@
 import type { LogHandler } from '../log-handlers';
-import { formatLogEntry, type Log, LogPrefix, LogSeverity } from '../logger';
+import { formatLogEntry, type Log, LogPrefix } from '../logger';
 
 const prepareLogMessage = (logMessage: object): string => {
 	if (logMessage instanceof Error) {
@@ -25,7 +25,7 @@ export const logToMemory: LogHandler = (log: Log): void => {
 			typeof log.message === 'object'
 				? prepareLogMessage(log.message)
 				: log.message,
-			log.severity ?? LogSeverity.Info,
+			log.severity,
 			log.prefix ?? LogPrefix.JS
 		);
 		addToLogArray(message);
