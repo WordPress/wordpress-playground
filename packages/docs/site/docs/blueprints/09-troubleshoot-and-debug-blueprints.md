@@ -23,24 +23,7 @@ To resolve this, you need to explicitly install and configure the SQLite databas
 
 ```json
 {
-	"steps": [
-		{
-			"step": "installPlugin",
-			"pluginData": {
-				"resource": "wordpress.org/plugins",
-				"slug": "sqlite-database-integration"
-			}
-		},
-		{
-			"step": "cp",
-			"fromPath": "/wordpress/wp-content/plugins/sqlite-database-integration/db.copy",
-			"toPath": "/wordpress/wp-content/db.php"
-		},
-		{
-			"step": "activatePlugin",
-			"pluginPath": "/wordpress/wp-content/plugins/sqlite-database-integration"
-		}
-	]
+	"plugins": [ "sqlite-database-integration" ]
 }
 ```
 
