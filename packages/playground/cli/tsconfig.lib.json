@@ -5,6 +5,10 @@
 		"declaration": true,
 		"types": ["node"]
 	},
-	"include": ["src/**/*.ts", "tests/mounts.spec.ts"],
+	"include": [
+		"src/**/*.ts",
+		"tests/mounts.spec.ts",
+		"../blueprints/src/lib/v2/get-v2-runner.ts"
+	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

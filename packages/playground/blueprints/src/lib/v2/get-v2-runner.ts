@@ -10,7 +10,7 @@ export async function getV2Runner(): Promise<File> {
 	 * for the new .phar file.
 	 */
 	// @ts-ignore
-	const v2_runner_url = (await import('../../public/blueprints.phar?url'))
+	const v2_runner_url = (await import('../../../public/blueprints.phar?url'))
 		.default;
 
 	/**
