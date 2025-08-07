@@ -299,7 +299,9 @@ describe('run-cli', () => {
 					expect(response.text).toContain('Slept');
 				});
 			} finally {
-				unlinkSync(symlinkPath);
+				if (existsSync(symlinkPath)) {
+					unlinkSync(symlinkPath);
+				}
 			}
 		});
 	});
