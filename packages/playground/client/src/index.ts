@@ -32,6 +32,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+export { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
