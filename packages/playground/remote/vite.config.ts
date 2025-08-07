@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => {
 	);
 
 	return {
-		assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
+		assetsInclude: ['**/*.wasm', '**/*.dat', '**/*.phar', '*.zip'],
 		cacheDir: '../../../node_modules/.vite/playground',
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
