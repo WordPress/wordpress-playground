@@ -100,9 +100,9 @@ function playground_add_target_blank_to_external_links() {
 	if (empty($_SERVER['REQUEST_URI']) || wp_doing_ajax() || wp_doing_cron()) {
 		return;
 	}
+	
 	?>
-	<script type="module">
-		
+	<script>
 		function addTargetBlankToExternalLinks() {
 			function addTargetBlank(a) {
 				const url = new URL(a.href, location);
@@ -133,7 +133,7 @@ function playground_add_target_blank_to_external_links() {
 				addTargetBlank(a);
 			}, true);
 		}
-		
+
 		if (document.readyState === 'loading') {
 			document.addEventListener('DOMContentLoaded', addTargetBlankToExternalLinks);
 		} else {
