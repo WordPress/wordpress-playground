@@ -101,15 +101,35 @@ function playground_add_target_blank_to_external_links() {
 		return;
 	}
 	?>
-	<script>
-		document.addEventListener('click', e => {
-			const a = e.target.closest('a[href]');
-			if (!a) return;                                 // not a link
-			if (new URL(a.href, location).origin !== location.origin) {
-				a.target = '_blank';                        // open in new tab/window
-				a.rel ||= 'noopener';                       // cuts the opener reference
+	<script type="module">
+		
+		function addTargetBlankToExternalLinks() {
+			function handleClick(a) {
+				const url = new URL(a.href, location);
+				if (url.origin !== location.origin) {
+					a.target = '_blank';
+				}
 			}
-		});
+
+			// Set target="_blank" for existing external links
+			document.querySelectorAll('a[href]').forEach(a => {
+				handleClick(a);
+			});
+			
+			// Set target="_blank" for external links when clicked.
+			// This covers links that are added after the page has loaded.
+			document.addEventListener('click', e => {
+				const a = e.target.closest('a[href]');
+				if (!a) return;
+				handleClick(a);
+			});
+		}
+		
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', addTargetBlankToExternalLinks);
+		} else {
+			addTargetBlankToExternalLinks();
+		}
 	</script>
 
 	<?php
