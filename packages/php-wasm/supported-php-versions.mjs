@@ -6,13 +6,19 @@
  * @property {string} lastRelease
  */
 
-export const lastRefreshed = '2025-08-04T12:45:56.385Z';
+export const lastRefreshed = '2025-08-07T12:09:02.133Z';
 
 /**
  * @type {PhpVersion[]}
  * @see https://www.php.net/releases/index.php
  */
 export const phpVersions = [
+	{
+		version: '8.5',
+		loaderFilename: 'php_8_5.js',
+		wasmFilename: 'php_8_5.wasm',
+		lastRelease: '8.5.0alpha4',
+	},
 	{
 		version: '8.4',
 		loaderFilename: 'php_8_4.js',

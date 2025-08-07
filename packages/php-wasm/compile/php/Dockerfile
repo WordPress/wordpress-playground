@@ -16,7 +16,7 @@ ARG WITH_OPCACHE
 
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
-	--branch PHP-$PHP_VERSION \
+	--tag php-$PHP_VERSION \
 	--single-branch \
 	--depth 1;
 

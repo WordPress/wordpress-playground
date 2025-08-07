@@ -90,7 +90,7 @@ async function fetchFromGitHub() {
 	for (const tag of data) {
 		const tagName = tag.name;
 		// Match patterns like "php-8.3.15", "php-8.2.26", etc.
-		const match = tagName.match(/^php-(\d+)\.(\d+)\.(\d+)$/);
+		const match = tagName.match(/^php-(\d+)\.(\d+)\.(\d+)(?:alpha\d+)?$/);
 		if (match) {
 			const [, major, minor, patch] = match;
 			const version = `${major}.${minor}`;
