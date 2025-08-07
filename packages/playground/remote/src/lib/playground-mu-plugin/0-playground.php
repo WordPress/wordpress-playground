@@ -104,7 +104,7 @@ function playground_add_target_blank_to_external_links() {
 	<script type="module">
 		
 		function addTargetBlankToExternalLinks() {
-			function handleClick(a) {
+			function addTargetBlank(a) {
 				const url = new URL(a.href, location);
 				if (url.origin !== location.origin) {
 					a.target = '_blank';
@@ -114,7 +114,7 @@ function playground_add_target_blank_to_external_links() {
 			// Set target="_blank" for existing external links – this
 			// covers keyboard navigation.
 			document.querySelectorAll('a[href]').forEach(a => {
-				handleClick(a);
+				addTargetBlank(a);
 			});
 			
 			// Set target="_blank" for external links when clicked.
@@ -122,7 +122,7 @@ function playground_add_target_blank_to_external_links() {
 			document.addEventListener('click', e => {
 				const a = e.target.closest('a[href]');
 				if (!a) return;
-				handleClick(a);
+				addTargetBlank(a);
 			});
 
 			// Also handle focus events to cover keyboard navigation on
@@ -130,7 +130,7 @@ function playground_add_target_blank_to_external_links() {
 			document.addEventListener('focus', e => {
 				const a = e.target.closest('a[href]');
 				if (!a) return;
-				handleClick(a);
+				addTargetBlank(a);
 			}, true);
 		}
 		
