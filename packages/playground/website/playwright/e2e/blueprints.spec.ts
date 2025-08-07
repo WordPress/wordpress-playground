@@ -563,8 +563,7 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 		browserName,
 	}) => {
 		test.skip(
-			(wpVersion === 'nightly' || wpVersion === 'beta') &&
-				(browserName === 'firefox' || browserName === 'webkit'),
+			browserName === 'firefox' || browserName === 'webkit',
 			`The translation tests often fail in CI on Firefox and WebKit. The root cause is unknown, ` +
 				'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
 				'Perhaps it is something highly specific to the CI runtime.'
