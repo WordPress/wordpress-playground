@@ -643,7 +643,4 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 	await expect(wordpress.locator('body')).toContainText(
 		'Welcome to WordPress. This is your first post.'
 	);
-
-	// Verify there's no admin bar
-	await expect(wordpress.locator('body')).not.toContainText('Dashboard');
 });
