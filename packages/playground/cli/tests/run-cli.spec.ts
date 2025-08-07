@@ -259,6 +259,8 @@ describe('run-cli', () => {
 				'symlinked-script'
 			);
 
+			fs.mkdirSync( path.dirname( symlinkPath ), { recursive: true } );
+
 			try {
 				if (existsSync(symlinkPath)) {
 					unlinkSync(symlinkPath);
