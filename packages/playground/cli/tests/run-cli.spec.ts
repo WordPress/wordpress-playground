@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import {
+	mkdirSync,
 	readdirSync,
 	writeFileSync,
 	symlinkSync,
@@ -259,7 +260,7 @@ describe('run-cli', () => {
 				'symlinked-script'
 			);
 
-			fs.mkdirSync( path.dirname( symlinkPath ), { recursive: true } );
+			mkdirSync( path.dirname( symlinkPath ), { recursive: true } );
 
 			try {
 				if (existsSync(symlinkPath)) {
