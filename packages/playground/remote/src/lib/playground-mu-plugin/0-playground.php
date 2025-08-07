@@ -111,7 +111,8 @@ function playground_add_target_blank_to_external_links() {
 				}
 			}
 
-			// Set target="_blank" for existing external links
+			// Set target="_blank" for existing external links – this
+			// covers keyboard navigation.
 			document.querySelectorAll('a[href]').forEach(a => {
 				handleClick(a);
 			});
@@ -123,6 +124,14 @@ function playground_add_target_blank_to_external_links() {
 				if (!a) return;
 				handleClick(a);
 			});
+
+			// Also handle focus events to cover keyboard navigation on
+			// links that are added after the page has loaded.
+			document.addEventListener('focus', e => {
+				const a = e.target.closest('a[href]');
+				if (!a) return;
+				handleClick(a);
+			}, true);
 		}
 		
 		if (document.readyState === 'loading') {
