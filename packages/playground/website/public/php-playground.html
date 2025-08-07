@@ -416,7 +416,7 @@
 					<div class="controls-right">
 						<label for="wpVersion">WordPress</label>
 						<select id="wpVersion">
-							<!-- Options will be populated dynamically -->
+							<option>Loading...</option>
 						</select>
 						<label for="phpVersion">PHP</label>
 						<select id="phpVersion">
@@ -619,7 +619,7 @@
 					wpVersion: initialWpVersion,
 				} = loadStateFromURL();
 				phpVersionSelect.value = initialPhpVersion || defaultPhpVersion;
-				if (initialWpVersion) {
+				if (initialWpVersion && wpVersionSelect.options.length > 1) {
 					wpVersionSelect.value = initialWpVersion;
 				}
 			}
@@ -707,20 +707,18 @@
 			import {
 				startPlaygroundWeb,
 				SupportedPHPVersionsList,
-				MinifiedWordPressVersionsList,
 			} from 'https://playground.wordpress.net/client/index.js';
 
 			const editorEl = document.getElementById('editor');
 			const phpCompartment = new Compartment();
 
 			const defaultPhpVersion = '8.4';
-			const defaultWpVersion = MinifiedWordPressVersionsList[0] || '6.8';
 			const {
 				phpVersion: initialPhpVersion,
 				wpVersion: initialWpVersion,
 			} = loadStateFromURL();
 			const startingPhpVersion = initialPhpVersion || defaultPhpVersion;
-			const startingWpVersion = initialWpVersion || defaultWpVersion;
+			const startingWpVersion = initialWpVersion || 'latest';
 
 			// Populate PHP version select options from SupportedPHPVersionsList
 			phpVersionSelect.innerHTML = ''; // Clear existing options
@@ -731,14 +729,7 @@
 				phpVersionSelect.appendChild(option);
 			});
 
-			// Populate WordPress version select options from MinifiedWordPressVersionsList
-			wpVersionSelect.innerHTML = ''; // Clear existing options
-			MinifiedWordPressVersionsList.forEach((version) => {
-				const option = document.createElement('option');
-				option.value = version;
-				option.textContent = version;
-				wpVersionSelect.appendChild(option);
-			});
+			// WordPress versions will be populated after the client connects
 
 			// Set the versions from URL or defaults
 			restoreVersionsFromURL();
@@ -749,6 +740,8 @@ echo "<br>";
 
 // WordPress is available if you need it!
 require '/wordpress/wp-load.php';
+
+echo "WordPress " . wp_get_wp_version() . "<br>";
 
 $html_processor = WP_HTML_Processor::create_fragment('<p><span>Hey!</span></p>');
 $html_processor->next_tag();
@@ -831,7 +824,7 @@ var_dump($html_processor->get_tag());
 			if (startingPhpVersion) {
 				phpVersionSelect.value = startingPhpVersion;
 			}
-			if (startingWpVersion) {
+			if (startingWpVersion && wpVersionSelect.options.length > 1) {
 				wpVersionSelect.value = startingWpVersion;
 			}
 
@@ -873,6 +866,29 @@ var_dump($html_processor->get_tag());
 						},
 					},
 				});
+
+				// Populate WordPress versions from the connected client
+				try {
+					const { all, latest } =
+						await client.getMinifiedWordPressVersions();
+					const keys = Object.keys(all);
+					wpVersionSelect.innerHTML = '';
+					for (const version of keys) {
+						const option = document.createElement('option');
+						option.value = version;
+						option.textContent = version;
+						wpVersionSelect.appendChild(option);
+					}
+					// Restore selection if still available; otherwise fall back to latest
+					wpVersionSelect.value = keys.includes(startingWpVersion)
+						? startingWpVersion
+						: latest;
+				} catch (e) {
+					console.warn(
+						'Failed to load WordPress versions list from client',
+						e
+					);
+				}
 				await client.isReady;
 				await client.writeFile('/wordpress/code.php', startingCode);
 				await client.goTo('/code.php'); // Blank document
