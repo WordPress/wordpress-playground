@@ -16,6 +16,8 @@ const patternsToNotCache = [
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',
+
+	/\/.*\.phar$/, // No phar files are needed at runtime.
 	/**
 	 * Source maps are not required to run the site and can be quite large.
 	 */
