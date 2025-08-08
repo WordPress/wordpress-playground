@@ -117,7 +117,7 @@ export async function resolve(
 	}
 
 	const specifierUrl = new URL(specifier, 'file://');
-	for (const format of ['raw', 'json', 'url']) {
+	for (const format of ['raw', 'json', 'url', 'base64']) {
 		if (specifierUrl.searchParams.has(format)) {
 			// This is a custom format import and can be handled by our custom loader.
 			return {
@@ -186,6 +186,19 @@ export async function load(
 			format: 'module',
 			shortCircuit: true,
 			source: `export default ${JSON.stringify(content)};`,
+		};
+	}
+
+	if (context.format === 'base64' || urlObj.searchParams.has('base64')) {
+		// Load binary file content and export as base64 string
+		const content = readFileSync(urlObj.pathname);
+		const base64 = content.toString('base64');
+		return {
+			format: 'module',
+			shortCircuit: true,
+			source: `export default Uint8Array.from(atob(${JSON.stringify(
+				base64
+			)}), c => c.charCodeAt(0));`,
 		};
 	}
 
