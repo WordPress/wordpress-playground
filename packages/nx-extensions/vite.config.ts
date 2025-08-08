@@ -2,7 +2,7 @@
 import { defineConfig } from 'vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+import viteGlobalExtensions from '../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/nx-extensions',
