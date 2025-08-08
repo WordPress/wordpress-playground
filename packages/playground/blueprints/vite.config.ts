@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import type { Plugin } from 'vite';
+import fs from 'node:fs';
 import { defineConfig } from 'vite';
 
 import dts from 'vite-plugin-dts';
@@ -10,8 +10,8 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
+	assetsInclude: ['**/*.phar'],
 	cacheDir: '../../../node_modules/.vite/playground-blueprints',
 
 	plugins: [
@@ -26,44 +26,30 @@ export default defineConfig({
 		}),
 
 		{
-			name: 'use-correct-blueprints-phar-file-url-in-vitest-environment',
-			/**
-			 * When ran inside the `blueprints.phar` package, vitest resolves
-			 * `blueprints.phar?url` as `/public/blueprints.phar?url`. However, when ran
-			 * inside other packages, it resolves as `/@fs/full/path/to/blueprints.phar`.
-			 *
-			 * This plugin ensures that the `blueprints.phar` file is always consistently
-			 * resolved as the latter.
-			 */
-			transform(code, id) {
-				if (id.match(new RegExp(`/blueprints\\.phar\\?url`))) {
-					const fullyQualifiedPath = '/@fs' + path(id.split('?')[0]);
-					return `export default ${JSON.stringify(
-						fullyQualifiedPath
-					)};`;
-				}
-				return code;
-			},
-		} as Plugin,
-	],
+			name: 'base64-loader',
+			transform(_: any, id: string) {
+				const url = new URL(id, 'file://');
+				if (!url.searchParams.has('base64')) return null;
+				const path = url.pathname;
 
-	// Uncomment this if you are using workers.
-	// worker: {
-	//  plugins: [
-	//    viteTsConfigPaths({
-	//      root: '../../../',
-	//    }),
-	//  ],
-	// },
+				const data = fs.readFileSync(path);
+				const base64 = data.toString('base64');
+
+				return `export default '${base64}';`;
+			},
+		},
+	],
 
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
+		assetsInlineLimit: 0,
 		lib: {
 			// Could also be a dictionary or array of multiple entry points.
 			entry: 'src/index.ts',
 			name: 'playground-blueprints',
 			fileName: 'index',
+
 			// Change this to the formats you want to support.
 			// Don't forgot to update your package.json as well.
 			formats: ['es', 'cjs'],
