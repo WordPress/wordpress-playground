@@ -7,7 +7,6 @@ import {
 	InMemoryFilesystem,
 } from '@wp-playground/storage';
 import { resolveRemoteBlueprint } from '@wp-playground/blueprints';
-import { ReportableError } from './reportable-error';
 
 type ResolveBlueprintOptions = {
 	sourceString: string | undefined;
@@ -88,7 +87,7 @@ export async function resolveBlueprint({
 				{
 					read(path) {
 						if (!blueprintMayReadAdjacentFiles) {
-							throw new ReportableError(
+							throw new Error(
 								`Error: Blueprint contained tried to read a local file at path "${path}" (via a resource of type "bundled"). ` +
 									`Playground restricts access to local resources by default as a security measure. \n\n` +
 									`You can allow this Blueprint to read files from the same parent directory by explicitly adding the ` +

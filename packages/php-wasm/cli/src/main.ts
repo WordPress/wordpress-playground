@@ -14,6 +14,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
 
 let args = process.argv.slice(2);
@@ -36,6 +37,18 @@ async function run() {
 		LatestSupportedPHPVersion) as SupportedPHPVersion;
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
+	}
+
+	const hasXdebugOption = args.some((arg) => arg.startsWith('--xdebug'));
+	if (hasXdebugOption) {
+		args = args.filter((arg) => arg !== '--xdebug');
+	}
+
+	const hasDevtoolsOption = args.some((arg) =>
+		arg.startsWith('--experimental-devtools')
+	);
+	if (hasDevtoolsOption) {
+		args = args.filter((arg) => arg !== '--experimental-devtools');
 	}
 
 	// npm scripts set the TMPDIR env variable
@@ -86,10 +99,17 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
+			withXdebug: hasXdebugOption,
 		})
 	);
 
 	useHostFilesystem(php);
+
+	if (hasDevtoolsOption && hasXdebugOption) {
+		const bridge = await startBridge({});
+
+		bridge.start();
+	}
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
 	if (!hasMinusCOption) {

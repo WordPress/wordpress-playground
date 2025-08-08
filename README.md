@@ -14,7 +14,7 @@ Playground aims to facilitate:
 
 -   Learning WordPress Through Exploration
 -   Learning WordPress Development Through Writing Code
--   Instant access to WordPress ecosystem
+-   Instant access to the WordPress ecosystem
 
 Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525).
 
@@ -22,7 +22,7 @@ Learn more about the [vision](https://github.com/WordPress/wordpress-playground/
 
 WordPress Playground has a [live demo](https://developer.wordpress.org/playground/demo/) available.
 
-You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpress.github.io/wordpress-playground/). **Note the embed is experimental and may break or change without a warning.**
+You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpress.github.io/wordpress-playground/). **Note the embed is experimental and may break or change without warning.**
 
 You can connect to the Playground using the JavaScript client. Here's an example of how to do it in the browser using an `iframe` HTML element and the `startPlaygroundWeb` function from the `@wp-playground/client` package.
 
@@ -68,6 +68,19 @@ You can connect to the Playground using the JavaScript client. Here's an example
 </script>
 ```
 
+## The Playground CLI
+
+For local development and testing, WordPress Playground offers a command-line interface (CLI) tool: [`@wp-playground/cli`](https://www.npmjs.com/package/@wp-playground/cli). This powerful tool simplifies setting up a local WordPress environment, leveraging the capabilities of WordPress Playground to create zero-setup instances. It's useful for developers, as it allows you to quickly spin up a WordPress site directly in your project directory without complex server configurations, and even switch PHP and WordPress versions with simple flags.
+
+The best part? You can run it directly using `npx`, Node.js's package runner. To get started, navigate to your plugin or theme directory and run:
+
+```bash
+cd my-plugin-or-theme-directory
+npx @wp-playground/cli server --auto-mount
+```
+
+The `--auto-mount` flag detects if your project is a plugin or theme, mounting it automatically into the virtual WordPress environment. This provides an instant, isolated WordPress instance for testing your code. For more advanced usage, including manual mounting options and blueprint integration, refer to the [Playground CLI documentation](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/cli#readme).
+
 ## WordPress Playground Tools
 
 WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository: [WordPress/playground-tools](https://github.com/WordPress/playground-tools).
@@ -76,7 +89,6 @@ These tools include:
 
 -   [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
 -   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
--   [@wp-playground/cli](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/cli#readme) CLI local development environment.
 
 ## Cloning WordPress Playground repo
 

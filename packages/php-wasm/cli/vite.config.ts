@@ -18,15 +18,20 @@ export default defineConfig({
 			external: [
 				'@php-wasm/node',
 				'@php-wasm/universal',
+				'assert',
 				'net',
 				'fs',
 				'path',
 				'child_process',
 				'http',
+				'stream',
+				'timers',
 				'tls',
+				'url',
 				'util',
 				'dns',
 				'ws',
+				'os',
 			],
 			input: 'packages/php-wasm/cli/src/main.ts',
 			output: {
@@ -44,5 +49,9 @@ export default defineConfig({
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
+	},
+
+	define: {
+		'process.env': 'process.env',
 	},
 });

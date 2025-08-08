@@ -8,7 +8,8 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 28784595;
+export const dependenciesTotalSize = 29193979;
+const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -847,7 +848,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 11705120;
+	var ___heap_base = 12760416;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1011,7 +1012,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15465,
+		initial: 15542,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1742,13 +1743,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 11705120;
+	var ___stack_high = 12760416;
 
-	var ___stack_low = 11639584;
+	var ___stack_low = 11711840;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		11705120
+		12760416
 	);
 
 	var PATH = {
@@ -3801,10 +3802,6 @@ export function init(RuntimeName, PHPLoader) {
 
 				if (FS.isMountpoint(node)) {
 					throw new FS.ErrnoError(10);
-				}
-
-				if (!FS.isDir(node.mode)) {
-					throw new FS.ErrnoError(54);
 				}
 			}
 
@@ -6885,7 +6882,7 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function _fd_close(fd) {
+	var _fd_close = function fd_close(fd) {
 		return Asyncify.handleAsync(async () => {
 			const [vfsPath, pathResolutionErrno] =
 				locking.get_vfs_path_from_fd(fd);
@@ -6920,7 +6917,7 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return result;
 		});
-	}
+	};
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -6997,35 +6994,25 @@ export function init(RuntimeName, PHPLoader) {
 			1: 'exclusive',
 			2: 'unlocked',
 		},
-		is_shared_fs_node(node) {
-			if (node?.isSharedFS) {
-				return true;
-			}
-
-			// Handle PROXYFS nodes which wrap other nodes.
-			if (
-				!node?.mount?.opts?.fs?.lookupPath ||
-				!node?.mount?.type?.realPath
-			) {
-				return false;
-			}
-
-			// Only NODEFS can be shared between workers at the moment.
-			if (node.mount.type !== NODEFS) {
-				return false;
-			}
-			const vfsPath = node.mount.type.realPath(node);
-			try {
-				const underlyingNode =
-					node.mount.opts.fs.lookupPath(vfsPath)?.node;
-				return !!underlyingNode?.isSharedFS;
-			} catch (e) {
-				return false;
-			}
-		},
 		is_path_to_shared_fs(path) {
-			const { node } = FS.lookupPath(path);
-			return locking.is_shared_fs_node(node);
+			_js_wasm_trace('is_path_to_shared_fs(%s)', path);
+			const { node } = FS.lookupPath(path, { noent_okay: true });
+			if (node.mount.type !== PROXYFS) {
+				return !!node.isSharedFS;
+			}
+
+			// This looks like a PROXYFS node. Let's try a lookup.
+			const nodePath = PROXYFS.realPath(node);
+			const backingFs = node?.mount?.opts?.fs;
+			if (backingFs) {
+				// Tolerate ENOENT because looking up a MEMFS node by path always fails.
+				const { node: backingNode } = backingFs.lookupPath(nodePath, {
+					noent_okay: true,
+				});
+				return !!backingNode?.isSharedFS;
+			}
+
+			return false;
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('3');
@@ -7043,8 +7030,26 @@ export function init(RuntimeName, PHPLoader) {
 			}
 		},
 		get_native_path_from_vfs_path(vfsPath) {
-			const { node } = FS.lookupPath(vfsPath);
-			return NODEFS.realPath(node);
+			// TODO: Should there be a try/catch here?
+			const { node } = FS.lookupPath(vfsPath, {});
+			if (node.mount.type === NODEFS) {
+				return NODEFS.realPath(node);
+			} else if (node.mount.type === PROXYFS) {
+				// TODO: Tolerate ENOENT here?
+				const { node: backingNode, path: backingPath } =
+					node.mount.opts.fs.lookupPath(vfsPath);
+				_js_wasm_trace(
+					'backingNode for %s: %s',
+					vfsPath,
+					backingPath,
+					backingNode
+				);
+				return backingNode.mount.type.realPath(backingNode);
+			} else {
+				throw new Error(
+					`Unsupported filesystem type for path ${vfsPath}`
+				);
+			}
 		},
 		check_lock_params(fd, l_type) {
 			const emscripten_O_RDONLY = Number('0');
@@ -7255,6 +7260,8 @@ export function init(RuntimeName, PHPLoader) {
 						return -ERRNO_CODES.EBADF;
 					}
 
+					const flockStructAddr = syscallGetVarargP();
+
 					if (!locking.is_path_to_shared_fs(vfsPath)) {
 						_js_wasm_trace(
 							"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
@@ -7270,7 +7277,6 @@ export function init(RuntimeName, PHPLoader) {
 						return 0;
 					}
 
-					const flockStructAddr = syscallGetVarargP();
 					const flockStruct = read_flock_struct(flockStructAddr);
 
 					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
@@ -19323,7 +19329,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var addOnExit = (cb) => onExits.unshift(cb);
 
-	var STACK_SIZE = 65536;
+	var STACK_SIZE = 1048576;
 
 	var STACK_ALIGN = 16;
 
@@ -31256,13 +31262,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		10780647: ($0) => {
+		10815374: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10780695: ($0) => {
+		10815422: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31390,6 +31396,9 @@ export function init(RuntimeName, PHPLoader) {
 							while (true) {
 								var mask = POLLNVAL;
 								mask = SYSCALLS.DEFAULT_POLLMASK;
+								if (FS.isClosed(stream)) {
+									return ERRNO_CODES.EBADF;
+								}
 								if (stream.stream_ops?.poll) {
 									mask = stream.stream_ops.poll(stream, -1);
 								}
@@ -34189,6 +34198,11 @@ export function init(RuntimeName, PHPLoader) {
 			a0,
 			a1
 		));
+	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
+		(_initgroups = Module['_initgroups'] = wasmExports['initgroups'])(
+			a0,
+			a1
+		));
 	var _memcpy = (a0, a1, a2) => (_memcpy = wasmExports['memcpy'])(a0, a1, a2);
 	var ___funcs_on_exit = () =>
 		(___funcs_on_exit = wasmExports['__funcs_on_exit'])();
@@ -34403,19 +34417,16 @@ export function init(RuntimeName, PHPLoader) {
 		// We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
 		// nodes. This way we can tell whether file-locking is needed and possible
 		// for an FS node, even if wrapped with PROXYFS.
-		const originalCreateNode = NODEFS.createNode;
+		const originalNodeFsCreateNode = NODEFS.createNode;
 		NODEFS.createNode = function createNodeWithSharedFlag() {
-			const node = originalCreateNode.apply(NODEFS, arguments);
+			const node = originalNodeFsCreateNode.apply(NODEFS, arguments);
 			node.isSharedFS = true;
 			return node;
 		};
 
 		var originalHashAddNode = FS.hashAddNode;
 		FS.hashAddNode = function hashAddNodeIfNotSharedFS(node) {
-			if (
-				typeof locking === 'object' &&
-				locking?.is_shared_fs_node(node)
-			) {
+			if (node?.isSharedFS) {
 				// Avoid caching shared VFS nodes so multiple instances
 				// can access the same underlying filesystem without
 				// conflicting caches.
@@ -34424,6 +34435,15 @@ export function init(RuntimeName, PHPLoader) {
 			return originalHashAddNode.apply(FS, arguments);
 		};
 	}
+
+	/**
+	 * Expose the PHP version so the PHP class can make version-specific
+	 * adjustments to `php.ini`.
+	 */
+	PHPLoader['phpVersion'] = (() => {
+		const [major, minor, patch] = phpVersionString.split('.').map(Number);
+		return { major, minor, patch };
+	})();
 
 	return PHPLoader;
 

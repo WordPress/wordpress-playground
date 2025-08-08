@@ -69,7 +69,7 @@ const plugins = [
 					code: `
 						import { fileURLToPath } from 'url';
 						import { dirname, join } from 'path';
-						
+
 						let pharPath;
 						if (typeof __dirname !== 'undefined') {
 							// CommonJS
@@ -78,7 +78,7 @@ const plugins = [
 							// ESM
 							pharPath = join(import.meta.dirname, "./blueprints.phar");
 						}
-						
+
 						export default pharPath;
 					`,
 					map: null,
@@ -135,7 +135,8 @@ export default defineConfig({
 			entry: {
 				index: 'src/index.ts',
 				cli: 'src/cli.ts',
-				'worker-thread': 'src/worker-thread.ts',
+				'worker-thread-v1': 'src/blueprints-v1/worker-thread-v1.ts',
+				'worker-thread-v2': 'src/blueprints-v2/worker-thread-v2.ts',
 			},
 			name: 'playground-cli',
 			formats: ['es', 'cjs'],
@@ -148,8 +149,26 @@ export default defineConfig({
 			dir: '../../../node_modules/.vitest',
 		},
 		environment: 'node',
-		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
-		testTimeout: 15000, // Increase timeout to ensure CLI tests can download WordPress
+		// Increase timeout to:
+		// - Ensure CLI tests can download WordPress
+		// - Ensure worker threads have time to boot
+		testTimeout: 30000,
+		poolOptions: {
+			forks: {
+				execArgv: [
+					'--experimental-strip-types',
+					'--experimental-transform-types',
+					'--disable-warning=ExperimentalWarning',
+					// Use our own ESM loader to help resolve modules within the Worker script.
+					'--import',
+					join(
+						import.meta.dirname,
+						'../../meta/src/node-es-module-loader/register.mts'
+					),
+				],
+			},
+		},
 	},
 });

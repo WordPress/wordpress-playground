@@ -217,6 +217,25 @@ export class WordPressFetchNetworkTransport {
 					delete_site_transient($php_transient_key);
 				}
 
+				// Set up custom error handler to suppress specific WordPress.org connection warnings:
+				// * wp_update_plugins(): An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/forums/">support forums</a>. (WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.) in /wordpress/wp-includes/functions.php on line 135
+				// * wp_update_themes(): An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/forums/">support forums</a>. (WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.) in /wordpress/wp-includes/functions.php on line 135
+				// * wp_version_check(): An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/forums/">support forums</a>. (WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.) in /wordpress/wp-includes/functions.php on line 135
+				$previous_error_handler = set_error_handler(function($errno, $errstr, $errfile, $errline) {
+					global $previous_error_handler;
+					if (
+						strpos($errstr, 'WordPress could not establish a secure connection to WordPress.org') !== false ||
+						strpos($errstr, 'An unexpected error occurred. Something may be wrong with WordPress.org') !== false
+					) {
+						return true;
+					}
+					// For all other errors, use the previous error handler or default behavior
+					if ($previous_error_handler) {
+						return call_user_func($previous_error_handler, $errno, $errstr, $errfile, $errline);
+					}
+					return false; // Use default error handling
+				});
+
 				if (!$existing_transients['update_plugins']) {
 					wp_update_plugins();
 					delete_site_transient('update_plugins');

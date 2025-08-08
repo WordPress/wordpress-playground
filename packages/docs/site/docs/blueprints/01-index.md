@@ -12,7 +12,7 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"landingPage": "/wp-admin/",
 	"preferredVersions": {
-		"php": "8.0",
+		"php": "8.3",
 		"wp": "latest"
 	},
 	"steps": [
@@ -45,13 +45,13 @@ Blueprints fetch any resources you declare for you. You don't have to worry abou
 
 ### You can link to a Blueprint-preconfigured Playground
 
-Because Blueprints can be pasted in the URL, you can embed or link to a Playground with a specific configuration. For example, clicking this button will open a Playground with PHP 7.4 and a pendant theme installed:
+Because Blueprints can be pasted in the URL, you can embed or link to a Playground with a specific configuration. For example, clicking this button will open a Playground with PHP 8.3 and a pendant theme installed:
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
   		"wp": "latest"
 	},
 	"steps": [

@@ -2,13 +2,13 @@
  * This file is an Emscripten "library" file. It is included in the
  * build "php-8.0.js" file and implements JavaScript functions that
  * called from C code.
- * 
+ *
  * @see https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#implement-a-c-api-in-javascript
  */
 /**
  * JSPI vs Asyncify
  * -----------------
- * 
+ *
  * This file contains many fragments similar to this one:
  *
  *     #if ASYNCIFY == 2
@@ -21,7 +21,7 @@
  *
  * This is a way of making syscalls synchronous with Asyncify (to support Node < 23) and asynchronous with JSPI (to support web browsers).
  * It is cumbersome, but it is much easier than using and debugging Asyncify.
- * 
+ *
  * When JSPI is available (ASYNCIFY == 2), we can safely use promises and async/await.
  *
  * When JSPI is not available (ASYNCIFY == 1), we still invoke methods from another worker, but we do so
@@ -63,36 +63,29 @@ const LibraryForFileLocking = {
 			[1]: 'exclusive',
 			[2]: 'unlocked',
 		},
-
-		is_shared_fs_node(node) {
-			if (node?.isSharedFS) {
-				return true;
-			}
-
-			// Handle PROXYFS nodes which wrap other nodes.
-			if (
-				!node?.mount?.opts?.fs?.lookupPath ||
-				!node?.mount?.type?.realPath
-			) {
-				return false;
-			}
-
-			// Only NODEFS can be shared between workers at the moment.
-			if (node.mount.type !== NODEFS) {
-				return false;
-			}
-			const vfsPath = node.mount.type.realPath(node);
-			try {
-				const underlyingNode =
-					node.mount.opts.fs.lookupPath(vfsPath)?.node;
-				return !!underlyingNode?.isSharedFS;
-			} catch (e) {
-				return false;
-			}
-		},
 		is_path_to_shared_fs(path) {
-			const { node } = FS.lookupPath(path);
-			return locking.is_shared_fs_node(node);
+			_js_wasm_trace('is_path_to_shared_fs(%s)', path);
+			const { node } = FS.lookupPath(
+				path,
+				{ noent_okay: true },
+			);
+			if (node.mount.type !== PROXYFS) {
+				return !!node.isSharedFS;
+			}
+
+			// This looks like a PROXYFS node. Let's try a lookup.
+			const nodePath = PROXYFS.realPath(node);
+			const backingFs = node?.mount?.opts?.fs;
+			if (backingFs) {
+				// Tolerate ENOENT because looking up a MEMFS node by path always fails.
+				const { node: backingNode } = backingFs.lookupPath(
+					nodePath,
+					{ noent_okay: true }
+				);
+				return !!backingNode?.isSharedFS;
+			}
+
+			return false;
 		},
 		get_fd_access_mode(fd) {
 			const emscripten_F_GETFL = Number('{{{cDefs.F_GETFL}}}');
@@ -111,8 +104,18 @@ const LibraryForFileLocking = {
 		},
 
 		get_native_path_from_vfs_path(vfsPath) {
-			const { node } = FS.lookupPath(vfsPath);
-			return NODEFS.realPath(node);
+			// TODO: Should there be a try/catch here?
+			const { node } = FS.lookupPath(vfsPath, {});
+			if (node.mount.type === NODEFS) {
+				return NODEFS.realPath(node);
+			} else if (node.mount.type === PROXYFS) {
+				// TODO: Tolerate ENOENT here?
+				const { node: backingNode, path: backingPath } = node.mount.opts.fs.lookupPath(vfsPath);
+				_js_wasm_trace('backingNode for %s: %s', vfsPath, backingPath, backingNode);
+				return backingNode.mount.type.realPath(backingNode);
+			} else {
+				throw new Error(`Unsupported filesystem type for path ${vfsPath}`);
+			}
 		},
 
 		check_lock_params(fd, l_type) {
@@ -338,6 +341,8 @@ const LibraryForFileLocking = {
 						return -ERRNO_CODES.EBADF;
 					}
 
+					const flockStructAddr = syscallGetVarargP();
+
 					if (!locking.is_path_to_shared_fs(vfsPath)) {
 						_js_wasm_trace(
 							"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
@@ -353,7 +358,6 @@ const LibraryForFileLocking = {
 						return 0;
 					}
 
-					const flockStructAddr = syscallGetVarargP();
 					const flockStruct = read_flock_struct(flockStructAddr);
 
 					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
@@ -540,7 +544,7 @@ const LibraryForFileLocking = {
 						vfsPath,
 						rangeLock
 					);
-						
+
 					try {
 						const succeeded = (
 #if ASYNCIFY == 2
@@ -552,7 +556,7 @@ const LibraryForFileLocking = {
 							)
 #endif
 						);
-						
+
 						_js_wasm_trace(
 							'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
 							fd,

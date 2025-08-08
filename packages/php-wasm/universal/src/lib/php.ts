@@ -50,6 +50,9 @@ export type MountHandler = (
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
 
+export const USE_OPCACHE = true;
+const OPCACHE_FILE_FOLDER = '/internal/shared/opcache';
+
 type MountObject = {
 	mountHandler: MountHandler;
 	unmount: () => Promise<any>;
@@ -231,6 +234,42 @@ export class PHP implements Disposable {
 		);
 
 		if (!this.fileExists(PHP_INI_PATH)) {
+			const opcacheConfig = USE_OPCACHE
+				? [
+						// OPCache
+						'opcache.enable = 1',
+						'opcache.enable_cli = 1',
+						'opcache.jit = 0',
+						'opcache.interned_strings_buffer = 8',
+						'opcache.max_accelerated_files = 1000',
+						'opcache.memory_consumption = 64',
+						'opcache.max_wasted_percentage = 5',
+						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
+						// Always enable the file cache.
+						'opcache.file_cache_only = 1',
+						'opcache.file_cache_consistency_checks = 1',
+				  ]
+				: [];
+
+			/*if (
+				USE_OPCACHE &&
+				!(
+					runtime.phpVersion.major === 8 &&
+					runtime.phpVersion.minor === 4
+				)
+			) {
+				// Old versions of PHP are RAM hungry. By using the file cache, we can reduce
+				// the RAM usage during the first caching.
+				opcacheConfig.push(
+					'opcache.file_cache_only = 1',
+					'opcache.file_cache_consistency_checks = 1'
+				);
+			}*/
+
+			if (!this.fileExists(OPCACHE_FILE_FOLDER)) {
+				this.mkdir(OPCACHE_FILE_FOLDER);
+			}
+
 			this.writeFile(
 				PHP_INI_PATH,
 				[
@@ -252,6 +291,7 @@ export class PHP implements Disposable {
 					'output_buffering = 0',
 					'max_execution_time = 0',
 					'max_input_time = -1',
+					...opcacheConfig,
 				].join('\n')
 			);
 		}
@@ -427,9 +467,11 @@ export class PHP implements Disposable {
 		);
 
 		if (syncResponse.exitCode !== 0) {
-			// Legacy behavior: throw if PHP exited with a non-zero exit code.
+			// Legacy run() behavior: throw if PHP exited with a non-zero exit code.
 			// It could be a WASM crash, but it could be a PHP userland error such
 			// as "Fatal error: Uncaught Error: Call to undefined function no_such_function()".
+			//
+			// runStream() does not throw just because an exitCode is non-zero.
 			throw new PHPExecutionFailureError(
 				`PHP.run() failed with exit code ${syncResponse.exitCode}. \n\n=== Stdout ===\n ${syncResponse.text}\n\n=== Stderr ===\n ${syncResponse.errors}`,
 				syncResponse,
@@ -612,39 +654,39 @@ export class PHP implements Disposable {
 			}
 		);
 
-		// Free up resources when the response is done
-		await streamedResponsePromise
-			.catch((error) => {
-				/**
-				 * Dispatch a request.error event for any global crash handlers. For example,
-				 * Playground web uses this to automatically display a "Report crash" modal.
-				 */
-				this.dispatchEvent({
-					type: 'request.error',
-					error: error as Error,
-					// Distinguish between PHP request and PHP-wasm errors
-					source: (error as any).source ?? 'php-wasm',
-				});
-
-				// Rethrow the error. We don't want to swallow it.
-				throw error;
-			})
-			.finally(() => {
-				if (heapBodyPointer) {
+		const cleanup = () => {
+			if (heapBodyPointer) {
+				try {
 					this[__private__dont__use].free(heapBodyPointer);
+				} catch (e) {
+					logger.error(e);
 				}
-			})
-			.finally(() => {
-				release();
-				/**
-				 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
-				 * another request.
-				 */
-				this.dispatchEvent({
-					type: 'request.end',
-				});
+			}
+
+			// Release the "request in progress" semaphore.
+			release();
+
+			/**
+			 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
+			 * another request.
+			 */
+			this.dispatchEvent({
+				type: 'request.end',
 			});
-		return streamedResponsePromise;
+		};
+
+		// Free up resources once the request is fully handled.
+		return streamedResponsePromise.then(
+			(streamedResponse) => {
+				streamedResponse.finished.finally(cleanup);
+				return streamedResponse;
+			},
+			(error) => {
+				// If we couldn't even get the response,
+				cleanup();
+				throw error;
+			}
+		);
 	}
 
 	/**
@@ -995,7 +1037,40 @@ export class PHP implements Disposable {
 			}
 		};
 
-		const exitCodePromise = runExecutionFunction();
+		/**
+		 * Dispatch a request.error event for any global crash handlers. For example,
+		 * Playground web uses this to automatically display a "Report crash" modal.
+		 */
+		const exitCodePromise = runExecutionFunction().then(
+			(exitCode) => {
+				/**
+				 * Emit errors related to PHP script failures (exit code other than 0)
+				 */
+				if (exitCode !== 0) {
+					this.dispatchEvent({
+						type: 'request.error',
+						error: new Error(
+							`PHP.run() failed with exit code ${exitCode}.`
+						),
+						// Distinguish between PHP request and PHP-wasm errors
+						source: 'php-wasm',
+					});
+				}
+				return exitCode;
+			},
+			(error) => {
+				/**
+				 * Emit all other errors.
+				 */
+				this.dispatchEvent({
+					type: 'request.error',
+					error: error as any as Error,
+					// Distinguish between PHP request and PHP-wasm errors
+					source: (error as any).source ?? 'php-wasm',
+				});
+				throw error;
+			}
+		);
 
 		return new StreamedPHPResponse(
 			headers.stream,

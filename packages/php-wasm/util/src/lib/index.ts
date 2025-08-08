@@ -34,3 +34,5 @@ export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
 	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b)))
 		.buffer as ArrayBuffer;
 }
+
+export * from './types';

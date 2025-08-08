@@ -1,42 +1,42 @@
 {
 	"version.label": {
-		"message": "Next",
+		"message": "次",
 		"description": "The label for version current"
 	},
 	"sidebar.mainSidebar.category.Documentation": {
-		"message": "Documentation",
+		"message": "ドキュメント",
 		"description": "The label for category Documentation in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.About Playground": {
-		"message": "About Playground",
+		"message": "プレイグラウンドについて",
 		"description": "The label for category About Playground in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Guides": {
-		"message": "Guides",
+		"message": "ガイド",
 		"description": "The label for category Guides in sidebar mainSidebar"
 	},
 	"sidebar.mainSidebar.category.Contributing": {
-		"message": "Contributing",
+		"message": "貢献",
 		"description": "The label for category Contributing in sidebar mainSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Blueprints": {
-		"message": "Blueprints",
+		"message": "ブループリント",
 		"description": "The label for category Blueprints in sidebar blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Tutorial": {
-		"message": "Tutorial",
+		"message": "チュートリアル",
 		"description": "The label for category Tutorial in sidebar blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Steps": {
-		"message": "Steps",
+		"message": "手順",
 		"description": "The label for category Steps in sidebar blueprintsSidebar"
 	},
 	"sidebar.developersSidebar.category.Developers": {
-		"message": "Developers",
+		"message": "開発者",
 		"description": "The label for category Developers in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Local Development": {
-		"message": "Local Development",
+		"message": "ローカル開発",
 		"description": "The label for category Local Development in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Playground APIs": {
@@ -48,7 +48,7 @@
 		"description": "The label for category Javascript API in sidebar developersSidebar"
 	},
 	"sidebar.developersSidebar.category.Architecture": {
-		"message": "Architecture",
+		"message": "アーキテクチャー",
 		"description": "The label for category Architecture in sidebar developersSidebar"
 	}
 }
