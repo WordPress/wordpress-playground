@@ -26,7 +26,12 @@ export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
 import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
+import {
+	compileBlueprint,
+	runBlueprintSteps,
+	getBlueprintDeclaration,
+} from '@wp-playground/blueprints';
+import { runBlueprintV2Web } from './run-blueprint-v2-web';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
@@ -126,11 +131,16 @@ export async function startPlaygroundWeb({
 		blueprint = {};
 	}
 
-	const compiled = await compileBlueprint(blueprint, {
-		progress: progressTracker.stage(0.5),
-		onStepCompleted: onBlueprintStepCompleted,
-		corsProxy,
-	});
+	const blueprintDecl = await getBlueprintDeclaration(blueprint);
+	const isV2 = (blueprintDecl as any)?.version === 2;
+
+	const compiled = isV2
+		? null
+		: await compileBlueprint(blueprint, {
+				progress: progressTracker.stage(0.5),
+				onStepCompleted: onBlueprintStepCompleted,
+				corsProxy,
+		  });
 
 	await new Promise((resolve) => {
 		iframe.src = remoteUrl;
@@ -152,8 +162,8 @@ export async function startPlaygroundWeb({
 		sapiName,
 		scope: scope ?? Math.random().toFixed(16),
 		shouldInstallWordPress,
-		phpVersion: compiled.versions.php,
-		wpVersion: compiled.versions.wp,
+		phpVersion: compiled ? compiled.versions.php : undefined,
+		wpVersion: compiled ? compiled.versions.wp : undefined,
 		withICU: compiled.features.intl,
 		withNetworking: compiled.features.networking,
 		corsProxyUrl: corsProxy,
@@ -169,13 +179,38 @@ export async function startPlaygroundWeb({
 		await onBeforeBlueprint();
 	}
 
-	await runBlueprintSteps(compiled, playground);
+	if (isV2) {
+		// For v2, download the phar and run
+		const downloadV2 = progressTracker.stage(
+			0.25,
+			'Downloading Blueprints runner'
+		);
+		// getV2Runner() is called inside runBlueprintV2Web, but we want to show progress
+		// for the overall run: start the stage before invoking and finish when CLI starts.
+		try {
+			const streamed = await runBlueprintV2Web({
+				php: playground as any,
+				blueprint: blueprintDecl as any,
+				onMessage: (msg) => {
+					if (msg.type === 'blueprint.progress') {
+						progressTracker.set(msg.progress, msg.caption);
+					}
+				},
+			});
+			downloadV2.finish();
+			await streamed.finished;
+		} finally {
+			downloadV2.finish();
+		}
+	} else {
+		await runBlueprintSteps(compiled!, playground);
+	}
 	/**
 	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 	 *
 	 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 	 */
-	if (compiled.features.networking) {
+	if (!isV2 && compiled!.features.networking) {
 		await playground.prefetchUpdateChecks();
 	}
 	progressTracker.finish();
