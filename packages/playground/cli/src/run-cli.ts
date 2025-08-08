@@ -370,6 +370,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		delete args['quiet'];
 	}
 
+	// Promote "debug" flag to verbosity but keep args.debug around – the
+	// program behavior may change in more ways than just logging verbosity
+	// when debug mode is enabled, e.g. error objects may carry additional details.
+	if (args.debug) {
+		args.verbosity = 'debug';
+	} else if (args.verbosity === 'debug') {
+		args.debug = true;
+	}
+
 	if (args.verbosity) {
 		logger.filterByVerbosity(args.verbosity);
 	}
