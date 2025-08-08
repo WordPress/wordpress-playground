@@ -22,14 +22,14 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }
 ```
 
 And then you would go to
-`https://playground.wordpress.net/#{"preferredVersions":{"php":"7.4","wp":"6.5"}}`.
+`https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 
 :::tip
 In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
@@ -39,11 +39,11 @@ Example:
 const blueprintJson = `{
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }`;
-const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"7.4","wp":"6.5"}}
+const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"8.3","wp":"6.5"}}
 ```
 
 :::
@@ -54,7 +54,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }} />
@@ -74,7 +74,7 @@ Example:
 const blueprintJson = `{
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "6.5"
 	}
 }`;
@@ -138,7 +138,7 @@ You can also use Blueprints with the JavaScript API using the `startPlaygroundWe
 		blueprint: {
 			landingPage: '/wp-admin/',
 			preferredVersions: {
-				php: '8.0',
+				php: '8.3',
 				wp: 'latest',
 			},
 			steps: [

@@ -12,6 +12,7 @@ import type { FileLockManager } from './file-lock-manager';
 import { withICUData } from './data/with-icu-data';
 import { withXdebug } from './xdebug/with-xdebug';
 import { joinPaths } from '@php-wasm/util';
+import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
@@ -41,7 +42,11 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 * file lock managers are supported.
 		 * When running with Asyncify, the file lock manager must be synchronous.
 		 */
-		fileLockManager?: RemoteAPI<FileLockManager> | FileLockManager;
+		fileLockManager?:
+			| RemoteAPI<FileLockManager>
+			// Allow promised type for testing without providing true RemoteAPI.
+			| Promised<FileLockManager>
+			| FileLockManager;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -90,7 +95,7 @@ export async function loadNodeRuntime(
 			 * in the Emscripten's filesystem and mount the OS directory
 			 * to the Emscripten filesystem.
 			 *
-			 * The directory is mounted to the `/internals/symlinks` directory to avoid
+			 * The directory is mounted to the `/internal/symlinks` directory to avoid
 			 * conflicts with existing VFS directories.
 			 * We can set a arbitrary mount path because readlink is the source of truth
 			 * for the path and Emscripten will accept it as if it was the real link path.
@@ -106,7 +111,7 @@ export async function loadNodeRuntime(
 							)
 						);
 					const symlinkPath = joinPaths(
-						`/internals/symlinks`,
+						`/internal/symlinks`,
 						absoluteSourcePath
 					);
 					if (

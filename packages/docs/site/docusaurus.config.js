@@ -33,7 +33,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja', 'pt-br'],
+		locales: ['en', 'es', 'fr', 'ja', 'pt-br', 'tl', 'gu'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -54,6 +54,14 @@ const config = {
 			'pt-br': {
 				label: 'Português (BR)',
 				path: 'pt-BR',
+			},
+			tl: {
+				label: 'Tagalog',
+				path: 'tl',
+			},
+			gu: {
+				label: 'Gujarati',
+				path: 'gu',
 			},
 		},
 	},
@@ -159,21 +167,16 @@ const config = {
 						label: 'API Reference',
 						position: 'left',
 					},
-					// {
-					// 	href: 'https://playground.wordpress.net/gutenberg.html',
-					// 	label: 'Gutenberg PR Previewer',
-					// 	position: 'right',
-					// },
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
 					},
-					// {
-					// 	type: 'localeDropdown',
-					// 	position: 'right',
-					// },
+					{
+						type: 'localeDropdown',
+						position: 'right',
+					},
 				],
 			},
 			footer: {

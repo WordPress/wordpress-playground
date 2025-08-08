@@ -348,7 +348,13 @@ export abstract class FetchResource extends Resource<File> {
 			if (response.status !== 200) {
 				throw new Error(`Could not download "${url}"`);
 			}
-			return new File([await response.blob()], this.name);
+			const filename =
+				this.name ||
+				parseContentDisposition(
+					response.headers.get('content-disposition') || ''
+				) ||
+				encodeURIComponent(url);
+			return new File([await response.blob()], filename);
 		} catch (e) {
 			throw new Error(
 				`Could not download "${url}".
@@ -409,6 +415,48 @@ export abstract class FetchResource extends Resource<File> {
 	override get isAsync(): boolean {
 		return true;
 	}
+}
+
+/**
+ * Parses the Content-Disposition header to extract the filename.
+ *
+ * @param contentDisposition The Content-Disposition header value
+ * @returns The filename if found, null otherwise
+ */
+function parseContentDisposition(contentDisposition: string): string | null {
+	if (!contentDisposition) {
+		return null;
+	}
+
+	// Handle both filename and filename* parameters
+	const filenameMatch = contentDisposition.match(/filename\*?=([^;]+)/i);
+	if (!filenameMatch) {
+		return null;
+	}
+
+	let filename = filenameMatch[1].trim();
+
+	// Remove surrounding quotes
+	if (
+		(filename.startsWith('"') && filename.endsWith('"')) ||
+		(filename.startsWith("'") && filename.endsWith("'"))
+	) {
+		filename = filename.slice(1, -1);
+	}
+
+	// Handle RFC 5987 encoded filenames (filename*=UTF-8''example.txt)
+	if (filenameMatch[0].includes('filename*')) {
+		const encodedMatch = filename.match(/^[^']*'[^']*'(.+)$/);
+		if (encodedMatch) {
+			try {
+				filename = decodeURIComponent(encodedMatch[1]);
+			} catch {
+				// If decoding fails, use the original filename
+			}
+		}
+	}
+
+	return filename;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function

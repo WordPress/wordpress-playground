@@ -62,13 +62,30 @@ export class WritablePolyfill extends EventEmitterPolyfill {
 
 		if (this.ended) {
 			const err = new Error('write after end');
-			this.defer(() => cb(err));
+			// We can't call this.defer() directly. If this.defer is
+			// `queueMicrotask`, a `this.defer()` call will pass the
+			// WritablePolyfill instance as `this` argument and cause
+			// the browser to throw an error similar to "Invalid
+			// invocation".
+			const defer = this.defer;
+			defer(() => cb(err));
 			this.emit('error', err);
 			return false;
 		}
 
 		if (this.decodeStrings && typeof chunk === 'string') {
-			chunk = Buffer.from(chunk, encoding as BufferEncoding);
+			if (
+				typeof Buffer !== 'undefined' &&
+				typeof (Buffer as any).from === 'function'
+			) {
+				chunk = Buffer.from(chunk, encoding as BufferEncoding);
+			} else if (typeof TextEncoder !== 'undefined') {
+				chunk = new TextEncoder().encode(chunk);
+			} else {
+				throw new Error(
+					'String chunks are not supported in this environment: Buffer and TextEncoder are unavailable.'
+				);
+			}
 			encoding = 'buffer' as BufferEncoding;
 		}
 
