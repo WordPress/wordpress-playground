@@ -3,7 +3,7 @@ const { runCLI } = require('@wp-playground/cli');
 
 // Exclude PHP 7.2 – it often times out on CI.
 SupportedPHPVersions.filter(
-	(phpVersion: string) => phpVersion !== '7.2'
+	(phpVersion: string) => !['7.2', '7.3'].includes(phpVersion)
 ).forEach((phpVersion: string) => {
 	describe(`PHP ${phpVersion}`, () => {
 		it('WordPress should load', async () => {

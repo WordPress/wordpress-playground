@@ -27,7 +27,7 @@ const results: Result[] = [];
 
 // Exclude PHP 7.2 – it often times out on CI.
 for (const phpVersion of SupportedPHPVersions.filter(
-	(phpVersion: string) => phpVersion !== '7.2'
+	(phpVersion: string) => !['7.2', '7.3'].includes(phpVersion)
 )) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 

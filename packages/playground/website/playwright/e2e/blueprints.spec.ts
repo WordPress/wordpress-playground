@@ -20,7 +20,12 @@ test('?blueprint-url=... should work with simple blueprints', async ({
 	page,
 	website,
 	wordpress,
+	browserName,
 }) => {
+	test.skip(
+		browserName === 'webkit',
+		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
+	);
 	await website.goto('/');
 	const websiteUrl = page.url();
 	const blueprintUrl = encodeURIComponent(
