@@ -70,7 +70,7 @@ export default defineConfig(({ command, mode }) => {
 		server: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			allowedHosts: ['playground.test'],
+			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				...proxy,
 				// Proxy requests to the remote content through this server for dev
