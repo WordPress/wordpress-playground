@@ -366,7 +366,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	// Keeping 'quiet' option to preserve backward compatibility
 	if (args.quiet) {
-		logger.filterByVerbosity('quiet');
+		args.verbosity = 'quiet';
+		delete args['quiet'];
 	}
 
 	if (args.verbosity) {
