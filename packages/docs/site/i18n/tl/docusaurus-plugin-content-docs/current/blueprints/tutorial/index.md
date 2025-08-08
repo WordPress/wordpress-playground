@@ -1,6 +1,6 @@
 ---
 title: Blueprints 101
-description: Panimulang kurso sa Blueprints
+description: Entrance to a short course on Blueprints
 hide_table_of_contents: false
 slug: /blueprints/tutorial
 ---
