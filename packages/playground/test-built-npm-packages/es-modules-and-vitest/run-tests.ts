@@ -26,7 +26,9 @@ type Result = {
 const results: Result[] = [];
 
 // Exclude PHP 7.2 – it often times out on CI.
-for (const phpVersion of SupportedPHPVersions.slice(0, -1)) {
+for (const phpVersion of SupportedPHPVersions.filter(
+	(phpVersion: string) => phpVersion !== '7.2'
+)) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 
 	const child = spawn(
