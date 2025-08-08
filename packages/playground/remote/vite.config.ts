@@ -12,6 +12,8 @@ import { copyFileSync, existsSync } from 'fs';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 
@@ -38,6 +40,7 @@ const plugins = [
 			}
 		},
 	} as Plugin,
+	...viteGlobalExtensions,
 	buildVersionPlugin('remote-config'),
 ];
 

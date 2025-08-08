@@ -9,6 +9,8 @@ import { join } from 'path';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	assetsInclude: ['**/*.phar'],
@@ -25,19 +27,7 @@ export default defineConfig({
 			root: '../../../',
 		}),
 
-		{
-			name: 'base64-loader',
-			transform(_: any, id: string) {
-				const url = new URL(id, 'file://');
-				if (!url.searchParams.has('base64')) return null;
-				const path = url.pathname;
-
-				const data = fs.readFileSync(path);
-				const base64 = data.toString('base64');
-
-				return `export default '${base64}';`;
-			},
-		},
+		...viteGlobalExtensions,
 	],
 
 	// Configuration for building your library.
