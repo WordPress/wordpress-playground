@@ -92,10 +92,17 @@ export class Logger extends EventTarget {
 	 * @param log Log
 	 * @param args any
 	 */
-	public logMessage(log: Log, ...args: any[]): void {
+	public logMessage(
+		log: Omit<Log, 'severity'> & { severity?: LogSeverity },
+		...args: any[]
+	): void {
+		const logWithSeverity: Log = {
+			...log,
+			severity: log.severity ?? LogSeverity.Log,
+		};
 		for (const handler of this.handlers) {
-			if (log.severity.level <= this.verbosity) {
-				handler(log, ...args);
+			if (logWithSeverity.severity.level <= this.verbosity) {
+				handler(logWithSeverity, ...args);
 			}
 		}
 	}
