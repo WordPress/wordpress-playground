@@ -10,10 +10,8 @@ export async function getV2Runner(): Promise<File> {
 	 * for the new .phar file.
 	 */
 	// @ts-ignore
-	const v2_runner_url = '';
-	// Comment this out to see if the CI checks will pass now.
-	// (await import('../../../public/blueprints.phar?url'))
-	// 	.default;
+	const v2_runner_url = (await import('../../../public/blueprints.phar?url'))
+		.default;
 
 	/**
 	 * Only load the v2 runner via node:fs when running in Node.js.
