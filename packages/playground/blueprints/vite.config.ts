@@ -1,5 +1,4 @@
 /// <reference types="vitest" />
-import fs from 'node:fs';
 import { defineConfig } from 'vite';
 
 import dts from 'vite-plugin-dts';

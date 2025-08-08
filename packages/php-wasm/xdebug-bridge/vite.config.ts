@@ -5,6 +5,8 @@ import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-xdebug-bridge',
@@ -19,6 +21,8 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
+
+		...viteGlobalExtensions,
 	],
 
 	build: {
