@@ -177,7 +177,10 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                part: ['chromium', 'firefox', 'webkit']
+                # WebKit runner is disabled in CI – it used to be enabled but the tests
+                # failed randomly without any obvious reason.
+                # @see https://github.com/WordPress/wordpress-playground/pull/2475
+                part: ['chromium', 'firefox']
         steps:
             - uses: actions/checkout@v4
               with:
