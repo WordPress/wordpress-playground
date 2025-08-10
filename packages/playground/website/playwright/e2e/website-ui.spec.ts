@@ -163,7 +163,7 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.page.getByRole('menuitem', { name: 'Rename' }).click();
 
 	const newName = 'My Renamed Playground';
-	const nameInput = website.page.getByRole('textbox', { name: 'Name' });
+	const nameInput = website.page.getByLabel('Name');
 	await nameInput.fill('');
 	await nameInput.type(newName);
 	await nameInput.press('Enter');
