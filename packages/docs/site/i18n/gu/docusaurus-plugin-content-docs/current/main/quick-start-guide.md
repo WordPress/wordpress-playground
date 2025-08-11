@@ -3,8 +3,7 @@ title: ઝડપી પ્રારંભ માર્ગદર્શિકા
 slug: /quick-start-guide
 ---
 
-<!-- import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md'; -->
-'@site/docs/\_fragments/\_this_is_query_api.md' માંથી ThisIsQueryApi આયાત કરો.
+import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
 
 <!-- # Start using WordPress Playground in 5 minutes -->
 # 5 મિનિટમાં વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉપયોગ શરૂ કરો
@@ -12,13 +11,12 @@ slug: /quick-start-guide
 <!-- WordPress Playground can help you with any of the following: -->
 વર્ડપ્રેસ પ્લેગ્રાઉન્ડ તમને નીચેના પૈકી કોઈ પણ બાબતમાં મદદ કરી શકે છે:
 
-<!-- import TOCInline from '@theme/TOCInline'; -->
-'@theme/TOCInline' માંથી TOCInline આયાત કરો.
+import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
 <!-- This page will guide you through each of these. Oh, and if you're a visual learner – here's a video: -->
-આ પેજ તમને આ બધી બાબતોમાં માર્ગદર્શન આપશે. ઓહ, અને જો તમે દ્રશ્ય શીખનાર છો - તો અહીં એક વિડિઓ છે:"
+આ પેજ તમને આ બધી બાબતોમાં માર્ગદર્શન આપશે. ઓહ, અને જો તમે દ્રશ્ય શીખનાર છો - તો અહીં એક વિડિઓ છે:
 
 <!-- <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe> -->
 <iframe width="752" height="423.2" title="વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે શરૂઆત કરવી" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
@@ -79,8 +77,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 તમારી વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાઇટને એક જ બ્રાઉઝર સેશન કરતાં વધુ સમય સુધી રાખવા માટે, તમે તેને .zip ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો.
 
 <!-- 1. Open the Playground site manager panel: -->
-1. Open the Playground site manager panel:
-પ્લેગ્રાઉન્ડ સાઇટ મેનેજર પેનલ ખોલો:
+1. પ્લેગ્રાઉન્ડ સાઇટ મેનેજર પેનલ ખોલો:
 
 <!-- ![Site Manager](@site/static/img/open-site-manager.webp) -->
 ![સાઇટ મેનેજર](@site/static/img/open-site-manager.webp)
