@@ -61,7 +61,7 @@ type GitDirectoryReference = {
 };
 ```
 
-Example:
+**Example:**
 
 ```json
 {
@@ -78,9 +78,10 @@ Example:
 }
 ```
 
-Notes:
+**Notes:**
 
--   Playground auto-detects common providers (e.g., GitHub/GitLab) and handles CORS-proxied fetches and sparse checkouts under the hood, enabling URLs like repository subdirectories and branches.
+-   Playground automatically detects providers like GitHub and GitLab.
+-   It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
 -   This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
 
 ### CoreThemeReference
