@@ -4,7 +4,6 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
-import { jspi } from 'wasm-feature-detect';
 import fs from 'fs';
 import { getXdebugExtensionModule } from './get-xdebug-extension-module';
 
@@ -12,10 +11,6 @@ export async function withXdebug(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
-	if (!(await jspi())) {
-		throw new Error('Xdebug is currently only supported in JSPI mode.');
-	}
-
 	const fileName = 'xdebug.so';
 	const filePath = await getXdebugExtensionModule(version);
 	const extension = fs.readFileSync(filePath);
@@ -30,7 +25,8 @@ export async function withXdebug(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/* The extension file previously read
+			/**
+			 * The extension file previously read
 			 * is written inside the /extensions directory
 			 */
 			if (

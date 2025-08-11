@@ -81,6 +81,10 @@ export interface CompileBlueprintOptions {
 	 * A filesystem to use for the blueprint.
 	 */
 	streamBundledFile?: StreamBundledFile;
+	/**
+	 * Additional steps to add to the blueprint.
+	 */
+	additionalSteps?: any[];
 }
 
 export async function compileBlueprint(
@@ -135,6 +139,7 @@ function compileBlueprintJson(
 		onStepCompleted = () => {},
 		corsProxy,
 		streamBundledFile,
+		additionalSteps,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = structuredClone(blueprint);
@@ -145,6 +150,9 @@ function compileBlueprintJson(
 			.filter(isStepDefinition)
 			.filter(isStepStillSupported),
 	};
+
+	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
+
 	for (const step of blueprint.steps!) {
 		if (!step || typeof step !== 'object') {
 			continue;
@@ -365,8 +373,18 @@ function compileBlueprintJson(
 				}
 			} finally {
 				try {
+					/**
+					 * Use an intermediate redirection step to ensure the login cookies
+					 * are set before we redirecting to the landing page.
+					 *
+					 * @see playground_auto_login_redirect_target in the @wp-playground/wordpress package.
+					 */
+					const targetUrl = await (
+						playground as any
+					).pathToInternalUrl(blueprint.landingPage || '/');
 					await (playground as any).goTo(
-						blueprint.landingPage || '/'
+						'/index.php?playground-redirection-handler&next=' +
+							encodeURIComponent(targetUrl)
 					);
 				} catch {
 					/**

@@ -33,7 +33,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja', 'pt-BR'],
+		locales: ['en', 'es', 'fr', 'ja', 'pt-br', 'tl', 'gu'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -51,9 +51,17 @@ const config = {
 				label: 'Japanese',
 				path: 'ja',
 			},
-			'pt-BR': {
+			'pt-br': {
 				label: 'Português (BR)',
 				path: 'pt-BR',
+			},
+			tl: {
+				label: 'Tagalog',
+				path: 'tl',
+			},
+			gu: {
+				label: 'Gujarati',
+				path: 'gu',
 			},
 		},
 	},
@@ -121,6 +129,7 @@ const config = {
 	themeConfig:
 		/** @type {import('@docusaurus/preset-classic').ThemeConfig} */
 		({
+			image: 'img/playground-social-logo.png',
 			algolia: {
 				appId: 'EKWQ08DUQS',
 				apiKey: '2fcab4cf2c3596e775de8c4ab1fa065e',
@@ -131,8 +140,8 @@ const config = {
 				title: 'WordPress Playground',
 				logo: {
 					alt: 'WordPress Playground',
-					src: 'img/wordpress.svg',
-					srcDark: 'img/wordpress-dark.svg',
+					src: 'img/playground-logo.svg',
+					srcDark: 'img/playground-logo-dark.svg',
 				},
 				items: [
 					{
@@ -158,21 +167,16 @@ const config = {
 						label: 'API Reference',
 						position: 'left',
 					},
-					// {
-					// 	href: 'https://playground.wordpress.net/gutenberg.html',
-					// 	label: 'Gutenberg PR Previewer',
-					// 	position: 'right',
-					// },
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
 						className: 'header-github-link',
 						'aria-label': 'GitHub repository',
 					},
-					// {
-					// 	type: 'localeDropdown',
-					// 	position: 'right',
-					// },
+					{
+						type: 'localeDropdown',
+						position: 'right',
+					},
 				],
 			},
 			footer: {
@@ -213,7 +217,7 @@ const config = {
 								href: 'https://github.com/WordPress/wordpress-playground',
 							},
 							{
-								label: '#meta-playground on Slack',
+								label: '#playground on Slack',
 								href: 'https://make.wordpress.org/chat',
 							},
 						],

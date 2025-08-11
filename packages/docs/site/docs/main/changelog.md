@@ -9,6 +9,391 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.9] (2025-08-11) 
+
+### **Breaking Changes**
+
+- [Website] Default demo content. ([#2412](https://github.com/WordPress/wordpress-playground/pull/2412))
+
+### Enhancements
+
+- [PHP Playground] Select WordPress version. ([#2472](https://github.com/WordPress/wordpress-playground/pull/2472))
+
+### Blueprints
+
+- [WordPress] Support auto-login with customize.php as a landing page. ([#2467](https://github.com/WordPress/wordpress-playground/pull/2467))
+
+### Documentation
+
+- Tagalog: Add translations for Blueprints Tutorial. ([#2477](https://github.com/WordPress/wordpress-playground/pull/2477))
+- Tagalog: Translations of Blueprints documentation page. ([#2476](https://github.com/WordPress/wordpress-playground/pull/2476))
+
+### Website
+
+- Open external links in a new tab/window. ([#2468](https://github.com/WordPress/wordpress-playground/pull/2468))
+
+### Internal
+
+- Skip flaky end-to-end tests. ([#2475](https://github.com/WordPress/wordpress-playground/pull/2475))
+
+### Various
+
+- Add Japanese translations to Blueprint Examples and Troubleshoot and debug. ([#2474](https://github.com/WordPress/wordpress-playground/pull/2474))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @rollybueno @shimotmk @zaerl
+
+
+## [v2.0.8] (2025-08-07) 
+
+### Blueprints
+
+- Fallback to URL-based file name when fetching remote ZIP files. ([#2470](https://github.com/WordPress/wordpress-playground/pull/2470))
+
+### Documentation
+
+- [Docs] Adding Resources, Web instance, and guides pages on Brazilian Portuguese. ([#2351](https://github.com/WordPress/wordpress-playground/pull/2351))
+- [Docs] Enabling language switcher. ([#2465](https://github.com/WordPress/wordpress-playground/pull/2465))
+
+### PHP WebAssembly
+
+- Fix resolving mounted symlinks in secondary PHP instances. ([#2444](https://github.com/WordPress/wordpress-playground/pull/2444))
+- [XDebug Bridge] List additional ASYNCIFY_ONLY functions to prevent  `unreachable` crashes when using Devtools. ([#2454](https://github.com/WordPress/wordpress-playground/pull/2454))
+
+### Website
+
+- [Browser] Do not use the Buffer class in web browsers. ([#2469](https://github.com/WordPress/wordpress-playground/pull/2469))
+- Add PHP Playground. ([#2463](https://github.com/WordPress/wordpress-playground/pull/2463))
+- Suppress PHP warnings when pre-fetching WordPress updates. ([#2458](https://github.com/WordPress/wordpress-playground/pull/2458))
+
+### Bug Fixes
+
+- Fix invalid filename "&lt;7.4" on Windows. ([#2461](https://github.com/WordPress/wordpress-playground/pull/2461))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @JanJakes @mho22
+
+
+## [v2.0.7] (2025-08-05) 
+
+### Tools
+
+- [ CLI ] Rename CLI binaries in `@php-wasm/cli` and `@wp-playground/cli`. ([#2441](https://github.com/WordPress/wordpress-playground/pull/2441))
+
+### Documentation
+
+- Updating Docusaurus version from 3.7 to 3.8. ([#2457](https://github.com/WordPress/wordpress-playground/pull/2457))
+- [Docs] Adding fixes to broken URLs. ([#2451](https://github.com/WordPress/wordpress-playground/pull/2451))
+- [Docs] Bump PHP version to avoid WordPress PHP version Warning. ([#2443](https://github.com/WordPress/wordpress-playground/pull/2443))
+
+### PHP WebAssembly
+
+- Patch the premature "request in progress" semaphore release. ([#2455](https://github.com/WordPress/wordpress-playground/pull/2455))
+
+### Bug Fixes
+
+- Re-enable Playground CLI tests. ([#2445](https://github.com/WordPress/wordpress-playground/pull/2445))
+
+### Various
+
+- Add check for SQLite driver missing in target folder. ([#2440](https://github.com/WordPress/wordpress-playground/pull/2440))
+- Adding CLI reference to Playground README. ([#2433](https://github.com/WordPress/wordpress-playground/pull/2433))
+- Adding Gujarati Intro documentation. ([#2450](https://github.com/WordPress/wordpress-playground/pull/2450))
+- Bump WordPress old version demo to version 6.2.1. ([#2460](https://github.com/WordPress/wordpress-playground/pull/2460))
+- Removing blog references on Docusaurus. ([#2456](https://github.com/WordPress/wordpress-playground/pull/2456))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @mho22 @nikunj8866 @zaerl
+
+
+## [v2.0.6] (2025-08-04) 
+
+### Documentation
+
+- Adding Contribution pages Spanish translation. ([#2431](https://github.com/WordPress/wordpress-playground/pull/2431))
+
+### PHP WebAssembly
+
+- Fix file locking for PROXYFS nodes that wrap NODEFS. ([#2437](https://github.com/WordPress/wordpress-playground/pull/2437))
+
+### Bug Fixes
+
+- Translations: Fix command typo in docs. ([#2449](https://github.com/WordPress/wordpress-playground/pull/2449))
+
+### Various
+
+- Add Japanese translations to Blueprint Bundles and API Consistency. ([#2438](https://github.com/WordPress/wordpress-playground/pull/2438))
+- Translations: Clean up version from PR #2336. ([#2448](https://github.com/WordPress/wordpress-playground/pull/2448))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @fellyph @rollybueno @shimotmk @vipul0425
+
+
+## [v2.0.5] (2025-07-28) 
+
+### Bug Fixes
+
+- Fix fcntl() F_GETLK fatal due to undefined flock struct address. ([#2432](https://github.com/WordPress/wordpress-playground/pull/2432))
+
+### Various
+
+- Add Japanese translations to contributing index and sidebar. ([#2434](https://github.com/WordPress/wordpress-playground/pull/2434))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @shimotmk
+
+
+## [v2.0.4] (2025-07-25) 
+
+### Public API
+
+
+#### Blueprints
+
+- Distribute @wp-playground/client without any package.json dependencies. ([#2426](https://github.com/WordPress/wordpress-playground/pull/2426))
+
+### Tools
+
+- Fix ESLint 9 linting in VSCode. ([#2417](https://github.com/WordPress/wordpress-playground/pull/2417))
+- [ xdebug ] Add `--experimental-devtools` option in Playground CLI. ([#2411](https://github.com/WordPress/wordpress-playground/pull/2411))
+
+### PHP WebAssembly
+
+- [PHP] Dispatch request.error for all non-zero-exit request handler errors. ([#2429](https://github.com/WordPress/wordpress-playground/pull/2429))
+
+### Website
+
+- Query Monitor plugin support. ([#2415](https://github.com/WordPress/wordpress-playground/pull/2415))
+
+### Internal
+
+- Skip flaky end-to-end tests in Firefox and Webkit. ([#2425](https://github.com/WordPress/wordpress-playground/pull/2425))
+
+### Bug Fixes
+
+- [Xdebug Bridge] Correct error related to unresolved promises in bridge. ([#2422](https://github.com/WordPress/wordpress-playground/pull/2422))
+
+### Various
+
+- Documentation add sidebar to blueprints bundles. ([#2397](https://github.com/WordPress/wordpress-playground/pull/2397))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @mho22 @shimotmk
+
+
+## [v2.0.3] (2025-07-24) 
+
+### Tools
+
+- [ xdebug ] Add `--experimental-devtools` option in php-wasm CLI. ([#2408](https://github.com/WordPress/wordpress-playground/pull/2408))
+
+### Bug Fixes
+
+- Playground CLI Allow /wordpress subdirs to be mounted before WP install. ([#2382](https://github.com/WordPress/wordpress-playground/pull/2382))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @mho22
+
+
+## [v2.0.2] (2025-07-23) 
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- [ xdebug ] Bridge DBGP session with CDP server. ([#2402](https://github.com/WordPress/wordpress-playground/pull/2402))
+
+### Internal
+
+- [Build] Preserve optionalDependencies in built package.json. ([#2410](https://github.com/WordPress/wordpress-playground/pull/2410))
+
+### 
+
+- Comlink] Throw the original error in the error handler. ([#2407](https://github.com/WordPress/wordpress-playground/pull/2407))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v2.0.1] (2025-07-23)
+
+### Blueprints
+
+-   Rewrite paths in the wp-cli step. Improve error reporting. ([#2406](https://github.com/WordPress/wordpress-playground/pull/2406))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v2.0.0] (2025-07-23)
+
+### Enhancements
+
+-   [Playground CLI] Improve error reporting. ([#2401](https://github.com/WordPress/wordpress-playground/pull/2401))
+-   [Playground CLI] Kebab-case yargs options declarations. ([#2399](https://github.com/WordPress/wordpress-playground/pull/2399))
+
+### Blueprints
+
+-   Expose Blueprints v2 runner in Playground CLI. ([#2394](https://github.com/WordPress/wordpress-playground/pull/2394))
+-   Extract Blueprint v1-specific parts of Playground CLI. ([#2392](https://github.com/WordPress/wordpress-playground/pull/2392))
+-   [Playground CLI] Separate Blueprints v1 and Blueprints v2 code paths. ([#2396](https://github.com/WordPress/wordpress-playground/pull/2396))
+
+### Tools
+
+-   [XDebug] Add a mock @php-wasm/xdebug-bridge package. ([#2398](https://github.com/WordPress/wordpress-playground/pull/2398))
+
+### Documentation
+
+-   Adding Brazilian Portuguese translation for developer documentation. ([#2391](https://github.com/WordPress/wordpress-playground/pull/2391))
+
+### Website
+
+-   [Remote] Use CORS proxy in embedded Playgrounds. ([#2369](https://github.com/WordPress/wordpress-playground/pull/2369))
+
+### Bug Fixes
+
+-   CLI: Fix --login option and "landingPage" Blueprint property. ([#2344](https://github.com/WordPress/wordpress-playground/pull/2344))
+
+### Various
+
+-   Add Japanese translations to steps and steps shorthands. ([#2386](https://github.com/WordPress/wordpress-playground/pull/2386))
+-   Add OPCache support. ([#2400](https://github.com/WordPress/wordpress-playground/pull/2400))
+-   [Node] Gracefully handle connection errors in the outbound network proxy. ([#2370](https://github.com/WordPress/wordpress-playground/pull/2370))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @shimotmk @zaerl
+
+## [v1.2.3] (2025-07-21)
+
+### Enhancements
+
+-   [Playground CLI] Consolidate auto mounting logic. ([#2360](https://github.com/WordPress/wordpress-playground/pull/2360))
+-   [Playground CLI] Move mounting code to mount.ts. ([#2362](https://github.com/WordPress/wordpress-playground/pull/2362))
+
+### Blueprints
+
+-   [CLI] Move Blueprints v2 to Playground CLI package. ([#2364](https://github.com/WordPress/wordpress-playground/pull/2364))
+
+### Public API
+
+#### Blueprints
+
+-   [Client] Accept wasm.wordpress.net as an official origin. ([#2368](https://github.com/WordPress/wordpress-playground/pull/2368))
+
+### Tools
+
+-   Make PHP 8.3 the default version. ([#2371](https://github.com/WordPress/wordpress-playground/pull/2371))
+
+#### PHP WebAssembly
+
+-   Add `--xdebug` option in php-wasm CLI and wp-playground CLI. ([#2346](https://github.com/WordPress/wordpress-playground/pull/2346))
+
+### Documentation
+
+-   Adding Playground CLI page and removing wp-now references. ([#2337](https://github.com/WordPress/wordpress-playground/pull/2337))
+-   Adding pt-br About and Launch Page. ([#2358](https://github.com/WordPress/wordpress-playground/pull/2358))
+-   Adding three new flags on the CLI README file. ([#2325](https://github.com/WordPress/wordpress-playground/pull/2325))
+-   Adding video content in Japanese to resources page. ([#2354](https://github.com/WordPress/wordpress-playground/pull/2354))
+-   Updating web instance page documentation. ([#2365](https://github.com/WordPress/wordpress-playground/pull/2365))
+
+### PHP WebAssembly
+
+-   [PHP-wasm Node] Remove unused node creation code from createNodeFsMountHandler. ([#2379](https://github.com/WordPress/wordpress-playground/pull/2379))
+-   [PHP-wasm] File mounting in NODEFS. ([#2338](https://github.com/WordPress/wordpress-playground/pull/2338))
+-   [PHP] Improve error logging. ([#2357](https://github.com/WordPress/wordpress-playground/pull/2357))
+-   [PHP] Isomorphic, reusable spawn handler. ([#2359](https://github.com/WordPress/wordpress-playground/pull/2359))
+-   [PHP] Refresh the latest PHP versions before recompiling. ([#2372](https://github.com/WordPress/wordpress-playground/pull/2372))
+-   [php-wasm/universal] Try require() before dynamic imprt in comlink-sync.ts. ([#2363](https://github.com/WordPress/wordpress-playground/pull/2363))
+
+### Website
+
+-   Deploy public web app after WP major/beta update. ([#2378](https://github.com/WordPress/wordpress-playground/pull/2378))
+
+### Bug Fixes
+
+-   Allow the WP update and changelog workflows to commit to trunk again. ([#2377](https://github.com/WordPress/wordpress-playground/pull/2377))
+-   Fix failing WP update workflows. ([#2376](https://github.com/WordPress/wordpress-playground/pull/2376))
+
+### Various
+
+-   Add Japanese translations to Resources References. ([#2352](https://github.com/WordPress/wordpress-playground/pull/2352))
+-   Add new logo and open graph image. ([#2350](https://github.com/WordPress/wordpress-playground/pull/2350))
+-   Adding Portuguese version for Code Standards, Code, and Documentation.. ([#2343](https://github.com/WordPress/wordpress-playground/pull/2343))
+-   Adding new icons and og:Image for the Playground Web instance. ([#2367](https://github.com/WordPress/wordpress-playground/pull/2367))
+-   Update Japanese translations to main directory. ([#2375](https://github.com/WordPress/wordpress-playground/pull/2375))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @fellyph @mho22 @shimotmk
+
+## [v1.2.2] (2025-07-14)
+
+### Enhancements
+
+-   Add --internal-cookie-store option for Playground CLI. ([#2323](https://github.com/WordPress/wordpress-playground/pull/2323))
+
+### Tools
+
+#### PHP WebAssembly
+
+-   [ php-wasm ] Add `xdebug` shared extension to @php-wasm/node ASYNCIFY. ([#2326](https://github.com/WordPress/wordpress-playground/pull/2326))
+
+### Documentation
+
+-   Add Japanese translations to Using Blueprints. ([#2330](https://github.com/WordPress/wordpress-playground/pull/2330))
+-   Add Japanese translations to Blueprint data Format. ([#2340](https://github.com/WordPress/wordpress-playground/pull/2340))
+-   Adding new videos about WordPress Playground. ([#2348](https://github.com/WordPress/wordpress-playground/pull/2348))
+-   Translate How to contribute pages to Brazilian Portuguese. ([#2329](https://github.com/WordPress/wordpress-playground/pull/2329))
+-   Updating Translation Guide. ([#2342](https://github.com/WordPress/wordpress-playground/pull/2342))
+-   Updating slack channel from #meta-playground to #playground. ([#2345](https://github.com/WordPress/wordpress-playground/pull/2345))
+
+### PHP WebAssembly
+
+-   Support multiple workers for NODEFS /wordpress mounts – Asyncify. ([#2317](https://github.com/WordPress/wordpress-playground/pull/2317))
+-   [PHP] Support non-blocking read streams. ([#2339](https://github.com/WordPress/wordpress-playground/pull/2339))
+
+### Bug Fixes
+
+-   Fix: Set an explicit path for docsaurus.config.js. ([#2335](https://github.com/WordPress/wordpress-playground/pull/2335))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @mho22 @rollybueno @shimotmk
+
 ## [v1.0.38] (2025-05-22)
 
 ### Various

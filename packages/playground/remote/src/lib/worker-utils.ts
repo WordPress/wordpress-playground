@@ -30,10 +30,9 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			processApi.on('stdin', (data: Uint8Array) => {
 				processApi.stdout(data);
 			});
-			processApi.flushStdin();
+
 			processApi.exit(0);
 		} else if (args[0] === 'fetch') {
-			processApi.flushStdin();
 			fetch(args[1]).then(async (res) => {
 				const reader = res.body?.getReader();
 				if (!reader) {

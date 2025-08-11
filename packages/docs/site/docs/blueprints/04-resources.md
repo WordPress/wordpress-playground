@@ -48,6 +48,42 @@ With a `"resource": "url"` we can define the location of a `.zip` containing the
 The Playground project provides a [GitHub Proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin or theme. This tool is very useful for avoiding CORS issues, among others.
 :::
 
+### GitDirectoryReference
+
+The `GitDirectoryReference` resource is used to reference a directory inside a Git repository. This is useful when a plugin or theme lives in a subfolder of a repo, or when you want to install from a specific branch, tag, or commit.
+
+```typescript
+type GitDirectoryReference = {
+	resource: 'git:directory';
+	url: string; // Repository URL (https://, ssh git@..., etc.)
+	path?: string; // Optional subdirectory inside the repository
+	ref?: string; // Optional branch, tag, or commit SHA
+};
+```
+
+**Example:**
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "git:directory",
+		"url": "https://github.com/WordPress/block-development-examples",
+		"ref": "HEAD",
+		"path": "plugins/data-basics-59c8f8"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+**Notes:**
+
+-   Playground automatically detects providers like GitHub and GitLab.
+-   It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
+-   This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
+
 ### CoreThemeReference
 
 The _CoreThemeReference_ resource is used to reference WordPress core themes. The _CoreThemeReference_ resource is defined as follows:

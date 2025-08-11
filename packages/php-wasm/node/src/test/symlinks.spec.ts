@@ -60,7 +60,6 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 				);
 			}
 
-			await php.mkdir('/folder-with-symlinks');
 			await php.mount(
 				'/folder-with-symlinks',
 				createNodeFsMountHandler(

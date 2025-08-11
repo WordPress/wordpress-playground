@@ -123,12 +123,8 @@ export class StreamedPHPResponse {
 	 * Resolves once HTTP status code is available.
 	 */
 	get httpStatusCode(): Promise<number> {
-		return Promise.race([
-			this.getParsedHeaders().then((headers) => headers.httpStatusCode),
-			this.exitCode.then((exitCode) =>
-				exitCode !== 0 ? 500 : undefined
-			),
-		])
+		return this.getParsedHeaders()
+			.then((headers) => headers.httpStatusCode)
 			.then((result) => {
 				if (result !== undefined) {
 					return result;
@@ -291,6 +287,14 @@ export class PHPResponse implements PHPResponseData {
 			await streamedResponse.stderrText,
 			await streamedResponse.exitCode
 		);
+	}
+
+	/**
+	 * True if the response is successful (HTTP status code 200-399),
+	 * false otherwise.
+	 */
+	ok(): boolean {
+		return this.httpStatusCode >= 200 && this.httpStatusCode < 400;
 	}
 
 	toRawData(): PHPResponseData {

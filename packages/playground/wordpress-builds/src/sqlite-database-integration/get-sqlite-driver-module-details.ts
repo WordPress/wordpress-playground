@@ -19,10 +19,11 @@ export function getSqliteDriverModuleDetails(
 	url: string;
 } {
 	switch (version) {
+		
 		case 'develop':
 			/** @ts-ignore */
 			return {
-				size: 209197,
+				size: 218425,
 				url: url_develop,
 			};
 		case 'v2.1.16':

@@ -3,8 +3,9 @@ import { runPHP } from './run-php';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { logger } from '@php-wasm/logger';
 import { vi } from 'vitest';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
-const phpVersion = '8.0';
+const phpVersion = RecommendedPHPVersion;
 describe('Blueprint step runPHP', () => {
 	let php: PHP;
 	let loggerErrorSpy: any;

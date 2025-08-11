@@ -12,6 +12,8 @@ import type { FileLockManager } from './file-lock-manager';
 import { withICUData } from './data/with-icu-data';
 import { withXdebug } from './xdebug/with-xdebug';
 import { joinPaths } from '@php-wasm/util';
+import type { Promised } from '@php-wasm/util';
+import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -35,8 +37,16 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 * An optional file lock manager to use for the PHP runtime.
 		 *
 		 * The lock manager is optional when running a single php-wasm process.
+		 *
+		 * When running with JSPI, both synchronous and asynchronous
+		 * file lock managers are supported.
+		 * When running with Asyncify, the file lock manager must be synchronous.
 		 */
-		fileLockManager?: RemoteAPI<FileLockManager>;
+		fileLockManager?:
+			| RemoteAPI<FileLockManager>
+			// Allow promised type for testing without providing true RemoteAPI.
+			| Promised<FileLockManager>
+			| FileLockManager;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -85,7 +95,7 @@ export async function loadNodeRuntime(
 			 * in the Emscripten's filesystem and mount the OS directory
 			 * to the Emscripten filesystem.
 			 *
-			 * The directory is mounted to the `/internals/symlinks` directory to avoid
+			 * The directory is mounted to the `/internal/symlinks` directory to avoid
 			 * conflicts with existing VFS directories.
 			 * We can set a arbitrary mount path because readlink is the source of truth
 			 * for the path and Emscripten will accept it as if it was the real link path.
@@ -101,14 +111,24 @@ export async function loadNodeRuntime(
 							)
 						);
 					const symlinkPath = joinPaths(
-						`/internals/symlinks`,
+						`/internal/symlinks`,
 						absoluteSourcePath
 					);
 					if (
 						!FSHelpers.fileExists(phpRuntime.FS, symlinkPath) &&
 						fs.existsSync(absoluteSourcePath)
 					) {
-						phpRuntime.FS.mkdirTree(symlinkPath);
+						const sourceStat = fs.statSync(absoluteSourcePath);
+						if (sourceStat.isDirectory()) {
+							phpRuntime.FS.mkdirTree(symlinkPath);
+						} else if (sourceStat.isFile()) {
+							phpRuntime.FS.mkdirTree(dirname(symlinkPath));
+							phpRuntime.FS.writeFile(symlinkPath, '');
+						} else {
+							throw new Error(
+								'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
+							);
+						}
 						phpRuntime.FS.mount(
 							phpRuntime.FS.filesystems.NODEFS,
 							{ root: absoluteSourcePath },

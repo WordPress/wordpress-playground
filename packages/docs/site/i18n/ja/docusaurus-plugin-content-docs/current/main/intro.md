@@ -48,10 +48,10 @@ Playground is an online tool to experiment and learn about WordPress. This site 
 -   [**API リファレンス**](/api) – WordPress Playground によって公開されているすべての API
 
 <!--
--   👉 [**Documentation**](/wordpress-playground/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
--   [**Blueprints**](/wordpress-playground/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
--   [**Developers**](/wordpress-playground/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
--   [**API Reference**](/wordpress-playground/api) – All the APIs exposed by WordPress Playground
+-   👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
+-   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
+-   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
+-   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
  -->
 
 ## このドキュメントハブのナビゲーション
@@ -75,7 +75,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 -   **[リンクとリソース](/resources)**: WordPress Playground に関連する役立つリンクとリソースの素敵なまとめ。
 
 <!--
--   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/wordpress-playground/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/wordpress-playground/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/wordpress-playground/quick-start-guide#use-a-specific-wordpress-or-php-version).
+-   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version).
 
 -   **[Playground web instance](/web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/
 
@@ -165,11 +165,11 @@ WordPress Playground is an open-source project and welcomes all contributors fro
  -->
 
 -   貢献方法の詳細については、[貢献者ハンドブック](/contributing) をご覧ください。
--   Slack の `#meta-playground` チャンネルにご参加ください（サインアップ情報については、[WordPress Slack ページ](https://make.wordpress.org/chat/) をご覧ください）。
+-   Slack の `#playground` チャンネルにご参加ください（サインアップ情報については、[WordPress Slack ページ](https://make.wordpress.org/chat/) をご覧ください）。
 
 <!--
 -   See the [Contributors Handbook](/contributing) for all the details on how you can contribute.
--   Join us in the `#meta-playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
+-   Join us in the `#playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
  -->
 
 すべての WordPress プロジェクトと同様に、私たちはすべての人にとって歓迎される環境を確保したいと考えています。そのため、すべての貢献者は私たちの [行動規範](https://make.wordpress.org/handbook/community-code-of-conduct/) に従うことが期待されます。

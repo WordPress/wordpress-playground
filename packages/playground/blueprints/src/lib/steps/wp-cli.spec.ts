@@ -8,8 +8,9 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
-const phpVersion = '8.0';
+const phpVersion = RecommendedPHPVersion;
 describe('Blueprint step wpCLI', () => {
 	let php: PHP;
 

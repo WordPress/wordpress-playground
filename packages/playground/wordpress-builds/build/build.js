@@ -111,6 +111,11 @@ if (args.wpVersion === 'nightly') {
 }
 
 if (!versionInfo.url) {
+	if (args.wpVersion === 'beta') {
+		process.stdout.write('Skipping. We did not find a WP beta version.\n');
+		process.exit(0);
+	}
+
 	process.stdout.write(`WP version ${args.wpVersion} is not supported\n`);
 	process.stdout.write(await parser.getHelp());
 	process.exit(1);
@@ -154,9 +159,12 @@ try {
 	await fs.mkdir(wordpressDir);
 	// Install WordPress in a local directory
 	await asyncSpawn(
-		'bun',
+		'npx',
 		[
-			'../../cli/src/cli.ts',
+			'nx',
+			'unbuilt-jspi',
+			'playground-cli',
+			'--',
 			'run-blueprint',
 			`--wp=${versionInfo.url}`,
 			`--mount-before-install=${wordpressDir}:/wordpress`,

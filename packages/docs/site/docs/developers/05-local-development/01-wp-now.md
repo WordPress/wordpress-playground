@@ -3,6 +3,10 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
+:::caution Package deprecated
+The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.  
+:::
+
 # wp-now NPM package
 
 [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) is a command-line tool designed to simplify the process of running WordPress locally. It provides a quick and easy way to set up a local WordPress environment with minimal configuration.
@@ -36,7 +40,7 @@ You can also start `wp-now` from any `wp-content` folder. The following example 
 
 ```bash
 cd my-wordpress-folder/wp-content
-npx @wp-now/wp-now start --wp=6.4 --php=8.0 --blueprint=path/to/blueprint.json
+npx @wp-now/wp-now start --wp=6.4 --php=8.3 --blueprint=path/to/blueprint.json
 ```
 
 ## Install wp-now globally

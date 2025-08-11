@@ -296,14 +296,7 @@ export class FileLock {
 			return true;
 		}
 
-		if (
-			this.doesAConflictingLockExist({
-				type: op.type,
-				start: 0n,
-				end: MAX_64BIT_OFFSET,
-				pid: op.pid,
-			})
-		) {
+		if (this.isThereAConflictWithRequestedWholeFileLock(op)) {
 			// The requested lock conflicts with an existing lock.
 			return false;
 		}
@@ -407,7 +400,7 @@ export class FileLock {
 			return true;
 		}
 
-		if (this.doesAConflictingLockExist(requestedLock)) {
+		if (this.isThereAConflictWithRequestedRangeLock(requestedLock)) {
 			// A conflicting lock exists.
 			return false;
 		}
@@ -620,15 +613,87 @@ export class FileLock {
 	}
 
 	/**
-	 * Check if a conflicting lock exists.
+	 * Check if a lock exists that conflicts with the requested range lock.
 	 *
 	 * @param requestedLock The desired byte range lock.
 	 * @returns True if a conflicting lock exists, false otherwise.
 	 */
-	private doesAConflictingLockExist(requestedLock: RequestedRangeLock) {
+	private isThereAConflictWithRequestedRangeLock(
+		requestedLock: RequestedRangeLock
+	) {
 		return (
 			this.findFirstConflictingByteRangeLock(requestedLock) !== undefined
 		);
+	}
+
+	/**
+	 * Check if a lock exists that conflicts with the requested whole-file lock.
+	 *
+	 * @param requestedLock The desired whole-file lock.
+	 * @returns True if a conflicting lock exists, false otherwise.
+	 */
+	private isThereAConflictWithRequestedWholeFileLock(
+		requestedLock: WholeFileLockOp
+	) {
+		if (requestedLock.type === 'exclusive') {
+			if (
+				this.wholeFileLock.type === 'exclusive' &&
+				(this.wholeFileLock.fd !== requestedLock.fd ||
+					this.wholeFileLock.pid !== requestedLock.pid)
+			) {
+				return true;
+			}
+			if (
+				this.wholeFileLock.type === 'shared' &&
+				Array.from(this.wholeFileLock.pidFds).some(
+					([pid]) => pid !== requestedLock.pid
+				)
+			) {
+				return true;
+			}
+
+			const overlappingLocks = this.rangeLocks.findOverlapping({
+				type: 'unlocked',
+				start: 0n,
+				end: MAX_64BIT_OFFSET,
+				pid: -1,
+			});
+			if (overlappingLocks.length > 0) {
+				// Any range lock, including one by the same process,
+				// conflict with an exclusive whole-file lock.
+				return true;
+			}
+
+			return false;
+		}
+
+		if (requestedLock.type === 'shared') {
+			if (
+				this.wholeFileLock.type === 'exclusive' &&
+				this.wholeFileLock.pid !== requestedLock.pid
+			) {
+				return true;
+			}
+
+			const overlappingLocks = this.rangeLocks.findOverlapping({
+				type: 'unlocked',
+				start: 0n,
+				end: MAX_64BIT_OFFSET,
+				pid: -1,
+			});
+			const exclusiveRangeLocks = overlappingLocks.filter(
+				(lock) => lock.type === 'exclusive'
+			);
+			if (exclusiveRangeLocks.length > 0) {
+				// Any exclusive range lock, including one by the same process,
+				// conflict with a shared whole-file lock.
+				return true;
+			}
+
+			return false;
+		}
+
+		return false;
 	}
 }
 
