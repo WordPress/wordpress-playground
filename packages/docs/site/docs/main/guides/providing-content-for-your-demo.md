@@ -146,7 +146,7 @@ Another way of generating content for your theme or plugin is via the `wp-cli` s
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22wp-cli%22,%22command%22:%22wp%20post%20generate%20--count=20%20--post_type=post%20--post_date=1999-01-04%22}]})
 
-You can also use the `wp-cli` step in combination with the `writeFile` step to create posts based on existing content and to import images to the Playground instance:
+You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination with the [`writeFile` step](/blueprints/steps#WriteFileStep) to create posts based on existing content and to import images to the Playground instance:
 
 ```json
 {
@@ -192,7 +192,7 @@ Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/b
 
 ## `runPHP`
 
-With the [`runPHP` step](https://wordpress.github.io/wordpress-playground/blueprints/steps#runPHP) you can run any PHP code you require to insert info into your WordPress installation, for example by using the [`wp_insert_post` function](https://developer.wordpress.org/reference/functions/wp_insert_post/).
+With the [`runPHP` step](/blueprints/steps#runPHP) you can run any PHP code you require to insert info into your WordPress installation, for example by using the [`wp_insert_post` function](https://developer.wordpress.org/reference/functions/wp_insert_post/).
 
 ```json
 {
