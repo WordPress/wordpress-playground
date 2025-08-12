@@ -2784,29 +2784,6 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		/**
-		 * intl support
-		 */
-		if (!(await jspi())) {
-			describe(
-				'intl extension support',
-				{ skip: options.withXdebug },
-				() => {
-					it('Should be able to use intl functions', async () => {
-						const response = await php.run({
-							code: `<?php
-								$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
-								echo numfmt_format($formatter, 100.00);
-								$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
-								echo numfmt_format($formatter, 100.00);
-							?>`,
-						});
-						expect(response.text).toEqual('$100.00100,00\xA0€');
-					});
-				}
-			);
-		}
-
 		describe('onMessage', { skip: options.withXdebug }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';
