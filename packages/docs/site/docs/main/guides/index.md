@@ -7,7 +7,7 @@ sidebar_class_name: navbar-build-item
 
 # Guides
 
-In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to WordPress Playground.
+In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to [WordPress Playground](/).
 
 ## [How to ship a real WordPress site in a native iOS app via Playground?](/guides/wordpress-native-ios-app)
 
