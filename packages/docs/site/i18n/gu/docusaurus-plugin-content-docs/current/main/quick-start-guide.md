@@ -45,13 +45,13 @@ import TOCInline from '@theme/TOCInline';
 :::
 
 <!-- ## Try a block, a theme, or a plugin -->
-એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો
+## એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો
 
 <!-- You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/). -->
 તમે તમારી ઇચ્છા મુજબ કોઈપણ પ્લગિન અથવા થીમ [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/) માં અપલોડ કરી શકો છો.
 
 <!-- To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL: -->
-કેટલાંક ક્લિક્સ બચાવવા માટે, તમે URL માં plugin અથવા theme પેરામીટર ઉમેરીને વર્ડપ્રેસ પ્લગઇન ડિરેક્ટરીમાંથી પ્લગઇન્સ અથવા થીમ્સ પહેલેથી ઇન્સ્ટોલ કરી શકો છો. ઉદાહરણ તરીકે, coblocks પ્લગઇન ઇન્સ્ટોલ કરવા માટે, તમે આ URL નો ઉપયોગ કરી શકો છો:
+કેટલાંક ક્લિક્સ બચાવવા માટે, તમે URL માં `plugin` અથવા `theme` પેરામીટર ઉમેરીને વર્ડપ્રેસ પ્લગઇન ડિરેક્ટરીમાંથી પ્લગઇન્સ અથવા થીમ્સ પહેલેથી ઇન્સ્ટોલ કરી શકો છો. ઉદાહરણ તરીકે, coblocks પ્લગઇન ઇન્સ્ટોલ કરવા માટે, તમે આ URL નો ઉપયોગ કરી શકો છો:
 
 <!-- https://playground.wordpress.net/?plugin=coblocks -->
 https://playground.wordpress.net/?plugin=coblocks
@@ -74,7 +74,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 ## તમારી સાઇટ સાચવો
 
 <!-- To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file. -->
-તમારી વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાઇટને એક જ બ્રાઉઝર સેશન કરતાં વધુ સમય સુધી રાખવા માટે, તમે તેને .zip ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો.
+તમારી વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાઇટને એક જ બ્રાઉઝર સેશન કરતાં વધુ સમય સુધી રાખવા માટે, તમે તેને `.zip` ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો.
 
 <!-- 1. Open the Playground site manager panel: -->
 1. પ્લેગ્રાઉન્ડ સાઇટ મેનેજર પેનલ ખોલો:
@@ -104,7 +104,7 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 ![Import from .zip બટન](@site/static/img/site-manager-import-actions-menu.webp)
 
 <!-- ## Use a specific WordPress or PHP version -->
-## ખાસ વર્ડપ્રેસ અથવા PHP વર્ઝનનો ઉપયોગ કરો
+## ચોક્કસ વર્ડપ્રેસ અથવા PHP વર્ઝનનો ઉપયોગ કરો
 
 <!-- The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/): -->
 વર્ડપ્રેસ અથવા PHP નું વર્ઝન બદલવાનો સૌથી ઝડપી રસ્તો [સત્તાવાર ડેમો સાઇટ](https://playground.wordpress.net/) પર સેટિંગ્સ પેનલનો ઉપયોગ કરવો છે:
