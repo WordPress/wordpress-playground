@@ -6,7 +6,7 @@ slug: /contributing/coding-standards
 
 ## Error messages
 
-A good error message informs the user of the following steps to take. Any ambiguity in errors thrown by Playground public APIs will prompt the developers to open issues.
+A good error message informs the user of the following steps to take. Any ambiguity in errors thrown by Playground [Public APIs](/developers/apis/) will prompt the developers to open issues.
 
 Consider a network error, for example—can we infer the type of error and display a relevant message summarizing the next steps?
 
@@ -27,7 +27,7 @@ Public APIs are easy to add and hard to remove. It only takes one PR to introduc
 
 ## Blueprints
 
-Blueprints are the primary way to interact with Playground. These JSON files describe a set of steps that Playground executes in order.
+[Blueprints](/blueprints/getting-started) are the primary way to interact with Playground. These JSON files describe a set of steps that Playground executes in order.
 
 ### Guidelines
 
