@@ -21,7 +21,7 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 
 ### @wp-playground/cli NPM package
 
-`@wp-playground/cli` is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
+[`@wp-playground/cli`](/developers/local-development/wp-playground-cli) is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
 
 #### Prerequisites
 
@@ -88,7 +88,7 @@ npx @wp-playground/cli@latest server --auto-mount
 
 #### Test a Gutenberg PR with Playground in the browser
 
-You don’t need a local development environment to test Gutenberg PRs—use Playground to do it directly in the browser.
+You don’t need a [local development environment](/developers/local-development/) to test Gutenberg PRs—use Playground to do it directly in the browser.
 
 1. Copy the ID of the PR you’d like to test (pick one from the [list of open Pull Requests](https://github.com/WordPress/gutenberg/pulls)).
 2. Open Playground’s [Gutenberg PR Previewer](https://playground.wordpress.net/gutenberg.html) and paste the ID you copied.
