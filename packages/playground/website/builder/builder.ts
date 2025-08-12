@@ -2,6 +2,8 @@
 // @TODO: Make this TS checked
 import { startPlaygroundWeb } from '@wp-playground/client';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -300,7 +302,9 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 		debounce = setTimeout(async () => {
 			try {
 				const res = await fetch(
-					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
+					import.meta.env.MODE === 'production'
+						? `https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
+						: `http://${remoteDevServerHost}:${remoteDevServerPort}/plugin-proxy.php?${proxyParams}`
 				);
 				const json = await res.json();
 				json?.plugins.forEach((p) => {
@@ -353,7 +357,9 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 		debounce = setTimeout(async () => {
 			try {
 				const res = await fetch(
-					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
+					import.meta.env.MODE === 'production'
+						? `https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
+						: `http://${remoteDevServerHost}:${remoteDevServerPort}/plugin-proxy.php?${proxyParams}`
 				);
 				const json = await res.json();
 				json?.themes.forEach((p) => {
@@ -542,7 +548,10 @@ const runBlueprint = async (editor) => {
 		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
-			remoteUrl: `https://playground.wordpress.net/remote.html`,
+			remoteUrl:
+				import.meta.env.MODE === 'production'
+					? `https://playground.wordpress.net/remote.html`
+					: `http://${remoteDevServerHost}:${remoteDevServerPort}/remote.html`,
 			blueprint: blueprintCopy,
 			corsProxy: corsProxyUrl,
 		});
@@ -766,8 +775,10 @@ function onLoaded() {
 
 		query.set('mode', 'seamless');
 		const url =
-			`https://playground.wordpress.net/?${query}#` +
-			JSON.stringify(getCurrentBlueprint(editor));
+			import.meta.env.MODE === 'production'
+				? `https://playground.wordpress.net/?${query}#`
+				: `http://${remoteDevServerHost}:${remoteDevServerPort}/?${query}#` +
+				  JSON.stringify(getCurrentBlueprint(editor));
 		if (prevWin) {
 			prevWin.close();
 		}

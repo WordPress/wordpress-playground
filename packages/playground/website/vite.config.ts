@@ -27,16 +27,19 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 
-const proxy: CommonServerOptions['proxy'] = {
-	'^/plugin-proxy': {
-		target: 'https://playground.wordpress.net',
-		changeOrigin: true,
-		secure: true,
-	},
-};
-
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
+	const proxy: CommonServerOptions['proxy'] = {
+		'^/plugin-proxy': {
+			target:
+				mode === 'production'
+					? 'https://playground.wordpress.net'
+					: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+			changeOrigin: true,
+			secure: true,
+		},
+	};
+
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
