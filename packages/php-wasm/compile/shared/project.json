@@ -1,0 +1,32 @@
+{
+	"name": "php-wasm-compile-shared",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"targets": {
+		"intl:jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY_NAME=intl --OUTPUT_DIR=packages/php-wasm/node/jspi --WITH_JSPI=yes"
+				],
+				"parallel": false
+			}
+		},
+		"intl:jspi:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared:intl:jspi --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
+		}
+	},
+	"tags": []
+}

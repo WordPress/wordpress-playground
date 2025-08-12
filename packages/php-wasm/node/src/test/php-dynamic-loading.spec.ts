@@ -115,4 +115,75 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(await result.stdoutText).toEqual('Hello Xdebug World');
 		});
 	});
+
+	if (phpVersion === '8.3') {
+		describe('Intl', () => {
+			let php: PHP;
+			beforeEach(async () => {
+				php = new PHP(
+					await loadNodeRuntime(phpVersion as any, { withIntl: true })
+				);
+			});
+
+			afterEach(async () => {
+				php.exit();
+			});
+
+			it('does not load dynamically by default', async () => {
+				php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+				const result = await php.runStream({
+					code: `<?php
+						var_dump(extension_loaded('intl'));
+						var_dump(class_exists('Collator'));`,
+				});
+
+				expect(await result.stdoutText).toEqual(
+					'bool(false)\nbool(false)\n'
+				);
+			});
+
+			it('supports dynamic loading', async () => {
+				const result = await php.runStream({
+					code: `<?php
+						var_dump(extension_loaded('intl'));
+						var_dump(class_exists('Collator'));`,
+				});
+
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			});
+
+			it('has its own ini file and entries', async () => {
+				const entries = php.readFileAsText(
+					'/internal/shared/extensions/intl.ini'
+				);
+
+				const expected = [
+					'extension=/internal/shared/extensions/intl.so',
+				].join('\n');
+
+				expect(entries).toEqual(expected);
+			});
+
+			it('loads the icu data file', async () => {
+				expect(php.listFiles('/internal/shared')).toContain(
+					'icudt74l.dat'
+				);
+			});
+
+			it('uses intl functions', async () => {
+				const response = await php.runStream({
+					code: `<?php
+							$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+							echo numfmt_format($formatter, 100.00);
+							$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+							echo numfmt_format($formatter, 100.00);
+						?>`,
+				});
+				expect(await response.stdoutText).toEqual('$100.00100,00\xA0€');
+			});
+		});
+	}
 });
