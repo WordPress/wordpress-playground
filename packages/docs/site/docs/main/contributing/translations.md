@@ -4,7 +4,7 @@ slug: /contributing/translations
 
 # Contributions to translations
 
-You can help translate the Playground documentation into any language. This page provides a comprehensive guide on how to contribute to the translation of Playground docs.
+You can help translate the Playground [documentation](/contributing/documentation) into any language. This page provides a comprehensive guide on how to contribute to the translation of Playground docs.
 
 ## How can I contribute to translations?
 
