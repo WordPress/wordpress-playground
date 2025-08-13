@@ -140,6 +140,11 @@ export class XdebugCDPBridge {
 		});
 	}
 
+	stop() {
+		this.dbgp.close();
+		this.cdp.close();
+	}
+
 	private sendInitialScripts() {
 		// Send scriptParsed for the main file if not already sent
 		if (this.initFileUri && !this.scriptIdByUrl.has(this.initFileUri)) {
@@ -785,20 +790,18 @@ export class XdebugCDPBridge {
 										fullname: prop.$.fullname || name,
 									});
 
-									if (prop.$.page == 0) {
-										currentProps.push({
-											name: prop.$.key || name,
-											value: {
-												type: 'object',
-												className: className,
-												description: className,
-												objectId: childObjectId,
-											},
-											writable: false,
-											configurable: false,
-											enumerable: true,
-										});
-									}
+									currentProps.push({
+										name: prop.$.key || name,
+										value: {
+											type: 'object',
+											className: className,
+											description: className,
+											objectId: childObjectId,
+										},
+										writable: false,
+										configurable: false,
+										enumerable: true,
+									});
 								} else {
 									// Primitive or null
 									let value: any;

@@ -80,4 +80,8 @@ export class DbgpSession extends EventEmitter {
 		// Commands must end with null terminator
 		this.socket.write(command + '\x00');
 	}
+
+	close() {
+		this.server.close();
+	}
 }
