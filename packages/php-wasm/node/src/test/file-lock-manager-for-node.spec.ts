@@ -1292,8 +1292,7 @@ describe('FileLockManagerForNode', () => {
 		});
 	});
 
-	// TODO: Re-enable these once we can fix them.
-	describe.skip('integration with native OS file locking', () => {
+	describe('integration with native OS file locking', () => {
 		let childProcess: ChildProcess | undefined;
 
 		afterEach(async () => {
