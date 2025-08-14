@@ -64,7 +64,8 @@
 					"nx run {projectName}:bundle-wordpress:nightly --force={args.force}",
 					"nx run {projectName}:bundle-wordpress:major-and-beta --force={args.force}"
 				],
-				"parallel": false
+				"parallel": false,
+				"force": false
 			}
 		},
 		"bundle-wordpress:nightly": {
