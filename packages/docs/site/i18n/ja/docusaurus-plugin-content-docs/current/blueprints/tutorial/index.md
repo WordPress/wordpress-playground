@@ -1,6 +1,6 @@
 ---
 title: ブループリント 101
-description: ブループリントの短期コースへの入り口
+description: 「Blueprints 101」集中コースのランディングページです。この短いチュートリアルでは、始めるために必要なすべてのことが網羅されています。
 hide_table_of_contents: false
 slug: /blueprints/tutorial
 ---

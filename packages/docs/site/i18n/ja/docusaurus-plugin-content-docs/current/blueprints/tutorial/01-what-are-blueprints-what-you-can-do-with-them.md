@@ -1,7 +1,7 @@
 ---
 title: ブループリントとは何ですか?
 slug: /blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them
-description: ブループリントを使い始める
+description: ブループリントとは何か、そしてWordPress Playgroundをどのように構成するのかを学びましょう。JSONを使って瞬時にサイトをセットアップするメリットをご紹介します。
 ---
 
 # ブループリントとは何ですか? ブループリントで何ができますか?
