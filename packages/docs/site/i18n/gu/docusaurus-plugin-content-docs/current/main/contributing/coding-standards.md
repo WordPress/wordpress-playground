@@ -1,0 +1,3 @@
+---
+slug: /contributing/coding-standards
+---
