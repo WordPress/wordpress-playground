@@ -105,7 +105,12 @@ const LibraryForFileLocking = {
 
 		get_native_path_from_vfs_path(vfsPath) {
 			// TODO: Should there be a try/catch here?
-			const { node } = FS.lookupPath(vfsPath, {});
+			const { node } = FS.lookupPath(vfsPath, {
+				noent_okay: true,
+			});
+			if (!node) {
+				throw new Error(`No node found for VFS path ${vfsPath}`);
+			}
 			if (node.mount.type === NODEFS) {
 				return NODEFS.realPath(node);
 			} else if (node.mount.type === PROXYFS) {
@@ -393,10 +398,9 @@ const LibraryForFileLocking = {
 						return -ERRNO_CODES.EINVAL;
 					}
 
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-
 					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
 						const conflictingLock =
 #if ASYNCIFY == 2
 							await Promise.resolve(
@@ -536,16 +540,16 @@ const LibraryForFileLocking = {
 						pid,
 					};
 
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
-						fd,
-						vfsPath,
-						rangeLock
-					);
-
 					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+							fd,
+							vfsPath,
+							rangeLock
+						);
+
 						const succeeded = (
 #if ASYNCIFY == 2
 							await Promise.resolve(
@@ -702,9 +706,9 @@ const LibraryForFileLocking = {
 				return -ERRNO_CODES.EINVAL;
 			}
 
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 			try {
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
 				const obtainedLock = (
 #if ASYNCIFY == 2
 					await Promise.resolve(
@@ -767,10 +771,10 @@ const LibraryForFileLocking = {
 				_js_wasm_trace('fd_close(%d) result %d', fd, result);
 				return result;
 			}
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 
 			try {
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
 #if ASYNCIFY == 2
 				await
 #endif
