@@ -53,6 +53,29 @@ A Blueprint might look something like this:
 		}
 	],
 	"siteOptions": {
+		"blogname": "マイブログ",
+		"blogdescription": "Just another WordPress site"
+	},
+	"constants": {
+		"WP_DEBUG": true
+	}
+}
+```
+
+<!--
+```json
+{
+	"plugins": ["akismet", "gutenberg"],
+	"steps": [
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "wordpress.org/themes",
+				"slug": "twentynineteen"
+			}
+		}
+	],
+	"siteOptions": {
 		"blogname": "My Blog",
 		"blogdescription": "Just another WordPress site"
 	},
@@ -61,6 +84,7 @@ A Blueprint might look something like this:
 	}
 }
 ```
+ -->
 
 上記のブループリントは、_Akismet_ および _Gutenberg_ プラグインと _Twenty Nineteen_ テーマをインストールし、サイト名と説明を設定し、WordPress デバッグ モードを有効にします。
 
