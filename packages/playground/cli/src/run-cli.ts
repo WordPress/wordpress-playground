@@ -207,6 +207,14 @@ export async function parseOptionsAndRunCLI() {
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
 				hidden: true,
 			})
+			.option('mode', {
+				// TODO: Document each option.
+				describe: 'Mode to run the Playground in.',
+				type: 'string',
+				choices: ['create-new-site', 'apply-to-existing-site'],
+				// Remove the "hidden" flag once Blueprint V2 is fully supported
+				hidden: true,
+			})
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
@@ -242,6 +250,11 @@ export async function parseOptionsAndRunCLI() {
 						);
 					}
 				}
+
+				// TODO: Require `mode` arg if `experimental-blueprints-v2-runner` is true
+				// and blueprint is provided.
+				// TODO: Deny `mode` arg if `auto-mount` is true.
+
 				return true;
 			});
 
