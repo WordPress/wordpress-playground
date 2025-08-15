@@ -20,7 +20,7 @@ export async function getIntlExtensionModule(
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/8_4/intl.so?url`
+					`../../../../jspi/extensions/intl/8_4/intl.so?url`
 				)
 			).default;
 		case '8.3':
@@ -34,42 +34,42 @@ export async function getIntlExtensionModule(
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/8_2/intl.so?url`
+					`../../../../jspi/extensions/intl/8_2/intl.so?url`
 				)
 			).default;
 		case '8.1':
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/8_1/intl.so?url`
+					`../../../../jspi/extensions/intl/8_1/intl.so?url`
 				)
 			).default;
 		case '8.0':
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/8_0/intl.so?url`
+					`../../../../jspi/extensions/intl/8_0/intl.so?url`
 				)
 			).default;
 		case '7.4':
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/7_4/intl.so?url`
+					`../../../../jspi/extensions/intl/7_4/intl.so?url`
 				)
 			).default;
 		case '7.3':
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/7_3/intl.so?url`
+					`../../../../jspi/extensions/intl/7_3/intl.so?url`
 				)
 			).default;
 		case '7.2':
 			return (
 				await import(
 					// @ts-ignore
-					`../../../jspi/extensions/intl/7_2/intl.so?url`
+					`../../../../jspi/extensions/intl/7_2/intl.so?url`
 				)
 			).default;
 	}

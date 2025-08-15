@@ -135,9 +135,9 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`rm -rf /output/data && \
-			mkdir -p /output/data && \
-			cp -rf /root/${library}/data/* /output/data`,
+		`[ -d /root/${library}/data ] &&
+			rm -rf /output/data && mkdir -p /output/data && \
+			cp -rf /root/${library}/data/* /output/data || true`,
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );

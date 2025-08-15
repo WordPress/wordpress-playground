@@ -115,6 +115,14 @@ RUN set -euxo pipefail; \
 	make -j1; \
 	make install; \
 
+	# Calling close() on a file descriptor acquired through WASI syscalls can trigger a JS call/await
+	# during a non-resumable C++ stack frame, leading to "RuntimeError: trying to suspend JS frames".
+	# Since ICU maps the file into memory and does not require the descriptor after mapping
+	# under our build context, skipping close(fd) avoids that suspension error.
+	# NOTE: This means the file descriptor will remain open until process teardown.
+	# This is acceptable here because ICU data files are loaded only once at startup.
+	/root/replace.sh 's/close\(fd\);//' /root/icu/source/common/umapfile.cpp; \
+
 	cd /root/icu/source; \
 	mkdir -p /root; \
 	source /root/emsdk/emsdk_env.sh; \
@@ -129,9 +137,9 @@ RUN set -euxo pipefail; \
 		--disable-extras \
 		--enable-static \
 		--disable-shared; \
-	export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi); \
-	EMCC_FLAGS="$JSPI_FLAGS -sSIDE_MODULE -D__x86_64__" emmake make -j1; \
-	EMCC_FLAGS="$JSPI_FLAGS -sSIDE_MODULE -D__x86_64__" emmake make install;
+
+	EMCC_FLAGS="-D__x86_64__" emmake make -j1; \
+	EMCC_FLAGS="-D__x86_64__" emmake make install;
 
 # Build Intl
 RUN set -euxo pipefail; \
@@ -154,7 +162,7 @@ RUN set -euxo pipefail; \
 
 	# Use non-linux host type or configure will try to require linux kernel
 	# features that are unsupported by emscripten (e.g., rtnetlink.h).
-	emconfigure ./configure ICU_CFLAGS="-D__x86_64__ -I/root/include" ICU_LIBS="-L/root/lib" --host="i386-unknown-freebsd" --disable-static --enable-shared; \
+	emconfigure ./configure CXXFLAGS="-DZEND_ENABLE_ZVAL_LONG64" ICU_CFLAGS="-D__x86_64__ -I/root/include" ICU_LIBS="-L/root/lib" --host="i386-unknown-freebsd" --disable-static --enable-shared; \
 	# Intl linking fails to produce a shared library because postdeps variable includes static libraries.
 	# Let's explicitly skip them in the understanding that it is provided by Emscripten with the main module.
 	/root/replace.sh 's|postdeps\s*=.*|postdeps="-L/root/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten -L/root/emsdk/upstream/emscripten/src/lib"|' libtool; \
@@ -162,6 +170,11 @@ RUN set -euxo pipefail; \
 	# into the shared object. The --whole-archive / --no-whole-archive flags ensure that *all* symbols from these
 	# archives are included, preventing missing symbol errors at runtime when loading the intl extension.
 	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
+	# This breaks building a dynamic intl extension with Emscripten.
+	if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
+	fi; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 

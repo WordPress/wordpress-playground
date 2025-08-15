@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31100909;
+export const dependenciesTotalSize = 24628696;
 const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -848,7 +848,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 14258208;
+	var ___heap_base = 12922272;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1012,7 +1012,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 15458,
+		initial: 10972,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1743,13 +1743,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 14258208;
+	var ___stack_high = 12922272;
 
-	var ___stack_low = 13209632;
+	var ___stack_low = 11873696;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		14258208
+		12922272
 	);
 
 	var PATH = {
@@ -31262,13 +31262,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12242382: ($0) => {
+		11643694: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12242430: ($0) => {
+		11643742: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34112,8 +34112,6 @@ export function init(RuntimeName, PHPLoader) {
 	var _htonl = (a0) => (_htonl = wasmExports['htonl'])(a0);
 	var _wasm_sleep = (Module['_wasm_sleep'] = (a0) =>
 		(_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'])(a0));
-	var ___cxa_throw = (a0, a1, a2) =>
-		(___cxa_throw = wasmExports['__cxa_throw'])(a0, a1, a2);
 	var _calloc = (a0, a1) => (_calloc = wasmExports['calloc'])(a0, a1);
 	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
 		(_initgroups = Module['_initgroups'] = wasmExports['initgroups'])(
@@ -34230,14 +34228,16 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_stack_get_current = () =>
 		(_emscripten_stack_get_current =
 			wasmExports['emscripten_stack_get_current'])();
+	var ___cxa_demangle = (a0, a1, a2, a3) =>
+		(___cxa_demangle = wasmExports['__cxa_demangle'])(a0, a1, a2, a3);
 	var ___cxa_decrement_exception_refcount = (a0) =>
 		(___cxa_decrement_exception_refcount =
 			wasmExports['__cxa_decrement_exception_refcount'])(a0);
+	var ___cxa_throw = (a0, a1, a2) =>
+		(___cxa_throw = wasmExports['__cxa_throw'])(a0, a1, a2);
 	var ___cxa_increment_exception_refcount = (a0) =>
 		(___cxa_increment_exception_refcount =
 			wasmExports['__cxa_increment_exception_refcount'])(a0);
-	var ___cxa_demangle = (a0, a1, a2, a3) =>
-		(___cxa_demangle = wasmExports['__cxa_demangle'])(a0, a1, a2, a3);
 	var ___thrown_object_from_unwind_exception = (a0) =>
 		(___thrown_object_from_unwind_exception =
 			wasmExports['__thrown_object_from_unwind_exception'])(a0);
