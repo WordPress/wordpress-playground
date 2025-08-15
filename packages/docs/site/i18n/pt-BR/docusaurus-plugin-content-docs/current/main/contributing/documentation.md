@@ -1,5 +1,7 @@
 ---
 slug: /contributing/documentation
+title: Contribuições para a documentação - WordPress Playground
+description: Um guia sobre como contribuir para a documentação do Playground, desde abrir issues até enviar pull requests.
 ---
 
 <!--

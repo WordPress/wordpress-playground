@@ -50,6 +50,18 @@ export class BlueprintsV1Handler {
 	}
 
 	getWorkerUrl() {
+		if (
+			process.env['VITEST'] &&
+			importedWorkerV1UrlString.startsWith('/src/')
+		) {
+			// Work around issue where Vitest cannot find the worker script.
+			return path.join(
+				import.meta.dirname,
+				'..',
+				'..',
+				importedWorkerV1UrlString
+			);
+		}
 		return importedWorkerV1UrlString;
 	}
 
@@ -142,7 +154,7 @@ export class BlueprintsV1Handler {
 			mountsAfterWpInstall,
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
 			sqliteIntegrationPluginZip:
-				await sqliteIntegrationPluginZip!.arrayBuffer(),
+				await sqliteIntegrationPluginZip?.arrayBuffer(),
 			firstProcessId: 0,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks,

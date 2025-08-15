@@ -275,6 +275,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @returns The absolute URL.
 	 */
 	pathToInternalUrl(path: string): string {
+		if (!path.startsWith('/')) {
+			path = `/${path}`;
+		}
 		return `${this.absoluteUrl}${path}`;
 	}
 
@@ -286,7 +289,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @returns The relative path.
 	 */
 	internalUrlToPath(internalUrl: string): string {
-		const url = new URL(internalUrl);
+		const url = new URL(internalUrl, 'https://playground.internal');
 		if (url.pathname.startsWith(this.#PATHNAME)) {
 			url.pathname = url.pathname.slice(this.#PATHNAME.length);
 		}
@@ -449,10 +452,26 @@ export class PHPRequestHandler implements AsyncDisposable {
 					// Pass along URL with the #fragment filtered out
 					url: requestedUrl.toString(),
 				};
-				return this.#spawnPHPAndDispatchRequest(
+				const response = await this.#spawnPHPAndDispatchRequest(
 					effectiveRequest,
 					fsPath
 				);
+
+				/**
+				 * If the response is but the exit code is non-zero, let's rewrite the
+				 * HTTP status code as 500. We're acting as a HTTP server here and
+				 * this behavior is in line with what Nginx and Apache do.
+				 */
+				if (response.ok() && response.exitCode !== 0) {
+					return new PHPResponse(
+						500,
+						response.headers,
+						response.bytes,
+						response.errors,
+						response.exitCode
+					);
+				}
+				return response;
 			} else {
 				return this.#serveStaticFile(primaryPhp, fsPath);
 			}
@@ -568,6 +587,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 					response.headers
 				);
 			}
+
 			return response;
 		} catch (error) {
 			const executionError = error as PHPExecutionFailureError;

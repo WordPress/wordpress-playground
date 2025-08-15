@@ -37,7 +37,7 @@ npx @wp-playground/cli@latest server --auto-mount
 
 ### Choosing a WordPress and PHP Version
 
-By default, the CLI loads the latest stable version of WordPress and PHP 8.0 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
+By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
 npx @wp-playground/cli@latest server --wp=6.8 --php=8.4

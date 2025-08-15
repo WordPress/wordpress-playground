@@ -1,6 +1,7 @@
 ---
-title: About Playground
+title: About WordPress Playground
 slug: /about
+description: An overview of WordPress Playground, explaining what it is, why it's useful, and how it runs WordPress in your browser.
 ---
 
 # About WordPress Playground

@@ -1,6 +1,7 @@
 ---
-title: Quick Start Guide
+title: Quick Start Guide - WordPress Playground
 slug: /quick-start-guide
+description: A 5-minute guide to get started with Playground. Learn how to test plugins, try themes, and use different WP/PHP versions.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
@@ -88,7 +89,7 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 You can also use the `wp` and `php` query parameters to open Playground with the right versions already loaded:
 
 -   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=7.4
+-   https://playground.wordpress.net/?php=8.3
 -   https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />

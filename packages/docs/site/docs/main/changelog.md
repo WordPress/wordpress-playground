@@ -9,6 +9,109 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.9] (2025-08-11)
+
+### **Breaking Changes**
+
+-   [Website] Default demo content. ([#2412](https://github.com/WordPress/wordpress-playground/pull/2412))
+
+### Enhancements
+
+-   [PHP Playground] Select WordPress version. ([#2472](https://github.com/WordPress/wordpress-playground/pull/2472))
+
+### Blueprints
+
+-   [WordPress] Support auto-login with customize.php as a landing page. ([#2467](https://github.com/WordPress/wordpress-playground/pull/2467))
+
+### Documentation
+
+-   Tagalog: Add translations for Blueprints Tutorial. ([#2477](https://github.com/WordPress/wordpress-playground/pull/2477))
+-   Tagalog: Translations of Blueprints documentation page. ([#2476](https://github.com/WordPress/wordpress-playground/pull/2476))
+
+### Website
+
+-   Open external links in a new tab/window. ([#2468](https://github.com/WordPress/wordpress-playground/pull/2468))
+
+### Internal
+
+-   Skip flaky end-to-end tests. ([#2475](https://github.com/WordPress/wordpress-playground/pull/2475))
+
+### Various
+
+-   Add Japanese translations to Blueprint Examples and Troubleshoot and debug. ([#2474](https://github.com/WordPress/wordpress-playground/pull/2474))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @rollybueno @shimotmk @zaerl
+
+## [v2.0.8] (2025-08-07)
+
+### Blueprints
+
+-   Fallback to URL-based file name when fetching remote ZIP files. ([#2470](https://github.com/WordPress/wordpress-playground/pull/2470))
+
+### Documentation
+
+-   [Docs] Adding Resources, Web instance, and guides pages on Brazilian Portuguese. ([#2351](https://github.com/WordPress/wordpress-playground/pull/2351))
+-   [Docs] Enabling language switcher. ([#2465](https://github.com/WordPress/wordpress-playground/pull/2465))
+
+### PHP WebAssembly
+
+-   Fix resolving mounted symlinks in secondary PHP instances. ([#2444](https://github.com/WordPress/wordpress-playground/pull/2444))
+-   [XDebug Bridge] List additional ASYNCIFY_ONLY functions to prevent `unreachable` crashes when using Devtools. ([#2454](https://github.com/WordPress/wordpress-playground/pull/2454))
+
+### Website
+
+-   [Browser] Do not use the Buffer class in web browsers. ([#2469](https://github.com/WordPress/wordpress-playground/pull/2469))
+-   Add PHP Playground. ([#2463](https://github.com/WordPress/wordpress-playground/pull/2463))
+-   Suppress PHP warnings when pre-fetching WordPress updates. ([#2458](https://github.com/WordPress/wordpress-playground/pull/2458))
+
+### Bug Fixes
+
+-   Fix invalid filename "&lt;7.4" on Windows. ([#2461](https://github.com/WordPress/wordpress-playground/pull/2461))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @JanJakes @mho22
+
+## [v2.0.7] (2025-08-05)
+
+### Tools
+
+-   [ CLI ] Rename CLI binaries in `@php-wasm/cli` and `@wp-playground/cli`. ([#2441](https://github.com/WordPress/wordpress-playground/pull/2441))
+
+### Documentation
+
+-   Updating Docusaurus version from 3.7 to 3.8. ([#2457](https://github.com/WordPress/wordpress-playground/pull/2457))
+-   [Docs] Adding fixes to broken URLs. ([#2451](https://github.com/WordPress/wordpress-playground/pull/2451))
+-   [Docs] Bump PHP version to avoid WordPress PHP version Warning. ([#2443](https://github.com/WordPress/wordpress-playground/pull/2443))
+
+### PHP WebAssembly
+
+-   Patch the premature "request in progress" semaphore release. ([#2455](https://github.com/WordPress/wordpress-playground/pull/2455))
+
+### Bug Fixes
+
+-   Re-enable Playground CLI tests. ([#2445](https://github.com/WordPress/wordpress-playground/pull/2445))
+
+### Various
+
+-   Add check for SQLite driver missing in target folder. ([#2440](https://github.com/WordPress/wordpress-playground/pull/2440))
+-   Adding CLI reference to Playground README. ([#2433](https://github.com/WordPress/wordpress-playground/pull/2433))
+-   Adding Gujarati Intro documentation. ([#2450](https://github.com/WordPress/wordpress-playground/pull/2450))
+-   Bump WordPress old version demo to version 6.2.1. ([#2460](https://github.com/WordPress/wordpress-playground/pull/2460))
+-   Removing blog references on Docusaurus. ([#2456](https://github.com/WordPress/wordpress-playground/pull/2456))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @mho22 @nikunj8866 @zaerl
+
 ## [v2.0.6] (2025-08-04)
 
 ### Documentation

@@ -31,18 +31,35 @@ export type ResolvedBlueprint = {
 };
 
 export async function resolveBlueprintFromURL(
-	url: URL
+	url: URL,
+	defaultBlueprint?: string
 ): Promise<ResolvedBlueprint> {
 	const query = url.searchParams;
 	const fragment = decodeURI(url.hash || '#').substring(1);
 
 	let blueprint: BlueprintDeclaration | BlueprintBundle;
 	let source: BlueprintSource;
-	/*
-	 * Support passing blueprints via query parameter, e.g.:
-	 * ?blueprint-url=https://example.com/blueprint.json
+
+	/**
+	 * If the URL has no parameters or fragment, and a default blueprint is provided,
+	 * use the default blueprint.
 	 */
-	if (query.has('blueprint-url')) {
+	if (
+		window.self === window.top &&
+		!query.size &&
+		!fragment.length &&
+		defaultBlueprint
+	) {
+		blueprint = await resolveRemoteBlueprint(defaultBlueprint);
+		source = {
+			type: 'remote-url',
+			url: defaultBlueprint,
+		};
+	} else if (query.has('blueprint-url')) {
+		/*
+		 * Support passing blueprints via query parameter, e.g.:
+		 * ?blueprint-url=https://example.com/blueprint.json
+		 */
 		blueprint = await resolveRemoteBlueprint(query.get('blueprint-url')!);
 		source = {
 			type: 'remote-url',

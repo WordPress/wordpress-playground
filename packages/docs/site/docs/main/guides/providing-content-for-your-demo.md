@@ -1,7 +1,7 @@
 ---
 title: Providing content for your demo with Playground
 slug: /guides/providing-content-for-your-demo
-description: Providing content for your demo with WordPress Playground
+description: Learn how to populate your Playground demo with content using Blueprints, WP-CLI, or PHP to showcase themes and plugins.
 ---
 
 One of the things you may want to do to provide a good demo with WordPress Playground is to load default content to better highlight the features of your plugin or theme. This default content may include images or other assets.

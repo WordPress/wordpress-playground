@@ -20,7 +20,16 @@ export interface RunPHPStep {
 	/** The step identifier. */
 	step: 'runPHP';
 	/** The PHP code to run. */
-	code: string;
+	code:
+		| string
+		| {
+				/**
+				 * This property is ignored during Blueprint v1 execution but exists
+				 * so the same runPHP step structure can be used for Blueprints v1 and v2.
+				 */
+				filename: string;
+				content: string;
+		  };
 }
 
 /**
@@ -31,16 +40,18 @@ export const runPHP: StepHandler<RunPHPStep, Promise<PHPResponse>> = async (
 	playground,
 	{ code }
 ) => {
+	let phpCodeString = typeof code === 'string' ? code : code.content;
+
 	if (
-		code.includes('"wordpress/wp-load.php"') ||
-		code.includes("'wordpress/wp-load.php'")
+		phpCodeString.includes('"wordpress/wp-load.php"') ||
+		phpCodeString.includes("'wordpress/wp-load.php'")
 	) {
 		logger.error(
 			`
 It looks like you're trying to load WordPress using a relative path 'wordpress/wp-load.php'.
 
-Playground recently changed the working directory from '/' to '/wordpress' to better mimic 
-how real web servers work. This means relative paths that used to work may no longer 
+Playground recently changed the working directory from '/' to '/wordpress' to better mimic
+how real web servers work. This means relative paths that used to work may no longer
 point to the correct location.
 
 Playground automatically updated the path for you, but at one point path rewriting will be removed. Please
@@ -52,14 +63,14 @@ Use:         require_once '/wordpress/wp-load.php';
 This will ensure your code works reliably regardless of the current working directory.
 		`.trim()
 		);
-		code = code.replace(
+		phpCodeString = phpCodeString.replace(
 			"'wordpress/wp-load.php'",
 			"'/wordpress/wp-load.php'"
 		);
-		code = code.replace(
+		phpCodeString = phpCodeString.replace(
 			'"wordpress/wp-load.php"',
 			'"/wordpress/wp-load.php"'
 		);
 	}
-	return await playground.run({ code });
+	return await playground.run({ code: phpCodeString });
 };
