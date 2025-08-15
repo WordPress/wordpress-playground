@@ -32,6 +32,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -215,8 +216,8 @@ const validRemoteOrigins = [
 	'https://localhost',
 	'http://127.0.0.1',
 	'https://127.0.0.1',
-	'http://127.0.0.1:4400',
-	'http://localhost:4400',
+	`http://${remoteDevServerHost}:${remoteDevServerPort}`,
+	`http://${remoteDevServerHost}:${remoteDevServerPort}`,
 	...additionalRemoteOrigins,
 ];
 /**
