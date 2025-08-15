@@ -1,6 +1,7 @@
 ---
-title: Launch
+title: Launch - WordPress Playground
 slug: /about/launch
+description: Learn how to use Playground to launch products, from embedding interactive demos on websites to creating native mobile apps.
 ---
 
 # Launch
