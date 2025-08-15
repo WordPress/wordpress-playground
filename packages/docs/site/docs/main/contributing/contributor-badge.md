@@ -1,5 +1,5 @@
 ---
-title: Playground Contributor Badge
+title: WordPress Playground Contributor Badge
 slug: /contributing/contributor-badge
 description: Find out the criteria for the WordPress Playground Contributor Badge and how to request it for your WordPress.org profile.
 ---

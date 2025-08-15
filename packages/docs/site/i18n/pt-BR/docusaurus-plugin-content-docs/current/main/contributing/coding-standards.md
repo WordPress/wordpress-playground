@@ -1,5 +1,7 @@
 ---
 slug: /contributing/coding-standards
+title: Princípios de codificação - WordPress Playground
+description: Detalha os princípios de codificação do Playground, com foco em mensagens de erro úteis, uma API pública mínima e Blueprints.
 ---
 
 <!--

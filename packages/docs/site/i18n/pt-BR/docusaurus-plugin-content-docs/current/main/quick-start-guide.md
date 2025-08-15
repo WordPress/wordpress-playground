@@ -1,6 +1,7 @@
 ---
-title: Primeiros passos
+title: Primeiros passos - WordPress Playground
 slug: /quick-start-guide
+description: Um guia de 5 minutos para começar a usar o Playground. Aprenda a testar plugins, temas e usar diferentes versões de WP/PHP.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
