@@ -32,6 +32,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 
 export interface StartPlaygroundOptions {
