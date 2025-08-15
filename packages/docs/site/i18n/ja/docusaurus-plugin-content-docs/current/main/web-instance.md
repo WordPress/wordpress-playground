@@ -1,6 +1,7 @@
 ---
-title: Playground ウェブ インスタンス
+title: ウェブ インスタンス - WordPress Playground
 slug: /web-instance
+description: ツールバー、設定、インスタンス マネージャーを網羅した、playground.wordpress.net の Web インターフェイスの詳細なガイドです。
 ---
 
 # WordPress Playground ウェブ インスタンス

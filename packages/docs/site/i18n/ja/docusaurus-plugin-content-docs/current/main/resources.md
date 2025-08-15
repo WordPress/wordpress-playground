@@ -1,6 +1,7 @@
 ---
-title: リンクとリソース
+title: リンクとリソース - WordPress Playground
 slug: /resources
+description: WordPress Playground について詳しく知るためのアプリ、ツール、記事、ビデオへの役立つリンクを厳選したリストです。
 ---
 
 # リンクとリソース

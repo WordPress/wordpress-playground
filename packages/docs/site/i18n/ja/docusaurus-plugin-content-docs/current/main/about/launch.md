@@ -1,6 +1,7 @@
 ---
-title: ローンチ
+title: ローンチ - WordPress Playground
 slug: /about/launch
+description: ウェブサイトへのインタラクティブなデモの埋め込みからネイティブ モバイル アプリの作成まで、Playground を使用して製品を起動する方法を学びます。
 ---
 
 # ローンチ
