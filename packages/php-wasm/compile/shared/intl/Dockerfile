@@ -170,6 +170,11 @@ RUN set -euxo pipefail; \
 	# into the shared object. The --whole-archive / --no-whole-archive flags ensure that *all* symbols from these
 	# archives are included, preventing missing symbol errors at runtime when loading the intl extension.
 	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
+	# This breaks building a dynamic intl extension with Emscripten.
+	if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
+	fi; \
 
 	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
 	# This breaks building a dynamic intl extension with Emscripten.
