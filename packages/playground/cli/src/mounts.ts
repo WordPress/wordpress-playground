@@ -141,10 +141,17 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			hostPath: path,
 			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
 		});
-		newArgs['additional-blueprint-steps'].push({
-			step: 'activateTheme',
-			themeFolderName: themeName,
-		});
+		newArgs['additional-blueprint-steps'].push(
+			args['experimental-blueprints-v2-runner']
+				? {
+						step: 'activateTheme',
+						themeDirectoryName: themeName,
+				  }
+				: {
+						step: 'activateTheme',
+						themeFolderName: themeName,
+				  }
+		);
 	} else if (containsWpContentDirectories(path)) {
 		/**
 		 * Mount each wp-content file and directory individually.
