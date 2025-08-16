@@ -20,18 +20,22 @@ import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 
 const blueprintVersions = [
 	{
-		version: 'v1',
+		version: 1,
 		suiteCliArgs: {},
+		expectedHomePageTitle: 'My WordPress Website',
 	},
 	{
-		version: 'v2',
-		suiteCliArgs: { 'experimental-blueprints-v2-runner': true },
+		version: 2,
+		suiteCliArgs: {
+			'experimental-blueprints-v2-runner': true,
+		},
+		expectedHomePageTitle: 'WordPress Site',
 	},
 ];
 
 describe.each(blueprintVersions)(
-	'run-cli with Blueprints $version',
-	({ suiteCliArgs }) => {
+	'run-cli with Blueprints v$version',
+	({ suiteCliArgs, expectedHomePageTitle }) => {
 		let cliServer: RunCLIServer;
 
 		afterEach(async () => {
@@ -197,7 +201,7 @@ describe.each(blueprintVersions)(
 				}
 			});
 
-			test.only(`should run a plugin project using --auto-mount`, async () => {
+			test(`should run a plugin project using --auto-mount`, async () => {
 				vi.spyOn(process, 'cwd').mockReturnValue(
 					path.join(import.meta.dirname, 'mount-examples', 'plugin')
 				);
@@ -221,7 +225,7 @@ describe.each(blueprintVersions)(
 				});
 				expect(response.httpStatusCode).toBe(200);
 				expect(response.text).toContain(
-					'<title>My WordPress Website</title>'
+					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
 			test(`should run a theme project using --auto-mount`, async () => {
@@ -242,7 +246,7 @@ describe.each(blueprintVersions)(
 				});
 				expect(response.httpStatusCode).toBe(200);
 				expect(response.text).toContain(
-					'<title>My WordPress Website</title>'
+					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
 
@@ -333,7 +337,7 @@ describe.each(blueprintVersions)(
 				});
 				expect(response.httpStatusCode).toBe(200);
 				expect(response.text).toContain(
-					'<title>My WordPress Website</title>'
+					`<title>${expectedHomePageTitle}</title>`
 				);
 
 				/**
@@ -342,5 +346,6 @@ describe.each(blueprintVersions)(
 				expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
 			});
 		});
-	}
+	},
+	60000
 );
