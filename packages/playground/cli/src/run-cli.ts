@@ -190,11 +190,10 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			// TODO: Should we make this a hidden flag?
 			.option('experimental-multi-worker', {
 				describe:
-					'Enable experimental multi-worker support which requires JSPI ' +
-					'and a /wordpress directory backed by a real filesystem. ' +
+					'Enable experimental multi-worker support which requires ' +
+					'a /wordpress directory backed by a real filesystem. ' +
 					'Pass a positive number to specify the number of workers to use. ' +
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
