@@ -70,7 +70,7 @@ Some more examples of this workflow:
 ## Synchronize your playground instance with a local folder and create Github Pull Requests
 -->
 
-![Storage Type Device Snapshot](../_assets/storage-type-device.png)
+![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
 
 Google Chrome を使用すると、Playground インスタンスを次のいずれかのローカル ディレクトリと同期できます。
 
