@@ -157,15 +157,6 @@ export async function parseOptionsAndRunCLI() {
 				// TODO: Update docs
 				describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 				type: 'string',
-				coerce(arg) {
-					if (arg === 'false') {
-						return '';
-					}
-					if (arg === '' || arg === 'true') {
-						return process.cwd();
-					}
-					return arg;
-				},
 			})
 			.option('follow-symlinks', {
 				describe:
@@ -362,8 +353,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 * Expand auto-mounts to include the necessary mounts and steps
 	 * when running in auto-mount mode.
 	 */
-	if (args.autoMount) {
-		args = expandAutoMounts(args.autoMount, args);
+	if (args.autoMount !== undefined) {
+		if (args.autoMount === '') {
+			// No auto-mount path was provided, so use the current working directory.
+			// Note: We default here instead of in the yargs declaration
+			// because it allows us to test the default as part of the runCLI unit tests.
+			args = { ...args, autoMount: process.cwd() };
+		}
+		args = expandAutoMounts(args);
 	}
 
 	if (args.quiet) {
