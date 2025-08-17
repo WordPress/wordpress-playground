@@ -1,7 +1,7 @@
 ---
 title: Ano ang mga Blueprints?
 slug: /blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them
-description: Learn what Blueprints are and how they configure WordPress Playground. Discover the benefits of using JSON for instant site setup.
+description: Alamin kung ano ang mga Blueprints at kung paano nila i-configure ang WordPress Playground. Tuklasin ang mga benepisyo ng paggamit ng JSON para sa instant na pag-setup ng site.
 ---
 
 # Ano ang mga Blueprint, at ano-ano ang mga pwede mong gawin?
