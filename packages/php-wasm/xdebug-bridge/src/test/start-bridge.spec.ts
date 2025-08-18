@@ -22,7 +22,6 @@ describe('Bridge', () => {
 			if (event === 'clientConnected') {
 				setTimeout(cb, 0);
 			}
-
 			return this;
 		});
 	});
@@ -146,6 +145,46 @@ describe('Bridge', () => {
 				'/foo/baz/qux.php',
 			]);
 		});
+
+		it('forwards excludedPaths to the bridge', async () => {
+			const paths = ['/foo', '/bar'];
+
+			await startBridge({ excludedPaths: paths });
+
+			const args = (XdebugCDPBridge as any).mock.calls[0][2];
+
+			expect(args.excludedPaths).toEqual(paths);
+		});
+
+		it('skips excluded directories while walking the filesystem', async () => {
+			const filesystem: Record<string, string[]> = {
+				'/foo': ['bar.php', 'internal'],
+				'/foo/internal': ['shared'],
+				'/foo/internal/shared': ['skip-me.php'],
+			};
+
+			const php: Partial<PHP> = {
+				listFiles: vi.fn(
+					(directory: string) => filesystem[directory] || []
+				),
+				isDir: vi.fn((path: string) => path in filesystem),
+			};
+
+			await startBridge({
+				phpInstance: php as PHP,
+				phpRoot: '/foo',
+				excludedPaths: ['/foo/internal'],
+			});
+
+			const args = (XdebugCDPBridge as any).mock.calls[0][2];
+
+			// Excluded directories should be pruned from the initial enumeration
+			// so DevTools never receives them (and listFiles is never called on them).
+			expect(args.knownScriptUrls).toEqual(['/foo/bar.php']);
+			expect(php.listFiles).not.toHaveBeenCalledWith('/foo/internal');
+			expect(php.listFiles).not.toHaveBeenCalledWith(
+				'/foo/internal/shared'
+			);
 	});
 
 	describe('Log', () => {

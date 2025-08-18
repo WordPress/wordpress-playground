@@ -1,6 +1,6 @@
 import fs from 'fs';
-import { createHash } from 'crypto';
 import { vi } from 'vitest';
+import { createHash } from 'crypto';
 import { DbgpSession } from '../lib/dbgp-session';
 import { CDPServer } from '../lib/cdp-server';
 import { XdebugCDPBridge } from '../lib/xdebug-cdp-bridge';
@@ -366,6 +366,7 @@ describe('XdebugCDPBridge', () => {
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.scriptParsed') {
 					script = message;
+
 					resolve();
 				}
 				return originalSendMessage(message);
