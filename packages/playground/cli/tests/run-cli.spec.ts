@@ -204,6 +204,36 @@ describe('run-cli', () => {
 				'<title>My WordPress Website</title>'
 			);
 		});
+
+		test('should run a plugin project using --auto-mount=<specific-path>', async () => {
+			const autoMountPath = path.join(
+				import.meta.dirname,
+				'mount-examples',
+				'plugin'
+			);
+			cliServer = await runCLI({
+				command: 'server',
+				autoMount: autoMountPath,
+			});
+			const phpResponse = await cliServer.playground.run({
+				code: `<?php
+					require_once '/wordpress/wp-load.php';
+					require_once '/wordpress/wp-admin/includes/plugin.php';
+					echo is_plugin_active('plugin/sample-plugin.php') ? '1' : '0';
+				?>`,
+			});
+			expect(phpResponse.text).toBe('1');
+
+			const response = await cliServer.playground.request({
+				url: '/',
+				method: 'GET',
+			});
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain(
+				'<title>My WordPress Website</title>'
+			);
+		});
+
 		test(`should run a theme project using --auto-mount`, async () => {
 			vi.spyOn(process, 'cwd').mockReturnValue(
 				path.join(import.meta.dirname, 'mount-examples', 'theme')
@@ -211,6 +241,29 @@ describe('run-cli', () => {
 			cliServer = await runCLI({
 				command: 'server',
 				autoMount: '',
+			});
+
+			expect(await getActiveTheme()).toBe('Yolo Theme');
+
+			const response = await cliServer.playground.request({
+				url: '/',
+				method: 'GET',
+			});
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain(
+				'<title>My WordPress Website</title>'
+			);
+		});
+
+		test('should run a theme project using --auto-mount=<specific-path>', async () => {
+			const autoMountPath = path.join(
+				import.meta.dirname,
+				'mount-examples',
+				'theme'
+			);
+			cliServer = await runCLI({
+				command: 'server',
+				autoMount: autoMountPath,
 			});
 
 			expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -240,6 +293,23 @@ describe('run-cli', () => {
 			expect(response.httpStatusCode).toBe(200);
 		});
 
+		test('should run a wp-content project using --auto-mount=<specific-path>', async () => {
+			const autoMountPath = path.join(
+				import.meta.dirname,
+				'mount-examples',
+				'wp-content'
+			);
+			cliServer = await runCLI({
+				command: 'server',
+				autoMount: autoMountPath,
+			});
+			const response = await cliServer.playground.request({
+				url: '/wp-login.php',
+				method: 'GET',
+			});
+			expect(response.httpStatusCode).toBe(200);
+		});
+
 		test('should run a static html project using --auto-mount', async () => {
 			vi.spyOn(process, 'cwd').mockReturnValue(
 				path.join(import.meta.dirname, 'mount-examples', 'static-html')
@@ -256,6 +326,24 @@ describe('run-cli', () => {
 			expect(response.text).toContain('<title>Static HTML</title>');
 		});
 
+		test('should run a static html project using --auto-mount=<specific-path>', async () => {
+			const autoMountPath = path.join(
+				import.meta.dirname,
+				'mount-examples',
+				'static-html'
+			);
+			cliServer = await runCLI({
+				command: 'server',
+				autoMount: autoMountPath,
+			});
+			const response = await cliServer.playground.request({
+				url: '/',
+				method: 'GET',
+			});
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain('<title>Static HTML</title>');
+		});
+
 		test('should run a php project using --auto-mount', async () => {
 			vi.spyOn(process, 'cwd').mockReturnValue(
 				path.join(import.meta.dirname, 'mount-examples', 'php')
@@ -263,6 +351,24 @@ describe('run-cli', () => {
 			cliServer = await runCLI({
 				command: 'server',
 				autoMount: '',
+			});
+			const response = await cliServer.playground.request({
+				url: '/',
+				method: 'GET',
+			});
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain('Hello world');
+		});
+
+		test('should run a php project using --auto-mount=<specific-path>', async () => {
+			const autoMountPath = path.join(
+				import.meta.dirname,
+				'mount-examples',
+				'php'
+			);
+			cliServer = await runCLI({
+				command: 'server',
+				autoMount: autoMountPath,
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
@@ -290,6 +396,38 @@ describe('run-cli', () => {
 			cliServer = await runCLI({
 				command: 'server',
 				autoMount: '',
+			});
+			const response = await cliServer.playground.request({
+				url: '/',
+				method: 'GET',
+			});
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain(
+				'<title>My WordPress Website</title>'
+			);
+
+			/**
+			 * Playground should not modify the mounted directory.
+			 */
+			expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
+		});
+
+		test('should run a wordpress project using --auto-mount=<specific-path>', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const autoMountPath = path.join(tmpDir, 'wordpress');
+
+			const zip = await fetch('https://wordpress.org/latest.zip');
+			const zipPath = path.join(tmpDir, 'wp.zip');
+			await writeFile(zipPath, new Uint8Array(await zip.arrayBuffer()));
+			await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
+
+			const checksum = await getDirectoryChecksum(tmpDir);
+
+			cliServer = await runCLI({
+				command: 'server',
+				autoMount: autoMountPath,
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
