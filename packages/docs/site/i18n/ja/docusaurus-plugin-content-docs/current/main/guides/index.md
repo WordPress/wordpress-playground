@@ -1,5 +1,5 @@
 ---
-title: 📖 ガイド - WordPress Playground
+title: 📖 ガイド
 slug: /guides
 description: さまざまなトピックと関連するユースケースを理解して操作するのに役立つ WordPress プレイグラウンド ガイド。
 sidebar_class_name: navbar-build-item

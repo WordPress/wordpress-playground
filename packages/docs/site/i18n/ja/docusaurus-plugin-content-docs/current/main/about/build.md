@@ -1,5 +1,5 @@
 ---
-title: 構築 - WordPress Playground
+title: 構築
 slug: /about/build
 description: ローカル環境の設定からテーマや新しいツールの作成まで、WordPress Playground が製品の構築にどのように役立つかを学びます。
 sidebar_class_name: navbar-build-item

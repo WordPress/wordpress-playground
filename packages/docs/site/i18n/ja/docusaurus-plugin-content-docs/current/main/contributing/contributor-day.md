@@ -1,6 +1,6 @@
 ---
 slug: /contributing/contributor-day
-title: WordCamp コントリビューターデー - WordPress Playground
+title: WordCamp コントリビューターデー
 description: WordCamp コントリビューターデー 中に VS Code 拡張機能や CLI などの Playground ツールを使用するためのガイドです。
 ---
 
