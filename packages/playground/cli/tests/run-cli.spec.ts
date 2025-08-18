@@ -121,7 +121,7 @@ describe('run-cli', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				autoMount: '',
 			});
 			const phpResponse = await cliServer.playground.run({
 				code: `<?php
@@ -147,7 +147,7 @@ describe('run-cli', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				autoMount: '',
 			});
 
 			expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -168,7 +168,7 @@ describe('run-cli', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				autoMount: '',
 			});
 			const response = await cliServer.playground.request({
 				url: '/wp-login.php',
@@ -183,7 +183,7 @@ describe('run-cli', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				autoMount: '',
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
@@ -199,7 +199,7 @@ describe('run-cli', () => {
 			);
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				autoMount: '',
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
@@ -226,7 +226,7 @@ describe('run-cli', () => {
 
 			cliServer = await runCLI({
 				command: 'server',
-				autoMount: true,
+				autoMount: '',
 			});
 			const response = await cliServer.playground.request({
 				url: '/',
@@ -260,7 +260,7 @@ describe('run-cli', () => {
 				'symlinked-script'
 			);
 
-			mkdirSync( path.dirname( symlinkPath ), { recursive: true } );
+			mkdirSync(path.dirname(symlinkPath), { recursive: true });
 
 			try {
 				if (existsSync(symlinkPath)) {
