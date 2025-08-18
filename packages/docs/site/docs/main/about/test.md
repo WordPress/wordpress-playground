@@ -1,5 +1,5 @@
 ---
-title: Test - WordPress Playground
+title: Test
 slug: /about/test
 description: Discover how to use Playground for testing themes, plugins, pull requests, and different versions of WordPress and PHP.
 ---

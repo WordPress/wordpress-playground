@@ -1,5 +1,5 @@
 ---
-title: Quick Start Guide - WordPress Playground
+title: Quick Start Guide
 slug: /quick-start-guide
 description: A 5-minute guide to get started with Playground. Learn how to test plugins, try themes, and use different WP/PHP versions.
 ---
