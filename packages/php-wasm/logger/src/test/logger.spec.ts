@@ -84,4 +84,14 @@ describe('Logger', () => {
 		expect(logs.length).toBe(0);
 		expect(output).toEqual([]);
 	});
+
+	it('supports logMessage() without explicit severity', () => {
+		logger.filterByVerbosity(LogVerbosity.Normal);
+		logger.logMessage({ message: 'test' });
+		const logs = logger.getLogs();
+		expect(logs.length).toBe(1);
+		expect(logs[0]).toMatch(
+			/\[\d{2}-[A-Za-z]{3,4}-\d{4} \d{2}:\d{2}:\d{2} UTC\] JavaScript log: test/
+		);
+	});
 });
