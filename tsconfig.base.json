@@ -17,7 +17,7 @@
 		"noPropertyAccessFromIndexSignature": false,
 		"baseUrl": ".",
 		"paths": {
-			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],
+			"@php-wasm/cli": ["packages/php-wasm/cli/src/cli.ts"],
 			"@php-wasm/fs-journal": [
 				"packages/php-wasm/fs-journal/src/index.ts"
 			],

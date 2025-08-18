@@ -1,55 +1,116 @@
-/**
- * A CLI script that runs PHP CLI via the WebAssembly build.
- */
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 import os from 'os';
 import { writeFileSync, existsSync, mkdtempSync, chmodSync } from 'fs';
 import { rootCertificates } from 'tls';
-
 import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
 
-let args = process.argv.slice(2);
-if (!args.length) {
-	args = ['--help'];
+interface CLIDefaults {
+	directive: string[];
+	config: string;
 }
 
-const baseUrl = (import.meta || {}).url;
-
-// Write the ca-bundle.crt file to disk so that PHP can find it.
-const caBundlePath = new URL('ca-bundle.crt', baseUrl).pathname;
-if (!existsSync(caBundlePath)) {
-	writeFileSync(caBundlePath, rootCertificates.join('\n'));
+interface CLIArgs {
+	_: string[];
+	config: string;
+	directive: string[];
+	xdebug?: boolean;
+	experimentalDevtools?: boolean;
 }
-args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 
-async function run() {
-	const defaultPhpIniPath = new URL('php.ini', baseUrl).pathname;
+function parseCliArgs(defaults: CLIDefaults) {
+	return yargs(hideBin(process.argv))
+		.usage(
+			`
+PHP.wasm CLI
+
+Usage: php-wasm-cli <command> [options]
+		`
+		)
+		.option('config', {
+			alias: 'c',
+			type: 'string',
+			describe: 'Path to configuration file',
+			default: defaults.config,
+		})
+		.option('directive', {
+			alias: 'd',
+			type: 'array',
+			describe: 'Set configuration directives (key=value)',
+			default: defaults.directive,
+		})
+		.option('xdebug', {
+			type: 'boolean',
+			describe: 'Enable Xdebug.',
+			default: false,
+		})
+		.option('experimental-devtools', {
+			type: 'boolean',
+			describe: 'Enable experimental browser development tools.',
+			default: false,
+		})
+		.strictCommands()
+		.help()
+		.epilog(
+			`
+Examples:
+  php-wasm-cli                                             # Start with default settings
+  php-wasm-cli --config /path/to/php.ini           # Run PHP CLI with custom config file
+  php-wasm-cli --xdebug --experimental-devtools             # Enable Xdebug and Devtools
+		`
+		)
+		.parseSync() as CLIArgs;
+}
+
+function mapArgsArray(args: CLIArgs): string[] {
+	const argv: string[] = [];
+
+	if (args.config) {
+		argv.push('-c', args.config);
+	}
+
+	if (Array.isArray(args.directive)) {
+		args.directive.forEach((d) => {
+			argv.push('-d', d);
+		});
+	}
+
+	if (Array.isArray(args._)) {
+		argv.push(...args._);
+	}
+
+	return argv;
+}
+
+export async function parseOptionsAndRunCLI(): Promise<void> {
 	const phpVersion = (process.env['PHP'] ||
 		LatestSupportedPHPVersion) as SupportedPHPVersion;
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
 	}
 
-	const hasXdebugOption = args.some((arg) => arg.startsWith('--xdebug'));
-	if (hasXdebugOption) {
-		args = args.filter((arg) => arg !== '--xdebug');
+	const baseUrl = (import.meta || {}).url;
+
+	const defaultPhpIniPath = new URL('php.ini', baseUrl).pathname;
+	// Write the ca-bundle.crt file to disk so that PHP can find it.
+	const caBundlePath = new URL('ca-bundle.crt', baseUrl).pathname;
+	if (!existsSync(caBundlePath)) {
+		writeFileSync(caBundlePath, rootCertificates.join('\n'));
 	}
 
-	const hasDevtoolsOption = args.some((arg) =>
-		arg.startsWith('--experimental-devtools')
-	);
-	if (hasDevtoolsOption) {
-		args = args.filter((arg) => arg !== '--experimental-devtools');
-	}
+	const args = parseCliArgs({
+		directive: [`openssl.cafile=${caBundlePath}`],
+		config: defaultPhpIniPath,
+	});
 
 	// npm scripts set the TMPDIR env variable
 	// PHP accepts a TMPDIR env variable and expects it to
@@ -99,24 +160,20 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
-			withXdebug: hasXdebugOption,
+			withXdebug: args.xdebug,
 		})
 	);
 
 	useHostFilesystem(php);
 
-	if (hasDevtoolsOption && hasXdebugOption) {
+	if (args.experimentalDevtools && args.xdebug) {
 		const bridge = await startBridge({ breakOnFirstLine: true });
 
 		bridge.start();
 	}
 
-	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
-	if (!hasMinusCOption) {
-		args.unshift('-c', defaultPhpIniPath);
-	}
+	const response = await php.cli(['php', ...mapArgsArray(args)]);
 
-	const response = await php.cli(['php', ...args]);
 	response.stderr.pipeTo(
 		new WritableStream({
 			write(chunk) {
@@ -147,5 +204,3 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			}, 100);
 		});
 }
-
-run();

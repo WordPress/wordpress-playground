@@ -29,7 +29,7 @@
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"main": "dist/packages/php-wasm/cli/main.js",
+				"main": "dist/packages/php-wasm/cli/cli.js",
 				"outputPath": "dist/packages/php-wasm/cli"
 			},
 			"defaultConfiguration": "production",
@@ -45,7 +45,7 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/php-wasm/cli/src/main.ts",
+				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/php-wasm/cli/src/cli.ts",
 				"tty": true
 			}
 		},
@@ -57,7 +57,7 @@
 						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
 						"forwardAllArgs": false
 					},
-					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/php-wasm/cli/src/main.ts"
+					"node --stack-trace-limit=100 --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/php-wasm/cli/src/cli.ts"
 				],
 				"tty": true,
 				"parallel": false
@@ -71,7 +71,7 @@
 						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
 						"forwardAllArgs": false
 					},
-					"node --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/php-wasm/cli/src/main.ts"
+					"node --inspect --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/php-wasm/cli/src/cli.ts"
 				],
 				"tty": true,
 				"parallel": false
@@ -80,7 +80,7 @@
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {
-				"scriptPath": "dist/packages/php-wasm/cli/main.js"
+				"scriptPath": "dist/packages/php-wasm/cli/php-wasm.js"
 			},
 			"dependsOn": ["build"]
 		},

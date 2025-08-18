@@ -21,7 +21,7 @@
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"main": "main.js",
+	"main": "cli.js",
 	"bin": {
 		"php-wasm-cli": "php-wasm.js"
 	},

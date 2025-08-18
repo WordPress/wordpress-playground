@@ -64,7 +64,13 @@ export async function parseOptionsAndRunCLI() {
 		 *       Perhaps the two could be handled by the same code?
 		 */
 		const yargsObject = yargs(process.argv.slice(2))
-			.usage('Usage: wp-playground <command> [options]')
+			.usage(
+				`
+WordPress Playground CLI
+
+Usage: wp-playground-cli <command> [options]
+		`
+			)
 			.positional('command', {
 				describe: 'Command to run',
 				choices: ['server', 'run-blueprint', 'build-snapshot'] as const,

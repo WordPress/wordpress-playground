@@ -64,7 +64,7 @@ php.js.bak
 # @php-wasm/cli saves this file to disk so PHP has access to it.
 # Since it is dynamically generated from the Node.js TLS module,
 # we do not want to commit it to the repository.
-packages/php-wasm/cli/src/ca-bundle.crt
+packages/php-wasm/cli/src/lib/ca-bundle.crt
 
 # PHPUnit
 .phpunit.result.cache
