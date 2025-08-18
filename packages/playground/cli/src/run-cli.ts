@@ -356,8 +356,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	if (args.autoMount !== undefined) {
 		if (args.autoMount === '') {
 			// No auto-mount path was provided, so use the current working directory.
-			// Note: We default here instead of in the yargs declaration
-			// because it allows us to test the default as part of the runCLI unit tests.
+			// Note: We default here instead of in the yargs declaration because
+			// it allows us to test the default as part of the runCLI() unit tests.
 			args = { ...args, autoMount: process.cwd() };
 		}
 		args = expandAutoMounts(args);
