@@ -90,38 +90,8 @@ export class XdebugCDPBridge {
 				method: 'Debugger.paused',
 				params: { reason: 'terminated', callFrames: [] },
 			});
-			// Close the DevTools connection
-			// Note: Alternatively, could keep it open and allow reconnect
-			// But here we assume one session and close the WS.
-			// We schedule close after sending terminated event.
-			setTimeout(() => {
-				// @ts-ignore: access private ws for immediate close
-				if (this.cdp['ws']) this.cdp['ws'].close();
-			}, 100);
 		});
 
-		// DevTools client connected
-		this.cdp.on('clientConnected', () => {
-			// If Xdebug already connected and paused (starting or break), send script(s) and pause status
-			if (this.xdebugConnected) {
-				this.sendInitialScripts();
-
-				if (
-					this.xdebugStatus === 'starting' ||
-					this.xdebugStatus === 'break'
-				) {
-					// Retrieve stack and send paused event
-					const txn = this.sendDbgpCommand(`stack_get`);
-					this.pendingCommands.set(txn, {
-						/* internal stack get (no cdpId) */
-					});
-					// We'll handle sending paused event when stack_get response arrives
-				} else {
-					// If script is running, we might send an initial resumed state or nothing.
-					// DevTools by default considers it running if no paused event.
-				}
-			}
-		});
 		// DevTools messages (requests)
 		this.cdp.on('message', (msg: any) => {
 			this.handleCdpMessage(msg);
@@ -134,6 +104,8 @@ export class XdebugCDPBridge {
 				// After detach, Xdebug will likely close connection
 			}
 		});
+
+		this.sendInitialScripts();
 	}
 
 	private sendInitialScripts() {
@@ -464,9 +436,19 @@ export class XdebugCDPBridge {
 			this.initFileUri = initAttr.fileuri || initAttr.fileuri;
 			this.xdebugStatus = 'starting';
 
-			const firstBreakTxn = this.sendDbgpCommand('step_into');
+			this.breakpoints.forEach((breakpoint) => {
+				this.handleCdpMessage({
+					method: 'Debugger.setBreakpointByUrl',
+					params: {
+						url: breakpoint.file,
+						lineNumber: breakpoint.line - 1,
+					},
+				});
+			});
+
+			const firstBreakTxn = this.sendDbgpCommand('run');
 			this.pendingCommands.set(firstBreakTxn, {
-				/* auto step_into after init */
+				/* auto run after init */
 			});
 
 			// Optionally send scriptParsed for the main file if DevTools already connected
