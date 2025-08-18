@@ -154,8 +154,7 @@ export async function parseOptionsAndRunCLI() {
 				default: false,
 			})
 			.option('auto-mount', {
-				// TODO: Update docs
-				describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
+				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 				type: 'string',
 			})
 			.option('follow-symlinks', {
