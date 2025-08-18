@@ -373,8 +373,18 @@ function compileBlueprintJson(
 				}
 			} finally {
 				try {
+					/**
+					 * Use an intermediate redirection step to ensure the login cookies
+					 * are set before we redirecting to the landing page.
+					 *
+					 * @see playground_auto_login_redirect_target in the @wp-playground/wordpress package.
+					 */
+					const targetUrl = await (
+						playground as any
+					).pathToInternalUrl(blueprint.landingPage || '/');
 					await (playground as any).goTo(
-						blueprint.landingPage || '/'
+						'/index.php?playground-redirection-handler&next=' +
+							encodeURIComponent(targetUrl)
 					);
 				} catch {
 					/**

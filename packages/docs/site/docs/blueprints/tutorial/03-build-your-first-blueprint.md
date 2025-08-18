@@ -117,7 +117,7 @@ The site should now look like the screenshot below:
 
 ### Resources
 
-The `themeData` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
+The `themeData` defines a [resource](/blueprints/steps/resources) and references an external file required to complete the step. Playground supports different types of resources, including
 
 -   `url`,
 -   `wordpress.org/themes`,

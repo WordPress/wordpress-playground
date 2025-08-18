@@ -1,5 +1,7 @@
 ---
 slug: /contributing/coding-standards
+title: コーディング原則 - WordPress Playground
+description: 役立つエラー メッセージ、最小限のパブリック API、ブループリントを中心に、Playground のコーディング原則について詳しく説明します。
 ---
 
 # コーディング原則

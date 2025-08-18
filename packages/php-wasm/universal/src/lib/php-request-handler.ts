@@ -275,6 +275,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @returns The absolute URL.
 	 */
 	pathToInternalUrl(path: string): string {
+		if (!path.startsWith('/')) {
+			path = `/${path}`;
+		}
 		return `${this.absoluteUrl}${path}`;
 	}
 
@@ -286,7 +289,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @returns The relative path.
 	 */
 	internalUrlToPath(internalUrl: string): string {
-		const url = new URL(internalUrl);
+		const url = new URL(internalUrl, 'https://playground.internal');
 		if (url.pathname.startsWith(this.#PATHNAME)) {
 			url.pathname = url.pathname.slice(this.#PATHNAME.length);
 		}

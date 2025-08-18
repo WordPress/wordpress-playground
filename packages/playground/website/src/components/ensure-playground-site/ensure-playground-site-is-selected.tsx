@@ -159,7 +159,6 @@ function parseSearchParams(searchParams: URLSearchParams) {
 	}
 	return params;
 }
-
 async function createNewTemporarySite(
 	dispatch: ReturnType<typeof useAppDispatch>,
 	requestedSiteSlug?: string
@@ -168,9 +167,15 @@ async function createNewTemporarySite(
 	// Lean on the Query API parameters and the Blueprint API to
 	// create the new site.
 	const newUrl = new URL(window.location.href);
+	const defaultBlueprint =
+		'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 	let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+
 	try {
-		resolvedBlueprint = await resolveBlueprintFromURL(newUrl);
+		resolvedBlueprint = await resolveBlueprintFromURL(
+			newUrl,
+			defaultBlueprint
+		);
 	} catch (e) {
 		logger.error('Error resolving blueprint:', e);
 	}

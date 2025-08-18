@@ -1,6 +1,7 @@
 ---
-title: クイックスタート ガイド
+title: クイックスタート ガイド - WordPress Playground
 slug: /quick-start-guide
+description: Playground を使い始めるための5分ガイド。プラグインのテスト、テーマの試用、そして様々なバージョンのWP/PHPの使い方を学びましょう。
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
@@ -232,7 +233,7 @@ You can also use the `wp` and `php` query parameters to open Playground with the
  -->
 
 -   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=7.4
+-   https://playground.wordpress.net/?php=8.3
 -   https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />

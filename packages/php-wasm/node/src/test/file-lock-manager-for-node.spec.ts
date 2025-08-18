@@ -17,6 +17,7 @@ import {
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
 import { jspi } from 'wasm-feature-detect';
+import { flockSync as nativeFlockSync } from 'fs-ext';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
 const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
@@ -25,7 +26,7 @@ describe('FileLockManagerForNode', () => {
 	let lockManager: FileLockManagerForNode;
 
 	beforeEach(() => {
-		lockManager = new FileLockManagerForNode();
+		lockManager = new FileLockManagerForNode(nativeFlockSync);
 		writeFileSync(TEST_FILE1, `test file 1 for ${import.meta.url}`);
 		writeFileSync(TEST_FILE2, `test file 2 for ${import.meta.url}`);
 	});
@@ -1292,8 +1293,7 @@ describe('FileLockManagerForNode', () => {
 		});
 	});
 
-	// TODO: Re-enable these once we can fix them.
-	describe.skip('integration with native OS file locking', () => {
+	describe('integration with native OS file locking', () => {
 		let childProcess: ChildProcess | undefined;
 
 		afterEach(async () => {

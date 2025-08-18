@@ -266,6 +266,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				'/tmp',
 				requestHandler.documentRoot,
 				'/internal/shared',
+				'/internal/symlinks',
 			]);
 		}
 

@@ -1,5 +1,7 @@
 ---
 slug: /contributing/translations
+title: Contributions to translations - WordPress Playground
+description: Learn how to translate the Playground documentation, including file structure, local testing, and the review process.
 ---
 
 # Contributions to translations

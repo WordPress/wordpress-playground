@@ -95,7 +95,7 @@ export async function loadNodeRuntime(
 			 * in the Emscripten's filesystem and mount the OS directory
 			 * to the Emscripten filesystem.
 			 *
-			 * The directory is mounted to the `/internals/symlinks` directory to avoid
+			 * The directory is mounted to the `/internal/symlinks` directory to avoid
 			 * conflicts with existing VFS directories.
 			 * We can set a arbitrary mount path because readlink is the source of truth
 			 * for the path and Emscripten will accept it as if it was the real link path.
@@ -111,7 +111,7 @@ export async function loadNodeRuntime(
 							)
 						);
 					const symlinkPath = joinPaths(
-						`/internals/symlinks`,
+						`/internal/symlinks`,
 						absoluteSourcePath
 					);
 					if (

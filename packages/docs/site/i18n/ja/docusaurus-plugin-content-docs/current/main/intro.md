@@ -1,7 +1,8 @@
 ---
-title: はじめに
+title: はじめに - WordPress Playground
 slug: /
 id: introduction
+description: WordPress Playground ドキュメントへようこそ！このページではドキュメントの構造を紹介し、ドキュメントの使い方を説明します。
 ---
 
 # WordPress Playground ドキュメント

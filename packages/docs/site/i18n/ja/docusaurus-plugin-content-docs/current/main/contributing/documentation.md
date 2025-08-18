@@ -1,5 +1,7 @@
 ---
 slug: /contributing/documentation
+title: ドキュメントの貢献 - WordPress Playground
+description: 問題のオープンからプル リクエストの送信まで、Playground ドキュメントに貢献する方法に関するガイド。
 ---
 
 # ドキュメントの貢献
