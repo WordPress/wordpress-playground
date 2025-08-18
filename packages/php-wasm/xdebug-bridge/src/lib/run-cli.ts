@@ -1,7 +1,15 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startBridge } from './start-bridge';
-import { LogVerbosity } from '@php-wasm/logger';
+import { logger, LogSeverity } from '@php-wasm/logger';
+
+const LogVerbosity = {
+	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
+	Normal: { name: 'normal', severity: LogSeverity.Info },
+	Debug: { name: 'debug', severity: LogSeverity.Debug },
+} as const;
+
+type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 interface CLIArgs {
 	port?: number;
@@ -40,7 +48,9 @@ Usage: xdebug-bridge [options]
 		.option('verbosity', {
 			type: 'string',
 			describe: 'Output logs',
-			choices: Object.values(LogVerbosity),
+			choices: Object.values(LogVerbosity).map(
+				(verbosity) => verbosity.name
+			),
 			default: 'normal',
 		})
 		.help()
@@ -63,12 +73,18 @@ export async function main(): Promise<void> {
 		return;
 	}
 
+	if (args.verbosity) {
+		const severity = Object.values(LogVerbosity).find(
+			(v) => v.name === args.verbosity
+		)!.severity;
+		logger.filterBySeverity(severity);
+	}
+
 	const bridge = await startBridge({
 		cdpPort: 9229,
 		cdpHost: args.host,
 		dbgpPort: args.port,
 		phpRoot: args.phpRoot,
-		verbosity: args.verbosity,
 	});
 
 	bridge.start();

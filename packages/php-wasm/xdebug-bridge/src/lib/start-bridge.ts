@@ -1,4 +1,4 @@
-import { logger, type LogVerbosity } from '@php-wasm/logger';
+import { logger } from '@php-wasm/logger';
 import type { PHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import { join } from 'path';
@@ -11,10 +11,8 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-	verbosity?: LogVerbosity;
 	remoteRoot?: string;
 	localRoot?: string;
-
 	phpInstance?: PHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
 };
@@ -24,10 +22,6 @@ export async function startBridge(config: StartBridgeConfig) {
 	const dbgpPort = config.dbgpPort ?? 9003;
 	const cdpHost = config.cdpHost ?? 'localhost';
 	const phpRoot = config.phpRoot ?? import.meta.dirname;
-
-	if (config.verbosity) {
-		logger.filterByVerbosity(config.verbosity);
-	}
 
 	logger.log('Starting XDebug Bridge...');
 

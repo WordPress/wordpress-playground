@@ -1,5 +1,5 @@
-import { startBridge } from '../src/lib/start-bridge';
-import { type Log, logger } from '@php-wasm/logger/src';
+import { startBridge } from '../lib/start-bridge';
+import { type Log, logger, LogSeverity } from '@php-wasm/logger';
 import { WebSocket } from 'ws';
 
 describe('verbosity', () => {
@@ -16,7 +16,7 @@ describe('verbosity', () => {
 		logger.handlers = [logToVariable];
 	});
 
-	it('outputs main logs by default', async () => {
+	it('outputs logs by default', async () => {
 		new WebSocket(`ws://localhost:${port}`);
 
 		const bridge = await startBridge({ cdpPort: port });
@@ -37,13 +37,12 @@ describe('verbosity', () => {
 		expect(output).not.toContain('[CDP][send]"Hello Xdebug world"');
 	});
 
-	it('outputs main logs with verbosity option set to normal', async () => {
+	it('outputs logs with logger severity set to normal', async () => {
 		new WebSocket(`ws://localhost:${port}`);
 
-		const bridge = await startBridge({
-			cdpPort: port,
-			verbosity: 'normal',
-		});
+		logger.filterBySeverity(LogSeverity.Info);
+
+		const bridge = await startBridge({ cdpPort: port });
 
 		expect(output).toEqual([
 			'Starting XDebug Bridge...',
@@ -63,10 +62,12 @@ describe('verbosity', () => {
 		);
 	});
 
-	it('outputs main logs and the communication inside the bridge with verbosity option set to debug', async () => {
+	it('outputs logs and communication inside the bridge with logger severity set to debug', async () => {
 		new WebSocket(`ws://localhost:${port}`);
 
-		const bridge = await startBridge({ cdpPort: port, verbosity: 'debug' });
+		logger.filterBySeverity(LogSeverity.Debug);
+
+		const bridge = await startBridge({ cdpPort: port });
 
 		bridge.cdp.sendMessage('Hello Xdebug world');
 
@@ -77,10 +78,12 @@ describe('verbosity', () => {
 		);
 	});
 
-	it('does not output logs when verbosity option set to quiet', async () => {
+	it('outputs only fatal logs with logger severity set to fatal', async () => {
 		new WebSocket(`ws://localhost:${port}`);
 
-		const bridge = await startBridge({ cdpPort: port, verbosity: 'quiet' });
+		logger.filterBySeverity(LogSeverity.Fatal);
+
+		const bridge = await startBridge({ cdpPort: port });
 
 		bridge.stop();
 

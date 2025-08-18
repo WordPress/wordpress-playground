@@ -18,26 +18,15 @@ export type Log = {
 };
 
 /**
- * Log verbosity levels
- */
-export const LogVerbosity = {
-	Normal: 'normal',
-	Quiet: 'quiet',
-	Debug: 'debug',
-} as const;
-
-export type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity];
-
-/**
  * Log severity levels.
  */
 export const LogSeverity = {
-	Log: { name: 'log', level: 1 },
-	Info: { name: 'info', level: 1 },
-	Warn: { name: 'warn', level: 1 },
+	Fatal: { name: 'fatal', level: 0 },
 	Error: { name: 'error', level: 1 },
-	Fatal: { name: 'fatal', level: 1 },
-	Debug: { name: 'debug', level: 2 },
+	Warn: { name: 'warn', level: 2 },
+	Log: { name: 'log', level: 3 },
+	Info: { name: 'info', level: 4 },
+	Debug: { name: 'debug', level: 5 },
 } as const;
 
 export type LogSeverity = (typeof LogSeverity)[keyof typeof LogSeverity];
@@ -59,7 +48,7 @@ export type LogPrefix = (typeof LogPrefix)[keyof typeof LogPrefix];
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
 	private handlers: LogHandler[];
-	private verbosity = 1;
+	private severity: LogSeverity = LogSeverity.Info;
 
 	// constructor
 	constructor(
@@ -101,28 +90,18 @@ export class Logger extends EventTarget {
 			severity: log.severity ?? LogSeverity.Log,
 		};
 		for (const handler of this.handlers) {
-			if (logWithSeverity.severity.level <= this.verbosity) {
+			if (logWithSeverity.severity.level <= this.severity.level) {
 				handler(logWithSeverity, ...args);
 			}
 		}
 	}
 
 	/**
-	 * Filter message based on verbosiy
-	 * @param verbosity LogVerbosity
+	 * Filter message based on severity
+	 * @param severity LogSeverity
 	 */
-	public filterByVerbosity(verbosity: LogVerbosity): void {
-		switch (verbosity) {
-			case LogVerbosity.Quiet:
-				this.verbosity = 0;
-				break;
-			case LogVerbosity.Normal:
-				this.verbosity = 1;
-				break;
-			case LogVerbosity.Debug:
-				this.verbosity = 2;
-				break;
-		}
+	public filterBySeverity(severity: LogSeverity): void {
+		this.severity = severity;
 	}
 
 	/**

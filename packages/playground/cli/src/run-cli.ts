@@ -1,4 +1,4 @@
-import { errorLogPath, logger, LogVerbosity } from '@php-wasm/logger';
+import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import type {
 	PHPRequest,
 	RemoteAPI,
@@ -48,6 +48,14 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
+
+export const LogVerbosity = {
+	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
+	Normal: { name: 'normal', severity: LogSeverity.Info },
+	Debug: { name: 'debug', severity: LogSeverity.Debug },
+} as const;
+
+type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -152,7 +160,9 @@ export async function parseOptionsAndRunCLI() {
 			.option('verbosity', {
 				describe: 'Output logs and progress messages.',
 				type: 'string',
-				choices: Object.values(LogVerbosity),
+				choices: Object.values(LogVerbosity).map(
+					(verbosity) => verbosity.name
+				),
 				default: 'normal',
 			})
 			.option('debug', {
@@ -382,7 +392,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	}
 
 	if (args.verbosity) {
-		logger.filterByVerbosity(args.verbosity);
+		const severity = Object.values(LogVerbosity).find(
+			(v) => v.name === args.verbosity
+		)!.severity;
+		logger.filterBySeverity(severity);
 	}
 
 	// Declare file lock manager outside scope of startServer
