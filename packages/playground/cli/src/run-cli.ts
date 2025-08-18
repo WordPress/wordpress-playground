@@ -220,10 +220,26 @@ export async function parseOptionsAndRunCLI() {
 					}
 				}
 
+				if (args['auto-mount']) {
+					let autoMountIsDir = false;
+					try {
+						const autoMountStats = fs.statSync(args['auto-mount']);
+						autoMountIsDir = autoMountStats.isDirectory();
+					} catch {
+						autoMountIsDir = false;
+					}
+
+					if (!autoMountIsDir) {
+						throw new Error(
+							`The specified --auto-mount path is not a directory: '${args['auto-mount']}'.`
+						);
+					}
+				}
+
 				if (args['experimental-multi-worker'] !== undefined) {
 					if (args['experimental-multi-worker'] <= 1) {
 						throw new Error(
-							'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
+							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
 						);
 					}
 
@@ -236,7 +252,7 @@ export async function parseOptionsAndRunCLI() {
 						)
 					) {
 						throw new Error(
-							'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag. For example: ' +
+							'Please mount a real filesystem directory as the /wordpress directory before using the --experimental-multi-worker flag. For example: ' +
 								'--mount-dir-before-install ./empty-dir /wordpress'
 						);
 					}
