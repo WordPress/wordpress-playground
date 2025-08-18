@@ -2,6 +2,7 @@
 sidebar_position: 1
 title: Blueprint data Format
 slug: /blueprints/data-format
+description: An overview of the Blueprint data format. Learn about key properties like landingPage, preferredVersions, and steps.
 ---
 
 # Blueprint data format
