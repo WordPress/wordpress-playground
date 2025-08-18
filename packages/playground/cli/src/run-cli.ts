@@ -154,18 +154,9 @@ export async function parseOptionsAndRunCLI() {
 				default: false,
 			})
 			.option('auto-mount', {
-				// TODO: Update docs
 				describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
-				type: 'string',
-				coerce(arg) {
-					if (arg === 'false') {
-						return '';
-					}
-					if (arg === '' || arg === 'true') {
-						return process.cwd();
-					}
-					return arg;
-				},
+				type: 'boolean',
+				default: false,
 			})
 			.option('follow-symlinks', {
 				describe:
@@ -321,7 +312,7 @@ export interface RunCLIArgs {
 	port?: number;
 	quiet?: boolean;
 	wp?: string;
-	autoMount?: string;
+	autoMount?: boolean;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	exitOnPrimaryWorkerCrash?: boolean;
@@ -375,7 +366,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 * when running in auto-mount mode.
 	 */
 	if (args.autoMount) {
-		args = expandAutoMounts(args.autoMount, args);
+		args = expandAutoMounts(args);
 	}
 
 	if (args.quiet) {

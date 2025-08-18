@@ -110,7 +110,9 @@ const ACTIVATE_FIRST_THEME_STEP = {
 /**
  * Auto-mounts resolution logic:
  */
-export function expandAutoMounts(path: string, args: RunCLIArgs): RunCLIArgs {
+export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
+	const path = process.cwd();
+
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
 
