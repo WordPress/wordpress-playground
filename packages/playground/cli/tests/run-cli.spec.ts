@@ -208,7 +208,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: '',
+					autoMount: true,
 				});
 				const phpResponse = await cliServer.playground.run({
 					code: `<?php
@@ -235,7 +235,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: '',
+					autoMount: true,
 				});
 
 				expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -261,7 +261,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: '',
+					autoMount: true,
 				});
 				const response = await cliServer.playground.request({
 					url: '/wp-login.php',
@@ -281,7 +281,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: '',
+					autoMount: true,
 				});
 				const response = await cliServer.playground.request({
 					url: '/',
@@ -298,7 +298,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: '',
+					autoMount: true,
 				});
 				const response = await cliServer.playground.request({
 					url: '/',
@@ -329,7 +329,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: '',
+					autoMount: true,
 				});
 				const response = await cliServer.playground.request({
 					url: '/',
