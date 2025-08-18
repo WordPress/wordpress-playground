@@ -90,6 +90,69 @@ describe('run-cli', () => {
 		expect(response.text).toContain('<title>My Blog Name</title>');
 	});
 
+	test('should be able to follow external symlinks in primary and secondary PHP instances', async () => {
+		// TODO: Make sure test always uses a single worker.
+		// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		writeFileSync(
+			path.join(tmpDir, 'sleep.php'),
+			'<?php sleep(1); echo "Slept"; '
+		);
+		const symlinkPath = path.join(
+			import.meta.dirname,
+			'mount-examples',
+			'symlinking',
+			'symlinked-script'
+		);
+
+		mkdirSync(path.dirname(symlinkPath), { recursive: true });
+
+		try {
+			if (existsSync(symlinkPath)) {
+				unlinkSync(symlinkPath);
+			}
+			// TODO: Confirm that symlink target is outside of current working dir tree.
+			symlinkSync(tmpDir, symlinkPath);
+			cliServer = await runCLI({
+				debug: true,
+				command: 'server',
+				followSymlinks: true,
+				'mount-before-install': [
+					{
+						hostPath: symlinkPath,
+						vfsPath: '/wordpress/wp-content/test-script',
+					},
+				],
+			});
+			expect(cliServer.workerThreadCount).toBe(1);
+			// Make multiple simultaneous requests to force the use of a secondary PHP instance.
+			// TODO: Find way to confirm this.
+			const responses = await Promise.all([
+				cliServer.playground.request({
+					url: '/wp-content/test-script/sleep.php',
+					method: 'GET',
+				}),
+				cliServer.playground.request({
+					url: '/wp-content/test-script/sleep.php',
+					method: 'GET',
+				}),
+				// Test a third request to hopefully test more than one secondary instance.
+				cliServer.playground.request({
+					url: '/wp-content/test-script/sleep.php',
+					method: 'GET',
+				}),
+			]);
+			responses.forEach((response) => {
+				expect(response.httpStatusCode).toBe(200);
+				expect(response.text).toContain('Slept');
+			});
+		} finally {
+			if (existsSync(symlinkPath)) {
+				unlinkSync(symlinkPath);
+			}
+		}
+	});
+
 	// @TODO: Also test with Blueprints v2.
 	describe('auto-mount', () => {
 		const getDirectoryChecksum = async (dir: string) => {
@@ -241,71 +304,6 @@ describe('run-cli', () => {
 			 * Playground should not modify the mounted directory.
 			 */
 			expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
-		});
-
-		test('should be able to follow external symlinks in primary and secondary PHP instances', async () => {
-			// TODO: Make sure test always uses a single worker.
-			// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
-			const tmpDir = await mkdtemp(
-				path.join(tmpdir(), 'playground-test-')
-			);
-			writeFileSync(
-				path.join(tmpDir, 'sleep.php'),
-				'<?php sleep(1); echo "Slept"; '
-			);
-			const symlinkPath = path.join(
-				import.meta.dirname,
-				'mount-examples',
-				'symlinking',
-				'symlinked-script'
-			);
-
-			mkdirSync(path.dirname(symlinkPath), { recursive: true });
-
-			try {
-				if (existsSync(symlinkPath)) {
-					unlinkSync(symlinkPath);
-				}
-				// TODO: Confirm that symlink target is outside of current working dir tree.
-				symlinkSync(tmpDir, symlinkPath);
-				cliServer = await runCLI({
-					debug: true,
-					command: 'server',
-					followSymlinks: true,
-					'mount-before-install': [
-						{
-							hostPath: symlinkPath,
-							vfsPath: '/wordpress/wp-content/test-script',
-						},
-					],
-				});
-				expect(cliServer.workerThreadCount).toBe(1);
-				// Make multiple simultaneous requests to force the use of a secondary PHP instance.
-				// TODO: Find way to confirm this.
-				const responses = await Promise.all([
-					cliServer.playground.request({
-						url: '/wp-content/test-script/sleep.php',
-						method: 'GET',
-					}),
-					cliServer.playground.request({
-						url: '/wp-content/test-script/sleep.php',
-						method: 'GET',
-					}),
-					// Test a third request to hopefully test more than one secondary instance.
-					cliServer.playground.request({
-						url: '/wp-content/test-script/sleep.php',
-						method: 'GET',
-					}),
-				]);
-				responses.forEach((response) => {
-					expect(response.httpStatusCode).toBe(200);
-					expect(response.text).toContain('Slept');
-				});
-			} finally {
-				if (existsSync(symlinkPath)) {
-					unlinkSync(symlinkPath);
-				}
-			}
 		});
 	});
 });
