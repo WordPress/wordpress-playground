@@ -183,6 +183,85 @@ describe.each(blueprintVersions)(
 			}
 		});
 
+		if (version === 2) {
+			// @TODO: Test modes
+			test('should support --mode=create-new-site', async () => {
+				const tmpDir = await mkdtemp(
+					path.join(tmpdir(), 'playground-test-')
+				);
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'experimental-blueprints-v2-runner': true,
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				const response = await cliServer.playground.request({
+					url: '/',
+					method: 'GET',
+				});
+				expect(response.httpStatusCode).toBe(200);
+				expect(response.text).toContain(
+					`<title>${expectedHomePageTitle}</title>`
+				);
+			});
+			test('should support --mode=apply-to-existing-site', async () => {
+				const tmpDir = await mkdtemp(
+					path.join(tmpdir(), 'playground-test-')
+				);
+
+				// Create a new site so we can load it as an existing site later.
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'experimental-blueprints-v2-runner': true,
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				// Confirm the new site looks intact with its WP installed.
+				const setupResponse = await cliServer.playground.request({
+					url: '/',
+					method: 'GET',
+				});
+				expect(setupResponse.httpStatusCode).toBe(200);
+				expect(setupResponse.text).toContain(
+					`<title>${expectedHomePageTitle}</title>`
+				);
+				await cliServer.server.close();
+
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					'experimental-blueprints-v2-runner': true,
+					mode: 'apply-to-existing-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				const response = await cliServer.playground.request({
+					url: '/',
+					method: 'GET',
+				});
+				expect(response.httpStatusCode).toBe(200);
+				expect(response.text).toContain(
+					`<title>${expectedHomePageTitle}</title>`
+				);
+			});
+		}
+
 		// @TODO: Also test with Blueprints v2.
 		describe('auto-mount', () => {
 			const getDirectoryChecksum = async (dir: string) => {
