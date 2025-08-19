@@ -1,7 +1,7 @@
 ---
 title: ブループリントの実行方法
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description: ブループリントのさまざまな使用方法について学ぶ
+description: URL フラグメントや blueprint-url パラメータの使用など、ブループリントを読み込んで実行するためのさまざまな方法について学習します。
 ---
 
 # ブループリントをロードして実行する方法
