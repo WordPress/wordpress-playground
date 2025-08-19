@@ -250,6 +250,15 @@ export async function parseOptionsAndRunCLI() {
 					}
 				}
 
+				if (
+					args['auto-mount'] !== undefined &&
+					args['mode'] !== undefined
+				) {
+					throw new Error(
+						'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+					);
+				}
+
 				// TODO: Require `mode` arg if `experimental-blueprints-v2-runner` is true
 				// and blueprint is provided.
 				// TODO: Deny `mode` arg if `auto-mount` is true.
