@@ -1,6 +1,6 @@
 ---
 slug: /contributing/contributor-day
-title: WordCamp Contributor Day - WordPress Playground
+title: WordCamp Contributor Day
 description: A guide on using Playground tools like the VS Code extension and CLI during a WordCamp Contributor Day to get started.
 ---
 

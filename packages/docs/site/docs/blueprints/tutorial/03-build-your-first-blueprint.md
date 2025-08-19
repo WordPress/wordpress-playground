@@ -1,7 +1,7 @@
 ---
 title: Build your first Blueprint
 slug: /blueprints/tutorial/build-your-first-blueprint
-description: Six steps to your first blueprint
+description: A step-by-step tutorial to build your first Blueprint. Learn to install themes, plugins, and import site content.
 ---
 
 Let's build an elementary Blueprint that

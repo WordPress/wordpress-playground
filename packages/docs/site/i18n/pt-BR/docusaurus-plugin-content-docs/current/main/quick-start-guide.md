@@ -1,5 +1,5 @@
 ---
-title: Primeiros passos - WordPress Playground
+title: Primeiros passos
 slug: /quick-start-guide
 description: Um guia de 5 minutos para começar a usar o Playground. Aprenda a testar plugins, temas e usar diferentes versões de WP/PHP.
 ---

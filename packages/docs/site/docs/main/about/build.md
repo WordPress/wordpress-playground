@@ -1,5 +1,5 @@
 ---
-title: Build - WordPress Playground
+title: Build
 slug: /about/build
 description: Learn how WordPress Playground helps you build products, from setting up local environments to creating themes and new tools.
 sidebar_class_name: navbar-build-item

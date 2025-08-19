@@ -1,6 +1,6 @@
 ---
 slug: /contributing/coding-standards
-title: Coding principles - WordPress Playground
+title: Coding principles
 description: Details the coding principles for Playground, focusing on helpful error messages, a minimal public API, and Blueprints.
 ---
 

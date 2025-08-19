@@ -1,5 +1,5 @@
 ---
-title: 📖 Guides - WordPress Playground
+title: 📖 Guides
 slug: /guides
 description: A WordPress Playground Guide to help you understand and work with various topics and related use cases.
 sidebar_class_name: navbar-build-item

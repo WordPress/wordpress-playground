@@ -1,6 +1,7 @@
 ---
 title: Troubleshoot and debug
 slug: /blueprints/troubleshoot-and-debug
+description: A guide with tips and tools to help you troubleshoot and debug your Blueprints, from common issues to browser tools.
 ---
 
 # Troubleshoot and debug Blueprints
