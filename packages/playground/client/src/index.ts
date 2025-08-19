@@ -207,8 +207,10 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 }
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
+const devRemoteOrigin = `http://${remoteDevServerHost}:${remoteDevServerPort}`;
 const validRemoteOrigins = [
 	officialRemoteOrigin,
+	devRemoteOrigin,
 	// An older origin that's still used by some plugins.
 	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
@@ -217,10 +219,12 @@ const validRemoteOrigins = [
 	'https://localhost',
 	'http://127.0.0.1',
 	'https://127.0.0.1',
-	`http://${remoteDevServerHost}:${remoteDevServerPort}`,
-	`http://${remoteDevServerHost}:${remoteDevServerPort}`,
 	...additionalRemoteOrigins,
 ];
+const remoteOrigin =
+	import.meta.env.MODE == 'development'
+		? devRemoteOrigin
+		: officialRemoteOrigin;
 /**
  * Assert that the remote origin is likely compatible with this client library.
  *
@@ -233,7 +237,7 @@ const validRemoteOrigins = [
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
+	const url = new URL(remoteHtmlUrl, remoteOrigin);
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
@@ -251,7 +255,7 @@ function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 }
 
 function setQueryParams(url: string, params: Record<string, unknown>) {
-	const urlObject = new URL(url, officialRemoteOrigin);
+	const urlObject = new URL(url, remoteOrigin);
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {
