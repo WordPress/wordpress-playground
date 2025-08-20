@@ -75,7 +75,7 @@ export class StreamedPHPResponse {
 		httpStatusCode: number;
 	}> | null = null;
 
-	private cachedStdoutText: Promise<string> | null = null;
+	private cachedStdoutBytes: Promise<Uint8Array> | null = null;
 	private cachedStderrText: Promise<string> | null = null;
 
 	constructor(
@@ -142,10 +142,16 @@ export class StreamedPHPResponse {
 	 * Exposes the stdout bytes as they're produced by the PHP instance
 	 */
 	get stdoutText(): Promise<string> {
-		if (!this.cachedStdoutText) {
-			this.cachedStdoutText = streamToText(this.stdout);
+		return this.stdoutBytes.then((bytes) =>
+			new TextDecoder().decode(bytes)
+		);
+	}
+
+	get stdoutBytes(): Promise<Uint8Array> {
+		if (!this.cachedStdoutBytes) {
+			this.cachedStdoutBytes = streamToBytes(this.stdout);
 		}
-		return this.cachedStdoutText;
+		return this.cachedStdoutBytes;
 	}
 
 	/**
@@ -219,6 +225,32 @@ async function streamToText(
 	}
 }
 
+async function streamToBytes(
+	stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+	const reader = (stream as ReadableStream<BufferSource>).getReader();
+	const chunks: BufferSource[] = [];
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			const totalLength = chunks.reduce(
+				(acc, chunk) => acc + chunk.byteLength,
+				0
+			);
+			const result = new Uint8Array(totalLength);
+			let offset = 0;
+			for (const chunk of chunks) {
+				result.set(chunk as Uint8Array, offset);
+				offset += chunk.byteLength;
+			}
+			return result;
+		}
+		if (value) {
+			chunks.push(value);
+		}
+	}
+}
+
 /**
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.
@@ -283,7 +315,9 @@ export class PHPResponse implements PHPResponseData {
 		return new PHPResponse(
 			await streamedResponse.httpStatusCode,
 			await streamedResponse.headers,
-			new TextEncoder().encode(await streamedResponse.stdoutText),
+			// new TextEncoder().encode(
+			await streamedResponse.stdoutBytes,
+			// )
 			await streamedResponse.stderrText,
 			await streamedResponse.exitCode
 		);
