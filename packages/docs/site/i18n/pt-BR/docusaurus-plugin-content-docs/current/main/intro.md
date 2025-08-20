@@ -1,5 +1,5 @@
 ---
-title: Introdução - WordPress Playground
+title: Introdução
 slug: /
 id: introduction
 description: Boas-vindas à documentação do WordPress Playground! Esta página apresenta a estrutura da documentação e ajuda você a se orientar.

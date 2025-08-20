@@ -1,5 +1,5 @@
 ---
-title: Web Instance - WordPress Playground
+title: Web Instance
 slug: /web-instance
 description: A detailed guide to the web interface at playground.wordpress.net, covering the toolbar, settings, and instance manager.
 ---

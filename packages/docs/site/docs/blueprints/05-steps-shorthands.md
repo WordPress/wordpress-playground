@@ -1,5 +1,6 @@
 ---
 slug: /blueprints/steps/shorthands
+description: A guide to the shorthand syntax for common Blueprint steps like login, plugins, and siteOptions for more concise code.
 ---
 
 # Shorthands

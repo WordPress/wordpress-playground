@@ -1,5 +1,6 @@
 ---
 slug: /blueprints/steps/resources
+description: A technical reference for "Resource References." Learn how to use external files for themes, plugins, and content.
 ---
 
 # Resources References

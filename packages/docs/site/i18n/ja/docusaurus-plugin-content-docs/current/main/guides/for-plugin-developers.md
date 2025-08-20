@@ -1,7 +1,7 @@
 ---
-title: プラグイン開発者のための Playground
+title: プラグイン開発者のためのWordPressプレイグラウンド
 slug: /guides/for-plugin-developers
-description: プラグイン開発者のための WordPress Playground
+description: Playground を使用してプラグインの魅力的なライブ デモを構築、テスト、作成するためのプラグイン開発者向けガイドです。
 ---
 
 WordPress Playground は、プラグイン開発者がブラウザ環境で直接プラグインを構築、テスト、紹介できる革新的なツールです。
