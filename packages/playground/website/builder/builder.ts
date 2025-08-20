@@ -13,10 +13,6 @@ import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 // - https://playground.wordpress.net/builder/builder.html
 // - http://localhost:5400/website-server/builder/builder.html
 const websiteRootUrl = new URL('..', document.location.href);
-const remoteOrigin =
-	import.meta.env?.MODE === 'development'
-		? `http://${remoteDevServerHost}:${remoteDevServerPort}`
-		: 'https://playground.wordpress.net';
 
 const deref = (obj, root) => {
 	if (!obj || typeof obj !== 'object' || !('$ref' in obj)) {
@@ -562,7 +558,7 @@ const runBlueprint = async (editor) => {
 		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
-			remoteUrl: `${remoteOrigin}/remote.html`,
+			remoteUrl: 'remote.html',
 			blueprint: blueprintCopy,
 			corsProxy: corsProxyUrl,
 		});
