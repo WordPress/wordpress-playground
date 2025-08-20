@@ -5,8 +5,6 @@ import { startPlaygroundWeb } from '@wp-playground/client';
 import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 
 // Use parent dir of the /builder/ dir, reasoning that it is
 // the web app root. This works for:
