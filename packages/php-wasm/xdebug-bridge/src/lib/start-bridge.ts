@@ -1,6 +1,6 @@
 import type { PHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
-import { join } from 'path';
+import path from 'path';
 import { CDPServer } from './cdp-server';
 import { DbgpSession } from './dbgp-session';
 import { XdebugCDPBridge } from './xdebug-cdp-bridge';
@@ -10,8 +10,6 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-	remoteRoot?: string;
-	localRoot?: string;
 
 	phpInstance?: PHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
@@ -21,9 +19,9 @@ export async function startBridge(config: StartBridgeConfig) {
 	const cdpPort = config.cdpPort ?? 9229;
 	const dbgpPort = config.dbgpPort ?? 9003;
 	const cdpHost = config.cdpHost ?? 'localhost';
-	const phpRoot = config.phpRoot ?? import.meta.dirname;
+	const phpRoot = config.phpRoot ?? process.cwd();
 
-	// index.ts - Entry point to start the service
+	// Entry point to start the service
 	const cdpServer = new CDPServer(cdpPort);
 	console.log('Connect Chrome DevTools to CDP at:');
 
@@ -45,13 +43,13 @@ export async function startBridge(config: StartBridgeConfig) {
 		const results: string[] = [];
 		const list = readdirSync(dir);
 		for (const file of list) {
-			const filePath = join(dir, file);
+			const filePath = path.join(dir, file);
 			// lstat avoids crashes when encountering symlinks
 			const stat = lstatSync(filePath);
 			if (stat && stat.isDirectory()) {
 				results.push(...getPhpFiles(filePath));
 			} else if (file.endsWith('.php')) {
-				results.push(`file://${filePath}`);
+				results.push(filePath);
 			}
 		}
 		return results;
@@ -61,20 +59,12 @@ export async function startBridge(config: StartBridgeConfig) {
 		? (path: string) => config.phpInstance!.readFileAsText(path)
 		: config.getPHPFile
 		? config.getPHPFile
-		: (path: string) => {
-				// Default implementation: read from filesystem
-				// Convert file:/// URLs to local paths
-				const localPath = path.startsWith('file://')
-					? path.replace('file://', '')
-					: path;
-				return readFileSync(localPath, 'utf-8');
-		  };
+		: (path: string) => readFileSync(path, 'utf-8');
 
 	const phpFiles = getPhpFiles(phpRoot);
 	return new XdebugCDPBridge(dbgpSession, cdpServer, {
 		knownScriptUrls: phpFiles,
-		remoteRoot: config.remoteRoot,
-		localRoot: config.localRoot,
+		phpRoot,
 		getPHPFile,
 	});
 }

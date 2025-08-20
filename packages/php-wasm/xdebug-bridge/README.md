@@ -49,8 +49,6 @@ npx xdebug-bridge --help
 -   `cdpHost`: Host to bind to (default: 'localhost')
 -   `dbgpPort`: Port to listen for XDebug connections (default: 9003)
 -   `phpRoot`: Root path for php files;
--   `remoteRoot`: Remote root path for php files;
--   `localRoot`: Local root path for php files;
 -   `phpInstance`: PHP instance
 -   `getPHPFile`: Custom file listing function
 

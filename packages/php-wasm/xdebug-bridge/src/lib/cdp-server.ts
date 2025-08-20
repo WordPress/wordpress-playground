@@ -4,6 +4,8 @@ import { type WebSocket, WebSocketServer } from 'ws';
 export class CDPServer extends EventEmitter {
 	private wss: WebSocketServer;
 	private ws: WebSocket | null = null;
+	private connected = false;
+	private buffer: any[] = [];
 
 	constructor(port = 9229) {
 		super();
@@ -27,7 +29,12 @@ export class CDPServer extends EventEmitter {
 				} catch {
 					return;
 				}
-				this.emit('message', message);
+
+				if (this.connected) {
+					this.emit('message', message);
+				} else {
+					this.buffer.push(message);
+				}
 			});
 			ws.on('close', () => {
 				this.ws = null;
@@ -36,6 +43,20 @@ export class CDPServer extends EventEmitter {
 			ws.on('error', (err) => {
 				this.emit('error', err);
 			});
+		});
+
+		this.on('newListener', (event) => {
+			if (event === 'message') {
+				process.nextTick(() => {
+					for (const message of this.buffer) {
+						this.emit('message', message);
+					}
+
+					this.buffer = [];
+
+					this.connected = true;
+				});
+			}
 		});
 	}
 

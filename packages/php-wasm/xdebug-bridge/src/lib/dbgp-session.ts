@@ -78,6 +78,7 @@ export class DbgpSession extends EventEmitter {
 	sendCommand(command: string) {
 		if (!this.socket) return;
 		// Commands must end with null terminator
+		console.log('\x1b[1;32m[XDebug][send]\x1b[0m', command);
 		this.socket.write(command + '\x00');
 	}
 }

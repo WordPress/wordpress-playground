@@ -6,7 +6,6 @@ import type { CDPServer } from './cdp-server';
 interface PendingCommand {
 	cdpId?: number;
 	cdpMethod?: string;
-	// Additional fields to help with response if needed
 	params?: any;
 }
 
@@ -26,8 +25,7 @@ interface ObjectHandle {
 
 export interface XdebugCDPBridgeConfig {
 	knownScriptUrls: string[];
-	remoteRoot?: string;
-	localRoot?: string;
+	phpRoot?: string;
 	getPHPFile(path: string): string | Promise<string>;
 }
 
@@ -43,11 +41,8 @@ export class XdebugCDPBridge {
 	private nextObjectId = 1;
 	private callFramesMap: Map<string, number> = new Map(); // callFrameId -> stack depth
 	private xdebugConnected = false;
-	private xdebugStatus = 'starting';
-	private initFileUri: string | null = null;
+	private phpRoot: string;
 	private readPHPFile: (path: string) => string | Promise<string>;
-	private remoteRoot: string;
-	private localRoot: string;
 
 	constructor(
 		dbgp: DbgpSession,
@@ -57,8 +52,7 @@ export class XdebugCDPBridge {
 		this.dbgp = dbgp;
 		this.cdp = cdp;
 		this.readPHPFile = config.getPHPFile;
-		this.remoteRoot = config.remoteRoot || '';
-		this.localRoot = config.localRoot || '';
+		this.phpRoot = config.phpRoot || '';
 		for (const url of config.knownScriptUrls) {
 			this.scriptIdByUrl.set(url, this.getOrCreateScriptId(url));
 		}
@@ -96,6 +90,7 @@ export class XdebugCDPBridge {
 		this.cdp.on('message', (msg: any) => {
 			this.handleCdpMessage(msg);
 		});
+
 		// DevTools disconnected
 		this.cdp.on('clientDisconnected', () => {
 			// If Xdebug still connected, detach from it
@@ -105,33 +100,62 @@ export class XdebugCDPBridge {
 			}
 		});
 
+		// Load known scripts
 		this.sendInitialScripts();
+
+		// Opens Sources tab instead of Console by pausing the process
+		this.cdp.sendMessage({
+			method: 'Debugger.paused',
+			params: {
+				callFrames: [
+					{
+						location: {
+							scriptId: '1',
+							lineNumber: 0,
+						},
+						scopeChain: [],
+						this: { type: 'undefined' },
+					},
+				],
+				hitBreakpoints: [],
+			},
+		});
+
+		// And resuming the process
+		this.cdp.sendMessage({ method: 'Debugger.resumed' });
+
+		// Send a nice welcome message with instructions
+		this.cdp.sendMessage({
+			method: 'Log.entryAdded',
+			params: {
+				entry: {
+					source: 'other',
+					level: 'info',
+					text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or the Playground.\n\n3. Witness the magic break.',
+					timestamp: Date.now(),
+				},
+			},
+		});
+		this.cdp.sendMessage({
+			method: 'Log.entryAdded',
+			params: {
+				entry: {
+					source: 'other',
+					level: 'info',
+					text: ' ',
+					timestamp: Date.now(),
+				},
+			},
+		});
 	}
 
 	private sendInitialScripts() {
-		// Send scriptParsed for the main file if not already sent
-		if (this.initFileUri && !this.scriptIdByUrl.has(this.initFileUri)) {
-			const scriptId = this.getOrCreateScriptId(this.initFileUri);
-			this.cdp.sendMessage({
-				method: 'Debugger.scriptParsed',
-				params: {
-					scriptId: scriptId,
-					url: this.initFileUri,
-					startLine: 0,
-					startColumn: 0,
-					// Assuming unknown end, skip endLine/endColumn
-					executionContextId: 1,
-				},
-			});
-		}
-
-		// Send every script we already know about
 		for (const [url, scriptId] of this.scriptIdByUrl.entries()) {
 			this.cdp.sendMessage({
 				method: 'Debugger.scriptParsed',
 				params: {
 					scriptId,
-					url,
+					url: this.uriFromBridgeToCDP(url),
 					startLine: 0,
 					startColumn: 0,
 					executionContextId: 1,
@@ -173,7 +197,6 @@ export class XdebugCDPBridge {
 	}
 
 	private sendDbgpCommand(command: string, data?: string): string {
-		console.log('\x1b[1;32m[XDebug][send]\x1b[0m', command, data);
 		const txnId = this.nextTxnId++;
 		const txnIdStr = txnId.toString();
 		let cmdStr = `${command} -i ${txnIdStr}`;
@@ -196,7 +219,8 @@ export class XdebugCDPBridge {
 				break;
 			case 'Debugger.setBreakpointByUrl': {
 				const { url, lineNumber } = params;
-				const fileUri = url;
+				const file = this.uriFromCDPToBridge(url);
+				const uri = this.uriFromBridgeToDBGP(file);
 				const line =
 					(typeof lineNumber === 'number' ? lineNumber : 0) + 1; // CDP lineNumber is 0-based, Xdebug expects 1-based
 				// Generate a new breakpoint ID for DevTools
@@ -204,7 +228,7 @@ export class XdebugCDPBridge {
 				// If Xdebug connected, send breakpoint_set now
 				if (this.xdebugConnected) {
 					const cmd = `breakpoint_set -t line -f ${this.formatPropertyFullName(
-						fileUri
+						uri
 					)} -n ${line}`;
 					const txn = this.sendDbgpCommand(cmd);
 					this.pendingCommands.set(txn, {
@@ -212,7 +236,7 @@ export class XdebugCDPBridge {
 						cdpMethod: method,
 						params: {
 							breakpointId: cdpBreakpointId,
-							fileUri,
+							fileUri: file,
 							line,
 						},
 					});
@@ -223,14 +247,14 @@ export class XdebugCDPBridge {
 					this.breakpoints.set(cdpBreakpointId, {
 						cdpId: cdpBreakpointId,
 						xdebugId: null,
-						file: fileUri,
+						file: url,
 						line: line,
 					});
 					result = {
 						breakpointId: cdpBreakpointId,
 						locations: [
 							{
-								scriptId: this.getOrCreateScriptId(fileUri),
+								scriptId: this.getOrCreateScriptId(file),
 								lineNumber: line - 1,
 								columnNumber: 0,
 							},
@@ -262,8 +286,6 @@ export class XdebugCDPBridge {
 			}
 			case 'Debugger.resume': {
 				if (this.xdebugConnected) {
-					// Continue execution
-					this.xdebugStatus = 'running';
 					this.sendDbgpCommand('run');
 				}
 				result = {};
@@ -271,7 +293,6 @@ export class XdebugCDPBridge {
 			}
 			case 'Debugger.stepOver': {
 				if (this.xdebugConnected) {
-					this.xdebugStatus = 'running';
 					this.sendDbgpCommand('step_over');
 				}
 				result = {};
@@ -279,7 +300,6 @@ export class XdebugCDPBridge {
 			}
 			case 'Debugger.stepInto': {
 				if (this.xdebugConnected) {
-					this.xdebugStatus = 'running';
 					this.sendDbgpCommand('step_into');
 				}
 				result = {};
@@ -287,7 +307,6 @@ export class XdebugCDPBridge {
 			}
 			case 'Debugger.stepOut': {
 				if (this.xdebugConnected) {
-					this.xdebugStatus = 'running';
 					this.sendDbgpCommand('step_out');
 				}
 				result = {};
@@ -295,7 +314,6 @@ export class XdebugCDPBridge {
 			}
 			case 'Debugger.pause': {
 				if (this.xdebugConnected) {
-					// Attempt to break running script
 					this.sendDbgpCommand('break');
 				}
 				result = {};
@@ -395,9 +413,7 @@ export class XdebugCDPBridge {
 				)?.[0];
 				let scriptSource = '';
 				if (uri) {
-					scriptSource = await this.readPHPFile(
-						this.uriToRemotePath(uri)
-					);
+					scriptSource = await this.readPHPFile(uri);
 				}
 				result = { scriptSource };
 				break;
@@ -414,28 +430,36 @@ export class XdebugCDPBridge {
 
 	/* ---------- path mapping ---------- */
 
-	private uriToRemotePath(uri: string) {
-		return uri.startsWith('file://') ? uri.slice(7) : uri;
+	private setPrefixForCDP() {
+		return path.isAbsolute(this.phpRoot) ? 'file://' : 'file:///';
 	}
 
-	private remoteToLocal(remote: string) {
-		let p = remote;
-		if (this.remoteRoot && p.startsWith(this.remoteRoot))
-			p = path.join(
-				this.localRoot || '',
-				p.slice(this.remoteRoot.length)
-			);
-		if (process.platform === 'win32' && p.startsWith('/')) p = p.slice(1);
-		return p;
+	private uriFromBridgeToCDP(uri: string) {
+		return `${this.setPrefixForCDP()}${uri}`;
+	}
+
+	private uriFromCDPToBridge(uri: string) {
+		const prefix = this.setPrefixForCDP();
+
+		return uri.startsWith(prefix) ? uri.slice(prefix.length) : uri;
+	}
+
+	private uriFromBridgeToDBGP(uri: string) {
+		const index = path.relative(this.phpRoot, uri);
+
+		return path.resolve(process.cwd(), this.phpRoot, index);
+	}
+
+	private uriFromDBGPToBridge(uri: string) {
+		uri = uri.startsWith('file://') ? uri.slice(7) : uri;
+
+		const index = uri.indexOf(this.phpRoot);
+
+		return uri.slice(index);
 	}
 
 	private async handleDbgpMessage(msgObj: any) {
 		if (msgObj.init) {
-			// Xdebug initial handshake
-			const initAttr = msgObj.init.$;
-			this.initFileUri = initAttr.fileuri || initAttr.fileuri;
-			this.xdebugStatus = 'starting';
-
 			this.breakpoints.forEach((breakpoint) => {
 				this.handleCdpMessage({
 					method: 'Debugger.setBreakpointByUrl',
@@ -451,10 +475,6 @@ export class XdebugCDPBridge {
 				/* auto run after init */
 			});
 
-			// Optionally send scriptParsed for the main file if DevTools already connected
-			if (this.cdp['ws']) {
-				this.sendInitialScripts();
-			}
 			return;
 		}
 		if (msgObj.response) {
@@ -484,7 +504,7 @@ export class XdebugCDPBridge {
 							this.breakpoints.set(cdpBpId, {
 								cdpId: cdpBpId,
 								xdebugId: xdebugBpId,
-								file: fileUri,
+								file: this.uriFromBridgeToCDP(fileUri),
 								line: line,
 							});
 							// Prepare CDP response
@@ -519,19 +539,20 @@ export class XdebugCDPBridge {
 				case 'step_out': {
 					// These come when execution stops or ends
 					const status = attrs.status; // 'break' or 'stopping'
-					// const reason = attrs.reason; // 'ok', 'breakpoint', 'exception', etc. // Note: not currently needed
-					this.xdebugStatus = status;
 
 					// NEW: send scriptParsed for any newly discovered file
 					if (response['xdebug:message']) {
-						const fileUri = response['xdebug:message'].$.filename;
-						if (fileUri && !this.scriptIdByUrl.has(fileUri)) {
-							const scriptId = this.getOrCreateScriptId(fileUri);
+						const file = this.uriFromDBGPToBridge(
+							response['xdebug:message'].$.filename
+						);
+						if (file && !this.scriptIdByUrl.has(file)) {
+							const scriptId = this.getOrCreateScriptId(file);
+							const uri = this.uriFromBridgeToCDP(file);
 							this.cdp.sendMessage({
 								method: 'Debugger.scriptParsed',
 								params: {
 									scriptId,
-									url: fileUri,
+									url: uri,
 									startLine: 0,
 									startColumn: 0,
 									executionContextId: 1,
@@ -810,16 +831,19 @@ export class XdebugCDPBridge {
 						this.callFramesMap.clear();
 						// Send scriptParsed for any new files in stack
 						for (const frame of stackEntries) {
-							const file = frame.$.filename;
+							const file = this.uriFromDBGPToBridge(
+								frame.$.filename
+							);
 							const scriptId = this.getOrCreateScriptId(file);
 							if (!this.scriptIdByUrl.has(file)) {
 								// Mark it known and send scriptParsed
 								this.scriptIdByUrl.set(file, scriptId);
+								const uri = this.uriFromBridgeToCDP(file);
 								this.cdp.sendMessage({
 									method: 'Debugger.scriptParsed',
 									params: {
 										scriptId: scriptId,
-										url: file,
+										url: uri,
 										startLine: 0,
 										startColumn: 0,
 										executionContextId: 1,
@@ -830,7 +854,9 @@ export class XdebugCDPBridge {
 						// Build callFrames array
 						for (const frame of stackEntries) {
 							const level = parseInt(frame.$.level, 10);
-							const file = frame.$.filename;
+							const file = this.uriFromDBGPToBridge(
+								frame.$.filename
+							);
 							const line = parseInt(frame.$.lineno, 10);
 							const functionName =
 								frame.$.where && frame.$.where !== '{main}'
@@ -898,10 +924,16 @@ export class XdebugCDPBridge {
 						if (stackEntries.length > 0) {
 							const topFrame = stackEntries[0];
 							if (topFrame.$.filename && topFrame.$.lineno) {
-								const file = topFrame.$.filename;
+								const file = this.uriFromDBGPToBridge(
+									topFrame.$.filename
+								);
 								const line = parseInt(topFrame.$.lineno, 10);
 								for (const bp of this.breakpoints.values()) {
-									if (bp.file === file && bp.line === line) {
+									if (
+										bp.file ===
+											this.uriFromBridgeToCDP(file) &&
+										bp.line === line
+									) {
 										pauseReason = 'breakpoint';
 										break;
 									}
@@ -946,9 +978,6 @@ export class XdebugCDPBridge {
 						level: kind === 'stderr' ? 'error' : 'info',
 						text: data,
 						timestamp: Date.now(),
-						// url: 'file:///' + this.initFileUri,
-						// lineNumber: 1,
-						// columnNumber: 1,
 						stackTrace: { callFrames: [] },
 					},
 				},

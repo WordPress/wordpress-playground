@@ -35,7 +35,6 @@ Usage: xdebug-bridge [options]
 		.option('php-root', {
 			type: 'string',
 			description: 'Path to PHP root directory',
-			default: './',
 		})
 		.help()
 		.epilog(
