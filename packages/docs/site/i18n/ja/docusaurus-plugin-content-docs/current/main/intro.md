@@ -185,7 +185,7 @@ As with all WordPress projects, we want to ensure a welcoming environment for ev
 ## License
  -->
 
-WordPress Playground は、GNU General Public License バージョン 2 または（あなたの選択により）それ以降のバージョンの条件の下でリリースされるフリーソフトウェアです。完全なライセンスについては、[LICENSE.md](https://github.com/WordPress/blob/trunk/LICENSE) を参照してください。
+WordPress Playground は、GNU General Public License バージョン 2 または（あなたの選択により）それ以降のバージョンの条件の下でリリースされるフリーソフトウェアです。完全なライセンスについては、[LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE) を参照してください。
 
 <!--
 WordPress Playground is free software released under the terms of the GNU General Public License version 2 or (at your option) any later version. For a complete license, see [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).

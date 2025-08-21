@@ -169,6 +169,6 @@ WordPress Playground is free software released under the terms of the GNU Genera
 
 ## Licença
 
-O WordPress Playground é um software livre disponível sob os termos da GNU General Public License versão 2 ou (se preferir) qualquer versão posterior. A licença completa está disponível em [LICENSE.md](https://github.com/WordPress/blob/trunk/LICENSE).
+O WordPress Playground é um software livre disponível sob os termos da GNU General Public License versão 2 ou (se preferir) qualquer versão posterior. A licença completa está disponível em [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
 
 <br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Código é Poesia." /></p>
