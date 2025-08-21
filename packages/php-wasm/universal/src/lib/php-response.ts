@@ -147,6 +147,9 @@ export class StreamedPHPResponse {
 		);
 	}
 
+	/**
+	 * Exposes the stdout bytes as they're produced by the PHP instance
+	 */
 	get stdoutBytes(): Promise<Uint8Array> {
 		if (!this.cachedStdoutBytes) {
 			this.cachedStdoutBytes = streamToBytes(this.stdout);
@@ -228,8 +231,9 @@ async function streamToText(
 async function streamToBytes(
 	stream: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
-	const reader = (stream as ReadableStream<BufferSource>).getReader();
-	const chunks: BufferSource[] = [];
+	const reader = stream.getReader();
+	const chunks: Uint8Array[] = [];
+
 	while (true) {
 		const { done, value } = await reader.read();
 		if (done) {
@@ -240,7 +244,7 @@ async function streamToBytes(
 			const result = new Uint8Array(totalLength);
 			let offset = 0;
 			for (const chunk of chunks) {
-				result.set(chunk as Uint8Array, offset);
+				result.set(chunk, offset);
 				offset += chunk.byteLength;
 			}
 			return result;
