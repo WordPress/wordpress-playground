@@ -82,7 +82,7 @@ VS Code では次のようになります。
 Here's what it looks like in VS Code:
 -->
 
-![Autocompletion visualized](../_assets/schema-autocompletion.png)
+![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. サイトのタイトルを「My first Blueprint」に設定する
 
