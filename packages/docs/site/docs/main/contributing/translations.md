@@ -80,19 +80,6 @@ npm run dev -- --locale es
 
 The language switcher is a dropdown menu that allows users to select their preferred language.
 
-### Activating a Language in the Switcher
-
-To display the language switcher in the site's header, add the localeDropdown to the navbar items in `packages/docs/site/docusaurus.config.js`:
-
-```js
-// Part of the themeConfig.navbar.items array
-{
-  type: 'localeDropdown',
-  position: 'right',
-},
-
-```
-
 ![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
 
 ### Making a language publicly available on the Language Switcher
