@@ -155,11 +155,12 @@ Follow these steps to translate a page:
 -   Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
 -   Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
 -   The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+-   Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
 
 4. **Create a pull request with your changes**
 
 -   Describe the pages that you translated
--   Request a review at #playground or #polyglots at `wordpress.slack.com`
+-   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 
 :::info
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
@@ -290,4 +291,4 @@ This practice also helps the maintenance team identify outdated translations. Wh
 
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).
 
-When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, if you are contributing for the first time request your [Contributor Badge](/contributing/contributor-badge.md).
+When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, if you are contributing for the first time request your [Contributor Badge](/contributing/contributor-badge).
