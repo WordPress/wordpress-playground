@@ -73,7 +73,7 @@ Some more examples of this workflow:
 ## Synchronize your playground instance with a local folder and create Github Pull Requests
 -->
 
-![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](@site/static/img/about/storage-type-device.png)
+![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](@site/static/img/about/storage-type-device.webp)
 
 <!--
 [Storage Type Device Snapshot](../_assets/storage-type-device.png)
