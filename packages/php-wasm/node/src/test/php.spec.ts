@@ -117,7 +117,9 @@ phpLoaderOptions.forEach((options) => {
 					code: '<?php echo "Hello World";',
 				});
 				const bytes = await streamed.stdoutBytes;
-				expect(bytes).toBe(new TextEncoder().encode('Hello World'));
+				expect(bytes).toStrictEqual(
+					new TextEncoder().encode('Hello World')
+				);
 			});
 
 			it('should provide stdout text through stdoutText property', async () => {
