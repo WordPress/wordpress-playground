@@ -319,9 +319,7 @@ export class PHPResponse implements PHPResponseData {
 		return new PHPResponse(
 			await streamedResponse.httpStatusCode,
 			await streamedResponse.headers,
-			// new TextEncoder().encode(
 			await streamedResponse.stdoutBytes,
-			// )
 			await streamedResponse.stderrText,
 			await streamedResponse.exitCode
 		);
