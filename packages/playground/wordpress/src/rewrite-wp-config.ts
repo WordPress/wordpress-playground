@@ -84,3 +84,33 @@ export async function ensureWpConfig(
 
 	await defineWpConfigConstants(php, wpConfigPath, defaults, 'skip');
 }
+
+/**
+ * Auto-configures a WordPress "wp-config.php" file.
+ *
+ * @param php          The PHP instance.
+ * @param wpConfigPath The path to the "wp-config.php" file.
+ * @param constants    The constants defaults to use.
+ */
+export async function autoConfigureWpConfig(
+	php: UniversalPHP,
+	wpConfigPath: string,
+	constants: Record<string, unknown>
+): Promise<void> {
+	const js = phpVars({ wpConfigPath, constants });
+	const result = await php.run({
+		code: `<?php ob_start(); ?>
+			${autoConfigureWpConfig}
+			$wp_config_path = ${js.wpConfigPath};
+			$wp_config      = file_get_contents( $wp_config_path );
+			$new_wp_config  = auto_configure_wp_config( $wp_config, ${js.constants} );
+			$return_value   = file_put_contents($wp_config_path, $new_wp_config);
+			ob_clean();
+			echo false === $return_value ? '0' : '1';
+			ob_end_flush();
+		`,
+	});
+	if (result.text !== '1') {
+		throw new Error('Failed to auto-configure wp-config.php.');
+	}
+}
