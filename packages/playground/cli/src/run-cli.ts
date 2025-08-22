@@ -154,9 +154,8 @@ export async function parseOptionsAndRunCLI() {
 				default: false,
 			})
 			.option('auto-mount', {
-				describe: `Automatically mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
-				type: 'boolean',
-				default: false,
+				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
+				type: 'string',
 			})
 			.option('follow-symlinks', {
 				describe:
@@ -221,10 +220,26 @@ export async function parseOptionsAndRunCLI() {
 					}
 				}
 
+				if (args['auto-mount']) {
+					let autoMountIsDir = false;
+					try {
+						const autoMountStats = fs.statSync(args['auto-mount']);
+						autoMountIsDir = autoMountStats.isDirectory();
+					} catch {
+						autoMountIsDir = false;
+					}
+
+					if (!autoMountIsDir) {
+						throw new Error(
+							`The specified --auto-mount path is not a directory: '${args['auto-mount']}'.`
+						);
+					}
+				}
+
 				if (args['experimental-multi-worker'] !== undefined) {
 					if (args['experimental-multi-worker'] <= 1) {
 						throw new Error(
-							'The --experimentalMultiWorker flag must be a positive integer greater than 1.'
+							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
 						);
 					}
 
@@ -237,7 +252,7 @@ export async function parseOptionsAndRunCLI() {
 						)
 					) {
 						throw new Error(
-							'Please mount a real filesystem directory as the /wordpress directory before using the --experimentalMultiWorker flag. For example: ' +
+							'Please mount a real filesystem directory as the /wordpress directory before using the --experimental-multi-worker flag. For example: ' +
 								'--mount-dir-before-install ./empty-dir /wordpress'
 						);
 					}
@@ -300,7 +315,7 @@ export interface RunCLIArgs {
 	port?: number;
 	quiet?: boolean;
 	wp?: string;
-	autoMount?: boolean;
+	autoMount?: string;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	exitOnPrimaryWorkerCrash?: boolean;
@@ -353,7 +368,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	 * Expand auto-mounts to include the necessary mounts and steps
 	 * when running in auto-mount mode.
 	 */
-	if (args.autoMount) {
+	if (args.autoMount !== undefined) {
+		if (args.autoMount === '') {
+			// No auto-mount path was provided, so use the current working directory.
+			// Note: We default here instead of in the yargs declaration because
+			// it allows us to test the default as part of the runCLI() unit tests.
+			args = { ...args, autoMount: process.cwd() };
+		}
 		args = expandAutoMounts(args);
 	}
 
