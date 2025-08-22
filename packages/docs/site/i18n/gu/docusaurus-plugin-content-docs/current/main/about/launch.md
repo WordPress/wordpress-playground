@@ -40,7 +40,6 @@ Read more about this at [How to use WordPress Playground for interactive demos](
 Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
 -->
 
-
 [બ્લુપ્રિન્ટ્સ બિલ્ડર] (https://playground.wordpress.net/builder/builder.html) ટૂલ તમને તમારા બ્લુપ્રિન્ટને ઓનલાઈન એડિટ કરવાની અને તેને સીધા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સમાં ચલાવવાની મંજૂરી આપે છે.
 
 <!--
