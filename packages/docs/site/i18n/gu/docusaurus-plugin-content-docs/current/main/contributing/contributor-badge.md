@@ -58,7 +58,7 @@ To get a Playground Contributor Badge, you must have made at least one eligible 
 
 ![Playground Contributor Badge](@site/static/img/contributing/playground-contributor-badge.webp)
 
-## રમતનું મેદાન ટીમ બેજ
+## પ્લેગ્રાઉન્ડ ટીમ બેજ
 
 <!--
 ## Playground Team Badge
