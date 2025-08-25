@@ -1,5 +1,5 @@
 ---
-title: Build - WordPress Playground
+title: Build
 slug: /about/build
 description: Learn how WordPress Playground helps you build products, from setting up local environments to creating themes and new tools.
 sidebar_class_name: navbar-build-item
@@ -29,7 +29,7 @@ Some more examples of this workflow:
 
 ## Synchronize your playground instance with a local folder and create Github Pull Requests
 
-![Storage Type Device Snapshot](../_assets/storage-type-device.png)
+![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
 
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 

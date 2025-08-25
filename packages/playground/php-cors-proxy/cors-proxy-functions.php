@@ -31,7 +31,7 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
         throw new CorsProxyException("Invalid URL: " . $url);
     }
-    
+
     // Parse the URL to get its components
     $parsedUrl = parse_url($url);
 
@@ -93,7 +93,7 @@ class IpUtils
         } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             return self::isPrivateIpv6($ip);
         }
-        
+
         return false;
     }
 
@@ -108,22 +108,22 @@ class IpUtils
         $privateRanges = [
             /**
              * Private addresses according to RFC 1918.
-             * 
+             *
              * See https://datatracker.ietf.org/doc/html/rfc1918#section-3.
              */
             ['10.0.0.0', '10.255.255.255'],
             ['172.16.0.0', '172.31.255.255'],
             ['192.168.0.0', '192.168.255.255'],
-            
+
             /**
-             * IPv4 reserves the entire class A address block 127.0.0.0/8 for 
+             * IPv4 reserves the entire class A address block 127.0.0.0/8 for
              * use as private loopback addresses.
              */
             ['127.0.0.0', '127.255.255.255'],
             /**
-             * In April 2012, IANA allocated the 100.64.0.0/10 block of IPv4 addresses 
+             * In April 2012, IANA allocated the 100.64.0.0/10 block of IPv4 addresses
              * specifically for use in carrier-grade NAT scenarios
-             * 
+             *
              * See https://datatracker.ietf.org/doc/html/rfc6598.
              */
             ['100.64.0.0', '100.127.255.255'],
@@ -178,7 +178,7 @@ class IpUtils
             /**
              * The Local IPv6 addresses are created using a pseudo-randomly
              * allocated global ID (RFC 4193).
-             * 
+             *
              * See https://datatracker.ietf.org/doc/html/rfc4193#section-3
              */
             ['fc00::', 'fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
@@ -223,7 +223,7 @@ class IpUtils
              */
             ["2001::","2001:0:ffff:ffff:ffff:ffff:ffff:ffff"],
             /*
-             * ORCHIDv2 
+             * ORCHIDv2
              * https://datatracker.ietf.org/doc/html/rfc7343
              */
             ["2001:20::","2001:2f:ffff:ffff:ffff:ffff:ffff:ffff"],
@@ -301,7 +301,7 @@ class IpUtils
 
 /**
  * Filters headers by name, removing disallowed headers and enforcing opt-in requirements.
- * 
+ *
  * @param array $php_headers {
  *  An associative array of headers.
  *  @type string $key Header name.
@@ -309,7 +309,7 @@ class IpUtils
  * @param array $disallowed_headers       List of header names that are disallowed.
  * @param array $headers_requiring_opt_in List of header names that require opt-in
  *                                        via the X-Cors-Proxy-Allowed-Request-Headers header.
- * 
+ *
  * @return array {
  *  Filtered headers.
  *  @type string $key Header name.
@@ -337,7 +337,7 @@ function filter_headers_by_name(
         function (
             $key
         ) use (
-            $disallowed_headers, 
+            $disallowed_headers,
             $headers_requiring_opt_in,
             $headers_with_opt_in,
         ) {
@@ -383,14 +383,14 @@ function rewrite_relative_redirect(
             $request_path_parent = dirname($request_path);
             $redirect_location = $request_path_parent . '/' . $redirect_path;
         }
-       
+
         $redirect_location = $target_hostname . $redirect_location;
     }
 
     if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
         $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
         $redirect_location = "$target_scheme://$redirect_location";
-    }   
+    }
 
     $last_char = $proxy_absolute_url[strlen($proxy_absolute_url) - 1];
     if ($last_char !== '/' && $last_char !== '?') {
@@ -413,6 +413,8 @@ function should_respond_with_cors_headers($host, $origin) {
         'http://127.0.0.1',
         'http://127.0.0.1:5400',
         'http://localhost:5400',
+        'http://127.0.0.1:4400',
+        'http://localhost:4400',
     );
     if (
         defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS') &&

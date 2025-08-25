@@ -4,7 +4,116 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+<<<<<<< HEAD
+
 ## [v2.0.9] (2025-08-11)
+
+=======
+
+## [v2.0.12] (2025-08-25)
+
+### Enhancements
+
+-   Playground CLI: Support --auto-mount=path option. ([#2525](https://github.com/WordPress/wordpress-playground/pull/2525))
+
+### Documentation
+
+-   Added Gujarati Translation for Contributor Badge File. ([#2549](https://github.com/WordPress/wordpress-playground/pull/2549))
+-   Added Gujarati Translation for coding-standards.md file. ([#2507](https://github.com/WordPress/wordpress-playground/pull/2507))
+-   Japanese translations: Blueprints Unifying assets folder. ([#2536](https://github.com/WordPress/wordpress-playground/pull/2536))
+-   Updating Translation Documentation Page. ([#2534](https://github.com/WordPress/wordpress-playground/pull/2534))
+
+### Various
+
+-   Add Japanese translations to WordPress Playground Developers documentation. ([#2551](https://github.com/WordPress/wordpress-playground/pull/2551))
+-   Add Japanese translations to WordPress Playground badge. ([#2545](https://github.com/WordPress/wordpress-playground/pull/2545))
+-   Added Gujarati translation for about, build, test, launch pages. ([#2533](https://github.com/WordPress/wordpress-playground/pull/2533))
+-   Added Original Comment and Description in Launch.md file. ([#2542](https://github.com/WordPress/wordpress-playground/pull/2542))
+-   Tagalog translations of Blueprints -&gt; Getting Started. ([#2547](https://github.com/WordPress/wordpress-playground/pull/2547))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@aslamdoctor @brandonpayton @fellyph @rollybueno @sandipr942 @shail-mehta @shimotmk
+
+## [v2.0.11] (2025-08-21)
+
+### Tools
+
+#### Blueprints
+
+-   [Blueprints] Use the local worker in Builder in development mode. ([#2495](https://github.com/WordPress/wordpress-playground/pull/2495))
+
+### Documentation
+
+-   Adding blueprints documentation description. ([#2524](https://github.com/WordPress/wordpress-playground/pull/2524))
+
+### PHP WebAssembly
+
+-   Fix corrupt zip download from Site Editor export. ([#2531](https://github.com/WordPress/wordpress-playground/pull/2531))
+
+### Bug Fixes
+
+-   Fix wrong license page within the languages es, pt-BR and ja. ([#2483](https://github.com/WordPress/wordpress-playground/pull/2483))
+
+### Various
+
+-   Add Japanese translations to Build your first Blueprint. ([#2529](https://github.com/WordPress/wordpress-playground/pull/2529))
+-   Add Japanese translations to How to run Blueprints. ([#2526](https://github.com/WordPress/wordpress-playground/pull/2526))
+-   Added Gujarati Translation for web-instance.md file. ([#2532](https://github.com/WordPress/wordpress-playground/pull/2532))
+-   Unifying assets folder. ([#2521](https://github.com/WordPress/wordpress-playground/pull/2521))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@aslamdoctor @brandonpayton @fellyph @josevarghese @mho22 @shimotmk
+
+## [v2.0.10] (2025-08-18)
+
+### Documentation
+
+-   Add Japanese translations to Blueprints 101 and What are Blueprints?. ([#2511](https://github.com/WordPress/wordpress-playground/pull/2511))
+-   Adding the documentation meta description to the main folder. ([#2504](https://github.com/WordPress/wordpress-playground/pull/2504))
+-   Translating fragments documentation and adding Contributor badge page. ([#2503](https://github.com/WordPress/wordpress-playground/pull/2503))
+-   Add GitDirectoryReference resource documentation. ([#2492](https://github.com/WordPress/wordpress-playground/pull/2492))
+
+### PHP WebAssembly
+
+-   Re-enable and fix native file locking tests. ([#2505](https://github.com/WordPress/wordpress-playground/pull/2505))
+
+### Website
+
+#### Documentation
+
+-   Fix customize bundle instructions in "Host Own Playground" documentation. ([#2510](https://github.com/WordPress/wordpress-playground/pull/2510))
+
+### Bug Fixes
+
+-   Fix: "referrences" should be "references". ([#2514](https://github.com/WordPress/wordpress-playground/pull/2514))
+
+### Various
+
+-   Add Japanese documentation meta description to the main folder. ([#2518](https://github.com/WordPress/wordpress-playground/pull/2518))
+-   Add Japanese translations to Introduction. ([#2489](https://github.com/WordPress/wordpress-playground/pull/2489))
+-   Add docs-description blueprints tutorial and What are Blueprints?. ([#2512](https://github.com/WordPress/wordpress-playground/pull/2512))
+-   Added Gujarati Translation for Launch.md file. ([#2480](https://github.com/WordPress/wordpress-playground/pull/2480))
+-   Added Gujarati Translation for quick-start-guide.md. ([#2494](https://github.com/WordPress/wordpress-playground/pull/2494))
+-   Adding Contributor Badge page at the documentation. ([#2491](https://github.com/WordPress/wordpress-playground/pull/2491))
+-   Tagalog translations of Blueprints -&gt; Tutorial -> What are Blueprints?. ([#2520](https://github.com/WordPress/wordpress-playground/pull/2520))
+-   Translation: Blueprints -&gt; Tutorial -> How to run Blueprints. ([#2522](https://github.com/WordPress/wordpress-playground/pull/2522))
+-   Updated Typos in contributor-badge.md File. ([#2493](https://github.com/WordPress/wordpress-playground/pull/2493))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @fellyph @juanmaguitar @mukeshpanchal27 @ravigadhiya007 @rollybueno @shail-mehta @shimotmk
+
+## [v2.0.9] (2025-08-11)
+
+> > > > > > > trunk
 
 ### **Breaking Changes**
 
