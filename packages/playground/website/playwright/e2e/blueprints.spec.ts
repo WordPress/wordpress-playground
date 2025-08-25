@@ -24,7 +24,15 @@ test('spawning less should work', async ({ website, wordpress }) => {
 				step: 'writeFile',
 				path: '/wordpress/less.php',
 				data: `<?php
-				$process = proc_open('less', ['pipe', 'pipe', 'pipe'], $pipes);
+				$process = proc_open(
+					'less',
+					[
+						['pipe', 'r'],
+						['pipe', 'w'],
+						['pipe', 'w'],
+					],
+					$pipes
+				);
 				fwrite($pipes[0], 'Hello, world!');
 				fclose($pipes[0]);
 				$result = stream_get_contents($pipes[1]);
