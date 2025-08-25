@@ -192,6 +192,8 @@ RUN set -euxo pipefail; \
 
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
 	fi; \
 
 	emmake make -j1;

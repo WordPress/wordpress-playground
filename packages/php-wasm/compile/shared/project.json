@@ -26,6 +26,31 @@
 				],
 				"parallel": false
 			}
+		},
+		"intl:asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY_NAME=intl --OUTPUT_DIR=packages/php-wasm/node/asyncify"
+				],
+				"parallel": false
+			}
+		},
+		"intl:asyncify:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared:intl:asyncify --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
 		}
 	},
 	"tags": []
