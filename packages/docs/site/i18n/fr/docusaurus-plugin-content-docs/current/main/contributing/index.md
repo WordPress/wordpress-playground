@@ -2,7 +2,7 @@
 title: Contribuer au projet WordPress Playground
 slug: /contributing
 id: introduction
-description: Votre point de départ pour contribuer au projet WordPress Playground. Trouvez des directives pour le code, la documentation et le signalement de bugs.
+description: Votre point de départ pour contribuer au projet Playground de WordPress. Trouvez des recommandations pour le code, la documentation et le signalement de bugs.
 ---
 
 <!--
@@ -13,7 +13,7 @@ WordPress Playground is an open-source project that welcomes contributors of all
 
 # Contribuer au projet WordPress Playground
 
-WordPress Playground est un projet open-source qui accueille les contributeurs de tous types, du code au design, de la documentation à la triage.
+WordPress Playground est un projet open-source qui accueille des contributeurs et contributrices de tous horizons, du code au design, de la documentation au triage.
 
 <!--
 ## How can I contribute?
