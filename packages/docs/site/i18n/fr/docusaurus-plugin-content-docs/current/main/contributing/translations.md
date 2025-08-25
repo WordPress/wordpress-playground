@@ -12,7 +12,7 @@ Help make WordPress Playground accessible to a global audience by translating it
 
 # Contributions aux traductions
 
-Aidez à rendre WordPress Playground accessible à un public mondial en traduisant sa documentation. Ce guide fournit tout ce que vous devez savoir pour commencer. Contribuer aux traductions suit le même workflow que tout autre changement de documentation. Vous pouvez soit forker le dépôt [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) et créer une pull request (PR) avec vos modifications, soit éditer les pages directement en utilisant l'interface GitHub.
+Aidez à rendre WordPress Playground accessible à un public plus large en traduisant sa documentation. Ce guide fournit tout ce que vous devez savoir pour commencer. Contribuer à la traduction suit le même flux de travail que tout autre modification de la documentation. Vous pouvez soit forker le dépôt [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) et créer une pull request (PR) avec vos modifications, soit éditer les pages directement en utilisant l’interface GitHub.
 
 <!--
 :::info
@@ -21,7 +21,7 @@ For a detailed guide on the contribution workflow (forking, creating PRs, etc.),
 -->
 
 :::info
-Pour un guide détaillé sur le workflow de contribution (forking, création de PRs, etc.), veuillez consulter notre [guide de contribution à la documentation](/contributing/documentation#how-can-i-contribute)
+Pour un guide détaillé sur le flux de travail de la contribution (fork, création de PR, etc.), veuillez consulter notre [guide de contribution à la documentation](/contributing/documentation#how-can-i-contribute)
 :::
 
 <!--
@@ -89,7 +89,7 @@ If a translated file does not exist for a specific language, Docusaurus will aut
 
 Toutes les pages de documentation traduites se trouvent dans le répertoire `packages/docs/site/i18n/`, organisées par code de langue.
 
-Pour qu'une langue fonctionne correctement, sa structure de fichiers doit refléter la documentation anglaise originale trouvée dans `packages/docs/site/docs`.
+Pour qu'une langue fonctionne correctement, sa structure de fichiers doit refléter exactement la documentation originale en anglais qui se trouvant dans `packages/docs/site/docs`.
 
 Par exemple, la traduction espagnole (es) pour `docs/main/intro.md` doit être placée à :
 `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
@@ -250,12 +250,12 @@ Follow these steps to translate a page:
 -   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 -->
 
-## Workflow de traduction
+## Flux de travail pour la traduction
 
 Suivez ces étapes pour traduire une page :
 
-1. **Vérifiez s'il existe déjà une issue de traduction** : D'abord, [recherchez dans les issues du dépôt](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20%5Btranslation%5D%20progress) pour voir si une issue de suivi pour votre langue souhaitée existe déjà. Si c'est le cas, commentez l'issue pour revendiquer la/les page(s) que vous souhaitez traduire.
-2. **Créez une nouvelle issue de traduction** : Si aucune issue n'existe, veuillez en créer une nouvelle pour suivre les progrès de traduction pour la langue. Vous pouvez la modeler sur l'issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) et utiliser la checklist markdown ci-dessous pour suivre les progrès.
+1. **Vérifiez s'il existe déjà une issue de traduction** : D'abord, [recherchez dans les issues du dépôt](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20%5Btranslation%5D%20progress) pour voir si une issue de suivi pour la langue souhaitée existe déjà. Si c’est le cas, commentez dans l’issue pour revendiquer la/les page(s) que vous souhaitez traduire.
+2. **Créez une nouvelle issue de traduction** : Si aucune issue n’existe, veuillez en créer une nouvelle pour suivre les progrès de traduction pour la langue. Vous pouvez vous inspirer de l’issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) et utiliser la liste de vérification en markdown ci-dessous pour suivre l’avancée.
 3. **Traduisez le fichier** :
 
 -   Vérifiez si vous avez la dernière version de la documentation
@@ -422,6 +422,6 @@ To find a reviewer fluent in the language of your PR, you can post a request on 
 When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, if you are contributing for the first time request your [Contributor Badge](/contributing/contributor-badge).
 -->
 
-Pour trouver un réviseur maîtrisant la langue de votre PR, vous pouvez publier une demande sur le [blog Make WordPress Polyglots](https://make.wordpress.org/polyglots/). Assurez-vous d'inclure le tag de locale (par exemple, #fr pour le français) pour notifier les éditeurs de traduction générale (GTEs) appropriés.
+Pour trouver un réviseur/réviseuse maîtrisant la langue de votre PR, vous pouvez publier une demande sur le [blog Make WordPress Polyglots](https://make.wordpress.org/polyglots/). Assurez-vous d’y inclure le tag de la locale (par exemple, `#fr` pour le français) pour notifier les responsables généraux de la traduction (GTE) appropriés.
 
-Lorsque la PR est fusionnée, la version traduite de cette page devrait apparaître sous `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, si vous contribuez pour la première fois, demandez votre [Badge de contributeur](/contributing/contributor-badge).
+Lorsque la PR est fusionnée, la version traduite de cette page devrait apparaître sous `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, si vous contribuez pour la première fois, demandez votre [badge de contributeur/contributrice](/contributing/contributor-badge).
