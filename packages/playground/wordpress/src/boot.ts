@@ -242,6 +242,12 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		if (options.phpIniEntries) {
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
+
+		// Use the new AST-based SQLite driver.
+		// TODO: Remove this once the new driver is the default; when this is closed:
+		//         https://github.com/WordPress/sqlite-database-integration/issues/195
+		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
 		/**
 		 * Set up mu-plugins in /internal/shared/mu-plugins
 		 * using auto_prepend_file to provide platform-level
