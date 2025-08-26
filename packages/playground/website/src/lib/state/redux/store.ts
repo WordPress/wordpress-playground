@@ -3,6 +3,7 @@ import type { SiteError } from './slice-ui';
 import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
+	browserConfirmationMiddleware,
 } from './slice-ui';
 import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
@@ -61,7 +62,8 @@ const store = configureStore({
 	},
 	middleware: (getDefaultMiddleware) =>
 		ignoreSerializableCheck(getDefaultMiddleware).concat(
-			listenToOnlineOfflineEventsMiddleware
+			listenToOnlineOfflineEventsMiddleware,
+			browserConfirmationMiddleware
 		),
 });
 

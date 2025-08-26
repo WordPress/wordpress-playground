@@ -127,6 +127,33 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 		return next(action);
 	};
 
+let browserConfirmationRanOnce = false;
+export const browserConfirmationMiddleware: Middleware =
+	(store) => (next) => (action) => {
+		if (!browserConfirmationRanOnce) {
+			browserConfirmationRanOnce = true;
+			if (typeof window !== 'undefined') {
+				window.addEventListener('beforeunload', (e) => {
+					const state = store.getState() as any;
+					// Access the active site directly from state structure
+					const activeSiteSlug = state.ui?.activeSite?.slug;
+					const activeSite = activeSiteSlug ? state.sites?.entities?.[activeSiteSlug] : undefined;
+					
+					// Only show confirmation for temporary sites (storage === 'none')
+					if (activeSite && activeSite.metadata?.storage === 'none') {
+						const message = 'Your changes will be lost. This is a temporary Playground site. Are you sure you want to leave?';
+						e.preventDefault();
+						// Modern browsers require setting returnValue
+						e.returnValue = message;
+						// Some older browsers use the return value
+						return message;
+					}
+				});
+			}
+		}
+		return next(action);
+	};
+
 export const {
 	setActiveModal,
 	setActiveSiteError,
