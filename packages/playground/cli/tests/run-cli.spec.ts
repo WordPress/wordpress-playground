@@ -472,30 +472,45 @@ describe.each(blueprintVersions)(
 
 			test('should output main logs by default', async () => {
 				cliServer = await runCLI({
+					...suiteCliArgs,
 					command: 'server',
 				});
 
-				expect(output).toEqual(
-					expect.arrayContaining([
-						'Starting a PHP server...',
-						'Setting up WordPress undefined',
-						expect.stringMatching(
-							/^Resolved WordPress release URL: https:\/\/downloads\.w\.org\/release\/wordpress-\d+\.\d+\.\d+\.zip$/
-						),
-						'Fetching SQLite integration plugin...',
-						'Booting WordPress...',
-						'Booted!',
-						'Running the Blueprint...',
-						'Finished running the blueprint',
-						expect.stringMatching(
-							/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
-						),
-					])
-				);
+				if (version === 1) {
+					expect(output).toEqual(
+						expect.arrayContaining([
+							'Starting a PHP server...',
+							'Setting up WordPress undefined',
+							expect.stringMatching(
+								/^Resolved WordPress release URL: https:\/\/downloads\.w\.org\/release\/wordpress-\d+\.\d+\.\d+\.zip$/
+							),
+							'Fetching SQLite integration plugin...',
+							'Booting WordPress...',
+							'Booted!',
+							'Running the Blueprint...',
+							'Finished running the blueprint',
+							expect.stringMatching(
+								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
+							),
+						])
+					);
+				} else {
+					expect(output).toEqual(
+						expect.arrayContaining([
+							'Starting a PHP server...',
+							'Setting up WordPress undefined',
+							'Booted!',
+							expect.stringMatching(
+								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
+							),
+						])
+					);
+				}
 			});
 
 			test('should not output debug logs with verbosity option set to normal', async () => {
 				cliServer = await runCLI({
+					...suiteCliArgs,
 					command: 'server',
 					verbosity: 'normal',
 				});
@@ -509,6 +524,7 @@ describe.each(blueprintVersions)(
 
 			test('should output debug logs bridge with verbosity option set to debug', async () => {
 				cliServer = await runCLI({
+					...suiteCliArgs,
 					command: 'server',
 					verbosity: 'debug',
 				});
@@ -522,6 +538,7 @@ describe.each(blueprintVersions)(
 
 			it('should not output logs when verbosity option set to quiet', async () => {
 				cliServer = await runCLI({
+					...suiteCliArgs,
 					command: 'server',
 					verbosity: 'quiet',
 				});
