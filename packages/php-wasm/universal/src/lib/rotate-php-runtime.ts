@@ -40,6 +40,9 @@ export function rotatePHPRuntime({
 }: RotateOptions) {
 	let runtimeRequestCount = 0;
 	async function rotateRuntime() {
+		if (!php.isInitialized()) {
+			return;
+		}
 		const release = await php.semaphore.acquire();
 		try {
 			await php.hotSwapPHPRuntime(await recreateRuntime(), cwd);

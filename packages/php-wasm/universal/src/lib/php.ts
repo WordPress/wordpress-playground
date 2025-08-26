@@ -1422,6 +1422,10 @@ export class PHP implements Disposable {
 		}
 	}
 
+	isInitialized() {
+		return this.#webSapiInitialized;
+	}
+
 	[Symbol.dispose]() {
 		if (this.#webSapiInitialized) {
 			this.exit(0);
