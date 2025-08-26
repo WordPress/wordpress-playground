@@ -96,7 +96,7 @@ export class ProcessApi extends EventEmitterPolyfill {
 	 * first listener was registered.
 	 */
 	private stdinBuffer: Uint8Array[] | null = [];
-	private childProcess: ChildProcess;
+	public childProcess: ChildProcess;
 	constructor(childProcess: ChildProcess) {
 		super();
 		this.childProcess = childProcess;

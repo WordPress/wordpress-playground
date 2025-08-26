@@ -64,15 +64,15 @@
 				"lintFilePatterns": ["packages/php-wasm/logger/**/*.ts"],
 				"maxWarnings": 0
 			}
-		}
-	},
-	"typecheck": {
-		"executor": "nx:run-commands",
-		"options": {
-			"commands": [
-				"tsc -p packages/php-wasm/logger/tsconfig.lib.json --noEmit",
-				"tsc -p packages/php-wasm/logger/tsconfig.spec.json --noEmit"
-			]
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/logger/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/logger/tsconfig.spec.json --noEmit"
+				]
+			}
 		}
 	}
 }

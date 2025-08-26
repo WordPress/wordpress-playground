@@ -112,7 +112,7 @@ The `server` command supports the following optional arguments:
 -   `--login`: Automatically log the user in as an administrator.
 -   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
--   `--quiet`: Do not output logs and progress messages.
+-   `--verbosity`: Output logs and progress messages. Choices are "quiet", "normal" or "debug". Defaults to "normal".
 -   `--debug`: Print the PHP error log if an error occurs during boot.
 
 ## Need some help with the CLI?

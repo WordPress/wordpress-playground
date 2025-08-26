@@ -377,11 +377,6 @@ export async function preloadSqliteIntegration(
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
 
-	// Use the new AST-based SQLite driver.
-	// TODO: Remove this once the new driver is the default; when this is closed:
-	//         https://github.com/WordPress/sqlite-database-integration/issues/195
-	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
-
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
 	const dbCopy = await php.readFileAsText(
