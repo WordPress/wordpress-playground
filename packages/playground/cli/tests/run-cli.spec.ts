@@ -41,7 +41,11 @@ describe.each(blueprintVersions)(
 
 		afterEach(async () => {
 			if (cliServer) {
-				await cliServer[Symbol.asyncDispose]();
+				try {
+					await cliServer[Symbol.asyncDispose]();
+				} catch (error) {
+					// Ignore any dispose-related errors
+				}
 			}
 		});
 
