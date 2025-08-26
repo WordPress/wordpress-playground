@@ -513,7 +513,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	return startServer({
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const absoluteUrl = args['site-url'] || `http://127.0.0.1:${port}`;
+			const serverUrl = `http://127.0.0.1:${port}`;
+			const siteUrl = args['site-url'] || serverUrl;
 
 			// Create the blueprints handler
 			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
@@ -524,12 +525,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
-					siteUrl: absoluteUrl,
+					siteUrl,
 					processIdSpaceLength,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
-					siteUrl: absoluteUrl,
+					siteUrl,
 					processIdSpaceLength,
 				});
 
@@ -671,7 +672,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					logger.log(`Ready!`);
 				}
 
-				logger.log(`WordPress is running on ${absoluteUrl}`);
+				logger.log(`WordPress is running on ${serverUrl}`);
 
 				if (args.experimentalDevtools && args.xdebug) {
 					const bridge = await startBridge({
