@@ -210,14 +210,18 @@ describe.each(blueprintVersions)(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
+
 			test('should support --mode=apply-to-existing-site', async () => {
 				const tmpDir = await mkdtemp(
 					path.join(tmpdir(), 'playground-test-')
 				);
 
+				const port = 3019;
+
 				// Create a new site so we can load it as an existing site later.
 				cliServer = await runCLI({
 					...suiteCliArgs,
+					port,
 					command: 'server',
 					'experimental-blueprints-v2-runner': true,
 					mode: 'create-new-site',
@@ -241,6 +245,7 @@ describe.each(blueprintVersions)(
 
 				cliServer = await runCLI({
 					...suiteCliArgs,
+					port,
 					command: 'server',
 					'experimental-blueprints-v2-runner': true,
 					mode: 'apply-to-existing-site',
@@ -251,12 +256,12 @@ describe.each(blueprintVersions)(
 						},
 					],
 				});
-				const response = await cliServer.playground.request({
+				const redirectResponse = await cliServer.playground.request({
 					url: '/',
 					method: 'GET',
 				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain(
+				expect(redirectResponse.httpStatusCode).toBe(200);
+				expect(redirectResponse.text).toContain(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
