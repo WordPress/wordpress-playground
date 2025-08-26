@@ -1,6 +1,6 @@
 ---
 slug: /contributing/code
-title: Code contributions - WordPress Playground
+title: Code contributions
 description: A guide for code contributions, covering how to fork the repo, set up a local environment, and submit a pull request.
 ---
 

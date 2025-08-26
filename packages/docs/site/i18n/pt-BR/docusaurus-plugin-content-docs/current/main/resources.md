@@ -1,5 +1,5 @@
 ---
-title: Links e Recursos - WordPress Playground
+title: Links e Recursos
 slug: /resources
 description: Uma lista de links úteis para aplicativos, ferramentas, artigos e vídeos para aprender mais sobre o WordPress Playground.
 ---

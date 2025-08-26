@@ -1,6 +1,7 @@
 ---
 title: Using Blueprints
 slug: /blueprints/using-blueprints
+description: Discover the different ways to use Blueprints, including via URL fragment, query parameter, bundles, and the JavaScript API.
 ---
 
 # Using Blueprints

@@ -110,7 +110,7 @@ describe.each(blueprintVersions)(
 			expect(response.text).toContain('<title>My Blog Name</title>');
 		});
 
-		it('should be able to follow external symlinks in primary and secondary PHP instances', async ({
+		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({
 			skip,
 		}) => {
 			if (version === 2) {
@@ -294,7 +294,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: true,
+					autoMount: '',
 				});
 				const phpResponse = await cliServer.playground.run({
 					code: `<?php
@@ -321,7 +321,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: true,
+					autoMount: '',
 				});
 
 				expect(await getActiveTheme()).toBe('Yolo Theme');
@@ -354,7 +354,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: true,
+					autoMount: '',
 				});
 				const response = await cliServer.playground.request({
 					url: '/wp-login.php',
@@ -374,7 +374,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: true,
+					autoMount: '',
 				});
 				const response = await cliServer.playground.request({
 					url: '/',
@@ -391,7 +391,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: true,
+					autoMount: '',
 				});
 				const response = await cliServer.playground.request({
 					url: '/',
@@ -430,7 +430,7 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					autoMount: true,
+					autoMount: '',
 				});
 				const response = await cliServer.playground.request({
 					url: '/',

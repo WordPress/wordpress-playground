@@ -1,6 +1,7 @@
 ---
 title: Getting started
 slug: /blueprints/getting-started
+description: A quick-start guide to Blueprints. Understand what problems they solve and the different ways you can start using them.
 ---
 
 # Getting started with Blueprints
