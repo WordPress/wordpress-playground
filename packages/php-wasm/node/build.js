@@ -13,10 +13,17 @@ try {
 try {
 	fs.mkdirSync('dist/packages/php-wasm/node/shared');
 
-	fs.copyFileSync(
-		'packages/php-wasm/node/src/lib/extensions/intl/data/icudt74l.dat',
-		'dist/packages/php-wasm/node/shared/icudt74l.dat'
-	);
+	if (await jspi()) {
+		fs.copyFileSync(
+			'packages/php-wasm/node/src/lib/extensions/intl/data/icudt74l.dat',
+			'dist/packages/php-wasm/node/shared/icudt74l.dat'
+		);
+	} else {
+		fs.copyFileSync(
+			'packages/php-wasm/node/src/lib/data/shared/icudt74l.dat',
+			'dist/packages/php-wasm/node/shared/icudt74l.dat'
+		);
+	}
 } catch (e) {
 	// Ignore
 }
