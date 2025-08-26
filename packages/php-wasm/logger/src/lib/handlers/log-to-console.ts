@@ -1,6 +1,5 @@
 import type { LogHandler } from '../log-handlers';
-import type { Log } from '../logger';
-import { prepareLogMessage } from '../logger';
+import { type Log, LogSeverity, prepareLogMessage } from '../logger';
 
 /**
  * Log message to the console.
@@ -23,19 +22,19 @@ export const logToConsole: LogHandler = (log: Log, ...args: any[]): void => {
 	}
 	/* eslint-disable no-console */
 	switch (log.severity) {
-		case 'Debug':
+		case LogSeverity.Debug:
 			console.debug(log.message, ...args);
 			break;
-		case 'Info':
+		case LogSeverity.Info:
 			console.info(log.message, ...args);
 			break;
-		case 'Warn':
+		case LogSeverity.Warn:
 			console.warn(log.message, ...args);
 			break;
-		case 'Error':
+		case LogSeverity.Error:
 			console.error(log.message, ...args);
 			break;
-		case 'Fatal':
+		case LogSeverity.Fatal:
 			console.error(log.message, ...args);
 			break;
 		default:

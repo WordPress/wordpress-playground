@@ -1,14 +1,22 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startBridge } from './start-bridge';
+import { logger, LogSeverity } from '@php-wasm/logger';
+
+const LogVerbosity = {
+	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
+	Normal: { name: 'normal', severity: LogSeverity.Info },
+	Debug: { name: 'debug', severity: LogSeverity.Debug },
+} as const;
+
+type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 interface CLIArgs {
-	protocol?: 'cdp' | 'dap';
 	port?: number;
 	host?: string;
-	verbose?: boolean;
-	help?: boolean;
 	phpRoot?: string;
+	verbosity?: LogVerbosity;
+	help?: boolean;
 }
 
 function parseCliArgs(): CLIArgs {
@@ -37,15 +45,24 @@ Usage: xdebug-bridge [options]
 			description: 'Path to PHP root directory',
 			default: './',
 		})
+		.option('verbosity', {
+			type: 'string',
+			describe: 'Output logs',
+			choices: Object.values(LogVerbosity).map(
+				(verbosity) => verbosity.name
+			),
+			default: 'normal',
+		})
 		.help()
 		.epilog(
 			`
 Examples:
   xdebug-bridge                                    # Start with default settings
-  xdebug-bridge --port 9000 --verbose         # Custom port with verbose logging
-  xdebug-bridge --php-root /path/to/php/files       # Specify PHP root directory
+  xdebug-bridge --port 9000 --verbosity debug      # Custom port with debug logs
+  xdebug-bridge --php-root /path/to/php/files      # Specify PHP root directory
 		`
 		)
+		.wrap(null)
 		.parseSync() as CLIArgs;
 }
 
@@ -56,7 +73,12 @@ export async function main(): Promise<void> {
 		return;
 	}
 
-	console.log('Starting XDebug Bridge...');
+	if (args.verbosity) {
+		const severity = Object.values(LogVerbosity).find(
+			(v) => v.name === args.verbosity
+		)!.severity;
+		logger.setSeverityFilterLevel(severity);
+	}
 
 	const bridge = await startBridge({
 		cdpPort: 9229,

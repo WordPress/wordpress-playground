@@ -1,4 +1,4 @@
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import type {
 	PHPRequest,
 	RemoteAPI,
@@ -48,6 +48,14 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
+
+export const LogVerbosity = {
+	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
+	Normal: { name: 'normal', severity: LogSeverity.Info },
+	Debug: { name: 'debug', severity: LogSeverity.Debug },
+} as const;
+
+type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -142,10 +150,20 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
+			// Hidden - Deprecated in favor of verbosity
 			.option('quiet', {
 				describe: 'Do not output logs and progress messages.',
 				type: 'boolean',
 				default: false,
+				hidden: true,
+			})
+			.option('verbosity', {
+				describe: 'Output logs and progress messages.',
+				type: 'string',
+				choices: Object.values(LogVerbosity).map(
+					(verbosity) => verbosity.name
+				),
+				default: 'normal',
 			})
 			.option('debug', {
 				describe:
@@ -368,6 +386,7 @@ export interface RunCLIArgs {
 	php?: SupportedPHPVersion;
 	port?: number;
 	quiet?: boolean;
+	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string;
 	experimentalMultiWorker?: number;
@@ -434,9 +453,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		args = expandAutoMounts(args);
 	}
 
+	// Keeping 'quiet' option to preserve backward compatibility
 	if (args.quiet) {
-		// @ts-ignore
-		logger.handlers = [];
+		args.verbosity = 'quiet';
+		delete args['quiet'];
+	}
+
+	// Promote "debug" flag to verbosity but keep args.debug around – the
+	// program behavior may change in more ways than just logging verbosity
+	// when debug mode is enabled, e.g. error objects may carry additional details.
+	if (args.debug) {
+		args.verbosity = 'debug';
+	} else if (args.verbosity === 'debug') {
+		args.debug = true;
+	}
+
+	if (args.verbosity) {
+		const severity = Object.values(LogVerbosity).find(
+			(v) => v.name === args.verbosity
+		)!.severity;
+		logger.setSeverityFilterLevel(severity);
 	}
 
 	// Declare file lock manager outside scope of startServer

@@ -67,8 +67,7 @@
 				"{workspaceRoot}/coverage/packages/php-wasm/xdebug-bridge"
 			],
 			"options": {
-				"reportsDirectory": "../../../coverage/packages/php-wasm/xdebug-bridge",
-				"testFiles": ["mock-test.spec.ts"]
+				"reportsDirectory": "../../../coverage/packages/php-wasm/xdebug-bridge"
 			}
 		},
 		"typecheck": {
