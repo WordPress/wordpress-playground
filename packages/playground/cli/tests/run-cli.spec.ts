@@ -41,7 +41,7 @@ describe.each(blueprintVersions)(
 
 		afterEach(async () => {
 			if (cliServer) {
-				await cliServer.server.close();
+				await cliServer[Symbol.asyncDispose]();
 			}
 		});
 
