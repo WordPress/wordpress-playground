@@ -25,10 +25,17 @@ export interface PHPRuntimeInitializedEvent {
 }
 
 /**
- * Represents a PHP runtime destruction event.
+ * Emitted before the exit() method of the PHP Emscripten runtime is called.
  */
-export interface PHPRuntimeBeforeDestroyEvent {
-	type: 'runtime.beforedestroy';
+export interface PHPRuntimeBeforeExitEvent {
+	type: 'runtime.beforeExit';
+}
+
+/**
+ * Emitted before the PHP class instance is destroyed.
+ */
+export interface PHPInstanceBeforeDestroyEvent {
+	type: 'instance.beforeDestroy';
 }
 
 /**
@@ -40,7 +47,8 @@ export type PHPEvent =
 	| PHPRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
-	| PHPRuntimeBeforeDestroyEvent;
+	| PHPRuntimeBeforeExitEvent
+	| PHPInstanceBeforeDestroyEvent;
 
 /**
  * A callback function that handles PHP events.

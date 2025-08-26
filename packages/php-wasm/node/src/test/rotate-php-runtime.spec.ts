@@ -431,4 +431,35 @@ describe('rotatePHPRuntime()', () => {
 			fs.rmdirSync(tempDir);
 		}
 	}, 30_000);
+
+	it('Should not rotate after php.destroy() is called', async () => {
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		const php = new PHP(await recreateRuntimeSpy());
+		rotatePHPRuntime({
+			php,
+			cwd: '/test-root',
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1,
+		});
+
+		// Trigger one rotation to confirm it works initially
+		await php.run({ code: `` });
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+
+		// Destroy the PHP instance
+		await php.destroy();
+
+		// Try to trigger events that would normally cause rotation
+		await php.dispatchEvent({
+			type: 'request.error',
+			error: new Error('mock error'),
+			source: 'php-wasm',
+		});
+		await php.dispatchEvent({
+			type: 'request.end',
+		});
+
+		// No additional rotations should have occurred
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+	}, 30_000);
 });

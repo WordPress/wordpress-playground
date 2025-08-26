@@ -67,8 +67,11 @@ export function rotatePHPRuntime({
 	php.addEventListener('request.error', rotateRuntimeForPhpWasmError);
 	php.addEventListener('request.end', rotateRuntimeAfterMaxRequests);
 
-	return function () {
+	function unbindRuntimeRotation() {
 		php.removeEventListener('request.error', rotateRuntimeForPhpWasmError);
 		php.removeEventListener('request.end', rotateRuntimeAfterMaxRequests);
-	};
+	}
+	php.addEventListener('instance.beforeDestroy', unbindRuntimeRotation);
+
+	return unbindRuntimeRotation;
 }

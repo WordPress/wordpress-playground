@@ -75,8 +75,11 @@ export class PHP implements Disposable {
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	requestHandler?: PHPRequestHandler;
-	private cliCalled = false;
-	private runStreamCalled = false;
+	private instanceState:
+		| 'uninitialized'
+		| 'cliCalled'
+		| 'runStreamCalled'
+		| 'destroyed' = 'uninitialized';
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -218,6 +221,9 @@ export class PHP implements Disposable {
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
+		if (this.instanceState === 'destroyed') {
+			throw new Error('Cannot initialize a destroyed PHP instance.');
+		}
 		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
@@ -573,13 +579,18 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
-		if (this.cliCalled) {
+		if (this.instanceState === 'destroyed') {
+			throw new Error(
+				'Cannot call runStream() on a destroyed PHP instance.'
+			);
+		}
+		if (this.instanceState === 'cliCalled') {
 			throw new Error(
 				'php.runStream() can only be called if php.cli() was not called before. The two methods set a conflicting ' +
 					'C-level global state.'
 			);
 		}
-		this.runStreamCalled = true;
+		this.instanceState = 'runStreamCalled';
 
 		/*
 		 * Prevent multiple requests from running at the same time.
@@ -1352,18 +1363,21 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
 	): Promise<StreamedPHPResponse> {
-		if (this.cliCalled) {
+		if (this.instanceState === 'destroyed') {
+			throw new Error('Cannot call cli() on a destroyed PHP instance.');
+		}
+		if (this.instanceState === 'cliCalled') {
 			throw new Error(
 				'php.cli() can only be called once. The method sets a C-level global state that does not allow repeated calls.'
 			);
 		}
-		if (this.runStreamCalled) {
+		if (this.instanceState === 'runStreamCalled') {
 			throw new Error(
 				'php.cli() can only be called if php.runStream() was not called before. The two methods set a conflicting ' +
 					'C-level global state.'
 			);
 		}
-		this.cliCalled = true;
+		this.instanceState = 'cliCalled';
 		const release = await this.semaphore.acquire();
 
 		const env = options.env || {};
@@ -1402,7 +1416,7 @@ export class PHP implements Disposable {
 
 	exit(code = 0) {
 		this.dispatchEvent({
-			type: 'runtime.beforedestroy',
+			type: 'runtime.beforeExit',
 		});
 		try {
 			this[__private__dont__use]._exit(code);
@@ -1422,10 +1436,18 @@ export class PHP implements Disposable {
 		}
 	}
 
-	[Symbol.dispose]() {
+	destroy() {
+		this.dispatchEvent({
+			type: 'instance.beforeDestroy',
+		});
 		if (this.#webSapiInitialized) {
 			this.exit(0);
 		}
+		this.instanceState = 'destroyed';
+	}
+
+	[Symbol.dispose]() {
+		this.destroy();
 	}
 }
 
