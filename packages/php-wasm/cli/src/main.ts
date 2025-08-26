@@ -47,6 +47,7 @@ async function run() {
 	const hasDevtoolsOption = args.some((arg) =>
 		arg.startsWith('--experimental-devtools')
 	);
+	console.log('hasDevtoolsOption', args);
 	if (hasDevtoolsOption) {
 		args = args.filter((arg) => arg !== '--experimental-devtools');
 	}
