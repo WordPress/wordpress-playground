@@ -9,11 +9,13 @@ import fs from 'fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './file-lock-manager';
+import { withICUData } from './data/with-icu-data';
 import { withXdebug } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
+import { jspi } from 'wasm-feature-detect';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -190,8 +192,12 @@ export async function loadNodeRuntime(
 		emscriptenOptions = await withXdebug(phpVersion, emscriptenOptions);
 	}
 
-	if (options?.withIntl === true) {
-		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
+	if (await jspi()) {
+		if (options?.withIntl === true) {
+			emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
+		}
+	} else {
+		emscriptenOptions = await withICUData(emscriptenOptions);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
