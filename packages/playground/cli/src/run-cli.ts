@@ -80,6 +80,11 @@ export async function parseOptionsAndRunCLI() {
 				type: 'number',
 				default: 9400,
 			})
+			.option('site-url', {
+				describe:
+					'Site URL to use for WordPress. Defaults to http://127.0.0.1:{port}',
+				type: 'string',
+			})
 			.option('php', {
 				describe: 'PHP version to use.',
 				type: 'string',
@@ -245,6 +250,16 @@ export async function parseOptionsAndRunCLI() {
 					}
 				}
 
+				if (args['site-url'] !== undefined && args['site-url'] !== '') {
+					try {
+						new URL(args['site-url']);
+					} catch {
+						throw new Error(
+							`Invalid site-url "${args['site-url']}". Please provide a valid URL (e.g., http://localhost:8080 or https://example.com)`
+						);
+					}
+				}
+
 				if (args['auto-mount']) {
 					let autoMountIsDir = false;
 					try {
@@ -385,6 +400,7 @@ export interface RunCLIArgs {
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
+	'site-url'?: string;
 	quiet?: boolean;
 	verbosity?: LogVerbosity;
 	wp?: string;
@@ -497,7 +513,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	return startServer({
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const absoluteUrl = `http://127.0.0.1:${port}`;
+			const absoluteUrl = args['site-url'] || `http://127.0.0.1:${port}`;
 
 			// Create the blueprints handler
 			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
