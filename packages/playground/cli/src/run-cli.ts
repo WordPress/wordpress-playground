@@ -207,8 +207,8 @@ export async function parseOptionsAndRunCLI() {
 				hidden: true,
 			})
 			.option('mode', {
-				// TODO: Document each option.
-				describe: 'Mode to run the Playground in.',
+				describe:
+					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
 				type: 'string',
 				choices: ['create-new-site', 'apply-to-existing-site'],
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
@@ -250,22 +250,51 @@ export async function parseOptionsAndRunCLI() {
 					}
 				}
 
-				if (args['mode'] !== undefined) {
-					if (args['experimental-blueprints-v2-runner'] === false) {
+				if (args['experimental-blueprints-v2-runner'] === true) {
+					if (args['mode'] !== undefined) {
+						if ('skip-wordpress-setup' in args) {
+							throw new Error(
+								'The --skipWordPressSetup option cannot be used with the --mode option. Use one or the other.'
+							);
+						}
+						if ('skip-sqlite-setup' in args) {
+							throw new Error(
+								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
+							);
+						}
+						if (args['auto-mount'] !== undefined) {
+							throw new Error(
+								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+							);
+						}
+					} else {
+						// Support the legacy v1 runner options
+						if (args['skip-wordpress-setup'] === true) {
+							args['mode'] = 'apply-to-existing-site';
+						} else {
+							args['mode'] = 'create-new-site';
+						}
+					}
+
+					// Support the legacy v1 runner options
+					const allow = (args['allow'] as string[]) || [];
+
+					if (args['followSymlinks'] === true) {
+						allow.push('follow-symlinks');
+					}
+
+					if (args['blueprint-may-read-adjacent-files'] === true) {
+						allow.push('read-local-fs');
+					}
+
+					args['allow'] = allow;
+				} else {
+					if (args['mode'] !== undefined) {
 						throw new Error(
 							'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
 						);
 					}
-					if (args['auto-mount'] !== undefined) {
-						throw new Error(
-							'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
-						);
-					}
 				}
-
-				// TODO: Require `mode` arg if `experimental-blueprints-v2-runner` is true
-				// and blueprint is provided.
-				// TODO: Deny `mode` arg if `auto-mount` is true.
 
 				return true;
 			});
@@ -341,8 +370,10 @@ export interface RunCLIArgs {
 	followSymlinks?: boolean;
 	'blueprint-may-read-adjacent-files'?: boolean;
 
-	// --------- Blueprint V2 args (not available via CLI yet) -----------
+	// --------- Blueprint V2 args -----------
 	mode?: 'mount-only' | 'create-new-site' | 'apply-to-existing-site';
+
+	// --------- Blueprint V2 args (not available via CLI yet) -----------
 	'db-engine'?: 'sqlite' | 'mysql';
 	'db-host'?: string;
 	'db-user'?: string;
