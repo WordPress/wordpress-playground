@@ -3,7 +3,7 @@
 	"compilerOptions": {
 		"outDir": "../../../dist/out-tsc",
 		"declaration": true,
-		"types": ["node"]
+		"types": ["node", "vite/client"]
 	},
 	"include": [
 		"src/**/*.ts",

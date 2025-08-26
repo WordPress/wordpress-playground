@@ -1,6 +1,6 @@
 ---
 slug: /contributing/translations
-title: 翻訳への貢献 - WordPress Playground
+title: 翻訳への貢献
 description: ファイル構造、ローカルテスト、レビュープロセスなど、Playground ドキュメントを翻訳する方法を学びます。
 ---
 

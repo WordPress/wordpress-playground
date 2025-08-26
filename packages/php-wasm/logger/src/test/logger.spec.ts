@@ -50,7 +50,7 @@ describe('Logger', () => {
 	});
 
 	it('outputs main logs when verbosity is set to normal', () => {
-		logger.filterBySeverity(LogSeverity.Info);
+		logger.setSeverityFilterLevel(LogSeverity.Info);
 		logger.log('log');
 		logger.info('info');
 		logger.warn('warn');
@@ -62,7 +62,7 @@ describe('Logger', () => {
 	});
 
 	it('outputs main and debug logs when verbosity is set to debug', () => {
-		logger.filterBySeverity(LogSeverity.Debug);
+		logger.setSeverityFilterLevel(LogSeverity.Debug);
 		logger.log('log');
 		logger.info('info');
 		logger.warn('warn');
@@ -74,7 +74,7 @@ describe('Logger', () => {
 	});
 
 	it('does not output logs when verbosity is set to quiet', () => {
-		logger.filterBySeverity(LogSeverity.Fatal);
+		logger.setSeverityFilterLevel(LogSeverity.Fatal);
 		logger.log('log');
 		logger.info('info');
 		logger.warn('warn');
@@ -86,7 +86,7 @@ describe('Logger', () => {
 	});
 
 	it('supports logMessage() without explicit severity', () => {
-		logger.filterBySeverity(LogSeverity.Info);
+		logger.setSeverityFilterLevel(LogSeverity.Info);
 		logger.logMessage({ message: 'test' });
 		const logs = logger.getLogs();
 		expect(logs.length).toBe(1);

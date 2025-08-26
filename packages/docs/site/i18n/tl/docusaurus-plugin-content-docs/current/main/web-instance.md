@@ -17,11 +17,11 @@ Sa pamamagitan ng [Query Params](/developers/apis/query-api/) maaari mong direkt
 
 Mula sa Playground website, may ilang toolbars na nagagamit upang i-customize ang iyong Playground instance at magbigay ng mabilis na access sa ilang resources at utilities.
 
-![Playground Toolbar Snapshot](./_assets/toolbar.png)
+![Playground Toolbar Snapshot](@site/static/img/about/toolbar-playground.webp)
 
 ## I-customize ang Playground
 
-![snapshot of customize playground window at playground instance](./_assets/customize-playground.png)
+![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
 
 Ang mga pagpipilian sa "Customize Playground" window ay tumutugma sa mga sumusunod na [Query API options](/developers/apis/query-api#available-options):
 
@@ -37,7 +37,7 @@ Kailangan mong i-activate ang "Network access" upang makapag-browse para sa [plu
 
 ## Menu ng Playground Options
 
-![options menu at playground instance snapshot](./_assets/options.png)
+![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
 
 Ang menu na ito ay naglalaman ng mga link sa ilang resources at tools ng Playground:
 

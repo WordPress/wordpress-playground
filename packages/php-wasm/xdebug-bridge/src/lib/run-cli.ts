@@ -77,7 +77,7 @@ export async function main(): Promise<void> {
 		const severity = Object.values(LogVerbosity).find(
 			(v) => v.name === args.verbosity
 		)!.severity;
-		logger.filterBySeverity(severity);
+		logger.setSeverityFilterLevel(severity);
 	}
 
 	const bridge = await startBridge({

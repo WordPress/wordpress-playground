@@ -22,6 +22,10 @@ interface ObjectHandle {
 	contextId?: number;
 	depth: number;
 	fullname?: string;
+	// Add pagination support
+	currentPage?: number;
+	totalPages?: number;
+	aggregatedProps?: any[];
 }
 
 export interface XdebugCDPBridgeConfig {
@@ -391,20 +395,36 @@ export class XdebugCDPBridge {
 					if (handle.type === 'context') {
 						const contextId = handle.contextId ?? 0;
 						const depth = handle.depth;
-						// Get variables in the context
-						const cmd = `context_get -d ${depth} -c ${contextId}`;
+						// Get variables in the context with pagination support (32 items per page)
+						const cmd = `context_get -d ${depth} -c ${contextId} -p 0 -m 32`;
 						const txn = this.sendDbgpCommand(cmd);
+						// Initialize pagination state
+						const updatedHandle = {
+							...handle,
+							currentPage: 0,
+							aggregatedProps: [],
+						};
+						this.objectHandles.set(objectId, updatedHandle);
 						this.pendingCommands.set(txn, {
 							cdpId: id,
 							cdpMethod: method,
+							params: { objectId: objectId },
 						});
 						sendResponse = false;
 					} else if (handle.type === 'property') {
 						const depth = handle.depth;
 						const fullname = handle.fullname!;
 						const fmtName = this.formatPropertyFullName(fullname);
-						const cmd = `property_get -d ${depth} -n ${fmtName}`;
+						// Get property with pagination support (32 items per page)
+						const cmd = `property_get -d ${depth} -n ${fmtName} -p 0 -m 32`;
 						const txn = this.sendDbgpCommand(cmd);
+						// Initialize pagination state
+						const updatedHandle = {
+							...handle,
+							currentPage: 0,
+							aggregatedProps: [],
+						};
+						this.objectHandles.set(objectId, updatedHandle);
 						this.pendingCommands.set(txn, {
 							cdpId: id,
 							cdpMethod: method,
@@ -690,13 +710,26 @@ export class XdebugCDPBridge {
 				case 'context_get':
 				case 'property_get': {
 					if (pending && pending.cdpId !== undefined) {
-						// Handle variables or object properties retrieval
-						const props: any = [];
-						const responseProps = response.property;
+						// Handle variables or object properties retrieval with pagination
+						const objectId =
+							pending.params?.objectId ||
+							pending.params?.parentObjectId;
+						const handle = objectId
+							? this.objectHandles.get(objectId)
+							: null;
+
+						// @TODO: This is hacky. It enables browsing arrays. Without it,
+						// the debugger shows $_SERVER as an array with a single property called
+						// $_SERVER.
+						const responseProps =
+							response.property?.property ?? response.property;
+
+						const currentProps: any[] = [];
 						if (responseProps) {
 							const propertiesArray = Array.isArray(responseProps)
 								? responseProps
 								: [responseProps];
+
 							for (const prop of propertiesArray) {
 								const name =
 									prop.$.name || prop.$.fullname || '';
@@ -726,7 +759,7 @@ export class XdebugCDPBridge {
 									const className =
 										prop.$.classname ||
 										(type === 'array' ? 'Array' : 'Object');
-									const objectId = String(
+									const childObjectId = String(
 										this.nextObjectId++
 									);
 									// Store handle
@@ -749,19 +782,20 @@ export class XdebugCDPBridge {
 											  )?.depth || 0
 											: 0;
 									// Use same depth/context as parent
-									this.objectHandles.set(objectId, {
+									this.objectHandles.set(childObjectId, {
 										type: 'property',
 										depth: depth,
 										contextId: contextId,
 										fullname: prop.$.fullname || name,
 									});
-									props.push({
+
+									currentProps.push({
 										name: prop.$.key || name,
 										value: {
 											type: 'object',
 											className: className,
 											description: className,
-											objectId: objectId,
+											objectId: childObjectId,
 										},
 										writable: false,
 										configurable: false,
@@ -806,7 +840,7 @@ export class XdebugCDPBridge {
 									};
 									if (subtype) valueObj.subtype = subtype;
 									valueObj.value = value;
-									props.push({
+									currentProps.push({
 										name: prop.$.key || name,
 										value: valueObj,
 										writable: false,
@@ -816,9 +850,71 @@ export class XdebugCDPBridge {
 								}
 							}
 						}
-						const result = { result: props };
-						this.cdp.sendMessage({ id: pending.cdpId, result });
-						this.pendingCommands.delete(transId);
+
+						// Handle pagination
+						if (handle) {
+							// Add current page props to aggregated results
+							const aggregatedProps = (
+								handle.aggregatedProps || []
+							).concat(currentProps);
+
+							// Check if there are more pages - if we got exactly 32 items (page size), there might be more
+							const pageSize = 32;
+							const hasMorePages =
+								currentProps.length === pageSize;
+
+							if (hasMorePages) {
+								// More pages available, fetch next page
+								const nextPage = (handle.currentPage || 0) + 1;
+								const updatedHandle = {
+									...handle,
+									currentPage: nextPage,
+									aggregatedProps: aggregatedProps,
+								};
+								this.objectHandles.set(
+									objectId!,
+									updatedHandle
+								);
+
+								// Send command for next page
+								let nextCmd: string;
+								if (command === 'context_get') {
+									const contextId = handle.contextId ?? 0;
+									const depth = handle.depth;
+									nextCmd = `context_get -d ${depth} -c ${contextId} -p ${nextPage} -m ${pageSize}`;
+								} else {
+									// property_get
+									const depth = handle.depth;
+									const fullname = handle.fullname!;
+									const fmtName =
+										this.formatPropertyFullName(fullname);
+									nextCmd = `property_get -d ${depth} -n ${fmtName} -p ${nextPage} -m ${pageSize}`;
+								}
+
+								const txn = this.sendDbgpCommand(nextCmd);
+								this.pendingCommands.set(txn, {
+									cdpId: pending.cdpId,
+									cdpMethod: pending.cdpMethod,
+									params: pending.params,
+								});
+								// Don't send response yet, wait for more pages
+								this.pendingCommands.delete(transId);
+								return;
+							} else {
+								// No more pages or last page, send final response
+								const result = { result: aggregatedProps };
+								this.cdp.sendMessage({
+									id: pending.cdpId,
+									result,
+								});
+								this.pendingCommands.delete(transId);
+							}
+						} else {
+							// No handle, send current props
+							const result = { result: currentProps };
+							this.cdp.sendMessage({ id: pending.cdpId, result });
+							this.pendingCommands.delete(transId);
+						}
 					}
 					break;
 				}

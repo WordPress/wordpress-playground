@@ -1,6 +1,8 @@
+import './mocker';
 import { vi } from 'vitest';
-import { logger, LogSeverity } from '@php-wasm/logger';
 import { main } from '../lib/run-cli';
+import { logger, LogSeverity } from '@php-wasm/logger';
+import { startBridge } from '../lib/start-bridge';
 import type { XdebugCDPBridge } from '../lib/xdebug-cdp-bridge';
 
 describe('CLI', () => {
@@ -9,11 +11,12 @@ describe('CLI', () => {
 	beforeEach(async () => {
 		process.argv = [...argv.slice(0, 2)];
 
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		vi.spyOn(logger, 'setSeverityFilterLevel');
 		vi.spyOn(
 			await import('../lib/start-bridge'),
 			'startBridge'
 		).mockResolvedValue({ start: vi.fn() } as unknown as XdebugCDPBridge);
-		vi.spyOn(logger, 'filterBySeverity');
 	});
 
 	afterEach(() => {
@@ -22,12 +25,60 @@ describe('CLI', () => {
 		vi.clearAllMocks();
 	});
 
+	it('calls startBridge with default arguments', async () => {
+		await main();
+
+		expect(startBridge).toHaveBeenCalledWith({
+			cdpPort: 9229,
+			cdpHost: 'localhost',
+			dbgpPort: 9003,
+			phpRoot: './',
+		});
+
+		const bridge = await (startBridge as any).mock.results[0].value;
+		expect(bridge.start).toHaveBeenCalled();
+	});
+
+	it('passes custom arguments correctly', async () => {
+		process.argv.push(
+			'--port',
+			'9000',
+			'--host',
+			'127.0.0.1',
+			'--php-root',
+			'/var/www'
+		);
+
+		await main();
+
+		expect(startBridge).toHaveBeenCalledWith({
+			cdpPort: 9229,
+			cdpHost: '127.0.0.1',
+			dbgpPort: 9000,
+			phpRoot: '/var/www',
+		});
+	});
+
+	it('does not start bridge when help argument is passed', async () => {
+		process.argv.push('--help');
+
+		try {
+			await main();
+		} catch (e: any) {
+			expect(e.message).toBe('process.exit unexpectedly called with "0"');
+		}
+
+		expect(startBridge).not.toHaveBeenCalled();
+	});
+
 	it('runs cli with verbosity option set to quiet', async () => {
 		process.argv.push('--verbosity', 'quiet');
 
 		await main();
 
-		expect(logger.filterBySeverity).toHaveBeenCalledWith(LogSeverity.Fatal);
+		expect(logger.setSeverityFilterLevel).toHaveBeenCalledWith(
+			LogSeverity.Fatal
+		);
 	});
 
 	it('runs cli with verbosity option set to normal', async () => {
@@ -35,7 +86,9 @@ describe('CLI', () => {
 
 		await main();
 
-		expect(logger.filterBySeverity).toHaveBeenCalledWith(LogSeverity.Info);
+		expect(logger.setSeverityFilterLevel).toHaveBeenCalledWith(
+			LogSeverity.Info
+		);
 	});
 
 	it('runs cli with verbosity option set to debug', async () => {
@@ -43,6 +96,8 @@ describe('CLI', () => {
 
 		await main();
 
-		expect(logger.filterBySeverity).toHaveBeenCalledWith(LogSeverity.Debug);
+		expect(logger.setSeverityFilterLevel).toHaveBeenCalledWith(
+			LogSeverity.Debug
+		);
 	});
 });

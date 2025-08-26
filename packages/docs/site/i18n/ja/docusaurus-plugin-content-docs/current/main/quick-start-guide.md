@@ -1,5 +1,5 @@
 ---
-title: クイックスタート ガイド - WordPress Playground
+title: クイックスタート ガイド
 slug: /quick-start-guide
 description: Playground を使い始めるための5分ガイド。プラグインのテスト、テーマの試用、そして様々なバージョンのWP/PHPの使い方を学びましょう。
 ---

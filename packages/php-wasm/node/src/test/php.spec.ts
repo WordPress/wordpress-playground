@@ -112,6 +112,16 @@ phpLoaderOptions.forEach((options) => {
 				expect(streamed.headers).toBeInstanceOf(Promise);
 			});
 
+			it('should provide stdout bytes through stdoutBytes property', async () => {
+				const streamed = await php.runStream({
+					code: '<?php echo "Hello World";',
+				});
+				const bytes = await streamed.stdoutBytes;
+				expect(bytes).toStrictEqual(
+					new TextEncoder().encode('Hello World')
+				);
+			});
+
 			it('should provide stdout text through stdoutText property', async () => {
 				const streamed = await php.runStream({
 					code: '<?php echo "Hello World";',

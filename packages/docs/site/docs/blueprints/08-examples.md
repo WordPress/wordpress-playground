@@ -2,6 +2,7 @@
 sidebar_position: 8
 title: Examples
 slug: /blueprints/examples
+description: A gallery of practical Blueprint examples for various tasks, such as installing themes, running PHP, and enabling features.
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';

@@ -47,7 +47,7 @@ export type LogPrefix = (typeof LogPrefix)[keyof typeof LogPrefix];
  */
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
-	private handlers: LogHandler[];
+	private readonly handlers: LogHandler[];
 	private severity: LogSeverity = LogSeverity.Info;
 
 	// constructor
@@ -100,7 +100,7 @@ export class Logger extends EventTarget {
 	 * Filter message based on severity
 	 * @param severity LogSeverity
 	 */
-	public filterBySeverity(severity: LogSeverity): void {
+	public setSeverityFilterLevel(severity: LogSeverity): void {
 		this.severity = severity;
 	}
 
