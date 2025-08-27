@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import { EventEmitter } from 'events';
 import { type WebSocket, WebSocketServer } from 'ws';
 
@@ -19,7 +20,7 @@ export class CDPServer extends EventEmitter {
 			this.ws = ws;
 			this.emit('clientConnected');
 			ws.on('message', (data) => {
-				console.log(
+				logger.debug(
 					'\x1b[1;32m[CDP][received]\x1b[0m',
 					data.toString()
 				);
@@ -65,7 +66,11 @@ export class CDPServer extends EventEmitter {
 			return;
 		}
 		const json = JSON.stringify(message);
-		console.log('\x1b[1;32m[CDP][send]\x1b[0m', json);
+		logger.debug('\x1b[1;32m[CDP][send]\x1b[0m', json);
 		this.ws.send(json);
+	}
+
+	close() {
+		this.wss.close();
 	}
 }

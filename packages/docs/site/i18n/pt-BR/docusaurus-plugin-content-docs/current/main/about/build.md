@@ -67,7 +67,7 @@ Mais alguns exemplos deste fluxo de trabalho:
 
 ## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub
 
-![Captura do Tipo de Armazenamento do Dispositivo](../_assets/storage-type-device.png)
+![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
 
 <!--
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:

@@ -77,6 +77,6 @@ Como con todos los proyectos de WordPress, queremos asegurar en entorno seguro y
 
 ## Licencia
 
-WordPress Playground es software libre disponible bajor los términos de la GNU General Public License version 2 o (si lo prefieres) cualquier versión posterior. La licencia completa está disponible en [LICENSE.md](https://github.com/WordPress/blob/trunk/LICENSE).
+WordPress Playground es software libre disponible bajor los términos de la GNU General Public License version 2 o (si lo prefieres) cualquier versión posterior. La licencia completa está disponible en [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
 
 <br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>

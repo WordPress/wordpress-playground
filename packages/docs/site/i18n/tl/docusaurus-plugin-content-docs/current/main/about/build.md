@@ -29,7 +29,7 @@ Narito ang ilan pang halimbawa ng workflow na ito:
 
 ## Pag-synchronize ng Iyong Playground Instance sa Lokal na Folder at Paglikha ng GitHub Pull Requests
 
-![Storage Type Device Snapshot](../_assets/storage-type-device.png)
+![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
 
 Sa Google Chrome, maaari mong i-synchronize ang iyong Playground instance sa isang lokal na directory, na maaaring:
 

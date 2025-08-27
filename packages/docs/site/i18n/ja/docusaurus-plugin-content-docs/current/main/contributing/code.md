@@ -1,6 +1,6 @@
 ---
 slug: /contributing/code
-title: コードの貢献 - WordPress Playground
+title: コードの貢献
 description: リポジトリをフォークする方法、ローカル環境をセットアップする方法、プルリクエストを送信する方法などを説明した、コード貢献のガイドです。
 ---
 

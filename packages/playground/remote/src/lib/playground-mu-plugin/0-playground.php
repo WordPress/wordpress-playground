@@ -120,7 +120,7 @@ function playground_add_target_blank_to_external_links() {
 			// Set target="_blank" for external links when clicked.
 			// This covers links that are added after the page has loaded.
 			document.addEventListener('click', e => {
-				const a = e.target.closest('a[href]');
+				const a = e.target?.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
 			});
@@ -128,7 +128,7 @@ function playground_add_target_blank_to_external_links() {
 			// Also handle focus events to cover keyboard navigation on
 			// links that are added after the page has loaded.
 			document.addEventListener('focus', e => {
-				const a = e.target.closest('a[href]');
+				const a = e.target?.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
 			}, true);

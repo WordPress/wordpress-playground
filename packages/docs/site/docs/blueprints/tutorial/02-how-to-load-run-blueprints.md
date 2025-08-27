@@ -1,7 +1,7 @@
 ---
 title: How to run Blueprints
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description: Learn about the multiple ways to use blueprints
+description: Learn the various methods for loading and running Blueprints, including using a URL fragment or the blueprint-url parameter.
 ---
 
 # How to load and run Blueprints
