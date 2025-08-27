@@ -5,7 +5,6 @@ import {
 	LatestSupportedPHPVersion,
 	PHP,
 	__private__dont__use,
-	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
@@ -13,14 +12,13 @@ import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 const recreateRuntime = async (version: any = LatestSupportedPHPVersion) =>
 	await loadNodeRuntime(version);
 
-describe('rotatePHPRuntime()', () => {
+describe('php.enableRuntimeRotation()', () => {
 	it('Preserves the /internal directory through PHP runtime recreation', async () => {
 		// Rotate the PHP runtime
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 10,
@@ -55,8 +53,7 @@ describe('rotatePHPRuntime()', () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 10,
@@ -89,8 +86,7 @@ describe('rotatePHPRuntime()', () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/wordpress',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 10,
@@ -192,8 +188,7 @@ describe('rotatePHPRuntime()', () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		// Rotate the PHP runtime
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1000,
@@ -222,8 +217,7 @@ describe('rotatePHPRuntime()', () => {
 	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
@@ -237,8 +231,7 @@ describe('rotatePHPRuntime()', () => {
 	it('Should recreate the PHP runtime after a PHP runtime crash', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1234,
@@ -256,8 +249,7 @@ describe('rotatePHPRuntime()', () => {
 	it('Should not recreate the PHP runtime after a PHP fatal', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1234,
@@ -286,8 +278,7 @@ describe('rotatePHPRuntime()', () => {
 			return recreateRuntime('8.3');
 		});
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
@@ -308,8 +299,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should preserve the custom SAPI name', async () => {
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
@@ -326,8 +316,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should preserve the MEMFS files', async () => {
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
@@ -350,8 +339,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should not overwrite the NODEFS files', async () => {
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
