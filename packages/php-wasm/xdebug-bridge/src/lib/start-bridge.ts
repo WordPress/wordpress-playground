@@ -11,9 +11,9 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-
 	phpInstance?: PHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
+	breakOnFirstLine?: boolean;
 };
 
 export async function startBridge(config: StartBridgeConfig) {
@@ -21,6 +21,7 @@ export async function startBridge(config: StartBridgeConfig) {
 	const dbgpPort = config.dbgpPort ?? 9003;
 	const cdpHost = config.cdpHost ?? 'localhost';
 	const phpRoot = config.phpRoot ?? process.cwd();
+	const breakOnFirstLine = config.breakOnFirstLine ?? false;
 
 	logger.log('Starting XDebug Bridge...');
 
@@ -70,5 +71,6 @@ export async function startBridge(config: StartBridgeConfig) {
 		knownScriptUrls: phpFiles,
 		phpRoot,
 		getPHPFile,
+		breakOnFirstLine,
 	});
 }

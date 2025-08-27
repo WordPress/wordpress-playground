@@ -12,18 +12,22 @@ describe('XdebugCDPBridge', () => {
 	let dbgpSession: DbgpSession;
 	let cdpServer: CDPServer;
 	let bridge: XdebugCDPBridge;
+	let fixtures: string;
 
 	beforeEach(async () => {
 		php = new PHP(
 			await loadNodeRuntime(RecommendedPHPVersion, { withXdebug: true })
 		);
 
+		fixtures = `${import.meta.dirname}/fixtures`;
+
 		dbgpSession = new DbgpSession();
 		cdpServer = new CDPServer();
 		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
-			knownScriptUrls: fs.readdirSync(`${import.meta.dirname}/fixtures`),
+			knownScriptUrls: fs
+				.readdirSync(`${import.meta.dirname}/fixtures`)
+				.map((file) => `${fixtures}/${file}`),
 			getPHPFile: (file) => php.readFileAsText(file),
-			phpRoot: `${import.meta.dirname}/fixtures`,
 		});
 
 		vi.spyOn(dbgpSession, 'sendCommand');
@@ -41,8 +45,8 @@ describe('XdebugCDPBridge', () => {
 	});
 
 	it('initializes with correct script IDs', () => {
-		expect(bridge['scriptIdByUrl'].get('array.php')).toBe('1');
-		expect(bridge['scriptIdByUrl'].get('test.php')).toBe('2');
+		expect(bridge['scriptIdByUrl'].get(`${fixtures}/array.php`)).toBe('1');
+		expect(bridge['scriptIdByUrl'].get(`${fixtures}/test.php`)).toBe('2');
 	});
 
 	it('registers event handlers in start function', () => {
@@ -57,7 +61,7 @@ describe('XdebugCDPBridge', () => {
 			expect.any(Function)
 		);
 		expect(dbgpSession.on).toHaveBeenCalledWith(
-			'close',
+			'disconnected',
 			expect.any(Function)
 		);
 
@@ -157,13 +161,13 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `test.php`,
-				lineNumber: 4,
+				url: `${fixtures}/test.php`,
+				lineNumber: 7,
 			},
 		});
 
 		await php.runStream({
-			scriptPath: `${import.meta.dirname}/fixtures/test.php`,
+			scriptPath: `${fixtures}/test.php`,
 		});
 
 		await new Promise((resolve) => {
@@ -174,6 +178,12 @@ describe('XdebugCDPBridge', () => {
 			});
 		});
 
+		expect(
+			[...bridge['scriptIdByUrl'].entries()].find(
+				([, v]) => v === '2'
+			)?.[0]
+		).toBe(`${fixtures}/test.php`);
+
 		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
 			expect.objectContaining({
 				method: 'Debugger.paused',
@@ -181,8 +191,8 @@ describe('XdebugCDPBridge', () => {
 					callFrames: expect.arrayContaining([
 						expect.objectContaining({
 							location: expect.objectContaining({
-								scriptId: '3',
-								lineNumber: 4,
+								scriptId: '2',
+								lineNumber: 7,
 							}),
 						}),
 					]),
@@ -198,13 +208,13 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `array.php`,
+				url: `${fixtures}/array.php`,
 				lineNumber: 15,
 			},
 		});
 
 		await php.runStream({
-			scriptPath: `${import.meta.dirname}/fixtures/array.php`,
+			scriptPath: `${fixtures}/array.php`,
 		});
 
 		// 5 transactions were already sent before the first pause.
@@ -284,5 +294,51 @@ describe('XdebugCDPBridge', () => {
 			{ name: 'grault', type: 'string' },
 			{ name: 'waldo', type: 'string' },
 		]);
+	});
+
+	it('connects to Xdebug and pauses on the first line read when breakOnFirstLine enabled', async () => {
+		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
+			knownScriptUrls: fs
+				.readdirSync(fixtures)
+				.map((file) => `${fixtures}/${file}`),
+			getPHPFile: (file) => php.readFileAsText(file),
+			breakOnFirstLine: true,
+		});
+
+		bridge.start();
+
+		await php.runStream({
+			scriptPath: `${fixtures}/test.php`,
+		});
+
+		await new Promise((resolve) => {
+			const original = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((msg) => {
+				if (msg.method === 'Debugger.paused') resolve(msg);
+				return original(msg);
+			});
+		});
+
+		expect(
+			[...bridge['scriptIdByUrl'].entries()].find(
+				([, v]) => v === '3'
+			)?.[0]
+		).toBe('/internal/shared/auto_prepend_file.php');
+
+		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				method: 'Debugger.paused',
+				params: expect.objectContaining({
+					callFrames: expect.arrayContaining([
+						expect.objectContaining({
+							location: expect.objectContaining({
+								scriptId: '3',
+								lineNumber: 2,
+							}),
+						}),
+					]),
+				}),
+			})
+		);
 	});
 });

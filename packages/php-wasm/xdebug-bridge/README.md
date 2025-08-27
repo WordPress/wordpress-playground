@@ -64,6 +64,7 @@ npx xdebug-bridge --help
 -   `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
 -   `phpInstance`: PHP instance
 -   `getPHPFile`: Custom file listing function
+-   `breakOnFirstLine`: Breaks on the first breakable line
 
 ## Events
 
@@ -72,7 +73,7 @@ The bridge listens to events for monitoring connection activity:
 #### From Xdebug
 
 -   `connected`: Xdebug Server has started
--   `close`: Xdebug Server has stopped
+-   `disconnected`: Xdebug Server has stopped
 -   `message`: Raw XDebug data received
 -   `error`: Xdebug Server error occurred
 

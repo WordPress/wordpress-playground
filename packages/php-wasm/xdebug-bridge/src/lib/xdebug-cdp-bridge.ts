@@ -31,6 +31,7 @@ export interface XdebugCDPBridgeConfig {
 	knownScriptUrls: string[];
 	phpRoot?: string;
 	getPHPFile(path: string): string | Promise<string>;
+	breakOnFirstLine?: boolean;
 }
 
 export class XdebugCDPBridge {
@@ -47,6 +48,7 @@ export class XdebugCDPBridge {
 	private xdebugConnected = false;
 	private phpRoot: string;
 	private readPHPFile: (path: string) => string | Promise<string>;
+	private breakOnFirstLine;
 
 	constructor(
 		dbgp: DbgpSession,
@@ -60,6 +62,7 @@ export class XdebugCDPBridge {
 		for (const url of config.knownScriptUrls) {
 			this.scriptIdByUrl.set(url, this.getOrCreateScriptId(url));
 		}
+		this.breakOnFirstLine = config.breakOnFirstLine || false;
 	}
 
 	start() {
@@ -80,8 +83,8 @@ export class XdebugCDPBridge {
 				// Parsing error, ignore or log
 			}
 		});
-		// Xdebug closed
-		this.dbgp.on('close', () => {
+		// Xdebug disconnected
+		this.dbgp.on('disconnected', () => {
 			this.xdebugConnected = false;
 			// If DevTools is still connected, inform or close
 			this.cdp.sendMessage({
@@ -121,12 +124,14 @@ export class XdebugCDPBridge {
 						this: { type: 'undefined' },
 					},
 				],
-				hitBreakpoints: [],
+				reason: 'other',
 			},
 		});
 
-		// And resuming the process
-		this.cdp.sendMessage({ method: 'Debugger.resumed' });
+		// And resuming the process after 50ms to keep focus on the first file.
+		setTimeout(() => {
+			this.cdp.sendMessage({ method: 'Debugger.resumed' });
+		}, 50);
 
 		// Send a nice welcome message with instructions
 		this.cdp.sendMessage({
@@ -470,9 +475,7 @@ export class XdebugCDPBridge {
 	}
 
 	private uriFromBridgeToDBGP(uri: string) {
-		const index = path.join(this.phpRoot, uri);
-
-		return path.resolve(process.cwd(), this.phpRoot, index);
+		return path.resolve(uri);
 	}
 
 	private uriFromDBGPToBridge(uri: string) {
@@ -480,7 +483,7 @@ export class XdebugCDPBridge {
 
 		const index = uri.indexOf(this.phpRoot);
 
-		return uri.slice(index);
+		return index !== -1 ? uri.slice(index) : uri;
 	}
 
 	private async handleDbgpMessage(msgObj: any) {
@@ -496,7 +499,9 @@ export class XdebugCDPBridge {
 				});
 			});
 
-			const firstBreakTxn = this.sendDbgpCommand('run');
+			const firstBreakTxn = this.breakOnFirstLine
+				? this.sendDbgpCommand('step_into')
+				: this.sendDbgpCommand('run');
 			this.pendingCommands.set(firstBreakTxn, {
 				/* auto run after init */
 			});
@@ -571,6 +576,7 @@ export class XdebugCDPBridge {
 						const file = this.uriFromDBGPToBridge(
 							response['xdebug:message'].$.filename
 						);
+
 						if (file && !this.scriptIdByUrl.has(file)) {
 							const scriptId = this.getOrCreateScriptId(file);
 							const uri = this.uriFromBridgeToCDP(file);

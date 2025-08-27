@@ -106,7 +106,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	useHostFilesystem(php);
 
 	if (hasDevtoolsOption && hasXdebugOption) {
-		const bridge = await startBridge({});
+		const bridge = await startBridge({ breakOnFirstLine: true });
 
 		bridge.start();
 	}
