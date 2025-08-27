@@ -9,6 +9,44 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.13] (2025-08-26) 
+
+### Enhancements
+
+- [CLI] --site-url option for Playground CLI. ([#2558](https://github.com/WordPress/wordpress-playground/pull/2558))
+
+### Tools
+
+- [XDebug Bridge] Fetch all array keys when inspecting an array. ([#2409](https://github.com/WordPress/wordpress-playground/pull/2409))
+
+### PHP WebAssembly
+
+- [PHP web] Export setErrNo() to make `less` work as pager. ([#2554](https://github.com/WordPress/wordpress-playground/pull/2554))
+
+### Website
+
+- [Web] tolerate empty e.target in addTargetBlankToExternalLinks. ([#2555](https://github.com/WordPress/wordpress-playground/pull/2555))
+
+### Bug Fixes
+
+- Playground CLI: Wire up execution modes for Blueprints v2. ([#2519](https://github.com/WordPress/wordpress-playground/pull/2519))
+
+### Reliability
+
+- [php-wasm-logger] Filter logs by severity in Logger and assign severity based on verbosity argument in CLIs. ([#2436](https://github.com/WordPress/wordpress-playground/pull/2436))
+
+### Various
+
+- Added Gujarati Translation for Index.md file. ([#2550](https://github.com/WordPress/wordpress-playground/pull/2550))
+- Use SQLite AST driver also with Blueprints v2. ([#2538](https://github.com/WordPress/wordpress-playground/pull/2538))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @JanJakes @mho22 @shail-mehta
+
+
 ## [v2.0.12] (2025-08-25)
 
 ### Enhancements

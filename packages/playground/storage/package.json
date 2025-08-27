@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/storage",
-	"version": "2.0.12",
+	"version": "2.0.13",
 	"description": "Bindings for storing WordPress Playground on different backends.",
 	"repository": {
 		"type": "git",
