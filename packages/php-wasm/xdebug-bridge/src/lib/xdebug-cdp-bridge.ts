@@ -12,8 +12,8 @@ interface PendingCommand {
 interface BreakpointInfo {
 	cdpId: string;
 	xdebugId: string | null;
-	file: string;
-	line: number;
+	fileUri: string;
+	lineNumber: number;
 }
 
 interface ObjectHandle {
@@ -164,12 +164,12 @@ export class XdebugCDPBridge {
 	}
 
 	private sendInitialScripts() {
-		for (const [url, scriptId] of this.scriptIdByUrl.entries()) {
+		for (const [bridgeUri, scriptId] of this.scriptIdByUrl.entries()) {
 			this.cdp.sendMessage({
 				method: 'Debugger.scriptParsed',
 				params: {
 					scriptId,
-					url: this.uriFromBridgeToCDP(url),
+					url: this.uriFromBridgeToCDP(bridgeUri),
 					startLine: 0,
 					startColumn: 0,
 					executionContextId: 1,
@@ -178,11 +178,11 @@ export class XdebugCDPBridge {
 		}
 	}
 
-	private getOrCreateScriptId(fileUri: string): string {
-		let scriptId = this.scriptIdByUrl.get(fileUri);
+	private getOrCreateScriptId(url: string): string {
+		let scriptId = this.scriptIdByUrl.get(url);
 		if (!scriptId) {
 			scriptId = String(this.nextScriptId++);
-			this.scriptIdByUrl.set(fileUri, scriptId);
+			this.scriptIdByUrl.set(url, scriptId);
 		}
 		return scriptId;
 	}
@@ -232,17 +232,16 @@ export class XdebugCDPBridge {
 				result = {};
 				break;
 			case 'Debugger.setBreakpointByUrl': {
-				const { url, lineNumber } = params;
-				const file = this.uriFromCDPToBridge(url);
-				const uri = this.uriFromBridgeToDBGP(file);
-				const line =
-					(typeof lineNumber === 'number' ? lineNumber : 0) + 1; // CDP lineNumber is 0-based, Xdebug expects 1-based
+				const { url: cdpUri, lineNumber: line } = params;
+				const bridgeUri = this.uriFromCDPToBridge(cdpUri);
+				const dbgpUri = this.uriFromBridgeToDBGP(bridgeUri);
+				const lineNumber = (typeof line === 'number' ? line : 0) + 1; // CDP lineNumber is 0-based, Xdebug expects 1-based
 				// Generate a new breakpoint ID for DevTools
 				const cdpBreakpointId = String(this.breakpoints.size + 1);
 				// If Xdebug connected, send breakpoint_set now
 				if (this.xdebugConnected) {
 					const cmd = `breakpoint_set -t line -f ${this.formatPropertyFullName(
-						uri
+						dbgpUri
 					)} -n ${line}`;
 					const txn = this.sendDbgpCommand(cmd);
 					this.pendingCommands.set(txn, {
@@ -250,8 +249,8 @@ export class XdebugCDPBridge {
 						cdpMethod: method,
 						params: {
 							breakpointId: cdpBreakpointId,
-							fileUri: file,
-							line,
+							fileUri: bridgeUri,
+							lineNumber,
 						},
 					});
 					// We'll send response when we get confirmation from Xdebug
@@ -261,15 +260,15 @@ export class XdebugCDPBridge {
 					this.breakpoints.set(cdpBreakpointId, {
 						cdpId: cdpBreakpointId,
 						xdebugId: null,
-						file: url,
-						line: line,
+						fileUri: bridgeUri,
+						lineNumber,
 					});
 					result = {
 						breakpointId: cdpBreakpointId,
 						locations: [
 							{
-								scriptId: this.getOrCreateScriptId(file),
-								lineNumber: line - 1,
+								scriptId: this.getOrCreateScriptId(bridgeUri),
+								lineNumber: lineNumber - 1,
 								columnNumber: 0,
 							},
 						],
@@ -438,12 +437,12 @@ export class XdebugCDPBridge {
 			}
 			case 'Debugger.getScriptSource': {
 				const sid = params.scriptId;
-				const uri = [...this.scriptIdByUrl.entries()].find(
+				const bridgeUri = [...this.scriptIdByUrl.entries()].find(
 					([, v]) => v === sid
 				)?.[0];
 				let scriptSource = '';
-				if (uri) {
-					scriptSource = await this.readPHPFile(uri);
+				if (bridgeUri) {
+					scriptSource = await this.readPHPFile(bridgeUri);
 				}
 				result = { scriptSource };
 				break;
@@ -458,7 +457,7 @@ export class XdebugCDPBridge {
 		}
 	}
 
-	/* ---------- path mapping ---------- */
+	/* ---------- uri mapping ---------- */
 
 	private setPrefixForCDP() {
 		return path.isAbsolute(this.phpRoot) ? 'file://' : 'file:///';
@@ -493,8 +492,8 @@ export class XdebugCDPBridge {
 					id: breakpoint.cdpId,
 					method: 'Debugger.setBreakpointByUrl',
 					params: {
-						url: breakpoint.file,
-						lineNumber: breakpoint.line - 1,
+						url: this.uriFromBridgeToCDP(breakpoint.fileUri),
+						lineNumber: breakpoint.lineNumber - 1,
 					},
 				});
 			});
@@ -528,24 +527,25 @@ export class XdebugCDPBridge {
 						if (bpInfo) {
 							const {
 								breakpointId: cdpBpId,
-								fileUri,
-								line,
+								fileUri: bridgeUri,
+								lineNumber,
 							} = bpInfo;
 							// Store mapping
 							this.breakpoints.set(cdpBpId, {
 								cdpId: cdpBpId,
 								xdebugId: xdebugBpId,
-								file: this.uriFromBridgeToCDP(fileUri),
-								line: line,
+								fileUri: bridgeUri,
+								lineNumber,
 							});
 							// Prepare CDP response
-							const scriptId = this.getOrCreateScriptId(fileUri);
+							const scriptId =
+								this.getOrCreateScriptId(bridgeUri);
 							const result = {
 								breakpointId: cdpBpId,
 								locations: [
 									{
 										scriptId: scriptId,
-										lineNumber: line - 1,
+										lineNumber: lineNumber - 1,
 										columnNumber: 0,
 									},
 								],
@@ -573,18 +573,17 @@ export class XdebugCDPBridge {
 
 					// NEW: send scriptParsed for any newly discovered file
 					if (response['xdebug:message']) {
-						const file = this.uriFromDBGPToBridge(
+						const bridgeUri = this.uriFromDBGPToBridge(
 							response['xdebug:message'].$.filename
 						);
 
-						if (file && !this.scriptIdByUrl.has(file)) {
-							const scriptId = this.getOrCreateScriptId(file);
-							const uri = this.uriFromBridgeToCDP(file);
+						if (bridgeUri && !this.scriptIdByUrl.has(bridgeUri)) {
 							this.cdp.sendMessage({
 								method: 'Debugger.scriptParsed',
 								params: {
-									scriptId,
-									url: uri,
+									scriptId:
+										this.getOrCreateScriptId(bridgeUri),
+									url: this.uriFromBridgeToCDP(bridgeUri),
 									startLine: 0,
 									startColumn: 0,
 									executionContextId: 1,
@@ -939,19 +938,19 @@ export class XdebugCDPBridge {
 						this.callFramesMap.clear();
 						// Send scriptParsed for any new files in stack
 						for (const frame of stackEntries) {
-							const file = this.uriFromDBGPToBridge(
+							const bridgeUri = this.uriFromDBGPToBridge(
 								frame.$.filename
 							);
-							const scriptId = this.getOrCreateScriptId(file);
-							if (!this.scriptIdByUrl.has(file)) {
+							const scriptId =
+								this.getOrCreateScriptId(bridgeUri);
+							if (!this.scriptIdByUrl.has(bridgeUri)) {
 								// Mark it known and send scriptParsed
-								this.scriptIdByUrl.set(file, scriptId);
-								const uri = this.uriFromBridgeToCDP(file);
+								this.scriptIdByUrl.set(bridgeUri, scriptId);
 								this.cdp.sendMessage({
 									method: 'Debugger.scriptParsed',
 									params: {
 										scriptId: scriptId,
-										url: uri,
+										url: this.uriFromBridgeToCDP(bridgeUri),
 										startLine: 0,
 										startColumn: 0,
 										executionContextId: 1,
@@ -962,7 +961,7 @@ export class XdebugCDPBridge {
 						// Build callFrames array
 						for (const frame of stackEntries) {
 							const level = parseInt(frame.$.level, 10);
-							const file = this.uriFromDBGPToBridge(
+							const bridgeUri = this.uriFromDBGPToBridge(
 								frame.$.filename
 							);
 							const line = parseInt(frame.$.lineno, 10);
@@ -970,7 +969,6 @@ export class XdebugCDPBridge {
 								frame.$.where && frame.$.where !== '{main}'
 									? frame.$.where
 									: '(anonymous)';
-							const scriptId = this.getOrCreateScriptId(file);
 							const callFrameId = `frame:${level}`;
 							// Map callFrameId to depth for evaluate
 							this.callFramesMap.set(callFrameId, level);
@@ -1011,7 +1009,8 @@ export class XdebugCDPBridge {
 								callFrameId: callFrameId,
 								functionName: functionName,
 								location: {
-									scriptId: scriptId,
+									scriptId:
+										this.getOrCreateScriptId(bridgeUri),
 									lineNumber: line - 1,
 									columnNumber: 0,
 								},
@@ -1032,15 +1031,17 @@ export class XdebugCDPBridge {
 						if (stackEntries.length > 0) {
 							const topFrame = stackEntries[0];
 							if (topFrame.$.filename && topFrame.$.lineno) {
-								const file = this.uriFromDBGPToBridge(
+								const bridgeUri = this.uriFromDBGPToBridge(
 									topFrame.$.filename
 								);
-								const line = parseInt(topFrame.$.lineno, 10);
+								const lineNumber = parseInt(
+									topFrame.$.lineno,
+									10
+								);
 								for (const bp of this.breakpoints.values()) {
 									if (
-										bp.file ===
-											this.uriFromBridgeToCDP(file) &&
-										bp.line === line
+										bp.fileUri === bridgeUri &&
+										bp.lineNumber === lineNumber
 									) {
 										pauseReason = 'breakpoint';
 										break;

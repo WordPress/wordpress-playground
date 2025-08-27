@@ -137,8 +137,8 @@ describe('XdebugCDPBridge', () => {
 		bridge['breakpoints'].set('1', {
 			cdpId: '1',
 			xdebugId: null,
-			file: 'file:///test.php',
-			line: 5,
+			fileUri: 'file:///test.php',
+			lineNumber: 5,
 		});
 
 		bridge['handleCdpMessage']({
