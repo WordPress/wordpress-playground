@@ -245,7 +245,7 @@ export class PHPProcessManager implements AsyncDisposable {
 			return {
 				php,
 				reap() {
-					php.exit();
+					php.destroy();
 					release();
 				},
 			};

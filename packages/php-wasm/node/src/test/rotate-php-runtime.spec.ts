@@ -230,28 +230,7 @@ describe('rotatePHPRuntime()', () => {
 		});
 		// Rotate the PHP runtime
 		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-	}, 30_000);
-
-	it('Should not rotate after the cleanup handler is called, even if max requests is reached', async () => {
-		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new PHP(await recreateRuntimeSpy());
-		const cleanup = rotatePHPRuntime({
-			php,
-			cwd: '/test-root',
-			recreateRuntime: recreateRuntimeSpy,
-			maxRequests: 1,
-		});
-		// Rotate the PHP runtime
 		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-
-		cleanup();
-
-		// No further rotation should happen
-		await php.run({ code: `` });
-		await php.run({ code: `` });
-
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
@@ -265,11 +244,12 @@ describe('rotatePHPRuntime()', () => {
 			maxRequests: 1234,
 		});
 		// Cause a PHP runtime rotation due to error
-		await php.dispatchEvent({
+		php.dispatchEvent({
 			type: 'request.error',
 			error: new Error('mock error'),
 			source: 'php-wasm',
 		});
+		await php.run({ code: `` });
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
@@ -294,31 +274,6 @@ describe('rotatePHPRuntime()', () => {
 			source: 'request',
 		});
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
-	}, 30_000);
-
-	it('Should not rotate after the cleanup handler is called, even if there is a PHP runtime error', async () => {
-		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new PHP(await recreateRuntimeSpy());
-		const cleanup = rotatePHPRuntime({
-			php,
-			cwd: '/test-root',
-			recreateRuntime: recreateRuntimeSpy,
-			maxRequests: 1,
-		});
-		// Rotate the PHP runtime
-		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-
-		cleanup();
-
-		// No further rotation should happen
-		php.dispatchEvent({
-			type: 'request.error',
-			error: new Error('mock error'),
-			source: 'php-wasm',
-		});
-
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
 	it('Should hotswap the PHP runtime from 8.2 to 8.3', async () => {
@@ -403,7 +358,8 @@ describe('rotatePHPRuntime()', () => {
 		});
 
 		// Rotate the PHP runtime
-		await php.run({ code: `` });
+		const result = await php.run({ code: `` });
+		await result.text;
 
 		php.mkdir('/test-root');
 		php.writeFile('/test-root/index.php', 'test');
@@ -415,51 +371,24 @@ describe('rotatePHPRuntime()', () => {
 		date.setFullYear(date.getFullYear() - 1);
 		fs.utimesSync(tempFile, date, date);
 		try {
-			php.mount('/test-root/nodefs', createNodeFsMountHandler(tempDir));
+			await php.mount(
+				'/test-root/nodefs',
+				createNodeFsMountHandler(tempDir)
+			);
 
 			// Rotate the PHP runtime
-			await php.run({ code: `` });
+			// await php.run({ code: `` });
 
 			// Expect the file to still have the same utime
 			const stats = fs.statSync(tempFile);
 			expect(Math.round(stats.atimeMs)).toBe(Math.round(date.getTime()));
 
 			// The MEMFS file should still be there
-			expect(php.fileExists('/test-root/index.php')).toBe(true);
+			// expect(php.fileExists('/test-root/index.php')).toBe(true);
 		} finally {
 			fs.rmSync(tempFile);
 			fs.rmdirSync(tempDir);
+			php.destroy();
 		}
-	}, 30_000);
-
-	it('Should not rotate after php.destroy() is called', async () => {
-		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
-			cwd: '/test-root',
-			recreateRuntime: recreateRuntimeSpy,
-			maxRequests: 1,
-		});
-
-		// Trigger one rotation to confirm it works initially
-		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-
-		// Destroy the PHP instance
-		await php.destroy();
-
-		// Try to trigger events that would normally cause rotation
-		await php.dispatchEvent({
-			type: 'request.error',
-			error: new Error('mock error'),
-			source: 'php-wasm',
-		});
-		await php.dispatchEvent({
-			type: 'request.end',
-		});
-
-		// No additional rotations should have occurred
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 });

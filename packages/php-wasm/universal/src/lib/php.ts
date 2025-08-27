@@ -1,27 +1,27 @@
-import { PHPResponse, StreamedPHPResponse } from './php-response';
-import { getLoadedRuntime } from './load-php-runtime';
+import { logger } from '@php-wasm/logger';
+import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import type { Emscripten } from './emscripten-types';
+import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
+import { FSHelpers } from './fs-helpers';
+import { isExitCode } from './is-exit-code';
 import type { PHPRuntimeId } from './load-php-runtime';
+import { getLoadedRuntime } from './load-php-runtime';
+import type { PHPRequestHandler } from './php-request-handler';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	MessageListener,
+	PHPEvent,
+	PHPEventListener,
 	PHPRequest,
 	PHPRequestHeaders,
 	PHPRunOptions,
 	SpawnHandler,
-	PHPEventListener,
-	PHPEvent,
 } from './universal-php';
-import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
-import { FSHelpers } from './fs-helpers';
 import type { UnhandledRejectionsTarget } from './wasm-error-reporting';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
-import type { PHPRequestHandler } from './php-request-handler';
-import { logger } from '@php-wasm/logger';
-import { isExitCode } from './is-exit-code';
-import type { Emscripten } from './emscripten-types';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -69,11 +69,26 @@ type MountObject = {
 export class PHP implements Disposable {
 	protected [__private__dont__use]: any;
 	#sapiName?: string;
-	#webSapiInitialized = false;
+	#phpWasmInitCalled = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
+	#rotationOptions: {
+		enabled: boolean;
+		recreateRuntime: () => Promise<number> | number;
+		needsRotating: boolean;
+		maxRequests: number;
+		requestsMade: number;
+		cwd?: string;
+	} = {
+		enabled: false,
+		recreateRuntime: () => 0,
+		needsRotating: false,
+		maxRequests: 400,
+		requestsMade: 0,
+	};
+
 	requestHandler?: PHPRequestHandler;
 	private instanceState:
 		| 'uninitialized'
@@ -99,8 +114,19 @@ export class PHP implements Disposable {
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
 		}
+		/**
+		 * Listen to PHP runtime crashes.
+		 *
+		 * Registering an actual event listener helps with testing. The
+		 * test cases can dispatch synthetic error events and confirm the
+		 * PHP runtime is properly rotated.
+		 */
+		this.addEventListener('request.error', (event: any) => {
+			if (event.source === 'php-wasm') {
+				this.#rotationOptions.needsRotating = true;
+			}
+		});
 	}
-
 	/**
 	 * Adds an event listener for a PHP event.
 	 * @param eventType - The type of event to listen for.
@@ -130,7 +156,6 @@ export class PHP implements Disposable {
 		if (!listeners) {
 			return;
 		}
-
 		for (const listener of listeners) {
 			listener(event);
 		}
@@ -602,9 +627,17 @@ export class PHP implements Disposable {
 		let heapBodyPointer: number | undefined;
 		const streamedResponsePromise = this.#executeWithErrorHandling(
 			async () => {
-				if (!this.#webSapiInitialized) {
-					await this.#initWebRuntime();
-					this.#webSapiInitialized = true;
+				if (!this.#phpWasmInitCalled) {
+					await this[__private__dont__use].ccall(
+						'php_wasm_init',
+						null,
+						[],
+						[],
+						{
+							isAsync: true,
+						}
+					);
+					this.#phpWasmInitCalled = true;
 				}
 				if (
 					request.scriptPath &&
@@ -678,8 +711,7 @@ export class PHP implements Disposable {
 			release();
 
 			/**
-			 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
-			 * another request.
+			 * Notify the filesystem journal (and any other listeners) that the request has ended.
 			 */
 			this.dispatchEvent({
 				type: 'request.end',
@@ -689,13 +721,17 @@ export class PHP implements Disposable {
 		// Free up resources once the request is fully handled.
 		return streamedResponsePromise.then(
 			(streamedResponse) => {
-				streamedResponse.finished.finally(cleanup);
+				streamedResponse.finished.finally(() => {
+					cleanup();
+				});
 				return streamedResponse;
 			},
 			(error) => {
-				// If we couldn't even get the response,
-				cleanup();
-				throw error;
+				try {
+					cleanup();
+				} finally {
+					throw error;
+				}
 			}
 		);
 	}
@@ -732,12 +768,6 @@ export class PHP implements Disposable {
 				headers[name];
 		}
 		return $_SERVER;
-	}
-
-	#initWebRuntime() {
-		return this[__private__dont__use].ccall('php_wasm_init', null, [], [], {
-			isAsync: true,
-		});
 	}
 
 	#setRelativeRequestUri(uri: string) {
@@ -935,6 +965,11 @@ export class PHP implements Disposable {
 	async #executeWithErrorHandling(
 		executionFn: () => any
 	): Promise<StreamedPHPResponse> {
+		if (this.shouldRotateRuntime()) {
+			await this.rotateRuntime();
+		}
+		++this.#rotationOptions.requestsMade;
+
 		const emscriptenModule = this[__private__dont__use];
 
 		const headers = await createInvertedReadableStream<Uint8Array>();
@@ -1073,11 +1108,12 @@ export class PHP implements Disposable {
 				/**
 				 * Emit all other errors.
 				 */
+				// Distinguish between PHP request and PHP-wasm errors
+				const source = (error as any).source ?? 'php-wasm';
 				this.dispatchEvent({
 					type: 'request.error',
 					error: error as any as Error,
-					// Distinguish between PHP request and PHP-wasm errors
-					source: (error as any).source ?? 'php-wasm',
+					source,
 				});
 				throw error;
 			}
@@ -1260,6 +1296,56 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Enables inline PHP runtime rotation after a certain number of requests
+	 * or an internal crash.
+	 */
+	enableRuntimeRotation(options: {
+		recreateRuntime: () => Promise<number> | number;
+		maxRequests?: number;
+		cwd?: string;
+	}) {
+		this.#rotationOptions = {
+			...this.#rotationOptions,
+			enabled: true,
+			recreateRuntime: options.recreateRuntime,
+			maxRequests: options.maxRequests ?? 400,
+			cwd: options.cwd,
+		};
+	}
+
+	/**
+	 * Checks if the runtime should be rotated.
+	 *
+	 * @returns True if the runtime should be rotated, false otherwise.
+	 */
+	private shouldRotateRuntime() {
+		if (!this.#rotationOptions.enabled) {
+			return false;
+		}
+		if (this.#rotationOptions.needsRotating) {
+			return true;
+		}
+		return (
+			this.#rotationOptions.requestsMade >=
+			this.#rotationOptions.maxRequests
+		);
+	}
+
+	private async rotateRuntime() {
+		if (!this.#rotationOptions.enabled) {
+			throw new Error(
+				'Runtime rotation is not enabled. Call enableRuntimeRotation() first.'
+			);
+		}
+		await this.hotSwapPHPRuntime(
+			await this.#rotationOptions.recreateRuntime(),
+			this.#rotationOptions.cwd
+		);
+		this.#rotationOptions.requestsMade = 0;
+		this.#rotationOptions.needsRotating = false;
+	}
+
+	/**
 	 * Hot-swaps the PHP runtime for a new one without
 	 * interrupting the operations of this PHP instance.
 	 *
@@ -1269,7 +1355,7 @@ export class PHP implements Disposable {
 	 *             is fully decoupled from the request handler and
 	 *             accepts a constructor-level cwd argument.
 	 */
-	async hotSwapPHPRuntime(runtime: number, cwd?: string) {
+	private async hotSwapPHPRuntime(runtime: number, cwd?: string) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -1425,7 +1511,7 @@ export class PHP implements Disposable {
 		}
 
 		// Clean up any initialized state
-		this.#webSapiInitialized = false;
+		this.#phpWasmInitCalled = false;
 
 		// Delete any links between this PHP instance and the runtime
 		this.#wasmErrorsTarget = null;
@@ -1437,12 +1523,13 @@ export class PHP implements Disposable {
 	}
 
 	destroy() {
+		if (this.instanceState === 'destroyed') {
+			return;
+		}
 		this.dispatchEvent({
 			type: 'instance.beforeDestroy',
 		});
-		if (this.#webSapiInitialized) {
-			this.exit(0);
-		}
+		this.exit(0);
 		this.instanceState = 'destroyed';
 	}
 

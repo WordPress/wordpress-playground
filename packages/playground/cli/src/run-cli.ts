@@ -515,6 +515,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
 			const serverUrl = `http://127.0.0.1:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
+			console.log('siteUrl', siteUrl);
 
 			// Create the blueprints handler
 			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
