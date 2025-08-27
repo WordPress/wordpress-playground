@@ -2885,6 +2885,22 @@ phpLoaderOptions.forEach((options) => {
 					'/internal/shared/bin/php'
 				);
 			});
+
+			it('should support multiple calls to php.cli() and php.runStream() when runtime rotation is enabled', async () => {
+				php.enableRuntimeRotation({
+					maxRequests: 1,
+					recreateRuntime: () =>
+						loadNodeRuntime(phpVersion as any, options),
+				});
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response.stdoutText).toBe('Hello');
+				const response2 = await php.runStream({
+					code: `<?php echo "Hello";`,
+				});
+				expect(await response2.stdoutText).toBe('Hello');
+				const response3 = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response3.stdoutText).toBe('Hello');
+			});
 		});
 
 		describe('Response parsing', { skip: options.withXdebug }, () => {
