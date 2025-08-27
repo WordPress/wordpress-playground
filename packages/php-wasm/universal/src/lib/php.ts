@@ -90,11 +90,7 @@ export class PHP implements Disposable {
 	};
 
 	requestHandler?: PHPRequestHandler;
-	private instanceState:
-		| 'uninitialized'
-		| 'cliCalled'
-		| 'runStreamCalled'
-		| 'destroyed' = 'uninitialized';
+	private isDestroyed = false;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -246,7 +242,7 @@ export class PHP implements Disposable {
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
-		if (this.instanceState === 'destroyed') {
+		if (this.isDestroyed) {
 			throw new Error('Cannot initialize a destroyed PHP instance.');
 		}
 		if (this[__private__dont__use]) {
@@ -604,18 +600,11 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
-		if (this.instanceState === 'destroyed') {
+		if (this.isDestroyed) {
 			throw new Error(
 				'Cannot call runStream() on a destroyed PHP instance.'
 			);
 		}
-		if (this.instanceState === 'cliCalled') {
-			throw new Error(
-				'php.runStream() can only be called if php.cli() was not called before. The two methods set a conflicting ' +
-					'C-level global state.'
-			);
-		}
-		this.instanceState = 'runStreamCalled';
 
 		/*
 		 * Prevent multiple requests from running at the same time.
@@ -965,10 +954,19 @@ export class PHP implements Disposable {
 	async #executeWithErrorHandling(
 		executionFn: () => any
 	): Promise<StreamedPHPResponse> {
-		if (this.shouldRotateRuntime()) {
+		if (
+			this.#rotationOptions.enabled &&
+			this.#rotationOptions.needsRotating
+		) {
 			await this.rotateRuntime();
 		}
 		++this.#rotationOptions.requestsMade;
+		if (
+			this.#rotationOptions.requestsMade >=
+			this.#rotationOptions.maxRequests
+		) {
+			this.#rotationOptions.needsRotating = true;
+		}
 
 		const emscriptenModule = this[__private__dont__use];
 
@@ -1313,24 +1311,6 @@ export class PHP implements Disposable {
 		};
 	}
 
-	/**
-	 * Checks if the runtime should be rotated.
-	 *
-	 * @returns True if the runtime should be rotated, false otherwise.
-	 */
-	private shouldRotateRuntime() {
-		if (!this.#rotationOptions.enabled) {
-			return false;
-		}
-		if (this.#rotationOptions.needsRotating) {
-			return true;
-		}
-		return (
-			this.#rotationOptions.requestsMade >=
-			this.#rotationOptions.maxRequests
-		);
-	}
-
 	private async rotateRuntime() {
 		if (!this.#rotationOptions.enabled) {
 			throw new Error(
@@ -1449,46 +1429,42 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
 	): Promise<StreamedPHPResponse> {
-		if (this.instanceState === 'destroyed') {
+		if (this.isDestroyed) {
 			throw new Error('Cannot call cli() on a destroyed PHP instance.');
 		}
-		if (this.instanceState === 'cliCalled') {
-			throw new Error(
-				'php.cli() can only be called once. The method sets a C-level global state that does not allow repeated calls.'
-			);
+		if (this.#phpWasmInitCalled) {
+			this.#rotationOptions.needsRotating = true;
 		}
-		if (this.instanceState === 'runStreamCalled') {
-			throw new Error(
-				'php.cli() can only be called if php.runStream() was not called before. The two methods set a conflicting ' +
-					'C-level global state.'
-			);
-		}
-		this.instanceState = 'cliCalled';
+
 		const release = await this.semaphore.acquire();
 
-		const env = options.env || {};
-		for (const [key, value] of Object.entries(env)) {
-			this.#setEnv(key, value);
-		}
-		// Enforce the use of the internal php.ini file.
-		argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
-		for (const arg of argv) {
-			this[__private__dont__use].ccall(
-				'wasm_add_cli_arg',
-				null,
-				[STRING],
-				[arg]
-			);
-		}
-
 		return await this.#executeWithErrorHandling(() => {
+			const env = options.env || {};
+			for (const [key, value] of Object.entries(env)) {
+				this.#setEnv(key, value);
+			}
+			// Enforce the use of the internal php.ini file.
+			argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
+			for (const arg of argv) {
+				this[__private__dont__use].ccall(
+					'wasm_add_cli_arg',
+					null,
+					[STRING],
+					[arg]
+				);
+			}
+
 			return this[__private__dont__use].ccall('run_cli', null, [], [], {
 				async: true,
 			});
-		}).then((response) => {
-			response.exitCode.finally(release);
-			return response;
-		});
+		})
+			.then((response) => {
+				response.exitCode.finally(release);
+				return response;
+			})
+			.finally(() => {
+				this.#rotationOptions.needsRotating = true;
+			});
 	}
 
 	setSkipShebang(shouldSkip: boolean) {
@@ -1523,14 +1499,14 @@ export class PHP implements Disposable {
 	}
 
 	destroy() {
-		if (this.instanceState === 'destroyed') {
+		if (this.isDestroyed) {
 			return;
 		}
 		this.dispatchEvent({
 			type: 'instance.beforeDestroy',
 		});
 		this.exit(0);
-		this.instanceState = 'destroyed';
+		this.isDestroyed = true;
 	}
 
 	[Symbol.dispose]() {
