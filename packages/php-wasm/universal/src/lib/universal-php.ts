@@ -32,13 +32,6 @@ export interface PHPRuntimeBeforeExitEvent {
 }
 
 /**
- * Emitted before the PHP class instance is destroyed.
- */
-export interface PHPInstanceBeforeDestroyEvent {
-	type: 'instance.beforeDestroy';
-}
-
-/**
  * Represents an event related to the PHP instance.
  * This is intentionally not an extension of CustomEvent
  * to make it isomorphic between different JavaScript runtimes.
@@ -47,8 +40,7 @@ export type PHPEvent =
 	| PHPRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
-	| PHPRuntimeBeforeExitEvent
-	| PHPInstanceBeforeDestroyEvent;
+	| PHPRuntimeBeforeExitEvent;
 
 /**
  * A callback function that handles PHP events.

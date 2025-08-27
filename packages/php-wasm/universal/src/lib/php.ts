@@ -90,7 +90,6 @@ export class PHP implements Disposable {
 	};
 
 	requestHandler?: PHPRequestHandler;
-	private isDestroyed = false;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -242,9 +241,6 @@ export class PHP implements Disposable {
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
-		if (this.isDestroyed) {
-			throw new Error('Cannot initialize a destroyed PHP instance.');
-		}
 		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
@@ -600,12 +596,6 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
-		if (this.isDestroyed) {
-			throw new Error(
-				'Cannot call runStream() on a destroyed PHP instance.'
-			);
-		}
-
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -710,15 +700,14 @@ export class PHP implements Disposable {
 		// Free up resources once the request is fully handled.
 		return streamedResponsePromise.then(
 			(streamedResponse) => {
-				streamedResponse.finished.finally(() => {
-					cleanup();
-				});
+				streamedResponse.finished.finally(cleanup);
 				return streamedResponse;
 			},
 			(error) => {
 				try {
 					cleanup();
 				} finally {
+					// eslint-disable-next-line no-unsafe-finally
 					throw error;
 				}
 			}
@@ -1429,9 +1418,6 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
 	): Promise<StreamedPHPResponse> {
-		if (this.isDestroyed) {
-			throw new Error('Cannot call cli() on a destroyed PHP instance.');
-		}
 		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
@@ -1498,19 +1484,8 @@ export class PHP implements Disposable {
 		}
 	}
 
-	destroy() {
-		if (this.isDestroyed) {
-			return;
-		}
-		this.dispatchEvent({
-			type: 'instance.beforeDestroy',
-		});
-		this.exit(0);
-		this.isDestroyed = true;
-	}
-
 	[Symbol.dispose]() {
-		this.destroy();
+		this.exit(0);
 	}
 }
 

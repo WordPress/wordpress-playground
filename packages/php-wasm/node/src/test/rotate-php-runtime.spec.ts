@@ -388,7 +388,7 @@ describe('rotatePHPRuntime()', () => {
 		} finally {
 			fs.rmSync(tempFile);
 			fs.rmdirSync(tempDir);
-			php.destroy();
+			php.exit();
 		}
 	}, 30_000);
 });
