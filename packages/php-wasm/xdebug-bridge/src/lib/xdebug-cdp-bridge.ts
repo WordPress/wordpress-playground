@@ -242,7 +242,7 @@ export class XdebugCDPBridge {
 				if (this.xdebugConnected) {
 					const cmd = `breakpoint_set -t line -f ${this.formatPropertyFullName(
 						dbgpUri
-					)} -n ${line}`;
+					)} -n ${lineNumber}`;
 					const txn = this.sendDbgpCommand(cmd);
 					this.pendingCommands.set(txn, {
 						cdpId: id,
