@@ -128,21 +128,61 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 	};
 
 let browserConfirmationRanOnce = false;
+let hasUserInteracted = false;
+
 export const browserConfirmationMiddleware: Middleware =
 	(store) => (next) => (action) => {
 		if (!browserConfirmationRanOnce) {
 			browserConfirmationRanOnce = true;
 			if (typeof window !== 'undefined') {
-				window.addEventListener('beforeunload', (e) => {
-					const state = store.getState() as any;
-					// Access the active site directly from state structure
-					const activeSiteSlug = state.ui?.activeSite?.slug;
-					const activeSite = activeSiteSlug
-						? state.sites?.entities?.[activeSiteSlug]
-						: undefined;
+				// Track user interactions to avoid warning on quick open/close
+				const interactionEvents = [
+					'click',
+					'keypress',
+					'input',
+					'change',
+				];
+				interactionEvents.forEach((event) => {
+					window.addEventListener(
+						event,
+						() => {
+							hasUserInteracted = true;
+						},
+						{ once: true, capture: true }
+					);
+				});
 
-					// Only show confirmation for temporary sites (storage === 'none')
-					if (activeSite && activeSite.metadata?.storage === 'none') {
+				window.addEventListener('beforeunload', (e) => {
+					// Don't warn if user hasn't interacted with the site
+					if (!hasUserInteracted) {
+						return;
+					}
+
+					// Check if WordPress editor already has unsaved changes
+					// If it does, let WordPress handle the confirmation
+					try {
+						const wpWindow = window as any;
+						if (
+							wpWindow.wp?.data
+								?.select?.('core/editor')
+								?.isEditedPostDirty?.()
+						) {
+							// WordPress will show its own dialog
+							return;
+						}
+					} catch {
+						// WordPress editor not available, continue with our check
+					}
+
+					const state = store.getState() as any;
+
+					// Check ALL temporary sites, not just the active one
+					const temporarySites = Object.values(
+						state.sites?.entities || {}
+					).filter((site: any) => site?.metadata?.storage === 'none');
+
+					// Only show confirmation if there are temporary sites
+					if (temporarySites.length > 0) {
 						e.preventDefault();
 						e.returnValue = '';
 						return '';
