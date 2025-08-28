@@ -365,14 +365,14 @@ describe('php.enableRuntimeRotation()', () => {
 			);
 
 			// Rotate the PHP runtime
-			// await php.run({ code: `` });
+			await php.run({ code: `` });
 
 			// Expect the file to still have the same utime
 			const stats = fs.statSync(tempFile);
 			expect(Math.round(stats.atimeMs)).toBe(Math.round(date.getTime()));
 
 			// The MEMFS file should still be there
-			// expect(php.fileExists('/test-root/index.php')).toBe(true);
+			expect(php.fileExists('/test-root/index.php')).toBe(true);
 		} finally {
 			fs.rmSync(tempFile);
 			fs.rmdirSync(tempDir);
