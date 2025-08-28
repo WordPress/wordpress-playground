@@ -1324,7 +1324,7 @@ export class PHP implements Disposable {
 	 *             is fully decoupled from the request handler and
 	 *             accepts a constructor-level cwd argument.
 	 */
-	private async hotSwapPHPRuntime(runtime: number, cwd?: string) {
+	async hotSwapPHPRuntime(runtime: number, cwd?: string) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
