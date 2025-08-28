@@ -706,6 +706,8 @@ export class PHP implements Disposable {
 			(error) => {
 				try {
 					cleanup();
+				} catch {
+					// ... do nothing, just rethrow the original error in the finally section belos ...
 				} finally {
 					// eslint-disable-next-line no-unsafe-finally
 					throw error;
