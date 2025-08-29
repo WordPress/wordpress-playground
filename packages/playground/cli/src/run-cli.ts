@@ -672,7 +672,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					logger.log(`Ready!`);
 				}
 
-				logger.log(`WordPress is running on ${serverUrl}`);
+				let message = `WordPress is running on ${serverUrl}`;
+				if (siteUrl !== serverUrl) {
+					message += ` (WP site URL: ${siteUrl})`;
+				}
+				logger.log(message);
 
 				if (args.experimentalDevtools && args.xdebug) {
 					const bridge = await startBridge({
