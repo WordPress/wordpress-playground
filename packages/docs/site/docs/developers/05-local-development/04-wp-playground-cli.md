@@ -122,3 +122,79 @@ With the Playground CLI, you can use the `--help` to get some support about the 
 ```bash
 npx @wp-playground/cli@latest --help
 ```
+
+## Programmatic Usage with JavaScript
+
+The Playground CLI can be controlled programmatically from your JavaScript/TypeScript code using the function `runCLI`. With that function, you are going to have access to all functionalities from Playground CLI directly into your development environment.
+
+One of the benefit to have this capability is the possibility to create end-to-end testing. Now are going to cover some of the basic with `runCLI`.
+
+### Running a WordPress instance with a specific version
+
+Using the function `runCLI`, the developer can define the PHP version. For example, in the following demo, the version `8.3` is set. The latest WordPress version, and get a logged instance were also requested.
+
+```TypeScript
+import { runCLI, RunCLIServer } from "@wp-playground/cli";
+
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+    command: 'server',
+    php: '8.3',
+    wp: 'latest',
+    login: true
+});
+```
+
+To execute this code, you can set your preferred method. In my demos, I'm just using `tsx`, for example, `tsx [file-address]`.
+
+### Setting a Blueprint
+
+A blueprint can be passed as a property by the developer:
+
+```TypeScript
+
+import { runCLI, RunCLIServer } from "@wp-playground/cli";
+
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+  command: 'server',
+  wp: 'latest',
+  blueprint: {
+    steps: [
+        {
+          "step": "setSiteOptions",
+          "options": {
+              "blogname": "Blueprint Title",
+              "blogdescription": "A great blog description"
+          }
+        }
+    ],
+  },
+});
+```
+
+### Mounting a plugin programatically
+
+As the Playground CLI via terminal is also possible to mount a environment via `runCLI`.
+
+```TypeScript
+	cliServer = await runCLI({
+      command: 'server',
+      login: true
+      'mount-before-install': [
+        {
+          hostPath: './[my-plugin-local-path]',
+          vfsPath: '/wordpress/wp-content/plugins/my-plugin',
+        },
+      ],
+    });
+```
+
+```TypeScript
+  cliServer = await runCLI({
+    command: 'server',
+    autoMount: `[PLUGIN-OR-THEME-PATH]`,
+  });
+```
