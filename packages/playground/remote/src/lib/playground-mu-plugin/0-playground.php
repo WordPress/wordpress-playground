@@ -188,11 +188,6 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	add_filter('wp_signature_hosts', function ($hosts) {
 		return [];
 	});
-
-	// add_filter('http_request_host_is_external', function ($arg) {
-	// 	return true;
-	// });
-	add_filter('http_request_host_is_external', '__return_true');
 } else {
 	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
 	$__requests_class::add_transport('Wp_Http_Dummy');

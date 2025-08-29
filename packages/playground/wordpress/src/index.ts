@@ -265,6 +265,26 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
             );
         } );
 
+		/**
+		 * Prevents wp_http_validate_url() from universally failing.
+		 *
+		 * wp_http_validate_url() calls gethostbyname() to verify whether the host
+		 * is external. If it is internal, the URL validation fails and WordPress
+		 * refuses to make a request.
+		 *
+		 * However, in EMscripten, gethostbyname() returns a private network IP address.
+		 * This causes wp_http_validate_url() to return false for all URLs.
+		 *
+		 * This filter ensures that all URLs are considered external. In production
+		 * environments, this would be considered a security risk. However, Playground
+		 * already provides multiple code execution vectors as features (e.g. Blueprints).
+		 *
+		 * If someone wants to poke around local IP addresses, they already have multiple
+		 * tools at their disposal. Therefore, this is not a real security risk in context
+		 * of WordPress Playground or Playground CLI.
+		 */
+		add_filter('http_request_host_is_external', '__return_true');
+
 		// Support pretty permalinks
         add_filter( 'got_url_rewrite', '__return_true' );
 
