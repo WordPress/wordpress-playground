@@ -132,6 +132,10 @@ function playground_add_target_blank_to_external_links() {
 			// Also handle focus events to cover keyboard navigation on
 			// links that are added after the page has loaded.
 			document.addEventListener('focus', e => {
+				if ( !e.target?.closest ) {
+					console.log( `Unexpected click event: ${e}` )
+					return;
+				}
 				const a = e.target?.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
