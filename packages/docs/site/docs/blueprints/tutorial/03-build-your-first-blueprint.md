@@ -1,7 +1,7 @@
 ---
 title: Build your first Blueprint
 slug: /blueprints/tutorial/build-your-first-blueprint
-description: Six steps to your first blueprint
+description: A step-by-step tutorial to build your first Blueprint. Learn to install themes, plugins, and import site content.
 ---
 
 Let's build an elementary Blueprint that
@@ -38,7 +38,7 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 :::
 Here's what it looks like in VS Code:
 
-![Autocompletion visualized](../_assets/schema-autocompletion.png)
+![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. Set the site title to "My first Blueprint"
 
@@ -113,11 +113,11 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 
 The site should now look like the screenshot below:
 
-![Site with the adventurer theme](../_assets/installed-adventurer-theme.png)
+![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### Resources
 
-The `themeData` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
+The `themeData` defines a [resource](/blueprints/steps/resources) and references an external file required to complete the step. Playground supports different types of resources, including
 
 -   `url`,
 -   `wordpress.org/themes`,
@@ -273,7 +273,7 @@ Here's the complete Blueprint:
 
 That's what it looks like when you navigate to the dashboard:
 
-![Site with the custom plugin](../_assets/installed-custom-plugin.png)
+![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### Create a plugin and zip it
 

@@ -123,6 +123,9 @@ export default defineConfig(({ mode }) => {
 					wordpress: path('/remote.html'),
 				},
 			},
+			// Clean the output directory to make sure we include only the
+			// latest WordPress builds.
+			emptyOutDir: true,
 		},
 
 		test: {

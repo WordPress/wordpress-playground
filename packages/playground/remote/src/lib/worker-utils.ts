@@ -26,12 +26,20 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			// @TODO: Do not hardcode this
 			processApi.stdout(`18 140`);
 			processApi.exit(0);
+			return;
 		} else if (args[0] === 'less') {
 			processApi.on('stdin', (data: Uint8Array) => {
 				processApi.stdout(data);
 			});
 
+			// Exit after the stdin stream is exhausted.
+			await new Promise((resolve) => {
+				processApi.childProcess.stdin.on('finish', () => {
+					resolve(true);
+				});
+			});
 			processApi.exit(0);
+			return;
 		} else if (args[0] === 'fetch') {
 			fetch(args[1]).then(async (res) => {
 				const reader = res.body?.getReader();
