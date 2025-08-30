@@ -176,7 +176,10 @@ test('should rename a saved Playground and persist after reload', async ({
 	);
 
 	// Reload and verify the name persists
-	await website.page.reload();
+	await website.page.reload({ waitUntil: 'domcontentloaded' });
+	// Close the dialog for sure – somehow it may persist in Firefox despite the reload in the CI e2e environment.
+	// TODO: investigate why this is happening.
+	await website.page.keyboard.press('Escape');
 	await website.ensureSiteManagerIsOpen();
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		newName
