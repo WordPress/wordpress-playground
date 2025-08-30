@@ -1,6 +1,6 @@
 # @php-wasm/xdebug-bridge
 
-XDebug bridge server for PHP.wasm that enables debugging connections between XDebug and debugging clients.
+A bridge server for XDebug and PHP.wasm that facilitates debugging connections between XDebug and Browser devtools.
 
 ## Installation
 
@@ -18,6 +18,10 @@ import { startBridge } from './xdebug-bridge/src/start-bridge';
 // Start with default settings
 const server = startBridge();
 await server.start();
+```
+
+```typescript
+import { startBridge } from './xdebug-bridge/src/start-bridge';
 
 // Start with custom configuration
 const server = startBridge({
@@ -37,20 +41,29 @@ await server.start();
 npx xdebug-bridge
 
 # Custom port and verbose logging
-npx xdebug-bridge --port 9000 --verbose
+npx xdebug-bridge --port 9000 --verbosity debug
 
 # Show help
 npx xdebug-bridge --help
 ```
 
-## Configuration Options
+## Configuration Options (CLI)
+
+-   `port`: Xdebug port to listen on (default: 9003)
+-   `host`: Xdebug host to bind to (default: 'localhost')
+-   `php-root`: Path to PHP root directory (default: './')
+-   `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
+-   `help`: Display help
+
+## Configuration Options (API)
 
 -   `cdpPort`: Port to listen for CDP connections (default: 9229)
 -   `cdpHost`: Host to bind to (default: 'localhost')
 -   `dbgpPort`: Port to listen for XDebug connections (default: 9003)
--   `phpRoot`: Root path for php files;
--   `remoteRoot`: Remote root path for php files;
--   `localRoot`: Local root path for php files;
+-   `phpRoot`: Root path for php files
+-   `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
+-   `remoteRoot`: Remote root path for php files
+-   `localRoot`: Local root path for php files
 -   `phpInstance`: PHP instance
 -   `getPHPFile`: Custom file listing function
 
@@ -58,10 +71,14 @@ npx xdebug-bridge --help
 
 The bridge listens to events for monitoring connection activity:
 
+#### From Xdebug
+
 -   `connected`: Xdebug Server has started
 -   `close`: Xdebug Server has stopped
 -   `message`: Raw XDebug data received
 -   `error`: Xdebug Server error occurred
+
+#### To Devtools
 
 -   `clientConnected`: Devtools client connected
 -   `clientDisconnected`: Devtools client disconnected

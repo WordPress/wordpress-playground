@@ -1,7 +1,7 @@
 ---
-title: Playground in native iOS apps
+title: WordPress Playground in native iOS apps
 slug: /guides/wordpress-native-ios-app
-description: WordPress Playground in native iOS apps
+description: Discover how to run a WordPress site within a native iOS app, based on the "Blocknotes" case study using Playground.
 ---
 
 ## How to ship a real WordPress site in a native iOS app via Playground?

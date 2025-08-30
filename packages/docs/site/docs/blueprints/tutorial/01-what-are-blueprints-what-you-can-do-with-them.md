@@ -1,7 +1,7 @@
 ---
 title: What are Blueprints?
 slug: /blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them
-description: Getting started with Blueprints
+description: Learn what Blueprints are and how they configure WordPress Playground. Discover the benefits of using JSON for instant site setup.
 ---
 
 # What are Blueprints, and what can you do with them?

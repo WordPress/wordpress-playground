@@ -1,6 +1,7 @@
 ---
-title: プレイグラウンドについて
+title: WordPress プレイグラウンドについて
 slug: /about
+description: WordPress Playground の概要、それが何であるか、なぜ便利なのか、そしてブラウザで WordPress を実行する方法について説明します。
 ---
 
 # WordPress プレイグラウンドについて
