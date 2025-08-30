@@ -147,11 +147,13 @@ export async function parseOptionsAndRunCLI() {
 				describe:
 					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
 				type: 'boolean',
+				default: false,
 			})
 			.option('skip-sqlite-setup', {
 				describe:
 					'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
 				type: 'boolean',
+				default: false,
 			})
 			// Hidden - Deprecated in favor of verbosity
 			.option('quiet', {
