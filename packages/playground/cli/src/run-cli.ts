@@ -672,7 +672,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					logger.log(`Ready!`);
 				}
 
-				let message = `WordPress is running on ${serverUrl}`;
+				let message = `WordPress server is listening on ${serverUrl}`;
 				if (siteUrl !== serverUrl) {
 					message += ` (WP site URL: ${siteUrl})`;
 				}
