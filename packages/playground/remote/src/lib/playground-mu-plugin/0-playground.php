@@ -100,7 +100,7 @@ function playground_add_target_blank_to_external_links() {
 	if (empty($_SERVER['REQUEST_URI']) || wp_doing_ajax() || wp_doing_cron()) {
 		return;
 	}
-	
+
 	?>
 	<script>
 		function addTargetBlankToExternalLinks() {
@@ -116,11 +116,15 @@ function playground_add_target_blank_to_external_links() {
 			document.querySelectorAll('a[href]').forEach(a => {
 				addTargetBlank(a);
 			});
-			
+
 			// Set target="_blank" for external links when clicked.
 			// This covers links that are added after the page has loaded.
 			document.addEventListener('click', e => {
-				const a = e.target?.closest('a[href]');
+				// window, document, SVG Text nodes etc. don't have the `closest` method
+				if ( !e.target?.closest ) {
+					return;
+				}
+				const a = e.target.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
 			});
@@ -128,6 +132,10 @@ function playground_add_target_blank_to_external_links() {
 			// Also handle focus events to cover keyboard navigation on
 			// links that are added after the page has loaded.
 			document.addEventListener('focus', e => {
+				// window, document, SVG Text nodes etc. don't have the `closest` method
+				if ( !e.target?.closest ) {
+					return;
+				}
 				const a = e.target?.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
