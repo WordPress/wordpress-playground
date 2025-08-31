@@ -29,7 +29,7 @@ In this section we present a selection of guides that will help you to both work
 Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress Playground. It showcases the potential for seamless mobile web integration using WebAssembly and the WordPress block editor.
 -->
 
-## [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે તમારા ડેમો માટે સામગ્રી પૂરી પાડવી ](/guides/providing-content-for-your-demo)
+## [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે તમારા ડેમો માટે સામગ્રી પૂરી પાડવી](/guides/providing-content-for-your-demo)
 
 <!--
 ## [Providing content for your demo with WordPress Playground](/guides/providing-content-for-your-demo)
@@ -41,7 +41,7 @@ Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress
 To provide a good demo of your theme or plugin via Playground, you may want to load it with default content that highlights the features of your product. Check this guide to learn how to do so.
 -->
 
-## [થીમ ડેવલપર્સ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ](/guides/for-theme-developers)
+## [થીમ ડેવલપર્સ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ](/guides/for-theme-developers)
 
 <!--
 ## [WordPress Playground for Theme Developers](/guides/for-theme-developers)
@@ -53,7 +53,7 @@ To provide a good demo of your theme or plugin via Playground, you may want to l
 This guide will show you the essential settings to fully create a theme demo using WordPress Playground and how you can leverage it during the building stage.
 -->
 
-## [પ્લગઇન ડેવલપર્સ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ](/guides/for-plugin-developers)
+## [પ્લગઇન ડેવલપર્સ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ](/guides/for-plugin-developers)
 
 <!--
 ## [WordPress Playground for Plugin Developers](/guides/for-plugin-developers)
