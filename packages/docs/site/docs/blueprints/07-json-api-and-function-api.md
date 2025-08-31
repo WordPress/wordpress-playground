@@ -27,5 +27,5 @@ There are two main differences between the JSON and Function APIs:
 2. The function API requires importing the API client library while Blueprints may be just pasted into the URL fragment.
 
 :::note
-[બ્લુપ્રિન્ટ JSON વ્યાખ્યાઓ અને સ્ટેપ હેન્ડલર્સ માટે સમાન રચનાનો ઉપયોગ કરો] તપાસો.(https://github.com/WordPress/wordpress-playground/pull/215) issue at [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo for more detailed info about this topic
+Check the [Use the same structure for Blueprint JSON definitions and step handlers](https://github.com/WordPress/wordpress-playground/pull/215) issue at [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo for more detailed info about this topic
 :::
