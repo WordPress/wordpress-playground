@@ -46,6 +46,12 @@ export class CDPServer extends EventEmitter {
 			});
 		});
 
+		// When a new 'message' listener is registered,
+		// it replays any buffered messages on the next
+		// tick. This ensures that the listener receives
+		// all messages that arrived before it was opened.
+		// Once replayed, it clears the buffer and marks
+		// the connection as established.
 		this.on('newListener', (event) => {
 			if (event === 'message') {
 				process.nextTick(() => {

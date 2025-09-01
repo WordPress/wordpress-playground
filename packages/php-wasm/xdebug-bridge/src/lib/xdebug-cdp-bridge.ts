@@ -110,28 +110,32 @@ export class XdebugCDPBridge {
 		// Load known scripts
 		this.sendInitialScripts();
 
-		// Opens Sources tab instead of Console by pausing the process
-		this.cdp.sendMessage({
-			method: 'Debugger.paused',
-			params: {
-				callFrames: [
-					{
-						location: {
-							scriptId: '1',
-							lineNumber: 0,
+		if (!this.breakOnFirstLine) {
+			// Opens Sources tab instead of Console by pausing the process
+			this.cdp.sendMessage({
+				method: 'Debugger.paused',
+				params: {
+					callFrames: [
+						{
+							location: {
+								scriptId: '1',
+								lineNumber: 0,
+							},
+							scopeChain: [],
+							this: { type: 'undefined' },
 						},
-						scopeChain: [],
-						this: { type: 'undefined' },
-					},
-				],
-				reason: 'other',
-			},
-		});
+					],
+					reason: 'other',
+				},
+			});
 
-		// And resuming the process after 50ms to keep focus on the first file.
-		setTimeout(() => {
-			this.cdp.sendMessage({ method: 'Debugger.resumed' });
-		}, 50);
+			// Resume the process after 50ms to maintain focus on the first file.
+			// 50ms is an arbitrary choice: 0ms won’t display the code at this delay,
+			// while 100ms would be too long and cause a visible break on the first line.
+			setTimeout(() => {
+				this.cdp.sendMessage({ method: 'Debugger.resumed' });
+			}, 50);
+		}
 
 		// Send a nice welcome message with instructions
 		this.cdp.sendMessage({
@@ -140,7 +144,7 @@ export class XdebugCDPBridge {
 				entry: {
 					source: 'other',
 					level: 'info',
-					text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or the Playground.\n\n3. Witness the magic break.',
+					text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or Playground CLI.\n\n3. Witness the magic break.',
 					timestamp: Date.now(),
 				},
 			},
