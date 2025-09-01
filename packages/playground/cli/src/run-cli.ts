@@ -239,6 +239,14 @@ export async function parseOptionsAndRunCLI() {
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
+				// Support multiple spellings of "WordPress"
+				if (
+					args['skip-wordpress-setup'] ||
+					args['skipWordpressSetup']
+				) {
+					args['skipWordPressSetup'] = true;
+				}
+
 				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 					try {
 						// Check if is valid URL

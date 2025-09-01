@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.15] (2025-09-01) 
+
+### Documentation
+
+- Added Gujarati Translation for intro-devs.md file. ([#2574](https://github.com/WordPress/wordpress-playground/pull/2574))
+
+### Experiments
+
+
+#### File Synchronization
+
+- [Website] Renaming stored Playgrounds. ([#2486](https://github.com/WordPress/wordpress-playground/pull/2486))
+
+### Bug Fixes
+
+- Fix error from adding blank target to external links. ([#2575](https://github.com/WordPress/wordpress-playground/pull/2575))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @draganescu @shail-mehta
+
+
+## [v2.0.14] (2025-08-29) 
+
+### PHP WebAssembly
+
+- Add test to verify mount() correctly handles files (closes #503). ([#2564](https://github.com/WordPress/wordpress-playground/pull/2564))
+- Use unique tmp.zip filename in unzipFile() to avoid conflicts in async calls. ([#2567](https://github.com/WordPress/wordpress-playground/pull/2567))
+- [ php-wasm ] Add `intl` dynamic extension to @php-wasm/node JSPI. ([#2501](https://github.com/WordPress/wordpress-playground/pull/2501))
+- [WordPress][CLI] Allow requesting internal URLs via http_request_host_is_external. ([#2569](https://github.com/WordPress/wordpress-playground/pull/2569))
+
+### Various
+
+- Tagalog translations of Blueprints -&gt; Tutorial -> Build Your 1st Blueprint. ([#2546](https://github.com/WordPress/wordpress-playground/pull/2546))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @jnealey88 @mho22 @rollybueno
+
+
 ## [v2.0.13] (2025-08-26) 
 
 ### Enhancements
