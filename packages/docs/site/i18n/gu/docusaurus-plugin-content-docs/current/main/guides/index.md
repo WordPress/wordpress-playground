@@ -23,7 +23,7 @@ In this section we present a selection of guides that will help you to both work
 ## [How to ship a real WordPress site in a native iOS app via Playground?](/guides/wordpress-native-ios-app)
 -->
 
-"બ્લોકનોટ્સ" તપાસો, જે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ દ્વારા iOS પર નેટિવલી વર્ડપ્રેસ ચલાવનારી પહેલી એપ્લિકેશન છે. તે વેબએસેમ્બલી અને વર્ડપ્રેસ બ્લોક એડિટરનો ઉપયોગ કરીને સીમલેસ મોબાઇલ વેબ એકીકરણની સંભાવના દર્શાવે છે.
+"બ્લોકનોટ્સ" તપાસો, જે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ દ્વારા iOS પર નેટિવલી વર્ડપ્રેસ ચલાવનારી પહેલી એપ્લિકેશન છે. તે વેબએસેમ્બલી(WebAssembly) અને વર્ડપ્રેસ બ્લોક એડિટરનો ઉપયોગ કરીને સીમલેસ મોબાઇલ વેબ એકીકરણની સંભાવના દર્શાવે છે.
 
 <!--
 Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress Playground. It showcases the potential for seamless mobile web integration using WebAssembly and the WordPress block editor.
