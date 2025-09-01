@@ -2,7 +2,6 @@ import { loadNodeRuntime } from '..';
 import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
 import fs from 'fs';
 import { createServer } from 'net';
-import { jspi } from 'wasm-feature-detect';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
