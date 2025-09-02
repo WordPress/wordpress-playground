@@ -102,18 +102,21 @@ export async function resolveBlueprintFromURL(
 							url: query.get('import-site')!,
 						},
 					} as StepDefinition),
-				... query.getAll('theme').map((theme, index, themes) => ({
-						step: 'installTheme',
-						themeData: {
-							resource: 'wordpress.org/themes',
-							slug: theme,
-						},
-						options: {
-							// Activate only the last theme in the list.
-							activate: index === themes.length - 1,
-						},
-						progress: { weight: 2 },
-					} as StepDefinition)),
+				...query.getAll('theme').map(
+					(theme, index, themes) =>
+						({
+							step: 'installTheme',
+							themeData: {
+								resource: 'wordpress.org/themes',
+								slug: theme,
+							},
+							options: {
+								// Activate only the last theme in the list.
+								activate: index === themes.length - 1,
+							},
+							progress: { weight: 2 },
+						} as StepDefinition)
+				),
 			].filter(Boolean),
 		};
 		source = {
