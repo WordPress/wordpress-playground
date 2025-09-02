@@ -20,7 +20,7 @@ The Playground CLI requires Node.js 20.18 or higher, which is the recommended Lo
 
 ## Quickstart
 
-Running the Playground CLI is as simple as go to a command-line and run:
+Running the Playground CLI is as simple as opening a command line and running:
 
 ```bash
 npx @wp-playground/cli@latest server
@@ -28,7 +28,7 @@ npx @wp-playground/cli@latest server
 
 ![Playground CLI in Action](@site/static/img/developers/npx-wp-playground-server.gif)
 
-With the previous command, you only get a fresh WordPress instance to test. Most of the developers want to see their work running. If this is your case, test a plugin or a theme. You can run the CLI on your project folder and run the Playground CLI with the `--auto-mount` flag:
+With the previous command, you only get a fresh WordPress instance to test. Most developers will want to test their own work. To test a plugin or a theme, navigate to your project folder and run the CLI with the `--auto-mount` flag:
 
 ```bash
 cd my-plugin-or-theme-directory
@@ -40,7 +40,7 @@ npx @wp-playground/cli@latest server --auto-mount
 By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
 
 ```bash
-npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
+npx @wp-playground/cli@latest server --wp=6.8 --php=8.3
 ```
 
 ### Loading Blueprints
@@ -117,7 +117,7 @@ The `server` command supports the following optional arguments:
 
 ## Need some help with the CLI?
 
-With the Playground CLI, you can use the `--help` to get some support about the available commands.
+With the Playground CLI, you can use the `--help` flag to get a full list of available commands and arguments.
 
 ```bash
 npx @wp-playground/cli@latest --help
@@ -125,16 +125,14 @@ npx @wp-playground/cli@latest --help
 
 ## Programmatic Usage with JavaScript
 
-The Playground CLI can be controlled programmatically from your JavaScript/TypeScript code using the function `runCLI`. With that function, you are going to have access to all functionalities from Playground CLI directly into your development environment.
-
-One of the benefit to have this capability is the possibility to create end-to-end testing. Now are going to cover some of the basic with `runCLI`.
+The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This gives you direct access to all CLI functionalities within your development environment, allowing you to enhance and automate your workflows. A key benefit is the ability to create robust end-to-end tests. Let's cover the basics of using `runCLI`.
 
 ### Running a WordPress instance with a specific version
 
-Using the function `runCLI`, the developer can define the PHP version. For example, in the following demo, the version `8.3` is set. The latest WordPress version, and get a logged instance were also requested.
+Using the `runCLI` function, you can specify options like the PHP and WordPress versions. In the example below, we request PHP 8.3, the latest version of WordPress, and to be automatically logged in. All supported arguments are defined in the `RunCLIArgs` type.
 
 ```TypeScript
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI, RunCLIArgs, RunCLIServer } from "@wp-playground/cli";
 
 let cliServer: RunCLIServer;
 
@@ -143,17 +141,16 @@ cliServer = await runCLI({
     php: '8.3',
     wp: 'latest',
     login: true
-});
+} as RunCLIArgs);
 ```
 
-To execute this code, you can set your preferred method. In my demos, I'm just using `tsx`, for example, `tsx [file-address]`.
+To execute the code above, the developer can set their preferred method. A simple way to execute this code is to save it as a `.ts` file and run it with a tool like `tsx`. For example: `tsx my-script.ts`
 
 ### Setting a Blueprint
 
-A blueprint can be passed as a property by the developer:
+You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file.
 
 ```TypeScript
-
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
 let cliServer: RunCLIServer;
@@ -175,14 +172,36 @@ cliServer = await runCLI({
 });
 ```
 
-### Mounting a plugin programatically
+For full type-safety when defining your blueprint object, you can import and use the `BlueprintDeclaration` type from the `@wp-playground/blueprints` package:
 
-As the Playground CLI via terminal is also possible to mount a environment via `runCLI`.
+```TypeScript
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+
+const myBlueprint: BlueprintDeclaration = {
+  landingPage: "/wp-admin/",
+  steps: [
+    {
+      "step": "installTheme",
+      "themeData": {
+        "resource": "wordpress.org/themes",
+        "slug": "twentytwentyone"
+      },
+      "options": {
+        "activate": true
+      }
+    }
+  ]
+};
+```
+
+### Mounting a plugin programmatically
+
+Simply start with It is possible to mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed..
 
 ```TypeScript
 	cliServer = await runCLI({
       command: 'server',
-      login: true
+      login: true,
       'mount-before-install': [
         {
           hostPath: './[my-plugin-local-path]',
@@ -192,9 +211,32 @@ As the Playground CLI via terminal is also possible to mount a environment via `
     });
 ```
 
+With those options we can combine mounting parts of the project with blueprints, for example:
+
 ```TypeScript
-  cliServer = await runCLI({
+
+import { runCLI, RunCLIArgs, RunCLIServer } from "@wp-playground/cli";
+
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
     command: 'server',
-    autoMount: `[PLUGIN-OR-THEME-PATH]`,
-  });
+    php: '8.3',
+    wp: 'latest',
+    login: true,
+    mount: [
+        {
+            "hostPath": "./plugin/",
+            "vfsPath": "/wordpress/wp-content/plugins/playwright-test"
+        }
+    ],
+    blueprint: {
+        steps: [
+            {
+                "step": "activatePlugin",
+                "pluginPath": "/wordpress/wp-content/plugins/playwright-test/plugin-playwright.php"
+            }
+        ]
+    }
+} as RunCLIArgs);
 ```
