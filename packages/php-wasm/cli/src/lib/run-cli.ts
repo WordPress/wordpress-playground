@@ -13,6 +13,15 @@ import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
+import { logger, LogSeverity } from '@php-wasm/logger';
+
+const LogVerbosity = {
+	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
+	Normal: { name: 'normal', severity: LogSeverity.Info },
+	Debug: { name: 'debug', severity: LogSeverity.Debug },
+} as const;
+
+type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 interface CLIDefaults {
 	directive: string[];
@@ -25,6 +34,8 @@ interface CLIArgs {
 	directive: string[];
 	xdebug?: boolean;
 	experimentalDevtools?: boolean;
+	verbosity?: LogVerbosity;
+	help?: boolean;
 }
 
 function parseCliArgs(defaults: CLIDefaults) {
@@ -57,6 +68,14 @@ Usage: php-wasm-cli <command> [options]
 			type: 'boolean',
 			describe: 'Enable experimental browser development tools.',
 			default: false,
+		})
+		.option('verbosity', {
+			type: 'string',
+			describe: 'Output logs',
+			choices: Object.values(LogVerbosity).map(
+				(verbosity) => verbosity.name
+			),
+			default: 'normal',
 		})
 		.strictCommands()
 		.help()
@@ -111,6 +130,17 @@ export async function parseOptionsAndRunCLI(): Promise<void> {
 		directive: [`openssl.cafile=${caBundlePath}`],
 		config: defaultPhpIniPath,
 	});
+
+	if (args.help) {
+		return;
+	}
+
+	if (args.verbosity) {
+		const severity = Object.values(LogVerbosity).find(
+			(v) => v.name === args.verbosity
+		)!.severity;
+		logger.setSeverityFilterLevel(severity);
+	}
 
 	// npm scripts set the TMPDIR env variable
 	// PHP accepts a TMPDIR env variable and expects it to

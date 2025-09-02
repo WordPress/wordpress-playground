@@ -47,6 +47,7 @@ export class BlueprintsV2Handler {
 				import.meta.dirname,
 				'..',
 				'..',
+				'..',
 				importedWorkerV2UrlString
 			);
 		}

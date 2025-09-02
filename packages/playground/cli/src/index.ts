@@ -1,1 +1,1 @@
-export * from './run-cli';
+export * from './lib/run-cli';

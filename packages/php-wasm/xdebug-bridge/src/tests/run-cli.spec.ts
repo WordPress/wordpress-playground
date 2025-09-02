@@ -1,6 +1,6 @@
 import './mocker';
 import { vi } from 'vitest';
-import { main } from '../lib/run-cli';
+import { parseOptionsAndRunCLI } from '../lib/run-cli';
 import { logger, LogSeverity } from '@php-wasm/logger';
 import { startBridge } from '../lib/start-bridge';
 import type { XdebugCDPBridge } from '../lib/xdebug-cdp-bridge';
@@ -26,7 +26,7 @@ describe('CLI', () => {
 	});
 
 	it('calls startBridge with default arguments', async () => {
-		await main();
+		await parseOptionsAndRunCLI();
 
 		expect(startBridge).toHaveBeenCalledWith({
 			cdpPort: 9229,
@@ -48,7 +48,7 @@ describe('CLI', () => {
 			'/var/www'
 		);
 
-		await main();
+		await parseOptionsAndRunCLI();
 
 		expect(startBridge).toHaveBeenCalledWith({
 			cdpPort: 9229,
@@ -62,7 +62,7 @@ describe('CLI', () => {
 		process.argv.push('--help');
 
 		try {
-			await main();
+			await parseOptionsAndRunCLI();
 		} catch (e: any) {
 			expect(e.message).toBe('process.exit unexpectedly called with "0"');
 		}
@@ -73,7 +73,7 @@ describe('CLI', () => {
 	it('runs cli with verbosity option set to quiet', async () => {
 		process.argv.push('--verbosity', 'quiet');
 
-		await main();
+		await parseOptionsAndRunCLI();
 
 		expect(logger.setSeverityFilterLevel).toHaveBeenCalledWith(
 			LogSeverity.Fatal
@@ -83,7 +83,7 @@ describe('CLI', () => {
 	it('runs cli with verbosity option set to normal', async () => {
 		process.argv.push('--verbosity', 'normal');
 
-		await main();
+		await parseOptionsAndRunCLI();
 
 		expect(logger.setSeverityFilterLevel).toHaveBeenCalledWith(
 			LogSeverity.Info
@@ -93,7 +93,7 @@ describe('CLI', () => {
 	it('runs cli with verbosity option set to debug', async () => {
 		process.argv.push('--verbosity', 'debug');
 
-		await main();
+		await parseOptionsAndRunCLI();
 
 		expect(logger.setSeverityFilterLevel).toHaveBeenCalledWith(
 			LogSeverity.Debug

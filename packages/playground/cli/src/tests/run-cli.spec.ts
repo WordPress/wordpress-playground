@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { runCLI } from '../src/run-cli';
-import type { RunCLIServer } from '../src/run-cli';
+import { runCLI } from '../lib/run-cli';
+import type { RunCLIServer } from '../lib/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -42,6 +42,7 @@ describe.each(blueprintVersions)(
 		afterEach(async () => {
 			if (cliServer) {
 				try {
+					await cliServer.playground.dispose();
 					await cliServer[Symbol.asyncDispose]();
 				} catch {
 					// Ignore any dispose-related errors

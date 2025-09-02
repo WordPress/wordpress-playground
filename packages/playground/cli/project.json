@@ -136,7 +136,6 @@
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
-				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/cli"
 			}
 		},
