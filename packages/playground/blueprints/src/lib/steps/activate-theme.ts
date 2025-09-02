@@ -28,10 +28,11 @@ export interface ActivateThemeStep {
  */
 export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	playground,
-	{ themeFolderName },
+	{ themeFolderName, themeNiceName },
 	progress
 ) => {
-	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
+	themeNiceName = themeNiceName || themeFolderName;
+	progress?.tracker.setCaption(`Activating ${themeNiceName}`);
 	const docroot = await playground.documentRoot;
 
 	const themeFolderPath = `${docroot}/wp-content/themes/${themeFolderName}`;
