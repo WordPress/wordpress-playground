@@ -103,6 +103,8 @@ export type DirectoryReference =
 	| GitDirectoryReference
 	| DirectoryLiteralReference;
 
+export type APIFetchableReference = CoreThemeReference | CorePluginReference;
+
 export function isResourceReference(ref: any): ref is FileReference {
 	return (
 		ref &&
@@ -424,28 +426,27 @@ export abstract class FetchResource extends Resource<File> {
  * A base class for `FetchResource`s that require fetching data from an API prior.
  */
 export abstract class APIBasedFetchResource extends FetchResource {
-	private corsProxy?: string;
-	private apiResult?: object;
+	protected apiResult?: any;
+	protected resource: APIFetchableReference;
 
 	/**
 	 * Creates a new instance of `APIBasedFetchResource`.
 	 * @param progress The progress tracker.
 	 */
-	constructor(_progress?: ProgressTracker, corsProxy?: string) {
-		super( _progress, corsProxy );
-		this._progress = _progress;
-		this.corsProxy = corsProxy;
+	constructor(resource: APIFetchableReference, _progress?: ProgressTracker) {
+		super(_progress);
+
+		this.resource = resource;
 	}
 
 	/** @inheritDoc */
-	async resolve() {
-
+	override async resolve() {
 		const url = this.getAPIURL();
 		try {
 			let response = await fetchWithCorsProxy(
 				url,
 				undefined,
-				this.corsProxy,
+				undefined,
 				await this.playground?.absoluteUrl
 			);
 			if (!response.ok) {
@@ -482,16 +483,16 @@ export abstract class APIBasedFetchResource extends FetchResource {
 	 * Gets the caption for the progress tracker.
 	 * @returns The caption.
 	 */
-	protected get caption() {
+	protected override get caption() {
 		return `Fetching ${this.name}`;
 	}
 
 	override get name() {
-		return this.apiResult.name;
+		return this.apiResult?.name;
 	}
 
 	getURL() {
-		return this.apiResult.download_link;
+		return this.apiResult?.download_link;
 	}
 }
 
@@ -711,16 +712,9 @@ export class LiteralDirectoryResource extends Resource<Directory> {
  * A `Resource` that represents a WordPress core theme.
  */
 export class CoreThemeResource extends APIBasedFetchResource {
-	private resource: CoreThemeReference;
-
-	constructor(resource: CoreThemeReference, progress?: ProgressTracker) {
-		super(progress);
-		this.resource = resource;
-	}
-
-	getAPIURL() {
+	override getAPIURL() {
 		return `https://api.wordpress.org/themes/info/1.2/?action=theme_information&slug=${encodeURIComponent(
-			this.resource.slug
+			this.resource?.slug
 		)}`;
 	}
 }
@@ -729,16 +723,9 @@ export class CoreThemeResource extends APIBasedFetchResource {
  * A resource that fetches a WordPress plugin from wordpress.org.
  */
 export class CorePluginResource extends APIBasedFetchResource {
-	private resource: CorePluginReference;
-
-	constructor(resource: CorePluginReference, progress?: ProgressTracker) {
-		super(progress);
-		this.resource = resource;
-	}
-
-	getAPIURL() {
+	override getAPIURL() {
 		return `https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=${encodeURIComponent(
-			this.resource.slug
+			this.resource?.slug
 		)}`;
 	}
 }
