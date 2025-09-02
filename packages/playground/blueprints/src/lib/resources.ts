@@ -431,6 +431,7 @@ export abstract class APIBasedFetchResource extends FetchResource {
 
 	/**
 	 * Creates a new instance of `APIBasedFetchResource`.
+	 * @param resource The API fetchable reference.
 	 * @param progress The progress tracker.
 	 */
 	constructor(resource: APIFetchableReference, _progress?: ProgressTracker) {
@@ -714,7 +715,7 @@ export class LiteralDirectoryResource extends Resource<Directory> {
 export class CoreThemeResource extends APIBasedFetchResource {
 	override getAPIURL() {
 		return `https://api.wordpress.org/themes/info/1.2/?action=theme_information&slug=${encodeURIComponent(
-			this.resource?.slug
+			this.resource.slug
 		)}`;
 	}
 }
@@ -725,7 +726,7 @@ export class CoreThemeResource extends APIBasedFetchResource {
 export class CorePluginResource extends APIBasedFetchResource {
 	override getAPIURL() {
 		return `https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=${encodeURIComponent(
-			this.resource?.slug
+			this.resource.slug
 		)}`;
 	}
 }
