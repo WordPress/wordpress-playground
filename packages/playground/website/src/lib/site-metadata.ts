@@ -89,7 +89,7 @@ export async function createSiteMetadata(
 		blueprintSource = resolvedBlueprint.source;
 	}
 
-	const compiledBlueprint = await compileBlueprint(blueprint);
+	const compiledBlueprint = await compileBlueprint({}); //blueprint);
 
 	return {
 		name,

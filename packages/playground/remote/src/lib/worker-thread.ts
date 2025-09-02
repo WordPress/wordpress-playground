@@ -39,7 +39,11 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type {
+	MessageListener,
+	PHP,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -109,6 +113,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	loadedWordPressVersion: string | undefined;
 
+	onMessageListeners: MessageListener[] = [];
+
 	unmounts: Record<string, () => any> = {};
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
@@ -173,6 +179,15 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
+	}
+
+	override onMessage(listener: MessageListener) {
+		this.onMessageListeners.push(listener);
+		return async () => {
+			this.onMessageListeners = this.onMessageListeners.filter(
+				(l) => l !== listener
+			);
+		};
 	}
 
 	async boot({
@@ -364,6 +379,16 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					if (withNetworking) {
 						await this.networkTransport!.setupMessageHandler(php);
 					}
+					php.onMessage(async (message) => {
+						for (const listener of this.onMessageListeners) {
+							const returnData = await listener(message);
+
+							if (returnData) {
+								return returnData;
+							}
+						}
+						return '';
+					});
 				},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await

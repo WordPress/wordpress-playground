@@ -41,6 +41,10 @@ export interface StartPlaygroundOptions {
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
+	/**
+	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
+	 */
+	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
@@ -114,6 +118,7 @@ export async function startPlaygroundWeb({
 	corsProxy,
 	shouldInstallWordPress,
 	sqliteDriverVersion,
+	experimentalBlueprintsV2Runner,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -128,12 +133,19 @@ export async function startPlaygroundWeb({
 		blueprint = {};
 	}
 
-	const compiled = await compileBlueprint(blueprint, {
-		progress: progressTracker.stage(0.5),
-		onStepCompleted: onBlueprintStepCompleted,
-		corsProxy,
-	});
-
+	const compiled = experimentalBlueprintsV2Runner
+		? await compileBlueprint(
+				{},
+				{
+					progress: progressTracker.stage(0.5),
+					corsProxy,
+				}
+		  )
+		: await compileBlueprint(blueprint, {
+				progress: progressTracker.stage(0.5),
+				onStepCompleted: onBlueprintStepCompleted,
+				corsProxy,
+		  });
 	await new Promise((resolve) => {
 		iframe.src = remoteUrl;
 		iframe.addEventListener('load', resolve, false);
@@ -167,8 +179,33 @@ export async function startPlaygroundWeb({
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
-	if (onBeforeBlueprint) {
-		await onBeforeBlueprint();
+	// If the caller requested the v2 runner and provided a blueprint,
+	// execute it via PHP before running any (empty) TS steps.
+	if (experimentalBlueprintsV2Runner && blueprint) {
+		const { runBlueprintV2Web } = await import(
+			'./blueprints-v2/run-blueprint-v2-web'
+		);
+		await playground.setProgress({
+			caption: 'Running Blueprint',
+			isIndefinite: false,
+			visible: true,
+			progress: 0,
+		});
+		const streamed = await runBlueprintV2Web({
+			php: playground,
+			blueprint,
+			onMessage: async (message) => {
+				if ((message as any).type === 'blueprint.progress') {
+					await playground.setProgress({
+						caption: ((message as any).caption || 'Working').trim(),
+						progress: (message as any).progress,
+						isIndefinite: false,
+						visible: true,
+					});
+				}
+			},
+		});
+		await streamed.finished;
 	}
 
 	await runBlueprintSteps(compiled, playground);
