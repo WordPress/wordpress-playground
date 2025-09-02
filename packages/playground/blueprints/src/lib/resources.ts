@@ -47,12 +47,16 @@ export type CoreThemeReference = {
 	resource: 'wordpress.org/themes';
 	/** The slug of the WordPress Core theme */
 	slug: string;
+	/** The name of the WordPress Core theme */
+	name?: string;
 };
 export type CorePluginReference = {
 	/** Identifies the file resource as a WordPress Core plugin */
 	resource: 'wordpress.org/plugins';
 	/** The slug of the WordPress Core plugin */
 	slug: string;
+	/** The name of the WordPress Core plugin */
+	name?: string;
 };
 export type UrlReference = {
 	/** Identifies the file resource as a URL */
@@ -456,6 +460,8 @@ export abstract class APIBasedFetchResource extends FetchResource {
 				throw new Error(`Could not fetch "${url}"`);
 			}
 			this.apiResult = await response.json();
+
+			this.resource.name = this.name;
 
 			return await super.resolve();
 		} catch (e) {
