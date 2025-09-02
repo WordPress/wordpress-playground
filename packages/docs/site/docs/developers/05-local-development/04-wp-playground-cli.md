@@ -125,7 +125,7 @@ npx @wp-playground/cli@latest --help
 
 ## Programmatic Usage with JavaScript
 
-The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This gives you direct access to all CLI functionalities within your development environment, allowing you to enhance and automate your workflows. A key benefit is the ability to create robust end-to-end tests. Let's cover the basics of using `runCLI`.
+The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This gives you direct access to all CLI functionalities within your code, which is useful for automating end-to-end tests. Let's cover the basics of using `runCLI`.
 
 ### Running a WordPress instance with a specific version
 
