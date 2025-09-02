@@ -11,6 +11,8 @@ import {
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
+import { withSMTPSink } from '@php-wasm/universal';
+import type { CaughtMessage } from '@php-wasm/util';
 import {
 	withPHPExtensions,
 	type PHPWebExtension,
@@ -32,6 +34,10 @@ export interface LoaderOptions {
 	 * @deprecated Use `extensions: ['intl']` instead.
 	 */
 	withIntl?: boolean;
+	withSMTPSink?: {
+		smtpPort: number;
+		onEmail: (m: CaughtMessage) => void;
+	};
 }
 
 /**
@@ -93,6 +99,13 @@ export async function loadWebRuntime(
 		emscriptenOptions = tcpOverFetchWebsocket(
 			emscriptenOptions,
 			loaderOptions.tcpOverFetch
+		);
+	}
+
+	if (loaderOptions.withSMTPSink) {
+		emscriptenOptions = withSMTPSink(
+			loaderOptions.withSMTPSink,
+			await emscriptenOptions
 		);
 	}
 
