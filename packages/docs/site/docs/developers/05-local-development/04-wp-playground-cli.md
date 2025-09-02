@@ -20,7 +20,7 @@ The Playground CLI requires Node.js 20.18 or higher, which is the recommended Lo
 
 ## Quickstart
 
-Running the Playground CLI is as simple as opening a command line and running:
+To run the Playground CLI, open a command line and use the following command:
 
 ```bash
 npx @wp-playground/cli@latest server
@@ -196,7 +196,7 @@ const myBlueprint: BlueprintDeclaration = {
 
 ### Mounting a plugin programmatically
 
-Simply start with It is possible to mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed..
+It is possible to mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed.
 
 ```TypeScript
 	cliServer = await runCLI({
