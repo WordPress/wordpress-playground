@@ -12,6 +12,8 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 			args.shift();
 		}
 
+		console.log(args);
+
 		// Mock programs required by wp-cli:
 		if (
 			args[0] === '/usr/bin/env' &&
@@ -67,7 +69,8 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 				//        the CLI constants and globals.
 				const cliBootstrapScript = `<?php
                 // Set the argv global.
-                $GLOBALS['argv'] = array_merge([
+				$argv = [];
+                $GLOBALS['argv'] = $_SERVER['argv'] = array_merge([
                     "/wordpress/wp-cli.phar",
                     "--path=/wordpress"
                 ], ${phpVar(args.slice(2))});
@@ -81,18 +84,26 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
                 ${options.cwd ? 'chdir(getenv("DOCROOT")); ' : ''}
                 `;
 
-				if (args.includes('-r')) {
+				// const result = await php.cli(args.slice(2), {
+				// 	env: options.env,
+				// });
+
+				// if (args.includes('-r')) {
+				// 	result = await php.run({
+				// 		code: `${cliBootstrapScript} ${
+				// 			args[args.indexOf('-r') + 1]
+				// 		}`,
+				// 		env: options.env,
+				// 	});
+				// } else
+				console.log('before running a script at all');
+				if (1 || args[1]?.endsWith('/wp-cli.phar')) {
+					console.log('running with PHP_SCRIPT_PATH', args[1]);
 					result = await php.run({
-						code: `${cliBootstrapScript} ${
-							args[args.indexOf('-r') + 1]
-						}`,
-						env: options.env,
-					});
-				} else if (args[1] === 'wp-cli.phar') {
-					result = await php.run({
-						code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" );`,
+						code: `${cliBootstrapScript} require( getenv('PHP_SCRIPT_PATH') );`,
 						env: {
 							...options.env,
+							PHP_SCRIPT_PATH: args[1],
 							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 							// the output as ASCII tables.
 							// @see https://github.com/wp-cli/wp-cli/issues/1102
@@ -100,6 +111,7 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 						},
 					});
 				} else {
+					console.log('running without PHP_SCRIPT_PATH', args[1]);
 					result = await php.run({
 						scriptPath: args[1],
 						env: options.env,

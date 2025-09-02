@@ -148,6 +148,10 @@ function applyQueryOverrides(
 	blueprint: BlueprintDeclaration,
 	query: URLSearchParams
 ): BlueprintDeclaration {
+	// @TODO: What kind of overrides are needed for version 2? Will we have to support both? sets of overrides?
+	if ((blueprint as any).version === 2) {
+		return blueprint;
+	}
 	// PHP and WordPress versions
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;

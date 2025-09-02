@@ -349,7 +349,6 @@ export class PHP implements Disposable {
 					return returnData;
 				}
 			}
-
 			return '';
 		};
 
