@@ -117,7 +117,7 @@ The `server` command supports the following optional arguments:
 
 ## Need some help with the CLI?
 
-With the Playground CLI, you can use the `--help` flag to get a full list of available commands and arguments.
+With the Playground CLI, you can use the `--help` flag to get the full list of available commands and arguments.
 
 ```bash
 npx @wp-playground/cli@latest --help
