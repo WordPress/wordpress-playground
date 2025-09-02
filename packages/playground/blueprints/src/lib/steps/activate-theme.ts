@@ -18,6 +18,10 @@ export interface ActivateThemeStep {
 	 * The name of the theme folder inside wp-content/themes/
 	 */
 	themeFolderName: string;
+	/**
+	 * Optional nice name for the theme, used in progress captions.
+	 */
+	themeNiceName?: string;
 }
 
 /**
@@ -25,6 +29,7 @@ export interface ActivateThemeStep {
  *
  * @param playground The playground client.
  * @param themeFolderName The theme folder name.
+ * @param themeNiceName Optional nice name for the theme, used in progress captions.
  */
 export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	playground,
