@@ -22,6 +22,7 @@
 		"src/**/*.test.jsx",
 		"src/**/*.spec.jsx",
 		"src/**/*.d.ts",
-		"src/lib/php-vars.ts"
+		"src/lib/php-vars.ts",
+		"../node/src/test/with-smtp-sink.spec.ts"
 	]
 }

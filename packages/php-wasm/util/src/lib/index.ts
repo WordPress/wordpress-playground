@@ -18,6 +18,7 @@ export { splitShellCommand } from './split-shell-command';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export * from './php-vars';
+export * from './smtp';
 
 export * from './sprintf';
 
