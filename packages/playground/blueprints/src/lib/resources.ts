@@ -12,7 +12,6 @@ import {
 	resolveCommitHash,
 	sparseCheckout,
 } from '@wp-playground/storage';
-import { zipNameToHumanName } from './utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './blueprint';
