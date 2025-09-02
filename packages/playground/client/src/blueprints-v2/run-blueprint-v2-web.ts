@@ -1,5 +1,4 @@
-import type { StreamedPHPResponse, UniversalPHP } from '@php-wasm/universal';
-import { phpVar } from '@php-wasm/util';
+import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { getV2Runner } from '@wp-playground/blueprints';
 
 export type PHPExceptionDetails = {
@@ -63,7 +62,7 @@ interface RunV2Options {
 
 export async function runBlueprintV2Web(
 	options: RunV2Options
-): Promise<StreamedPHPResponse> {
+): Promise<PHPResponse> {
 	console.log('runBlueprintV2Web', options);
 
 	const php = options.php;
@@ -154,9 +153,7 @@ playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_targ
 
 // playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
 function playground_on_blueprint_resolved($blueprint) {
-	$additional_blueprint_steps = json_decode(${phpVar(
-		JSON.stringify(options.blueprintOverrides?.additionalSteps || [])
-	)}, true);
+	$additional_blueprint_steps = json_decode(getenv('ADDITIONAL_BLUEPRINT_STEPS') ?: '[]', true);
 	if(count($additional_blueprint_steps) > 0) {
 		$blueprint['additionalStepsAfterExecution'] = array_merge(
 			$blueprint['additionalStepsAfterExecution'] ?? [],
@@ -164,9 +161,7 @@ function playground_on_blueprint_resolved($blueprint) {
 		);
 	}
 
-	$wp_version_override = json_decode(${phpVar(
-		JSON.stringify(options.blueprintOverrides?.wordpressVersion || null)
-	)}, true);
+	$wp_version_override = getenv('WP_VERSION_OVERRIDE') ?: null;
 	if($wp_version_override) {
 		$blueprint['wordpressVersion'] = $wp_version_override;
 	}
@@ -230,13 +225,13 @@ $config = new RunnerConfiguration();
 
 // The first positional is the blueprint reference
 try {
-	$blueprint_reference = ${phpVar(blueprintReference)};
+	$blueprint_reference = getenv('BLUEPRINT_REFERENCE');
 	$config->setBlueprint( DataReference::create( $blueprint_reference, [
 		AbsoluteLocalPath::class,
 		ExecutionContextPath::class,
 	] ) );
 } catch ( InvalidArgumentException $e ) {
-	throw new InvalidArgumentException( sprintf( "Invalid Blueprint reference: %s. Hint: paths must start with ./ or /. URLs must start with http:// or https://.", $positionalArgs[0] ) );
+	throw new InvalidArgumentException( sprintf( "Invalid Blueprint reference: %s. Hint: paths must start with ./ or /. URLs must start with http:// or https://.", $blueprint_reference ) );
 }
 
 $config->setExecutionMode( Runner::EXECUTION_MODE_CREATE_NEW_SITE );
@@ -248,7 +243,7 @@ if ( false === $absoluteTargetSiteRoot || ! is_dir( $absoluteTargetSiteRoot ) ) 
 	throw new InvalidArgumentException( "The --site-path path does not exist: {$targetSiteRoot}" );
 }
 $config->setTargetSiteRoot( $absoluteTargetSiteRoot );
-$config->setTargetSiteUrl( ${phpVar(await php.absoluteUrl)} );
+$config->setTargetSiteUrl( getenv('SITE_URL') );
 
 // Set database engine
 $config->setDatabaseEngine( 'sqlite' );
@@ -273,6 +268,15 @@ $runner->run();
 
 	const r = await php.run({
 		scriptPath: '/tmp/run-blueprints.php',
+		env: {
+			BLUEPRINT_REFERENCE: blueprintReference,
+			SITE_URL: await php.absoluteUrl,
+			ADDITIONAL_BLUEPRINT_STEPS: JSON.stringify(
+				options.blueprintOverrides?.additionalSteps || []
+			),
+			WP_VERSION_OVERRIDE:
+				options.blueprintOverrides?.wordpressVersion || '',
+		},
 	});
 	unbindMessageListener();
 	console.log('after runStream', r);
