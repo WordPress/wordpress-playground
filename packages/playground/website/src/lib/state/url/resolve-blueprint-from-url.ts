@@ -102,15 +102,14 @@ export async function resolveBlueprintFromURL(
 							url: query.get('import-site')!,
 						},
 					} as StepDefinition),
-				query.get('theme') &&
-					({
+				... query.getAll('theme').map((theme) => ({
 						step: 'installTheme',
 						themeData: {
 							resource: 'wordpress.org/themes',
-							slug: query.get('theme')!,
+							slug: theme,
 						},
 						progress: { weight: 2 },
-					} as StepDefinition),
+					} as StepDefinition )),
 			].filter(Boolean),
 		};
 		source = {
