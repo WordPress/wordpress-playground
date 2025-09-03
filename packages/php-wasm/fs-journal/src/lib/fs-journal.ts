@@ -178,11 +178,11 @@ export function journalFSEvents(
 		php[__private__dont__use].journal.unbind();
 		delete php[__private__dont__use].journal;
 	}
-	php.addEventListener('runtime.beforedestroy', unbindFromOldRuntime);
+	php.addEventListener('runtime.beforeExit', unbindFromOldRuntime);
 
 	return function unbind() {
 		php.removeEventListener('runtime.initialized', bindToCurrentRuntime);
-		php.removeEventListener('runtime.beforedestroy', unbindFromOldRuntime);
+		php.removeEventListener('runtime.beforeExit', unbindFromOldRuntime);
 		return php[__private__dont__use].journal.unbind();
 	};
 }

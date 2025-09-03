@@ -1,7 +1,7 @@
 ---
-title: テーマ開発者のための Playground
+title: テーマ開発者のためのWordPressプレイグラウンド
 slug: /guides/for-theme-developers
-description: テーマ開発者のための WordPress プレイグラウンド
+description: Playground を使用して、Blueprints でテーマのライブ デモを構築、テスト、作成するためのテーマ開発者向けガイドです。
 ---
 
 WordPress Playground は、テーマ開発者がブラウザ環境で直接テーマを構築、テスト、紹介できる革新的なツールです。

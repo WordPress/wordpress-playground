@@ -19,13 +19,17 @@ export const RecommendedPHPVersion = '8.3';
 /**
  * Unzip a zip file inside Playground.
  */
-const tmpPath = '/tmp/file.zip';
 export const unzipFile = async (
 	php: UniversalPHP,
 	zipPath: string | File,
 	extractToPath: string,
 	overwriteFiles = true
 ) => {
+	/**
+	 * Use a random file name to avoid conflicts across concurrent unzipFile()
+	 * calls.
+	 */
+	const tmpPath = `/tmp/file-${Math.random()}.zip`;
 	if (zipPath instanceof File) {
 		const zipFile = zipPath;
 		zipPath = tmpPath;

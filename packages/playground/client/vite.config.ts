@@ -10,6 +10,8 @@ import ignoreDataImports from '../ignore-data-imports';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 function validateOrigin(origin: string) {
 	try {
@@ -42,7 +44,7 @@ export default defineConfig({
 		}),
 		ignoreWasmImports(),
 		ignoreDataImports(),
-
+		...viteGlobalExtensions,
 		// @wp-playground/client doesn't actually use the remote-config virtual
 		// module, @wp-playground/remote package does. @wp-playground/client imports
 		// a few things from @wp-playground/remote and, even though it doesn't

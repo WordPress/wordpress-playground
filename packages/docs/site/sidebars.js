@@ -61,6 +61,7 @@ const sidebars = {
 						'main/contributing/code',
 						'main/contributing/coding-standards',
 						'main/contributing/contributor-day',
+						'main/contributing/contributor-badge',
 						'main/contributing/documentation',
 						'main/contributing/translations',
 					],

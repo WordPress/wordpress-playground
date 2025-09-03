@@ -26,6 +26,8 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -68,7 +70,7 @@ export default defineConfig(({ command, mode }) => {
 		server: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			allowedHosts: ['playground.test'],
+			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				...proxy,
 				// Proxy requests to the remote content through this server for dev
@@ -90,6 +92,7 @@ export default defineConfig(({ command, mode }) => {
 			}),
 			ignoreWasmImports(),
 			ignoreDataImports(),
+			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
 			virtualModule({
 				name: 'cors-proxy-url',

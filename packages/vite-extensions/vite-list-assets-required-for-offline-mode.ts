@@ -16,6 +16,7 @@ const patternsToNotCache = [
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',
+
 	/**
 	 * Source maps are not required to run the site and can be quite large.
 	 */
@@ -61,6 +62,7 @@ const patternsToNotCache = [
 	/^\/assets\/php_.*\.js$/, // PHP JS files
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
+	/^\/assets\/blueprints-.*\.phar$/, // Blueprints v2 runner
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {

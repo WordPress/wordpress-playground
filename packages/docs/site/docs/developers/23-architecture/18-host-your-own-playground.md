@@ -133,9 +133,17 @@ You may need to adjust the above according to server specifics, particularly how
 
 The file `wp.zip` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version.
 
-The package at `packages/playground/wordpress` is responsible for building these data files.
+The package at `packages/playground/wordpress-builds` is responsible for building these data files.
 
 Edit the build script in `Dockerfile` to create a custom bundle that includes preinstalled plugins or content.
+
+To rebuild the WordPress builds after customizing the `Dockerfile`, run the following command:
+
+```
+npm run rebuild:wordpress-builds
+```
+
+To rebuild the website to include the custom WordPress builds, follow the instructions [here](#build-locally).
 
 ### Install plugins
 

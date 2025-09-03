@@ -1,9 +1,12 @@
+import { logger } from '@php-wasm/logger';
 import { EventEmitter } from 'events';
 import { type WebSocket, WebSocketServer } from 'ws';
 
 export class CDPServer extends EventEmitter {
 	private wss: WebSocketServer;
 	private ws: WebSocket | null = null;
+	private connected = false;
+	private buffer: any[] = [];
 
 	constructor(port = 9229) {
 		super();
@@ -17,7 +20,7 @@ export class CDPServer extends EventEmitter {
 			this.ws = ws;
 			this.emit('clientConnected');
 			ws.on('message', (data) => {
-				console.log(
+				logger.debug(
 					'\x1b[1;32m[CDP][received]\x1b[0m',
 					data.toString()
 				);
@@ -27,7 +30,12 @@ export class CDPServer extends EventEmitter {
 				} catch {
 					return;
 				}
-				this.emit('message', message);
+
+				if (this.connected) {
+					this.emit('message', message);
+				} else {
+					this.buffer.push(message);
+				}
 			});
 			ws.on('close', () => {
 				this.ws = null;
@@ -37,6 +45,26 @@ export class CDPServer extends EventEmitter {
 				this.emit('error', err);
 			});
 		});
+
+		// When a new 'message' listener is registered,
+		// it replays any buffered messages on the next
+		// tick. This ensures that the listener receives
+		// all messages that arrived before it was opened.
+		// Once replayed, it clears the buffer and marks
+		// the connection as established.
+		this.on('newListener', (event) => {
+			if (event === 'message') {
+				process.nextTick(() => {
+					for (const message of this.buffer) {
+						this.emit('message', message);
+					}
+
+					this.buffer = [];
+
+					this.connected = true;
+				});
+			}
+		});
 	}
 
 	sendMessage(message: any) {
@@ -44,7 +72,11 @@ export class CDPServer extends EventEmitter {
 			return;
 		}
 		const json = JSON.stringify(message);
-		console.log('\x1b[1;32m[CDP][send]\x1b[0m', json);
+		logger.debug('\x1b[1;32m[CDP][send]\x1b[0m', json);
 		this.ws.send(json);
+	}
+
+	close() {
+		this.wss.close();
 	}
 }

@@ -16,6 +16,40 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('spawning less should work', async ({ website, wordpress }) => {
+	const blueprint: Blueprint = {
+		landingPage: '/less.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/less.php',
+				data: `<?php
+				$process = proc_open(
+					'less',
+					[
+						['pipe', 'r'],
+						['pipe', 'w'],
+						['pipe', 'w'],
+					],
+					$pipes
+				);
+				fwrite($pipes[0], 'Hello, world!');
+				fclose($pipes[0]);
+				$result = stream_get_contents($pipes[1]);
+				fclose($pipes[1]);
+				fclose($pipes[2]);
+				proc_close($process);
+				echo $result;
+			`,
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('Hello, world!');
+});
+
 test('?blueprint-url=... should work with simple blueprints', async ({
 	page,
 	website,

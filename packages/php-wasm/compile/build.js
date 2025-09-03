@@ -178,6 +178,7 @@ const args = argParser.argv;
 const platformDefaults = {
 	all: {
 		PHP_VERSION: '8.0.24',
+		WITH_CLI_SAPI: 'yes',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 		WITH_JSPI: 'no',
@@ -197,7 +198,6 @@ const platformDefaults = {
 	},
 	web: {},
 	node: {
-		WITH_CLI_SAPI: 'yes',
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
 	},
@@ -332,19 +332,14 @@ await asyncSpawn(
 
 // Copy data files
 const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
-const publicDir =
-	platform === 'node'
-		? `${path.dirname(outputDir)}/src/lib/data`
-		: `${path.dirname(path.dirname(outputDir))}`;
-if (getArg('WITH_INTL').endsWith('yes')) {
+const publicDir = `${path.dirname(path.dirname(outputDir))}`;
+if (getArg('WITH_INTL').endsWith('yes') && platform === 'web') {
 	await asyncSpawn(
 		'cp',
 		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
 }
-
-const _args = args;
 
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');

@@ -1,5 +1,7 @@
 ---
 slug: /contributing/code
+title: Contribuições de código
+description: Um guia para contribuições de código, cobrindo como fazer um fork do repositório, configurar um ambiente local e enviar um pull request.
 ---
 
 <!--

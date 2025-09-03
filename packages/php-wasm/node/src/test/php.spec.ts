@@ -112,6 +112,16 @@ phpLoaderOptions.forEach((options) => {
 				expect(streamed.headers).toBeInstanceOf(Promise);
 			});
 
+			it('should provide stdout bytes through stdoutBytes property', async () => {
+				const streamed = await php.runStream({
+					code: '<?php echo "Hello World";',
+				});
+				const bytes = await streamed.stdoutBytes;
+				expect(bytes).toStrictEqual(
+					new TextEncoder().encode('Hello World')
+				);
+			});
+
 			it('should provide stdout text through stdoutText property', async () => {
 				const streamed = await php.runStream({
 					code: '<?php echo "Hello World";',
@@ -2773,23 +2783,6 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		/**
-		 * intl support
-		 */
-		describe('intl extension support', { skip: options.withXdebug }, () => {
-			it('Should be able to use intl functions', async () => {
-				const response = await php.run({
-					code: `<?php
-							$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
-							echo numfmt_format($formatter, 100.00);
-							$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
-							echo numfmt_format($formatter, 100.00);
-						?>`,
-				});
-				expect(response.text).toEqual('$100.00100,00\xA0€');
-			});
-		});
-
 		describe('onMessage', { skip: options.withXdebug }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';
@@ -2874,6 +2867,22 @@ phpLoaderOptions.forEach((options) => {
 				expect(await response.stdoutText).toBe(
 					'/internal/shared/bin/php'
 				);
+			});
+
+			it('should support multiple calls to php.cli() and php.runStream() when runtime rotation is enabled', async () => {
+				php.enableRuntimeRotation({
+					maxRequests: 1,
+					recreateRuntime: () =>
+						loadNodeRuntime(phpVersion as any, options),
+				});
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response.stdoutText).toBe('Hello');
+				const response2 = await php.runStream({
+					code: `<?php echo "Hello";`,
+				});
+				expect(await response2.stdoutText).toBe('Hello');
+				const response3 = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response3.stdoutText).toBe('Hello');
 			});
 		});
 
