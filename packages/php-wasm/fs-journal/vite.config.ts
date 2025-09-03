@@ -8,6 +8,8 @@ import { join } from 'path';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-fs-journal',
@@ -22,6 +24,8 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
+
+		...viteGlobalExtensions,
 	],
 
 	// Configuration for building your library.

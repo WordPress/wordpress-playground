@@ -40,6 +40,7 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/resources';
+export { getV2Runner } from './lib/v2/get-v2-runner';
 
 export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';

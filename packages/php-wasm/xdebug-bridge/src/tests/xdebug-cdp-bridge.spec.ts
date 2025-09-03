@@ -12,16 +12,21 @@ describe('XdebugCDPBridge', () => {
 	let dbgpSession: DbgpSession;
 	let cdpServer: CDPServer;
 	let bridge: XdebugCDPBridge;
+	let fixtures: string;
 
 	beforeEach(async () => {
 		php = new PHP(
 			await loadNodeRuntime(RecommendedPHPVersion, { withXdebug: true })
 		);
 
+		fixtures = `${import.meta.dirname}/fixtures`;
+
 		dbgpSession = new DbgpSession();
 		cdpServer = new CDPServer();
 		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
-			knownScriptUrls: fs.readdirSync(`${import.meta.dirname}/fixtures`),
+			knownScriptUrls: fs
+				.readdirSync(`${import.meta.dirname}/fixtures`)
+				.map((file) => `${fixtures}/${file}`),
 			getPHPFile: (file) => php.readFileAsText(file),
 		});
 
@@ -40,8 +45,8 @@ describe('XdebugCDPBridge', () => {
 	});
 
 	it('initializes with correct script IDs', () => {
-		expect(bridge['scriptIdByUrl'].get('array.php')).toBe('1');
-		expect(bridge['scriptIdByUrl'].get('test.php')).toBe('2');
+		expect(bridge['scriptIdByUrl'].get(`${fixtures}/array.php`)).toBe('1');
+		expect(bridge['scriptIdByUrl'].get(`${fixtures}/test.php`)).toBe('2');
 	});
 
 	it('registers event handlers in start function', () => {
@@ -56,14 +61,10 @@ describe('XdebugCDPBridge', () => {
 			expect.any(Function)
 		);
 		expect(dbgpSession.on).toHaveBeenCalledWith(
-			'close',
+			'disconnected',
 			expect.any(Function)
 		);
 
-		expect(cdpServer.on).toHaveBeenCalledWith(
-			'clientConnected',
-			expect.any(Function)
-		);
 		expect(cdpServer.on).toHaveBeenCalledWith(
 			'message',
 			expect.any(Function)
@@ -136,8 +137,8 @@ describe('XdebugCDPBridge', () => {
 		bridge['breakpoints'].set('1', {
 			cdpId: '1',
 			xdebugId: null,
-			file: 'file:///test.php',
-			line: 5,
+			fileUri: 'file:///test.php',
+			lineNumber: 5,
 		});
 
 		bridge['handleCdpMessage']({
@@ -153,14 +154,21 @@ describe('XdebugCDPBridge', () => {
 		});
 	});
 
-	it('connects to Xdebug and pauses at a breakpoint', async () => {
+	it('connects to Xdebug and pauses at a given breakpoint', async () => {
 		bridge.start();
 
-		const script = fs.readFileSync(
-			`${import.meta.dirname}/fixtures/test.php`
-		);
+		bridge['handleCdpMessage']({
+			id: 3,
+			method: 'Debugger.setBreakpointByUrl',
+			params: {
+				url: `${fixtures}/test.php`,
+				lineNumber: 7,
+			},
+		});
 
-		await php.runStream({ code: script.toString() });
+		await php.runStream({
+			scriptPath: `${fixtures}/test.php`,
+		});
 
 		await new Promise((resolve) => {
 			const original = cdpServer.sendMessage.bind(cdpServer);
@@ -170,19 +178,44 @@ describe('XdebugCDPBridge', () => {
 			});
 		});
 
+		expect(
+			[...bridge['scriptIdByUrl'].entries()].find(
+				([, v]) => v === '2'
+			)?.[0]
+		).toBe(`${fixtures}/test.php`);
+
 		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
-			expect.objectContaining({ method: 'Debugger.paused' })
+			expect.objectContaining({
+				method: 'Debugger.paused',
+				params: expect.objectContaining({
+					callFrames: expect.arrayContaining([
+						expect.objectContaining({
+							location: expect.objectContaining({
+								scriptId: '2',
+								lineNumber: 7,
+							}),
+						}),
+					]),
+				}),
+			})
 		);
 	});
 
-	it('connects to Xdebug, pause at a breakpoint, steps over and returns correct stack', async () => {
+	it('connects to Xdebug, pause at a given breakpoint, steps over and returns correct stack', async () => {
 		bridge.start();
 
-		const script = fs.readFileSync(
-			`${import.meta.dirname}/fixtures/array.php`
-		);
+		bridge['handleCdpMessage']({
+			id: 3,
+			method: 'Debugger.setBreakpointByUrl',
+			params: {
+				url: `${fixtures}/array.php`,
+				lineNumber: 15,
+			},
+		});
 
-		await php.runStream({ code: script.toString() });
+		await php.runStream({
+			scriptPath: `${fixtures}/array.php`,
+		});
 
 		// 5 transactions were already sent before the first pause.
 		let steps = 5;
@@ -193,9 +226,7 @@ describe('XdebugCDPBridge', () => {
 			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.paused') {
-					if (steps < 8) {
-						dbgpSession.sendCommand(`step_over -i ${steps}`);
-					} else if (steps == 8) {
+					if (steps == 5) {
 						dbgpSession.sendCommand(
 							`property_get -d 0 -n $nested_array -p 0 -m 32 -i ${steps}`
 						);
@@ -211,11 +242,11 @@ describe('XdebugCDPBridge', () => {
 			vi.spyOn(dbgpSession as any, 'onData').mockImplementation(
 				(data) => {
 					if ((data as string).includes('command="property_get')) {
-						if (steps == 9) {
+						if (steps == 6) {
 							dbgpSession.sendCommand(
 								`property_get -d 0 -n $nested_array["baz"] -p 0 -m 32 -i ${steps}`
 							);
-						} else if (steps == 10) {
+						} else if (steps == 7) {
 							dbgpSession.sendCommand(
 								`property_get -d 0 -n $nested_array["baz"]["corge"] -p 0 -m 32 -i ${steps}`
 							);
@@ -251,17 +282,63 @@ describe('XdebugCDPBridge', () => {
 			);
 		});
 
-		expect(transactions[8]).toEqual([
+		expect(transactions[5]).toEqual([
 			{ name: 'foo', type: 'string' },
 			{ name: 'baz', type: 'array' },
 		]);
-		expect(transactions[9]).toEqual([
+		expect(transactions[6]).toEqual([
 			{ name: 'qux', type: 'string' },
 			{ name: 'corge', type: 'array' },
 		]);
-		expect(transactions[10]).toEqual([
+		expect(transactions[7]).toEqual([
 			{ name: 'grault', type: 'string' },
 			{ name: 'waldo', type: 'string' },
 		]);
+	});
+
+	it('connects to Xdebug and pauses on the first line read when breakOnFirstLine enabled', async () => {
+		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
+			knownScriptUrls: fs
+				.readdirSync(fixtures)
+				.map((file) => `${fixtures}/${file}`),
+			getPHPFile: (file) => php.readFileAsText(file),
+			breakOnFirstLine: true,
+		});
+
+		bridge.start();
+
+		await php.runStream({
+			scriptPath: `${fixtures}/test.php`,
+		});
+
+		await new Promise((resolve) => {
+			const original = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((msg) => {
+				if (msg.method === 'Debugger.paused') resolve(msg);
+				return original(msg);
+			});
+		});
+
+		expect(
+			[...bridge['scriptIdByUrl'].entries()].find(
+				([, v]) => v === '3'
+			)?.[0]
+		).toBe('/internal/shared/auto_prepend_file.php');
+
+		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				method: 'Debugger.paused',
+				params: expect.objectContaining({
+					callFrames: expect.arrayContaining([
+						expect.objectContaining({
+							location: expect.objectContaining({
+								scriptId: '3',
+								lineNumber: 2,
+							}),
+						}),
+					]),
+				}),
+			})
+		);
 	});
 });

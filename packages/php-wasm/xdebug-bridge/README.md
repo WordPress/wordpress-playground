@@ -62,10 +62,9 @@ npx xdebug-bridge --help
 -   `dbgpPort`: Port to listen for XDebug connections (default: 9003)
 -   `phpRoot`: Root path for php files
 -   `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
--   `remoteRoot`: Remote root path for php files
--   `localRoot`: Local root path for php files
 -   `phpInstance`: PHP instance
 -   `getPHPFile`: Custom file listing function
+-   `breakOnFirstLine`: Breaks on the first breakable line
 
 ## Events
 
@@ -74,7 +73,7 @@ The bridge listens to events for monitoring connection activity:
 #### From Xdebug
 
 -   `connected`: Xdebug Server has started
--   `close`: Xdebug Server has stopped
+-   `disconnected`: Xdebug Server has stopped
 -   `message`: Raw XDebug data received
 -   `error`: Xdebug Server error occurred
 

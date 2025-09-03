@@ -332,11 +332,8 @@ await asyncSpawn(
 
 // Copy data files
 const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
-const publicDir =
-	platform === 'node'
-		? `${path.dirname(outputDir)}/src/lib/data`
-		: `${path.dirname(path.dirname(outputDir))}`;
-if (getArg('WITH_INTL').endsWith('yes')) {
+const publicDir = `${path.dirname(path.dirname(outputDir))}`;
+if (getArg('WITH_INTL').endsWith('yes') && platform === 'web') {
 	await asyncSpawn(
 		'cp',
 		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
