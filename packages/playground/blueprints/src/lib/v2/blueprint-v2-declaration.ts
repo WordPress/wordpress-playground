@@ -1,4 +1,4 @@
-import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { BlueprintDeclaration } from '../blueprint';
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
 export type ParsedBlueprintV2Declaration =

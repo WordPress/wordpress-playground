@@ -349,6 +349,7 @@ export class PHP implements Disposable {
 					return returnData;
 				}
 			}
+
 			return '';
 		};
 
@@ -1450,16 +1451,10 @@ export class PHP implements Disposable {
 				async: true,
 			});
 		})
-			.then(
-				(response) => {
-					response.finished.finally(release);
-					return response;
-				},
-				(error) => {
-					release();
-					throw error;
-				}
-			)
+			.then((response) => {
+				response.exitCode.finally(release);
+				return response;
+			})
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;
 			});

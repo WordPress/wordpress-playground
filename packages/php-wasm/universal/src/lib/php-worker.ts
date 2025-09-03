@@ -1,15 +1,15 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import { PHPResponse, StreamedPHPResponse } from './php-response';
+import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
-	PHPRequest,
-	PHPRunOptions,
 	MessageListener,
 	PHPEvent,
 	PHPEventListener,
+	PHPRequest,
+	PHPRunOptions,
 } from './universal-php';
-import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
 
 const _private = new WeakMap<
 	PHPWorker,
@@ -183,17 +183,15 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	async cli(
 		argv: string[],
 		options?: { env?: Record<string, string> }
-	): Promise<PHPResponse> {
-		const result = await _private.get(this)!.php!.cli(argv, options);
-		const textResponse = await PHPResponse.fromStreamedResponse(result);
-		console.log('result', textResponse);
-		console.log('textResponse', textResponse.text);
-		console.log('textResponse', textResponse.errors);
-		console.log('textResponse', textResponse.exitCode);
-		console.log('textResponse', textResponse.httpStatusCode);
-		console.log('textResponse', textResponse.headers);
-		console.log('textResponse', textResponse.bytes);
-		return textResponse;
+	): Promise<StreamedPHPResponse> {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		try {
+			return await php.cli(argv, options);
+		} finally {
+			reap();
+		}
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */

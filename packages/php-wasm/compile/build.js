@@ -178,6 +178,7 @@ const args = argParser.argv;
 const platformDefaults = {
 	all: {
 		PHP_VERSION: '8.0.24',
+		WITH_CLI_SAPI: 'yes',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 		WITH_JSPI: 'no',
@@ -193,7 +194,6 @@ const platformDefaults = {
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 		WITH_OPCACHE: 'yes',
-		WITH_CLI_SAPI: 'yes',
 		STACK_SIZE: '1MB',
 	},
 	web: {},

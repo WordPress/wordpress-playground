@@ -2,7 +2,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import { type PHPRequestHandler } from '@php-wasm/universal';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { rootCertificates } from 'node:tls';
-import { runBlueprintV2 } from '../src/blueprints-v2/run-blueprint-v2';
+import { runBlueprintV2 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 
 describe('V2 runner', () => {
