@@ -1336,6 +1336,7 @@ export class PHP implements Disposable {
 		// runtime.
 
 		const oldFS = this[__private__dont__use].FS;
+		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Unmount all the mount handlers
 		const mountHandlers: { mountHandler: MountHandler; vfsPath: string }[] =
@@ -1354,6 +1355,10 @@ export class PHP implements Disposable {
 
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
+
+		if (oldSpawnProcess) {
+			this[__private__dont__use].spawnProcess = oldSpawnProcess;
+		}
 
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
