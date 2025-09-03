@@ -2143,6 +2143,7 @@ RUN set -euxo pipefail; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
+	export OPTIMIZATION_FLAGS="-O0 -g2"; \
 	PLATFORM_SPECIFIC_ARGS=''; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \

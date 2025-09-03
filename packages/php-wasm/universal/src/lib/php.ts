@@ -1335,6 +1335,7 @@ export class PHP implements Disposable {
 		// runtime.
 
 		const oldFS = this[__private__dont__use].FS;
+		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Unmount all the mount handlers
 		const mountHandlers: { mountHandler: MountHandler; vfsPath: string }[] =
@@ -1353,6 +1354,10 @@ export class PHP implements Disposable {
 
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
+
+		if (oldSpawnProcess) {
+			this[__private__dont__use].spawnProcess = oldSpawnProcess;
+		}
 
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
@@ -1445,10 +1450,16 @@ export class PHP implements Disposable {
 				async: true,
 			});
 		})
-			.then((response) => {
-				response.exitCode.finally(release);
-				return response;
-			})
+			.then(
+				(response) => {
+					response.finished.finally(release);
+					return response;
+				},
+				(error) => {
+					release();
+					throw error;
+				}
+			)
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;
 			});

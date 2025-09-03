@@ -1,4 +1,4 @@
-import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { getV2Runner } from '@wp-playground/blueprints';
 
 export type PHPExceptionDetails = {
@@ -60,7 +60,78 @@ interface RunV2Options {
 	onMessage?: (message: BlueprintMessage) => void | Promise<void>;
 }
 
-const blueprintsFilters = `function playground_http_client_factory() {
+export async function runBlueprintV2Web(
+	options: RunV2Options
+): Promise<PHPResponse> {
+	console.log('runBlueprintV2Web', options);
+
+	const php = options.php;
+	const parentDir = `/internal/shared/${Math.random()
+		.toString(36)
+		.substring(2, 15)}`;
+	console.log('parentDir', parentDir);
+	if (!(await php.fileExists(parentDir))) {
+		await php.mkdir(parentDir);
+	}
+	try {
+		const onMessage = options?.onMessage || (() => {});
+
+		const file = await getV2Runner();
+		php.writeFile(
+			parentDir + '/blueprints.phar',
+			new Uint8Array(await file.arrayBuffer())
+		);
+
+		const parsedBlueprintDeclaration = parseBlueprintDeclaration(
+			options.blueprint
+		);
+		let blueprintReference = '';
+		switch (parsedBlueprintDeclaration.type) {
+			case 'inline-file':
+				php.writeFile(
+					parentDir + '/blueprint.json',
+					parsedBlueprintDeclaration.contents
+				);
+				blueprintReference = parentDir + '/blueprint.json';
+				break;
+			case 'file-reference':
+				blueprintReference = parsedBlueprintDeclaration.reference;
+				break;
+		}
+
+		const unbindMessageListener = await php.onMessage(async (message) => {
+			try {
+				const parsed =
+					typeof message === 'string' ? JSON.parse(message) : message;
+				if (!parsed) {
+					return undefined;
+				}
+				// @TODO: Errors, such as "unknown argument", are not being reported
+				//        to the user. They are correctly parsed here and passed to the
+				//        caller, they're just never surfaced in the UI.
+				if (parsed.type && parsed.type.startsWith('blueprint.')) {
+					console.log(parsed);
+					await onMessage(parsed);
+					return 'handled!';
+				}
+				return undefined;
+			} catch {
+				// Ignore parse errors
+			}
+			return undefined;
+		});
+
+		// @TODO: Careful with pre-existing sites!
+		if (await php.fileExists('/wordpress')) {
+			await php.rmdir('/wordpress', { recursive: true });
+			await php.mkdir('/wordpress');
+		}
+
+		await php?.writeFile(
+			parentDir + '/run-blueprints.php',
+			`<?php
+
+function playground_http_client_factory() {
 	return new WordPress\\HttpClient\\Client([
 		'transport' => 'sockets',
 	]);
@@ -137,101 +208,43 @@ function playground_progress_reporter() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
-`;
-
-export async function runBlueprintV2Web(
-	options: RunV2Options
-): Promise<PHPResponse> {
-	console.log('runBlueprintV2Web', options);
-
-	const php = options.php;
-	const onMessage = options?.onMessage || (() => {});
-
-	const file = await getV2Runner();
-	php.writeFile(
-		'/tmp/blueprints.phar',
-		new Uint8Array(await file.arrayBuffer())
-	);
-
-	const parsedBlueprintDeclaration = parseBlueprintDeclaration(
-		options.blueprint
-	);
-	let blueprintReference = '';
-	switch (parsedBlueprintDeclaration.type) {
-		case 'inline-file':
-			php.writeFile(
-				'/tmp/blueprint.json',
-				parsedBlueprintDeclaration.contents
-			);
-			blueprintReference = '/tmp/blueprint.json';
-			break;
-		case 'file-reference':
-			blueprintReference = parsedBlueprintDeclaration.reference;
-			break;
-	}
-
-	const unbindMessageListener = await php.onMessage(async (message) => {
-		try {
-			const parsed =
-				typeof message === 'string' ? JSON.parse(message) : message;
-			if (!parsed) {
-				return undefined;
-			}
-			if (parsed.type && parsed.type.startsWith('blueprint.')) {
-				await onMessage(parsed);
-				return 'handled!';
-			}
-			return undefined;
-		} catch {
-			// Ignore parse errors
-		}
-		return undefined;
-	});
-
-	// @TODO: Careful with pre-existing sites!
-	if (await php.fileExists('/wordpress')) {
-		await php.rmdir('/wordpress', { recursive: true });
-		await php.mkdir('/wordpress');
-	}
-
-	await php?.writeFile(
-		'/tmp/run-blueprints.php',
-		`<?php
-
-${blueprintsFilters}
 
 // Include the phar and trigger its CLI execution
-require( "/tmp/blueprints.phar" );
+var_dump(getenv('PARENT_DIR') . '/blueprints.phar');
+require( getenv('PARENT_DIR') . '/blueprints.phar' );
 `
-	);
-	console.log({ blueprintReference });
-	console.log('before runStream', {
-		siteUrl: await php.absoluteUrl,
-	});
+		);
+		console.log({ blueprintReference });
+		console.log('before runStream', {
+			siteUrl: await php.absoluteUrl,
+		});
 
-	const r = await php.cli(
-		[
-			'/internal/shared/bin/php',
-			'/tmp/run-blueprints.php',
-			'exec',
-			blueprintReference,
-			'--site-path=/wordpress',
-			'--db-engine=sqlite',
-			'--db-path=/wordpress/wp-content/databases/.ht.sqlite',
-			'--target-site-url=' + (await php.absoluteUrl),
-			'--execution-mode=create-new-site',
-		],
-		{
-			env: {
-				ADDITIONAL_BLUEPRINT_STEPS: JSON.stringify(
-					options.blueprintOverrides?.additionalSteps || []
-				),
-				WP_VERSION_OVERRIDE:
-					options.blueprintOverrides?.wordpressVersion || '',
-			},
-		}
-	);
-	unbindMessageListener();
-	console.log('after runStream', r);
-	return r;
+		const r = await php.cli(
+			[
+				parentDir + '/php',
+				parentDir + '/run-blueprints.php',
+				'exec',
+				blueprintReference,
+				'--site-path=/wordpress',
+				'--site-url=' + (await php.absoluteUrl),
+				'--mode=create-new-site',
+				'--db-engine=sqlite',
+				'--db-path=/wordpress/wp-content/databases/.ht.sqlite',
+			],
+			{
+				env: {
+					PARENT_DIR: parentDir,
+					ADDITIONAL_BLUEPRINT_STEPS: JSON.stringify(
+						options.blueprintOverrides?.additionalSteps || []
+					),
+					WP_VERSION_OVERRIDE:
+						options.blueprintOverrides?.wordpressVersion || '',
+				},
+			}
+		);
+		unbindMessageListener();
+		return r;
+	} finally {
+		await php.rmdir(parentDir, { recursive: true });
+	}
 }

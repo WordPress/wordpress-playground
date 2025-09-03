@@ -1,7 +1,7 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import type { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	PHPRequest,
 	PHPRunOptions,
@@ -184,7 +184,16 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		argv: string[],
 		options?: { env?: Record<string, string> }
 	): Promise<PHPResponse> {
-		return _private.get(this)!.php!.cli(argv, options);
+		const result = await _private.get(this)!.php!.cli(argv, options);
+		const textResponse = await PHPResponse.fromStreamedResponse(result);
+		console.log('result', textResponse);
+		console.log('textResponse', textResponse.text);
+		console.log('textResponse', textResponse.errors);
+		console.log('textResponse', textResponse.exitCode);
+		console.log('textResponse', textResponse.httpStatusCode);
+		console.log('textResponse', textResponse.headers);
+		console.log('textResponse', textResponse.bytes);
+		return textResponse;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */

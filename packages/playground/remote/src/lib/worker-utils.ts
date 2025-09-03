@@ -1,5 +1,5 @@
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import type { PHPResponse, PHPProcessManager, PHP } from '@php-wasm/universal';
+import { PHPResponse, PHPProcessManager, PHP } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
@@ -11,8 +11,6 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 		if (args[0] === 'exec') {
 			args.shift();
 		}
-
-		console.log(args);
 
 		// Mock programs required by wp-cli:
 		if (
@@ -64,59 +62,22 @@ export function spawnHandlerFactory(processManager: PHPProcessManager) {
 
 			let result: PHPResponse | undefined = undefined;
 			try {
-				// @TODO: Run the actual PHP CLI SAPI instead of
-				//        interpreting the arguments and emulating
-				//        the CLI constants and globals.
-				const cliBootstrapScript = `<?php
-                // Set the argv global.
-				$argv = [];
-                $GLOBALS['argv'] = $_SERVER['argv'] = array_merge([
-                    "/wordpress/wp-cli.phar",
-                    "--path=/wordpress"
-                ], ${phpVar(args.slice(2))});
-
-                // Provide stdin, stdout, stderr streams outside of
-                // the CLI SAPI.
-                define('STDIN', fopen('php://stdin', 'rb'));
-                define('STDOUT', fopen('php://stdout', 'wb'));
-                define('STDERR', fopen('/tmp/stderr', 'wb'));
-
-                ${options.cwd ? 'chdir(getenv("DOCROOT")); ' : ''}
-                `;
-
-				// const result = await php.cli(args.slice(2), {
-				// 	env: options.env,
-				// });
-
-				// if (args.includes('-r')) {
-				// 	result = await php.run({
-				// 		code: `${cliBootstrapScript} ${
-				// 			args[args.indexOf('-r') + 1]
-				// 		}`,
-				// 		env: options.env,
-				// 	});
-				// } else
-				console.log('before running a script at all');
-				if (1 || args[1]?.endsWith('/wp-cli.phar')) {
-					console.log('running with PHP_SCRIPT_PATH', args[1]);
-					result = await php.run({
-						code: `${cliBootstrapScript} require( getenv('PHP_SCRIPT_PATH') );`,
+				const streamingResponse = await php.cli(
+					['/usr/bin/php', ...args.slice(1)],
+					{
 						env: {
 							...options.env,
-							PHP_SCRIPT_PATH: args[1],
 							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 							// the output as ASCII tables.
 							// @see https://github.com/wp-cli/wp-cli/issues/1102
 							SHELL_PIPE: '0',
 						},
-					});
-				} else {
-					console.log('running without PHP_SCRIPT_PATH', args[1]);
-					result = await php.run({
-						scriptPath: args[1],
-						env: options.env,
-					});
-				}
+					}
+				);
+				result = await PHPResponse.fromStreamedResponse(
+					streamingResponse
+				);
+
 				processApi.stdout(result.bytes);
 				processApi.stderr(result.errors);
 				processApi.exit(result.exitCode);
