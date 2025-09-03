@@ -480,8 +480,14 @@ export class XdebugCDPBridge {
 				// getScriptSource usually fills the source file.
 				// With scripts now using source maps, the source map
 				// now handles displaying the file content.
-				// Therefore, we return an empty script source.
-				result = { scriptSource: '' };
+				// Therefore, we return a redirect message instead.
+				result = {
+					scriptSource: [
+						'`This is not the file you’re looking for.',
+						'It exists solely as a technical placeholder due to limitations in the dev tools.',
+						'Please disregard this file and locate your intended file in the PHP.wasm directory.`',
+					].join('\n'),
+				};
 				break;
 			}
 			default:
