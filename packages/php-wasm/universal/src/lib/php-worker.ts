@@ -179,6 +179,21 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 	}
 
+	/** @inheritDoc @php-wasm/universal!/PHP.cli */
+	async cli(
+		argv: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<StreamedPHPResponse> {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		try {
+			return await php.cli(argv, options);
+		} finally {
+			reap();
+		}
+	}
+
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php!.chdir(path);
