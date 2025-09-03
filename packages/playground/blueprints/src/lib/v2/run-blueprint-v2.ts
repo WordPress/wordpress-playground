@@ -9,7 +9,7 @@ import {
 	type BlueprintV2Declaration,
 	type ParsedBlueprintV2Declaration,
 	parseBlueprintDeclaration,
-} from '../../../blueprints/src/lib/v2/blueprint-v2-declaration';
+} from './blueprint-v2-declaration';
 
 export type PHPExceptionDetails = {
 	exception: string;
@@ -43,26 +43,6 @@ interface RunV2Options {
 export async function runBlueprintV2(
 	options: RunV2Options
 ): Promise<StreamedPHPResponse> {
-	const cliArgs = options.cliArgs || [];
-	for (const arg of cliArgs) {
-		if (arg.startsWith('--site-path=')) {
-			throw new Error(
-				'The --site-path CLI argument must not be provided. In Playground, it is always set to /wordpress.'
-			);
-		}
-	}
-	cliArgs.push('--site-path=/wordpress');
-
-	/**
-	 * Divergence from blueprints.phar – the default database engine is
-	 * SQLite. Why? Because in Playground we'll use SQLite far more often than
-	 * MySQL.
-	 */
-	const dbEngine = cliArgs.find((arg) => arg.startsWith('--db-engine='));
-	if (!dbEngine) {
-		cliArgs.push('--db-engine=sqlite');
-	}
-
 	const php = options.php;
 	const onMessage = options?.onMessage || (() => {});
 
@@ -209,6 +189,26 @@ playground_add_filter('blueprint.progress_reporter', 'playground_progress_report
 require( "/tmp/blueprints.phar" );
 `
 	);
+
+	const cliArgs = options.cliArgs || [];
+	for (const arg of cliArgs) {
+		if (arg.startsWith('--site-path=')) {
+			throw new Error(
+				'The --site-path CLI argument must not be provided. In Playground, it is always set to /wordpress.'
+			);
+		}
+	}
+	cliArgs.push('--site-path=/wordpress');
+
+	/**
+	 * Divergence from blueprints.phar – the default database engine is
+	 * SQLite. Why? Because in Playground we'll use SQLite far more often than
+	 * MySQL.
+	 */
+	const dbEngine = cliArgs.find((arg) => arg.startsWith('--db-engine='));
+	if (!dbEngine) {
+		cliArgs.push('--db-engine=sqlite');
+	}
 	const streamedResponse = (await (php as any).cli([
 		'/internal/shared/bin/php',
 		'/tmp/run-blueprints.php',
