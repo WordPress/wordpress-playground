@@ -187,10 +187,14 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		const { php, reap } = await _private
 			.get(this)!
 			.requestHandler!.processManager.acquirePHPInstance();
+		let response: StreamedPHPResponse;
 		try {
-			return await php.cli(argv, options);
-		} finally {
+			response = await php.cli(argv, options);
+			response.finished.finally(reap);
+			return response;
+		} catch (error) {
 			reap();
+			throw error;
 		}
 	}
 

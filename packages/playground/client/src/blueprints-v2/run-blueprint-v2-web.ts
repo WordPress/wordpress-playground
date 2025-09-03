@@ -60,84 +60,7 @@ interface RunV2Options {
 	onMessage?: (message: BlueprintMessage) => void | Promise<void>;
 }
 
-export async function runBlueprintV2Web(
-	options: RunV2Options
-): Promise<PHPResponse> {
-	console.log('runBlueprintV2Web', options);
-
-	const php = options.php;
-	const onMessage = options?.onMessage || (() => {});
-
-	const file = await getV2Runner();
-	php.writeFile(
-		'/tmp/blueprints.phar',
-		new Uint8Array(await file.arrayBuffer())
-	);
-
-	const parsedBlueprintDeclaration = parseBlueprintDeclaration(
-		options.blueprint
-	);
-	let blueprintReference = '';
-	switch (parsedBlueprintDeclaration.type) {
-		case 'inline-file':
-			php.writeFile(
-				'/tmp/blueprint.json',
-				parsedBlueprintDeclaration.contents
-			);
-			blueprintReference = '/tmp/blueprint.json';
-			console.log(parsedBlueprintDeclaration.contents);
-			break;
-		case 'file-reference':
-			blueprintReference = parsedBlueprintDeclaration.reference;
-			break;
-	}
-
-	const unbindMessageListener = await php.onMessage(async (message) => {
-		try {
-			const parsed =
-				typeof message === 'string' ? JSON.parse(message) : message;
-			if (!parsed) {
-				return undefined;
-			}
-			if (parsed.type && parsed.type.startsWith('blueprint.')) {
-				await onMessage(parsed);
-				return 'handled!';
-			}
-			return undefined;
-		} catch {
-			// Ignore parse errors
-		}
-		return undefined;
-	});
-
-	// @TODO: Careful with pre-existing sites!
-	if (await php.fileExists('/wordpress')) {
-		await php.rmdir('/wordpress', { recursive: true });
-		await php.mkdir('/wordpress');
-	}
-
-	await php?.writeFile(
-		'/tmp/run-blueprints.php',
-		`<?php
-
-use WordPress\\CLI\\CLI;
-use WordPress\\Blueprints\\DataReference\\AbsoluteLocalPath;
-use WordPress\\Blueprints\\DataReference\\DataReference;
-use WordPress\\Blueprints\\DataReference\\ExecutionContextPath;
-use WordPress\\Blueprints\\Exception\\BlueprintExecutionException;
-use WordPress\\Blueprints\\Exception\\PermissionsException;
-use WordPress\\Blueprints\\Logger\\CLILogger;
-use WordPress\\Blueprints\\ProgressObserver;
-use WordPress\\Blueprints\\Runner;
-use WordPress\\Blueprints\\RunnerConfiguration;
-use WordPress\\Filesystem\\LocalFilesystem;
-
-$argv = [];
-$GLOBALS['argv'] = $_SERVER['argv'] = array_merge([
-	"/tmp/blueprints.phar"
-], []);
-
-function playground_http_client_factory() {
+const blueprintsFilters = `function playground_http_client_factory() {
 	return new WordPress\\HttpClient\\Client([
 		'transport' => 'sockets',
 	]);
@@ -214,51 +137,71 @@ function playground_progress_reporter() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
-post_message_to_js(json_encode([
-	'type' => 'blueprint.target_resolved',
-]));
+`;
 
-$argv = [];
+export async function runBlueprintV2Web(
+	options: RunV2Options
+): Promise<PHPResponse> {
+	console.log('runBlueprintV2Web', options);
+
+	const php = options.php;
+	const onMessage = options?.onMessage || (() => {});
+
+	const file = await getV2Runner();
+	php.writeFile(
+		'/tmp/blueprints.phar',
+		new Uint8Array(await file.arrayBuffer())
+	);
+
+	const parsedBlueprintDeclaration = parseBlueprintDeclaration(
+		options.blueprint
+	);
+	let blueprintReference = '';
+	switch (parsedBlueprintDeclaration.type) {
+		case 'inline-file':
+			php.writeFile(
+				'/tmp/blueprint.json',
+				parsedBlueprintDeclaration.contents
+			);
+			blueprintReference = '/tmp/blueprint.json';
+			break;
+		case 'file-reference':
+			blueprintReference = parsedBlueprintDeclaration.reference;
+			break;
+	}
+
+	const unbindMessageListener = await php.onMessage(async (message) => {
+		try {
+			const parsed =
+				typeof message === 'string' ? JSON.parse(message) : message;
+			if (!parsed) {
+				return undefined;
+			}
+			if (parsed.type && parsed.type.startsWith('blueprint.')) {
+				await onMessage(parsed);
+				return 'handled!';
+			}
+			return undefined;
+		} catch {
+			// Ignore parse errors
+		}
+		return undefined;
+	});
+
+	// @TODO: Careful with pre-existing sites!
+	if (await php.fileExists('/wordpress')) {
+		await php.rmdir('/wordpress', { recursive: true });
+		await php.mkdir('/wordpress');
+	}
+
+	await php?.writeFile(
+		'/tmp/run-blueprints.php',
+		`<?php
+
+${blueprintsFilters}
+
+// Include the phar and trigger its CLI execution
 require( "/tmp/blueprints.phar" );
-
-$config = new RunnerConfiguration();
-
-// The first positional is the blueprint reference
-try {
-	$blueprint_reference = getenv('BLUEPRINT_REFERENCE');
-	$config->setBlueprint( DataReference::create( $blueprint_reference, [
-		AbsoluteLocalPath::class,
-		ExecutionContextPath::class,
-	] ) );
-} catch ( InvalidArgumentException $e ) {
-	throw new InvalidArgumentException( sprintf( "Invalid Blueprint reference: %s. Hint: paths must start with ./ or /. URLs must start with http:// or https://.", $blueprint_reference ) );
-}
-
-$config->setExecutionMode( Runner::EXECUTION_MODE_CREATE_NEW_SITE );
-
-$targetSiteRoot = '/wordpress';
-
-$absoluteTargetSiteRoot = realpath( $targetSiteRoot );
-if ( false === $absoluteTargetSiteRoot || ! is_dir( $absoluteTargetSiteRoot ) ) {
-	throw new InvalidArgumentException( "The --site-path path does not exist: {$targetSiteRoot}" );
-}
-$config->setTargetSiteRoot( $absoluteTargetSiteRoot );
-$config->setTargetSiteUrl( getenv('SITE_URL') );
-
-// Set database engine
-$config->setDatabaseEngine( 'sqlite' );
-$config->setDatabaseCredentials( [
-	'path' => '/wordpress/wp-content/databases/.ht.sqlite',
-] );
-
-$config->setLogger(
-	new CLILogger( 'php://stdout', CLILogger::VERBOSITY_INFO )
-);
-$config->setProgressObserver( new ProgressObserver( function ( $progress, $caption ) use ( $progressReporter ) {
-	$progressReporter->reportProgress( $progress, $caption );
-} ) );
-$runner = new Runner( $config );
-$runner->run();
 `
 	);
 	console.log({ blueprintReference });
@@ -266,18 +209,28 @@ $runner->run();
 		siteUrl: await php.absoluteUrl,
 	});
 
-	const r = await php.run({
-		scriptPath: '/tmp/run-blueprints.php',
-		env: {
-			BLUEPRINT_REFERENCE: blueprintReference,
-			SITE_URL: await php.absoluteUrl,
-			ADDITIONAL_BLUEPRINT_STEPS: JSON.stringify(
-				options.blueprintOverrides?.additionalSteps || []
-			),
-			WP_VERSION_OVERRIDE:
-				options.blueprintOverrides?.wordpressVersion || '',
-		},
-	});
+	const r = await php.cli(
+		[
+			'/internal/shared/bin/php',
+			'/tmp/run-blueprints.php',
+			'exec',
+			blueprintReference,
+			'--site-path=/wordpress',
+			'--db-engine=sqlite',
+			'--db-path=/wordpress/wp-content/databases/.ht.sqlite',
+			'--target-site-url=' + (await php.absoluteUrl),
+			'--execution-mode=create-new-site',
+		],
+		{
+			env: {
+				ADDITIONAL_BLUEPRINT_STEPS: JSON.stringify(
+					options.blueprintOverrides?.additionalSteps || []
+				),
+				WP_VERSION_OVERRIDE:
+					options.blueprintOverrides?.wordpressVersion || '',
+			},
+		}
+	);
 	unbindMessageListener();
 	console.log('after runStream', r);
 	return r;

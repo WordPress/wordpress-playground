@@ -17,7 +17,7 @@ import { type BlueprintMessage, runBlueprintV2 } from './run-blueprint-v2';
 import {
 	type ParsedBlueprintV2Declaration,
 	type BlueprintV2Declaration,
-} from './blueprint-v2-declaration';
+} from '../../../blueprints/src/lib/v2/blueprint-v2-declaration';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';

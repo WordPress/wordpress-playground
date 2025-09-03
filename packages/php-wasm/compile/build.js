@@ -194,6 +194,7 @@ const platformDefaults = {
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 		WITH_OPCACHE: 'yes',
+		WITH_CLI_SAPI: 'yes',
 		STACK_SIZE: '1MB',
 	},
 	web: {},
