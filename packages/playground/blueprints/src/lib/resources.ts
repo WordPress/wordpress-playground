@@ -12,6 +12,7 @@ import {
 	resolveCommitHash,
 	sparseCheckout,
 } from '@wp-playground/storage';
+import { zipNameToHumanName } from './utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './blueprint';
@@ -450,28 +451,21 @@ export abstract class APIBasedFetchResource extends FetchResource {
 				undefined,
 				await this.playground?.absoluteUrl
 			);
-			if (!response.ok) {
-				throw new Error(`Could not fetch "${url}"`);
+			if (response.ok) {
+				response = await cloneResponseMonitorProgress(
+					response,
+					this.progress?.loadingListener ?? noop
+				);
 			}
-			response = await cloneResponseMonitorProgress(
-				response,
-				this.progress?.loadingListener ?? noop
-			);
-			if (response.status !== 200) {
-				throw new Error(`Could not fetch "${url}"`);
-			}
+
 			this.apiResult = await response.json();
 
 			this.resource.name = this.name;
-
-			return await super.resolve();
 		} catch (e) {
-			throw new Error(
-				`Could not fetch "${url}".
-				Error:
-				${e}`
-			);
+			// swallow the error, we'll gracefully degrade to using the slug.
 		}
+
+		return await super.resolve();
 	}
 
 	/**
@@ -489,7 +483,11 @@ export abstract class APIBasedFetchResource extends FetchResource {
 	}
 
 	override get name() {
-		return this.apiResult?.name;
+		return (
+			this.apiResult?.name ||
+			this.resource.name ||
+			zipNameToHumanName(this.resource.slug)
+		);
 	}
 
 	getURL() {
@@ -718,6 +716,15 @@ export class CoreThemeResource extends APIBasedFetchResource {
 			this.resource.slug
 		)}`;
 	}
+
+	override getURL() {
+		return (
+			this.apiResult?.download_link ||
+			`https://downloads.wordpress.org/themes/${encodeURIComponent(
+				this.resource.slug
+			)}.latest-stable.zip`
+		);
+	}
 }
 
 /**
@@ -728,6 +735,15 @@ export class CorePluginResource extends APIBasedFetchResource {
 		return `https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=${encodeURIComponent(
 			this.resource.slug
 		)}`;
+	}
+
+	override getURL() {
+		return (
+			this.apiResult?.download_link ||
+			`https://downloads.wordpress.org/plugins/${encodeURIComponent(
+				this.resource.slug
+			)}.latest-stable.zip`
+		);
 	}
 }
 
