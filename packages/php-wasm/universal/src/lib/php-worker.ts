@@ -1,7 +1,7 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import type { PHPResponse } from './php-response';
+import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	PHPRequest,
 	PHPRunOptions,
