@@ -175,7 +175,10 @@ export class XdebugCDPBridge {
 
 	private async sendScriptToCDP(url: string, id: string): Promise<void> {
 		const highlightUri = this.uriFromBridgeToCDPSyntaxHighlight(url);
-		const cdpUri = this.uriFromBridgeToCDP(url);
+		const placeholder = [...Array(16)]
+			.map(() => Math.floor(Math.random() * 16).toString(16))
+			.join('');
+		const cdpUri = this.uriFromBridgeToCDP(placeholder);
 
 		const phpContent = await this.readPHPFile(url);
 		const phpLines = phpContent.split('\n');
@@ -477,15 +480,38 @@ export class XdebugCDPBridge {
 				break;
 			}
 			case 'Debugger.getScriptSource': {
+				const sid = params.scriptId;
+				const bridgeUri = [...this.scriptIdByUrl.entries()].find(
+					([, v]) => v === sid
+				)?.[0];
+
+				const fullPath = [];
+
+				if (bridgeUri) {
+					fullPath.push(
+						...[
+							"Here's the full path for your convenience:\n",
+							`${this.uriFromBridgeToCDPSyntaxHighlight(
+								bridgeUri
+							).replace('file://', '')}\n`,
+						]
+					);
+				}
+
 				// getScriptSource usually fills the source file.
 				// With scripts now using source maps, the source map
 				// now handles displaying the file content.
 				// Therefore, we return a redirect message instead.
 				result = {
 					scriptSource: [
-						'`This is not the file you’re looking for.',
-						'It exists solely as a technical placeholder due to limitations in the dev tools.',
-						'Please disregard this file and locate your intended file in the PHP.wasm directory.`',
+						'`Are you looking for your source code?',
+						'Go to PHP.wasm group in the navigator and find it there.',
+						...fullPath,
+						"What is this file, then? It's a placeholder required due to the dev tools limitations.",
+						'The XDebug <-> Devtools bridge implement PHP syntax highlighting using source maps,',
+						'and the unfortunate side effect is having a "source" file and a "target" file.',
+						'This is the "source". If you\'re interested in even more details, see the discussion at:\n',
+						'https://github.com/WordPress/wordpress-playground/pull/2566`',
 					].join('\n'),
 				};
 				break;
@@ -507,11 +533,11 @@ export class XdebugCDPBridge {
 	}
 
 	private uriFromBridgeToCDP(uri: string) {
-		return `file://source/${uri}`;
+		return `file://placeholders/${uri}`;
 	}
 
 	private uriFromCDPToBridge(uri: string) {
-		const prefix = 'file://source/';
+		const prefix = 'file://placeholders/';
 
 		return uri.slice(prefix.length);
 	}

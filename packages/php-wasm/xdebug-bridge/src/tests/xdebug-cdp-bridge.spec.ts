@@ -161,7 +161,7 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `file://source/${fixtures}/test.php`,
+				url: `file://placeholders/${fixtures}/test.php`,
 				lineNumber: 2,
 			},
 		});
@@ -208,7 +208,7 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `file://source/${fixtures}/array.php`,
+				url: `file://placeholders/${fixtures}/array.php`,
 				lineNumber: 15,
 			},
 		});
@@ -350,10 +350,7 @@ describe('XdebugCDPBridge', () => {
 		await new Promise<void>((resolve) => {
 			const original = cdpServer.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
-				if (
-					message.method === 'Debugger.scriptParsed' &&
-					message.params.url.includes('test.php')
-				) {
+				if (message.method === 'Debugger.scriptParsed') {
 					script = message;
 					resolve();
 				}
@@ -373,11 +370,11 @@ describe('XdebugCDPBridge', () => {
 			'executionContextId',
 			'sourceMapURL',
 		]);
-		expect(script!.params.scriptId).toEqual('2');
+		expect(script!.params.scriptId).toEqual('1');
 		expect(script!.params.url).toEqual(
-			expect.stringContaining('file://source/')
+			expect.stringContaining('file://placeholders/')
 		);
-		expect(script!.params.endLine).toEqual(12);
+		expect(script!.params.endLine).toEqual(17);
 
 		const sourceMap = JSON.parse(
 			Buffer.from(
@@ -385,7 +382,7 @@ describe('XdebugCDPBridge', () => {
 				'base64'
 			).toString('utf8')
 		);
-		const phpContent = fs.readFileSync(`${fixtures}/test.php`).toString();
+		const phpContent = fs.readFileSync(`${fixtures}/array.php`).toString();
 
 		expect(sourceMap.file).toEqual(url);
 		expect(sourceMap.sources).toEqual(
@@ -397,7 +394,7 @@ describe('XdebugCDPBridge', () => {
 			expect.arrayContaining([phpContent])
 		);
 		expect(sourceMap.mappings).toEqual(
-			'AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA'
+			'AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA'
 		);
 	});
 });
