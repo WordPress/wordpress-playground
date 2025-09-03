@@ -341,4 +341,63 @@ describe('XdebugCDPBridge', () => {
 			})
 		);
 	});
+
+	it('sends a script with its correct data, source map and mappings to CDP', async () => {
+		bridge.start();
+
+		let script;
+
+		await new Promise<void>((resolve) => {
+			const original = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
+				if (
+					message.method === 'Debugger.scriptParsed' &&
+					message.params.url.includes('test.php')
+				) {
+					script = message;
+					resolve();
+				}
+				return original(message);
+			});
+		});
+
+		const url = script!.params.url;
+
+		expect(Object.keys(script!.params)).toEqual([
+			'scriptId',
+			'url',
+			'startLine',
+			'startColumn',
+			'endLine',
+			'endColumn',
+			'executionContextId',
+			'sourceMapURL',
+		]);
+		expect(script!.params.scriptId).toEqual('2');
+		expect(script!.params.url).toEqual(
+			expect.stringContaining('file://source/')
+		);
+		expect(script!.params.endLine).toEqual(12);
+
+		const sourceMap = JSON.parse(
+			Buffer.from(
+				script!.params.sourceMapURL.split(',')[1],
+				'base64'
+			).toString('utf8')
+		);
+		const phpContent = fs.readFileSync(`${fixtures}/test.php`).toString();
+
+		expect(sourceMap.file).toEqual(url);
+		expect(sourceMap.sources).toEqual(
+			expect.arrayContaining([
+				expect.stringContaining('file://PHP.wasm/'),
+			])
+		);
+		expect(sourceMap.sourcesContent).toEqual(
+			expect.arrayContaining([phpContent])
+		);
+		expect(sourceMap.mappings).toEqual(
+			'AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA'
+		);
+	});
 });
