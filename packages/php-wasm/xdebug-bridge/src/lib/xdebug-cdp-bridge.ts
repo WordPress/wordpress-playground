@@ -483,7 +483,9 @@ export class XdebugCDPBridge {
 				)?.[0];
 				let scriptSource = '';
 				if (bridgeUri) {
-					scriptSource = await this.readPHPFile(bridgeUri);
+					const raw = await this.readPHPFile(bridgeUri);
+
+					scriptSource = raw.replace(/\s+/g, ' ');
 				}
 				result = { scriptSource };
 				break;
