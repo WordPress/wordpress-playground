@@ -7,6 +7,8 @@ import { join } from 'path';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-util',
@@ -21,6 +23,8 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
+
+		...viteGlobalExtensions,
 	],
 
 	// Uncomment this if you are using workers.

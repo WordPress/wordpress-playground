@@ -137,7 +137,6 @@ RUN set -euxo pipefail; \
 		--disable-extras \
 		--enable-static \
 		--disable-shared; \
-
 	EMCC_FLAGS="-D__x86_64__" emmake make -j1; \
 	EMCC_FLAGS="-D__x86_64__" emmake make install;
 
@@ -163,6 +162,7 @@ RUN set -euxo pipefail; \
 	# Use non-linux host type or configure will try to require linux kernel
 	# features that are unsupported by emscripten (e.g., rtnetlink.h).
 	emconfigure ./configure CXXFLAGS="-DZEND_ENABLE_ZVAL_LONG64" ICU_CFLAGS="-D__x86_64__ -I/root/include" ICU_LIBS="-L/root/lib" --host="i386-unknown-freebsd" --disable-static --enable-shared; \
+
 	# Intl linking fails to produce a shared library because postdeps variable includes static libraries.
 	# Let's explicitly skip them in the understanding that it is provided by Emscripten with the main module.
 	/root/replace.sh 's|postdeps\s*=.*|postdeps="-L/root/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten -L/root/emsdk/upstream/emscripten/src/lib"|' libtool; \
@@ -170,6 +170,12 @@ RUN set -euxo pipefail; \
 	# into the shared object. The --whole-archive / --no-whole-archive flags ensure that *all* symbols from these
 	# archives are included, preventing missing symbol errors at runtime when loading the intl extension.
 	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
+	# This breaks building a dynamic intl extension with Emscripten.
+	if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
+	fi; \
+
 	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
 	# This breaks building a dynamic intl extension with Emscripten.
 	if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
@@ -186,6 +192,8 @@ RUN set -euxo pipefail; \
 
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
 	fi; \
 
 	emmake make -j1;

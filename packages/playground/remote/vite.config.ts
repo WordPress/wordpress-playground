@@ -12,6 +12,8 @@ import { copyFileSync, existsSync } from 'fs';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 
@@ -38,6 +40,7 @@ const plugins = [
 			}
 		},
 	} as Plugin,
+	...viteGlobalExtensions,
 	buildVersionPlugin('remote-config'),
 ];
 
@@ -58,7 +61,7 @@ export default defineConfig(({ mode }) => {
 	);
 
 	return {
-		assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
+		assetsInclude: ['**/*.wasm', '**/*.dat', '**/*.phar', '*.zip'],
 		cacheDir: '../../../node_modules/.vite/playground',
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular

@@ -42,6 +42,7 @@ describe('CDPServer', () => {
 		const msg = { id: 1, method: 'Debugger.enable' };
 		const onMessage = vi.fn();
 
+		server.connected = true;
 		server.on('message', onMessage);
 		server.wss.emit('connection', socket);
 		socket.emit('message', JSON.stringify(msg));

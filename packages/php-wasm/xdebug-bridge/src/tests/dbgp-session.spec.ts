@@ -88,15 +88,15 @@ describe('DbgpSession', () => {
 		expect(socket.write).toHaveBeenCalledWith('run -i 1\x00');
 	});
 
-	it('emits close and reset socket on close', () => {
+	it('emits disconnected on socket close', () => {
 		const session = new DbgpSession();
 		server.onConnectionHandler(socket);
 
-		const onClose = vi.fn();
-		session.on('close', onClose);
+		const onDisconnected = vi.fn();
+		session.on('disconnected', onDisconnected);
 
 		socket.emit('close');
-		expect(onClose).toHaveBeenCalled();
+		expect(onDisconnected).toHaveBeenCalled();
 	});
 
 	it('emits error events', () => {
