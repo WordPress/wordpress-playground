@@ -6,6 +6,7 @@ import {
 	PHP,
 	__private__dont__use,
 } from '@php-wasm/universal';
+import { createSpawnHandler } from '@php-wasm/util';
 import { loadNodeRuntime } from '../lib';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
@@ -378,5 +379,50 @@ describe('php.enableRuntimeRotation()', () => {
 			fs.rmdirSync(tempDir);
 			php.exit();
 		}
+	}, 30_000);
+
+	it('Should preserve the spawn handler through PHP runtime recreation', async () => {
+		const php = new PHP(await recreateRuntime());
+		php.enableRuntimeRotation({
+			cwd: '/test-root',
+			recreateRuntime,
+			maxRequests: 1,
+		});
+
+		// Set up a custom spawn handler that tracks calls
+		let spawnHandlerCallCount = 0;
+		const customSpawnHandler = createSpawnHandler(
+			async (command: string[], processApi: any) => {
+				spawnHandlerCallCount++;
+				// Simple echo command handler
+				if (command[0] === 'echo') {
+					processApi.stdout(
+						new TextEncoder().encode(
+							command.slice(1).join(' ') + '\n'
+						)
+					);
+				}
+				processApi.exit(0);
+			}
+		);
+
+		php.setSpawnHandler(customSpawnHandler);
+
+		// Test the spawn handler works before rotation
+		const result1 = await php.run({
+			code: `<?php echo exec("echo Hello World");`,
+		});
+		expect(result1.text).toBe('Hello World');
+		expect(spawnHandlerCallCount).toBe(1);
+
+		// Rotate the PHP runtime
+		await php.run({ code: `` });
+
+		// Test the spawn handler still works after rotation
+		const result2 = await php.run({
+			code: `<?php echo exec("echo Hello Again");`,
+		});
+		expect(result2.text).toBe('Hello Again');
+		expect(spawnHandlerCallCount).toBe(2);
 	}, 30_000);
 });
