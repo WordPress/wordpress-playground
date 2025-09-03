@@ -91,17 +91,17 @@ Blueprints fetch any resources you declare for you. You don't have to worry abou
 ### You can link to a Blueprint-preconfigured Playground
 -->
 
-ブループリントは URL に貼り付けることができるため、特定の設定の Playground を埋め込んだり、リンクしたりできます。例えば、このボタンをクリックすると、PHP 7.4 とペンダントテーマがインストールされた Playground が開きます。
+ブループリントは URL に貼り付けることができるため、特定の設定の Playground を埋め込んだり、リンクしたりできます。例えば、このボタンをクリックすると、PHP 8.3 とペンダントテーマがインストールされた Playground が開きます。
 
 <!--
-Because Blueprints can be pasted in the URL, you can embed or link to a Playground with a specific configuration. For example, clicking this button will open a Playground with PHP 7.4 and a pendant theme installed:
+Because Blueprints can be pasted in the URL, you can embed or link to a Playground with a specific configuration. For example, clicking this button will open a Playground with PHP 8.3 and a pendant theme installed:
 -->
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
   		"wp": "latest"
 	},
 	"steps": [

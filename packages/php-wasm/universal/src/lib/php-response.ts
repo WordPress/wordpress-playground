@@ -75,7 +75,7 @@ export class StreamedPHPResponse {
 		httpStatusCode: number;
 	}> | null = null;
 
-	private cachedStdoutText: Promise<string> | null = null;
+	private cachedStdoutBytes: Promise<Uint8Array> | null = null;
 	private cachedStderrText: Promise<string> | null = null;
 
 	constructor(
@@ -123,12 +123,8 @@ export class StreamedPHPResponse {
 	 * Resolves once HTTP status code is available.
 	 */
 	get httpStatusCode(): Promise<number> {
-		return Promise.race([
-			this.getParsedHeaders().then((headers) => headers.httpStatusCode),
-			this.exitCode.then((exitCode) =>
-				exitCode !== 0 ? 500 : undefined
-			),
-		])
+		return this.getParsedHeaders()
+			.then((headers) => headers.httpStatusCode)
 			.then((result) => {
 				if (result !== undefined) {
 					return result;
@@ -146,10 +142,19 @@ export class StreamedPHPResponse {
 	 * Exposes the stdout bytes as they're produced by the PHP instance
 	 */
 	get stdoutText(): Promise<string> {
-		if (!this.cachedStdoutText) {
-			this.cachedStdoutText = streamToText(this.stdout);
+		return this.stdoutBytes.then((bytes) =>
+			new TextDecoder().decode(bytes)
+		);
+	}
+
+	/**
+	 * Exposes the stdout bytes as they're produced by the PHP instance
+	 */
+	get stdoutBytes(): Promise<Uint8Array> {
+		if (!this.cachedStdoutBytes) {
+			this.cachedStdoutBytes = streamToBytes(this.stdout);
 		}
-		return this.cachedStdoutText;
+		return this.cachedStdoutBytes;
 	}
 
 	/**
@@ -223,6 +228,33 @@ async function streamToText(
 	}
 }
 
+async function streamToBytes(
+	stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+	const reader = stream.getReader();
+	const chunks: Uint8Array[] = [];
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			const totalLength = chunks.reduce(
+				(acc, chunk) => acc + chunk.byteLength,
+				0
+			);
+			const result = new Uint8Array(totalLength);
+			let offset = 0;
+			for (const chunk of chunks) {
+				result.set(chunk, offset);
+				offset += chunk.byteLength;
+			}
+			return result;
+		}
+		if (value) {
+			chunks.push(value);
+		}
+	}
+}
+
 /**
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.
@@ -287,10 +319,18 @@ export class PHPResponse implements PHPResponseData {
 		return new PHPResponse(
 			await streamedResponse.httpStatusCode,
 			await streamedResponse.headers,
-			new TextEncoder().encode(await streamedResponse.stdoutText),
+			await streamedResponse.stdoutBytes,
 			await streamedResponse.stderrText,
 			await streamedResponse.exitCode
 		);
+	}
+
+	/**
+	 * True if the response is successful (HTTP status code 200-399),
+	 * false otherwise.
+	 */
+	ok(): boolean {
+		return this.httpStatusCode >= 200 && this.httpStatusCode < 400;
 	}
 
 	toRawData(): PHPResponseData {

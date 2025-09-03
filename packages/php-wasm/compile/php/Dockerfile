@@ -71,7 +71,6 @@ else \
 	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
 fi
 
-
 # Workaround to add ICU FLAGS to intl below 7.3 to inject -fPIC.
 RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
 		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
@@ -84,8 +83,8 @@ RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then 
 # Related discussion: https://github.com/WordPress/wordpress-playground/pull/2248#issuecomment-2988044885
 # And 7.4 commit reference: https://github.com/php/php-src/commit/6083a38
 RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		cp /root/builds/libsqlite3/\<7\.4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
-		cp /root/builds/libsqlite3/\<7\.4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
+		cp /root/builds/libsqlite3/before_7_4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
+		cp /root/builds/libsqlite3/before_7_4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
 	fi;
 
 # Patch OPcache config.m4 file if needed
@@ -681,6 +680,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_stream_stdio_closer",\
 "zend_destroy_file_handle",\
 "php_init_config",\
+"zend_register_constant",\
 "zend_register_ini_entries_ex",\
 "php_module_startup",\
 "wasm_sapi_module_startup",\
@@ -951,7 +951,6 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_std_read_dimension",\
 "zend_fetch_dimension_address_read_R_slow",\
-"ZEND_FETCH_DIM_R_SPEC_CV_CONST_HANDLER",\
 "zend_call_method",\
 "zend_assign_to_object_dim",\
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
@@ -1019,7 +1018,6 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "do_cli_server",\
 "execute_ex",\
 "EVP_PKEY_encrypt",\
-"execute_ex",\
 "exif_error_docref",\
 "fclose",\
 "fcntl",\
@@ -1160,6 +1158,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "param_dtor",\
 "parentWrite",\
 "pcacheUnpin",\
+"persistent_stream_open_function",\
 "pdo_dbh_attribute_set",\
 "pdo_dbh_free_storage",\
 "pdo_dbstmt_free_storage",\
@@ -1205,6 +1204,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_exec",\
 "php_execute_script_ex",\
 "php_execute_script",\
+"php_fopen_primary_script",\
 "php_fsockopen_stream",\
 "php_getimagesize_from_any",\
 "php_if_fopen",\
@@ -1275,6 +1275,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_stream_flush",\
 "php_stream_notification_free",\
 "php_stream_notification_notify",\
+"php_stream_open_for_zend",\
 "php_stream_read_to_str",\
 "php_stream_temp_cast",\
 "php_stream_temp_flush",\
@@ -1670,6 +1671,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_error_va_list",\
 "zend_error_va",\
 "zend_error_zstr_at",\
+"zend_error_zstr",\
 "zend_error",\
 "zend_eval_const_expr",\
 "zend_eval_string_ex",\
@@ -1830,6 +1832,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_try_ct_eval_binary_op",\
 "zend_try_ct_eval_unary_op",\
 "zend_type_error",\
+"zend_undefined_index",\
 "ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
 "ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
 "ZEND_UNSET_DIM_SPEC_CV_CV_HANDLER",\
@@ -1893,6 +1896,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_curl_multi_select",\
 "zif_current",\
 "zif_debug_print_backtrace",\
+"zif_define",\
 "zif_end",\
 "zif_exec",\
 "zif_exif_imagetype",\
@@ -2101,10 +2105,10 @@ RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid,fd_close -sJSPI_EXPORTS=php_wasm_init,fd_close,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid,fd_close -sJSPI_EXPORTS=php_wasm_init,fd_close,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc,setErrNo "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,setErrNo $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
 	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\

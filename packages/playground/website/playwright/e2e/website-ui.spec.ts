@@ -21,7 +21,12 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 
 test('should correctly load /wp-admin without the trailing slash', async ({
 	website,
+	browserName,
 }) => {
+	test.skip(
+		browserName === 'webkit',
+		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
+	);
 	await website.goto('./?url=/wp-admin');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
@@ -125,6 +130,63 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 		.click();
 
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
+});
+
+test('should rename a saved Playground and persist after reload', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Save the temporary site to OPFS so rename is available
+	await expect(website.page.getByText('Save')).toBeEnabled();
+	await website.page.getByText('Save').click();
+	await website.page.getByText('Save in this browser').waitFor();
+	await website.page.getByText('Save in this browser').click({ force: true });
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Temporary Playground',
+		{
+			timeout: 90000,
+		}
+	);
+
+	// Open actions menu and trigger Rename
+	await website.page
+		.getByRole('button', { name: 'Additional actions' })
+		.click();
+	await website.page.getByRole('menuitem', { name: 'Rename' }).click();
+
+	const newName = 'My Renamed Playground';
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Rename Playground',
+	});
+	const nameInput = dialog.getByRole('textbox', { name: 'Name' });
+	await nameInput.fill('');
+	await nameInput.type(newName);
+	await nameInput.press('Enter');
+
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		newName
+	);
+
+	// Wait for the dialog to be closed
+	await expect(dialog).not.toBeVisible();
+
+	// Reload and verify the name persists
+	await website.page.reload();
+	await website.ensureSiteManagerIsOpen();
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		newName
+	);
+	await expect(
+		website.page.locator('[aria-current="page"]').first()
+	).toContainText(newName);
 });
 
 SupportedPHPVersions.forEach(async (version) => {

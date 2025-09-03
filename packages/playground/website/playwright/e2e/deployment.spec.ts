@@ -145,6 +145,8 @@ test('offline mode – the app should load even when the server goes offline', a
 
 	server!.switchToNewVersion();
 
+	// First page load – the service worker gets installed, the page becomes controlled. Some
+	// assets are fetched before the service worker takes over and caches them.
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 
@@ -153,7 +155,14 @@ test('offline mode – the app should load even when the server goes offline', a
 		'My WordPress Website'
 	);
 
+	// Second page load – handled by the service worker – the fetched assets are getting cached.
+	await page.reload();
+	await website.waitForNestedIframes();
+
+	// Kill the server.
 	server!.kill();
+
+	// From now on, the critical application assets should be cached.
 	await page.reload();
 	await website.waitForNestedIframes();
 

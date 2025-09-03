@@ -1,7 +1,7 @@
 ---
 title: Playground でデモ用のコンテンツを提供する
 slug: /guides/providing-content-for-your-demo
-description: WordPress Playground でデモ用のコンテンツを提供する
+description: Blueprints、WP-CLI、または PHP を使用して Playground デモにコンテンツを追加し、テーマやプラグインを紹介する方法を学びます。
 ---
 
 WordPress Playground で優れたデモを提供するために、プラグインやテーマの機能をわかりやすく示すために、デフォルトのコンテンツを読み込むことをお勧めします。このデフォルトコンテンツには、画像やその他のアセットが含まれる場合があります。

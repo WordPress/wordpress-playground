@@ -1,7 +1,7 @@
 ---
 title: How to run Blueprints
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description: Learn about the multiple ways to use blueprints
+description: Learn the various methods for loading and running Blueprints, including using a URL fragment or the blueprint-url parameter.
 ---
 
 # How to load and run Blueprints
@@ -16,15 +16,15 @@ Let's say you want to create a Playground with specific versions of WordPress an
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
-		"php": "7.4",
+		"php": "8.3",
 		"wp": "5.9"
 	}
 }
 ```
 
-To run it, go to `https://playground.wordpress.net/#{"preferredVersions": {"php":"7.4", "wp":"5.9"}}`. You can also use the button below:
+To run it, go to `https://playground.wordpress.net/#{"preferredVersions": {"php":"8.3", "wp":"5.9"}}`. You can also use the button below:
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{"preferredVersions":{"php":"7.4","wp":"5.9"}})
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"5.9"}})
 
 Use this method to run the example code in the next chapter, [**Build your first Blueprint**](/blueprints/tutorial/build-your-first-blueprint).
 

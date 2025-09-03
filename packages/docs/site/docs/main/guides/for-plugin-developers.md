@@ -1,7 +1,7 @@
 ---
-title: Playground for Plugin Developers
+title: WordPress Playground for Plugin Developers
 slug: /guides/for-plugin-developers
-description: WordPress Playground for Plugin Developers
+description: A guide for plugin developers on using Playground to build, test, and create compelling live demos for their plugins.
 ---
 
 The WordPress Playground is an innovative tool that allows plugin developers to build, test and showcase their plugins directly in a browser environment.

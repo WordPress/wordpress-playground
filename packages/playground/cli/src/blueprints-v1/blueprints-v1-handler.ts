@@ -21,7 +21,7 @@ import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 // @ts-ignore
 import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
+import { LogVerbosity, type RunCLIArgs, type SpawnedWorker } from '../run-cli';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -50,6 +50,18 @@ export class BlueprintsV1Handler {
 	}
 
 	getWorkerUrl() {
+		if (
+			process.env['VITEST'] &&
+			importedWorkerV1UrlString.startsWith('/src/')
+		) {
+			// Work around issue where Vitest cannot find the worker script.
+			return path.join(
+				import.meta.dirname,
+				'..',
+				'..',
+				importedWorkerV1UrlString
+			);
+		}
 		return importedWorkerV1UrlString;
 	}
 
@@ -84,13 +96,11 @@ export class BlueprintsV1Handler {
 				);
 				progressReached100 = percentProgress === 100;
 
-				if (!this.args.quiet) {
-					this.writeProgressUpdate(
-						process.stdout,
-						`Downloading WordPress ${percentProgress}%...`,
-						progressReached100
-					);
-				}
+				this.writeProgressUpdate(
+					process.stdout,
+					`Downloading WordPress ${percentProgress}%...`,
+					progressReached100
+				);
 			}) as any);
 
 			wpDetails = await resolveWordPressRelease(this.args.wp);
@@ -142,7 +152,7 @@ export class BlueprintsV1Handler {
 			mountsAfterWpInstall,
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
 			sqliteIntegrationPluginZip:
-				await sqliteIntegrationPluginZip!.arrayBuffer(),
+				await sqliteIntegrationPluginZip?.arrayBuffer(),
 			firstProcessId: 0,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks,
@@ -250,13 +260,11 @@ export class BlueprintsV1Handler {
 			lastCaption =
 				e.detail.caption || lastCaption || 'Running the Blueprint';
 			const message = `${lastCaption.trim()} – ${progressInteger}%`;
-			if (!args.quiet) {
-				this.writeProgressUpdate(
-					process.stdout,
-					message,
-					progressReached100
-				);
-			}
+			this.writeProgressUpdate(
+				process.stdout,
+				message,
+				progressReached100
+			);
 		});
 		return await compileBlueprint(blueprint as BlueprintDeclaration, {
 			progress: tracker,
@@ -269,6 +277,9 @@ export class BlueprintsV1Handler {
 		message: string,
 		finalUpdate: boolean
 	) {
+		if (this.args.verbosity === LogVerbosity.Quiet.name) {
+			return;
+		}
 		if (message === this.lastProgressMessage) {
 			// Avoid repeating the same message
 			return;

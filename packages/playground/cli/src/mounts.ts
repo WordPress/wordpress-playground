@@ -91,8 +91,10 @@ const ACTIVATE_FIRST_THEME_STEP = {
 	step: 'runPHP',
 	code: {
 		filename: 'activate-theme.php',
+		// @TODO: Remove DOCROOT check after moving totally to Blueprints v2.
 		content: `<?php
-			require_once getenv('DOCROOT') . '/wp-load.php';
+			$docroot = getenv('DOCROOT') ? getenv('DOCROOT') : '/wordpress';
+			require_once "$docroot/wp-load.php";
 			$theme = wp_get_theme();
 			if (!$theme->exists()) {
 				$themes = wp_get_themes();
@@ -109,7 +111,7 @@ const ACTIVATE_FIRST_THEME_STEP = {
  * Auto-mounts resolution logic:
  */
 export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
-	const path = process.cwd();
+	const path = args.autoMount!;
 
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
@@ -139,10 +141,17 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			hostPath: path,
 			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
 		});
-		newArgs['additional-blueprint-steps'].push({
-			step: 'activateTheme',
-			themeDirectoryName: themeName,
-		});
+		newArgs['additional-blueprint-steps'].push(
+			args['experimental-blueprints-v2-runner']
+				? {
+						step: 'activateTheme',
+						themeDirectoryName: themeName,
+				  }
+				: {
+						step: 'activateTheme',
+						themeFolderName: themeName,
+				  }
+		);
 	} else if (containsWpContentDirectories(path)) {
 		/**
 		 * Mount each wp-content file and directory individually.
@@ -165,8 +174,8 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 	} else if (containsFullWordPressInstallation(path)) {
 		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
-		// @TODO: Uncomment when merging Blueprints v2 support
-		// newArgs.mode = 'apply-to-existing-site';
+		// @TODO: If overriding another mode, throw an error or print a warning.
+		newArgs.mode = 'apply-to-existing-site';
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 	} else {
 		/**
@@ -174,8 +183,8 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		 * This allows users to run and PHP or HTML files using the Playground CLI.
 		 */
 		mount.push({ hostPath: path, vfsPath: '/wordpress' });
-		// @TODO: Uncomment when merging Blueprints v2 support
-		// newArgs.mode = 'mount-only';
+		// @TODO: If overriding another mode, throw an error or print a warning.
+		newArgs.mode = 'mount-only';
 	}
 
 	return newArgs as RunCLIArgs;

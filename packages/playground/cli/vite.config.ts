@@ -7,6 +7,8 @@ import dts from 'vite-plugin-dts';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 /**
  * @TODO: Consider rsbuild for this:
@@ -69,7 +71,7 @@ const plugins = [
 					code: `
 						import { fileURLToPath } from 'url';
 						import { dirname, join } from 'path';
-						
+
 						let pharPath;
 						if (typeof __dirname !== 'undefined') {
 							// CommonJS
@@ -78,7 +80,7 @@ const plugins = [
 							// ESM
 							pharPath = join(import.meta.dirname, "./blueprints.phar");
 						}
-						
+
 						export default pharPath;
 					`,
 					map: null,
@@ -86,6 +88,7 @@ const plugins = [
 			}
 		},
 	},
+	...viteGlobalExtensions,
 ] as PluginOption[];
 
 const external = [
@@ -149,8 +152,26 @@ export default defineConfig({
 			dir: '../../../node_modules/.vitest',
 		},
 		environment: 'node',
-		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
-		testTimeout: 15000, // Increase timeout to ensure CLI tests can download WordPress
+		// Increase timeout to:
+		// - Ensure CLI tests can download WordPress
+		// - Ensure worker threads have time to boot
+		testTimeout: 30000,
+		poolOptions: {
+			forks: {
+				execArgv: [
+					'--experimental-strip-types',
+					'--experimental-transform-types',
+					'--disable-warning=ExperimentalWarning',
+					// Use our own ESM loader to help resolve modules within the Worker script.
+					'--import',
+					join(
+						import.meta.dirname,
+						'../../meta/src/node-es-module-loader/register.mts'
+					),
+				],
+			},
+		},
 	},
 });
