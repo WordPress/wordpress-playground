@@ -4,7 +4,7 @@ import {
 	type UniversalPHP,
 } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import { getV2Runner } from '@wp-playground/blueprints';
+import { getV2Runner } from './get-v2-runner';
 import {
 	type BlueprintV2Declaration,
 	type ParsedBlueprintV2Declaration,
