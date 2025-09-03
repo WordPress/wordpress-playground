@@ -484,7 +484,7 @@ export abstract class APIBasedFetchResource extends FetchResource {
 
 	override get name() {
 		return (
-			this.apiResult?.name ||
+			decodeAssetNameFromAPI(this.apiResult?.name) ||
 			this.resource.name ||
 			zipNameToHumanName(this.resource.slug)
 		);
@@ -493,6 +493,18 @@ export abstract class APIBasedFetchResource extends FetchResource {
 	getURL() {
 		return this.apiResult?.download_link;
 	}
+}
+
+/**
+ * The WordPress.org API returns asset names with HTML entities encoded. Decode them.
+ *
+ * @param str The string to decode.
+ * @returns The decoded string.
+ */
+function decodeAssetNameFromAPI(str?: string) {
+	return str?.replace(/&#([0-9]+);/g, (entity, entityNum) =>
+		String.fromCharCode(parseInt(entityNum, 10))
+	);
 }
 
 /**
