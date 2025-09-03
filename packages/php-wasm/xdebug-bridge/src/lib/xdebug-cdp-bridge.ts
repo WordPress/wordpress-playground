@@ -108,57 +108,57 @@ export class XdebugCDPBridge {
 		});
 
 		// Load known scripts
-		this.sendInitialScripts();
-
-		if (!this.breakOnFirstLine) {
-			// Opens Sources tab instead of Console by pausing the process
-			this.cdp.sendMessage({
-				method: 'Debugger.paused',
-				params: {
-					callFrames: [
-						{
-							location: {
-								scriptId: '1',
-								lineNumber: 0,
+		this.sendInitialScripts().then(() => {
+			if (!this.breakOnFirstLine) {
+				// Opens Sources tab instead of Console by pausing the process
+				this.cdp.sendMessage({
+					method: 'Debugger.paused',
+					params: {
+						callFrames: [
+							{
+								location: {
+									scriptId: '1',
+									lineNumber: 0,
+								},
+								scopeChain: [],
+								this: { type: 'undefined' },
 							},
-							scopeChain: [],
-							this: { type: 'undefined' },
-						},
-					],
-					reason: 'other',
+						],
+						reason: 'other',
+					},
+				});
+
+				// Resume the process after 50ms to maintain focus on the first file.
+				// 50ms is an arbitrary choice: 0ms won’t display the code at this delay,
+				// while 100ms would be too long and cause a visible break on the first line.
+				setTimeout(() => {
+					this.cdp.sendMessage({ method: 'Debugger.resumed' });
+				}, 200);
+			}
+
+			// Send a nice welcome message with instructions
+			this.cdp.sendMessage({
+				method: 'Log.entryAdded',
+				params: {
+					entry: {
+						source: 'other',
+						level: 'info',
+						text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or Playground CLI.\n\n3. Witness the magic break.',
+						timestamp: Date.now(),
+					},
 				},
 			});
-
-			// Resume the process after 50ms to maintain focus on the first file.
-			// 50ms is an arbitrary choice: 0ms won’t display the code at this delay,
-			// while 100ms would be too long and cause a visible break on the first line.
-			setTimeout(() => {
-				this.cdp.sendMessage({ method: 'Debugger.resumed' });
-			}, 50);
-		}
-
-		// Send a nice welcome message with instructions
-		this.cdp.sendMessage({
-			method: 'Log.entryAdded',
-			params: {
-				entry: {
-					source: 'other',
-					level: 'info',
-					text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or Playground CLI.\n\n3. Witness the magic break.',
-					timestamp: Date.now(),
+			this.cdp.sendMessage({
+				method: 'Log.entryAdded',
+				params: {
+					entry: {
+						source: 'other',
+						level: 'info',
+						text: ' ',
+						timestamp: Date.now(),
+					},
 				},
-			},
-		});
-		this.cdp.sendMessage({
-			method: 'Log.entryAdded',
-			params: {
-				entry: {
-					source: 'other',
-					level: 'info',
-					text: ' ',
-					timestamp: Date.now(),
-				},
-			},
+			});
 		});
 	}
 
@@ -167,19 +167,56 @@ export class XdebugCDPBridge {
 		this.cdp.close();
 	}
 
-	private sendInitialScripts() {
+	private async sendInitialScripts() {
 		for (const [bridgeUri, scriptId] of this.scriptIdByUrl.entries()) {
-			this.cdp.sendMessage({
-				method: 'Debugger.scriptParsed',
-				params: {
-					scriptId,
-					url: this.uriFromBridgeToCDP(bridgeUri),
-					startLine: 0,
-					startColumn: 0,
-					executionContextId: 1,
-				},
-			});
+			await this.sendScriptToCDP(bridgeUri, scriptId);
 		}
+	}
+
+	private async sendScriptToCDP(url: string, id: string): Promise<void> {
+		const highlightUri = this.uriFromBridgeToCDPSyntaxHighlight(url);
+		const cdpUri = this.uriFromBridgeToCDP(url);
+
+		const phpContent = await this.readPHPFile(url);
+		const phpLines = phpContent.split('\n');
+
+		// The first line is AAAA while the others are AACA.
+		// This is enough to set breakpoints with CDP and
+		// communicate with the DBGp protocol.
+		const mappings = phpLines
+			.map((_value, index) => (index === 0 ? 'AAAA' : 'AACA'))
+			.join(';');
+
+		const sourceMap = {
+			version: 3,
+			// File uri has to match the script parsed url
+			// While the sources url has to match the syntax
+			// highlighted file displayed in Devtools.
+			file: cdpUri,
+			sources: [highlightUri],
+			sourcesContent: [phpContent],
+			mappings,
+		};
+
+		const encodedMap = Buffer.from(
+			JSON.stringify(sourceMap),
+			'utf-8'
+		).toString('base64');
+		const sourceMapDataUri = `data:application/json;base64,${encodedMap}`;
+
+		this.cdp.sendMessage({
+			method: 'Debugger.scriptParsed',
+			params: {
+				scriptId: id,
+				url: cdpUri,
+				startLine: 0,
+				startColumn: 0,
+				endLine: phpLines.length,
+				endColumn: 0,
+				executionContextId: 1,
+				sourceMapURL: sourceMapDataUri,
+			},
+		});
 	}
 
 	private getOrCreateScriptId(url: string): string {
@@ -463,22 +500,25 @@ export class XdebugCDPBridge {
 
 	/* ---------- uri mapping ---------- */
 
-	private setPrefixForCDP() {
-		return path.isAbsolute(this.phpRoot) ? 'file://' : 'file:///';
+	private uriFromBridgeToCDPSyntaxHighlight(uri: string) {
+		const prefix = path.isAbsolute(uri) ? '' : '/';
+
+		return `file://PHP.wasm${prefix}${uri}`;
 	}
 
 	private uriFromBridgeToCDP(uri: string) {
-		return `${this.setPrefixForCDP()}${uri}`;
-	}
+		const prefix = path.isAbsolute(uri) ? '' : '/';
 
+		return `file://source${prefix}${uri}`;
+	}
 	private uriFromCDPToBridge(uri: string) {
-		const prefix = this.setPrefixForCDP();
+		const prefix = 'file://source';
 
 		return uri.startsWith(prefix) ? uri.slice(prefix.length) : uri;
 	}
 
 	private uriFromBridgeToDBGP(uri: string) {
-		return path.resolve(uri);
+		return path.isAbsolute(uri) ? uri : path.resolve(uri);
 	}
 
 	private uriFromDBGPToBridge(uri: string) {
@@ -582,17 +622,10 @@ export class XdebugCDPBridge {
 						);
 
 						if (bridgeUri && !this.scriptIdByUrl.has(bridgeUri)) {
-							this.cdp.sendMessage({
-								method: 'Debugger.scriptParsed',
-								params: {
-									scriptId:
-										this.getOrCreateScriptId(bridgeUri),
-									url: this.uriFromBridgeToCDP(bridgeUri),
-									startLine: 0,
-									startColumn: 0,
-									executionContextId: 1,
-								},
-							});
+							await this.sendScriptToCDP(
+								bridgeUri,
+								this.getOrCreateScriptId(bridgeUri)
+							);
 						}
 					}
 					if (status === 'break') {
@@ -950,16 +983,7 @@ export class XdebugCDPBridge {
 							if (!this.scriptIdByUrl.has(bridgeUri)) {
 								// Mark it known and send scriptParsed
 								this.scriptIdByUrl.set(bridgeUri, scriptId);
-								this.cdp.sendMessage({
-									method: 'Debugger.scriptParsed',
-									params: {
-										scriptId: scriptId,
-										url: this.uriFromBridgeToCDP(bridgeUri),
-										startLine: 0,
-										startColumn: 0,
-										executionContextId: 1,
-									},
-								});
+								await this.sendScriptToCDP(bridgeUri, scriptId);
 							}
 						}
 						// Build callFrames array
