@@ -477,17 +477,7 @@ export class XdebugCDPBridge {
 				break;
 			}
 			case 'Debugger.getScriptSource': {
-				const sid = params.scriptId;
-				const bridgeUri = [...this.scriptIdByUrl.entries()].find(
-					([, v]) => v === sid
-				)?.[0];
-				let scriptSource = '';
-				if (bridgeUri) {
-					const raw = await this.readPHPFile(bridgeUri);
-
-					scriptSource = raw.replace(/\s+/g, ' ');
-				}
-				result = { scriptSource };
+				result = { scriptSource: '' };
 				break;
 			}
 			default:
