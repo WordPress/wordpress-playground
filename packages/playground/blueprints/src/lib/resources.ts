@@ -725,16 +725,22 @@ export class LiteralDirectoryResource extends Resource<Directory> {
 export class CoreThemeResource extends APIBasedFetchResource {
 	override getAPIURL() {
 		return `https://api.wordpress.org/themes/info/1.2/?action=theme_information&slug=${encodeURIComponent(
-			this.resource.slug
+			zipNameToSlug(this.resource.slug)
 		)}`;
 	}
 
 	override getURL() {
+		if (this.resource.slug.endsWith('.zip')) {
+			return `https://downloads.wordpress.org/themes/${encodeURIComponent(
+				this.resource.slug
+			)}`;
+		}
+
 		return (
 			this.apiResult?.download_link ||
 			`https://downloads.wordpress.org/themes/${encodeURIComponent(
-				this.resource.slug
-			)}.latest-stable.zip`
+				toDirectoryZipName(this.resource.slug)
+			)}`
 		);
 	}
 }
@@ -745,16 +751,22 @@ export class CoreThemeResource extends APIBasedFetchResource {
 export class CorePluginResource extends APIBasedFetchResource {
 	override getAPIURL() {
 		return `https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=${encodeURIComponent(
-			this.resource.slug
+			zipNameToSlug(this.resource.slug)
 		)}`;
 	}
 
 	override getURL() {
+		if (this.resource.slug.endsWith('.zip')) {
+			return `https://downloads.wordpress.org/plugins/${encodeURIComponent(
+				this.resource.slug
+			)}`;
+		}
+
 		return (
 			this.apiResult?.download_link ||
 			`https://downloads.wordpress.org/plugins/${encodeURIComponent(
-				this.resource.slug
-			)}.latest-stable.zip`
+				toDirectoryZipName(this.resource.slug)
+			)}`
 		);
 	}
 }
@@ -772,6 +784,17 @@ export function toDirectoryZipName(rawInput: string) {
 		return rawInput;
 	}
 	return rawInput + '.latest-stable.zip';
+}
+
+/**
+ * Transforms a plugin/theme ZIP name into a slug.
+ * WordPress.org Slugs never contain `.`, we can safely strip the extension.
+ *
+ * @param zipName The ZIP name to transform.
+ * @returns The slug derived from the ZIP name.
+ */
+export function zipNameToSlug(zipName: string) {
+	return zipName?.replace(/\..+$/g, '');
 }
 
 /**
