@@ -161,8 +161,8 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `${fixtures}/test.php`,
-				lineNumber: 7,
+				url: `file://source/${fixtures}/test.php`,
+				lineNumber: 2,
 			},
 		});
 
@@ -192,7 +192,7 @@ describe('XdebugCDPBridge', () => {
 						expect.objectContaining({
 							location: expect.objectContaining({
 								scriptId: '2',
-								lineNumber: 7,
+								lineNumber: 2,
 							}),
 						}),
 					]),
@@ -208,7 +208,7 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `${fixtures}/array.php`,
+				url: `file://source/${fixtures}/array.php`,
 				lineNumber: 15,
 			},
 		});

@@ -501,24 +501,21 @@ export class XdebugCDPBridge {
 	/* ---------- uri mapping ---------- */
 
 	private uriFromBridgeToCDPSyntaxHighlight(uri: string) {
-		const prefix = path.isAbsolute(uri) ? '' : '/';
-
-		return `file://PHP.wasm${prefix}${uri}`;
+		return `file://PHP.wasm/${uri}`;
 	}
 
 	private uriFromBridgeToCDP(uri: string) {
-		const prefix = path.isAbsolute(uri) ? '' : '/';
-
-		return `file://source${prefix}${uri}`;
+		return `file://source/${uri}`;
 	}
-	private uriFromCDPToBridge(uri: string) {
-		const prefix = 'file://source';
 
-		return uri.startsWith(prefix) ? uri.slice(prefix.length) : uri;
+	private uriFromCDPToBridge(uri: string) {
+		const prefix = 'file://source/';
+
+		return uri.slice(prefix.length);
 	}
 
 	private uriFromBridgeToDBGP(uri: string) {
-		return path.isAbsolute(uri) ? uri : path.resolve(uri);
+		return path.resolve(process.cwd(), uri);
 	}
 
 	private uriFromDBGPToBridge(uri: string) {
