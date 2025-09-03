@@ -461,7 +461,7 @@ export abstract class APIBasedFetchResource extends FetchResource {
 			this.apiResult = await response.json();
 
 			this.resource.name = this.name;
-		} catch (e) {
+		} catch {
 			// swallow the error, we'll gracefully degrade to using the slug.
 		}
 
