@@ -25,7 +25,13 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import { runBlueprintV2 } from '@wp-playground/blueprints';
+import type {
+	Blueprint,
+	BlueprintV2Declaration,
+	OnStepCompleted,
+	ParsedBlueprintV2Declaration,
+} from '@wp-playground/blueprints';
 import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
@@ -182,18 +188,17 @@ export async function startPlaygroundWeb({
 	// If the caller requested the v2 runner and provided a blueprint,
 	// execute it via PHP before running any (empty) TS steps.
 	if (experimentalBlueprintsV2Runner && blueprint) {
-		const { runBlueprintV2Web } = await import(
-			'./blueprints-v2/run-blueprint-v2-web'
-		);
 		await playground.setProgress({
 			caption: 'Running Blueprint',
 			isIndefinite: false,
 			visible: true,
 			progress: 0,
 		});
-		const streamed = await runBlueprintV2Web({
+		const streamed = await runBlueprintV2({
 			php: playground,
-			blueprint,
+			blueprint: blueprint as
+				| BlueprintV2Declaration
+				| ParsedBlueprintV2Declaration,
 			onMessage: async (message) => {
 				if ((message as any).type === 'blueprint.progress') {
 					await playground.setProgress({
