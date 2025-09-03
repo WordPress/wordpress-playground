@@ -477,6 +477,10 @@ export class XdebugCDPBridge {
 				break;
 			}
 			case 'Debugger.getScriptSource': {
+				// getScriptSource usually fills the source file.
+				// With scripts now using source maps, the source map
+				// now handles displaying the file content.
+				// Therefore, we return an empty script source.
 				result = { scriptSource: '' };
 				break;
 			}
