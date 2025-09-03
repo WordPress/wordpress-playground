@@ -35,10 +35,13 @@ export function createSpawnHandler(
 		argsArray: string[] = [],
 		options: ProcessOptions = {}
 	) {
+		console.log('[parent] Spawn handler executed');
+
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
 		setTimeout(async () => {
+			console.log('[parent] Inside spawn handler timeout');
 			let commandArray = [];
 			if (argsArray.length) {
 				commandArray = [command as string, ...argsArray];

@@ -1,10 +1,10 @@
-import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
+import { logger } from '@php-wasm/logger';
 import type { PHP } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
-import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
-import { hasCachedResponse } from './offline-mode-cache';
 import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
+import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
+import { hasCachedResponse } from './offline-mode-cache';
 
 /**
  * Downloads and unzips a ZIP bundle of all the static assets removed from

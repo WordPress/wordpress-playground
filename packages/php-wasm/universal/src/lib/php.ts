@@ -1450,10 +1450,16 @@ export class PHP implements Disposable {
 				async: true,
 			});
 		})
-			.then((response) => {
-				response.exitCode.finally(release);
-				return response;
-			})
+			.then(
+				(response) => {
+					response.finished.finally(release);
+					return response;
+				},
+				(error) => {
+					release();
+					throw error;
+				}
+			)
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;
 			});
