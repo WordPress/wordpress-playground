@@ -72,7 +72,7 @@ const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 class ArtifactExpiredError extends Error {
-	constructor(message: string = 'GitHub artifact expired') {
+	constructor(message = 'GitHub artifact expired') {
 		super(message);
 		this.name = 'ArtifactExpiredError';
 	}
