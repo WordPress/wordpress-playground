@@ -7160,15 +7160,21 @@ export function init(RuntimeName, PHPLoader) {
 			if (node.mount.type === NODEFS) {
 				return NODEFS.realPath(node);
 			} else if (node.mount.type === PROXYFS) {
-				// TODO: Tolerate ENOENT here?
 				const { node: backingNode, path: backingPath } =
-					node.mount.opts.fs.lookupPath(vfsPath);
+					node.mount.opts.fs.lookupPath(vfsPath, {
+						noent_okay: true,
+					});
 				_js_wasm_trace(
 					'backingNode for %s: %s',
 					vfsPath,
 					backingPath,
 					backingNode
 				);
+				if (!backingNode) {
+					throw new Error(
+						`No backing node found for VFS path ${vfsPath}`
+					);
+				}
 				return backingNode.mount.type.realPath(backingNode);
 			} else {
 				throw new Error(
