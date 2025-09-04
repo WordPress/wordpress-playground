@@ -80,10 +80,10 @@ describe('Bridge', () => {
 			await startBridge({ phpRoot: '/foo/bar' });
 
 			const args = (XdebugCDPBridge as any).mock.calls[0][2];
-			expect(args.knownScriptUrls).toContain('file:///foo/bar/baz.php');
+			expect(args.knownScriptUrls).toContain('/foo/bar/baz.php');
 
 			expect(typeof args.getPHPFile).toBe('function');
-			const content = await args.getPHPFile('file:///foo/bar/baz.php');
+			const content = await args.getPHPFile('/foo/bar/baz.php');
 			expect(content).toBe('<?php echo "Hello World";');
 		});
 

@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_3_24', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 33148094;
+export const dependenciesTotalSize = 26573878;
 const phpVersionString = '8.3.24';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 15213248;
+	var ___heap_base = 13876608;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -995,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 16131,
+		initial: 11640,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1781,88 +1781,18 @@ export function init(RuntimeName, PHPLoader) {
 		);
 	___call_sighandler.sig = 'vpi';
 
-	class ExceptionInfo {
-		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
-		constructor(excPtr) {
-			this.excPtr = excPtr;
-			this.ptr = excPtr - 24;
-		}
-
-		set_type(type) {
-			HEAPU32[(this.ptr + 4) >> 2] = type;
-		}
-
-		get_type() {
-			return HEAPU32[(this.ptr + 4) >> 2];
-		}
-
-		set_destructor(destructor) {
-			HEAPU32[(this.ptr + 8) >> 2] = destructor;
-		}
-
-		get_destructor() {
-			return HEAPU32[(this.ptr + 8) >> 2];
-		}
-
-		set_caught(caught) {
-			caught = caught ? 1 : 0;
-			HEAP8[this.ptr + 12] = caught;
-		}
-
-		get_caught() {
-			return HEAP8[this.ptr + 12] != 0;
-		}
-
-		set_rethrown(rethrown) {
-			rethrown = rethrown ? 1 : 0;
-			HEAP8[this.ptr + 13] = rethrown;
-		}
-
-		get_rethrown() {
-			return HEAP8[this.ptr + 13] != 0;
-		}
-
-		// Initialize native structure fields. Should be called once after allocated.
-		init(type, destructor) {
-			this.set_adjusted_ptr(0);
-			this.set_type(type);
-			this.set_destructor(destructor);
-		}
-
-		set_adjusted_ptr(adjustedPtr) {
-			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
-		}
-
-		get_adjusted_ptr() {
-			return HEAPU32[(this.ptr + 16) >> 2];
-		}
-	}
-
-	var exceptionLast = 0;
-
-	var uncaughtExceptionCount = 0;
-	var ___cxa_throw = (ptr, type, destructor) => {
-		var info = new ExceptionInfo(ptr);
-		// Initialize ExceptionInfo content after it was allocated in __cxa_allocate_exception.
-		info.init(type, destructor);
-		exceptionLast = ptr;
-		uncaughtExceptionCount++;
-		throw exceptionLast;
-	};
-	___cxa_throw.sig = 'vppp';
-
 	var ___memory_base = new WebAssembly.Global(
 		{ value: 'i32', mutable: false },
 		1024
 	);
 
-	var ___stack_high = 15213248;
+	var ___stack_high = 13876608;
 
-	var ___stack_low = 14164672;
+	var ___stack_low = 12828032;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		15213248
+		13876608
 	);
 
 	var PATH = {
@@ -19506,6 +19436,75 @@ export function init(RuntimeName, PHPLoader) {
 	var __Unwind_FindEnclosingFunction = (ip) => 0;
 	__Unwind_FindEnclosingFunction.sig = 'pp';
 
+	class ExceptionInfo {
+		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
+		constructor(excPtr) {
+			this.excPtr = excPtr;
+			this.ptr = excPtr - 24;
+		}
+
+		set_type(type) {
+			HEAPU32[(this.ptr + 4) >> 2] = type;
+		}
+
+		get_type() {
+			return HEAPU32[(this.ptr + 4) >> 2];
+		}
+
+		set_destructor(destructor) {
+			HEAPU32[(this.ptr + 8) >> 2] = destructor;
+		}
+
+		get_destructor() {
+			return HEAPU32[(this.ptr + 8) >> 2];
+		}
+
+		set_caught(caught) {
+			caught = caught ? 1 : 0;
+			HEAP8[this.ptr + 12] = caught;
+		}
+
+		get_caught() {
+			return HEAP8[this.ptr + 12] != 0;
+		}
+
+		set_rethrown(rethrown) {
+			rethrown = rethrown ? 1 : 0;
+			HEAP8[this.ptr + 13] = rethrown;
+		}
+
+		get_rethrown() {
+			return HEAP8[this.ptr + 13] != 0;
+		}
+
+		// Initialize native structure fields. Should be called once after allocated.
+		init(type, destructor) {
+			this.set_adjusted_ptr(0);
+			this.set_type(type);
+			this.set_destructor(destructor);
+		}
+
+		set_adjusted_ptr(adjustedPtr) {
+			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
+		}
+
+		get_adjusted_ptr() {
+			return HEAPU32[(this.ptr + 16) >> 2];
+		}
+	}
+
+	var exceptionLast = 0;
+
+	var uncaughtExceptionCount = 0;
+	var ___cxa_throw = (ptr, type, destructor) => {
+		var info = new ExceptionInfo(ptr);
+		// Initialize ExceptionInfo content after it was allocated in __cxa_allocate_exception.
+		info.init(type, destructor);
+		exceptionLast = ptr;
+		uncaughtExceptionCount++;
+		throw exceptionLast;
+	};
+	___cxa_throw.sig = 'vppp';
 	var __Unwind_RaiseException = (ex) => {
 		err('Warning: _Unwind_RaiseException is not correctly implemented');
 		return ___cxa_throw(ex, 0, 0);
@@ -32100,13 +32099,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		13231949: ($0) => {
+		12632557: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		13231997: ($0) => {
+		12632605: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -35144,14 +35143,14 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_stack_get_current = () =>
 		(_emscripten_stack_get_current =
 			wasmExports['emscripten_stack_get_current'])();
-	var ___cxa_decrement_exception_refcount = (a0) =>
-		(___cxa_decrement_exception_refcount =
-			wasmExports['__cxa_decrement_exception_refcount'])(a0);
+	var ___cxa_demangle = (a0, a1, a2, a3) =>
+		(___cxa_demangle = wasmExports['__cxa_demangle'])(a0, a1, a2, a3);
 	var ___cxa_increment_exception_refcount = (a0) =>
 		(___cxa_increment_exception_refcount =
 			wasmExports['__cxa_increment_exception_refcount'])(a0);
-	var ___cxa_demangle = (a0, a1, a2, a3) =>
-		(___cxa_demangle = wasmExports['__cxa_demangle'])(a0, a1, a2, a3);
+	var ___cxa_decrement_exception_refcount = (a0) =>
+		(___cxa_decrement_exception_refcount =
+			wasmExports['__cxa_decrement_exception_refcount'])(a0);
 	var ___cxa_can_catch = (a0, a1, a2) =>
 		(___cxa_can_catch = wasmExports['__cxa_can_catch'])(a0, a1, a2);
 	var ___cxa_get_exception_ptr = (a0) =>

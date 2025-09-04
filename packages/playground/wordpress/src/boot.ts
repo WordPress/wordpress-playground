@@ -10,7 +10,6 @@ import {
 	PHP,
 	PHPRequestHandler,
 	proxyFileSystem,
-	rotatePHPRuntime,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
@@ -286,8 +285,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 
 		// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 		// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: requestHandler.documentRoot,
 			recreateRuntime: options.createPhpRuntime,
 			maxRequests: 400,

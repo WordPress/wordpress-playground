@@ -23,7 +23,6 @@ import {
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { randomString } from '@php-wasm/util';
 import {
-	spawnHandlerFactory,
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
@@ -44,6 +43,7 @@ import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
+	sandboxedSpawnHandlerFactory,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -376,7 +376,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.blob())
 					.then((b) => new File([b], 'sqlite.zip')),
-				spawnHandler: spawnHandlerFactory,
+				spawnHandler: sandboxedSpawnHandlerFactory,
 				sapiName,
 				constants,
 				hooks: {

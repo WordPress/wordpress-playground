@@ -32,7 +32,6 @@ describe('CLI', () => {
 			cdpPort: 9229,
 			cdpHost: 'localhost',
 			dbgpPort: 9003,
-			phpRoot: './',
 		});
 
 		const bridge = await (startBridge as any).mock.results[0].value;

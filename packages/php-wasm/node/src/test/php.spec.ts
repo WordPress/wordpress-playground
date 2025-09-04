@@ -21,7 +21,6 @@ import { vi } from 'vitest';
 import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import type { PHPLoaderOptions } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
-import { jspi } from 'wasm-feature-detect';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -88,7 +87,7 @@ const phpVersions =
 const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
 
 phpLoaderOptions.forEach((options) => {
-	describe.each(phpVersions)('PHP %s', async (phpVersion) => {
+	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any, options));
@@ -2784,29 +2783,6 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		/**
-		 * intl support
-		 */
-		if (!(await jspi())) {
-			describe(
-				'intl extension support',
-				{ skip: options.withXdebug },
-				() => {
-					it('Should be able to use intl functions', async () => {
-						const response = await php.run({
-							code: `<?php
-								$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
-								echo numfmt_format($formatter, 100.00);
-								$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
-								echo numfmt_format($formatter, 100.00);
-							?>`,
-						});
-						expect(response.text).toEqual('$100.00100,00\xA0€');
-					});
-				}
-			);
-		}
-
 		describe('onMessage', { skip: options.withXdebug }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';
@@ -2891,6 +2867,22 @@ phpLoaderOptions.forEach((options) => {
 				expect(await response.stdoutText).toBe(
 					'/internal/shared/bin/php'
 				);
+			});
+
+			it('should support multiple calls to php.cli() and php.runStream() when runtime rotation is enabled', async () => {
+				php.enableRuntimeRotation({
+					maxRequests: 1,
+					recreateRuntime: () =>
+						loadNodeRuntime(phpVersion as any, options),
+				});
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response.stdoutText).toBe('Hello');
+				const response2 = await php.runStream({
+					code: `<?php echo "Hello";`,
+				});
+				expect(await response2.stdoutText).toBe('Hello');
+				const response3 = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response3.stdoutText).toBe('Hello');
 			});
 		});
 

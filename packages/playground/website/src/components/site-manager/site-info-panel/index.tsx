@@ -29,6 +29,8 @@ import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clien
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
+import { setActiveModal } from '../../../lib/state/redux/slice-ui';
+import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 
 export function SiteInfoPanel({
@@ -222,6 +224,19 @@ export function SiteInfoPanel({
 									<>
 										{!isTemporary && (
 											<MenuGroup>
+												<MenuItem
+													aria-label="Rename this Playground"
+													onClick={() => {
+														dispatch(
+															setActiveModal(
+																modalSlugs.RENAME_SITE
+															)
+														);
+														onClose();
+													}}
+												>
+													Rename
+												</MenuItem>
 												<MenuItem
 													aria-label="Delete this Playground"
 													className={css.danger}

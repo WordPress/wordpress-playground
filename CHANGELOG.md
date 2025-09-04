@@ -4,6 +4,30 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.15] (2025-09-01) 
+
+### Documentation
+
+- Added Gujarati Translation for intro-devs.md file. ([#2574](https://github.com/WordPress/wordpress-playground/pull/2574))
+
+### Experiments
+
+
+#### File Synchronization
+
+- [Website] Renaming stored Playgrounds. ([#2486](https://github.com/WordPress/wordpress-playground/pull/2486))
+
+### Bug Fixes
+
+- Fix error from adding blank target to external links. ([#2575](https://github.com/WordPress/wordpress-playground/pull/2575))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @draganescu @shail-mehta
+
+
 ## [v2.0.14] (2025-08-29) 
 
 ### PHP WebAssembly

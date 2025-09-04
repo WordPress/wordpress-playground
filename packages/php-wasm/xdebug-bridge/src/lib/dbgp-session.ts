@@ -23,7 +23,7 @@ export class DbgpSession extends EventEmitter {
 			socket.on('data', (data: Buffer) => this.onData(data.toString()));
 			socket.on('close', () => {
 				this.socket = null;
-				this.emit('close');
+				this.emit('disconnected');
 			});
 			socket.on('error', (err) => {
 				// Forward error events if needed
