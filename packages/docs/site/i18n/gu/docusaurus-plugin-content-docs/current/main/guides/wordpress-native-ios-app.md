@@ -74,7 +74,7 @@ In [Blocknotes GitHub repository](https://github.com/blocknotes-org/blocknotes/t
 -   A layer to [load WordPress posts from iOS files](https://github.com/blocknotes-org/blocknotes/blob/e08535883332be9a45a0c75b750c54a4e17f6748/src/js/index.js#L39) and [save changes as iOS files](https://github.com/blocknotes-org/blocknotes/blob/e08535883332be9a45a0c75b750c54a4e17f6748/src/js/save-data.js).
 -->
 
-## વર્ડપ્રેસ પ્લેગ્રાઉન્ડ  સાથે તમારી પોતાની iOS એપ્લિકેશન બનાવો
+## વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે તમારી પોતાની iOS એપ્લિકેશન બનાવો
 
 <!--
 ## Building your own iOS app with WordPress Playground
