@@ -7,7 +7,8 @@ export type SiteError =
 	| 'directory-handle-directory-does-not-exist'
 	| 'directory-handle-unknown-error'
 	// @TODO: Improve name?
-	| 'site-boot-failed';
+	| 'site-boot-failed'
+	| 'github-artifact-expired';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 export interface UIState {

@@ -277,14 +277,45 @@ function SiteErrorMessage({
 					It seems like you deleted the local directory you previously
 					selected.
 				</p>
-				<p>Unforunately, this site won't work anymore.</p>
+				<p>Unfortunately, this site won't work anymore.</p>
 				<Button
+					className={css.actionButton}
+					variant="primary"
 					onClick={() => {
 						dispatch(removeSite(siteSlug));
 						dispatch(removeClientInfo(siteSlug));
 					}}
 				>
-					Delete this site
+					Delete this site and try again
+				</Button>
+			</>
+		);
+	}
+
+	if (error === 'github-artifact-expired') {
+		return (
+			<>
+				<h1>This artifact has expired</h1>
+				<p>
+					The GitHub CI artifact referenced by this Blueprint is no
+					longer available. GitHub only keeps PR build artifacts for a
+					limited time.
+				</p>
+				<p>
+					Update the Blueprint to point at a fresh build or re-run the
+					PR workflow to produce a new artifact, then try again.
+				</p>
+				<Button
+					className={css.actionButton}
+					variant="primary"
+					onClick={() => {
+						// Remove core-pr parameter and reload
+						const url = new URL(window.location.href);
+						url.searchParams.delete('core-pr');
+						window.location.href = url.toString();
+					}}
+				>
+					Restart Playground without that PR
 				</Button>
 			</>
 		);
@@ -295,6 +326,8 @@ function SiteErrorMessage({
 			<h1>Something went wrong</h1>
 			<p>An error occurred while loading your site. Please try again.</p>
 			<Button
+				className={css.actionButton}
+				variant="primary"
 				onClick={() => {
 					window.location.reload();
 				}}
