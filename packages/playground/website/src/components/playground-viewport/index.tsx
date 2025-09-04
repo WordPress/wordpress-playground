@@ -297,13 +297,13 @@ function SiteErrorMessage({
 			<>
 				<h1>This artifact has expired</h1>
 				<p>
-					The GitHub CI artifact referenced by this Blueprint is no
-					longer available. GitHub only keeps PR build artifacts for a
-					limited time.
+					The requested GitHub artifactis no longer available. GitHub
+					only serves PR build artifacts for a limited time.
 				</p>
 				<p>
-					Update the Blueprint to point at a fresh build or re-run the
-					PR workflow to produce a new artifact, then try again.
+					If you want to preview that PR, you will need to re-run
+					GitHub workflows in that PR. One way to do that is by
+					pushing an empty commit.
 				</p>
 				<Button
 					className={css.actionButton}
