@@ -7,6 +7,8 @@ import dts from 'vite-plugin-dts';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig(({ command }) => {
 	return {
@@ -103,6 +105,8 @@ export default defineConfig(({ command }) => {
 					}
 				},
 			},
+
+			...viteGlobalExtensions,
 		],
 
 		// Configuration for building your library.

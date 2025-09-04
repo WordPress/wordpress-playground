@@ -6,7 +6,7 @@ export async function getXdebugExtensionModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
 	/**
-	 * Hack: Keeping the path working in both
+	 * Keeping the path working in both
 	 * the source file and the final bundle requires
 	 * ESBuild and Vite to rewrite the below path.
 	 * Vite will return the xdebug extension's
@@ -15,6 +15,9 @@ export async function getXdebugExtensionModule(
 	 * the extension's relative path during build
 	 * since target directories are not identically
 	 * located in built and unbuilt versions.
+	 * Hack: Dynamic imports must be static for bundlers,
+	 * so we hack around this by enumerating each
+	 * version explicitly.
 	 */
 	if (await jspi()) {
 		switch (version) {

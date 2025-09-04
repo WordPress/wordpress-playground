@@ -13,11 +13,14 @@ import {
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
-import { type BlueprintMessage, runBlueprintV2 } from './run-blueprint-v2';
+import {
+	type BlueprintMessage,
+	runBlueprintV2,
+} from '@wp-playground/blueprints';
 import {
 	type ParsedBlueprintV2Declaration,
 	type BlueprintV2Declaration,
-} from './blueprint-v2-declaration';
+} from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';

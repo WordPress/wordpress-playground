@@ -152,6 +152,7 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
+					"unzip-file.spec.ts",
 					"php-crash.spec.ts",
 					"php-ini.spec.ts",
 					"php-memory.spec.ts",
@@ -175,6 +176,7 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
+					"unzip-file.spec.ts",
 					"php-crash.spec.ts",
 					"php-ini.spec.ts",
 					"php-memory.spec.ts",

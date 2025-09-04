@@ -1,4 +1,4 @@
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import type {
 	PHPRequest,
 	RemoteAPI,
@@ -49,6 +49,14 @@ import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 
+export const LogVerbosity = {
+	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
+	Normal: { name: 'normal', severity: LogSeverity.Info },
+	Debug: { name: 'debug', severity: LogSeverity.Debug },
+} as const;
+
+type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
+
 export async function parseOptionsAndRunCLI() {
 	try {
 		/**
@@ -71,6 +79,11 @@ export async function parseOptionsAndRunCLI() {
 				describe: 'Port to listen on when serving.',
 				type: 'number',
 				default: 9400,
+			})
+			.option('site-url', {
+				describe:
+					'Site URL to use for WordPress. Defaults to http://127.0.0.1:{port}',
+				type: 'string',
 			})
 			.option('php', {
 				describe: 'PHP version to use.',
@@ -142,10 +155,20 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
+			// Hidden - Deprecated in favor of verbosity
 			.option('quiet', {
 				describe: 'Do not output logs and progress messages.',
 				type: 'boolean',
 				default: false,
+				hidden: true,
+			})
+			.option('verbosity', {
+				describe: 'Output logs and progress messages.',
+				type: 'string',
+				choices: Object.values(LogVerbosity).map(
+					(verbosity) => verbosity.name
+				),
+				default: 'normal',
 			})
 			.option('debug', {
 				describe:
@@ -189,11 +212,10 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			// TODO: Should we make this a hidden flag?
 			.option('experimental-multi-worker', {
 				describe:
-					'Enable experimental multi-worker support which requires JSPI ' +
-					'and a /wordpress directory backed by a real filesystem. ' +
+					'Enable experimental multi-worker support which requires ' +
+					'a /wordpress directory backed by a real filesystem. ' +
 					'Pass a positive number to specify the number of workers to use. ' +
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
@@ -206,9 +228,25 @@ export async function parseOptionsAndRunCLI() {
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
 				hidden: true,
 			})
+			.option('mode', {
+				describe:
+					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
+				type: 'string',
+				choices: ['create-new-site', 'apply-to-existing-site'],
+				// Remove the "hidden" flag once Blueprint V2 is fully supported
+				hidden: true,
+			})
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
+				// Support multiple spellings of "WordPress"
+				if (
+					args['skip-wordpress-setup'] ||
+					args['skipWordpressSetup']
+				) {
+					args['skipWordPressSetup'] = true;
+				}
+
 				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 					try {
 						// Check if is valid URL
@@ -216,6 +254,16 @@ export async function parseOptionsAndRunCLI() {
 					} catch {
 						throw new Error(
 							'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+						);
+					}
+				}
+
+				if (args['site-url'] !== undefined && args['site-url'] !== '') {
+					try {
+						new URL(args['site-url']);
+					} catch {
+						throw new Error(
+							`Invalid site-url "${args['site-url']}". Please provide a valid URL (e.g., http://localhost:8080 or https://example.com)`
 						);
 					}
 				}
@@ -257,6 +305,53 @@ export async function parseOptionsAndRunCLI() {
 						);
 					}
 				}
+
+				if (args['experimental-blueprints-v2-runner'] === true) {
+					if (args['mode'] !== undefined) {
+						if ('skip-wordpress-setup' in args) {
+							throw new Error(
+								'The --skipWordPressSetup option cannot be used with the --mode option. Use one or the other.'
+							);
+						}
+						if ('skip-sqlite-setup' in args) {
+							throw new Error(
+								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
+							);
+						}
+						if (args['auto-mount'] !== undefined) {
+							throw new Error(
+								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+							);
+						}
+					} else {
+						// Support the legacy v1 runner options
+						if (args['skip-wordpress-setup'] === true) {
+							args['mode'] = 'apply-to-existing-site';
+						} else {
+							args['mode'] = 'create-new-site';
+						}
+					}
+
+					// Support the legacy v1 runner options
+					const allow = (args['allow'] as string[]) || [];
+
+					if (args['followSymlinks'] === true) {
+						allow.push('follow-symlinks');
+					}
+
+					if (args['blueprint-may-read-adjacent-files'] === true) {
+						allow.push('read-local-fs');
+					}
+
+					args['allow'] = allow;
+				} else {
+					if (args['mode'] !== undefined) {
+						throw new Error(
+							'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
+						);
+					}
+				}
+
 				return true;
 			});
 
@@ -313,7 +408,9 @@ export interface RunCLIArgs {
 	outfile?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
+	'site-url'?: string;
 	quiet?: boolean;
+	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string;
 	experimentalMultiWorker?: number;
@@ -331,8 +428,10 @@ export interface RunCLIArgs {
 	followSymlinks?: boolean;
 	'blueprint-may-read-adjacent-files'?: boolean;
 
-	// --------- Blueprint V2 args (not available via CLI yet) -----------
+	// --------- Blueprint V2 args -----------
 	mode?: 'mount-only' | 'create-new-site' | 'apply-to-existing-site';
+
+	// --------- Blueprint V2 args (not available via CLI yet) -----------
 	'db-engine'?: 'sqlite' | 'mysql';
 	'db-host'?: string;
 	'db-user'?: string;
@@ -378,9 +477,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		args = expandAutoMounts(args);
 	}
 
+	// Keeping 'quiet' option to preserve backward compatibility
 	if (args.quiet) {
-		// @ts-ignore
-		logger.handlers = [];
+		args.verbosity = 'quiet';
+		delete args['quiet'];
+	}
+
+	// Promote "debug" flag to verbosity but keep args.debug around – the
+	// program behavior may change in more ways than just logging verbosity
+	// when debug mode is enabled, e.g. error objects may carry additional details.
+	if (args.debug) {
+		args.verbosity = 'debug';
+	} else if (args.verbosity === 'debug') {
+		args.debug = true;
+	}
+
+	if (args.verbosity) {
+		const severity = Object.values(LogVerbosity).find(
+			(v) => v.name === args.verbosity
+		)!.severity;
+		logger.setSeverityFilterLevel(severity);
 	}
 
 	// Declare file lock manager outside scope of startServer
@@ -405,7 +521,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	return startServer({
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const absoluteUrl = `http://127.0.0.1:${port}`;
+			const serverUrl = `http://127.0.0.1:${port}`;
+			const siteUrl = args['site-url'] || serverUrl;
 
 			// Create the blueprints handler
 			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
@@ -416,12 +533,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
-					siteUrl: absoluteUrl,
+					siteUrl,
 					processIdSpaceLength,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
-					siteUrl: absoluteUrl,
+					siteUrl,
 					processIdSpaceLength,
 				});
 
@@ -563,7 +680,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					logger.log(`Ready!`);
 				}
 
-				logger.log(`WordPress is running on ${absoluteUrl}`);
+				logger.log(`WordPress is running on ${serverUrl}`);
 
 				if (args.experimentalDevtools && args.xdebug) {
 					const bridge = await startBridge({

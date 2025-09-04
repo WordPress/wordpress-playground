@@ -7,6 +7,8 @@ import ignoreWasmImports from '../ignore-wasm-imports';
 import ignoreDataImports from '../ignore-data-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default {
 	base: '/',
@@ -25,6 +27,8 @@ export default {
 		}),
 		ignoreWasmImports(),
 		ignoreDataImports(),
+
+		...viteGlobalExtensions,
 	],
 
 	// Configuration for building your library.
