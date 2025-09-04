@@ -1,4 +1,5 @@
 import fs from 'fs';
+import crypto from 'crypto';
 import { vi } from 'vitest';
 import { DbgpSession } from '../lib/dbgp-session';
 import { CDPServer } from '../lib/cdp-server';
@@ -13,6 +14,14 @@ describe('XdebugCDPBridge', () => {
 	let cdpServer: CDPServer;
 	let bridge: XdebugCDPBridge;
 	let fixtures: string;
+
+	function hash(id: number): string {
+		return crypto
+			.createHash('sha256')
+			.update(String(id))
+			.digest('hex')
+			.slice(0, 16);
+	}
 
 	beforeEach(async () => {
 		php = new PHP(
@@ -45,8 +54,12 @@ describe('XdebugCDPBridge', () => {
 	});
 
 	it('initializes with correct script IDs', () => {
-		expect(bridge['scriptIdByUrl'].get(`${fixtures}/array.php`)).toBe('1');
-		expect(bridge['scriptIdByUrl'].get(`${fixtures}/test.php`)).toBe('2');
+		expect(bridge['scriptIdByUrl'].get(`${fixtures}/array.php`)).toBe(
+			hash(1)
+		);
+		expect(bridge['scriptIdByUrl'].get(`${fixtures}/test.php`)).toBe(
+			hash(2)
+		);
 	});
 
 	it('registers event handlers in start function', () => {
@@ -113,7 +126,7 @@ describe('XdebugCDPBridge', () => {
 			id: 202,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: 'file:///test.php',
+				url: `file://placeholders/${hash(2)}`,
 				lineNumber: 4,
 			},
 		});
@@ -124,7 +137,7 @@ describe('XdebugCDPBridge', () => {
 				breakpointId: '1',
 				locations: [
 					{
-						scriptId: '3',
+						scriptId: hash(2),
 						lineNumber: 4,
 						columnNumber: 0,
 					},
@@ -137,7 +150,7 @@ describe('XdebugCDPBridge', () => {
 		bridge['breakpoints'].set('1', {
 			cdpId: '1',
 			xdebugId: null,
-			fileUri: 'file:///test.php',
+			fileUri: `file://placeholders/${hash(2)}`,
 			lineNumber: 5,
 		});
 
@@ -161,7 +174,7 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `file://placeholders/${fixtures}/test.php`,
+				url: `file://placeholders/${hash(2)}`,
 				lineNumber: 2,
 			},
 		});
@@ -180,7 +193,7 @@ describe('XdebugCDPBridge', () => {
 
 		expect(
 			[...bridge['scriptIdByUrl'].entries()].find(
-				([, v]) => v === '2'
+				([, v]) => v === hash(2)
 			)?.[0]
 		).toBe(`${fixtures}/test.php`);
 
@@ -191,7 +204,7 @@ describe('XdebugCDPBridge', () => {
 					callFrames: expect.arrayContaining([
 						expect.objectContaining({
 							location: expect.objectContaining({
-								scriptId: '2',
+								scriptId: hash(2),
 								lineNumber: 2,
 							}),
 						}),
@@ -208,7 +221,7 @@ describe('XdebugCDPBridge', () => {
 			id: 3,
 			method: 'Debugger.setBreakpointByUrl',
 			params: {
-				url: `file://placeholders/${fixtures}/array.php`,
+				url: `file://placeholders/${hash(1)}`,
 				lineNumber: 15,
 			},
 		});
@@ -321,7 +334,7 @@ describe('XdebugCDPBridge', () => {
 
 		expect(
 			[...bridge['scriptIdByUrl'].entries()].find(
-				([, v]) => v === '3'
+				([, v]) => v === hash(3)
 			)?.[0]
 		).toBe('/internal/shared/auto_prepend_file.php');
 
@@ -332,7 +345,7 @@ describe('XdebugCDPBridge', () => {
 					callFrames: expect.arrayContaining([
 						expect.objectContaining({
 							location: expect.objectContaining({
-								scriptId: '3',
+								scriptId: hash(3),
 								lineNumber: 2,
 							}),
 						}),
@@ -370,7 +383,7 @@ describe('XdebugCDPBridge', () => {
 			'executionContextId',
 			'sourceMapURL',
 		]);
-		expect(script!.params.scriptId).toEqual('1');
+		expect(script!.params.scriptId).toEqual(hash(1));
 		expect(script!.params.url).toEqual(
 			expect.stringContaining('file://placeholders/')
 		);
