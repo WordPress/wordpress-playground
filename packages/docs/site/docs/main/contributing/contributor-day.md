@@ -6,11 +6,11 @@ description: A guide on how to contribute to the WordPress Playground, and it ca
 
 # WordCamp Contributor Day
 
-WordCamp Contributor Day is an event where the WordPress community comes together to contribute to the WordPress project. This guide focuses on how you can contribute using the WordPress Playground project, or how the Playground can assist you in contributing to WordPress Core.
+WordCamp Contributor Day is an event where the WordPress community comes together to contribute to the WordPress project. This guide focuses on how you can contribute to the WordPress Playground project or how the Playground can assist you in contributing to WordPress Core.
 
 ## Who Can Contribute?
 
-The WordPress Playground contributor tables welcome all kinds of contributions, not just from developers. Whether you are a writer, coder, tester, plugin or theme developer, marketer, site owner, or any other type of user, you are encouraged to contribute.
+Some events will have a dedicated table for the project. The WordPress Playground contributor tables welcome all kinds of contributions, not just from developers. Whether you are a writer, coder, tester, plugin or theme developer, marketer, site owner, or any other type of user, you are encouraged to contribute.
 
 We value diverse contributions across various areas, including community building, testing, documentation, and design.
 
