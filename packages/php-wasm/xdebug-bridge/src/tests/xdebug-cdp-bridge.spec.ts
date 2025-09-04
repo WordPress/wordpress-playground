@@ -1,5 +1,5 @@
 import fs from 'fs';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { vi } from 'vitest';
 import { DbgpSession } from '../lib/dbgp-session';
 import { CDPServer } from '../lib/cdp-server';

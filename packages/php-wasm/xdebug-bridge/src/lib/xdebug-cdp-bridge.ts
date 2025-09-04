@@ -1,5 +1,5 @@
 import path from 'path';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { parseStringPromise } from 'xml2js';
 import type { DbgpSession } from './dbgp-session';
 import type { CDPServer } from './cdp-server';
