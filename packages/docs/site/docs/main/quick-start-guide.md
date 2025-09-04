@@ -46,6 +46,10 @@ Or this URL to preinstall the `pendant` theme:
 
 https://playground.wordpress.net/?theme=pendant
 
+In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters:
+
+https://playground.wordpress.net/?theme=pendant&theme=acai
+
 You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant

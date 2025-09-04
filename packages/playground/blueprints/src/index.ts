@@ -1,24 +1,22 @@
 // Blueprints require WordPress Playground's Node polyfills.
 import '@php-wasm/node-polyfills';
 
-export * from './lib/steps';
-export * from './lib/steps/handlers';
-export {
-	isBlueprintBundle,
-	getBlueprintDeclaration,
-	runBlueprintSteps,
-	compileBlueprint,
-} from './lib/compile';
 export type {
 	Blueprint,
-	BlueprintDeclaration,
 	BlueprintBundle,
+	BlueprintDeclaration,
 	PHPConstants,
 } from './lib/blueprint';
+export {
+	compileBlueprint,
+	getBlueprintDeclaration,
+	isBlueprintBundle,
+	runBlueprintSteps,
+} from './lib/compile';
 export type {
-	CompiledStep,
-	CompiledBlueprint,
 	CompileBlueprintOptions,
+	CompiledBlueprint,
+	CompiledStep,
 	OnStepCompleted,
 } from './lib/compile';
 export type {
@@ -27,12 +25,12 @@ export type {
 	CorePluginResource,
 	CoreThemeReference,
 	CoreThemeResource,
-	ResourceDecorator,
 	FetchResource,
 	FileReference,
 	LiteralReference,
 	LiteralResource,
 	Resource,
+	ResourceDecorator,
 	ResourceTypes,
 	SemaphoreResource,
 	UrlReference,
@@ -40,7 +38,15 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/resources';
+export * from './lib/steps';
+export * from './lib/steps/handlers';
+export type {
+	BlueprintV2Declaration,
+	ParsedBlueprintV2Declaration,
+} from './lib/v2/blueprint-v2-declaration';
 export { getV2Runner } from './lib/v2/get-v2-runner';
+export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
+export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 
 export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';

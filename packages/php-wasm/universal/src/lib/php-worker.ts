@@ -2,7 +2,7 @@ import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import type { PHPResponse } from './php-response';
+import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	MessageListener,
 	PHPEvent,
@@ -174,6 +174,21 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 			.requestHandler!.processManager.acquirePHPInstance();
 		try {
 			return await php.run(request);
+		} finally {
+			reap();
+		}
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.cli */
+	async cli(
+		argv: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<StreamedPHPResponse> {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		try {
+			return await php.cli(argv, options);
 		} finally {
 			reap();
 		}
