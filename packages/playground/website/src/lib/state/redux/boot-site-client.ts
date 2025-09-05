@@ -181,8 +181,15 @@ export function bootSiteClient(
 			}
 		} catch (e) {
 			logger.error(e);
-			dispatch(setActiveSiteError('site-boot-failed'));
-			dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+			if (
+				(e as any).name === 'ArtifactExpiredError' ||
+				(e as any).originalErrorClassName === 'ArtifactExpiredError'
+			) {
+				dispatch(setActiveSiteError('github-artifact-expired'));
+			} else {
+				dispatch(setActiveSiteError('site-boot-failed'));
+				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+			}
 			return;
 		}
 

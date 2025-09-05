@@ -104,8 +104,12 @@ const LibraryForFileLocking = {
 		},
 
 		get_native_path_from_vfs_path(vfsPath) {
-			// TODO: Should there be a try/catch here?
-			const { node } = FS.lookupPath(vfsPath, {});
+			const { node } = FS.lookupPath(vfsPath, {
+				noent_okay: true,
+			});
+			if (!node) {
+				throw new Error(`No node found for VFS path ${vfsPath}`);
+			}
 			if (node.mount.type === NODEFS) {
 				return NODEFS.realPath(node);
 			} else if (node.mount.type === PROXYFS) {
@@ -393,10 +397,9 @@ const LibraryForFileLocking = {
 						return -ERRNO_CODES.EINVAL;
 					}
 
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-
 					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
 						const conflictingLock =
 #if ASYNCIFY == 2
 							await Promise.resolve(
@@ -536,16 +539,16 @@ const LibraryForFileLocking = {
 						pid,
 					};
 
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
-						fd,
-						vfsPath,
-						rangeLock
-					);
-
 					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+							fd,
+							vfsPath,
+							rangeLock
+						);
+
 						const succeeded = (
 #if ASYNCIFY == 2
 							await Promise.resolve(
@@ -702,9 +705,9 @@ const LibraryForFileLocking = {
 				return -ERRNO_CODES.EINVAL;
 			}
 
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 			try {
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
 				const obtainedLock = (
 #if ASYNCIFY == 2
 					await Promise.resolve(
@@ -751,26 +754,36 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
-			const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-			if (pathResolutionErrno !== 0) {
-				_js_wasm_trace(
-					'fd_close(%d) get_vfs_path_from_fd error %d',
-					fd,
-					pathResolutionErrno
-				);
-				return -ERRNO_CODES.EBADF;
+			const fdCloseResult = _builtin_fd_close(fd);
+			if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
+				_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+				return fdCloseResult;
 			}
-
-			const result = _builtin_fd_close(fd);
-			if (result !== 0 || !locking.maybeLockedFds.has(fd)) {
-				_js_wasm_trace('fd_close(%d) result %d', fd, result);
-				return result;
-			}
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 
 			try {
+				const [vfsPath, pathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
+				if (pathResolutionErrno !== 0) {
+					_js_wasm_trace(
+						'fd_close(%d) get_vfs_path_from_fd error %d',
+						fd,
+						pathResolutionErrno
+					);
+					/*
+					 * It looks like the file may have had an associated lock,
+					 * but since we cannot look up the path,
+					 * there is nothing more for us to do.
+					 *
+					 * NOTE: This seems possible for files that are locked and
+					 * then unlinked before close. It is an opportunity for a
+					 * lock to be orphaned in the lock manager.
+					 * @TODO: Explore how to ensure cleanup in this case.
+					 */
+					return fdCloseResult;
+				}
+
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
 #if ASYNCIFY == 2
 				await
 #endif
@@ -789,7 +802,7 @@ const LibraryForFileLocking = {
 			} finally {
 				locking.maybeLockedFds.delete(fd);
 			}
-			return result;
+			return fdCloseResult;
 #if ASYNCIFY == 2
 		});
 #endif

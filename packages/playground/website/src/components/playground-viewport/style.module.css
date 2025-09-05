@@ -25,6 +25,16 @@
 	h1 {
 		text-align: center;
 	}
+
+	h1,
+	p {
+		margin-bottom: 15px;
+	}
+
+	.actionButton {
+		display: block;
+		margin: 0 auto;
+	}
 }
 
 .hidden {
