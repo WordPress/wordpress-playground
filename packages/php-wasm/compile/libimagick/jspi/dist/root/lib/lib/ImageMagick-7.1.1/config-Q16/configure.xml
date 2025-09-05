@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuremap [
+  <!ELEMENT configuremap (configure)+>
+  <!ATTLIST configuremap xmlns CDATA #FIXED ''>
+  <!ELEMENT configure EMPTY>
+  <!ATTLIST configure xmlns CDATA #FIXED '' name NMTOKEN #REQUIRED
+    value CDATA #REQUIRED>
+]>
+<!--
+  ImageMagick build configuration.
+-->
+<configuremap>
+  <configure name="CC" value="/emsdk/upstream/emscripten/emcc"/>
+  <configure name="CFLAGS" value="-Wall -O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1 -fexceptions -DMAGICKCORE_HDRI_ENABLE=0 -DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_CHANNEL_MASK_DEPTH=32"/>
+  <configure name="CHANNEL_MASK_DEPTH" value="32"/>
+  <configure name="CODER_PATH" value="/root/lib/lib/ImageMagick-7.1.1/modules-Q16/coders"/>
+  <configure name="CONFIGURE_PATH" value="/root/lib/etc/ImageMagick-7/"/>
+  <configure name="CONFIGURE" value="./configure  '--build' 'i386-pc-linux-gnu' '--host=wasm32-unknown-emscripten' '--prefix=/root/lib/' '--disable-shared' '--enable-static' '--disable-hdri' '--with-quantum-depth=16' '--disable-openmp' '--without-utilities' '--without-perl' '--without-x' '--with-modules=no' '--with-threads=no' '--enable-delegate-build=no' '--with-png=/root/lib' '--with-jpeg=/root/lib' '--with-zlib=/root/lib' '--with-tiff=no' '--with-xml=no' '--with-lcms=no' '--with-webp=no' '--with-openjp2=no' '--with-heic=no' '--with-freetype=no' 'CFLAGS=-O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1' 'CXXFLAGS=-O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1' 'LDFLAGS=-O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1' 'LIBS=' 'build_alias=i386-pc-linux-gnu' 'host_alias=wasm32-unknown-emscripten' 'CC=/emsdk/upstream/emscripten/emcc' 'CXX=/emsdk/upstream/emscripten/em++' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/emsdk/upstream/emscripten/cache/sysroot/local/lib/pkgconfig:/emsdk/upstream/emscripten/cache/sysroot/lib/pkgconfig'"/>
+  <configure name="COPYRIGHT" value="Copyright (C) 1999 ImageMagick Studio LLC"/>
+  <configure name="CPPFLAGS" value="-I/root/lib/include/ImageMagick-7"/>
+  <configure name="CXXFLAGS" value="-O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1"/>
+  <configure name="CXX" value="/emsdk/upstream/emscripten/em++"/>
+  <configure name="DEFS" value="-DHAVE_CONFIG_H"/>
+  <configure name="DELEGATES" value="jpeg"/>
+  <configure name="DISTCHECK_CONFIG_FLAGS" value="'CC=/emsdk/upstream/emscripten/emcc' 'CFLAGS=-O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1' 'CXX=/emsdk/upstream/emscripten/em++' 'LDFLAGS=-O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1' 'LIBS='  --disable-deprecated  --with-quantum-depth=16  --with-jemalloc=no  --with-umem=no  --with-zlib=/root/lib  --with-autotrace=no  --with-dps=no  --with-fftw=no  --with-flif=no  --with-fpx=no  --with-freetype=no  --with-gslib=no  --with-fontpath=  --with-heic=no  --with-jpeg=/root/lib  --with-lcms=no  --with-openjp2=no  --with-png=/root/lib  --with-rsvg=no  --with-tiff=no  --with-uhdr=no  --with-webp=no  --with-wmf=no  --with-xml=no  --with-perl=no "/>
+  <configure name="DOCUMENTATION_PATH" value="/root/lib/share/doc/ImageMagick-7"/>
+  <configure name="EXEC-PREFIX" value="/root/lib"/>
+  <configure name="EXECUTABLE_PATH" value="/root/lib/bin"/>
+  <configure name="FEATURES" value="Channel-masks(32-bit) Cipher DPC"/>
+  <configure name="FILTER_PATH" value="/root/lib/lib/ImageMagick-7.1.1/modules-Q16/filters"/>
+  <configure name="GIT_REVISION" value="21316" />
+  <configure name="HOST" value="wasm32-unknown-emscripten"/>
+  <configure name="INCLUDE_PATH" value="/root/lib/include/ImageMagick-7"/>
+  <configure name="LDFLAGS" value="-L/root/lib/lib -O3 -s USE_ZLIB=1 -s USE_LIBPNG=1 -s USE_LIBJPEG=1 -s ALLOW_MEMORY_GROWTH=1"/>
+  <configure name="LIBRARY_PATH" value="/root/lib/lib/ImageMagick-7.1.1"/>
+  <configure name="LIBS" value="       -ljpeg                                  -lm        "/>
+  <configure name="LIB_VERSION_NUMBER" value="7,1,1,34"/>
+  <configure name="LIB_VERSION" value="0x711"/>
+  <configure name="NAME" value="ImageMagick"/>
+  <configure name="PCFLAGS" value="-DMAGICKCORE_HDRI_ENABLE=0 -DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_CHANNEL_MASK_DEPTH=32"/>
+  <configure name="PREFIX" value="/root/lib"/>
+  <configure name="QuantumDepth" value="16"/>
+  <configure name="RELEASE_DATE" value="2024-06-23"/>
+  <configure name="SECURITY_POLICY" value="open"/>
+  <configure name="SHAREARCH_PATH" value="/root/lib/lib/ImageMagick-7.1.1/config-Q16"/>
+  <configure name="SHARE_PATH" value="/root/lib/share/ImageMagick-7"/>
+  <configure name="TARGET_CPU" value="wasm32"/>
+  <configure name="TARGET_OS" value="emscripten"/>
+  <configure name="TARGET_VENDOR" value="unknown"/>
+  <configure name="VERSION" value="7.1.1"/>
+  <configure name="WEBSITE" value="https://imagemagick.org"/>
+</configuremap>

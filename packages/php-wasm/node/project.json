@@ -163,6 +163,7 @@
 					"write-files.spec.ts",
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
+					"php-imagick.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
 					"file-lock-manager-for-node.spec.ts"
@@ -187,6 +188,7 @@
 					"write-files.spec.ts",
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
+					"php-imagick.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
 					"file-lock-manager-for-node.spec.ts"

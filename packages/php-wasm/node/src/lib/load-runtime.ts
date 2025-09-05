@@ -11,6 +11,7 @@ import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './file-lock-manager';
 import { withXdebug } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
+import { withImagick } from './extensions/imagick/with-imagick';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
@@ -20,6 +21,7 @@ export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
 	withXdebug?: boolean;
 	withIntl?: boolean;
+	withImagick?: boolean;
 }
 
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -192,6 +194,10 @@ export async function loadNodeRuntime(
 
 	if (options?.withIntl === true) {
 		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
+	}
+
+	if (options?.withImagick === true) {
+		emscriptenOptions = await withImagick(phpVersion, emscriptenOptions);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);

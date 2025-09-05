@@ -100,6 +100,14 @@ libwebp/jspi/dist/root/lib/lib/libwebp.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/lib ./libwebp/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/include ./libwebp/jspi/dist/root/lib
 
+libimagick_jspi: libimagick/jspi/dist/root/lib/lib/libimagick.a
+libimagick/jspi/dist/root/lib/lib/libimagick.a: base-image libz_jspi libpng16_jspi libjpeg_jspi
+	mkdir -p ./libimagick/jspi/dist/root/lib
+	docker build -f ./libimagick/Dockerfile -t playground-php-wasm:libimagick . --build-arg JSPI=1
+	docker cp $$(docker create playground-php-wasm:libimagick):/root/lib/lib ./libimagick/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libimagick):/root/lib/include ./libimagick/jspi/dist/root/lib
+
+
 libxml2_asyncify: libxml2/asyncify/dist/root/lib/lib/libxml2.a
 libxml2/asyncify/dist/root/lib/lib/libxml2.a: base-image libz_asyncify
 	mkdir -p ./libxml2/asyncify/dist/root/lib
@@ -273,7 +281,7 @@ libintl/jspi/dist/root/lib/lib/libintl.a: base-image
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
 
 all: all_jspi all_asyncify
-all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi
+all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi libimagick_jspi
 all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify libintl_asyncify
 
 clean:
