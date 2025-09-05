@@ -114,6 +114,26 @@ RUN if [ "1" = "1" ] || [ "$JSPI" = "1" ] || [ "$WITH_JSPI" = "yes" ]; then \
         cp -r /root/libimagick/asyncify/dist/root/lib/* /root/lib; \
     fi
 
+# Ensure pkg-config can find our ImageMagick .pc files and provide a config-script fallback
+ENV PKG_CONFIG_PATH="/root/lib/lib/pkgconfig"
+RUN set -eux; \
+    mkdir -p /root/lib/bin; \
+    printf '%s\n' '#!/bin/sh' \
+      'set -e' \
+      'PC_NAME=MagickWand' \
+      'case "$1" in' \
+      '  --version|-version|--modversion) exec pkg-config --modversion "$PC_NAME" ;;' \
+      '  --cflags) exec pkg-config --cflags "$PC_NAME" ;;' \
+      '  --libs|--ldflags) exec pkg-config --libs "$PC_NAME" ;;' \
+      '  *) echo "Usage: $0 [--version|--cflags|--libs]" >&2; exit 1 ;;' \
+      'esac' \
+    > /root/lib/bin/MagickWand-config; \
+    chmod +x /root/lib/bin/MagickWand-config; \
+    ln -sf /root/lib/bin/MagickWand-config /root/lib/bin/Wand-config; \
+    pkg-config --modversion MagickWand; \
+    pkg-config --cflags MagickWand; \
+    pkg-config --libs MagickWand
+
 ## Build the Imagick PHP extension using the wasm ImageMagick already in the container
 
 # Build Intl PHP extension
@@ -125,13 +145,18 @@ RUN cd /root/imagick && phpize
 
 RUN source /root/emsdk/emsdk_env.sh && \
     cd /root/imagick && \
-	export CXXFLAGS="-sSIDE_MODULE -D__x86_64__"; \
-	# Ensure pkg-config resolves our ImageMagick .pc files and their dependencies
-	emconfigure ./configure \
-        PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-		--host=i386-unknown-freebsd \
-		--prefix=/root \
-		--with-imagick=/root/lib \
+    export EMCC_CFLAGS="-sSIDE_MODULE -D__x86_64__ -I/root/lib/include/ImageMagick-7"; \
+    export EMCC_LDFLAGS="-sSIDE_MODULE -D__x86_64__ -L/root/lib/lib"; \
+    export CFLAGS="${EMCC_CFLAGS}"; \
+    export CXXFLAGS="${EMCC_CFLAGS}"; \
+    export LDFLAGS="${EMCC_LDFLAGS}"; \
+    export PKG_CONFIG_PATH="/root/lib/lib/pkgconfig"; \
+    export PKG_CONFIG_LIBDIR="/root/lib/lib/pkgconfig"; \
+    export PKG_CONFIG_SYSROOT_DIR="/"; \
+    WAND_CONFIG="/root/lib/bin/MagickWand-config" emconfigure ./configure \
+        --host=i386-unknown-freebsd \
+        --prefix=/root \
+        --with-imagick=/root/lib \
         CFLAGS="${EMCC_CFLAGS}" CXXFLAGS="${EMCC_CFLAGS}" \
         LDFLAGS="${EMCC_LDFLAGS}" LIBS=""
 	
