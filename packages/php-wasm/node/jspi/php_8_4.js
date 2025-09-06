@@ -6,10 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_4_11', 'php_8_4.wasm');
+const dependencyFilename = path.join(__dirname, '8_4_12', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29758773;
-const phpVersionString = '8.4.11';
+export const dependenciesTotalSize = 36375568;
+const phpVersionString = '8.4.12';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -848,7 +848,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 16973536;
+	var ___heap_base = 18314400;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1012,7 +1012,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 12055,
+		initial: 16556,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1743,13 +1743,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 16973536;
+	var ___stack_high = 18314400;
 
-	var ___stack_low = 15924960;
+	var ___stack_low = 17265824;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		16973536
+		18314400
 	);
 
 	var PATH = {
@@ -17709,9 +17709,9 @@ export function init(RuntimeName, PHPLoader) {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					PHPLoader['free'](buffer);
+					PHPLoader['free'](iov);
+					PHPLoader['free'](pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -18364,6 +18364,11 @@ export function init(RuntimeName, PHPLoader) {
 
 		ret = onDone(ret);
 		return ret;
+	};
+
+	var setErrNo = (value) => {
+		HEAP32[___errno_location() >> 2] = value;
+		return value;
 	};
 
 	var FS_createPath = FS.createPath;
@@ -30790,11 +30795,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var allocateUTF8 = stringToNewUTF8;
 
-	var setErrNo = (value) => {
-		HEAP32[___errno_location() >> 2] = value;
-		return value;
-	};
-
 	var demangle = (func) => {
 		// If demangle has failed before, stop demangling any further function names
 		// This avoids an infinite recursion with malloc()->abort()->stackTrace()->demangle()->malloc()->...
@@ -31262,13 +31262,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		15724366: ($0) => {
+		16328046: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		15724414: ($0) => {
+		16328094: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34105,6 +34105,8 @@ export function init(RuntimeName, PHPLoader) {
 		(_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'])(a0));
 	var _fflush = (a0) => (_fflush = wasmExports['fflush'])(a0);
 	var _calloc = (a0, a1) => (_calloc = wasmExports['calloc'])(a0, a1);
+	var ___cxa_throw = (a0, a1, a2) =>
+		(___cxa_throw = wasmExports['__cxa_throw'])(a0, a1, a2);
 	var _flock = (Module['_flock'] = (a0, a1) =>
 		(_flock = Module['_flock'] = wasmExports['flock'])(a0, a1));
 	var _initgroups = (Module['_initgroups'] = (a0, a1) =>
@@ -34228,16 +34230,14 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_stack_get_current = () =>
 		(_emscripten_stack_get_current =
 			wasmExports['emscripten_stack_get_current'])();
-	var ___cxa_demangle = (a0, a1, a2, a3) =>
-		(___cxa_demangle = wasmExports['__cxa_demangle'])(a0, a1, a2, a3);
 	var ___cxa_decrement_exception_refcount = (a0) =>
 		(___cxa_decrement_exception_refcount =
 			wasmExports['__cxa_decrement_exception_refcount'])(a0);
-	var ___cxa_throw = (a0, a1, a2) =>
-		(___cxa_throw = wasmExports['__cxa_throw'])(a0, a1, a2);
 	var ___cxa_increment_exception_refcount = (a0) =>
 		(___cxa_increment_exception_refcount =
 			wasmExports['__cxa_increment_exception_refcount'])(a0);
+	var ___cxa_demangle = (a0, a1, a2, a3) =>
+		(___cxa_demangle = wasmExports['__cxa_demangle'])(a0, a1, a2, a3);
 	var ___thrown_object_from_unwind_exception = (a0) =>
 		(___thrown_object_from_unwind_exception =
 			wasmExports['__thrown_object_from_unwind_exception'])(a0);
@@ -34263,6 +34263,7 @@ export function init(RuntimeName, PHPLoader) {
 	Module['FS_createDevice'] = FS_createDevice;
 	Module['FS_createDataFile'] = FS_createDataFile;
 	Module['FS_createLazyFile'] = FS_createLazyFile;
+	Module['setErrNo'] = setErrNo;
 	Module['PROXYFS'] = PROXYFS;
 
 	async function callMain(args = []) {
