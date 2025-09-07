@@ -10,7 +10,7 @@ description: WordPress Playground દસ્તાવેજીકરણમાં 
 # Documentation contributions
 -->
 
-[WordPress Playground ની દસ્તાવેજીકરણ સાઇટ](https://wordpress.github.io/wordpress-playground/gu/) તમારા જેવા સ્વયંસેવકો દ્વારા સંચાલિત છે — અને તેમને તમારી મદદ ગમે છે।
+[WordPress Playground ની દસ્તાવેજીકરણ સાઇટ](/) તમારા જેવા સ્વયંસેવકો દ્વારા સંચાલિત છે — અને તેમને તમારી મદદ ગમે છે।
 
 <!--
 WordPress Playground's documentation site is maintained by volunteers like you, who'd love your help.
@@ -40,7 +40,7 @@ You can contribute by opening an issue in the project repository and describing 
 If you feel up to it, write the content in the issue description, and the project contributors will take care of the rest.
 -->
 
-શું તમે દસ્તાવેજીકરણને તમારી ભાષામાં જોવા માંગો છો? તો [ટ્રાન્સલેશન વિભાગ](https://wordpress.github.io/wordpress-playground/gu/contributing/translations) જુઓ।
+શું તમે દસ્તાવેજીકરણને તમારી ભાષામાં જોવા માંગો છો? તો [ટ્રાન્સલેશન વિભાગ](/contributing/translations) જુઓ।
 
 <!--
 Would you like to see the documentation in your language? Check the Translation section.
@@ -120,10 +120,11 @@ This approach means you don't need to clone the repository, set up a local devel
 Clone the repository and navigate to the directory on your device. Now run the following commands:
 -->
 
-```bash
-npm install
-npm run build:docs
-npm run dev:docs
+ ```bash
+ npm install
+ npm run build:docs
+ npm run dev:docs
++```
 
 દસ્તાવેજીકરણ સાઇટ નવા બ્રાઉઝર ટૅબમાં ખુલશે અને દરેક ફેરફાર બાદ આપમેળે રિફ્રેશ થશે. હવે તમારા કોડ એડિટરમાં સંબંધિત ફાઇલ એડિટ કરતા રહો અને બદલાવ રિયલ-ટાઇમમાં ચકાસો।
 
