@@ -16,7 +16,7 @@ description: WordPress Playground દસ્તાવેજીકરણમાં 
 WordPress Playground's documentation site is maintained by volunteers like you, who'd love your help.
 -->
 
-WordPress/wordpress-playground રેપોઝિટરીમાં દસ્તાવેજીકરણ સંબંધિત તમામ ઇશ્યૂઝને લેબલ આપવામાં આવે છે: [\[Type\] Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue+state%3Aopen+label%3A%22%5BType%5D+Documentation%22) અથવા [\[Type\] Developer Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue+state%3Aopen+label%3A%22%5BType%5D+Developer+Documentation%22)। ખુલ્લા ઇશ્યૂઝની યાદી જુઓ અને તમને યોગ્ય લાગતો ઇશ્યૂ પસંદ કરો. અથવા તમને લાગે કે વર્તમાન દસ્તાવેજીકરણમાં કંઈક ગૂમ છે, તો તમારી સલાહ પર ચર્ચા કરવા માટે નવો ઇશ્યૂ ખોલો: [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground)।
+WordPress/wordpress-playground રેપોઝિટરીમાં દસ્તાવેજીકરણ સંબંધિત તમામ ઇશ્યૂઝને લેબલ આપવામાં આવે છે: [\[Type\] Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is:issue+state:open+label:"[Type]+Documentation) અથવા [\[Type\] Developer Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is:issue+state:open+label:"[Type]+Developer+Documentation)। ખુલ્લા ઇશ્યૂઝની યાદી જુઓ અને તમને યોગ્ય લાગતો ઇશ્યૂ પસંદ કરો. અથવા તમને લાગે કે વર્તમાન દસ્તાવેજીકરણમાં કંઈક ગૂમ છે, તો તમારી સલાહ પર ચર્ચા કરવા માટે નવો ઇશ્યૂ ખોલો: [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground)।
 
 <!--
 All documentation-related issues are labeled [Type] Documentation or [Type] Developer Documentation in the WordPress/wordpress-playground repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion: WordPress/wordpress-playground.
@@ -124,7 +124,6 @@ Clone the repository and navigate to the directory on your device. Now run the f
 npm install
 npm run build:docs
 npm run dev:docs
-
 
 દસ્તાવેજીકરણ સાઇટ નવા બ્રાઉઝર ટૅબમાં ખુલશે અને દરેક ફેરફાર બાદ આપમેળે રિફ્રેશ થશે. હવે તમારા કોડ એડિટરમાં સંબંધિત ફાઇલ એડિટ કરતા રહો અને બદલાવ રિયલ-ટાઇમમાં ચકાસો।
 
