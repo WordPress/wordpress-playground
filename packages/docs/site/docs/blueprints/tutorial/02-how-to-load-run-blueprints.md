@@ -30,7 +30,7 @@ Use this method to run the example code in the next chapter, [**Build your first
 
 ### Base64 encoded Blueprints
 
-GitHub સહિતના કેટલાક ટૂલ્સ, URL માં પેસ્ટ કરવામાં આવે ત્યારે બ્લુપ્રિન્ટને યોગ્ય રીતે ફોર્મેટ ન પણ કરી શકે. આવા કિસ્સાઓમાં, [તમારા બ્લુપ્રિન્ટને Base64 માં એન્કોડ કરો](https://www.base64encode.org) અને તેને URL માં ઉમેરો. ઉદાહરણ તરીકે, તે Base64 ફોર્મેટમાં ઉપરોક્ત બ્લુપ્રિન્ટ છે: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`.
+Some tools, including GitHub, might not format the Blueprint correctly when pasted into the URL. In such cases, [encode your Blueprint in Base64](https://www.base64encode.org) and append it to the URL. For example, that's the above Blueprint in Base64 format: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`.
 
 To run it, go to [https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19](https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19)
 
