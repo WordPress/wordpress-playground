@@ -124,7 +124,7 @@ Clone the repository and navigate to the directory on your device. Now run the f
  npm install
  npm run build:docs
  npm run dev:docs
-```
++```
 
 દસ્તાવેજીકરણ સાઇટ નવા બ્રાઉઝર ટૅબમાં ખુલશે અને દરેક ફેરફાર બાદ આપમેળે રિફ્રેશ થશે. હવે તમારા કોડ એડિટરમાં સંબંધિત ફાઇલ એડિટ કરતા રહો અને બદલાવ રિયલ-ટાઇમમાં ચકાસો।
 
