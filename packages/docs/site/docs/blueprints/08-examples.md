@@ -99,24 +99,7 @@ If you run WP-CLI commands as steps within your Blueprint file, this manual setu
 The following Blueprint snippet handles this setup:
 
 <BlueprintExample blueprint={{
-    "steps": [
-        {
-            "step": "installPlugin",
-            "pluginData": {
-                "resource": "wordpress.org/plugins",
-                "slug": "sqlite-database-integration"
-            }
-        },
-        {
-            "step": "cp",
-            "fromPath": "/wordpress/wp-content/plugins/sqlite-database-integration/db.copy",
-            "toPath": "/wordpress/wp-content/db.php"
-        },
-        {
-            "step": "activatePlugin",
-            "pluginPath": "/wordpress/wp-content/plugins/sqlite-database-integration"
-        }
-    ]
+    "plugins": [ "sqlite-database-integration" ]
 }} />
 
 For a detailed explanation of why this is needed, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
