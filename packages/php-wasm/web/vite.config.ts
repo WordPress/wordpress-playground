@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { join } from 'path';
+import path from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
@@ -12,6 +12,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig(({ command }) => {
 	return {
+		assetsInclude: ['**/*.so'],
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
 		plugins: [
@@ -20,7 +21,7 @@ export default defineConfig(({ command }) => {
 			}),
 			dts({
 				entryRoot: 'src',
-				tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+				tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
 				pathsToAliases: false,
 			}),
 			{
@@ -101,7 +102,35 @@ export default defineConfig(({ command }) => {
 						 * The slice(-2) will ensure the 'public/`
 						 * portion is removed.
 						 */
-						return '../' + specifier.split('/').slice(-2).join('/');
+						return (
+							'../../../' +
+							specifier.split('/').slice(-2).join('/')
+						);
+					}
+				},
+			},
+			{
+				name: 'preserve-extension-loaders-imports',
+
+				resolveDynamicImport(specifier): string | void {
+					if (
+						command === 'build' &&
+						typeof specifier === 'string' &&
+						specifier.match(/intl\.so$/)
+					) {
+						/**
+						 * The ../ is weird but necessary to make the final build say
+						 * import("./shared/icudt74l.js")
+						 * and not
+						 * import("shared/icudt74l.js")
+						 *
+						 * The slice(-2) will ensure the 'public/`
+						 * portion is removed.
+						 */
+						return (
+							'../../../' +
+							specifier.split('/').slice(-6).join('/')
+						);
 					}
 				},
 			},
@@ -126,6 +155,7 @@ export default defineConfig(({ command }) => {
 				external: [
 					/php_\d_\d.js$/,
 					/icudt74l.js$/,
+					/intl.so$/,
 					...getExternalModules(),
 				],
 			},
@@ -136,7 +166,7 @@ export default defineConfig(({ command }) => {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
-			environment: 'node',
+			environment: 'jsdom',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 			reporters: ['default'],
 		},

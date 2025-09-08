@@ -19,8 +19,13 @@ const argParser = yargs(process.argv.slice(2))
 			required: true,
 		},
 		OUTPUT_DIR: {
-			type: 'string',
+			type: 'array',
 			description: 'The output directory',
+			required: true,
+		},
+		SHARED_DIR: {
+			type: 'array',
+			description: 'The shared directory',
 			required: true,
 		},
 		WITH_DEBUG: {
@@ -66,7 +71,9 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDir = path.resolve(process.cwd(), args['OUTPUT_DIR']);
+const outputDirs = args['OUTPUT_DIR'].map((dir) =>
+	path.resolve(process.cwd(), dir)
+);
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], {
@@ -98,27 +105,29 @@ await asyncSpawn(
 
 const version = args['PHP_VERSION'].replace('.', '_');
 
-// Store the shared library
-await asyncSpawn(
-	'docker',
-	[
-		'run',
-		'--name',
-		'playground-php-wasm-tmp',
-		'--rm',
-		'-v',
-		`${outputDir}:/output`,
-		`playground-php-wasm:${library}`,
-		// Use sh -c because wildcards are a shell feature and
-		// they don't work without running cp through shell.
-		'sh',
-		'-c',
-		`rm -rf /output/extensions/${library}/${version} && \
-			mkdir -p /output/extensions/${library}/${version} && \
-			cp -rf /root/${library}/modules/* /output/extensions/${library}/${version}`,
-	],
-	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
-);
+// Store the shared library in output directories
+for (const outputDir of outputDirs) {
+	await asyncSpawn(
+		'docker',
+		[
+			'run',
+			'--name',
+			'playground-php-wasm-tmp',
+			'--rm',
+			'-v',
+			`${outputDir}:/output`,
+			`playground-php-wasm:${library}`,
+			// Use sh -c because wildcards are a shell feature and
+			// they don't work without running cp through shell.
+			'sh',
+			'-c',
+			`rm -rf /output/extensions/${library}/${version} && \
+				mkdir -p /output/extensions/${library}/${version} && \
+				cp -rf /root/${library}/modules/* /output/extensions/${library}/${version}`,
+		],
+		{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
+	);
+}
 
 // Store the shared data if any
 await asyncSpawn(
@@ -142,16 +151,19 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
+const sharedDirs = args['SHARED_DIR'].map((dir) =>
+	path.resolve(process.cwd(), dir)
+);
+
 // Copy data files
 if (fs.existsSync(`${sourceDir}/${library}/data`)) {
-	const publicDir = `${path.dirname(
-		outputDir
-	)}/src/lib/extensions/${library}/shared`;
-	await asyncSpawn(
-		'sh',
-		['-c', `cp ${sourceDir}/${library}/data/* ${publicDir}`],
-		{ cwd: sourceDir, stdio: 'inherit' }
-	);
+	for (const sharedDir of sharedDirs) {
+		await asyncSpawn(
+			'sh',
+			['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
+			{ cwd: sourceDir, stdio: 'inherit' }
+		);
+	}
 }
 
 function asyncSpawn(...args) {
