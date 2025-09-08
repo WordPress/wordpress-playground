@@ -118,7 +118,7 @@ export async function startPlaygroundWeb({
 	onBlueprintStepCompleted,
 	onClientConnected = () => {},
 	sapiName,
-	onBeforeBlueprint,
+	// onBeforeBlueprint,
 	mounts,
 	scope,
 	corsProxy,
