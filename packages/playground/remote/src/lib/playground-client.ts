@@ -61,6 +61,13 @@ export interface WebClientMixin extends ProgressReceiver {
 	/** @inheritDoc @php-wasm/universal!UniversalPHP.onMessage */
 	onMessage(listener: MessageListener): Promise<() => Promise<void>>;
 
+	/**
+	 * Subscribes to Blueprint v2 progress/error/completion messages.
+	 */
+	onBlueprintMessage(
+		listener: (message: any) => void | Promise<void>
+	): Promise<() => Promise<void>>;
+
 	mountOpfs(
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback

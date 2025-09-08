@@ -113,6 +113,9 @@ export async function bootPlaygroundRemote() {
 		async removeEventListener(event, listener) {
 			return await phpWorkerApi.removeEventListener(event, listener);
 		},
+		async onBlueprintMessage(listener) {
+			return await (phpWorkerApi as any).onBlueprintMessage(listener);
+		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
 				throw new Error('Progress bar not available');

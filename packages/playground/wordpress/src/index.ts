@@ -5,8 +5,14 @@ import { logger } from '@php-wasm/logger';
 
 export {
 	bootWordPress,
+	bootJustWordPress,
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
+} from './boot';
+export type {
+	BootOptions,
+	BootRequestHandlerOptions,
+	BootJustWordPressOptions,
 } from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';

@@ -206,9 +206,13 @@ function playground_progress_reporter() {
 	return new PlaygroundProgressReporter();
 }
 playground_add_filter('blueprint.progress_reporter', 'playground_progress_reporter');
+
 require( "/tmp/blueprints.phar" );
 `
 	);
+	console.log('streamedResponse - before CLI call');
+	console.log(await php.listFiles('/wordpress'));
+	console.log('cliArgs', cliArgs);
 	const streamedResponse = (await (php as any).cli([
 		'/internal/shared/bin/php',
 		'/tmp/run-blueprints.php',
@@ -216,8 +220,12 @@ require( "/tmp/blueprints.phar" );
 		blueprintReference,
 		...cliArgs,
 	])) as StreamedPHPResponse;
+	console.log('streamedResponse - after CLI call');
 
-	streamedResponse.finished.finally(unbindMessageListener);
+	// streamedResponse.finished.finally(unbindMessageListener);
+	console.log('streamedResponse - waiting');
+	await streamedResponse.exitCode;
+	console.log('streamedResponse', streamedResponse);
 
 	return streamedResponse;
 }

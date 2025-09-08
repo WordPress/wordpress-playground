@@ -66,14 +66,6 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
-	/**
-	 * Called before the blueprint steps are run,
-	 * allows the caller to delay the Blueprint execution
-	 * once the Playground is booted.
-	 *
-	 * @returns
-	 */
-	onBeforeBlueprint?: () => Promise<void>;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
 	/**
@@ -118,7 +110,6 @@ export async function startPlaygroundWeb({
 	onBlueprintStepCompleted,
 	onClientConnected = () => {},
 	sapiName,
-	// onBeforeBlueprint,
 	mounts,
 	scope,
 	corsProxy,
@@ -139,6 +130,11 @@ export async function startPlaygroundWeb({
 		blueprint = {};
 	}
 
+	await new Promise((resolve) => {
+		iframe.src = remoteUrl;
+		iframe.addEventListener('load', resolve, false);
+	});
+
 	const compiled = experimentalBlueprintsV2Runner
 		? await compileBlueprint(
 				{},
@@ -152,10 +148,6 @@ export async function startPlaygroundWeb({
 				onStepCompleted: onBlueprintStepCompleted,
 				corsProxy,
 		  });
-	await new Promise((resolve) => {
-		iframe.src = remoteUrl;
-		iframe.addEventListener('load', resolve, false);
-	});
 
 	// Connect the Comlink API client to the remote worker,
 	// boot the playground, and run the blueprint steps.
@@ -167,6 +159,29 @@ export async function startPlaygroundWeb({
 	progressTracker.pipe(playground);
 	const downloadPHPandWP = progressTracker.stage();
 	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+
+	// Subscribe early to blueprint messages when v2 runner is enabled
+	if (experimentalBlueprintsV2Runner && blueprint) {
+		await playground.onBlueprintMessage(async (message: any) => {
+			if (message?.type === 'blueprint.progress') {
+				await playground.setProgress({
+					caption: (message.caption || 'Working').trim(),
+					progress: message.progress,
+					isIndefinite: false,
+					visible: true,
+				});
+			}
+			if (message?.type === 'blueprint.error') {
+				await playground.setProgress({
+					caption: 'Error',
+					isIndefinite: false,
+					visible: true,
+					progress: 100,
+				});
+			}
+		});
+	}
+
 	await playground.boot({
 		mounts,
 		sapiName,
@@ -178,6 +193,8 @@ export async function startPlaygroundWeb({
 		withNetworking: compiled.features.networking,
 		corsProxyUrl: corsProxy,
 		sqliteDriverVersion,
+		experimentalBlueprintsV2Runner,
+		blueprint: blueprint as any,
 	});
 	await playground.isReady();
 	downloadPHPandWP.finish();
@@ -185,35 +202,12 @@ export async function startPlaygroundWeb({
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
-	// If the caller requested the v2 runner and provided a blueprint,
-	// execute it via PHP before running any (empty) TS steps.
-	if (experimentalBlueprintsV2Runner && blueprint) {
-		await playground.setProgress({
-			caption: 'Running Blueprint',
-			isIndefinite: false,
-			visible: true,
-			progress: 0,
-		});
-		const streamed = await runBlueprintV2({
-			php: playground,
-			blueprint: blueprint as
-				| BlueprintV2Declaration
-				| ParsedBlueprintV2Declaration,
-			onMessage: async (message) => {
-				if ((message as any).type === 'blueprint.progress') {
-					await playground.setProgress({
-						caption: ((message as any).caption || 'Working').trim(),
-						progress: (message as any).progress,
-						isIndefinite: false,
-						visible: true,
-					});
-				}
-			},
-		});
-		await streamed.finished;
+	if (!experimentalBlueprintsV2Runner && blueprint) {
+		// Blueprints v1 runner.
+		// @TODO: Should we run this in remote instead?
+		await runBlueprintSteps(compiled, playground);
 	}
 
-	await runBlueprintSteps(compiled, playground);
 	/**
 	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 	 *
