@@ -378,39 +378,42 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				siteUrl,
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
-					return await loadWebRuntime(phpVersion, {
-						tcpOverFetch,
-						withICU,
-						emscriptenOptions: {
-							instantiateWasm(imports, receiveInstance) {
-								// Using .then because Emscripten typically returns an empty
-								// object here and not a promise.
-								memoizedFetch(wasmUrl, {
-									credentials: 'same-origin',
-								})
-									.then((response) =>
-										WebAssembly.instantiateStreaming(
-											response,
-											imports
+					return await loadWebRuntime(
+						'8.3',
+						/*phpVersion*/ {
+							tcpOverFetch,
+							withICU,
+							emscriptenOptions: {
+								instantiateWasm(imports, receiveInstance) {
+									// Using .then because Emscripten typically returns an empty
+									// object here and not a promise.
+									memoizedFetch(wasmUrl, {
+										credentials: 'same-origin',
+									})
+										.then((response) =>
+											WebAssembly.instantiateStreaming(
+												response,
+												imports
+											)
 										)
-									)
-									.then((wasm) => {
-										receiveInstance(
-											wasm.instance,
-											wasm.module
-										);
-									});
-								return {};
+										.then((wasm) => {
+											receiveInstance(
+												wasm.instance,
+												wasm.module
+											);
+										});
+									return {};
+								},
 							},
-						},
-						onPhpLoaderModuleLoaded: (phpLoaderModule) => {
-							wasmUrl = phpLoaderModule.dependencyFilename;
-							downloadMonitor.expectAssets({
-								[wasmUrl]:
-									phpLoaderModule.dependenciesTotalSize,
-							});
-						},
-					});
+							onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+								wasmUrl = phpLoaderModule.dependencyFilename;
+								downloadMonitor.expectAssets({
+									[wasmUrl]:
+										phpLoaderModule.dependenciesTotalSize,
+								});
+							},
+						}
+					);
 				},
 				onPHPInstanceCreated: async (php: PHP) => {
 					/**
