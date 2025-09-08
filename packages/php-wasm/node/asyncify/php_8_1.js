@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 25172766;
+export const dependenciesTotalSize = 25172830;
 const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12921216;
+	var ___heap_base = 12921280;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1786,13 +1786,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12921216;
+	var ___stack_high = 12921280;
 
-	var ___stack_low = 11872640;
+	var ___stack_low = 11872704;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12921216
+		12921280
 	);
 
 	var PATH = {
@@ -6926,24 +6926,36 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function _fd_close(fd) {
-		const [vfsPath, pathResolutionErrno] = locking.get_vfs_path_from_fd(fd);
-		if (pathResolutionErrno !== 0) {
-			_js_wasm_trace(
-				'fd_close(%d) get_vfs_path_from_fd error %d',
-				fd,
-				pathResolutionErrno
-			);
-			return -ERRNO_CODES.EBADF;
+		const fdCloseResult = _builtin_fd_close(fd);
+		if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
+			_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+			return fdCloseResult;
 		}
-
-		const result = _builtin_fd_close(fd);
-		if (result !== 0 || !locking.maybeLockedFds.has(fd)) {
-			_js_wasm_trace('fd_close(%d) result %d', fd, result);
-			return result;
-		}
-		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
 
 		try {
+			const [vfsPath, pathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
+			if (pathResolutionErrno !== 0) {
+				_js_wasm_trace(
+					'fd_close(%d) get_vfs_path_from_fd error %d',
+					fd,
+					pathResolutionErrno
+				);
+				/*
+				 * It looks like the file may have had an associated lock,
+				 * but since we cannot look up the path,
+				 * there is nothing more for us to do.
+				 *
+				 * NOTE: This seems possible for files that are locked and
+				 * then unlinked before close. It is an opportunity for a
+				 * lock to be orphaned in the lock manager.
+				 * @TODO: Explore how to ensure cleanup in this case.
+				 */
+				return fdCloseResult;
+			}
+
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
 			PHPLoader.fileLockManager.releaseLocksForProcessFd(
 				PHPLoader.processId,
 				fd,
@@ -6955,7 +6967,7 @@ export function init(RuntimeName, PHPLoader) {
 		} finally {
 			locking.maybeLockedFds.delete(fd);
 		}
-		return result;
+		return fdCloseResult;
 	}
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
@@ -7069,8 +7081,12 @@ export function init(RuntimeName, PHPLoader) {
 			}
 		},
 		get_native_path_from_vfs_path(vfsPath) {
-			// TODO: Should there be a try/catch here?
-			const { node } = FS.lookupPath(vfsPath, {});
+			const { node } = FS.lookupPath(vfsPath, {
+				noent_okay: true,
+			});
+			if (!node) {
+				throw new Error(`No node found for VFS path ${vfsPath}`);
+			}
 			if (node.mount.type === NODEFS) {
 				return NODEFS.realPath(node);
 			} else if (node.mount.type === PROXYFS) {
@@ -7340,10 +7356,9 @@ export function init(RuntimeName, PHPLoader) {
 					return -ERRNO_CODES.EINVAL;
 				}
 
-				const nativeFilePath =
-					locking.get_native_path_from_vfs_path(vfsPath);
-
 				try {
+					const nativeFilePath =
+						locking.get_native_path_from_vfs_path(vfsPath);
 					const conflictingLock =
 						PHPLoader.fileLockManager.findFirstConflictingByteRangeLock(
 							nativeFilePath,
@@ -7477,16 +7492,16 @@ export function init(RuntimeName, PHPLoader) {
 					pid,
 				};
 
-				const nativeFilePath =
-					locking.get_native_path_from_vfs_path(vfsPath);
-				_js_wasm_trace(
-					'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
-					fd,
-					vfsPath,
-					rangeLock
-				);
-
 				try {
+					const nativeFilePath =
+						locking.get_native_path_from_vfs_path(vfsPath);
+					_js_wasm_trace(
+						'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+						fd,
+						vfsPath,
+						rangeLock
+					);
+
 					const succeeded =
 						PHPLoader.fileLockManager.lockFileByteRange(
 							nativeFilePath,
@@ -17405,8 +17420,9 @@ export function init(RuntimeName, PHPLoader) {
 			return -ERRNO_CODES.EINVAL;
 		}
 
-		const nativeFilePath = locking.get_native_path_from_vfs_path(vfsPath);
 		try {
+			const nativeFilePath =
+				locking.get_native_path_from_vfs_path(vfsPath);
 			const obtainedLock = PHPLoader.fileLockManager.lockWholeFile(
 				nativeFilePath,
 				{
@@ -17742,9 +17758,9 @@ export function init(RuntimeName, PHPLoader) {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					PHPLoader['free'](buffer);
+					PHPLoader['free'](iov);
+					PHPLoader['free'](pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -18575,6 +18591,11 @@ export function init(RuntimeName, PHPLoader) {
 		// If this is an async ccall, ensure we return a promise
 		if (asyncMode) return Promise.resolve(ret);
 		return ret;
+	};
+
+	var setErrNo = (value) => {
+		HEAP32[___errno_location() >> 2] = value;
+		return value;
 	};
 
 	var FS_createPath = FS.createPath;
@@ -31593,11 +31614,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var allocateUTF8 = stringToNewUTF8;
 
-	var setErrNo = (value) => {
-		HEAP32[___errno_location() >> 2] = value;
-		return value;
-	};
-
 	var demangle = (func) => {
 		// If demangle has failed before, stop demangling any further function names
 		// This avoids an infinite recursion with malloc()->abort()->stackTrace()->demangle()->malloc()->...
@@ -32099,13 +32115,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11643133: ($0) => {
+		11643197: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11643181: ($0) => {
+		11643245: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -35532,6 +35548,7 @@ export function init(RuntimeName, PHPLoader) {
 	Module['FS_createDevice'] = FS_createDevice;
 	Module['FS_createDataFile'] = FS_createDataFile;
 	Module['FS_createLazyFile'] = FS_createLazyFile;
+	Module['setErrNo'] = setErrNo;
 	Module['PROXYFS'] = PROXYFS;
 
 	function callMain(args = []) {
