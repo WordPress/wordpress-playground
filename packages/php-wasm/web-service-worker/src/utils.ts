@@ -83,7 +83,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		phpResponse.headers['location']
 	) {
 		return Response.redirect(
-			phpResponse.headers['location'][0],
+			new URL(phpResponse.headers['location'][0], url.toString()),
 			phpResponse.httpStatusCode
 		);
 	}

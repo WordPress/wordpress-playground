@@ -15,6 +15,7 @@ WordPress Playground is an open-source project that welcomes contributors of all
 -   Documentation? See the [documentation section](/contributing/documentation).
 -   Reporting bugs? Open a [new issue](https://github.com/WordPress/wordpress-playground/issues/new) in the main GitHub repository, or in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
 -   Ideas, designs, or anything else? Open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions), and let's talk!
+-   Translation? see the [translation section](/contributing/translations).
 
 ## Guidelines
 

@@ -80,6 +80,9 @@ class PluginDownloader
 					if ($artifact->size_in_bytes < 3000) {
 						throw new ApiException('artifact_invalid');
 					}
+					if ($artifact->expired) {
+						throw new ApiException('artifact_expired');
+					}
 					$zip_download_api_endpoint = $artifact->archive_download_url;
 					break;
 				}

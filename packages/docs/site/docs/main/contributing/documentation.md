@@ -16,6 +16,8 @@ You can contribute by [opening an issue in the project repository](https://githu
 
 If you feel up to it, write the content in the issue description, and the project contributors will take care of the rest.
 
+Would you like to see the documentation in your language? Check the [Translation section](/contributing/translations).
+
 ### Forking the repo, edit files locally and opening Pull Requests
 
 If you are familiar with markdown, you can [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the `wordpress-playground` repo and propose changes and new documentation pages by submitting a Pull Request.

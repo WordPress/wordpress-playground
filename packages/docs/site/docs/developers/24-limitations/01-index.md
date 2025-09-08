@@ -34,7 +34,7 @@ As Playground [streams rather than serves](/about#streamed-not-served) WordPress
 
 ### Iframe quirks
 
-Playground renders WordPress in an `iframe` so clicking links with `target="_top"` will reload the page you’re working on.
+Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you’re working on.
 Also, JavaScript popups originating in the `iframe` may not always display.
 
 ### Run WordPress PHP functions

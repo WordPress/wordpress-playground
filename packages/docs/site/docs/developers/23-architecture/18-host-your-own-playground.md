@@ -16,7 +16,7 @@ A self-hosted Playground can be embedded as an iframe.
 <iframe src="https://my-playground.com"></iframe>
 ```
 
-Or dynamically loaded by passing the remote URL to the Playground Client.
+Or dynamically loaded by passing the remote URL to the [Playground Client](/developers/apis/javascript-api/playground-api-client).
 
 ```ts
 import { startPlaygroundWeb } from '@wp-playground/client';

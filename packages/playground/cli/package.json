@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/cli",
-	"version": "2.0.15",
+	"version": "2.0.16",
 	"description": "WordPress Playground CLI",
 	"repository": {
 		"type": "git",

@@ -4,6 +4,60 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.16] (2025-09-04) 
+
+### Enhancements
+
+- Add structured issue templates for bugs, enhancements, and documentation. ([#2571](https://github.com/WordPress/wordpress-playground/pull/2571))
+- Allow installing multiple themes via URL, as required by parent/child themes. ([#2581](https://github.com/WordPress/wordpress-playground/pull/2581))
+
+### Blueprints
+
+- Move blueprints.phar to the Blueprints package. ([#2471](https://github.com/WordPress/wordpress-playground/pull/2471))
+- Move runBlueprintV2 to the blueprints package. ([#2594](https://github.com/WordPress/wordpress-playground/pull/2594))
+
+### Tools
+
+- [XDebug Bridge] Highlight syntax of php scripts from mime type in Devtools. ([#2566](https://github.com/WordPress/wordpress-playground/pull/2566))
+- [XDebug Bridge] Load files in Devtools before running PHP with Xdebug enabled. ([#2527](https://github.com/WordPress/wordpress-playground/pull/2527))
+
+### Documentation
+
+- Added Gujarati Translation for Index.md File. ([#2576](https://github.com/WordPress/wordpress-playground/pull/2576))
+- Added Gujarati Translation for JSON API and Function API File. ([#2577](https://github.com/WordPress/wordpress-playground/pull/2577))
+- Adding french translation guide. ([#2541](https://github.com/WordPress/wordpress-playground/pull/2541))
+- Adding more internal links between pages. ([#2499](https://github.com/WordPress/wordpress-playground/pull/2499))
+- Adding reference to multiple theme URL parameter. ([#2593](https://github.com/WordPress/wordpress-playground/pull/2593))
+- Adding runCLI section to the Playground CLI page. ([#2583](https://github.com/WordPress/wordpress-playground/pull/2583))
+- Updating runCLI demo at wp-playground/cli README file. ([#2553](https://github.com/WordPress/wordpress-playground/pull/2553))
+- Updating wp versions blueprints. ([#2573](https://github.com/WordPress/wordpress-playground/pull/2573))
+- [Docs] Adding how to contribute to the WordPress Playground. ([#2597](https://github.com/WordPress/wordpress-playground/pull/2597))
+
+### PHP WebAssembly
+
+- Increase file locking safety. ([#2506](https://github.com/WordPress/wordpress-playground/pull/2506))
+- [ php-wasm ] Add `intl` dynamic extension to @php-wasm/node ASYNCIFY #2501. ([#2557](https://github.com/WordPress/wordpress-playground/pull/2557))
+- [PHP] Expose php.cli() on the web. ([#2590](https://github.com/WordPress/wordpress-playground/pull/2590))
+- [PHP] Include CLI SAPI in the web PHP.wasm build. ([#2589](https://github.com/WordPress/wordpress-playground/pull/2589))
+- [PHP] Inline rotatePHPRuntime() into the PHP class. ([#2559](https://github.com/WordPress/wordpress-playground/pull/2559))
+- [PHP] Rotate the spawn handler in hotSwapPHPRuntime(). ([#2588](https://github.com/WordPress/wordpress-playground/pull/2588))
+
+### Website
+
+- A specific error when a GitHub artifact is not found. ([#2596](https://github.com/WordPress/wordpress-playground/pull/2596))
+- Apply base URLs to relative redirection URLs. ([#2595](https://github.com/WordPress/wordpress-playground/pull/2595))
+
+### Various
+
+- Add Japanese translations to Quick Start Guide for Developers. ([#2587](https://github.com/WordPress/wordpress-playground/pull/2587))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @dd32 @fellyph @mho22 @shail-mehta @shimotmk
+
+
 ## [v2.0.15] (2025-09-01) 
 
 ### Documentation

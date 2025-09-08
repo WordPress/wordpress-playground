@@ -1,4 +1,5 @@
 import path from 'path';
+import crypto from 'crypto';
 import { parseStringPromise } from 'xml2js';
 import type { DbgpSession } from './dbgp-session';
 import type { CDPServer } from './cdp-server';
@@ -65,7 +66,7 @@ export class XdebugCDPBridge {
 		this.breakOnFirstLine = config.breakOnFirstLine || false;
 	}
 
-	start() {
+	start(): void {
 		// Xdebug connected
 		this.dbgp.on('connected', () => {
 			this.xdebugConnected = true;
@@ -108,84 +109,132 @@ export class XdebugCDPBridge {
 		});
 
 		// Load known scripts
-		this.sendInitialScripts();
+		this.sendInitialScripts().then(() => {
+			if (!this.breakOnFirstLine) {
+				// Opens Sources tab instead of Console by pausing the process
+				const entry = this.scriptIdByUrl.entries().next().value;
 
-		if (!this.breakOnFirstLine) {
-			// Opens Sources tab instead of Console by pausing the process
-			this.cdp.sendMessage({
-				method: 'Debugger.paused',
-				params: {
-					callFrames: [
-						{
-							location: {
-								scriptId: '1',
-								lineNumber: 0,
-							},
-							scopeChain: [],
-							this: { type: 'undefined' },
+				if (entry) {
+					this.cdp.sendMessage({
+						method: 'Debugger.paused',
+						params: {
+							callFrames: [
+								{
+									location: {
+										scriptId: entry[1],
+										lineNumber: 0,
+									},
+									scopeChain: [],
+									this: { type: 'undefined' },
+								},
+							],
+							reason: 'other',
 						},
-					],
-					reason: 'other',
+					});
+
+					// Resume the process after 50ms to maintain focus on the first file.
+					// 50ms is an arbitrary choice: 0ms won’t display the code at this delay,
+					// while 100ms would be too long and cause a visible break on the first line.
+					setTimeout(() => {
+						this.cdp.sendMessage({ method: 'Debugger.resumed' });
+					}, 50);
+				}
+			}
+
+			// Send a nice welcome message with instructions
+			this.cdp.sendMessage({
+				method: 'Log.entryAdded',
+				params: {
+					entry: {
+						source: 'other',
+						level: 'info',
+						text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or Playground CLI.\n\n3. Witness the magic break.',
+						timestamp: Date.now(),
+					},
 				},
 			});
-
-			// Resume the process after 50ms to maintain focus on the first file.
-			// 50ms is an arbitrary choice: 0ms won’t display the code at this delay,
-			// while 100ms would be too long and cause a visible break on the first line.
-			setTimeout(() => {
-				this.cdp.sendMessage({ method: 'Debugger.resumed' });
-			}, 50);
-		}
-
-		// Send a nice welcome message with instructions
-		this.cdp.sendMessage({
-			method: 'Log.entryAdded',
-			params: {
-				entry: {
-					source: 'other',
-					level: 'info',
-					text: '🎉 Welcome to WordPress Playground DevTools! 🎉\n   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n\n1. Add breakpoints in your files to start step debugging.\n\n2. Run your php file, project, plugin or theme using PHP.wasm or Playground CLI.\n\n3. Witness the magic break.',
-					timestamp: Date.now(),
+			this.cdp.sendMessage({
+				method: 'Log.entryAdded',
+				params: {
+					entry: {
+						source: 'other',
+						level: 'info',
+						text: ' ',
+						timestamp: Date.now(),
+					},
 				},
-			},
-		});
-		this.cdp.sendMessage({
-			method: 'Log.entryAdded',
-			params: {
-				entry: {
-					source: 'other',
-					level: 'info',
-					text: ' ',
-					timestamp: Date.now(),
-				},
-			},
+			});
 		});
 	}
 
-	stop() {
+	stop(): void {
 		this.dbgp.close();
 		this.cdp.close();
 	}
 
-	private sendInitialScripts() {
+	private async sendInitialScripts(): Promise<void> {
 		for (const [bridgeUri, scriptId] of this.scriptIdByUrl.entries()) {
-			this.cdp.sendMessage({
-				method: 'Debugger.scriptParsed',
-				params: {
-					scriptId,
-					url: this.uriFromBridgeToCDP(bridgeUri),
-					startLine: 0,
-					startColumn: 0,
-					executionContextId: 1,
-				},
-			});
+			await this.sendScriptToCDP(bridgeUri, scriptId);
 		}
+	}
+
+	private async sendScriptToCDP(url: string, id: string): Promise<void> {
+		const highlightUri = this.uriFromBridgeToCDPSyntaxHighlight(url);
+		const cdpUri = this.uriFromBridgeToCDP(url);
+
+		const phpContent = await this.readPHPFile(url);
+		const phpLines = phpContent.split('\n');
+
+		// The first line is AAAA while the others are AACA.
+		// This is enough to set breakpoints with CDP and
+		// communicate with the DBGp protocol.
+		const mappings = phpLines
+			.map((_value, index) => (index === 0 ? 'AAAA' : 'AACA'))
+			.join(';');
+
+		const sourceMap = {
+			version: 3,
+			// File uri has to match the script parsed url
+			// While the sources url has to match the syntax
+			// highlighted file displayed in Devtools.
+			file: cdpUri,
+			sources: [highlightUri],
+			sourcesContent: [phpContent],
+			mappings,
+		};
+
+		const encodedMap = Buffer.from(
+			JSON.stringify(sourceMap),
+			'utf-8'
+		).toString('base64');
+		const sourceMapDataUri = `data:application/json;base64,${encodedMap}`;
+
+		this.cdp.sendMessage({
+			method: 'Debugger.scriptParsed',
+			params: {
+				scriptId: id,
+				url: cdpUri,
+				startLine: 0,
+				startColumn: 0,
+				endLine: phpLines.length,
+				endColumn: 0,
+				executionContextId: 1,
+				sourceMapURL: sourceMapDataUri,
+			},
+		});
 	}
 
 	private getOrCreateScriptId(url: string): string {
 		let scriptId = this.scriptIdByUrl.get(url);
 		if (!scriptId) {
-			scriptId = String(this.nextScriptId++);
+			// IDs are used as references in the source directory.
+			// To prevent exposing raw IDs, we hash them with SHA-256
+			// and keep only the first 16 characters.
+			scriptId = crypto
+				.createHash('sha256')
+				.update(String(this.nextScriptId++))
+				.digest('hex')
+				.slice(0, 16);
 			this.scriptIdByUrl.set(url, scriptId);
 		}
 		return scriptId;
@@ -225,7 +274,7 @@ export class XdebugCDPBridge {
 		return txnIdStr;
 	}
 
-	private async handleCdpMessage(message: any) {
+	private async handleCdpMessage(message: any): Promise<void> {
 		const { id, method, params } = message;
 		let result: any = {};
 		let sendResponse = true;
@@ -444,11 +493,36 @@ export class XdebugCDPBridge {
 				const bridgeUri = [...this.scriptIdByUrl.entries()].find(
 					([, v]) => v === sid
 				)?.[0];
-				let scriptSource = '';
+
+				const fullPath = [];
+
 				if (bridgeUri) {
-					scriptSource = await this.readPHPFile(bridgeUri);
+					fullPath.push(
+						...[
+							"Here's the full path for your convenience:\n",
+							`${this.uriFromBridgeToCDPSyntaxHighlight(
+								bridgeUri
+							).replace('file://', '')}\n`,
+						]
+					);
 				}
-				result = { scriptSource };
+
+				// getScriptSource usually fills the source file.
+				// With scripts now using source maps, the source map
+				// now handles displaying the file content.
+				// Therefore, we return a redirect message instead.
+				result = {
+					scriptSource: [
+						'`Are you looking for your source code?',
+						'Go to PHP.wasm group in the navigator and find it there.',
+						...fullPath,
+						"What is this file, then? It's a placeholder required due to the dev tools limitations.",
+						'The XDebug <-> Devtools bridge implement PHP syntax highlighting using source maps,',
+						'and the unfortunate side effect is having a "source" file and a "target" file.',
+						'This is the "source". If you\'re interested in even more details, see the discussion at:\n',
+						'https://github.com/WordPress/wordpress-playground/pull/2566`',
+					].join('\n'),
+				};
 				break;
 			}
 			default:
@@ -463,25 +537,31 @@ export class XdebugCDPBridge {
 
 	/* ---------- uri mapping ---------- */
 
-	private setPrefixForCDP() {
-		return path.isAbsolute(this.phpRoot) ? 'file://' : 'file:///';
+	private uriFromBridgeToCDPSyntaxHighlight(uri: string): string {
+		return `file://PHP.wasm/${uri}`;
 	}
 
-	private uriFromBridgeToCDP(uri: string) {
-		return `${this.setPrefixForCDP()}${uri}`;
+	private uriFromBridgeToCDP(uri: string): string {
+		uri = this.scriptIdByUrl.get(uri) ?? '';
+
+		return `file://placeholders/${uri}`;
 	}
 
-	private uriFromCDPToBridge(uri: string) {
-		const prefix = this.setPrefixForCDP();
+	private uriFromCDPToBridge(uri: string): string {
+		const prefix = 'file://placeholders/';
 
-		return uri.startsWith(prefix) ? uri.slice(prefix.length) : uri;
+		return (
+			[...this.scriptIdByUrl.entries()].find(
+				([, v]) => v === uri.slice(prefix.length)
+			)?.[0] ?? ''
+		);
 	}
 
-	private uriFromBridgeToDBGP(uri: string) {
-		return path.resolve(uri);
+	private uriFromBridgeToDBGP(uri: string): string {
+		return path.resolve(process.cwd(), uri);
 	}
 
-	private uriFromDBGPToBridge(uri: string) {
+	private uriFromDBGPToBridge(uri: string): string {
 		uri = uri.startsWith('file://') ? uri.slice(7) : uri;
 
 		const index = uri.indexOf(this.phpRoot);
@@ -489,7 +569,7 @@ export class XdebugCDPBridge {
 		return index !== -1 ? uri.slice(index) : uri;
 	}
 
-	private async handleDbgpMessage(msgObj: any) {
+	private async handleDbgpMessage(msgObj: any): Promise<void> {
 		if (msgObj.init) {
 			this.breakpoints.forEach((breakpoint) => {
 				this.handleCdpMessage({
@@ -582,17 +662,10 @@ export class XdebugCDPBridge {
 						);
 
 						if (bridgeUri && !this.scriptIdByUrl.has(bridgeUri)) {
-							this.cdp.sendMessage({
-								method: 'Debugger.scriptParsed',
-								params: {
-									scriptId:
-										this.getOrCreateScriptId(bridgeUri),
-									url: this.uriFromBridgeToCDP(bridgeUri),
-									startLine: 0,
-									startColumn: 0,
-									executionContextId: 1,
-								},
-							});
+							await this.sendScriptToCDP(
+								bridgeUri,
+								this.getOrCreateScriptId(bridgeUri)
+							);
 						}
 					}
 					if (status === 'break') {
@@ -950,16 +1023,7 @@ export class XdebugCDPBridge {
 							if (!this.scriptIdByUrl.has(bridgeUri)) {
 								// Mark it known and send scriptParsed
 								this.scriptIdByUrl.set(bridgeUri, scriptId);
-								this.cdp.sendMessage({
-									method: 'Debugger.scriptParsed',
-									params: {
-										scriptId: scriptId,
-										url: this.uriFromBridgeToCDP(bridgeUri),
-										startLine: 0,
-										startColumn: 0,
-										executionContextId: 1,
-									},
-								});
+								await this.sendScriptToCDP(bridgeUri, scriptId);
 							}
 						}
 						// Build callFrames array

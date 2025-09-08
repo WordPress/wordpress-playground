@@ -149,13 +149,16 @@ npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 The Playground CLI can be controlled programmatically from your JavaScript code using the `runCLI` function. This allows you to integrate all CLI functionalities directly into your development workflow, for example, end-to-end testing.
 
 ```JavaScript
-import { runCLI } from "@wp-playground/cli";
+import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-const cliServer = await runCLI({
-      command: "server"
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+    command: 'server',
+    php: '8.3',
+    wp: 'latest',
+    login: true
 });
-const handler = cliServer.requestHandler;
-const php = await handler.getPrimaryPhp();
 ```
 
 ## Comparisons
