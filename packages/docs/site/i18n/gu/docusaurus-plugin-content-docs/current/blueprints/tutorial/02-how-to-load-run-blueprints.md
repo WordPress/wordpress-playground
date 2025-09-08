@@ -1,7 +1,7 @@
 ---
 title: બ્લુપ્રિન્ટ્સ કેવી રીતે ચલાવવી
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description:બ્લુપ્રિન્ટ્સ લોડ કરવા અને ચલાવવા માટેની વિવિધ પદ્ધતિઓ શીખો, જેમાં URL ફ્રેગમેન્ટ અથવા બ્લુપ્રિન્ટ-url પેરામીટરનો ઉપયોગ શામેલ છે.
+description: બ્લુપ્રિન્ટ્સ લોડ કરવા અને ચલાવવા માટેની વિવિધ પદ્ધતિઓ શીખો, જેમાં URL ફ્રેગમેન્ટ અથવા બ્લુપ્રિન્ટ-url પેરામીટરનો ઉપયોગ શામેલ છે.
 ---
 
 # બ્લુપ્રિન્ટ્સ કેવી રીતે લોડ કરવા અને ચલાવવા
@@ -84,7 +84,7 @@ When your Blueprint gets too wieldy, you can load it via the `?blueprint-url` qu
 
 [https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json)
 
-નોંધ કરો કે બ્લુપ્રિન્ટ સાર્વજનિક રીતે સુલભ હોવી જોઈએ અને [સાચા `Access-Control-Allow-Origin` હેડર] સાથે સેવા આપવી જોઈએ (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)
+નોંધ કરો કે બ્લુપ્રિન્ટ સાર્વજનિક રીતે સુલભ હોવી જોઈએ અને [સાચા `Access-Control-Allow-Origin` હેડર સાથે સેવા આપવી જોઈએ](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)
 
 <!--
 Note that the Blueprint must be publicly accessible and served with [the correct `Access-Control-Allow-Origin` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin):
