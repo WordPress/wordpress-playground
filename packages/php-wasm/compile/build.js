@@ -190,13 +190,14 @@ const platformDefaults = {
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
-		WITH_INTL: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 		WITH_OPCACHE: 'yes',
 		STACK_SIZE: '1MB',
 	},
-	web: {},
+	web: {
+		WITH_INTL: 'yes',
+	},
 	node: {
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
