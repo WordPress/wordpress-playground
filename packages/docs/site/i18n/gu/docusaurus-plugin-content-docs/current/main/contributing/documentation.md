@@ -16,10 +16,10 @@ description: WordPress Playground દસ્તાવેજીકરણમાં 
 WordPress Playground's documentation site is maintained by volunteers like you, who'd love your help.
 -->
 
-WordPress/wordpress-playground રેપોઝિટરીમાં દસ્તાવેજીકરણ સંબંધિત તમામ ઇશ્યૂઝને લેબલ આપવામાં આવે છે: [\[Type\] Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is:issue+state:open+label:"[Type]+Documentation) અથવા [\[Type\] Developer Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is:issue+state:open+label:"[Type]+Developer+Documentation)। ખુલ્લા ઇશ્યૂઝની યાદી જુઓ અને તમને યોગ્ય લાગતો ઇશ્યૂ પસંદ કરો. અથવા તમને લાગે કે વર્તમાન દસ્તાવેજીકરણમાં કંઈક ગૂમ છે, તો તમારી સલાહ પર ચર્ચા કરવા માટે નવો ઇશ્યૂ ખોલો: [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground)।
+[WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) રેપોઝિટરીમાં દસ્તાવેજીકરણ સંબંધિત તમામ ઇશ્યૂઝને [\[Type\] Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22)  અથવા [\[Type\] Developer Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) લેબલ આપવામાં આવે છે. ખુલ્લા ઇશ્યૂઝની યાદી જુઓ અને જે ઇશ્યૂ પર તમે કામ કરવાનું ઇચ્છો તે પસંદ કરો. અન્યથા, જો તમને લાગે કે વર્તમાન દસ્તાવેજીકરણમાં કંઈક ગૂમ છે, તો તમારી સલાહ પર ચર્ચા કરવા માટે નવો ઇશ્યૂ ખોલો.
 
 <!--
-All documentation-related issues are labeled [Type] Documentation or [Type] Developer Documentation in the WordPress/wordpress-playground repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion: WordPress/wordpress-playground.
+All documentation-related issues are labeled [Type] Documentation or [Type] Developer Documentation in the WordPress/wordpress-playground repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 -->
 
 ## હું કેવી રીતે યોગદાન આપી શકું?
@@ -28,7 +28,7 @@ All documentation-related issues are labeled [Type] Documentation or [Type] Deve
 ## How can I contribute?
 -->
 
-તમે [પ્રોજેક્ટ રિપોઝિટરીમાં ઇશ્યૂ ખોલીને](https://github.com/WordPress/wordpress-playground/issues/new) શું ઉમેરવું છે કે શું બદલવું છે તેનું વર્ણન કરી શકો છો।
+તમે [પ્રોજેક્ટ રિપોઝિટરીમાં ઇશ્યૂ ખોલીને](https://github.com/WordPress/wordpress-playground/issues/new) શું ઉમેરવું છે કે શું બદલવું છે તેનું વર્ણન કરી શકો છો।    
 
 <!--
 You can contribute by opening an issue in the project repository and describing what you'd like to add or change.
@@ -52,7 +52,7 @@ Would you like to see the documentation in your language? Check the Translation 
 ### Forking the repo, edit files locally and opening Pull Requests
 -->
 
-જો તમને Markdown જાણીતું હોય તો તમે [`wordpress-playground`](https://github.com/WordPress/wordpress-playground) રેપો **ફૉર્ક** કરી શકો છો અને Pull Request મોકલીને ફેરફારો અથવા નવા દસ્તાવેજ પેજ પ્રસ્તાવિત કરી શકો છો।
+જો તમે માર્કડાઉનથી પરિચિત છો, તો તમે `wordpress-playground` રેપોને [ફોર્ક](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) કરી શકો છો અને પુલ રિક્વેસ્ટ સબમિટ કરીને ફેરફારો અને નવા દસ્તાવેજીકરણ પૃષ્ઠોનો પ્રસ્તાવ મૂકી શકો છો.
 
 <!--
 If you are familiar with markdown, you can fork the `wordpress-playground` repo and propose changes and new documentation pages by submitting a Pull Request.
@@ -124,9 +124,8 @@ Clone the repository and navigate to the directory on your device. Now run the f
  npm install
  npm run build:docs
  npm run dev:docs
-+```
+```
 
 દસ્તાવેજીકરણ સાઇટ નવા બ્રાઉઝર ટૅબમાં ખુલશે અને દરેક ફેરફાર બાદ આપમેળે રિફ્રેશ થશે. હવે તમારા કોડ એડિટરમાં સંબંધિત ફાઇલ એડિટ કરતા રહો અને બદલાવ રિયલ-ટાઇમમાં ચકાસો।
-
 
 <!-- The documentation site opens in a new browser tab and refreshes automatically with each change. Continue to edit the relevant file in your code editor and test the changes in real-time. -->
