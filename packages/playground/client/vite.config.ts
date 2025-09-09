@@ -32,6 +32,7 @@ const additionalRemoteOriginsModulePath = join(
 );
 
 export default defineConfig({
+	assetsInclude: ['**/*.so'],
 	cacheDir: '../../../node_modules/.vite/playground-client',
 	plugins: [
 		viteTsConfigPaths({
