@@ -1,44 +1,43 @@
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { setURLScope } from '@php-wasm/scopes';
+import { joinPaths, randomString } from '@php-wasm/util';
 import type {
 	GeneratedCertificate,
-	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+	TCPOverFetchOptions,
 } from '@php-wasm/web';
 import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
 } from '@php-wasm/web';
-import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
-import { wordPressSiteUrl } from './config';
 import {
-	getWordPressModuleDetails,
+	createMemoizedFetch,
+	RecommendedPHPVersion,
+} from '@wp-playground/common';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
+import {
 	getSqliteDriverModuleDetails,
+	getWordPressModuleDetails,
 	LatestMinifiedWordPressVersion,
 	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
-import { randomString } from '@php-wasm/util';
+import { wordPressSiteUrl } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import {
-	createMemoizedFetch,
-	RecommendedPHPVersion,
-} from '@wp-playground/common';
-import type { FilesystemOperation } from '@php-wasm/fs-journal';
-import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /* @ts-ignore */
-import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import { logger } from '@php-wasm/logger';
 import type {
 	MessageListener,
 	PHP,
@@ -50,26 +49,24 @@ import {
 	sandboxedSpawnHandlerFactory,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import {
-	bootWordPress,
-	getFileNotFoundActionForWordPress,
-	getLoadedWordPressVersion,
-	bootRequestHandler,
-	bootJustWordPress,
-} from '@wp-playground/wordpress';
-import { runBlueprintV2 } from '@wp-playground/blueprints';
+import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import type {
 	BlueprintV2Declaration,
 	ParsedBlueprintV2Declaration,
-	BlueprintMessage,
 } from '@wp-playground/blueprints';
+import { runBlueprintV2 } from '@wp-playground/blueprints';
+import {
+	bootJustWordPress,
+	bootRequestHandler,
+	getFileNotFoundActionForWordPress,
+	getLoadedWordPressVersion,
+} from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import { logger } from '@php-wasm/logger';
-import { generateCertificate, certificateToPEM } from '@php-wasm/web';
 import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
@@ -488,32 +485,22 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						'Blueprints v2 runner requires a blueprint declaration.'
 					);
 				}
-				try {
-					primaryPhp.defineConstant('WP_DEBUG', true);
-					primaryPhp.defineConstant('WP_DEBUG_LOG', true);
-					primaryPhp.defineConstant('WP_DEBUG_DISPLAY', false);
-					const streamed = await runBlueprintV2({
-						php: primaryPhp,
-						cliArgs: ['--site-url=' + siteUrl],
-						blueprint,
-						onMessage: async (message: any) => {
-							for (const listener of this
-								.blueprintMessageListeners) {
-								await listener(message);
-							}
-							console.log('blueprint message', message);
-							/**
-							 * @TODO: Handle mounts like the v1 runner does.
-								for (const mount of mounts) {
-							*/
-						},
-					});
-					await streamed.finished;
-				} catch (e) {
-					// Catch the error to help debug the wasm crash. Remove this
-					// before merging!
-					console.error('error', e);
-				}
+				const streamed = await runBlueprintV2({
+					php: primaryPhp,
+					cliArgs: ['--site-url=' + siteUrl],
+					blueprint,
+					onMessage: async (message: any) => {
+						for (const listener of this.blueprintMessageListeners) {
+							await listener(message);
+						}
+						// console.log('blueprint message', message);
+						/**
+						 * @TODO: Handle mounts like the v1 runner does.
+							for (const mount of mounts) {
+						*/
+					},
+				});
+				await streamed.finished;
 			} else {
 				await bootJustWordPress(requestHandler, {
 					siteUrl,

@@ -1,42 +1,36 @@
 export * from '@wp-playground/blueprints';
 
-export type {
-	HTTPMethod,
-	PHPRunOptions,
-	PHPRequest,
-	PHPResponse,
-	UniversalPHP,
-	PHPOutput,
-	PHPResponseData,
-	ErrnoError,
-	PHPRequestHandler,
-	PHPRequestHandlerConfiguration,
-	PHPRequestHeaders,
-	SupportedPHPVersion,
-	RmDirOptions,
-	RuntimeType,
-} from '@php-wasm/universal';
 export {
+	LatestSupportedPHPVersion,
 	setPhpIniEntries,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
-	LatestSupportedPHPVersion,
+} from '@php-wasm/universal';
+export type {
+	ErrnoError,
+	HTTPMethod,
+	PHPOutput,
+	PHPRequest,
+	PHPRequestHandler,
+	PHPRequestHandlerConfiguration,
+	PHPRequestHeaders,
+	PHPResponse,
+	PHPResponseData,
+	PHPRunOptions,
+	RmDirOptions,
+	RuntimeType,
+	SupportedPHPVersion,
+	UniversalPHP,
 } from '@php-wasm/universal';
 export { phpVar, phpVars } from '@php-wasm/util';
-export type { PlaygroundClient, MountDescriptor };
+export type { MountDescriptor, PlaygroundClient };
 
-import { runBlueprintV2 } from '@wp-playground/blueprints';
-import type {
-	Blueprint,
-	BlueprintV2Declaration,
-	OnStepCompleted,
-	ParsedBlueprintV2Declaration,
-} from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
-import { consumeAPI } from '@php-wasm/web';
-import { ProgressTracker } from '@php-wasm/progress';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
+import { ProgressTracker } from '@php-wasm/progress';
+import { consumeAPI } from '@php-wasm/web';
+import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
+import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';

@@ -4,12 +4,12 @@ import {
 	type UniversalPHP,
 } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import { getV2Runner } from './get-v2-runner';
 import {
 	type BlueprintV2Declaration,
 	type ParsedBlueprintV2Declaration,
 	parseBlueprintDeclaration,
 } from './blueprint-v2-declaration';
+import { getV2Runner } from './get-v2-runner';
 
 export type PHPExceptionDetails = {
 	exception: string;
@@ -210,22 +210,19 @@ playground_add_filter('blueprint.progress_reporter', 'playground_progress_report
 require( "/tmp/blueprints.phar" );
 `
 	);
-	console.log('streamedResponse - before CLI call');
-	console.log(await php.listFiles('/wordpress'));
-	console.log('cliArgs', cliArgs);
-	const streamedResponse = (await (php as any).cli([
-		'/internal/shared/bin/php',
-		'/tmp/run-blueprints.php',
-		'exec',
-		blueprintReference,
-		...cliArgs,
-	])) as StreamedPHPResponse;
-	console.log('streamedResponse - after CLI call');
+	try {
+		const streamedResponse = (await (php as any).cli([
+			'/internal/shared/bin/php',
+			'/tmp/run-blueprints.php',
+			'exec',
+			blueprintReference,
+			...cliArgs,
+		])) as StreamedPHPResponse;
 
-	// streamedResponse.finished.finally(unbindMessageListener);
-	console.log('streamedResponse - waiting');
-	await streamedResponse.exitCode;
-	console.log('streamedResponse', streamedResponse);
+		await streamedResponse.exitCode;
 
-	return streamedResponse;
+		return streamedResponse;
+	} finally {
+		unbindMessageListener();
+	}
 }
