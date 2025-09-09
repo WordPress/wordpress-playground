@@ -36,7 +36,6 @@ import {
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
-/* @ts-ignore */
 import { logger } from '@php-wasm/logger';
 import type {
 	MessageListener,
@@ -66,6 +65,7 @@ import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
+/* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 /* @ts-ignore */

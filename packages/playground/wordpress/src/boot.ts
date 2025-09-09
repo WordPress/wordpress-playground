@@ -51,6 +51,7 @@ export interface BootRequestHandlerOptions {
 	siteUrl: string;
 	documentRoot?: string;
 	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	constants?: Record<string, string | number | boolean | null>;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -161,7 +162,7 @@ export async function bootJustWordPress(
 		await unzipWordPress(php, await options.wordPressZip);
 	}
 
-	if (options.constants) {
+	if (options.constants && typeof options.constants === 'object') {
 		for (const key in options.constants) {
 			php.defineConstant(key, options.constants[key] as string);
 		}
