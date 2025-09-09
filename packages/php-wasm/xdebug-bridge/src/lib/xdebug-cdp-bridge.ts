@@ -1,5 +1,5 @@
 import path from 'path';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 import { parseStringPromise } from 'xml2js';
 import type { DbgpSession } from './dbgp-session';
 import type { CDPServer } from './cdp-server';
@@ -230,8 +230,7 @@ export class XdebugCDPBridge {
 			// IDs are used as references in the source directory.
 			// To prevent exposing raw IDs, we hash them with SHA-256
 			// and keep only the first 16 characters.
-			scriptId = crypto
-				.createHash('sha256')
+			scriptId = createHash('sha256')
 				.update(String(this.nextScriptId++))
 				.digest('hex')
 				.slice(0, 16);

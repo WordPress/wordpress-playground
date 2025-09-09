@@ -69,6 +69,7 @@ export default defineConfig({
 		rollupOptions: {
 			external: [
 				'assert',
+				'crypto',
 				'fs',
 				'net',
 				'path',
