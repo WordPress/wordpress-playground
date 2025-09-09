@@ -31,8 +31,8 @@ export function parseBlueprint(rawData: string) {
 		} catch {
 			return JSON.parse(decodeBase64ToString(rawData));
 		}
-	} catch {
-		throw new Error('Invalid blueprint');
+	} catch (error) {
+		throw new Error('Invalid blueprint', { cause: error });
 	}
 }
 

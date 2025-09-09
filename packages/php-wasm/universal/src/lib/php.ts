@@ -1453,7 +1453,7 @@ export class PHP implements Disposable {
 		})
 			.then((response) => {
 				response.exitCode.finally(release);
-				return PHPResponse.fromStreamedResponse(response);
+				return response;
 			})
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;

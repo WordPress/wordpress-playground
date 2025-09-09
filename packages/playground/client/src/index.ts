@@ -202,7 +202,14 @@ export async function startPlaygroundWeb({
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
-	if (!experimentalBlueprintsV2Runner && blueprint) {
+	if (experimentalBlueprintsV2Runner) {
+		// @TODO: Source the landing page URL from the v2 Blueprint
+		// @TODO: Maybe reconcile this code path with v1 Blueprints? Right now it's
+		//        handled in `compileBlueprint`. Perhaps we could somehow move it to a
+		//        PHP plugin and also support it in Node.js? Or at least handle initial
+		//        redirection for both v1 and v2 Blueprints in the same place in web browsers?
+		await playground.goTo('/');
+	} else if (blueprint) {
 		// Blueprints v1 runner.
 		// @TODO: Should we run this in remote instead?
 		await runBlueprintSteps(compiled, playground);

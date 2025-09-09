@@ -489,6 +489,9 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					);
 				}
 				try {
+					primaryPhp.defineConstant('WP_DEBUG', true);
+					primaryPhp.defineConstant('WP_DEBUG_LOG', true);
+					primaryPhp.defineConstant('WP_DEBUG_DISPLAY', false);
 					const streamed = await runBlueprintV2({
 						php: primaryPhp,
 						cliArgs: ['--site-url=' + siteUrl],
