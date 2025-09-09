@@ -403,7 +403,6 @@ RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
 CURL_CFLAGS="-I/root/lib/include" \
 WEBP_LIBS="-L/root/lib/lib" \
 WEBP_CFLAGS="-I/root/lib/include" \
@@ -2243,14 +2242,20 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
+	ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT"; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dynamic-linking.js"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -s MAIN_MODULE"; \
+	else \
+		# Prevents "document is not defined" errors in Web Workers when using MAIN_MODULE.
+		# By default, Emscripten assumes MAIN_MODULE runs only in a web environment,
+		# so it injects WebGL and other browser-only APIs. Explicitly adding "worker"
+		# ensures the runtime is compatible with Web Workers as well.
+		ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT,worker"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
+	--js-library /root/phpwasm-emscripten-library-dynamic-linking.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
 	$PLATFORM_SPECIFIC_ARGS \
 	-I .  \
@@ -2265,6 +2270,7 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
+	-s MAIN_MODULE \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
@@ -2284,7 +2290,7 @@ RUN set -euxo pipefail; \
 		/root/proc_open.c \
 		/root/php_wasm.c \
 		$(cat /root/.emcc-php-wasm-sources) \
-	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
+	-s ENVIRONMENT=$ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
 	-s EXPORT_NAME="'PHPLoader'"
 	# Emscripten complains it can't find some Asyncify functions
@@ -2373,7 +2379,7 @@ RUN set -euxo pipefail; \
 		# separate copies of the code. Instead, we use a dynamic computation of the
 		# environment, based on the `RuntimeName` variable, which is an argument to the
 		# wrapper function.
-		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
+		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=[^;]*;/ENVIRONMENT_IS_$1=RuntimeName==="$1";/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
 	# Expose required functions to the module.
 		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,
