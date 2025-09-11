@@ -12,7 +12,15 @@ import type {
 	BlueprintDeclaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
-import { compileBlueprint } from '@wp-playground/blueprints';
+import {
+	compileBlueprint,
+	getBlueprintDeclaration,
+	isBlueprintBundle,
+} from '@wp-playground/blueprints';
+import {
+	LatestSupportedPHPVersion,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
@@ -89,7 +97,68 @@ export async function createSiteMetadata(
 		blueprintSource = resolvedBlueprint.source;
 	}
 
-	const compiledBlueprint = await compileBlueprint({}); //blueprint);
+	// Derive runtime configuration for both Blueprint v1 and v2 without
+	// invoking the v1 compiler for v2 Blueprints (which would fail).
+	let preferredPhpVersion: SupportedPHPVersion | undefined = undefined;
+	let preferredWpVersion: string = 'latest';
+	let features: Required<NonNullable<BlueprintDeclaration['features']>> = {
+		intl: false,
+		networking: true,
+	};
+	let extraLibraries: NonNullable<BlueprintDeclaration['extraLibraries']> =
+		[];
+
+	const declaration = isBlueprintBundle(blueprint!)
+		? await getBlueprintDeclaration(blueprint!)
+		: (blueprint as any);
+	const isV2 = !!declaration && (declaration as any).version === 2;
+
+	if (isV2) {
+		// v2: Build a minimal v1-style declaration from URL overrides and v2 fields,
+		// then compile it to normalize versions/features.
+		let phpFromQuery: string | undefined;
+		let wpFromQuery: string | undefined;
+		let networkingFromQuery: string | undefined;
+		try {
+			const params = new URLSearchParams(window.location.search);
+			phpFromQuery = params.get('php') || undefined;
+			wpFromQuery = params.get('wp') || undefined;
+			networkingFromQuery = params.get('networking') || undefined;
+		} catch {
+			// Non-browser context; ignore.
+		}
+
+		const synthetic: BlueprintDeclaration = {
+			preferredVersions: {
+				php: (phpFromQuery as any) ?? undefined,
+				wp:
+					wpFromQuery ||
+					(declaration as any).wordpressVersion ||
+					'latest',
+			},
+			features: {
+				intl: false,
+				networking:
+					networkingFromQuery && networkingFromQuery !== 'yes'
+						? false
+						: true,
+			},
+			extraLibraries: [],
+		};
+
+		const compiled = await compileBlueprint(synthetic);
+		preferredPhpVersion = compiled.versions.php;
+		preferredWpVersion = compiled.versions.wp;
+		features = compiled.features;
+		extraLibraries = compiled.extraLibraries;
+	} else if (blueprint) {
+		// v1: Compile to reliably normalize versions/features.
+		const compiled = await compileBlueprint(blueprint);
+		preferredPhpVersion = compiled.versions.php;
+		preferredWpVersion = compiled.versions.wp;
+		features = compiled.features;
+		extraLibraries = compiled.extraLibraries;
+	}
 
 	return {
 		name,
@@ -103,11 +172,11 @@ export async function createSiteMetadata(
 
 		runtimeConfiguration: {
 			preferredVersions: {
-				wp: compiledBlueprint.versions.wp,
-				php: compiledBlueprint.versions.php,
+				wp: preferredWpVersion,
+				php: preferredPhpVersion!,
 			},
-			features: compiledBlueprint.features,
-			extraLibraries: compiledBlueprint.extraLibraries,
+			features,
+			extraLibraries,
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which
