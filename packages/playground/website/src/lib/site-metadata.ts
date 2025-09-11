@@ -141,6 +141,8 @@ export async function createSiteMetadata(
 			//        Keeping it here makes it tricky to handle Blueprints v2 as they
 			//        may express their WordPress version in multiple ways that diverge from
 			//        the Blueprint v1 version declaration.
+			//
+			//        Is it only used in TemporarySiteSettingsForm?
 			preferredVersions: {
 				wp: preferredWpVersion,
 				php: preferredPhpVersion!,
