@@ -10,6 +10,7 @@
 import type {
 	Blueprint,
 	BlueprintDeclaration,
+	BlueprintV2Declaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
 import {
@@ -111,43 +112,10 @@ export async function createSiteMetadata(
 	const isV2 = !!declaration && (declaration as any).version === 2;
 
 	if (isV2) {
-		// v2: Build a minimal v1-style declaration from URL overrides and v2 fields,
-		// then compile it to normalize versions/features.
-		let phpFromQuery: string | undefined;
-		let wpFromQuery: string | undefined;
-		let networkingFromQuery: string | undefined;
-		try {
-			const params = new URLSearchParams(window.location.search);
-			phpFromQuery = params.get('php') || undefined;
-			wpFromQuery = params.get('wp') || undefined;
-			networkingFromQuery = params.get('networking') || undefined;
-		} catch {
-			// Non-browser context; ignore.
-		}
-
-		const synthetic: BlueprintDeclaration = {
-			preferredVersions: {
-				php: (phpFromQuery as any) ?? undefined,
-				wp:
-					wpFromQuery ||
-					(declaration as any).wordpressVersion ||
-					'latest',
-			},
-			features: {
-				intl: false,
-				networking:
-					networkingFromQuery && networkingFromQuery !== 'yes'
-						? false
-						: true,
-			},
-			extraLibraries: [],
-		};
-
-		const compiled = await compileBlueprint(synthetic);
-		preferredPhpVersion = compiled.versions.php;
-		preferredWpVersion = compiled.versions.wp;
-		features = compiled.features;
-		extraLibraries = compiled.extraLibraries;
+		const blueprintV2 = declaration as BlueprintV2Declaration;
+		preferredPhpVersion = blueprintV2.phpVersion as any;
+		// @TODO: The type is not compatible with v1 version type
+		preferredWpVersion = blueprintV2.wordpressVersion as any;
 	} else if (blueprint) {
 		// v1: Compile to reliably normalize versions/features.
 		const compiled = await compileBlueprint(blueprint as any); // @TODO: cast to v1 declaration
@@ -168,12 +136,17 @@ export async function createSiteMetadata(
 		...remainingMetadata,
 
 		runtimeConfiguration: {
+			// @TODO: Rethink why we're storing preferredWpVersion here.
+			//        WP core is stored in VFS or OPFS – that's the source of truth.
+			//        Keeping it here makes it tricky to handle Blueprints v2 as they
+			//        may express their WordPress version in multiple ways that diverge from
+			//        the Blueprint v1 version declaration.
 			preferredVersions: {
 				wp: preferredWpVersion,
 				php: preferredPhpVersion!,
 			},
 			features,
-			extraLibraries,
+			extraLibraries, // @TODO: Do we need it for Blueprints v2?
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which

@@ -41,7 +41,7 @@ const keyedStepHandlers = {
  */
 import blueprintValidator from '../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from './steps/wp-cli';
-import { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
+import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
