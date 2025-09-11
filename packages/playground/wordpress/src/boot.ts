@@ -179,7 +179,7 @@ export async function bootWordPress(options: BootOptions) {
 		);
 	}
 
-	if (!options.dataSqlPath) {
+	if (options.wordPressZip && !options.dataSqlPath) {
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			await installWordPress(php);
