@@ -196,7 +196,7 @@ export async function bootJustWordPress(
 		);
 	}
 
-	if (!options.dataSqlPath) {
+	if (options.wordPressZip && !options.dataSqlPath) {
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			await installWordPress(php);
