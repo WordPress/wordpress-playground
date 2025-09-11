@@ -51,7 +51,7 @@ import {
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import type {
 	BlueprintV2Declaration,
-	ParsedBlueprintV2Declaration,
+	ParsedBlueprintV2String,
 } from '@wp-playground/blueprints';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import {
@@ -107,7 +107,7 @@ export type WorkerBootOptions = {
 	/** When true, skip default WP install and run Blueprints v2 in the worker */
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
-	blueprint?: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	blueprint?: BlueprintV2Declaration | ParsedBlueprintV2String;
 };
 
 /** @inheritDoc PHPClient */

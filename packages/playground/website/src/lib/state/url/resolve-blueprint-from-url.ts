@@ -3,6 +3,8 @@ import type {
 	BlueprintBundle,
 	Blueprint,
 	StepDefinition,
+	SupportedPHPVersion,
+	BlueprintV2Declaration,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
@@ -37,7 +39,10 @@ export async function resolveBlueprintFromURL(
 	const query = url.searchParams;
 	const fragment = decodeURI(url.hash || '#').substring(1);
 
-	let blueprint: BlueprintDeclaration | BlueprintBundle;
+	let blueprint:
+		| BlueprintDeclaration
+		| BlueprintBundle
+		| BlueprintV2Declaration;
 	let source: BlueprintSource;
 
 	/**
@@ -145,46 +150,58 @@ export async function resolveBlueprintFromURL(
 }
 
 function applyQueryOverrides(
-	blueprint: BlueprintDeclaration,
+	blueprint: BlueprintDeclaration | BlueprintV2Declaration,
 	query: URLSearchParams
-): BlueprintDeclaration {
-	// @TODO: What kind of overrides are needed for version 2? Will we have to support both
-	// sets of overrides?
-	if ((blueprint as any).version === 2) {
-		return blueprint;
-	}
-	// PHP and WordPress versions
-	if (!blueprint.preferredVersions) {
-		blueprint.preferredVersions = {} as any;
-	}
-	blueprint.preferredVersions!.php =
-		(query.get('php') as any) ||
-		blueprint.preferredVersions!.php ||
-		RecommendedPHPVersion;
-	blueprint.preferredVersions!.wp =
-		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
+): BlueprintDeclaration | BlueprintV2Declaration {
+	type Overrides = {
+		php: SupportedPHPVersion;
+		wp: any;
+		login?: boolean;
+		landingPage?: string;
+		features: {
+			networking: boolean;
+		};
+		steps: StepDefinition[];
+	};
+	const isV2 = !!blueprint && (blueprint as any).version === 2;
+	const isV1 = !isV2;
+	const blueprintV2 = blueprint as BlueprintV2Declaration;
+	const blueprintV1 = blueprint as BlueprintDeclaration;
+	const blueprintSteps = isV1
+		? blueprintV1.steps
+		: blueprintV2.additionalStepsAfterExecution;
 
-	// Features
-	if (!blueprint.features) {
-		blueprint.features = {};
-	}
-
-	/**
-	 * Networking is enabled by default, so we only need to disable it
-	 * if the query param is explicitly set to something other than "yes".
-	 */
-	if (query.get('networking') && query.get('networking') !== 'yes') {
-		blueprint.features['networking'] = false;
-	}
+	const overrides: Overrides = {
+		php:
+			(query.get('php') as any) ||
+			(isV1
+				? blueprintV1.preferredVersions!.php
+				: blueprintV2.phpVersion) ||
+			RecommendedPHPVersion,
+		wp:
+			query.get('wp') ||
+			(isV1
+				? blueprintV1.preferredVersions!.wp
+				: blueprintV2.wordpressVersion) ||
+			'latest',
+		features: {
+			/**
+			 * Networking is enabled by default, so we only need to disable it
+			 * if the query param is explicitly set to something other than "yes".
+			 */
+			networking: query.get('networking') !== 'yes',
+		},
+		steps: [],
+	};
 
 	// Language
 	if (query.get('language')) {
 		if (
-			!blueprint?.steps?.find(
+			!blueprintSteps?.find(
 				(step) => step && (step as any).step === 'setSiteLanguage'
 			)
 		) {
-			blueprint.steps?.push({
+			overrides.steps?.push({
 				step: 'setSiteLanguage',
 				language: query.get('language')!,
 			});
@@ -194,11 +211,11 @@ function applyQueryOverrides(
 	// Multisite
 	if (query.get('multisite') === 'yes') {
 		if (
-			!blueprint?.steps?.find(
+			!overrides.steps?.find(
 				(step) => step && (step as any).step === 'enableMultisite'
 			)
 		) {
-			blueprint.steps?.push({
+			overrides.steps?.push({
 				step: 'enableMultisite',
 			});
 		}
@@ -206,12 +223,12 @@ function applyQueryOverrides(
 
 	// Login
 	if (query.get('login') !== 'no') {
-		blueprint.login = true;
+		overrides.login = true;
 	}
 
 	// Landing page
 	if (query.get('url')) {
-		blueprint.landingPage = query.get('url')!;
+		overrides.landingPage = query.get('url')!;
 	}
 
 	/*
@@ -224,8 +241,8 @@ function applyQueryOverrides(
 	 *
 	 * @see https://core.trac.wordpress.org/ticket/59056
 	 */
-	if (blueprint.preferredVersions?.wp === '6.3') {
-		blueprint.steps?.unshift({
+	if (overrides.wp === '6.3') {
+		overrides.steps?.unshift({
 			step: 'defineWpConfigConsts',
 			consts: {
 				WP_DEVELOPMENT_MODE: 'all',
@@ -235,13 +252,12 @@ function applyQueryOverrides(
 
 	if (query.has('core-pr')) {
 		const prNumber = query.get('core-pr');
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+		overrides.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
 	}
 
 	if (query.has('gutenberg-pr')) {
 		const prNumber = query.get('gutenberg-pr');
-		blueprint.steps = blueprint.steps || [];
-		blueprint.steps.unshift(
+		overrides.steps.unshift(
 			{
 				step: 'mkdir',
 				path: '/tmp/pr',
@@ -282,5 +298,35 @@ function applyQueryOverrides(
 		);
 	}
 
-	return blueprint;
+	// @TODO: What kind of overrides are needed for version 2? Will we have to support both
+	// sets of overrides?
+	if ((blueprint as any).version === 2) {
+		return {
+			...blueprintV2,
+			additionalStepsAfterExecution: [
+				...(blueprintV2.additionalStepsAfterExecution || []),
+				overrides.steps,
+			],
+			phpVersion: overrides.php,
+			wordpressVersion: overrides.wp,
+			applicationOptions: {
+				'wordpress-playground': {
+					login: overrides.login,
+					landingPage: overrides.landingPage,
+				},
+			},
+		} as BlueprintV2Declaration;
+	} else {
+		return {
+			...blueprint,
+			preferredVersions: {
+				php: overrides.php,
+				wp: overrides.wp,
+			},
+			features: overrides.features,
+			steps: overrides.steps,
+			login: overrides.login,
+			landingPage: overrides.landingPage,
+		} as BlueprintDeclaration;
+	}
 }

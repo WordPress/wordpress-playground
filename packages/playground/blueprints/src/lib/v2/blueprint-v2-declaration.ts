@@ -1,13 +1,14 @@
-import type { BlueprintDeclaration } from '../blueprint';
+import type { Blueprint as BlueprintV2Declaration } from './wep-1-blueprint-v2-schema/appendix-A-blueprint-v2-schema';
 
-export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
-export type ParsedBlueprintV2Declaration =
+export type { BlueprintV2Declaration };
+export type RawBlueprintV2Data = string | BlueprintV2Declaration | undefined;
+export type ParsedBlueprintV2String =
 	| { type: 'inline-file'; contents: string }
 	| { type: 'file-reference'; reference: string };
 
 export function parseBlueprintDeclaration(
-	source: BlueprintV2Declaration | ParsedBlueprintV2Declaration
-): ParsedBlueprintV2Declaration {
+	source: RawBlueprintV2Data | ParsedBlueprintV2String
+): ParsedBlueprintV2String {
 	if (
 		typeof source === 'object' &&
 		'type' in source &&

@@ -4,7 +4,7 @@ import '@php-wasm/node-polyfills';
 export type {
 	Blueprint,
 	BlueprintBundle,
-	BlueprintDeclaration,
+	BlueprintV1Declaration as BlueprintDeclaration,
 	PHPConstants,
 } from './lib/blueprint';
 export {
@@ -42,7 +42,7 @@ export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {
 	BlueprintV2Declaration,
-	ParsedBlueprintV2Declaration,
+	ParsedBlueprintV2String,
 } from './lib/v2/blueprint-v2-declaration';
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';

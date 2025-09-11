@@ -17,10 +17,7 @@ import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
@@ -100,7 +97,7 @@ export async function createSiteMetadata(
 	// Derive runtime configuration for both Blueprint v1 and v2 without
 	// invoking the v1 compiler for v2 Blueprints (which would fail).
 	let preferredPhpVersion: SupportedPHPVersion | undefined = undefined;
-	let preferredWpVersion: string = 'latest';
+	let preferredWpVersion = 'latest';
 	let features: Required<NonNullable<BlueprintDeclaration['features']>> = {
 		intl: false,
 		networking: true,
@@ -153,7 +150,7 @@ export async function createSiteMetadata(
 		extraLibraries = compiled.extraLibraries;
 	} else if (blueprint) {
 		// v1: Compile to reliably normalize versions/features.
-		const compiled = await compileBlueprint(blueprint);
+		const compiled = await compileBlueprint(blueprint as any); // @TODO: cast to v1 declaration
 		preferredPhpVersion = compiled.versions.php;
 		preferredWpVersion = compiled.versions.wp;
 		features = compiled.features;
