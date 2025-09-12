@@ -100,64 +100,6 @@ class OpfsSiteStorage {
 			}
 		}
 
-		// Read legacy OPFS sites
-		// @TODO: Remove this backcompat code after 2024-12-01.
-		if (new Date(2024, 11).getTime() > Date.now()) {
-			const modernSiteDirs = new Set(
-				sites.map((site) => `site-${site.slug}`)
-			);
-			const opfsRoot = await navigator.storage.getDirectory();
-			for await (const entry of opfsRoot.values()) {
-				if (entry.kind !== 'directory') {
-					continue;
-				}
-
-				const namedLikeLegacySiteDir =
-					entry.name === 'wordpress' ||
-					entry.name.startsWith('site-');
-				if (!namedLikeLegacySiteDir) {
-					continue;
-				}
-
-				const conflictsWithModernSite =
-					(entry.name === 'wordpress' &&
-						modernSiteDirs.has('site-wordpress')) ||
-					modernSiteDirs.has(entry.name);
-				if (conflictsWithModernSite) {
-					continue;
-				}
-
-				const slug =
-					entry.name === 'wordpress'
-						? entry.name
-						: entry.name.replace(/^site-/, '');
-				const name =
-					slug === 'wordpress'
-						? 'WordPress'
-						: entry.name
-								.replace(/^site-/, '')
-								.replace(/(?:^|-)\w/g, (c) => c.toUpperCase())
-								.replaceAll('-', ' ')
-								.replace(/\bwordpress\b/i, 'WordPress');
-
-				// Write modern metadata file for legacy site
-				const newMetadata = await createSiteMetadata({
-					name,
-					storage: 'opfs',
-				});
-				const legacyPath = joinPaths('/', entry.name);
-				await opfsWriteFile(
-					joinPaths(legacyPath, SITE_METADATA_FILENAME),
-					await metadataToStoredFormat(slug, newMetadata)
-				);
-				const legacySite = await this.readSiteFromDirHandle(entry);
-				// Relay legacy OPFS path so knowledge of the path is only needed here.
-				(legacySite!.metadata as any)[legacyOpfsPathSymbol] =
-					legacyPath;
-				sites.push(legacySite!);
-			}
-		}
-
 		return sites;
 	}
 
