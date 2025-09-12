@@ -52,6 +52,10 @@ export abstract class BlueprintReflection<T extends BlueprintDeclaration> {
 		return this.details.version;
 	}
 
+	getBlueprint(): Blueprint {
+		return this.getBundle() || this.getDeclaration();
+	}
+
 	getDeclaration() {
 		return this.details.declaration;
 	}
@@ -70,10 +74,6 @@ export abstract class BlueprintReflection<T extends BlueprintDeclaration> {
 			]);
 		}
 		this.details.declaration = declaration;
-	}
-
-	getBlueprint(): Blueprint {
-		return this.getBundle() || this.getDeclaration();
 	}
 
 	abstract setPhpVersionString(
@@ -102,17 +102,17 @@ export abstract class BlueprintReflection<T extends BlueprintDeclaration> {
 	abstract isNetworkingEnabled(): boolean;
 	abstract setIntlExtensionEnabled(intl: boolean): void;
 	abstract isIntlExtensionEnabled(): boolean;
-	abstract setLogin(
+	abstract setAutologinEnabled(
 		login: boolean | { username: string; password: string } | undefined
 	): void;
-	abstract getLogin():
+	abstract isAutologinEnabled():
 		| boolean
 		| { username: string; password: string }
 		| undefined;
 	abstract setLandingPage(landingPage: string | undefined): void;
 	abstract getLandingPage(): string | undefined;
-	abstract setMultisite(enabled: boolean): void;
-	abstract getMultisite(): boolean;
+	abstract setMultisiteEnabled(enabled: boolean): void;
+	abstract isMultisiteEnabled(): boolean;
 	abstract getDeclaredSteps(): any[];
 }
 
@@ -155,7 +155,7 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		this.setDeclaration({
 			...declaration,
 			preferredVersions: {
-				wp: wpVersion as any,
+				wp: wpVersion,
 				php: declaration.preferredVersions?.php || 'latest',
 			},
 		});
@@ -177,7 +177,7 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		return this.getDeclaration().features?.networking || true;
 	}
 
-	setLogin(
+	setAutologinEnabled(
 		login:
 			| boolean
 			| {
@@ -189,12 +189,12 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		const declaration = this.getDeclaration();
 		this.setDeclaration({
 			...declaration,
-			login: login as any,
+			login,
 		});
 	}
 
-	getLogin() {
-		return this.getDeclaration().login as any;
+	isAutologinEnabled() {
+		return this.getDeclaration().login;
 	}
 
 	setLandingPage(landingPage: string | undefined) {
@@ -209,9 +209,9 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		return this.getDeclaration().landingPage;
 	}
 
-	setMultisite(enabled: boolean) {
+	setMultisiteEnabled(enabled: boolean) {
 		const declaration = this.getDeclaration();
-		const currentSteps = (declaration.steps || []).filter(Boolean) as any[];
+		const currentSteps = (declaration.steps || []).filter(Boolean);
 		const hasMultisite = currentSteps.some(
 			(step) => step && (step as any).step === 'enableMultisite'
 		);
@@ -225,14 +225,12 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		}
 		this.setDeclaration({
 			...declaration,
-			steps: nextSteps as any,
+			steps: nextSteps,
 		});
 	}
 
-	getMultisite() {
-		const steps = (this.getDeclaration().steps || []).filter(
-			Boolean
-		) as any[];
+	isMultisiteEnabled() {
+		const steps = (this.getDeclaration().steps || []).filter(Boolean);
 		return steps.some(
 			(step) => step && (step as any).step === 'enableMultisite'
 		);
