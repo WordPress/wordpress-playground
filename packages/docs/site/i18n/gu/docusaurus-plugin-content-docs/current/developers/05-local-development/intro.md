@@ -15,7 +15,7 @@ slug: /developers/local-development
 Playground offers various development environments to streamline setting up and managing WordPress sites.
 -->
 
-ઝડપી શરૂઆત માટે, https://playground.wordpress.net/ પર [public Playground web instance](/web-instance) નો ઉપયોગ કરો. વૈકલ્પિક રીતે, તમે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરી શકો છો](/developers/architecture/host-your-own-playground).
+ઝડપી શરૂઆત માટે, https://playground.wordpress.net/ પર [સાર્વજનિક પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સ](/web-instance) નો ઉપયોગ કરો. વૈકલ્પિક રીતે, તમે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરી શકો છો](/developers/architecture/host-your-own-playground).
 
 <!--
 For a quick start, use a [public Playground web instance](/web-instance) at https://playground.wordpress.net/. Alternatively, you can [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
