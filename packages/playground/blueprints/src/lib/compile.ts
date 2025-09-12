@@ -100,7 +100,7 @@ export async function compileBlueprint(
 	const blueprintDeclaration = reflection.getDeclaration();
 	if (reflection.isBundle()) {
 		finalOptions.streamBundledFile = function (...args: [any]) {
-			return reflection.getBundle()!.read(...args);
+			return (input as BlueprintBundle).read(...args);
 		};
 	}
 
