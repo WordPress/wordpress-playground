@@ -1,63 +1,72 @@
+import type { FilesystemOperation } from '@php-wasm/fs-journal';
+import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { setURLScope } from '@php-wasm/scopes';
+import { joinPaths, randomString } from '@php-wasm/util';
 import type {
 	GeneratedCertificate,
-	TCPOverFetchOptions,
 	MountDevice,
 	SyncProgressCallback,
+	TCPOverFetchOptions,
 } from '@php-wasm/web';
 import {
 	createDirectoryHandleMountHandler,
 	exposeAPI,
 	loadWebRuntime,
 } from '@php-wasm/web';
-import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
-import { wordPressSiteUrl } from './config';
 import {
-	getWordPressModuleDetails,
+	createMemoizedFetch,
+	RecommendedPHPVersion,
+} from '@wp-playground/common';
+import { directoryHandleFromMountDevice } from '@wp-playground/storage';
+import {
 	getSqliteDriverModuleDetails,
+	getWordPressModuleDetails,
 	LatestMinifiedWordPressVersion,
 	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
 	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
-import { directoryHandleFromMountDevice } from '@wp-playground/storage';
-import { randomString } from '@php-wasm/util';
+import { wordPressSiteUrl } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import {
-	createMemoizedFetch,
-	RecommendedPHPVersion,
-} from '@wp-playground/common';
-import type { FilesystemOperation } from '@php-wasm/fs-journal';
-import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
-/* @ts-ignore */
-import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
+import type {
+	MessageListener,
+	PHP,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
 	sandboxedSpawnHandlerFactory,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import { certificateToPEM, generateCertificate } from '@php-wasm/web';
+import type {
+	BlueprintDeclaration,
+	BlueprintV2Declaration,
+} from '@wp-playground/blueprints';
+import { runBlueprintV2 } from '@wp-playground/blueprints';
 import {
-	bootWordPress,
+	bootJustWordPress,
+	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import { logger } from '@php-wasm/logger';
-import { generateCertificate, certificateToPEM } from '@php-wasm/web';
 import {
 	intlDisabledFunctions,
 	networkingDisabledFunctions,
 } from './disabled-functions';
+/* @ts-ignore */
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
@@ -95,6 +104,10 @@ export type WorkerBootOptions = {
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
+	/** When true, skip default WP install and run Blueprints v2 in the worker */
+	experimentalBlueprintsV2Runner?: boolean;
+	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
+	blueprint?: BlueprintDeclaration;
 };
 
 /** @inheritDoc PHPClient */
@@ -115,6 +128,10 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	 * A string representing the version of WordPress that was loaded.
 	 */
 	loadedWordPressVersion: string | undefined;
+
+	onMessageListeners: MessageListener[] = [];
+	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
+		[];
 
 	unmounts: Record<string, () => any> = {};
 
@@ -182,6 +199,25 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		);
 	}
 
+	override onMessage(listener: MessageListener) {
+		this.onMessageListeners.push(listener);
+		return async () => {
+			this.onMessageListeners = this.onMessageListeners.filter(
+				(l) => l !== listener
+			);
+		};
+	}
+
+	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another
+	// way of listening for events.
+	async onBlueprintMessage(listener: (message: any) => void | Promise<void>) {
+		this.blueprintMessageListeners.push(listener);
+		return async () => {
+			this.blueprintMessageListeners =
+				this.blueprintMessageListeners.filter((l) => l !== listener);
+		};
+	}
+
 	async boot({
 		scope,
 		mounts = [],
@@ -193,6 +229,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking = true,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
+		experimentalBlueprintsV2Runner = false,
+		blueprint,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -219,8 +257,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 
 		try {
-			// Start downloading WordPress if needed
-			let wordPressRequest = null;
+			// Start downloading WordPress if needed (skip if running Blueprints v2)
+			let wordPressRequest: Promise<Response> | null = null;
 			if (shouldInstallWordPress) {
 				// @TODO: Accept a WordPress ZIP file or a URL, do not
 				//        reason about the `requestedWPVersion` here.
@@ -262,30 +300,18 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				}
 			}
 
-			const sqliteDriverModuleDetails =
-				getSqliteDriverModuleDetails(sqliteDriverVersion);
-			downloadMonitor.expectAssets({
-				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
-			});
-			const sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-				fetch(sqliteDriverModuleDetails.url)
-			);
-
-			const constants: Record<string, any> = shouldInstallWordPress
-				? {
-						WP_DEBUG: true,
-						WP_DEBUG_LOG: true,
-						WP_DEBUG_DISPLAY: false,
-						AUTH_KEY: randomString(40),
-						SECURE_AUTH_KEY: randomString(40),
-						LOGGED_IN_KEY: randomString(40),
-						NONCE_KEY: randomString(40),
-						AUTH_SALT: randomString(40),
-						SECURE_AUTH_SALT: randomString(40),
-						LOGGED_IN_SALT: randomString(40),
-						NONCE_SALT: randomString(40),
-				  }
-				: {};
+			let sqliteIntegrationRequest: Promise<Response> | null = null;
+			if (!experimentalBlueprintsV2Runner) {
+				const sqliteDriverModuleDetails =
+					getSqliteDriverModuleDetails(sqliteDriverVersion);
+				downloadMonitor.expectAssets({
+					[sqliteDriverModuleDetails.url]:
+						sqliteDriverModuleDetails.size,
+				});
+				sqliteIntegrationRequest = downloadMonitor.monitorFetch(
+					fetch(sqliteDriverModuleDetails.url)
+				);
+			}
 
 			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
@@ -344,43 +370,47 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				corsProxyUrl: corsProxyUrl,
 			});
 
-			const requestHandlerPromise = bootWordPress({
-				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
+			const siteUrl = setURLScope(wordPressSiteUrl, scope).toString();
+			const requestHandler = await bootRequestHandler({
+				siteUrl,
 				createPhpRuntime: async () => {
 					let wasmUrl = '';
-					return await loadWebRuntime(phpVersion, {
-						tcpOverFetch,
-						withICU,
-						emscriptenOptions: {
-							instantiateWasm(imports, receiveInstance) {
-								// Using .then because Emscripten typically returns an empty
-								// object here and not a promise.
-								memoizedFetch(wasmUrl, {
-									credentials: 'same-origin',
-								})
-									.then((response) =>
-										WebAssembly.instantiateStreaming(
-											response,
-											imports
+					return await loadWebRuntime(
+						'8.3',
+						/*phpVersion*/ {
+							tcpOverFetch,
+							withICU,
+							emscriptenOptions: {
+								instantiateWasm(imports, receiveInstance) {
+									// Using .then because Emscripten typically returns an empty
+									// object here and not a promise.
+									memoizedFetch(wasmUrl, {
+										credentials: 'same-origin',
+									})
+										.then((response) =>
+											WebAssembly.instantiateStreaming(
+												response,
+												imports
+											)
 										)
-									)
-									.then((wasm) => {
-										receiveInstance(
-											wasm.instance,
-											wasm.module
-										);
-									});
-								return {};
+										.then((wasm) => {
+											receiveInstance(
+												wasm.instance,
+												wasm.module
+											);
+										});
+									return {};
+								},
 							},
-						},
-						onPhpLoaderModuleLoaded: (phpLoaderModule) => {
-							wasmUrl = phpLoaderModule.dependencyFilename;
-							downloadMonitor.expectAssets({
-								[wasmUrl]:
-									phpLoaderModule.dependenciesTotalSize,
-							});
-						},
-					});
+							onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+								wasmUrl = phpLoaderModule.dependencyFilename;
+								downloadMonitor.expectAssets({
+									[wasmUrl]:
+										phpLoaderModule.dependenciesTotalSize,
+								});
+							},
+						}
+					);
 				},
 				onPHPInstanceCreated: async (php: PHP) => {
 					/**
@@ -394,39 +424,21 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					if (withNetworking) {
 						await this.networkTransport!.setupMessageHandler(php);
 					}
+					php.onMessage(async (message) => {
+						for (const listener of this.onMessageListeners) {
+							const returnData = await listener(message);
+
+							if (returnData) {
+								return returnData;
+							}
+						}
+						return '';
+					});
 				},
-				// Do not await the WordPress download or the sqlite integration download.
-				// Let bootWordPress start the PHP runtime download first, and then await
-				// all the ZIP files right before they're used.
-				wordPressZip: shouldInstallWordPress
-					? wordPressRequest!
-							.then((r) => r.blob())
-							.then((b) => new File([b], 'wp.zip'))
-					: undefined,
-				sqliteIntegrationPluginZip: sqliteIntegrationRequest
-					.then((r) => r.blob())
-					.then((b) => new File([b], 'sqlite.zip')),
+
 				spawnHandler: sandboxedSpawnHandlerFactory,
 				sapiName,
-				constants,
-				hooks: {
-					async beforeWordPressFiles(php) {
-						for (const mount of mounts) {
-							const handle = await directoryHandleFromMountDevice(
-								mount.device
-							);
-							const unmount = await php.mount(
-								mount.mountpoint,
-								createDirectoryHandleMountHandler(handle, {
-									initialSync: {
-										direction: mount.initialSyncDirection,
-									},
-								})
-							);
-							endpoint.unmounts[mount.mountpoint] = unmount;
-						}
-					},
-				},
+
 				phpIniEntries,
 				createFiles: {
 					'/internal/shared/ca-bundle.crt': CAroot
@@ -463,11 +475,98 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					};
 				},
 			});
-			const requestHandler = await requestHandlerPromise;
-			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+
+			if (experimentalBlueprintsV2Runner) {
+				if (!blueprint) {
+					throw new Error(
+						'Blueprints v2 runner requires a blueprint declaration.'
+					);
+				}
+				const streamed = await runBlueprintV2({
+					php: primaryPhp,
+					cliArgs: ['--site-url=' + siteUrl],
+					blueprint,
+					onMessage: async (message: any) => {
+						for (const listener of this.blueprintMessageListeners) {
+							await listener(message);
+						}
+						// console.log('blueprint message', message);
+						/**
+						 * @TODO: Handle mounts like the v1 runner does.
+							for (const mount of mounts) {
+						*/
+					},
+				});
+				await streamed.finished;
+			} else {
+				await bootJustWordPress(requestHandler, {
+					siteUrl,
+					constants: shouldInstallWordPress
+						? {
+								WP_DEBUG: true,
+								WP_DEBUG_LOG: true,
+								WP_DEBUG_DISPLAY: false,
+								AUTH_KEY: randomString(40),
+								SECURE_AUTH_KEY: randomString(40),
+								LOGGED_IN_KEY: randomString(40),
+								NONCE_KEY: randomString(40),
+								AUTH_SALT: randomString(40),
+								SECURE_AUTH_SALT: randomString(40),
+								LOGGED_IN_SALT: randomString(40),
+								NONCE_SALT: randomString(40),
+						  }
+						: {},
+					// Do not await the WordPress download or the sqlite integration download.
+					// Let bootWordPress start the PHP runtime download first, and then await
+					// all the ZIP files right before they're used.
+					wordPressZip: shouldInstallWordPress
+						? wordPressRequest!
+								.then((r) => r.blob())
+								.then((b) => new File([b], 'wp.zip'))
+						: undefined,
+					sqliteIntegrationPluginZip: sqliteIntegrationRequest
+						? sqliteIntegrationRequest
+								.then((r) => r.blob())
+								.then((b) => new File([b], 'sqlite.zip'))
+						: undefined,
+					hooks: {
+						async beforeWordPressFiles(php: PHP) {
+							for (const mount of mounts) {
+								const handle =
+									await directoryHandleFromMountDevice(
+										mount.device
+									);
+								const unmount = await php.mount(
+									mount.mountpoint,
+									createDirectoryHandleMountHandler(handle, {
+										initialSync: {
+											direction:
+												mount.initialSyncDirection,
+										},
+									})
+								);
+								endpoint.unmounts[mount.mountpoint] = unmount;
+							}
+						},
+					},
+				});
+				// @TODO: Run Blueprint v1 here:
+				/**
+				const compiled = await compileBlueprintV1(blueprint as any, {
+					progress: progressTracker.stage(0.5),
+					onStepCompleted: onBlueprintStepCompleted,
+					corsProxy,
+				});
+				// Blueprints v1 runner.
+				// @TODO: Should we run this in remote instead?
+				await runBlueprintV1Steps(compiled, playground);
+				*/
+			}
+
+			this.__internal_setRequestHandler(requestHandler);
 
 			/**
 			 * Pre-fetch the slow initial burst of wp_update_* requests to greatly

@@ -5,6 +5,7 @@ import { logger } from '@php-wasm/logger';
 
 export {
 	bootWordPress,
+	bootJustWordPress,
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 } from './boot';

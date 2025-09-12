@@ -51,15 +51,12 @@ export interface BootRequestHandlerOptions {
 	siteUrl: string;
 	documentRoot?: string;
 	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	constants?: Record<string, string | number | boolean | null>;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
 	 */
 	phpIniEntries?: PhpIniOptions;
-	/**
-	 * PHP constants to define for every request.
-	 */
-	constants?: Record<string, string | number | boolean | null>;
 	/**
 	 * Files to create in the filesystem before any mounts are applied.
 	 *
@@ -101,7 +98,7 @@ export interface BootRequestHandlerOptions {
 	cookieStore?: CookieStore | false;
 }
 
-export interface BootOptions extends BootRequestHandlerOptions {
+export interface BootJustWordPressOptions {
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -116,7 +113,20 @@ export interface BootOptions extends BootRequestHandlerOptions {
 	wordPressZip?: File | Promise<File> | undefined;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
+	/**
+	 * PHP constants to define for every request.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * URL to use as the site URL. This is used to set the WP_HOME
+	 * and WP_SITEURL constants in WordPress.
+	 */
+	siteUrl: string;
 }
+
+export interface BootOptions
+	extends BootRequestHandlerOptions,
+		BootJustWordPressOptions {}
 
 /**
  * Boots a WordPress instance with the given options.
@@ -135,7 +145,14 @@ export interface BootOptions extends BootRequestHandlerOptions {
  */
 export async function bootWordPress(options: BootOptions) {
 	const requestHandler = await bootRequestHandler(options);
+	await bootJustWordPress(requestHandler, options);
+	return requestHandler;
+}
 
+export async function bootJustWordPress(
+	requestHandler: PHPRequestHandler,
+	options: BootJustWordPressOptions
+) {
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
@@ -145,7 +162,7 @@ export async function bootWordPress(options: BootOptions) {
 		await unzipWordPress(php, await options.wordPressZip);
 	}
 
-	if (options.constants) {
+	if (options.constants && typeof options.constants === 'object') {
 		for (const key in options.constants) {
 			php.defineConstant(key, options.constants[key] as string);
 		}
@@ -221,8 +238,6 @@ export async function bootWordPress(options: BootOptions) {
 			}
 		}
 	}
-
-	return requestHandler;
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
