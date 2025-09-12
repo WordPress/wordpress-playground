@@ -56,14 +56,6 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
-	/**
-	 * Called before the blueprint steps are run,
-	 * allows the caller to delay the Blueprint execution
-	 * once the Playground is booted.
-	 *
-	 * @returns
-	 */
-	onBeforeBlueprint?: () => Promise<void>;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
 	/**
@@ -108,7 +100,6 @@ export async function startPlaygroundWeb({
 	onBlueprintStepCompleted,
 	onClientConnected = () => {},
 	sapiName,
-	onBeforeBlueprint,
 	mounts,
 	scope,
 	corsProxy,
@@ -166,10 +157,6 @@ export async function startPlaygroundWeb({
 
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
-
-	if (onBeforeBlueprint) {
-		await onBeforeBlueprint();
-	}
 
 	await runBlueprintSteps(compiled, playground);
 	/**
