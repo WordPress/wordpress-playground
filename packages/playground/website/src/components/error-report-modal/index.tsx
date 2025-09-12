@@ -48,8 +48,13 @@ export function ErrorReportModal(props: { blueprint: BlueprintDeclaration }) {
 	}
 
 	function getContext() {
+		// @TODO: Support v2 Blueprints
+		const preferredVersions =
+			'preferredVersions' in props.blueprint
+				? props.blueprint.preferredVersions
+				: {};
 		return {
-			...props.blueprint.preferredVersions,
+			...preferredVersions,
 			userAgent: navigator.userAgent,
 			...((window.performance as any)?.memory ?? {}),
 			window: {

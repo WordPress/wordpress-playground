@@ -4,13 +4,16 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
-import { compileBlueprint, isBlueprintBundle } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	isBlueprintBundle,
+} from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import fs from 'fs';
 import path from 'path';
-import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -18,10 +21,10 @@ import {
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
-// @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import { LogVerbosity, type RunCLIArgs, type SpawnedWorker } from '../run-cli';
+// @ts-ignore
+import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -219,7 +222,7 @@ export class BlueprintsV1Handler {
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
 		const args = this.args;
-		const resolvedBlueprint = args.blueprint as BlueprintDeclaration;
+		const resolvedBlueprint = args.blueprint as BlueprintV1Declaration;
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
@@ -227,7 +230,7 @@ export class BlueprintsV1Handler {
 		 * 		 Also the Blueprint Builder tool does something similar.
 		 *       Perhaps all these cases could be handled by the same function?
 		 */
-		const blueprint: BlueprintDeclaration | BlueprintBundle =
+		const blueprint: BlueprintV1Declaration | BlueprintBundle =
 			isBlueprintBundle(resolvedBlueprint)
 				? resolvedBlueprint
 				: {
@@ -266,7 +269,7 @@ export class BlueprintsV1Handler {
 				progressReached100
 			);
 		});
-		return await compileBlueprint(blueprint as BlueprintDeclaration, {
+		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,
 		});

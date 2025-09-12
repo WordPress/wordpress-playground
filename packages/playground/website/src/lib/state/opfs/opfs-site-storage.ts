@@ -5,13 +5,12 @@
  * let's keep this module with the web app.
  */
 
-import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
-import type { SiteMetadata } from '../../site-metadata';
-import { createSiteMetadata } from '../../site-metadata';
-import type { SiteInfo } from '../redux/slice-sites';
-import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
+import { joinPaths } from '@php-wasm/util';
 import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import type { SiteMetadata } from '../../site-metadata';
+import type { SiteInfo } from '../redux/slice-sites';
+import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename

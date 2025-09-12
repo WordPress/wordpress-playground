@@ -1,4 +1,6 @@
-import type { BlueprintV2 as BlueprintV2Declaration } from './wep-1-blueprint-v2-schema/appendix-A-blueprint-v2-schema';
+import type { V2Schema } from './wep-1-blueprint-v2-schema/appendix-A-blueprint-v2-schema';
+
+type BlueprintV2Declaration = V2Schema.BlueprintV2;
 
 export type { BlueprintV2Declaration };
 export type RawBlueprintV2Data = string | BlueprintV2Declaration | undefined;

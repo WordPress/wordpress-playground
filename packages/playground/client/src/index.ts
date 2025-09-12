@@ -29,7 +29,10 @@ import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { ProgressTracker } from '@php-wasm/progress';
 import { consumeAPI } from '@php-wasm/web';
 import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -131,14 +134,14 @@ export async function startPlaygroundWeb({
 
 	// @TODO: Make onBlueprintStepCompleted work with Blueprints v2.
 	const compiled = experimentalBlueprintsV2Runner
-		? await compileBlueprint(
+		? await compileBlueprintV1(
 				{},
 				{
 					progress: progressTracker.stage(0.5),
 					corsProxy,
 				}
 		  )
-		: await compileBlueprint(blueprint, {
+		: await compileBlueprintV1(blueprint as any, {
 				progress: progressTracker.stage(0.5),
 				onStepCompleted: onBlueprintStepCompleted,
 				corsProxy,
@@ -207,7 +210,7 @@ export async function startPlaygroundWeb({
 	} else if (blueprint) {
 		// Blueprints v1 runner.
 		// @TODO: Should we run this in remote instead?
-		await runBlueprintSteps(compiled, playground);
+		await runBlueprintV1Steps(compiled, playground);
 	}
 
 	/**

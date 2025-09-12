@@ -39,14 +39,20 @@ const initialState = sitesAdapter.getInitialState({
 });
 
 // Create the slice
+// @TODO: Remove // @ts-expect-error annotations
+// @ts-expect-error
 const sitesSlice = createSlice({
 	name: 'sites',
 	initialState,
 	reducers: {
 		// Add one or many sites
+		// @ts-expect-error
 		addSites: sitesAdapter.addMany,
+		// @ts-expect-error
 		addSite: sitesAdapter.addOne,
+		// @ts-expect-error
 		updateSite: sitesAdapter.updateOne,
+		// @ts-expect-error
 		removeSite: sitesAdapter.removeOne,
 
 		// Custom reducer for updating nested properties
@@ -60,10 +66,12 @@ const sitesSlice = createSlice({
 			const { slug, metadata } = action.payload;
 			const site = state.entities[slug];
 			if (site) {
+				// @ts-expect-error
 				site.metadata = { ...site.metadata, ...metadata };
 			}
 		},
 
+		// @ts-expect-error
 		setSites: sitesAdapter.setAll,
 		setOPFSSitesLoadingState: (
 			state,
@@ -270,6 +278,7 @@ export function setTemporarySiteSpec(
 			}),
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));
+		// @ts-expect-error
 		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
 		return newSiteInfo;
 	};

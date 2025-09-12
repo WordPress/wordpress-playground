@@ -18,7 +18,7 @@ import {
 	runBlueprintV2,
 } from '@wp-playground/blueprints';
 import {
-	type ParsedBlueprintV2String,
+	type RawBlueprintV2Data,
 	type BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
@@ -113,12 +113,12 @@ export type WorkerBootArgs = RunCLIArgs & {
 	firstProcessId: number;
 	processIdSpaceLength: number;
 	trace: boolean;
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2String;
+	blueprint: BlueprintV2Declaration | RawBlueprintV2Data;
 };
 
 type WorkerRunBlueprintArgs = RunCLIArgs & {
 	siteUrl: string;
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2String;
+	blueprint: BlueprintV2Declaration | RawBlueprintV2Data;
 };
 
 interface WorkerBootRequestHandlerOptions {

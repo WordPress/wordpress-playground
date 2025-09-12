@@ -9,16 +9,10 @@
 
 import type {
 	Blueprint,
-	BlueprintDeclaration,
-	BlueprintV2Declaration,
+	BlueprintV1Declaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
-import {
-	compileBlueprint,
-	getBlueprintDeclaration,
-	isBlueprintBundle,
-} from '@wp-playground/blueprints';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
@@ -61,7 +55,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: Pick<
-		Required<BlueprintDeclaration>,
+		Required<BlueprintV1Declaration>,
 		'features' | 'extraLibraries' | 'preferredVersions'
 	> & {
 		constants?: PHPConstants;
@@ -95,36 +89,7 @@ export async function createSiteMetadata(
 		blueprintSource = resolvedBlueprint.source;
 	}
 
-	// Derive runtime configuration for both Blueprint v1 and v2 without
-	// invoking the v1 compiler for v2 Blueprints (which would fail).
-	let preferredPhpVersion: SupportedPHPVersion | undefined = undefined;
-	let preferredWpVersion = 'latest';
-	let features: Required<NonNullable<BlueprintDeclaration['features']>> = {
-		intl: false,
-		networking: true,
-	};
-	let extraLibraries: NonNullable<BlueprintDeclaration['extraLibraries']> =
-		[];
-
-	const declaration = isBlueprintBundle(blueprint!)
-		? await getBlueprintDeclaration(blueprint!)
-		: (blueprint as any);
-	const isV2 = !!declaration && (declaration as any).version === 2;
-
-	if (isV2) {
-		const blueprintV2 = declaration as BlueprintV2Declaration;
-		preferredPhpVersion = blueprintV2.phpVersion as any;
-		// @TODO: The type is not compatible with v1 version type
-		preferredWpVersion = blueprintV2.wordpressVersion as any;
-	} else if (blueprint) {
-		// v1: Compile to reliably normalize versions/features.
-		const compiled = await compileBlueprint(blueprint as any); // @TODO: cast to v1 declaration
-		preferredPhpVersion = compiled.versions.php;
-		preferredWpVersion = compiled.versions.wp;
-		features = compiled.features;
-		extraLibraries = compiled.extraLibraries;
-	}
-
+	const reflection = await BlueprintReflection.create(blueprint!);
 	return {
 		name,
 		id: crypto.randomUUID(),
@@ -135,6 +100,8 @@ export async function createSiteMetadata(
 
 		...remainingMetadata,
 
+		// @TODO: This is used as a Blueprint type subset, which makes sense for v1,
+		//        but not for v2. How can we store this to keep both runners happy?
 		runtimeConfiguration: {
 			// @TODO: Rethink why we're storing preferredWpVersion here.
 			//        WP core is stored in VFS or OPFS – that's the source of truth.
@@ -144,11 +111,16 @@ export async function createSiteMetadata(
 			//
 			//        Is it only used in TemporarySiteSettingsForm?
 			preferredVersions: {
-				wp: preferredWpVersion,
-				php: preferredPhpVersion!,
+				wp: reflection.getWpVersion()!,
+				php: reflection.getPhpVersion()!,
 			},
-			features,
-			extraLibraries, // @TODO: Do we need it for Blueprints v2?
+			features: {
+				// @TODO: Preserve `intl` feature across boots
+				// intl: reflection.getIntl(),
+				networking: reflection.getNetworking(),
+			},
+			// @TODO: Do we need it for Blueprints v2?
+			extraLibraries: (reflection.getDeclaration() as any).extraLibraries,
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which

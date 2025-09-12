@@ -2,7 +2,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
 import type { StepDefinition } from '../steps';
 import type { FileReference } from './resources';
 import type { StreamedFile } from '@php-wasm/stream-compression';
-import { BlueprintBundle } from '../types';
+import type { BlueprintBundle } from '../types';
 
 export type ExtraLibrary =
 	// Install WP-CLI during boot.

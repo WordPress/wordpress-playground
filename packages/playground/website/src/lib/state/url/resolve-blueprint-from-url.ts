@@ -1,19 +1,9 @@
-import type {
-	BlueprintDeclaration,
-	BlueprintBundle,
-	Blueprint,
-	StepDefinition,
-	SupportedPHPVersion,
-	BlueprintV2Declaration,
-} from '@wp-playground/client';
+import type { Blueprint, StepDefinition } from '@wp-playground/client';
 import {
-	getBlueprintDeclaration,
-	isBlueprintBundle,
+	BlueprintReflection,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
 import { parseBlueprint } from './router';
-import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
-import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export type BlueprintSource =
 	| {
@@ -39,10 +29,7 @@ export async function resolveBlueprintFromURL(
 	const query = url.searchParams;
 	const fragment = decodeURI(url.hash || '#').substring(1);
 
-	let blueprint:
-		| BlueprintDeclaration
-		| BlueprintBundle
-		| BlueprintV2Declaration;
+	let blueprint: Blueprint;
 	let source: BlueprintSource;
 
 	/**
@@ -129,79 +116,41 @@ export async function resolveBlueprintFromURL(
 		};
 	}
 
-	/**
-	 * Allow overriding PHP and WordPress versions defined in a Blueprint
-	 * via query params.
-	 */
-	if (isBlueprintBundle(blueprint)) {
-		let blueprintObject = await getBlueprintDeclaration(blueprint);
-		blueprintObject = applyQueryOverrides(blueprintObject, query);
-		blueprint = new OverlayFilesystem([
-			new InMemoryFilesystem({
-				'blueprint.json': JSON.stringify(blueprintObject),
-			}),
-			blueprint,
-		]);
-	} else {
-		blueprint = applyQueryOverrides(blueprint, query);
-	}
+	const reflection = await BlueprintReflection.create(blueprint);
+	reflection.setDeclaration(applyQueryOverrides(reflection, query) as any);
 
-	return { blueprint, source };
+	return { blueprint: reflection.getBlueprint(), source };
 }
 
 function applyQueryOverrides(
-	blueprint: BlueprintDeclaration | BlueprintV2Declaration,
+	reflection: BlueprintReflection<any>,
 	query: URLSearchParams
-): BlueprintDeclaration | BlueprintV2Declaration {
-	type Overrides = {
-		php: SupportedPHPVersion;
-		wp: any;
-		login?: boolean;
-		landingPage?: string;
-		features: {
-			networking: boolean;
-		};
-		steps: StepDefinition[];
-	};
-	const isV2 = !!blueprint && (blueprint as any).version === 2;
-	const isV1 = !isV2;
-	const blueprintV2 = blueprint as BlueprintV2Declaration;
-	const blueprintV1 = blueprint as BlueprintDeclaration;
-	const blueprintSteps = isV1
-		? blueprintV1.steps
-		: blueprintV2.additionalStepsAfterExecution;
+) {
+	const newDeclaration = structuredClone(reflection.getDeclaration());
+	if (query.get('php')) {
+		reflection.setPhpVersion(query.get('php') as any);
+	}
+	if (query.get('wp')) {
+		reflection.setWpVersion(query.get('wp') as any);
+	}
+	if (query.get('networking') !== 'yes') {
+		/**
+		 * Networking is enabled by default, so we only need to disable it
+		 * if the query param is explicitly set to something other than "yes".
+		 */
+		reflection.setNetworking(false);
+	}
 
-	const overrides: Overrides = {
-		php:
-			(query.get('php') as any) ||
-			(isV1
-				? blueprintV1.preferredVersions!.php
-				: blueprintV2.phpVersion) ||
-			RecommendedPHPVersion,
-		wp:
-			query.get('wp') ||
-			(isV1
-				? blueprintV1.preferredVersions!.wp
-				: blueprintV2.wordpressVersion) ||
-			'latest',
-		features: {
-			/**
-			 * Networking is enabled by default, so we only need to disable it
-			 * if the query param is explicitly set to something other than "yes".
-			 */
-			networking: query.get('networking') !== 'yes',
-		},
-		steps: [],
-	};
-
+	const steps = reflection.getDeclaredSteps();
 	// Language
 	if (query.get('language')) {
+		// The syntax is consistent across all Blueprints versions.
 		if (
-			!blueprintSteps?.find(
+			!steps?.find(
 				(step) => step && (step as any).step === 'setSiteLanguage'
 			)
 		) {
-			overrides.steps?.push({
+			steps?.push({
 				step: 'setSiteLanguage',
 				language: query.get('language')!,
 			});
@@ -211,11 +160,11 @@ function applyQueryOverrides(
 	// Multisite
 	if (query.get('multisite') === 'yes') {
 		if (
-			!overrides.steps?.find(
+			!steps?.find(
 				(step) => step && (step as any).step === 'enableMultisite'
 			)
 		) {
-			overrides.steps?.push({
+			steps?.push({
 				step: 'enableMultisite',
 			});
 		}
@@ -223,12 +172,12 @@ function applyQueryOverrides(
 
 	// Login
 	if (query.get('login') !== 'no') {
-		overrides.login = true;
+		reflection.setLogin(true);
 	}
 
 	// Landing page
 	if (query.get('url')) {
-		overrides.landingPage = query.get('url')!;
+		reflection.setLandingPage(query.get('url')!);
 	}
 
 	/*
@@ -241,92 +190,108 @@ function applyQueryOverrides(
 	 *
 	 * @see https://core.trac.wordpress.org/ticket/59056
 	 */
-	if (overrides.wp === '6.3') {
-		overrides.steps?.unshift({
-			step: 'defineWpConfigConsts',
-			consts: {
-				WP_DEVELOPMENT_MODE: 'all',
-			},
-		});
+	if (reflection.getWpVersion() === '6.3') {
+		if (reflection.getVersion() === 1) {
+			steps?.unshift({
+				step: 'defineWpConfigConsts',
+				consts: {
+					WP_DEVELOPMENT_MODE: 'all',
+				},
+			});
+		} else {
+			steps?.unshift({
+				step: 'defineConstants',
+				constants: {
+					WP_DEVELOPMENT_MODE: 'all',
+				},
+			});
+		}
 	}
 
 	if (query.has('core-pr')) {
 		const prNumber = query.get('core-pr');
-		overrides.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+		reflection.setWpVersion(
+			`https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`
+		);
 	}
 
 	if (query.has('gutenberg-pr')) {
 		const prNumber = query.get('gutenberg-pr');
-		overrides.steps.unshift(
-			{
-				step: 'mkdir',
-				path: '/tmp/pr',
-			},
-			{
-				step: 'writeFile',
-				path: '/tmp/pr/pr.zip',
-				data: {
-					resource: 'url',
-					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
-					caption: `Downloading Gutenberg PR ${prNumber}`,
+		if (reflection.getVersion() === 1) {
+			steps?.unshift(
+				{
+					step: 'mkdir',
+					path: '/tmp/pr',
 				},
-			},
-			/**
-			 * GitHub CI artifacts are doubly zipped:
-			 *
-			 * pr.zip
-			 *    gutenberg.zip
-			 *       gutenberg.php
-			 *       ... other files ...
-			 *
-			 * This step extracts the inner zip file so that we get
-			 * access directly to gutenberg.zip and can use it to
-			 * install the plugin.
-			 */
-			{
-				step: 'unzip',
-				zipPath: '/tmp/pr/pr.zip',
-				extractToPath: '/tmp/pr',
-			},
-			{
-				step: 'installPlugin',
-				pluginData: {
-					resource: 'vfs',
-					path: '/tmp/pr/gutenberg.zip',
+				{
+					step: 'writeFile',
+					path: '/tmp/pr/pr.zip',
+					data: {
+						resource: 'url',
+						url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
+						caption: `Downloading Gutenberg PR ${prNumber}`,
+					},
 				},
-			}
-		);
+				/**
+				 * GitHub CI artifacts are doubly zipped:
+				 *
+				 * pr.zip
+				 *    gutenberg.zip
+				 *       gutenberg.php
+				 *       ... other files ...
+				 *
+				 * This step extracts the inner zip file so that we get
+				 * access directly to gutenberg.zip and can use it to
+				 * install the plugin.
+				 */
+				{
+					step: 'unzip',
+					zipFile: '/tmp/pr/pr.zip',
+					extractToPath: '/tmp/pr',
+				},
+				{
+					step: 'installPlugin',
+					pluginData: {
+						resource: 'vfs',
+						path: '/tmp/pr/gutenberg.zip',
+					},
+				}
+			);
+		} else {
+			steps?.unshift(
+				{
+					step: 'mkdir',
+					path: '/tmp/pr',
+				},
+				{
+					step: 'writeFiles',
+					files: {
+						'/tmp/pr/pr.zip': `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
+					},
+				},
+				/**
+				 * GitHub CI artifacts are doubly zipped:
+				 *
+				 * pr.zip
+				 *    gutenberg.zip
+				 *       gutenberg.php
+				 *       ... other files ...
+				 *
+				 * This step extracts the inner zip file so that we get
+				 * access directly to gutenberg.zip and can use it to
+				 * install the plugin.
+				 */
+				{
+					step: 'unzip',
+					zipFile: '/tmp/pr/pr.zip',
+					extractToPath: '/tmp/pr',
+				},
+				{
+					step: 'installPlugin',
+					source: '/tmp/pr/gutenberg.zip',
+				}
+			);
+		}
 	}
-
-	// @TODO: What kind of overrides are needed for version 2? Will we have to support both
-	// sets of overrides?
-	if ((blueprint as any).version === 2) {
-		return {
-			...blueprintV2,
-			additionalStepsAfterExecution: [
-				...(blueprintV2.additionalStepsAfterExecution || []),
-				overrides.steps,
-			],
-			phpVersion: overrides.php,
-			wordpressVersion: overrides.wp,
-			applicationOptions: {
-				'wordpress-playground': {
-					login: overrides.login,
-					landingPage: overrides.landingPage,
-				},
-			},
-		} as BlueprintV2Declaration;
-	} else {
-		return {
-			...blueprint,
-			preferredVersions: {
-				php: overrides.php,
-				wp: overrides.wp,
-			},
-			features: overrides.features,
-			steps: overrides.steps,
-			login: overrides.login,
-			landingPage: overrides.landingPage,
-		} as BlueprintDeclaration;
-	}
+	return newDeclaration;
 }

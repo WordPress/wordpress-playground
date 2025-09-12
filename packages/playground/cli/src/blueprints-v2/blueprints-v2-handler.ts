@@ -69,7 +69,7 @@ export class BlueprintsV2Handler {
 			firstProcessId: 1,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
-			blueprint: this.args.blueprint!,
+			blueprint: this.args.blueprint! as any, // @TODO: Remove as any
 		};
 
 		await playground.bootAsPrimaryWorker(workerBootArgs);
@@ -97,7 +97,7 @@ export class BlueprintsV2Handler {
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
-			blueprint: this.args.blueprint!,
+			blueprint: this.args.blueprint! as any, // @TODO: Remove as any
 		};
 
 		await playground.bootAsSecondaryWorker(workerBootArgs);
