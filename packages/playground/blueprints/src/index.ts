@@ -48,6 +48,7 @@ export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 
+export { BlueprintReflection } from './lib/reflection';
 export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 

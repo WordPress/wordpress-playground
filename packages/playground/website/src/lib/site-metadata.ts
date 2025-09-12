@@ -12,7 +12,10 @@ import type {
 	BlueprintDeclaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
-import { compileBlueprint } from '@wp-playground/blueprints';
+import {
+	BlueprintReflection,
+	compileBlueprint,
+} from '@wp-playground/blueprints';
 import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
@@ -89,8 +92,7 @@ export async function createSiteMetadata(
 		blueprintSource = resolvedBlueprint.source;
 	}
 
-	const compiledBlueprint = await compileBlueprint(blueprint);
-
+	const reflection = await BlueprintReflection.create(blueprint);
 	return {
 		name,
 		id: crypto.randomUUID(),
@@ -103,11 +105,14 @@ export async function createSiteMetadata(
 
 		runtimeConfiguration: {
 			preferredVersions: {
-				wp: compiledBlueprint.versions.wp,
-				php: compiledBlueprint.versions.php,
+				wp: reflection.getSimplifiedWpVersion()!,
+				php: reflection.resolvePhpVersionString()!,
 			},
-			features: compiledBlueprint.features,
-			extraLibraries: compiledBlueprint.extraLibraries,
+			features: {
+				intl: reflection.isIntlExtensionEnabled(),
+				networking: reflection.isNetworkingEnabled(),
+			},
+			extraLibraries: reflection.getDeclaration().extraLibraries || [],
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which
