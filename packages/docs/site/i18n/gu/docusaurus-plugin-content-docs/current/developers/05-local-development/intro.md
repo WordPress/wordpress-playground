@@ -28,7 +28,7 @@ Playground also provides tools for local WordPress development, prioritizing eas
 -->
 
 -   **[@wp-playground/cli](/developers/local-development/wp-playground-cli):** તમારા ટર્મિનલ પરથી વર્ડપ્રેસ સાઇટને ઝડપથી લોન્ચ કરવા માટેનું કમાન્ડ-લાઇન ટૂલ.
--   **[Visual Studio Code 拡張機能](/developers/local-development/vscode-extension):** લોકપ્રિય એડિટરમાં સીમલેસ અનુભવ માટે વર્ડપ્રેસ ડેવલપમેન્ટને સીધા VS કોડમાં એકીકૃત કરે છે.
+-   **[વિઝ્યુઅલ સ્ટુડિયો કોડ એક્સટેન્શન](/developers/local-development/vscode-extension):** લોકપ્રિય એડિટરમાં સીમલેસ અનુભવ માટે વર્ડપ્રેસ ડેવલપમેન્ટને સીધા VS કોડમાં એકીકૃત કરે છે.
 
 <!--
 -   **[@wp-playground/cli](/developers/local-development/wp-playground-cli):** A command-line tool to quickly launch a WordPress site from your terminal.
