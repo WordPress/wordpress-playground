@@ -1,10 +1,10 @@
 import { PHP } from '@php-wasm/universal';
 import {
-	compileBlueprint,
-	runBlueprintSteps,
-	validateBlueprint,
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+	validateBlueprintV1,
 } from './compile';
-import { defineWpConfigConsts } from './steps/define-wp-config-consts';
+import { defineWpConfigConsts } from '../steps/define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
@@ -26,8 +26,8 @@ describe('Blueprints', () => {
 	});
 
 	it('should run a basic blueprint', async () => {
-		await runBlueprintSteps(
-			await compileBlueprint({
+		await runBlueprintV1Steps(
+			await compileBlueprintV1({
 				steps: [
 					{
 						step: 'writeFile',
@@ -84,8 +84,8 @@ describe('Blueprints', () => {
 	});
 
 	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
-		await runBlueprintSteps(
-			await compileBlueprint({
+		await runBlueprintV1Steps(
+			await compileBlueprintV1({
 				extraLibraries: ['wp-cli'],
 			}),
 			php
@@ -101,9 +101,9 @@ describe('Blueprints', () => {
 		);
 		const zipData = fs.readFileSync(zipPath).buffer;
 		const zipBundle = ZipFilesystem.fromArrayBuffer(zipData);
-		const compiledBlueprint = await compileBlueprint(zipBundle);
+		const compiledBlueprint = await compileBlueprintV1(zipBundle);
 
-		await runBlueprintSteps(compiledBlueprint, php);
+		await runBlueprintV1Steps(compiledBlueprint, php);
 
 		expect(php.fileExists('/index.php')).toBe(true);
 		expect(php.readFileAsText('/index.php')).toContain('<?php echo');
@@ -130,9 +130,9 @@ describe('Blueprints', () => {
 				],
 			}),
 		});
-		const compiledBlueprint = await compileBlueprint(fileTreeBundle);
+		const compiledBlueprint = await compileBlueprintV1(fileTreeBundle);
 
-		await runBlueprintSteps(compiledBlueprint, php);
+		await runBlueprintV1Steps(compiledBlueprint, php);
 
 		expect(php.fileExists('/text_file.txt')).toBe(true);
 		expect(php.readFileAsText('/text_file.txt')).toContain(
@@ -150,7 +150,7 @@ describe('Blueprints', () => {
 		it.each(validBlueprints)(
 			'valid Blueprint should pass validation',
 			(blueprint) => {
-				expect(validateBlueprint(blueprint)).toEqual({
+				expect(validateBlueprintV1(blueprint)).toEqual({
 					valid: true,
 				});
 			}
@@ -161,7 +161,7 @@ describe('Blueprints', () => {
 				const invalidBlueprint = {
 					invalidProperty: 'foo',
 				};
-				expect(validateBlueprint(invalidBlueprint)).toEqual({
+				expect(validateBlueprintV1(invalidBlueprint)).toEqual({
 					valid: false,
 					errors: [
 						{
@@ -180,7 +180,7 @@ describe('Blueprints', () => {
 				const invalidBlueprint = {
 					steps: 1,
 				};
-				expect(validateBlueprint(invalidBlueprint)).toEqual({
+				expect(validateBlueprintV1(invalidBlueprint)).toEqual({
 					valid: false,
 					errors: [
 						{
@@ -208,7 +208,7 @@ describe('Blueprints', () => {
 						},
 					],
 				};
-				expect(validateBlueprint(invalidBlueprint)).toEqual({
+				expect(validateBlueprintV1(invalidBlueprint)).toEqual({
 					valid: false,
 					errors: [
 						{
@@ -227,7 +227,7 @@ describe('Blueprints', () => {
 				const invalidBlueprint = {
 					steps: [14],
 				};
-				expect(validateBlueprint(invalidBlueprint)).toEqual({
+				expect(validateBlueprintV1(invalidBlueprint)).toEqual({
 					valid: false,
 					errors: [
 						{

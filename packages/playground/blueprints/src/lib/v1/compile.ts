@@ -7,15 +7,14 @@ import {
 } from '@php-wasm/universal';
 import type { FileReference } from './resources';
 import { isResourceReference, Resource } from './resources';
-import type { Step, StepDefinition, WriteFileStep } from './steps';
-import * as allStepHandlers from './steps/handlers';
+import type { Step, StepDefinition, WriteFileStep } from '../steps';
+import * as allStepHandlers from '../steps/handlers';
 import type {
 	BlueprintV1Declaration,
-	BlueprintBundle,
 	ExtraLibrary,
 	StreamBundledFile,
-	Blueprint,
-} from './blueprint';
+} from './types';
+import type { BlueprintBundle } from '../types';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -39,13 +38,13 @@ const keyedStepHandlers = {
  * `dts-bundle-generator` utility we use for type rollyps does not support
  * watching for changes.
  */
-import blueprintValidator from '../../public/blueprint-schema-validator';
-import { defaultWpCliPath, defaultWpCliResource } from './steps/wp-cli';
-import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
+import blueprintValidator from '../../../public/blueprint-schema-validator';
+import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
+import { isBlueprintBundle, getBlueprintDeclaration } from '../reflection';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
-export interface CompiledBlueprint {
+export interface CompiledBlueprintV1 {
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
@@ -88,10 +87,10 @@ export interface CompileBlueprintOptions {
 	additionalSteps?: any[];
 }
 
-export async function compileBlueprint(
+export async function compileBlueprintV1(
 	input: BlueprintV1Declaration | BlueprintBundle,
 	options: Omit<CompileBlueprintOptions, 'streamBundledFile'> = {}
-): Promise<CompiledBlueprint> {
+): Promise<CompiledBlueprintV1> {
 	const finalOptions: CompileBlueprintOptions = {
 		...options,
 	};
@@ -108,22 +107,7 @@ export async function compileBlueprint(
 		blueprint = input as BlueprintV1Declaration;
 	}
 
-	return compileBlueprintJson(blueprint, finalOptions);
-}
-
-export function isBlueprintBundle(input: any): input is BlueprintBundle {
-	return input && 'read' in input && typeof input.read === 'function';
-}
-
-export async function getBlueprintDeclaration(
-	blueprint: Blueprint
-): Promise<BlueprintV1Declaration | BlueprintV2Declaration> {
-	if (!isBlueprintBundle(blueprint)) {
-		return blueprint;
-	}
-	const blueprintFile = await blueprint.read('blueprint.json');
-	const blueprintText = await blueprintFile.text();
-	return JSON.parse(blueprintText);
+	return compileBlueprintV1Json(blueprint, finalOptions);
 }
 
 /**
@@ -134,7 +118,7 @@ export async function getBlueprintDeclaration(
  * @param options Additional options for the compilation
  * @returns The compiled blueprint
  */
-function compileBlueprintJson(
+function compileBlueprintV1Json(
 	blueprint: BlueprintV1Declaration,
 	{
 		progress = new ProgressTracker(),
@@ -144,7 +128,7 @@ function compileBlueprintJson(
 		streamBundledFile,
 		additionalSteps,
 	}: CompileBlueprintOptions = {}
-): CompiledBlueprint {
+): CompiledBlueprintV1 {
 	blueprint = structuredClone(blueprint);
 
 	blueprint = {
@@ -296,7 +280,7 @@ function compileBlueprintJson(
 		});
 	}
 
-	const { valid, errors } = validateBlueprint(blueprint);
+	const { valid, errors } = validateBlueprintV1(blueprint);
 	if (!valid) {
 		const e = new Error(
 			`Invalid blueprint: ${errors![0].message} at ${
@@ -407,7 +391,7 @@ function compileBlueprintJson(
 	};
 }
 
-export function validateBlueprint(blueprintMaybe: object) {
+export function validateBlueprintV1(blueprintMaybe: object) {
 	const valid = blueprintValidator(blueprintMaybe);
 	if (valid) {
 		return { valid };
@@ -619,8 +603,8 @@ async function resolveArguments<T extends Record<string, unknown>>(args: T) {
 	return resolved;
 }
 
-export async function runBlueprintSteps(
-	compiledBlueprint: CompiledBlueprint,
+export async function runBlueprintV1Steps(
+	compiledBlueprint: CompiledBlueprintV1,
 	playground: UniversalPHP
 ) {
 	await compiledBlueprint.run(playground);

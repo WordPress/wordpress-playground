@@ -1,9 +1,8 @@
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-import type { StepDefinition } from './steps';
+import type { StepDefinition } from '../steps';
 import type { FileReference } from './resources';
 import type { StreamedFile } from '@php-wasm/stream-compression';
-import type { Filesystem } from '@wp-playground/storage';
-import { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
+import { BlueprintBundle } from '../types';
 
 export type ExtraLibrary =
 	// Install WP-CLI during boot.
@@ -13,16 +12,9 @@ export type PHPConstants = Record<string, string | boolean | number>;
 
 export type StreamBundledFile = (relativePath: string) => Promise<StreamedFile>;
 
-export type Blueprint =
+export type BlueprintV1 =
 	| BlueprintBundle
-	| BlueprintV1Declaration
-	| BlueprintV2Declaration;
-
-/**
- * A filesystem structure containing a /blueprint.json file and any
- * resources referenced by that blueprint.
- */
-export type BlueprintBundle = Filesystem;
+	| BlueprintV1Declaration;
 
 /**
  * The Blueprint declaration, typically stored in a blueprint.json file.

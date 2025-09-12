@@ -129,6 +129,7 @@ export async function startPlaygroundWeb({
 		iframe.addEventListener('load', resolve, false);
 	});
 
+	// @TODO: Make onBlueprintStepCompleted work with Blueprints v2.
 	const compiled = experimentalBlueprintsV2Runner
 		? await compileBlueprint(
 				{},

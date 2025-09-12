@@ -101,20 +101,6 @@ export function bootSiteClient(
 			blueprint = site.metadata.runtimeConfiguration!;
 		} else {
 			blueprint = site.metadata.originalBlueprint;
-			const blueprintDeclaration = await getBlueprintDeclaration(
-				blueprint
-			);
-			// Log the names of provided Blueprint's steps.
-			// Only the names (e.g. "runPhp" or "login") are logged. Step options like
-			// code, password, URLs are never sent anywhere.
-			const steps = (blueprintDeclaration?.steps || [])
-				?.filter(
-					(step: any) => !!(typeof step === 'object' && step?.step)
-				)
-				.map((step) => (step as StepDefinition).step);
-			for (const step of steps) {
-				logTrackingEvent('step', { step });
-			}
 		}
 
 		let playground: PlaygroundClient;
@@ -133,6 +119,12 @@ export function bootSiteClient(
 				// Blueprint fails.
 				onClientConnected: (playground) => {
 					(window as any)['playground'] = playground;
+				},
+				// Log the names of provided Blueprint's steps.
+				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
+				// code, password, URLs are never sent anywhere.
+				onBlueprintStepCompleted: (step) => {
+					logTrackingEvent('step', { step });
 				},
 				mounts: mountDescriptor
 					? [

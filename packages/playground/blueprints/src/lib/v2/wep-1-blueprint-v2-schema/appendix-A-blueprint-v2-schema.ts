@@ -8,7 +8,7 @@ import type {
 	DataReference,
 } from './appendix-B-data-sources';
 
-export type Blueprint = {
+export type BlueprintV2 = {
 	/**
 	 * Not a generic 'number' type – this schema is specifically for
 	 * Blueprints v2. Version 1 had no "version" field and versions 3, 4,

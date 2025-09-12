@@ -2,23 +2,22 @@
 import '@php-wasm/node-polyfills';
 
 export type {
-	Blueprint,
-	BlueprintBundle,
+	BlueprintV1 as Blueprint,
 	BlueprintV1Declaration as BlueprintDeclaration,
 	PHPConstants,
-} from './lib/blueprint';
+} from './lib/v1/types';
 export {
-	compileBlueprint,
-	getBlueprintDeclaration,
-	isBlueprintBundle,
-	runBlueprintSteps,
-} from './lib/compile';
+	compileBlueprintV1 as compileBlueprint,
+	runBlueprintV1Steps as runBlueprintSteps,
+} from './lib/v1/compile';
+export type { BlueprintBundle } from './lib/types';
+export { isBlueprintBundle, getBlueprintDeclaration } from './lib/reflection';
 export type {
 	CompileBlueprintOptions,
-	CompiledBlueprint,
+	CompiledBlueprintV1 as CompiledBlueprint,
 	CompiledStep,
 	OnStepCompleted,
-} from './lib/compile';
+} from './lib/v1/compile';
 export type {
 	CachedResource,
 	CorePluginReference,
@@ -37,7 +36,7 @@ export type {
 	UrlResource,
 	VFSReference,
 	VFSResource,
-} from './lib/resources';
+} from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {
