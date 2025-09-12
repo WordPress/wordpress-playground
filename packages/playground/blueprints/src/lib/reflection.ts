@@ -219,6 +219,18 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintV1Declar
 			(step) => step && (step as any).step === 'enableMultisite'
 		);
 	}
+
+	getIntl() {
+		return this.getDeclaration().features?.intl ?? false;
+	}
+
+	setIntl(intl: boolean) {
+		const declaration = this.getDeclaration();
+		this.setDeclaration({
+			...declaration,
+			features: { ...declaration.features, intl },
+		});
+	}
 }
 
 export class BlueprintV2Reflection extends BlueprintReflection<BlueprintV2Declaration> {
@@ -301,6 +313,34 @@ export class BlueprintV2Reflection extends BlueprintReflection<BlueprintV2Declar
 			this.getDeclaration().applicationOptions?.['wordpress-playground']
 				?.networkAccess || true
 		);
+	}
+
+	getIntl() {
+		// @TODO: Find a useful way of declaring the desired PHP extensions
+		//        from a v2 Blueprint.
+		return (
+			(
+				this.getDeclaration().applicationOptions?.[
+					'wordpress-playground'
+				] as any
+			)?.intlExtension || true
+		);
+	}
+
+	setIntl(intl: boolean) {
+		const declaration = this.getDeclaration();
+		this.setDeclaration({
+			...declaration,
+			applicationOptions: {
+				...(declaration.applicationOptions || {}),
+				'wordpress-playground': {
+					...(declaration.applicationOptions?.[
+						'wordpress-playground'
+					] || {}),
+					intlExtension: intl,
+				} as any,
+			},
+		});
 	}
 
 	setLogin(

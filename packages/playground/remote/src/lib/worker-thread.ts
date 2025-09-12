@@ -553,6 +553,17 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						},
 					},
 				});
+				// @TODO: Run Blueprint v1 here:
+				/**
+				const compiled = await compileBlueprintV1(blueprint as any, {
+					progress: progressTracker.stage(0.5),
+					onStepCompleted: onBlueprintStepCompleted,
+					corsProxy,
+				});
+				// Blueprints v1 runner.
+				// @TODO: Should we run this in remote instead?
+				await runBlueprintV1Steps(compiled, playground);
+				*/
 			}
 
 			this.__internal_setRequestHandler(requestHandler);

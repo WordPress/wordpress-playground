@@ -30,6 +30,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { consumeAPI } from '@php-wasm/web';
 import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
 import {
+	BlueprintReflection,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
@@ -133,19 +134,14 @@ export async function startPlaygroundWeb({
 	});
 
 	// @TODO: Make onBlueprintStepCompleted work with Blueprints v2.
-	const compiled = experimentalBlueprintsV2Runner
-		? await compileBlueprintV1(
-				{},
-				{
-					progress: progressTracker.stage(0.5),
-					corsProxy,
-				}
-		  )
-		: await compileBlueprintV1(blueprint as any, {
-				progress: progressTracker.stage(0.5),
-				onStepCompleted: onBlueprintStepCompleted,
-				corsProxy,
-		  });
+	const reflection = await BlueprintReflection.create(blueprint as any);
+	if (!experimentalBlueprintsV2Runner && reflection.getVersion() === 2) {
+		throw new Error(
+			'Cannot run Blueprint v2 when the experimentalBlueprintsV2Runner option is not enabled.'
+		);
+	}
+
+	let blueprintProgress = progressTracker.stage(0.5);
 
 	// Connect the Comlink API client to the remote worker,
 	// boot the playground, and run the blueprint steps.
@@ -162,20 +158,14 @@ export async function startPlaygroundWeb({
 	if (experimentalBlueprintsV2Runner && blueprint) {
 		await playground.onBlueprintMessage(async (message: any) => {
 			if (message?.type === 'blueprint.progress') {
-				await playground.setProgress({
-					caption: (message.caption || 'Working').trim(),
-					progress: message.progress,
-					isIndefinite: false,
-					visible: true,
-				});
+				blueprintProgress.setCaption(message.caption);
+				blueprintProgress.set(message.progress);
 			}
 			if (message?.type === 'blueprint.error') {
-				await playground.setProgress({
-					caption: 'Error',
-					isIndefinite: false,
-					visible: true,
-					progress: 100,
-				});
+				console.log({ message });
+				// @TODO: Error handling
+				blueprintProgress.setCaption('Error');
+				blueprintProgress.set(100);
 			}
 		});
 	}
@@ -185,10 +175,14 @@ export async function startPlaygroundWeb({
 		sapiName,
 		scope: scope ?? Math.random().toFixed(16),
 		shouldInstallWordPress,
-		phpVersion: compiled.versions.php,
-		wpVersion: compiled.versions.wp,
-		withICU: compiled.features.intl,
-		withNetworking: compiled.features.networking,
+		phpVersion: reflection.getPhpVersion(),
+		// @TODO: What if it's a custom version? Why do we pass it in here?
+		//        It sounds like duplicate info since that information is
+		//        already in the Blueprint v1 or v2. Should we just pass the
+		//        Blueprint and drop these
+		wpVersion: reflection.getWpVersion(),
+		withICU: reflection.getIntl(),
+		withNetworking: reflection.getNetworking(),
 		corsProxyUrl: corsProxy,
 		sqliteDriverVersion,
 		experimentalBlueprintsV2Runner,
@@ -201,13 +195,16 @@ export async function startPlaygroundWeb({
 	onClientConnected(playground);
 
 	if (experimentalBlueprintsV2Runner) {
-		// @TODO: Source the landing page URL from the v2 Blueprint
-		// @TODO: Maybe reconcile this code path with v1 Blueprints? Right now it's
-		//        handled in `compileBlueprint`. Perhaps we could somehow move it to a
-		//        PHP plugin and also support it in Node.js? Or at least handle initial
-		//        redirection for both v1 and v2 Blueprints in the same place in web browsers?
-		await playground.goTo('/');
+		await playground.goTo(reflection.getLandingPage() ?? '/');
 	} else if (blueprint) {
+		// @TODO: Make onBlueprintStepCompleted work with Blueprints v2.
+		// @TODO: Maybe reconcile the worker structure with how Playground CLI
+		//        handles booting a site?
+		const compiled = await compileBlueprintV1(blueprint as any, {
+			progress: blueprintProgress,
+			onStepCompleted: onBlueprintStepCompleted,
+			corsProxy,
+		});
 		// Blueprints v1 runner.
 		// @TODO: Should we run this in remote instead?
 		await runBlueprintV1Steps(compiled, playground);
@@ -218,7 +215,7 @@ export async function startPlaygroundWeb({
 	 *
 	 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 	 */
-	if (compiled.features.networking) {
+	if (reflection.getNetworking()) {
 		await playground.prefetchUpdateChecks();
 	}
 	progressTracker.finish();
