@@ -12,7 +12,7 @@ import {
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
 import type { Blueprint, StepDefinition } from '@wp-playground/blueprints';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
@@ -101,9 +101,8 @@ export function bootSiteClient(
 			blueprint = site.metadata.runtimeConfiguration!;
 		} else {
 			blueprint = site.metadata.originalBlueprint;
-			const blueprintDeclaration = await getBlueprintDeclaration(
-				blueprint
-			);
+			const reflection = await BlueprintReflection.create(blueprint);
+			const blueprintDeclaration = reflection.getDeclaration();
 			// Log the names of provided Blueprint's steps.
 			// Only the names (e.g. "runPhp" or "login") are logged. Step options like
 			// code, password, URLs are never sent anywhere.

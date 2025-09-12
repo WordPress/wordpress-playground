@@ -220,6 +220,7 @@ export class BlueprintsV1Handler {
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
 		const args = this.args;
 		const resolvedBlueprint = args.blueprint as BlueprintDeclaration;
+
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
 		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41

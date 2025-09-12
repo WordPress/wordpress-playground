@@ -12,10 +12,7 @@ import type {
 	BlueprintDeclaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
-import {
-	BlueprintReflection,
-	compileBlueprint,
-} from '@wp-playground/blueprints';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 

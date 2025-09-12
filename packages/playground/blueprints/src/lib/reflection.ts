@@ -10,7 +10,7 @@ export function isBlueprintBundle(input: any): input is BlueprintBundle {
 	return input && 'read' in input && typeof input.read === 'function';
 }
 
-export async function getBlueprintDeclaration(
+async function getBlueprintDeclaration(
 	blueprint: Blueprint
 ): Promise<BlueprintDeclaration> {
 	if (!isBlueprintBundle(blueprint)) {
@@ -58,6 +58,10 @@ export abstract class BlueprintReflection<T extends BlueprintDeclaration> {
 
 	getDeclaration() {
 		return this.details.declaration;
+	}
+
+	isBundle() {
+		return !!this.details.bundle;
 	}
 
 	getBundle() {

@@ -1,17 +1,16 @@
 import type {
-	BlueprintDeclaration,
-	BlueprintBundle,
 	Blueprint,
+	BlueprintBundle,
+	BlueprintDeclaration,
 	StepDefinition,
 } from '@wp-playground/client';
 import {
-	getBlueprintDeclaration,
-	isBlueprintBundle,
+	BlueprintReflection,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { parseBlueprint } from './router';
-import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { InMemoryFilesystem, OverlayFilesystem } from '@wp-playground/storage';
+import { parseBlueprint } from './router';
 
 export type BlueprintSource =
 	| {
@@ -128,17 +127,18 @@ export async function resolveBlueprintFromURL(
 	 * Allow overriding PHP and WordPress versions defined in a Blueprint
 	 * via query params.
 	 */
-	if (isBlueprintBundle(blueprint)) {
-		let blueprintObject = await getBlueprintDeclaration(blueprint);
-		blueprintObject = applyQueryOverrides(blueprintObject, query);
+	const reflection = await BlueprintReflection.create(blueprint);
+	if (reflection.isBundle()) {
+		let blueprintDeclaration = reflection.getDeclaration();
+		blueprintDeclaration = applyQueryOverrides(blueprintDeclaration, query);
 		blueprint = new OverlayFilesystem([
 			new InMemoryFilesystem({
-				'blueprint.json': JSON.stringify(blueprintObject),
+				'blueprint.json': JSON.stringify(blueprintDeclaration),
 			}),
-			blueprint,
+			reflection.getBundle()!,
 		]);
 	} else {
-		blueprint = applyQueryOverrides(blueprint, query);
+		blueprint = applyQueryOverrides(reflection.getDeclaration(), query);
 	}
 
 	return { blueprint, source };

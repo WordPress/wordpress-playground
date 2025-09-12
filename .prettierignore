@@ -2,6 +2,7 @@
 /dist
 /coverage
 /node_modules
+/isomorphic-git
 /packages/php-wasm/node/public
 /packages/php-wasm/web/public
 /packages/php-wasm/compile/build-assets
@@ -12,6 +13,7 @@
 __pycache__
 *.timestamp-1678999213403.mjs
 .local
+.docusaurus
 .nx
 .vscode
 rollup.d.ts

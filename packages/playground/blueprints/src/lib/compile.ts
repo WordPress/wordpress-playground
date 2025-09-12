@@ -14,7 +14,6 @@ import type {
 	BlueprintBundle,
 	ExtraLibrary,
 	StreamBundledFile,
-	Blueprint,
 } from './blueprint';
 import { logger } from '@php-wasm/logger';
 
@@ -41,6 +40,7 @@ const keyedStepHandlers = {
  */
 import blueprintValidator from '../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from './steps/wp-cli';
+import { BlueprintReflection } from './reflection';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
@@ -95,32 +95,16 @@ export async function compileBlueprint(
 		...options,
 	};
 
-	let blueprint: BlueprintDeclaration;
-	if (isBlueprintBundle(input)) {
-		blueprint = await getBlueprintDeclaration(input);
+	const reflection = await BlueprintReflection.create(input);
+
+	const blueprintDeclaration = reflection.getDeclaration();
+	if (reflection.isBundle()) {
 		finalOptions.streamBundledFile = function (...args: [any]) {
-			return input.read(...args);
+			return reflection.getBundle()!.read(...args);
 		};
-	} else {
-		blueprint = input as BlueprintDeclaration;
 	}
 
-	return compileBlueprintJson(blueprint, finalOptions);
-}
-
-export function isBlueprintBundle(input: any): input is BlueprintBundle {
-	return input && 'read' in input && typeof input.read === 'function';
-}
-
-export async function getBlueprintDeclaration(
-	blueprint: Blueprint
-): Promise<BlueprintDeclaration> {
-	if (!isBlueprintBundle(blueprint)) {
-		return blueprint;
-	}
-	const blueprintFile = await blueprint.read('blueprint.json');
-	const blueprintText = await blueprintFile.text();
-	return JSON.parse(blueprintText);
+	return compileBlueprintJson(blueprintDeclaration, finalOptions);
 }
 
 /**

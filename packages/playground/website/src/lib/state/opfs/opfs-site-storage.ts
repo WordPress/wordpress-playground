@@ -10,7 +10,7 @@ import type { SiteMetadata } from '../../site-metadata';
 import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -152,10 +152,12 @@ async function metadataToStoredFormat(
 	slug: string,
 	{ originalBlueprint, ...metadata }: SiteMetadata
 ): Promise<string> {
+	const reflection = await BlueprintReflection.create(originalBlueprint);
 	return JSON.stringify(
 		{
 			slug,
-			originalBlueprint: await getBlueprintDeclaration(originalBlueprint),
+			// @TODO Blueprints V2: Storing the original bundle would be useful. How can we do that?
+			originalBlueprint: reflection.getDeclaration(),
 			...metadata,
 		},
 		undefined,
