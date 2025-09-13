@@ -10,12 +10,23 @@ import {
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
-import { RecommendedPHPVersion } from '@wp-playground/common';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import {
+	bootWordPress,
+	resolveWordPressRelease,
+} from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
+import fs from 'fs';
+import path from 'path';
+import {
+	CACHE_FOLDER,
+	cachedDownload,
+	fetchSqliteIntegration,
+	readAsFile,
+} from './download';
 
 export interface Mount {
 	hostPath: string;
@@ -44,6 +55,10 @@ export type WorkerBootOptions = {
 	 */
 	internalCookieStore?: boolean;
 	withXdebug?: boolean;
+	/** Skip downloading and installing WordPress */
+	skipWordPressSetup?: boolean;
+	/** Skip downloading SQLite integration plugin */
+	skipSqliteSetup?: boolean;
 };
 
 /**
@@ -65,9 +80,34 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
 	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
+	progressPort: MessagePort | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
+	}
+
+	/**
+	 * Provide a MessagePort to receive progress and error updates from the worker.
+	 */
+	async setProgressPort(port: MessagePort) {
+		this.progressPort = port;
+	}
+
+	private postProgress(message: {
+		phase: 'wordpress' | 'sqlite';
+		loaded: number;
+		total: number;
+		finished: boolean;
+	}) {
+		try {
+			this.progressPort?.postMessage({ type: 'progress', ...message });
+		} catch {}
+	}
+
+	private postError(message: string) {
+		try {
+			this.progressPort?.postMessage({ type: 'error', message });
+		} catch {}
 	}
 
 	/**
@@ -117,6 +157,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		trace,
 		internalCookieStore,
 		withXdebug,
+		wpVersion,
+		skipWordPressSetup,
+		skipSqliteSetup,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -133,6 +176,66 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					WP_DEBUG_LOG: true,
 					WP_DEBUG_DISPLAY: false,
 				};
+
+			// Resolve and download artifacts if not provided by caller
+			let wordPressZipFile: File | undefined;
+			let sqliteIntegrationPluginZipFile: File | undefined;
+			let preinstalledWpContentPath: string | undefined;
+
+			if (wordPressZip !== undefined) {
+				wordPressZipFile = new File([wordPressZip], 'wordpress.zip');
+			} else if (!skipWordPressSetup) {
+				const monitor = new EmscriptenDownloadMonitor();
+				monitor.addEventListener('progress', ((
+					e: CustomEvent<ProgressEvent & { finished: boolean }>
+				) => {
+					this.postProgress({
+						phase: 'wordpress',
+						loaded: e.detail.loaded,
+						total: e.detail.total,
+						finished: e.detail.finished,
+					});
+				}) as any);
+
+				const wpDetails = await resolveWordPressRelease(
+					wpVersion || 'latest'
+				);
+				preinstalledWpContentPath = path.join(
+					CACHE_FOLDER,
+					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+				);
+				if (fs.existsSync(preinstalledWpContentPath)) {
+					wordPressZipFile = readAsFile(preinstalledWpContentPath);
+				} else {
+					wordPressZipFile = await cachedDownload(
+						wpDetails.releaseUrl,
+						`${wpDetails.version}.zip`,
+						monitor
+					);
+				}
+			}
+
+			if (sqliteIntegrationPluginZip !== undefined) {
+				sqliteIntegrationPluginZipFile = new File(
+					[sqliteIntegrationPluginZip],
+					'sqlite-integration-plugin.zip'
+				);
+			} else if (!skipSqliteSetup) {
+				const sqliteMonitor = new EmscriptenDownloadMonitor();
+				sqliteMonitor.addEventListener('progress', ((
+					e: CustomEvent<ProgressEvent & { finished: boolean }>
+				) => {
+					this.postProgress({
+						phase: 'sqlite',
+						loaded: e.detail.loaded,
+						total: e.detail.total,
+						finished: e.detail.finished,
+					});
+				}) as any);
+				sqliteIntegrationPluginZipFile = await fetchSqliteIntegration(
+					sqliteMonitor
+				);
+			}
 
 			const requestHandler = await bootWordPress({
 				siteUrl: absoluteUrl,
@@ -156,17 +259,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						withXdebug,
 					});
 				},
-				wordPressZip:
-					wordPressZip !== undefined
-						? new File([wordPressZip], 'wordpress.zip')
-						: undefined,
-				sqliteIntegrationPluginZip:
-					sqliteIntegrationPluginZip !== undefined
-						? new File(
-								[sqliteIntegrationPluginZip],
-								'sqlite-integration-plugin.zip'
-						  )
-						: undefined,
+				wordPressZip: wordPressZipFile,
+				sqliteIntegrationPluginZip: sqliteIntegrationPluginZipFile,
 				sapiName: 'cli',
 				createFiles: {
 					'/internal/shared/ca-bundle.crt':
@@ -193,6 +287,31 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			await this.setPrimaryPHP(primaryPhp);
 
 			mountResources(primaryPhp, mountsAfterWpInstall);
+
+			// Cache preinstalled WordPress for faster subsequent boots if applicable
+			if (
+				!skipWordPressSetup &&
+				mountsBeforeWpInstall.length === 0 &&
+				preinstalledWpContentPath &&
+				!fs.existsSync(preinstalledWpContentPath)
+			) {
+				try {
+					const zipBuffer = await zipDirectory(
+						primaryPhp,
+						'/wordpress'
+					);
+					fs.mkdirSync(path.dirname(preinstalledWpContentPath), {
+						recursive: true,
+					});
+					fs.writeFileSync(preinstalledWpContentPath, zipBuffer);
+				} catch (err) {
+					// Non-fatal; log to progress channel
+					this.postError(
+						(err as Error)?.message ||
+							'Failed to cache preinstalled WordPress'
+					);
+				}
+			}
 
 			setApiReady();
 		} catch (e) {
