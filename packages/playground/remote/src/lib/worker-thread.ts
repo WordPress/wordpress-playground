@@ -141,6 +141,449 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		super(undefined, monitor);
 	}
 
+	private computeSiteUrl(scope: string) {
+		return setURLScope(wordPressSiteUrl, scope).toString();
+	}
+
+	// Split boot implementation: Blueprint v1 (default WordPress install path)
+	async bootBlueprintV1({
+		scope,
+		mounts = [],
+		wpVersion = LatestMinifiedWordPressVersion,
+		sqliteDriverVersion = LatestSqliteDriverVersion,
+		phpVersion = RecommendedPHPVersion,
+		sapiName = 'cli',
+		withICU = false,
+		withNetworking = true,
+		shouldInstallWordPress = true,
+		corsProxyUrl,
+	}: WorkerBootOptions) {
+		if (this.booted) {
+			throw new Error('Playground already booted');
+		}
+
+		if (corsProxyUrl === undefined) {
+			corsProxyUrl = defaultCorsProxyUrl;
+		}
+
+		this.booted = true;
+		this.scope = scope;
+		if (!SupportedPHPVersionsList.includes(phpVersion)) {
+			throw new Error(
+				`Unsupported PHP version: ${phpVersion}. Supported versions: ${SupportedPHPVersionsList.join(
+					', '
+				)}`
+			);
+		}
+
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		try {
+			const endpoint = this;
+			const knownRemoteAssetPaths = new Set<string>();
+			const siteUrl = this.computeSiteUrl(scope);
+			const requestHandler = await this.createRequestHandler({
+				siteUrl,
+				sapiName,
+				withICU,
+				corsProxyUrl,
+				knownRemoteAssetPaths,
+				withNetworking,
+				phpVersion,
+			});
+
+			this.requestedWordPressVersion = wpVersion;
+			wpVersion = MinifiedWordPressVersionsList.includes(wpVersion)
+				? wpVersion
+				: LatestMinifiedWordPressVersion;
+
+			let wordPressRequest: Promise<Response> | null = null;
+			if (shouldInstallWordPress) {
+				if (this.requestedWordPressVersion!.startsWith('http')) {
+					wordPressRequest = monitoredFetch(
+						this.requestedWordPressVersion as string
+					).then((response) => {
+						if (response.ok) {
+							return response;
+						}
+						let json: any = null;
+						return response.json().then(
+							(parsedJson) => {
+								json = parsedJson;
+								if (json && json.error === 'artifact_expired') {
+									throw new ArtifactExpiredError();
+								}
+								throw new Error(
+									`Failed to download WordPress ZIP (HTTP ${response.status})`
+								);
+							},
+							() => {
+								throw new Error(
+									`Failed to download WordPress ZIP (HTTP ${response.status})`
+								);
+							}
+						);
+					});
+				} else {
+					const wpDetails = getWordPressModuleDetails(wpVersion);
+					downloadMonitor.expectAssets({
+						[wpDetails.url]: wpDetails.size,
+					});
+					wordPressRequest = monitoredFetch(wpDetails.url);
+				}
+			}
+
+			let sqliteIntegrationRequest: Promise<Response> | null = null;
+			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
+				sqliteDriverVersion!
+			);
+			downloadMonitor.expectAssets({
+				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
+			});
+			sqliteIntegrationRequest = downloadMonitor.monitorFetch(
+				fetch(sqliteDriverModuleDetails.url)
+			);
+
+			await bootJustWordPress(requestHandler, {
+				siteUrl,
+				constants: shouldInstallWordPress
+					? {
+							WP_DEBUG: true,
+							WP_DEBUG_LOG: true,
+							WP_DEBUG_DISPLAY: false,
+							AUTH_KEY: randomString(40),
+							SECURE_AUTH_KEY: randomString(40),
+							LOGGED_IN_KEY: randomString(40),
+							NONCE_KEY: randomString(40),
+							AUTH_SALT: randomString(40),
+							SECURE_AUTH_SALT: randomString(40),
+							LOGGED_IN_SALT: randomString(40),
+							NONCE_SALT: randomString(40),
+					  }
+					: {},
+				wordPressZip: shouldInstallWordPress
+					? wordPressRequest!
+							.then((r) => r.blob())
+							.then((b) => new File([b], 'wp.zip'))
+					: undefined,
+				sqliteIntegrationPluginZip: sqliteIntegrationRequest
+					? sqliteIntegrationRequest
+							.then((r) => r.blob())
+							.then((b) => new File([b], 'sqlite.zip'))
+					: undefined,
+				hooks: {
+					async beforeWordPressFiles(php: PHP) {
+						for (const mount of mounts) {
+							const handle = await directoryHandleFromMountDevice(
+								mount.device
+							);
+							const unmount = await php.mount(
+								mount.mountpoint,
+								createDirectoryHandleMountHandler(handle, {
+									initialSync: {
+										direction: mount.initialSyncDirection,
+									},
+								})
+							);
+							endpoint.unmounts[mount.mountpoint] = unmount;
+						}
+					},
+				},
+			});
+
+			await this.finalizeAfterBoot(
+				requestHandler,
+				withNetworking,
+				knownRemoteAssetPaths
+			);
+		} catch (e) {
+			setAPIError(e as Error);
+			throw e;
+		}
+	}
+
+	private async createRequestHandler({
+		siteUrl,
+		sapiName,
+		withICU,
+		corsProxyUrl,
+		knownRemoteAssetPaths,
+		withNetworking,
+		phpVersion,
+	}: {
+		siteUrl: string;
+		sapiName: string;
+		withICU: boolean;
+		corsProxyUrl?: string;
+		knownRemoteAssetPaths: Set<string>;
+		withNetworking: boolean;
+		phpVersion: SupportedPHPVersion;
+	}) {
+		const phpIniEntries: Record<string, string> = {
+			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+		};
+		if (!withICU) {
+			phpIniEntries['disable_functions'] = (
+				phpIniEntries['disable_functions'] ?? ''
+			)
+				.split(',')
+				.concat(intlDisabledFunctions)
+				.filter((n) => n)
+				.join(',');
+		}
+
+		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
+		let caBundleContent = '';
+		if (withNetworking) {
+			this.networkTransport = new WordPressFetchNetworkTransport({
+				corsProxyUrl,
+			});
+			const CAroot = await generateCertificate({
+				subject: {
+					commonName: 'WordPressPlaygroundCA',
+					organizationName: 'WordPressPlaygroundCA',
+					countryName: 'US',
+				},
+				basicConstraints: {
+					ca: true,
+				},
+			});
+			caBundleContent = certificateToPEM(CAroot.certificate);
+			tcpOverFetch = {
+				CAroot,
+				corsProxyUrl,
+			};
+		} else {
+			phpIniEntries['allow_url_fopen'] = '0';
+			phpIniEntries['disable_functions'] = (
+				phpIniEntries['disable_functions'] ?? ''
+			)
+				.split(',')
+				.concat(networkingDisabledFunctions)
+				.filter((n) => n)
+				.join(',');
+		}
+
+		const requestHandler = await bootRequestHandler({
+			siteUrl,
+			createPhpRuntime: async () => {
+				let wasmUrl = '';
+				return await loadWebRuntime(phpVersion, {
+					withICU,
+					tcpOverFetch,
+					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+						wasmUrl = phpLoaderModule.dependencyFilename;
+						downloadMonitor.expectAssets({
+							[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
+						});
+					},
+					emscriptenOptions: {
+						instantiateWasm(imports, receiveInstance) {
+							memoizedFetch(wasmUrl, {
+								credentials: 'same-origin',
+							})
+								.then((response) =>
+									WebAssembly.instantiateStreaming(
+										response,
+										imports
+									)
+								)
+								.then((wasm) => {
+									receiveInstance(wasm.instance, wasm.module);
+								});
+							return {};
+						},
+					},
+				});
+			},
+			onPHPInstanceCreated: async (php: PHP) => {
+				if (withNetworking) {
+					await this.networkTransport!.setupMessageHandler(php);
+				}
+				php.onMessage(async (message) => {
+					for (const listener of this.onMessageListeners) {
+						const returnData = await listener(message);
+						if (returnData) {
+							return returnData;
+						}
+					}
+					return '';
+				});
+			},
+			spawnHandler: sandboxedSpawnHandlerFactory,
+			sapiName,
+			phpIniEntries,
+			createFiles: {
+				'/internal/shared/ca-bundle.crt': caBundleContent,
+				'/internal/shared/mu-plugins': {
+					'1-playground-web.php': playgroundWebMuPlugin,
+					'playground-includes': {
+						'wp_http_dummy.php': transportDummy,
+						'wp_http_fetch.php': transportFetch,
+					},
+				},
+			},
+			getFileNotFoundAction(relativeUri: string) {
+				if (!knownRemoteAssetPaths.has(relativeUri)) {
+					return getFileNotFoundActionForWordPress(relativeUri);
+				}
+				return {
+					type: 'response',
+					response: new PHPResponse(
+						404,
+						{
+							'x-backfill-from': ['remote-host'],
+							'x-file-type': ['static'],
+						},
+						new TextEncoder().encode('404 File not found')
+					),
+				};
+			},
+		});
+
+		const primaryPhp = await requestHandler.getPrimaryPhp();
+		await this.setPrimaryPHP(primaryPhp);
+		return requestHandler;
+	}
+
+	private async finalizeAfterBoot(
+		requestHandler: any,
+		withNetworking: boolean,
+		knownRemoteAssetPaths: Set<string>
+	) {
+		const primaryPhp = await requestHandler.getPrimaryPhp();
+
+		if (withNetworking) {
+			await this.networkTransport!.setEnabled(primaryPhp, true);
+		}
+
+		this.loadedWordPressVersion = await getLoadedWordPressVersion(
+			requestHandler
+		);
+		if (this.requestedWordPressVersion !== this.loadedWordPressVersion) {
+			logger.warn(
+				`Loaded WordPress version (${this.loadedWordPressVersion}) differs ` +
+					`from requested version (${this.requestedWordPressVersion}).`
+			);
+		}
+
+		const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
+			this.loadedWordPressVersion
+		);
+		const remoteAssetListPath = joinPaths(
+			requestHandler.documentRoot,
+			'wordpress-remote-asset-paths'
+		);
+		if (
+			wpStaticAssetsDir !== undefined &&
+			!primaryPhp.fileExists(remoteAssetListPath)
+		) {
+			const listUrl = new URL(
+				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
+				wordPressSiteUrl
+			);
+			try {
+				const remoteAssetPaths = await fetch(listUrl).then((res) =>
+					res.text()
+				);
+				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
+			} catch {
+				logger.warn(
+					`Failed to fetch remote asset paths from ${listUrl}`
+				);
+			}
+		}
+
+		if (primaryPhp.isFile(remoteAssetListPath)) {
+			const remoteAssetPaths = primaryPhp
+				.readFileAsText(remoteAssetListPath)
+				.split('\n');
+			remoteAssetPaths.forEach((wpRelativePath: string) =>
+				knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath))
+			);
+		}
+
+		this.__internal_setRequestHandler(requestHandler);
+		setApiReady();
+	}
+
+	// Split boot implementation: Blueprint v2 runner (no default install)
+	async bootBlueprintV2({
+		scope,
+		mounts = [],
+		wpVersion = LatestMinifiedWordPressVersion,
+		phpVersion = RecommendedPHPVersion,
+		sapiName = 'cli',
+		withICU = false,
+		withNetworking = true,
+		corsProxyUrl,
+		blueprint,
+	}: WorkerBootOptions) {
+		if (this.booted) {
+			throw new Error('Playground already booted');
+		}
+
+		if (corsProxyUrl === undefined) {
+			corsProxyUrl = defaultCorsProxyUrl;
+		}
+
+		this.booted = true;
+		this.scope = scope;
+		this.requestedWordPressVersion = wpVersion;
+
+		wpVersion = MinifiedWordPressVersionsList.includes(wpVersion)
+			? wpVersion
+			: LatestMinifiedWordPressVersion;
+
+		if (!SupportedPHPVersionsList.includes(phpVersion)) {
+			throw new Error(
+				`Unsupported PHP version: ${phpVersion}. Supported versions: ${SupportedPHPVersionsList.join(
+					', '
+				)}`
+			);
+		}
+
+		try {
+			const knownRemoteAssetPaths = new Set<string>();
+			const siteUrl = this.computeSiteUrl(scope);
+			const requestHandler = await this.createRequestHandler({
+				siteUrl,
+				sapiName,
+				withICU,
+				corsProxyUrl,
+				knownRemoteAssetPaths,
+				withNetworking,
+				phpVersion,
+			});
+			const primaryPhp = await requestHandler.getPrimaryPhp();
+
+			if (!blueprint) {
+				throw new Error(
+					'Blueprints v2 runner requires a blueprint declaration.'
+				);
+			}
+			const streamed = await runBlueprintV2({
+				php: primaryPhp,
+				cliArgs: ['--site-url=' + siteUrl],
+				blueprint: blueprint as BlueprintV2Declaration,
+				onMessage: async (message: any) => {
+					for (const listener of this.blueprintMessageListeners) {
+						await listener(message);
+					}
+				},
+			});
+			await streamed.finished;
+
+			await this.finalizeAfterBoot(
+				requestHandler,
+				withNetworking,
+				knownRemoteAssetPaths
+			);
+		} catch (e) {
+			setAPIError(e as Error);
+			throw e;
+		}
+	}
+
 	/**
 	 * @returns WordPress module details, including the static assets directory and default theme.
 	 */
@@ -232,417 +675,33 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		experimentalBlueprintsV2Runner = false,
 		blueprint,
 	}: WorkerBootOptions) {
-		if (this.booted) {
-			throw new Error('Playground already booted');
-		}
-
-		if (corsProxyUrl === undefined) {
-			corsProxyUrl = defaultCorsProxyUrl;
-		}
-
-		this.booted = true;
-		this.scope = scope;
-		this.requestedWordPressVersion = wpVersion;
-
-		wpVersion = MinifiedWordPressVersionsList.includes(wpVersion)
-			? wpVersion
-			: LatestMinifiedWordPressVersion;
-
-		if (!SupportedPHPVersionsList.includes(phpVersion)) {
-			throw new Error(
-				`Unsupported PHP version: ${phpVersion}. Supported versions: ${SupportedPHPVersionsList.join(
-					', '
-				)}`
-			);
-		}
-
-		try {
-			// Start downloading WordPress if needed (skip if running Blueprints v2)
-			let wordPressRequest: Promise<Response> | null = null;
-			if (shouldInstallWordPress) {
-				// @TODO: Accept a WordPress ZIP file or a URL, do not
-				//        reason about the `requestedWPVersion` here.
-				if (this.requestedWordPressVersion.startsWith('http')) {
-					// We don't know the size upfront, but we can still monitor the download.
-					// monitorFetch will read the content-length response header when available.
-					wordPressRequest = monitoredFetch(
-						this.requestedWordPressVersion
-					).then((response) => {
-						if (response.ok) {
-							return response;
-						}
-						// Try to detect a GitHub artifact expiration coming from plugin-proxy.php
-						let json: any = null;
-						return response.json().then(
-							(parsedJson) => {
-								json = parsedJson;
-								if (json && json.error === 'artifact_expired') {
-									throw new ArtifactExpiredError();
-								}
-								throw new Error(
-									`Failed to download WordPress ZIP (HTTP ${response.status})`
-								);
-							},
-							() => {
-								// Not JSON or different error shape – fall through to generic error
-								throw new Error(
-									`Failed to download WordPress ZIP (HTTP ${response.status})`
-								);
-							}
-						);
-					});
-				} else {
-					const wpDetails = getWordPressModuleDetails(wpVersion);
-					downloadMonitor.expectAssets({
-						[wpDetails.url]: wpDetails.size,
-					});
-					wordPressRequest = monitoredFetch(wpDetails.url);
-				}
-			}
-
-			let sqliteIntegrationRequest: Promise<Response> | null = null;
-			if (!experimentalBlueprintsV2Runner) {
-				const sqliteDriverModuleDetails =
-					getSqliteDriverModuleDetails(sqliteDriverVersion);
-				downloadMonitor.expectAssets({
-					[sqliteDriverModuleDetails.url]:
-						sqliteDriverModuleDetails.size,
-				});
-				sqliteIntegrationRequest = downloadMonitor.monitorFetch(
-					fetch(sqliteDriverModuleDetails.url)
-				);
-			}
-
-			// eslint-disable-next-line @typescript-eslint/no-this-alias
-			const endpoint = this;
-			const knownRemoteAssetPaths = new Set<string>();
-			const phpIniEntries: Record<string, string> = {
-				'openssl.cafile': '/internal/shared/ca-bundle.crt',
-			};
-			let CAroot: false | GeneratedCertificate = false;
-			let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
-			if (!withICU) {
-				phpIniEntries['disable_functions'] = (
-					phpIniEntries['disable_functions'] ?? ''
-				)
-					.split(',')
-					.concat(intlDisabledFunctions)
-					.filter((n) => n)
-					.join(',');
-			}
-			if (withNetworking) {
-				/**
-				 * Generate a self-signed CA certificate and tell PHP to trust it.
-				 * This enables rewriting raw encrypted bytes emitted by PHP
-				 * during HTTPS connections into fetch() calls.
-				 *
-				 * See https://github.com/WordPress/wordpress-playground/pull/1926.
-				 */
-				CAroot = await generateCertificate({
-					subject: {
-						commonName: 'WordPressPlaygroundCA',
-						organizationName: 'WordPressPlaygroundCA',
-						countryName: 'US',
-					},
-					basicConstraints: {
-						ca: true,
-					},
-				});
-				tcpOverFetch = {
-					CAroot,
-					corsProxyUrl,
-				};
-			} else {
-				phpIniEntries['allow_url_fopen'] = '0';
-				// Calling curl_exec() with networking disabled causes PHP to
-				// enter an infinite loop. Let's disable it completely to
-				// throw a fatal error instead.
-				phpIniEntries['disable_functions'] = (
-					phpIniEntries['disable_functions'] ?? ''
-				)
-					.split(',')
-					.concat(networkingDisabledFunctions)
-					.filter((n) => n)
-					.join(',');
-			}
-
-			this.networkTransport = new WordPressFetchNetworkTransport({
-				corsProxyUrl: corsProxyUrl,
-			});
-
-			const siteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-			const requestHandler = await bootRequestHandler({
-				siteUrl,
-				createPhpRuntime: async () => {
-					let wasmUrl = '';
-					return await loadWebRuntime(
-						'8.3',
-						/*phpVersion*/ {
-							tcpOverFetch,
-							withICU,
-							emscriptenOptions: {
-								instantiateWasm(imports, receiveInstance) {
-									// Using .then because Emscripten typically returns an empty
-									// object here and not a promise.
-									memoizedFetch(wasmUrl, {
-										credentials: 'same-origin',
-									})
-										.then((response) =>
-											WebAssembly.instantiateStreaming(
-												response,
-												imports
-											)
-										)
-										.then((wasm) => {
-											receiveInstance(
-												wasm.instance,
-												wasm.module
-											);
-										});
-									return {};
-								},
-							},
-							onPhpLoaderModuleLoaded: (phpLoaderModule) => {
-								wasmUrl = phpLoaderModule.dependencyFilename;
-								downloadMonitor.expectAssets({
-									[wasmUrl]:
-										phpLoaderModule.dependenciesTotalSize,
-								});
-							},
-						}
-					);
-				},
-				onPHPInstanceCreated: async (php: PHP) => {
-					/**
-					 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
-					 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling
-					 * setupFetchNetworkRequest() only for `primaryPHP` would leave all the non-primary
-					 * instances without a network call handler.
-					 *
-					 * @see https://github.com/WordPress/wordpress-playground/pull/2286
-					 */
-					if (withNetworking) {
-						await this.networkTransport!.setupMessageHandler(php);
-					}
-					php.onMessage(async (message) => {
-						for (const listener of this.onMessageListeners) {
-							const returnData = await listener(message);
-
-							if (returnData) {
-								return returnData;
-							}
-						}
-						return '';
-					});
-				},
-
-				spawnHandler: sandboxedSpawnHandlerFactory,
+		// Delegate to version-specific boot methods
+		if (experimentalBlueprintsV2Runner) {
+			return await this.bootBlueprintV2({
+				scope,
+				mounts,
+				wpVersion,
+				phpVersion,
 				sapiName,
-
-				phpIniEntries,
-				createFiles: {
-					'/internal/shared/ca-bundle.crt': CAroot
-						? certificateToPEM(CAroot.certificate)
-						: '',
-					'/internal/shared/mu-plugins': {
-						'1-playground-web.php': playgroundWebMuPlugin,
-						'playground-includes': {
-							'wp_http_dummy.php': transportDummy,
-							'wp_http_fetch.php': transportFetch,
-						},
-					},
-				},
-				getFileNotFoundAction(relativeUri: string) {
-					if (!knownRemoteAssetPaths.has(relativeUri)) {
-						return getFileNotFoundActionForWordPress(relativeUri);
-					}
-
-					// This path is listed as a remote asset. Mark it as a static file
-					// so the service worker knows it can issue a real fetch() to the server.
-					return {
-						type: 'response',
-						response: new PHPResponse(
-							404,
-							{
-								'x-backfill-from': ['remote-host'],
-								// Include x-file-type header so remote asset
-								// retrieval continues to work for clients
-								// running a prior service worker version.
-								'x-file-type': ['static'],
-							},
-							new TextEncoder().encode('404 File not found')
-						),
-					};
-				},
+				withICU,
+				withNetworking,
+				corsProxyUrl,
+				blueprint,
+				experimentalBlueprintsV2Runner,
 			});
-
-			const primaryPhp = await requestHandler.getPrimaryPhp();
-			await this.setPrimaryPHP(primaryPhp);
-
-			if (experimentalBlueprintsV2Runner) {
-				if (!blueprint) {
-					throw new Error(
-						'Blueprints v2 runner requires a blueprint declaration.'
-					);
-				}
-				const streamed = await runBlueprintV2({
-					php: primaryPhp,
-					cliArgs: ['--site-url=' + siteUrl],
-					blueprint,
-					onMessage: async (message: any) => {
-						for (const listener of this.blueprintMessageListeners) {
-							await listener(message);
-						}
-						// console.log('blueprint message', message);
-						/**
-						 * @TODO: Handle mounts like the v1 runner does.
-							for (const mount of mounts) {
-						*/
-					},
-				});
-				await streamed.finished;
-			} else {
-				await bootJustWordPress(requestHandler, {
-					siteUrl,
-					constants: shouldInstallWordPress
-						? {
-								WP_DEBUG: true,
-								WP_DEBUG_LOG: true,
-								WP_DEBUG_DISPLAY: false,
-								AUTH_KEY: randomString(40),
-								SECURE_AUTH_KEY: randomString(40),
-								LOGGED_IN_KEY: randomString(40),
-								NONCE_KEY: randomString(40),
-								AUTH_SALT: randomString(40),
-								SECURE_AUTH_SALT: randomString(40),
-								LOGGED_IN_SALT: randomString(40),
-								NONCE_SALT: randomString(40),
-						  }
-						: {},
-					// Do not await the WordPress download or the sqlite integration download.
-					// Let bootWordPress start the PHP runtime download first, and then await
-					// all the ZIP files right before they're used.
-					wordPressZip: shouldInstallWordPress
-						? wordPressRequest!
-								.then((r) => r.blob())
-								.then((b) => new File([b], 'wp.zip'))
-						: undefined,
-					sqliteIntegrationPluginZip: sqliteIntegrationRequest
-						? sqliteIntegrationRequest
-								.then((r) => r.blob())
-								.then((b) => new File([b], 'sqlite.zip'))
-						: undefined,
-					hooks: {
-						async beforeWordPressFiles(php: PHP) {
-							for (const mount of mounts) {
-								const handle =
-									await directoryHandleFromMountDevice(
-										mount.device
-									);
-								const unmount = await php.mount(
-									mount.mountpoint,
-									createDirectoryHandleMountHandler(handle, {
-										initialSync: {
-											direction:
-												mount.initialSyncDirection,
-										},
-									})
-								);
-								endpoint.unmounts[mount.mountpoint] = unmount;
-							}
-						},
-					},
-				});
-				// @TODO: Run Blueprint v1 here:
-				/**
-				const compiled = await compileBlueprintV1(blueprint as any, {
-					progress: progressTracker.stage(0.5),
-					onStepCompleted: onBlueprintStepCompleted,
-					corsProxy,
-				});
-				// Blueprints v1 runner.
-				// @TODO: Should we run this in remote instead?
-				await runBlueprintV1Steps(compiled, playground);
-				*/
-			}
-
-			this.__internal_setRequestHandler(requestHandler);
-
-			/**
-			 * Pre-fetch the slow initial burst of wp_update_* requests to greatly
-			 * improve the first wp-admin load time.
-			 */
-			if (withNetworking) {
-				/**
-				 * Only setup the network transport after WordPress have been installed. Otherwise,
-				 * the installer may send a network request to /wp-cron.php, which will fail because
-				 * the entire setup around network, SQLite, etc. is not complete yet.
-				 */
-				await this.networkTransport!.setEnabled(primaryPhp, true);
-			}
-
-			// NOTE: We need to derive the loaded WP version or we might assume WP loaded
-			// from browser storage is the default version when it is actually something else.
-			// Assuming an incorrect WP version would break remote asset retrieval for minified
-			// WP builds – we would download the wrong assets pack.
-			this.loadedWordPressVersion = await getLoadedWordPressVersion(
-				requestHandler
-			);
-			if (
-				this.requestedWordPressVersion !== this.loadedWordPressVersion
-			) {
-				logger.warn(
-					`Loaded WordPress version (${this.loadedWordPressVersion}) differs ` +
-						`from requested version (${this.requestedWordPressVersion}).`
-				);
-			}
-
-			const wpStaticAssetsDir = wpVersionToStaticAssetsDirectory(
-				this.loadedWordPressVersion
-			);
-			const remoteAssetListPath = joinPaths(
-				requestHandler.documentRoot,
-				'wordpress-remote-asset-paths'
-			);
-			if (
-				wpStaticAssetsDir !== undefined &&
-				!primaryPhp.fileExists(remoteAssetListPath)
-			) {
-				// The loaded WP release has a remote static assets dir
-				// but no remote asset listing, so we need to backfill the listing.
-				const listUrl = new URL(
-					joinPaths(
-						wpStaticAssetsDir,
-						'wordpress-remote-asset-paths'
-					),
-					wordPressSiteUrl
-				);
-				try {
-					const remoteAssetPaths = await fetch(listUrl).then((res) =>
-						res.text()
-					);
-					primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
-				} catch {
-					logger.warn(
-						`Failed to fetch remote asset paths from ${listUrl}`
-					);
-				}
-			}
-
-			if (primaryPhp.isFile(remoteAssetListPath)) {
-				const remoteAssetPaths = primaryPhp
-					.readFileAsText(remoteAssetListPath)
-					.split('\n');
-				remoteAssetPaths.forEach((wpRelativePath) =>
-					knownRemoteAssetPaths.add(joinPaths('/', wpRelativePath))
-				);
-			}
-
-			setApiReady();
-		} catch (e) {
-			setAPIError(e as Error);
-			throw e;
 		}
+		return await this.bootBlueprintV1({
+			scope,
+			mounts,
+			wpVersion,
+			sqliteDriverVersion,
+			phpVersion,
+			sapiName,
+			withICU,
+			withNetworking,
+			shouldInstallWordPress,
+			corsProxyUrl,
+		});
 	}
 
 	async prefetchUpdateChecks() {
