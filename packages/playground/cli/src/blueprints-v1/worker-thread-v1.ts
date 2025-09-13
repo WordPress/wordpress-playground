@@ -12,6 +12,8 @@ import {
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import {
+	bootJustWordPress,
+	bootRequestHandler,
 	bootWordPress,
 	resolveWordPressRelease,
 } from '@wp-playground/wordpress';
@@ -145,21 +147,21 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 	async bootAsPrimaryWorker({
 		absoluteUrl,
-		mountsBeforeWpInstall,
-		mountsAfterWpInstall,
-		phpVersion = RecommendedPHPVersion,
-		wordPressZip,
-		sqliteIntegrationPluginZip,
-		firstProcessId,
-		processIdSpaceLength,
 		dataSqlPath,
+		firstProcessId,
 		followSymlinks,
-		trace,
 		internalCookieStore,
-		withXdebug,
-		wpVersion,
-		skipWordPressSetup,
+		mountsAfterWpInstall,
+		mountsBeforeWpInstall,
+		phpVersion = RecommendedPHPVersion,
+		processIdSpaceLength,
 		skipSqliteSetup,
+		skipWordPressSetup,
+		sqliteIntegrationPluginZip,
+		trace,
+		withXdebug,
+		wordPressZip,
+		wpVersion,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -170,12 +172,41 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
 
 		try {
-			const constants: Record<string, string | number | boolean | null> =
-				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
-				};
+			const requestHandler = await bootRequestHandler({
+				siteUrl: absoluteUrl,
+				createPhpRuntime: async () => {
+					const processId = nextProcessId;
+
+					if (nextProcessId < lastProcessId) {
+						nextProcessId++;
+					} else {
+						// We've reached the end of the process ID space. Start over.
+						nextProcessId = firstProcessId;
+					}
+
+					return await loadNodeRuntime(phpVersion, {
+						emscriptenOptions: {
+							fileLockManager: this.fileLockManager!,
+							processId,
+							trace: trace ? tracePhpWasm : undefined,
+						},
+						followSymlinks,
+						withXdebug,
+					});
+				},
+				sapiName: 'cli',
+				createFiles: {
+					'/internal/shared/ca-bundle.crt':
+						rootCertificates.join('\n'),
+				},
+				phpIniEntries: {
+					'openssl.cafile': '/internal/shared/ca-bundle.crt',
+					allow_url_fopen: '1',
+					disable_functions: '',
+				},
+				cookieStore: internalCookieStore ? undefined : false,
+				spawnHandler: sandboxedSpawnHandlerFactory,
+			});
 
 			// Resolve and download artifacts if not provided by caller
 			let wordPressZipFile: File | undefined;
@@ -237,50 +268,23 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				);
 			}
 
-			const requestHandler = await bootWordPress({
+			await bootJustWordPress(requestHandler, {
 				siteUrl: absoluteUrl,
-				createPhpRuntime: async () => {
-					const processId = nextProcessId;
-
-					if (nextProcessId < lastProcessId) {
-						nextProcessId++;
-					} else {
-						// We've reached the end of the process ID space. Start over.
-						nextProcessId = firstProcessId;
-					}
-
-					return await loadNodeRuntime(phpVersion, {
-						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
-							processId,
-							trace: trace ? tracePhpWasm : undefined,
-						},
-						followSymlinks,
-						withXdebug,
-					});
-				},
 				wordPressZip: wordPressZipFile,
 				sqliteIntegrationPluginZip: sqliteIntegrationPluginZipFile,
-				sapiName: 'cli',
-				createFiles: {
-					'/internal/shared/ca-bundle.crt':
-						rootCertificates.join('\n'),
-				},
-				constants,
-				phpIniEntries: {
-					'openssl.cafile': '/internal/shared/ca-bundle.crt',
-					allow_url_fopen: '1',
-					disable_functions: '',
+				constants: {
+					WP_DEBUG: true,
+					WP_DEBUG_LOG: true,
+					WP_DEBUG_DISPLAY: false,
 				},
 				hooks: {
 					async beforeWordPressFiles(php) {
 						mountResources(php, mountsBeforeWpInstall);
 					},
 				},
-				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
-				spawnHandler: sandboxedSpawnHandlerFactory,
 			});
+
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();

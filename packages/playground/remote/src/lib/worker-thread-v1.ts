@@ -20,8 +20,6 @@ import type { WorkerBootOptions } from './worker-thread';
 // post message to parent
 self.postMessage('worker-script-started');
 
-const downloadMonitor = new EmscriptenDownloadMonitor();
-
 class ArtifactExpiredError extends Error {
 	constructor(message = 'GitHub artifact expired') {
 		super(message);
@@ -31,16 +29,16 @@ class ArtifactExpiredError extends Error {
 
 class PlaygroundWorkerEndpointV1 extends PlaygroundWorkerEndpoint {
 	override async boot({
-		scope,
+		corsProxyUrl,
 		mounts = [],
-		wpVersion = LatestMinifiedWordPressVersion,
-		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
+		scope,
+		shouldInstallWordPress = true,
+		sqliteDriverVersion = LatestSqliteDriverVersion,
 		withICU = false,
 		withNetworking = true,
-		shouldInstallWordPress = true,
-		corsProxyUrl,
+		wpVersion = LatestMinifiedWordPressVersion,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -184,6 +182,7 @@ class PlaygroundWorkerEndpointV1 extends PlaygroundWorkerEndpoint {
 	}
 }
 
+const downloadMonitor = new EmscriptenDownloadMonitor();
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpointV1(downloadMonitor)
 );
