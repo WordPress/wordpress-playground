@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# Script to robustly apply the mysqlnd localhost->127.0.0.1 patch
-# This script finds the hostname assignment and modifies it to use 127.0.0.1 instead of localhost
+# This script finds the hostname assignment in mysqlnd driver
+# and modifies it to use 127.0.0.1 instead of localhost.
+# 
+# We don't use a .patch file because the line numbers differ between
+# PHP versions.
 
 TARGET_FILE="php-src/ext/mysqlnd/mysqlnd_connection.c"
 
@@ -10,7 +13,6 @@ if [ ! -f "$TARGET_FILE" ]; then
     exit 1
 fi
 
-# Check if the patch has already been applied
 if grep -q "effective_host" "$TARGET_FILE"; then
     echo "Patch already applied to $TARGET_FILE"
     exit 0
