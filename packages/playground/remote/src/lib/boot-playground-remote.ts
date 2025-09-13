@@ -22,10 +22,18 @@ import ProgressBar from './progress-bar';
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
 
+// Select worker runtime (v1 or v2) based on query parameter
 // @ts-ignore
-import moduleWorkerUrl from './worker-thread?worker&url';
+import workerV1Url from './worker-thread-v1?worker&url';
+// @ts-ignore
+import workerV2Url from './worker-thread-v2?worker&url';
 
-export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
+function getWorkerUrl(): string {
+	const runner = new URL(document.location.href).searchParams.get('runner');
+	const isV2 = runner === 'v2';
+	const selected = isV2 ? workerV2Url : workerV1Url;
+	return new URL(selected, origin) + '';
+}
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
@@ -93,7 +101,7 @@ export async function bootPlaygroundRemote() {
 	}
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
+		await spawnPHPWorkerThread(getWorkerUrl())
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;

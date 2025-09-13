@@ -25,7 +25,11 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import type {
+	Blueprint,
+	BlueprintV2Declaration,
+	OnStepCompleted,
+} from '@wp-playground/blueprints';
 import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
@@ -35,13 +39,14 @@ import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
+import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	blueprint?: Blueprint;
+	blueprint?: Blueprint | BlueprintV2Declaration;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
@@ -83,6 +88,8 @@ export interface StartPlaygroundOptions {
 	 * Defaults to the latest development version.
 	 */
 	sqliteDriverVersion?: string;
+	/** When true, use Blueprints v2 flow and dedicated worker */
+	experimentalBlueprintsV2Runner?: boolean;
 }
 
 /**
@@ -106,6 +113,7 @@ export async function startPlaygroundWeb(
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
+		runner: options.experimentalBlueprintsV2Runner ? 'v2' : 'v1',
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
@@ -123,12 +131,10 @@ export async function startPlaygroundWeb(
 	await playground.isConnected();
 	progressTracker.pipe(playground);
 
-	const handler = new BlueprintsV1Handler();
-	await handler.bootPlayground({
-		...options,
-		progressTracker,
-		playground,
-	});
+	const handler = options.experimentalBlueprintsV2Runner
+		? new BlueprintsV2Handler(options)
+		: new BlueprintsV1Handler(options);
+	await handler.bootPlayground(playground, progressTracker);
 
 	progressTracker.finish();
 

@@ -7,32 +7,33 @@ import {
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 
-interface BootPlaygroundOptions extends StartPlaygroundOptions {
-	playground: PlaygroundClient;
-	progressTracker: ProgressTracker;
-}
 export class BlueprintsV1Handler {
-	async bootPlayground({
-		playground,
-		blueprint,
-		progressTracker,
-		onBlueprintStepCompleted,
-		corsProxy,
-		mounts,
-		sapiName,
-		scope,
-		shouldInstallWordPress,
-		sqliteDriverVersion,
-		onClientConnected,
-	}: BootPlaygroundOptions) {
+	constructor(private readonly options: StartPlaygroundOptions) {}
+
+	async bootPlayground(
+		playground: PlaygroundClient,
+		progressTracker: ProgressTracker
+	) {
+		const {
+			blueprint,
+			onBlueprintStepCompleted,
+			corsProxy,
+			mounts,
+			sapiName,
+			scope,
+			shouldInstallWordPress,
+			sqliteDriverVersion,
+			onClientConnected,
+		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
 
 		// Set a default blueprint if none is provided.
-		if (!blueprint) {
-			blueprint = {};
+		let bp = blueprint as any;
+		if (!bp) {
+			bp = {} as any;
 		}
-		const compiled = await compileBlueprint(blueprint!, {
+		const compiled = await compileBlueprint(bp, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
 			corsProxy,
