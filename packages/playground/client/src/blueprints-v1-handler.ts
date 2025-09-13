@@ -6,12 +6,13 @@ import {
 	runBlueprintSteps,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
+import { consumeAPI } from '@php-wasm/universal';
 
 export class BlueprintsV1Handler {
 	constructor(private readonly options: StartPlaygroundOptions) {}
 
 	async bootPlayground(
-		playground: PlaygroundClient,
+		iframe: HTMLIFrameElement,
 		progressTracker: ProgressTracker
 	) {
 		const {
@@ -40,6 +41,14 @@ export class BlueprintsV1Handler {
 		});
 
 		// Connect the Comlink API client to the remote worker,
+		// boot the playground, and run the blueprint steps.
+		const playground = consumeAPI<PlaygroundClient>(
+			iframe.contentWindow!,
+			iframe.ownerDocument!.defaultView!
+		) as PlaygroundClient;
+		await playground.isConnected();
+		progressTracker.pipe(playground);
+
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.boot({
 			mounts,
@@ -69,5 +78,7 @@ export class BlueprintsV1Handler {
 		if (compiled.features.networking) {
 			await playground.prefetchUpdateChecks();
 		}
+
+		return playground;
 	}
 }

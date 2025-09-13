@@ -122,19 +122,10 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	// Connect the Comlink API client to the remote worker,
-	// boot the playground, and run the blueprint steps.
-	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await playground.isConnected();
-	progressTracker.pipe(playground);
-
 	const handler = options.experimentalBlueprintsV2Runner
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options);
-	await handler.bootPlayground(playground, progressTracker);
+	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
 
