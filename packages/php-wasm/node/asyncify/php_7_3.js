@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 23218224;
+export const dependenciesTotalSize = 23218265;
 const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -32115,13 +32115,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		10210573: ($0) => {
+		10210589: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10210621: ($0) => {
+		10210637: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
