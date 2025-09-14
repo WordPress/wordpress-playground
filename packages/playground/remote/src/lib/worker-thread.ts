@@ -415,7 +415,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		};
 	}
 
-	async boot() {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	async boot(_: any) {
 		throw new Error(
 			'PlaygroundWorkerEndpoint.boot() must be implemented in a concrete worker.'
 		);
