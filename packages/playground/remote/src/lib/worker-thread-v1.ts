@@ -55,6 +55,7 @@ class PlaygroundWorkerEndpointV1 extends PlaygroundWorkerEndpoint {
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const siteUrl = this.computeSiteUrl(scope);
+
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,

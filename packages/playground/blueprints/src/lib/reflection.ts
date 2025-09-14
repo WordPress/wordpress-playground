@@ -80,9 +80,6 @@ export abstract class BlueprintReflection<T extends BlueprintDeclaration> {
 		this.details.declaration = declaration;
 	}
 
-	abstract setPhpVersionString(
-		phpVersion: SupportedPHPVersion | 'latest'
-	): void;
 	/**
 	 * Resolves the PHP version from the Blueprint declaration.
 	 */
@@ -101,21 +98,13 @@ export abstract class BlueprintReflection<T extends BlueprintDeclaration> {
 	 * or "latest".
 	 * @param wpVersion
 	 */
-	abstract setWpVersionString(wpVersion: string | 'latest'): void;
-	abstract setNetworkingEnabled(networking: boolean): void;
 	abstract isNetworkingEnabled(): boolean;
-	abstract setIntlExtensionEnabled(intl: boolean): void;
 	abstract isIntlExtensionEnabled(): boolean;
-	abstract setAutologinEnabled(
-		login: boolean | { username: string; password: string } | undefined
-	): void;
 	abstract isAutologinEnabled():
 		| boolean
 		| { username: string; password: string }
 		| undefined;
-	abstract setLandingPage(landingPage: string | undefined): void;
 	abstract getLandingPage(): string | undefined;
-	abstract setMultisiteEnabled(enabled: boolean): void;
 	abstract isMultisiteEnabled(): boolean;
 	abstract getDeclaredSteps(): any[];
 }
@@ -129,24 +118,13 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		return this.getDeclaration().preferredVersions?.php;
 	}
 
-	setPhpVersionString(phpVersion: SupportedPHPVersion | 'latest') {
-		const declaration = this.getDeclaration();
-		this.setDeclaration({
-			...declaration,
-			preferredVersions: {
-				wp: declaration.preferredVersions?.wp || 'latest',
-				php: phpVersion as any,
-			},
-		});
-	}
-
 	getSimplifiedWpVersion() {
 		const wpVersion = this.getDeclaration().preferredVersions?.wp;
 		if (!wpVersion || typeof wpVersion !== 'string') {
 			return undefined;
 		}
-		if (wpVersion === 'latest') {
-			return 'latest';
+		if (wpVersion === 'latest' || wpVersion === 'nightly') {
+			return wpVersion;
 		}
 		if (!VERSION_REGEX.test(wpVersion)) {
 			return 'custom';
@@ -154,83 +132,20 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 		return wpVersion;
 	}
 
-	setWpVersionString(wpVersion: string | 'latest') {
-		const declaration = this.getDeclaration();
-		this.setDeclaration({
-			...declaration,
-			preferredVersions: {
-				wp: wpVersion,
-				php: declaration.preferredVersions?.php || 'latest',
-			},
-		});
-	}
-
 	getDeclaredSteps() {
 		return this.getDeclaration().steps || [];
 	}
 
-	setNetworkingEnabled(networking: boolean) {
-		const declaration = this.getDeclaration();
-		this.setDeclaration({
-			...declaration,
-			features: { ...declaration.features, networking },
-		});
-	}
-
 	isNetworkingEnabled() {
-		return this.getDeclaration().features?.networking || true;
-	}
-
-	setAutologinEnabled(
-		login:
-			| boolean
-			| {
-					username: string;
-					password: string;
-			  }
-			| undefined
-	) {
-		const declaration = this.getDeclaration();
-		this.setDeclaration({
-			...declaration,
-			login,
-		});
+		return this.getDeclaration().features?.networking ?? true;
 	}
 
 	isAutologinEnabled() {
 		return this.getDeclaration().login;
 	}
 
-	setLandingPage(landingPage: string | undefined) {
-		const declaration = this.getDeclaration();
-		this.setDeclaration({
-			...declaration,
-			landingPage,
-		});
-	}
-
 	getLandingPage() {
 		return this.getDeclaration().landingPage;
-	}
-
-	setMultisiteEnabled(enabled: boolean) {
-		const declaration = this.getDeclaration();
-		const currentSteps = (declaration.steps || []).filter(Boolean);
-		const hasMultisite = currentSteps.some(
-			(step) => step && (step as any).step === 'enableMultisite'
-		);
-		let nextSteps = currentSteps;
-		if (enabled && !hasMultisite) {
-			nextSteps = [...currentSteps, { step: 'enableMultisite' }];
-		} else if (!enabled && hasMultisite) {
-			nextSteps = currentSteps.filter(
-				(step) => !(step && (step as any).step === 'enableMultisite')
-			);
-		}
-		this.setDeclaration({
-			...declaration,
-			steps: nextSteps,
-		});
 	}
 
 	isMultisiteEnabled() {
@@ -242,13 +157,5 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintDeclarat
 
 	isIntlExtensionEnabled() {
 		return this.getDeclaration().features?.intl ?? false;
-	}
-
-	setIntlExtensionEnabled(intl: boolean) {
-		const declaration = this.getDeclaration();
-		this.setDeclaration({
-			...declaration,
-			features: { ...declaration.features, intl },
-		});
 	}
 }
