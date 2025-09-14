@@ -6,7 +6,6 @@ export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
 	if (await jspi()) {
-		console.log('jspi');
 		switch (version) {
 			case '8.4':
 				// @ts-ignore
