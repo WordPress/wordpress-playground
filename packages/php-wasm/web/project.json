@@ -23,7 +23,7 @@
 			"options": {
 				"tsConfig": "packages/php-wasm/web/tsconfig.lib.json",
 				"outputPath": "dist/packages/php-wasm/web",
-				"buildTarget": "php-wasm-web:build:bundle:production"
+				"buildTarget": "php-wasm-web:build:bundle"
 			}
 		},
 		"build:bundle": {
@@ -32,6 +32,12 @@
 			"options": {
 				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/web"
+			}
+		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"options": {
+				"buildTarget": "php-wasm-web:build:bundle"
 			}
 		},
 		"recompile-php:all": {
@@ -105,6 +111,15 @@
 		"package-for-self-hosting": {
 			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
 			"dependsOn": ["build"]
+		},
+		"e2e": {
+			"executor": "@nx/cypress:cypress",
+			"options": {
+				"cypressConfig": "packages/php-wasm/web/cypress.config.ts",
+				"testingType": "e2e",
+				"devServerTarget": "php-wasm-web:dev",
+				"browser": "chrome"
+			}
 		},
 		"lint": {
 			"executor": "@nx/linter:eslint",

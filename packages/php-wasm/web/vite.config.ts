@@ -161,14 +161,11 @@ export default defineConfig(({ command }) => {
 			},
 		},
 
-		test: {
-			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
+		server: {
+			hmr: false,
+			fs: {
+				allow: [path.resolve(import.meta.dirname, 'public')],
 			},
-			environment: 'jsdom',
-			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-			reporters: ['default'],
 		},
 	};
 });

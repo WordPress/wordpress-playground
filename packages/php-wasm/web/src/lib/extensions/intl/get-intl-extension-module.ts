@@ -25,9 +25,9 @@ export async function getIntlExtensionModule(
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_4/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/8_4/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 			case '8.3':
 				return await import(
 					// @ts-ignore
@@ -37,103 +37,101 @@ export async function getIntlExtensionModule(
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_2/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/8_2/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 			// case '8.1':
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_1/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/8_1/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 			// case '8.0':
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_0/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/8_0/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 			// case '7.4':
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/7_4/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/7_4/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 			// case '7.3':
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/7_3/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/7_3/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 			// case '7.2':
 			// 	return (
 			// 		await import(
 			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/7_2/intl.so?url`
+			// 			`../../../../public/php/jspi/extensions/intl/7_2/intl.so`
 			// 		)
-			// 	).default;
+			// 	);
 		}
 	} else {
-		// switch (version) {
-		// case '8.4':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/8_4/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '8.3':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/8_3/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '8.2':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/8_2/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '8.1':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/8_1/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '8.0':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/8_0/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '7.4':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/7_4/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '7.3':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/7_3/intl.so?url`
-		// 		)
-		// 	).default;
-		// case '7.2':
-		// 	return (
-		// 		await import(
-		// 			// @ts-ignore
-		// 			`../../../../public/php/asyncify/extensions/intl/7_2/intl.so?url`
-		// 		)
-		// 	).default;
-		// }
+		switch (version) {
+			// case '8.4':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/8_4/intl.so`
+			// 		)
+			// 	);
+			case '8.3':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/asyncify/extensions/intl/8_3/intl.so`
+				);
+			// case '8.2':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/8_2/intl.so`
+			// 		)
+			// 	);
+			// case '8.1':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/8_1/intl.so`
+			// 		)
+			// 	);
+			// case '8.0':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/8_0/intl.so`
+			// 		)
+			// 	);
+			// case '7.4':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/7_4/intl.so`
+			// 		)
+			// 	);
+			// case '7.3':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/7_3/intl.so`
+			// 		)
+			// 	);
+			// case '7.2':
+			// 	return (
+			// 		await import(
+			// 			// @ts-ignore
+			// 			`../../../../public/php/asyncify/extensions/intl/7_2/intl.so`
+			// 		)
+			// 	);
+		}
 	}
 }
