@@ -1,6 +1,6 @@
 import path from 'path';
 import viteTsConfigPathsModule from 'vite-tsconfig-paths';
-import { nxE2EPreset } from '@nx/cypress/plugins/cypress-preset';
+import { nxE2EPreset } from '@nx/cypress/plugins/cypress-preset.js';
 import { defineConfig as defineCypressConfig } from 'cypress';
 import vitePreprocessor from 'cypress-vite';
 import { defineConfig as defineViteConfig } from 'vite';
@@ -25,7 +25,7 @@ const viteConfig = defineViteConfig(() => ({
 		viteTsConfigPathsModule({ root: '../../../' }),
 		{
 			name: 'ignore-asset-imports',
-			load(id: string) {
+			load(id) {
 				if (
 					id?.endsWith('.wasm') ||
 					id?.endsWith('.so') ||
