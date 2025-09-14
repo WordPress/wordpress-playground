@@ -138,6 +138,21 @@ describe('Mounting', () => {
 				}
 			});
 
+			it('Should create a file node, not a directory, when mounting a file', async () => {
+				// This test addresses issue #503
+				// Ensure the mount point doesn't exist yet
+				expect(php.fileExists(fileMountPoint)).toBe(false);
+
+				await php.mount(
+					fileMountPoint,
+					createNodeFsMountHandler(filePath)
+				);
+
+				// The mount point should be a file, not a directory
+				expect(php.isFile(fileMountPoint)).toBe(true);
+				expect(php.isDir(fileMountPoint)).toBe(false);
+			});
+
 			it('Should unmount mounted file and remove created node from VFS', async () => {
 				const unmount = await php.mount(
 					fileMountPoint,

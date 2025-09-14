@@ -711,9 +711,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					PHPLoader["free"](buffer);
+					PHPLoader["free"](iov);
+					PHPLoader["free"](pnum);
 				}
 
 				// pump() can never alter the result of this function.

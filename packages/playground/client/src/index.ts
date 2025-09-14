@@ -32,6 +32,8 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -54,14 +56,6 @@ export interface StartPlaygroundOptions {
 	 * @private
 	 */
 	sapiName?: string;
-	/**
-	 * Called before the blueprint steps are run,
-	 * allows the caller to delay the Blueprint execution
-	 * once the Playground is booted.
-	 *
-	 * @returns
-	 */
-	onBeforeBlueprint?: () => Promise<void>;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
 	/**
@@ -106,7 +100,6 @@ export async function startPlaygroundWeb({
 	onBlueprintStepCompleted,
 	onClientConnected = () => {},
 	sapiName,
-	onBeforeBlueprint,
 	mounts,
 	scope,
 	corsProxy,
@@ -165,10 +158,6 @@ export async function startPlaygroundWeb({
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
-	if (onBeforeBlueprint) {
-		await onBeforeBlueprint();
-	}
-
 	await runBlueprintSteps(compiled, playground);
 	/**
 	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
@@ -205,8 +194,10 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 }
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
+const devRemoteOrigin = `http://${remoteDevServerHost}:${remoteDevServerPort}`;
 const validRemoteOrigins = [
 	officialRemoteOrigin,
+	devRemoteOrigin,
 	// An older origin that's still used by some plugins.
 	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
@@ -217,6 +208,10 @@ const validRemoteOrigins = [
 	'https://127.0.0.1',
 	...additionalRemoteOrigins,
 ];
+const remoteOrigin =
+	import.meta.env.MODE == 'development'
+		? devRemoteOrigin
+		: officialRemoteOrigin;
 /**
  * Assert that the remote origin is likely compatible with this client library.
  *
@@ -229,7 +224,7 @@ const validRemoteOrigins = [
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
+	const url = new URL(remoteHtmlUrl, remoteOrigin);
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
@@ -247,7 +242,7 @@ function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 }
 
 function setQueryParams(url: string, params: Record<string, unknown>) {
-	const urlObject = new URL(url, officialRemoteOrigin);
+	const urlObject = new URL(url, remoteOrigin);
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {

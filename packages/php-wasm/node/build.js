@@ -1,7 +1,6 @@
 import esbuild from 'esbuild';
 import fs from 'fs';
 import path from 'path';
-import { createRequire } from 'module';
 
 try {
 	fs.mkdirSync('dist/packages/php-wasm/node', { recursive: true });
@@ -13,7 +12,7 @@ try {
 	fs.mkdirSync('dist/packages/php-wasm/node/shared');
 
 	fs.copyFileSync(
-		'packages/php-wasm/node/src/lib/data/shared/icudt74l.dat',
+		'packages/php-wasm/node/src/lib/extensions/intl/shared/icudt74l.dat',
 		'dist/packages/php-wasm/node/shared/icudt74l.dat'
 	);
 } catch (e) {

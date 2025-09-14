@@ -1,10 +1,11 @@
 ---
-title: Introduction
+title: Contributing to WordPress Playground project
 slug: /contributing
 id: introduction
+description: Your starting point for contributing to WordPress Playground. Find guidelines for code, documentation, and reporting bugs.
 ---
 
-# Contributing to WP Playground project
+# Contributing to WordPress Playground project
 
 WordPress Playground is an open-source project that welcomes contributors of all kinds, from code to design, documentation to triage.
 
@@ -14,6 +15,7 @@ WordPress Playground is an open-source project that welcomes contributors of all
 -   Documentation? See the [documentation section](/contributing/documentation).
 -   Reporting bugs? Open a [new issue](https://github.com/WordPress/wordpress-playground/issues/new) in the main GitHub repository, or in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
 -   Ideas, designs, or anything else? Open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions), and let's talk!
+-   Translation? see the [translation section](/contributing/translations).
 
 ## Guidelines
 

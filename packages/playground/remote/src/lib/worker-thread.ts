@@ -23,7 +23,6 @@ import {
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { randomString } from '@php-wasm/util';
 import {
-	spawnHandlerFactory,
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
@@ -44,6 +43,7 @@ import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
+	sandboxedSpawnHandlerFactory,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -70,6 +70,13 @@ const downloadMonitor = new EmscriptenDownloadMonitor();
 const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 	downloadMonitor.monitorFetch(fetch(input, init));
 const memoizedFetch = createMemoizedFetch(monitoredFetch);
+
+class ArtifactExpiredError extends Error {
+	constructor(message = 'GitHub artifact expired') {
+		super(message);
+		this.name = 'ArtifactExpiredError';
+	}
+}
 
 export interface MountDescriptor {
 	mountpoint: string;
@@ -222,7 +229,30 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 					// monitorFetch will read the content-length response header when available.
 					wordPressRequest = monitoredFetch(
 						this.requestedWordPressVersion
-					);
+					).then((response) => {
+						if (response.ok) {
+							return response;
+						}
+						// Try to detect a GitHub artifact expiration coming from plugin-proxy.php
+						let json: any = null;
+						return response.json().then(
+							(parsedJson) => {
+								json = parsedJson;
+								if (json && json.error === 'artifact_expired') {
+									throw new ArtifactExpiredError();
+								}
+								throw new Error(
+									`Failed to download WordPress ZIP (HTTP ${response.status})`
+								);
+							},
+							() => {
+								// Not JSON or different error shape – fall through to generic error
+								throw new Error(
+									`Failed to download WordPress ZIP (HTTP ${response.status})`
+								);
+							}
+						);
+					});
 				} else {
 					const wpDetails = getWordPressModuleDetails(wpVersion);
 					downloadMonitor.expectAssets({
@@ -376,7 +406,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.blob())
 					.then((b) => new File([b], 'sqlite.zip')),
-				spawnHandler: spawnHandlerFactory,
+				spawnHandler: sandboxedSpawnHandlerFactory,
 				sapiName,
 				constants,
 				hooks: {

@@ -58,11 +58,15 @@
 			}
 		},
 		"bundle-wordpress:all": {
-			"executor": "nx:noop",
-			"dependsOn": [
-				"bundle-wordpress:nightly",
-				"bundle-wordpress:major-and-beta"
-			]
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run {projectName}:bundle-wordpress:nightly --force={args.force}",
+					"nx run {projectName}:bundle-wordpress:major-and-beta --force={args.force}"
+				],
+				"parallel": false,
+				"force": false
+			}
 		},
 		"bundle-wordpress:nightly": {
 			"executor": "nx:run-commands",

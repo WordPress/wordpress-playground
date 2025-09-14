@@ -1,7 +1,7 @@
 ---
-title: Providing content for your demo with Playground
+title: Aprenda criar conteudo de demonstração com o Playground
 slug: /guides/providing-content-for-your-demo
-description: Providing content for your demo with WordPress Playground
+description: Aprenda a popular sua demonstração do Playground com conteúdo usando Blueprints, WP-CLI ou PHP para exibir temas e plugins.
 ---
 
 <!--

@@ -93,7 +93,8 @@ The `server` command supports the following optional arguments:
 -   `--login`: Automatically log the user in as an administrator.
 -   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
--   `--quiet`: Do not output logs and progress messages.
+-   `--verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug"). Defaults to "normal".
+
 -   `--debug`: Print the PHP error log if an error occurs during boot.
 -   `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. ⚠️ Warning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.
 -   `--experimental-multi-worker`: Enables experimental multi-worker support. It needs JSPI and a /wordpress directory on a real filesystem. You can pass a positive number to use a specific number of workers, otherwise, it defaults to the number of CPUs minus one.
@@ -148,13 +149,16 @@ npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 The Playground CLI can be controlled programmatically from your JavaScript code using the `runCLI` function. This allows you to integrate all CLI functionalities directly into your development workflow, for example, end-to-end testing.
 
 ```JavaScript
-import { runCLI } from "@wp-playground/cli";
+import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-const cliServer = await runCLI({
-      command: "server"
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+    command: 'server',
+    php: '8.3',
+    wp: 'latest',
+    login: true
 });
-const handler = cliServer.requestHandler;
-const php = await handler.getPrimaryPhp();
 ```
 
 ## Comparisons

@@ -1,10 +1,41 @@
 ---
 slug: /contributing/contributor-day
+title: WordCamp Contributor Day
+description: A guide on how to contribute to the WordPress Playground, and it can support you at Contributor Day.
 ---
 
 # WordCamp Contributor Day
 
-The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
+WordCamp Contributor Day is an event where the WordPress community comes together to contribute to the WordPress project. This guide focuses on how you can contribute to the WordPress Playground project or how the Playground can assist you in contributing to WordPress Core.
+
+## Who Can Contribute?
+
+Some events will have a dedicated table for the project. The WordPress Playground contributor tables welcome all kinds of contributions, not just from developers. Whether you are a writer, coder, tester, plugin or theme developer, marketer, site owner, or any other type of user, you are encouraged to contribute.
+
+We value diverse contributions across various areas, including community building, testing, documentation, and design.
+
+## How to Contribute to the Playground Project
+
+This section outlines how you can contribute directly to the WordPress Playground project and its associated tools:
+
+-   **Documentation:** Enhance our documentation by improving existing content, developing new guides, or translating materials into different languages.
+-   **Blueprints:** Create plugin demos for plugins at the WordPress Plugin repository, or develop new Blueprints to enrich our project documentation.
+-   **Testing the Playground Environment:** Engage in testing the WordPress Playground project itself. You can do this by carefully crafting new issues that describe problems you encounter and suggesting actionable solutions. Test our WordPress web instance (the playground.wordpress.net site), or explore the various applications powered by Playground. Test these tools, observe their functionality, and provide detailed feedback.
+-   **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
+
+All feedback, including reported issues and test results, can be submitted through our GitHub repository.
+
+### Follow-up and Continued Engagement
+
+While many tasks are completed during the event, your contribution journey doesn't have to end there. You are welcome to continue working on your issues or pull requests after Contributor Day. We anticipate ongoing activity from contributors who take on tasks beyond the event. Please note that if a pull request shows no activity for one month, it may be considered abandoned and subsequently closed.
+
+### Getting Help and Staying Engaged
+
+During Contributor Day, you can find direct assistance and interact with us at the dedicated Playground table. For continuous support and community interaction, you can connect with us on the `#playground` channel on WordPress Slack or via GitHub.
+
+## How to use Playground at Contributor Day
+
+Now we are going to cover how the Playground can assist you during the Contributor Day. The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) streamline the process of setting up a local WordPress environment. WordPress Playground powers both—no Docker, MySQL, or Apache required.
 
 Keep reading to learn how to use these tools for [local development](/developers/local-development/wp-playground-cli) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
 
@@ -21,7 +52,7 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 
 ### @wp-playground/cli NPM package
 
-`@wp-playground/cli` is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
+[`@wp-playground/cli`](/developers/local-development/wp-playground-cli) is a CLI tool that allows you to spin up a WordPress site with a single command. No Docker, MySQL, or Apache are required.
 
 #### Prerequisites
 
@@ -88,7 +119,7 @@ npx @wp-playground/cli@latest server --auto-mount
 
 #### Test a Gutenberg PR with Playground in the browser
 
-You don’t need a local development environment to test Gutenberg PRs—use Playground to do it directly in the browser.
+You don’t need a [local development environment](/developers/local-development/) to test Gutenberg PRs—use Playground to do it directly in the browser.
 
 1. Copy the ID of the PR you’d like to test (pick one from the [list of open Pull Requests](https://github.com/WordPress/gutenberg/pulls)).
 2. Open Playground’s [Gutenberg PR Previewer](https://playground.wordpress.net/gutenberg.html) and paste the ID you copied.

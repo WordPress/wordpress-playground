@@ -199,6 +199,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * so we need to reload the page to ensure the cookies are set.
 			 */
 			$redirect_url = $_SERVER['REQUEST_URI'];
+
 			/**
 			 * Intentionally do not use wp_redirect() here. It removes
 			 * %0A and %0D sequences from the URL, which we don't want.
@@ -215,6 +216,28 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 		 * The wp hook isn't triggered on
 		 **/
 		add_action('init', 'playground_auto_login', 1);
+
+		/**
+		 * Use an intermediate redirection step to ensure the login cookies
+		 * are set before we redirecting to the landing page.
+		 *
+		 * /wp-admin/customize.php, and potentially other pages in WordPress,
+		 * run authorization checks before running the init hook. If they're
+		 * set as the landing page of the Blueprint, the user will be redirected
+		 * to wp-login.php?reauth=1 before we have a chance to set the
+		 * authorization cookie.
+		 *
+		 * To avoid this, we redirect to an intermediate page that will
+		 * redirect the user to the landing page.
+		 */
+		function playground_auto_login_redirect_target() {
+			if(strpos($_SERVER['REQUEST_URI'], '?playground-redirection-handler') !== false) {
+				$next = $_GET['next'];
+				header('Location: ' . $next, true, 302);
+				exit;
+			}
+		}
+		add_action('init', 'playground_auto_login_redirect_target', 1);
 
 		/**
 		 * Disable the Site Admin Email Verification Screen for any session started
@@ -241,6 +264,26 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
                 'downloads.wordpress.org',
             );
         } );
+
+		/**
+		 * Prevents wp_http_validate_url() from universally failing.
+		 *
+		 * wp_http_validate_url() calls gethostbyname() to verify whether the host
+		 * is external. If it is internal, the URL validation fails and WordPress
+		 * refuses to make a request.
+		 *
+		 * However, in EMscripten, gethostbyname() returns a private network IP address.
+		 * This causes wp_http_validate_url() to return false for all URLs.
+		 *
+		 * This filter ensures that all URLs are considered external. In production
+		 * environments, this would be considered a security risk. However, Playground
+		 * already provides multiple code execution vectors as features (e.g. Blueprints).
+		 *
+		 * If someone wants to poke around local IP addresses, they already have multiple
+		 * tools at their disposal. Therefore, this is not a real security risk in context
+		 * of WordPress Playground or Playground CLI.
+		 */
+		add_filter('http_request_host_is_external', '__return_true');
 
 		// Support pretty permalinks
         add_filter( 'got_url_rewrite', '__return_true' );
@@ -353,11 +396,6 @@ export async function preloadSqliteIntegration(
 		(await php.listFiles('/tmp/sqlite-database-integration'))[0]
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
-
-	// Use the new AST-based SQLite driver.
-	// TODO: Remove this once the new driver is the default; when this is closed:
-	//         https://github.com/WordPress/sqlite-database-integration/issues/195
-	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');

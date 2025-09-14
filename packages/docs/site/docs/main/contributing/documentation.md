@@ -1,5 +1,7 @@
 ---
 slug: /contributing/documentation
+title: Documentation Contributions
+description: A guide on how to contribute to the Playground documentation, from opening issues to submitting pull requests.
 ---
 
 # Documentation contributions
@@ -13,6 +15,8 @@ All documentation-related issues are labeled [`[Type] Documentation`](https://gi
 You can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you'd like to add or change.
 
 If you feel up to it, write the content in the issue description, and the project contributors will take care of the rest.
+
+Would you like to see the documentation in your language? Check the [Translation section](/contributing/translations).
 
 ### Forking the repo, edit files locally and opening Pull Requests
 

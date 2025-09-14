@@ -1,6 +1,7 @@
 ---
 title: Quick Start Guide
 slug: /quick-start-guide
+description: A 5-minute guide to get started with Playground. Learn how to test plugins, try themes, and use different WP/PHP versions.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
@@ -45,6 +46,10 @@ Or this URL to preinstall the `pendant` theme:
 
 https://playground.wordpress.net/?theme=pendant
 
+In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters:
+
+https://playground.wordpress.net/?theme=pendant&theme=acai
+
 You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
@@ -85,13 +90,15 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 
 :::
 
-You can also use the `wp` and `php` query parameters to open Playground with the right versions already loaded:
+You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
 
 -   https://playground.wordpress.net/?wp=6.5
 -   https://playground.wordpress.net/?php=8.3
 -   https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
+
+To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
 
 :::info Major versions only
 
@@ -109,6 +116,6 @@ This is different from the import feature described above. The import feature ex
 
 ## Build apps with WordPress Playground
 
-WordPress Playground is programmable which means you can build WordPress apps, setup plugin demos, and even use it as a zero-setup local development environment.
+WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), setup plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
 
 To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.

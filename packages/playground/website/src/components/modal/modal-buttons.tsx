@@ -9,13 +9,17 @@ interface ModalButtonsProps {
 	onCancel?: () => void;
 	onSubmit?: (e: any) => void;
 }
-export default function ModalButtons({ submitText = 'Submit', areDisabled = false, areBusy, onCancel, onSubmit }: ModalButtonsProps) {
+export default function ModalButtons({
+	submitText = 'Submit',
+	areDisabled = false,
+	areBusy,
+	onCancel,
+	onSubmit,
+}: ModalButtonsProps) {
 	return (
-		<Flex
-			justify="end"
-			className={css.modalButtons}
-		>
+		<Flex justify="end" className={css.modalButtons}>
 			<Button
+				type="button"
 				isBusy={areBusy}
 				disabled={areDisabled}
 				variant="link"
@@ -24,6 +28,7 @@ export default function ModalButtons({ submitText = 'Submit', areDisabled = fals
 				Cancel
 			</Button>
 			<Button
+				type="submit"
 				isBusy={areBusy}
 				disabled={areDisabled}
 				variant="primary"
@@ -32,5 +37,5 @@ export default function ModalButtons({ submitText = 'Submit', areDisabled = fals
 				{submitText}
 			</Button>
 		</Flex>
-	)
+	);
 }

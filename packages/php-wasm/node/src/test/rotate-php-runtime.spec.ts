@@ -5,22 +5,21 @@ import {
 	LatestSupportedPHPVersion,
 	PHP,
 	__private__dont__use,
-	rotatePHPRuntime,
 } from '@php-wasm/universal';
+import { createSpawnHandler } from '@php-wasm/util';
 import { loadNodeRuntime } from '../lib';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 
 const recreateRuntime = async (version: any = LatestSupportedPHPVersion) =>
 	await loadNodeRuntime(version);
 
-describe('rotatePHPRuntime()', () => {
+describe('php.enableRuntimeRotation()', () => {
 	it('Preserves the /internal directory through PHP runtime recreation', async () => {
 		// Rotate the PHP runtime
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 10,
@@ -55,8 +54,7 @@ describe('rotatePHPRuntime()', () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 10,
@@ -89,8 +87,7 @@ describe('rotatePHPRuntime()', () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/wordpress',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 10,
@@ -192,8 +189,7 @@ describe('rotatePHPRuntime()', () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		// Rotate the PHP runtime
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1000,
@@ -222,62 +218,39 @@ describe('rotatePHPRuntime()', () => {
 	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
 		// Rotate the PHP runtime
 		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-	}, 30_000);
-
-	it('Should not rotate after the cleanup handler is called, even if max requests is reached', async () => {
-		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new PHP(await recreateRuntimeSpy());
-		const cleanup = rotatePHPRuntime({
-			php,
-			cwd: '/test-root',
-			recreateRuntime: recreateRuntimeSpy,
-			maxRequests: 1,
-		});
-		// Rotate the PHP runtime
 		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-
-		cleanup();
-
-		// No further rotation should happen
-		await php.run({ code: `` });
-		await php.run({ code: `` });
-
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
 	it('Should recreate the PHP runtime after a PHP runtime crash', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1234,
 		});
 		// Cause a PHP runtime rotation due to error
-		await php.dispatchEvent({
+		php.dispatchEvent({
 			type: 'request.error',
 			error: new Error('mock error'),
 			source: 'php-wasm',
 		});
+		await php.run({ code: `` });
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	}, 30_000);
 
 	it('Should not recreate the PHP runtime after a PHP fatal', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1234,
@@ -296,31 +269,6 @@ describe('rotatePHPRuntime()', () => {
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
 	}, 30_000);
 
-	it('Should not rotate after the cleanup handler is called, even if there is a PHP runtime error', async () => {
-		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new PHP(await recreateRuntimeSpy());
-		const cleanup = rotatePHPRuntime({
-			php,
-			cwd: '/test-root',
-			recreateRuntime: recreateRuntimeSpy,
-			maxRequests: 1,
-		});
-		// Rotate the PHP runtime
-		await php.run({ code: `` });
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-
-		cleanup();
-
-		// No further rotation should happen
-		php.dispatchEvent({
-			type: 'request.error',
-			error: new Error('mock error'),
-			source: 'php-wasm',
-		});
-
-		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-	}, 30_000);
-
 	it('Should hotswap the PHP runtime from 8.2 to 8.3', async () => {
 		let nbCalls = 0;
 		const recreateRuntimeSpy = vitest.fn(() => {
@@ -331,8 +279,7 @@ describe('rotatePHPRuntime()', () => {
 			return recreateRuntime('8.3');
 		});
 		const php = new PHP(await recreateRuntimeSpy());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
@@ -353,8 +300,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should preserve the custom SAPI name', async () => {
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
@@ -371,8 +317,7 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should preserve the MEMFS files', async () => {
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
@@ -395,15 +340,15 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should not overwrite the NODEFS files', async () => {
 		const php = new PHP(await recreateRuntime());
-		rotatePHPRuntime({
-			php,
+		php.enableRuntimeRotation({
 			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});
 
 		// Rotate the PHP runtime
-		await php.run({ code: `` });
+		const result = await php.run({ code: `` });
+		await result.text;
 
 		php.mkdir('/test-root');
 		php.writeFile('/test-root/index.php', 'test');
@@ -415,7 +360,10 @@ describe('rotatePHPRuntime()', () => {
 		date.setFullYear(date.getFullYear() - 1);
 		fs.utimesSync(tempFile, date, date);
 		try {
-			php.mount('/test-root/nodefs', createNodeFsMountHandler(tempDir));
+			await php.mount(
+				'/test-root/nodefs',
+				createNodeFsMountHandler(tempDir)
+			);
 
 			// Rotate the PHP runtime
 			await php.run({ code: `` });
@@ -429,6 +377,52 @@ describe('rotatePHPRuntime()', () => {
 		} finally {
 			fs.rmSync(tempFile);
 			fs.rmdirSync(tempDir);
+			php.exit();
 		}
+	}, 30_000);
+
+	it('Should preserve the spawn handler through PHP runtime recreation', async () => {
+		const php = new PHP(await recreateRuntime());
+		php.enableRuntimeRotation({
+			cwd: '/test-root',
+			recreateRuntime,
+			maxRequests: 1,
+		});
+
+		// Set up a custom spawn handler that tracks calls
+		let spawnHandlerCallCount = 0;
+		const customSpawnHandler = createSpawnHandler(
+			async (command: string[], processApi: any) => {
+				spawnHandlerCallCount++;
+				// Simple echo command handler
+				if (command[0] === 'echo') {
+					processApi.stdout(
+						new TextEncoder().encode(
+							command.slice(1).join(' ') + '\n'
+						)
+					);
+				}
+				processApi.exit(0);
+			}
+		);
+
+		php.setSpawnHandler(customSpawnHandler);
+
+		// Test the spawn handler works before rotation
+		const result1 = await php.run({
+			code: `<?php echo exec("echo Hello World");`,
+		});
+		expect(result1.text).toBe('Hello World');
+		expect(spawnHandlerCallCount).toBe(1);
+
+		// Rotate the PHP runtime
+		await php.run({ code: `` });
+
+		// Test the spawn handler still works after rotation
+		const result2 = await php.run({
+			code: `<?php echo exec("echo Hello Again");`,
+		});
+		expect(result2.text).toBe('Hello Again');
+		expect(spawnHandlerCallCount).toBe(2);
 	}, 30_000);
 });

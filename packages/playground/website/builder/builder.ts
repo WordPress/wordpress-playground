@@ -6,6 +6,12 @@ import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
+// Use parent dir of the /builder/ dir, reasoning that it is
+// the web app root. This works for:
+// - https://playground.wordpress.net/builder/builder.html
+// - http://localhost:5400/website-server/builder/builder.html
+const websiteRootUrl = new URL('..', document.location.href);
+
 const deref = (obj, root) => {
 	if (!obj || typeof obj !== 'object' || !('$ref' in obj)) {
 		return obj;
@@ -299,9 +305,13 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 
 		debounce = setTimeout(async () => {
 			try {
-				const res = await fetch(
+				// NOTE: We always use playground.wordpress.net for these completions.
+				// The plugin-proxy.php script requires additional secrets to work,
+				// and it less fuss than configuring the secrets in each dev environment.
+				const pluginProxyUrl = new URL(
 					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
 				);
+				const res = await fetch(pluginProxyUrl);
 				const json = await res.json();
 				json?.plugins.forEach((p) => {
 					const doc = new DOMParser().parseFromString(
@@ -352,9 +362,13 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 
 		debounce = setTimeout(async () => {
 			try {
-				const res = await fetch(
+				// NOTE: We always use playground.wordpress.net for these completions.
+				// The plugin-proxy.php script requires additional secrets to work,
+				// and it less fuss than configuring the secrets in each dev environment.
+				const pluginProxyUrl = new URL(
 					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
 				);
+				const res = await fetch(pluginProxyUrl);
 				const json = await res.json();
 				json?.themes.forEach((p) => {
 					const doc = new DOMParser().parseFromString(
@@ -542,7 +556,7 @@ const runBlueprint = async (editor) => {
 		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
-			remoteUrl: `https://playground.wordpress.net/remote.html`,
+			remoteUrl: 'remote.html',
 			blueprint: blueprintCopy,
 			corsProxy: corsProxyUrl,
 		});
@@ -765,9 +779,10 @@ function onLoaded() {
 		const query = new URLSearchParams();
 
 		query.set('mode', 'seamless');
-		const url =
-			`https://playground.wordpress.net/?${query}#` +
-			JSON.stringify(getCurrentBlueprint(editor));
+		const url = new URL(
+			`?${query}#${JSON.stringify(getCurrentBlueprint(editor))}`,
+			websiteRootUrl
+		);
 		if (prevWin) {
 			prevWin.close();
 		}
