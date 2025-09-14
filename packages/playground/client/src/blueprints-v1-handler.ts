@@ -1,7 +1,7 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import {
-	PlaygroundClient,
-	StartPlaygroundOptions,
+	type PlaygroundClient,
+	type StartPlaygroundOptions,
 	compileBlueprint,
 	runBlueprintSteps,
 } from '.';

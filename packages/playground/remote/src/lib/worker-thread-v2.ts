@@ -4,7 +4,6 @@ import { PlaygroundWorkerEndpoint } from './worker-thread';
 import type { WorkerBootOptions } from './worker-thread';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
-import type { PHP } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -16,7 +15,7 @@ const downloadMonitor = new EmscriptenDownloadMonitor();
 class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 	override async boot({
 		scope,
-		mounts = [],
+		// mounts = [],
 		wpVersion,
 		phpVersion,
 		sapiName = 'cli',

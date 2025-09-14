@@ -30,11 +30,8 @@ import type {
 	BlueprintV2Declaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
-import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
@@ -102,12 +99,12 @@ export interface StartPlaygroundOptions {
 export async function startPlaygroundWeb(
 	options: StartPlaygroundOptions
 ): Promise<PlaygroundClient> {
-	let {
+	const {
 		iframe,
-		remoteUrl,
 		progressTracker = new ProgressTracker(),
 		disableProgressBar,
 	} = options;
+	let { remoteUrl } = options;
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 

@@ -1,10 +1,9 @@
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths, randomString } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import type {
-	GeneratedCertificate,
 	MountDevice,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
@@ -13,18 +12,11 @@ import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
 } from '@php-wasm/web';
-import {
-	createMemoizedFetch,
-	RecommendedPHPVersion,
-} from '@wp-playground/common';
+import { createMemoizedFetch } from '@wp-playground/common';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import {
-	getSqliteDriverModuleDetails,
-	getWordPressModuleDetails,
 	LatestMinifiedWordPressVersion,
-	LatestSqliteDriverVersion,
 	MinifiedWordPressVersions,
-	MinifiedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import { wordPressSiteUrl } from './config';
 import {
@@ -45,16 +37,10 @@ import {
 	PHPResponse,
 	PHPWorker,
 	sandboxedSpawnHandlerFactory,
-	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
-import type {
-	BlueprintDeclaration,
-	BlueprintV2Declaration,
-} from '@wp-playground/blueprints';
-import { runBlueprintV2 } from '@wp-playground/blueprints';
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
 import {
-	bootJustWordPress,
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
@@ -67,17 +53,6 @@ import {
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
-/* @ts-ignore */
-import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
-
-// Note: Concrete worker entrypoints (v1/v2) construct the monitor and pass it in.
-
-class ArtifactExpiredError extends Error {
-	constructor(message = 'GitHub artifact expired') {
-		super(message);
-		this.name = 'ArtifactExpiredError';
-	}
-}
 
 export interface MountDescriptor {
 	mountpoint: string;
@@ -440,7 +415,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		};
 	}
 
-	async boot(_: WorkerBootOptions) {
+	async boot() {
 		throw new Error(
 			'PlaygroundWorkerEndpoint.boot() must be implemented in a concrete worker.'
 		);

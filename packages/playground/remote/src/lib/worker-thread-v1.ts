@@ -52,6 +52,7 @@ class PlaygroundWorkerEndpointV1 extends PlaygroundWorkerEndpoint {
 		this.scope = scope;
 
 		try {
+			// eslint-disable-next-line @typescript-eslint/no-this-alias
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const siteUrl = this.computeSiteUrl(scope);
