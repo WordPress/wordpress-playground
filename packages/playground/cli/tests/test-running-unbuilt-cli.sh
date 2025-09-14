@@ -16,7 +16,7 @@ function test_playground_cli() {
 	echo "Running Playground CLI with Nx target: $TARGET $@"
 	timeout -s TERM 30s npx nx "$TARGET" playground-cli server --php=8.3 $@ 2>&1 > playground-cli-test-output &
 	PID=$!
-	CLI_STARTUP_STRING='WordPress is running on http://127.0.0.1:9400'
+	CLI_STARTUP_STRING='WordPress server is listening on http://127.0.0.1:9400'
 
 	# Sleep until Playground CLI starts or the process times out.
 	while ps -p "$PID" > /dev/null && ! grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; do
