@@ -832,15 +832,13 @@ async function spawnWorkerThread(workerType: 'v1' | 'v2') {
 		// Need to split the __WORKER_V1_URL__ string in two parts to avoid Vite replacing
 		// it with a string literal.
 		// @ts-expect-error
-		globalThis['__WORKER_' + 'V1_URL__'] =
-			'./blueprints-v1/worker-thread-v1.ts';
+		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
 	}
 	if (typeof __WORKER_V2_URL__ === 'undefined') {
 		// Need to split the __WORKER_V2_URL__ string in two parts to avoid Vite replacing
 		// it with a string literal.
 		// @ts-expect-error
-		globalThis['__WORKER_' + 'V2_URL__'] =
-			'./blueprints-v2/worker-thread-v2.ts';
+		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
 	if (workerType === 'v1') {
 		if (process.env['VITEST'] && __WORKER_V1_URL__.startsWith('/src/')) {

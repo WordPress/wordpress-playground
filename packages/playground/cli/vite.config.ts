@@ -73,10 +73,10 @@ const plugins = [
 			let transformed = code;
 			// Replace macro tokens if used
 			transformed = transformed
-				.split('__WORKER_V1_URL__')
+				.split(/(?<!["'])__WORKER_V1_URL__(?!["'])/g)
 				.join(JSON.stringify(v1));
 			transformed = transformed
-				.split('__WORKER_V2_URL__')
+				.split(/(?<!["'])__WORKER_V2_URL__(?!["'])/g)
 				.join(JSON.stringify(v2));
 			// Replace usages of imported worker URL strings inside new URL(...)
 			const patternV1 =
