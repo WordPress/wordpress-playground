@@ -1,10 +1,10 @@
 /// <reference types="cypress" />
 
 import { loadWebRuntime } from '..';
-import { PHP } from '@php-wasm/universal';
+import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
 
-['8.3'].forEach((phpVersion) => {
-	describe('Intl', () => {
+SupportedPHPVersions.forEach((phpVersion) => {
+	describe(`Intl - PHP ${phpVersion}`, () => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(

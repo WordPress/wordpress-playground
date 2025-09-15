@@ -21,60 +21,46 @@ export async function getIntlExtensionModule(
 	 */
 	if (await jspi()) {
 		switch (version) {
-			// case '8.4':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_4/intl.so`
-			// 		)
-			// 	);
+			case '8.4':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/8_4/intl.so`
+				);
 			case '8.3':
 				return await import(
 					// @ts-ignore
 					`../../../../public/php/jspi/extensions/intl/8_3/intl.so`
 				);
-			// case '8.2':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_2/intl.so`
-			// 		)
-			// 	);
-			// case '8.1':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_1/intl.so`
-			// 		)
-			// 	);
-			// case '8.0':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/8_0/intl.so`
-			// 		)
-			// 	);
-			// case '7.4':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/7_4/intl.so`
-			// 		)
-			// 	);
-			// case '7.3':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/7_3/intl.so`
-			// 		)
-			// 	);
-			// case '7.2':
-			// 	return (
-			// 		await import(
-			// 			// @ts-ignore
-			// 			`../../../../public/php/jspi/extensions/intl/7_2/intl.so`
-			// 		)
-			// 	);
+			case '8.2':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/8_2/intl.so`
+				);
+			case '8.1':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/8_1/intl.so`
+				);
+			case '8.0':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/8_0/intl.so`
+				);
+			case '7.4':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/7_4/intl.so`
+				);
+			case '7.3':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/7_3/intl.so`
+				);
+			case '7.2':
+				return await import(
+					// @ts-ignore
+					`../../../../public/php/jspi/extensions/intl/7_2/intl.so`
+				);
 		}
 	} else {
 		switch (version) {
