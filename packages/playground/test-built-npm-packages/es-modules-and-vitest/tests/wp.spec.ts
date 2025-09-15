@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { access } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { runCLI } from '@wp-playground/cli';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { SupportedPHPVersions } from '@php-wasm/universal';
@@ -75,18 +76,28 @@ describe(`PHP ${phpVersion}`, () => {
 		// @TODO: Also verify this is wrapped in a new Worker() call.
 		const staticStrings = {
 			'worker-thread-v1.js':
-				'new URL("./worker-thread-v1.js", import.meta.url)',
+				'new URL("worker-thread-v1.js", import.meta.url)',
 			'worker-thread-v2.js':
-				'new URL("./worker-thread-v2.js", import.meta.url)',
+				'new URL("worker-thread-v2.js", import.meta.url)',
 		};
 		for (const file of Object.keys(staticStrings)) {
 			try {
 				// Resolve the file from the CLI package without importing it
 				const baseUrl = import.meta.resolve(`@wp-playground/cli`);
 				const url = new URL(file, baseUrl);
-				const path = fileURLToPath(url);
+				const moduleDir = dirname(fileURLToPath(url));
+				const runCliModuleNames = (await readdir(moduleDir)).filter(
+					(name) => /^run-cli-[^.]+\.js$/.test(name)
+				);
+				assert.equal(
+					runCliModuleNames.length,
+					1,
+					`Only one run-cli .js file should be found in ${moduleDir}`
+				);
+				const runCliPath = join(moduleDir, runCliModuleNames[0]);
+				const runCliModuleText = await readFile(runCliPath, 'utf8');
 				assert.ok(
-					staticStrings[file].includes(path),
+					runCliModuleText.includes(staticStrings[file]),
 					`Workers are not loaded in a statically analyzable way for ${file}`
 				);
 			} catch (error) {
