@@ -40,7 +40,7 @@ describe(`PHP ${phpVersion}`, () => {
 	});
 
 	/**
-	 * Very the built Playground packages ship worker files that have stable names.
+	 * Verify the built Playground packages ship worker files that have stable names.
 	 * This is important for downstream consumers that may need to statically declare
 	 * a separate entrypoint for each worker file. Including a hash in the filename,
 	 * e.g. `worker-thread-v1-af872f.cjs`, would break their build config on every
@@ -65,7 +65,14 @@ describe(`PHP ${phpVersion}`, () => {
 		}
 	});
 
-	it('Should have a new URL("./worker-thread-v1.js", import.meta.url) string', async () => {
+	/**
+	 * Verify the workers are loaded in a way that can be statically analyzed by
+	 * downstream bundlers. Without this, bundling an app relying on Playground CLI
+	 * is challenging as the consumer must handle detecting and chunking workers and
+	 * also rewrite their target URL.
+	 */
+	it('Should load workers using a new URL("./worker-thread-v1.js", import.meta.url) string', async () => {
+		// @TODO: Also verify this is wrapped in a new Worker() call.
 		const staticStrings = {
 			'worker-thread-v1.js':
 				'new URL("./worker-thread-v1.js", import.meta.url)',
@@ -80,11 +87,11 @@ describe(`PHP ${phpVersion}`, () => {
 				const path = fileURLToPath(url);
 				assert.ok(
 					staticStrings[file].includes(path),
-					`Static string for ${file} is not correct`
+					`Workers are not loaded in a statically analyzable way for ${file}`
 				);
 			} catch (error) {
 				assert.fail(
-					`Static string for ${file} is not correct: ${error.message}`
+					`Workers are not loaded in a statically analyzable way for ${file}: ${error.message}`
 				);
 			}
 		}
