@@ -269,17 +269,13 @@ test('Intl functions should be disabled by default', async ({
 				path: '/wordpress/intl-test.php',
 				data: `<?php
 					$functions = get_extension_funcs('intl');
-					var_dump(
-						count(
-							$functions
-						)
-					);
+					var_dump($functions);
 				`,
 			},
 		],
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('int(0)');
+	await expect(wordpress.locator('body')).toContainText('bool(false)');
 });
 
 test('Intl functions should work when intl is enabled', async ({
