@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 24293447;
+export const dependenciesTotalSize = 24293495;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6884,26 +6884,36 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _fd_close = function fd_close(fd) {
 		return Asyncify.handleAsync(async () => {
-			const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-			if (pathResolutionErrno !== 0) {
-				_js_wasm_trace(
-					'fd_close(%d) get_vfs_path_from_fd error %d',
-					fd,
-					pathResolutionErrno
-				);
-				return -ERRNO_CODES.EBADF;
+			const fdCloseResult = _builtin_fd_close(fd);
+			if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
+				_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+				return fdCloseResult;
 			}
-
-			const result = _builtin_fd_close(fd);
-			if (result !== 0 || !locking.maybeLockedFds.has(fd)) {
-				_js_wasm_trace('fd_close(%d) result %d', fd, result);
-				return result;
-			}
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 
 			try {
+				const [vfsPath, pathResolutionErrno] =
+					locking.get_vfs_path_from_fd(fd);
+				if (pathResolutionErrno !== 0) {
+					_js_wasm_trace(
+						'fd_close(%d) get_vfs_path_from_fd error %d',
+						fd,
+						pathResolutionErrno
+					);
+					/*
+					 * It looks like the file may have had an associated lock,
+					 * but since we cannot look up the path,
+					 * there is nothing more for us to do.
+					 *
+					 * NOTE: This seems possible for files that are locked and
+					 * then unlinked before close. It is an opportunity for a
+					 * lock to be orphaned in the lock manager.
+					 * @TODO: Explore how to ensure cleanup in this case.
+					 */
+					return fdCloseResult;
+				}
+
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
 				await PHPLoader.fileLockManager.releaseLocksForProcessFd(
 					PHPLoader.processId,
 					fd,
@@ -6915,7 +6925,7 @@ export function init(RuntimeName, PHPLoader) {
 			} finally {
 				locking.maybeLockedFds.delete(fd);
 			}
-			return result;
+			return fdCloseResult;
 		});
 	};
 	_fd_close.sig = 'ii';
@@ -7030,8 +7040,12 @@ export function init(RuntimeName, PHPLoader) {
 			}
 		},
 		get_native_path_from_vfs_path(vfsPath) {
-			// TODO: Should there be a try/catch here?
-			const { node } = FS.lookupPath(vfsPath, {});
+			const { node } = FS.lookupPath(vfsPath, {
+				noent_okay: true,
+			});
+			if (!node) {
+				throw new Error(`No node found for VFS path ${vfsPath}`);
+			}
 			if (node.mount.type === NODEFS) {
 				return NODEFS.realPath(node);
 			} else if (node.mount.type === PROXYFS) {
@@ -7312,10 +7326,9 @@ export function init(RuntimeName, PHPLoader) {
 						return -ERRNO_CODES.EINVAL;
 					}
 
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-
 					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
 						const conflictingLock = await Promise.resolve(
 							PHPLoader.fileLockManager.findFirstConflictingByteRangeLock(
 								nativeFilePath,
@@ -7451,16 +7464,16 @@ export function init(RuntimeName, PHPLoader) {
 						pid,
 					};
 
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
-						fd,
-						vfsPath,
-						rangeLock
-					);
-
 					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+							fd,
+							vfsPath,
+							rangeLock
+						);
+
 						const succeeded = await Promise.resolve(
 							PHPLoader.fileLockManager.lockFileByteRange(
 								nativeFilePath,
@@ -17367,9 +17380,9 @@ export function init(RuntimeName, PHPLoader) {
 				return -ERRNO_CODES.EINVAL;
 			}
 
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
 			try {
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
 				const obtainedLock = await Promise.resolve(
 					PHPLoader.fileLockManager.lockWholeFile(nativeFilePath, {
 						type: lockOpType,
@@ -17705,9 +17718,9 @@ export function init(RuntimeName, PHPLoader) {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					PHPLoader['free'](buffer);
+					PHPLoader['free'](iov);
+					PHPLoader['free'](pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -18356,6 +18369,11 @@ export function init(RuntimeName, PHPLoader) {
 
 		ret = onDone(ret);
 		return ret;
+	};
+
+	var setErrNo = (value) => {
+		HEAP32[___errno_location() >> 2] = value;
+		return value;
 	};
 
 	var FS_createPath = FS.createPath;
@@ -30782,11 +30800,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var allocateUTF8 = stringToNewUTF8;
 
-	var setErrNo = (value) => {
-		HEAP32[___errno_location() >> 2] = value;
-		return value;
-	};
-
 	var demangle = (func) => {
 		// If demangle has failed before, stop demangling any further function names
 		// This avoids an infinite recursion with malloc()->abort()->stackTrace()->demangle()->malloc()->...
@@ -31262,13 +31275,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11564478: ($0) => {
+		11564526: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11564526: ($0) => {
+		11564574: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34263,6 +34276,7 @@ export function init(RuntimeName, PHPLoader) {
 	Module['FS_createDevice'] = FS_createDevice;
 	Module['FS_createDataFile'] = FS_createDataFile;
 	Module['FS_createLazyFile'] = FS_createLazyFile;
+	Module['setErrNo'] = setErrNo;
 	Module['PROXYFS'] = PROXYFS;
 
 	async function callMain(args = []) {

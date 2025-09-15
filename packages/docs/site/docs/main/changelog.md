@@ -9,6 +9,61 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.19] (2025-09-11) 
+
+### PHP WebAssembly
+
+- [Intl] Correct intl errors during compilation and build. ([#2613](https://github.com/WordPress/wordpress-playground/pull/2613))
+
+### Bug Fixes
+
+- Playground CLI: Skip WP install when using existing WP files. ([#2616](https://github.com/WordPress/wordpress-playground/pull/2616))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @mho22
+
+
+## [v2.0.18] (2025-09-08) 
+
+### Documentation
+
+- Added Gujarati Translation for Code.md File. ([#2606](https://github.com/WordPress/wordpress-playground/pull/2606))
+- Tagalog translations of Blueprints -&gt; Blueprint Data Format. ([#2609](https://github.com/WordPress/wordpress-playground/pull/2609))
+- [Translations] Adding local environment section to pt-BR. ([#2572](https://github.com/WordPress/wordpress-playground/pull/2572))
+
+### Bug Fixes
+
+- Fixing header from Gujarati translation. ([#2614](https://github.com/WordPress/wordpress-playground/pull/2614))
+- [Xdebug Bridge] Fix create hash error in xdebug bridge. ([#2612](https://github.com/WordPress/wordpress-playground/pull/2612))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@fellyph @mho22 @rollybueno @shail-mehta
+
+
+## [v2.0.17] (2025-09-08) 
+
+### Documentation
+
+- Add Japanese translations to Local Development. ([#2604](https://github.com/WordPress/wordpress-playground/pull/2604))
+
+### Various
+
+- Added Gujarati Translation for Blueprints Tutorials Index.md file. ([#2607](https://github.com/WordPress/wordpress-playground/pull/2607))
+- Added Gujarati Translation for How to Run Blueprints. ([#2611](https://github.com/WordPress/wordpress-playground/pull/2611))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@shail-mehta @shimotmk
+
+
 ## [v2.0.16] (2025-09-04) 
 
 ### Enhancements

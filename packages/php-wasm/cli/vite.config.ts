@@ -21,6 +21,7 @@ export default defineConfig({
 				'@php-wasm/node',
 				'@php-wasm/universal',
 				'assert',
+				'crypto',
 				'net',
 				'fs',
 				'path',

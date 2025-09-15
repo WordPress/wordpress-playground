@@ -1,5 +1,5 @@
 import fs from 'fs';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 import { vi } from 'vitest';
 import { DbgpSession } from '../lib/dbgp-session';
 import { CDPServer } from '../lib/cdp-server';
@@ -16,8 +16,7 @@ describe('XdebugCDPBridge', () => {
 	let fixtures: string;
 
 	function hash(id: number): string {
-		return crypto
-			.createHash('sha256')
+		return createHash('sha256')
 			.update(String(id))
 			.digest('hex')
 			.slice(0, 16);
