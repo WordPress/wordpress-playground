@@ -49,8 +49,8 @@ RUN set -euxo pipefail;\
 # https://github.com/WordPress/wordpress-playground/tree/67d916b5eccfe78e26e9c953598cc1a81f316931/packages/php-wasm/compile
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install 4.0.5 && \
-    /root/emsdk/emsdk activate 4.0.5
+    ./emsdk/emsdk install 4.0.14 && \
+    /root/emsdk/emsdk activate 4.0.14
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 

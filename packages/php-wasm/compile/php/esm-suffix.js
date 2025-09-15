@@ -53,7 +53,8 @@ PHPLoader['removeRunDependency'] = function (...args) {
  *
  * Therefore, we export them here.
  */
-PHPLoader['malloc'] = _malloc;
+PHPLoader['malloc'] = PHPLoader['_wasm_malloc'];
+const setErrNo = PHPLoader['_setErrNo'];
 PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 if (typeof NODEFS === 'object') {

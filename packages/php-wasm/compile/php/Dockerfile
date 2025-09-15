@@ -103,11 +103,14 @@ RUN if [ "$WITH_OPCACHE" = "yes" ]; \
 			# https://github.com/php/php-src/blob/f35a22adba8a7ddf709c6cc98ecb57ba4dd8fe8c/ext/opcache/config.m4#L313
 			/root/replace.sh 's/shared,,/no,,/g' /root/php-src/ext/opcache/config.m4; \
 		fi; \
-		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
-		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
-		# Add the dummy opcache_module.c to the list of files to build.
-		/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
-		# Enable OPcache.
+		# If PHP 8.5, OPCache is not optional:
+		# See https://php.watch/rfcs/make_opcache_required
+		if [[ "${PHP_VERSION:0:1}" -lt "8" || ("${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -lt "5") ]]; then \
+			# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
+			# /root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
+			# Add the dummy opcache_module.c to the list of files to build.
+			/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		fi; \
 		echo -n ' --enable-opcache --disable-opcache-jit --disable-huge-code-pages ' >> /root/.php-configure-flags; \
 	else \
 		# Be sure to disable OPcache if not needed.
@@ -2121,10 +2124,10 @@ RUN set -euxo pipefail; \
 			export JSPI_ADD_IMPORTS=",fd_close"; \
 			export JSPI_ADD_EXPORTS=",fd_close"; \
 		fi; \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid$JSPI_ADD_IMPORTS -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv$JSPI_ADD_EXPORTS -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc,setErrNo "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid$JSPI_ADD_IMPORTS -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv$JSPI_ADD_EXPORTS -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,setErrNo $(cat /root/.emcc-php-asyncify-flags)  "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
 	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\

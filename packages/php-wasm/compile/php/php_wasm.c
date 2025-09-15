@@ -53,6 +53,30 @@ static int redirect_stream_to_file(FILE *stream, char *file_path);
 static void restore_stream_handler(FILE *original_stream, int replacement_stream);
 
 /**
+ * Sets the errno value and exports it for JavaScript access.
+ *
+ * @param {int} err_value The errno value to set
+ */
+EMSCRIPTEN_KEEPALIVE void setErrNo(int err_value)
+{
+	errno = err_value;
+}
+
+/*
+ * Function: wasm_malloc
+ * ----------------------------
+ *   Allocates memory. Emscripten does not export the `malloc` function when using
+ *   JSPI, so we need to define our own.
+ *
+ *   @see https://man7.org/linux/man-pages/man3/malloc.3.html
+ */
+EMSCRIPTEN_KEEPALIVE void *wasm_malloc(size_t size) {
+	return malloc(size);
+}
+
+
+
+/**
  * Shims popen(3) functionallity:
  * https://man7.org/linux/man-pages/man3/popen.3.html
  *

@@ -1,17 +1,3 @@
-diff --git a/php-src/ext/opcache/zend_accelerator_debug.c b/php-src/ext/opcache/zend_accelerator_debug.c
-index b2a3105dc62..f7e328312a8 100644
---- a/php-src/ext/opcache/zend_accelerator_debug.c
-+++ b/php-src/ext/opcache/zend_accelerator_debug.c
-@@ -25,6 +25,9 @@
- #include <time.h>
- #ifdef ZEND_WIN32
- # include <process.h>
-+#else
-+/* Error: call to undeclared function 'getpid' */
-+# include <unistd.h>
- #endif
- #include "ZendAccelerator.h"
-
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 index 01f49640e4a..e559b61b0c6 100644
 --- a/php-src/ext/standard/file.c
