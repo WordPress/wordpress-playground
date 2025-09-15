@@ -1,5 +1,6 @@
 const { SupportedPHPVersions } = require('@php-wasm/universal');
 const { runCLI } = require('@wp-playground/cli');
+const path = require('path');
 
 // Exclude PHP 7.2 – it often times out on CI.
 SupportedPHPVersions.filter(
@@ -34,8 +35,9 @@ SupportedPHPVersions.filter(
 
 		for (const file of requiredFiles) {
 			// Try to resolve the file from the CLI package
-			const resolvedPath = require.resolve(`@wp-playground/cli/${file}`);
-			expect(resolvedPath).toBeTruthy();
+			const resolvedBasePath = require.resolve(`@wp-playground/cli`);
+			const filePath = path.join(resolvedBasePath, file);
+			expect(filePath).toBeTruthy();
 		}
 	});
 });
