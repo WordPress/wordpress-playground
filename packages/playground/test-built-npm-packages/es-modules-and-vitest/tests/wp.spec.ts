@@ -46,7 +46,8 @@ describe(`PHP ${phpVersion}`, () => {
 		for (const file of requiredFiles) {
 			try {
 				// Resolve the file from the CLI package without importing it
-				const url = import.meta.resolve(`@wp-playground/cli/${file}`);
+				const baseUrl = import.meta.resolve(`@wp-playground/cli`);
+				const url = new URL(file, baseUrl);
 				const path = fileURLToPath(url);
 				// Verify that the resolved file actually exists on disk
 				await access(path);
