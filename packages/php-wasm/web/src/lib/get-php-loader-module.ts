@@ -45,8 +45,8 @@ export async function getPHPLoaderModule(
 	} else {
 		switch (version) {
 			case '8.5':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_5.js');
+			// @ts-ignore
+			// return await import('../../public/php/asyncify/php_8_5.js');
 			case '8.4':
 				// @ts-ignore
 				return await import('../../public/php/asyncify/php_8_4.js');

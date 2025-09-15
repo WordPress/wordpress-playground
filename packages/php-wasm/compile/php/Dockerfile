@@ -16,9 +16,11 @@ ARG WITH_OPCACHE
 
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
-	--tag php-$PHP_VERSION \
-	--single-branch \
 	--depth 1;
+
+RUN cd php-src && git fetch --tags && git checkout php-8.5.0beta3
+	# php-$PHP_VERSION
+
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
 COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
@@ -358,7 +360,10 @@ RUN cd /root && \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
 		( [[ "${PHP_VERSION:0:3}" == '8.4' ]] && \
 			git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v || \
-			git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+			( [[ "${PHP_VERSION:0:3}" == '8.5' ]] && \
+				git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v || \
+				git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+			) \
 		) \
 	) && \
 	touch php-src/patched
@@ -454,6 +459,11 @@ RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/p
 # so we need to force it to be enabled.
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
 		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
+	fi;
+
+# PHP >= 8.5 redeclares libc reallocarray() when this constant is not present.
+RUN if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
+		echo '#define HAVE_REALLOCARRAY 1' >> /root/php-src/main/php_config.h; \
 	fi;
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.

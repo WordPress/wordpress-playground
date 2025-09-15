@@ -178,6 +178,7 @@ function readCurrentVersions() {
 			const wasmMatch = fullMatch.match(
 				/wasmFilename:\s*['"`]([^'"`]+)['"`]/
 			);
+			const labelMatch = fullMatch.match(/label:\s*['"`]([^'"`]+)['"`]/);
 
 			versions.push({
 				version,
@@ -188,6 +189,9 @@ function readCurrentVersions() {
 					? wasmMatch[1]
 					: `php_${version.replace('.', '_')}.wasm`,
 				lastRelease,
+				label: labelMatch
+					? labelMatch[1]
+					: generateVersionLabel(version), // Generate label if not found
 			});
 		}
 
@@ -236,6 +240,24 @@ function updateVersionsFile(currentVersions, latestVersions) {
 }
 
 /**
+ * Generate label for a PHP version
+ * @param {string} version - The PHP version string
+ * @returns {string} - Label for the version
+ */
+function generateVersionLabel(version) {
+	// Check if it's a pre-release version (alpha, beta, RC)
+	if (/alpha|beta|rc/i.test(version)) {
+		// Extract the pre-release part (e.g., "alpha1", "beta2", "RC1")
+		const match = version.match(/(alpha\d*|beta\d*|rc\d*)/i);
+		return match ? match[1] : version;
+	}
+
+	// For stable versions, return just the minor version (e.g., "8.3" from "8.3.15")
+	const match = version.match(/^(\d+\.\d+)/);
+	return match ? match[1] : version;
+}
+
+/**
  * Generate the complete file content for supported-php-versions.mjs
  */
 function generateFileContent(versions) {
@@ -245,6 +267,7 @@ function generateFileContent(versions) {
  * @property {string} loaderFilename
  * @property {string} wasmFilename
  * @property {string} lastRelease
+ * @property {string} label
  */
 
 export const lastRefreshed = ${JSON.stringify(new Date().toISOString())};
@@ -260,11 +283,13 @@ export const phpVersions = [`;
 
 	const versionEntries = versions
 		.map((version) => {
+			const label = generateVersionLabel(version.version);
 			return `\t{
 \t\tversion: '${version.version}',
 \t\tloaderFilename: '${version.loaderFilename}',
 \t\twasmFilename: '${version.wasmFilename}',
 \t\tlastRelease: '${version.lastRelease}',
+\t\tlabel: '${label}',
 \t}`;
 		})
 		.join(',\n');
