@@ -39,8 +39,14 @@ describe(`PHP ${phpVersion}`, () => {
 		}
 	});
 
+	/**
+	 * Very the built Playground packages ship worker files that have stable names.
+	 * This is important for downstream consumers that may need to statically declare
+	 * a separate entrypoint for each worker file. Including a hash in the filename,
+	 * e.g. `worker-thread-v1-af872f.cjs`, would break their build config on every
+	 * @wp-playground/cli release.
+	 */
 	it('Should include required worker thread files in CLI package', async () => {
-		// Verify that the Playground CLI package ships with the required worker thread files
 		const requiredFiles = ['worker-thread-v1.js', 'worker-thread-v2.js'];
 
 		for (const file of requiredFiles) {
@@ -54,6 +60,31 @@ describe(`PHP ${phpVersion}`, () => {
 			} catch (error) {
 				assert.fail(
 					`Required file ${file} is missing from CLI package: ${error.message}`
+				);
+			}
+		}
+	});
+
+	it('Should have a new URL("./worker-thread-v1.js", import.meta.url) string', async () => {
+		const staticStrings = {
+			'worker-thread-v1.js':
+				'new URL("./worker-thread-v1.js", import.meta.url)',
+			'worker-thread-v2.js':
+				'new URL("./worker-thread-v2.js", import.meta.url)',
+		};
+		for (const file of Object.keys(staticStrings)) {
+			try {
+				// Resolve the file from the CLI package without importing it
+				const baseUrl = import.meta.resolve(`@wp-playground/cli`);
+				const url = new URL(file, baseUrl);
+				const path = fileURLToPath(url);
+				assert.ok(
+					staticStrings[file].includes(path),
+					`Static string for ${file} is not correct`
+				);
+			} catch (error) {
+				assert.fail(
+					`Static string for ${file} is not correct: ${error.message}`
 				);
 			}
 		}
