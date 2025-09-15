@@ -48,7 +48,6 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
-import path from 'path';
 
 export const LogVerbosity = {
 	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
