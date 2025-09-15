@@ -117,7 +117,14 @@ export default defineConfig({
 		rollupOptions: {
 			external,
 			output: {
-				entryFileNames: (/* chunkInfo: any */) => {
+				entryFileNames: (chunkInfo: any) => {
+					// Keep stable filenames for worker threads without hash
+					if (
+						chunkInfo.name === 'worker-thread-v1' ||
+						chunkInfo.name === 'worker-thread-v2'
+					) {
+						return '[name].js';
+					}
 					return '[name]-[hash].js';
 				},
 			},
