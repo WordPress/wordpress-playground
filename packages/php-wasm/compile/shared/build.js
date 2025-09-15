@@ -8,55 +8,50 @@ import yargs from 'yargs';
 const argParser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
 	.options({
-		LIBRARY_NAME: {
+		LIBRARY: {
 			type: 'string',
-			description: 'The library to build',
 			required: true,
+			description: 'The library to build',
 		},
 		PHP_VERSION: {
 			type: 'string',
+			default: '8.0.24',
 			description: 'The PHP version to build',
-			required: true,
 		},
-		OUTPUT_DIR: {
-			type: 'array',
-			description: 'The output directory',
-			required: true,
+		PLATFORM: {
+			type: 'string',
+			choices: ['web', 'node'],
+			default: 'web',
+			description: 'The platform to build for',
 		},
-		SHARED_DIR: {
-			type: 'array',
-			description: 'The shared directory',
-			required: true,
-		},
-		WITH_DEBUG: {
+		JSPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
+			default: 'no',
+			description: 'Build with JSPI support',
+		},
+		DEBUG: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			default: 'no',
 			description: 'Build with DWARF debug information.',
 		},
-		WITH_JSPI: {
+		OUTPUT_DIR: {
 			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with JSPI support',
+			required: true,
+			description: 'The output directory',
+		},
+		SHARED_DIR: {
+			type: 'string',
+			required: true,
+			description: 'The shared directory',
 		},
 	});
 
 const args = argParser.argv;
 
-const platformDefaults = {
-	all: {
-		PHP_VERSION: '8.0.24',
-		WITH_DEBUG: 'no',
-		WITH_JSPI: 'no',
-	},
-};
-
 const getArg = (name) => {
-	let value =
-		name in args
-			? args[name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+	let value = name in args ? args[name] : 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -71,9 +66,7 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDirs = args['OUTPUT_DIR'].map((dir) =>
-	path.resolve(process.cwd(), dir)
-);
+const outputDir = path.resolve(process.cwd(), args['OUTPUT_DIR']);
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], {
@@ -81,7 +74,7 @@ await asyncSpawn('make', ['base-image'], {
 	stdio: 'inherit',
 });
 
-const library = args['LIBRARY_NAME'];
+const library = args['LIBRARY'];
 
 // Build the shared library
 await asyncSpawn(
@@ -96,9 +89,11 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',
-		getArg('WITH_DEBUG'),
+		getArg('PLATFORM'),
 		'--build-arg',
-		getArg('WITH_JSPI'),
+		getArg('DEBUG'),
+		'--build-arg',
+		getArg('JSPI'),
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
@@ -106,28 +101,26 @@ await asyncSpawn(
 const version = args['PHP_VERSION'].replace('.', '_');
 
 // Store the shared library in output directories
-for (const outputDir of outputDirs) {
-	await asyncSpawn(
-		'docker',
-		[
-			'run',
-			'--name',
-			'playground-php-wasm-tmp',
-			'--rm',
-			'-v',
-			`${outputDir}:/output`,
-			`playground-php-wasm:${library}`,
-			// Use sh -c because wildcards are a shell feature and
-			// they don't work without running cp through shell.
-			'sh',
-			'-c',
-			`rm -rf /output/extensions/${library}/${version} && \
-				mkdir -p /output/extensions/${library}/${version} && \
-				cp -rf /root/${library}/modules/* /output/extensions/${library}/${version}`,
-		],
-		{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
-	);
-}
+await asyncSpawn(
+	'docker',
+	[
+		'run',
+		'--name',
+		'playground-php-wasm-tmp',
+		'--rm',
+		'-v',
+		`${outputDir}:/output`,
+		`playground-php-wasm:${library}`,
+		// Use sh -c because wildcards are a shell feature and
+		// they don't work without running cp through shell.
+		'sh',
+		'-c',
+		`rm -rf /output/extensions/${library}/${version} && \
+			mkdir -p /output/extensions/${library}/${version} && \
+			cp -rf /root/${library}/modules/* /output/extensions/${library}/${version}`,
+	],
+	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
+);
 
 // Store the shared data if any
 await asyncSpawn(
@@ -151,19 +144,15 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
-const sharedDirs = args['SHARED_DIR'].map((dir) =>
-	path.resolve(process.cwd(), dir)
-);
+const sharedDir = path.resolve(process.cwd(), args['SHARED_DIR']);
 
 // Copy data files
 if (fs.existsSync(`${sourceDir}/${library}/data`)) {
-	for (const sharedDir of sharedDirs) {
-		await asyncSpawn(
-			'sh',
-			['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
-			{ cwd: sourceDir, stdio: 'inherit' }
-		);
-	}
+	await asyncSpawn(
+		'sh',
+		['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
 }
 
 function asyncSpawn(...args) {
