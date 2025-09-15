@@ -41,5 +41,25 @@ const viteConfig = defineViteConfig(() => ({
 				return null;
 			},
 		},
+		{
+			name: 'virtual-wasm-feature-detect',
+			resolveId(id) {
+				if (id === 'virtual:wasm-feature-detect') return id;
+				return null;
+			},
+			load(id) {
+				if (id === 'virtual:wasm-feature-detect') {
+					return `export async function jspi() {
+							return Cypress.env()['JSPI'] ?? false;
+						}`;
+				}
+				return null;
+			},
+		},
 	],
+	resolve: {
+		alias: {
+			'wasm-feature-detect': 'virtual:wasm-feature-detect',
+		},
+	},
 }));

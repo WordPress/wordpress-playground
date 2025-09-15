@@ -119,6 +119,18 @@
 				"testingType": "e2e",
 				"devServerTarget": "php-wasm-web:dev",
 				"browser": "chrome"
+			},
+			"configurations": {
+				"jspi": {
+					"env": {
+						"JSPI": true
+					}
+				},
+				"asyncify": {
+					"env": {
+						"JSPI": false
+					}
+				}
 			}
 		},
 		"lint": {

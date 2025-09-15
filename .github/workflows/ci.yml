@@ -147,7 +147,7 @@ jobs:
             - name: Run limited test suite on Windows
               if: runner.os == 'Windows'
               run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
-    test-e2e-php-wasm-web:
+    test-e2e-php-wasm-web-jspi:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -155,7 +155,16 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: sudo ./node_modules/.bin/cypress install --force
-            - run: sudo npx nx e2e php-wasm-web --verbose
+            - run: sudo npx nx e2e php-wasm-web --configuration=jspi
+    test-e2e-php-wasm-web-asyncify:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo ./node_modules/.bin/cypress install --force
+            - run: sudo npx nx e2e php-wasm-web --configuration=asyncify
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
