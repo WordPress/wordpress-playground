@@ -37,4 +37,26 @@ describe(`PHP ${phpVersion}`, () => {
 			}
 		}
 	});
+
+	it('Should include required worker thread files in CLI package', () => {
+		// Verify that the Playground CLI package ships with the required worker thread files
+		const requiredFiles = ['worker-thread-v1.js', 'worker-thread-v2.js'];
+
+		for (const file of requiredFiles) {
+			try {
+				// Try to resolve the file from the CLI package
+				const resolvedPath = require.resolve(
+					`@wp-playground/cli/${file}`
+				);
+				assert.ok(
+					resolvedPath,
+					`${file} should be resolvable from CLI package`
+				);
+			} catch (error) {
+				assert.fail(
+					`Required file ${file} is missing from CLI package: ${error.message}`
+				);
+			}
+		}
+	});
 });

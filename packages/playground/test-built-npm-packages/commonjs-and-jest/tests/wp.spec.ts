@@ -27,4 +27,15 @@ SupportedPHPVersions.filter(
 			}
 		}, 30000);
 	});
+
+	it('Should include required worker thread files in CLI package', () => {
+		// Verify that the Playground CLI package ships with the required worker thread files
+		const requiredFiles = ['worker-thread-v1.cjs', 'worker-thread-v2.cjs'];
+
+		for (const file of requiredFiles) {
+			// Try to resolve the file from the CLI package
+			const resolvedPath = require.resolve(`@wp-playground/cli/${file}`);
+			expect(resolvedPath).toBeTruthy();
+		}
+	});
 });
