@@ -1,6 +1,10 @@
 import dependencyFilename from './7_3_33/php_7_3.wasm'; 
 export { dependencyFilename }; 
+<<<<<<< HEAD
 export const dependenciesTotalSize = 15607355; 
+=======
+export const dependenciesTotalSize = 15607362; 
+>>>>>>> 56222c10c (Add GD test in node and rebuild PHP.wasm node and web version below 8.0)
 const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
