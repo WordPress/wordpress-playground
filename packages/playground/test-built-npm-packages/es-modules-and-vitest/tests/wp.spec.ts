@@ -76,9 +76,9 @@ describe(`PHP ${phpVersion}`, () => {
 		// @TODO: Also verify this is wrapped in a new Worker() call.
 		const staticStrings = {
 			'worker-thread-v1.js':
-				'new URL("worker-thread-v1.js", import.meta.url)',
+				'new URL("./worker-thread-v1.js", import.meta.url)',
 			'worker-thread-v2.js':
-				'new URL("worker-thread-v2.js", import.meta.url)',
+				'new URL("./worker-thread-v2.js", import.meta.url)',
 		};
 		for (const file of Object.keys(staticStrings)) {
 			try {
