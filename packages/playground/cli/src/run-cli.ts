@@ -822,23 +822,14 @@ async function spawnWorkerThreads(
  * @returns
  */
 async function spawnWorkerThread(workerType: 'v1' | 'v2') {
-	/**
-	 * When running the CLI from source via `node cli.ts`, the Vite-provided
-	 * __WORKER_V1_URL__ and __WORKER_V2_URL__ are undefined. Let's set them to
-	 * the correct paths.
-	 */
-	if (typeof __WORKER_V1_URL__ === 'undefined') {
-		// @ts-expect-error
-		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
-	}
-	if (typeof __WORKER_V2_URL__ === 'undefined') {
-		// @ts-expect-error
-		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
-	}
 	if (workerType === 'v1') {
-		return new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+		return new Worker(
+			new URL('./blueprints-v1/worker-thread-v1.ts', import.meta.url)
+		);
 	} else {
-		return new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+		return new Worker(
+			new URL('./blueprints-v2/worker-thread-v2.ts', import.meta.url)
+		);
 	}
 }
 

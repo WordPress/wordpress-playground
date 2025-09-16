@@ -26,20 +26,45 @@
 			}
 		},
 		"build:bundle": {
-			"executor": "@nx/vite:build",
-			"outputs": ["{options.outputPath}"],
+			"executor": "nx:run-commands",
+			"outputs": ["dist/packages/playground/cli"],
 			"options": {
-				"main": "dist/packages/playground/cli/src/cli.js",
-				"outputPath": "dist/packages/playground/cli"
+				"commands": [
+					{
+						"command": "npx rsbuild build --config packages/playground/cli/rsbuild.config.ts --mode=production --environment=esm",
+						"forwardAllArgs": false
+					},
+					{
+						"command": "tsc -p packages/playground/cli/tsconfig.lib.json --declaration --emitDeclarationOnly --outDir dist/packages/playground/cli",
+						"forwardAllArgs": false
+					},
+					{
+						"command": "npx rsbuild build --config packages/playground/cli/rsbuild.config.ts --mode=production --environment=cjs",
+						"forwardAllArgs": false
+					}
+				],
+				"parallel": false
 			},
 			"defaultConfiguration": "production",
 			"configurations": {
 				"development": {
-					"minify": false
+					"commands": [
+						{
+							"command": "npx rsbuild build --config packages/playground/cli/rsbuild.config.ts --mode=development --environment=esm",
+							"forwardAllArgs": false
+						},
+						{
+							"command": "tsc -p packages/playground/cli/tsconfig.lib.json --declaration --emitDeclarationOnly --outDir dist/packages/playground/cli",
+							"forwardAllArgs": false
+						},
+						{
+							"command": "npx rsbuild build --config packages/playground/cli/rsbuild.config.ts --mode=development --environment=cjs",
+							"forwardAllArgs": false
+						}
+					],
+					"parallel": false
 				},
-				"production": {
-					"minify": true
-				}
+				"production": {}
 			}
 		},
 		"dev": {

@@ -109,6 +109,7 @@
 		"@nx/vite": "19.8.4",
 		"@nx/workspace": "19.8.4",
 		"@playwright/test": "1.47.1",
+		"@rsbuild/core": "^1.1.9",
 		"@types/ajv": "1.0.0",
 		"@types/file-saver": "^2.0.5",
 		"@types/fs-ext": "2.0.3",
