@@ -12,7 +12,6 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig(({ command }) => {
 	return {
-		assetsInclude: ['**/*.so'],
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
 		plugins: [
@@ -41,6 +40,18 @@ export default defineConfig(({ command }) => {
 
 				load(id: string): any {
 					if (id?.endsWith('.dat')) {
+						return {
+							code: 'export default {}',
+							map: null,
+						};
+					}
+				},
+			},
+			{
+				name: 'ignore-lib-imports',
+
+				load(id: string): any {
+					if (id?.endsWith('.so')) {
 						return {
 							code: 'export default {}',
 							map: null,

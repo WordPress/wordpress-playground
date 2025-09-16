@@ -7,6 +7,8 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import ignoreLibImports from '../ignore-lib-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreDataImports from '../ignore-data-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
@@ -49,7 +51,6 @@ export default defineConfig(({ command, mode }) => {
 				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	return {
-		assetsInclude: ['**/*.so'],
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
 		// already the same host, but dev builds run two separate servers. See proxy
@@ -98,6 +99,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
+			ignoreLibImports(),
 			ignoreDataImports(),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
