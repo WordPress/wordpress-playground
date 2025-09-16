@@ -828,14 +828,10 @@ async function spawnWorkerThread(workerType: 'v1' | 'v2') {
 	 * the correct paths.
 	 */
 	if (typeof __WORKER_V1_URL__ === 'undefined') {
-		// Need to split the __WORKER_V1_URL__ string in two parts to avoid Vite replacing
-		// it with a string literal.
 		// @ts-expect-error
 		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
 	}
 	if (typeof __WORKER_V2_URL__ === 'undefined') {
-		// Need to split the __WORKER_V2_URL__ string in two parts to avoid Vite replacing
-		// it with a string literal.
 		// @ts-expect-error
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
