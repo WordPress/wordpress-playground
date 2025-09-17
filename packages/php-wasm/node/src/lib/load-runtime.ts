@@ -161,7 +161,7 @@ export async function loadNodeRuntime(
 						 * as the mount point, we know there is a mount at that path.
 						 */
 						const isSymlinkMounted =
-							symlinkMountNode.mount.mountpoint !==
+							symlinkMountNode.mount.mountpoint ===
 							symlinkMountPath;
 
 						if (!isSymlinkMounted) {
