@@ -567,12 +567,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			for (const subdirName of userProvidableNativeSubdirs) {
 				const isMountingSubdirName = (mount: Mount) =>
 					mount.vfsPath === `/${subdirName}`;
-				const thisSubdirDoesNotHaveAMount = !(
+				const thisSubdirHasAMount =
 					args['mount-before-install']?.some(isMountingSubdirName) ||
-					args['mount']?.some(isMountingSubdirName)
-				);
-				if (thisSubdirDoesNotHaveAMount) {
-					// The user isn't already mounting a native dir for this,
+					args['mount']?.some(isMountingSubdirName);
+				if (!thisSubdirHasAMount) {
+					// The user hasn't requested mounting a different native dir for this path,
 					// so let's create a mount from within our native temp dir.
 					const nativeSubdirPath = path.join(
 						nativeDirPath,
