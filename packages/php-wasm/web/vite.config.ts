@@ -102,13 +102,13 @@ export default defineConfig(({ command }) => {
 					if (
 						command === 'build' &&
 						typeof specifier === 'string' &&
-						specifier.match(/icudt74l\.js$/)
+						specifier.match(/icudt74l\.dat$/)
 					) {
 						/**
-						 * The ../ is weird but necessary to make the final build say
-						 * import("./shared/icudt74l.js")
+						 * The ../../../ is weird but necessary to make the final build say
+						 * import("./shared/icudt74l.dat")
 						 * and not
-						 * import("shared/icudt74l.js")
+						 * import("shared/icudt74l.dat")
 						 *
 						 * The slice(-2) will ensure the 'public/`
 						 * portion is removed.
@@ -130,12 +130,12 @@ export default defineConfig(({ command }) => {
 						specifier.match(/intl\.so$/)
 					) {
 						/**
-						 * The ../ is weird but necessary to make the final build say
-						 * import("./shared/icudt74l.js")
+						 * The ../../../ is weird but necessary to make the final build say
+						 * import("./php/{mode}/extensions/intl/{php_version}/intl.so")
 						 * and not
-						 * import("shared/icudt74l.js")
+						 * import("php/{mode}/extensions/intl/{php_version}/intl.so")
 						 *
-						 * The slice(-2) will ensure the 'public/`
+						 * The slice(-6) will ensure the 'public/`
 						 * portion is removed.
 						 */
 						return (
@@ -165,18 +165,18 @@ export default defineConfig(({ command }) => {
 				// the preserve-php-loaders-imports plugin above.
 				external: [
 					/php_\d_\d.js$/,
-					/icudt74l.js$/,
+					/icudt74l.dat$/,
 					/intl.so$/,
 					...getExternalModules(),
 				],
 			},
 		},
 
-		server: {
-			hmr: false,
-			fs: {
-				allow: [path.resolve(import.meta.dirname, 'public')],
-			},
+		// TODO : move Vitest tests to Playwright tests inside test directory
+		test: {
+			globals: true,
+			environment: 'node',
+			reporters: ['default'],
 		},
 	};
 });

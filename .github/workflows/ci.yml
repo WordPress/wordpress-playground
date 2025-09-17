@@ -154,8 +154,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - run: sudo ./node_modules/.bin/cypress install --force
-            - run: sudo npx nx e2e php-wasm-web --configuration=jspi
+              run: sudo npx playwright install chrome
+            - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
     test-e2e-php-wasm-web-asyncify:
         runs-on: ubuntu-latest
         steps:
@@ -163,8 +163,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - run: sudo ./node_modules/.bin/cypress install --force
-            - run: sudo npx nx e2e php-wasm-web --configuration=asyncify
+            - run: sudo npx playwright install chrome
+            - run: sudo CI=true npx nx e2e php-wasm-web
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80

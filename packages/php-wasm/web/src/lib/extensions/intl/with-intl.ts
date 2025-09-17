@@ -16,8 +16,8 @@ export async function withIntl(
 
 	const dataName = 'icudt74l.dat';
 	// @ts-ignore
-	const dataPath = (await import('../../../../public/shared/icudt74l.js'))
-		.dataFilename;
+	const dataPath = (await import('../../../../public/shared/icudt74l.dat'))
+		.default;
 	const ICUData = await (await fetch(dataPath)).arrayBuffer();
 
 	return {
@@ -76,7 +76,6 @@ export async function withIntl(
 			 * via the ICU_DATA environment variable.
 			 * By default, this variable is set to '/internal/shared',
 			 * which corresponds to the actual file location.
-			 * The web version requires a `loaderOption` to load ICU data.
 			 */
 			if (
 				!FSHelpers.fileExists(

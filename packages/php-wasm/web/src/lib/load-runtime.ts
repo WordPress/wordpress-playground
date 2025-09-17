@@ -13,7 +13,6 @@ export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
-	withICU?: boolean;
 	withIntl?: boolean;
 }
 
@@ -59,7 +58,7 @@ export async function loadWebRuntime(
 		);
 	}
 
-	if (loaderOptions.withICU || loaderOptions.withIntl) {
+	if (loaderOptions.withIntl) {
 		emscriptenOptions = withIntl(phpVersion, emscriptenOptions);
 	}
 

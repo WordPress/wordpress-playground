@@ -2,14 +2,22 @@
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
 		"outDir": "../../dist/out-tsc",
-		"types": ["cypress", "node"],
+		"types": [
+			"playwright",
+			"vitest/globals",
+			"vitest/importMeta",
+			"vite/client",
+			"node"
+		],
 		"sourceMap": false
 	},
 	"include": [
-		"cypress.config.ts",
-		"src/**/*.cy.ts",
-		"src/**/*.cy.tsx",
-		"src/**/*.cy.js",
-		"src/**/*.cy.jsx"
+		"playwright.config.ts",
+		"vite.playwright.config.ts",
+		"src/**/*.spec.ts",
+		"src/**/*.spec.tsx",
+		"src/**/*.spec.js",
+		"src/**/*.spec.jsx",
+		"src/**/*.d.ts"
 	]
 }

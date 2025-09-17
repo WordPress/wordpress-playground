@@ -34,10 +34,17 @@
 				"outputPath": "dist/packages/php-wasm/web"
 			}
 		},
+		"build:playwright": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"configFile": "packages/php-wasm/web/vite.playwright.config.ts"
+			}
+		},
 		"dev": {
 			"executor": "@nx/vite:dev-server",
 			"options": {
-				"buildTarget": "php-wasm-web:build:bundle"
+				"buildTarget": "php-wasm-web:build:playwright"
 			}
 		},
 		"recompile-php:all": {
@@ -112,25 +119,24 @@
 			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",
 			"dependsOn": ["build"]
 		},
-		"e2e": {
-			"executor": "@nx/cypress:cypress",
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/web"],
 			"options": {
-				"cypressConfig": "packages/php-wasm/web/cypress.config.ts",
-				"testingType": "e2e",
-				"devServerTarget": "php-wasm-web:dev",
-				"browser": "chrome"
-			},
-			"configurations": {
-				"jspi": {
-					"env": {
-						"JSPI": true
-					}
-				},
-				"asyncify": {
-					"env": {
-						"JSPI": false
-					}
-				}
+				"reportsDirectory": "../../coverage/packages/php-wasm/web",
+				"testFiles": [
+					"prf.spec.ts",
+					"certificates.spec.ts",
+					"tcp-over-fetch-websocket.spec.ts"
+				]
+			}
+		},
+		"e2e": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/php-wasm/web/playwright.config.ts"
+				]
 			}
 		},
 		"lint": {
