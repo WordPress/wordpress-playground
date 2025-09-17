@@ -345,7 +345,6 @@ describe.each(blueprintVersions)(
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 		// TODO: Test resolving relative symlinks within a mounted dir with and without follow-symlinks
 
-		// @TODO: Also test with Blueprints v2.
 		describe('auto-mount', () => {
 			const getDirectoryChecksum = async (dir: string) => {
 				const hash = createHash('sha256');
