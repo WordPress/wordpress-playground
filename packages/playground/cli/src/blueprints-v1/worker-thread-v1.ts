@@ -212,6 +212,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
 
+			// The primary PHP instance is persistent, so we need to apply
+			// post-install mounts now that WordPress has been booted.
+			// All secondary PHP instances created after WP boot will get
+			// these mounts automatically.
 			await mountResources(primaryPhp, mountsAfterWpInstall);
 
 			setApiReady();
