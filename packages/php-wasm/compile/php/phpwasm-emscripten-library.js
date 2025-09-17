@@ -44,7 +44,7 @@ const LibraryExample = {
 			// single PHP process.
 			FS.mkdir('/request');
 			// The /internal directory is shared amongst all PHP processes
-			// and contains wp-config.php, constants, etc.
+			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
 
 			if (phpWasmInitOptions?.nativeInternalDirPath) {
