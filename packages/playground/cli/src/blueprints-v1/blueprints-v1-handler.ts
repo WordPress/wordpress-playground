@@ -18,10 +18,13 @@ import {
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
-// @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import { LogVerbosity, type RunCLIArgs, type SpawnedWorker } from '../run-cli';
+import {
+	LogVerbosity,
+	type RunCLIArgs,
+	type SpawnedWorker,
+	type WorkerType,
+} from '../run-cli';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -49,20 +52,8 @@ export class BlueprintsV1Handler {
 		this.processIdSpaceLength = options.processIdSpaceLength;
 	}
 
-	getWorkerUrl() {
-		if (
-			process.env['VITEST'] &&
-			importedWorkerV1UrlString.startsWith('/src/')
-		) {
-			// Work around issue where Vitest cannot find the worker script.
-			return path.join(
-				import.meta.dirname,
-				'..',
-				'..',
-				importedWorkerV1UrlString
-			);
-		}
-		return importedWorkerV1UrlString;
+	getWorkerType(): WorkerType {
+		return 'v1';
 	}
 
 	async bootPrimaryWorker(
