@@ -1360,23 +1360,6 @@ export class PHP implements Disposable {
 			this.setSapiName(this.#sapiName);
 		}
 
-		const getNodeType = (
-			fs: Emscripten.FileSystemInstance,
-			path: string
-		) => {
-			try {
-				const target = fs.lookupPath(path, { follow: true });
-				return 'contents' in target.node
-					? 'memfs'
-					: /**
-					   * Could be NODEFS, PROXYFS, etc.
-					   */
-					  'not-memfs';
-			} catch {
-				return 'missing';
-			}
-		};
-
 		/**
 		 * Ensure the new PHP instance has the same file structure as the old one.
 		 *
@@ -1387,11 +1370,9 @@ export class PHP implements Disposable {
 		 */
 		const newFs = this[__private__dont__use].FS;
 		for (const path of oldRootLevelPaths) {
-			if (
-				path &&
-				getNodeType(oldFS, path) === 'memfs' &&
-				['memfs', 'missing'].includes(getNodeType(newFs, path))
-			) {
+			// The /request directory holds per-request state that is isolated to a
+			// single PHP instance. Let's not copy it.
+			if (path && path !== '/request') {
 				copyMEMFSNodes(oldFS, newFs, path);
 			}
 		}
@@ -1539,33 +1520,14 @@ function copyMEMFSNodes(
 	target: Emscripten.FileSystemInstance,
 	path: string
 ) {
-	let oldNode;
-	try {
-		oldNode = source.lookupPath(path);
-	} catch {
-		return;
-	}
-	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
-	// We only want to copy MEMFS nodes here.
-	if (!('contents' in oldNode.node)) {
+	if (
+		getNodeType(source, path) !== 'memfs' ||
+		!['memfs', 'missing'].includes(getNodeType(target, path))
+	) {
 		return;
 	}
 
-	// Let's be extra careful and only proceed if newFs doesn't
-	// already have a node at the given path.
-	try {
-		// @TODO: Figure out the right thing to do. In Parent -> child PHP case,
-		//        we indeed want to synchronize the entire filesystem. However,
-		//        this approach seems slow and inefficient. Instead of exhaustively
-		//        iterating, could we just mark directories as dirty on write? And
-		//        how do we sync in both directions?
-		// target = target.lookupPath(path);
-		// return;
-	} catch {
-		// There's no such node in the new FS. Good,
-		// we may proceed.
-	}
-
+	const oldNode = source.lookupPath(path);
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;
@@ -1610,3 +1572,17 @@ async function createInvertedReadableStream<T = BufferSource>(
 		controller,
 	};
 }
+
+const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {
+	try {
+		const target = fs.lookupPath(path, { follow: true });
+		return 'contents' in target.node
+			? 'memfs'
+			: /**
+			   * Could be NODEFS, PROXYFS, etc.
+			   */
+			  'not-memfs';
+	} catch {
+		return 'missing';
+	}
+};
