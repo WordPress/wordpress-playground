@@ -22,7 +22,6 @@ import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 } from './wasm-error-reporting';
-import { isPathToSharedFS } from './proxy-file-system';
 
 const STRING = 'string';
 const NUMBER = 'number';
