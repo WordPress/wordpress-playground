@@ -160,38 +160,36 @@ export class PHPProcessManager implements AsyncDisposable {
 			await this.getPrimaryPhp();
 		}
 
-		let spawnedPhp: SpawnedPHP;
-
 		if (this.primaryIdle && considerPrimary) {
 			this.primaryIdle = false;
-			spawnedPhp = {
+			return {
 				php: await this.getPrimaryPhp(),
 				reap: () => {
 					this.primaryIdle = true;
 				},
 			};
-		} else {
-			/**
-			 * nextInstance is null:
-			 *
-			 * * Before the first concurrent getInstance() call
-			 * * When the last getInstance() call did not have enough
-			 *   budget left to optimistically start spawning the next
-			 *   instance.
-			 */
-			spawnedPhp = await (this.nextInstance ||
-				this.spawn({ isPrimary: false }));
+		}
 
-			/**
-			 * Start spawning the next instance if there's still room. We can't
-			 * just always spawn the next instance because spawn() can fail
-			 * asynchronously and then we'll get an unhandled promise rejection.
-			 */
-			if (this.semaphore.remaining > 0) {
-				this.nextInstance = this.spawn({ isPrimary: false });
-			} else {
-				this.nextInstance = null;
-			}
+		/**
+		 * nextInstance is null:
+		 *
+		 * * Before the first concurrent getInstance() call
+		 * * When the last getInstance() call did not have enough
+		 *   budget left to optimistically start spawning the next
+		 *   instance.
+		 */
+		const spawnedPhp =
+			this.nextInstance || this.spawn({ isPrimary: false });
+
+		/**
+		 * Start spawning the next instance if there's still room. We can't
+		 * just always spawn the next instance because spawn() can fail
+		 * asynchronously and then we'll get an unhandled promise rejection.
+		 */
+		if (this.semaphore.remaining > 0) {
+			this.nextInstance = this.spawn({ isPrimary: false });
+		} else {
+			this.nextInstance = null;
 		}
 		return await spawnedPhp;
 	}
